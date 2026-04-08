@@ -31,6 +31,7 @@ class BkCollectorComp:
         "json": CONFIG_MAP_REPORT_V2_TPL_NAME,
         "prometheus": CONFIG_MAP_APPLICATION_TPL_NAME,
         "log": CONFIG_MAP_APPLICATION_TPL_NAME,
+        "manual": CONFIG_MAP_APPLICATION_TPL_NAME,
     }
 
     # Secrets 配置
@@ -64,6 +65,12 @@ class BkCollectorComp:
             "secret_data_key_tpl": "application-{}.conf",
             "secret_hash_ring_bucket_count": 50,  # 这个数值不能随意变动，如需变更，需先清理所有log的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=custom_log",
+        },
+        "manual": {
+            "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-manual-{}-{}",
+            "secret_data_key_tpl": "{}.conf",
+            "secret_hash_ring_bucket_count": 20,  # 这个数值不能随意变动
+            "secret_extra_label": "type=subconfig,source=manual",
         },
     }
     SECRET_COMMON_LABELS = "component=bk-collector,template=false"

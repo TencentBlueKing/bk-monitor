@@ -258,6 +258,7 @@ export default defineComponent({
               clearable={false}
               filterOption={this.applicationFilter}
               modelValue={this.store.appName}
+              search-placeholder={this.t('请输入 关键字')}
               filterable
               onSelect={this.handleApplicationChange}
               onToggle={this.handleApplicationToggle}

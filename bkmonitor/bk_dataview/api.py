@@ -313,6 +313,7 @@ def sync_dashboard_permission(
             user_role = Role.objects.get(org_id=org_id, name=f"managed:users:{user_id}:permissions")
 
     # 获取存量用户仪表盘权限
+    # 查询用户当前拥有的所有仪表盘权限
     dashboard_actions, _ = _get_user_dashboard_actions(org_id, user_id, ignore_org_role=True)
     exists_dashboard_permissions = set()
     for uid, actions in dashboard_actions.items():
@@ -335,6 +336,7 @@ def sync_dashboard_permission(
         for action in DashboardPermissionActions[permission]:
             expected_dashboard_permissions.add((uid, action))
 
+    # 需要新增的权限 = 期望权限 - 存量权限
     need_create_objs = []
     for uid, action in expected_dashboard_permissions - exists_dashboard_permissions:
         need_create_objs.append(
@@ -355,6 +357,7 @@ def sync_dashboard_permission(
             )
         )
 
+    # 将变动的权限批量写入数据库
     if need_create_objs:
         Permission.objects.bulk_create(need_create_objs, batch_size=200)
     if need_delete_query:

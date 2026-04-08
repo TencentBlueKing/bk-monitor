@@ -197,3 +197,12 @@ class QuerystringGenerateCommandHandler(CommandHandler):
 ## 当前时间
 {{ current_datetime }}
         """
+
+
+@local_command_handler("querystring_generate_json")
+class QuerystringGenerateJSONCommandHandler(QuerystringGenerateCommandHandler):
+    """
+    生成查询语句命令处理器 (JSON结构化版本)
+    """
+
+    pass

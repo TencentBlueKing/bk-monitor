@@ -16,6 +16,8 @@ import operator
 import time
 from datetime import datetime
 from functools import reduce
+from typing import Any
+from collections.abc import Iterable
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
@@ -26,6 +28,7 @@ from rest_framework import serializers
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_ci_space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import (
     BCSBase,
     BCSCluster,
@@ -58,7 +61,6 @@ from bkmonitor.utils.kubernetes import (
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.event import EventTypeNormal, EventTypeWarning
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.constants import (
@@ -70,6 +72,11 @@ from monitor_web.constants import (
     OVERVIEW_ICON,
 )
 from monitor_web.scene_view.resources.serializers import KubernetesListRequestSerializer
+from monitor_web.data_explorer.event import (
+    utils as event_utils,
+    resources as event_resources,
+    constants as event_constants,
+)
 
 logger = logging.getLogger("kubernetes")
 
@@ -1699,11 +1706,11 @@ class GetKubernetesClusterChoices(KubernetesResource):
         if bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             cluster_id_list = []
-            clusters = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid})
+            clusters = self.get_cluster_by_space_uid(space_uid)
             for cluster_id in clusters:
-                if clusters[cluster_id].get("namespace_list"):
-                    # 共享集群暂时排除，后续针对共享集群进行二次处理
-                    continue
+                # if clusters[cluster_id].get("namespace_list"):
+                #     # 共享集群暂时排除，后续针对共享集群进行二次处理
+                #     continue
                 cluster_id_list.append(cluster_id)
             cluster_list = BCSCluster.objects.filter(bcs_cluster_id__in=cluster_id_list).values(
                 "bcs_cluster_id", "name"
@@ -2494,7 +2501,35 @@ class GetKubernetesWorkloadStatusList(Resource):
         ]
 
 
+class KubernetesEventHelper:
+    @classmethod
+    def get_table(cls, bcs_cluster_id: str | None) -> str | None:
+        if bcs_cluster_id:
+            return event_utils.get_cluster_table_map((bcs_cluster_id,)).get(bcs_cluster_id)
+        return None
+
+    @classmethod
+    def q(cls, table: str) -> QueryConfigBuilder:
+        return QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.CUSTOM)).table(table)
+
+    @classmethod
+    def qs(cls, bk_biz_id: int, start_time: int, end_time: int) -> UnifyQuerySet:
+        return UnifyQuerySet().scope(bk_biz_id).time_align(False).start_time(start_time).end_time(end_time)
+
+    @classmethod
+    def url(cls, bk_biz_id: int, table: str, filter_dict: dict[str, list[str]]) -> str:
+        query_config: dict[str, Any] = {
+            "result_table_id": table,
+            "data_source_label": DataSourceLabel.CUSTOM,
+            "data_type_label": DataTypeLabel.EVENT,
+            "where": [{"key": key, "method": "eq", "value": value} for key, value in filter_dict.items()],
+        }
+        return f"?bizId={bk_biz_id}#/event-retrieval?queryConfig={json.dumps(query_config)}"
+
+
 class GetKubernetesEvents(ApiAuthResource):
+    HELPER = KubernetesEventHelper
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bcs_cluster_id = serializers.CharField(
@@ -2564,49 +2599,66 @@ class GetKubernetesEvents(ApiAuthResource):
         ]
 
     @classmethod
-    def get_chart_data(cls, data: list) -> dict:
-        return {
-            "metrics": [
-                {
-                    "data_type_label": "k8s",
-                    "data_source_label": "event",
-                    "metric_field": "result",
-                }
-            ],
-            "series": data,
-        }
+    def get_chart_data(cls, q: QueryConfigBuilder, qs: UnifyQuerySet) -> dict:
+        result: dict[str, Any] = event_resources.EventTimeSeriesResource().request(
+            qs.add_query(q.group_by("kind").metric(field="_index", method="SUM", alias="a")).config
+        )
+
+        for series in result.get("series", []):
+            series["stack"] = "all"
+
+        return result
 
     @classmethod
-    def get_table_data(cls, data: dict) -> dict:
-        if not data:
+    def get_table_data(cls, q: QueryConfigBuilder, qs: UnifyQuerySet, limit: int, offset: int) -> dict:
+        req_data: dict[str, Any] = qs.add_query(q).config
+        events: list[dict[str, Any]] = (
+            event_resources.EventLogsResource().request({**req_data, "limit": limit, "offset": offset}).get("list", [])
+        )
+
+        if not events:
             return {"columns": cls.get_columns(), "data": [], "total": 0}
-        result = []
-        for item in data["list"]:
-            source = item["_source"]
-            dimensions = source["dimensions"]
-            kind = dimensions["kind"]
-            namespace = dimensions["namespace"]
-            name = dimensions["name"]
+
+        result: list[dict[str, Any]] = []
+        for item in events:
+            origin_data: dict[str, Any] = item.get("origin_data", {})
+            kind: str = origin_data.get("dimensions.kind", "")
+            namespace: str = origin_data.get("dimensions.namespace", "")
+            name: str = origin_data.get("dimensions.name", "")
             result.append(
                 {
-                    "data": item,
+                    "data": origin_data,
                     "kind": kind,
                     "namespace/name": f"{namespace}/{name}",
-                    "event_name": source["event_name"],
-                    "count": source["event"]["count"],
-                    "time": datetime.fromtimestamp(int(source["time"]) / 1000).strftime("%Y-%m-%d %H:%M:%S"),
+                    "event_name": origin_data.get("event_name", ""),
+                    "count": origin_data.get("event.count", 0),
+                    "time": datetime.fromtimestamp(int(origin_data["time"]) / 1000).strftime("%Y-%m-%d %H:%M:%S"),
                 }
             )
 
-        return {"columns": cls.get_columns(), "data": result, "total": data["total"]}
+        return {
+            "columns": cls.get_columns(),
+            "data": result,
+            "total": event_resources.EventTotalResource().request(req_data).get("total", 0),
+        }
 
     def perform_request(self, params):
-        data = api.kubernetes.fetch_k8s_event_list(params)
+        table: str | None = self.HELPER.get_table(params.get("bcs_cluster_id"))
+        if not table:
+            return {}
+
+        q: QueryConfigBuilder = self.HELPER.q(table)
+        for field in ("namespace", "kind", "name"):
+            if params.get(field):
+                q = q.filter(**{field: params[field]})
+
+        qs: UnifyQuerySet = self.HELPER.qs(params["bk_biz_id"], params["start_time"], params["end_time"])
+
         data_type = params.get("data_type")
         if data_type == "chart":
-            return self.get_chart_data(data)
+            return self.get_chart_data(q, qs)
 
-        return self.get_table_data(data)
+        return self.get_table_data(q, qs, params["limit"], params["offset"])
 
 
 class GetKubernetesNetworkTimeSeries(Resource):
@@ -2897,7 +2949,11 @@ class GetKubernetesPreAllocatableUsageRatio(Resource):
 
 
 class GetKubernetesEventCountByType(Resource):
-    """根据事件类型统计事件的数量 ."""
+    """根据事件类型统计事件的数量
+    TODO(crayon) 旧版容器监控下线后，可移除代码，请不要再引用此逻辑。
+    """
+
+    HELPER = KubernetesEventHelper
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -2906,95 +2962,51 @@ class GetKubernetesEventCountByType(Resource):
         end_time = serializers.IntegerField(required=True, label="结束时间（秒）")
 
     @classmethod
-    def aggregate_by_event_type(cls, params):
-        """按事件类型聚合 ."""
-        bk_biz_id = params["bk_biz_id"]
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        start_time = params["start_time"]
-        end_time = params["end_time"]
-        # 设置按事件类型过滤，仅包含正常和警告
-        where = [{"key": "type", "method": "eq", "value": [EventTypeNormal, EventTypeWarning]}]
-        # 设置按事件类型聚合
-        group_by = "dimensions.type"
-        # 设置聚合函数，计算每种事件类型的数量
-        select = f"count({group_by}) as {group_by}"
-        # 设置为聚合操作
-        limit = 0
-        # 根据事件类型聚合
-        es_params = {
-            "bk_biz_id": bk_biz_id,
-            "start_time": start_time,
-            "end_time": end_time,
-            "where": where,
-            "bcs_cluster_id": bcs_cluster_id,
-            "limit": limit,
-            "select": [select],
-            "group_by": [group_by],
-        }
-        event_result = api.kubernetes.fetch_k8s_event_log(es_params)
-        return event_result
-
-    @classmethod
-    def to_ratio_ring_graph(cls, params, event_result):
-        bk_biz_id = params["bk_biz_id"]
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        # 获得事件 result_table_id
-        result_table_id = api.kubernetes.fetch_k8s_event_table_id({"bcs_cluster_id": bcs_cluster_id})
-        data = []
-        group_by = "dimensions.type"
-        buckets = event_result.get("aggregations", {}).get(group_by, {}).get("buckets", [])
-        for bucket in buckets:
-            event_type = bucket["key"]
-            query_config = {
-                "result_table_id": result_table_id,
-                "data_source_label": "custom",
-                "data_type_label": "event",
-                "where": [{"key": "type", "method": "eq", "value": [event_type]}],
-            }
-            url = f"?bizId={bk_biz_id}#/event-retrieval?queryConfig={json.dumps(query_config)}"
-
-            if event_type == "Warning":
-                value = bucket["doc_count"]
-                data.append(
-                    {
-                        "name": "Warning",
-                        "value": value,
-                        "color": "#e89e42",
-                        "borderColor": "#e89e42",
-                        "link": {"target": "blank", "url": url},
-                    }
-                )
-            elif event_type == "Normal":
-                value = bucket["doc_count"]
-                data.append(
-                    {
-                        "name": "Normal",
-                        "value": value,
-                        "color": "#2dcb56",
-                        "borderColor": "#2dcb56",
-                        "link": {"target": "blank", "url": url},
-                    }
-                )
-        name = _("事件数量")
-
-        return {
-            "name": name,
-            "data": data,
-        }
+    def _count(cls, q: QueryConfigBuilder, qs: UnifyQuerySet, event: str) -> dict[str, Any]:
+        result: dict[str, int] = event_resources.EventTotalResource().request(qs.add_query(q.filter(type=event)).config)
+        return {"name": event, "value": result["total"]}
 
     def perform_request(self, params):
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        if not bcs_cluster_id:
-            return {"name": _("事件数量"), "data": []}
-        # 根据事件类型聚合
-        event_result = self.aggregate_by_event_type(params)
-        # 将结果转换ratio-ring类型的图表数据格式
-        data = self.to_ratio_ring_graph(params, event_result)
+        data: dict[str, Any] = {"name": _("事件数量"), "data": []}
+        table: str | None = self.HELPER.get_table(params.get("bcs_cluster_id"))
+        if not table:
+            return data
+
+        bk_biz_id: int = params["bk_biz_id"]
+        q: QueryConfigBuilder = self.HELPER.q(table)
+        qs: UnifyQuerySet = self.HELPER.qs(bk_biz_id, params["start_time"], params["end_time"])
+
+        pool = ThreadPool(2)
+        info_iter: Iterable[dict[str, Any]] = pool.imap(
+            lambda _event_type: self._count(q, qs, _event_type),
+            [event_constants.EventType.Normal.value, event_constants.EventType.Warning.value],
+        )
+        pool.close()
+
+        color_map: dict[str, str] = {
+            event_constants.EventType.Normal.value: "#2dcb56",
+            event_constants.EventType.Warning.value: "#e89e42",
+        }
+        for info in info_iter:
+            event_type: str = info["name"]
+            info.update(
+                {
+                    "color": color_map[event_type],
+                    "borderColor": color_map[event_type],
+                    "link": {"target": "blank", "url": self.HELPER.url(bk_biz_id, table, {"type": [event_type]})},
+                }
+            )
+            data["data"].append(info)
+
         return data
 
 
 class GetKubernetesEventCountByEventName(Resource):
-    """根据事件名称统计事件的数量 ."""
+    """根据事件名称统计事件的数量 .
+    TODO(crayon) 旧版容器监控下线后，可移除代码，请不要再引用此逻辑。
+    """
+
+    HELPER = KubernetesEventHelper
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -3015,11 +3027,18 @@ class GetKubernetesEventCountByEventName(Resource):
         )
         top_n = serializers.IntegerField(required=False, label="前几名", min_value=1, default=10)
 
-    def to_graph(cls, params: dict, event_result: dict) -> list | dict:
+        table = serializers.CharField(required=False, label="事件结果表")
+
+        def validate(self, attrs: dict[str, Any]):
+            table: str | None = GetKubernetesEventCountByEventName.HELPER.get_table(attrs.get("bcs_cluster_id"))
+            if table:
+                attrs["table"] = table
+            return attrs
+
+    @classmethod
+    def to_graph(cls, params: dict, buckets: list[dict[str, Any]]) -> list | dict:
         data_type = params["data_type"]
         top_n = params["top_n"]
-        group_by = "event_name"
-        buckets = event_result.get("aggregations", {}).get(group_by, {}).get("buckets", [])
         data = {}
         if data_type == GRAPH_RATIO_RING:
             data = cls.to_ratio_ring_graph(params, buckets, top_n)
@@ -3035,45 +3054,30 @@ class GetKubernetesEventCountByEventName(Resource):
 
     @classmethod
     def to_ratio_ring_graph(cls, params: dict, buckets: list, top_n: int) -> dict:
-        bcs_cluster_id = params.get("bcs_cluster_id")
         name = _("事件分布")
-        if not bcs_cluster_id:
-            return {
-                "name": name,
-                "data": [],
-            }
+        table: str | None = params.get("table")
+        if not table or not buckets:
+            return {"name": name, "data": []}
+
         bk_biz_id = params["bk_biz_id"]
-        # 获得事件 result_table_id
-        result_table_id = api.kubernetes.fetch_k8s_event_table_id({"bcs_cluster_id": bcs_cluster_id})
-        graph_data = []
+        graph_data: list[dict[str, Any]] = []
         for bucket in buckets:
-            event_name = bucket["key"]
-            event_count = bucket["doc_count"]
-            query_config = {
-                "result_table_id": result_table_id,
-                "data_source_label": "custom",
-                "data_type_label": "event",
-                "where": [{"key": "event_name", "method": "eq", "value": [event_name]}],
-            }
-            url = f"?bizId={bk_biz_id}#/event-retrieval?queryConfig={json.dumps(query_config)}"
             graph_data.append(
                 {
-                    "name": event_name,
-                    "value": event_count,
-                    "link": {"target": "blank", "url": url},
+                    "name": bucket["key"],
+                    "value": bucket["doc_count"],
+                    "link": {
+                        "target": "blank",
+                        "url": cls.HELPER.url(bk_biz_id, table, {"event_name": [bucket["key"]]}),
+                    },
                 }
             )
-        graph_data = graph_data[:top_n]
-        name = _("事件分布")
-        data = {
-            "name": name,
-            "data": graph_data,
-        }
-        return data
+
+        return {"name": name, "data": graph_data}
 
     @classmethod
     def to_percentage_bar_graph(cls, buckets: list, top_n: int) -> dict:
-        graph_data = []
+        graph_data: list[dict[str, Any]] = []
         if buckets:
             # 取最大值
             total = buckets[0]["doc_count"]
@@ -3098,105 +3102,66 @@ class GetKubernetesEventCountByEventName(Resource):
         return data
 
     @classmethod
-    def to_column_bar_graph(cls, params: dict, buckets: list, top_n: int) -> dict:
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        if not bcs_cluster_id:
+    def to_column_bar_graph(cls, params: dict, buckets: list, top_n: int) -> list[dict[str, Any]]:
+        table: str | None = params.get("table")
+        if not table or not buckets:
             return []
+
         bk_biz_id = params["bk_biz_id"]
-        # 获得事件 result_table_id
-        result_table_id = api.kubernetes.fetch_k8s_event_table_id({"bcs_cluster_id": bcs_cluster_id})
-
-        graph_data = []
-        if buckets:
-            for bucket in buckets:
-                event_name = bucket["key"]
-                event_count = bucket["doc_count"]
-                query_config = {
-                    "result_table_id": result_table_id,
-                    "data_source_label": "custom",
-                    "data_type_label": "event",
-                    "where": [{"key": "event_name", "method": "eq", "value": [event_name]}],
+        graph_data: list[dict[str, Any]] = []
+        for bucket in buckets:
+            graph_data.append(
+                {
+                    "name": bucket["key"],
+                    "value": bucket["doc_count"],
+                    "link": {
+                        "target": "blank",
+                        "url": cls.HELPER.url(bk_biz_id, table, {"event_name": [bucket["key"]]}),
+                    },
+                    "color": "#699df4",
                 }
-                url = f"?bizId={bk_biz_id}#/event-retrieval?queryConfig={json.dumps(query_config)}"
-                graph_data.append(
-                    {
-                        "name": event_name,
-                        "value": event_count,
-                        "link": {"target": "blank", "url": url},
-                        "color": "#699df4",
-                    }
-                )
+            )
 
-        graph_data = graph_data[:top_n]
         return graph_data
 
     @classmethod
-    def to_number_chart_graph(cls, buckets: list) -> list:
-        graph_data = []
+    def to_number_chart_graph(cls, buckets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        graph_data: list[dict[str, Any]] = []
         for bucket in buckets:
-            event_name = bucket["key"]
-            event_count = bucket["doc_count"]
-            graph_data.append(
-                {
-                    "label": event_name,
-                    "value": event_count,
-                }
-            )
+            graph_data.append({"label": bucket["key"], "value": bucket["doc_count"]})
         return graph_data
 
     @classmethod
-    def to_number_resource_graph(cls, params: dict, buckets: list) -> dict:
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        event_names = params["event_names"]
-        if not bcs_cluster_id:
-            return [
-                {
-                    "name": event_names[0],
-                    "value": 0,
-                }
-            ]
-        bk_biz_id = params["bk_biz_id"]
-        # 获得事件 result_table_id
-        result_table_id = api.kubernetes.fetch_k8s_event_table_id({"bcs_cluster_id": bcs_cluster_id})
+    def to_number_resource_graph(cls, params: dict, buckets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        table: str | None = params.get("table")
+        event_name: str = params["event_names"][0]
+        if not table:
+            return [{"name": event_name, "value": 0}]
 
-        graph_data = []
+        bk_biz_id: int = params["bk_biz_id"]
+        graph_data: list[dict[str, Any]] = []
         for bucket in buckets:
-            event_name = bucket["key"]
-            event_count = bucket["doc_count"]
-            query_config = {
-                "result_table_id": result_table_id,
-                "data_source_label": "custom",
-                "data_type_label": "event",
-                "where": [{"key": "event_name", "method": "eq", "value": [event_name]}],
-            }
-            url = f"?bizId={bk_biz_id}#/event-retrieval?queryConfig={json.dumps(query_config)}"
-
             graph_data.append(
                 {
-                    "name": event_name,
-                    "value": event_count,
-                    "link": {"target": "blank", "url": url},
+                    "name": bucket["key"],
+                    "value": bucket["doc_count"],
+                    "link": {
+                        "target": "blank",
+                        "url": cls.HELPER.url(bk_biz_id, table, {"event_name": [bucket["key"]]}),
+                    },
                 }
             )
-        if not graph_data:
-            event_name = event_names[0]
-            query_config = {
-                "result_table_id": result_table_id,
-                "data_source_label": "custom",
-                "data_type_label": "event",
-                "where": [{"key": "event_name", "method": "eq", "value": [event_name]}],
+
+        if graph_data:
+            return graph_data
+
+        return [
+            {
+                "name": event_name,
+                "value": 0,
+                "link": {"target": "blank", "url": cls.HELPER.url(bk_biz_id, table, {"event_name": [event_name]})},
             }
-            url = f"?bizId={bk_biz_id}#/event-retrieval?queryConfig={json.dumps(query_config)}"
-
-            graph_data = [
-                {
-                    "name": event_name,
-                    "value": 0,
-                    "link": {"target": "blank", "url": url},
-                }
-            ]
-
-        return graph_data
+        ]
 
     def validate_request_data(self, request_data):
         event_names = request_data.get("event_names", [])
@@ -3207,46 +3172,42 @@ class GetKubernetesEventCountByEventName(Resource):
         return super().validate_request_data(request_data)
 
     @classmethod
-    def aggregate_by_event_name(cls, params):
-        bk_biz_id = params["bk_biz_id"]
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        if not bcs_cluster_id:
-            return {}
-        start_time = params["start_time"]
-        end_time = params["end_time"]
-        # 设置按事件名称聚合
-        group_by = "event_name"
-        select = f"count({group_by}) as {group_by}"
-        where = [{"key": "type", "method": "eq", "value": [EventTypeNormal, EventTypeWarning]}]
-        event_names = params["event_names"]
-        if event_names:
-            where.append({"key": "event_name", "method": "eq", "value": event_names})
-        # 设置为聚合操作
-        limit = 0
-        es_params = {
-            "start_time": start_time,
-            "end_time": end_time,
-            "bcs_cluster_id": bcs_cluster_id,
-            "limit": limit,
-            "bk_biz_id": bk_biz_id,
-            "where": where,
-            "select": [select],
-            "group_by": [group_by],
-        }
-        # 根据事件类型聚合
-        event_result = api.kubernetes.fetch_k8s_event_log(es_params)
-        return event_result
+    def aggregate_by_event_name(cls, params) -> list[dict[str, Any]]:
+        table: str | None = params.get("table")
+        if not table:
+            return []
+
+        q: QueryConfigBuilder = cls.HELPER.q(table)
+        if params["event_names"]:
+            q = q.filter(event_name=params["event_names"])
+        qs: UnifyQuerySet = cls.HELPER.qs(params["bk_biz_id"], params["start_time"], params["end_time"]).add_query(q)
+
+        topk_list: list[dict[str, Any]] = event_resources.EventTopKResource().request(
+            {**qs.config, "fields": ["event_name"], "limit": params["top_n"]}
+        )
+        if not topk_list:
+            return []
+
+        buckets: list[dict[str, int]] = []
+        for bucket in topk_list[0].get("list", []):
+            buckets.append({"key": bucket["value"], "doc_count": bucket["count"]})
+
+        return buckets
 
     def perform_request(self, params):
         # 根据事件类型聚合
-        event_result = self.aggregate_by_event_name(params)
+        buckets: list[dict[str, Any]] = self.aggregate_by_event_name(params)
         # 将结果转换为图表数据
-        data = self.to_graph(params, event_result)
+        data = self.to_graph(params, buckets)
         return data
 
 
 class GetKubernetesEventCountByKind(Resource):
-    """根据事件名称统计事件的数量 ."""
+    """根据事件名称统计事件的数量
+    TODO(crayon) 旧版容器监控下线后，可移除代码，请不要再引用此逻辑。
+    """
+
+    HELPER = KubernetesEventHelper
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -3254,80 +3215,70 @@ class GetKubernetesEventCountByKind(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间（秒）")
         end_time = serializers.IntegerField(required=True, label="结束时间（秒）")
 
-    @classmethod
-    def aggregate_by_kind(cls, params):
-        bk_biz_id = params["bk_biz_id"]
-        bcs_cluster_id = params["bcs_cluster_id"]
-        start_time = params["start_time"]
-        end_time = params["end_time"]
-        where = [{"key": "type", "method": "eq", "value": [EventTypeNormal, EventTypeWarning]}]
-        group_by = "dimensions.kind"
-        select = f"count({group_by}) as {group_by}"
-        limit = 0
-        es_params = {
-            "start_time": start_time,
-            "end_time": end_time,
-            "bcs_cluster_id": bcs_cluster_id,
-            "limit": limit,
-            "bk_biz_id": bk_biz_id,
-            "where": where,
-            "select": [select],
-            "group_by": [group_by],
-        }
-        # 根据事件类型聚合
-        event_result = api.kubernetes.fetch_k8s_event_log(es_params)
-        return event_result
+        table = serializers.CharField(required=False, label="事件结果表")
+
+        def validate(self, attrs: dict[str, Any]):
+            table: str | None = GetKubernetesEventCountByEventName.HELPER.get_table(attrs.get("bcs_cluster_id"))
+            if table:
+                attrs["table"] = table
+            return attrs
 
     @classmethod
-    def to_graph(cls, params, event_result):
-        bk_biz_id = params["bk_biz_id"]
-        data = []
-        group_by = "dimensions.kind"
-        bcs_cluster_id = params["bcs_cluster_id"]
-        # 获得事件 result_table_id
-        result_table_id = api.kubernetes.fetch_k8s_event_table_id({"bcs_cluster_id": bcs_cluster_id})
+    def aggregate_by_kind(cls, params: dict[str, Any]) -> list[dict[str, Any]]:
+        table: str | None = params.get("table")
+        if not table:
+            return []
 
-        buckets = event_result.get("aggregations", {}).get(group_by, {}).get("buckets", [])
+        qs: UnifyQuerySet = cls.HELPER.qs(params["bk_biz_id"], params["start_time"], params["end_time"])
+        topk_list: list[dict[str, Any]] = event_resources.EventTopKResource().request(
+            {**qs.add_query(cls.HELPER.q(table)).config, "fields": ["kind"], "limit": 50}
+        )
+        if not topk_list:
+            return []
+
+        buckets: list[dict[str, int]] = []
+        for bucket in topk_list[0].get("list", []):
+            buckets.append({"key": bucket["value"], "doc_count": bucket["count"]})
+
+        return buckets
+
+    @classmethod
+    def to_graph(cls, params: dict[str, Any], buckets: list[dict[str, Any]]) -> dict:
+        name: str = _("事件类型")
+        if not buckets:
+            return {"name": name, "data": []}
+
+        graph_data: list[dict[str, Any]] = []
         for bucket in buckets:
-            event_name = bucket["key"]
-            event_count = bucket["doc_count"]
-            query_config = {
-                "result_table_id": result_table_id,
-                "data_source_label": "custom",
-                "data_type_label": "event",
-                "where": [{"key": "kind", "method": "eq", "value": [event_name]}],
-            }
-            url = f"?bizId={bk_biz_id}#/event-retrieval?queryConfig={json.dumps(query_config)}"
-            data.append(
+            graph_data.append(
                 {
-                    "name": event_name,
-                    "value": event_count,
-                    "link": {"target": "blank", "url": url},
+                    "name": bucket["key"],
+                    "value": bucket["doc_count"],
+                    "link": {
+                        "target": "blank",
+                        "url": cls.HELPER.url(params["bk_biz_id"], params["table"], {"kind": [bucket["key"]]}),
+                    },
                 }
             )
-        name = _("事件类型")
-
-        return {
-            "name": name,
-            "data": data,
-        }
+        return {"name": name, "data": graph_data}
 
     def perform_request(self, params):
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        if not bcs_cluster_id:
+        if not params.get("table"):
             return {}
+
         # 根据事件类型聚合
-        event_result = self.aggregate_by_kind(params)
+        buckets: list[dict[str, Any]] = self.aggregate_by_kind(params)
         # 将结果转换ratio-ring类型的图表数据格式
-        data = self.to_graph(params, event_result)
+        data = self.to_graph(params, buckets)
         return data
 
 
 class GetKubernetesEventTimeSeries(Resource):
-    """获得事件的按时间汇总数量 ."""
+    """获得事件的按时间汇总数量
+    TODO(crayon) 旧版容器监控下线后，可移除代码，请不要再引用此逻辑。
+    """
 
-    # 时间点的数量
-    DATA_POINTS_COUNT = 10
+    HELPER = KubernetesEventHelper
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -3339,108 +3290,30 @@ class GetKubernetesEventTimeSeries(Resource):
             required=False, choices=("current", "last_day", "last_week"), default="today"
         )
 
-    @classmethod
-    def format_time_series_records(cls, data_points: list, end_time: int, time_scope: str, interval: int) -> list:
-        """格式化时间点数据 ."""
-        # 转换为当前时间
-        if time_scope == "last_day":
-            end_time += 3600 * 24
-        elif time_scope == "last_week":
-            end_time += 3600 * 24 * 7
-        # 根据当前时间往前取n个时间点
-        range_end_time = end_time // interval * interval + interval
-        range_begin_time = range_end_time - interval * cls.DATA_POINTS_COUNT
-        time_range = range(range_begin_time, range_end_time, interval)
-        # 将点转换为字典格式
-        data_points_map = {time_value: event_count for event_count, time_value in data_points}
-        # 添加缺失的点
-        data = []
-        for time_value in time_range:
-            key = time_value * 1000
-            value = data_points_map.get(key, 0)
-            data.append([value, key])
-
-        return data
-
     def perform_request(self, params):
-        bk_biz_id = params["bk_biz_id"]
-        bcs_cluster_id = params.get("bcs_cluster_id")
-        if not bcs_cluster_id:
+        table: str | None = self.HELPER.get_table(params.get("bcs_cluster_id"))
+        if not table:
             return {}
-        start_time = params["start_time"]
-        end_time = params["end_time"]
-        duration = end_time - start_time
-        if duration <= 2 * 60 * 60:
-            interval = 60 * 5
-        elif duration > 2 * 60 * 60:
-            interval = 3600
-        elif duration > 2 * 24 * 60 * 60:
-            interval = 3600 * 24
-        else:
-            interval = 60
-        time_scope = params["time_scope"]
-        if time_scope == "last_day":
-            start_time -= 3600 * 24
-            end_time -= 3600 * 24
-        elif time_scope == "last_week":
-            start_time -= 3600 * 24 * 7
-            end_time -= 3600 * 24 * 7
 
-        event_type = params.get("event_type")
-        group_by = "dimensions.type"
-        select = f"count({group_by}) as {group_by}"
-        params = {
-            "bk_biz_id": bk_biz_id,
-            "bcs_cluster_id": bcs_cluster_id,
-            "start_time": start_time,
-            "end_time": end_time,
-            "limit": 0,
-            "select": [select],
-            "group_by": [group_by, f"time({interval}s)"],
-        }
-        where = []
-        if event_type:
-            where.append({"key": "type", "method": "eq", "value": event_type})
-        if where:
-            params["where"] = where
+        event_type: str = params["event_type"]
+        q: QueryConfigBuilder = (
+            self.HELPER.q(table).metric(field="_index", method="SUM", alias="a").filter(type=event_type)
+        )
 
-        # 根据事件类型聚合
-        event_result = api.kubernetes.fetch_k8s_event_log(params)
+        time_shift: int = {"last_day": 3600 * 24, "last_week": 3600 * 24 * 7}.get(params["time_scope"], 0)
+        qs: UnifyQuerySet = self.HELPER.qs(
+            params["bk_biz_id"], params["start_time"] - time_shift, params["end_time"] - time_shift
+        )
+        result: dict[str, Any] = event_resources.EventTimeSeriesResource().request(qs.add_query(q).config)
+        for series in result.get("series", []):
+            processed_datapoints: list[tuple[int, int]] = []
+            for value, timestamp in series.get("datapoints", []):
+                processed_datapoints.append((value, timestamp + time_shift * 1000))
 
-        # 格式化为图表格式
-        data_points = []
-        buckets = event_result.get("aggregations", {}).get(group_by, {}).get("buckets", [])
-        for bucket in buckets:
-            time_buckets = bucket.get("time", {}).get("buckets", [])
-            for time_bucket in time_buckets:
-                time_value = time_bucket["key"]
-                # 转换为毫秒
-                if time_scope == "last_day":
-                    time_value += 3600 * 24 * 1000
-                elif time_scope == "last_week":
-                    time_value += 3600 * 24 * 7 * 1000
-                event_count = time_bucket["doc_count"]
-                data_points.append([event_count, time_value])
-
-        # 添加缺失的点
-        data_points = self.format_time_series_records(data_points, end_time, time_scope, interval)
-
-        time_series = {
-            "series": [
-                {
-                    "dimensions": {},
-                    "target": event_type,
-                    "metric_field": "_result_",
-                    "datapoints": data_points,
-                    "alias": "_result_",
-                    "type": "line",
-                    "unit": "",
-                }
-            ],
-            "metrics": [],
-        }
-
-        return time_series
+            series["datapoints"] = processed_datapoints
+            series["target"] = event_type
+            series["type"] = "line"
+        return result
 
 
 class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):

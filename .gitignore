@@ -202,5 +202,14 @@ bkcodeai.json
 
 .cursor/
 
+.codebuddy
+
+.bkwikiairc
+
+# Git worktrees
+worktrees/
+
 ### PreCI ###
 .codecc
+
+.codebuddy

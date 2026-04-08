@@ -1185,6 +1185,43 @@ class GetDataLink(DataAccessAPIResource):
         name = serializers.CharField(label="资源名称")
 
 
+class ListDataLink(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    拉取计算平台数据链路列表
+    """
+
+    @property
+    def action(self):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return "v4/tenants/{bk_tenant_id}/namespaces/{namespace}/{kind}/"
+        return "v4/namespaces/{namespace}/{kind}/"
+
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
+        kind = serializers.CharField(required=True, label="资源类型")
+
+
+class DeleteDataLink(DataAccessAPIResource):
+    """删除数据链路"""
+
+    @property
+    def action(self):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return "/v4/tenants/{bk_tenant_id}/namespaces/{namespace}/{kind}/{name}/"
+        return "/v4/namespaces/{namespace}/{kind}/{name}/"
+
+    method = "DELETE"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        kind = serializers.CharField(label="资源类型")
+        namespace = serializers.CharField(label="命名空间")
+        name = serializers.CharField(label="资源名称")
+
+
 class NotifyLogDataIdChanged(DataAccessAPIResource):
     action = "/v4/tmp/notify_log_dataid_changed/"
     method = "PUT"
@@ -1459,25 +1496,6 @@ class TailKafkaData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
         limit = serializers.IntegerField(required=False, default=10, label="条数")
 
 
-class ListDataBusRawData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
-    """
-    拉取计算平台V4资源列表
-    """
-
-    @property
-    def action(self):
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return "v4/tenants/{bk_tenant_id}/namespaces/{namespace}/{kind}/"
-        return "v4/namespaces/{namespace}/{kind}/"
-
-    method = "GET"
-
-    class RequestSerializer(CommonRequestSerializer):
-        bk_tenant_id = serializers.CharField(label="租户ID")
-        namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
-        kind = serializers.CharField(required=True, label="资源类型")
-
-
 class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     """
     计算平台V4链路清洗调试接口
@@ -1489,4 +1507,4 @@ class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     class RequestSerializer(CommonRequestSerializer):
         input = serializers.CharField(required=True, label="输入数据")
         rules = serializers.ListField(required=True, label="清洗规则")
-        filter_rules = serializers.CharField(label="过滤规则", default="True")
+        filter_rules = serializers.ListField(label="过滤规则", default=[])

@@ -1,0 +1,52 @@
+.bk-date-picker {
+  width: 100%;
+}
+
+.import-user-content {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+
+  .bk-select {
+    margin-top: -14px;
+    transform: translateY(8px);
+  }
+}
+
+.bk-form-checkbox {
+  margin-right: 10px;
+}
+
+.bk-form {
+  .bk-label {
+    font-size: 12px;
+  }
+}
+
+.custom-label {
+  font-size: 12px;
+
+  .label {
+    &.required::after {
+      display: inline-block;
+      margin-left: 6px;
+      color: #ea3636;
+      content: '*';
+    }
+  }
+
+  .hint {
+    margin-left: 10px;
+    line-height: 20px;
+    color: #ff9c01;
+  }
+}
+
+.select-group {
+  width: 100%;
+  margin: 16px 0 12px 0;
+
+  .bk-button {
+    width: 50%;
+  }
+}

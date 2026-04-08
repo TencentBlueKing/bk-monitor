@@ -54,7 +54,10 @@ export default class TraceRetrieval extends tsc<object> {
   get traceData(): Vue3WewebData {
     return {
       host: this.traceHost,
-      baseroute: '/trace/',
+      parentRoute: '/trace/',
+      get enableAiAssistant() {
+        return aiWhaleStore.enableAiAssistant;
+      },
       setUnmountCallback: (callback: () => void) => {
         this.unmountCallback = callback;
       },
@@ -79,7 +82,7 @@ export default class TraceRetrieval extends tsc<object> {
     await loadApp({
       url: this.traceUrl,
       id: traceAppId,
-      setShodowDom: true,
+      setShadowDom: true,
       container: this.traceApp.shadowRoot,
       data: this.traceData,
       showSourceCode: false,

@@ -697,7 +697,7 @@ export default class SubscriptionsSet extends Vue {
   get wxworkBotTips() {
     const name = this.noticeWayList.find(item => item.type === 'wxwork-bot')?.name || '';
     return this.$t(
-      "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
+      '获取会话ID方法:<br/>1.群聊列表右上角...面板，点击消息推送，搜索：{name} 并添加进群<br/>2.手动 @{name}<br/>3.复制会话ID粘贴到输入框，多个ID使用逗号分隔',
       { name }
     );
   }
@@ -924,7 +924,7 @@ export default class SubscriptionsSet extends Vue {
    * @params column 列数据column
    * @params cellValue 值
    */
-  formatterColumn(row, column, cellValue) {
+  formatterColumn(_row, column, cellValue) {
     if (column.property === 'layout') return cellValue + this.$t('个/行');
     if (column.property === 'graphs') return cellValue.length;
     return cellValue;
@@ -1286,7 +1286,7 @@ export default class SubscriptionsSet extends Vue {
     padding: 22px 37px;
     background-color: #fff;
     border-radius: 2px;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 5%);
 
     .title-wrap {
       display: flex;
@@ -1440,6 +1440,7 @@ export default class SubscriptionsSet extends Vue {
           margin-bottom: 6px;
           line-height: 20px;
         }
+
         .user-selector-receiver {
           z-index: 1;
         }

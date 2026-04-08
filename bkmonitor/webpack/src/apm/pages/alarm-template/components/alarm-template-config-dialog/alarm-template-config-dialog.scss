@@ -1,4 +1,9 @@
 .alarm-template-config-dialog {
+  .bk-dialog-body {
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
   .alarm-template-dialog-wrap {
     font-size: 12px;
 

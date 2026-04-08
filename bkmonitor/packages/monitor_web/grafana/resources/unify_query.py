@@ -41,6 +41,7 @@ from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import (
     hms_string,
@@ -112,6 +113,7 @@ class TimeCompareProcessor:
                 limit=new_params["limit"],
                 slimit=new_params["slimit"],
                 down_sample_range=params["down_sample_range"],
+                not_time_align=params.get("not_time_align", False),
             )
 
             # 标记时间对比数据
@@ -210,17 +212,24 @@ class AddNullDataProcessor:
         else:
             null_threshold = 2 * interval
 
-        # 起止时间周期对齐
-        start_time = time_interval_align(params["start_time"], interval // 1000) * 1000
-        end_time = time_interval_align(params["end_time"], interval // 1000) * 1000
+        # 根据 not_time_align 参数决定是否进行时间对齐
+        not_time_align = params.get("not_time_align", False)
+        if not_time_align:
+            # 不对齐时间窗口，使用原始时间范围
+            start_time = params["start_time"] * 1000
+            end_time = params["end_time"] * 1000
+        else:
+            # 起止时间周期对齐
+            start_time = time_interval_align(params["start_time"], interval // 1000) * 1000
+            end_time = time_interval_align(params["end_time"], interval // 1000) * 1000
 
-        # 日志、事件场景在部分展示场景下不进行时间对齐，避免 drop 掉不完整周期的数据点，从而保证数据统计准确性。
-        time_alignment: bool = params.get("time_alignment", True)
-        if not time_alignment:
-            if start_time > params["start_time"] * 1000:
-                start_time -= interval
-            if end_time < params["end_time"] * 1000:
-                end_time += interval
+            # 日志、事件场景在部分展示场景下不进行时间对齐，避免 drop 掉不完整周期的数据点，从而保证数据统计准确性。
+            time_alignment: bool = params.get("time_alignment", True)
+            if not time_alignment:
+                if start_time > params["start_time"] * 1000:
+                    start_time -= interval
+                if end_time < params["end_time"] * 1000:
+                    end_time += interval
 
         for row in data:
             time_to_value = defaultdict(lambda: None)
@@ -298,6 +307,7 @@ class RankProcessor:
                 end_time=params["end_time"] * 1000,
                 limit=1000,
                 slimit=params["slimit"],
+                not_time_align=params.get("not_time_align", False),
             )
 
             metric_field = data_source.metrics[0].get("alias") or data_source.metrics[0]["field"]
@@ -567,6 +577,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
         with_metric = serializers.BooleanField(label="是否返回metric信息", default=True)
+        not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
 
         @classmethod
         def to_str(cls, value):
@@ -762,6 +773,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             limit=params["limit"],
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
+            not_time_align=params.get("not_time_align", False),
         )
 
         # 去掉排序函数topk
@@ -881,6 +893,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
             time_alignment=time_alignment,
+            not_time_align=params.get("not_time_align", False),
         )
 
         # 如果存在数据后过滤条件，则进行过滤
@@ -1359,6 +1372,18 @@ class DimensionPromqlQueryResource(Resource):
         return result
 
     @classmethod
+    def _escape_label(cls, label: str | None) -> str:
+        """转义 label 名称。
+
+        背景：Prometheus 的 label 不支持点号（.），但在非时序场景下 label 里会包含点号。
+        解决：在查询 unify-query 之前，将 __bk_46__ 还原回点号。
+
+        :param label: 待转义的 label 名称，可能包含 __bk_46__ 编码。
+        :return: 转义后的 label 名称。
+        """
+        return label.replace("__bk_46__", ".") if label else ""
+
+    @classmethod
     def get_label_values(cls, bk_biz_id: int, promql: str, start_time: str, end_time: str) -> list[str]:
         """
         查询label_values函数
@@ -1367,17 +1392,13 @@ class DimensionPromqlQueryResource(Resource):
 
         match = cls.re_label_value.match(promql)
         promql = match.group(2)
-        label = match.group(4)
+        label = cls._escape_label(match.group(4))
         try:
             match_promql = [promql]
             if cookies_filter:
                 match_promql.append(cookies_filter)
 
-            params = {
-                "bk_biz_ids": [bk_biz_id],
-                "match": match_promql,
-                "label": label,
-            }
+            params = {"bk_biz_ids": [bk_biz_id], "match": match_promql, "label": label}
 
             if start_time and end_time:
                 params["start"] = start_time
@@ -1429,6 +1450,72 @@ class DimensionPromqlQueryResource(Resource):
         else:
             # 默认query_result模式
             return self.get_query_result(params["bk_biz_id"], promql)
+
+
+class GetDrillDimensionsResource(Resource):
+    """
+    获取指标可下钻维度名称列表
+    - 单指标：返回该指标的所有可下钻维度（排除该指标已配置的维度）
+    - 多指标：返回所有指标可下钻维度的共同维度（交集）
+    - 没有维度或没有共同维度：返回空列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        class QueryConfigSerializer(serializers.Serializer):
+            result_table_id = serializers.CharField(label="结果表名")
+            metric_field = serializers.CharField(label="指标名")
+            configured_dimensions = serializers.ListField(
+                label="该指标已配置的维度", child=serializers.CharField(), default=list
+            )
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        query_configs = serializers.ListField(label="查询配置列表", child=QueryConfigSerializer())
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        query_configs = validated_request_data["query_configs"]
+
+        metric_queries = Q()
+        for c in query_configs:
+            metric_queries |= Q(result_table_id=c["result_table_id"], metric_field=c["metric_field"])
+
+        metrics = MetricListCache.objects.filter(
+            metric_queries,
+            bk_tenant_id=get_request_tenant_id(),
+            bk_biz_id__in=[bk_biz_id, 0],
+        )
+
+        metric_cache = {(m.result_table_id, m.metric_field): m for m in metrics}
+        all_dimensions: list[set] = []
+        for config in query_configs:
+            metric = metric_cache.get((config["result_table_id"], config["metric_field"]))
+            if not metric:
+                logger.warning(
+                    "metric not found: bk_biz_id=%s, table=%s, metric=%s",
+                    bk_biz_id,
+                    config["result_table_id"],
+                    config["metric_field"],
+                )
+                continue
+
+            dimensions = {dim["id"] for dim in metric.dimensions}
+            # 拨测指标下钻维度排除维度：业务ID/IP/云区域ID/错误码
+            if metric.result_table_id.startswith("uptimecheck."):
+                dimensions -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
+
+            # 排除该指标已配置的维度
+            all_dimensions.append(dimensions - set(config["configured_dimensions"]))
+
+        if not all_dimensions:
+            logger.warning("no valid metrics found for bk_biz_id=%s, query_configs=%s", bk_biz_id, query_configs)
+            return []
+
+        # 单指标：返回该指标的所有可用维度
+        if len(query_configs) == 1:
+            return sorted(all_dimensions[0])
+
+        # 多指标：返回所有指标的共同维度（交集）
+        return sorted(set.intersection(*all_dimensions))
 
 
 class DimensionUnifyQuery(Resource):

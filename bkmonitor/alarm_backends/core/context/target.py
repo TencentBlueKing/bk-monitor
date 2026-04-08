@@ -84,7 +84,7 @@ class Target(BaseContextObject):
         environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
         env_set = set()
         for set_id in host.bk_set_ids:
-            bk_set = SetManager.get(set_id)
+            bk_set = SetManager.get(bk_tenant_id=self.parent.alert.bk_tenant_id, bk_set_id=set_id)
             if not bk_set:
                 continue
             # 检查bk_set_env是否存在且不为None，允许"0"等值

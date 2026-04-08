@@ -141,6 +141,7 @@ class CreateDimensionVariable extends Mixins(VariableFormMixin) {
           >
             <bk-select
               clearable={false}
+              search-placeholder={this.$t('请输入 关键字')}
               selected-style='checkbox'
               value={this.options}
               collapse-tag
@@ -169,6 +170,7 @@ class CreateDimensionVariable extends Mixins(VariableFormMixin) {
           >
             <bk-select
               clearable={false}
+              search-placeholder={this.$t('请输入 关键字')}
               value={this.variable.defaultValue}
               collapse-tag
               display-tag

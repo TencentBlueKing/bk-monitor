@@ -1,0 +1,34 @@
+.filed-masking-container {
+  position: relative;
+  height: 100%;
+
+  .masking-field-box {
+    min-width: 1030px;
+    height: calc(100% - 65px);
+    padding: 0 40px 20px;
+    overflow-y: auto;
+  }
+
+  .submit-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 1030px;
+    height: 65px;
+    background: #fafbfd;
+    border-top: 1px solid #dde4eb;
+
+    > :first-child {
+      margin-left: 40px;
+    }
+
+    .bk-button {
+      padding: 0px 29px;
+      margin-right: 8px;
+    }
+  }
+}

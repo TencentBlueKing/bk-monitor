@@ -26,6 +26,7 @@
 
 // import { listEventLog } from 'monitor-api/modules/alert_events'
 import { listAlertLog } from 'monitor-api/modules/alert';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { transformDataKey } from 'monitor-common/utils/utils';
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
@@ -57,7 +58,7 @@ class EventDetail extends VuexModule {
 
       if (item.is_multiple) {
         item.collapse = true;
-        item.expandTime = `${item.begin_time} 至 ${item.time}`;
+        item.expandTime = `${formatWithTimezone(item.begin_time)} ${window.i18n.locale === 'zhCN' ? '至' : 'to'} ${formatWithTimezone(item.time)}`;
         item.expand = false;
       } else {
         item.collapse = false;

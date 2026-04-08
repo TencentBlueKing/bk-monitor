@@ -278,7 +278,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   /** 获取搜索结果 */
   getSearchList() {
-    this.fetchEventStream(`${location.origin}/rest/v2/overview/search/?query=${encodeURIComponent(this.searchValue)}`);
+    this.fetchEventStream(`${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(this.searchValue)}`);
   }
   /* 显示弹出层 */
   handleMousedown() {
@@ -784,9 +784,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       name: groupName,
     });
     const routeData = this.$router.resolve(option);
-    const extraParams = option.extraParams ? `&${new URLSearchParams(option.extraParams).toString()}` : '';
-    const baseUrl = `${location.origin}/?${new URLSearchParams(baseParams).toString()}${extraParams}`;
-    window.open(`${baseUrl}${routeData.href}`, '_blank');
+    const url = new URL(location.href.split('#')[0]);
+    url.searchParams.set('bizId', String(item.bk_biz_id));
+    if (option.extraParams) {
+      Object.keys(option.extraParams).forEach(key => url.searchParams.set(key, String(option.extraParams[key])));
+    }
+    window.open(`${url.toString()}${routeData.href}`, '_blank');
   }
   handleCompositionend() {
     this.isComposing = false;
@@ -892,7 +895,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
             v-model={this.searchValue}
             autofocus={!this.isBarToolShow}
-            placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
+            placeholder={this.$tc('搜索 IP、Trace ID、容器集群、告警ID、策略名')}
             rows={this.textareaRow}
             spellcheck={false}
             onClick={this.handleClick}

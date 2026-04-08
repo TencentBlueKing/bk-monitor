@@ -23,17 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch } from "vue";
-import useLocale from "@/hooks/use-locale";
-import useStore from "@/hooks/use-store";
-import $http from "@/api";
-import FilterRule from "@/components/filter-rule";
-import PreviewResult from "./preview-result";
+import { computed, defineComponent, ref, watch } from 'vue';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import $http from '@/api';
+import FilterRule from '@/components/filter-rule';
+import PreviewResult from './preview-result';
 
-import "./index.scss";
+import './index.scss';
 
 export default defineComponent({
-  name: "QuickOpenCluster",
+  name: 'QuickOpenCluster',
   components: {
     FilterRule,
     PreviewResult,
@@ -45,7 +45,7 @@ export default defineComponent({
     },
     indexSetId: {
       type: String,
-      default: "",
+      default: '',
     },
     totalFields: {
       type: Array<any>,
@@ -54,7 +54,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const initFormData = {
-      clustering_fields: "",
+      clustering_fields: '',
       filter_rules: [] as any[],
     };
     let isInit = false;
@@ -63,7 +63,7 @@ export default defineComponent({
       clustering_fields: [
         {
           required: true,
-          trigger: "blur",
+          trigger: 'blur',
         },
       ],
     };
@@ -81,13 +81,12 @@ export default defineComponent({
     const isRecordEmpty = ref(false);
     const formData = ref(structuredClone(initFormData));
 
-    const clusterField = computed(() =>
-      props.totalFields
-        .filter((item) => item.is_analyzed)
-        .map((el) => {
-          const { field_name: id, field_alias: alias } = el;
-          return { id, name: alias ? `${id}(${alias})` : id };
-        }),
+    const clusterField = computed(() => props.totalFields
+      .filter(item => item.is_analyzed)
+      .map((el) => {
+        const { field_name: id, field_alias: alias } = el;
+        return { id, name: alias ? `${id}(${alias})` : id };
+      }),
     );
 
     watch(
@@ -125,25 +124,22 @@ export default defineComponent({
           const data = {
             bk_biz_id: store.state.bkBizId,
             clustering_fields: formData.value.clustering_fields,
-            filter_rules: rules.map((item) => ({
+            filter_rules: rules.map(item => ({
               fields_name: item.field_name,
               logic_operator: item.logic_operator,
               op: item.op,
               value: item.value,
             })),
           };
-          const result = await $http.request(
-            "retrieve/createClusteringConfig",
-            {
-              params: {
-                index_set_id: props.indexSetId,
-              },
-              data,
+          const result = await $http.request('retrieve/createClusteringConfig', {
+            params: {
+              index_set_id: props.indexSetId,
             },
-          );
+            data,
+          });
           if (result.code === 0) {
             isShowDialog.value = false;
-            emit("success");
+            emit('success');
           }
         } catch (error) {
           console.error(error);
@@ -157,20 +153,18 @@ export default defineComponent({
       if (isOpen) {
         if (clusterField.value[0]?.id) {
           isInit = true;
-          formData.value.clustering_fields = clusterField.value[0]?.id || "";
-          const targetField = props.totalFields.find(
-            (f) => f.field_name === clusterField.value[0]?.id,
-          );
+          formData.value.clustering_fields = clusterField.value[0]?.id || '';
+          const targetField = props.totalFields.find(f => f.field_name === clusterField.value[0]?.id);
           formData.value.filter_rules.push({
             ...targetField,
-            op: "contains",
-            value: ["ERROR"],
+            op: 'contains',
+            value: ['ERROR'],
             field_name: targetField.field_name,
           });
         }
       } else {
         formData.value = structuredClone(initFormData);
-        emit("close");
+        emit('close');
       }
     };
 
@@ -187,25 +181,23 @@ export default defineComponent({
       <bk-sideslider
         before-close={handleBeforeClose}
         width={1028}
-        ext-cls="cluster-access-slider-main"
+        ext-cls='cluster-access-slider-main'
         is-show={isShowDialog.value}
         mask-close={false}
-        theme="primary"
-        title={t("日志聚类接入")}
+        theme='primary'
+        title={t('日志聚类接入')}
         on-shown={() => handleOpenDialog(true)}
         on-hidden={() => handleOpenDialog(false)}
       >
-        <div slot="content">
-          <div class="cluster-access-main">
+        <div slot='content'>
+          <div class='cluster-access-main'>
             <bk-alert
-              type="info"
-              title={t(
-                "大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志",
-              )}
+              type='info'
+              title={t('大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志')}
             />
             <bk-form
               ref={quickClusterFromRef}
-              form-type="vertical"
+              form-type='vertical'
               {...{
                 props: {
                   model: formData.value,
@@ -214,34 +206,40 @@ export default defineComponent({
               }}
             >
               <bk-form-item
-                label={t("聚类字段")}
-                property="clustering_fields"
+                label={t('聚类字段')}
+                property='clustering_fields'
                 required
               >
-                <div class="setting-item">
+                <div class='setting-item'>
                   <bk-select
-                    style="width: 482px"
+                    style='width: 482px'
                     value={formData.value.clustering_fields}
                     clearable={false}
-                    on-change={(value) =>
-                      (formData.value.clustering_fields = value)
-                    }
+                    on-change={value => (formData.value.clustering_fields = value)}
                   >
-                    {clusterField.value.map((option) => (
-                      <bk-option id={option.id} name={option.name}></bk-option>
+                    {clusterField.value.map(option => (
+                      <bk-option
+                        id={option.id}
+                        name={option.name}
+                      ></bk-option>
                     ))}
                   </bk-select>
-                  <span class="field-tip-main">
-                    <log-icon common style="color: #979BA5" type="info" />
-                    <span class="tip">
-                      {t(
-                        "只能基于 1 个字段进行聚类，并且字段是为 text 的分词类型，默认为 log 字段",
-                      )}
+                  <span class='field-tip-main'>
+                    <log-icon
+                      common
+                      style='color: #979BA5'
+                      type='info'
+                    />
+                    <span class='tip'>
+                      {t('只能基于 1 个字段进行聚类，并且字段是为 text 的分词类型，默认为 log 字段')}
                     </span>
                   </span>
                 </div>
               </bk-form-item>
-              <bk-form-item label={t("过滤规则")} property="filter_rules">
+              <bk-form-item
+                label={t('过滤规则')}
+                property='filter_rules'
+              >
                 <filter-rule
                   ref={filterRuleRef}
                   data={formData.value.filter_rules}
@@ -252,42 +250,34 @@ export default defineComponent({
               ref={previewResultRef}
               indexSetId={props.indexSetId}
               ruleList={formData.value.filter_rules}
-              class="preview-wraper-main"
+              fieldName={formData.value.clustering_fields}
+              class='preview-wraper-main'
               on-preview-success={handlePreviewSuccess}
-              on-record-empty={(value) => (isRecordEmpty.value = value)}
+              on-record-empty={value => (isRecordEmpty.value = value)}
             />
           </div>
-          <div class="bottom-operate">
+          <div class='bottom-operate'>
             <span
               v-bk-tooltips={{
-                placement: "bottom",
+                placement: 'bottom',
                 content: !isPreviewed.value
-                  ? t("请先完成预览，才可提交")
+                  ? t('请先完成预览，才可提交')
                   : isConfigChanged.value
-                    ? t("配置有更新，请重新预览，才可提交")
-                    : t("预览结果无数据，无法提交"),
-                disabled:
-                  isPreviewed.value &&
-                  !isConfigChanged.value &&
-                  !isRecordEmpty.value,
+                    ? t('配置有更新，请重新预览，才可提交')
+                    : t('预览结果无数据，无法提交'),
+                disabled: isPreviewed.value && !isConfigChanged.value && !isRecordEmpty.value,
               }}
             >
               <bk-button
-                theme="primary"
-                disabled={
-                  !isPreviewed.value ||
-                  isConfigChanged.value ||
-                  isRecordEmpty.value
-                }
+                theme='primary'
+                disabled={!isPreviewed.value || isConfigChanged.value || isRecordEmpty.value}
                 loading={confirmLoading.value}
                 on-click={handleConfirmSubmit}
               >
-                {t("提交")}
+                {t('提交')}
               </bk-button>
             </span>
-            <bk-button on-click={() => (isShowDialog.value = false)}>
-              {t("取消")}
-            </bk-button>
+            <bk-button on-click={() => (isShowDialog.value = false)}>{t('取消')}</bk-button>
           </div>
         </div>
       </bk-sideslider>

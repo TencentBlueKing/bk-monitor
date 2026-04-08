@@ -1,11 +1,14 @@
 import datetime
-from typing import Any
+from typing import Any, TypeAlias
 from collections.abc import Iterable
+from threading import Lock
 
 from django.db.models import QuerySet
+from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import CachedEnum
 from . import constants, helper, query_template, dispatch
 
@@ -82,6 +85,9 @@ class StrategyInstanceOptionValues(OptionValues):
 
     def get_applied_service_name(self) -> list[dict[str, str]]:
         return self._get_default("service_name")
+
+
+StrategyTemplateId: TypeAlias = int
 
 
 class StrategyTemplateHandler:
@@ -223,3 +229,70 @@ class StrategyTemplateHandler:
             bk_biz_id,
             app_name,
         )
+
+    @classmethod
+    def apply(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_names: list[str],
+        strategy_templates: list[StrategyTemplate],
+        extra_configs_map: dict[StrategyTemplateId, list[dispatch.DispatchExtraConfig]] | None = None,
+        global_config: dispatch.DispatchGlobalConfig | None = None,
+        raise_exception: bool = True,
+    ):
+        extra_configs_map = extra_configs_map or {}
+        entity_set: dispatch.EntitySet = dispatch.EntitySet(bk_biz_id, app_name, service_names)
+
+        def _apply(_obj: StrategyTemplate) -> dict[str, int | dict[str, int]]:
+            try:
+                _dispatcher = dispatch.StrategyDispatcher(
+                    _obj, cls.get_query_template_or_none(_obj, query_template_map)
+                )
+                _service_strategy_id_map: dict[str, int] = _dispatcher.dispatch(
+                    entity_set, global_config, extra_configs_map.get(_obj.pk, []), raise_exception
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                # 由于异常会中断其他线程的下发，这里捕获所有异常，最后统一抛出，避免中断带来的不一致问题。
+                with lock:
+                    error_msgs.append(_("模板【{}】下发失败, {}").format(_obj.name, str(e)))
+                return {"strategy_template_id": _obj.pk, "service_strategy_id_map": {}}
+
+            return {"strategy_template_id": _obj.pk, "service_strategy_id_map": _service_strategy_id_map}
+
+        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = cls.get_query_template_map(strategy_templates)
+
+        # 批量进行模板下发
+        lock: Lock = Lock()
+        error_msgs: list[str] = []
+        pool = ThreadPool(8)
+        dispatch_results_iter: Iterable[dict[str, int | dict[str, int]]] = pool.imap_unordered(
+            lambda _obj: _apply(_obj), strategy_templates
+        )
+        pool.close()
+
+        strategy_ids: list[int] = []
+        template_dispatch_map: dict[int, dict[str, int]] = {}
+        for dispatch_result in dispatch_results_iter:
+            service_strategy_id_map: dict[str, int] = dispatch_result["service_strategy_id_map"]
+            strategy_ids.extend(list(service_strategy_id_map.values()))
+            template_dispatch_map[dispatch_result["strategy_template_id"]] = service_strategy_id_map
+
+        if error_msgs:
+            raise ValueError("\n".join(error_msgs))
+
+        apply_data: list[dict[str, Any]] = []
+        id_strategy_map = helper.get_id_strategy_map(bk_biz_id, strategy_ids)
+        for strategy_template_id, service_strategy_map in template_dispatch_map.items():
+            for service_name, strategy_id in service_strategy_map.items():
+                apply_data.append(
+                    {
+                        "service_name": service_name,
+                        "strategy_template_id": strategy_template_id,
+                        "strategy": {
+                            "id": strategy_id,
+                            "name": id_strategy_map.get(strategy_id, {}).get("name", ""),
+                        },
+                    }
+                )
+        return apply_data

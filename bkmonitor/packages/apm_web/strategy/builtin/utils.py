@@ -13,7 +13,6 @@ from typing import Any
 
 from constants.alert import EventSeverity
 
-from bkmonitor.models.strategy import AlgorithmModel
 
 from .. import constants
 
@@ -32,11 +31,25 @@ def detect_config(recovery_check_window: int, trigger_check_window: int, trigger
 def _threshold_algorithm_config(method: str, threshold: float, level: str, suffix: str | None = "") -> dict[str, Any]:
     return {
         "level": level,
-        "type": AlgorithmModel.AlgorithmChoices.Threshold,
+        "type": constants.AlgorithmType.THRESHOLD.value,
         "config": {"method": method, "threshold": threshold},
         "unit_prefix": suffix or "",
     }
 
 
+def _year_round_and_ring_ratio_algorithm_config(method: str, ceil: float, floor: float, level: str) -> dict[str, Any]:
+    return {
+        "level": level,
+        "type": constants.AlgorithmType.YEAR_ROUND_AND_RING_RATIO.value,
+        "config": {"method": method, "ceil": ceil, "floor": floor},
+    }
+
+
 warning_threshold_algorithm_config = functools.partial(_threshold_algorithm_config, level=EventSeverity.WARNING)
 fatal_threshold_algorithm_config = functools.partial(_threshold_algorithm_config, level=EventSeverity.FATAL)
+warning_year_round_and_ring_ratio_algorithm_config = functools.partial(
+    _year_round_and_ring_ratio_algorithm_config, level=EventSeverity.WARNING
+)
+fatal_year_round_and_ring_ratio_algorithm_config = functools.partial(
+    _year_round_and_ring_ratio_algorithm_config, level=EventSeverity.FATAL
+)

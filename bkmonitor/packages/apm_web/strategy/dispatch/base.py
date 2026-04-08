@@ -9,10 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any
 
 from apm_web.models import StrategyTemplate
+from apm_web.strategy.constants import DetectConnector
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from utils import count_md5
 
@@ -40,6 +41,21 @@ class DispatchExtraConfig:
     def __post_init__(self):
         if self.user_group_list is not None:
             self.user_group_ids = [user_group["id"] for user_group in self.user_group_list]
+
+    def merge(self, other: "DispatchExtraConfig") -> "DispatchExtraConfig":
+        """合并配置，优先级 other > self"""
+        for field in fields(self):
+            if field.name == "context":
+                other_context: dict[str, Any] = copy.deepcopy(other.context or {})
+                if self.context is None:
+                    self.context = other_context
+                else:
+                    self.context.update(other_context)
+                continue
+
+            if getattr(other, field.name) is not None:
+                setattr(self, field.name, getattr(other, field.name))
+        return self
 
 
 @dataclass(slots=True)
@@ -91,7 +107,12 @@ class DispatchConfig:
 def calculate_strategy_md5_by_dispatch_config(
     config: DispatchConfig, query_template_wrapper: QueryTemplateWrapper
 ) -> str:
-    return count_md5(
+    origin_detect = config.detect
+    # 向前兼容，connector 为 AND 时，不计算 connector
+    if config.detect.get("connector") == DetectConnector.AND.value:
+        config.detect = copy.deepcopy(origin_detect)
+        config.detect.pop("connector", None)
+    md5: str = count_md5(
         {
             "detect": config.detect,
             "algorithms": config.algorithms,
@@ -100,3 +121,5 @@ def calculate_strategy_md5_by_dispatch_config(
             "query_template": {"name": query_template_wrapper.name, "bk_biz_id": query_template_wrapper.bk_biz_id},
         }
     )
+    config.detect = origin_detect
+    return md5

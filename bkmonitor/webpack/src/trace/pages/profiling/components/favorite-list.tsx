@@ -115,7 +115,7 @@ export default defineComponent({
           <div class='search-tools jsac'>
             <Input
               v-model={this.searchVal}
-              placeholder={this.t('搜索收藏名')}
+              placeholder={this.t('搜索 收藏名')}
               type='search'
               onEnter={this.handleSearchFavorite}
             />

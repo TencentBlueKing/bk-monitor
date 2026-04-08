@@ -263,24 +263,25 @@ export default {
     min-height: calc(100vh - 100px);
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
+    box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
 
-    @include border-1px();
+    @include border-1px;
 
     &-steps {
       width: 202px;
+
       // min-height: calc(100vh - 150px);
       background: $defaultBgColor;
       border-right: 1px solid $defaultBorderColor;
-      border-radius: 2px 0px 0px 0px;
+      border-radius: 2px 0 0;
 
       .step-list {
-        padding: 40px 0 0 0;
+        padding: 40px 0 0;
         margin-left: 45px;
 
         @for $i from 1 through 7 {
           &-item-#{$i} {
-            &:before {
+            &::before {
               content: '#{$i}';
             }
           }
@@ -293,7 +294,7 @@ export default {
           color: $defaultFontColor;
           border-left: 1px dashed $defaultBorderColor;
 
-          &:before {
+          &::before {
             position: absolute;
             top: -5px;
             left: -15px;
@@ -301,6 +302,7 @@ export default {
             width: 26px;
             height: 26px;
             line-height: 26px;
+
             // box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
             color: $defaultFontColor;
             text-align: center;
@@ -323,15 +325,15 @@ export default {
         }
 
         .is-ok {
-          @include hover();
+          @include hover;
 
           &:last-child {
             border-left: 0;
           }
 
-          &:before {
+          &::before {
             /* stylelint-disable-next-line declaration-no-important */
-            font-family: 'icon-monitor' !important;
+            font-family: icon-monitor !important;
 
             /* stylelint-disable-next-line declaration-no-important */
             font-size: 28px !important;
@@ -340,6 +342,7 @@ export default {
             /* stylelint-disable-next-line declaration-no-important */
             content: '\e6b7' !important;
             background: #dcdee5;
+
             // @include border-1px($primaryFontColor);
             border-color: #dcdee5;
           }
@@ -349,9 +352,9 @@ export default {
           color: $primaryFontColor;
           border-left: 1px dashed $primaryFontColor;
 
-          @include hover();
+          @include hover;
 
-          &:before {
+          &::before {
             color: #fff;
             background: $primaryFontColor;
 
@@ -359,7 +362,7 @@ export default {
           }
 
           &-arrow {
-            &:after {
+            &::after {
               position: absolute;
               top: 3px;
               right: -6px;
@@ -378,6 +381,7 @@ export default {
 
     &-contaner {
       position: relative;
+
       // height: calc(100vh - 102px);
       flex: 1;
       overflow: auto;

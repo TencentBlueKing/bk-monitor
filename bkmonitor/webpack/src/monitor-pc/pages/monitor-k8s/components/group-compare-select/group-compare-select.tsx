@@ -92,16 +92,17 @@ export default class GroupCompareSelect extends tsc<IProps> {
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
-  typeSelects = {
-    [ETypeSelect.compare]: {
-      name: window.i18n.tc('对比'),
-      width: 96,
+  typeSelects = [
+    {
+      id: ETypeSelect.compare,
+      name: window.i18n.t('时间对比'),
     },
-    [ETypeSelect.group]: {
-      name: 'Group by',
-      width: 129,
+    {
+      id: ETypeSelect.group,
+      name: window.i18n.t('维度聚合'),
     },
-  };
+  ];
+
   typeSelected = ETypeSelect.compare;
 
   localGroupOptions: IGroupOption[] = [];
@@ -170,13 +171,11 @@ export default class GroupCompareSelect extends tsc<IProps> {
     }
   }
 
-  handleChange() {
-    if (this.typeSelected === ETypeSelect.compare) {
-      this.typeSelected = ETypeSelect.group;
-    } else {
-      this.typeSelected = ETypeSelect.compare;
+  handleChange(id: ETypeSelect) {
+    if (id !== this.typeSelected) {
+      this.typeSelected = id;
+      this.$emit('typeChange', this.typeSelected);
     }
-    this.$emit('typeChange', this.typeSelected);
   }
 
   /** 解析api 格式： commons.getTopoTree (模块.api)的字符串 , 返回对应的api*/
@@ -228,18 +227,19 @@ export default class GroupCompareSelect extends tsc<IProps> {
 
   render() {
     return (
-      <div class='common-page___group-compare-select'>
-        <div
-          style={{
-            width: `${this.typeSelects[this.typeSelected].width}px`,
-          }}
-          class='select-type-wrap'
-          onClick={this.handleChange}
-        >
-          <span class='select-type-name'>{this.typeSelects[this.typeSelected].name}</span>
-          <span class='contrast-switch'>
-            <i class='icon-monitor icon-switch' />
-          </span>
+      <div class='common-page-group-compare-select-component'>
+        <div class='select-type-wrap'>
+          <div class='select-type-items-wrap'>
+            {this.typeSelects.map(item => (
+              <div
+                key={item.id}
+                class={`select-type-item ${item.id === this.typeSelected ? 'active' : ''}`}
+                onClick={() => this.handleChange(item.id)}
+              >
+                {item.name}
+              </div>
+            ))}
+          </div>
         </div>
         <div class='group-compare-wrap'>
           {this.typeSelected === ETypeSelect.compare ? (

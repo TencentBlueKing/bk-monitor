@@ -1,0 +1,159 @@
+/* tree-component.css */
+  
+  /* 容器样式 */
+  .tree-container-wrapper {
+    width: 100%;
+  }
+  
+  /* 根列表样式 */
+  .tree-root-list {
+    width: 100%;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* 树节点样式 */
+  .tree-node {
+    width: 100%;
+    list-style: none;
+    margin-top: 16px;
+  }
+  
+  .tree-node:first-child {
+    margin-top: 0;
+  }
+  
+  /* 连接线样式 */
+  .tree-line {
+    width: 100%;
+    // border-left: 1px dashed #CBD5E1; /* tree.line */
+    padding-left: 18px;
+    // margin-left: 6px;
+    position: relative;
+  }
+  
+  .tree-line::before {
+    content: '';
+    position: absolute;
+    width: 12px;
+    border-top: 1px dashed #CBD5E1; /* tree.line */
+    left: 5px;
+    top: 14px;
+    transform: translateY(-50%);
+  }
+  
+  /* 树节点项样式 */
+  .tree-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-radius: 2px;
+    height: 28px;
+    padding-left: 6px;
+    &.active {
+        background: #E6F0FF;
+        font-weight: 500;
+        .text-tree-light {
+            color: #5792f9;
+        }
+    }
+  }
+  
+  .tree-item:hover {
+    background-color: #eff6ff; /* 淡蓝色背景 */
+    color: #5792f9;
+  }
+  
+  /* 切换按钮样式 */
+  .tree-toggle {
+    transition: transform 0.2s ease-in-out;
+    color: #94A3B8; /* tree.light */
+    margin-right: 8px;
+    font-size: 14px;
+    margin-right: 4px;
+    cursor: pointer;
+    margin-left: -4px;
+  }
+  
+  .tree-toggle.collapsed {
+    transform: rotate(-90deg);
+  }
+  
+  /* 子节点容器样式 */
+  .tree-children {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    transition: all 300ms ease-in-out;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    position: relative;
+    &::before {
+        content: '';
+        position: absolute;
+        width: 1px;
+        height: 100%;
+        border-left: 1px dashed #CBD5E1; /* tree.line */
+        left: 5px;
+        top: 0;
+    }
+  }
+  
+  /* 隐藏样式 */
+  .hidden {
+    display: none;
+  }
+  
+  /* 文本样式 */
+  .text-tree-light {
+    color: #94A3B8; /* tree.light */
+  }
+
+  .font-medium, .text-tree-light {
+    display: inline-block; 
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .w-5 {
+    width: 20px;
+  }
+  
+  .inline-block {
+    display: inline-block;
+  }
+  
+  .flex {
+    display: flex;
+  }
+  
+  .items-center {
+    width: calc(100% - 22px);
+    align-items: center;
+  }
+  
+  .mr-2 {
+    margin-right: 8px;
+  }
+  
+  /* 计数标签样式 */
+  .count-badge {
+    background: #f0f1f5;
+    border-radius: 2px;
+    color: #979ba5;
+    display: inline-block;
+    font-size: 12px;
+    height: 16px;
+    line-height: 12px;
+    // margin: 0 6px;
+    min-width: 20px;
+    padding: 2px 4px;
+    text-align: center;
+  }

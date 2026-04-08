@@ -95,6 +95,7 @@ declare global {
     bk_log_search_url: string;
     bk_nodeman_host: string;
     bk_paas_host: string;
+    bk_user_site_url: string;
     bk_shared_res_url: string;
     // 多租户租户id
     bk_tenant_id?: string;
@@ -153,6 +154,7 @@ declare global {
     uin: string;
     uptimecheck_output_fields: string[];
     user_name: string;
+    user_time_zone: string;
     userInfo: { isSuperuser: boolean };
     username: string;
     Vue?: any;

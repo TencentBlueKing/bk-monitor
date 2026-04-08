@@ -143,7 +143,7 @@ class AIOPSManager(abc.ABC):
                                     "filter_dict": {"dedupe_md5": alert.dedupe_md5},
                                 }
                             ],
-                            "function": compare_function,
+                            "function": {"time_compare": []},
                         },
                         "datasourceId": "time_series",
                         "name": _("时序数据"),
@@ -382,6 +382,10 @@ class AIOPSManager(abc.ABC):
             (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
             (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
         )
+        if is_bar:
+            # 柱状图不需要时间对比
+            unify_query_params["function"] = {"time_compare": []}
+            extra_unify_query_params["function"] = {"time_compare": []}
 
         is_composite = data_type_label == DataTypeLabel.ALERT
 

@@ -100,7 +100,7 @@ class NumberChart extends CommonSimpleChart {
     if (item.link) {
       if (item.link.target === 'self') {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.link.url}`.replace(/\/\//g, '/'),
+          path: `${window.__BK_WEWEB_DATA__?.parentRoute || ''}${item.link.url}`.replace(/\/\//g, '/'),
         });
         return;
       }

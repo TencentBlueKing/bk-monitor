@@ -306,7 +306,7 @@
                 min-width="100"
               >
                 <template #default="{ row }">
-                  <span>{{ row.last_change_time || '--' }}</span>
+                  <span>{{ formatTimeWithTimezone(row.last_change_time) || '--' }}</span>
                 </template>
               </bk-table-column>
               <bk-table-column
@@ -969,6 +969,7 @@ import {
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
 import EmptyStatus from '../../components/empty-status/empty-status';
@@ -1314,7 +1315,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   //     // eslint-disable-next-line camelcase
   //     this.metricValue = data?.fields_value || {};
   //     this.detailData.last_time = typeof data?.last_time === 'number'
-  //       ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+  //       ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ')
   //       : data?.last_time;
   //     this.dataLoading = false;
   //   }
@@ -1363,7 +1364,9 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     clearTimeout(this.timer);
     this.timer = null;
   }
-
+  formatTimeWithTimezone(time: string) {
+    return formatWithTimezone(time);
+  }
   renderGroupHeader(h: CreateElement) {
     return h(TableFiter, {
       props: {
@@ -1505,8 +1508,8 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   }
   //  从新建和列表页进来会去获取最近 1小时 拉取的事件
   getTimeParams() {
-    const dateNow = dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
-    const lastDate = dayjs.tz(dateNow).add(-this.shortcuts.value, 'h').format('YYYY-MM-DD HH:mm:ss');
+    const dateNow = dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ');
+    const lastDate = dayjs.tz(dateNow).add(-this.shortcuts.value, 'h').format('YYYY-MM-DD HH:mm:ssZZ');
     return `${lastDate} -- ${dateNow}`;
   }
 
@@ -1757,7 +1760,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
                 "event_type": "abnormal"
             },
             # ${this.$t('数据时间，精确到毫秒，非必需项')}
-            "timestamp": ${new Date().getTime()}
+            "timestamp": ${Date.now()}
         }]
     }`;
     // 判断如果是 prometheus 类型则展示不同的内容
@@ -1829,7 +1832,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.allDataPreview = data?.fields_value || {};
     this.detailData.last_time =
       typeof data?.last_time === 'number'
-        ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+        ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ')
         : data?.last_time;
   }
 
@@ -2061,7 +2064,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.detailData = await this.$store.dispatch('custom-escalation/getCustomEventDetail', params);
       this.handleDetailData(this.detailData);
       this.loading = false;
-    } catch (error) {
+    } catch (_error) {
       this.loading = false;
     }
   }
@@ -2087,7 +2090,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             "module": "db",
             "location": "guangdong"
         },
-        "timestamp": ${new Date().getTime()}
+        "timestamp": ${Date.now()}
     }]
 }`;
     this.textCopy.value = example;

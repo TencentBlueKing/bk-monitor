@@ -587,7 +587,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   behavior='simplicity'
                   clearable={false}
                   left-icon='bk-icon icon-search'
-                  placeholder={this.$t('输入关键字')}
+                  placeholder={this.$t('请输入 关键字')}
                   value={this.keyword}
                   on-blur={this.handleSearchBlur}
                   on-change={this.handleBizSearch}

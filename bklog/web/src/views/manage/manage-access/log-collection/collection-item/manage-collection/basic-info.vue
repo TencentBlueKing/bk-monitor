@@ -308,7 +308,14 @@
               :key="item.key"
             >
               <span>{{ item.label }}</span>
-              <span>{{ item.value }}</span>
+              <span>
+                <template v-if="item.isUserAccount">
+                  <bk-user-display-name :user-id="item.value"></bk-user-display-name>
+                </template>
+                <template v-else>
+                  {{ item.value }}
+                </template>
+              </span>
             </div>
           </div>
         </template>
@@ -422,6 +429,7 @@
             {
               key: 'updated_by',
               label: this.$t('更新人'),
+              isUserAccount: true
             },
             {
               key: 'updated_at',
@@ -430,6 +438,7 @@
             {
               key: 'created_by',
               label: this.$t('创建人'),
+              isUserAccount: true
             },
             {
               key: 'created_at',
@@ -438,7 +447,7 @@
           ];
           this.createAndTimeData = createAndTimeData.map(item => {
             if (item.key === 'created_at' || item.key === 'updated_at') {
-              item.value = utcFormatDate(collectorData[item.key]);
+              item.value = utcFormatDate(collectorData[item.key], true);
             } else {
               item.value = collectorData[item.key];
             }
@@ -475,12 +484,14 @@
         const params = {};
         params.collectorId = this.$route.params.collectorId;
         const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
+        // 根据当前路由动态设置backRoute
+        const backRoute = this.isCustomReport ? this.$route.name : 'manage-collection';
         this.$router.push({
           name: routeName,
           params,
           query: {
             spaceUid: this.$store.state.spaceUid,
-            backRoute: 'manage-collection',
+            backRoute,
             type: 'basicInfo',
           },
         });

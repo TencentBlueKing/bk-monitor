@@ -485,6 +485,7 @@
 </template>
 <script>
 import { frontendCollectConfigDetail, renameCollectConfig } from 'monitor-api/modules/collecting';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { copyText } from 'monitor-common/utils/utils.js';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
@@ -545,9 +546,9 @@ export default {
       if (!this.basicInfo) return [];
       return [
         { label: this.$t('创建人'), value: this.basicInfo.create_user || '--' },
-        { label: this.$t('创建时间'), value: this.basicInfo.create_time || '--' },
+        { label: this.$t('创建时间'), value: formatWithTimezone(this.basicInfo.create_time) || '--' },
         { label: this.$t('最近更新人'), value: this.basicInfo.update_user || '--' },
-        { label: this.$t('修改时间'), value: this.basicInfo.update_time || '--' },
+        { label: this.$t('修改时间'), value: formatWithTimezone(this.basicInfo.update_time) || '--' },
       ];
     },
   },
@@ -819,9 +820,9 @@ export default {
           overflow: hidden;
 
           .detail-item {
+            float: left;
             display: flex;
             align-items: flex-start;
-            float: left;
             width: 100%;
             min-height: 20px;
             margin-bottom: 10px;

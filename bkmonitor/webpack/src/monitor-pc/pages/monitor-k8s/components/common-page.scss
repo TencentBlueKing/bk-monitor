@@ -66,7 +66,7 @@
       .dashboard-panel-tools {
         .dashboard-panel-filter-wrap {
           background-color: #fff;
-          box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
+          box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
 
           .dashboard-panel-filter-content {
             padding: 12px 24px;
@@ -83,11 +83,11 @@
               }
 
               .filter-var-select-group {
-                padding: 10px 24px 8px 24px;
+                padding: 10px 24px 8px;
                 margin: 0;
               }
 
-              .common-page___group-compare-select {
+              .common-page-group-compare-select-component {
                 border-top: 1px solid #EAEBF0;
               }
             }
@@ -97,7 +97,7 @@
         .panels-tools-wrap {
           position: relative;
           z-index: 8;
-          margin: 8px 16px 0 16px;
+          margin: 8px 16px 0;
           border-radius: 2px;
         }
 
@@ -124,7 +124,7 @@
       margin: 16px;
       background-color: white;
       border-radius: 2px;
-      box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
+      box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
     }
 
     .split-panel-wrapper {

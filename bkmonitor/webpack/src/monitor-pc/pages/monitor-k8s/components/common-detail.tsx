@@ -633,6 +633,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                   v-model={this.indexSearchKeyword}
                   behavior='simplicity'
                   right-icon='bk-icon icon-search'
+                  placeholder={this.$t('搜索')}
                   clearable
                   onBlur={this.handleBlurSearch}
                   onInput={this.handleInputSearch}

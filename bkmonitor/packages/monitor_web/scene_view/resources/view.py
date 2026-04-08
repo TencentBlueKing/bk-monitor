@@ -39,6 +39,7 @@ from monitor_web.scene_view.builtin import (
     get_view_config,
     list_processors_view,
     post_handle_view_list_config,
+    post_handle_view_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -347,6 +348,7 @@ class GetSceneViewResource(ApiAuthResource):
         if params["is_split"]:
             return self.process_split(view_config, params["split_variables"])
 
+        post_handle_view_config(scene_id, view_config)
         return view_config
 
 

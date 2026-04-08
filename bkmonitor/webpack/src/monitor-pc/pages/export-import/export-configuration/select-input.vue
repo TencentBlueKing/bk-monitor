@@ -46,7 +46,7 @@
       v-show="value === 1"
       v-model="allFind.value"
       :clearable="true"
-      :placeholder="$t('采集名称 / 策略名称 / 仪表盘名称')"
+      :placeholder="$t('搜索 采集名称、策略名称、仪表盘名称')"
       :right-icon="'bk-icon icon-search'"
       @change="handleSearch"
       @clear="handlemainBoxSwitch"

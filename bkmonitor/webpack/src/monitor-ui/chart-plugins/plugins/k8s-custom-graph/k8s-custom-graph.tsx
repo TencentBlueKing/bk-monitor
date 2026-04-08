@@ -973,7 +973,7 @@ class K8SCustomChart extends CommonSimpleChart {
   customTooltips(params: any) {
     const tableData = new Map<string, Record<string, string>>();
     const columns = new Set<string>(['', this.$tc('当前')]);
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
 
     for (const item of params) {
       const { customData } = item.data;

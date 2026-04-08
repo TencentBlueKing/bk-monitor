@@ -92,7 +92,7 @@ BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_H
 
 # 权限中心 SaaS host
 BK_IAM_APP_CODE = os.getenv("BK_IAM_V3_APP_CODE", "bk_iam")
-BK_IAM_SAAS_HOST = os.environ.get("BK_IAM_V3_SAAS_HOST", f"{BK_PAAS_HOST}/o/{BK_IAM_APP_CODE}/")
+BK_IAM_SAAS_HOST = os.environ.get("BK_IAM_V3_SAAS_HOST") or os.getenv("BK_BKLOG_HOST", "").replace("bklog", "bkiam")
 
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
 

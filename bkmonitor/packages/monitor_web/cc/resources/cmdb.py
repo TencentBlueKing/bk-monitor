@@ -68,9 +68,13 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
 
         bk_host_id = None
         if record.get("bk_host_id"):
-            bk_host_id = int(record["bk_host_id"])
-        elif record.get("bk_target_ip") and record.get("bk_target_cloud_id") is not None:
-            bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
+            try:
+                bk_host_id = int(record["bk_host_id"])
+            except ValueError:
+                pass
+        if not bk_host_id:
+            if record.get("bk_target_ip") and record.get("bk_target_cloud_id") is not None:
+                bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
 
         if bk_host_id:
             status[bk_host_id] = AGENT_STATUS.ON

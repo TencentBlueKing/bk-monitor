@@ -192,7 +192,7 @@ class MyApply extends tsc<object> {
             <bk-table-column
               scopedSlots={{
                 default: ({ row }) => {
-                  return <div v-bk-overflow-tips>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
+                  return <div v-bk-overflow-tips>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ssZZ')}</div>;
                 },
               }}
               label={this.$t('提单时间')}

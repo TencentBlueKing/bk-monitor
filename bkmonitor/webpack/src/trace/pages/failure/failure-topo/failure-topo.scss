@@ -153,9 +153,17 @@
   }
 
   .node-detail-tips {
+    position: fixed;
+    display: block;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 999;
     padding: 7px 14px;
     color: #fff;
     background: #333;
+    border: 1px solid #454547;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #00000080;
 
     &_item {
       display: flex;
@@ -208,14 +216,3 @@
   box-shadow: 0 2px 6px 0 #00000080 !important;
 }
 
-
-.node-message-tooltip {
-  transform: translateY(var(--offset, 0));
-
-  .node-detail-tips {
-    z-index: 999;
-    border: 1px solid #454547 !important;
-    border-radius: 2px !important;
-    box-shadow: 0 2px 6px 0 #00000080 !important;
-  }
-}

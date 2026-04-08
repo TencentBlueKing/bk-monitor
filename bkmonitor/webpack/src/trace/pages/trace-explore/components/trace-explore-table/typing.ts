@@ -42,7 +42,7 @@ export enum ExploreTableColumnTypeEnum {
   TAGS = 'tags',
   /** 纯文本  */
   TEXT = 'text',
-  /** 日期列 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ss) */
+  /** 日期列 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ssZZ) */
   TIME = 'time',
 }
 
@@ -62,12 +62,6 @@ export interface ActiveConditionMenuTarget {
   conditionValue: string;
   customMenuList?: ExploreConditionMenuItem[];
   rowId: string;
-}
-
-/** 自定义显示列字段缓存配置 */
-export interface CustomDisplayColumnFieldsConfig {
-  displayFields: string[];
-  fieldsWidth: { [colKey: string]: number };
 }
 
 /** 表格条件菜单项 */

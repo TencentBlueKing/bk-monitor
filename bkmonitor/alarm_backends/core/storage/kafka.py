@@ -17,7 +17,7 @@ import kafka.errors
 from django.conf import settings
 from six.moves import map, range
 
-from alarm_backends.constants import CONST_ONE_DAY
+from alarm_backends.constants import CONST_ONE_DAY, KAFKA_MAX_BUFFER_SIZE
 from alarm_backends.core.storage.redis import Cache
 
 logger = logging.getLogger("core.storage.kafka")
@@ -101,7 +101,11 @@ class KafkaQueue(object):
         for i in range(3):
             try:
                 consumer = kafka.consumer.SimpleConsumer(
-                    self.client, group_name, topic, auto_commit=settings.KAFKA_AUTO_COMMIT, max_buffer_size=None
+                    self.client,
+                    group_name,
+                    topic,
+                    auto_commit=settings.KAFKA_AUTO_COMMIT,
+                    max_buffer_size=KAFKA_MAX_BUFFER_SIZE,
                 )
             except Exception as e:
                 logger.exception(

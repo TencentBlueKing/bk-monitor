@@ -100,7 +100,7 @@ export default class MyComponent extends tsc<object> {
       const url = new URL(grafanaUrl);
       this.iframeRef?.contentWindow.postMessage(
         {
-          route: `${url.pathname.replace('/grafana', '')}${url.search || ''}`,
+          route: `${url.pathname.replace(`${window.site_url}/grafana`.replace(/\/\//g, '/'), '')}${url.search || ''}`,
           // search: url.search,
         },
         '*'
@@ -229,8 +229,8 @@ export default class MyComponent extends tsc<object> {
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
-      const dashboardId = pathname.includes('grafana/d/')
-        ? pathname.replace(/\/?grafana\/d\//, '').replace(/\/$/, '')
+      const dashboardId = pathname.includes(`${window.site_url}grafana/d/`)
+        ? pathname.replace(`${window.site_url}grafana/d/`, '').replace(/\/$/, '')
         : '';
       if (dashboardId && this.url !== dashboardId) {
         this.$router.push({

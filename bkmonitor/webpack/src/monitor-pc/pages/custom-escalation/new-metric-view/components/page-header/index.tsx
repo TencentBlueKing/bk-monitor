@@ -105,6 +105,7 @@ export default class PageHeader extends tsc<object> {
               clearable={false}
               popover-min-width={400}
               scroll-height={300}
+              search-placeholder={this.$t('请输入 关键字')}
               searchable
               onChange={this.handleSeriesChange}
             >

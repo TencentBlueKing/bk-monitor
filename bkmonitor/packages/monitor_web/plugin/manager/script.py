@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import os
-from pathlib import Path
 
 import yaml
 from django.utils.translation import gettext as _
@@ -102,10 +101,12 @@ class ScriptPluginManager(PluginManager):
                 # 维度注入参数，更新至labels的模板中
                 for dms_key, dms_value in list(param_value.items()):
                     if param["type"] == "host":
-                        dms_insert_params[dms_key] = "{{ " + f"cmdb_instance.host.{dms_value} or '-'" + " }}"
+                        dms_insert_params[dms_key] = (
+                            "{{ " + f"cmdb_instance.host.{dms_value} or '{dms_value}' or '-'" + " }}"
+                        )
                     elif param["type"] == "service":
                         dms_insert_params[dms_key] = (
-                            "{{ " + f"cmdb_instance.service.labels['{dms_value}'] or '-'" + " }}"
+                            "{{ " + f"cmdb_instance.service.labels['{dms_value}'] or '{dms_value}' or '-'" + " }}"
                         )
                     elif param["type"] == "custom":
                         # 自定义维度k， v 注入
@@ -204,7 +205,17 @@ class ScriptPluginManager(PluginManager):
         for os_name, file_info in list(meta_dict["scripts"].items()):
             script_path = os.path.join(OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"])
 
-            script_content = self._decode_file(self.plugin_configs[Path(script_path)])
+            # 查找匹配的完整路径
+            matching_path = None
+            for file_path in self.filename_list:
+                if script_path in str(file_path) or script_path.replace(os.sep, "/") in str(file_path):
+                    matching_path = file_path
+                    break
+
+            if not matching_path:
+                raise PluginParseError({"msg": _("无法找到脚本文件: {}").format(file_info["filename"])})
+
+            script_content = self._decode_file(self.plugin_configs[matching_path])
             collector_json[os_name] = {
                 "filename": file_info["filename"],
                 "type": file_info["type"],

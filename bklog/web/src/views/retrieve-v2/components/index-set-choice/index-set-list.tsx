@@ -84,17 +84,16 @@ export default defineComponent({
     });
 
     const isIncludesItem = (item: IndexSetItem) => {
-      return props.value.some(v => {
+      return props.value.some((v) => {
         return v.unique_id === item.unique_id;
       });
     };
 
     const formatList = computed(() => {
-      const filterFn = node => {
+      const filterFn = (node) => {
         return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
-          key =>
-            `${node[key]}`.indexOf(searchText.value) !== -1 ||
-            (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
+          key => `${node[key]}`.indexOf(searchText.value) !== -1
+            || (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
         );
       };
       // 检查节点是否应该显示
@@ -104,25 +103,25 @@ export default defineComponent({
           return true;
         }
 
-        let is_shown_node = defaultIsShown;
+        let isShownNode = defaultIsShown;
 
         // 判定是不是已经选中Tag进行过滤
         if (tagItem.value.tag_id !== undefined) {
-          is_shown_node = node.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+          isShownNode = node.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
         }
 
         // 如果满足Tag标签或者当前条目为显示状态
         // 如果启用隐藏空数据
-        if (is_shown_node && hiddenEmptyItem.value && !isIncludesItem(node)) {
-          is_shown_node = !node.tags.some(tag => tag.tag_id === 4);
+        if (isShownNode && hiddenEmptyItem.value && !isIncludesItem(node)) {
+          isShownNode = !node.tags.some(tag => tag.tag_id === 4);
         }
 
         // 继续判定检索匹配是否满足匹配条件
         if (searchText.value.length > 0) {
-          is_shown_node = filterFn(node);
+          isShownNode = filterFn(node);
         }
 
-        return is_shown_node;
+        return isShownNode;
       };
 
       // 处理子节点
@@ -164,7 +163,7 @@ export default defineComponent({
       // 处理根节点
       // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       const processedList = props.list.map((item: any) => {
-        const is_shown_node = checkNodeShouldShow(item);
+        const isShownNode = checkNodeShouldShow(item);
 
         // 处理子节点
         if (item.children?.length) {
@@ -188,7 +187,7 @@ export default defineComponent({
 
         return {
           ...item,
-          is_shown_node: is_shown_node || isOpenNode,
+          is_shown_node: isShownNode || isOpenNode,
           is_children_open: isOpenNode,
           has_selected_child: hasSelectedChild,
           has_no_data_child: item.children?.every(child => child.tags?.some(tag => tag.tag_id === 4)),
@@ -230,13 +229,12 @@ export default defineComponent({
 
     const rootList = computed(() => formatList.value.filter((item: any) => !item.is_child_node));
 
-    const filterList = computed(() =>
-      rootList.value.filter((item: any) => {
-        return (
-          filterFullList.value.includes(item) ||
-          (item.children ?? []).filter(child => filterFullList.value.includes(child)).length > 0
-        );
-      }),
+    const filterList = computed(() => rootList.value.filter((item: any) => {
+      return (
+        filterFullList.value.includes(item)
+          || (item.children ?? []).filter(child => filterFullList.value.includes(child)).length > 0
+      );
+    }),
     );
 
     /**
@@ -244,7 +242,7 @@ export default defineComponent({
      * @param e
      * @param item
      */
-    const handleIndexSetItemClick = (_e: MouseEvent, item: any, is_root_checked = false) => {
+    const handleIndexSetItemClick = (_e: MouseEvent, item: any, isRootChecked = false) => {
       if (!item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
         return;
       }
@@ -255,7 +253,7 @@ export default defineComponent({
       }
 
       if (props.type === 'union') {
-        if (is_root_checked) {
+        if (isRootChecked) {
           return;
         }
 
@@ -358,7 +356,7 @@ export default defineComponent({
       emit('auth-request', item);
     };
 
-    const getCheckBoxRender = (item, is_root_checked = false) => {
+    const getCheckBoxRender = (item, isRootChecked = false) => {
       if (props.type === 'single') {
         return null;
       }
@@ -367,7 +365,7 @@ export default defineComponent({
         <bk-checkbox
           style='margin-right: 4px'
           checked={isIncludesItem(item) || disableList.value.includes(item.unique_id)}
-          disabled={is_root_checked}
+          disabled={isRootChecked}
         />
       );
     };
@@ -398,10 +396,10 @@ export default defineComponent({
      */
     const renderNodeItem = (
       item: any,
-      is_child = false,
-      has_child = true,
-      is_root_checked = false,
-      has_no_data_child = false,
+      isChild = false,
+      hasChild = true,
+      isRootChecked = false,
+      hasNoDataChild = false,
     ) => {
       const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
       const isEmptyNode = item.tags?.some(tag => tag.tag_id === 4);
@@ -413,14 +411,14 @@ export default defineComponent({
             'index-set-item',
             {
               'no-authority': !hasPermission,
-              'is-child': is_child,
-              'has-child': has_child,
+              'is-child': isChild,
+              'has-child': hasChild,
               // 'is-empty': isEmptyNode,
-              'has-no-data-child': has_no_data_child,
+              'has-no-data-child': hasNoDataChild,
               active: isIncludesItem(item),
             },
           ]}
-          onClick={e => handleIndexSetItemClick(e, item, is_root_checked)}
+          onClick={e => handleIndexSetItemClick(e, item, isRootChecked)}
         >
           <div dir={props.textDir}>
             {props.type === 'single' && (
@@ -442,7 +440,7 @@ export default defineComponent({
             </span>
 
             <bdi class={['index-set-name', { 'no-data': item.tags?.some(tag => tag.tag_id === 4) ?? false }]}>
-              {getCheckBoxRender(item, is_root_checked)}
+              {getCheckBoxRender(item, isRootChecked)}
               <span class={{ 'bklog-empty-icon': true, 'is-empty': isEmptyNode }} />
               <span class='group-icon'>
                 <i class='bklog-icon bklog-suoyin-mulu' />
@@ -493,12 +491,12 @@ export default defineComponent({
         <div class='bklog-v3-index-set-list'>
           {filterList.value.map((item: any) => {
             const result: any[] = [];
-            const is_root_checked = isIncludesItem(item);
+            const isRootChecked = isIncludesItem(item);
 
             if (!isClosedNode(item)) {
               for (const child of item.children ?? []) {
                 if (child.is_shown_node || disableList.value.includes(child.unique_id)) {
-                  result.push(renderNodeItem(child, true, false, is_root_checked, item.has_no_data_child));
+                  result.push(renderNodeItem(child, true, false, isRootChecked, item.has_no_data_child));
                 }
               }
             }

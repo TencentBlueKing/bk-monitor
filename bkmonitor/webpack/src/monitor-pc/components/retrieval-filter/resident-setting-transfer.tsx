@@ -251,7 +251,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
                   ref='search'
                   behavior='simplicity'
                   left-icon='bk-icon icon-search'
-                  placeholder={this.$t('请输入关键字')}
+                  placeholder={this.$t('请输入 关键字')}
                   value={this.searchValue}
                   onChange={this.handleSearchValueChange}
                 />

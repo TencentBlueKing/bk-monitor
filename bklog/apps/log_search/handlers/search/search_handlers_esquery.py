@@ -348,6 +348,8 @@ class SearchHandler:
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
+        self.log_bcs_cluster_name_dict = dict()
+
     def _enhance(self):
         """
         语法增强
@@ -862,9 +864,10 @@ class SearchHandler:
                 data = search_func(params)
                 # 把shards中的failures信息解析后raise异常出来
                 if data.get("_shards", {}).get("failed"):
-                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
-                    raise LogSearchException(errors)
-
+                    # 找到第一个有失败原因的 shards，抛出异常
+                    for shard in data["_shards"]["failures"]:
+                        if shard["reason"]["reason"]:
+                            raise LogSearchException(shard["reason"]["reason"])
                 return data
             except Exception as e:
                 raise handle_es_query_error(e)
@@ -1721,8 +1724,6 @@ class SearchHandler:
             zero_index: int = analyze_result_dict.get("zero_index", -1)
             count_start: int = analyze_result_dict.get("count_start", -1)
 
-            new_list = self._analyze_empty_log(new_list)
-            origin_log_list = self._analyze_empty_log(origin_log_list)
             return {
                 "total": total,
                 "took": took,
@@ -1748,8 +1749,8 @@ class SearchHandler:
             )
             result_up.update(
                 {
-                    "list": self._analyze_empty_log(result_up.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result_up.get("origin_log_list")),
+                    "list": result_up.get("list"),
+                    "origin_log_list": result_up.get("origin_log_list"),
                 }
             )
             return result_up
@@ -1764,8 +1765,8 @@ class SearchHandler:
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
             result_down.update(
                 {
-                    "list": self._analyze_empty_log(result_down.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result_down.get("origin_log_list")),
+                    "list": result_down.get("list"),
+                    "origin_log_list": result_down.get("origin_log_list"),
                 }
             )
             return result_down
@@ -1888,8 +1889,8 @@ class SearchHandler:
                 )
             result.update(
                 {
-                    "list": self._analyze_empty_log(result.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result.get("origin_log_list")),
+                    "list": result.get("list"),
+                    "origin_log_list": result.get("origin_log_list"),
                 }
             )
             return result
@@ -2189,6 +2190,42 @@ class SearchHandler:
 
         return highlight
 
+    def _add_bcs_cluster_fields(self, log):
+        """
+        添加 BCS 集群有关内置字段内容
+        """
+        ext_fields = log.get("__ext")
+        if not ext_fields or not isinstance(ext_fields, dict):
+            return log
+        bcs_cluster_id = ext_fields.get("bk_bcs_cluster_id")
+
+        if bcs_cluster_id:
+            bcs_cluster_name = self._get_bcs_cluster_name(bcs_cluster_id)
+            log["__bcs_cluster_name__"] = bcs_cluster_name
+
+        return log
+
+    def _get_bcs_cluster_name(self, bcs_cluster_id):
+        """
+        获取 BCS 集群名称
+        """
+        bcs_cluster_id = bcs_cluster_id.upper()
+
+        if bcs_cluster_id in self.log_bcs_cluster_name_dict:
+            return self.log_bcs_cluster_name_dict.get(bcs_cluster_id)
+
+        bcs_cluster_name = ""
+
+        try:
+            bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
+            bcs_cluster_name = bcs_cluster_info.get("clusterName", "")
+        except Exception as e:
+            logger.exception("get cluster info by cluster id error: %s, cluster_id: %s", e, bcs_cluster_id)
+
+        self.log_bcs_cluster_name_dict.update({bcs_cluster_id: bcs_cluster_name})
+
+        return bcs_cluster_name
+
     def _add_cmdb_fields(self, log):
         if not self.search_dict.get("bk_biz_id"):
             return log
@@ -2266,6 +2303,7 @@ class SearchHandler:
             # 联合检索补充索引集信息
             log["__index_set_id__"] = self.index_set_id
             log = self._add_cmdb_fields(log)
+            log = self._add_bcs_cluster_fields(log)
             if self.export_fields:
                 new_origin_log = {}
                 for _export_field in self.export_fields:
@@ -2560,37 +2598,6 @@ class SearchHandler:
 
         _count_start = _index
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
-
-    def _analyze_empty_log(self, log_list: list[dict[str, Any]]):
-        log_not_empty_list: list[dict[str, Any]] = []
-        for item in log_list:
-            a_item_dict: dict[str:Any] = item
-
-            # 只要存在log字段则直接显示
-            if "log" in a_item_dict:
-                log_not_empty_list.append(a_item_dict)
-                continue
-            # 递归打平每条记录
-            new_log_context_list: list[str] = []
-
-            def get_field_and_get_context(_item: dict, fater: str = ""):
-                for key in _item:
-                    _key: str = ""
-                    if isinstance(_item[key], dict):
-                        get_field_and_get_context(_item[key], key)
-                    else:
-                        if fater:
-                            _key = f"{fater}.{key}"
-                        else:
-                            _key = f"{key}"
-                    if _key:
-                        a_context: str = f"{_key}: {_item[key]}"
-                        new_log_context_list.append(a_context)
-
-            get_field_and_get_context(a_item_dict)
-            a_item_dict.update({"log": " ".join(new_log_context_list)})
-            log_not_empty_list.append(a_item_dict)
-        return log_not_empty_list
 
     def _combine_addition_ip_chooser(self, attrs: dict, include_bk_host_id: bool = True):
         """
@@ -3106,6 +3113,158 @@ class UnionSearchHandler:
 
         for index_set_id in index_set_ids:
             search_handler = SearchHandler(index_set_id, params)
+            multi_execute_func.append(f"union_search_fields_{index_set_id}", search_handler.fields)
+
+        multi_result = multi_execute_func.run()
+
+        if not multi_result:
+            raise UnionSearchFieldsFailException()
+
+        # 处理返回结果
+        total_fields = list()
+        fields_info = dict()
+        union_field_names = list()
+        union_display_fields = list()
+        union_time_fields = set()
+        union_time_fields_unit = set()
+        context_and_realtime_config = {"name": "context_and_realtime", "is_active": False, "extra": []}
+        for index_set_id in index_set_ids:
+            result = multi_result[f"union_search_fields_{index_set_id}"]
+            fields = result["fields"]
+            fields_info[index_set_id] = fields
+            display_fields = result["display_fields"]
+            result_config = result["config"][0]
+            if result_config["is_active"]:
+                context_and_realtime_config["is_active"] = True
+            extra = result_config["extra"]
+            extra.update({"index_set_id": index_set_id})
+            context_and_realtime_config["extra"].append(extra)
+
+            for field_info in fields:
+                field_name = field_info["field_name"]
+                field_type = field_info["field_type"]
+                if field_name not in union_field_names:
+                    field_info["index_set_ids"] = [index_set_id]
+                    total_fields.append(field_info)
+                    union_field_names.append(field_info["field_name"])
+                else:
+                    # 判断字段类型是否一致  不一致则标记为类型冲突
+                    _index = union_field_names.index(field_name)
+                    _field_type = total_fields[_index]["field_type"]
+                    if field_type != _field_type:
+                        if (field_type == "date" and _field_type == "date_nanos") or (
+                            field_type == "date_nanos" and _field_type == "date"
+                        ):
+                            total_fields[_index]["field_type"] = "date_nanos"
+                        else:
+                            total_fields[_index]["field_type"] = "conflict"
+                    total_fields[_index]["index_set_ids"].append(index_set_id)
+
+            # 处理默认显示字段
+            union_display_fields.extend(display_fields)
+
+        # 处理公共的默认显示字段
+        union_display_fields_all = list()
+        for display_field in union_display_fields:
+            if display_field not in union_display_fields_all:
+                union_display_fields_all.append(display_field)
+
+        # 处理时间字段
+        for index_set_obj in index_set_objs:
+            if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
+                raise SearchUnKnowTimeField()
+            union_time_fields.add(index_set_obj.time_field)
+            union_time_fields_unit.add(index_set_obj.time_field_unit)
+
+        # 处理公共的时间字段
+        if len(union_time_fields) != 1:
+            time_field = "unionSearchTimeStamp"
+            time_field_type = "date"
+            time_field_unit = "millisecond"
+        else:
+            time_field = list(union_time_fields)[0]
+            time_field_idx = union_field_names.index(time_field)
+            time_field_type = total_fields[time_field_idx]["field_type"]
+            time_field_unit = list(union_time_fields_unit)[0]
+
+        if not union_display_fields_all:
+            union_display_fields_all.append(time_field)
+
+        index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
+
+        # 查询索引集ids是否有默认的显示配置  不存在则去创建
+        # 考虑index_set_ids的查询性能 查询统一用index_set_ids_hash
+        username = get_request_external_username() or get_request_username()
+        try:
+            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.get(
+                index_set_ids_hash=index_set_ids_hash,
+                username=username,
+                scope=SearchScopeEnum.DEFAULT.value,
+            )
+        except UserIndexSetFieldsConfig.DoesNotExist:
+            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.none()
+
+        fields_names = [field_info.get("field_name") for field_info in total_fields]
+        default_sort_list = [[time_field, "desc"]]
+        for field_name in ["gseIndex", "gseindex", "iterationIndex", "_iteration_idx"]:
+            if field_name in fields_names:
+                default_sort_list.append([field_name, "desc"])
+
+        if user_index_set_config_obj:
+            try:
+                obj = IndexSetFieldsConfig.objects.get(pk=user_index_set_config_obj.config_id)
+            except IndexSetFieldsConfig.DoesNotExist:
+                obj = self.get_or_create_default_config(
+                    index_set_ids=index_set_ids, display_fields=union_display_fields_all, sort_list=default_sort_list
+                )
+                user_index_set_config_obj.config_id = obj.id
+                user_index_set_config_obj.save()
+
+        else:
+            obj = self.get_or_create_default_config(
+                index_set_ids=index_set_ids, display_fields=union_display_fields_all, sort_list=default_sort_list
+            )
+        ret = {
+            "config_id": obj.id,
+            "config": self.get_fields_config(context_and_realtime_config),
+            "fields": total_fields,
+            "fields_info": fields_info,
+            "display_fields": obj.display_fields,
+            "sort_list": obj.sort_list,
+            "time_field": time_field,
+            "time_field_type": time_field_type,
+            "time_field_unit": time_field_unit,
+            "default_sort_list": default_sort_list,
+        }
+        return ret
+
+    def unifyquery_union_search_fields(self, data):
+        """
+        获取字段mapping信息
+        """
+        from apps.log_unifyquery.handler.base import UnifyQueryHandler
+
+        index_set_ids = data.get("index_set_ids")
+        start_time = data.get("start_time", "")
+        end_time = data.get("end_time", "")
+
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
+
+        if not index_set_objs:
+            raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_ids))
+
+        multi_execute_func = MultiExecuteFunc()
+
+        # 构建请求参数
+        for index_set_id in index_set_ids:
+            params = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "is_union_search": True,
+                "index_set_ids": [index_set_id],
+                "bk_biz_id": data.get("bk_biz_id"),
+            }
+            search_handler = UnifyQueryHandler(params)
             multi_execute_func.append(f"union_search_fields_{index_set_id}", search_handler.fields)
 
         multi_result = multi_execute_func.run()

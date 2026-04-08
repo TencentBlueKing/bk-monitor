@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import re
 
-from django.db.models.sql import AND, OR
+from django.db.models.sql.where import AND, OR
 
 
 class Lookup:

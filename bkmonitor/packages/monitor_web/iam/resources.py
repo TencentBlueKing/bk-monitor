@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import defaultdict
-from typing import Dict, List, Union
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -19,7 +18,9 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.itsm.default import TokenVerifyResource
-from bk_dataview.permissions import GrafanaRole
+from bk_dataview.permissions import GrafanaPermission, GrafanaRole
+from bk_dataview.api import get_or_create_org
+from bk_dataview.models import Dashboard
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
@@ -104,7 +105,7 @@ class CheckAllowedByApmApplicationResource(Resource):
                 app = Application.objects.get(bk_biz_id=validated_request_data["bk_biz_id"], app_name=application_name)
                 application_id = app.application_id
             except Application.DoesNotExist:
-                raise ValueError("Application({}) does not exist".format(application_name))
+                raise ValueError(f"Application({application_name}) does not exist")
 
         apm_resource = Permission.make_resource(resource_type=ApmApplication.id, instance_id=application_id)
         client = Permission()
@@ -121,7 +122,9 @@ class CheckAllowedResource(Resource):
             type = serializers.CharField(required=True, label="资源类型")
             id = serializers.CharField(required=True, label="资源ID")
 
-        resources = serializers.ListField(required=True, allow_empty=False, label="资源列表", child=ResourceSerializer())
+        resources = serializers.ListField(
+            required=True, allow_empty=False, label="资源列表", child=ResourceSerializer()
+        )
         action_ids = serializers.ListField(required=True, allow_empty=False, label="动作ID列表")
         username = serializers.CharField(required=False, allow_null=True, label="指定用户名")
 
@@ -183,7 +186,9 @@ class GetAuthorityApplyInfoResource(Resource):
             type = serializers.CharField(required=True, label="资源类型")
             id = serializers.CharField(required=True, label="资源ID")
 
-        resources = serializers.ListField(required=True, allow_empty=False, label="资源列表", child=ResourceSerializer())
+        resources = serializers.ListField(
+            required=True, allow_empty=False, label="资源列表", child=ResourceSerializer()
+        )
         action_ids = serializers.ListField(required=True, allow_empty=False, label="动作ID列表")
 
     def perform_request(self, validated_request_data):
@@ -209,13 +214,20 @@ class TestResource(Resource):
 
 def create_permission(authorized_users, params):
     """
-    新增权限
+    新增权限（支持 folder 和 dashboard 资源）
         1. 判定是否有存量被授权人权限
         2. 判定该实例是否已被授权，若有则不处理，无则更新该条授权记录
         3. 给剩余被授权人新增权限
         4. 注入grafana新增被授权人的用户权限
+
+    注意: resources 可以包含以下格式
+        - dashboard: "{org_id}|{uid}" 格式 或纯 "{uid}" 格式
+          例如: "1|abc123" 或 "abc123"
+        - folder: "folder:{org_id}|{folder_id}" 格式
+          例如: "folder:1|123"
     """
     exist_authorized_users = set()
+    # 查询当前授权人的资源， 并增量更新resource
     for permission_obj in ExternalPermission.objects.filter(
         authorized_user__in=authorized_users,
         action_id=params["action_id"],
@@ -227,6 +239,7 @@ def create_permission(authorized_users, params):
             permission_obj.resources = list(all_resources)
             permission_obj.expire_time = params["expire_time"]
             permission_obj.save()
+    # 新增授权用户
     add_authorized_users = set(authorized_users) - exist_authorized_users
     ExternalPermission.objects.bulk_create(
         ExternalPermission(authorized_user=authorized_user, **params) for authorized_user in add_authorized_users
@@ -250,24 +263,63 @@ class CreateOrUpdateExternalPermission(Resource):
 
         def validate(self, attrs):
             """
-            验证授权人是否有对应操作ID权限
+            验证授权人是否有对应操作ID权限（支持 folder 和 dashboard）
             """
-            from monitor_web.grafana.permissions import DashboardPermission
-
             authorizer = attrs.pop("authorizer", "")
-            _, role, _ = DashboardPermission.get_user_permission(authorizer, str(attrs["bk_biz_id"]))
-            if (attrs["action_id"] == "view_grafana" and role < GrafanaRole.Viewer) or (
-                attrs["action_id"] == "manage_grafana" and role < GrafanaRole.Editor
-            ):
-                raise serializers.ValidationError(f"{authorizer}无此操作权限")
+            bk_biz_id = attrs["bk_biz_id"]
+            _, role, dashboard_permissions = DashboardPermission.get_user_permission(authorizer, str(bk_biz_id))
+
+            # 检查角色权限
+            required_role = GrafanaRole.Viewer if attrs["action_id"] == "view_grafana" else GrafanaRole.Editor
+            if role < required_role:
+                # 如果没有全局角色权限，检查是否对所有指定资源有权限
+                org_id = get_or_create_org(bk_biz_id)["id"]
+
+                # 展开资源（dashboard 和 folder）为 dashboard uids
+                all_dashboard_uids = DashboardPermission.expand_resources_to_dashboard_uids(
+                    org_id, attrs.get("resources", [])
+                )
+
+                # 检查是否对所有资源都有权限
+                for uid in all_dashboard_uids:
+                    if uid not in dashboard_permissions:
+                        raise serializers.ValidationError(f"{authorizer}对部分资源无操作权限")
+
+                    # 检查权限级别
+                    if attrs["action_id"] == "manage_grafana" and dashboard_permissions[uid] < GrafanaPermission.Edit:
+                        raise serializers.ValidationError(f"{authorizer}对部分资源仅有查看权限，无编辑权限")
+
             return attrs
 
     def create_approval_ticket(self, space: Space, authorized_users, params):
         """
-        创建ITSM审批单据并创建审批记录，保存单据号和跳转url
+        创建 ITSM 审批单据并创建审批记录，保存单据号和跳转 url
         1. 新增权限 - 被授权人视角
         2. 新增权限 - 实例视角
+
+        支持显示 folder 和 dashboard 资源
         """
+        # 格式化资源显示，区分 folder 和 dashboard
+        resource_display = []
+
+        for resource_id in params["resources"]:
+            if resource_id.startswith("folder:"):
+                # 解析 folder
+                folder_part = resource_id[len(DashboardPermission.FOLDER_PREFIX) :]  # 移除 "folder:" 前缀
+                if "|" in folder_part:
+                    try:
+                        f_org_id, f_id = folder_part.split("|", 1)
+                        folder = Dashboard.objects.filter(org_id=int(f_org_id), id=int(f_id), is_folder=True).first()
+                        if folder:
+                            resource_display.append(f"[目录] {folder.title}")
+                        else:
+                            resource_display.append(resource_id)
+                    except (ValueError, Dashboard.DoesNotExist):
+                        resource_display.append(resource_id)
+            else:
+                # dashboard uid
+                resource_display.append(resource_id)
+
         ticket_data = {
             "creator": get_request_username() or get_local_username(),
             "fields": [
@@ -276,7 +328,7 @@ class CreateOrUpdateExternalPermission(Resource):
                 {"key": "title", "value": "对外版监控平台授权审批"},
                 {"key": "expire_time", "value": params["expire_time"].strftime("%Y-%m-%d %H:%M:%S")},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
-                {"key": "resources", "value": ",".join(params["resources"])},
+                {"key": "resources", "value": ",".join(resource_display)},
             ],
             "service_id": settings.EXTERNAL_APPROVAL_SERVICE_ID,
             "fast_approval": False,
@@ -308,7 +360,7 @@ class CreateOrUpdateExternalPermission(Resource):
         """
         # 如果是非cmdb业务，尝试获取关联cmdb业务，用于审批单据
         space: Space = SpaceApi.get_space_detail(bk_biz_id=validated_request_data["bk_biz_id"])
-        related_space: Union[Space, None] = SpaceApi.get_related_space(space.space_uid, SpaceTypeEnum.BKCC.value)
+        related_space: Space | None = SpaceApi.get_related_space(space.space_uid, SpaceTypeEnum.BKCC.value)
         if not related_space:
             raise ValidationError(
                 f"create approval ticket failed, related space not found, space_uid: {space.space_uid}"
@@ -387,7 +439,7 @@ class CreateOrUpdateExternalPermission(Resource):
 
 class DeleteExternalPermission(Resource):
     """
-    删除外部人员权限
+    删除外部人员权限（支持 folder 和 dashboard）
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -401,6 +453,8 @@ class DeleteExternalPermission(Resource):
         """
         1. 基于被授权人视角：修改资源列表
         2. 基于实例资源视角：修改对应被授权人的资源列表
+
+        注意: 支持删除 folder 和 dashboard 资源
         """
         authorized_users = validated_request_data["authorized_users"]
         resources = validated_request_data["resources"]
@@ -408,6 +462,7 @@ class DeleteExternalPermission(Resource):
         del_permission_ids = []
         if view_type == "resource":
             resource_id = resources[0]
+            # 删除指定用户关于该资源的权限
             for permission in ExternalPermission.objects.filter(
                 authorized_user__in=authorized_users,
                 action_id=validated_request_data["action_id"],
@@ -421,6 +476,7 @@ class DeleteExternalPermission(Resource):
                 else:
                     del_permission_ids.append(permission.id)
         else:
+            # 完全删除某个用户在某个业务下的全部权限
             del_permission_ids = ExternalPermission.objects.filter(
                 authorized_user__in=authorized_users,
                 action_id=validated_request_data["action_id"],
@@ -434,7 +490,7 @@ class DeleteExternalPermission(Resource):
 
 class GetExternalPermissionList(Resource):
     """
-    获取外部权限列表
+    获取外部权限列表（支持 folder 和 dashboard）
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -486,7 +542,7 @@ class GetExternalPermissionList(Resource):
                     resource_to_user[resource_key]["status"] = permission_status
                     resource_to_user[resource_key]["bk_biz_id"] = permission.bk_biz_id
 
-            permission_list: List[Dict] = list(resource_to_user.values())
+            permission_list: list[dict] = list(resource_to_user.values())
 
         for permission in permission_list:
             permission["authorizer"] = authorizer_map.value.get(str(permission["bk_biz_id"]), "")
@@ -545,7 +601,7 @@ class GetAuthorizerByBiz(Resource):
 
 class GetResourceByAction(Resource):
     """
-    根据操作类型获取资源实例列表
+    根据操作类型获取资源实例列表（包含 folder 和 dashboard）
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -555,13 +611,45 @@ class GetResourceByAction(Resource):
     def perform_request(self, validated_request_data):
         if validated_request_data["action_id"] not in ["view_grafana", "manage_grafana"]:
             return []
+
+        resources = []
+
+        # 对于通用业务(biz_id==0),获取当前所有的业务资源， 添加到resources中
         if validated_request_data["bk_biz_id"] == 0:
-            resources = []
             bk_biz_ids = ExternalPermission.objects.all().values_list("bk_biz_id", flat=True).distinct()
             for bk_biz_id in bk_biz_ids:
-                resources.extend(resource.grafana.get_dashboard_list(bk_biz_id=bk_biz_id))
-            return resources
-        return resource.grafana.get_dashboard_list(bk_biz_id=validated_request_data["bk_biz_id"])
+                resources.extend(self._get_resources_by_biz(bk_biz_id))
+        else:
+            resources = self._get_resources_by_biz(validated_request_data["bk_biz_id"])
+
+        return resources
+
+    def _get_resources_by_biz(self, bk_biz_id):
+        """获取指定业务的资源列表（包含 folder 和 dashboard）"""
+        resources = []
+        org_id = get_or_create_org(bk_biz_id)["id"]
+
+        # 获取 dashboards(原有获取规则)
+        # 方法实现见 packages/monitor_web/grafana/resources/manage.py/GetDashboardList
+        dashboards = resource.grafana.get_dashboard_list(bk_biz_id=bk_biz_id)
+        resources.extend(dashboards)
+
+        # 获取 folders
+        folders = Dashboard.objects.filter(org_id=org_id, is_folder=True)
+        for folder in folders:
+            resources.append(
+                {
+                    "id": folder.id,
+                    "uid": f"folder:{org_id}|{folder.id}",  # 使用统一的 folder 格式
+                    "text": f"[目录] {folder.title}",
+                    "title": folder.title,
+                    "is_folder": True,
+                    "folder_id": folder.id,
+                    "org_id": org_id,
+                }
+            )
+
+        return resources
 
 
 class GetApplyRecordList(Resource):

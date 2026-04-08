@@ -19,6 +19,8 @@ from opentelemetry.semconv.trace import SpanAttributes
 from constants.alert import EventSeverity
 from constants.apm import CachedEnum, OtlpKey, SpanKindKey, TelemetryDataType
 
+DEFAULT_APM_LOG_SEARCH_FIELD_NAME = "*"
+
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
 COLLECT_SERVICE_CONFIG_KEY = "collect_service"

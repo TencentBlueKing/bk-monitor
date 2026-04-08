@@ -43,7 +43,7 @@ class _JobApi:
 
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (

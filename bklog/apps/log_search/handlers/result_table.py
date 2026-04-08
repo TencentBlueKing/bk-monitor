@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -21,11 +20,13 @@ the project delivered to anyone in the future.
 """
 from typing import List
 
-from apps.api import BkDataAuthApi, BkLogApi
+from apps.api import BkDataAuthApi, BkLogApi, TransferApi
 from apps.api.modules.utils import (
     get_bkcc_biz_id_related_spaces,
     get_non_bkcc_space_related_bkcc_biz_id,
 )
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.log_search.constants import TraceMatchFieldType, TraceMatchResult
 from apps.log_search.exceptions import (
     FieldsTypeConsistencyException,
@@ -40,6 +41,7 @@ from apps.log_trace.handlers.trace_field_handlers import (
     TRACE_DESC_MAPPING,
     TRACE_SUGGEST_FIELD,
 )
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.utils import APIModel
 from apps.utils.db import array_group
 from apps.utils.local import get_request_username
@@ -48,11 +50,12 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class ResultTableHandler(APIModel):
-    def __init__(self, scenario_id, storage_cluster_id=None, bk_username=None):
+    def __init__(self, scenario_id, storage_cluster_id=None, bk_username=None, bk_biz_id=None):
         super().__init__()
         self.scenario_id = scenario_id
         self.storage_cluster_id = storage_cluster_id
         self.username = bk_username if bk_username else get_request_username()
+        self.bk_biz_id = bk_biz_id
 
     def list(self, bk_biz_id=None, result_table_id=None):
         """
@@ -128,22 +131,49 @@ class ResultTableHandler(APIModel):
             "bk_username": self.username,
             "bkdata_authentication_method": "user",
         }
-        mapping_list = BkLogApi.mapping(kwargs)
-        if not mapping_list:
-            raise MappingEmptyException(MappingEmptyException.MESSAGE.format(result_table_id=result_table_id))
+        if self.bk_biz_id and FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.bk_biz_id):
+            _result_table_id = result_table_id
+            _cluster_id = self.storage_cluster_id
 
-        date_candidate = MappingHandlers.get_date_candidate(mapping_list)
-        property_dict: dict = MappingHandlers(
-            result_table_id, -1, self.scenario_id, self.storage_cluster_id
-        ).find_merged_property(mapping_list)
-        field_list: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
+            if self.scenario_id == Scenario.LOG:
+                # 如果未指定集群ID，则从最后一个结果表中获取，scenario_id 为 log 时，一般只会传一个result_table_id
+                if not _cluster_id:
+                    last_result_table_id = _result_table_id.split(",")[-1]
+                    storage_info = TransferApi.get_result_table_storage(
+                        {"result_table_list": last_result_table_id, "storage_type": "elasticsearch"}
+                    )[last_result_table_id]
+                    cluster_config = storage_info.get("cluster_config", {})
+                    _cluster_id = cluster_config.get("cluster_id")
+                # 转成原始的ES索引名
+                _result_table_id = result_table_id.replace(".", "_")
+
+            field_list = UnifyQueryMappingHandler.get_fields_directly(
+                bk_biz_id=self.bk_biz_id,
+                scenario_id=self.scenario_id,
+                storage_cluster_id=_cluster_id,
+                result_table_id=_result_table_id,
+            )
+            if not field_list:
+                raise MappingEmptyException(MappingEmptyException.MESSAGE.format(result_table_id=result_table_id))
+            date_candidate = UnifyQueryMappingHandler.get_date_candidate(field_list)
+        else:
+            mapping_list = BkLogApi.mapping(kwargs)
+            if not mapping_list:
+                raise MappingEmptyException(MappingEmptyException.MESSAGE.format(result_table_id=result_table_id))
+
+            date_candidate = MappingHandlers.get_date_candidate(mapping_list)
+            property_dict: dict = MappingHandlers(
+                result_table_id, -1, self.scenario_id, self.storage_cluster_id
+            ).find_merged_property(mapping_list)
+            field_list: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
+
         index_retrieve = {
             "date_candidate": date_candidate,
             "fields": [
                 {
                     "field_type": field["field_type"],
                     "field_name": field["field_name"],
-                    "field_alias": field.get("field_alias"),
+                    "field_alias": field.get("field_alias", ""),
                 }
                 for field in field_list
             ],
@@ -164,9 +194,8 @@ class ResultTableHandler(APIModel):
         """
         1、检查两索引字段类型是否一致；
         2、检查两索引时间字段和类型是否一致；
-        :param basic_index:
+        :param basic_indices:
         :param append_index:
-        :param raise_exception: 是否抛出异常
         :return:
         """
         basic_detail = self.retrieve(",".join(basic_indices)) if basic_indices else {}

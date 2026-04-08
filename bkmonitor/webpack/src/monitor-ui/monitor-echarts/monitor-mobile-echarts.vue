@@ -459,7 +459,7 @@ export default class MonitorMobileEcharts extends Vue {
         });
       return;
     }
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
@@ -678,7 +678,7 @@ export default class MonitorMobileEcharts extends Vue {
       color: #63656e;
       background: white;
       border-radius: 2px;
-      box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 12px 0 rgb(0 0 0 / 20%);
 
       &-title {
         margin: 6px 0 0 16px;
@@ -743,14 +743,11 @@ export default class MonitorMobileEcharts extends Vue {
 
   .echart-content {
     position: absolute;
-    top: 36px;
-    right: 1px;
-    bottom: 1px;
-    left: 1px;
+    inset: 36px 1px 1px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0);
+    background: rgb(255 255 255 / 0%);
   }
 }
 </style>

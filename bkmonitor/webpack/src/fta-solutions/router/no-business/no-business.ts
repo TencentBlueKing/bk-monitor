@@ -34,7 +34,7 @@ export default [
       noCache: NoBusiness,
     },
     meta: {
-      title: '无业务',
+      title: '无权限',
       navId: '',
       noNavBar: true,
     },

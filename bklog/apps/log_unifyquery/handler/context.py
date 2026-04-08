@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
-from typing import Dict, List, Any
+from typing import Any
 
 from apps.log_search.models import Scenario
-from apps.log_unifyquery.builder.context import CreateSearchContextBodyCustomField, \
-    CreateSearchContextBodyScenarioBkData, CreateSearchContextBodyScenarioLog
+from apps.log_unifyquery.builder.context import (
+    CreateSearchContextBodyCustomField,
+    CreateSearchContextBodyScenarioBkData,
+    CreateSearchContextBodyScenarioLog,
+)
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 
 
@@ -43,11 +46,10 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
 
             params_down = copy.deepcopy(self.base_dict)
             params_down.update(body)
-            result_down: Dict = self.query_ts_raw(params_down)
+            result_down: dict = self.query_ts_raw(params_down)
 
             result_down: dict = self._deal_query_result(result_down)
-            result_down.update(
-                {"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
+            result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
             total = result_up["total"] + result_down["total"]
             took = result_up["took"] + result_down["took"]
             new_list = result_up["list"] + result_down["list"]
@@ -65,8 +67,6 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
             zero_index: int = analyze_result_dict.get("zero_index", -1)
             count_start: int = analyze_result_dict.get("count_start", -1)
 
-            new_list = self._analyze_empty_log(new_list)
-            origin_log_list = self._analyze_empty_log(origin_log_list)
             return {
                 "total": total,
                 "took": took,
@@ -77,7 +77,7 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
                 "dsl": json.dumps(body),
             }
         if self.start < 0:
-            body: Dict = self._get_context_body("-")
+            body: dict = self._get_context_body("-")
 
             params_up = copy.deepcopy(self.base_dict)
             params_up.update(body)
@@ -92,25 +92,24 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
             )
             result_up.update(
                 {
-                    "list": self._analyze_empty_log(result_up.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result_up.get("origin_log_list")),
+                    "list": result_up.get("list"),
+                    "origin_log_list": result_up.get("origin_log_list"),
                 }
             )
             return result_up
         if self.start > 0:
-            body: Dict = self._get_context_body("+")
+            body: dict = self._get_context_body("+")
 
             params_down = copy.deepcopy(self.base_dict)
             params_down.update(body)
             result_down = self.query_ts_raw(params_down)
 
             result_down = self._deal_query_result(result_down)
-            result_down.update(
-                {"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
+            result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
             result_down.update(
                 {
-                    "list": self._analyze_empty_log(result_down.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result_down.get("origin_log_list")),
+                    "list": result_down.get("list"),
+                    "origin_log_list": result_down.get("origin_log_list"),
                 }
             )
             return result_down
@@ -170,14 +169,14 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
         return {}
 
     def _analyze_context_result(
-            self,
-            log_list: List[Dict[str, Any]],
-            mark_gseindex: int = None,
-            mark_gseIndex: int = None,
-            target_fields: list = None,
-            sort_fields: list = None,
-            # pylint: disable=invalid-name
-    ) -> Dict[str, Any]:
+        self,
+        log_list: list[dict[str, Any]],
+        mark_gseindex: int = None,
+        mark_gseIndex: int = None,
+        target_fields: list = None,
+        sort_fields: list = None,
+        # pylint: disable=invalid-name
+    ) -> dict[str, Any]:
         log_list_reversed: list = log_list
         if self.start < 0:
             log_list_reversed = list(reversed(log_list))
@@ -215,24 +214,24 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
                 _iteration_idx: str = item.get("_iteration_idx")
 
                 if (
-                        (
-                                self.gseindex == str(gseindex)
-                                and self.bk_host_id == bk_host_id
-                                and self.path == path
-                                and self._iteration_idx == str(_iteration_idx)
-                        )
-                        or (
+                    (
+                        self.gseindex == str(gseindex)
+                        and self.bk_host_id == bk_host_id
+                        and self.path == path
+                        and self._iteration_idx == str(_iteration_idx)
+                    )
+                    or (
                         self.gseindex == str(gseindex)
                         and self.ip == ip
                         and self.path == path
                         and self._iteration_idx == str(_iteration_idx)
-                )
-                        or (
+                    )
+                    or (
                         self.gseindex == str(gseindex)
                         and self.container_id == container_id
                         and self.logfile == logfile
                         and self._iteration_idx == str(_iteration_idx)
-                )
+                    )
                 ):
                     _index = index
                     break
@@ -245,15 +244,15 @@ class UnifyQueryContextHandler(UnifyQueryTailHandler):
                 iterationIndex: str = item.get("iterationIndex")  # pylint: disable=invalid-name
 
                 if (
-                        self.gseIndex == str(gseIndex)
-                        and self.bk_host_id == bk_host_id
-                        and self.path == path
-                        and self.iterationIndex == str(iterationIndex)
+                    self.gseIndex == str(gseIndex)
+                    and self.bk_host_id == bk_host_id
+                    and self.path == path
+                    and self.iterationIndex == str(iterationIndex)
                 ) or (
-                        self.gseIndex == str(gseIndex)
-                        and self.serverIp == serverIp
-                        and self.path == path
-                        and self.iterationIndex == str(iterationIndex)
+                    self.gseIndex == str(gseIndex)
+                    and self.serverIp == serverIp
+                    and self.path == path
+                    and self.iterationIndex == str(iterationIndex)
                 ):
                     _index = index
                     break

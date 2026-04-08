@@ -141,6 +141,10 @@
       .t-table__pagination-wrap {
         display: none;
       }
+
+      tbody tr:hover {
+        background-color: #f5f7fa;
+      }
     }
 
     .icon-filter-fill {

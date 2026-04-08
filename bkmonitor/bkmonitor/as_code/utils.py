@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List, Optional
 
 from django.utils.translation import gettext as _
 
@@ -19,7 +17,7 @@ from bkmonitor.data_source import Functions, GrafanaFunctions
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
-def parse_function(text: str) -> Dict:
+def parse_function(text: str) -> dict:
     """
     函数及参数解析
     """
@@ -39,7 +37,7 @@ def parse_function(text: str) -> Dict:
     return {"id": func_name, "params": params}
 
 
-def parse_conditions(text: str) -> List:
+def parse_conditions(text: str) -> list:
     """
     条件表达式解析
     """
@@ -48,11 +46,11 @@ def parse_conditions(text: str) -> List:
     return conditions_parser.parse(text, lexer=condition_lexer) or []
 
 
-def parse_threshold(text: str) -> List[List[Dict]]:
+def parse_threshold(text: str) -> list[list[dict]]:
     return threshold_parser.parse(text, lexer=threshold_lexer)
 
 
-def create_function_expression(config: Dict):
+def create_function_expression(config: dict):
     """
     生成函数表达式
     """
@@ -62,7 +60,7 @@ def create_function_expression(config: Dict):
     return f"{config['id']}({', '.join([str(x) for x in params])})"
 
 
-def create_threshold_expression(configs: List[List[Dict]]):
+def create_threshold_expression(configs: list[list[dict]]):
     """
     生成静态阈值表达式
     """
@@ -86,7 +84,7 @@ def create_threshold_expression(configs: List[List[Dict]]):
     return " or ".join(expressions_list)
 
 
-def create_conditions_expression(configs: List[Dict]):
+def create_conditions_expression(configs: list[dict]):
     """
     生成条件表达式
     """
@@ -118,7 +116,7 @@ def create_conditions_expression(configs: List[Dict]):
             continue
 
         if isinstance(values[0], str) or method not in number_methods:
-            expression = f"{key}{method_mapping[method]}\"{','.join([str(v) for v in values])}\""
+            expression = f'{key}{method_mapping[method]}"{",".join([str(v) for v in values])}"'
         else:
             expression = f"{key}{method_mapping[method]}{','.join([str(v) for v in values])}"
 
@@ -129,7 +127,7 @@ def create_conditions_expression(configs: List[Dict]):
     return expressions
 
 
-def parse_metric_id(data_source_label: str, data_type_label: str, metric_id: str) -> Dict:
+def parse_metric_id(data_source_label: str, data_type_label: str, metric_id: str) -> dict:
     data_source = (data_source_label, data_type_label)
     if data_source in (
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
@@ -155,7 +153,7 @@ def parse_metric_id(data_source_label: str, data_type_label: str, metric_id: str
     elif data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG):
         return {"result_table_id": metric_id}
     elif data_source == (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES):
-        index_set_id, metric_field = metric_id.rsplit(".", 1)
+        index_set_id, metric_field = metric_id.split(".", 1)
         return {"index_set_id": index_set_id, "metric_field": metric_field, "result_table_id": index_set_id}
     elif data_source == (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG):
         return {"index_set_id": metric_id, "result_table_id": metric_id}
@@ -177,7 +175,7 @@ def parse_metric_id(data_source_label: str, data_type_label: str, metric_id: str
     raise ValueError(f"data_source({data_source_label}, {data_type_label}) not exists")
 
 
-def get_metric_id(data_source_label: str, data_type_label: str, query_config: Dict):
+def get_metric_id(data_source_label: str, data_type_label: str, query_config: dict):
     data_source = (data_source_label, data_type_label)
     if data_source in (
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
@@ -216,7 +214,7 @@ def get_metric_id(data_source_label: str, data_type_label: str, query_config: Di
     return metric_id
 
 
-def parse_user(user: str) -> Optional[Dict]:
+def parse_user(user: str) -> dict | None:
     """
     用户字段解析
     """

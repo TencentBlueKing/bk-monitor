@@ -220,7 +220,7 @@ class PercentageBarChart extends CommonSimpleChart {
         window.open(url);
       } else {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.url}`.replace(/\/\//g, '/'),
+          path: `${window.__BK_WEWEB_DATA__?.parentRoute || ''}${item.url}`.replace(/\/\//g, '/'),
         });
       }
       return;

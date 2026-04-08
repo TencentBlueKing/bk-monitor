@@ -105,6 +105,7 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
     const operations = deepRef([]);
+    const operationsFailDetail = deepRef('');
     const bkzIds = deepRef([]);
     const { t } = useI18n();
     const incidentDetailData = deepRef<IIncident>({});
@@ -133,6 +134,7 @@ export default defineComponent({
     provide('incidentDetail', incidentDetailData);
     provide('valueMap', valueMap);
     provide('operationsList', operations);
+    provide('operationsFailDetail', operationsFailDetail);
     provide('operationsLoading', operationsLoading);
     provide('operationTypeMap', operationTypeMap);
     provide('incidentResults', incidentResultList);
@@ -251,9 +253,12 @@ export default defineComponent({
       analyzeTagList.value = list;
     };
     const getIncidentOperationTypes = () => {
-      incidentOperationTypes({
-        incident_id: incidentDetailData.value?.incident_id,
-      })
+      incidentOperationTypes(
+        {
+          incident_id: incidentDetailData.value?.incident_id,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           res.map(item => {
             item.id = item.operation_class;
@@ -288,10 +293,12 @@ export default defineComponent({
             item.str = replaceStr(typeTextMap[operation_type], extra_info);
           });
           operations.value = res;
+          operationsFailDetail.value = '';
           operationsLoading.value = false;
         })
         .catch(err => {
           console.log(err);
+          operationsFailDetail.value = err.error_details?.detail || err.message;
           operationsLoading.value = false;
         });
     };

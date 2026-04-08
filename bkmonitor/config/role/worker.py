@@ -67,6 +67,16 @@ BACKEND_NAME = "BK Monitor Backend"
 MIN_DATA_ACCESS_CHECKPOINT = 30 * 60
 # access 每次往前多拉取1个周期的数据
 NUM_OF_COUNT_FREQ_ACCESS = 1
+# access.data 模块数据处理最大时间点数量，默认 10 个时间点
+# 用于限制故障恢复后一次性处理过量数据，防止给下游模块造成压力
+# 仅对 TIME_SERIES 类型数据生效
+# 注意：限制的是时间点数量，同一时间点的所有序列数据会被完整处理
+ACCESS_DATA_MAX_TIME_POINTS = 10
+
+# access-detect 合并处理开关
+# 当策略的所有检测算法均为静态阈值时，在 access 模块直接执行检测
+# 跳过 Redis 队列传递和 detect 异步任务调度，减少延迟和资源消耗
+ACCESS_DETECT_MERGE_ENABLED = True
 
 # 流控配置
 QOS_DROP_ALARM_THREADHOLD = 3
@@ -301,9 +311,6 @@ LONG_TASK_CRONTAB = [
     # 新版链路状态自动兜底刷新,15min 一次
     ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
 ]
-
-# Timeout for image exporter service, default set to 10 seconds
-IMAGE_EXPORTER_TIMEOUT = 10
 
 AES_X_KEY_FIELD = "SAAS_SECRET_KEY"
 

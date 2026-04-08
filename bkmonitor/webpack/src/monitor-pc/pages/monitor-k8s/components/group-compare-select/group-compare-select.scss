@@ -1,41 +1,49 @@
-.common-page___group-compare-select {
+.common-page-group-compare-select-component {
   position: relative;
   display: flex;
   height: 48px;
 
   .select-type-wrap {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     height: 100%;
-    cursor: pointer;
-    background: #FDF4E8;
+    padding: 0 8px;
 
-    .select-type-name {
-      display: inline-block;
-      height: 16px;
-      font-weight: 700;
-      line-height: 16px;
-      color: #313238;
+    &::after {
+      position: absolute;
+      top: 0;
+      right: -1px;
+      width: 1px;
+      height: 100%;
+      content: '';
+      background: #eaebf0;
     }
 
-    .contrast-switch {
-      display: inline-flex;
+    .select-type-items-wrap {
+      display: flex;
       align-items: center;
-      justify-content: center;
-      width: 16px;
-      height: 16px;
-      margin-left: 8px;
-      font-size: 8px;
-      line-height: 16px;
-      color: #fff;
-      text-align: center;
-      background: #a3c5fd;
-      border-radius: 50%;
+      height: 32px;
+      padding: 4px;
+      background: #eaebf0;
+      border-radius: 2px;
 
-      .icon-switch {
+      .select-type-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+        padding: 0 8px;
         font-size: 12px;
-        transform: scale(0.7);
+        color: #4d4f56;
+        cursor: pointer;
+        border-radius: 2px;
+
+        &.active {
+          color: #3a84ff;
+          background: #fff;
+        }
       }
     }
   }

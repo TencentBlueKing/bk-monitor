@@ -114,6 +114,15 @@ def get_user_display_name(username: str):
     """
     获取用户展示名
     """
+
+    if settings.ROLE == "web":
+        request = get_request(peaceful=True)
+        if request:
+            # 这里获取display_name会有一次数据库查询，因此这里先取出来
+            display_name = getattr(request.user, "display_name", None)
+            if display_name:
+                return display_name
+
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return username
 

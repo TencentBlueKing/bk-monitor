@@ -257,7 +257,7 @@ export default defineComponent({
                   clearable={true}
                   left-icon='bk-icon icon-search'
                   modelValue={this.searchValue}
-                  placeholder={this.t('请输入关键字')}
+                  placeholder={this.t('请输入 关键字')}
                   onClear={() => this.handleSearchValueChange('')}
                   onInput={this.handleSearchValueChangeDebounce}
                 />

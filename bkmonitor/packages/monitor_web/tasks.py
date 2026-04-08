@@ -85,6 +85,7 @@ from monitor_web.export_import.constant import ImportDetailStatus, ImportHistory
 from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
+from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
 from monitor_web.strategies.built_in import run_build_in
 from utils import business, count_md5
@@ -391,7 +392,7 @@ def append_metric_list_cache(bk_tenant_id: str, result_table_id_list: list[str])
         return
 
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)
-    set_local_username(username=settings.COMMON_USERNAME)
+    set_local_username(username=get_admin_username(bk_tenant_id=bk_tenant_id))
 
     if not result_table_id_list:
         return
@@ -505,6 +506,8 @@ def remove_file(file_path):
 
     if settings.USE_CEPH:
         path = file_path.replace(settings.MEDIA_ROOT, "")
+        # 确保路径不以 / 开头，避免被识别为绝对路径
+        path = path.lstrip("/")
         if default_storage.exists(path):
             # 先删除目录下的文件
             files = default_storage.listdir(path)[1]
@@ -516,9 +519,9 @@ def remove_file(file_path):
 
 def clean_ceph_tmp_file():
     # 清理ceph临时导出文件
-    tmp = default_storage.listdir("/export_import/tmp/")[0]
+    tmp = default_storage.listdir("export_import/tmp/")[0]
     for package_dir in tmp:
-        path = f"/export_import/tmp/{package_dir}/"
+        path = f"export_import/tmp/{package_dir}/"
         files = default_storage.listdir(path)[1]
         for package in files:
             default_storage.delete(f"{path}{package}")
@@ -543,7 +546,7 @@ def append_event_metric_list_cache(bk_biz_id: int, bk_event_group_id: int):
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)
-    set_local_username(username=settings.COMMON_USERNAME)
+    set_local_username(username=get_admin_username(bk_tenant_id=bk_tenant_id))
 
     event_group_id = int(bk_event_group_id)
     event_type = CustomEventGroup.objects.get(bk_biz_id=bk_biz_id, bk_event_group_id=event_group_id).type
@@ -583,7 +586,11 @@ def update_task_running_status(task_id):
     """
     异步查询拨测任务启动状态，更新拨测任务列表中的运行状态
     """
-    set_local_username(settings.COMMON_USERNAME)
+    task = UptimeCheckTask.objects.get(id=task_id)
+    bk_biz_id = task.bk_biz_id
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    set_local_tenant_id(bk_tenant_id=bk_tenant_id)
+    set_local_username(username=get_admin_username(bk_tenant_id=bk_tenant_id))
     resource.uptime_check.update_task_running_status(task_id)
 
 

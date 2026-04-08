@@ -1565,7 +1565,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** 处理跳转视图详情 */
   handleLinkToDetail(data: ITableItem<'link'>) {
     this.$router.replace({
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${data.url}`.replace(/\/\//g, '/'),
+      path: `${window.__BK_WEWEB_DATA__?.parentRoute || ''}${data.url}`.replace(/\/\//g, '/'),
     });
     this.handleSetDefaultParams();
     this.handleTabChange(this.dashboardId);

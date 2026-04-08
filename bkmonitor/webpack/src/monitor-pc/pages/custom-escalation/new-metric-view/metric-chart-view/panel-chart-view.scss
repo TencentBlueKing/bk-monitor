@@ -67,10 +67,11 @@
             .strategy-icon {
               display: flex !important;
               min-width: 24px;
+              margin-left: 0;
             }
-            .more-icon {
-              margin-left: 0 !important;
-            }
+            // .more-icon {
+            //   margin-left: 0 !important;
+            // }
           }
         }
 
@@ -82,13 +83,20 @@
 
           .title-icon-list,
           .status-tab-view,
-          .strategy-icon,
+          // .strategy-icon,
           .hover-show {
             display: none !important;
           }
 
           .more-icon {
             margin-left: auto !important;
+          }
+
+          .strategy-icon {
+            margin-left: auto;
+            & + .more-icon {
+              margin-left: 0!important;
+            }
           }
         }
 

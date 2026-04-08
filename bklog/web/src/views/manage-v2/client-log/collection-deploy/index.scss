@@ -1,0 +1,12 @@
+.collection-deploy {
+  .deploy-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    
+    .bk-input-text{
+        width: 480px;
+    }
+  }
+}

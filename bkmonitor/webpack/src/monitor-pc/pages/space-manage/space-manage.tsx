@@ -443,7 +443,7 @@ export default class SpaceManage extends tsc<object> {
             </div>
             <bk-input
               class='search-input'
-              placeholder={this.$tc('输入')}
+              placeholder={this.$tc('搜索 空间名')}
               right-icon='bk-icon icon-search'
               value={this.keyword}
               onInput={this.handleSearch}

@@ -195,13 +195,15 @@
               class="title-overflow"
               v-bk-overflow-tips
             >
-              <span>{{ row.export_created_by || '--' }}</span>
+              <span>
+                <bk-user-display-name :user-id="row.export_created_by || '--'"></bk-user-display-name>
+              </span>
             </div>
           </template>
         </bk-table-column>
         <!-- 操作时间 -->
         <bk-table-column
-          width="150"
+          width="240"
           :label="$t('操作时间')"
           align="center"
           header-align="center"
@@ -485,7 +487,7 @@
         return this.exportStatusList[status];
       },
       getFormatDate(time) {
-        return formatDate(new Date(time).getTime());
+        return formatDate(new Date(time).getTime(), true);
       },
       handleRetrieve($row) {
         const { spaceUid } = this.$store.state;

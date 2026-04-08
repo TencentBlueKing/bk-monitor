@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -24,8 +23,7 @@ class MonitorWorkerAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     @property
     def base_url(self):
-        stage = "prod" if settings.RUN_MODE == "PRODUCT" else "stag"
-        return settings.MONITOR_WORKER_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/{self.module_name}/{stage}"
+        return settings.BMW_API_URL
 
     @property
     def label(self):
@@ -37,7 +35,7 @@ class CreateTaskResource(MonitorWorkerAPIGWResource):
     创建任务
     """
 
-    action = "/task/"
+    action = "bmw/task/"
     method = "POST"
 
 
@@ -46,7 +44,7 @@ class ReloadDaemonTaskResource(MonitorWorkerAPIGWResource):
     重载常驻任务
     """
 
-    action = "/task/daemon/reload"
+    action = "bmw/task/daemon/reload"
     method = "POST"
 
 
@@ -55,7 +53,7 @@ class ListTaskResource(MonitorWorkerAPIGWResource):
     获取正在运行的任务列表
     """
 
-    action = "/task/"
+    action = "bmw/task/"
     method = "GET"
 
 
@@ -64,5 +62,5 @@ class RemoveTaskResource(MonitorWorkerAPIGWResource):
     删除任务
     """
 
-    action = "/task/"
+    action = "bmw/task/"
     method = "DELETE"

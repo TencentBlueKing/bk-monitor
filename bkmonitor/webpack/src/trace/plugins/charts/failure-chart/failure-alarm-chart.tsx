@@ -41,7 +41,7 @@ export const createAutoTimeRange = (
   const INTERVAL_1440 = 1440 * interval * 1000;
   const INTERVAL_60 = 60 * interval * 1000;
   let newStartTime = startTime * 1000;
-  let newEndTime = endTime ? endTime * 1000 : +new Date();
+  let newEndTime = endTime ? endTime * 1000 : Date.now();
   newEndTime = Math.min(newEndTime + INTERVAL_5, newStartTime + INTERVAL_1440);
   let diff = INTERVAL_1440 - (newEndTime - newStartTime);
   if (diff < INTERVAL_5) {
@@ -51,8 +51,8 @@ export const createAutoTimeRange = (
   }
   newStartTime -= diff;
   const result = {
-    startTime: dayjs.tz(newStartTime).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs.tz(newEndTime).format('YYYY-MM-DD HH:mm:ss'),
+    startTime: dayjs.tz(newStartTime).format('YYYY-MM-DD HH:mm:ssZZ'),
+    endTime: dayjs.tz(newEndTime).format('YYYY-MM-DD HH:mm:ssZZ'),
   };
   return result;
 };
@@ -313,8 +313,8 @@ export default defineComponent({
             }
           });
           traceSeries.forEach(t => {
-            const timeIndex = t.columns.findIndex(name => name === 'bk_trace_timestamp');
-            const valueIndex = t.columns.findIndex(name => name === 'bk_trace_value');
+            const timeIndex = t.columns.indexOf('bk_trace_timestamp');
+            const valueIndex = t.columns.indexOf('bk_trace_value');
             /* 过滤时间戳与值为空的数据 */
             const dataPoints = t.data_points.filter(item => !!item[timeIndex] && typeof item[valueIndex] === 'number');
             if (dataPoints.length) {
@@ -348,8 +348,8 @@ export default defineComponent({
             return temp;
           };
           traceSeries.forEach(item => {
-            const valueIndex = item.columns.findIndex(name => name === 'bk_trace_value');
-            const timeIndex = item.columns.findIndex(name => name === 'bk_trace_timestamp');
+            const valueIndex = item.columns.indexOf('bk_trace_value');
+            const timeIndex = item.columns.indexOf('bk_trace_timestamp');
             /* 过滤时间戳与值为空的数据 */
             const dataPointsFilter = item.data_points.filter(
               item => !!item[timeIndex] && typeof item[valueIndex] === 'number'

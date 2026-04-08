@@ -16,7 +16,7 @@ from bkmonitor.models.strategy import NoticeSubscribe
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.local import local
 from alarm_backends.core.cache.cmdb.business import BusinessManager
-
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
 setattr(local, "subscribe_cache", {})
 
@@ -84,12 +84,12 @@ class SubscribeCacheManager(CacheManager):
         return cls._local_set(cache_key, rules)
 
     @classmethod
-    def _parse_rule(cls, sub: NoticeSubscribe) -> dict:
+    def _parse_rule(cls, bk_tenant_id: str, sub: NoticeSubscribe) -> dict:
         """处理订阅记录为缓存规则结构，按分派实时匹配使用"""
         conditions = []
         for condition in sub.conditions or []:
             # 动态分组转换，将动态分组转换成主机列表
-            conditions.append(AssignCacheManager.parse_dynamic_group(condition))
+            conditions.append(AssignCacheManager.parse_dynamic_group(bk_tenant_id, condition))
 
         return {
             "id": sub.id,
@@ -118,7 +118,8 @@ class SubscribeCacheManager(CacheManager):
 
         for sub in qs.order_by("bk_biz_id", "username", "-priority", "id").iterator(chunk_size=1000):
             biz_to_users[sub.bk_biz_id].add(sub.username)
-            user_rules[(sub.bk_biz_id, sub.username)].append(cls._parse_rule(sub))
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(sub.bk_biz_id)
+            user_rules[(sub.bk_biz_id, sub.username)].append(cls._parse_rule(bk_tenant_id, sub))
 
         pipeline = cls.cache.pipeline()
 

@@ -44,17 +44,17 @@ export type FormatterConfig = {
   fields: any[];
   jsonValue: any;
   field: any;
-  onSegmentClick: (args: any) => void;
+  onSegmentClick: (_args: any) => void;
   options?: Record<string, any>;
 };
 
-export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
+export type SegmentAppendText = { text: string; onClick?: (..._args) => void; attributes?: Record<string, string> };
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   localDepth: number;
-  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
+  getSegmentContent: (_keyRef: object, _fn: (..._args) => void) => Ref<HTMLElement>;
   keyRef: any;
 
   constructor(cfg: FormatterConfig) {
@@ -122,21 +122,41 @@ export default class UseJsonFormatter {
 
   handleSegmentClick(e: MouseEvent, value) {
     // 如果是点击划选文本，则不进行处理
-    if (RetrieveHelper.isClickOnSelection(e)) {
+    if (RetrieveHelper.isClickOnSelection(e, 2)) {
       return;
     }
     if (!value.toString() || value === '--') {
       return;
     }
+
+    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
+    const fieldName = valueElement?.getAttribute('data-field-name');
+    const fieldType = valueElement?.getAttribute('data-field-type');
+
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
-    const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
+    const traceView = content.value.querySelector('[data-item-id="trace-view"]') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
+
+    // 根据字段信息隐藏虚拟字段相关的选项
+    const isVirtualField = fieldType === '__virtual__';
+    const virtualFieldHiddenItems = ['is', 'not', 'new-search-page-is']; // 需要隐藏的选项
+
+    virtualFieldHiddenItems.forEach((itemId) => {
+      const element = content.value.querySelector(`[data-item-id="${itemId}"]`) as HTMLElement;
+      element?.style.setProperty('display', isVirtualField ? 'none' : 'inline-flex');
+    });
+
+    // 这里的动态样式用于只显示"添加到本次检索"、"从本次检索中排除"
+    const hasSegmentLightStyle = document.getElementById('dynamic-segment-light-style') !== null;
+
+    // 若是应用了动态样式(实时日志/上下文)，且是虚拟字段，则不显示弹窗(弹窗无内容)
+    if (hasSegmentLightStyle && isVirtualField) {
+      return;
+    }
 
     const { offsetX, offsetY } = getClickTargetElement(e);
     const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
 
-    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
-    const fieldName = valueElement?.getAttribute('data-field-name');
     const depth = valueElement.closest('[data-depth]')?.getAttribute('data-depth');
 
     target.setAttribute('data-field-value', value);
@@ -242,7 +262,7 @@ export default class UseJsonFormatter {
   addWordSegmentClick(root: HTMLElement) {
     if (!root.hasAttribute('data-word-segment-click')) {
       root.setAttribute('data-word-segment-click', '1');
-      root.addEventListener('click', e => {
+      root.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
           this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }
@@ -265,9 +285,10 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
+        element?.setAttribute('data-field-type', field?.field_type);
 
         if (element.hasAttribute('data-with-intersection')) {
-          element.style.setProperty('min-height', `${element.offsetHeight}px`);
+          (element as HTMLElement).style.setProperty('min-height', `${(element as HTMLElement).offsetHeight}px`);
         }
 
         element.innerHTML = '';
@@ -276,7 +297,7 @@ export default class UseJsonFormatter {
 
         const { setListItem, removeScrollEvent } = setScrollLoadCell(
           vlaues,
-          element,
+          element as HTMLElement,
           segmentContent,
           this.getChildItem,
         );
@@ -361,7 +382,7 @@ export default class UseJsonFormatter {
         },
       });
 
-      this.editor.initClickEvent(e => {
+      this.editor.initClickEvent((e) => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
           this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }

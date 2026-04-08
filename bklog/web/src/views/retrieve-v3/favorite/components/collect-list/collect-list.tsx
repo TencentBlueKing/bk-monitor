@@ -430,7 +430,7 @@ export default defineComponent({
         },
         {
           title: t('创建时间'),
-          value: utcFormatDate(item.created_at) || '--',
+          value: utcFormatDate(item.created_at, true) || '--',
           isUserAccount: false
         },
       ];
@@ -454,8 +454,8 @@ export default defineComponent({
               key={ind}
               class='tips-item'
             >
-              {`${tips.title}：` }
-              { tips.isUserAccount ? <bk-user-display-name user-id={tips.value}></bk-user-display-name> : tips.value }
+              {`${tips.title}：`}
+              {tips.isUserAccount ? <bk-user-display-name user-id={tips.value}></bk-user-display-name> : tips.value}
             </div>
           ))}
         </div>

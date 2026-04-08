@@ -703,7 +703,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             <bk-input
               class='ml-24'
               behavior='simplicity'
-              placeholder={'搜索服务'}
+              placeholder={'搜索 服务名称'}
               right-icon='bk-icon icon-search'
               value={this.filterCondition.searchValue}
               clearable

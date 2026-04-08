@@ -70,7 +70,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
 
   /** 获取展示时间 */
   getShowTime(timeStr: string) {
-    return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ssZZ');
   }
   /** 鼠标移动到名称时 获取更新信息 */
   handleHoverFavoriteName(e: Event, item) {

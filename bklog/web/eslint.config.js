@@ -90,7 +90,8 @@ module.exports = [
       parser: require('vue-eslint-parser'),
       parserOptions: {
         parser: require('@typescript-eslint/parser'),
-        project: './tsconfig.json',
+        // 不使用 project 配置，避免 tsconfig.json 不包含 Vue 文件的错误
+        // project: './tsconfig.json',
         extraFileExtensions: ['.vue'],
         ecmaFeatures: { jsx: true },
       },

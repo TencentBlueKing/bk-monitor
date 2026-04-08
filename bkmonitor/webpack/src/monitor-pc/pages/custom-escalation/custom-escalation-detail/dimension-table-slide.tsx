@@ -151,7 +151,7 @@ export default class DimensionTableSlide extends tsc<any> {
           <div class='slider-search'>
             <bk-input
               v-model={this.search}
-              placeholder={this.$t('搜索维度')}
+              placeholder={this.$t('搜索')}
               right-icon='bk-icon icon-search'
               on-change={this.handleSearchChange}
             />
@@ -631,6 +631,7 @@ export default class DimensionTableSlide extends tsc<any> {
       disabled: false,
       common: false,
       isNew: true,
+      type: 'dimension',
       selection: false,
     });
   }

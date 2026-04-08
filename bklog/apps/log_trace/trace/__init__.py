@@ -89,7 +89,12 @@ def requests_callback(span: Span, request, response):
             except (TypeError, json.JSONDecodeError):
                 pass
 
-    span.set_attribute("request.body", jsonify(body)[:MAX_PARAMS_SIZE])
+    try:
+        carrier = request.body.decode("utf-8")
+    except Exception:  # noqa
+        carrier = str(request.body)
+
+    span.set_attribute("request.body", carrier[:MAX_PARAMS_SIZE])
 
     # 仅统计 JSON 请求
     # 流式请求不统计，避免流式失效

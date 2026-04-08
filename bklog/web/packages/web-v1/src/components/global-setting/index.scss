@@ -1,0 +1,124 @@
+.masking-container {
+  height: calc(100vh - 52px);
+  overflow: auto;
+  background: #f4f7fa;
+
+  .masking-title {
+    position: relative;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 1366px;
+    height: 52px;
+    padding: 0 30px;
+    font-size: 16px;
+    background: #fff;
+    box-shadow: 0 1px 6px 0 rgb(0 0 0 / 10%);
+
+    :first-child {
+      width: 32px;
+    }
+
+    .icon-close {
+      position: relative;
+      display: inline-block;
+      font-size: 32px;
+      cursor: pointer;
+
+      &::before {
+        position: relative;
+        z-index: 999;
+      }
+
+      &:hover::after {
+        position: absolute;
+        bottom: 5px;
+        left: 50%;
+        z-index: 1;
+        width: 24px;
+        height: 24px;
+        content: '';
+        background: #f0f1f5;
+        border-radius: 50%;
+        transform: translateX(-50%);
+      }
+    }
+  }
+
+  .center-box {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-width: 1366px;
+    min-height: calc(100vh - 128px);
+    margin-top: 20px;
+    overflow: auto;
+
+    .content-panel {
+      display: flex;
+      width: 1312px;
+      min-height: 365px;
+      max-height: calc(100vh - 200px);
+      overflow: hidden;
+      font-size: 12px;
+      background: #fff;
+      box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
+      transform: rotateX(0deg);
+    }
+
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      width: 240px;
+      height: 365px;
+      padding: 6px 0;
+      margin-right: 20px;
+      background-color: white;
+      border-radius: 2px;
+      box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
+
+      .menu-item {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 40px;
+        padding: 0 10px 0 20px;
+        margin: 2px 0;
+        font-size: 14px;
+
+        &:hover {
+          color: #3a84ff;
+          cursor: pointer;
+          background: #e1ecff;
+        }
+
+        &.active-menu {
+          color: #3a84ff;
+          background: #e1ecff;
+        }
+      }
+    }
+  }
+
+  &.is-show-notice {
+    height: calc(100vh - 92px);
+
+    .center-box {
+      min-height: calc(100vh - 168px);
+    }
+  }
+}
+
+.masking-dialog {
+  .bk-dialog-tool {
+    display: none;
+  }
+
+  .bk-dialog-body {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+  }
+}

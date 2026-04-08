@@ -1,0 +1,145 @@
+@import '@/scss/mixins/flex.scss';
+
+.cluster-rule-dialog {
+  .sample-box {
+    margin-top: 8px;
+    color: #63656E;
+
+    .title {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .wrapper {
+      background: #E1ECFF;
+    }
+
+    .hit {
+      color: #18AE8A;
+      background: #E9FFF5;
+    }
+
+    .conflict {
+      border-bottom: 2px solid #EA3636;
+    }
+
+    .sample-content {
+      width: 912px;
+      height: 154px;
+      padding: 10px 16px;
+      overflow-y: auto;
+      word-break: break-all;
+      white-space: pre-line;
+      background: #FFFFFF;
+      border: 1px solid #C4C6CC;
+      border-radius: 2px;
+    }
+
+    .tips {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #FF9C01;
+
+      .icon-info-fill {
+        margin-right: 5px;
+        font-size: 16px;
+      }
+    }
+  }
+
+  .rule-box {
+    font-size: 12px;
+
+    .title {
+      /* stylelint-disable-next-line declaration-no-important */
+      margin: 24px 0 6px 0 !important;
+
+      :last-child {
+        flex: 1;
+      }
+    }
+
+    .rule-item {
+      margin-bottom: 18px;
+      text-align: start;
+      @include flex-justify(space-between);
+
+      .left {
+        position: relative;
+        width: 60%;
+        margin-right: 16px;
+
+        .input-content {
+          align-items: center;
+          @include flex-justify(space-between);
+
+          .bk-form-checkbox {
+            padding-right: 8px;
+          }
+
+          .bk-form-input {
+            display: inline-block;
+
+            /* stylelint-disable-next-line declaration-no-important */
+            padding-right: 54px !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+
+        .btn-content {
+          position: absolute;
+          top: 6px;
+          right: 14px;
+          z-index: 999;
+          width: 36px;
+          @include flex-justify(space-between);
+
+          .xiaojing-AI{
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+          }
+
+          .icon-right-turn-line {
+            margin: 1px 4px 0 0;
+            font-size: 18px;
+            cursor: pointer;
+
+            &:hover {
+              color: #3A84FF;
+            }
+          }
+        }
+      }
+
+      .right {
+        flex: 1;
+        align-items: center;
+        @include flex-justify(space-between);
+
+        .icon {
+          margin-left: 16px;
+          font-size: 18px;
+          color: #C4C6CC;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}
+
+.occupy-popover {
+  width: 280px;
+  padding: 0 4px 12px;
+
+  .btn-box {
+    margin-top: 16px;
+    @include flex-justify(flex-end);
+  }
+
+  .bk-default {
+    margin-left: 8px;
+  }
+}

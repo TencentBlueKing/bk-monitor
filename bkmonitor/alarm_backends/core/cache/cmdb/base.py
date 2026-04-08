@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 from abc import ABC, abstractmethod
 from typing import Any
 
+from django.conf import settings
+
 from alarm_backends.core.cache.key import PUBLIC_KEY_PREFIX
 from alarm_backends.core.storage.redis import Cache
 from constants.common import DEFAULT_TENANT_ID
@@ -28,7 +30,7 @@ class CMDBCacheManager(ABC):
         :param bk_tenant_id: 租户ID
         :return: 缓存key前缀
         """
-        if bk_tenant_id == DEFAULT_TENANT_ID:
+        if not settings.ENABLE_MULTI_TENANT_MODE or bk_tenant_id == DEFAULT_TENANT_ID:
             return f"{PUBLIC_KEY_PREFIX}.cache.cmdb"
         return f"{bk_tenant_id}.{PUBLIC_KEY_PREFIX}.cache.cmdb"
 

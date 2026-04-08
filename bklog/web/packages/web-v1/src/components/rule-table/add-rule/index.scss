@@ -1,0 +1,39 @@
+.edit-rule-main {
+  .bk-form {
+    width: 100%;
+    padding-top: 8px;
+    font-size: 12px;
+
+    .bk-label {
+      text-align: left;
+    }
+  }
+
+  .footer-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .inspection-status {
+      position: relative;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+
+      .bk-icon {
+        font-size: 18px;
+      }
+
+      // .spin {
+      //   position: absolute;
+      //   top: 2px;
+      // }
+    }
+
+    .btns-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+}

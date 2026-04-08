@@ -304,4 +304,7 @@ export default {
   '触发周期数 >=1 且 >= 检测数': 'Trigger cycle number >=1 and >= detection number',
   告警组必填: 'Alarm group is required',
   克隆配置不能和源模板一致: 'Cloned configuration cannot be consistent with the source template',
+  静态阈值算法只能添加一次: 'Static threshold algorithm can only be added once',
+  同环比算法最多添加三个级别: 'Algorithm for adding three levels at most',
+  必须选择一个检测规则: 'You must select a detection rule',
 };

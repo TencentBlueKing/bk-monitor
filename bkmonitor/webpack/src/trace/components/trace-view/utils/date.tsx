@@ -199,7 +199,7 @@ export function formatTime(duration: number, isMs = false) {
 export function formatTraceTableDate(duration: number | string) {
   return dayjs
     .tz(+duration.toString().slice(0, 13).padEnd(13, '0'))
-    .format(duration.toString().length > 13 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss');
+    .format(duration.toString().length > 13 ? 'YYYY-MM-DD HH:mm:ss.SSSZZ' : 'YYYY-MM-DD HH:mm:ssZZ');
 }
 
 export const getSuitableTimeUnit = (microseconds: number): string => {

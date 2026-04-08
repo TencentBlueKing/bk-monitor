@@ -1,0 +1,42 @@
+.manage-input {
+  .bk-form-input {
+    box-sizing: border-box;
+    height: 42px;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: 0;
+    transition: background 0.2s;
+  }
+
+  .collect-box {
+    display: flex;
+    align-items: center;
+    height: 42px;
+    padding: 0 16px;
+    line-height: 44px;
+    cursor: text;
+
+    .collect-name {
+      display: inline-block;
+      width: calc(100% - 20px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .bklog-shixiao {
+    margin-left: 4px;
+    color: #ff9c01;
+  }
+}
+
+.favorite-data-source {
+  li {
+    color: #63656e;
+  }
+
+  .index-fail {
+    color: #c4c6cc;
+  }
+}

@@ -12,7 +12,7 @@ from functools import reduce
 import logging
 
 from django.db.models import Q
-from django.db.models.sql import AND, OR
+from django.db.models.sql.where import AND, OR
 
 from bkmonitor.data_source.backends.base import compiler
 from bkmonitor.data_source.backends.time_series import escape_sql_field_name

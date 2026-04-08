@@ -82,7 +82,13 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
           </span>
         )}
         {this.formItem(this.$t('模板类型'), <span>{this.data?.system.alias}</span>)}
-        {this.formItem(this.$t('检测算法'), <DetectionAlgorithmsGroup algorithms={this.data?.algorithms} />)}
+        {this.formItem(
+          this.$t('检测算法'),
+          <DetectionAlgorithmsGroup
+            algorithms={this.data?.algorithms}
+            connector={this.data?.detect.connector}
+          />
+        )}
         {this.formItem(
           this.$t('判断条件'),
           <i18n

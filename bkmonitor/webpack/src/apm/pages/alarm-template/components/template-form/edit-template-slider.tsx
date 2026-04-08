@@ -31,7 +31,7 @@ import { cloneStrategyTemplate, updateStrategyTemplate } from 'monitor-api/modul
 import { getAlarmTemplateDetail } from '../../service';
 import TemplateForm from './template-form';
 
-import type { AlgorithmItem, DetectConfig, EditTemplateFormData, TemplateDetail, UserGroupItem } from './typing';
+import type { AlgorithmItemUnion, DetectConfig, EditTemplateFormData, TemplateDetail, UserGroupItem } from './typing';
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './edit-template-slider.scss';
@@ -102,7 +102,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
     this.formData.name = name;
   }
 
-  handleAlgorithmsChange(algorithms: AlgorithmItem[]) {
+  handleAlgorithmsChange(algorithms: AlgorithmItemUnion[]) {
     this.formData.algorithms = algorithms;
   }
 

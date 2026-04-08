@@ -152,7 +152,7 @@ export default class FunctionCreatorPop extends tsc<IProps> {
         <bk-input
           class='panel-search'
           behavior='simplicity'
-          placeholder={this.$t('搜索函数')}
+          placeholder={this.$t('搜索 函数')}
           rightIcon='bk-icon icon-search'
           value={this.keyword}
           on-change={this.handleKeywordChange}

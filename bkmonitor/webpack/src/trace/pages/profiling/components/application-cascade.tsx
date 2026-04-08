@@ -234,7 +234,7 @@ export default defineComponent({
                       <Input
                         class='search-input'
                         v-model={this.searchKey}
-                        placeholder={this.t('输入关键字')}
+                        placeholder={this.t('请输入 关键字')}
                       />
                     </div>
                     <div class='select-wrap'>

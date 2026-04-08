@@ -61,6 +61,7 @@ ADVANCED_OPTIONS = OrderedDict(
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
+        ("BK_INCIDENT_BUILTIN_CONFIG", slz.DictField(label="故障分析内置通知配置", default={})),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),
         (
@@ -153,6 +154,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label="是否开启全局告警屏蔽", default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
+        (
+            "ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE",
+            slz.BooleanField(label="是否根据is_active过滤自定义指标", default=False),
+        ),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
         ("AI_BIZ_LIST", slz.ListField(label="AI小鲸灰度业务名单", default=[])),
         ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
@@ -204,7 +209,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=100)),
         ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=15)),
-        ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=3)),
+        ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=1)),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
         ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
         (
@@ -279,17 +284,11 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("WECOM_ROBOT_CONTENT_LENGTH", slz.IntegerField(label="分级机器人内容最大长度（0表示不限制）", default=0)),
-        (
-            "ALARM_DISABLE_STRATEGY_RULES",
-            slz.JSONField(
-                label='告警后台禁用策略规则{"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}',
-                default=[],
-            ),
-        ),
         ("OPTZ_FAKE_EVENT_BIZ_IDS", slz.ListField(label="启用进程端口，ping不可达优化的业务ID列表", default=[])),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
         ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
+        ("ACCESS_DETECT_MERGE_STRATEGY_IDS", slz.ListField(label="access合并detect策略列表", default=[])),
         ("KAFKA_AUTO_COMMIT", slz.BooleanField(label="kafka是否自动提交", default=True)),
         ("MAX_BUILD_EVENT_NUMBER", slz.IntegerField(label="单次告警生成任务处理的event数量", default=0)),
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
@@ -392,7 +391,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS", slz.IntegerField(label="Redis Watch锁过期时间(秒)", default=60)),
         (
             "BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS",
-            slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=86400),
+            slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=600),
         ),
         ("BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS", slz.IntegerField(label="计算平台Redis重连间隔(秒)", default=2)),
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
@@ -409,6 +408,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
+        ("AIDEV_AGENT_MCP_REQUEST_AGENT_CODE", slz.CharField(label="AIAgent请求Agent的代码", default="bkmonitor-mcp")),
         ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=False)),
         ("ENABLE_AI_RENAME", slz.BooleanField(label="是否开启AI RENAME", default=False)),
         (
@@ -556,6 +556,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
+        ("APM_APP_STORAGE_ROUTES", slz.ListField(label=_("APM 应用存储路由"), default=[])),
         (
             "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
@@ -565,7 +566,7 @@ STANDARD_CONFIGS = OrderedDict(
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
         ),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
-        ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=[])),
+        ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=["apm-01"])),
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
@@ -654,6 +655,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
         # APM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
         ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
+        # 事件 UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
+        ("EVENT_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("事件 UnifyQuery 查询业务黑名单"), default=[])),
+        # 日志 UnifyQuery 查询业务白名单，在此列表内的业务，检索能力切换到 UnifyQuery。
+        ("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", slz.ListField(label=_("日志 UnifyQuery 查询业务白名单"), default=[])),
         # APM 调用分析启用全局指标的应用列表，在此列表内的应用，调用分析将使用带 data_label（APM）的全局指标进行出图。
         # 背景：APM 策略模板基于「查询模板」能力进行开发，查询模板定义指标查询、计算方式来固化部分通用计算场景，
         # 为避免模板管理复杂度及保障导入导出、仪表盘配置、asCode 等的易用性，使用 data_label 屏蔽原有指标表名带「应用名」所带来的差异性。
@@ -669,6 +674,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
         # 事件中心AIOps功能灰度业务列表
         ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
+        # APM 按服务缓存指标的灰度应用列表，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
+        # 企业微信模块化（layouts）消息通知灰度业务列表
+        ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
     ]
 )
 

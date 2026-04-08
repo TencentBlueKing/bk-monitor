@@ -26,15 +26,16 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { LEVEL_LIST } from '../template-form/constant';
+import { type AlgorithmItemUnion, AlgorithmEnum } from '../template-form/typing';
 import DetectionAlgorithm from './detection-algorithms';
-
-import type { AlarmAlgorithmItem } from '../../typing';
 
 import './detection-algorithms-group.scss';
 
 interface DetectionAlgorithmsGroupProps {
   /** 检测算法数据数组 */
-  algorithms: AlarmAlgorithmItem[];
+  algorithms: AlgorithmItemUnion[];
+  connector?: string;
   /** 传入为空数组时显示的占位符，默认为 -- */
   placeholder?: string;
 }
@@ -42,17 +43,46 @@ interface DetectionAlgorithmsGroupProps {
 @Component
 export default class DetectionAlgorithmsGroup extends tsc<DetectionAlgorithmsGroupProps> {
   /** 检测算法数据数组 */
-  @Prop({ type: Array, default: () => [] }) algorithms!: AlarmAlgorithmItem[];
+  @Prop({ type: Array, default: () => [] }) algorithms!: AlgorithmItemUnion[];
+  @Prop({ type: String, default: 'and' }) connector: string;
+
   /** 传入为空数组时显示的占位符，默认为 -- */
   @Prop({ type: String, default: '--' }) placeholder: string;
+
+  /** 算法展示排序，从前往后，从低往高 */
+  algorithmsTypeSort = {
+    [AlgorithmEnum.Threshold]: 0,
+    [AlgorithmEnum.YearRoundAndRingRatio]: 1,
+  };
+
+  /**
+   * 根据检测算法的级别分类展示
+   * 获取各个告警级别所拥有的算法
+   * 如果配置了多个检测算法需要展示组合样式， 否则展示对应的算法即可
+   */
+  get rulesLevelDisplayList() {
+    return LEVEL_LIST.map(level => {
+      const currentLevelAlgorithms = this.algorithms.filter(algorithm => algorithm.level === level.id);
+      return {
+        id: level.id,
+        name: level.name,
+        icon: level.icon,
+        algorithms: currentLevelAlgorithms.sort(
+          (a, b) => this.algorithmsTypeSort[a.type] - this.algorithmsTypeSort[b.type]
+        ),
+      };
+    }).filter(item => item.algorithms.length > 0);
+  }
+
   render() {
     return (
       <div class='detection-algorithms-group'>
-        {this.algorithms?.length
-          ? this.algorithms.map((algorithm, index) => (
+        {this.rulesLevelDisplayList?.length
+          ? this.rulesLevelDisplayList.map(rulesLevel => (
               <DetectionAlgorithm
-                key={`${algorithm?.level}-${index}`}
-                algorithm={algorithm}
+                key={rulesLevel.id}
+                algorithm={rulesLevel.algorithms}
+                connector={this.connector}
               />
             ))
           : this.placeholder}

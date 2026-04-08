@@ -91,7 +91,7 @@ class BaseIncidentMetricsResource(Resource, abc.ABC):
         """
         获取APMService类型的表名
         """
-        app_name = kwargs.get("apm_app_name", "")
+        app_name = kwargs.get("apm_application_name", "")
         bk_biz_id = kwargs.get("bk_biz_id", 0)
         if not app_name or not bk_biz_id:
             return ""
@@ -195,7 +195,7 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
         bk_biz_id: int = validated_request_data.get("bk_biz_id")
         interval: int = validated_request_data.get("interval", 3600)
         dimensions: dict[str, Any] = index_info.get("dimensions", {})
-        app_name: str = dimensions.get("apm_app_name", "")
+        app_name: str = dimensions.get("apm_application_name", "")
 
         table_extra_params = {
             "bk_biz_id": bk_biz_id,

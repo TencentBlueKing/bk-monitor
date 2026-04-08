@@ -102,6 +102,7 @@ class EtlConfigs(Enum):
     BK_SYSTEM_PROC = "bk_system_proc"
     # 自定义多指标单表
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
+    BK_STANDARD_V2_EVENT = "bk_standard_v2_event"
 
     # 多租户下的主机基础数据采集
     BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG = "bk_multi_tenancy_basereport"
@@ -136,6 +137,7 @@ class EtlConfigs(Enum):
         (BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG, "bk_multi_tenancy_basereport"),
         (BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG, "bk_multi_tenancy_system_proc_perf"),
         (BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG, "bk_multi_tenancy_system_proc_port"),
+        (BK_STANDARD_V2_EVENT, "bk_standard_v2_event"),
     )
 
 
@@ -149,6 +151,7 @@ ENABLE_V4_DATALINK_ETL_CONFIGS = [
     EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
     EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
     EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
+    EtlConfigs.BK_STANDARD_V2_EVENT.value,
 ]
 
 # 若启用插件接入V4数据链路，则将BK_EXPORTER和BK_STANDARD也加入到V4数据链路
@@ -165,7 +168,11 @@ SYSTEM_BASE_DATA_ETL_CONFIGS = [
 ]
 
 # 日志/事件 类清洗类型
-LOG_EVENT_ETL_CONFIGS = [EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value, EtlConfigs.BK_FLAT_BATCH.value]
+LOG_EVENT_ETL_CONFIGS = [
+    EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+    EtlConfigs.BK_FLAT_BATCH.value,
+    EtlConfigs.BK_STANDARD_V2_EVENT.value,
+]
 
 # bkcc 存在全业务的空间，空间 ID 为 "0"
 EXCLUDED_SPACE_TYPE_ID = SpaceTypes.BKCC.value

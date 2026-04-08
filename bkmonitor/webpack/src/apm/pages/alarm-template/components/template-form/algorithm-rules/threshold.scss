@@ -1,0 +1,70 @@
+@use './algorithm-rules' as algorithm-rules;
+
+.threshold-wrapper {
+  .threshold-item {
+    display: flex;
+    align-items: center;
+    height: 24px;
+
+    .level-icon {
+      margin-left: 8px;
+
+      @include algorithm-rules.icon-style;
+
+      .text {
+        font-size: 12px;
+        vertical-align: middle;
+      }
+    }
+
+    .method {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      margin-right: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #3a84ff;
+      cursor: pointer;
+      background: #e1ecff;
+      border-radius: 2px;
+    }
+
+    .value-input {
+      width: 64px;
+
+      .bk-form-input {
+        height: 24px;
+        font-size: 12px;
+        color: #4d4f56;
+      }
+    }
+
+    & + .threshold-item {
+      margin-top: 12px;
+    }
+  }
+}
+
+.method-list {
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .method-item {
+    display: flex;
+    flex: 0 0 32px;
+    align-items: center;
+    padding: 0 15px;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background-color: #e1ecff;
+    }
+  }
+}

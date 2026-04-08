@@ -34,7 +34,7 @@
       <bk-table-column
         :label="$t('时间')"
         prop="time"
-        width="150"
+        width="180"
       >
         <template #default="{ row }">
           {{ getFormatTime(row) }}
@@ -75,7 +75,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
-import dayjs from 'dayjs';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import JsonViewer from 'vue-json-viewer';
 
 @Component({
@@ -98,7 +98,6 @@ export default class StrategyViewLog extends Vue {
       case 'bk_fta|event':
         return this.$t('告警内容');
       default:
-      case 'bk_log_search|log':
         return this.$t('日志详情');
     }
   }
@@ -109,7 +108,6 @@ export default class StrategyViewLog extends Vue {
       case 'bk_fta|event':
         return this.$t('告警内容');
       default:
-      case 'bk_log_search|log':
         return this.$t('日志');
     }
   }
@@ -128,13 +126,13 @@ export default class StrategyViewLog extends Vue {
 
   getFormatTime({ time }) {
     if (typeof time === 'string') {
-      return dayjs.tz(+time).format('YYYY-MM-DD HH:mm:ss');
+      return formatWithTimezone(+time);
     }
     if (typeof time === 'number') {
       if (time.toString().length === 10) {
-        return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
+        return formatWithTimezone(time * 1000);
       }
-      return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
+      return formatWithTimezone(time);
     }
     return time;
   }

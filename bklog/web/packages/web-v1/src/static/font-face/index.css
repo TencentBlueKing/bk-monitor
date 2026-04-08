@@ -1,0 +1,20 @@
+@font-face {
+  font-family: "Roboto-Regular";
+  font-weight: 400;
+  src: url("Roboto-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "RobotoMono-Medium";
+  font-weight: 400;
+  src: url("RobotoMono-Medium.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "RobotoMono-Regular";
+  font-weight: 400;
+  src: url("RobotoMono-Regular.woff2") format("woff2");
+  font-display: swap;
+}

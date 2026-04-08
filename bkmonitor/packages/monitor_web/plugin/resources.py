@@ -22,6 +22,7 @@ import tarfile
 import time
 from collections import namedtuple
 from distutils.version import StrictVersion
+from pathlib import Path
 from uuid import uuid4
 
 import yaml
@@ -36,6 +37,8 @@ from rest_framework import serializers
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
+from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.user import get_admin_username, set_local_username
 from constants.result_table import (
     RT_RESERVED_WORD_EXACT,
     RT_RESERVED_WORD_FUZZY,
@@ -91,7 +94,6 @@ from monitor_web.plugin.serializers import (
     SNMPTrapSerializer,
 )
 from monitor_web.plugin.signature import Signature
-from pathlib import Path
 from utils import count_md5
 
 logger = logging.getLogger(__name__)
@@ -345,11 +347,28 @@ class PluginRegisterResource(Resource):
             md5 = self.get_file_md5(tar_name)
             if (
                 settings.USE_CEPH
-                and os.getenv("UPLOAD_PLUGIN_VIA_COS", os.getenv("BKAPP_UPLOAD_PLUGIN_VIA_COS", "")) == "true"
+                and os.getenv(
+                    "UPLOAD_PLUGIN_VIA_COS",
+                    os.getenv("BKAPP_UPLOAD_PLUGIN_VIA_COS", ""),
+                )
+                == "true"
             ):
-                default_storage.save(tar_name, tf)
+                # Django 4.2+ 的 validate_file_name 不允许绝对路径，需要转换为相对路径
+                # 直接从绝对路径中提取 plugin/ 之后的部分，如：/app/code/USERRES/plugin/xxx/xxx.tgz -> plugin/xxx/xxx.tgz
+                if os.path.isabs(tar_name):
+                    plugin_index = tar_name.find("plugin/")
+                    if plugin_index != -1:
+                        relative_path = tar_name[plugin_index:]
+                    else:
+                        # 如果不在 plugin/ 下，只使用文件名
+                        relative_path = os.path.basename(tar_name)
+                else:
+                    relative_path = tar_name
+                default_storage.save(relative_path, tf)
                 result = api.node_man.upload_cos(
-                    file_name=tf.name.split("/")[-1], download_url=default_storage.url(tar_name), md5=md5
+                    file_name=os.path.basename(tar_name),
+                    download_url=default_storage.url(relative_path),
+                    md5=md5,
                 )
             else:
                 result = api.node_man.upload(package_file=tf, md5=md5, module="bkmonitor")
@@ -441,6 +460,7 @@ class PluginImportResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         file_data = serializers.FileField(required=True)
+        bk_tenant_id = serializers.CharField(required=False)
 
     def un_tar_gz_file(self, tar_obj):
         # 免解压读取文件内容到内存
@@ -854,6 +874,20 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
         metric_json = serializers.JSONField(required=False, default={})
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
+        request = get_request(peaceful=True)
+
+        if bk_tenant_id:
+            tenant_admin = get_admin_username(bk_tenant_id=bk_tenant_id)
+
+            if request and getattr(request, "user", None):
+                request.user.username = tenant_admin
+                request.user.tenant_id = bk_tenant_id
+
+            set_local_username(tenant_admin)
+            set_local_tenant_id(bk_tenant_id)
+
+            validated_request_data["operator"] = tenant_admin
         operator = validated_request_data.pop("operator")
         self.create_params = super().perform_request(validated_request_data)
         self.create_params["bk_biz_id"] = validated_request_data["bk_biz_id"]
@@ -865,11 +899,10 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
         # 避免节点管理存在，数据库不存在时报错
         if self.current_version:
             # 判断插件id是否在table_id，不在的话，抛错提示
-            tables = PluginDataAccessor(self.current_version, operator=operator).tables_info
+            tables = PluginDataAccessor(self.current_version, operator=operator).contrast_rt()[1]
             # 避免插件id大写引起的问题
             if self.create_params["plugin_id"].lower() not in list(tables.keys())[0]:
                 raise ExportImportError({"msg": "导入插件id与table_id不一致"})
-
         if self.create_params["logo"]:
             self.create_params["logo"] = ",".join(["data:image/png;base64", self.create_params["logo"].decode("utf8")])
         self.create_params["signature"] = self.create_params["signature"].decode("utf8")

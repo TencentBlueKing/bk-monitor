@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, nextTick, provide, ref } from "vue";
-import useIntersectionObserver from "@/hooks/use-intersection-observer";
-import "./index.scss";
+import { defineComponent, nextTick, provide, ref } from 'vue';
+import useIntersectionObserver from '@/hooks/use-intersection-observer';
+import './index.scss';
 
 export default defineComponent({
-  name: "RederJsonCell",
+  name: 'RederJsonCell',
   setup(_, { slots }) {
     const refRootContainer = ref<HTMLElement>();
     const refRowNodeRoot = ref<HTMLElement>();
     const isRowIntersecting = ref(false);
-    provide("isRowIntersecting", isRowIntersecting);
+    provide('isRowIntersecting', isRowIntersecting);
 
     const { destroyObserver } = useIntersectionObserver(
       () => refRootContainer.value!,
@@ -43,14 +43,14 @@ export default defineComponent({
           isRowIntersecting.value = true;
           nextTick(destroyObserver);
         }
-      }
+      },
     );
 
     return () => (
       <div ref={refRootContainer}>
         <div
           ref={refRowNodeRoot}
-          class={["bklog-row-observe-main", { "is-pending": false }]}
+          class={['bklog-row-observe-main', { 'is-pending': false }]}
         >
           {slots.default?.()}
         </div>

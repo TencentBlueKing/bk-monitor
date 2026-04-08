@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 from django.conf import settings
@@ -49,7 +49,7 @@ class EmptyRealTimeNode(RealTimeNode):
 
     @property
     def table_name(self):
-        return f"tail_{self.app_name}_output"
+        return f"tail_{self.app_name.replace('-', '_')}_output"
 
     @property
     def _sql(self):
@@ -80,7 +80,7 @@ class TailSamplingFlinkNode(FlinkStreamNode):
         *args,
         **kwargs,
     ):
-        super(TailSamplingFlinkNode, self).__init__(source_rt_id, *args, **kwargs)
+        super().__init__(source_rt_id, *args, **kwargs)
         self.flink_code = flink_code
         self.conditions = conditions or []
         self.trace_gap_min = self._TRACE_GAP_MIN if trace_gap_min is None else trace_gap_min
@@ -186,7 +186,7 @@ class TailSamplingFlinkNode(FlinkStreamNode):
 
 class APMTailSamplingTask(BaseTask):
     def __init__(self, cleans_result_table_id, bk_biz_id, app_name, config, es_extra_data, flink_code):
-        super(APMTailSamplingTask, self).__init__()
+        super().__init__()
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
         self.rt_id = cleans_result_table_id
@@ -236,7 +236,7 @@ class APMTailSamplingTask(BaseTask):
             analyzed_fields=[],
             doc_values_fields=["dtEventTimeStamp", "timestamp"],
             json_fields=["status", "events", "links", "attributes", "resource"],
-            storage_expires=self.es_extra_data['retention'],
+            storage_expires=self.es_extra_data["retention"],
             source_rt_id=flink_node.result_table_id,
             has_unique_key=True,
             physical_table_name=self.es_extra_data["table_name"],

@@ -1270,7 +1270,7 @@ export default defineComponent({
               <Input
                 ref={traceIdInput}
                 v-model={traceIDSearchValue.value}
-                placeholder={t('输入 ID 可精准查询')}
+                placeholder={t('搜索 ID')}
                 type='search'
                 clearable
                 show-clear-only-hover

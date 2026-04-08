@@ -28,7 +28,7 @@ import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { getTopoList } from 'monitor-api/modules/alert';
+import { getTopoList } from 'monitor-api/modules/commons';
 import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 import { getEventPaths } from 'monitor-pc/utils';
@@ -192,6 +192,19 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   };
   searchText = ''; //  菜单搜索框绑定值
   needSearch = false; // 是否需要搜索框
+
+  get searchPlaceholder() {
+    if (this.searchType === 'alert') {
+      return this.$t('搜索 告警ID、告警名称、状态、告警内容、级别') as string;
+    }
+    if (this.searchType === 'incident') {
+      return this.$t('搜索 故障ID、故障名称、故障原因、业务ID、故障状态') as string;
+    }
+    if (this.searchType === 'action') {
+      return this.$t('搜索 处理记录ID、套餐名称、套餐ID、策略名称、关联告警') as string;
+    }
+    return '搜索';
+  }
 
   get isTopoList() {
     return ['set_id', 'module_id'].includes(this.focusData?.filedId);
@@ -705,7 +718,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
         if (!filterItem) {
           if (textList.length) {
             const item = textList[textList.length - 1];
-            const index = textTypeList.findIndex(t => t === item.dataType) + 1;
+            const index = textTypeList.indexOf(item.dataType) + 1;
             const dataType = textTypeList[index % 4];
             if (dataType === 'value') {
               for (let i = textList.length - 1; i >= 0; i--) {
@@ -1270,7 +1283,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     this.inputRef.focus();
     this.blurInPanel = false;
   }
-  handleFavoriteInputBlur(e: MouseEvent, item: IListItem) {
+  handleFavoriteInputBlur(_e: MouseEvent, item: IListItem) {
     if (item.id === 'favorite') {
       this.blurInPanel = false;
       // this.inputRef.focus();
@@ -1382,7 +1395,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             ref='input'
             class='search-input'
             v-model={this.inputValue}
-            placeholder={String(this.$t('输入搜索条件'))}
+            placeholder={this.searchPlaceholder}
             spellcheck={false}
             onBlur={this.handleBlur}
             onInput={this.handleInput}
@@ -1475,12 +1488,12 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             class='menu-wrapper'
           >
             {/* 菜单搜索框 */}
-            {this.needSearch && (
+            {Boolean(this.needSearch) && (
               <div class='menu-search-wrapper'>
                 <i class='icon-monitor icon-mc-search menu-search-icon' />
                 <input
                   class='menu-search-input'
-                  placeholder={String(this.$t('请输入关键字'))}
+                  placeholder={String(this.$t('请输入 关键字'))}
                   type='text'
                   value={this.searchText}
                   onInput={e => {

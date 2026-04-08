@@ -38,7 +38,7 @@ export default [
       noCache: AuthorizationList,
     },
     meta: {
-      title: '授权列表',
+      title: '外部授权',
       navId: 'external-auth',
       authority: {
         map: AuthorizationListAuth,

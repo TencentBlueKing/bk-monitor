@@ -48,7 +48,7 @@ export const routerConfig: RouteConfig[] = [
     name: 'error-exception',
     component: ExceptionPage,
     props: true,
-    beforeEnter(to, from, next) {
+    beforeEnter(to, _from, next) {
       to.meta.title = to.params.type === '403' ? '无权限' : to.params.title || to.params.type || '404';
       next();
     },
@@ -68,7 +68,7 @@ export const routerConfig: RouteConfig[] = [
 
 const createRouter = () =>
   new Router({
-    scrollBehavior: (to, from, savedPosition) => {
+    scrollBehavior: (_to, _fromm, savedPosition) => {
       if (savedPosition) {
         return savedPosition;
       }
@@ -79,7 +79,7 @@ const createRouter = () =>
       ...item,
       path:
         item.path !== '*'
-          ? `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
+          ? `${window.__BK_WEWEB_DATA__?.parentRoute || '/'}${item.path}`.replace(/\/\//gim, '/')
           : item.path,
     })),
   });
@@ -121,7 +121,7 @@ router.beforeEach(async (to, from, next) => {
       next();
     } else {
       next({
-        path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}exception/403/${random(10)}`,
+        path: `${window.__BK_WEWEB_DATA__?.parentRoute || '/'}exception/403/${random(10)}`,
         query: {
           actionId: authority.page || '',
           fromUrl: to.fullPath.replace(/^\//, ''),

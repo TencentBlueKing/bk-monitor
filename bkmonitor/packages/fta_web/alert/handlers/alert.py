@@ -213,6 +213,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("bk_service_instance_id", _lazy("目标服务实例ID"), es_field="event.bk_service_instance_id"),
         QueryField("bk_topo_node", _lazy("目标节点"), es_field="event.bk_topo_node"),
         QueryField("assignee", _lazy("通知人")),
+        QueryField("assignee", _lazy("告警接收人")),
         QueryField("appointee", _lazy("负责人")),
         QueryField("supervisor", _lazy("知会人")),
         QueryField("follower", _lazy("关注人")),

@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { isZh } from 'monitor-pc/common/constant';
 
 import { getStatusInfo } from './type';
@@ -48,12 +49,12 @@ export const handleToAlertList = (
   // const queryStringUrl = `queryString="${encodeURI(queryString(type, detailInfo.id))}"`;
   const curUnix = dayjs.tz().unix() * 1000;
   const oneDay = 60 * 24 * 60 * 1000;
-  const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).format('YYYY-MM-DD HH:mm:ss');
+  const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).format('YYYY-MM-DD HH:mm:ssZZ');
   const endTime = detailInfo.end_time
     ? dayjs
         .tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay)
-        .format('YYYY-MM-DD HH:mm:ss')
-    : dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
+        .format('YYYY-MM-DD HH:mm:ssZZ')
+    : dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ');
   window.open(
     `${location.origin}${location.pathname}?bizId=${bizId}/#/event-center?queryString=${queryString(
       type,
@@ -316,11 +317,11 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
         { title: this.$t('执行对象'), content: operateTargetString || '--' },
       ],
       [
-        { title: this.$t('开始时间'), content: dayjs.tz(createTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
+        { title: this.$t('开始时间'), content: formatWithTimezone(createTime * 1000) },
         { title: this.$t('执行状态'), content: <div class={statusInfo.status}>{statusInfo.text}</div>, extCls: true },
       ],
       [
-        { title: this.$t('结束时间'), content: dayjs.tz(updateTime * 1000).format('YYYY-MM-DD HH:mm:ss') },
+        { title: this.$t('结束时间'), content: formatWithTimezone(updateTime * 1000) },
         { title: this.$t('触发信号'), content: signalDisplay, extCls: true },
       ],
       [

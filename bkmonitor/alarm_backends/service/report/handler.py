@@ -13,6 +13,7 @@ import datetime
 import logging
 from collections import defaultdict
 
+import arrow
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -23,6 +24,7 @@ from alarm_backends.service.report.render.dashboard import (
     render_dashboard_panel,
 )
 from alarm_backends.service.report.tasks import render_mails
+from bkm_space.define import SpaceTypeEnum
 from bkmonitor.browser import get_or_create_eventloop
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
@@ -31,6 +33,7 @@ from bkmonitor.utils.send import Sender
 from constants.report import GRAPH_ID_REGEX, LOGO, BuildInBizType, StaffChoice
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
+from metadata.models.space.space import Space
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
@@ -229,7 +232,7 @@ class ReportHandler:
         :param frequency: 频率
         :return: 起始时间和结束时间
         """
-        now_time = datetime.datetime.now()
+        now_time = arrow.now().datetime
         # 如果没有频率参数，默认取最近一天的数据
         if not frequency:
             from_time = now_time + datetime.timedelta(hours=-24)
@@ -247,7 +250,8 @@ class ReportHandler:
             elif frequency["type"] == 4:
                 from_time = now_time + datetime.timedelta(hours=-24 * 30)
             elif frequency["type"] == 5:
-                now_time = datetime.datetime.strptime(now_time.strftime("%Y-%m-%d %H:%M:00"), "%Y-%m-%d %H:%M:%S")
+                # 替换时间戳为当前时间，并设置秒和微秒为0
+                now_time = now_time.replace(second=0, microsecond=0)
                 from_time = now_time - datetime.timedelta(minutes=frequency["hour"] * 60)
             else:
                 from_time = now_time + datetime.timedelta(hours=-24)
@@ -326,11 +330,14 @@ class ReportHandler:
         """
         total_graphs = []
         from_time_stamp, to_time_stamp, from_time, to_time = self.fetch_images_time(frequency)
+
+        bk_biz_ids: set[int] = set()
         for content in contents:
             graphs = content["graphs"]
             for graph in graphs:
                 graph_info = split_graph_id(graph)
                 bk_biz_id, var_bk_biz_ids = self.parse_graph_info(graph_info, is_superuser, user_bizs, receivers)
+                bk_biz_ids.add(bk_biz_id)
 
                 variables = {}
                 if graph_info[2] != "*":
@@ -378,8 +385,20 @@ class ReportHandler:
         render_args["mail_title"] = mail_title
 
         # 邮件范围
-        render_args["from_time"] = from_time.strftime("%Y-%m-%d %H:%M:%S")
-        render_args["to_time"] = to_time.strftime("%Y-%m-%d %H:%M:%S")
+        # 使用第一个业务的时区作为时间转换的时区
+        if bk_biz_ids:
+            target_bk_biz_id = int(list(bk_biz_ids)[0])
+            if target_bk_biz_id < 0:
+                space = Space.objects.filter(id=abs(target_bk_biz_id)).first()
+            else:
+                space = Space.objects.filter(
+                    space_type_id=SpaceTypeEnum.BKCC.value, space_id=str(target_bk_biz_id)
+                ).first()
+            if space:
+                from_time = arrow.get(from_time).to(space.time_zone).datetime
+                to_time = arrow.get(to_time).to(space.time_zone).datetime
+        render_args["from_time"] = from_time.strftime("%Y-%m-%d %H:%M:%S%z")
+        render_args["to_time"] = to_time.strftime("%Y-%m-%d %H:%M:%S%z")
 
         # 邮件标题后补
         render_args["mail_title_time"] = f"({from_time.strftime('%Y-%m-%d')} ~ {to_time.strftime('%Y-%m-%d')})"

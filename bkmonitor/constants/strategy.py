@@ -305,6 +305,7 @@ GSE_PROCESS_EVENT_NAME = {
 MULTI_METRIC_DATA_SOURCES = {
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
 }
 
 HOST_SCENARIO = ["os", "host_process", "host_device"]

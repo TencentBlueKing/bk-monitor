@@ -28,7 +28,7 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
-from apps.api import MonitorApi
+from apps.api import MonitorApi, UnifyQueryApi
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_ACTION_NOTICE,
@@ -52,6 +52,7 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringRemark,
 )
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
@@ -103,8 +104,10 @@ class PatternHandler:
             }
         }
         """
-
-        result = self._multi_query()
+        if self._show_new_pattern:
+            result = self._new_class_multi_query()
+        else:
+            result = self._multi_query()
         pattern_aggs = result.get("pattern_aggs", [])
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
@@ -225,8 +228,6 @@ class PatternHandler:
                     "strategy_enabled": strategy_enabled,
                 }
             )
-        if self._show_new_pattern:
-            result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
 
@@ -249,6 +250,44 @@ class PatternHandler:
                 return result
             result = [pattern for pattern in result if pattern["owners"] and set(self._owners) & set(pattern["owners"])]
         return result
+
+    def _new_class_multi_query(self):
+        new_class_query_result = self._get_new_class()
+        new_class_signature_list = [
+            new_class_tuple[0]
+            for new_class_tuple in new_class_query_result
+            if new_class_tuple and len(new_class_tuple) > 0
+        ]
+
+        if not new_class_signature_list:
+            return {"pattern_aggs": [], "year_on_year_result": {}, "new_class": set()}
+
+        # 添加新类日志数据指纹 ID 列表作为条件查询的参数
+        new_class_signature_query_condition = {
+            "field": self.pattern_aggs_field,
+            "operator": "is one of",
+            "value": new_class_signature_list,
+            "condition": "and",
+        }
+
+        copy_query = copy.deepcopy(self._query)
+        copy_query.setdefault("addition", []).append(new_class_signature_query_condition)
+
+        multi_execute_func = MultiExecuteFunc()
+        multi_execute_func.append(
+            "pattern_aggs",
+            lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"]),
+            {"index_set_id": self._index_set_id, "query": copy_query},
+        )
+        multi_execute_func.append(
+            "year_on_year_result", lambda p: self._get_year_on_year_aggs_result(p["query"]), {"query": copy_query}
+        )
+
+        multi_result = multi_execute_func.run()
+
+        multi_result["new_class"] = new_class_query_result
+
+        return multi_result
 
     def _multi_query(self):
         multi_execute_func = MultiExecuteFunc()
@@ -277,12 +316,15 @@ class PatternHandler:
             aggs_group = aggs_group["sub_fields"]
         return aggs_group_reuslt
 
-    def _get_year_on_year_aggs_result(self) -> dict:
+    def _get_year_on_year_aggs_result(self, query=None) -> dict:
         if self._year_on_year_hour == MIN_COUNT:
             return {}
-        new_query = copy.deepcopy(self._query)
+        if query:
+            new_query = copy.deepcopy(query)
+        else:
+            new_query = copy.deepcopy(self._query)
         start_time, end_time = generate_time_range_shift(
-            self._query["start_time"], self._query["end_time"], self._year_on_year_hour * HOUR_MINUTES
+            new_query["start_time"], new_query["end_time"], self._year_on_year_hour * HOUR_MINUTES
         )
         new_query["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
         new_query["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -307,6 +349,8 @@ class PatternHandler:
 
     @cached_property
     def pattern_aggs_field(self) -> str:
+        if self._clustering_config.use_mini_link:
+            return "signature"
         return f"{AGGS_FIELD_PREFIX}_{self._pattern_level}"
 
     @cached_property
@@ -347,7 +391,10 @@ class PatternHandler:
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
-        if self._clustering_config.new_cls_strategy_output:
+        if self._clustering_config.use_mini_link:
+            # TODO: 使用监控新类告警结果判定
+            new_classes = []
+        elif self._clustering_config.new_cls_strategy_output:
             # 新类异常检测逻辑适配
             try:
                 select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
@@ -384,6 +431,19 @@ class PatternHandler:
     def _get_pattern_data(self, patterns):
         if not patterns:
             return []
+
+        if self._clustering_config.use_mini_link:
+            records = self._get_pattern_data_for_mini_link(patterns)
+        else:
+            records = self._get_pattern_data_for_bkbase_link(patterns)
+        for record in records:
+            record["pattern"] = re.sub(r"\$([a-zA-Z0-9-_]+)", r"#\1#", record["pattern"])
+        return records
+
+    def _get_pattern_data_for_bkbase_link(self, patterns):
+        """
+        获取 bkbase 链路的 pattern 数据
+        """
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
@@ -406,9 +466,48 @@ class PatternHandler:
                 e,
             )
             records = []
-        for record in records:
-            record["pattern"] = re.sub(r"\$([a-zA-Z-_]+)", r"#\1#", record["pattern"])
         return records
+
+    def _get_pattern_data_for_mini_link(self, patterns):
+        """
+        获取 小型化 链路的 pattern 数据
+        """
+        start_time, end_time = generate_time_range(
+            NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
+        )
+        result = UnifyQueryApi.query_ts_raw(
+            {
+                "bk_biz_id": self._clustering_config.bk_biz_id,
+                "query_list": [
+                    {
+                        "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                        "table_id": BaseIndexSetHandler.get_data_label(
+                            self._index_set_id,
+                            pattern_rt=True,
+                        ),
+                    },
+                ],
+                "conditions": {
+                    "field_list": {
+                        "field_name": "signature",
+                        "op": "eq",
+                        "value": patterns,
+                    }
+                },
+                "limit": 10000,
+                "start_time": str(int(start_time.shift(days=-1).timestamp() * 1000)),
+                "end_time": str(int(arrow.now().timestamp() * 1000)),
+            }
+        )
+        return [
+            {
+                "signature": record["signature"],
+                "pattern": record["pattern"],
+                "origin_log": record["log"],
+            }
+            for record in result["list"]
+            if record["signature"]
+        ]
 
     def set_clustering_owner(self, params: dict):
         """

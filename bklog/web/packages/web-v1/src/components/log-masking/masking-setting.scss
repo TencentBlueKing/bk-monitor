@@ -1,0 +1,116 @@
+@import '../../scss/mixins/flex.scss';
+
+.masking-table-container {
+  width: 100%;
+  min-width: 1080px;
+  height: 100%;
+  overflow-y: auto;
+
+  .rule-name-box {
+    @include flex-align();
+
+    .tag {
+      height: 18px;
+      padding: 0 4px;
+      margin-left: 6px;
+      font-size: 12px;
+      line-height: 18px;
+      border-radius: 2px;
+    }
+
+    .global {
+      flex-shrink: 0;
+      color: #3a84ff;
+      background: #edf4ff;
+    }
+  }
+
+  .top-alert {
+    width: 100%;
+    margin-top: 22px;
+  }
+
+  .search-box {
+    width: 100%;
+    margin: 16px 0;
+
+    @include flex-justify(space-between);
+
+    .bk-form-control {
+      width: 320px;
+    }
+  }
+
+  .operator-slot {
+    width: 66px;
+
+    @include flex-justify(space-between);
+  }
+
+  .bk-table-pagination-wrapper {
+    background: #fff;
+  }
+
+  th > .cell {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: inline-flex !important;
+  }
+
+  .bk-switcher-small::after {
+    /* stylelint-disable-next-line declaration-no-important */
+    top: 2px !important;
+  }
+}
+
+.access-table {
+  th,
+  th > .cell {
+    /* stylelint-disable-next-line declaration-no-important */
+    height: 32px !important;
+  }
+
+  td {
+    height: 32px;
+    border-bottom: none;
+  }
+}
+
+.delete-dialog-container {
+  flex-direction: column;
+  align-items: center;
+
+  @include flex-justify(space-between);
+
+  .delete-title {
+    font-size: 20px;
+    color: #313238;
+  }
+
+  .delete-text {
+    padding: 0 18px;
+    margin: 16px 0;
+    text-align: center;
+  }
+
+  .delete-button {
+    margin-top: 24px;
+
+    @include flex-justify(space-between);
+
+    .bk-button {
+      padding: 0px 29px;
+      margin-right: 8px;
+    }
+  }
+}
+
+.bk-link-text {
+  color: #3a84ff;
+  cursor: pointer;
+}
+
+.bk-table-setting-content {
+  .content-line-height {
+    display: none;
+  }
+}

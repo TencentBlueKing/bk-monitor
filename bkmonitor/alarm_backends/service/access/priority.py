@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import time
-from typing import Dict, List, Optional, Union
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.item import Item
@@ -55,14 +54,14 @@ class PriorityChecker:
         cache_key = key.ACCESS_PRIORITY_KEY.get_key(priority_group_key=self.priority_group_key)
         self.priority_cache = self.client.hgetall(cache_key)
 
-    def get_priority_by_dimensions(self, dimensions_md5: str) -> Optional[str]:
+    def get_priority_by_dimensions(self, dimensions_md5: str) -> str | None:
         """
         获取维度优先级信息
         """
         cache_key = key.ACCESS_PRIORITY_KEY.get_key(priority_group_key=self.priority_group_key)
         return self.client.hget(cache_key, dimensions_md5)
 
-    def is_inhibited(self, record: Union[DataRecord, EventRecord], item: Item) -> bool:
+    def is_inhibited(self, record: DataRecord | EventRecord, item: Item) -> bool:
         """
         判断数据点是否被抑制，同时记录需要更新的优先级信息
         """
@@ -79,8 +78,8 @@ class PriorityChecker:
         if not priority:
             # 如果策略优先级为0，则不更新优先级信息，因为它已经是最小值了，没有存储的意义，减少内存占用
             if strategy_priority:
-                self.need_update[dimensions_md5] = "{}:{}".format(strategy_priority, now_timestamp)
-                self.priority_cache[dimensions_md5] = "{}:{}".format(strategy_priority, now_timestamp)
+                self.need_update[dimensions_md5] = f"{strategy_priority}:{now_timestamp}"
+                self.priority_cache[dimensions_md5] = f"{strategy_priority}:{now_timestamp}"
             return False
 
         priority, timestamp = priority.split(":")
@@ -91,21 +90,25 @@ class PriorityChecker:
         if float(timestamp) + interval * 5 < now_timestamp or int(priority) <= strategy_priority:
             # 如果策略优先级为0，则不更新优先级信息，因为它已经是最小值了，没有存储的意义，减少内存占用
             if strategy_priority:
-                self.need_update[dimensions_md5] = "{}:{}".format(strategy_priority, now_timestamp)
-                self.priority_cache[dimensions_md5] = "{}:{}".format(strategy_priority, now_timestamp)
+                self.need_update[dimensions_md5] = f"{strategy_priority}:{now_timestamp}"
+                self.priority_cache[dimensions_md5] = f"{strategy_priority}:{now_timestamp}"
             return False
 
         return True
 
     @staticmethod
-    def check_records(records: List[Union[DataRecord, EventRecord]]):
+    def check_records(records: list[DataRecord | EventRecord]):
         """
         检查数据点是否被抑制
         """
         if not records:
             return
 
-        priority_checkers: Dict[str, PriorityChecker] = {}
+        # EventRecord 需要提前按照优先级由高到低排序，否则优先级检查可能会失效
+        if isinstance(records[0], EventRecord):
+            records = sorted(records, key=lambda x: x.strategy.priority or 0, reverse=True)
+
+        priority_checkers: dict[str, PriorityChecker] = {}
         for record in records:
             items = record.items
             # 判断数据点是否保留该item

@@ -1,0 +1,199 @@
+paths:
+  /app/alert_v2/alert/detail/:
+    get:
+      operationId: alert_v2_alert_detail
+      description: 【告警V2】告警详情查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 detail"
+  /app/alert_v2/alert/events/:
+    post:
+      operationId: alert_v2_alert_events
+      description: 【告警V2】告警事件列表查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/events/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 events"
+  /app/alert_v2/alert/event_total/:
+    get:
+      operationId: alert_v2_alert_event_total
+      description: 【告警V2】告警事件总数查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/event_total/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 event total"
+  /app/alert_v2/alert/event_ts/:
+    post:
+      operationId: alert_v2_alert_event_ts
+      description: 【告警V2】告警事件时序数据查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/event_ts/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 event time series"
+  /app/alert_v2/alert/event_tag_detail/:
+    post:
+      operationId: alert_v2_alert_event_tag_detail
+      description: 【告警V2】告警事件标签详情查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/event_tag_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 event tag detail"
+  /app/alert_v2/alert/k8s_scenario_list/:
+    get:
+      operationId: alert_v2_alert_k8s_scenario_list
+      description: 【告警V2】K8S场景列表查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/k8s_scenario_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 k8s scenario list"
+  /app/alert_v2/alert/k8s_metric_list/:
+    get:
+      operationId: alert_v2_alert_k8s_metric_list
+      description: 【告警V2】K8S指标列表查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/k8s_metric_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 k8s metric list"
+  /app/alert_v2/alert/k8s_target/:
+    get:
+      operationId: alert_v2_alert_k8s_target
+      description: 【告警V2】K8S目标查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/k8s_target/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 k8s target"
+  /app/alert_v2/alert/host_target/:
+    get:
+      operationId: alert_v2_alert_host_target
+      description: 【告警V2】主机目标查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/host_target/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 host target"
+  /app/alert_v2/alert/traces/:
+    post:
+      operationId: alert_v2_alert_traces
+      description: 【告警V2】告警关联Trace查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/traces/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 traces"
+  /app/alert_v2/alert/log_relation_list/:
+    get:
+      operationId: alert_v2_alert_log_relation_list
+      description: 【告警V2】告警关联日志列表查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/log_relation_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query alert v2 log relation list"

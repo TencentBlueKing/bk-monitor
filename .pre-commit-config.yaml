@@ -50,6 +50,9 @@ repos:
         description: Check ip
         entry: python3 scripts/sensitive_info_check/check_ip.py
         language: system
+        # Allowlist is managed by:
+        # - scripts/sensitive_info_check/ip_white_list.dat (IPs/patterns)
+        # - scripts/sensitive_info_check/ip_white_list_paths.dat (file/path patterns, e.g. uv.lock)
         exclude: |
           (?x)(
              ^scripts/sensitive_info_check/|

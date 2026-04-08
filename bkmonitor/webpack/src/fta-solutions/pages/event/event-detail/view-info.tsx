@@ -457,8 +457,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           }
         });
         traceSeries.forEach(t => {
-          const timeIndex = t.columns.findIndex(name => name === 'bk_trace_timestamp');
-          const valueIndex = t.columns.findIndex(name => name === 'bk_trace_value');
+          const timeIndex = t.columns.indexOf('bk_trace_timestamp');
+          const valueIndex = t.columns.indexOf('bk_trace_value');
           /* 过滤时间戳与值为空的数据 */
           const dataPoints = t.data_points.filter(item => !!item[timeIndex] && typeof item[valueIndex] === 'number');
           if (dataPoints.length) {
@@ -492,8 +492,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           return temp;
         };
         traceSeries.forEach(item => {
-          const valueIndex = item.columns.findIndex(name => name === 'bk_trace_value');
-          const timeIndex = item.columns.findIndex(name => name === 'bk_trace_timestamp');
+          const valueIndex = item.columns.indexOf('bk_trace_value');
+          const timeIndex = item.columns.indexOf('bk_trace_timestamp');
           /* 过滤时间戳与值为空的数据 */
           const dataPointsFilter = item.data_points.filter(
             item => !!item[timeIndex] && typeof item[valueIndex] === 'number'
@@ -584,7 +584,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       default: props => props.row?.content || props.row?.['event.content'] || '',
     };
     const timeSlots = {
-      default: props => dayjs.tz(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+      default: props => dayjs.tz(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
     };
     return (
       <div class='source-log'>

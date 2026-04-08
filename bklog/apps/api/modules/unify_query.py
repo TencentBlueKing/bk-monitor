@@ -95,3 +95,13 @@ class _UnifyQueryApi:
             before_request=add_unify_query_header_before,
             bk_tenant_id=biz_to_tenant_getter(),
         )
+        self.query_field_map = DataAPI(
+            method="POST",
+            url=UNIFYQUERY_APIGATEWAY_ROOT + "query/ts/info/field_map/",
+            module=self.MODULE,
+            description="获取字段列表",
+            after_request=add_data_after_request,
+            header_keys=self.HEADER_KEYS,
+            before_request=add_unify_query_header_before,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )

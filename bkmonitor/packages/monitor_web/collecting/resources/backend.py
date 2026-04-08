@@ -108,12 +108,13 @@ class CollectConfigListResource(Resource):
             config = subscription_id_config_map[subscription_status["subscription_id"]]
             if not config:
                 continue
-            if error_count == 0:
+
+            if running_count + pending_count != 0:
+                operation_result = OperationResult.DEPLOYING
+            elif error_count == 0:
                 operation_result = OperationResult.SUCCESS
             elif error_count == total_count:
                 operation_result = OperationResult.FAILED
-            elif running_count + pending_count != 0:
-                operation_result = OperationResult.DEPLOYING
             else:
                 operation_result = OperationResult.WARNING
 
@@ -999,6 +1000,8 @@ class SaveCollectConfigResource(Resource):
                         target_nodes[-1]["bk_biz_id"] = node["bk_biz_id"]
                 elif "bcs_cluster_id" in node:
                     target_nodes.append({"bcs_cluster_id": node["bcs_cluster_id"]})
+                elif "ip" in node and "bk_cloud_id" in node:
+                    target_nodes.append({"ip": node["ip"], "bk_cloud_id": node["bk_cloud_id"]})
             attrs["target_nodes"] = target_nodes
 
             # 日志关键字规则名称去重

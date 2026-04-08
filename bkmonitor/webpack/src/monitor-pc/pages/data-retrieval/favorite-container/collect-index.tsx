@@ -324,7 +324,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
               native-attributes={{
                 spellcheck: false,
               }}
-              placeholder={this.$t('搜索收藏名')}
+              placeholder={this.$t('搜索 收藏名')}
               right-icon='bk-icon icon-search'
               onEnter={this.handleSearchFavorite}
               onInput={this.handleSearchFavorite}

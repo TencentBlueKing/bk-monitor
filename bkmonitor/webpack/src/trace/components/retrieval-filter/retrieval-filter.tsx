@@ -100,9 +100,11 @@ export default defineComponent({
         return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
       }
       /** 不展示默认的常驻设置，则使用收藏的常驻设置 */
-      return props.isTraceRetrieval
-        ? traceWhereFormatter(props.selectFavorite?.config?.componentData?.commonWhere || [])
-        : props.selectFavorite?.config?.componentData?.commonWhere || [];
+      // return props.isTraceRetrieval
+      //   ? traceWhereFormatter(props.selectFavorite?.config?.componentData?.commonWhere || [])
+      //   : props.selectFavorite?.config?.componentData?.commonWhere || [];
+      // 收藏的filters字段已经包含了commonWhere的条件，所以这里不需要再设置commonWhere
+      return [];
     });
     const propsCommonWhere = computed(() => {
       return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;

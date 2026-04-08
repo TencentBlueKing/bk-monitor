@@ -228,6 +228,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
                 <bk-input
                   behavior='simplicity'
                   clearable={true}
+                  placeholder={this.$t('请输入 关键字')}
                   onChange={this.handleFilterChange}
                 />
               </div>

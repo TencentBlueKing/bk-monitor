@@ -1,0 +1,118 @@
+@import '@/scss/mixins/flex.scss';
+
+.markdown-control {
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid #DCDEE5;
+  @include flex-justify(space-between);
+
+  &.control-dark {
+    color: #999999;
+    background: #2E2E2E;
+    border-top: none;
+
+    .right .jump-btn {
+      color: #E6E6E6;
+      background: #575757;
+      border: none;
+    }
+  }
+
+  &.control-light {
+    background: #FFF;
+  }
+
+  .left {
+    @include flex-center();
+
+    .color-item {
+      margin-right: 30px;
+      @include flex-center();
+
+      .color-block {
+        width: 12px;
+        height: 12px;
+        margin-right: 6px;
+      }
+    }
+  }
+
+  .right {
+    > div {
+      @include flex-center();
+    }
+
+    .btn-pre, .btn-next, .bk-page-count-right {
+      display: none;
+    }
+
+    .jump-input-wrapper {
+      display: flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
+      cursor: pointer;
+      background-color: transparent;
+      border-radius: 2px;
+
+      &:hover,
+      &.focus {
+        color: #2d3542;
+        background-color: #f0f1f5;
+      }
+
+      &.focus {
+        border: 1px solid #3a84ff;
+        box-shadow: 0px 0px 4px rgba(58, 132, 255, 0.4);
+      }
+    }
+
+    .jump-input{
+      min-width: 22px;
+      height: 16px;
+      font-size: 14px;
+      line-height: 16px;
+      text-align: center;
+      background-color: transparent;
+      border: 0;
+      border-radius: 2px;
+      transition: all .15s;
+
+      &:hover,
+      &:focus{
+        border-color: #3A84FF;
+      }
+    }
+
+    .jump-btn {
+      width: 26px;
+      height: 26px;
+      margin-left: 8px;
+      color: #63656e;
+      cursor: pointer;
+      background: #f0f1f5;
+      border: 1px solid #dde4eb;
+      border-radius: 2px;
+      transition: all 0.2s;
+
+      @include flex-center();
+  
+      &:hover {
+        color: #fff;
+        background: #979ba5;
+        transition: all 0.2s;
+      }
+  
+      .bk-icon {
+        font-size: 20px;
+        font-weight: bold;
+      }
+
+      &.next {
+        transform: rotateX(180deg);
+      }
+    }
+  }
+}

@@ -229,15 +229,17 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
             # 如果当前告警没有对应关系，直接返回
             return alert
         relation_info = self.alert_relations[alert.id]
-        alert.add_dimension("target_type", relation_info["source_type"], display_key=_("目标类型"))
+        target_type = alert.top_event.get("target_type") or relation_info["source_type"]
+        # StandardTranslateEnricher 已经处理过了
+        # alert.add_dimension("target_type", target_type, display_key=_("目标类型"))
         alert.update_key_value_field(
             "assign_tags",
             [
                 {
                     "key": "target_type",
-                    "value": relation_info["source_type"],
+                    "value": target_type,
                     "display_key": _("目标类型"),
-                    "display_value": relation_info["source_type"],
+                    "display_value": target_type,
                 }
             ],
         )

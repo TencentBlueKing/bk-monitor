@@ -7,12 +7,14 @@
 
 | 字段                | 类型  | 必选 | 描述     |
 |-------------------|-----|----|--------|
+| bk_biz_id         | int | 是  | 业务ID   |
 | bk_event_group_id | int | 是  | 事件分组ID |
 
 ### 请求参数示例
 
 ```json
 {
+  "bk_biz_id": 2,
   "bk_event_group_id": 33
 }
 ```

@@ -27,7 +27,7 @@ from metadata.config import (
     KAFKA_SASL_PROTOCOL,
     PERIODIC_TASK_DEFAULT_TTL,
 )
-from metadata.models.constants import DataIdCreatedFromSystem, EsSourceType
+from metadata.models.constants import NEED_REFRESH_DATA_IDS, DataIdCreatedFromSystem, EsSourceType
 from metadata.task.tasks import (
     bulk_check_and_delete_ds_consul_config,
     clean_disable_es_storage,
@@ -204,6 +204,8 @@ def refresh_datasource():
     ).values_list("table_id", flat=True)
     # 过滤到对应的数据源 ID
     ds_with_rt = {data_id for rt, data_id in ds_rt_map.items() if rt in enabled_rts}
+    # 补充无rt表的data_ids
+    ds_with_rt.update(NEED_REFRESH_DATA_IDS)
     for datasource in models.DataSource.objects.filter(is_enable=True, bk_data_id__in=ds_with_rt).order_by(
         "-last_modify_time"
     ):

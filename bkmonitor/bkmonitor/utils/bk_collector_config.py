@@ -118,7 +118,8 @@ class BkCollectorClusterConfig:
             if value is not None:
                 cluster_id, related_bk_biz_ids = cls._split_value(value)
                 if cluster_id and related_bk_biz_ids:
-                    res[cluster_id] = related_bk_biz_ids
+                    old_biz_ids = res.get(cluster_id, {})
+                    res[cluster_id] = set(old_biz_ids) | set(related_bk_biz_ids)
 
         return res
 
@@ -200,12 +201,13 @@ class BkCollectorClusterConfig:
                 return _sec
 
     @classmethod
-    def deploy_to_k8s_with_hash(cls, cluster_id: str, config_map: dict, protocol: str):
+    def deploy_to_k8s_with_hash(cls, cluster_id: str, config_map: dict, protocol: str, namespace: str | None = None):
         """
         Args:
             cluster_id: 集群ID
             config_map: 配置映射，格式为 {config_id: config_content}
             protocol: 协议, json or prometheus
+            namespace: 命名空间
         """
         if not config_map:
             logger.info(f"deploy to cluster_id({cluster_id}), but config is empty, skip deployment")
@@ -252,7 +254,8 @@ class BkCollectorClusterConfig:
 
         # 批量处理每个secret
         bcs_client = BcsKubeClient(cluster_id)
-        namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+        if namespace is None:
+            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
         secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
 
         # 一次性查询所有相关的secret

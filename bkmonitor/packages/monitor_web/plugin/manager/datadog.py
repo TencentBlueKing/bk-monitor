@@ -123,8 +123,15 @@ class DataDogPluginManager(PluginManager):
                 "md5": file_manager.file_obj.file_md5,
             }
 
-            config_yaml_path = Path(tmp_sys_plugin_path, "etc", "conf.yaml.tpl")
-            if config_yaml_path not in self.filename_list:
+            # 查找匹配的完整路径
+            config_yaml_path = None
+            expected_path = os.path.join(tmp_sys_plugin_path, "etc", "conf.yaml.tpl")
+            for file_path in self.filename_list:
+                if expected_path in str(file_path) or expected_path.replace(os.sep, "/") in str(file_path):
+                    config_yaml_path = file_path
+                    break
+
+            if not config_yaml_path:
                 raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
 
             config_template_content = self._decode_file(self.plugin_configs[config_yaml_path])

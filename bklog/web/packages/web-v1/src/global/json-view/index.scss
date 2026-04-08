@@ -1,0 +1,90 @@
+.bklog-json-view-node {
+  .bklog-json-view-child {
+    // margin-top: 2px;
+    margin-left: 12px;
+
+    &.is-collapse {
+      display: none;
+      transition: 150ms;
+    }
+
+    .bklog-json-view-row {
+      display: flex;
+      line-height: 20px;
+
+      .bklog-json-view-field {
+        min-width: max-content;
+      }
+
+      .bklog-json-view-field,
+      .bklog-json-view-symbol {
+        color: #048a8c;
+
+        .bklog-json-view-text {
+          width: max-content;
+          padding: 0 2px;
+          background: #e6e6e6;
+          background-color: transparent;
+          border-radius: 2px;
+        }
+      }
+
+      .bklog-json-view-node {
+        .bklog-json-view-object {
+          color: #048a8c;
+
+          .bklog-json-view-icon-expand {
+            color: #048a8c;
+          }
+        }
+
+        &.bklog-json-field-value {
+          .segment-content {
+            span {
+              color: #934c04;
+              white-space: pre-wrap;
+
+              &.valid-text {
+                cursor: pointer;
+
+                &.focus-text,
+                &:hover {
+                  color: #3a84ff;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .bklog-json-view-object {
+    .bklog-json-view-icon-text,
+    .bklog-json-view-icon-expand,
+    .bklog-json-view-copy {
+      padding: 2px;
+      cursor: pointer;
+      font-size: 0.75em;
+      line-height: 1.1em;
+    }
+
+    .bklog-json-view-copy {
+      font-size: 14px;
+      padding: 2px;
+      margin-bottom: -4px;
+    }
+
+    .bklog-json-view-icon-expand {
+      display: inline-block;
+      font-size: 0.75em;
+      line-height: 1.1em;
+
+      &.is-expand {
+        transition: 150ms;
+        transform: rotateZ(90deg);
+        transform-origin: 45% 50%;
+      }
+    }
+  }
+}

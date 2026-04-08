@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from datetime import datetime
 
@@ -23,7 +23,8 @@ from alarm_backends.core.i18n import i18n
 from alarm_backends.service.converge.converge_manger import ConvergeManager
 from alarm_backends.service.fta_action import BaseActionProcessor
 from bkmonitor.models.fta import ActionInstance, ConvergeInstance
-from bkmonitor.utils.send import Sender
+from bkmonitor.utils.send import Sender, BlockedError
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import ActionSignal, ActionStatus, ConvergeType, FailureType
 from core.drf_resource.exceptions import CustomException
 from core.errors.action import RelatedAlertNotFoundError
@@ -37,6 +38,7 @@ class ActionProcessor(BaseActionProcessor):
     def __init__(self, action_id, alerts=None):
         self.action = ActionInstance.objects.get(id=action_id)
         i18n.set_biz(self.action.bk_biz_id)
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.action.bk_biz_id)
         self.alerts = alerts
         self.action_config = ActionConfigCacheManager.get_action_config_by_id(self.action.action_config_id)
         self.converge_instance = ConvergeInstance.objects.get(id=self.action.inputs["converge_id"])
@@ -66,7 +68,7 @@ class ActionProcessor(BaseActionProcessor):
                 **{
                     "execute_times": self.action.execute_times + 1,
                     "outputs": {"retry_times": self.retry_times + 1, node_execute_times_key: node_execute_times},
-                }
+                },
             )
             related_actions_count = self.related_actions.count()
             if (
@@ -111,11 +113,7 @@ class ActionProcessor(BaseActionProcessor):
             return
         except RelatedAlertNotFoundError as error:
             # 当有关联的记录
-            logger.warning(
-                "${action_id} run collect action failed , msg is {error}".format(
-                    action_id=self.action.id, error=str(error)
-                )
-            )
+            logger.warning(f"${self.action.id} run collect action failed , msg is {str(error)}")
             kwargs["node_execute_times"] = self.action.outputs.get(node_execute_times_key, 0)
             self.set_finished(
                 ActionStatus.FAILURE,
@@ -126,11 +124,7 @@ class ActionProcessor(BaseActionProcessor):
             )
             return
         except BaseException as error:
-            logger.exception(
-                "${action_id} run collect action failed , msg is {error}".format(
-                    action_id=self.action.id, error=str(error)
-                )
-            )
+            logger.exception(f"${self.action.id} run collect action failed , msg is {str(error)}")
             kwargs["node_execute_times"] = self.action.outputs.get(node_execute_times_key, 0)
             self.set_finished(
                 ActionStatus.FAILURE,
@@ -174,20 +168,35 @@ class ActionProcessor(BaseActionProcessor):
         # 发送通知, 根据不同的通知渠道，选择不同的发送通知类
         sender_class = self.NOTICE_SENDER.get(self.context.get("notice_channel"), Sender)
         sender = sender_class(
+            bk_tenant_id=self.bk_tenant_id,
             title_template_path="notice/{signal}/{collect_type}/{notice_way}_title.jinja".format(
                 signal=action_signal,
                 notice_way=collect_info["notice_way"],
                 collect_type=collect_type,
             ),
-            content_template_path="notice/{signal}/{collect_type}/{notice_way}_content.jinja".format(
-                signal=action_signal,
-                notice_way=msg_content_type,
-                collect_type=collect_type,
-            ),
+            content_template_path=f"notice/{action_signal}/{collect_type}/{msg_content_type}_content.jinja",
             context=self.context,
         )
 
-        notice_result = sender.send(collect_info["notice_way"], receiver)[receiver[0]]
+        # 熔断判定
+        is_circuit_breaking = self.check_circuit_breaking_for_notice()
+        if is_circuit_breaking:
+            setattr(sender, "blocked", True)
+
+        try:
+            notice_result = sender.send(collect_info["notice_way"], receiver)[receiver[0]]
+        except BlockedError as blocked_error:
+            # 处理熔断异常
+            logger.info(
+                f"[circuit breaking] collect action({self.action.id}) strategy({self.action.strategy_id}) "
+                f"blocked: {blocked_error.message}"
+            )
+            notice_result = {
+                "result": False,
+                "failure_type": FailureType.BLOCKED,
+                "message": blocked_error.message,
+                "retry_params": blocked_error.retry_params,
+            }
 
         parent_actions = {action.parent_action_id for action in self.related_actions}
         # 更新当前汇总的发送内容
@@ -197,8 +206,29 @@ class ActionProcessor(BaseActionProcessor):
             "related_actions": [action.id for action in self.related_actions],
             "related_parent_actions": parent_actions,
         }
-        # 记录发送状态
-        self.action.status = ActionStatus.SUCCESS if notice_result["result"] else ActionStatus.FAILURE
+
+        # 根据通知结果设置状态和扩展数据
+        if notice_result["result"]:
+            # 发送成功
+            self.action.status = ActionStatus.SUCCESS
+            self.action.ex_data = {"message": notice_result["message"]}
+        else:
+            # 发送失败或被熔断
+            failure_type = notice_result.get("failure_type", FailureType.EXECUTE_ERROR)
+            if failure_type == FailureType.BLOCKED:
+                # 熔断状态
+                self.action.status = ActionStatus.BLOCKED
+                self.action.failure_type = FailureType.BLOCKED
+                self.action.ex_data = {
+                    "message": notice_result["message"],
+                    "retry_params": notice_result.get("retry_params", []),
+                }
+            else:
+                # 普通失败
+                self.action.status = ActionStatus.FAILURE
+                self.action.failure_type = failure_type
+                self.action.ex_data = {"message": notice_result["message"]}
+
         related_alerts = []
         for action in self.related_actions:
             related_alerts.extend(action.alerts)
@@ -206,12 +236,12 @@ class ActionProcessor(BaseActionProcessor):
         self.action.alerts = list(set(related_alerts))
         # 更新负责人（接收人）
         self.action.assignee = receiver
-        # 更新异常信息
-        self.action.ex_data = {"message": notice_result["message"]}
         # 更新结束时间
         self.action.end_time = datetime.now(tz=timezone.utc)
         # 保存指定的字段
-        self.action.save(update_fields=["alerts", "assignee", "ex_data", "end_time", "status", "outputs"])
+        self.action.save(
+            update_fields=["alerts", "assignee", "ex_data", "end_time", "status", "outputs", "failure_type"]
+        )
 
         # 更新当前执行任务的内容
         self.related_actions.update(real_status=self.action.status)
@@ -227,7 +257,7 @@ class ActionProcessor(BaseActionProcessor):
         for key, values in self.converged_condition.items():
             if values is None:
                 values = ""
-            if isinstance(values, (list, set)):
+            if isinstance(values, list | set):
                 values = "_".join([str(value) for value in values])
             else:
                 values = str(values)
@@ -237,3 +267,9 @@ class ActionProcessor(BaseActionProcessor):
         converge_label_info.pop("strategy_id", None)
         biz_lock_key = FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.get_key(**converge_label_info)
         FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.client.delete(biz_lock_key)
+
+    def replay_blocked_collect_notice(self):
+        """
+        重新发送被熔断的汇总通知
+        """
+        return self.action.replay_blocked_notice()

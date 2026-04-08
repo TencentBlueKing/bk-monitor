@@ -14,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_local_username, get_request_username
 from core.drf_resource import CacheResource, Resource, api
 from core.drf_resource.contrib.nested_api import KernelAPIResource
@@ -78,6 +79,7 @@ class CreateDataIdResource(MetaDataAPIGWResource):
         option = serializers.DictField(required=False)
         space_uid = serializers.CharField(required=False)
         bk_biz_id = serializers.IntegerField(required=False)
+        is_platform_data_id = serializers.BooleanField(required=False)
 
 
 class CreateResultTableResource(MetaDataAPIGWResource):
@@ -487,6 +489,7 @@ class QueryTimeSeriesGroupResource(CacheResource):
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         label = serializers.CharField(required=False, label="分组标签")
         time_series_group_name = serializers.CharField(required=False, label="分组名称")

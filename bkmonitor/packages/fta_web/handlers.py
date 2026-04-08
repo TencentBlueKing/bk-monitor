@@ -34,6 +34,7 @@ def register_builtin_plugins(sender, **kwargs):
 
     print("start to  register_builtin_plugin ")
     initial_file = os.path.join(settings.PROJECT_ROOT, "support-files/fta/action_plugin_initial.json")
+    # 注册故障分析SaaS插件服务，取决于是否开启和部署
     try:
         ActionPlugin.origin_objects.count()
     except Exception:
@@ -44,6 +45,10 @@ def register_builtin_plugins(sender, **kwargs):
         for plugin in plugins:
             # 多租户情况下禁用itsmv3插件
             if plugin["plugin_key"] == "itsm" and settings.ENABLE_MULTI_TENANT_MODE:
+                continue
+
+            # 开启标准排障的情况下,才可注册标准排障插件
+            if plugin["plugin_key"] == "bk_incident" and not settings.ENABLE_BK_INCIDENT_PLUGIN:
                 continue
             instance, created = ActionPlugin.origin_objects.update_or_create(
                 id=plugin.pop("id"), is_builtin=True, defaults=plugin

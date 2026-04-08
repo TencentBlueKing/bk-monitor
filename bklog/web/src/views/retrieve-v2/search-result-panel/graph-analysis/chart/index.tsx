@@ -23,19 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch, type Ref } from 'vue';
 
-import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
+import { formatDateTimeField, getRegExp } from '@/common/util';
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
-
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
-
+// import $http from '@/api/index';
 import './index.scss';
-
 export default defineComponent({
   props: {
     chartOptions: {
@@ -48,13 +47,18 @@ export default defineComponent({
       default: 0,
     },
   },
+  emits: ['sql-change'],
   setup(props, { slots }) {
-    const refRootElement = ref();
+    const refRootElement: Ref<HTMLElement> = ref();
+    const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
+    const { alias_settings: aliasSettings } = useFieldAliasRequestParams();
     const refRootContent = ref();
     const searchValue = ref('');
     const { $t } = useLocale();
     const store = useStore();
-
+    const indexSetId = computed(() => store.state.indexId);
+    const retrieveParams = computed(() => store.getters.retrieveParams);
+    const requestAddition = computed(() => store.getters.requestAddition);
     const { setChartOptions, destroyInstance, getChartInstance } = useChartRender({
       target: refRootElement,
       type: props.chartOptions.type,
@@ -66,13 +70,13 @@ export default defineComponent({
     const formatListData = computed(() => {
       const {
         list = [],
-        result_schema = [],
-        select_fields_order = [],
-        total_records = 0,
+        result_schema: resultSchema = [],
+        select_fields_order: selectFieldsOrder = [],
+        total_records: totalRecords = 0,
       } = props.chartOptions.data ?? {};
-      const timeFields = result_schema.filter(item => /^date/.test(item.field_type));
+      const timeFields = resultSchema.filter(item => /^date/.test(item.field_type));
       return {
-        list: list.map(item => {
+        list: list.map((item) => {
           return {
             ...item,
             ...timeFields.reduce((acc, cur) => {
@@ -81,9 +85,9 @@ export default defineComponent({
             }, {}),
           };
         }),
-        result_schema,
-        select_fields_order,
-        total_records,
+        result_schema: resultSchema,
+        select_fields_order: selectFieldsOrder,
+        total_records: totalRecords,
       };
     });
 
@@ -100,9 +104,8 @@ export default defineComponent({
     const getChildNodes = (parent, index) => {
       const field = props.chartOptions.xFields[index];
       if (field) {
-        return (formatListData.value?.list ?? []).map(item =>
-          getChildNodes({ ...parent, [field]: item[field] }, index + 1),
-        );
+        const list = formatListData.value?.list ?? [];
+        return list.map(item => getChildNodes({ ...parent, [field]: item[field] }, index + 1));
       }
 
       return parent;
@@ -120,11 +123,11 @@ export default defineComponent({
           return;
         }
 
-        const result = (props.chartOptions.yFields ?? []).map(yField => {
+        const result = (props.chartOptions.yFields ?? []).map((yField) => {
           const groups = showNumber.value ? [] : [...props.chartOptions.dimensions, props.chartOptions.xFields[0]];
           return [groups].map(([timeField, xField]) => {
             if (timeField || xField) {
-              return (formatListData.value?.list ?? []).map(row => {
+              return (formatListData.value?.list ?? []).map((row) => {
                 const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
                   if (cur && row[cur]) {
                     acc[cur] = row[cur];
@@ -147,8 +150,8 @@ export default defineComponent({
 
         const length = showNumber.value
           ? (props.chartOptions.yFields ?? []).length
-          : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length *
-            props.chartOptions.xFields.length;
+          : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length
+          * props.chartOptions.xFields.length;
 
         tableData.value.splice(0, tableData.value.length, ...result.flat(length + 1));
         return;
@@ -176,11 +179,11 @@ export default defineComponent({
       limit: 20,
     });
 
-    const handlePageChange = newPage => {
+    const handlePageChange = (newPage) => {
       pagination.value.current = newPage;
     };
 
-    const handlePageLimitChange = limit => {
+    const handlePageLimitChange = (limit) => {
       pagination.value.current = 1;
       pagination.value.limit = limit;
     };
@@ -215,36 +218,130 @@ export default defineComponent({
       getChartInstance()?.resize();
     });
 
-    const handleSearchClick = value => {
+    const handleSearchClick = (value) => {
       searchValue.value = value;
     };
+    /**
+    * 检查浏览器是否支持 File System Access API
+    */
+    function supportsFileSystemAccess() {
+      // @ts-ignore - File System Access API 可能不存在于类型定义中
+      return 'showSaveFilePicker' in window;
+    }
+    async function downloadWithBlob(response, filename) {
+      const blob = await response.blob();
+      // 创建下载链接
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
 
-    const replacer = (_key, value) => {
-      // 处理undefined或null等特殊值，转化为字符串
-      return value === null ? '' : value;
-    };
+      // 清理
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
 
-    const handleDownloadData = () => {
-      const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
+      return { success: true, message: '文件下载完成' };
+    }
+    /**
+    * 使用现代 File System Access API 下载（内存高效）
+    * 使用手动读写方式，确保在 Mac 上正常工作
+    */
+    async function downloadWithFileSystemAPI(response, filename) {
+      try {
+        // @ts-ignore - File System Access API 可能不存在于类型定义中
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'CSV 文件',
+            accept: {
+              'text/csv': ['.csv'],
+              'application/vnd.ms-excel': ['.csv'],
+            },
+          }],
+        });
 
-      // 如果数据是一个对象数组并且需要提取表头
-      if (tableData.value.length === 0) {
-        console.error('No data to export');
-        return;
+        const writable = await fileHandle.createWritable();
+        const reader = response.body.getReader();
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              break;
+            }
+
+            // 写入数据块
+            await writable.write(value);
+          }
+        } finally {
+          // 确保读取器释放
+          reader.releaseLock();
+        }
+
+        // 重要：必须关闭可写流，否则文件可能不会保存（在 Mac 上尤其重要）
+        await writable.close();
+
+        return { success: true, message: '文件保存成功' };
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return { success: false, message: '用户取消了保存' };
+        }
+        console.error('File System API 错误:', error);
+        throw error;
       }
+    }
+    // 异步下载
+    const handleAsyncDownloadData = async () => {
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/, '');
+      const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
+      const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
+      const { start_time, end_time, keyword, sort_list } = retrieveParams.value;
 
-      // 提取表头
-      const headers = columns.value;
+      const requestData = {
+        start_time,
+        end_time,
+        query_mode: 'sql',
+        keyword,
+        addition: requestAddition.value || '',
+        sql: sqlContent.value || '',
+        alias_settings: aliasSettings.value || '',
+        sort_list,
+      };
+      try {
+        const response = await fetch(`${baseUrl}${searchUrl}`, {
+          method: 'POST',
+          body: JSON.stringify(requestData),
+          headers: {
+            'Content-Type': 'application/json', // 明确设置请求类型
+          },
+        });
 
-      // 生成 CSV 字符串
-      const csvContent = [
-        headers.join(','), // 表头行
-        ...tableData.value.map(row => headers.map(header => JSON.stringify(row[header], replacer)).join(',')), // 数据行
-      ].join('\n');
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        }
 
-      blobDownload(csvContent, filename);
+        // 检查浏览器是否支持 File System Access API
+        let result;
+        if (supportsFileSystemAccess()) {
+          result = await downloadWithFileSystemAPI(response, fileName);
+        } else {
+          result = await downloadWithBlob(response, fileName);
+        }
+
+        if (!result.success) {
+          console.warn('下载警告:', result.message);
+        }
+      } catch (error) {
+        console.error('下载出错:', error);
+        throw error;
+      }
     };
-
     const rendChildNode = () => {
       if (showNumber.value) {
         return (
@@ -290,7 +387,7 @@ export default defineComponent({
               {tableData.value.length > 0 ? (
                 <span
                   style='font-size: 12px; color: #3A84FF; cursor: pointer;'
-                  onClick={handleDownloadData}
+                  onClick={handleAsyncDownloadData}
                 >
                   <i
                     style='font-size: 14px;'
@@ -299,6 +396,19 @@ export default defineComponent({
                   {$t('下载')}
                 </span>
               ) : null}
+              {/* {tableData.value.length > 0 ? (
+                <span
+                  style='font-size: 12px; color: #3A84FF; cursor: pointer;margin-left: 5px;'
+                  onClick={handleDownloadData}
+                >
+                  <i
+                    style='font-size: 14px;'
+                    class='bklog-icon bklog-download'
+                  />
+                  {$t('下载')}
+                </span>
+              ) : null} */}
+
               <bk-pagination
                 style='display: inline-flex'
                 class='top-pagination'

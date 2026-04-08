@@ -1,0 +1,164 @@
+@import '@/scss/mixins/flex.scss';
+
+.cluster-step-container {
+ @include flex-center();
+
+ .top-time {
+  flex-direction: column;
+  margin-bottom: 60px;
+  font-size: 20px;
+  @include flex-center();
+
+  .time-str {
+    @include flex-center();
+  }
+
+  .rotate-icon {
+    left: -25px;
+  }
+
+  .re-access {
+    margin-top: 20px;
+
+    .icon-right-turn-line {
+      font-size: 18px;
+      transform: translateY(-1px);
+    }
+  }
+
+  .icon-error {
+    position: relative;
+    z-index: 99;
+    margin-right: 14px;
+    font-size: 24px;
+    color: #ea3636;
+
+    &::after {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      z-index: -1;
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      content: ' ';
+      background: #FFDDDD;
+      border-radius: 50%;
+    }
+  }
+
+  .time-tips {
+    font-weight: 700;
+    @include flex-center();
+
+    .time {
+      display: inline-block;
+      padding: 4px;
+      margin: 0 8px;
+      font-size: 32px;
+      color: #3A84FF;
+      background: #F0F1F5;
+      border-radius: 4px;
+    }
+  }
+
+  .error-message {
+    width: 900px;
+    margin-top: 18px;
+    font-size: 12px;
+    text-align: center;
+
+    .error-reason {
+      font-size: 18px;
+      color: #EA3636;
+    }
+
+    .error {
+      word-break: break-all; /* 允许在长单词或URL中间进行换行 */
+      white-space: pre-wrap; /* 保留换行符，但允许在必要时自动换行 */
+    }
+  }
+ }
+
+ .step-container {
+  display: flex;
+  margin-top: 40px;
+
+  .image-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 205px;
+    min-height: 175px;
+
+    img {
+      width: 100%;
+    }
+  }
+
+  .icon-angle-double-right-line {
+    margin: 110px 60px 0;
+    color: rgba(105, 157, 244, 0.9);
+    opacity: 0.9;
+  }
+
+  .title-box {
+    @include flex-align(center);
+  }
+
+  .num-div {
+    margin-right: 8px;
+    line-height: 29px;
+
+    .step-num {
+      /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+      font-family: Impact, Impact-Regular;
+      font-size: 24px;
+      color: #a3c5fd;
+    }
+
+    .bk-icon {
+      font-size: 20px;
+    }
+
+    .icon-check-circle-shape {
+      color: #2DCB56;
+    }
+
+    .icon-close-circle-shape {
+      color: #ea3636;
+    }
+  }
+
+  .title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  .step-description {
+    width: 240px;
+    margin-top: 26px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  .description-text {
+    font-size: 12px;
+  }
+
+  .finish {
+    color: #979BA5;
+  }
+
+  .link {
+    color: #3a84ff;
+    cursor: pointer;
+
+    span {
+      margin-left: 4px;
+    }
+  }
+}
+}

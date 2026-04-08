@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import importlib
 import logging
+import os
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -40,7 +41,7 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import ActionInstance, ConvergeRelation
 from bkmonitor.models.strategy import DutyRule, DutyRuleRelation, UserGroup
-from constants.action import ActionSignal, ActionStatus, ConvergeType, FailureType
+from constants.action import ActionPluginType, ActionSignal, ActionStatus, ConvergeType, FailureType
 from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 
@@ -83,8 +84,13 @@ def run_action(action_type, action_info):
         # 如果带了执行函数，则执行执行函数，没有的话，直接做执行操作
         func_name = action_info.get("function", "execute")
         func = getattr(processor, func_name)
+        # 执行前检查
+        if not processor.can_func_call():
+            logger.info(
+                f"[run_action_worker] action({action_info['id']}) action_type({action_type}) can't call({func_name}) end"
+            )
+            return
         # call func
-        # logger.info("$%s Action callback: module name %s function %s", action_info["id"], action_type, func_name)
         logger.info(f"[run_action_worker] action({action_info['id']}) action_type({action_type}) call({func_name})")
         func(**action_info.get("kwargs", {}))
     except ActionAlreadyFinishedError as error:
@@ -175,6 +181,39 @@ def run_webhook_action(action_type, action_info):
     :return:
     """
     run_action(action_type, action_info)
+
+
+@app.task(ignore_result=True, queue="celery_notice_action")
+def run_notice_action(action_type, action_info):
+    """
+    通知专用队列
+    :param action_type:
+    :param action_info:
+    :return:
+    """
+    run_action(action_type, action_info)
+
+
+def dispatch_action_task(action_type, action_info, countdown=0, **kwargs):
+    """
+    根据 action_type 自动选择对应的队列发送 run_action 任务
+
+    :param action_type: 动作类型，如 ActionPluginType.NOTICE, ActionPluginType.WEBHOOK 等
+    :param action_info: 动作信息，包含事件ID，处理函数，以及对应的回调参数
+    :param countdown: 任务延迟执行的秒数
+    :param kwargs: 传递给 apply_async 的其他参数，如 expires 等
+    :return: 任务ID
+    """
+    # WEBHOOK 和 MESSAGE_QUEUE 类型使用 webhook 队列
+    if action_type in [ActionPluginType.WEBHOOK, ActionPluginType.MESSAGE_QUEUE]:
+        return run_webhook_action.apply_async((action_type, action_info), countdown=countdown, **kwargs)
+
+    # NOTICE 类型可以使用专用的通知队列
+    if os.getenv("ENABLE_NOTICE_QUEUE") and action_type == ActionPluginType.NOTICE:
+        return run_notice_action.apply_async((action_type, action_info), countdown=countdown, **kwargs)
+
+    # 其他类型使用默认的运行队列
+    return run_action.apply_async((action_type, action_info), countdown=countdown, **kwargs)
 
 
 def sync_action_instances():
@@ -289,45 +328,88 @@ def sync_actions_sharding_task(action_ids):
 def sync_updated_parent_actions(updated_parent_actions, alert_docs, current_sync_time):
     """
     同步需要更新的主任务状态
+
+    根据子任务的执行状态，更新对应主任务的状态。主要处理以下场景：
+    1. 所有子任务都失败 -> 主任务状态设为 FAILURE
+    2. 部分子任务失败 -> 主任务状态设为 PARTIAL_FAILURE
+    3. 所有子任务成功 -> 主任务保持原状态（通常已是 SUCCESS）
+
+    :param updated_parent_actions: 需要更新的主任务映射 {parent_action_id: generate_uuid}
+    :param alert_docs: 告警文档映射，用于ES同步
+    :param current_sync_time: 当前同步时间戳
     """
+    # 如果没有需要更新的主任务，直接返回
     if not updated_parent_actions:
         return
-    failed_actions = []
-    partial_failed_actions = []
+
+    # 初始化状态分类列表
+    failed_actions = []  # 完全失败的主任务ID列表
+    partial_failed_actions = []  # 部分失败的主任务ID列表
+
+    # 查询所有相关的子任务状态信息
+    # 通过 generate_uuid 和 parent_action_id 双重过滤确保数据准确性
     all_sub_actions = ActionInstance.objects.filter(
         generate_uuid__in=list(updated_parent_actions.values()),
         parent_action_id__in=list(updated_parent_actions.keys()),
     ).values("status", "id", "real_status", "parent_action_id")
+
+    # 按主任务ID分组收集子任务状态
+    # 结构: {parent_action_id: [status1, status2, ...]}
     sub_action_status = defaultdict(list)
     for sub_action in all_sub_actions:
+        # 优先使用 real_status，如果为空则使用 status
         action_status = sub_action["real_status"] or sub_action["status"]
         sub_action_status[sub_action["parent_action_id"]].append(action_status)
+
+    # 准备ES文档列表，用于批量更新
     action_documents = []
-    for parent_action_id, sub_action_status in sub_action_status.items():
-        priority_status = set(sub_action_status) - ActionStatus.IGNORE_STATUS
-        # 一般成功状态下，是不需要更新的，因为主任务一般是成功状态
+
+    # 遍历每个主任务，根据其子任务状态决定主任务的最终状态
+    for parent_action_id, sub_statuses in sub_action_status.items():
+        # 过滤掉忽略状态（如 RUNNING, SLEEP, SKIPPED, SHIELD 等）
+        # 只关注需要处理的状态，避免被中间状态干扰判断
+        priority_status = set(sub_statuses) - ActionStatus.IGNORE_STATUS
+
+        # 状态判断逻辑：
+        # 1. 如果所有有效子任务都是失败状态
         if priority_status == {ActionStatus.FAILURE}:
-            # 子任务完全失败，默认为失败
+            # 子任务完全失败，主任务标记为失败
             failed_actions.append(parent_action_id)
+        # 2. 如果子任务中包含失败状态（但不全是失败）
         elif ActionStatus.FAILURE in priority_status:
-            # 存在有失败情况下（夹杂着其他状态）
+            # 存在失败情况下（夹杂着其他状态），主任务标记为部分失败
             partial_failed_actions.append(parent_action_id)
+        # 3. 其他情况（如全部成功）不需要更新，主任务保持原状态
+
+    # 合并所有需要更新状态的主任务ID
     updated_actions = failed_actions + partial_failed_actions
+
+    # 批量处理需要更新的主任务实例
     for instance in ActionInstance.objects.filter(id__in=updated_actions):
         try:
+            # 获取对应的告警文档，用于ES同步
             alert_doc = alert_docs.get(instance.alerts[0]) if instance.alerts else None
-            # 同步的时候直接在ES同步的时候更新, 不再进行mysql的更新
+
+            # 根据分类结果更新主任务状态
+            # 注意：这里只更新内存中的实例状态，不直接写入MySQL
+            # 实际的状态更新会在ES同步时完成，避免重复数据库操作
             if instance.id in failed_actions:
                 instance.status = ActionStatus.FAILURE
             if instance.id in partial_failed_actions:
                 instance.status = ActionStatus.PARTIAL_FAILURE
+
+            # 将更新后的实例转换为ES文档格式，准备批量同步
             action_documents.append(to_document(instance, current_sync_time, alerts=[alert_doc] if alert_doc else None))
         except BaseException as error:  # NOCC:broad-except(设计如此:)
+            # 记录单个实例处理失败的情况，但不影响其他实例的处理
             logger.exception(
                 "sync action error: %s , action_info %s",
                 error,
                 "{}{}".format(instance.id, instance.action_config.get("name", "")),
             )
+
+    # 批量将更新后的主任务文档同步到ES
+    # 使用 INDEX 操作确保文档被正确创建或更新
     ActionInstanceDocument.bulk_create(action_documents, action=BulkActionType.INDEX)
 
 
@@ -417,7 +499,7 @@ def clear_mysql_action_data(days=7, count=5000):
     """
     expire_datetime = datetime.now(timezone.utc) - timedelta(days=days)
 
-    first_item = ActionInstance.objects.only("id").order_by("id").first()
+    first_item = ActionInstance.objects.only("id", "create_time").order_by("id").first()
     if not first_item:
         return
 

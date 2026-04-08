@@ -179,7 +179,7 @@ export default defineComponent({
           <div class='space-search'>
             <Input
               v-model={spaceSearchKey.value}
-              placeholder={t('搜索空间')}
+              placeholder={t('搜索 空间名')}
               onInput={handleSpaceSearch}
             />
           </div>

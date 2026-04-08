@@ -91,3 +91,4 @@ src/views/playground/*
 /monitor-trace-retrieve/*
 src/local.**
 local.cookie
+docs/

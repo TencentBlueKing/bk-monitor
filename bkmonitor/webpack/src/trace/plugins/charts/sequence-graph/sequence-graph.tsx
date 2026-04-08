@@ -282,7 +282,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
             addListener(sequenceGraphWrapRef.value!, handleResize);
             sequenceGraphRef.value.addEventListener('scroll', handleSequenceGraphScroll);
             // setTimeout(() => handleShowThumbnail(), 500);
-            const svgDom = mermaidRef.value!.querySelector('svg');
+            const svgDom = mermaidRef.value?.querySelector('svg');
             if (svgDom) {
               const { width, height } = svgDom.getBoundingClientRect();
               svgDom.style.width = `${width * (graphScale.value / 100)}px`;
@@ -576,7 +576,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       image.onload = () => {
         canvas.getContext('2d')?.drawImage(image, 0, 0);
         const a = document.createElement('a');
-        a.download = `${props.traceId}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
+        a.download = `${props.traceId}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ')}`;
         a.href = canvas.toDataURL('image/png');
         a.click();
       };

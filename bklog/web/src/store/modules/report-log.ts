@@ -43,10 +43,10 @@ class ReportLogStore extends VuexModule {
     }
 
     if (
-      !isAppFirstLoad &&
-      oldspaceUid === spaceUid &&
-      params.nav_name !== '日志聚类' &&
-      (oldRouteId === params.route_id || oldNavId === params.nav_id)
+      !isAppFirstLoad
+      && oldspaceUid === spaceUid
+      && params.nav_name !== '日志聚类'
+      && (oldRouteId === params.route_id || oldNavId === params.nav_id)
     ) {
       return;
     }
@@ -73,7 +73,7 @@ class ReportLogStore extends VuexModule {
               space_name: space?.space_name || bkBizId,
               user_name: username,
               nav_name: params.nav_name || routeConfig?.meta?.title,
-              version: localStorage.getItem('retrieve_version') || 'v2',
+              version: localStorage.getItem('retrieve_version') || 'v3',
               ...params,
             },
           },

@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.utils.cache import lru_cache_with_ttl
+from bkmonitor.utils.cache import lru_cache_with_ttl, using_cache, CacheType
 from core.drf_resource import api
 from monitor_web.data_explorer.event.constants import (
     DIMENSION_PREFIX,
@@ -69,7 +69,45 @@ def get_qs_from_req_data(req_data: dict[str, Any]) -> UnifyQuerySet:
     )
 
 
+# 稳定的元数据，设置一个较长时间的 Redis 缓存，便于共享
+@using_cache(CacheType.APM(60 * 60))
+def get_cluster_table_map(cluster_ids: tuple[str, ...]) -> dict[str, str]:
+    """获取集群 ID 到时间结果表的映射关系"""
+    if not cluster_ids:
+        return {}
+
+    cluster_infos: list[dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
+    cluster_to_data_id: dict[str, int] = {
+        cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
+    }
+    # 业务场景不会超过一页，使用 single 接口避免多次请求
+    event_groups: list[dict[str, Any]] = api.metadata.single_query_event_group(
+        bk_data_ids=list(cluster_to_data_id.values())
+    )
+    data_id_table_map: dict[int, str] = {
+        event_group["bk_data_id"]: event_group["table_id"] for event_group in event_groups
+    }
+
+    cluster_table_map: dict[str, str] = {}
+    for cluster_id in cluster_to_data_id:
+        table: str | None = data_id_table_map.get(cluster_to_data_id.get(cluster_id))
+        if table:
+            cluster_table_map[cluster_id] = table
+
+    return cluster_table_map
+
+
 def get_data_labels_map(bk_biz_id: int, tables: Iterable[str]) -> dict[str, str]:
+    """
+    获取结果表到数据标签的映射关系
+    :param bk_biz_id: 业务 ID
+    :param tables: 结果表
+    :return: 结果表到数据标签的映射关系
+    """
+    if not tables:
+        # 为空时提前返回，减少无效 IO。
+        return {}
+
     # 对 table 进行去重排序，提高缓存命中率
     return _get_data_labels_map(bk_biz_id, tuple(sorted(set(tables))))
 

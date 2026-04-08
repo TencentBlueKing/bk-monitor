@@ -24,6 +24,7 @@
 | format                 | str        | 否  | 输出格式，可选值为`time_series`(默认)、`heatmap`、`table`   |
 | type                   | str        | 否  | 类型，可选值为`instant`、`range`(默认)。                  |
 | series_num             | int        | 否  | 查询数据条数                                         |
+| not_time_align         | bool       | 否  | 是否不进行时间对齐，默认值为`false`                          |
 
 #### query_configs
 
@@ -79,6 +80,7 @@
   "end_time": 1737445607,
   "expression": "a",
   "format": "time_series",
+  "not_time_align": false,
   "query_configs": [
     {
       "data_source_label": "bk_monitor",
@@ -341,5 +343,3 @@
     ]
   }
 }
-```
-

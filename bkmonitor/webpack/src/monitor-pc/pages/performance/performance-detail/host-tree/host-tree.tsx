@@ -821,7 +821,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
               ) : (
                 <bk-input
                   v-model={this.searchKeyword}
-                  placeholder={this.$t('搜索IP / 主机名')}
+                  placeholder={this.$t('搜索 IP、主机名')}
                   right-icon='bk-icon icon-search'
                   onInput={this.handleLocalSearch}
                 />

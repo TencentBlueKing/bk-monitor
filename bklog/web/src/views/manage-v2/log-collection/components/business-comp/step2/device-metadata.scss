@@ -1,0 +1,61 @@
+.device-metadata-main {
+    width: 100%;
+    .switcher-container {
+        margin-bottom: 8px;
+        .info-tips-box {
+            margin-left: 12px;
+        }
+    }
+    .form-link {
+        padding-left: 0 !important; 
+    }
+    .device-metadata-tips-box {
+        margin-top: 8px;
+    }
+    .device-metadata-input-list {
+        width: 100%;
+        margin-top: 10px;
+        .device-metadata-input-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            .item-left {
+                position: relative;
+                width: calc(100% - 62px);
+            }
+            .icons {
+                color: #979BA5;
+                font-size: 18px;
+                margin-left: 8px;
+                cursor: pointer;
+                &.disabled {
+                    cursor: not-allowed;
+                    color: #c4c6cc;
+                }
+            }
+            .symbol {
+                color: #ff9c01;
+                margin: 0 7px;
+            }
+            .extra-error {
+                .bk-form-input {
+                    border-color: #ff5656;
+                    padding-right: 25px !important;
+                }
+            }
+            .tooltips-icon {
+               position: absolute;
+               color: #ff5656;
+               right: 5px;
+               top: 8px;
+            }
+        }
+    }
+}
+.device-metadata-option {
+    display: flex;
+    align-items: center;
+    .mr-5 {
+        margin-right: 5px;
+    }
+}

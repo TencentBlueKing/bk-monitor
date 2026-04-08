@@ -436,7 +436,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
               <bk-input
                 class='search-wrapper-input'
                 v-model={this.keyword}
-                placeholder={window.i18n.t('搜索')}
+                placeholder={window.i18n.t('搜索 名称')}
                 right-icon='bk-icon icon-search'
                 on-enter={this.handleSearchChange}
                 on-right-icon-click={this.handleSearchChange}

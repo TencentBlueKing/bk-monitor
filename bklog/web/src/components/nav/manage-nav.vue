@@ -186,6 +186,7 @@
           'custom-report-edit': this.$t('route-编辑自定义上报').replace('route-', ''),
           'custom-report-detail': this.$t('route-采集详情').replace('route-', ''),
           'custom-report-masking': this.$t('route-日志脱敏').replace('route-', ''),
+          'clean-config': this.$t('route-清洗配置').replace('route-', ''),
         };
         return map[this.$route.name];
       },
@@ -228,7 +229,7 @@
 <style lang="scss" scoped>
   .sub-nav-container {
     position: fixed;
-    top: 51px;
+    top: 52px;
     z-index: 9;
     display: flex;
     align-items: center;

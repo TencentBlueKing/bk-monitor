@@ -45,10 +45,12 @@ import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import aiWhaleStore from '../../../store/modules/ai-whale';
 import { WATCH_SPACE_STICKY_LIST } from '../../app';
 import FavList, { type IFavListItem } from './fav-list';
 import IconBtn, { type IIconBtnOptions } from './icon-btn';
 import TreeMenu from './tree-menu';
+import { AI_BLUEKING_SHORTCUTS, AI_BLUEKING_SHORTCUTS_ID } from '@/components/ai-whale/types';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { ISpaceItem } from '../../../types';
@@ -212,7 +214,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   get isCopyDashboard() {
     return this.curFormType === MoreType.copy;
   }
-
+  /** 是否开启AI智能助手 */
+  get isEnableAiAssistant() {
+    return aiWhaleStore.enableAiAssistant;
+  }
   /** 目录列表 */
   get dirList() {
     return this.grafanaList.reduce((total, item) => {
@@ -570,6 +575,44 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
     this.loading = false;
   }
+  async handleAddDashboardWithAI() {
+    const isPass = await this.handleValidate();
+    if (isPass) {
+      const shortcutItem = structuredClone(
+        AI_BLUEKING_SHORTCUTS.find(shortcut => shortcut.id === AI_BLUEKING_SHORTCUTS_ID.GENERATE_DASHBOARD)
+      );
+      if (shortcutItem) {
+        aiWhaleStore.setCustomFallbackShortcut({
+          ...shortcutItem,
+          components: shortcutItem.components.map(component => {
+            let defaultVal = '';
+            if (component.key === 'name') {
+              defaultVal = this.formData.name;
+            } else if (component.key === 'category') {
+              component.options = this.dirList.map(item => {
+                if (item.id === this.formData.dir) {
+                  defaultVal = item.name;
+                }
+                return {
+                  label: item.name,
+                  value: item.name,
+                };
+              });
+            } else if (component.key === 'bk_biz_id') {
+              defaultVal = (window.cc_biz_id || window.bk_biz_id).toString();
+            } else if (component.key === 'datasource') {
+              defaultVal = 'bkmonitor-timeseries-datasource';
+            }
+            return {
+              ...component,
+              default: defaultVal,
+            };
+          }),
+        });
+        this.showAddForm = false;
+      }
+    }
+  }
 
   /**
    * 迁移仪表盘
@@ -626,9 +669,16 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     };
     return copyDashboardToFolder(params)
       .then(res => {
-        const url = res?.imported_url
-          ? `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#${res.imported_url}`
-          : '';
+        const importedUrl = res?.imported_url || '';
+        const siteUrl = (window.site_url || '').replace(/\/+$/, '');
+        let hashPath = importedUrl;
+        if (siteUrl && hashPath.startsWith(siteUrl)) {
+          hashPath = hashPath.slice(siteUrl.length);
+        }
+        if (hashPath && !hashPath.startsWith('/')) {
+          hashPath = `/${hashPath}`;
+        }
+        const url = hashPath ? `${location.origin}${window.site_url}?bizId=${this.$store.getters.bizId}#${hashPath}` : '';
         url && window.open(url, '_blank');
         return true;
       })
@@ -783,6 +833,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               <div class='grafana-handle-main'>
                 <bk-input
                   v-model={this.keywork}
+                  placeholder='搜索 仪表盘'
                   right-icon='bk-icon icon-search'
                   onInput={this.handleSearchInput}
                 />
@@ -886,6 +937,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 <bk-select
                   v-model={this.formData.dir}
                   placeholder={this.$t(`请选择${this.isCopyDashboard ? '目标目录' : '所属目录'}`)}
+                  search-placeholder={this.$t('请输入 关键字')}
                   searchable
                 >
                   {this.dirList.map(item => (
@@ -903,13 +955,23 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             class='dashboard-add-dialog-footer'
             slot='footer'
           >
+            {this.isDashboard && this.isEnableAiAssistant && (
+              <div
+                class='ai-add-dashboard'
+                onClick={this.handleAddDashboardWithAI}
+              >
+                <span class='global-ai-blueking-icon' />
+                {this.$t('AI 创建')}
+              </div>
+            )}
             <bk-button
               disabled={this.loading}
               loading={this.loading}
+              outline={this.isDashboard}
               theme='primary'
               onClick={this.handleConfirm}
             >
-              {this.$t('确认')}
+              {this.isDashboard ? this.$t('手动创建') : this.$t('确认')}
             </bk-button>
             <bk-button
               theme='default'

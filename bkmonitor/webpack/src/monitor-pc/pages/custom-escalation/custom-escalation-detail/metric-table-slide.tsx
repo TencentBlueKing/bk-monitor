@@ -417,7 +417,7 @@ export default class IndicatorTableSlide extends tsc<any> {
             <SearchSelect
               data={this.metricSearchData}
               modelValue={this.search}
-              placeholder={this.$t('搜索指标')}
+              placeholder={this.$t('搜索')}
               show-popover-tag-change
               on-change={this.handleSearchChange}
             />

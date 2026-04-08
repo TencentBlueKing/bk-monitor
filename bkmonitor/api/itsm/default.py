@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import os
 
@@ -29,7 +29,7 @@ class ITSMBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         except Exception:  # pylint: disable=broad-except
             pass
         self.bk_username = settings.COMMON_USERNAME
-        return super(ITSMBaseResource, self).full_request_data(validated_request_data)
+        return super().full_request_data(validated_request_data)
 
 
 class MetaSerializer(serializers.Serializer):
@@ -70,7 +70,7 @@ class TicketRevokeResource(ITSMBaseResource):
         action_message = serializers.CharField(label="撤单消息", required=False, default="撤销单据")
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(TicketRevokeResource, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data.update(
             {
                 "action_type": "WITHDRAW",

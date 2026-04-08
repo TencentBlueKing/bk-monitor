@@ -33,8 +33,8 @@ import { getShareParams } from 'monitor-api/modules/share';
 import './share.scss';
 
 interface IWebData {
-  baseroute: string;
   host: string;
+  parentRoute: string;
 }
 @Component
 export default class SharePage extends tsc<object> {
@@ -69,7 +69,7 @@ export default class SharePage extends tsc<object> {
     let url = '';
     // 事件中心
     if (data.name === 'event-center') {
-      url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}/#/event-center/detail/${data.eventId}`;
+      url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/event-center/detail/${data.eventId}`;
     } else if (/^apm_/.test(String(data.query?.sceneId))) {
       // apm 处理
       const route = this.$router.resolve({
@@ -109,11 +109,11 @@ export default class SharePage extends tsc<object> {
       showSourceCode: false,
       scopeCss: true,
       scopeLocation: true,
-      setShodowDom: true,
+      setShadowDom: true,
       keepAlive: false,
       data: {
         // host: `http://${process.env.devHost}:7002`,
-        // baseroute: '/fta/',
+        // parentRoute: '/fta/',
         ...(data.weWebData || {}),
         token: this.token,
         readonly: true,
@@ -122,13 +122,15 @@ export default class SharePage extends tsc<object> {
       },
     });
     activated(id, this.$refs.sharePageWrap as HTMLElement);
-    window.requestIdleCallback(() => (this.loading = false));
+    window.requestIdleCallback(() => {
+      this.loading = false;
+    });
   }
   beforeDestroy() {
     deactivated(`__${this.token}__`);
     window.token = '';
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     next(() => {
       window.token = '';
     });

@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import time
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -64,11 +65,14 @@ class GetHostProcessPortStatusResource(Resource):
         query_config = {"promql": promql_statement, "interval": 60}
         data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
-        data: list = query.query_data(limit=1, slimit=1)
+        # 取最近5分钟的数据
+        end_time = int(time.time())
+        start_time = end_time - 300
+        data: list = query.query_data(start_time=start_time * 1000, end_time=end_time * 1000)
         if not data:
             return []
         else:
-            data: dict = data[-1]
+            data: list[dict] = data
 
         # 不同状态的展示信息
         status_mapping = {
@@ -76,19 +80,25 @@ class GetHostProcessPortStatusResource(Resource):
             "nonlisten": {"statusBgColor": "#f0f1f5", "statusColor": "#c4c6cc", "name": _("停用")},
             "not_accurate_listen": {"statusBgColor": "#ffe8c3", "statusColor": "#EA3636", "name": _("异常")},
         }
-
-        result = []
-        for key in status_mapping.keys():
-            ports = json.loads(data[key])
-            if not ports:
-                continue
-            for port in ports:
-                if key == "not_accurate_listen":
-                    # not_accurate_listen 字段格式：IP:PORT
-                    actual_port = port.rsplit(":", 1)[-1]
-                else:
-                    actual_port = port
-                result.append({"value": str(actual_port), **status_mapping[key]})
+        port_latest_map: dict[str, tuple[int, str]] = {}
+        for item_data in data:
+            for key in status_mapping.keys():
+                ports = json.loads(item_data[key])
+                if not ports:
+                    continue
+                for port in ports:
+                    if key == "not_accurate_listen":
+                        # not_accurate_listen 字段格式：IP:PORT
+                        actual_port = port.rsplit(":", 1)[-1]
+                    else:
+                        actual_port = port
+                    # 取每个端口最新的一条数据
+                    _time = item_data.get("_time_", 0)
+                    if str(actual_port) not in port_latest_map or _time > port_latest_map[str(actual_port)][0]:
+                        port_latest_map[str(actual_port)] = (_time, key)
+        result: list[dict] = []
+        for actual_port, (_time, key) in port_latest_map.items():
+            result.append({"value": str(actual_port), **status_mapping[key]})
         return result
 
 
@@ -123,9 +133,11 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
 
         # 获得指定进程名的端口绑定信息
         bind_info_list = []
+        bk_func_name = ""
         for p in processes:
             if p.bk_process_name != bk_process_name:
                 continue
+            bk_func_name = p.bk_func_name
 
             protocol = cls.protocol_map.get(p.protocol)
             if is_v6(p.bind_ip):
@@ -136,12 +148,11 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 bind_ip = f"{bind_ip}:{p.port}"
             bind_info_list.append(bind_ip)
 
-            return [
-                {"name": _("名称"), "type": "string", "value": p.bk_process_name},
-                {"name": _("别名"), "type": "string", "value": p.bk_func_name},
-                {"name": _("绑定信息"), "type": "list", "value": bind_info_list},
-            ]
-        return []
+        return [
+            {"name": _("名称"), "type": "string", "value": bk_process_name},
+            {"name": _("别名"), "type": "string", "value": bk_func_name},
+            {"name": _("绑定信息"), "type": "list", "value": bind_info_list},
+        ]
 
     @classmethod
     def get_host_info(cls, bk_biz_id: int, bk_host_id: int):

@@ -76,7 +76,8 @@ class PushActionProcessor:
                 # 有父任务的事件，先需要创建对应的子任务
                 sub_actions = action_instance.create_sub_actions()
                 logger.info(
-                    "[create actions]create sub notice actions %s for parent action(%s), exclude_notice_ways(%s)",
+                    "[create sub actions]alert(%s) create sub notice actions %s for parent action(%s), exclude_notice_ways(%s)",
+                    alerts[0].id,
                     len(sub_actions),
                     action_instance.id,
                     "|".join(action_instance.inputs.get("exlude_notice_ways") or []),
@@ -134,7 +135,8 @@ class PushActionProcessor:
                 countdown=3,
             )
             logger.info(
-                "[push_actions_to_converge_queue] push action(%s) to converge queue, converge_config %s,  task id %s",
+                "[push_actions_to_converge_queue]alerts(%s) push action(%s) to converge queue, converge_config %s,  task id %s",
+                action_instance.alerts,
                 action_instance.id,
                 converge_config,
                 task_id,
@@ -153,24 +155,15 @@ class PushActionProcessor:
         :param countdown: 告警延时
         :return:
         """
-        from alarm_backends.service.fta_action.tasks import (
-            run_action,
-            run_webhook_action,
-        )
+        from alarm_backends.service.fta_action.tasks import dispatch_action_task
 
         action_info = {"id": action_instance.id, "function": callback_func, "alerts": alerts}
         if kwargs:
             action_info.update({"kwargs": kwargs})
         plugin_type = action_instance.action_plugin["plugin_type"]
-        if plugin_type in [
-            ActionPluginType.WEBHOOK,
-            ActionPluginType.MESSAGE_QUEUE,
-        ]:
-            task_id = run_webhook_action.apply_async((plugin_type, action_info), countdown=countdown)
-        else:
-            task_id = run_action.apply_async((plugin_type, action_info), countdown=countdown)
+        task_id = dispatch_action_task(plugin_type, action_info, countdown=countdown)
         logger.info(
-            "[create actions]push queue(execute): action(%s) (%s), alerts(%s), task_id(%s)",
+            "[push actions execute]action(%s) (%s), alerts(%s), task_id(%s)",
             action_instance.id,
             plugin_type,
             action_instance.alerts,
@@ -636,7 +629,7 @@ class AlertAssignee:
                 return group_users
 
             host = HostManager.get_by_id(
-                bk_tenant_id=str(self.alert.bk_tenant_id), bk_host_id=str(self.alert.event.bk_host_id)
+                bk_tenant_id=str(self.alert.bk_tenant_id), bk_host_id=getattr(self.alert.event, "bk_host_id", "")
             )
             for operator_attr in ["operator", "bk_bak_operator"]:
                 group_users[operator_attr] = self.get_host_operator(host, operator_attr)

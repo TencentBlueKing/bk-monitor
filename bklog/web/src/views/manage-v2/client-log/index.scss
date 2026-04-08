@@ -1,0 +1,106 @@
+.client-log-main {
+    padding: 16px 16px 42px;
+
+    .tabs{
+        display: flex;
+
+        .tab-item{
+            height: 42px;
+            padding: 0px 16px;
+            margin-right: 8px;
+            font-size: 14px;
+            line-height: 42px;
+            cursor: pointer;
+            background: #EAEBF0;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .active {
+            position: relative;
+            font-weight: 700;
+            color: #3A84FF;
+            background: #FFFFFF;
+            box-shadow: 0 0 2px 0 #0000001f;
+
+            &::after {
+                position: absolute;
+                right: 0;
+                bottom: -2px;
+                left: 0;
+                height: 2px;
+                content: '';
+                background: #FFFFFF;
+            }
+
+            .tab-item-num {
+                color: #3A84FF;
+                background: #E1ECFF;
+            }
+        }
+
+        .tab-item-num {
+            display: inline-block;
+            height: 16px;
+            padding: 0 8px;
+            margin-left: 8px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            line-height: 16px;
+            color: #979BA5;
+            background: #FFFFFF;
+            border-radius: 8px;
+        }
+    }
+
+    .client-log-container{
+        padding: 16px 16px 0;
+        background: #FFFFFF;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        .deploy-header{
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+
+            .bk-button:first-child{
+                margin-right: 8px;
+            }
+        }
+
+        .alert-info{
+            margin-bottom: 12px;
+        }
+
+        .operating-area{
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .bk-input-text{
+            width: 480px;
+        }
+    }
+}
+
+.gray-release-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    .exception-wrap-item {
+        span {
+            font-size: 24px;
+            color: #63656e;
+        }
+
+        .text-subtitle {
+            margin-top: 14px;
+            font-size: 14px;
+            color: #979ba5;
+            text-align: center;
+        }
+    }
+}

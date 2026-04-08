@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import re
 
@@ -23,7 +21,6 @@ from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import BuiltInPluginManager
 from monitor_web.plugin.serializers import LogSerializer
-from monitor_web.tasks import append_event_metric_list_cache
 
 
 class LogPluginManager(BuiltInPluginManager):
@@ -95,7 +92,7 @@ class LogPluginManager(BuiltInPluginManager):
         return self._create_version(data, event_list)
 
     def _create_version(self, data, event_list):
-        version, need_debug = super(LogPluginManager, self).create_version(data)
+        version, need_debug = super().create_version(data)
         plugin = CollectorPluginMeta.objects.get(
             bk_tenant_id=version.plugin.bk_tenant_id, plugin_id=version.plugin.plugin_id
         )
@@ -112,7 +109,7 @@ class LogPluginManager(BuiltInPluginManager):
         return self._update_version(data, event_list)
 
     def _update_version(self, data, event_list):
-        version, need_debug = super(LogPluginManager, self).update_version(data)
+        version, need_debug = super().update_version(data)
         self.release_collector_plugin(version)
         self.modify_result_table(version, event_list)
         return version, need_debug
@@ -134,6 +131,8 @@ class LogPluginManager(BuiltInPluginManager):
         return dimensions
 
     def create_result_table(self, current_version, source_label, type_label, event_info_list):
+        from monitor_web.tasks import append_event_metric_list_cache
+
         access = EventDataAccessor(current_version, self.operator)
         data_id = access.create_data_id(source_label, type_label)
         group_info = access.create_result_table(data_id, event_info_list)
@@ -164,6 +163,8 @@ class LogPluginManager(BuiltInPluginManager):
         return group_info
 
     def modify_result_table(self, current_version, event_info_list):
+        from monitor_web.tasks import append_event_metric_list_cache
+
         access = EventDataAccessor(current_version, self.operator)
         group_info = access.modify_result_table(event_info_list)
         event_items = []

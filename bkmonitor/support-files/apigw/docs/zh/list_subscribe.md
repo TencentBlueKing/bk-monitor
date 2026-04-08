@@ -6,7 +6,7 @@
 
 | 字段        | 类型    | 必须 | 默认值 | 描述           |
 |-----------|-------|----|-----|--------------|
-| sub_username  | string| 是  | -   | 用户名          |
+| sub_username  | string| 否  | -   | 用户名          |
 | bk_biz_id | int   | 是  | -   | 业务ID         |
 | is_enable | bool  | 否  | -   | 是否启用过滤       |
 | page      | int   | 否  | 1   | 页码，最小值为1     |

@@ -1,0 +1,32 @@
+/* 骨架屏动画 */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f2f5 25%, #e6e9ed 50%, #f0f2f5 70%);
+  background-size: 400% 100%;
+  animation: shimmer 1.8s infinite linear;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+  }
+}

@@ -205,6 +205,7 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
             ref='inputRef'
             v-model={this.filterKey}
             behavior='simplicity'
+            placeholder={this.$t('搜索')}
             onBlur={this.handleInputBlur}
             onChange={this.handleFilter}
             onFocus={this.handleInputFocus}

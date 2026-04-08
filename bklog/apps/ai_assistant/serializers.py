@@ -44,6 +44,7 @@ class CreateChatSessionSerializer(serializers.Serializer):
     session_code = serializers.CharField(label=_("会话代码"))
     session_name = serializers.CharField(label=_("会话名称"))
     agent_code = serializers.CharField(label=_("Agent代码"), default=settings.BK_AIDEV_AGENT_APP_CODE)
+    is_temporary = serializers.BooleanField(label="是否是临时会话", required=False, default=False)
 
 
 class UpdateChatSessionSerializer(serializers.Serializer):
@@ -95,6 +96,26 @@ class BatchDeleteSessionContentSerializer(serializers.Serializer):
     """
 
     ids = serializers.ListField(label=_("内容ID列表"))
+
+
+class CreateFeedbackSessionContentSerializer(serializers.Serializer):
+    """
+    创建会话内容反馈
+    """
+
+    comment = serializers.CharField(label="评论内容", required=False, allow_blank=True, default="")
+    labels = serializers.ListField(label="标签", required=False, allow_empty=True, default=[])
+    rate = serializers.IntegerField(label="评分", required=True)
+    session_code = serializers.CharField(label="会话代码", required=True)
+    session_content_ids = serializers.ListField(label="内容ID列表", required=True)
+
+
+class GetFeedbackReasonsSessionContentSerializer(serializers.Serializer):
+    """
+    获取反馈原因列表
+    """
+
+    rate = serializers.IntegerField(label="评分", required=True)
 
 
 class CreateChatCompletionSerializer(serializers.Serializer):

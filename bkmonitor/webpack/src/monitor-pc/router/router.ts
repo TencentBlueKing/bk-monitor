@@ -36,6 +36,7 @@ import { NO_BUSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
 import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
+import platformConfigStore from '../store/modules/platform-config';
 
 import dashboardRoutes from './dashboard';
 // #if APP !== 'external'
@@ -51,8 +52,9 @@ import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #endif
 
 // import spaceData from './space';
-import { isInCommonRoute, setLocalStoreRoute } from './router-config';
+import { getRouteConfigById, getRouteRootName, isInCommonRoute, setLocalStoreRoute } from './router-config';
 import { getAuthById, setAuthById } from '../common/auth-store';
+import { isEn } from '@/i18n/lang';
 
 const EmailSubscriptionsName = 'email-subscriptions';
 Vue.use(VueRouter);
@@ -199,6 +201,31 @@ router.beforeEach(async (to, from, next) => {
 router.afterEach(to => {
   store.commit('app/SET_PADDING_ROUTE', to);
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
+  let title = '';
+  let subtitle = '';
+  // 首页
+  if (to.name === 'home') {
+    const { brandNameEn, brandName } = platformConfigStore.publicConfig || {};
+    const brandTitle = isEn ? brandNameEn : brandName;
+    title = window.i18n.t('监控平台') as string;
+    subtitle = brandTitle || (window.i18n.t('蓝鲸智云') as string);
+  } else if (to.path.includes('/grafana')) {
+    // 仪表盘 显示原始标题
+    title = '';
+    subtitle = window.i18n.t(to.params.title || to.meta.title) as string;
+  } else if (to.path.includes('/event-center') || to.name === 'incident-detail') {
+    // 事件中心 故障详情 显示告警事件 告警
+    title = window.i18n.t('route-告警事件') as string;
+    subtitle = window.i18n.t('告警') as string;
+  } else {
+    // 其他路由 显示根路由名称 和 当前路由名称
+    const parentRoute = getRouteRootName(to.meta?.route?.parent);
+    title = parentRoute ? (window.i18n.t(`route-${getRouteRootName(to.meta.route.parent)}`) as string) : '';
+    subtitle = window.i18n.t(
+      `route-${getRouteConfigById(to.meta.navId)?.name || to.params.title || to.meta.title}`
+    ) as string;
+  }
+  document.title = title ? `${title} | ${subtitle}` : subtitle;
   if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({
     nav_id: to.meta.navId,

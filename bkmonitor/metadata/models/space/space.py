@@ -56,6 +56,7 @@ class Space(BaseModel):
     time_zone = models.CharField("时区", max_length=32, default="Asia/Shanghai", help_text="时区，默认为Asia/Shanghai")
     language = models.CharField("默认语言", max_length=16, default="zh-hans", help_text="使用的语言")
     is_bcs_valid = models.BooleanField("BCS 是否可用", default=False)
+    is_global = models.BooleanField("跨业务管理可用", default=False)
 
     objects: ClassVar[SpaceManager] = SpaceManager()
 
@@ -192,19 +193,3 @@ class BkAppSpaceRecord(BaseModel):
         verbose_name = "蓝鲸应用空间授权记录"
         verbose_name_plural = "蓝鲸应用空间授权记录"
         unique_together = ("bk_app_code", "space_uid")
-
-
-class SpaceTypeToResultTableFilterAlias(models.Model):
-    """
-    空间类型-结果表 路由自定义过滤条件别名
-    """
-
-    space_type = models.CharField("空间类型", max_length=64)
-    table_id = models.CharField("结果表名", max_length=128)
-    filter_alias = models.CharField("过滤条件别名", max_length=128)
-    status = models.BooleanField("是否启用", default=True)
-    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-
-    class Meta:
-        # 一个结果表在一个空间类型下只能有一个别名
-        unique_together = ("space_type", "table_id")

@@ -214,7 +214,7 @@ export default class SharedDialog extends tsc<IProps> {
               <bk-input
                 class='biz-search'
                 clearable={false}
-                placeholder={this.$t('搜索空间')}
+                placeholder={this.$t('搜索 空间名')}
                 right-icon='bk-icon icon-search'
                 value={this.keyword}
                 on-blur={this.handleBizSearch}

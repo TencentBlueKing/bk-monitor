@@ -32,7 +32,7 @@ from alarm_backends.service.converge.shield import ShieldManager
 from alarm_backends.service.converge.shield.shielder import AlertShieldConfigShielder
 from alarm_backends.service.converge.utils import get_execute_related_ids
 from alarm_backends.service.fta_action import need_poll
-from alarm_backends.service.fta_action.tasks import run_action, run_webhook_action
+from alarm_backends.service.fta_action.tasks import dispatch_action_task
 from bkmonitor.models.fta.action import ActionInstance, ConvergeInstance
 from bkmonitor.utils import extended_json
 from constants.action import (
@@ -206,14 +206,14 @@ class ConvergeProcessor:
             )
             self.push_to_queue()
             return
-        except BaseException:
-            logger.exception(
-                "run converge failed: [%s]",
-                self.converge_config,
-            )
-            # 收敛失败的，则重新推入收敛队列, 1分钟之后再做收敛检测
-            self.push_converge_queue()
-            return
+        # except BaseException:
+        #     logger.exception(
+        #         "run converge failed: [%s]",
+        #         self.converge_config,
+        #     )
+        #     # 收敛失败的，则重新推入收敛队列, 1分钟之后再做收敛检测
+        #     self.push_converge_queue()
+        #     return
         finally:
             self.unlock()
 
@@ -450,6 +450,7 @@ class ConvergeProcessor:
             "alerts": self.alerts,
         }
         collect_key = ""
+        countdown = 0
         if plugin_type == ActionPluginType.NOTICE and self.instance.is_parent_action is False:
             # 通知子任务需要记录通知方式，触发信号，告警ID进行后续的汇总合并
             client = FTA_NOTICE_COLLECT_KEY.client
@@ -463,14 +464,8 @@ class ConvergeProcessor:
             # 设置key
             client.hset(collect_key, self.context["notice_receiver"], self.instance_id)
             client.expire(collect_key, FTA_NOTICE_COLLECT_KEY.ttl)
-            task_id = run_action.apply_async((plugin_type, action_info), countdown=1)
-        elif plugin_type in [
-            ActionPluginType.WEBHOOK,
-            ActionPluginType.MESSAGE_QUEUE,
-        ]:
-            task_id = run_webhook_action.delay(plugin_type, action_info)
-        else:
-            task_id = run_action.delay(plugin_type, action_info)
+            countdown = 1
+        task_id = dispatch_action_task(plugin_type, action_info, countdown=countdown)
         logger.info(
             "$ %s push fta action %s %s to rabbitmq, alerts %s, collect_key %s",
             task_id,

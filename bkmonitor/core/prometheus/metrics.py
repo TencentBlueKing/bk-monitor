@@ -319,7 +319,7 @@ PROCESS_BIG_LATENCY = Histogram(
 PROCESS_OVER_FLOW = Counter(
     name="bkmonitor_process_overflow",
     documentation="模块处理量级过大",
-    labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name"),
+    labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name", "redis_node"),
 )
 
 DETECT_PROCESS_LATENCY = Histogram(
@@ -1212,6 +1212,25 @@ AI_AGENTS_REQUESTS_TOTAL = Counter(
     name="ai_agents_requests_total",
     documentation="AI小鲸服务调用统计",
     labelnames=("agent_code", "resource_name", "status", "username", "command"),
+)
+
+MCP_REQUESTS_TOTAL = Counter(
+    name="bkmonitor_mcp_requests_total",
+    documentation="MCP工具调用统计",
+    labelnames=("tool_name", "bk_biz_id", "username", "status", "permission_action"),
+)
+
+MCP_RESOURCE_REQUESTS_TOTAL = Counter(
+    name="bkmonitor_mcp_resource_requests_total",
+    documentation="MCP Resource调用统计",
+    labelnames=("resource_name", "tool_name", "bk_biz_id", "username", "status", "exception_type", "has_data"),
+)
+
+MCP_RESOURCE_REQUESTS_COST_SECONDS = Histogram(
+    name="bkmonitor_mcp_resource_requests_cost_seconds",
+    documentation="MCP Resource调用耗时统计",
+    labelnames=("resource_name", "tool_name", "bk_biz_id", "username", "status"),
+    buckets=(0.1, 0.5, 1, 3, 5, 10, 30, 60, 300, INF),
 )
 
 AI_AGENTS_REQUESTS_COST_SECONDS = Gauge(

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from .space import (  # noqa
     BkAppSpaceRecord,
     Space,
@@ -7,7 +5,6 @@ from .space import (  # noqa
     SpaceResource,
     SpaceStickyInfo,
     SpaceType,
-    SpaceTypeToResultTableFilterAlias,
 )
 
 __all__ = [
@@ -17,5 +14,4 @@ __all__ = [
     "SpaceResource",
     "SpaceStickyInfo",
     "BkAppSpaceRecord",
-    "SpaceTypeToResultTableFilterAlias",
 ]

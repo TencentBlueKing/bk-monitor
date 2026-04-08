@@ -54,15 +54,16 @@ from metadata.models.bcs import (
 )
 from metadata.models.constants import (
     DT_TIME_STAMP_NANO,
-    NANO_FORMAT,
-    DataIdCreatedFromSystem,
-    STRICT_NANO_ES_FORMAT,
     EPOCH_MILLIS_FORMAT,
+    NANO_FORMAT,
+    STRICT_NANO_ES_FORMAT,
+    DataIdCreatedFromSystem,
 )
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
 )
+from metadata.models.result_table import ResultTableOption
 from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.service.data_source import (
@@ -116,7 +117,7 @@ class CreateDataIDResource(Resource):
         transfer_cluster_id = serializers.CharField(required=False, label="transfer集群ID")
         space_uid = serializers.CharField(label="空间英文名称", required=False, default="")
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=[])
-        is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=False)
+        is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
 
     def perform_request(self, validated_request_data):
@@ -532,18 +533,34 @@ class ModifyResultTableResource(Resource):
         bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).bk_data_id
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
 
-        if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
-            try:
-                result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
-                logger.info(
-                    "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
-                    table_id,
-                    bk_data_id,
-                )
-            except RetryError as e:
-                logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
+        # 如果数据源没有接入BKDATA，则不需要通知bkdata
+        if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
+            return
+
+        # 如果是主动配置的V4链路，不再需要通知bkdata
+        # bklog需要存在rtoption，并且option中存在 OPTION_ENABLE_V4_LOG_DATA_LINK且值为True
+        # custom_event需要存在rtoption，并且option中存在 OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK且值为True
+        v4_option_names = [
+            ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
+            ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK,
+        ]
+        options = models.ResultTableOption.objects.filter(
+            table_id=table_id, bk_tenant_id=bk_tenant_id, name__in=v4_option_names
+        )
+        if options and any(option.get_value() for option in options):
+            return
+
+        try:
+            result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
+            logger.info(
+                "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
+                table_id,
+                bk_data_id,
+            )
+        except RetryError as e:
+            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
     def _push_es_route(self, result_table: models.ResultTable, bk_tenant_id: str) -> None:
         """推送ES路由信息"""
@@ -680,9 +697,10 @@ class ModifyDataSource(Resource):
         data_description = serializers.CharField(required=False, label="数据源描述", default=None)
         option = serializers.DictField(required=False, label="数据源配置项")
         is_enable = serializers.BooleanField(required=False, label="是否启用数据源", default=None)
-        is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=None)
+        is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=None)
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=None)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=None)
+        etl_config = serializers.CharField(required=False, label="清洗模板配置")
 
     def perform_request(self, request_data):
         # 指定data_id的情况下，无需使用租户ID进行二次过滤
@@ -704,6 +722,7 @@ class ModifyDataSource(Resource):
             is_platform_data_id=request_data["is_platform_data_id"],
             authorized_spaces=request_data["authorized_spaces"],
             space_type_id=request_data["space_type_id"],
+            etl_config=request_data.get("etl_config"),
         )
         return data_source.to_json()
 
@@ -934,186 +953,6 @@ class GetResultTableStorageResult(Resource):
 
         # 返回
         return result
-
-
-class CreateClusterInfoResource(Resource):
-    """创建存储集群资源"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_name = serializers.CharField(required=True, label="集群名")
-        cluster_type = serializers.CharField(required=True, label="集群类型")
-        domain_name = serializers.CharField(required=True, label="集群域名")
-        port = serializers.IntegerField(required=True, label="集群端口")
-        description = serializers.CharField(required=False, label="集群描述数据", default="", allow_blank=True)
-        auth_info = serializers.JSONField(required=False, label="身份认证信息", default={})
-        version = serializers.CharField(required=False, label="版本信息", default="")
-        custom_option = serializers.CharField(required=False, label="自定义标签", default="")
-        schema = serializers.CharField(required=False, label="链接协议", default="")
-        is_ssl_verify = serializers.BooleanField(required=False, label="是否需要SSL验证", default=False)
-        ssl_verification_mode = serializers.CharField(required=False, label="校验模式", default="")
-        ssl_certificate_authorities = serializers.CharField(required=False, label="CA 证书内容", default="")
-        ssl_certificate = serializers.CharField(required=False, label="SSL/TLS 证书内容", default="")
-        ssl_certificate_key = serializers.CharField(required=False, label="SSL/TLS 私钥内容", default="")
-        ssl_insecure_skip_verify = serializers.BooleanField(required=False, label="是否跳过服务端校验", default=False)
-        extranet_domain_name = serializers.CharField(required=False, label="外网集群域名", default="")
-        extranet_port = serializers.IntegerField(required=False, label="外网集群端口", default=0)
-        operator = serializers.CharField(required=True, label="操作者")
-
-    def perform_request(self, validated_request_data):
-        # 获取请求来源系统
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
-        validated_request_data["registered_system"] = bk_app_code
-
-        # 获取配置的用户名和密码
-        auth_info = validated_request_data.pop("auth_info", {})
-        # NOTE: 因为模型中字段没有设置允许为 null，所以不能赋值 None
-        validated_request_data["username"] = auth_info.get("username", "")
-        validated_request_data["password"] = auth_info.get("password", "")
-
-        cluster = models.ClusterInfo.create_cluster(**validated_request_data)
-        return cluster.cluster_id
-
-
-class ModifyClusterInfoResource(Resource):
-    """修改存储集群信息"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
-        description = serializers.CharField(required=False, label="存储集群描述", default=None, allow_blank=True)
-        auth_info = serializers.JSONField(required=False, label="身份认证信息", default={})
-        custom_option = serializers.CharField(required=False, label="集群自定义标签", default=None)
-        schema = serializers.CharField(required=False, label="集群链接协议", default=None)
-        is_ssl_verify = serializers.BooleanField(required=False, label="是否需要强制SSL/TLS认证", default=None)
-        ssl_verification_mode = serializers.CharField(required=False, label="校验模式", default=None)
-        ssl_certificate_authorities = serializers.CharField(required=False, label="CA 证书内容", default=None)
-        ssl_certificate = serializers.CharField(required=False, label="SSL/TLS 证书内容", default=None)
-        ssl_certificate_key = serializers.CharField(required=False, label="SSL/TLS 私钥内容", default=None)
-        ssl_insecure_skip_verify = serializers.BooleanField(required=False, label="是否跳过服务端校验", default=None)
-        extranet_domain_name = serializers.CharField(required=False, label="外网集群域名", default=None)
-        extranet_port = serializers.IntegerField(required=False, label="外网集群端口", default=None)
-        operator = serializers.CharField(required=True, label="操作者")
-
-    def perform_request(self, validated_request_data):
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
-        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-
-        # 1. 判断是否存在cluster_id或者cluster_name
-        cluster_id = validated_request_data.pop("cluster_id")
-        cluster_name = validated_request_data.pop("cluster_name")
-
-        if cluster_id is None and cluster_name is None:
-            raise ValueError(_("需要至少提供集群ID或集群名"))
-
-        # 2. 判断是否可以拿到一个唯一的cluster_info
-        query_dict = {"cluster_id": cluster_id} if cluster_id is not None else {"cluster_name": cluster_name}
-        try:
-            cluster_info = models.ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id,
-                registered_system__in=[bk_app_code, models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM],
-                **query_dict,
-            )
-        except models.ClusterInfo.DoesNotExist:
-            raise ValueError(_("找不到指定的集群配置，请确认后重试"))
-
-        # 3. 判断获取是否需要修改用户名和密码
-        auth_info = validated_request_data.pop("auth_info", {})
-        # NOTE: 因为模型中字段没有设置允许为 null，所以不能赋值 None
-        validated_request_data["username"] = auth_info.get("username", "")
-        validated_request_data["password"] = auth_info.get("password", "")
-
-        # 4. 触发修改内容
-        cluster_info.modify(**validated_request_data)
-        return cluster_info.consul_config
-
-
-class DeleteClusterInfoResource(Resource):
-    """删除存储集群信息"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
-
-    def perform_request(self, validated_request_data):
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
-
-        #  判断是否存在cluster_id或者cluster_name
-        cluster_id = validated_request_data.pop("cluster_id")
-        cluster_name = validated_request_data.pop("cluster_name")
-
-        if cluster_id is None and cluster_name is None:
-            raise ValueError(_("需要至少提供集群ID或集群名"))
-
-        #  判断是否可以拿到一个唯一的cluster_info
-        query_dict = {"cluster_id": cluster_id} if cluster_id is not None else {"cluster_name": cluster_name}
-        try:
-            cluster_info = models.ClusterInfo.objects.get(
-                bk_tenant_id=validated_request_data["bk_tenant_id"], registered_system=bk_app_code, **query_dict
-            )
-        except models.ClusterInfo.DoesNotExist:
-            raise ValueError(_("找不到指定的集群配置，请确认后重试"))
-
-        cluster_info.delete()
-
-
-class QueryClusterInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
-        cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
-        is_plain_text = serializers.BooleanField(required=False, label="是否需要明文显示登陆信息", default=False)
-
-    def perform_request(self, validated_request_data):
-        query_dict = {}
-        if validated_request_data["cluster_id"] is not None:
-            query_dict = {"cluster_id": validated_request_data["cluster_id"]}
-
-        elif validated_request_data["cluster_name"] is not None:
-            query_dict = {"cluster_name": validated_request_data["cluster_name"]}
-
-        if validated_request_data["cluster_type"] is not None:
-            query_dict["cluster_type"] = validated_request_data["cluster_type"]
-
-        query_result = models.ClusterInfo.objects.filter(
-            bk_tenant_id=validated_request_data["bk_tenant_id"], **query_dict
-        )
-
-        result_list = []
-        is_plain_text = validated_request_data["is_plain_text"]
-
-        for cluster_info in query_result:
-            cluster_consul_config = cluster_info.consul_config
-
-            # 如果不是明文的方式，需要进行base64编码
-            if not is_plain_text:
-                cluster_consul_config["auth_info"] = base64.b64encode(
-                    json.dumps(cluster_consul_config["auth_info"]).encode("utf-8")
-                )
-                cluster_config = cluster_consul_config["cluster_config"]
-                # 添加证书相关处理
-                if cluster_config["raw_ssl_certificate_authorities"]:
-                    cluster_consul_config["cluster_config"]["raw_ssl_certificate_authorities"] = base64.b64encode(
-                        cluster_config["raw_ssl_certificate_authorities"].encode("utf-8")
-                    )
-                if cluster_config["raw_ssl_certificate"]:
-                    cluster_consul_config["cluster_config"]["raw_ssl_certificate"] = base64.b64encode(
-                        cluster_config["raw_ssl_certificate"].encode("utf-8")
-                    )
-                if cluster_config["raw_ssl_certificate_key"]:
-                    cluster_consul_config["cluster_config"]["raw_ssl_certificate_key"] = base64.b64encode(
-                        cluster_config["raw_ssl_certificate_key"].encode("utf-8")
-                    )
-
-            result_list.append(cluster_consul_config)
-
-        return result_list
 
 
 class QueryEventGroupResource(Resource):
@@ -1910,6 +1749,22 @@ class ListBCSClusterInfoResource(Resource):
         return [cluster.to_json() for cluster in clusters]
 
 
+class ListBCSClusterInfoByBizResource(Resource):
+    """
+    查询指定业务下的bcs集群信息,用于用户查询
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        clusters = BCSClusterInfo.objects.filter(
+            bk_tenant_id=validated_request_data["bk_tenant_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
+        return [cluster.to_json_for_user() for cluster in clusters]
+
+
 class ApplyYamlToBCSClusterResource(Resource):
     """
     应用yaml配置到指定集群
@@ -2055,9 +1910,43 @@ class CreateResultTableSnapshotResource(Resource):
         target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+            default=models.EsSnapshot.ES_RUNNING_STATUS,
+        )
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshot.create_snapshot(**validated_request_data).to_json()
+
+
+class BulkCreateResultTableSnapshotResource(Resource):
+    """
+    Es结果表快照配置批量创建
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_ids = serializers.ListField(
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            required=True,
+            label="结果表IDs",
+            allow_empty=False,
+        )
+        target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
+        snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
+        operator = serializers.CharField(required=True, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+            default=models.EsSnapshot.ES_RUNNING_STATUS,
+        )
+
+    def perform_request(self, validated_request_data):
+        models.EsSnapshot.bulk_create_snapshot(**validated_request_data)
+        return validated_request_data
 
 
 class ModifyResultTableSnapshotResource(Resource):
@@ -2070,10 +1959,42 @@ class ModifyResultTableSnapshotResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
-        status = serializers.CharField(required=False, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+        )
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.modify_snapshot(**validated_request_data)
+        return validated_request_data
+
+
+class BulkModifyResultTableSnapshotResource(Resource):
+    """
+    Es结果表快照配置修改
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_ids = serializers.ListField(
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            required=True,
+            label="结果表IDs",
+            allow_empty=False,
+        )
+        snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
+        operator = serializers.CharField(required=True, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+        )
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
+
+    def perform_request(self, validated_request_data):
+        models.EsSnapshot.bulk_modify_snapshot(**validated_request_data)
         return validated_request_data
 
 
@@ -2086,9 +2007,26 @@ class DeleteResultTableSnapshotResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.delete_snapshot(**validated_request_data)
+        return validated_request_data
+
+
+class RetryResultTableSnapshotResource(Resource):
+    """
+    重试es快照配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
+
+    def perform_request(self, validated_request_data):
+        models.EsSnapshot.retry_snapshot(**validated_request_data)
         return validated_request_data
 
 
@@ -2100,21 +2038,41 @@ class ListResultTableSnapshotResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=False, label="结果表IDs")
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_ids = validated_request_data.get("table_ids")
-        result_queryset = models.EsSnapshot.objects.filter(bk_tenant_id=bk_tenant_id)
+        repository_names = validated_request_data.get("repository_names")
+        query = Q(bk_tenant_id=bk_tenant_id)
+
         if table_ids:
-            result_queryset = result_queryset.filter(table_id__in=table_ids)
-        table_ids = [snapshot.table_id for snapshot in result_queryset]
+            query &= Q(table_id__in=table_ids)
+        if repository_names:
+            query &= Q(target_snapshot_repository_name__in=repository_names)
+
+        result_queryset = models.EsSnapshot.objects.filter(query)
+        snapshot_pairs = list(
+            result_queryset.values_list("table_id", "target_snapshot_repository_name").distinct()
+        )
+        table_ids = list({table_id for table_id, _ in snapshot_pairs})
+        repository_names = list({repository_name for _, repository_name in snapshot_pairs})
+
         all_doc_count_and_store_size = models.EsSnapshotIndice.all_doc_count_and_store_size(
-            bk_tenant_id=bk_tenant_id, table_ids=table_ids
+            bk_tenant_id=bk_tenant_id, table_ids=table_ids, repository_names=repository_names
         )
         result = []
         for snapshot in result_queryset:
             snapshot_json = snapshot.to_self_json()
-            table_id_doc_count_and_store_size = all_doc_count_and_store_size.get(snapshot.table_id, {})
+            table_id_doc_count_and_store_size = all_doc_count_and_store_size.get(
+                (snapshot.table_id, snapshot.target_snapshot_repository_name),
+                {}
+            )
             snapshot_json["doc_count"] = table_id_doc_count_and_store_size.get("doc_count", 0)
             snapshot_json["store_size"] = table_id_doc_count_and_store_size.get("store_size", 0)
             snapshot_json["index_count"] = table_id_doc_count_and_store_size.get("index_count", 0)
@@ -2130,11 +2088,22 @@ class ListResultTableSnapshotIndicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=True, label="结果表ID")
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_ids = validated_request_data.get("table_ids")
-        es_snapshots = models.EsSnapshot.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
+        repository_names = validated_request_data.get("repository_names")
+        query = Q(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
+        if repository_names:
+            query &= Q(target_snapshot_repository_name__in=repository_names)
+        es_snapshots = models.EsSnapshot.objects.filter(query)
+
         return [es_snapshot.to_json() for es_snapshot in es_snapshots]
 
 
@@ -2153,6 +2122,19 @@ class GetResultTableSnapshotStateResource(Resource):
         )
 
 
+class GetResultTableSnapshotRecentStateResource(Resource):
+    """
+    Es结果表最近一次快照状态
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_ids = serializers.ListField(required=True, label="结果表ids")
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshot.batch_get_recent_state(**validated_request_data)
+
+
 class RestoreResultTableSnapshotResource(Resource):
     """
     创建快照恢复接口
@@ -2166,6 +2148,7 @@ class RestoreResultTableSnapshotResource(Resource):
         expired_time = serializers.DateTimeField(required=True, label="指定过期时间", format="%Y-%m-%d %H:%M:%S")
         operator = serializers.CharField(required=True, label="操作者")
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshotRestore.create_restore(**validated_request_data)
@@ -2213,6 +2196,23 @@ class DeleteRestoreResultTableSnapshotResource(Resource):
         return validated_request_data
 
 
+class RetryRestoreResultTableSnapshotResource(Resource):
+    """
+    快照恢复重试接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
+        operator = serializers.CharField(required=True, label="操作者")
+        indices = serializers.ListField(required=False, label="重试索引列表", default=[])
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        is_force = serializers.BooleanField(required=False, label="是否强制重试", default=False)
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.retry_restore(**validated_request_data)
+
+
 class ListRestoreResultTableSnapshotResource(Resource):
     """
     快照恢复任务list接口
@@ -2221,12 +2221,20 @@ class ListRestoreResultTableSnapshotResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=False, label="结果表ID", default=[])
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         querysets = models.EsSnapshotRestore.objects.filter(is_deleted=False, bk_tenant_id=bk_tenant_id)
         if validated_request_data["table_ids"]:
             querysets = querysets.filter(table_id__in=validated_request_data["table_ids"])
+        if validated_request_data["repository_names"]:
+            querysets = querysets.filter(repository_name__in=validated_request_data["repository_names"])
         return [queryset.to_json() for queryset in querysets]
 
 
@@ -2243,6 +2251,19 @@ class GetRestoreResultTableSnapshotStateResource(Resource):
         return models.EsSnapshotRestore.batch_get_state(
             bk_tenant_id=validated_request_data["bk_tenant_id"], restore_ids=validated_request_data["restore_ids"]
         )
+
+
+class GetRestoreResultTableSnapshotIndicesResource(Resource):
+    """
+    快照回溯任务索引回溯详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        restore_ids = serializers.ListField(required=True, label="快照回溯任务ids")
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.batch_get_indices(**validated_request_data)
 
 
 class EsRouteResource(Resource):
@@ -2305,6 +2326,8 @@ class KafkaTailResource(Resource):
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
             result_table = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+            if not result_table:
+                return []
             datasource = result_table.data_source
 
         size = validated_request_data["size"]

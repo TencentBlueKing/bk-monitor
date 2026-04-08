@@ -166,6 +166,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
           <CustomSelect
             class='group-add-btn'
             options={this.options}
+            search-placeholder={this.$t('请输入 关键字')}
             value={this.localValue}
             multiple
             onSelected={this.handleAddGroups}

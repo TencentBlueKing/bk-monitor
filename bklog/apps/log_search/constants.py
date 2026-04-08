@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import re
 from enum import Enum
 
 from django.apps import apps
@@ -372,6 +373,7 @@ class GlobalTypeEnum(ChoicesEnum):
     PAAS_API_HOST = "paas_api_host"
     BK_DOMAIN = "bk_domain"
     RETAIN_EXTRA_JSON = "retain_extra_json"
+    LOG_BUILT_IN_FIELD = "log_built_in_field"
 
     _choices_labels = (
         (CATEGORY, _("数据分类")),
@@ -394,6 +396,7 @@ class GlobalTypeEnum(ChoicesEnum):
         (PAAS_API_HOST, _("网关地址")),
         (BK_DOMAIN, _("蓝鲸域名")),
         (RETAIN_EXTRA_JSON, _("是否开启保留额外JSON字段开关")),
+        (LOG_BUILT_IN_FIELD, _("日志内置字段")),
     )
 
 
@@ -560,6 +563,7 @@ class CollectorScenarioEnum(ChoicesEnum):
     REDIS_SLOWLOG = "redis_slowlog"
     SYSLOG = "syslog"
     KAFKA = "kafka"
+    CLIENT = "client"
 
     _choices_labels = (
         (ROW, _("行日志文件")),
@@ -569,6 +573,7 @@ class CollectorScenarioEnum(ChoicesEnum):
         (REDIS_SLOWLOG, _("Redis慢日志")),
         (SYSLOG, _("Syslog Server")),
         (KAFKA, _("KAFKA")),
+        (CLIENT, _("客户端日志")),
     )
 
     @classmethod
@@ -1119,7 +1124,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
-                "description": "2006-01-02T15:04:05.000-0700",
+                "description": "2006-01-02T15:04:05.000-07:00",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
@@ -1318,6 +1323,7 @@ RT_RESERVED_WORD_EXAC = [
     "__parse_failure",
     "log",
     "dtEventTimeStamp",
+    "dtEventTimeStampNanos",
     "datetime",
     "filename",
     "items",
@@ -1327,6 +1333,8 @@ RT_RESERVED_WORD_EXAC = [
     "__dist_05",
     "__dist_07",
     "__dist_09",
+    "__shard_key__",
+    "__unique_key__",
     # wineventlog field
     "winEventApi",
     "winEventActivityId",
@@ -1810,3 +1818,97 @@ ES_ERROR_PATTERNS = [
     (r"too_many_buckets_exception.*?Trying to create too many buckets", TooManyBucketsException),
     (r"failed to parse date field", ParseDateFieldException),
 ]
+
+
+class DorisFieldTypeEnum(Enum):
+    BOOLEAN = "boolean"
+    TINYINT = "tinyint"
+    SMALLINT = "smallint"
+    INT = "int"
+    BIGINT = "bigint"
+    LARGEINT = "largeint"
+    FLOAT = "float"
+    DOUBLE = "double"
+    DECIMAL = "decimal"
+    DATE = "date"
+    DATETIME = "datetime"
+    CHAR = "char"
+    VARCHAR = "varchar"
+    STRING = "string"
+    ARRAY = "array"
+    MAP = "map"
+    STRUCT = "struct"
+    JSON = "json"
+    VARIANT = "variant"
+
+    @classmethod
+    def get_es_field_type(cls, field: dict) -> str:
+        """
+        获取ES字段类型，TINYINT、SMALLINT 先直接映射为integer
+        """
+        field_type_mapping = {
+            cls.BOOLEAN.value: "boolean",
+            cls.TINYINT.value: "integer",
+            cls.SMALLINT.value: "integer",
+            cls.INT.value: "integer",
+            cls.BIGINT.value: "long",
+            cls.FLOAT.value: "float",
+            cls.DOUBLE.value: "double",
+            cls.CHAR.value: "keyword",
+            cls.VARCHAR.value: "keyword",
+            cls.STRING.value: "keyword",
+            cls.DATE.value: "date",
+            cls.DATETIME.value: "date",
+            cls.VARIANT.value: "object",
+        }
+        # 特殊判断 dtEventTimeStamp 默认为 date，开启了分词默认为 text
+        if field.get("field_name") == "dtEventTimeStamp":
+            return "date"
+        if field.get("is_analyzed", False):
+            return "text"
+        field_type = field.get("field_type")
+        if not field_type:
+            return ""
+        # 特殊判断 text 类型但未开启分词，视为 keyword
+        if field_type == "text":
+            return "keyword"
+        # 去除字段长度信息 例如：varchar(32)、decimal(10,2)
+        cleaned_type = re.sub(r"\(.*?\)", "", field_type)
+        return field_type_mapping.get(cleaned_type, field_type)
+
+
+LOG_BUILT_IN_FIELD_LIST = [
+    "gseIndex",
+    "gseindex",
+    "iterationIndex",
+    "iterationindex",
+    "_iteration_idx",
+    "__dist_01",
+    "__dist_03",
+    "__dist_05",
+    "__dist_07",
+    "__dist_09",
+    "__ipv6__",
+    "__parse_failure",
+    "time",
+    "__module__",
+    "__set__",
+    "__ipv6__",
+    "__shard_key__",
+    "__unique_key__",
+    "__bcs_cluster_name__",
+]
+
+
+class LogBuiltInFieldTypeEnum:
+    """
+    日志内置字段枚举类
+    """
+
+    @classmethod
+    def get_choices(cls):
+        return LOG_BUILT_IN_FIELD_LIST
+
+    @classmethod
+    def get_choices_list_dict(cls):
+        return [{"id": key, "name": key} for key in LOG_BUILT_IN_FIELD_LIST if key]

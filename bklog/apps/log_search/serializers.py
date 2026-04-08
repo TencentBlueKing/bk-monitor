@@ -93,6 +93,7 @@ class ResultTableListSerializer(serializers.Serializer):
 
 
 class ResultTableTraceMatchSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     indices = serializers.ListField(label=_("索引列表"))
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
@@ -110,6 +111,7 @@ class ResultTableTraceMatchSerializer(serializers.Serializer):
 
 
 class ResultTableDetailSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
 
@@ -131,6 +133,7 @@ class ResultTableAdaptSerializer(serializers.Serializer):
             choices=["date", "long"], required=False, allow_null=True, allow_blank=True
         )
 
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.CharField(label=_("存储集群ID"), required=False, allow_blank=True, allow_null=True)
     basic_index = IndexSerializer(label=_("源索引"), required=False)
@@ -336,6 +339,16 @@ class OriginalSearchAttrSerializer(serializers.Serializer):
     size = serializers.IntegerField(required=False, default=3, max_value=10)
 
 
+class SearchFieldsSerializer(serializers.Serializer):
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    scope = serializers.ChoiceField(
+        label=_("类型"), choices=SearchScopeEnum.get_choices(), default=SearchScopeEnum.DEFAULT.value
+    )
+    custom_indices = serializers.CharField(label=_("自定义索引"), default="")
+    is_realtime = serializers.BooleanField(label=_("是否实时"), default=False)
+
+
 class UnionConfigSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     begin = serializers.IntegerField(required=False, default=0)
@@ -378,6 +391,7 @@ class UnionSearchExportSerializer(serializers.Serializer):
         label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
     )
     is_quick_export = serializers.BooleanField(label=_("是否快速下载"), required=False, default=False)
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -537,6 +551,7 @@ class SearchExportSerializer(serializers.Serializer):
     )
     # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
     custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
 
 
 class UnionSearchSearchExportSerializer(SearchExportSerializer):
@@ -1111,6 +1126,7 @@ class StorageUsageSerializer(serializers.Serializer):
 
 
 class StrategyRecordSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
     page = serializers.IntegerField(label=_("页数"), default=1, min_value=1)
     page_size = serializers.IntegerField(label=_("每页条数"), default=10, min_value=1, max_value=500)
 

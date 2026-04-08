@@ -134,7 +134,7 @@ export default defineComponent({
     const formatTime = (value: TimeRangeType) =>
       value.map(item => {
         const m = dayjs.tz(intTimestampStr(item));
-        return m.isValid() ? m.format('YYYY-MM-DD HH:mm:ss') : item;
+        return m.isValid() ? m.format('YYYY-MM-DD HH:mm:ssZZ') : item;
       });
     /** 对外更新值 */
     const handleTimeRangeChange = () => {
@@ -152,7 +152,7 @@ export default defineComponent({
     const handleCustomInput = (index: number) => {
       isPanelTimeRange.value = false;
       if (!localValue.value[index]) {
-        localValue.value[index] = dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
+        localValue.value[index] = dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ');
       }
     };
 

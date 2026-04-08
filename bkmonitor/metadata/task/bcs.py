@@ -17,6 +17,7 @@ from django.conf import settings
 
 from alarm_backends.core.lock.service_lock import share_lock
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
@@ -225,6 +226,22 @@ def discover_bcs_clusters():
             logger.info("discover_bcs_clusters: get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
             project_id = bcs_cluster["project_id"]
             bk_biz_id = int(bcs_cluster["bk_biz_id"])
+
+            # 对 业务ID 进行二次校验
+            try:
+                bk_biz_id_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    f"discover_bcs_clusters: cluster_id:{bcs_cluster['cluster_id']} bk_biz_id:{bk_biz_id} get bk_tenant_id failed, error:{e}"
+                )
+                continue
+
+            if bk_biz_id_tenant_id != bk_tenant_id:
+                logger.error(
+                    f"discover_bcs_clusters: cluster_id:{bcs_cluster['cluster_id']} bk_biz_id:{bk_biz_id} not belong to bk_tenant_id:{bk_tenant_id}"
+                )
+                continue
+
             cluster_id = bcs_cluster["cluster_id"]
             cluster_raw_status = bcs_cluster["status"]
             cluster_list.append(cluster_id)

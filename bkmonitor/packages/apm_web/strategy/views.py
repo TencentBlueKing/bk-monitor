@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import itertools
 from collections import defaultdict
-from threading import Lock
 from typing import Any
 from collections.abc import Iterable
 
@@ -30,6 +29,7 @@ from bkmonitor.iam.drf import InstanceActionForDataPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType
+from core.drf_resource import resource
 from constants.alert import EventStatus
 from utils import count_md5
 
@@ -57,7 +57,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return self._query_data
 
     def get_permissions(self) -> list[InstanceActionForDataPermission]:
-        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update"]:
+        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update", "unapply"]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",
@@ -177,7 +177,22 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_template_obj: StrategyTemplate = get_object_or_404(
             self.get_queryset(), id=self.query_data["strategy_template_id"]
         )
-        return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
+        preview_data: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        strategy_instance_obj: StrategyInstance = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            strategy_template_id=strategy_template_obj.pk,
+            service_name=self.query_data["service_name"],
+        ).first()
+        if not strategy_instance_obj:
+            return Response(preview_data)
+        preview_data["detect"] = strategy_instance_obj.detect
+        preview_data["algorithms"] = strategy_instance_obj.algorithms
+        preview_data["user_group_list"] = list(helper.get_user_groups(strategy_instance_obj.user_group_ids).values())
+        preview_data["context"] = {
+            k: strategy_instance_obj.context.get(k, v) for k, v in preview_data["context"].items()
+        }
+        return Response(preview_data)
 
     def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
         return helper.get_id_strategy_map(self.query_data["bk_biz_id"], ids)
@@ -185,73 +200,78 @@ class StrategyTemplateViewSet(GenericViewSet):
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     @user_visit_record
     def apply(self, *args, **kwargs) -> Response:
-        extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
-        for extra_config in self.query_data["extra_configs"]:
-            strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
-            extra_configs_map[strategy_template_id].append(dispatch.DispatchExtraConfig(**extra_config))
+        extra_config_map: dict[int, dict[str, dispatch.DispatchExtraConfig]] = {}
+        if self.query_data["is_reuse_instance_config"]:
+            # 复用已下发配置，查询实例快照并构造配置对象。
+            strategy_instances: QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
+                bk_biz_id=self.query_data["bk_biz_id"],
+                app_name=self.query_data["app_name"],
+                service_name__in=self.query_data["service_names"],
+                strategy_template_id__in=self.query_data["strategy_template_ids"],
+            )
+            for strategy_instance in strategy_instances:
+                extra_config_map.setdefault(strategy_instance.strategy_template_id, {})[
+                    strategy_instance.service_name
+                ] = dispatch.DispatchExtraConfig(
+                    service_name=strategy_instance.service_name,
+                    context=strategy_instance.context,
+                    detect=strategy_instance.detect,
+                    algorithms=strategy_instance.algorithms,
+                    user_group_list=[{"id": user_group_id} for user_group_id in strategy_instance.user_group_ids],
+                )
 
-        entity_set: dispatch.EntitySet = dispatch.EntitySet(
-            self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
-        )
         strategy_templates: list[StrategyTemplate] = list(
             self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
         )
+        for extra_config in self.query_data["extra_configs"]:
+            service_name: str = extra_config["service_name"]
+            strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
+            extra_config_obj: dispatch.DispatchExtraConfig = dispatch.DispatchExtraConfig(**extra_config)
+            applied_config: dispatch.DispatchExtraConfig | None = extra_config_map.get(strategy_template_id, {}).get(
+                service_name
+            )
+            if applied_config:
+                # 合并配置，优先级：已下发配置 < 额外配置。
+                applied_config.merge(extra_config_obj)
+            else:
+                extra_config_map.setdefault(strategy_template_id, {})[service_name] = extra_config_obj
 
-        def _apply(_obj: StrategyTemplate) -> dict[str, int | dict[str, int]]:
-            try:
-                _dispatcher = dispatch.StrategyDispatcher(
-                    _obj, handler.StrategyTemplateHandler.get_query_template_or_none(_obj, query_template_map)
-                )
-                _service_strategy_id_map: dict[str, int] = _dispatcher.dispatch(
-                    entity_set, global_config, extra_configs_map.get(_obj.pk, [])
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                # 由于异常会中断其他线程的下发，这里捕获所有异常，最后统一抛出，避免中断带来的不一致问题。
-                with lock:
-                    error_msgs.append(_("模板【{}】下发失败, {}").format(_obj.name, str(e)))
-                return {"strategy_template_id": _obj.pk, "service_strategy_id_map": {}}
+        extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
+        for strategy_template_id, service_extra_config_map in extra_config_map.items():
+            for extra_config in service_extra_config_map.values():
+                extra_configs_map[strategy_template_id].append(extra_config)
 
-            return {"strategy_template_id": _obj.pk, "service_strategy_id_map": _service_strategy_id_map}
-
-        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
-            handler.StrategyTemplateHandler.get_query_template_map(strategy_templates)
-        )
         global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
-
-        # 批量进行模板下发
-        lock: Lock = Lock()
-        error_msgs: list[str] = []
-        pool = ThreadPool(8)
-        dispatch_results_iter: Iterable[dict[str, int | dict[str, int]]] = pool.imap_unordered(
-            lambda _obj: _apply(_obj), strategy_templates
+        apply_data = handler.StrategyTemplateHandler.apply(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            service_names=self.query_data["service_names"],
+            strategy_templates=strategy_templates,
+            extra_configs_map=extra_configs_map,
+            global_config=global_config,
         )
-        pool.close()
-
-        strategy_ids: list[int] = []
-        template_dispatch_map: dict[int, dict[str, int]] = {}
-        for dispatch_result in dispatch_results_iter:
-            service_strategy_id_map: dict[str, int] = dispatch_result["service_strategy_id_map"]
-            strategy_ids.extend(list(service_strategy_id_map.values()))
-            template_dispatch_map[dispatch_result["strategy_template_id"]] = service_strategy_id_map
-
-        if error_msgs:
-            raise ValueError("\n".join(error_msgs))
-
-        apply_data: list[dict[str, Any]] = []
-        id_strategy_map = self._get_id_strategy_map(strategy_ids)
-        for strategy_template_id, service_strategy_map in template_dispatch_map.items():
-            for service_name, strategy_id in service_strategy_map.items():
-                apply_data.append(
-                    {
-                        "service_name": service_name,
-                        "strategy_template_id": strategy_template_id,
-                        "strategy": {
-                            "id": strategy_id,
-                            "name": id_strategy_map.get(strategy_id, {}).get("name", ""),
-                        },
-                    }
-                )
         return Response({"app_name": self.query_data["app_name"], "list": apply_data})
+
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateUnapplyResponseSerializer)
+    def unapply(self, *args, **kwargs) -> Response:
+        entity_set: dispatch.EntitySet = dispatch.EntitySet(
+            self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
+        )
+        strategy_instance_qs = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            service_name__in=entity_set.service_names,
+            strategy_template_id__in=self.query_data["strategy_template_ids"],
+        )
+        ids: list[int] = list(strategy_instance_qs.values_list("strategy_id", flat=True))
+        if not ids:
+            return Response({})
+        # 先删除策略
+        resource.strategies.delete_strategy_v2({"bk_biz_id": self.query_data["bk_biz_id"], "ids": ids})
+        # 再删除策略实例
+        strategy_instance_qs.delete()
+
+        return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, *args, **kwargs) -> Response:
@@ -406,6 +426,7 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         diff_data: list[dict[str, Any]] = []
         current_dict: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        is_connector_update: bool = False
         for field_name in ["detect", "algorithms", "user_group_list", "context"]:
             # 第一步取值
             if field_name == "user_group_list":
@@ -415,9 +436,16 @@ class StrategyTemplateViewSet(GenericViewSet):
             else:
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
+                if field_name == "detect":
+                    # 向前兼容
+                    current.setdefault("connector", constants.DetectConnector.AND.value)
+                    applied.setdefault("connector", constants.DetectConnector.AND.value)
+                    is_connector_update = current["connector"] != applied["connector"]
 
             # 第二步比较
-            if count_md5(current) == count_md5(applied):
+            # 如果检测算法关系发生变化，同时返回 algorithms
+            is_algorithm_connector_changed = field_name == "algorithms" and is_connector_update
+            if not is_algorithm_connector_changed and count_md5(current) == count_md5(applied):
                 continue
 
             # 第三步对差异值进行排序处理

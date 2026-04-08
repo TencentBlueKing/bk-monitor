@@ -332,7 +332,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
         if (this.isMouseOver) {
           const valueText = getValueFormat(this.unit)(params[0].value[1] || 0, this.unitDecimal);
           return `<div>
-          <div>${dayjs.tz(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
+          <div>${dayjs.tz(params[0].value[0]).format('YYYY-MM-DD HH:mm:ssZZ')}</div>
           <div>${this.valueTitle}：${valueText.text}${valueText.suffix}</div>
         </div>`;
         }

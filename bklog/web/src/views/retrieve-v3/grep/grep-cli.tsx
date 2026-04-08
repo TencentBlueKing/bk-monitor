@@ -73,8 +73,7 @@ export default defineComponent({
     });
 
     const store = useStore();
-    const fieldList = computed(() =>
-      (store.state.indexFieldInfo.fields ?? []).filter(field => field.field_type === 'text'),
+    const fieldList = computed(() => (store.state.indexFieldInfo.fields ?? []).filter(field => field.field_type === 'text'),
     );
 
     // 选择字段
@@ -96,7 +95,7 @@ export default defineComponent({
       });
     }, 300);
 
-    const handleMatchModeChange = args => {
+    const handleMatchModeChange = (args) => {
       Object.assign(matchMode.value, args);
       emit('match-mode', matchMode.value);
     };
@@ -148,7 +147,7 @@ export default defineComponent({
             <bk-input
               class='grep-cli-search-input'
               clearable={true}
-              placeholder={t('搜索')}
+              placeholder={t('输入后高亮')}
               size='small'
               value={props.searchValue}
               on-change={handleSearchInput}

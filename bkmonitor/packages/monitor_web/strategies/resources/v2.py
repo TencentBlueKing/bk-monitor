@@ -3786,7 +3786,7 @@ class ListStrategySubscribeResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        sub_username = serializers.CharField(required=True, source="username")
+        sub_username = serializers.CharField(required=False, source="username")
         bk_biz_id = serializers.IntegerField(required=True)
         is_enable = serializers.BooleanField(required=False, default=True)
         page = serializers.IntegerField(required=False, default=1, min_value=1)
@@ -3795,9 +3795,10 @@ class ListStrategySubscribeResource(Resource):
     def perform_request(self, params):
         # 只使用经过验证的字段进行过滤，避免潜在的安全风险
         filter_params = {
-            "username": params["username"],
             "bk_biz_id": params["bk_biz_id"],
         }
+        if params.get("username", ""):
+            filter_params["username"] = params["username"]
 
         # 可选的is_enable过滤
         if "is_enable" in params:

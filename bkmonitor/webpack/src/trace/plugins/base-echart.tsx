@@ -233,7 +233,7 @@ export default defineComponent({
       let ulStyle = '';
       let pointTime = '';
       try {
-        pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+        pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
       } catch {}
       if (params[0]?.data?.tooltips) {
         liHtmlList.push(params[0].data.tooltips);
@@ -346,8 +346,8 @@ export default defineComponent({
           instance.value.dispatchAction({
             type: 'restore',
           });
-          const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
-          const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+          const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ssZZ');
+          const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ssZZ');
           emit('dataZoom', timeFrom, timeTo);
         }
       } else {

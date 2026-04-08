@@ -95,7 +95,7 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
         logger.info("query cmdb api resp is null")
         return
 
-    biz_id_name_dict = {str(b.bk_biz_id): (b.bk_biz_name, b.bk_tenant_id) for b in biz_list}
+    biz_id_name_dict = {str(b.bk_biz_id): b for b in biz_list}
     # 过滤已经创建空间的业务
     space_id_list = Space.objects.filter(space_type_id=bkcc_type_id).values_list("space_id", flat=True)
     diff = set(biz_id_name_dict.keys()) - set(space_id_list)
@@ -123,8 +123,9 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
         diff_biz_list = [
             {
                 "bk_biz_id": biz_id,
-                "bk_biz_name": biz_id_name_dict[biz_id][0],
-                "bk_tenant_id": biz_id_name_dict[biz_id][1],
+                "bk_biz_name": biz_id_name_dict[biz_id].bk_biz_name,
+                "bk_tenant_id": biz_id_name_dict[biz_id].bk_tenant_id,
+                "time_zone": biz_id_name_dict[biz_id].time_zone,
             }
             for biz_id in diff
         ]
@@ -203,26 +204,29 @@ def refresh_bkcc_space_name():
     NOTE: 名称变动，不需要同步到存储介质(redis|consul)，所以单独任务处理
     """
     logger.info("start sync bkcc space name task")
-    bkcc_type_id = SpaceTypes.BKCC.value
-    biz_list: list[Business] = []
+    biz_map: dict[str, Business] = {}
     for tenant in api.bk_login.list_tenant():
-        biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant["id"]))
-    biz_id_name_dict: dict[str, str] = {str(b.bk_biz_id): b.bk_biz_name for b in biz_list}
-    space_id_name_map: dict[str, str] = {
-        space.space_id: space.space_name for space in Space.objects.filter(space_type_id=bkcc_type_id)
-    }
-    # 比对名称是否有变动，如果变动，则进行更新
-    diff = dict(set(biz_id_name_dict.items()) - set(space_id_name_map.items()))
-    # 过滤数据，然后进行更新
-    for obj in Space.objects.filter(space_id__in=diff.keys()):
-        space_name = diff.get(obj.space_id)
-        if not space_name:
-            logger.warning("space_name of space_id: %s is null", obj.space_id)
-            continue
-        obj.space_name = space_name
-        obj.save(update_fields=["space_name"])
+        biz_map.update({str(b.bk_biz_id): b for b in api.cmdb.get_business(bk_tenant_id=tenant["id"])})
 
-    logger.info("refresh bkcc space name successfully")
+    updated_count = 0
+    for space in Space.objects.filter(space_type_id=SpaceTypes.BKCC.value):
+        biz = biz_map.get(space.space_id)
+        if not biz:
+            continue
+
+        if space.space_name != biz.bk_biz_name or space.time_zone != biz.time_zone:
+            space.space_name = biz.bk_biz_name
+            space.time_zone = biz.time_zone
+            space.save(update_fields=["space_name", "time_zone"])
+            updated_count += 1
+            logger.info(
+                "refresh bkcc space name successfully, space_id: %s, space_name: %s, time_zone: %s",
+                space.space_id,
+                space.space_name,
+                space.time_zone,
+            )
+
+    logger.info("refresh bkcc space name task completed, updated %d spaces", updated_count)
 
 
 @share_lock(identify="metadata__sync_data_source")

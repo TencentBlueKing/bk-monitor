@@ -1,0 +1,43 @@
+.workload-selection-box {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    .flex-space-box {
+        width: 28%;
+        margin-right: 12px;
+    }
+    .flex-space-item {
+        position: relative;
+        flex: 1;
+    }
+    .flex-space-box, .flex-space-item {
+        display: flex;
+        align-items: center;
+        .workload-type-select {
+            width: calc(100% - 66px);
+        }
+        .space-item-label {
+            display: inline-block;
+            height: 32px;
+            line-height: 32px;
+            padding: 0 8px;
+            font-size: 12px;
+            color: #63656e;
+            background: #fafbfd;
+            border: 1px solid #c4c6cc;
+            border-radius: 2px 0 0 2px;
+            transform: translateX(1px);
+        }
+        .workload-name-select {
+            width: calc(100% - 66px);
+        }
+        .icon-angle-down {
+            position: absolute;
+            top: 6px;
+            right: 4px;
+            font-size: 21px;
+            color: #979ba5;
+            transition: transform 0.3s;
+        }
+    }
+}

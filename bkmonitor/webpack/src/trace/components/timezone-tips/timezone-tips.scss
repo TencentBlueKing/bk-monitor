@@ -1,0 +1,33 @@
+.timezone-tips-component {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 22px;
+
+  .icon-tips {
+    display: inline-block;
+    margin-right: 6px;
+    font-size: 16px;
+    color: #979ba5;
+  }
+
+  .timezone-name {
+    margin-right: 6px;
+    color: #4d4f56;
+  }
+
+  .timezone-region {
+    margin-right: 6px;
+    color: #979BA5;
+  }
+
+  .timezone-offset {
+    display: inline-block;
+    height: 20px;
+    padding: 0 8px;
+    line-height: 20px;
+    color: #4D4F56;
+    background: #FAFBFD;
+    border: 1px solid #DCDEE5;
+    border-radius: 2px;
+  }
+}

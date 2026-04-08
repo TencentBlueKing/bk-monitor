@@ -165,7 +165,7 @@ export default defineComponent({
           <div class='favorite-search'>
             <Input
               v-model={favoriteSearchKey.value}
-              placeholder={t('搜索收藏名')}
+              placeholder={t('搜索 收藏名')}
             />
           </div>
           <div class='favorite-action'>

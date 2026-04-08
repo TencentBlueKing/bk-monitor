@@ -1,0 +1,90 @@
+@import '../../scss/mixins/flex.scss';
+
+.masking-select-rule-table {
+  width: 100%;
+
+  .rule-name-box {
+    @include flex-align();
+
+    .tag {
+      flex-shrink: 0;
+      height: 16px;
+      padding: 0 4px;
+      margin-left: 4px;
+      font-size: 12px;
+      line-height: 16px;
+      border-radius: 2px;
+    }
+
+    .global {
+      color: #3a84ff;
+      background: #edf4ff;
+    }
+
+    .new {
+      color: #14a568;
+      background: #e7fbef;
+    }
+  }
+
+  .input-box {
+    margin-bottom: 16px;
+
+    @include flex-justify(space-between);
+
+    .new-rule-btn {
+      padding: 0 12px;
+      margin-left: 0;
+    }
+
+    .right-box {
+      @include flex-center();
+
+      .search-input {
+        width: 240px;
+      }
+
+      .refresh-btn {
+        width: 32px;
+        min-width: auto;
+        padding: 0;
+      }
+
+      .bk-icon {
+        top: 0;
+        font-size: 18px;
+      }
+    }
+  }
+
+  .bk-page-selection-count {
+    display: none;
+  }
+
+  .bk-form-checkbox {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: flex !important;
+  }
+
+  .submit-content {
+    background: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+
+    @include flex-align();
+  }
+
+  .bk-button {
+    padding: 0px 29px;
+    margin-left: 8px;
+  }
+}
+
+.check-render-header {
+  .check {
+    display: none;
+  }
+
+  .is-show-check {
+    display: inline-block;
+  }
+}

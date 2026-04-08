@@ -129,6 +129,8 @@ class SaveToDashboardSerializer(serializers.Serializer):
     保存到仪表盘
     """
 
+    index_set_id = serializers.IntegerField(label=_("索引集ID"))
+    panel_name = serializers.CharField(label=_("面板名称"))
+    query_string = serializers.CharField(label=_("查询语句"), default="", allow_blank=True)
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    panels = serializers.ListField(label=_("面板列表"), child=serializers.DictField())
     dashboard_uids = serializers.ListField(label=_("仪表盘UID"), child=serializers.CharField())

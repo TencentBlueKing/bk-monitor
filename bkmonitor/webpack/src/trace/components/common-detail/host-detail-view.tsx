@@ -147,8 +147,8 @@ export default defineComponent({
     function timeFormatter(time: ITableItem<'time'>) {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
-      if (time.toString().length < 13) return dayjs.tz(time * 1000, window.timezone).format('YYYY-MM-DD HH:mm:ss');
-      return dayjs.tz(time, window.timezone).format('YYYY-MM-DD HH:mm:ss');
+      if (time.toString().length < 13) return dayjs.tz(time * 1000, window.timezone).format('YYYY-MM-DD HH:mm:ssZZ');
+      return dayjs.tz(time, window.timezone).format('YYYY-MM-DD HH:mm:ssZZ');
     }
     // list类型格式化
     function listFormatter(item: IDetailItem) {

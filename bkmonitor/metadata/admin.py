@@ -223,12 +223,6 @@ class BkAppSpaceRecordAdmin(admin.ModelAdmin):
     list_filter = ("bk_app_code", "space_uid")
 
 
-class SpaceTypeToResultTableFilterAliasAdmin(admin.ModelAdmin):
-    list_display = ("space_type", "table_id", "filter_alias", "status")
-    search_fields = ("space_type", "table_id")
-    list_filter = ("space_type", "table_id")
-
-
 admin.site.register(models.InfluxDBClusterInfo, InfluxdbClusterAdmin)
 admin.site.register(models.InfluxDBHostInfo, InfluxdbHostAdmin)
 admin.site.register(models.InfluxDBStorage, InfluxDBStorageAdmin)
@@ -258,4 +252,3 @@ admin.site.register(models.DataLink, DataLinkAdmin)
 admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)
 admin.site.register(models.StorageClusterRecord, StorageClusterRecordAdmin)
 admin.site.register(models.BkAppSpaceRecord, BkAppSpaceRecordAdmin)
-admin.site.register(models.SpaceTypeToResultTableFilterAlias, SpaceTypeToResultTableFilterAliasAdmin)

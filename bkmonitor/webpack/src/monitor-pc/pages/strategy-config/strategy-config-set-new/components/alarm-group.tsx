@@ -247,6 +247,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 }}
                 ext-popover-cls='alarm-group-popover'
                 popover-width={380}
+                search-placeholder={this.$t('请输入 关键字')}
                 zIndex={5000}
                 multiple
                 searchable

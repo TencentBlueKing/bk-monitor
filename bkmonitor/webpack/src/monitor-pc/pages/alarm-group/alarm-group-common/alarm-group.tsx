@@ -32,6 +32,7 @@ import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -155,7 +156,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
+      formatter: row => (row.update_time ? formatWithTimezone(row.update_time) : '--'),
     },
     {
       label: i18n.t('配置来源'),
@@ -296,7 +297,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     return (
       <div class='col-name'>
         <div class='col-name-label'>{row.update_user || '--'}</div>
-        <div>{dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
+        <div>{dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ssZZ') || '--'}</div>
       </div>
     );
   }
@@ -318,6 +319,20 @@ export default class AlarmGroup extends tsc<IGroupList> {
       </bk-button>,
       <bk-button
         key='2'
+        class='col-btn'
+        v-authority={{ active: !this.authority.MANAGE_AUTH }}
+        // disabled={}
+        text={true}
+        onClick={() =>
+          this.authority.MANAGE_AUTH
+            ? this.handleCloneRow(row.id)
+            : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
+        }
+      >
+        {this.$t('克隆')}
+      </bk-button>,
+      <bk-button
+        key='3'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
         disabled={!row.delete_allowed}
@@ -467,6 +482,20 @@ export default class AlarmGroup extends tsc<IGroupList> {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
           })
           .finally(() => (this.loading = false));
+      },
+    });
+  }
+
+  /**
+   * @description: 克隆告警组
+   * @param {number} id
+   * @return {*}
+   */
+  handleCloneRow(id: number) {
+    this.$router.push({
+      name: 'alarm-group-clone',
+      params: {
+        id: String(id),
       },
     });
   }
@@ -677,7 +706,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   },
                 ]}
                 modelValue={this.searchCondition}
-                placeholder={this.$t('ID / 告警组名称 / 轮值规则 / 通知对象')}
+                placeholder={this.$t('搜索 ID、告警组名称、轮值规则、通知对象')}
                 uniqueSelect={true}
                 onChange={this.handleSearchCondition}
               />

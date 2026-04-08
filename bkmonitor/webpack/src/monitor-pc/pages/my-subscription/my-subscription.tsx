@@ -211,7 +211,7 @@ class MySubscription extends tsc<object> {
           theme: 'success',
           message: this.$t('发送成功'),
         });
-        // @ts-ignore
+        // @ts-expect-error
         this.popoverInstance.hide();
       })
       .finally(() => {
@@ -318,7 +318,7 @@ class MySubscription extends tsc<object> {
               <bk-table-column
                 scopedSlots={{
                   default: ({ row }) => {
-                    return <div>{row.send_time ? dayjs(row.send_time).format('YYYY-MM-DD HH:mm:ss') : '--'}</div>;
+                    return <div>{row.send_time ? dayjs(row.send_time).format('YYYY-MM-DD HH:mm:ssZZ') : '--'}</div>;
                   },
                 }}
                 label={this.$t('发送时间')}
@@ -364,7 +364,7 @@ class MySubscription extends tsc<object> {
                           });
                           this.$nextTick(() => {
                             if (this.popoverInstance) {
-                              // @ts-ignore
+                              // @ts-expect-error
                               this.popoverInstance.destroy();
                             }
                             this.popoverInstance = this.$bkPopover(e.target, {
@@ -378,7 +378,7 @@ class MySubscription extends tsc<object> {
                               interactive: true,
                               zIndex: 2002,
                             });
-                            // @ts-ignore
+                            // @ts-expect-error
                             this.popoverInstance.show(100);
                           });
                         }}
@@ -460,7 +460,7 @@ class MySubscription extends tsc<object> {
               <bk-button
                 style='min-width: 64px;margin-left: 8px;'
                 onClick={() => {
-                  // @ts-ignore
+                  // @ts-expect-error
                   this.popoverInstance.hide();
                 }}
               >
@@ -636,7 +636,7 @@ class MySubscription extends tsc<object> {
                 default: ({ row }) => {
                   return (
                     <div v-bk-overflow-tips>
-                      {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : '--'}
+                      {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ssZZ') : '--'}
                     </div>
                   );
                 },

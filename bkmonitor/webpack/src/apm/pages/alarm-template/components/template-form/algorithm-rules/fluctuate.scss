@@ -1,0 +1,76 @@
+@use './algorithm-rules' as algorithm-rules;
+
+.alarm-template-fluctuate-detect {
+  .form-item {
+    display: flex;
+    align-items: center;
+
+    .form-item-title {
+      font-size: 12px;
+      color: #4d4f56;
+    }
+
+    .form-item-content {
+      flex: 1;
+      margin-left: 16px;
+    }
+
+    & + .form-item {
+      margin-top: 12px;
+    }
+  }
+
+  .alarm-level {
+    .level-select {
+      width: 160px;
+
+      @include algorithm-rules.icon-style;
+
+      .bk-select-prefix-icon {
+        top: 0;
+        left: 0;
+      }
+    }
+  }
+
+  .alarm-condition {
+    align-items: start;
+
+    .form-item-content {
+      display: flex;
+      align-items: start;
+
+      .flex {
+        display: flex;
+        align-items: center;
+      }
+
+      .w80 {
+        width: 80px;
+      }
+
+      .algorithm-category {
+        .bk-select {
+          width: 120px;
+        }
+      }
+
+      .algorithm-value {
+        flex: 1;
+      }
+    }
+  }
+}
+
+.algorithm-rules-level-select-popover {
+  .bk-option-content {
+    display: flex;
+    align-items: center;
+
+    @include algorithm-rules.icon-style;
+
+    .name {
+      vertical-align: middle;
+    }
+  }
+}

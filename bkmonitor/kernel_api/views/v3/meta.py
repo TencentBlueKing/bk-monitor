@@ -207,6 +207,10 @@ class ListBCSClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoResource)]
 
 
+class ListBCSClusterInfoByBizViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoByBizResource)]
+
+
 class ApplyYamlToBCSClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ApplyYamlToBCSClusterResource)]
 
@@ -243,12 +247,24 @@ class CreateResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateResultTableSnapshotResource)]
 
 
+class BulkCreateResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.BulkCreateResultTableSnapshotResource)]
+
+
 class ModifyResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyResultTableSnapshotResource)]
 
 
+class BulkModifyResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.BulkModifyResultTableSnapshotResource)]
+
+
 class DeleteResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.DeleteResultTableSnapshotResource)]
+
+
+class RetryResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.RetryResultTableSnapshotResource)]
 
 
 class ListResultTableSnapshotViewSet(MetaViewSet):
@@ -263,6 +279,10 @@ class GetResultTableSnapshotStateViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.GetResultTableSnapshotStateResource)]
 
 
+class GetResultTableSnapshotRecentStateViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetResultTableSnapshotRecentStateResource)]
+
+
 class RestoreResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.RestoreResultTableSnapshotResource)]
 
@@ -275,12 +295,20 @@ class DeleteRestoreResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.DeleteRestoreResultTableSnapshotResource)]
 
 
+class RetryRestoreResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.RetryRestoreResultTableSnapshotResource)]
+
+
 class ListRestoreResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ListRestoreResultTableSnapshotResource)]
 
 
 class GetRestoreResultTableSnapshotStateViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.GetRestoreResultTableSnapshotStateResource)]
+
+
+class GetRestoreResultTableSnapshotIndicesViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetRestoreResultTableSnapshotIndicesResource)]
 
 
 class ModifyDatasourceResultTable(MetaViewSet):
@@ -378,6 +406,10 @@ class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
 
 
+class QueryDataLinkMetadataViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryDataLinkMetadataResource)]
+
+
 class SpaceDataLinkMetaReportViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.SpaceDataLinkMetaReport)]
 
@@ -464,6 +496,10 @@ class CreateOrUpdateLogRouterViewSet(MetaViewSet):
 
 class BulkCreateOrUpdateLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.BulkCreateOrUpdateLogRouter)]
+
+
+class CleanLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CleanLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):

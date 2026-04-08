@@ -464,7 +464,7 @@ export default class AuthorizationList extends tsc<object> {
         view_type: this.angleType,
       });
       return [true, res];
-    } catch (error) {
+    } catch (_error) {
       return [false, []];
     }
   }
@@ -476,7 +476,7 @@ export default class AuthorizationList extends tsc<object> {
         bk_biz_id: this.bizId,
       });
       return [true, res];
-    } catch (error) {
+    } catch (_error) {
       return [false, []];
     }
   }
@@ -488,7 +488,7 @@ export default class AuthorizationList extends tsc<object> {
       const res = await getByAction({ bk_biz_id: this.bizId, action_id: 'view_grafana' });
       this.resourceList = res;
       this.columnFilter();
-    } catch (error) {
+    } catch (_error) {
       this.resourceList = [];
     }
     this.resourcesLoading = false;
@@ -650,7 +650,7 @@ export default class AuthorizationList extends tsc<object> {
   }
 
   // 操作权限列格式化
-  actionFormatter(row, column, cellValue) {
+  actionFormatter(_row, _columnn, cellValue) {
     return ACTION_MAP[cellValue];
   }
   /**
@@ -674,7 +674,7 @@ export default class AuthorizationList extends tsc<object> {
   }
 
   // 状态列格式化
-  statusFormatter(row, column, cellValue) {
+  statusFormatter(_row, _columnn, cellValue) {
     const item = STATUS_LIST.find(item => item.id === cellValue);
     return (
       <div class='status-wrap'>
@@ -685,8 +685,8 @@ export default class AuthorizationList extends tsc<object> {
   }
 
   // 截止时间列格式化
-  timeFormatter(row, column, cellValue) {
-    return cellValue ? dayjs.tz(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
+  timeFormatter(_row, _columnn, cellValue) {
+    return cellValue ? dayjs.tz(cellValue).format('YYYY-MM-DD HH:mm:ssZZ') : '-';
   }
   /**
    *
@@ -702,7 +702,7 @@ export default class AuthorizationList extends tsc<object> {
         view_type: this.angleType,
       });
       this.getListData();
-    } catch (error) {}
+    } catch (_error) {}
   }
 
   showDialog(row = null) {

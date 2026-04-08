@@ -135,7 +135,7 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
   handleGoToLink(urlStr: string) {
     if (urlStr === 'Quick') {
       // 首次新建应用成功后，服务相关的动态路由 可能未加载，故直接使用拼接方式跳转
-      const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/apm/'}service-add/${this.appName}`;
+      const hash = `#${window.__BK_WEWEB_DATA__?.parentRoute || '/apm/'}service-add/${this.appName}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
       return;

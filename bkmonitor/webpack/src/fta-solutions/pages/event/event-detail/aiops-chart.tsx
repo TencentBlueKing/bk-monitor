@@ -52,7 +52,7 @@ export const createAutoTimeRange = (
   const INTERVAL_1440 = 1440 * interval * 1000;
   const INTERVAL_60 = 60 * interval * 1000;
   let newStartTime = startTime * 1000;
-  let newEndTime = endTime ? endTime * 1000 : +new Date();
+  let newEndTime = endTime ? endTime * 1000 : Date.now();
   newEndTime = Math.min(newEndTime + INTERVAL_5, newStartTime + INTERVAL_1440);
   let diff = INTERVAL_1440 - (newEndTime - newStartTime);
   if (diff < INTERVAL_5) {
@@ -62,8 +62,8 @@ export const createAutoTimeRange = (
   }
   newStartTime -= diff;
   const result = {
-    startTime: dayjs.tz(newStartTime).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: dayjs.tz(newEndTime).format('YYYY-MM-DD HH:mm:ss'),
+    startTime: dayjs.tz(newStartTime).format('YYYY-MM-DD HH:mm:ssZZ'),
+    endTime: dayjs.tz(newEndTime).format('YYYY-MM-DD HH:mm:ssZZ'),
   };
   return result;
 };

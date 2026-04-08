@@ -550,7 +550,7 @@ export default defineComponent({
               style='float: right; width: 360px'
               clearable={true}
               data-test-id='esAccessBox_input_search'
-              placeholder={t('搜索ES源名称，地址，创建人')}
+              placeholder={t('搜索ES源名称、地址、创建人')}
               right-icon='bk-icon icon-search'
               value={params.value.keyword}
               on-right-icon-click={handleSearch}
@@ -706,7 +706,7 @@ export default defineComponent({
                 key='create_time'
                 class-name='filter-column'
                 label={t('创建时间')}
-                min-width='170'
+                width='190'
                 prop='cluster_config.create_time'
                 renderHeader={renderHeader}
                 sortable

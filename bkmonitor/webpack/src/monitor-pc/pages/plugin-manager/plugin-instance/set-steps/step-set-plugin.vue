@@ -476,6 +476,7 @@ import {
   retrieveCollectorPlugin,
 } from 'monitor-api/modules/model';
 import { pluginRegister } from 'monitor-api/modules/plugin';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import Editor from 'monitor-ui/markdown-editor/editor.tsx';
 import { mapActions, mapGetters } from 'vuex';
 
@@ -1038,7 +1039,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
      * @param { Number } index
      */
     handleDeleteParam(param) {
-      const ind = this.pluginBasicInfo.params.findIndex(item => item === param);
+      const ind = this.pluginBasicInfo.params.indexOf(param);
       this.pluginBasicInfo.params.splice(ind, 1);
     },
     /**
@@ -1093,7 +1094,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
      */
     handleEditParam(param) {
       this.configParam.value = param;
-      const ind = this.pluginBasicInfo.params.findIndex(item => item === param);
+      const ind = this.pluginBasicInfo.params.indexOf(param);
       this.configParam.index = ind;
       this.configParam.show = true;
       this.configParam.isEdit = true;
@@ -1153,7 +1154,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
             .catch(() => updateUserDisplayName);
         }
         const msg = `${this.$t('上次变更，版本号')}${result.config_version}.${result.info_version},
-                        ${this.$t('最近更新人')}:${updateUserDisplayName},${this.$t('修改时间')}:${result.update_time}`;
+                        ${this.$t('最近更新人')}:${updateUserDisplayName},${this.$t('修改时间')}:${formatWithTimezone(result.update_time)}`;
         this.$bus.$emit('showmsg', msg);
       }
       this.resetScroll();

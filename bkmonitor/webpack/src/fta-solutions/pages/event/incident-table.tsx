@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import dayjs from 'dayjs';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 
 import { random } from '../../../monitor-common/utils/utils';
 import { transformLogUrlQuery } from '../../../monitor-pc/utils';
@@ -63,6 +63,10 @@ interface IColumnItem {
   };
 }
 
+interface IEventStatusList {
+  text: any;
+  value: string;
+}
 interface IEventStatusMap {
   bgColor: string;
   color: string;
@@ -74,6 +78,7 @@ interface IEventTableEvent {
   onAlertConfirm?: IIncidentItem;
   onBatchSet: string;
   onChatGroup?: IIncidentItem;
+  onFilterChange: Record<string, string[]>;
   onLimitChange: number;
   onManualProcess?: IIncidentItem;
   onPageChange: number;
@@ -115,6 +120,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
   eventStatusMap: Record<string, IEventStatusMap> = {};
+  eventStatusList: IEventStatusList[] = [];
   actionStatusColorMap: Record<string, string> = {
     running: '#A3C4FD',
     success: '#8DD3B5',
@@ -128,6 +134,8 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   tableKey: string = random(10);
   extendInfoMap: Record<string, TranslateResult>;
   popoperInstance: any = null;
+  // 故障标签溢出提示实例
+  tagPopoverIns = null;
   selectedCount = 0;
   tableToolList: {
     id: string;
@@ -199,6 +207,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           disabled: true,
           props: {
             width: 110,
+            filters: this.eventStatusList,
+            'filter-method': () => true,
+            'filter-multiple': true,
           },
         },
         {
@@ -218,40 +229,29 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           disabled: false,
           checked: true,
           props: {
-            width: 120,
-            minWidth: 120,
+            width: 121,
+            minWidth: 121,
             formatter: (row: IIncidentItem) => {
               return (
                 <div class='tag-column-wrap'>
-                  <div class='tag-column'>
-                    {row.labels ? (
-                      <div>
-                        <div class='tag-item set-item'>
-                          {typeof row.labels[0] === 'string'
-                            ? row.labels[0].replace(/\//g, '')
-                            : row.labels[0]?.key
-                              ? `${row.labels[0].key}: ${row.labels[0].value.replace(/\//g, '')}`
-                              : '--'}
-                        </div>
-                        {row.labels.length > 1 && (
-                          <bk-popover>
-                            <div slot='content'>
-                              {row.labels.map(item => (
-                                <div
-                                  key={item}
-                                  style={'margin:0 -5px'}
-                                >
-                                  {item}
-                                </div>
-                              ))}
-                            </div>
-                            <div class='tag-item set-item'>+ {row.labels.length - 1}</div>
-                          </bk-popover>
-                        )}
-                      </div>
-                    ) : (
-                      '--'
-                    )}
+                  <div
+                    class='tag-column'
+                    onMouseenter={e => this.handleTagMouseenter(e, row.labels)}
+                  >
+                    {row.labels?.length
+                      ? row.labels.map((item, index) => (
+                          <div
+                            key={`${item}__${index}`}
+                            class='tag-item set-item'
+                          >
+                            {typeof item === 'string'
+                              ? item.replace(/\//g, '')
+                              : item.key
+                                ? `${item.key}: ${item.value.replace(/\//g, '')}`
+                                : '--'}
+                          </div>
+                        ))
+                      : '--'}
                   </div>
                 </div>
               );
@@ -373,6 +373,12 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         name: this.$t('已解决'),
         icon: 'icon-mc-solved',
       },
+      merged: {
+        color: '#979ba5',
+        bgColor: '#f0f1f5',
+        name: this.$t('已合并'),
+        icon: 'icon-yihebing',
+      },
       ABNORMAL: {
         color: '#EA3536',
         bgColor: '#FEEBEA',
@@ -392,6 +398,28 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         icon: '',
       },
     };
+    this.eventStatusList = [
+      {
+        value: 'abnormal',
+        text: this.$t('未恢复'),
+      },
+      {
+        value: 'recovering',
+        text: this.$t('观察中'),
+      },
+      {
+        value: 'recovered',
+        text: this.$t('已恢复'),
+      },
+      {
+        value: 'closed',
+        text: this.$t('已解决'),
+      },
+      {
+        value: 'merged',
+        text: this.$t('已合并'),
+      },
+    ];
     this.extendInfoMap = {
       log_search: this.$t('查看更多相关的日志'),
       custom_event: this.$t('查看更多相关的事件'),
@@ -474,10 +502,42 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     return selectList.map(item => item.id);
   }
 
+  @Emit('filterChange')
+  handleFilterChange(filters: Record<string, string[]>) {
+    // 将故障状态筛选抛给父组件处理
+    return {
+      status: Object.values(filters)[0],
+    };
+  }
+
   @Emit('alarmDispatch')
   handleAlarmDispatch(v) {
     return v;
   }
+
+  /**
+   * @description: 故障标签溢出时的popover展示
+   * @param {MouseEvent} e
+   * @param {IEventItem['labels']} data
+   */
+  handleTagMouseenter(e: MouseEvent, data: IEventItem['labels']) {
+    this.tagPopoverIns?.destroy?.();
+    const { clientWidth, clientHeight, scrollWidth, scrollHeight } = e.target as HTMLDivElement;
+    if (scrollWidth > clientWidth || scrollHeight > clientHeight) {
+      this.tagPopoverIns = this.$bkPopover(e.target, {
+        content: `${data.map(item => `<div>${item}</div>`).join('')}`,
+        maxWidth: 320,
+        placement: 'top',
+        boundary: 'window',
+        interactive: true,
+        distance: 7,
+        duration: [0, 0],
+        arrow: true,
+      });
+      this.tagPopoverIns?.show?.(100);
+    }
+  }
+
   /**
    * @description: 关联信息跳转
    * @param {Record} extendInfo
@@ -631,8 +691,8 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   formatterTime(time: number | string): string {
     if (!time) return '--';
     if (typeof time !== 'number') return time;
-    if (time.toString().length < 13) return dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-    return dayjs(time).format('YYYY-MM-DD HH:mm:ss');
+    if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+    return formatWithTimezone(time) as string;
   }
 
   handleDescEnter(e: MouseEvent, dimensions, description) {
@@ -842,6 +902,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           pagination={this.pagination}
           row-class-name={this.tableClickCurrentInstance.getClassNameByCurrentIndex()}
           size={this.tableSize}
+          on-filter-change={this.handleFilterChange}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
           on-row-click={this.tableClickCurrentInstance.tableRowClick()}

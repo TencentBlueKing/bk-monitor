@@ -799,6 +799,7 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
 
 
 class CollectorEtlSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
     etl_params = CollectorEtlParamsSerializer(required=False)
     data = serializers.CharField(label=_("日志内容"), required=True)
