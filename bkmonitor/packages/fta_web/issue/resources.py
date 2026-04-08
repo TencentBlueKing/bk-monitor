@@ -78,9 +78,9 @@ def _get_issue_or_raise(issue_id: str, bk_biz_id: int | None = None) -> IssueDoc
 
 
 def _run_batch(
-        issues: list[dict],
-        action_fn: Callable[[IssueDocument], dict],
-        max_workers: int = 10,
+    issues: list[dict],
+    action_fn: Callable[[IssueDocument], dict],
+    max_workers: int = 10,
 ) -> dict:
     """
     批量操作公共执行框架：
@@ -202,8 +202,9 @@ class IssueDetailResource(Resource):
             end_time = int(time.time())
             search = (
                 AlertDocument.search(start_time=start_time, end_time=end_time)
+                .filter("term", **{"event.bk_biz_id": issue.bk_biz_id})
                 .filter("term", issue_id=issue.id)
-                .sort({"begin_time": {"order": "desc"}})
+                .sort({"create_time": {"order": "desc"}})
                 .params(size=1)
                 .source(["event.description"])
             )
