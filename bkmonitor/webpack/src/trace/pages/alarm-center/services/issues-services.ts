@@ -51,7 +51,7 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
   {
     colKey: 'name',
     title: 'Issues',
-    minWidth: 200,
+    width: 200,
     fixed: 'left',
     is_default: true,
     is_locked: true,
@@ -60,7 +60,6 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
     colKey: 'labels',
     title: window.i18n.t('标签'),
     width: 160,
-    minWidth: 160,
     is_default: true,
   },
   {
@@ -86,15 +85,13 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
   {
     colKey: 'impact_scope',
     title: window.i18n.t('影响范围'),
-    width: 120,
-    minWidth: 120,
+    width: 150,
     is_default: true,
   },
   {
     colKey: 'priority',
     title: window.i18n.t('优先级'),
     width: 86,
-    minWidth: 84,
     is_default: true,
   },
   {
@@ -107,7 +104,6 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
     colKey: 'assignee',
     title: window.i18n.t('负责人'),
     width: 160,
-    minWidth: 120,
     is_default: true,
   },
   {
