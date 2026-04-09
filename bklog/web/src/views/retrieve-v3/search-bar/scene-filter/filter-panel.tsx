@@ -28,6 +28,7 @@ import { computed, defineComponent, reactive, ref, watch } from 'vue';
 
 import draggable from 'vuedraggable';
 
+import { messageWarn } from '@/common/bkmagic';
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import { sceneConfigs } from './scene-config';
@@ -120,6 +121,13 @@ export default defineComponent({
       editDisplayFields.value = editDisplayFields.value.filter(n => n !== fieldName);
     };
 
+    const handleBeforeHide = (e: MouseEvent) => {
+      if ((e.target as HTMLElement)?.closest?.('.bklog-v3-popover-tag')) {
+        return false;
+      }
+      return true;
+    };
+
     const handleAddAllFields = () => {
       editDisplayFields.value = allFieldsOfScene.value.map(f => f.fieldName);
     };
@@ -129,6 +137,10 @@ export default defineComponent({
     };
 
     const handleSettingConfirm = () => {
+      if (editDisplayFields.value.length === 0) {
+        messageWarn(t('筛选字段不能为空'));
+        return;
+      }
       const allNames = allFieldsOfScene.value.map(f => f.fieldName);
       const isDefault = editDisplayFields.value.length === allNames.length
         && editDisplayFields.value.every((name, i) => name === allNames[i]);
@@ -267,6 +279,7 @@ export default defineComponent({
         ref={settingPopoverRef}
         options={settingTippyOptions}
         trigger='click'
+        beforeHide={handleBeforeHide}
         content-class='scene-fields-setting-popover-content'
         content={() => (
           <div class='scene-fields-setting'>
@@ -278,7 +291,7 @@ export default defineComponent({
                 </div>
                 <ul class='setting-field-list'>
                   {editRestFields.value.map(field => (
-                    <li class='setting-field-item' key={field.fieldName} onClick={() => handleAddField(field.fieldName)}>
+                    <li class='setting-field-item bklog-v3-popover-tag' key={field.fieldName} onClick={() => handleAddField(field.fieldName)}>
                       <span class='field-name'>{translateLabel(field.label, field.skipI18n)}</span>
                       <i class='bklog-icon bklog-filled-right-arrow add-icon' />
                     </li>
@@ -303,13 +316,15 @@ export default defineComponent({
                   ghostClass='setting-ghost'
                   handle='.drag-handle'
                   value={editDisplayFields.value}
-                  onInput={(val: string[]) => { editDisplayFields.value = val; }}
+                  onInput={(val: string[]) => {
+                    editDisplayFields.value = val;
+                  }}
                 >
                   {editDisplayFields.value.map(name => (
-                    <li class='setting-field-item is-selected' key={name}>
+                    <li class='setting-field-item is-selected bklog-v3-popover-tag' key={name} onClick={() => handleRemoveField(name)}>
                       <i class='bklog-icon bklog-ketuodong drag-handle' />
                       <span class='field-name'>{getFieldLabel(name)}</span>
-                      <i class='bk-icon icon-close-circle-shape remove-icon' onClick={() => handleRemoveField(name)} />
+                      <i class='bk-icon icon-close-circle-shape remove-icon' />
                     </li>
                   ))}
                 </draggable>

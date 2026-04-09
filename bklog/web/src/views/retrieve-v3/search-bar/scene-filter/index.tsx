@@ -24,12 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
+import { getOs } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { isEqual } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
+import { RetrieveEvent } from '../../../retrieve-helper';
+import SceneFilterTags from '../../../retrieve-v2/sub-bar/scene-filter-tags';
 import V3Searchbar from '../index';
 import FilterPanel from './filter-panel';
 import { getAllSceneFieldNames } from './scene-config';
@@ -107,9 +113,60 @@ export default defineComponent({
       };
     };
 
+    // ---- 条件变更提示条逻辑 ----
+    const { t } = useLocale();
+    const { addEvent } = useRetrieveEvent();
+
+    /** 是否已经执行过至少一次查询 */
+    const hasQueried = ref(false);
+    /** 上次查询时的 filterValues 快照 */
+    const lastQueriedFilterValues = ref<FilterValues | null>(null);
+    /** 是否显示提示条 */
+    const showQueryHint = ref(false);
+
+    /** 上次查询时的 activeScene 快照 */
+    const lastQueriedScene = ref<SceneType | null>(null);
+
+    // 监听查询事件，记录快照并隐藏提示条
+    addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
+      hasQueried.value = true;
+      lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
+      lastQueriedScene.value = activeScene.value;
+      showQueryHint.value = false;
+    });
+
+    // 监听索引集切换，重置快照
+    addEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, () => {
+      hasQueried.value = false;
+      lastQueriedFilterValues.value = null;
+      lastQueriedScene.value = null;
+      showQueryHint.value = false;
+    });
+
+    // 监听 filterValues 和 activeScene 变化，对比快照
+    watch(
+      [filterValues, activeScene],
+      ([newFilterValues, newScene]) => {
+        if (!hasQueried.value || lastQueriedFilterValues.value === null) return;
+        const filtersChanged = !isEqual(newFilterValues, lastQueriedFilterValues.value);
+        const sceneChanged = newScene !== lastQueriedScene.value;
+        showQueryHint.value = filtersChanged || sceneChanged;
+      },
+      { deep: true },
+    );
+
+    const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
+
+    const hintText = () =>
+      t('检索条件有变更，请点击{icon}按钮重新查询{shortcut}', {
+        icon: '🔍',
+        shortcut: `(${shortcutKey})`,
+      });
+
     return () => (
       <div class='scene-filter-root'>
         <div class='scene-filter-panel-wrapper'>
+          <SceneFilterTags class='scene-filter-tags-sticky' />
           <FilterPanel
             activeScene={activeScene.value}
             filterValues={filterValues.value}
@@ -121,6 +178,14 @@ export default defineComponent({
           />
         </div>
         <V3Searchbar />
+        <transition name='slide-hint'>
+          {showQueryHint.value && (
+            <div class='query-hint-bar'>
+              <i class='bklog-icon bklog-circle-alert-filled query-hint-icon' />
+              <span class='query-hint-text'>{hintText()}</span>
+            </div>
+          )}
+        </transition>
       </div>
     );
   },

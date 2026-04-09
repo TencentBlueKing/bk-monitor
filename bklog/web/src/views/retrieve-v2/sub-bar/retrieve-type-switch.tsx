@@ -28,6 +28,8 @@ import { computed, defineComponent } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
+import { getAllSceneFieldNames } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
+import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
 import './retrieve-type-switch.scss';
 
 export enum RetrieveType {
@@ -47,8 +49,35 @@ export default defineComponent({
 
     const handleChange = (type: string) => {
       if (retrieveType.value === type) return;
-      store.commit('updateIndexItemParams', { retrieve_type: type });
-      router.replace({ query: { ...route.query, retrieve_type: type } });
+
+      // 切换到常规检索时，清空场景化检索条件
+      if (type === RetrieveType.Normal) {
+        store.commit('updateIndexItemParams', {
+          retrieve_type: type,
+          scene_active: '',
+          scene_filter_values: {},
+        });
+
+        // 从 URL 中清除场景相关参数
+        const cleanQuery: Record<string, any> = { ...route.query, retrieve_type: type };
+        delete cleanQuery.scene_active;
+        for (const name of getAllSceneFieldNames()) {
+          delete cleanQuery[name];
+        }
+        router.replace({ query: cleanQuery });
+      } else {
+        store.commit('updateIndexItemParams', {
+          retrieve_type: type,
+          scene_active: SceneType.Container,
+        });
+        router.replace({
+          query: {
+            ...route.query,
+            retrieve_type: type,
+            scene_active: SceneType.Container,
+          },
+        });
+      }
     };
 
     return () => (

@@ -381,7 +381,6 @@ function handleIndexConfigSliderOpen() {
         @change="handleHistoryChange"
       />
     </div>
-
     <div
       v-if="!isMonitorComponent"
       class="box-right-option"

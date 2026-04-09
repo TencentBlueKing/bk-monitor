@@ -291,14 +291,6 @@
       &:hover .remove-icon {
         display: block;
       }
-
-      &.is-selected {
-        cursor: default;
-
-        &:hover {
-          background: #f1f4ff;
-        }
-      }
     }
 
     .setting-field-empty {
