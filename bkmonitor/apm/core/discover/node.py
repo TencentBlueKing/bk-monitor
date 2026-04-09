@@ -393,7 +393,7 @@ class NodeDiscover(DiscoverBase):
             instance_map[instance_key]["extra_data"]["predicate_value"] = extract_field_value(predicate_key, span)
 
     def clear_expired(self):
-        boundary = datetime.now() - timedelta(self.application.trace_datasource.retention)
+        boundary = datetime.now() - timedelta(days=self.model.EXPIRED_DAYS)
         filter_params = {
             "bk_biz_id": self.bk_biz_id,
             "app_name": self.app_name,

@@ -420,6 +420,28 @@ class ServiceDetailReqTypeChoices:
         return [(cls.GET, "获取"), (cls.SET, "更新"), (cls.DEL, "删除")]
 
 
+class SyncScope(CachedEnum):
+    """sync_relations 的作用域枚举"""
+
+    SERVICE = "service"
+    GLOBAL = "global"
+    ALL = "all"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.SERVICE: "仅服务级",
+                self.GLOBAL: "仅全局",
+                self.ALL: "全量",
+            }.get(self, self.value)
+        )
+
+
 class ServiceRelationLogTypeChoices:
     OTHER = "other"
     BK_LOG = "bk_log"
