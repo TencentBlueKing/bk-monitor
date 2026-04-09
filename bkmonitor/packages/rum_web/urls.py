@@ -1,0 +1,21 @@
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
+from django.urls import include, re_path
+
+from rum_web.views import rum_home
+
+app_name = "rum_web"
+
+urlpatterns = [
+    re_path(r"^$", rum_home),
+    re_path(r"meta/", include("rum_web.meta.urls")),
+    re_path(r"^metric/", include("rum_web.metric.urls")),
+]
