@@ -263,6 +263,16 @@ def _normalize_capturing_groups(regex: str) -> str:
     return "".join(result)
 
 
+def _strip_outer_regex_anchors(regex: str) -> str:
+    """去掉最外层 ^/$ 锚点，避免嵌入整条日志 regex 后失去匹配能力。"""
+
+    if regex.startswith("^"):
+        regex = regex[1:]
+    if regex.endswith("$") and not regex.endswith(r"\$"):
+        regex = regex[:-1]
+    return regex
+
+
 def parse_pattern_placeholders(pattern: str) -> list[dict]:
     """按出现顺序解析 pattern 中的占位符，不按名称去重。"""
 
@@ -387,6 +397,7 @@ def build_doris_regexp(pattern: str, placeholder_index: int, predefined_varibles
             if not placeholder_regex:
                 raise ValueError(f"placeholder regex not found: {token['value']}")
             placeholder_regex = _normalize_capturing_groups(placeholder_regex)
+            placeholder_regex = _strip_outer_regex_anchors(placeholder_regex)
             # 只捕获当前点击的那个占位符，其余占位符仅参与定位。
             if token["index"] == placeholder_index:
                 part = f"({placeholder_regex})"

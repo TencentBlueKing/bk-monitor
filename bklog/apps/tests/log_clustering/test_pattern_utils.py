@@ -80,6 +80,27 @@ class TestPatternUtils(SimpleTestCase):
 
         self.assertEqual(result, r"prefix[\s\S]*?((?:[a-z]+)/(?:\d+))[\s\S]*?suffix")
 
+    def test_build_doris_regexp_strips_outer_anchors_from_placeholder_regex(self):
+        predefined_variables = encode_predefined_variables(
+            [
+                r"NUMBER:^[-+]?[0-9]+(?:\.[0-9]+)?$",
+                r"TIME:\d{2}:\d{2}:\d{2}(?:\.\d{6})?",
+            ]
+        )
+
+        result = build_doris_regexp(
+            "Apr #NUMBER# #TIME# * systemd Started Session #NUMBER# of user root.",
+            placeholder_index=1,
+            predefined_varibles=predefined_variables,
+        )
+
+        self.assertNotIn(r"(?:^[-+]?[0-9]+(?:\.[0-9]+)?$)", result)
+        self.assertIn(r"(?:[-+]?[0-9]+(?:\.[0-9]+)?)", result)
+        self.assertEqual(
+            result,
+            r"Apr[\s\S]*?(?:[-+]?[0-9]+(?:\.[0-9]+)?)[\s\S]*?(\d{2}:\d{2}:\d{2}(?:\.\d{6})?)[\s\S]*?[\s\S]*?[\s\S]*?systemd[\s\S]*?Started[\s\S]*?Session[\s\S]*?(?:[-+]?[0-9]+(?:\.[0-9]+)?)[\s\S]*?of[\s\S]*?user[\s\S]*?root\.",
+        )
+
     def test_escape_sql_literal_handles_backslash_and_quote(self):
         result = escape_sql_literal(r"foo\bar'baz")
 
