@@ -388,7 +388,10 @@
             >
               <div class="skeleton-element" />
             </div>
-            <div v-else>
+            <div
+              v-else
+              class="rate-col"
+            >
               <div class="rate-name">
                 {{ row.cpu_usage | emptyNumberFilter }}
               </div>
@@ -416,7 +419,10 @@
             >
               <div class="skeleton-element" />
             </div>
-            <div v-else>
+            <div
+              v-else
+              class="rate-col"
+            >
               <div class="rate-name">
                 {{ row.disk_in_use | emptyNumberFilter }}
               </div>
@@ -444,7 +450,10 @@
             >
               <div class="skeleton-element" />
             </div>
-            <div v-else>
+            <div
+              v-else
+              class="rate-col"
+            >
               <div class="rate-name">
                 {{ row.io_util | emptyNumberFilter }}
               </div>
@@ -472,7 +481,10 @@
             >
               <div class="skeleton-element" />
             </div>
-            <div v-else>
+            <div
+              v-else
+              class="rate-col"
+            >
               <div class="rate-name">
                 {{ row.mem_usage | emptyNumberFilter }}
               </div>
@@ -500,7 +512,10 @@
             >
               <div class="skeleton-element" />
             </div>
-            <div v-else>
+            <div
+              v-else
+              class="rate-col"
+            >
               <div class="rate-name">
                 {{ row.psc_mem_usage | emptyNumberFilter }}
               </div>
@@ -727,7 +742,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   // 未恢复详情面板弹窗实例
   popoverInstance = null;
   // 表格Key（用于刷新表格数据）
-  tableKey = +new Date();
+  tableKey = Date.now();
   statusMap = {
     '-1': {
       name: window.i18n.t('未知'),
@@ -956,7 +971,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
 
   updateTableKey() {
     this.$nextTick(() => {
-      this.tableKey = +new Date();
+      this.tableKey = Date.now();
     });
   }
 
@@ -1134,7 +1149,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
 /* stylelint-disable function-no-unknown */
 
 /* stylelint-disable no-descending-specificity */
-@import '../../../theme/index.scss';
+@import '../../../theme/index';
 
 $statusBorderColors: #2dcb56 #c4c6cc #ea3636;
 $statusColors: #94f5a4 #f0f1f5 #fd9c9c;
@@ -1245,7 +1260,7 @@ $processColors: #ea3636 #c4c6cc #63656e;
         height: 16px;
         margin-left: 6px;
 
-        @include hover();
+        @include hover;
 
         &.path-primary {
           color: #3a84ff;
@@ -1299,24 +1314,20 @@ $processColors: #ea3636 #c4c6cc #63656e;
       }
     }
 
-    .status-label {
-      display: inline-block;
-      padding: 2px 7px;
-      font-size: 12px;
-      color: #fff;
-      text-align: center;
-      background: #dcdee5;
-      border-radius: 2px;
-    }
+    .rate-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
 
-    .status-unresolve {
-      @include hover();
-    }
+      .rate-name {
+        font-size: 12px;
+        line-height: 16px;
+        color: $defaultFontColor;
+      }
 
-    .rate-name {
-      font-size: 12px;
-      line-height: 16px;
-      color: $defaultFontColor;
+      .bk-progress {
+        width: 100%;
+      }
     }
 
     .process-module {
@@ -1371,6 +1382,20 @@ $processColors: #ea3636 #c4c6cc #63656e;
           color: #c4c6cc;
         }
       }
+    }
+
+    .status-label {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 12px;
+      color: #fff;
+      text-align: center;
+      background: #dcdee5;
+      border-radius: 2px;
+    }
+
+    .status-unresolve {
+      @include hover;
     }
   }
 

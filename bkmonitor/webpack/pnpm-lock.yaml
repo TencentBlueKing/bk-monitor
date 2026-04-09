@@ -652,8 +652,8 @@ importers:
         specifier: 0.0.0-beta.8
         version: 0.0.0-beta.8
       '@blueking/tdesign-ui':
-        specifier: 0.0.1-beta.87
-        version: 0.0.1-beta.87(vue@3.5.30(typescript@5.9.3))
+        specifier: 0.0.4
+        version: 0.0.4(vue@3.5.30(typescript@5.9.3))
       '@dagrejs/dagre':
         specifier: ^1.1.5
         version: 1.1.5
@@ -1485,6 +1485,10 @@ packages:
     resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/runtime@7.29.2':
+    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/template@7.27.2':
     resolution: {integrity: sha512-LPDZ85aEJyYSd18/DkjNh4/y1ntkE5KwUHWTiqgRxruuZL2F1yuHligVHLvcHY2vMHXttKFpJn6LwfI7cw7ODw==}
     engines: {node: '>=6.9.0'}
@@ -1685,8 +1689,8 @@ packages:
   '@blueking/stylelint-config@0.0.3':
     resolution: {integrity: sha512-8Yqwcg/dZmeY4ptnobq1H3Z0r0UzGXm2bD4rc18a/b7AvcJDFe7Z+RIPYYvNtbg4cXzzSAGu73ImbSiFi1c8jw==}
 
-  '@blueking/tdesign-ui@0.0.1-beta.87':
-    resolution: {integrity: sha512-f6OcJwv6GTrUvrgDRKtKKg1dlpwLVfvyM+7uYE8ZaSmNZAWxKO2KxsY8dLFTNxATKJuL+WeFAOJBcSRonELIGA==}
+  '@blueking/tdesign-ui@0.0.4':
+    resolution: {integrity: sha512-r0dtDdRAul8JeM5p0FyFMgoCLPMW78JeIuzVWbtiiB8jO75dspfa7lOvhyvo6IitRUcR12WQQ43EAjNfdBdssQ==}
     peerDependencies:
       vue: ^3
 
@@ -2927,6 +2931,9 @@ packages:
   '@types/sortablejs@1.15.8':
     resolution: {integrity: sha512-b79830lW+RZfwaztgs1aVPgbasJ8e7AXtZYHTELNXZPsERt4ymJdjV4OccDbHQAvHrCcFpbF78jkm0R6h/pZVg==}
 
+  '@types/sortablejs@1.15.9':
+    resolution: {integrity: sha512-7HP+rZGE2p886PKV9c9OJzLBI6BBJu1O7lJGYnPyG3fS4/duUCcngkNCjsLwIMV+WMqANe3tt4irrXHSIe68OQ==}
+
   '@types/throttle-debounce@5.0.2':
     resolution: {integrity: sha512-pDzSNulqooSKvSNcksnV72nk8p7gRqN8As71Sp28nov1IgmPKWbOEIwAWvBME5pPTtaXJAvG3O4oc76HlQ4kqQ==}
 
@@ -2938,6 +2945,9 @@ packages:
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
+
+  '@types/validator@13.15.10':
+    resolution: {integrity: sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA==}
 
   '@types/validator@13.15.2':
     resolution: {integrity: sha512-y7pa/oEJJ4iGYBxOpfAKn5b9+xuihvzDVnC/OSvlVnGxVg0pOqmjiMafiJ1KVNQEaPZf9HsEp5icEwGg8uIe5Q==}
@@ -3238,20 +3248,20 @@ packages:
   '@vue/reactivity@3.5.30':
     resolution: {integrity: sha512-179YNgKATuwj9gB+66snskRDOitDiuOZqkYia7mHKJaidOMo/WJxHKF8DuGc4V4XbYTJANlfEKb0yxTQotnx4Q==}
 
-  '@vue/reactivity@3.5.31':
-    resolution: {integrity: sha512-DtKXxk9E/KuVvt8VxWu+6Luc9I9ETNcqR1T1oW1gf02nXaZ1kuAx58oVu7uX9XxJR0iJCro6fqBLw9oSBELo5g==}
+  '@vue/reactivity@3.5.32':
+    resolution: {integrity: sha512-/ORasxSGvZ6MN5gc+uE364SxFdJ0+WqVG0CENXaGW58TOCdrAW76WWaplDtECeS1qphvtBZtR+3/o1g1zL4xPQ==}
 
   '@vue/runtime-core@3.5.30':
     resolution: {integrity: sha512-e0Z+8PQsUTdwV8TtEsLzUM7SzC7lQwYKePydb7K2ZnmS6jjND+WJXkmmfh/swYzRyfP1EY3fpdesyYoymCzYfg==}
 
-  '@vue/runtime-core@3.5.31':
-    resolution: {integrity: sha512-AZPmIHXEAyhpkmN7aWlqjSfYynmkWlluDNPHMCZKFHH+lLtxP/30UJmoVhXmbDoP1Ng0jG0fyY2zCj1PnSSA6Q==}
+  '@vue/runtime-core@3.5.32':
+    resolution: {integrity: sha512-pDrXCejn4UpFDFmMd27AcJEbHaLemaE5o4pbb7sLk79SRIhc6/t34BQA7SGNgYtbMnvbF/HHOftYBgFJtUoJUQ==}
 
   '@vue/runtime-dom@3.5.30':
     resolution: {integrity: sha512-2UIGakjU4WSQ0T4iwDEW0W7vQj6n7AFn7taqZ9Cvm0Q/RA2FFOziLESrDL4GmtI1wV3jXg5nMoJSYO66egDUBw==}
 
-  '@vue/runtime-dom@3.5.31':
-    resolution: {integrity: sha512-xQJsNRmGPeDCJq/u813tyonNgWBFjzfVkBwDREdEWndBnGdHLHgkwNBQxLtg4zDrzKTEcnikUy1UUNecb3lJ6g==}
+  '@vue/runtime-dom@3.5.32':
+    resolution: {integrity: sha512-1CDVv7tv/IV13V8Nip1k/aaObVbWqRlVCVezTwx3K07p7Vxossp5JU1dcPNhJk3w347gonIUT9jQOGutyJrSVQ==}
 
   '@vue/server-renderer@3.5.30':
     resolution: {integrity: sha512-v+R34icapydRwbZRD0sXwtHqrQJv38JuMB4JxbOxd8NEpGLny7cncMp53W9UH/zo4j8eDHjQ1dEJXwzFQknjtQ==}
@@ -3261,8 +3271,8 @@ packages:
   '@vue/shared@3.5.30':
     resolution: {integrity: sha512-YXgQ7JjaO18NeK2K9VTbDHaFy62WrObMa6XERNfNOkAhD1F1oDSf3ZJ7K6GqabZ0BvSDHajp8qfS5Sa2I9n8uQ==}
 
-  '@vue/shared@3.5.31':
-    resolution: {integrity: sha512-nBxuiuS9Lj5bPkPbWogPUnjxxWpkRniX7e5UBQDWl6Fsf4roq9wwV+cR7ezQ4zXswNvPIlsdj1slcLB7XCsRAw==}
+  '@vue/shared@3.5.32':
+    resolution: {integrity: sha512-ksNyrmRQzWJJ8n3cRDuSF7zNNontuJg1YHnmWRJd2AMu8Ij2bqwiiri2lH5rHtYPZjj4STkNcgcmiQqlOjiYGg==}
 
   '@vueuse/core@10.11.1':
     resolution: {integrity: sha512-guoy26JQktXPcz+0n3GukWIy/JDNKti9v6VEMu6kV2sYBsWuGiTU8OWdg+ADfUbHg3/3DlqySDe7JmdHrktiww==}
@@ -6148,6 +6158,9 @@ packages:
   lodash-es@4.17.21:
     resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
 
+  lodash-es@4.18.1:
+    resolution: {integrity: sha512-J8xewKD/Gk22OZbhpOVSwcs60zhd95ESDwezOFuA3/099925PdHJ7OFHNTGtajL3AlZkykD32HykiMo+BIBI8A==}
+
   lodash.debounce@4.0.8:
     resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
 
@@ -8290,8 +8303,8 @@ packages:
     resolution: {integrity: sha512-hQGQH4WVtV9BqsZbrGzOmOP4NdWqie948BnqtH+NPwdVt5mI+qALVRDvgzgdf+neN7bcrVVpV4ToyFkxg0U0xQ==}
     hasBin: true
 
-  tdesign-icons-vue-next@0.3.6:
-    resolution: {integrity: sha512-X9u90dBv8tPhfpguUyx+BzF8CU2ef2L4RXOO7MYOj1ufHCHwBXTF8L3GPfq6KZd/2u4vMLYAA8lGURn4PZZICw==}
+  tdesign-icons-vue-next@0.4.4:
+    resolution: {integrity: sha512-UPKyR5pea840aeI5p/k8VLVgfyVzndSyE4t1yRBD8uYWiuV0p29jZbDn8hMnes9Tz5JPgywCGzbk4QJzt684NA==}
     peerDependencies:
       vue: ^3.0.0
 
@@ -8300,8 +8313,8 @@ packages:
     peerDependencies:
       vue: ^2.6.12
 
-  tdesign-vue-next@1.14.2:
-    resolution: {integrity: sha512-Wcg0SjT4W7JmMhwCI4/rnk8bJzcmjed/YAemVDaOY33U8PqUsU3DxxP/vJ2gbLH7NkFgLGVNpeAdTqYdmHnV4w==}
+  tdesign-vue-next@1.18.6:
+    resolution: {integrity: sha512-oc7wOE5awfWd0/mqCVOESv3rg1Nh6HJGr9vAvgjUkRTp6/KS9gexiKU2qR1hBKqh6cmBQkbFMWmX8MLnJJ6zLQ==}
     engines: {node: '>= 18'}
     peerDependencies:
       vue: '>=3.1.0'
@@ -8690,6 +8703,10 @@ packages:
 
   validator@13.15.15:
     resolution: {integrity: sha512-BgWVbCI72aIQy937xbawcs+hrVaN/CZ2UwutgaJ36hGqRrLNM+f5LUT/YPRbo8IV/ASeFzXszezV+y2+rq3l8A==}
+    engines: {node: '>= 0.10'}
+
+  validator@13.15.35:
+    resolution: {integrity: sha512-TQ5pAGhd5whStmqWvYF4OjQROlmv9SMFVt37qoCBdqRffuuklWYQlCNnEs2ZaIBD1kZRNnikiZOS1eqgkar0iw==}
     engines: {node: '>= 0.10'}
 
   vant@2.13.9:
@@ -10127,6 +10144,8 @@ snapshots:
 
   '@babel/runtime@7.28.4': {}
 
+  '@babel/runtime@7.29.2': {}
+
   '@babel/template@7.27.2':
     dependencies:
       '@babel/code-frame': 7.27.1
@@ -10419,7 +10438,7 @@ snapshots:
 
   '@blueking/bkui-library@0.0.0-beta.4':
     dependencies:
-      '@vue/runtime-dom': 3.5.31
+      '@vue/runtime-dom': 3.5.32
 
   '@blueking/bkui-library@0.0.0-beta.6':
     dependencies:
@@ -10527,22 +10546,22 @@ snapshots:
       - postcss-markdown
       - supports-color
 
-  '@blueking/tdesign-ui@0.0.1-beta.87(vue@3.5.30(typescript@5.9.3))':
+  '@blueking/tdesign-ui@0.0.4(vue@3.5.30(typescript@5.9.3))':
     dependencies:
-      '@babel/runtime': 7.27.6
+      '@babel/runtime': 7.29.2
       '@popperjs/core': 2.11.8
       '@types/lodash-es': 4.17.12
-      '@types/sortablejs': 1.15.8
+      '@types/sortablejs': 1.15.9
       '@types/tinycolor2': 1.4.6
-      '@types/validator': 13.15.2
+      '@types/validator': 13.15.10
       dayjs: 1.11.10
-      lodash-es: 4.17.21
+      lodash-es: 4.18.1
       mitt: 3.0.1
       sortablejs: 1.15.6
-      tdesign-icons-vue-next: 0.3.6(vue@3.5.30(typescript@5.9.3))
-      tdesign-vue-next: 1.14.2(vue@3.5.30(typescript@5.9.3))
+      tdesign-icons-vue-next: 0.4.4(vue@3.5.30(typescript@5.9.3))
+      tdesign-vue-next: 1.18.6(vue@3.5.30(typescript@5.9.3))
       tinycolor2: 1.6.0
-      validator: 13.15.15
+      validator: 13.15.35
       vue: 3.5.30(typescript@5.9.3)
 
   '@blueking/xss-filter@0.0.10':
@@ -11706,6 +11725,8 @@ snapshots:
 
   '@types/sortablejs@1.15.8': {}
 
+  '@types/sortablejs@1.15.9': {}
+
   '@types/throttle-debounce@5.0.2': {}
 
   '@types/tinycolor2@1.4.6': {}
@@ -11714,6 +11735,8 @@ snapshots:
     optional: true
 
   '@types/unist@2.0.11': {}
+
+  '@types/validator@13.15.10': {}
 
   '@types/validator@13.15.2': {}
 
@@ -12233,19 +12256,19 @@ snapshots:
     dependencies:
       '@vue/shared': 3.5.30
 
-  '@vue/reactivity@3.5.31':
+  '@vue/reactivity@3.5.32':
     dependencies:
-      '@vue/shared': 3.5.31
+      '@vue/shared': 3.5.32
 
   '@vue/runtime-core@3.5.30':
     dependencies:
       '@vue/reactivity': 3.5.30
       '@vue/shared': 3.5.30
 
-  '@vue/runtime-core@3.5.31':
+  '@vue/runtime-core@3.5.32':
     dependencies:
-      '@vue/reactivity': 3.5.31
-      '@vue/shared': 3.5.31
+      '@vue/reactivity': 3.5.32
+      '@vue/shared': 3.5.32
 
   '@vue/runtime-dom@3.5.30':
     dependencies:
@@ -12254,11 +12277,11 @@ snapshots:
       '@vue/shared': 3.5.30
       csstype: 3.2.3
 
-  '@vue/runtime-dom@3.5.31':
+  '@vue/runtime-dom@3.5.32':
     dependencies:
-      '@vue/reactivity': 3.5.31
-      '@vue/runtime-core': 3.5.31
-      '@vue/shared': 3.5.31
+      '@vue/reactivity': 3.5.32
+      '@vue/runtime-core': 3.5.32
+      '@vue/shared': 3.5.32
       csstype: 3.2.3
 
   '@vue/server-renderer@3.5.30(vue@3.5.30(typescript@5.9.3))':
@@ -12269,7 +12292,7 @@ snapshots:
 
   '@vue/shared@3.5.30': {}
 
-  '@vue/shared@3.5.31': {}
+  '@vue/shared@3.5.32': {}
 
   '@vueuse/core@10.11.1(vue@2.7.16)':
     dependencies:
@@ -15276,6 +15299,8 @@ snapshots:
 
   lodash-es@4.17.21: {}
 
+  lodash-es@4.18.1: {}
+
   lodash.debounce@4.0.8: {}
 
   lodash.isempty@4.4.0: {}
@@ -17925,9 +17950,9 @@ snapshots:
       unconfig: 7.3.3
       yaml: 2.8.1
 
-  tdesign-icons-vue-next@0.3.6(vue@3.5.30(typescript@5.9.3)):
+  tdesign-icons-vue-next@0.4.4(vue@3.5.30(typescript@5.9.3)):
     dependencies:
-      '@babel/runtime': 7.28.4
+      '@babel/runtime': 7.29.2
       vue: 3.5.30(typescript@5.9.3)
 
   tdesign-icons-vue@0.3.5(vue@2.7.16):
@@ -17936,21 +17961,21 @@ snapshots:
       classnames: 2.5.1
       vue: 2.7.16
 
-  tdesign-vue-next@1.14.2(vue@3.5.30(typescript@5.9.3)):
+  tdesign-vue-next@1.18.6(vue@3.5.30(typescript@5.9.3)):
     dependencies:
-      '@babel/runtime': 7.28.4
+      '@babel/runtime': 7.29.2
       '@popperjs/core': 2.11.8
       '@types/lodash-es': 4.17.12
-      '@types/sortablejs': 1.15.8
+      '@types/sortablejs': 1.15.9
       '@types/tinycolor2': 1.4.6
-      '@types/validator': 13.15.2
-      dayjs: 1.11.10
-      lodash-es: 4.17.21
+      '@types/validator': 13.15.10
+      dayjs: 1.11.18
+      lodash-es: 4.18.1
       mitt: 3.0.1
       sortablejs: 1.15.6
-      tdesign-icons-vue-next: 0.3.6(vue@3.5.30(typescript@5.9.3))
+      tdesign-icons-vue-next: 0.4.4(vue@3.5.30(typescript@5.9.3))
       tinycolor2: 1.6.0
-      validator: 13.15.15
+      validator: 13.15.35
       vue: 3.5.30(typescript@5.9.3)
 
   tdesign-vue@1.11.2-naruto(vue@2.7.16):
@@ -18350,6 +18375,8 @@ snapshots:
       spdx-expression-parse: 3.0.1
 
   validator@13.15.15: {}
+
+  validator@13.15.35: {}
 
   vant@2.13.9(vue@2.7.16):
     dependencies:

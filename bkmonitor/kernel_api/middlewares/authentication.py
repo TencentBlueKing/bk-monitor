@@ -563,7 +563,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 校验app_code权限范围
         if not app_code or is_match_api_token(request, bk_tenant_id, app_code):
-            if not username:
+            if not username or username == "admin":
                 username = get_tenant_admin_username(bk_tenant_id)
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             user = request.user

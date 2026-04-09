@@ -59,7 +59,7 @@ export class ActionScenario extends BaseScenario {
   constructor(
     private readonly context: {
       [methodName: string]: any;
-      handleActionSliderShowDetail: (id: string) => void;
+      handleActionSliderShowDetail: (row: ActionTableItem) => void;
       hoverPopoverTools: IUsePopoverTools;
     }
   ) {
@@ -131,7 +131,7 @@ export class ActionScenario extends BaseScenario {
         />
         <div
           class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}
-          onClick={() => this.context.handleActionSliderShowDetail(row.id)}
+          onClick={() => this.context.handleActionSliderShowDetail(row)}
         >
           <span>{row?.id}</span>
         </div>

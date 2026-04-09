@@ -24,8 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+import type { ActionTableItem } from '../../../typings';
+
 export interface UseActionHandlersOptions {
-  showDetailEmit: (id: string) => void;
+  /** 显示处理记录详情抽屉回调 */
+  showDetailEmit: (row: ActionTableItem) => void;
 }
 
 export type UseActionHandlersReturnType = ReturnType<typeof useActionHandlers>;
@@ -35,10 +38,11 @@ export type UseActionHandlersReturnType = ReturnType<typeof useActionHandlers>;
  */
 export const useActionHandlers = ({ showDetailEmit }: UseActionHandlersOptions) => {
   /**
-   * @description: 展示 处理记录 详情抽屉
+   * @description 展示处理记录详情抽屉
+   * @param {ActionTableItem} row - 处理记录行数据
    */
-  const handleActionSliderShowDetail = (id: string) => {
-    showDetailEmit(id);
+  const handleActionSliderShowDetail = (row: ActionTableItem) => {
+    showDetailEmit(row);
   };
 
   return {

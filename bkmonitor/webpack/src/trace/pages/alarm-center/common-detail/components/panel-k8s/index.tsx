@@ -65,7 +65,10 @@ export default defineComponent({
   },
   setup(props) {
     const { timeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
-    const { scene, currentTarget, sceneList, targetList, groupBy, loading } = useAlertK8s(toRef(props, 'alertId'));
+    const { scene, currentTarget, sceneList, targetList, groupBy, loading } = useAlertK8s({
+      alertId: toRef(props, 'alertId'),
+      bizId,
+    });
     /** 需要渲染的仪表盘面板配置数组 */
     const { dashboards, loading: k8sDashboardLoading } = useK8sChartPanel({
       scene,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import os
 import platform
@@ -84,7 +84,9 @@ def preview(separator_node_action, data, etl_only=False, **kwargs):
 
         logger.info(f"[transfer][preview]{args}")
 
-        p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # 安全说明: shell=False + 列表参数已阻止命令注入(CWE-078), separator_node_action 已做白名单校验,
+        # kwargs 中的值拼接在 "option.key:value" 格式中作为单个参数传递, 不存在参数注入风险(CWE-088)
+        p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # nosec
         stdout, stderr = p.communicate(  # pylint: disable=unused-variable
             bytes(json.dumps({"data": data}), encoding="utf8")
         )
