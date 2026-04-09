@@ -502,14 +502,18 @@ export default defineComponent({
     const handlePreviousDetail = () => {
       let index = data.value.findIndex(item => item.id === alarmId.value);
       index = index === -1 ? 0 : index;
-      alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
+      const target = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1];
+      alarmId.value = target.id;
+      alarmBizId.value = target.bk_biz_id;
     };
 
     /** 下一个详情 */
     const handleNextDetail = () => {
       let index = data.value.findIndex(item => item.id === alarmId.value);
       index = index === -1 ? 0 : index;
-      alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
+      const target = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1];
+      alarmId.value = target.id;
+      alarmBizId.value = target.bk_biz_id;
     };
 
     /**
