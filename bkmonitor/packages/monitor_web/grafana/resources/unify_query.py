@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import logging
 import re
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import asdict
 from functools import reduce
 from itertools import chain
@@ -19,6 +18,7 @@ from re import Pattern
 from typing import Any
 
 import arrow
+from bk_monitor_base.strategy import get_metric_id
 from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
@@ -39,7 +39,6 @@ from bkmonitor.data_source import (
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bk_monitor_base.strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -72,7 +71,7 @@ class TimeCompareProcessor:
     """
 
     @classmethod
-    def process_origin_data(cls, params: dict, data: list) -> list:
+    def process_origin_data(cls, params: dict, data: list, series_stat: dict | None = None) -> list:
         time_compare = params["function"].get("time_compare", [])
 
         # 兼容单个和多个时间对比
@@ -107,7 +106,7 @@ class TimeCompareProcessor:
                 expression=params["expression"],
                 functions=params["functions"],
             )
-            extra_data = query.query_data(
+            query_kwargs = dict(
                 start_time=new_params["start_time"],
                 end_time=new_params["end_time"],
                 limit=new_params["limit"],
@@ -115,6 +114,15 @@ class TimeCompareProcessor:
                 down_sample_range=params["down_sample_range"],
                 not_time_align=params.get("not_time_align", False),
             )
+
+            if series_stat is not None:
+                compare_result = query.query_data_with_stat(**query_kwargs)
+                extra_data = compare_result["series"]
+                for (dims, metric_field), stat in compare_result["series_stat"].items():
+                    new_dims = tuple(sorted(list(dims) + [("__time_compare", str(offset_text))]))
+                    series_stat[(new_dims, metric_field)] = stat
+            else:
+                extra_data = query.query_data(**query_kwargs)
 
             # 标记时间对比数据
             for record in extra_data:
@@ -596,7 +604,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         series_num = serializers.IntegerField(label="查询多少条数据", required=False)
         time_alignment = serializers.BooleanField(label="是否保留最后一个数据点", required=False, default=True)
         null_as_zero = serializers.BooleanField(label="是否将空值转换为0", required=False, default=False)
-        query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
+        query_method = serializers.CharField(label="查询方法", required=False, default="query_data_with_stat")
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
         with_metric = serializers.BooleanField(label="是否返回metric信息", default=True)
         not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
@@ -817,7 +825,27 @@ class UnifyQueryRawResource(ApiAuthResource):
             for dimension_tuple in list(dimension_tuples_set)[:series_num]
         ]
 
-    def perform_request(self, params):
+    def _query_time_series_data(
+        self, query: UnifyQuery, params: dict[str, Any], time_alignment: bool, query_method_name: str | None = None
+    ) -> tuple[list[dict], dict]:
+        query_kwargs = dict(
+            start_time=params["start_time"] * 1000,
+            end_time=params["end_time"] * 1000,
+            limit=params["limit"],
+            slimit=params["slimit"],
+            down_sample_range=params["down_sample_range"],
+            time_alignment=time_alignment,
+            not_time_align=params.get("not_time_align", False),
+        )
+
+        if query_method_name == "query_reference":
+            result = query.query_reference(**query_kwargs)
+            return result, {}
+        else:
+            result = query.query_data_with_stat(**query_kwargs)
+            return result["series"], result["series_stat"]
+
+    def _perform_query(self, params: dict[str, Any], query_method_name: str | None = None) -> dict[str, Any]:
         # cookies filter
         cookies_filter = get_cookies_filter()
         if cookies_filter:
@@ -860,7 +888,7 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         # 查询目标实例
         if not self.get_target_instance(params):
-            return {"series": [], "metrics": metrics}
+            return {"series": [], "metrics": metrics, "series_stat": {}}
 
         # 维度top/bottom排序
         params = RankProcessor.process_params(params)
@@ -903,34 +931,25 @@ class UnifyQueryRawResource(ApiAuthResource):
         )
         safe_push_to_gateway(registry=OPERATION_REGISTRY)
 
-        query_method_map: dict[str, Callable[[Any], list[dict]]] = {
-            "query_data": query.query_data,
-            "query_reference": query.query_reference,
-        }
-        query_method: Callable[[Any], list[dict]] = query_method_map.get(params.get("query_method"), query.query_data)
-
-        points = query_method(
-            start_time=params["start_time"] * 1000,
-            end_time=params["end_time"] * 1000,
-            limit=params["limit"],
-            slimit=params["slimit"],
-            down_sample_range=params["down_sample_range"],
-            time_alignment=time_alignment,
-            not_time_align=params.get("not_time_align", False),
-        )
+        points, series_stat = self._query_time_series_data(query, params, time_alignment, query_method_name)
 
         # 如果存在数据后过滤条件，则进行过滤
         if params.get("post_query_filter_dict"):
             condition_filter = load_agg_condition_instance(params["post_query_filter_dict"])
             points = [point for point in points if condition_filter.is_match(point)]
 
-        # 数据预处理
-        points = TimeCompareProcessor.process_origin_data(params, points)
+        # 数据预处理（传入 series_stat 以便时间对比查询也收集 stat）
+        points = TimeCompareProcessor.process_origin_data(params, points, series_stat)
         metrics = metrics if params["with_metric"] else []
         return {
             "series": points,
             "metrics": metrics,
+            "series_stat": series_stat,
         }
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> Any:
+        result = self._perform_query(validated_request_data)
+        return {"series": result["series"], "metrics": result["metrics"]}
 
 
 class GraphUnifyQueryResource(UnifyQueryRawResource):
@@ -974,7 +993,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                 metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
         config["functions"] = list(metric_functions.values())
 
-    def data_format(self, params, data):
+    def data_format(self, params, data, series_stat=None):
         """
         转换为Grafana TimeSeries的格式
         :param params: 请求参数
@@ -990,6 +1009,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         """
 
         dimension_fields = set(chain(*(query_config["group_by"] for query_config in params["query_configs"])))
+        series_stat = series_stat or {}
 
         formatted_data = defaultdict(dict)
 
@@ -1074,6 +1094,7 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                     "metric_field": metric_tuple[0],
                     "datapoints": value,
                     "alias": metric_tuple[0],
+                    "stat": series_stat.get((dimensions, metric_tuple[0]), {}),
                     "type": "bar" if is_bar else "line",
                 }
                 if stack:
@@ -1172,15 +1193,17 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         for config in params["query_configs"]:
             self.fill_custom_metric_method(config)
 
-        raw_query_result = super().perform_request(params)
+        query_method_name = params["query_method"]
+        raw_query_result = self._perform_query(params, query_method_name=query_method_name)
         points = raw_query_result["series"]
         if not points:
-            return raw_query_result
+            return {"series": [], "metrics": raw_query_result["metrics"]}
 
         metrics = raw_query_result["metrics"]
+        series_stat = raw_query_result.get("series_stat", {})
 
         # 数据格式化
-        series = self.data_format(params, points)
+        series = self.data_format(params, points, series_stat)
 
         # 数据后处理
         series = TimeCompareProcessor.process_formatted_data(params, series)
@@ -1326,6 +1349,7 @@ class GraphPromqlQueryResource(Resource):
                 ),
                 "dimensions": dict(zip(s["group_keys"], s["group_values"])),
                 "datapoints": [[v[1], v[0]] for v in s["values"]],
+                "stat": s.get("stat") or {},
             }
             result.append(series)
         return result

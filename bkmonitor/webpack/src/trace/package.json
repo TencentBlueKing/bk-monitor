@@ -19,7 +19,7 @@
     "@blueking/login-modal": "^1.0.6",
     "@blueking/monitor-trace-log": "2.0.8",
     "@blueking/monitor-vue2-components": "0.0.0-beta.8",
-    "@blueking/tdesign-ui": "0.0.1-beta.87",
+    "@blueking/tdesign-ui": "0.0.4",
     "@dagrejs/dagre": "^1.1.5",
     "@prometheus-io/lezer-promql": "0.305.0",
     "@toast-ui/editor": "^3.2.2",

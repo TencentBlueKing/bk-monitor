@@ -37,6 +37,7 @@ import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 
 import type {
+  ActionTableItem,
   AlertAllActionEnum,
   AlertContentNameEditInfo,
   AlertTableItem,
@@ -123,8 +124,8 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    showAlertDetail: (item: string, _defaultTab?: string) => typeof item === 'string',
-    showActionDetail: (item: string) => typeof item === 'string',
+    showAlertDetail: (row: AlertTableItem, _defaultTab?: string) => row,
+    showActionDetail: (row: ActionTableItem) => row,
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,
     openAlertDialog: (
@@ -173,7 +174,7 @@ export default defineComponent({
       clickPopoverTools,
       selectedRowKeys: toRef(props, 'selectedRowKeys'),
       clearSelected: () => handleSelectionChange(),
-      showDetailEmit: (id, defaultTab) => emit('showAlertDetail', id, defaultTab),
+      showDetailEmit: (row, defaultTab) => emit('showAlertDetail', row, defaultTab),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),
       saveContentNameEmit: (saveInfo, savePromiseEvent) => emit('saveAlertContentName', saveInfo, savePromiseEvent),
     });
@@ -203,6 +204,7 @@ export default defineComponent({
     const settings = computed(() => ({
       ...props.tableSettings,
       hasCheckAll: true,
+      showRowSize: false,
     }));
 
     /**

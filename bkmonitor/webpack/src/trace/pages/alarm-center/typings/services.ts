@@ -465,7 +465,6 @@ export type QuickFilterItem = {
   children?: QuickFilterItem[];
   count?: number;
   extCls?: string;
-  /** 选项icon 如果为rect则显示为矩形图标 */
   icon?: string;
   /** icon颜色 */
   iconColor?: string;

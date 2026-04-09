@@ -38,6 +38,7 @@ interface IEvent {
 }
 interface INoticeStatusDialog {
   actionId: string;
+  bizId: number;
   value?: boolean;
 }
 
@@ -45,6 +46,7 @@ interface INoticeStatusDialog {
 export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent> {
   @Prop({ default: '', type: String }) actionId: string;
   @Model('show-change', { type: Boolean }) readonly value;
+  @Prop({ type: [Number, String], default: +window.bk_biz_id }) bizId: number;
 
   loading = false;
   tableData = [];
@@ -73,7 +75,7 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
   async getNoticeStatusData() {
     this.loading = true;
     if (!this.tableClounms.length) {
-      this.tableClounms = await getNoticeWay()
+      this.tableClounms = await getNoticeWay({ bk_biz_id: this.bizId })
         .then(res =>
           res.map(item => ({
             label: item.label,
@@ -82,7 +84,7 @@ export default class NoticeStatusDialog extends tsc<INoticeStatusDialog, IEvent>
         )
         .catch(() => []);
     }
-    await subActionDetail({ parent_action_id: this.actionId })
+    await subActionDetail({ parent_action_id: this.actionId, bk_biz_id: this.bizId })
       .then(data => {
         this.tableData = Object.keys(data || {}).map(key => {
           const temp: any = { target: key };

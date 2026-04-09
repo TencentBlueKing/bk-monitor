@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import mimetypes
 import os
 import posixpath
+import re
 from urllib.parse import unquote
 
 from bkstorages.utils import safe_join
@@ -30,6 +31,8 @@ from fta_web.event_plugin.handler import PackageHandler
 from fta_web.event_plugin.resources import GetEventPluginTokenResource
 
 logger = logging.getLogger(__name__)
+
+DANGEROUS_TAGS = re.compile(r"\{%\s*(load|debug|ssi|include|extends|import)")
 
 
 class EventPluginViewSet(ResourceViewSet):
@@ -74,7 +77,7 @@ def serve(request, path, document_root=None, *args, **kwargs):
     path = posixpath.normpath(unquote(path)).lstrip("/")
     fullpath = safe_join(document_root, path)
     if not default_storage.exists(fullpath):
-        raise Http404("'%s' does not exist" % fullpath)
+        raise Http404(f"'{fullpath}' does not exist")
 
     content_type, encoding = mimetypes.guess_type(fullpath)
     content_type = content_type or "application/octet-stream"
@@ -116,7 +119,12 @@ def event_plugin_media(*args, **kwargs):
         context = {"plugin": plugin}
         content = b"".join(response.streaming_content)
         try:
-            template = Template(content.decode("utf-8"))
+            decoded_content = content.decode("utf-8")
+            # 禁止使用危险的模板标签
+            if DANGEROUS_TAGS.search(decoded_content):
+                logger.warning("[event_plugin_media] dangerous template tags detected, skip rendering")
+                return StreamingHttpResponse(content, content_type=response["Content-Type"])
+            template = Template(decoded_content)  # nosec
             content = template.render(Context(context))
         except Exception as e:
             logger.exception("[event_plugin_media] render content error: %s", e)

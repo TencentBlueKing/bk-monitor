@@ -115,9 +115,11 @@ def discover_caller_callee(
         logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
         return discover_result
 
-    server_config: dict[str, Any] | None = ServiceHandler.get_rpc_service_config_or_none(
-        node
-    ) or get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
+    system: dict[str, Any] = ServiceHandler.get_system(node)
+    if system.get("is_support_call_analysis"):
+        server_config: dict[str, Any] | None = MetricTemporality.get_metric_config(system["temporality"])
+    else:
+        server_config = get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
     if not server_config:
         return discover_result
 

@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 from constants.incident import IncidentStatus
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentOperationDocument
@@ -29,6 +30,8 @@ logger = logging.getLogger("incident.operation")
 
 
 class IncidentOperationManager:
+    MERGED_ANONYMOUS_INCIDENT_NAME = _("已合并匿名故障")
+
     # 需要触发通知的操作类型（临时屏蔽除 生成/恢复/合并 外的通知，后续可直接放开）
     NOTICE_TRIGGER_OPERATIONS = [
         IncidentOperationType.CREATE,
@@ -357,6 +360,14 @@ class IncidentOperationManager:
         :return: 是否为匿名故障
         """
         return bool(incident_name and incident_name.startswith("new_incident_"))
+
+    @classmethod
+    def get_display_incident_name(cls, incident_name: str, status: str = None) -> str:
+        """获取用于展示的故障名称，不影响匿名故障识别逻辑。"""
+        status_value = getattr(status, "value", status)
+        if str(status_value).lower() == IncidentStatus.MERGED.value and cls.is_anonymous_incident(incident_name):
+            return cls.MERGED_ANONYMOUS_INCIDENT_NAME
+        return incident_name
 
     @classmethod
     def record_merge_incident(cls, operate_time: int, merge_info: dict = None, alert_count: int = None):
