@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef, watchEffect } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 
@@ -38,18 +38,27 @@ export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
   const defaultTableFields = shallowRef<string[]>([]);
   const storageKey = shallowRef<string>('');
-  watchEffect(() => {
-    storageKey.value = alarmStore.alarmService.storageKey;
-    defaultTableFields.value = alarmStore.alarmService.allTableColumns
-      .filter(item => item.is_default)
-      .map(item => item.colKey);
-  });
+  watch(
+    () => alarmStore.alarmService.storageKey,
+    val => {
+      storageKey.value = val;
+      defaultTableFields.value = alarmStore.alarmService.allTableColumns
+        .filter(item => item.is_default)
+        .map(item => item.colKey);
+    },
+    { immediate: true }
+  );
+
   const storageColumns = useStorage<string[]>(storageKey, defaultTableFields);
 
   /** 必须显示且不可编辑隐藏列 */
-  const lockedTableFields = computed(() =>
-    alarmStore.alarmService.allTableColumns.filter(item => item.is_locked).map(item => item.colKey)
-  );
+  const lockedTableFields = computed(() => {
+    const locked = alarmStore.alarmService.allTableColumns.filter(item => item.is_locked).map(item => item.colKey);
+    if (alarmStore.alarmType === AlarmType.ALERT) {
+      return ['row-select', ...locked];
+    }
+    return locked;
+  });
   const tableColumns = computed<TableColumnItem[]>(() => {
     return allTableFields.value
       .map(({ field }) => {

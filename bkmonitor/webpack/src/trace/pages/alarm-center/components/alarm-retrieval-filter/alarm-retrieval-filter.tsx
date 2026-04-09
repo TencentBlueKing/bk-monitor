@@ -145,6 +145,7 @@ export default defineComponent({
     bizIdsChange: (_v: (number | string)[]) => true,
     favoriteSave: (_isEdit: boolean) => true,
     showResidentBtnChange: (_v: boolean) => true,
+    copyWhere: (_v: CommonCondition[]) => true,
   },
   setup(_props, { emit }) {
     const { t } = useI18n();
@@ -185,6 +186,9 @@ export default defineComponent({
     const handleShowResidentBtnChange = val => {
       emit('showResidentBtnChange', val);
     };
+    const handleCopyWhere = val => {
+      emit('copyWhere', val);
+    };
 
     return {
       showAlarmModule,
@@ -197,6 +201,7 @@ export default defineComponent({
       handleBizIdsChange,
       handleFavoriteSave,
       handleShowResidentBtnChange,
+      handleCopyWhere,
       ...useSpaceSelect(),
     };
   },
@@ -230,6 +235,7 @@ export default defineComponent({
         selectFavorite={this.selectFavorite}
         where={this.conditions}
         onCommonWhereChange={this.handleResidentConditionChange}
+        onCopyWhere={this.handleCopyWhere}
         onFavorite={this.handleFavoriteSave}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}

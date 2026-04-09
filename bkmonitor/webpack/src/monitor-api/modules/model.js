@@ -186,6 +186,7 @@ export const retrieveStrategyTemplate = request('GET', 'apm/strategy/strategy_te
 export const searchStrategyTemplate = request('POST', 'apm/strategy/strategy_template/search/');
 export const unapplyStrategyTemplate = request('POST', 'apm/strategy/strategy_template/unapply/');
 export const updateStrategyTemplate = request('PUT', 'apm/strategy/strategy_template/{pk}/');
+export const alertBuiltinFilter = request('POST', 'apm/strategy/alert/builtin_filter/');
 export const groupsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/groups/');
 export const executeIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/execute/');
 
@@ -376,6 +377,7 @@ export default {
   searchStrategyTemplate,
   unapplyStrategyTemplate,
   updateStrategyTemplate,
+  alertBuiltinFilter,
   groupsIpChooserDynamicGroup,
   executeIpChooserDynamicGroup,
 };

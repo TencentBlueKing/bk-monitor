@@ -20,7 +20,7 @@ the project delivered to anyone in the future.
 """
 
 from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy as _lazy
+from django.utils.translation import gettext_lazy
 
 from apps.utils import ChoicesEnum
 
@@ -205,9 +205,9 @@ class StrategiesAlarmLevelEnum(ChoicesEnum):
     REMIND = 3
 
     _choices_labels = (
-        (CRITICAL, _lazy("致命")),
-        (WARNING, _lazy("预警")),
-        (REMIND, _lazy("提醒")),
+        (CRITICAL, gettext_lazy("致命")),
+        (WARNING, gettext_lazy("预警")),
+        (REMIND, gettext_lazy("提醒")),
     )
 
 
@@ -221,13 +221,13 @@ class YearOnYearEnum(ChoicesEnum):
     ONE_DAY = 24
 
     _choices_labels = (
-        (NOT, _lazy("不比对")),
-        (ONE_HOUR, _lazy("1小时前")),
-        (TWO_HOUR, _lazy("2小时前")),
-        (THREE_HOUR, _lazy("3小时前")),
-        (SIX_HOUR, _lazy("6小时前")),
-        (HALF_DAY, _lazy("12小时前")),
-        (ONE_DAY, _lazy("24小时前")),
+        (NOT, gettext_lazy("不比对")),
+        (ONE_HOUR, gettext_lazy("1小时前")),
+        (TWO_HOUR, gettext_lazy("2小时前")),
+        (THREE_HOUR, gettext_lazy("3小时前")),
+        (SIX_HOUR, gettext_lazy("6小时前")),
+        (HALF_DAY, gettext_lazy("12小时前")),
+        (ONE_DAY, gettext_lazy("24小时前")),
     )
 
 
@@ -247,6 +247,16 @@ class ActionEnum(ChoicesEnum):
             cls.CREATE.value,
             cls.DELETE.value,
         )
+
+
+class StorageTypeEnum(ChoicesEnum):
+    ELASTICSEARCH = "elasticsearch"
+    DORIS = "doris"
+
+    _choices_labels = (
+        (ELASTICSEARCH, _("Elasticsearch")),
+        (DORIS, _("Doris")),
+    )
 
 
 # 日志聚类失败重试次数

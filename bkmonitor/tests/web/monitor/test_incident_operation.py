@@ -17,6 +17,18 @@ from constants.incident import IncidentOperationType
 
 
 class TestIncidentOperationManager(SimpleTestCase):
+    def test_get_display_incident_name_should_map_merged_anonymous_incident(self):
+        display_name = IncidentOperationManager.get_display_incident_name("new_incident_1002", status="merged")
+
+        self.assertEqual(display_name, "已合并匿名故障")
+
+    def test_get_display_incident_name_should_keep_non_merged_or_named_incident(self):
+        self.assertEqual(
+            IncidentOperationManager.get_display_incident_name("new_incident_1002", status="abnormal"),
+            "new_incident_1002",
+        )
+        self.assertEqual(IncidentOperationManager.get_display_incident_name("故障A", status="merged"), "故障A")
+
     def test_record_merge_incident_should_send_notice_for_real_incident_merge(self):
         merge_info = {
             "origin_incident_id": 1001,

@@ -165,7 +165,7 @@ class K8sInstaller(BaseInstaller):
         # 渲染yaml配置
         if isinstance(yaml_template, str):
             yaml_str: str = jinja_render(yaml_template, context)
-            config: dict[str, Any] = yaml.load(yaml_str, Loader=yaml.FullLoader)
+            config: dict[str, Any] = yaml.safe_load(yaml_str)
         else:
             config = yaml_template
 
