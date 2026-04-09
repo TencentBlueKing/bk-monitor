@@ -45,14 +45,7 @@ from apps.log_esquery.serializers import (
     EsQueryMappingAttrSerializer,
     EsQueryScrollAttrSerializer,
     EsQuerySearchAttrSerializer,
-    SceneAggFieldSerializer,
-    SceneDateHistogramSerializer,
-    SceneFieldsSerializer,
-    SceneSearchSerializer,
-    SceneTotalSerializer,
 )
-from apps.log_search.handlers.scene_search import AllConditionsBuilder
-from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_search.models import Scenario
 from apps.utils.drf import list_route
 
@@ -922,90 +915,3 @@ class EsQueryViewSet(APIViewSet):
         data = self.params_valid(EsQueryEsRouteSerializer)
         return Response(EsQuery(data).es_route())
 
-    # ---- 场景化检索接口组 ----
-
-    @list_route(methods=["GET"], url_path="scene_search/scenes")
-    def scene_search_scenes(self, request):
-        """
-        @api {get} /esquery/scene_search/scenes/ 场景化检索-场景列表
-        @apiName scene_search_scenes
-        @apiGroup 13_Esquery
-        @apiDescription 返回所有可用场景及其维度定义，前端据此渲染场景选择器和维度筛选器，
-            并拼装 table_id_conditions。
-        """
-        from apps.log_databus.constants import SCENE_SEARCH_DIMENSIONS
-        from apps.log_search.constants import SceneLabelEnum
-
-        scenes = []
-        for value, label in SceneLabelEnum._choices_labels:
-            scenes.append({
-                "id": value,
-                "name": str(label),
-                "dimensions": SCENE_SEARCH_DIMENSIONS.get(value, []),
-            })
-        return Response(scenes)
-
-    @list_route(methods=["POST"], url_path="scene_search/search")
-    def scene_search(self, request):
-        """
-        @api {post} /esquery/scene_search/search/ 场景化检索-日志内容
-        @apiName scene_search
-        @apiGroup 13_Esquery
-        @apiDescription 通过 table_id_conditions 路由选表，完整支持现有 search 接口的所有查询参数。
-        """
-        data = self.params_valid(SceneSearchSerializer)
-        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
-        handler = SceneUnifyQueryHandler(data)
-        return Response(handler.search())
-
-    @list_route(methods=["POST"], url_path="scene_search/fields")
-    def scene_search_fields(self, request):
-        """
-        @api {post} /esquery/scene_search/fields/ 场景化检索-字段列表
-        @apiName scene_search_fields
-        @apiGroup 13_Esquery
-        @apiDescription 获取场景下匹配结果表的聚合字段列表。
-        """
-        data = self.params_valid(SceneFieldsSerializer)
-        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
-        handler = SceneUnifyQueryHandler(data)
-        return Response(handler.fields(scope=data.get("scope", "default")))
-
-    @list_route(methods=["POST"], url_path="scene_search/date_histogram")
-    def scene_search_date_histogram(self, request):
-        """
-        @api {post} /esquery/scene_search/date_histogram/ 场景化检索-趋势图
-        @apiName scene_search_date_histogram
-        @apiGroup 13_Esquery
-        @apiDescription 获取场景下日志时间分布趋势图数据。
-        """
-        data = self.params_valid(SceneDateHistogramSerializer)
-        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
-        handler = SceneUnifyQueryHandler(data)
-        return Response(handler.date_histogram(interval=data.get("interval", "auto")))
-
-    @list_route(methods=["POST"], url_path="scene_search/agg_field")
-    def scene_search_agg_field(self, request):
-        """
-        @api {post} /esquery/scene_search/agg_field/ 场景化检索-字段聚合统计
-        @apiName scene_search_agg_field
-        @apiGroup 13_Esquery
-        @apiDescription 获取场景下指定字段的 Top N 聚合统计。
-        """
-        data = self.params_valid(SceneAggFieldSerializer)
-        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
-        handler = SceneUnifyQueryHandler(data)
-        return Response(handler.agg_field(agg_field=data["agg_field"]))
-
-    @list_route(methods=["POST"], url_path="scene_search/total")
-    def scene_search_total(self, request):
-        """
-        @api {post} /esquery/scene_search/total/ 场景化检索-总数统计
-        @apiName scene_search_total
-        @apiGroup 13_Esquery
-        @apiDescription 获取场景下匹配日志的总条数。
-        """
-        data = self.params_valid(SceneTotalSerializer)
-        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
-        handler = SceneUnifyQueryHandler(data)
-        return Response(handler.total())
