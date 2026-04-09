@@ -143,7 +143,7 @@ class SceneSearchViewSet(APIViewSet):
         from apps.log_search.constants import SceneLabelEnum
 
         scenes = []
-        for value, label in SceneLabelEnum._choices_labels:
+        for value, label in SceneLabelEnum.get_choices():
             scenes.append({
                 "id": value,
                 "name": str(label),
