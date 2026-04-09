@@ -4,6 +4,10 @@
 }
 
 .apm-bk-sideslider, .apm-alarm-center-page {
+    .mr-24 {
+        margin-right: 24px;
+    }
+
     .ml-16 {
         margin-left: 16px;
     }
@@ -13,9 +17,25 @@
     }
 }
 
-// 处理apm下padding被污染问题
-#apm .tippy-box[data-theme~='apm-tippy-padding0'] {
-    .tippy-content {
-        padding: 0;
+#apm {
+    // 处理apm下padding被污染问题
+    .tippy-box[data-theme~='padding-0'] {
+        .tippy-content {
+            padding: 0;
+        }
+    }
+
+    // 告警详情异常
+    .event-detail-head-main {
+        // tag内的icon
+        .level-tag {
+            margin-right: 0;
+            line-height: 13px;
+        }
+
+        // id内的icon
+        .temporary-share {
+            line-height: 20px;
+        }
     }
 }
