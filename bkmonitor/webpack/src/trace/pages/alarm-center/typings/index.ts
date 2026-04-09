@@ -51,14 +51,14 @@ export interface AlarmUrlParams {
   conditions: string;
   /** 当前页码 */
   currentPage: number;
+  /** 详情bizId */
+  detailBizId?: number;
   /** 详情ID */
-  detail?: string;
+  detailId?: string;
   /** 筛选模式 */
   filterMode: EMode;
   /** 开始时间 */
   from: string;
-  /** issue bizId (用于issues详情)*/
-  issueBizId?: number;
   /** issue 首次告警时间 (用于issues详情) */
   issueFirstAlarmTime?: string;
   /** 查询字符串 */

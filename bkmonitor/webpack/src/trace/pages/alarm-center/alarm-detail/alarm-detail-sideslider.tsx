@@ -45,6 +45,10 @@ import './alarm-detail-sideslider.scss';
 export default defineComponent({
   name: 'AlarmCenterDetail',
   props: {
+    alarmBizId: {
+      type: Number,
+      default: +window.bk_biz_id,
+    },
     alarmId: {
       type: String,
       required: true,
@@ -71,7 +75,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, actionId, alarmType, defaultTab, alarmDetail, actionDetail } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType, defaultTab, alarmDetail, actionDetail, bizId } =
+      storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -104,6 +109,7 @@ export default defineComponent({
     watch(
       () => props.alarmId,
       newVal => {
+        bizId.value = props.alarmBizId;
         if (alarmType.value === AlarmType.ALERT && newVal && newVal !== alarmId.value) {
           alarmId.value = newVal;
           return;
@@ -150,7 +156,7 @@ export default defineComponent({
 
     const handleBlank = () => {
       const hash = `#/trace/alarm-center/detail/${props.alarmId}`;
-      const url = location.href.replace(location.hash, hash);
+      const url = `${location.origin}${location.pathname}?bizId=${props.alarmBizId}${hash}`;
       window.open(url, '_blank');
     };
 

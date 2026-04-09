@@ -348,6 +348,7 @@ export default defineComponent({
         />
         <Feedback
           key='feedback'
+          alarmBizId={this.alarmDetail?.bk_biz_id}
           ids={[this.alarmDetail?.id]}
           show={this.feedbackDialog}
           onConfirm={this.handleFeedBackConfirm}
