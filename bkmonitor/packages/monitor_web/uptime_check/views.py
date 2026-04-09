@@ -219,7 +219,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         # 1) 组装并校验请求参数（统一使用 UptimeCheckNode 进行约束）
         node_payload = {
             "bk_tenant_id": bk_tenant_id,
-            "bk_biz_id": request_data.get("bk_biz_id"),
+            "bk_biz_id": int(request_data["bk_biz_id"]),
             "name": request_data.get("name"),
             "is_common": request_data.get("is_common", False),
             "biz_scope": request_data.get("biz_scope", []),
@@ -277,7 +277,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         node_payload = {
             "bk_tenant_id": bk_tenant_id,
             "id": node_define.id,
-            "bk_biz_id": request_data.get("bk_biz_id", node_define.bk_biz_id),
+            "bk_biz_id": int(request_data.get("bk_biz_id", node_define.bk_biz_id)),
             "name": request_data.get("name", node_define.name),
             "is_common": request_data.get("is_common", node_define.is_common),
             "biz_scope": request_data.get("biz_scope", node_define.biz_scope),
@@ -481,7 +481,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         """
         # filter() 时, 在mysql里，'name=' 会忽略结尾空格，而'name__startswith'不会。故在进行校验时，将结尾空格去掉。
         name = request.GET.get("name", "").rstrip()
-        bk_biz_id = request.GET.get("bk_biz_id")
+        bk_biz_id = int(request.GET["bk_biz_id"])
         node_id = request.GET.get("id")
         bk_tenant_id = cast(str, get_request_tenant_id())
 

@@ -11,18 +11,17 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
-import os
 import urllib.parse
 from typing import Any
 
 import requests
 from celery.schedules import crontab
 from django.conf import settings
-from kombu.utils.url import parse_url
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.lock.service_lock import share_lock
+from alarm_backends.core.storage.redis import cache_conf_with_router
 from alarm_backends.service.new_report.tasks import new_report_detect
 from alarm_backends.service.report.tasks import (
     collect_redis_metric,
@@ -36,6 +35,26 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("bkmonitor.cron_report")
+
+
+def _build_alarm_cache_redis_options() -> dict[str, Any]:
+    """构建同步给 BMW 的 CMDB 缓存 Redis 配置。"""
+    cache_redis_conf = cache_conf_with_router("cache-cmdb") or settings.REDIS_CACHE_CONF
+    hosts = [host.strip() for host in cache_redis_conf["host"].split(";") if host.strip()]
+    addrs = [f"{host}:{cache_redis_conf['port']}" for host in hosts]
+    cache_backend_type = cache_redis_conf.get("_cache_type", settings.CACHE_BACKEND_TYPE)
+
+    if not addrs:
+        raise ValueError("redis addrs is empty for alarm cache task registration")
+
+    return {
+        "addrs": addrs,
+        "db": cache_redis_conf["db"],
+        "master_name": cache_redis_conf.get("master_name"),
+        "mode": "standalone" if cache_backend_type in {"RedisCache", "redis"} else "sentinel",
+        "password": cache_redis_conf.get("password"),
+        "sentinel_password": cache_redis_conf.get("sentinel_password"),
+    }
 
 
 @share_lock()
@@ -54,34 +73,7 @@ def register_alarm_cache_bmw_task():
     if not bmw_api_url:
         return
 
-    # 获取 redis 配置
-    cache_redis_conf = settings.REDIS_CACHE_CONF
-    if os.getenv("REDIS_CACHE_CMDB_URL"):
-        cmdb_redis_conf: dict[str, Any] = parse_url(os.getenv("REDIS_CACHE_CMDB_URL"))
-        hosts = [host.strip() for host in cmdb_redis_conf["hostname"].split(";") if host.strip()]
-        addrs = [f"{host}:{cmdb_redis_conf['port']}" for host in hosts]
-        redis_options = {
-            "addrs": addrs,
-            "db": int(cmdb_redis_conf["virtual_host"]) if cmdb_redis_conf.get("virtual_host") else 0,
-            "master_name": cmdb_redis_conf.get("userid"),
-            "mode": "standalone" if cmdb_redis_conf["transport"] == "redis" else "sentinel",
-            "password": cmdb_redis_conf.get("password"),
-            "sentinel_password": None,
-        }
-    else:
-        hosts = [host.strip() for host in cache_redis_conf["host"].split(";") if host.strip()]
-        addrs = [f"{host}:{cache_redis_conf['port']}" for host in hosts]
-        redis_options = {
-            "addrs": addrs,
-            "db": cache_redis_conf["db"],
-            "master_name": cache_redis_conf.get("master_name"),
-            "mode": "standalone" if settings.CACHE_BACKEND_TYPE == "RedisCache" else "sentinel",
-            "password": cache_redis_conf.get("password"),
-            "sentinel_password": cache_redis_conf.get("sentinel_password"),
-        }
-
-    if not addrs:
-        raise ValueError("redis addrs is empty for alarm cache task registration")
+    redis_options = _build_alarm_cache_redis_options()
 
     # 参数准备
     task_kind_params: dict[str, Any] = {
@@ -117,7 +109,7 @@ def register_alarm_cache_bmw_task():
 
     # 获取已注册的告警缓存刷新任务
     url = urllib.parse.urljoin(bmw_api_url, "bmw/task/")
-    r = requests.get(url=url, params={"task_type": "daemon"}, timeout=20)
+    r = requests.get(url=url, params={"task_type": "daemon"}, timeout=60)
     if r.status_code != 200:
         logger.error(f"获取已注册的告警缓存刷新任务失败: {r.text}")
     try:

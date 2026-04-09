@@ -35,6 +35,7 @@ from apps.tgpa.constants import (
     FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE,
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_FILE_DOWNLOAD_CHUNK_SIZE,
+    TGPA_REPORT_FILE_NAME_PREFIX,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
@@ -230,7 +231,13 @@ class TGPATaskHandler:
         """
         下载并处理文件
         """
-        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields, self.decrypt_handler)
+        file_handler = TGPAFileHandler(
+            temp_dir=self.temp_dir,
+            output_dir=self.output_dir,
+            meta_fields=self.meta_fields,
+            decrypt_handler=self.decrypt_handler,
+            bk_biz_id=self.bk_biz_id,
+        )
         file_handler.download_and_process_file(self.task_info["file_name"])
 
     @staticmethod
@@ -238,18 +245,20 @@ class TGPATaskHandler:
         """
         下载、解密、重新打包文件，并返回流式迭代器和文件信息
         :param bk_biz_id: 业务ID
-        :param file_name: COS上的文件名
+        :param file_name: 文件名
         :return: (file_iterator, file_name, file_size)
         """
         feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
         feature_config = feature_toggle.feature_config
         max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
-        file_info = TGPAFileHandler.get_cos_file_info(file_name)
+        file_info = TGPAFileHandler.get_file_info(file_name, bk_biz_id=bk_biz_id)
         decrypt_handler = get_decrypt_handler(bk_biz_id)
-        if file_info["content_length"] > max_size or not decrypt_handler:
-            # 文件大小超限或无需解密：直接从COS流式转发，不落盘，节省服务器磁盘和内存资源
+        # 用户上报文件不需要解密，直接流式转发（先直接在这个接口兼容，后续有其他需求再拆分模块）
+        is_user_report_file = os.path.basename(file_name).startswith(TGPA_REPORT_FILE_NAME_PREFIX)
+        if file_info["content_length"] > max_size or not decrypt_handler or is_user_report_file:
+            # 文件大小超限或无需解密：直接从流式转发，不落盘，节省服务器磁盘和内存资源
             return (
-                TGPAFileHandler.stream_from_cos(file_name),
+                TGPAFileHandler.get_file_stream(file_name, bk_biz_id=bk_biz_id),
                 os.path.basename(file_name),
                 file_info["content_length"],
             )
@@ -260,7 +269,7 @@ class TGPATaskHandler:
         temp_dir = os.path.join(base_dir, "temp")
         output_dir = os.path.join(base_dir, "output")
 
-        file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler)
+        file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler, bk_biz_id=bk_biz_id)
         result_path = file_handler.download_and_repack_file(file_name)
 
         result_file_name = os.path.basename(result_path)

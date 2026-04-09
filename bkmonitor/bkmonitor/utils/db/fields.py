@@ -132,7 +132,7 @@ class YamlField(models.TextField):
         return yaml.safe_dump(value)
 
     def from_db_value(self, value, expression, connection):
-        return yaml.load(value or "", Loader=yaml.FullLoader)
+        return yaml.safe_load(value or "")
 
 
 class SymmetricJsonField(SymmetricTextField):

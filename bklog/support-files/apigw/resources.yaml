@@ -3109,3 +3109,91 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /clustering_config/list_configs/:
+    get:
+      operationId: list_clustering_configs
+      description: 日志平台-获取聚类配置
+      tags:
+      - 聚类
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/clustering_config/list_configs/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /query/ts/:
+    post:
+      operationId: query_ts
+      description: 查询日志转指标数据 (时序类型)
+      tags:
+      - 统一查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/query/ts/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /query/ts/reference/:
+    post:
+      operationId: query_ts_reference
+      description: 查询日志转指标数据 (非时序类型)
+      tags:
+      - 统一查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/query/ts/reference/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /query/ts/raw/:
+    post:
+      operationId: query_ts_raw
+      description: 查询日志原始数据
+      tags:
+      - 统一查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/query/ts/raw/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:

@@ -123,7 +123,8 @@ class Algorithms:
         if not self.desc_tpl:
             return ""
         context = Context(self.get_context(data_point))
-        return Template(self.desc_tpl).render(context)
+        # 这里的模板固定可控，但是安全扫描提示风险，因此添加忽略
+        return Template(self.desc_tpl).render(context)  # nosec
 
     def detect_records(self, data_points, level):
         """

@@ -1009,6 +1009,16 @@ ISSUE_ACTIVE_CONTENT_KEY = register_key_with_config(
     }
 )
 
+TRIGGER_EVENT_RATE_LIMIT_KEY = register_key_with_config(
+    {
+        "label": "[trigger]策略+item+数据时间戳 event 限流计数器",
+        "key_type": "string",
+        "key_tpl": "trigger.event.rate_limit.{strategy_id}.{item_id}.{source_time}",
+        "ttl": 10 * CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
 ISSUE_STRATEGY_LOCK = register_key_with_config(
     {
         "label": "[issue]Issue策略级分布式锁",

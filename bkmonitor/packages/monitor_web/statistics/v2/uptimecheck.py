@@ -8,15 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections import defaultdict
+from collections.abc import Iterable
 from django.utils.functional import cached_property
 from functools import lru_cache
 
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bk_monitor_base.uptime_check import UptimeCheckNode, UptimeCheckTask
 from core.drf_resource import resource
 from core.statistics.metric import Metric, register
-from monitor_web.models.uptime_check import (
-    UptimeCheckGroup,
-    UptimeCheckNode,
-    UptimeCheckTask,
+from bk_monitor_base.uptime_check import (
+    list_groups,
+    list_nodes,
+    list_tasks,
 )
 from monitor_web.statistics.v2.base import BaseCollector
 
@@ -27,29 +31,66 @@ class UptimeCheckCollector(BaseCollector):
     """
 
     @cached_property
-    def uptimecheck_nodes(self):
-        return UptimeCheckNode.objects.filter(bk_biz_id__in=self.biz_info.keys())
+    def valid_biz_ids(self) -> set[int]:
+        return set(self.biz_info.keys())
+
+    @cached_property
+    def biz_ids_by_tenant(self) -> dict[str, list[int]]:
+        # 先按租户归类业务，避免后续按租户拉 group 时出现跨租户查询。
+        biz_ids_by_tenant = defaultdict(list)
+        for bk_biz_id in self.valid_biz_ids:
+            biz_ids_by_tenant[bk_biz_id_to_bk_tenant_id(bk_biz_id)].append(bk_biz_id)
+        return dict(biz_ids_by_tenant)
+
+    @cached_property
+    def uptimecheck_tasks(self) -> list[UptimeCheckTask]:
+        return list_tasks(fields=["id", "bk_biz_id", "protocol", "status", "node_ids"])
+
+    @cached_property
+    def node_task_count_mapping(self) -> dict[int, int]:
+        # 一次性聚合任务与节点关系，避免在节点循环里反复查询任务列表。
+        task_count_mapping = defaultdict(int)
+        for task in self.uptimecheck_tasks:
+            if task.bk_biz_id not in self.valid_biz_ids:
+                continue
+            for node_id in task.node_ids:
+                task_count_mapping[int(node_id)] += 1
+        return dict(task_count_mapping)
+
+    @cached_property
+    def uptimecheck_nodes(self) -> list[UptimeCheckNode]:
+        """获取所有有效业务的拨测节点"""
+        all_nodes = []
+        # 按租户获取节点
+        for tenant in self.tenants:
+            if tenant["status"] != "enabled":
+                continue
+            nodes = list_nodes(bk_tenant_id=tenant["id"])
+            # 过滤有效业务的节点
+            all_nodes.extend([node for node in nodes if node.bk_biz_id in self.valid_biz_ids])
+        return all_nodes
 
     @lru_cache(maxsize=100)
-    def all_node_status(self, bk_tenant_id: int):
+    def all_node_status(self, bk_tenant_id: str) -> Iterable[dict]:
         return resource.uptime_check.uptime_check_beat(bk_tenant_id=bk_tenant_id)
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "protocol", "status"))
-    def uptimecheck_task_count(self, metric: Metric):
+    def uptimecheck_task_count(self, metric: Metric) -> None:
         """
         拨测任务数
         """
-        tasks = UptimeCheckTask.objects.filter(bk_biz_id__in=list(self.biz_info.keys()))
-        for task in tasks:
+        for task in self.uptimecheck_tasks:
+            if task.bk_biz_id not in self.valid_biz_ids:
+                continue
             metric.labels(
                 bk_biz_id=task.bk_biz_id,
                 bk_biz_name=self.get_biz_name(task.bk_biz_id),
-                protocol=task.protocol,
-                status=task.status,
+                protocol=task.protocol.value,
+                status=task.status.value,
             ).inc()
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "is_public", "node_id", "node_name"))
-    def uptimecheck_node_task_count(self, metric: Metric):
+    def uptimecheck_node_task_count(self, metric: Metric) -> None:
         """
         节点的拨测任务数
         """
@@ -60,10 +101,10 @@ class UptimeCheckCollector(BaseCollector):
                 is_public=1 if node.is_common else 0,
                 node_id=node.id,
                 node_name=node.name,
-            ).inc(node.tasks.all().count())
+            ).inc(self.node_task_count_mapping.get(node.id, 0))
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "is_public", "status"))
-    def uptimecheck_node_count(self, metric: Metric):
+    def uptimecheck_node_count(self, metric: Metric) -> None:
         """
         拨测节点数
         """
@@ -87,10 +128,15 @@ class UptimeCheckCollector(BaseCollector):
             ).inc()
 
     @register(labelnames=("bk_biz_id", "bk_biz_name"))
-    def uptimecheck_task_group_count(self, metric: Metric):
+    def uptimecheck_task_group_count(self, metric: Metric) -> None:
         """
         拨测任务组数
         """
-        groups = UptimeCheckGroup.objects.filter(bk_biz_id__in=self.biz_info.keys())
-        for group in groups:
-            metric.labels(bk_biz_id=group.bk_biz_id, bk_biz_name=self.get_biz_name(group.bk_biz_id)).inc()
+        # 按租户获取分组
+        for tenant in self.tenants:
+            if tenant["status"] != "enabled":
+                continue
+            for bk_biz_id in self.biz_ids_by_tenant.get(tenant["id"], []):
+                groups = list_groups(bk_tenant_id=tenant["id"], bk_biz_id=bk_biz_id)
+                for group in groups:
+                    metric.labels(bk_biz_id=group.bk_biz_id, bk_biz_name=self.get_biz_name(group.bk_biz_id)).inc()

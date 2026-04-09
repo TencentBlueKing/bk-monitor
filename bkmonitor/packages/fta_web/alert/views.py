@@ -130,7 +130,13 @@ class AlertViewSet(ResourceViewSet):
         return True
 
     def check_permissions(self, request):
-        if self.action in ["search_history", "list_index_by_host", "validate_query_string", "allowed_biz"]:
+        if self.action in [
+            "search_history",
+            "list_index_by_host",
+            "validate_query_string",
+            "generate_query_string",
+            "allowed_biz",
+        ]:
             return
         elif self.action == "alert/search":
             permission = BusinessActionPermission([ActionEnum.VIEW_EVENT, ActionEnum.VIEW_BUSINESS])
@@ -191,6 +197,7 @@ class AlertViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.alert.export_action, endpoint="action/export"),
         ResourceRoute("POST", resource.alert.action_date_histogram, endpoint="action/date_histogram"),
         ResourceRoute("POST", resource.alert.validate_query_string, endpoint="validate_query_string"),
+        ResourceRoute("POST", resource.alert.generate_query_string, endpoint="generate_query_string"),
         # 策略配置快照详情
         ResourceRoute("GET", resource.alert.strategy_snapshot, endpoint="strategy_snapshot"),
         ResourceRoute("POST", resource.alert.alert_top_n, endpoint="alert/top_n"),

@@ -17,14 +17,14 @@ from collections.abc import Iterable
 from apm.models import LogDataSource, MetricDataSource, ProfileDataSource, TraceDataSource
 from metadata.migration_util import filter_apm_log_table_ids
 from metadata.models import BCSClusterInfo, DataSource, DataSourceResultTable, ResultTable
+from metadata.models.storage import ESStorage
 from monitor.models import UptimeCheckTask
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import CollectorPluginMeta, CustomEventGroup, CustomTSTable, PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 
-
-INVALID_DATA_ID_VALUES = {None, 0, -1}
-INVALID_TABLE_ID_VALUES = {None, ""}
+INVALID_DATA_ID_VALUES: tuple[None, int, int] = (None, 0, -1)
+INVALID_TABLE_ID_VALUES: tuple[None, str] = (None, "")
 
 
 def _add_data_ids(container: set[int], values: Iterable[int | None]) -> None:
@@ -159,8 +159,20 @@ def _collect_bk_flat_batch_log_data(bk_biz_id: int, table_ids: set[str], data_id
     apm_log_tables = set(filter_apm_log_table_ids(DataSource, DataSourceResultTable)["apm"])
     dsrt_queryset = DataSourceResultTable.objects.filter(table_id__in=biz_table_ids, bk_data_id__in=flat_batch_data_ids)
     dsrt_queryset = dsrt_queryset.exclude(table_id__in=apm_log_tables)
-    _add_table_ids(table_ids, dsrt_queryset.values_list("table_id", flat=True).distinct())
+    physical_table_ids = set(dsrt_queryset.values_list("table_id", flat=True).distinct())
+    _add_table_ids(table_ids, physical_table_ids)
     _add_data_ids(data_ids, dsrt_queryset.values_list("bk_data_id", flat=True).distinct())
+
+    # 通过 ESStorage.origin_table_id 查找关联的虚拟表，虚拟 RT 没有自己的
+    # DataSourceResultTable 记录，只能通过 origin_table_id 反查
+    if physical_table_ids:
+        virtual_table_ids = set(
+            ESStorage.objects.filter(origin_table_id__in=physical_table_ids)
+            .exclude(table_id__in=physical_table_ids)
+            .values_list("table_id", flat=True)
+            .distinct()
+        )
+        _add_table_ids(table_ids, virtual_table_ids)
 
 
 def _collect_uptimecheck_data(bk_biz_id: int, table_ids: set[str], data_ids: set[int]) -> None:

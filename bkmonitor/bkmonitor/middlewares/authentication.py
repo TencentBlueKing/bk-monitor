@@ -106,7 +106,9 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
             if settings.ENABLE_MULTI_TENANT_MODE and hasattr(request.user, "tenant_id"):
                 db_user = get_user_model().objects.get(username=request.user.username)
                 if db_user.tenant_id != request.user.tenant_id:
-                    logger.error(f"user tenant_id is {db_user.tenant_id} not match {request.user.tenant_id}")
+                    logger.error(
+                        f"user({db_user.username}) tenant_id is {db_user.tenant_id} not match {request.user.tenant_id}"
+                    )
                     db_user.tenant_id = request.user.tenant_id
                     db_user.save()
 

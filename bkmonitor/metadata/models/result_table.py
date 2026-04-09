@@ -30,6 +30,7 @@ from core.drf_resource import api
 from metadata import config
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromSystem
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR
 from metadata.utils.basic import getitems
 
 from .common import BaseModel, Label, OptionBase
@@ -41,6 +42,7 @@ from .storage import (
     ArgusStorage,
     BkDataStorage,
     ClusterInfo,
+    DorisStorage,
     ESStorage,
     InfluxDBStorage,
     KafkaStorage,
@@ -68,6 +70,7 @@ class ResultTable(models.Model):
     # TODO: 多租户 下面所有的存储实体表都需要添加 bk_tenant_id
     REAL_STORAGE_DICT = {
         ClusterInfo.TYPE_ES: ESStorage,
+        ClusterInfo.TYPE_DORIS: DorisStorage,
         ClusterInfo.TYPE_INFLUXDB: InfluxDBStorage,
         ClusterInfo.TYPE_REDIS: RedisStorage,
         ClusterInfo.TYPE_KAFKA: KafkaStorage,
@@ -605,7 +608,19 @@ class ResultTable(models.Model):
                 datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
+
+            # 如果是插件清洗类型，并且单独开启插件V4链路，则使用V4链路
+            is_plugin_v4_datalink = options.get(
+                ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False
+            ) and datasource.etl_config in [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
+            if is_plugin_v4_datalink and not is_v4_datalink_etl_config:
+                is_v4_datalink_etl_config = True
+
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
+                # 插件类型额外判定,如果数据源是GSE创建的，则需要注册到BKBASE
+                if is_plugin_v4_datalink and datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
+                    datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
+
                 # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
                 # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
                 bk_data_id = datasource.bk_data_id
@@ -911,7 +926,6 @@ class ResultTable(models.Model):
             for ex_storage_type, ex_storage_config in list(external_storage.items()):
                 try:
                     ex_storage = self.REAL_STORAGE_DICT[ex_storage_type]
-
                 except KeyError:
                     logger.error(
                         f"try to set storage->[{ex_storage_type}] for table->[{self.table_id}] of bk_tenant_id->[{bk_tenant_id}] "
@@ -2308,7 +2322,7 @@ class ResultTableField(models.Model):
         fields, field_names, option_data = cls()._compose_data(table_id, field_data, bk_tenant_id=bk_tenant_id)
 
         # 校验字段是否已经创建
-        cls()._check_existed_fields(table_id, field_names)
+        cls()._check_existed_fields(table_id, field_names, bk_tenant_id=bk_tenant_id)
 
         # 写入数据
         cls.objects.bulk_create([cls(**field) for field in fields])
@@ -2858,6 +2872,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
+    OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
 
     # 选项类型
