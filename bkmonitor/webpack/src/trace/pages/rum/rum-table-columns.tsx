@@ -31,12 +31,9 @@ import type { RumAppRow } from './rum-mock-data';
 export type RumMetricTone = 'bad' | 'empty' | 'good' | 'warning';
 
 export type RumTableColKey =
-  | 'accessStatus'
   | 'actions'
   | 'apiFailRate'
-  | 'appStatus'
   | 'createdAt'
-  | 'creator'
   | 'dataStatus'
   | 'domain'
   | 'jsErrorRate'
@@ -88,9 +85,6 @@ export const RUM_TABLE_FIELD_META: { field: RumTableColKey; label: string; locke
   { field: 'jsErrorRate', label: 'JS 错误率' },
   { field: 'apiFailRate', label: 'API 失败率' },
   { field: 'dataStatus', label: '数据状态' },
-  { field: 'accessStatus', label: '接入状态' },
-  { field: 'appStatus', label: '应用状态' },
-  { field: 'creator', label: '创建人' },
   { field: 'updatedAt', label: '最近更新时间' },
   { field: 'createdAt', label: '创建时间' },
   { field: 'actions', label: '操作', locked: true },
@@ -171,38 +165,6 @@ export function buildRumTableColumnMap(onConfigure: (row: RumAppRow) => void): R
             v-bk-tooltips={{ content: '异常' }}
           />
         ),
-    },
-    accessStatus: {
-      colKey: 'accessStatus',
-      title: '接入状态',
-      minWidth: 100,
-      filter: {
-        type: 'multiple',
-        resetValue: [],
-        list: [
-          { label: '已接入', value: '已接入' },
-          { label: '接入中', value: '接入中' },
-          { label: '未接入', value: '未接入' },
-        ],
-      },
-    },
-    appStatus: {
-      colKey: 'appStatus',
-      title: '应用状态',
-      minWidth: 100,
-      filter: {
-        type: 'multiple',
-        resetValue: [],
-        list: [
-          { label: '启用', value: '启用' },
-          { label: '停用', value: '停用' },
-        ],
-      },
-    },
-    creator: {
-      colKey: 'creator',
-      title: '创建人',
-      minWidth: 100,
     },
     updatedAt: {
       colKey: 'updatedAt',

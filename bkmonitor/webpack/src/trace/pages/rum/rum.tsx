@@ -23,270 +23,487 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 
-import { useStorage } from '@vueuse/core';
-import { Button, Input, Message } from 'bkui-vue';
-import { useRouter } from 'vue-router';
+import { computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { Button, SearchSelect } from 'bkui-vue';
+import { random } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+
+import CommonHeader from '../../components/common-header/common-header';
+import { getDefaultTimezone } from '../../i18n/dayjs';
 import CommonTable from '../alarm-center/components/alarm-table/components/common-table/common-table';
-import RumPageHeader from './components/rum-page-header';
-import { type RumAppRow, buildRumDemoRows } from './rum-mock-data';
-import {
-  buildRumTableColumnMap,
-  pickRumColumns,
-  RUM_DEFAULT_VISIBLE_FIELDS,
-  RUM_TABLE_FIELD_META,
-} from './rum-table-columns';
+import { type MetricTier, type RumAppRow, MOCK_TABLE_DATA } from './rum-mock';
 
 import type { TimeRangeType } from '../../components/time-range/utils';
-import type { FilterValue } from 'tdesign-vue-next';
+import type { BaseTableColumn } from '../trace-explore/components/trace-explore-table/typing';
+import type { FilterValue } from '@blueking/tdesign-ui';
+import type { BkUiSettings } from '@blueking/tdesign-ui';
+import type { GetMenuListFunc, ICommonItem, ISearchValue } from 'bkui-vue/lib/search-select/utils';
 
 import './rum.scss';
 
-const RUM_TIME_DEFAULT: TimeRangeType = ['now-15m', 'now'];
+type RumCriteriaKey = 'accessStatus' | 'alias' | 'appStatus' | 'dataStatus' | 'domain';
 
-function applySort(rows: RumAppRow[], sort: string): RumAppRow[] {
-  if (!sort) return rows;
-  const desc = sort.startsWith('-');
-  const key = desc ? sort.slice(1) : sort;
-  const mul = desc ? -1 : 1;
-  const list = [...rows];
-  list.sort((a, b) => {
-    switch (key) {
-      case 'lcpP75':
-        return compareNullableNumber(a.lcpP75Sec, b.lcpP75Sec, mul);
-      case 'jsErrorRate':
-        return compareNullableNumber(a.jsErrorRate, b.jsErrorRate, mul);
-      case 'apiFailRate':
-        return compareNullableNumber(a.apiFailRate, b.apiFailRate, mul);
-      case 'updatedAt':
-        return (a.updatedAt - b.updatedAt) * mul;
-      case 'createdAt':
-        return (a.createdAt - b.createdAt) * mul;
-      default:
-        return 0;
+type RumFilterCriteria = Partial<Record<RumCriteriaKey, string[]>>;
+
+/** 顶部 SearchSelect 支持的维度（与表头筛选项共用 rumCriteria，双向联动） */
+const SEARCH_DIMENSION_KEYS: RumCriteriaKey[] = ['domain', 'alias', 'accessStatus', 'appStatus'];
+
+/** 表头带筛选的列字段（含 dataStatus；与 criteriaToFilterValue 一致） */
+const TABLE_FILTER_KEYS: RumCriteriaKey[] = ['domain', 'alias', 'accessStatus', 'appStatus', 'dataStatus'];
+
+const uniqSorted = (arr: string[]) => [...new Set(arr)].sort((a, b) => a.localeCompare(b));
+
+const mergeSearchValuesIntoCriteria = (prev: RumFilterCriteria, values: ISearchValue[]): RumFilterCriteria => {
+  const next: RumFilterCriteria = { ...prev };
+  for (const key of SEARCH_DIMENSION_KEYS) {
+    delete next[key];
+  }
+  for (const sv of values) {
+    const id = sv.id as RumCriteriaKey;
+    if (!SEARCH_DIMENSION_KEYS.includes(id) || !sv.values?.length) continue;
+    next[id] = sv.values.map(x => x.id);
+  }
+  return next;
+};
+
+const mergeTableFilterIntoCriteria = (prev: RumFilterCriteria, value: FilterValue): RumFilterCriteria => {
+  const next: RumFilterCriteria = { ...prev };
+  for (const key of TABLE_FILTER_KEYS) {
+    if (!Object.hasOwn(value as object, key)) continue;
+    const v = value[key];
+    if (Array.isArray(v) && v.length) {
+      next[key] = v as string[];
+    } else {
+      delete next[key];
     }
-  });
-  return list;
-}
-
-function applyTableFilters(rows: RumAppRow[], fv: FilterValue): RumAppRow[] {
-  if (!fv || typeof fv !== 'object') return rows;
-  let list = rows;
-  const acc = fv.accessStatus;
-  if (Array.isArray(acc) && acc.length) {
-    list = list.filter(r => acc.includes(r.accessStatus));
   }
-  const st = fv.appStatus;
-  if (Array.isArray(st) && st.length) {
-    list = list.filter(r => st.includes(r.appStatus));
-  }
-  return list;
-}
+  return next;
+};
 
-function compareNullableNumber(a: null | number, b: null | number, mul: number) {
-  const aNull = a == null || Number.isNaN(a);
-  const bNull = b == null || Number.isNaN(b);
-  if (aNull && bNull) return 0;
-  if (aNull) return mul > 0 ? 1 : -1;
-  if (bNull) return mul > 0 ? -1 : 1;
-  if (a === b) return 0;
-  return (a < b ? -1 : 1) * mul;
-}
+const criteriaToSearchValues = (
+  criteria: RumFilterCriteria,
+  labelOf: (k: RumCriteriaKey) => string
+): ISearchValue[] => {
+  const result: ISearchValue[] = [];
+  for (const key of SEARCH_DIMENSION_KEYS) {
+    const vals = criteria[key];
+    if (!vals?.length) continue;
+    result.push({
+      id: key,
+      name: labelOf(key),
+      values: vals.map(id => ({ id, name: id })),
+    });
+  }
+  return result;
+};
+
+const criteriaToFilterValue = (criteria: RumFilterCriteria): FilterValue => {
+  const fv: FilterValue = {};
+  for (const key of TABLE_FILTER_KEYS) {
+    const vals = criteria[key];
+    if (vals?.length) fv[key] = vals;
+  }
+  return fv;
+};
+
+const rowMatchesCriteria = (row: RumAppRow, c: RumFilterCriteria): boolean => {
+  const keys = Object.keys(c) as RumCriteriaKey[];
+  for (const key of keys) {
+    const vals = c[key];
+    if (!vals?.length) continue;
+    const rv = row[key];
+    if (typeof rv === 'string' && !vals.includes(rv)) return false;
+  }
+  return true;
+};
+
+const RUM_TIME_RANGE: TimeRangeType = ['now-15m', 'now'];
+
+const metricClass = (tier: MetricTier) => {
+  if (tier === 'good') return 'rum-metric rum-metric--good';
+  if (tier === 'warn') return 'rum-metric rum-metric--warn';
+  if (tier === 'bad') return 'rum-metric rum-metric--bad';
+  return 'rum-metric rum-metric--empty';
+};
 
 export default defineComponent({
   name: 'RumPage',
   setup() {
-    const router = useRouter();
-    const sourceRows = shallowRef(buildRumDemoRows());
-    const searchKeyword = ref('');
-    const tableFilterValue = ref<FilterValue>({});
-    const sortStr = ref('');
-    const currentPage = ref(1);
-    const pageSize = ref(10);
-    const loading = ref(false);
+    const { t } = useI18n();
+    const timeRange = shallowRef<TimeRangeType>(RUM_TIME_RANGE);
+    const timezone = shallowRef(getDefaultTimezone());
+    const refreshImmediate = shallowRef('');
+    const refreshInterval = shallowRef(-1);
+    const rumCriteria = shallowRef<RumFilterCriteria>({});
+    const tableSort = shallowRef<string | undefined>(undefined);
+    /** 与 CommonTable 一致：disableDataPage 下需自行按页切片 data，total 须与当前列表条数一致 */
+    const pageState = shallowRef({ currentPage: 1, pageSize: 10 });
 
-    const timeRange = ref<TimeRangeType>(RUM_TIME_DEFAULT);
-    const timezone = ref(
-      typeof window !== 'undefined' ? (window as Window & { timezone?: string }).timezone || '' : ''
-    );
-    const refreshImmediate = ref('');
-    const refreshInterval = ref(-1);
-
-    const storageColumns = useStorage<string[]>('rum-app-list-table-fields-v1', [...RUM_DEFAULT_VISIBLE_FIELDS]);
-
-    const handleConfigure = (row: RumAppRow) => {
-      router.push({ name: 'rumAppConfig', params: { appId: row.id } });
+    const searchLabel = (k: RumCriteriaKey) => {
+      const map: Record<RumCriteriaKey, string> = {
+        domain: t('域名'),
+        alias: t('别名'),
+        accessStatus: t('接入状态'),
+        appStatus: t('应用状态'),
+        dataStatus: t('数据状态'),
+      };
+      return map[k];
     };
 
-    const columnMap = buildRumTableColumnMap(handleConfigure);
+    const searchSelectDataSource = computed(() =>
+      SEARCH_DIMENSION_KEYS.map(id => ({
+        id,
+        name: searchLabel(id),
+        async: true,
+      }))
+    );
 
-    const tableColumns = computed(() => pickRumColumns(storageColumns.value, columnMap));
-
-    const allFields = computed(() => RUM_TABLE_FIELD_META.map(({ field, label }) => ({ field, label })));
-
-    const lockedFields = computed(() => RUM_TABLE_FIELD_META.filter(i => i.locked).map(i => i.field));
-
-    const tableSettings = computed(() => ({
-      checked: storageColumns.value,
-      fields: allFields.value,
-      disabled: lockedFields.value,
-    }));
-
-    const filteredRows = computed(() => {
-      let list = sourceRows.value;
-      const kw = searchKeyword.value.trim().toLowerCase();
-      if (kw) {
-        list = list.filter(row =>
-          [row.domain, row.alias, row.accessStatus, row.appStatus, row.creator, row.updater].some(v =>
-            String(v).toLowerCase().includes(kw)
-          )
-        );
+    const getMenuList: GetMenuListFunc = async (item, keyword) => {
+      const kw = keyword.trim().toLowerCase();
+      const list = searchSelectDataSource.value;
+      if (!item?.id) {
+        return list
+          .filter(d => !kw || d.name.toLowerCase().includes(kw) || String(d.id).toLowerCase().includes(kw))
+          .map(d => ({ ...d }));
       }
-      list = applyTableFilters(list, tableFilterValue.value);
-      return applySort(list, sortStr.value);
-    });
+      const rowKey = item.id as keyof RumAppRow;
+      const names = uniqSorted(MOCK_TABLE_DATA.map(r => String(r[rowKey])).filter(Boolean));
+      const children: ICommonItem[] = names
+        .filter(n => !kw || n.toLowerCase().includes(kw))
+        .map(n => ({ id: n, name: n }));
+      const meta = list.find(d => d.id === item.id);
+      if (!meta) return [];
+      return [{ ...meta, children }];
+    };
 
-    const total = computed(() => filteredRows.value.length);
-
-    const pagedData = computed(() => {
-      const start = (currentPage.value - 1) * pageSize.value;
-      return filteredRows.value.slice(start, start + pageSize.value);
+    const filteredTableData = computed(() => {
+      const c = rumCriteria.value;
+      if (!Object.keys(c).length) return MOCK_TABLE_DATA;
+      return MOCK_TABLE_DATA.filter(r => rowMatchesCriteria(r, c));
     });
 
     watch(
-      [searchKeyword, tableFilterValue],
+      () => rumCriteria.value,
       () => {
-        currentPage.value = 1;
+        pageState.value = { ...pageState.value, currentPage: 1 };
       },
       { deep: true }
     );
 
-    function handleCreateApp() {
-      Message({ theme: 'primary', message: '新建应用（待对接接口）' });
-    }
+    watch(
+      () => filteredTableData.value.length,
+      len => {
+        const { pageSize, currentPage } = pageState.value;
+        const maxPage = Math.max(1, Math.ceil(len / pageSize) || 1);
+        if (currentPage > maxPage) {
+          pageState.value = { ...pageState.value, currentPage: maxPage };
+        }
+      }
+    );
 
-    function handleDisplayColFieldsChange(fields: string[]) {
-      storageColumns.value = fields;
-    }
+    const tablePageData = computed(() => {
+      const list = filteredTableData.value;
+      const total = list.length;
+      const { currentPage, pageSize } = pageState.value;
+      const start = (currentPage - 1) * pageSize;
+      return {
+        rows: list.slice(start, start + pageSize),
+        pagination: { currentPage, pageSize, total },
+      };
+    });
 
-    function handleFilterChange(fv: FilterValue) {
-      tableFilterValue.value = { ...fv };
-    }
-
-    function handleSortChange(sort: string | string[]) {
-      sortStr.value = Array.isArray(sort) ? sort[0] || '' : sort || '';
-    }
-
-    function handleCurrentPageChange(page: number) {
-      currentPage.value = page;
-    }
-
-    function handlePageSizeChange(size: number) {
-      pageSize.value = size;
-      currentPage.value = 1;
-    }
-
-    function handleImmediateRefreshChange(v: string) {
-      refreshImmediate.value = v;
-      loading.value = true;
-      window.setTimeout(() => {
-        sourceRows.value = buildRumDemoRows();
-        loading.value = false;
-      }, 400);
-    }
-
-    return {
-      searchKeyword,
-      timeRange,
-      timezone,
-      refreshImmediate,
-      refreshInterval,
-      tableFilterValue,
-      sortStr,
-      currentPage,
-      pageSize,
-      loading,
-      tableColumns,
-      tableSettings,
-      total,
-      pagedData,
-      handleCreateApp,
-      handleDisplayColFieldsChange,
-      handleFilterChange,
-      handleSortChange,
-      handleCurrentPageChange,
-      handlePageSizeChange,
-      handleImmediateRefreshChange,
+    const handleConfigure = (row: RumAppRow) => {
+      /** 进入应用配置详情（接口联调时补充） */
+      void row;
     };
-  },
-  render() {
-    return (
-      <div class='rum-page'>
-        <RumPageHeader
-          class='rum-page__header'
-          refreshImmediate={this.refreshImmediate}
-          refreshInterval={this.refreshInterval}
-          timeRange={this.timeRange.length ? this.timeRange : DEFAULT_TIME_RANGE}
-          timezone={this.timezone}
-          onImmediateRefreshChange={this.handleImmediateRefreshChange}
-          onRefreshIntervalChange={(v: number) => {
-            this.refreshInterval = v;
-          }}
-          onTimeRangeChange={(v: TimeRangeType) => {
-            this.timeRange = v;
-          }}
-          onTimezoneChange={(v: string) => {
-            this.timezone = v;
-          }}
-        />
-        <div class='rum-page__main'>
-          <div class='rum-page__card'>
-            <div class='rum-page__toolbar'>
+
+    const handleSearchSelectUpdate = (v: ISearchValue[]) => {
+      rumCriteria.value = mergeSearchValuesIntoCriteria(rumCriteria.value, v);
+    };
+
+    const handleTableFilterChange = (value: FilterValue) => {
+      rumCriteria.value = mergeTableFilterIntoCriteria(rumCriteria.value, value);
+    };
+
+    const columns = computed<BaseTableColumn[]>(() => {
+      const domainFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.domain)).map(v => ({ label: v, value: v }));
+      const aliasFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.alias)).map(v => ({ label: v, value: v }));
+      const accessFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.accessStatus)).map(v => ({ label: v, value: v }));
+      const appStatusFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.appStatus)).map(v => ({ label: v, value: v }));
+      const dataStatusFilters = [
+        { label: t('正常'), value: 'ok' },
+        { label: t('异常'), value: 'warn' },
+      ];
+      return [
+        {
+          colKey: 'domain',
+          title: t('应用名称'),
+          thClassName: 'rum-th--filter',
+          minWidth: 220,
+          ellipsis: true,
+          filter: {
+            type: 'multiple',
+            list: domainFilters,
+            resetValue: [],
+            showConfirmAndReset: true,
+          },
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return (
+              <div class='rum-app-name-cell'>
+                <div class='rum-app-icon'>
+                  <i class='icon-monitor icon-mc-global' />
+                </div>
+                <div class='rum-app-name-text'>
+                  <div class='rum-app-domain'>{r.domain}</div>
+                  <div class='rum-app-alias'>{r.alias}</div>
+                </div>
+              </div>
+            );
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'alias',
+          title: t('别名'),
+          thClassName: 'rum-th--filter',
+          width: 140,
+          ellipsis: true,
+          filter: {
+            type: 'multiple',
+            list: aliasFilters,
+            resetValue: [],
+            showConfirmAndReset: true,
+          },
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return <span>{r.alias}</span>;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'accessStatus',
+          title: t('接入状态'),
+          thClassName: 'rum-th--filter',
+          width: 110,
+          ellipsis: true,
+          filter: {
+            type: 'multiple',
+            list: accessFilters,
+            resetValue: [],
+            showConfirmAndReset: true,
+          },
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return <span>{r.accessStatus}</span>;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'appStatus',
+          title: t('应用状态'),
+          thClassName: 'rum-th--filter',
+          width: 100,
+          ellipsis: true,
+          filter: {
+            type: 'multiple',
+            list: appStatusFilters,
+            resetValue: [],
+            showConfirmAndReset: true,
+          },
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return <span>{r.appStatus}</span>;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'lcpP75',
+          title: t('LCP P75'),
+          thClassName: 'rum-th--dotted',
+          width: 110,
+          sorter: true,
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return <span class={metricClass(r.lcpTier)}>{r.lcpDisplay}</span>;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'jsErrorRate',
+          title: t('JS 错误率'),
+          thClassName: 'rum-th--dotted',
+          width: 110,
+          sorter: true,
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return <span class={metricClass(r.jsErrorTier)}>{r.jsErrorDisplay}</span>;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'apiFailureRate',
+          title: t('API 失败率'),
+          thClassName: 'rum-th--dotted',
+          width: 110,
+          sorter: true,
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return <span class={metricClass(r.apiFailTier)}>{r.apiFailDisplay}</span>;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'dataStatus',
+          title: t('数据状态'),
+          thClassName: 'rum-th--filter',
+          width: 160,
+          filter: {
+            type: 'multiple',
+            list: dataStatusFilters,
+            resetValue: [],
+            showConfirmAndReset: true,
+          },
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            if (r.dataStatus === 'ok') {
+              return <i class='icon-monitor icon-duihao rum-data-status rum-data-status--ok' />;
+            }
+            return <i class='icon-monitor icon-warning rum-data-status rum-data-status--warn' />;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
+          colKey: 'operations',
+          title: t('操作'),
+          width: 180,
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return (
               <Button
-                class='rum-page__create-btn'
+                class='rum-op-link'
                 theme='primary'
-                onClick={this.handleCreateApp}
+                text
+                onClick={() => handleConfigure(r)}
               >
-                <span class='rum-page__create-btn-inner'>
-                  <i class='icon-monitor icon-plus-line' />
-                  新建应用
+                {t('配置')}
+              </Button>
+            );
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+      ];
+    });
+
+    const tableSettings = computed<BkUiSettings>(() => ({
+      fields: [
+        { label: t('应用名称'), field: 'domain' },
+        { label: t('别名'), field: 'alias' },
+        { label: t('接入状态'), field: 'accessStatus' },
+        { label: t('应用状态'), field: 'appStatus' },
+        { label: t('LCP P75'), field: 'lcpP75', disabled: true },
+        { label: t('JS 错误率'), field: 'jsErrorRate', disabled: true },
+        { label: t('API 失败率'), field: 'apiFailureRate', disabled: true },
+        { label: t('数据状态'), field: 'dataStatus', disabled: true },
+        { label: t('操作'), field: 'operations', disabled: true },
+      ],
+      checked: [
+        'domain',
+        'alias',
+        'accessStatus',
+        'appStatus',
+        'lcpP75',
+        'jsErrorRate',
+        'apiFailureRate',
+        'dataStatus',
+        'operations',
+      ],
+    }));
+
+    const handleTimeRangeChange = (value: TimeRangeType) => {
+      timeRange.value = value;
+    };
+
+    const handleTimezoneChange = (value: string) => {
+      timezone.value = value;
+    };
+
+    const handleImmediateRefreshChange = () => {
+      refreshImmediate.value = random(5).toString();
+    };
+
+    const handleRefreshIntervalChange = (value: number) => {
+      refreshInterval.value = value;
+    };
+
+    const handleSortChange = (sort: string | string[]) => {
+      tableSort.value = Array.isArray(sort) ? sort[0] : sort;
+    };
+
+    const handleCurrentPageChange = (page: number) => {
+      pageState.value = { ...pageState.value, currentPage: page };
+    };
+
+    const handlePageSizeChange = (pageSize: number) => {
+      pageState.value = { ...pageState.value, pageSize, currentPage: 1 };
+    };
+
+    const handleCreateApp = () => {
+      /** 接入创建应用流程（接口联调时补充） */
+    };
+
+    return () => (
+      <div class='rum-page'>
+        <div class='rum-nav-title'>
+          <CommonHeader
+            hideFeature={['gotoOld']}
+            refreshImmediate={refreshImmediate.value}
+            refreshInterval={refreshInterval.value}
+            timeRange={timeRange.value}
+            timezone={timezone.value}
+            onImmediateRefreshChange={handleImmediateRefreshChange}
+            onRefreshIntervalChange={handleRefreshIntervalChange}
+            onTimeRangeChange={handleTimeRangeChange}
+            onTimezoneChange={handleTimezoneChange}
+          >
+            {{
+              left: () => <div class='rum-page-title'>{t('route-RUM')}</div>,
+            }}
+          </CommonHeader>
+        </div>
+
+        <div class='rum-content'>
+          <div class='rum-card'>
+            <div class='rum-toolbar'>
+              <Button
+                theme='primary'
+                onClick={handleCreateApp}
+              >
+                <span class='rum-toolbar-btn-inner'>
+                  <i class='icon-monitor icon-mc-plus-fill' />
+                  {t('新建应用')}
                 </span>
               </Button>
-              <div class='rum-page__search-wrap'>
-                <Input
-                  class='rum-page__search'
-                  v-model={this.searchKeyword}
-                  clearable={true}
-                  placeholder='搜索 应用名称（域名）、应用别名、接入状态、应用状态、创建人、最近更新人'
-                  type='search'
+              <div class='rum-search'>
+                <SearchSelect
+                  class='rum-search-select'
+                  data={searchSelectDataSource.value}
+                  getMenuList={getMenuList}
+                  modelValue={criteriaToSearchValues(rumCriteria.value, searchLabel)}
+                  placeholder={t('搜索 域名、别名、接入状态、应用状态')}
+                  clearable
+                  onUpdate:modelValue={handleSearchSelectUpdate}
                 />
-                <i class='icon-monitor icon-mc-search rum-page__search-icon' />
               </div>
             </div>
-            <div class='rum-page__table'>
+
+            <div class='rum-table-wrap'>
               <CommonTable
-                pagination={{
-                  currentPage: this.currentPage,
-                  pageSize: this.pageSize,
-                  total: this.total,
-                }}
-                autoFillSpace={true}
-                columns={this.tableColumns}
-                data={this.pagedData as unknown as Record<string, unknown>[]}
-                filterValue={this.tableFilterValue}
-                loading={this.loading}
+                columns={columns.value}
+                data={tablePageData.value.rows as unknown as Record<string, unknown>[]}
+                filterValue={criteriaToFilterValue(rumCriteria.value)}
+                pagination={tablePageData.value.pagination}
                 rowKey='id'
-                sort={this.sortStr}
-                stripe={true}
-                tableSettings={this.tableSettings}
-                onCurrentPageChange={this.handleCurrentPageChange}
-                onDisplayColFieldsChange={this.handleDisplayColFieldsChange}
-                onFilterChange={this.handleFilterChange}
-                onPageSizeChange={this.handlePageSizeChange}
-                onSortChange={this.handleSortChange}
+                sort={tableSort.value}
+                tableSettings={tableSettings.value}
+                autoFillSpace
+                onCurrentPageChange={handleCurrentPageChange}
+                onFilterChange={handleTableFilterChange}
+                onPageSizeChange={handlePageSizeChange}
+                onSortChange={handleSortChange}
               />
             </div>
           </div>

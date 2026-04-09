@@ -35,4 +35,10 @@ export default {
   已读: 'Read',
   'Trace 助手': 'Trace Helper',
   请输入应用名称: 'Please enter the application name',
+  /** RUM 列表（设计稿文案） */
+  '搜索 应用名称（域名）、应用别名、接入状态、应用状态、创建人、最近更新人':
+    'Search application name (domain), alias, access status, application status, creator, last updater',
+  'LCP P75': 'LCP P75',
+  'JS 错误率': 'JS error rate',
+  'API 失败率': 'API failure rate',
 };

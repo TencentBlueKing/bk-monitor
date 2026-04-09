@@ -36,24 +36,24 @@ import type { Vue3WewebData } from '@/types/weweb/weweb';
 
 import './rum.scss';
 
-const rumAppId = 'rum-explore';
+const traceAppId = 'trace-explore';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class Rum extends tsc<object> {
+  @Ref('traceApp') traceApp: HTMLElement;
   @Prop() a: number;
-  @Ref('rumApp') rumApp: HTMLElement;
   unmountCallback: () => void;
-  get rumHost() {
+  get traceHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
-  get rumUrl() {
+  get traceUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.rumHost}/?bizId=${this.$store.getters.bizId}/#/trace/rum`
+      ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}/#/trace/rum`
       : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/rum`;
   }
-  get rumData(): Vue3WewebData {
+  get traceData(): Vue3WewebData {
     return {
-      host: this.rumHost,
+      host: this.traceHost,
       parentRoute: '/trace/',
       get enableAiAssistant() {
         return aiWhaleStore.enableAiAssistant;
@@ -67,47 +67,44 @@ export default class Rum extends tsc<object> {
     };
   }
   created() {
-    if (!window.customElements.get('rum-explore')) {
-      class RumExploreElement extends HTMLElement {
+    if (!window.customElements.get('trace-explore')) {
+      class TraceExploreElement extends HTMLElement {
         async connectedCallback() {
           if (!this.shadowRoot) {
             this.attachShadow({ delegatesFocus: false, mode: 'open' });
           }
         }
       }
-      window.customElements.define('rum-explore', RumExploreElement);
+      window.customElements.define('trace-explore', TraceExploreElement);
     }
-  }
-  beforeDestroy() {
-    this.unmountCallback?.();
-    unmount(rumAppId);
-    this.unmountCallback = undefined;
   }
   async mounted() {
     await loadApp({
-      url: this.rumUrl,
-      id: rumAppId,
-      container: this.rumApp.shadowRoot,
-      data: this.rumData,
-      showSourceCode: true,
+      url: this.traceUrl,
+      id: traceAppId,
+      setShadowDom: true,
+      container: this.traceApp.shadowRoot,
+      data: this.traceData,
+      showSourceCode: false,
       scopeCss: true,
       scopeJs: true,
       scopeLocation: false,
     });
-    mount(rumAppId, this.rumApp.shadowRoot);
+    mount(traceAppId, this.traceApp.shadowRoot);
     setTimeout(() => {
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
     }, 300);
   }
-  beforeRouteLeave(_to, _fromm, next) {
-    document.body.___zrEVENTSAVED = null;
-    next();
+  beforeDestroy() {
+    this.unmountCallback?.();
+    unmount(traceAppId);
+    this.unmountCallback = undefined;
   }
   render() {
     return (
       <div class='rum-wrap'>
         <div class='rum-wrap-iframe'>
-          <rum-explore ref='rumApp' />
+          <trace-explore ref='traceApp' />
         </div>
       </div>
     );

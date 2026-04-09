@@ -728,6 +728,7 @@ export default defineComponent({
         </div>
         <NoticeStatusDialog
           actionId={this.noticeStatusDialogState.actionId}
+          alarmBizId={this.detail.bk_biz_id}
           show={this.noticeStatusDialogState.show}
           onShowChange={show => {
             this.noticeStatusDialogState.show = show;

@@ -52,6 +52,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   /** 加载状态 */
   const loading = shallowRef<boolean>(false);
   const defaultTab = shallowRef('');
+  const bizId = shallowRef<number>((window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined);
   const appStore = useAppStore();
   /** 数据间隔 */
   const interval = computed(
@@ -66,9 +67,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     );
     return handleTransformToTimestampMs([startTime, endTime]);
   });
-  const bizId = computed(() => {
-    return alarmDetail.value?.bk_biz_id || (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined;
-  });
+
   const bizItem = computed(() => {
     return appStore.bizList.find(item => +item.id === +bizId.value);
   });
@@ -82,14 +81,14 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
    */
   const getAlertDetailData = async (id: string) => {
     loading.value = true;
-    const data = await fetchAlarmDetail(id).catch(() => null);
+    const data = await fetchAlarmDetail(id, bizId.value).catch(() => null);
     alarmDetail.value = data;
     loading.value = false;
   };
 
   const getActionDetailData = async (id: string) => {
     loading.value = true;
-    const data = await fetchActionDetail(id).catch(() => null);
+    const data = await fetchActionDetail(id, bizId.value).catch(() => null);
     actionDetail.value = data;
     loading.value = false;
   };

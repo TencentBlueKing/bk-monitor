@@ -25,7 +25,7 @@
  */
 import { type PropType, computed, defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
+import { type BkUiSettings, type FilterValue, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
 
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
@@ -43,15 +43,7 @@ import type {
   BaseTableColumn,
   TableCellRenderer,
 } from '../../../../../trace-explore/components/trace-explore-table/typing';
-import type {
-  CheckboxGroupValue,
-  FilterValue,
-  SelectOptions,
-  SizeEnum,
-  SlotReturnValue,
-  TableFilterChangeContext,
-  TdAffixProps,
-} from 'tdesign-vue-next';
+import type { CheckboxGroupValue, SelectOptions, SizeEnum, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './common-table.scss';
 
@@ -133,12 +125,7 @@ export default defineComponent({
       type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
-    /** 是否显示斑马纹行 */
-    stripe: {
-      type: Boolean,
-      default: false,
-    },
-    /** 列筛选受控值（表头筛选） */
+    /** 表头筛选受控值（与 PrimaryTable filterValue 一致） */
     filterValue: {
       type: Object as PropType<FilterValue>,
     },
@@ -150,8 +137,7 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) =>
       Array.isArray(selectedRowKeys) && options,
-    filterChange: (filterValue: FilterValue, context: TableFilterChangeContext<unknown>) =>
-      filterValue != null && context != null,
+    filterChange: (filterValue: FilterValue) => filterValue != null,
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
@@ -279,8 +265,12 @@ export default defineComponent({
       emit('displayColFieldsChange', displayColFields as string[]);
     };
 
-    const handleFilterChange = (filterValue: FilterValue, context: TableFilterChangeContext<unknown>) => {
-      emit('filterChange', filterValue, context);
+    /**
+     * @description 表头筛选变化
+     * @param {FilterValue} value
+     */
+    const handleFilterChange = (value: FilterValue) => {
+      emit('filterChange', value);
     };
 
     /**
@@ -337,9 +327,9 @@ export default defineComponent({
       handleSelectChange,
       handlePageSizeChange,
       handleDisplayColFieldsChange,
-      handleFilterChange,
       tableLastFullRowRender,
       tableEmptyRender,
+      handleFilterChange,
     };
   },
   render() {
@@ -371,7 +361,6 @@ export default defineComponent({
           showSortColumnBgColor={true}
           size={this.tableSize}
           sort={this.tableSort}
-          stripe={this.stripe}
           tableLayout='fixed'
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
           onFilterChange={this.handleFilterChange}
