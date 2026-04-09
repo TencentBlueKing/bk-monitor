@@ -456,3 +456,106 @@ def _init_index_info(*, index_set_id, is_clustered_fields):
             )
     else:
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
+
+
+class ConditionFieldSerializer(serializers.Serializer):
+    field_name = serializers.CharField(required=True, help_text="Label key, e.g. scene / cluster_id")
+    value = serializers.ListField(child=serializers.CharField(), required=True, help_text="Match values list")
+    op = serializers.ChoiceField(choices=["eq", "ne", "req", "nreq"], default="eq", help_text="Operator")
+
+
+class _SceneRouteMixin(serializers.Serializer):
+    """场景路由参数，替代 index_set_id。前端统一拼 table_id_conditions。"""
+
+    space_uid = serializers.CharField(required=True, help_text="空间 UID, e.g. bkcc__2")
+    bk_biz_id = serializers.IntegerField(required=False, default=None, allow_null=True)
+
+    table_id_conditions = serializers.ListField(
+        child=serializers.ListField(child=ConditionFieldSerializer()),
+        required=True,
+        help_text="AllConditions 二维数组：外层 OR，内层 AND",
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if not attrs.get("table_id_conditions"):
+            raise serializers.ValidationError("table_id_conditions 不能为空")
+        return attrs
+
+
+class SceneSearchSerializer(_SceneRouteMixin):
+    """场景化日志检索 — 对标 SearchAttrSerializer，去掉 index_set_id 相关参数"""
+
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="*")
+    addition = serializers.ListField(allow_empty=True, required=False, default=list)
+
+    start_time = serializers.CharField(required=True)
+    end_time = serializers.CharField(required=True)
+    time_range = serializers.CharField(required=False, default=None, allow_blank=True, allow_null=True)
+    time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+
+    begin = serializers.IntegerField(required=False, default=0)
+    size = serializers.IntegerField(required=False, default=50)
+
+    sort_list = serializers.ListField(
+        required=False, allow_null=True, allow_empty=True, default=list,
+        child=serializers.ListField(child=serializers.CharField()),
+    )
+    aggs = serializers.DictField(required=False, default=dict)
+    highlight = serializers.DictField(required=False, default=dict)
+
+    ip_chooser = serializers.DictField(default=dict, required=False)
+
+    filter = serializers.ListField(allow_empty=True, required=False, default=list, allow_null=True)
+
+    is_return_doc_id = serializers.BooleanField(required=False, default=False)
+    is_desensitize = serializers.BooleanField(required=False, default=True)
+    track_total_hits = serializers.BooleanField(required=False, default=True)
+
+    search_after = serializers.ListField(required=False, allow_empty=True, default=list, allow_null=True)
+    collapse = serializers.DictField(required=False, default=dict, allow_null=True)
+
+
+class SceneFieldsSerializer(_SceneRouteMixin):
+    """场景化字段列表 — 对标 SearchFieldsSerializer + UnionSearchFieldsSerializer"""
+
+    start_time = serializers.CharField(required=False, default="", allow_blank=True)
+    end_time = serializers.CharField(required=False, default="", allow_blank=True)
+    scope = serializers.CharField(required=False, default="default")
+
+
+class SceneDateHistogramSerializer(_SceneRouteMixin):
+    """场景化趋势图 — 日志时间分布直方图"""
+
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="*")
+    addition = serializers.ListField(allow_empty=True, required=False, default=list)
+    start_time = serializers.CharField(required=True)
+    end_time = serializers.CharField(required=True)
+    time_range = serializers.CharField(required=False, default=None, allow_blank=True, allow_null=True)
+    time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+    interval = serializers.CharField(required=False, default="auto")
+    ip_chooser = serializers.DictField(default=dict, required=False)
+    filter = serializers.ListField(allow_empty=True, required=False, default=list, allow_null=True)
+
+
+class SceneAggFieldSerializer(_SceneRouteMixin):
+    """场景化字段聚合统计"""
+
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="*")
+    addition = serializers.ListField(allow_empty=True, required=False, default=list)
+    start_time = serializers.CharField(required=True)
+    end_time = serializers.CharField(required=True)
+    agg_field = serializers.CharField(required=True, help_text="聚合字段名")
+    ip_chooser = serializers.DictField(default=dict, required=False)
+    filter = serializers.ListField(allow_empty=True, required=False, default=list, allow_null=True)
+
+
+class SceneTotalSerializer(_SceneRouteMixin):
+    """场景化总数统计"""
+
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="*")
+    addition = serializers.ListField(allow_empty=True, required=False, default=list)
+    start_time = serializers.CharField(required=True)
+    end_time = serializers.CharField(required=True)
+    ip_chooser = serializers.DictField(default=dict, required=False)
+    filter = serializers.ListField(allow_empty=True, required=False, default=list, allow_null=True)

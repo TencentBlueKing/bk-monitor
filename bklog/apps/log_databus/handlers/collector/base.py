@@ -52,6 +52,7 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
+    COLLECTOR_SCENARIO_TO_SCENE,
     META_DATA_ENCODING,
     ArchiveInstanceType,
     CollectStatus,
@@ -61,6 +62,7 @@ from apps.log_databus.constants import (
     RunStatus,
     RETRIEVE_CHAIN,
     Environment,
+    build_scene_labels,
 )
 from apps.log_databus.exceptions import (
     CollectNotSuccess,
@@ -590,6 +592,7 @@ class CollectorHandler:
                 "fields": fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "labels": self._build_scene_labels(),
             }
             etl_handler.update_or_create(**etl_params)
 
@@ -1406,9 +1409,9 @@ class CollectorHandler:
                 "fields": custom_config.fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "labels": self._build_scene_labels(),
             }
             if etl_params and fields:
-                # 如果传递了清洗参数，则优先使用
                 params.update({"etl_params": etl_params, "etl_config": etl_config, "fields": fields})
             self.data.index_set_id = etl_handler.update_or_create(**params)["index_set_id"]
             self.data.save(update_fields=["index_set_id"])
@@ -1488,6 +1491,13 @@ class CollectorHandler:
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
+    def _build_scene_labels(self) -> dict:
+        """Build ResultTable.labels based on collector scenario and environment."""
+        if self.data.is_container_environment:
+            return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "")
+        scene = COLLECTOR_SCENARIO_TO_SCENE.get(self.data.collector_scenario_id, "host")
+        return build_scene_labels(scene)
+
     def create_or_update_clean_config(self, is_update, params):
         if is_update:
             table_id = self.data.table_id
@@ -1509,6 +1519,8 @@ class CollectorHandler:
             }
             default_etl_params.update(params)
             params = default_etl_params
+
+        params.setdefault("labels", self._build_scene_labels())
 
         from apps.log_databus.handlers.etl import EtlHandler
 
