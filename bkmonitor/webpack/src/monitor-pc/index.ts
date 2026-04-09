@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +26,7 @@
  */
 
 import './public-path';
+import './open-telemetry';
 import 'monitor-common/polyfill';
 
 import i18n from './i18n/i18n';
