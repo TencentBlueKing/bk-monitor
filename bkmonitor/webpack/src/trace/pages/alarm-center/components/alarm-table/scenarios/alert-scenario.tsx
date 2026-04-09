@@ -601,6 +601,6 @@ export class AlertScenario extends BaseScenario {
    */
   private handleMoreOperationClick(e: MouseEvent, row: AlertTableItem, colKey: string) {
     const dom = this.getMoreMenuDom(row);
-    this.context.clickPopoverTools.showPopover(e, dom, `${row.id}-${colKey}-more`, { arrow: false, theme: 'apm-tippy-padding0 alarm-center-popover max-width-50vw text-wrap padding-0' });
+    this.context.clickPopoverTools.showPopover(e, dom, `${row.id}-${colKey}-more`, { arrow: false });
   }
 }
