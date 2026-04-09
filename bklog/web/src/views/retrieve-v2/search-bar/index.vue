@@ -851,7 +851,7 @@ defineExpose({
           <div
             v-if="isShowSearchTools"
             class="search-tool items"
-:style="{ 'padding-right': !isLogPlatform ? '4px' : '0' }"
+            :style="{ 'padding-right': isMonitorTrace || isMonitorApm ? '4px' : '0' }"
           >
             <div
               v-show="!inspectResponse.is_legal"
