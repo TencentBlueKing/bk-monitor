@@ -578,12 +578,27 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
+  // 场景模式下使用双阈值机制防止 sticky + 高度收缩 导致的滚动抖动
+  const isSceneMode = computed(() => store.state.indexItem.retrieve_type === 'scene');
+  const SCENE_STICKY_THRESHOLD = 42; // 滚动到 42px 时触发吸顶
+  const SCENE_UNSTICKY_THRESHOLD = 0; // 回到顶部（0px）时取消吸顶
+  const sceneSticky = ref(false);
+
   addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
     const diff = subBarHeight.value + trendGraphHeight.value;
     searchResultTop.value = scrollTop > diff ? diff : scrollTop;
+
+    // 场景模式下的回差判断：吸顶和取消吸顶使用不同阈值，避免临界点反复切换
+    if (isSceneMode.value) {
+      if (!sceneSticky.value && scrollTop >= SCENE_STICKY_THRESHOLD) {
+        sceneSticky.value = true;
+      } else if (sceneSticky.value && scrollTop <= SCENE_UNSTICKY_THRESHOLD) {
+        sceneSticky.value = false;
+      }
+    }
   });
 
   useResizeObserve(
@@ -596,8 +611,13 @@ export default () => {
 
   /**
    * 计算检索内容的滚动位置，监听是否滚动到顶部
+   * 场景模式下使用回差机制：scrollTop >= 42px 吸顶，scrollTop <= 0 取消吸顶
+   * 常规模式下阈值为二级导航栏高度（64px）
    */
   const isSearchContextStickyTop = computed(() => {
+    if (isSceneMode.value) {
+      return sceneSticky.value;
+    }
     return paddingTop.value === subBarHeight.value;
   });
 

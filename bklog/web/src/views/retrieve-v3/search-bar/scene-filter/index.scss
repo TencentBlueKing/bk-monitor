@@ -1,0 +1,119 @@
+.scene-filter-root {
+  display: flex;
+  flex-direction: column;
+  margin: 0 8px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 4px;
+  position: sticky;
+  top: 52px;
+  z-index: 4;
+  transition: margin 0.2s ease, padding 0.2s ease, border-radius 0.2s ease;
+
+  .scene-filter-panel-wrapper {
+    overflow: hidden;
+  }
+
+  // 非吸顶时隐藏 SceneFilterTags
+  .scene-filter-tags-sticky {
+    display: none;
+  }
+
+  .scene-filter-panel {
+    max-height: 500px;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+
+  .v3-search-bar-root {
+    margin: 12px 0 0 0;
+    transition: margin 0.2s ease;
+  }
+
+  .fix-search-bar {
+    width: calc(100vw - var(--left-collection-width) - 44px);
+  }
+
+  &.is-sticky-top {
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+
+    // 吸顶时显示 SceneFilterTags
+    .scene-filter-tags-sticky {
+      display: flex;
+      height: 32px;
+      padding: 0 8px;
+    }
+
+    // 吸顶时隐藏 FilterPanel
+    .scene-filter-panel {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    .v3-search-bar-root {
+      margin: 0;
+    }
+
+    .fix-search-bar {
+      width: calc(100vw - var(--left-collection-width) - 20px);
+    }
+  }
+
+  // ---- 条件变更提示条 ----
+  .query-hint-bar {
+    position: absolute;
+    right: 12px;
+    bottom: -20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    height: 32px;
+    border: 1px solid #F9D090;
+    border-radius: 8px;
+    white-space: nowrap;
+    z-index: 3;
+    color: #DF8D4F;
+    background: linear-gradient(90deg, rgba(255, 247, 224, 0.96) 0%, rgba(255, 255, 255, 0.92) 100%);
+
+    .query-hint-icon {
+      font-size: 14px;
+      color: #ff9c01;
+      flex-shrink: 0;
+    }
+
+    .query-hint-text {
+      font-size: 12px;
+      color: #63656e;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+  }
+
+  // slide-hint transition
+  .slide-hint-enter-active {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  .slide-hint-leave-active {
+    transition: opacity 0.15s ease;
+  }
+
+  .slide-hint-enter {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  .slide-hint-enter-to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .slide-hint-leave-to {
+    opacity: 0;
+  }
+}

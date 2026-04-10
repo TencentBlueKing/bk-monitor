@@ -800,3 +800,30 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-key-tab:before {
 	content: "\e240";
 }
+.bklog-tingyongcaijixiang:before {
+	content: "\e243";
+}
+.bklog-tingyongwenjianjia:before {
+	content: "\e242";
+}
+.bklog-grok:before {
+	content: "\e246";
+}
+.bklog-kehuduan:before {
+	content: "\e24c";
+}
+.bklog-container-2:before {
+	content: "\e24a";
+}
+.bklog-host:before {
+	content: "\e248";
+}
+.bklog-paas:before {
+	content: "\e249";
+}
+.bklog-service:before {
+	content: "\e24b";
+}
+.bklog-trpc:before {
+	content: "\e247";
+}
