@@ -1524,10 +1524,12 @@ class CollectorHandler:
         if not self.data.index_set_id:
             return
 
+        from apps.log_search.models import TAG_TYPE_SCENE
+
         tag_ids = []
         for key, value in labels.items():
             if value:
-                tag_ids.append(str(IndexSetTag.get_tag_id(name=key, value=value)))
+                tag_ids.append(str(IndexSetTag.get_tag_id(name=key, value=value, tag_type=TAG_TYPE_SCENE)))
 
         if not tag_ids:
             return

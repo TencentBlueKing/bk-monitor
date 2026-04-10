@@ -622,7 +622,7 @@ class LogIndexSet(SoftDeleteModel):
     @atomic
     def set_tag(cls, index_set_id, *names):
         index_set = cls.objects.select_for_update().get(index_set_id=index_set_id)
-        add_tag_ids = [str(IndexSetTag.get_tag_id(name)) for name in names]
+        add_tag_ids = [str(IndexSetTag.get_tag_id(name, tag_type=TAG_TYPE_INNER)) for name in names]
         tag_ids = set(index_set.tag_ids)
         for add_tag_id in add_tag_ids:
             tag_ids.add(add_tag_id)
@@ -631,7 +631,7 @@ class LogIndexSet(SoftDeleteModel):
 
     @classmethod
     def delete_tag_by_name(cls, index_set_id, tag_name):
-        delete_tag_id = IndexSetTag.get_tag_id(tag_name)
+        delete_tag_id = IndexSetTag.get_tag_id(tag_name, tag_type=TAG_TYPE_INNER)
         cls.delete_tag(index_set_id, delete_tag_id)
 
     @classmethod
@@ -1080,31 +1080,45 @@ class IndexSetUserFavorite(models.Model):
         return cls.objects.filter(username=username).values_list("index_set_id", flat=True)
 
 
+TAG_TYPE_USER = "user"
+TAG_TYPE_INNER = "inner"
+TAG_TYPE_SCENE = "scene"
+TAG_TYPE_CHOICES = (
+    (TAG_TYPE_USER, _("用户自定义")),
+    (TAG_TYPE_INNER, _("系统内置")),
+    (TAG_TYPE_SCENE, _("场景维度")),
+)
+
+
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
     name = models.CharField(_("标签名称"), max_length=255, db_index=True)
     value = models.CharField(_("标签值"), max_length=255, default="", blank=True)
     color = models.CharField(_("配色"), max_length=255, choices=TagColor.get_choices(), default=TagColor.GREEN.value)
+    tag_type = models.CharField(
+        _("标签类型"), max_length=16, choices=TAG_TYPE_CHOICES, default=TAG_TYPE_USER, db_index=True,
+    )
 
     class Meta:
         verbose_name = _("标签表")
         verbose_name_plural = _("标签表")
-        unique_together = (("name", "value"),)
+        unique_together = (("name", "value", "tag_type"),)
 
     @classmethod
-    def get_tag_id(cls, name: str, value: str = "") -> int:
-        tag, _created = cls.objects.get_or_create(name=name, value=value)
+    def get_tag_id(cls, name: str, value: str = "", tag_type: str = TAG_TYPE_USER) -> int:
+        tag, _created = cls.objects.get_or_create(name=name, value=value, tag_type=tag_type)
         return tag.tag_id
 
     @classmethod
     def batch_get_tags(cls, tag_ids: set):
-        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "value", "color", "tag_id")
+        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "value", "color", "tag_id", "tag_type")
         return {
             str(tag["tag_id"]): {
                 "name": InnerTag.get_choice_label(tag["name"]),
                 "value": tag["value"],
                 "color": tag["color"],
                 "tag_id": tag["tag_id"],
+                "tag_type": tag["tag_type"],
             }
             for tag in tags
         }
@@ -1118,13 +1132,13 @@ class IndexSetTag(models.Model):
         Example: scene="k8s", dimension_key="cluster_id", filters={"stream": "stdout"}
         returns all cluster_id values whose index sets also carry stream=stdout.
         """
-        scene_tag_id = cls.get_tag_id(name="scene", value=scene)
+        scene_tag_id = cls.get_tag_id(name="scene", value=scene, tag_type=TAG_TYPE_SCENE)
         required_tag_ids = {scene_tag_id}
 
         if filters:
             for f_key, f_value in filters.items():
                 try:
-                    f_tag = cls.objects.get(name=f_key, value=f_value)
+                    f_tag = cls.objects.get(name=f_key, value=f_value, tag_type=TAG_TYPE_SCENE)
                     required_tag_ids.add(f_tag.tag_id)
                 except cls.DoesNotExist:
                     return []
@@ -1151,6 +1165,7 @@ class IndexSetTag(models.Model):
             cls.objects.filter(
                 tag_id__in=[int(i) for i in candidate_tag_ids],
                 name=dimension_key,
+                tag_type=TAG_TYPE_SCENE,
             )
             .exclude(value="")
             .values_list("value", flat=True)

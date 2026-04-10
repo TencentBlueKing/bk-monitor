@@ -583,49 +583,60 @@ class TestSceneDimensionValuesSerializer(TestCase):
 # =========================================================================
 
 class TestIndexSetTagExtension(TestCase):
-    """Test IndexSetTag.get_tag_id with value, batch_get_tags with value, get_dimension_values."""
+    """Test IndexSetTag with tag_type, get_dimension_values, batch_get_tags."""
 
-    def test_get_tag_id_without_value(self):
+    def test_get_tag_id_default_tag_type_is_user(self):
         from apps.log_search.models import IndexSetTag
-        tag_id = IndexSetTag.get_tag_id(name="scene")
-        self.assertIsNotNone(tag_id)
+        tag_id = IndexSetTag.get_tag_id(name="my_custom_tag")
         tag = IndexSetTag.objects.get(tag_id=tag_id)
-        self.assertEqual(tag.name, "scene")
-        self.assertEqual(tag.value, "")
+        self.assertEqual(tag.tag_type, "user")
 
-    def test_get_tag_id_with_value(self):
+    def test_get_tag_id_scene_type(self):
         from apps.log_search.models import IndexSetTag
-        tag_id = IndexSetTag.get_tag_id(name="scene", value="k8s")
-        self.assertIsNotNone(tag_id)
+        tag_id = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
         tag = IndexSetTag.objects.get(tag_id=tag_id)
         self.assertEqual(tag.name, "scene")
         self.assertEqual(tag.value, "k8s")
+        self.assertEqual(tag.tag_type, "scene")
+
+    def test_get_tag_id_inner_type(self):
+        from apps.log_search.models import IndexSetTag
+        tag_id = IndexSetTag.get_tag_id(name="trace", tag_type="inner")
+        tag = IndexSetTag.objects.get(tag_id=tag_id)
+        self.assertEqual(tag.tag_type, "inner")
 
     def test_get_tag_id_idempotent(self):
         from apps.log_search.models import IndexSetTag
-        id1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001")
-        id2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001")
+        id1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001", tag_type="scene")
+        id2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001", tag_type="scene")
         self.assertEqual(id1, id2)
 
     def test_same_name_different_value(self):
         from apps.log_search.models import IndexSetTag
-        id1 = IndexSetTag.get_tag_id(name="stream", value="stdout")
-        id2 = IndexSetTag.get_tag_id(name="stream", value="file")
+        id1 = IndexSetTag.get_tag_id(name="stream", value="stdout", tag_type="scene")
+        id2 = IndexSetTag.get_tag_id(name="stream", value="file", tag_type="scene")
         self.assertNotEqual(id1, id2)
 
-    def test_batch_get_tags_includes_value(self):
+    def test_same_name_value_different_tag_type(self):
         from apps.log_search.models import IndexSetTag
-        tid = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-002")
+        id_user = IndexSetTag.get_tag_id(name="bcs", value="", tag_type="user")
+        id_inner = IndexSetTag.get_tag_id(name="bcs", value="", tag_type="inner")
+        self.assertNotEqual(id_user, id_inner)
+
+    def test_batch_get_tags_includes_tag_type(self):
+        from apps.log_search.models import IndexSetTag
+        tid = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-002", tag_type="scene")
         result = IndexSetTag.batch_get_tags({tid})
         self.assertIn(str(tid), result)
         self.assertEqual(result[str(tid)]["value"], "BCS-002")
+        self.assertEqual(result[str(tid)]["tag_type"], "scene")
 
     def test_get_dimension_values_basic(self):
         from apps.log_search.models import IndexSetTag, LogIndexSet
 
-        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s")
-        c1_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-001")
-        c2_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-002")
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        c1_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-001", tag_type="scene")
+        c2_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-002", tag_type="scene")
 
         LogIndexSet.objects.create(
             index_set_name="test_idx_1",
@@ -646,14 +657,32 @@ class TestIndexSetTagExtension(TestCase):
         self.assertIn("BCS-K8S-001", values)
         self.assertIn("BCS-K8S-002", values)
 
+    def test_get_dimension_values_ignores_user_tags(self):
+        """User tags with the same name should not appear in dimension_values results."""
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        user_tag = IndexSetTag.get_tag_id(name="cluster_id", value="USER-TAG", tag_type="user")
+
+        LogIndexSet.objects.create(
+            index_set_name="mixed_tags",
+            space_uid="bkcc__20",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(user_tag)],
+            is_active=True,
+        )
+
+        values = IndexSetTag.get_dimension_values(bk_biz_id=20, scene="k8s", dimension_key="cluster_id")
+        self.assertNotIn("USER-TAG", values)
+
     def test_get_dimension_values_with_cascading_filter(self):
         from apps.log_search.models import IndexSetTag, LogIndexSet
 
-        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s")
-        stdout_tag = IndexSetTag.get_tag_id(name="stream", value="stdout")
-        file_tag = IndexSetTag.get_tag_id(name="stream", value="file")
-        c1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-FILTER-001")
-        c2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-FILTER-002")
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        stdout_tag = IndexSetTag.get_tag_id(name="stream", value="stdout", tag_type="scene")
+        file_tag = IndexSetTag.get_tag_id(name="stream", value="file", tag_type="scene")
+        c1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-FILTER-001", tag_type="scene")
+        c2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-FILTER-002", tag_type="scene")
 
         LogIndexSet.objects.create(
             index_set_name="cascading_1",
@@ -820,7 +849,7 @@ class TestBuildSceneLabelsExtended(TestCase):
 class TestSyncSceneTagsToIndexSet(TestCase):
     """Test that scene labels are persisted to IndexSetTag and LogIndexSet.tag_ids."""
 
-    def test_sync_creates_tags_and_updates_index_set(self):
+    def test_sync_creates_scene_tags_and_updates_index_set(self):
         from apps.log_databus.handlers.collector.base import CollectorHandler
         from apps.log_search.models import IndexSetTag, LogIndexSet
 
@@ -843,12 +872,14 @@ class TestSyncSceneTagsToIndexSet(TestCase):
         tag_ids_str = [str(t) for t in index_set.tag_ids if t]
         self.assertTrue(len(tag_ids_str) >= 3)
 
-        tag_names = set(
-            IndexSetTag.objects.filter(tag_id__in=[int(i) for i in tag_ids_str]).values_list("name", flat=True)
-        )
+        created_tags = IndexSetTag.objects.filter(tag_id__in=[int(i) for i in tag_ids_str])
+        tag_names = set(created_tags.values_list("name", flat=True))
         self.assertIn("scene", tag_names)
         self.assertIn("cluster_id", tag_names)
         self.assertIn("stream", tag_names)
+
+        for tag in created_tags:
+            self.assertEqual(tag.tag_type, "scene")
 
     def test_sync_skips_when_no_index_set_id(self):
         from apps.log_databus.handlers.collector.base import CollectorHandler
@@ -863,7 +894,7 @@ class TestSyncSceneTagsToIndexSet(TestCase):
         from apps.log_databus.handlers.collector.base import CollectorHandler
         from apps.log_search.models import IndexSetTag, LogIndexSet
 
-        existing_tag_id = IndexSetTag.get_tag_id(name="trace")
+        existing_tag_id = IndexSetTag.get_tag_id(name="trace", tag_type="inner")
 
         index_set = LogIndexSet.objects.create(
             index_set_name="merge_test",
