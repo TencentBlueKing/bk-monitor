@@ -25,12 +25,23 @@
  */
 
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
-import { getAllSceneFieldNames, getSceneFieldNames } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
+import { getAllSceneFieldKeys } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
 
 import { ConditionOperator } from './condition-operator';
 import { BK_LOG_STORAGE } from './store.type';
 
 import type { Route } from 'vue-router';
+
+/** 从 store 获取场景配置列表，store 未初始化时返回空数组 */
+const getStoreSceneConfigs = () => {
+  try {
+    // 延迟引用 store，避免循环依赖
+    const store = require('@/store').default;
+    return store?.getters?.['retrieve/sceneConfigList'] ?? [];
+  } catch {
+    return [];
+  }
+};
 
 /**
  * 初始化App时解析URL中的参数
@@ -102,8 +113,8 @@ class RouteUrlResolver {
    */
   public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
-    const allSceneFieldNames = getAllSceneFieldNames();
-    const appendParamKeys = [...this.resolveFieldList, 'end_time', ...allSceneFieldNames].filter(f => !(ignoreList ?? []).includes(f));
+    const allSceneFieldKeys = getAllSceneFieldKeys(getStoreSceneConfigs());
+    const appendParamKeys = [...this.resolveFieldList, 'end_time', ...allSceneFieldKeys].filter(f => !(ignoreList ?? []).includes(f));
     const undefinedQuery = appendParamKeys.reduce((out, key) => {
       out[key] = undefined;
       return out;
@@ -361,17 +372,8 @@ class RouteUrlResolver {
     });
 
     this.resolver.set('scene_filter_values', () => {
-      const sceneActive = this.query.scene_active as string;
-      if (!sceneActive) return {};
-      const sceneFields = getSceneFieldNames(sceneActive);
-      const result: Record<string, any> = {};
-      for (const fieldName of sceneFields) {
-        const val = this.query[fieldName];
-        if (val !== undefined && val !== null && val !== '') {
-          result[fieldName] = val;
-        }
-      }
-      return Object.keys(result).length ? result : {};
+      // 初始化阶段配置未加载，这里无法获取字段列表，直接返回空对象
+      return {};
     });
   }
 
@@ -430,10 +432,12 @@ class RouteUrlResolver {
       return ['normal', 'scene'].includes(val) ? val : undefined;
     });
 
-    // scene_active: 白名单（6 个场景类型值 + 空字符串）
+    // scene_active: 字母、数字、下划线
     this.paramSanitizers.set('scene_active', (val) => {
-      if (typeof val !== 'string') return '';
-      return ['container', 'host', 'paas', 'service', 'client', 'trpc', ''].includes(val) ? val : '';
+      if (typeof val !== 'string') return undefined;
+      if (/^[a-zA-Z0-9_]+$/.test(val)) return val;
+      const cleaned = this.stripQuoteArtifacts(val);
+      return /^[a-zA-Z0-9_]+$/.test(cleaned) ? cleaned : undefined;
     });
 
     // index_id: 纯数字或数字字符串

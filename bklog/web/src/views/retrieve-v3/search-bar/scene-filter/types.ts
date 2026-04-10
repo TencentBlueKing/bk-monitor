@@ -24,15 +24,43 @@
  * IN THE SOFTWARE.
  */
 
-/** 场景类型枚举 */
+/** 场景类型枚举（值对应接口返回的 id） */
 export enum SceneType {
-  Container = 'container',
+  Container = 'k8s',
   Host = 'host',
-  PaaS = 'paas',
-  Service = 'service',
+  PaaS = 'bk_paas',
+  Service = 'apm',
   Client = 'client',
   TRPC = 'trpc',
 }
+
+/** ============ 接口返回数据类型 ============ */
+
+/** 接口返回的维度字段 */
+export interface SceneDimensionItem {
+  /** 字段 key，提交请求时传递 */
+  key: string;
+  /** 显示名称 */
+  name: string;
+  /** 是否必填 */
+  required: boolean;
+  /** 字段数据类型 */
+  type: 'string' | 'integer';
+  /** 支持的操作符列表 */
+  ops: string[];
+}
+
+/** 接口返回的场景配置项 */
+export interface SceneConfigItem {
+  /** 场景 ID */
+  id: string;
+  /** 场景显示名称 */
+  name: string;
+  /** 维度字段列表 */
+  dimensions: SceneDimensionItem[];
+}
+
+/** ============ 组件内部使用类型 ============ */
 
 /** 筛选字段的输入组件类型 */
 export type FilterInputType = 'select' | 'input';
@@ -46,14 +74,12 @@ export interface SelectOption {
   name: string;
 }
 
-/** 筛选字段配置 */
+/** 筛选字段配置（从接口 dimension 转换而来） */
 export interface FilterFieldConfig {
-  /** 显示标签 */
-  label: string;
-  /** 是否跳过国际化翻译（纯英文专有名词标记为 true） */
-  skipI18n?: boolean;
-  /** 字段名 */
-  fieldName: string;
+  /** 显示名称（对应接口 dimension.name） */
+  name: string;
+  /** 字段 key（对应接口 dimension.key） */
+  key: string;
   /** 字段数据类型 */
   fieldType: 'string' | 'integer';
   /** 输入组件类型 */
@@ -72,18 +98,18 @@ export interface FilterFieldConfig {
   placeholder?: string;
 }
 
-/** 每场景的显示字段配置：key = SceneType, value = 有序 fieldName 数组（null 表示全部显示、默认顺序） */
+/** 每场景的显示字段配置：key = SceneType, value = 有序字段 key 数组（null 表示全部显示、默认顺序） */
 export type SceneDisplayFields = Record<string, string[] | null>;
 
-/** 场景配置 */
+/** 场景配置（从接口数据 + 本地映射合并而来） */
 export interface SceneConfig {
-  /** 场景类型 */
-  type: SceneType;
-  /** 场景显示名称 */
+  /** 场景类型（对应接口 id / SceneType 枚举值） */
+  type: string;
+  /** 场景显示名称（从本地映射获取） */
   label: string;
-  /** 是否跳过国际化翻译（纯英文专有名词标记为 true） */
+  /** 是否跳过国际化翻译 */
   skipI18n?: boolean;
-  /** 场景图标 */
+  /** 场景图标（从本地映射获取） */
   icon: string;
   /** 筛选字段列表 */
   fields: FilterFieldConfig[];

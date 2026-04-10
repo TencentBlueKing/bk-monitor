@@ -436,6 +436,13 @@ const updateFieldsAlias = {
   url: '/search/index_set/:index_set_id/alias_settings/',
   method: 'post',
 };
+
+/** 获取场景化检索配置列表 */
+const getSceneConfigs = {
+  url: '/search/scene/scenes/',
+  method: 'get',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -490,4 +497,5 @@ export {
   getIndexSetDataByDataId,
   updateFieldsAlias,
   getGrepResultTotal,
+  getSceneConfigs,
 };

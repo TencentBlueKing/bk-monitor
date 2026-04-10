@@ -35,6 +35,8 @@ import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
 
+import { getSceneFieldKeys } from './search-bar/scene-filter/scene-config';
+
 import $http from '@/api';
 
 export default () => {
@@ -65,6 +67,9 @@ export default () => {
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
       search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     });
+    // 场景筛选值由 requestSceneConfigs 独立从 URL 解析处理，此处不覆盖
+    delete routeParams.scene_filter_values;
+
     let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
 
@@ -523,9 +528,37 @@ export default () => {
     });
   };
 
+  /**
+   * 请求场景配置数据，接口返回后从 URL query 中回填场景筛选值
+   */
+  const requestSceneConfigs = () => {
+    store.dispatch('retrieve/requestSceneConfigs').then(() => {
+      const configs = store.getters['retrieve/sceneConfigList'];
+      const sceneActive = store.state.indexItem.scene_active;
+      if (!sceneActive || !configs.length) return;
+
+      const sceneFieldKeys = getSceneFieldKeys(configs, sceneActive);
+      if (!sceneFieldKeys.length) return;
+
+      const result: Record<string, any> = {};
+      for (const fieldKey of sceneFieldKeys) {
+        const val = route.query[fieldKey];
+        if (val !== undefined && val !== null && val !== '') {
+          result[fieldKey] = val;
+        }
+      }
+
+      if (Object.keys(result).length) {
+        store.commit('updateIndexItem', { scene_filter_values: result });
+      }
+    });
+  };
+
   getIndexSetList(() => {
     reoverRouteParams();
   });
+  
+  requestSceneConfigs();
 
   const handleSpaceIdChange = () => {
     const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
@@ -541,6 +574,7 @@ export default () => {
 
     getIndexSetList();
     store.dispatch('requestFavoriteList');
+    requestSceneConfigs();
   };
 
   watch(spaceUid, () => {

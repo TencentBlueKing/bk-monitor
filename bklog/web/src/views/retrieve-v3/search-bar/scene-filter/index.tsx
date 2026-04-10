@@ -38,7 +38,7 @@ import { RetrieveEvent } from '../../../retrieve-helper';
 import SceneFilterTags from '../../../retrieve-v2/sub-bar/scene-filter-tags';
 import V3Searchbar from '../index';
 import FilterPanel from './filter-panel';
-import { getAllSceneFieldNames } from './scene-config';
+import { getAllSceneFieldKeys } from './scene-config';
 import { SceneType } from './types';
 import type { FilterValues, SceneDisplayFields } from './types';
 
@@ -51,9 +51,11 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
 
-    const activeScene = computed<SceneType>({
+    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+
+    const activeScene = computed<string>({
       get: () => store.state.indexItem.scene_active || SceneType.Container,
-      set: (val: SceneType) => {
+      set: (val: string) => {
         store.commit('updateIndexItem', { scene_active: val });
       },
     });
@@ -74,8 +76,8 @@ export default defineComponent({
 
       // 先清除所有可能的场景筛选字段，避免切换场景时残留旧字段
       const cleanQuery = { ...route.query };
-      for (const name of getAllSceneFieldNames()) {
-        cleanQuery[name] = undefined;
+      for (const key of getAllSceneFieldKeys(sceneConfigs.value)) {
+        cleanQuery[key] = undefined;
       }
 
       router.replace({
@@ -83,7 +85,7 @@ export default defineComponent({
       });
     };
 
-    const handleSceneChange = (type: SceneType) => {
+    const handleSceneChange = (type: string) => {
       activeScene.value = type;
       filterValues.value = {};
       syncUrlParams();
@@ -125,7 +127,7 @@ export default defineComponent({
     const showQueryHint = ref(false);
 
     /** 上次查询时的 activeScene 快照 */
-    const lastQueriedScene = ref<SceneType | null>(null);
+    const lastQueriedScene = ref<string | null>(null);
 
     // 监听查询事件，记录快照并隐藏提示条
     addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
@@ -157,11 +159,10 @@ export default defineComponent({
 
     const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
 
-    const hintText = () =>
-      t('检索条件有变更，请点击{icon}按钮重新查询{shortcut}', {
-        icon: '🔍',
-        shortcut: `(${shortcutKey})`,
-      });
+    const hintText = () => t('检索条件有变更，请点击{icon}按钮重新查询{shortcut}', {
+      icon: '🔍',
+      shortcut: `(${shortcutKey})`,
+    });
 
     return () => (
       <div class='scene-filter-root'>

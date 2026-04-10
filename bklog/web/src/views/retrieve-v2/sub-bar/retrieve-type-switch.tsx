@@ -28,7 +28,7 @@ import { computed, defineComponent } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
-import { getAllSceneFieldNames } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
+import { getAllSceneFieldKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
 import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
 import './retrieve-type-switch.scss';
 
@@ -47,6 +47,8 @@ export default defineComponent({
 
     const retrieveType = computed(() => store.state.indexItem.retrieve_type ?? RetrieveType.Normal);
 
+    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+
     const handleChange = (type: string) => {
       if (retrieveType.value === type) return;
 
@@ -61,8 +63,8 @@ export default defineComponent({
         // 从 URL 中清除场景相关参数
         const cleanQuery: Record<string, any> = { ...route.query, retrieve_type: type };
         delete cleanQuery.scene_active;
-        for (const name of getAllSceneFieldNames()) {
-          delete cleanQuery[name];
+        for (const key of getAllSceneFieldKeys(sceneConfigs.value)) {
+          delete cleanQuery[key];
         }
         router.replace({ query: cleanQuery });
       } else {
