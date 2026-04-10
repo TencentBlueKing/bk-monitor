@@ -73,7 +73,7 @@ import TextUnit from '../plugins/text-unit/text-unit';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 import LineEcharts from '../plugins/time-series/time-series';
-// import ApmAlarmCenter from '../plugins/apm-alarm-center';
+import ApmAlarmCenter from '../plugins/apm-alarm-center';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
@@ -259,8 +259,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   handleMenuClick(data) {
     return data;
   }
-  handlePanel2Chart() {   
-    // return <ApmAlarmCenter v3Props={{ data: '123' }} onV3Event={(value) => {console.log('???', value)}} />
+  handlePanel2Chart() {
     switch (this.panel.type) {
       case 'line-bar':
         return (
@@ -629,6 +628,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return <apm-event-explore />;
       case 'alarm_template':
         return <AlarmTemplate />;
+      case 'alarm_center':
+        return <ApmAlarmCenter />
       // 不需要报错显示
       // case 'graph':
       default:

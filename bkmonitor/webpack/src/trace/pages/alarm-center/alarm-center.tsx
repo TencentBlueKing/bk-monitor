@@ -109,8 +109,11 @@ export default defineComponent({
     const appStore = useAppStore();
 
     // #if IS_APM_MONITOR
-    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, unknown>);
+    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, string>);
     const bridgeEmit = inject(BRIDGE_EMIT_KEY, (() => {}) as (event: string, ...args: unknown[]) => void);
+    if (bridgeProps.queryString) {
+      window.APM_QUERY_STRING = bridgeProps.queryString;
+    }
     // #endif
 
     const {
@@ -257,20 +260,6 @@ export default defineComponent({
       }
     );
 
-    // #if IS_APM_MONITOR
-    // 监听 vue2 宿主传入的 bridgeProps 变化，并调用 bridgeEmit 抛出事件
-    watch(
-      () => bridgeProps,
-      () => {
-        console.log('bridgeProps = ', bridgeProps);
-        bridgeEmit('update', bridgeProps);
-      },
-      {
-        immediate: true,
-      }
-    );
-    // #endif
-
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
@@ -313,10 +302,16 @@ export default defineComponent({
     const handleConditionChange = (condition: CommonCondition[]) => {
       handleCurrentPageChange(1);
       alarmStore.conditions = condition;
+      // #if IS_APM_MONITOR
+      bridgeEmit('conditionChange', condition);
+      // #endif
     };
     /** 查询语句变化 */
     const handleQueryStringChange = (queryString: string) => {
       alarmStore.queryString = queryString;
+      // #if IS_APM_MONITOR
+      bridgeEmit('queryStringChange', queryString);
+      // #endif
     };
     /** 查询模式变化 */
     const handleFilterModeChange = (mode: EMode) => {
