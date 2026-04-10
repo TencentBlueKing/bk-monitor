@@ -33,13 +33,14 @@ from rest_framework.response import Response
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.iam import ActionEnum, Permission
-from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_extract import constants, exceptions
 from apps.log_extract.constants import (
     TASK_BK_CLOUD_ID_INDEX,
     TASK_HOST_ID_INDEX,
     TASK_IP_INDEX,
     ExtractLinkType,
+    LogExtractNodeInstanceType,
+    LogExtractTargetNodeTypeEnum,
 )
 from apps.log_extract.handlers.explorer import ExplorerHandler
 from apps.log_extract.handlers.extract import ExtractLinkBase
@@ -87,7 +88,7 @@ class TasksHandler:
             response = tasks_views.get_paginated_response(serializer.data)
             response.data["list"] = cls.post_list(response.data["list"])
             response.data["list"] = cls.get_ip_and_bk_cloud_id(response.data["list"])
-            response.data["list"] = cls.get_target_node(response.data["list"])
+            response.data["list"] = cls.get_target_nodes_by_ip_list(response.data["list"])
             response.data["timeout"] = constants.POLLING_TIMEOUT
             return response
 
@@ -102,19 +103,9 @@ class TasksHandler:
         if task.created_by != self.request_user:
             raise exceptions.TasksRecreateFailed
 
-        task_data = {
-            "target_node_type": task.target_node_type,
-            "ip_list": task.ip_list,
-            "target_nodes": task.target_nodes,
-            "preview_ip": None,
-            "preview_ip_list": "{}",
-        }
-        task_data["ip_list"] = self.format_task_ip_details(task_data)["ip_list"]
-        task_data["target_nodes"] = self.format_task_target_node_details(task_data)["target_nodes"]
-
         return self.create(
             bk_biz_id=task.bk_biz_id,
-            ip_list=task_data.get("ip_list"),
+            ip_list=task.ip_list,
             request_file_list=task.file_path,
             filter_type=task.filter_type,
             remark=task.remark,
@@ -127,7 +118,7 @@ class TasksHandler:
             preview_end_time=task.preview_end_time,
             link_id=task.link_id,
             target_node_type=task.target_node_type,
-            target_nodes=task_data.get("target_nodes"),
+            target_nodes=task.target_nodes,
         )
 
     def create(
@@ -145,7 +136,7 @@ class TasksHandler:
         preview_start_time,
         preview_end_time,
         link_id,
-        target_node_type=TargetNodeTypeEnum.INSTANCE.value,
+        target_node_type=LogExtractTargetNodeTypeEnum.INSTANCE.value,
         target_nodes=[],
     ):
         request_user = get_request_external_username() or get_request_username()
@@ -155,7 +146,8 @@ class TasksHandler:
             raise exceptions.TaskCannotCreateByCommonLink
 
         # step 2：用户任务鉴权
-        list_strategies_dict = ExplorerHandler().get_strategies(bk_biz_id, ip_list)
+        list_strategies_dict = ExplorerHandler().get_strategies(bk_biz_id, ip_list, target_node_type, target_nodes)
+        ip_list = list_strategies_dict.get("ip_list")
         allowed_dir_file_list = list_strategies_dict.get("allowed_dir_file_list")
         allowed_download_file_list = []
         for request_file in request_file_list:
@@ -184,16 +176,11 @@ class TasksHandler:
                 ip_key = f"{ip_key}:{ip['bk_host_id']}"
             formatted_preview_ip_list.append(ip_key)
 
-        formatted_target_nodes = []
-        for target_node in target_nodes or []:
-            target_node_key = f"{target_node['bk_obj_id']}:{target_node['bk_inst_id']}"
-            formatted_target_nodes.append(target_node_key)
-
         params = {
             "bk_biz_id": bk_biz_id,
             "target_node_type": target_node_type,
             "ip_list": formatted_ip_list,
-            "target_nodes": formatted_target_nodes,
+            "target_nodes": target_nodes,
             "file_path": request_file_list,
             "filter_type": filter_type,
             "filter_content": {} if not filter_type else filter_content,
@@ -272,7 +259,6 @@ class TasksHandler:
             raise exceptions.TasksRetrieveFailed
         # 主机显示优化
         task["ip_list"] = self.format_task_ip_details(task)["ip_list"]
-        task["target_nodes"] = self.format_task_target_node_details(task)["target_nodes"]
         pipeline_id = instance.pipeline_id
         pipeline_components_id = instance.pipeline_components_id
         task["download_status_display"] = constants.DownloadStatus.get_dict_choices().get(task["download_status"])
@@ -391,10 +377,10 @@ class TasksHandler:
         return new_task_list
 
     @staticmethod
-    def get_target_node(task_list):
+    def get_target_nodes_by_ip_list(task_list):
         new_task_list = []
         for task in task_list:
-            new_task_list.append(TasksHandler.format_task_target_node_details(task))
+            new_task_list.append(TasksHandler.ip_list_convert_into_target_nodes(task))
         return new_task_list
 
     @staticmethod
@@ -420,14 +406,6 @@ class TasksHandler:
                     "bk_cloud_id": int(items[TASK_BK_CLOUD_ID_INDEX]),
                     "bk_host_id": int(items[TASK_HOST_ID_INDEX]),
                 }
-
-    @staticmethod
-    def format_target_node(target_node):
-        if ":" not in target_node:
-            return None
-        else:
-            items = target_node.split(":")
-            return {"bk_obj_id": items[0], "bk_inst_id": int(items[1])}
 
     @staticmethod
     def format_task_ip_details(task):
@@ -460,27 +438,98 @@ class TasksHandler:
         return task
 
     @staticmethod
-    def format_task_target_node_details(task):
+    def ip_list_convert_into_target_nodes(task):
         """
-        格式化任务里的 target_nodes
+        静态拓补转换 ip_list 为 target_nodes
         """
-        is_topo_or_service_template_type = task["target_node_type"] in {
-            TargetNodeTypeEnum.TOPO.value,
-            TargetNodeTypeEnum.SERVICE_TEMPLATE.value,
-        }
-        if is_topo_or_service_template_type:
-            task["enable_clone"] = True
+        # 如果不是实例节点类型, 或者已经有 target_nodes, 则直接返回
+        if task["target_node_type"] != LogExtractTargetNodeTypeEnum.INSTANCE.value or task["target_nodes"]:
+            return task
+
         target_nodes = []
-        for target_node in task["target_nodes"]:
-            new_target_node = TasksHandler.format_target_node(target_node)
-            if is_topo_or_service_template_type and not new_target_node:
-                task["enable_clone"] = False
-                task["message"] = _("缺少 bk_obj_id 或 bk_inst_id")
-                break
-            if new_target_node:
-                target_nodes.append(new_target_node)
+        need_query_topo_ip_list = []
+
+        for ip in task["ip_list"]:
+            if not isinstance(ip, dict):
+                continue
+            bk_host_id = ip.get("bk_host_id")
+            if bk_host_id is not None:
+                target_nodes.append(
+                    {
+                        "bk_obj_id": LogExtractNodeInstanceType.HOST.value,
+                        "bk_inst_id": bk_host_id,
+                    }
+                )
+            else:
+                need_query_topo_ip_list.append(ip)
+
+        if need_query_topo_ip_list:
+            topo_list = ExplorerHandler.get_module_by_ip(
+                task["bk_biz_id"], need_query_topo_ip_list, is_allowed_topo_list_null=True
+            )
+            for topo in topo_list:
+                target_nodes.append(
+                    {
+                        "bk_obj_id": LogExtractNodeInstanceType.HOST.value,
+                        "bk_inst_id": topo["host"]["bk_host_id"],
+                    }
+                )
+
         task["target_nodes"] = target_nodes
+
         return task
+
+    @staticmethod
+    def get_new_ip_list_from_target_nodes(task_id):
+        """
+        通过 target_nodes 动态获取最新 ip_list
+        """
+        task = Tasks.objects.filter(task_id=task_id).first()
+        target_node_type = task.target_node_type
+        target_nodes = task.target_nodes
+
+        if target_node_type == LogExtractTargetNodeTypeEnum.INSTANCE.value or not target_nodes:
+            return None
+
+        new_topo_list = ExplorerHandler.get_topo_list_by_nodes(
+            task.bk_biz_id, target_nodes, is_allowed_topo_list_null=True
+        )
+
+        if not new_topo_list:
+            return None
+
+        new_ip_list = []
+        ip_info_tuples = set()
+
+        # 获取去重后的 new_ip_list
+        for topo in new_topo_list:
+            bk_host_innerip = topo["host"]["bk_host_innerip"]
+            bk_cloud_id = topo["host"]["bk_cloud_id"]
+            bk_host_id = topo["host"]["bk_host_id"]
+            ip_info_tuple = (bk_host_innerip, bk_cloud_id, bk_host_id)
+            if ip_info_tuple not in ip_info_tuples:
+                ip_info_tuples.add(ip_info_tuple)
+                new_ip_list.append(
+                    {
+                        "ip": bk_host_innerip,
+                        "bk_cloud_id": bk_cloud_id,
+                        "bk_host_id": bk_host_id,
+                    }
+                )
+
+        # 将最新的 ip_list 格式化为字符串后更新至数据库
+        formatted_new_ip_list = []
+        for ip in new_ip_list:
+            ip_key = f"{ip['bk_cloud_id']}:{ip['ip']}"
+            if ip.get("bk_host_id"):
+                ip_key = f"{ip_key}:{ip['bk_host_id']}"
+            formatted_new_ip_list.append(ip_key)
+
+        task.ip_list = formatted_new_ip_list
+
+        Tasks.objects.filter(task_id=task_id).update(ip_list=formatted_new_ip_list)
+
+        return new_ip_list
 
     @classmethod
     def run_pipeline(

@@ -28,9 +28,13 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import ListField
 
-from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_extract import constants, models
-from apps.log_extract.constants import PREDATEMODE_CUSTOM_TIME_FORMAT, KeywordType
+from apps.log_extract.constants import (
+    PREDATEMODE_CUSTOM_TIME_FORMAT,
+    KeywordType,
+    LogExtractNodeInstanceType,
+    LogExtractTargetNodeTypeEnum,
+)
 from apps.log_extract.models import ExtractLink
 from apps.log_search.constants import CCInstanceType, InstanceTypeEnum
 from apps.utils.base_crypt import BaseCrypt
@@ -70,7 +74,7 @@ class TargetNodesSerializer(serializers.Serializer):
     bk_obj_id = serializers.ChoiceField(
         label=_("节点对象"),
         required=True,
-        choices=CCInstanceType.get_enums_values() + [TemplateType.SERVICE_TEMPLATE.value],
+        choices=LogExtractNodeInstanceType.get_choices(),
     )
     bk_inst_id = serializers.IntegerField(label=_("节点实例id"), required=True)
 
@@ -113,16 +117,12 @@ class ExplorerStrategiesSerializer(serializers.Serializer):
     target_node_type = serializers.ChoiceField(
         label=_("目标节点类型"),
         required=False,
-        choices=[
-            TargetNodeTypeEnum.INSTANCE.value,
-            TargetNodeTypeEnum.TOPO.value,
-            TargetNodeTypeEnum.SERVICE_TEMPLATE.value,
-        ],
-        default=TargetNodeTypeEnum.INSTANCE.value,
+        choices=LogExtractTargetNodeTypeEnum.get_choices(),
+        default=LogExtractTargetNodeTypeEnum.INSTANCE.value,
     )
-    ip_list = serializers.ListSerializer(label=_("业务机器列表"), child=BkIpSerializer(), required=False, default=[])
+    ip_list = serializers.ListSerializer(label=_("业务机器列表"), required=False, child=BkIpSerializer(), default=[])
     target_nodes = serializers.ListSerializer(
-        label=_("节点列表"), child=TargetNodesSerializer(), required=False, default=[]
+        label=_("节点列表"), required=False, child=TargetNodesSerializer(), default=[]
     )
 
     def validate(self, attrs):
@@ -130,18 +130,30 @@ class ExplorerStrategiesSerializer(serializers.Serializer):
         ip_list = attrs.get("ip_list")
         target_nodes = attrs.get("target_nodes")
 
-        if target_node_type == TargetNodeTypeEnum.INSTANCE.value:
-            if not ip_list:
-                raise serializers.ValidationError(_("静态拓补请提供 ip_list 参数"))
-        elif target_node_type in {TargetNodeTypeEnum.TOPO.value, TargetNodeTypeEnum.SERVICE_TEMPLATE.value}:
+        allowed_obj_ids_map = {
+            LogExtractTargetNodeTypeEnum.INSTANCE.value: {LogExtractNodeInstanceType.HOST.value},
+            LogExtractTargetNodeTypeEnum.TOPO.value: set(CCInstanceType.get_enums_values()),
+            LogExtractTargetNodeTypeEnum.SERVICE_TEMPLATE.value: {TemplateType.SERVICE_TEMPLATE.value},
+        }
+        bk_obj_ids = None
+
+        if target_node_type == LogExtractTargetNodeTypeEnum.INSTANCE.value:
+            if not ip_list and not target_nodes:
+                raise serializers.ValidationError(_("静态拓补请提供 target_nodes 或 ip_list 参数"))
+
+            if target_nodes:
+                bk_obj_ids = {target_node["bk_obj_id"] for target_node in target_nodes}
+
+        elif target_node_type in {
+            LogExtractTargetNodeTypeEnum.TOPO.value,
+            LogExtractTargetNodeTypeEnum.SERVICE_TEMPLATE.value,
+        }:
             if not target_nodes:
                 raise serializers.ValidationError(_("动态拓补或服务模板请提供 target_nodes 参数"))
 
-            allowed_obj_ids_map = {
-                TargetNodeTypeEnum.TOPO.value: set(CCInstanceType.get_enums_values()),
-                TargetNodeTypeEnum.SERVICE_TEMPLATE.value: {TemplateType.SERVICE_TEMPLATE.value},
-            }
             bk_obj_ids = {target_node["bk_obj_id"] for target_node in target_nodes}
+
+        if bk_obj_ids:
             allowed_obj_ids = allowed_obj_ids_map[target_node_type]
 
             if not bk_obj_ids.issubset(allowed_obj_ids):
@@ -151,7 +163,7 @@ class ExplorerStrategiesSerializer(serializers.Serializer):
                     )
                 )
 
-            if CCInstanceType.BUSINESS.value in bk_obj_ids and len(bk_obj_ids) > 1:
+            if LogExtractNodeInstanceType.BUSINESS.value in bk_obj_ids and len(bk_obj_ids) > 1:
                 raise serializers.ValidationError(_("biz 类型节点对象不能与其他类型节点对象同时存在"))
 
         return attrs
@@ -169,16 +181,12 @@ class CreateTaskSerializer(serializers.Serializer):
     target_node_type = serializers.ChoiceField(
         label=_("目标节点类型"),
         required=False,
-        choices=[
-            TargetNodeTypeEnum.INSTANCE.value,
-            TargetNodeTypeEnum.TOPO.value,
-            TargetNodeTypeEnum.SERVICE_TEMPLATE.value,
-        ],
-        default=TargetNodeTypeEnum.INSTANCE.value,
+        choices=LogExtractTargetNodeTypeEnum.get_choices(),
+        default=LogExtractTargetNodeTypeEnum.INSTANCE.value,
     )
-    ip_list = serializers.ListField(label=_("业务机器IP"), child=BkIpSerializer())
+    ip_list = serializers.ListField(label=_("业务机器IP"), required=False, child=BkIpSerializer(), default=[])
     target_nodes = serializers.ListSerializer(
-        label=_("节点列表"), child=TargetNodesSerializer(), required=False, default=[]
+        label=_("节点列表"), required=False, child=TargetNodesSerializer(), default=[]
     )
     file_path = serializers.ListField(label=_("目标文件路径"))
     filter_type = serializers.CharField(label=_("过滤类型"), allow_blank=True)
@@ -206,18 +214,30 @@ class CreateTaskSerializer(serializers.Serializer):
         ip_list = attrs.get("ip_list")
         target_nodes = attrs.get("target_nodes")
 
-        if not ip_list:
-            raise serializers.ValidationError(_("ip_list 参数不能为空"))
+        allowed_obj_ids_map = {
+            LogExtractTargetNodeTypeEnum.INSTANCE.value: {LogExtractNodeInstanceType.HOST.value},
+            LogExtractTargetNodeTypeEnum.TOPO.value: set(CCInstanceType.get_enums_values()),
+            LogExtractTargetNodeTypeEnum.SERVICE_TEMPLATE.value: {TemplateType.SERVICE_TEMPLATE.value},
+        }
+        bk_obj_ids = None
 
-        if target_node_type in {TargetNodeTypeEnum.TOPO.value, TargetNodeTypeEnum.SERVICE_TEMPLATE.value}:
+        if target_node_type == LogExtractTargetNodeTypeEnum.INSTANCE.value:
+            if not ip_list and not target_nodes:
+                raise serializers.ValidationError(_("静态拓补请提供 target_nodes 或 ip_list 参数"))
+
+            if target_nodes:
+                bk_obj_ids = {target_node["bk_obj_id"] for target_node in target_nodes}
+
+        elif target_node_type in {
+            LogExtractTargetNodeTypeEnum.TOPO.value,
+            LogExtractTargetNodeTypeEnum.SERVICE_TEMPLATE.value,
+        }:
             if not target_nodes:
-                raise serializers.ValidationError(_("动态拓补或服务模板 target_nodes 参数不能为空"))
+                raise serializers.ValidationError(_("动态拓补或服务模板请提供 target_nodes 参数"))
 
-            allowed_obj_ids_map = {
-                TargetNodeTypeEnum.TOPO.value: set(CCInstanceType.get_enums_values()),
-                TargetNodeTypeEnum.SERVICE_TEMPLATE.value: {TemplateType.SERVICE_TEMPLATE.value},
-            }
             bk_obj_ids = {target_node["bk_obj_id"] for target_node in target_nodes}
+
+        if bk_obj_ids:
             allowed_obj_ids = allowed_obj_ids_map[target_node_type]
 
             if not bk_obj_ids.issubset(allowed_obj_ids):
@@ -227,7 +247,7 @@ class CreateTaskSerializer(serializers.Serializer):
                     )
                 )
 
-            if CCInstanceType.BUSINESS.value in bk_obj_ids and len(bk_obj_ids) > 1:
+            if LogExtractNodeInstanceType.BUSINESS.value in bk_obj_ids and len(bk_obj_ids) > 1:
                 raise serializers.ValidationError(_("biz 类型节点对象不能与其他类型节点对象同时存在"))
 
         return attrs
@@ -447,7 +467,7 @@ class TasksSerializer(serializers.ModelSerializer):
 class TaskListSerializer(GeneralSerializer):
     task_id = serializers.IntegerField(label=_("下载任务ID"))
     ip_list = ListField(label=_("业务机器ip"))
-    target_nodes = ListField(label=_("节点列表"))
+    target_nodes = ListField(label=_("节点列表"), child=serializers.DictField(), default=list)
     file_path = ListField(label=_("文件列表"))
     download_status = serializers.CharField(label=_("任务状态"), max_length=16)
     filter_type = serializers.CharField(label=_("过滤类型"))

@@ -32,16 +32,16 @@ from apps.constants import ExternalPermissionActionEnum
 from apps.exceptions import ApiResultError
 from apps.iam import ActionEnum, Permission
 from apps.log_commons.models import ExternalPermission
-from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_extract import constants, exceptions
 from apps.log_extract.constants import (
     BATCH_GET_JOB_INSTANCE_IP_LOG_IP_LIST_SIZE,
     JOB_API_PERMISSION_CODE,
+    LogExtractNodeInstanceType,
+    LogExtractTargetNodeTypeEnum,
 )
 from apps.log_extract.fileserver import FileServer
 from apps.log_extract.handlers.thread import ThreadPool
 from apps.log_extract.models import Strategies
-from apps.log_search.constants import CCInstanceType
 from apps.log_search.handlers.biz import BizHandler
 from apps.utils.db import array_chunk
 from apps.utils.local import get_request_external_username, get_request_username
@@ -206,7 +206,9 @@ class ExplorerHandler:
             return f"{file_mtime[-1]} {file_meta_data[-1]}"
         return "-"
 
-    def get_strategies(self, bk_biz_id, ip_list, target_node_type=TargetNodeTypeEnum.INSTANCE.value, target_nodes=[]):
+    def get_strategies(
+        self, bk_biz_id, ip_list=[], target_node_type=LogExtractTargetNodeTypeEnum.INSTANCE.value, target_nodes=[]
+    ):
         """
         :param bk_biz_id: 业务ID
         :param ip_list: 业务机器IP列表
@@ -214,20 +216,22 @@ class ExplorerHandler:
         :param target_nodes: 节点列表
         :return: 返回用户在对应业务下所选择的多个服务器中可访问目录及目录下文件类型的交集
         """
-        if target_node_type == TargetNodeTypeEnum.INSTANCE.value:
-            # step 1: 获取ip所属模块列表
-            request_topo_list = self.get_module_by_ip(bk_biz_id, ip_list)
-        elif target_node_type == TargetNodeTypeEnum.TOPO.value:
-            request_topo_list = self.get_topo_list_by_nodes(bk_biz_id, target_nodes)
-            ip_list = []
-            for topo in request_topo_list:
-                ip_info = {
-                    "ip": topo["host"]["bk_host_innerip"],
-                    "bk_cloud_id": topo["host"]["bk_cloud_id"],
-                    "bk_host_id": topo["host"]["bk_host_id"],
-                }
-                ip_list.append(ip_info)
-        elif target_node_type == TargetNodeTypeEnum.SERVICE_TEMPLATE.value:
+        if target_node_type in {LogExtractTargetNodeTypeEnum.INSTANCE.value, LogExtractTargetNodeTypeEnum.TOPO.value}:
+            if target_node_type == LogExtractTargetNodeTypeEnum.INSTANCE.value and ip_list and not target_nodes:
+                # step 1: 获取ip所属模块列表
+                request_topo_list = self.get_module_by_ip(bk_biz_id, ip_list)
+            else:
+                request_topo_list = self.get_topo_list_by_nodes(bk_biz_id, target_nodes)
+                ip_list = []
+                for topo in request_topo_list:
+                    ip_list.append(
+                        {
+                            "ip": topo["host"]["bk_host_innerip"],
+                            "bk_cloud_id": topo["host"]["bk_cloud_id"],
+                            "bk_host_id": topo["host"]["bk_host_id"],
+                        }
+                    )
+        elif target_node_type == LogExtractTargetNodeTypeEnum.SERVICE_TEMPLATE.value:
             ip_list = self.get_ip_list_by_service_template(bk_biz_id, target_nodes)
             request_topo_list = self.get_module_by_ip(bk_biz_id, ip_list)
 
@@ -261,16 +265,11 @@ class ExplorerHandler:
         for ip_allowed_strategies in allowed_strategies:
             result = self.get_intersection_strategies(result, ip_allowed_strategies)
 
-        ip_list_and_allowed_dir_file_list = {
-            "ip_list": ip_list,
-            "strategies": result,
-        }
-
         return {
             "allowed_dir_file_list": result,
             "bk_os_type": host_os_type,
             "operator": result[0]["operator"],
-            "ip_list_and_allowed_dir_file_list": ip_list_and_allowed_dir_file_list,
+            "ip_list": ip_list,
         }
 
     def list_accessible_topo(self, bk_biz_id):
@@ -664,9 +663,10 @@ class ExplorerHandler:
     @staticmethod
     def _get_topo_filter_rule_by_target_nodes(target_nodes):
         field_map = {
-            CCInstanceType.BUSINESS.value: "bk_biz_id",
-            CCInstanceType.SET.value: "bk_set_id",
-            CCInstanceType.MODULE.value: "bk_module_id",
+            LogExtractNodeInstanceType.BUSINESS.value: "bk_biz_id",
+            LogExtractNodeInstanceType.SET.value: "bk_set_id",
+            LogExtractNodeInstanceType.MODULE.value: "bk_module_id",
+            LogExtractNodeInstanceType.HOST.value: "bk_host_id",
         }
 
         filter_rule = {
@@ -681,7 +681,7 @@ class ExplorerHandler:
         return filter_rule
 
     @classmethod
-    def get_module_by_ip(cls, bk_biz_id, ip_list):
+    def get_module_by_ip(cls, bk_biz_id, ip_list, is_allowed_topo_list_null=False):
         search_topo_of_host = {
             "bk_biz_id": bk_biz_id,
             "fields": ["bk_host_id", "bk_os_type", "bk_os_name", "bk_cloud_id", "bk_host_innerip"],
@@ -689,12 +689,12 @@ class ExplorerHandler:
         }
         # host_info 是一个列表，host_info[i-1](host_info[1]) 代表所查询第i台(第2台)主机的信息，包括topo信息和主机详情信息
         host_info = batch_request(func=CCApi.list_biz_hosts_topo, params=search_topo_of_host)
-        if not host_info:
+        if not host_info and not is_allowed_topo_list_null:
             raise exceptions.ExplorerStrategiesFailed
         return host_info
 
     @classmethod
-    def get_topo_list_by_nodes(cls, bk_biz_id, target_nodes):
+    def get_topo_list_by_nodes(cls, bk_biz_id, target_nodes, is_allowed_topo_list_null=False):
         params = {
             "bk_biz_id": bk_biz_id,
             "fields": ["bk_host_id", "bk_os_type", "bk_os_name", "bk_cloud_id", "bk_host_innerip"],
@@ -703,37 +703,31 @@ class ExplorerHandler:
         topo_list = []
         bk_obj_ids = {target_node["bk_obj_id"] for target_node in target_nodes}
 
-        if CCInstanceType.BUSINESS.value in bk_obj_ids:
+        if LogExtractNodeInstanceType.BUSINESS.value in bk_obj_ids:
             if reslt := batch_request(func=CCApi.list_biz_hosts_topo, params=params):
                 topo_list.extend(reslt)
         else:
             multi_execute_func = MultiExecuteFunc()
             result_keys = []
 
-            if (obj_id := CCInstanceType.SET.value) in bk_obj_ids:
-                filter_set_params = copy.deepcopy(params)
-                filter_set_params["set_property_filter"] = cls._get_topo_filter_rule_by_target_nodes(
-                    [target_node for target_node in target_nodes if target_node["bk_obj_id"] == obj_id]
-                )
-                result_key = f"{obj_id}_property_filter_topo_list"
-                multi_execute_func.append(
-                    result_key=result_key,
-                    func=batch_request,
-                    params={"func": CCApi.list_biz_hosts_topo, "params": filter_set_params},
-                    multi_func_params=True,
-                )
-                result_keys.append(result_key)
+            bk_obj_id_property_filter_key_map = {
+                LogExtractNodeInstanceType.SET.value: "set_property_filter",
+                LogExtractNodeInstanceType.MODULE.value: "module_property_filter",
+                LogExtractNodeInstanceType.HOST.value: "host_property_filter",
+            }
 
-            if (obj_id := CCInstanceType.MODULE.value) in bk_obj_ids:
-                filter_module_params = copy.deepcopy(params)
-                filter_module_params["module_property_filter"] = cls._get_topo_filter_rule_by_target_nodes(
+            for obj_id, property_filter_key in bk_obj_id_property_filter_key_map.items():
+                if obj_id not in bk_obj_ids:
+                    continue
+                filter_params = copy.deepcopy(params)
+                filter_params[property_filter_key] = cls._get_topo_filter_rule_by_target_nodes(
                     [target_node for target_node in target_nodes if target_node["bk_obj_id"] == obj_id]
                 )
                 result_key = f"{obj_id}_property_filter_topo_list"
                 multi_execute_func.append(
                     result_key=result_key,
                     func=batch_request,
-                    params={"func": CCApi.list_biz_hosts_topo, "params": filter_module_params},
+                    params={"func": CCApi.list_biz_hosts_topo, "params": filter_params},
                     multi_func_params=True,
                 )
                 result_keys.append(result_key)
@@ -745,7 +739,7 @@ class ExplorerHandler:
                 if result:
                     topo_list.extend(result)
 
-        if not topo_list:
+        if not topo_list and not is_allowed_topo_list_null:
             raise exceptions.ExplorerStrategiesFailed
 
         return topo_list

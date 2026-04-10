@@ -149,11 +149,11 @@ class ExplorerViewSet(APIViewSet):
         data = self.params_valid(serializers.ExplorerStrategiesSerializer)
         strategies = ExplorerHandler().get_strategies(
             bk_biz_id=data["bk_biz_id"],
-            ip_list=data["ip_list"],
+            ip_list=data.get("ip_list") or [],
             target_node_type=data["target_node_type"],
             target_nodes=data.get("target_nodes") or [],
         )
-        return Response(strategies["ip_list_and_allowed_dir_file_list"])
+        return Response({"ip_list": strategies["ip_list"], "strategies": strategies["allowed_dir_file_list"]})
 
     @list_route(methods=["get"], url_path="topo")
     def list_accessible_topo(self, request, *args, **kwargs):

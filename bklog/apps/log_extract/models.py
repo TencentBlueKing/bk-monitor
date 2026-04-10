@@ -29,8 +29,8 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from pipeline.service import task_service
 
-from apps.log_databus.constants import TargetNodeTypeEnum
-from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType
+
+from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType, LogExtractTargetNodeTypeEnum
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaFieldText,
@@ -76,9 +76,14 @@ class Tasks(OperateRecordModel):
     objects = TasksManager()
     task_id = models.AutoField(_("任务记录id"), primary_key=True)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
-    target_node_type = models.CharField(_("目标节点类型"), max_length=64, default=TargetNodeTypeEnum.INSTANCE.value)
+    target_node_type = models.CharField(
+        _("目标节点类型"),
+        max_length=64,
+        choices=LogExtractTargetNodeTypeEnum.get_choices(),
+        default=LogExtractTargetNodeTypeEnum.INSTANCE.value,
+    )
     ip_list = MultiStrSplitByCommaFieldText(_("业务机器ip"))
-    target_nodes = MultiStrSplitByCommaFieldText(_("节点列表"), blank=True, default="")
+    target_nodes = JsonField(_("节点列表"), null=True, blank=True, default=list)
     file_path = MultiStrSplitByCommaFieldText(_("文件列表"))
 
     filter_type = models.CharField(_("过滤类型"), max_length=16, null=True, blank=True)

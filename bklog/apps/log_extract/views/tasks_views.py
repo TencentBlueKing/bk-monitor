@@ -214,7 +214,7 @@ class TasksViewSet(ModelViewSet):
         return Response(
             TasksHandler().create(
                 bk_biz_id=data.get("bk_biz_id"),
-                ip_list=data.get("ip_list"),
+                ip_list=data.get("ip_list") or [],
                 request_file_list=data.get("file_path"),
                 filter_type=data.get("filter_type"),
                 filter_content=data.get("filter_content"),
@@ -227,7 +227,7 @@ class TasksViewSet(ModelViewSet):
                 preview_end_time=data.get("preview_end_time"),
                 link_id=data.get("link_id"),
                 target_node_type=data.get("target_node_type"),
-                target_nodes=data.get("target_nodes"),
+                target_nodes=data.get("target_nodes") or [],
             )
         )
 
