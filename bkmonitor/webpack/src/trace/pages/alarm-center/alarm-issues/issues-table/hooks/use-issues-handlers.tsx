@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { IssueStatusEnum } from '../../constant';
 import PriorityMenu from '../components/priority-menu/priority-menu';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
@@ -76,12 +77,12 @@ export const useIssuesHandlers = ({
   };
 
   /**
-   * @description 标记 Issue 已解决
+   * @description 标记 Issue 已解决（已解决 / 已归档状态下禁止操作）
    * @param {IssueItem} row - 当前 Issue 行数据
    */
   const handleMarkResolved = (row: IssueItem) => {
-    // 如果 Issue 已解决，不触发
-    if (row.is_resolved) return;
+    // 如果 Issue 已解决或已归档，不触发
+    if (row.is_resolved || row.status === IssueStatusEnum.ARCHIVED) return;
     markResolvedEmit(row.id);
   };
 

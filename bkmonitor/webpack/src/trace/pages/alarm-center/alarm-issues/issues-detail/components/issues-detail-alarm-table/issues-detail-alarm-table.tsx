@@ -142,7 +142,6 @@ export default defineComponent({
     const pagination = computed(() => ({
       currentPage: page.value,
       pageSize: pageSize.value,
-      total: total.value,
     }));
 
     // 获取数据
@@ -336,7 +335,6 @@ export default defineComponent({
           pagination={this.pagination}
           scrollContainerSelector={this.scrollContainerSelector}
           selectedRowKeys={this.selectedRowKeys}
-          showPage={false}
           sort={this.ordering}
           tableSettings={this.tableSettings}
           timeRange={this.timeRange}

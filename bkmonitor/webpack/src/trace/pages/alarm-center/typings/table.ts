@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type AlertAllActionEnum } from './constants';
-
+import type { AlertAllActionEnum } from './constants';
 import type { TableCol } from '@blueking/tdesign-ui';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
@@ -58,7 +57,7 @@ export interface TablePagination {
   /** 每页条数 */
   pageSize: number;
   /** 总数 */
-  total: number;
+  total?: number;
 }
 /** 表格通用渲染函数类型 */
 export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;

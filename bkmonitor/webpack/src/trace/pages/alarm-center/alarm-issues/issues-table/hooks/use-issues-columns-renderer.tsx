@@ -38,6 +38,7 @@ import {
   ISSUES_PRIORITY_MAP,
   ISSUES_REGRESSION_MAP,
   ISSUES_STATUS_MAP,
+  IssueStatusEnum,
 } from '../../constant';
 
 import type {
@@ -305,15 +306,17 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 操作列渲染（始终显示「标为已解决」按钮，is_resolved=true 时按钮置为禁用样式）
+   * @description 操作列渲染（始终显示「标为已解决」按钮，已解决 / 已归档状态下按钮置为禁用样式）
    * @param {IssueItem} row - 当前行 Issue 数据
    * @returns {SlotReturnValue} 操作列 JSX
    */
   const renderOperationCell = (row: IssueItem): SlotReturnValue => {
+    /** 是否禁止标记已解决（已解决或已归档状态） */
+    const isMarkResolvedDisabled = row.is_resolved || row.status === IssueStatusEnum.ARCHIVED;
     return (
       <div class='issues-operation-col'>
         <span
-          class={['operation-btn', { 'is-disabled': row.is_resolved }]}
+          class={['operation-btn', { 'is-disabled': isMarkResolvedDisabled }]}
           onClick={() => rendererCtx.handleMarkResolved(row)}
         >
           {t('标为已解决')}

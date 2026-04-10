@@ -125,11 +125,6 @@ export default defineComponent({
       type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
-    /** 是否展示分页 */
-    showPage: {
-      type: Boolean,
-      default: true,
-    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -179,7 +174,7 @@ export default defineComponent({
       return config;
     });
     /** 是否展示分页器 */
-    const showPagination = computed(() => props.pagination?.total && props.data?.length && props.showPage);
+    const showPagination = computed(() => props.pagination?.total && props.data?.length);
     /** 表格排序，将字符串形式转换成 TableSort 形式 */
     const tableSort = computed(() => {
       // 统一处理为数组形式
