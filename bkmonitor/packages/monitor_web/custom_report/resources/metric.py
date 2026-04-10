@@ -779,15 +779,11 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
         """子类可覆盖此方法注入额外的查询条件"""
         return []
 
-    def get_movable(self, metric_obj: "MetricQueryResponseDTO", params: dict) -> bool:
+    def get_movable(self, metric_obj, params: dict) -> bool:
         """判断指标是否可移动（即是否属于默认分组）"""
         return metric_obj.field_scope == DEFAULT_FIELD_SCOPE
 
     def perform_request(self, params: dict):
-        from dataclasses import asdict
-        import timeit
-        time1 = timeit.default_timer()
-
         time_series_group_id: int = params["time_series_group_id"]
         converter = MetricQueryConverter(time_series_group_id)
 
@@ -799,8 +795,6 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
             mandatory_conditions=mandatory_conditions,
             conditions=conditions,
         )
-        time2 = timeit.default_timer()
-        logger.info("[GetCustomTsFields] build conditions cost: %.4fs, group_id=%s", time2 - time1, time_series_group_id)
         paginated_result = converter.query_time_series_metric(
             conditions=conditions if conditions else None,
             mandatory_conditions=mandatory_conditions if mandatory_conditions else None,
@@ -809,17 +803,12 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
             page_size=params.get("page_size", 20),
             order_by=params.get("order_by", "name"),
         )
-        time3 = timeit.default_timer()
-        logger.info("[GetCustomTsFields] query_time_series_metric cost: %.4fs, group_id=%s", time3 - time2, time_series_group_id)
 
         metrics_list = []
         for m in paginated_result.metrics:
             metric_dict = asdict(m)
             metric_dict["movable"] = self.get_movable(m, params)
             metrics_list.append(metric_dict)
-        time4 = timeit.default_timer()
-        logger.info("[GetCustomTsFields] build metrics_list cost: %.4fs, group_id=%s", time4 - time3, time_series_group_id)
-        logger.info("[GetCustomTsFields] total cost: %.4fs, group_id=%s", time4 - time1, time_series_group_id)
         return {"total": paginated_result.total, "list": metrics_list}
 
 
@@ -1019,7 +1008,7 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
             mandatory_conditions=self.build_mandatory_conditions(
                 mandatory_conditions=extra_mandatory_conditions,
             ),
-            **self.get_query_scope_filters(params)
+            **self.get_query_scope_filters(params),
         )
         result: list[dict[str, Any]] = []
 
@@ -1118,14 +1107,18 @@ class PreviewGroupingRule(CustomTSScopeMixin, Resource):
         )
 
         # API 层面直接正则匹配，只返回命中的指标
-        matched_metrics = MetricQueryConverter(params["time_series_group_id"]).query_time_series_metric(
-            conditions=[
-                {"key": "scope_id", "values": [str(default_scope_obj.id)], "search_type": "exact"},
-                {"key": "field_config_disabled", "values": ["false"], "search_type": "exact"},
-                {"key": "name", "values": auto_rules, "search_type": "regex"},
-            ],
-            page_size=100000,
-        ).metrics
+        matched_metrics = (
+            MetricQueryConverter(params["time_series_group_id"])
+            .query_time_series_metric(
+                conditions=[
+                    {"key": "scope_id", "values": [str(default_scope_obj.id)], "search_type": "exact"},
+                    {"key": "field_config_disabled", "values": ["false"], "search_type": "exact"},
+                    {"key": "name", "values": auto_rules, "search_type": "regex"},
+                ],
+                page_size=100000,
+            )
+            .metrics
+        )
         metric_names = [m.name for m in matched_metrics]
 
         # 按规则分组
