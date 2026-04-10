@@ -245,18 +245,23 @@ def get_simple_panel_count(view: SceneViewModel) -> int:
 
     用于 SceneViewList 仅请求基础信息时，避免为计算 panel_count
     触发完整面板渲染和 MetricListCache 查询。
+
+    仅支持 collect_* 和 plugin_* 场景的精确计数；其他场景类型（如
+    custom_event_*、custom_metric_* 等）不展示 panel_count，直接返回 0。
     """
     bk_tenant_id = get_request_tenant_id()
     if view.scene_id.startswith("collect_"):
         collect_config_id = int(view.scene_id.lstrip("collect_"))
         collect_config = CollectConfigMeta.objects.get(bk_biz_id=view.bk_biz_id, id=collect_config_id)
         plugin = collect_config.plugin
-    else:
+    elif view.scene_id.startswith("plugin_"):
         plugin_id = view.scene_id.split("plugin_", 1)[-1]
         plugin = CollectorPluginMeta.objects.get(
             bk_tenant_id=bk_tenant_id, plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id]
         )
         collect_config = CollectConfigMeta.objects.filter(plugin_id=plugin_id, bk_biz_id=view.bk_biz_id).first()
+    else:
+        return 0
 
     if not collect_config:
         return 0
