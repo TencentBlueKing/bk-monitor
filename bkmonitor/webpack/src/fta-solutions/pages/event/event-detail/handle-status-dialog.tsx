@@ -45,6 +45,7 @@ interface IEvent {
 interface IHandleStatusDialog {
   actions?: any[];
   alertId?: string;
+  bizId: number;
   total?: number;
   value?: boolean;
 }
@@ -53,6 +54,7 @@ interface IHandleStatusDialog {
 export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent> {
   @Prop({ type: Array, default: () => [] }) actions: any[];
   @Prop({ type: Number, default: 0 }) total: number;
+  @Prop({ type: [Number, String], default: +window.bk_biz_id }) bizId: number;
 
   @Model('show-change', { type: Boolean }) readonly value;
 
@@ -130,7 +132,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
   async getNoticeStatusData(actionId) {
     this.loading = true;
     if (!this.noticeData.tableColumns.length) {
-      this.noticeData.tableColumns = await getNoticeWay()
+      this.noticeData.tableColumns = await getNoticeWay({ bk_biz_id: this.bizId })
         .then(res =>
           res.map(item => ({
             label: item.label,
@@ -139,7 +141,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         )
         .catch(() => []);
     }
-    await subActionDetail({ parent_action_id: actionId })
+    await subActionDetail({ parent_action_id: actionId, bk_biz_id: this.bizId })
       .then(data => {
         this.noticeData.tableData = Object.keys(data || {}).map(key => {
           const temp: any = { target: key };

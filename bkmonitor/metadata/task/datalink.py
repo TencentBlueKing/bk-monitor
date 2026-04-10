@@ -154,6 +154,13 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         )
         doris_binding_config.delete_config()
 
+    # 补充dorisstorage的表记录
+    if doris_storage and not doris_storage.bkbase_table_id and doris_binding_config:
+        doris_storage.bkbase_table_id = (
+            f"{doris_binding_config.datalink_biz_ids.data_biz_id}_{doris_binding_config.bkbase_result_table_name}"
+        )
+        doris_storage.save()
+
     # 清理transfer链路配置
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         logger.info(

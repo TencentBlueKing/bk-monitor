@@ -15,7 +15,6 @@ import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
 from typing import Any, cast
 
 import redis
@@ -42,6 +41,7 @@ logger = logging.getLogger("metadata")
 
 
 DEFAULT_VM_EXPIRES_MS = 24 * 3600 * 90 * 1000
+PUBSUB_POLL_TIMEOUT_SECONDS = 1.0
 
 
 def watch_bkbase_meta_redis_task():
@@ -119,11 +119,10 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
     bkbase_pattern = settings.BKBASE_REDIS_PATTERN
     channel_regex = re.compile(rf"__keyspace@\d+__:{bkbase_pattern}:\d+$")
 
-    # 计算任务结束时间
-    start_time = datetime.now()
-    end_time = start_time + timedelta(seconds=runtime_limit)
+    # 使用单调时钟控制运行时长，避免 pubsub 阻塞时无法及时退出。
+    end_time = time.monotonic() + runtime_limit
 
-    while datetime.now() < end_time:  # 运行时间控制
+    while time.monotonic() < end_time:  # 运行时间控制
         pubsub = None
         try:
             # 初始化 pubsub
@@ -131,9 +130,15 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
             pubsub.psubscribe(keyspace_channel)  # 监听特定模式的键事件
             logger.info("watch_bkbase_meta_redis: Subscribed to Redis channel -> [%s]", keyspace_channel)
 
-            # 监听消息
-            for message in pubsub.listen():
-                if datetime.now() >= end_time:  # 超出运行时间，退出监听
+            # 轮询消息，避免 listen() 在无消息时无限阻塞，导致任务无法按 runtime_limit 退出。
+            while time.monotonic() < end_time:
+                remaining_seconds = max(end_time - time.monotonic(), 0)
+                message = pubsub.get_message(timeout=min(PUBSUB_POLL_TIMEOUT_SECONDS, remaining_seconds))
+
+                if message is None:
+                    continue
+
+                if time.monotonic() >= end_time:  # 超出运行时间，退出监听
                     logger.info("watch_bkbase_meta_redis: Runtime limit reached, stopping listener.")
                     return
 
@@ -325,9 +330,9 @@ def sync_bkbase_cluster_info(
         "default_settings": default_settings,
         "sasl_mechanisms": sasl_mechanisms,
         "is_auth": is_auth,
-        "gse_stream_to_id": stream_to_id,
         "security_protocol": security_protocol,
-        "version": version,
+        # "version": version,
+        # "gse_stream_to_id": stream_to_id,
     }
 
     with transaction.atomic():

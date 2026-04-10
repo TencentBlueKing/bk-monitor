@@ -1425,16 +1425,11 @@ class DataFlowHandler(BaseAiopsHandler):
         filter_rule, not_clustering_rule = self._init_filter_rule(
             clustering_config.filter_rules, all_fields_dict, clustering_config.clustering_fields
         )
-
-        is_dimension_fields = [
-            DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
-        ]
-        reverse_all_fields_dict = {dst_field: src_field for src_field, dst_field in all_fields_dict.items()}
-        is_dimension_fields_map = {
-            field: clustering_fields if field == DEFAULT_CLUSTERING_FIELD else field for field in is_dimension_fields
-        }
-        for src_field, dst_field in is_dimension_fields_map.items():
-            is_dimension_fields_map[src_field] = reverse_all_fields_dict.get(dst_field, dst_field)
+        is_dimension_fields_map = self._build_clustered_dimension_fields_map(
+            is_dimension_fields=is_dimension_fields,
+            all_fields_dict=all_fields_dict,
+            clustering_fields=clustering_fields,
+        )
 
         transformed_fields = set()
         format_transform_fields = []
@@ -1569,6 +1564,176 @@ class DataFlowHandler(BaseAiopsHandler):
 
         return predict_flow
 
+    @classmethod
+    def _build_clustered_dimension_fields_map(
+        cls,
+        is_dimension_fields: list,
+        all_fields_dict: dict,
+        clustering_fields: str,
+    ) -> dict:
+        is_dimension_fields = [
+            DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
+        ]
+        reverse_all_fields_dict = {dst_field: src_field for src_field, dst_field in all_fields_dict.items()}
+        is_dimension_fields_map = {
+            field: clustering_fields if field == DEFAULT_CLUSTERING_FIELD else field for field in is_dimension_fields
+        }
+        return {
+            src_field: reverse_all_fields_dict.get(dst_field, dst_field)
+            for src_field, dst_field in is_dimension_fields_map.items()
+        }
+
+    @classmethod
+    def _build_clustered_doris_logical_physical_map(cls, clustering_config: ClusteringConfig) -> dict:
+        all_fields_dict = cls.get_fields_dict(clustering_config=clustering_config)
+        all_fields = DataAccessHandler.get_fields(result_table_id=clustering_config.bkdata_etl_result_table_id)
+        is_dimension_fields = [
+            field["field_name"] for field in all_fields if field["field_name"] not in NOT_CONTAIN_SQL_FIELD_LIST
+        ]
+        clustering_fields = all_fields_dict.get(clustering_config.clustering_fields)
+        is_dimension_fields_map = cls._build_clustered_dimension_fields_map(
+            is_dimension_fields=is_dimension_fields,
+            all_fields_dict=all_fields_dict,
+            clustering_fields=clustering_fields,
+        )
+
+        logical_physical_map = {}
+        for logical_field in is_dimension_fields_map.values():
+            if not logical_field:
+                continue
+            logical_physical_map.setdefault(logical_field, logical_field.lower())
+
+        for pattern_level in PatternEnum.get_dict_choices().keys():
+            dist_field = f"{AGGS_FIELD_PREFIX}_{pattern_level}"
+            logical_physical_map.setdefault(dist_field, dist_field.lower())
+
+        return logical_physical_map
+
+    @classmethod
+    def _build_clustered_doris_alias_settings(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> list:
+        logical_physical_map = cls._build_clustered_doris_logical_physical_map(clustering_config)
+        fixed_alias_settings = [{"field_name": DEFAULT_TIME_FIELD.lower(), "query_alias": DEFAULT_TIME_FIELD}]
+
+        inherited_alias_settings = []
+        for alias_setting in index_set.query_alias_settings or []:
+            physical_field_name = logical_physical_map.get(alias_setting.get("field_name"))
+            if not physical_field_name:
+                continue
+            merged_alias_setting = copy.deepcopy(alias_setting)
+            merged_alias_setting["field_name"] = physical_field_name
+            inherited_alias_settings.append(merged_alias_setting)
+
+        auto_alias_settings = []
+        for logical_field, physical_field in logical_physical_map.items():
+            if logical_field in {DEFAULT_TIME_FIELD} or logical_field == physical_field:
+                continue
+            # 同一物理字段需要同时保留原索引自定义 alias 和原始大小写字段名，
+            # 这样 clustered Doris 路由才能同时兼容两类查询入口。
+            auto_alias_settings.append({"field_name": physical_field, "query_alias": logical_field})
+
+        merged_alias_settings = []
+        seen_query_alias = set()
+        for alias_settings in (fixed_alias_settings, inherited_alias_settings, auto_alias_settings):
+            for alias_setting in alias_settings:
+                query_alias = alias_setting.get("query_alias")
+                if not query_alias or query_alias in seen_query_alias:
+                    continue
+                seen_query_alias.add(query_alias)
+                merged_alias_settings.append(alias_setting)
+
+        return merged_alias_settings
+
+    @classmethod
+    def _build_clustered_route_base_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
+        return {
+            "source_type": Scenario.BKDATA,
+            "data_label": BaseIndexSetHandler.get_data_label(
+                index_set.index_set_id,
+                clustered_rt=clustering_config.clustered_rt,
+            ),
+            "space_id": index_set.space_uid.split("__")[-1],
+            "space_type": index_set.space_uid.split("__")[0],
+            "need_create_index": False,
+            "options": [
+                {
+                    "name": "time_field",
+                    "value_type": "dict",
+                    "value": json.dumps(
+                        {
+                            "name": index_set.time_field,
+                            "type": index_set.time_field_type,
+                            "unit": index_set.time_field_unit
+                            if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                            else TimeFieldUnitEnum.MILLISECOND.value,
+                        }
+                    ),
+                },
+                {
+                    "name": "need_add_time",
+                    "value_type": "bool",
+                    "value": "true",
+                },
+            ],
+        }
+
+    @classmethod
+    def _build_clustered_doris_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
+        return {
+            **cls._build_clustered_route_base_params(index_set, clustering_config),
+            "storage_type": StorageTypeEnum.DORIS.value,
+            "bkbase_table_id": clustering_config.clustered_rt,
+            "table_id": (
+                f"bklog_index_set_{index_set.index_set_id}_{clustering_config.clustered_rt.replace('.', '_')}.__doris__"
+            ),
+            "query_alias_settings": cls._build_clustered_doris_alias_settings(index_set, clustering_config),
+        }
+
+    @classmethod
+    def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
+        route_params = {
+            **cls._build_clustered_route_base_params(index_set, clustering_config),
+            "cluster_id": index_set.storage_cluster_id,
+            "index_set": clustering_config.clustered_rt,
+            "table_id": BaseIndexSetHandler.get_rt_id(
+                index_set.index_set_id,
+                clustering_config.clustered_rt,
+            ),
+        }
+        if index_set.query_alias_settings:
+            route_params["query_alias_settings"] = copy.deepcopy(index_set.query_alias_settings)
+        return route_params
+
+    @classmethod
+    def sync_clustered_route(cls, index_set_id: int, raise_exception: bool = False) -> bool:
+        index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+        if not index_set or not clustering_config:
+            return False
+        if not clustering_config.clustered_rt:
+            return False
+        if (
+            clustering_config.storage_type == StorageTypeEnum.DORIS.value
+            and not clustering_config.bkdata_etl_result_table_id
+        ):
+            logger.warning(
+                "sync clustered route skipped for index set(%s): doris storage but bkdata_etl_result_table_id is empty",
+                index_set_id,
+            )
+            return False
+
+        if clustering_config.storage_type == StorageTypeEnum.DORIS.value:
+            route_params = cls._build_clustered_doris_route_params(index_set, clustering_config)
+        else:
+            route_params = cls._build_clustered_es_route_params(index_set, clustering_config)
+        try:
+            TransferApi.create_or_update_log_router(route_params)
+            return True
+        except Exception as error:
+            logger.exception("sync clustered route for index set(%s) failed: %s", index_set_id, error)
+            if raise_exception:
+                raise
+            return False
+
     def create_predict_flow(self, index_set_id: int):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
 
@@ -1607,63 +1772,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
         clustering_config.save()
         # 创建聚类结果表路由信息
-        index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        if index_set:
-            try:
-                route_params = {
-                    "source_type": Scenario.BKDATA,
-                    "data_label": BaseIndexSetHandler.get_data_label(
-                        index_set.index_set_id, clustered_rt=clustering_config.clustered_rt
-                    ),
-                    "space_id": index_set.space_uid.split("__")[-1],
-                    "space_type": index_set.space_uid.split("__")[0],
-                    "need_create_index": False,
-                    "options": [
-                        {
-                            "name": "time_field",
-                            "value_type": "dict",
-                            "value": json.dumps(
-                                {
-                                    "name": index_set.time_field,
-                                    "type": index_set.time_field_type,
-                                    "unit": index_set.time_field_unit
-                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
-                                    else TimeFieldUnitEnum.MILLISECOND.value,
-                                }
-                            ),
-                        },
-                        {
-                            "name": "need_add_time",
-                            "value_type": "bool",
-                            "value": "true",
-                        },
-                    ],
-                }
-                if clustering_config.storage_type == StorageTypeEnum.DORIS.value:
-                    route_params.update(
-                        {
-                            "storage_type": StorageTypeEnum.DORIS.value,
-                            "bkbase_table_id": clustering_config.clustered_rt,
-                            "table_id": (
-                                f"bklog_index_set_{index_set.index_set_id}_"
-                                f"{clustering_config.clustered_rt.replace('.', '_')}.__doris__"
-                            ),
-                        }
-                    )
-                else:
-                    route_params.update(
-                        {
-                            "cluster_id": index_set.storage_cluster_id,
-                            "index_set": clustering_config.clustered_rt,
-                            "table_id": BaseIndexSetHandler.get_rt_id(
-                                index_set.index_set_id,
-                                clustering_config.clustered_rt,
-                            ),
-                        }
-                    )
-                TransferApi.create_or_update_log_router(route_params)
-            except Exception as e:
-                logger.exception("create index set(%s) clustered router failed：%s", index_set.index_set_id, e)
+        self.sync_clustered_route(index_set_id=index_set_id)
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
@@ -1716,6 +1825,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         clustering_config.save()
+        self.sync_clustered_route(index_set_id=index_set_id)
         logger.info(f"update predict flow success: flow_id -> {clustering_config.predict_flow_id}")
 
     def _init_log_count_aggregation_flow(

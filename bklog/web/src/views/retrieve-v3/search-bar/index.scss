@@ -40,13 +40,13 @@
 .fix-search-bar {
   width: calc(100vw - var(--left-collection-width) - 20px);
 
-  &.is-monitor-apm {
+  &.is-monitor-apm, &.is-monitor-trace {
     right: 0;
     left: 0;
     width: auto;
   }
 
-  &.is-monitor-trace {
-    width: calc(100vw - var(--left-collection-width) - 370px);
-  }
+  // &.is-monitor-trace {
+  //   width: calc(100vw - var(--left-collection-width) - 370px);
+  // }
 }

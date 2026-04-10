@@ -29,14 +29,26 @@ import { type MaybeRef, shallowRef, watchEffect } from 'vue';
 import { get } from '@vueuse/core';
 
 import { getHostTargetList } from '../services/alarm-detail';
-import { type AlertHostTargetItem } from '../typings';
+
+import type { AlertHostTargetItem } from '../typings';
+
+/** useAlertHost 入参选项 */
+interface UseAlertHostOptions {
+  /** 告警ID */
+  alertId: MaybeRef<string>;
+  /** 业务ID */
+  bizId: MaybeRef<number>;
+}
 
 /**
  * @function useAlertHost 获取告警关联的主机基础信息 hook
  * @description 告警详情 - 主机 获取告警关联主机对象列表
- * @param {MaybeRef<string>} alertId 告警ID
+ * @param {UseAlertHostOptions} options 选项参数
+ * @param {MaybeRef<string>} options.alertId 告警ID
+ * @param {MaybeRef<number>} options.bizId 业务ID
  */
-export const useAlertHost = (alertId: MaybeRef<string>) => {
+export const useAlertHost = (options: UseAlertHostOptions) => {
+  const { alertId, bizId } = options;
   /** 当前选中的主机对象 */
   const currentTarget = shallowRef<AlertHostTargetItem | null>({
     bk_target_ip: '0.0.0.0',
@@ -65,7 +77,7 @@ export const useAlertHost = (alertId: MaybeRef<string>) => {
    */
   const getHostList = async () => {
     loading.value = true;
-    targetList.value = await getHostTargetList(get(alertId));
+    targetList.value = await getHostTargetList({ alertId: get(alertId), bizId: get(bizId) });
     if (targetList.value?.length && !hasTarget(currentTarget.value)) {
       currentTarget.value = targetList.value[0];
     }
