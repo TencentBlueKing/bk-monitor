@@ -595,6 +595,7 @@ class CollectorHandler:
                 "labels": self._build_scene_labels(),
             }
             etl_handler.update_or_create(**etl_params)
+            self._sync_scene_tags_to_index_set(etl_params["labels"])
 
         custom_config.after_hook(self.data)
 
@@ -1415,6 +1416,7 @@ class CollectorHandler:
                 params.update({"etl_params": etl_params, "etl_config": etl_config, "fields": fields})
             self.data.index_set_id = etl_handler.update_or_create(**params)["index_set_id"]
             self.data.save(update_fields=["index_set_id"])
+            self._sync_scene_tags_to_index_set(params["labels"])
 
         custom_config.after_hook(self.data)
 
@@ -1494,9 +1496,51 @@ class CollectorHandler:
     def _build_scene_labels(self) -> dict:
         """Build ResultTable.labels based on collector scenario and environment."""
         if self.data.is_container_environment:
-            return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "")
+            stream = self._detect_container_stream()
+            return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "", stream=stream)
         scene = COLLECTOR_SCENARIO_TO_SCENE.get(self.data.collector_scenario_id, "host")
         return build_scene_labels(scene)
+
+    def _detect_container_stream(self) -> str:
+        """Determine stream type (stdout / file) from ContainerCollectorConfig.collector_type."""
+        from apps.log_databus.constants import ContainerCollectorType
+
+        container_configs = ContainerCollectorConfig.objects.filter(
+            collector_config_id=self.data.collector_config_id
+        ).values_list("collector_type", flat=True)
+        collector_types = set(container_configs)
+        if ContainerCollectorType.STDOUT in collector_types:
+            return "stdout"
+        if ContainerCollectorType.CONTAINER in collector_types:
+            return "file"
+        return ""
+
+    def _sync_scene_tags_to_index_set(self, labels: dict):
+        """
+        Persist scene labels as IndexSetTag records and attach them to the
+        collector's LogIndexSet.tag_ids so that dimension_values can be
+        queried purely from DB.
+        """
+        if not self.data.index_set_id:
+            return
+
+        tag_ids = []
+        for key, value in labels.items():
+            if value:
+                tag_ids.append(str(IndexSetTag.get_tag_id(name=key, value=value)))
+
+        if not tag_ids:
+            return
+
+        try:
+            index_set = LogIndexSet.objects.get(index_set_id=self.data.index_set_id)
+        except LogIndexSet.DoesNotExist:
+            return
+
+        existing = set(str(t) for t in (index_set.tag_ids or []) if t)
+        merged = existing | set(tag_ids)
+        index_set.tag_ids = list(merged)
+        index_set.save(update_fields=["tag_ids"])
 
     def create_or_update_clean_config(self, is_update, params):
         if is_update:
@@ -1525,7 +1569,9 @@ class CollectorHandler:
         from apps.log_databus.handlers.etl import EtlHandler
 
         etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        return etl_handler.update_or_create(**params)
+        result = etl_handler.update_or_create(**params)
+        self._sync_scene_tags_to_index_set(params["labels"])
+        return result
 
     @classmethod
     def _send_create_notify(cls, collector_config: CollectorConfig):

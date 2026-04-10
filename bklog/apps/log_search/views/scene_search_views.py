@@ -120,6 +120,17 @@ class SceneTotalSerializer(_SceneRouteMixin):
     filter = serializers.ListField(allow_empty=True, required=False, default=list, allow_null=True)
 
 
+class SceneDimensionValuesSerializer(serializers.Serializer):
+    """场景化维度值预览（支持级联反选）"""
+
+    bk_biz_id = serializers.IntegerField(required=True, help_text="业务 ID")
+    scene = serializers.CharField(required=True, help_text="场景标识, e.g. k8s / host / bk_paas")
+    dimension_key = serializers.CharField(required=True, help_text="要查询的维度 key, e.g. cluster_id / stream")
+    filters = serializers.DictField(
+        required=False, default=dict, help_text="前置级联筛选条件, e.g. {\"stream\": \"stdout\"}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # ViewSet
 # ---------------------------------------------------------------------------
@@ -215,3 +226,22 @@ class SceneSearchViewSet(APIViewSet):
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
         handler = SceneUnifyQueryHandler(data)
         return Response(handler.total())
+
+    @list_route(methods=["POST"], url_path="dimension_values")
+    def dimension_values(self, request):
+        """
+        @api {post} /search/scene/dimension_values/ 场景化检索-维度值预览
+        @apiName scene_search_dimension_values
+        @apiGroup 14_SceneSearch
+        @apiDescription 获取场景下指定维度的可选值列表（支持级联筛选），供前端下拉框使用。
+        """
+        from apps.log_search.models import IndexSetTag
+
+        data = self.params_valid(SceneDimensionValuesSerializer)
+        values = IndexSetTag.get_dimension_values(
+            bk_biz_id=data["bk_biz_id"],
+            scene=data["scene"],
+            dimension_key=data["dimension_key"],
+            filters=data.get("filters") or None,
+        )
+        return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})

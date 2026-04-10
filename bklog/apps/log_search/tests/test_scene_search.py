@@ -1,6 +1,6 @@
 """
 Unit tests for scene_search endpoints (SceneSearchViewSet).
-Covers: scenes / search / fields / date_histogram / agg_field / total
+Covers: scenes / search / fields / date_histogram / agg_field / total / dimension_values
 """
 
 import json
@@ -14,6 +14,7 @@ from apps.log_search.views.scene_search_views import (
     ConditionFieldSerializer,
     SceneAggFieldSerializer,
     SceneDateHistogramSerializer,
+    SceneDimensionValuesSerializer,
     SceneFieldsSerializer,
     SceneSearchSerializer,
     SceneSearchViewSet,
@@ -541,3 +542,343 @@ class TestSceneUnifyQueryHandler(TestCase):
         call_args = mock_api.call_args[0][0]
         self.assertEqual(call_args["limit"], 1)
         self.assertEqual(call_args["highlight"]["enable"], False)
+
+
+# =========================================================================
+# 5. SceneDimensionValuesSerializer tests
+# =========================================================================
+
+class TestSceneDimensionValuesSerializer(TestCase):
+
+    def test_valid_minimal(self):
+        data = {"bk_biz_id": 2, "scene": "k8s", "dimension_key": "cluster_id"}
+        s = SceneDimensionValuesSerializer(data=data)
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(s.validated_data["filters"], {})
+
+    def test_valid_with_filters(self):
+        data = {
+            "bk_biz_id": 2,
+            "scene": "k8s",
+            "dimension_key": "cluster_id",
+            "filters": {"stream": "stdout"},
+        }
+        s = SceneDimensionValuesSerializer(data=data)
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(s.validated_data["filters"], {"stream": "stdout"})
+
+    def test_missing_scene_fails(self):
+        data = {"bk_biz_id": 2, "dimension_key": "cluster_id"}
+        s = SceneDimensionValuesSerializer(data=data)
+        self.assertFalse(s.is_valid())
+
+    def test_missing_bk_biz_id_fails(self):
+        data = {"scene": "k8s", "dimension_key": "cluster_id"}
+        s = SceneDimensionValuesSerializer(data=data)
+        self.assertFalse(s.is_valid())
+
+
+# =========================================================================
+# 6. IndexSetTag model extension tests
+# =========================================================================
+
+class TestIndexSetTagExtension(TestCase):
+    """Test IndexSetTag.get_tag_id with value, batch_get_tags with value, get_dimension_values."""
+
+    def test_get_tag_id_without_value(self):
+        from apps.log_search.models import IndexSetTag
+        tag_id = IndexSetTag.get_tag_id(name="scene")
+        self.assertIsNotNone(tag_id)
+        tag = IndexSetTag.objects.get(tag_id=tag_id)
+        self.assertEqual(tag.name, "scene")
+        self.assertEqual(tag.value, "")
+
+    def test_get_tag_id_with_value(self):
+        from apps.log_search.models import IndexSetTag
+        tag_id = IndexSetTag.get_tag_id(name="scene", value="k8s")
+        self.assertIsNotNone(tag_id)
+        tag = IndexSetTag.objects.get(tag_id=tag_id)
+        self.assertEqual(tag.name, "scene")
+        self.assertEqual(tag.value, "k8s")
+
+    def test_get_tag_id_idempotent(self):
+        from apps.log_search.models import IndexSetTag
+        id1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001")
+        id2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001")
+        self.assertEqual(id1, id2)
+
+    def test_same_name_different_value(self):
+        from apps.log_search.models import IndexSetTag
+        id1 = IndexSetTag.get_tag_id(name="stream", value="stdout")
+        id2 = IndexSetTag.get_tag_id(name="stream", value="file")
+        self.assertNotEqual(id1, id2)
+
+    def test_batch_get_tags_includes_value(self):
+        from apps.log_search.models import IndexSetTag
+        tid = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-002")
+        result = IndexSetTag.batch_get_tags({tid})
+        self.assertIn(str(tid), result)
+        self.assertEqual(result[str(tid)]["value"], "BCS-002")
+
+    def test_get_dimension_values_basic(self):
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s")
+        c1_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-001")
+        c2_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-002")
+
+        LogIndexSet.objects.create(
+            index_set_name="test_idx_1",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(c1_tag)],
+            is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="test_idx_2",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(c2_tag)],
+            is_active=True,
+        )
+
+        values = IndexSetTag.get_dimension_values(bk_biz_id=2, scene="k8s", dimension_key="cluster_id")
+        self.assertIn("BCS-K8S-001", values)
+        self.assertIn("BCS-K8S-002", values)
+
+    def test_get_dimension_values_with_cascading_filter(self):
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s")
+        stdout_tag = IndexSetTag.get_tag_id(name="stream", value="stdout")
+        file_tag = IndexSetTag.get_tag_id(name="stream", value="file")
+        c1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-FILTER-001")
+        c2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-FILTER-002")
+
+        LogIndexSet.objects.create(
+            index_set_name="cascading_1",
+            space_uid="bkcc__5",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(stdout_tag), str(c1)],
+            is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="cascading_2",
+            space_uid="bkcc__5",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(file_tag), str(c2)],
+            is_active=True,
+        )
+
+        values = IndexSetTag.get_dimension_values(
+            bk_biz_id=5, scene="k8s", dimension_key="cluster_id",
+            filters={"stream": "stdout"},
+        )
+        self.assertIn("BCS-FILTER-001", values)
+        self.assertNotIn("BCS-FILTER-002", values)
+
+    def test_get_dimension_values_nonexistent_filter_returns_empty(self):
+        from apps.log_search.models import IndexSetTag
+        values = IndexSetTag.get_dimension_values(
+            bk_biz_id=999, scene="k8s", dimension_key="cluster_id",
+            filters={"stream": "nonexistent_value_xyz"},
+        )
+        self.assertEqual(values, [])
+
+
+# =========================================================================
+# 7. dimension_values ViewSet endpoint test
+# =========================================================================
+
+@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
+class TestSceneSearchViewSetDimensionValues(TestCase):
+    """POST /search/scene/dimension_values/"""
+
+    @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
+    def test_dimension_values_success(self, mock_dv):
+        mock_dv.return_value = ["BCS-K8S-001", "BCS-K8S-002"]
+
+        factory = APIRequestFactory()
+        request = factory.post(
+            "/api/v1/search/scene/dimension_values/",
+            data={"bk_biz_id": 2, "scene": "k8s", "dimension_key": "cluster_id"},
+            format="json",
+        )
+
+        vs = _get_viewset("dimension_values", request)
+        response = vs.dimension_values(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["dimension_key"], "cluster_id")
+        self.assertEqual(response.data["values"], ["BCS-K8S-001", "BCS-K8S-002"])
+        mock_dv.assert_called_once_with(bk_biz_id=2, scene="k8s", dimension_key="cluster_id", filters=None)
+
+    @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
+    def test_dimension_values_with_filters(self, mock_dv):
+        mock_dv.return_value = ["BCS-K8S-001"]
+
+        factory = APIRequestFactory()
+        request = factory.post(
+            "/api/v1/search/scene/dimension_values/",
+            data={
+                "bk_biz_id": 2,
+                "scene": "k8s",
+                "dimension_key": "cluster_id",
+                "filters": {"stream": "stdout"},
+            },
+            format="json",
+        )
+
+        vs = _get_viewset("dimension_values", request)
+        response = vs.dimension_values(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["values"], ["BCS-K8S-001"])
+        mock_dv.assert_called_once_with(
+            bk_biz_id=2, scene="k8s", dimension_key="cluster_id",
+            filters={"stream": "stdout"},
+        )
+
+    def test_dimension_values_missing_scene_fails(self):
+        factory = APIRequestFactory()
+        request = factory.post(
+            "/api/v1/search/scene/dimension_values/",
+            data={"bk_biz_id": 2, "dimension_key": "cluster_id"},
+            format="json",
+        )
+        vs = _get_viewset("dimension_values", request)
+        with self.assertRaises(Exception):
+            vs.dimension_values(request)
+
+
+# =========================================================================
+# 8. _build_scene_labels / _detect_container_stream tests
+# =========================================================================
+
+class TestBuildSceneLabelsExtended(TestCase):
+    """Test the extended _build_scene_labels with stream detection."""
+
+    def test_build_scene_labels_k8s_stdout(self):
+        from apps.log_databus.constants import build_scene_labels
+        labels = build_scene_labels("k8s", cluster_id="BCS-001", stream="stdout")
+        self.assertEqual(labels["scene"], "k8s")
+        self.assertEqual(labels["cluster_id"], "BCS-001")
+        self.assertEqual(labels["stream"], "stdout")
+
+    def test_build_scene_labels_host(self):
+        from apps.log_databus.constants import build_scene_labels
+        labels = build_scene_labels("host")
+        self.assertEqual(labels["scene"], "host")
+        self.assertNotIn("stream", labels)
+
+    @patch("apps.log_databus.models.ContainerCollectorConfig.objects")
+    def test_detect_container_stream_stdout(self, mock_qs):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        from apps.log_databus.constants import ContainerCollectorType
+
+        mock_qs.filter.return_value.values_list.return_value = [ContainerCollectorType.STDOUT]
+
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = MagicMock()
+        handler.data.collector_config_id = 1
+
+        result = handler._detect_container_stream()
+        self.assertEqual(result, "stdout")
+
+    @patch("apps.log_databus.models.ContainerCollectorConfig.objects")
+    def test_detect_container_stream_file(self, mock_qs):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        from apps.log_databus.constants import ContainerCollectorType
+
+        mock_qs.filter.return_value.values_list.return_value = [ContainerCollectorType.CONTAINER]
+
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = MagicMock()
+        handler.data.collector_config_id = 1
+
+        result = handler._detect_container_stream()
+        self.assertEqual(result, "file")
+
+    @patch("apps.log_databus.models.ContainerCollectorConfig.objects")
+    def test_detect_container_stream_empty(self, mock_qs):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        mock_qs.filter.return_value.values_list.return_value = []
+
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = MagicMock()
+        handler.data.collector_config_id = 1
+
+        result = handler._detect_container_stream()
+        self.assertEqual(result, "")
+
+
+# =========================================================================
+# 9. _sync_scene_tags_to_index_set tests
+# =========================================================================
+
+class TestSyncSceneTagsToIndexSet(TestCase):
+    """Test that scene labels are persisted to IndexSetTag and LogIndexSet.tag_ids."""
+
+    def test_sync_creates_tags_and_updates_index_set(self):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        index_set = LogIndexSet.objects.create(
+            index_set_name="sync_test",
+            space_uid="bkcc__10",
+            scenario_id="log",
+            tag_ids=[],
+            is_active=True,
+        )
+
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = MagicMock()
+        handler.data.index_set_id = index_set.index_set_id
+
+        labels = {"scene": "k8s", "cluster_id": "BCS-SYNC-001", "stream": "stdout"}
+        handler._sync_scene_tags_to_index_set(labels)
+
+        index_set.refresh_from_db()
+        tag_ids_str = [str(t) for t in index_set.tag_ids if t]
+        self.assertTrue(len(tag_ids_str) >= 3)
+
+        tag_names = set(
+            IndexSetTag.objects.filter(tag_id__in=[int(i) for i in tag_ids_str]).values_list("name", flat=True)
+        )
+        self.assertIn("scene", tag_names)
+        self.assertIn("cluster_id", tag_names)
+        self.assertIn("stream", tag_names)
+
+    def test_sync_skips_when_no_index_set_id(self):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = MagicMock()
+        handler.data.index_set_id = None
+
+        handler._sync_scene_tags_to_index_set({"scene": "k8s"})
+
+    def test_sync_merges_with_existing_tags(self):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        existing_tag_id = IndexSetTag.get_tag_id(name="trace")
+
+        index_set = LogIndexSet.objects.create(
+            index_set_name="merge_test",
+            space_uid="bkcc__11",
+            scenario_id="log",
+            tag_ids=[str(existing_tag_id)],
+            is_active=True,
+        )
+
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = MagicMock()
+        handler.data.index_set_id = index_set.index_set_id
+
+        handler._sync_scene_tags_to_index_set({"scene": "host"})
+
+        index_set.refresh_from_db()
+        tag_ids_str = [str(t) for t in index_set.tag_ids if t]
+        self.assertIn(str(existing_tag_id), tag_ids_str)

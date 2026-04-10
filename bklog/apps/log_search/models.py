@@ -1082,29 +1082,80 @@ class IndexSetUserFavorite(models.Model):
 
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
-    name = models.CharField(_("标签名称"), max_length=255, unique=True)
+    name = models.CharField(_("标签名称"), max_length=255, db_index=True)
+    value = models.CharField(_("标签值"), max_length=255, default="", blank=True)
     color = models.CharField(_("配色"), max_length=255, choices=TagColor.get_choices(), default=TagColor.GREEN.value)
 
     class Meta:
         verbose_name = _("标签表")
         verbose_name_plural = _("标签表")
+        unique_together = (("name", "value"),)
 
     @classmethod
-    def get_tag_id(cls, name: str) -> int:
-        tag, created = cls.objects.get_or_create(name=name)
+    def get_tag_id(cls, name: str, value: str = "") -> int:
+        tag, _created = cls.objects.get_or_create(name=name, value=value)
         return tag.tag_id
 
     @classmethod
     def batch_get_tags(cls, tag_ids: set):
-        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "color", "tag_id")
+        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "value", "color", "tag_id")
         return {
             str(tag["tag_id"]): {
                 "name": InnerTag.get_choice_label(tag["name"]),
+                "value": tag["value"],
                 "color": tag["color"],
                 "tag_id": tag["tag_id"],
             }
             for tag in tags
         }
+
+    @classmethod
+    def get_dimension_values(cls, bk_biz_id: int, scene: str, dimension_key: str, filters: dict = None) -> list:
+        """
+        Query distinct dimension values for *dimension_key* across index sets
+        that belong to *bk_biz_id* and match *scene* + optional cascading *filters*.
+
+        Example: scene="k8s", dimension_key="cluster_id", filters={"stream": "stdout"}
+        returns all cluster_id values whose index sets also carry stream=stdout.
+        """
+        scene_tag_id = cls.get_tag_id(name="scene", value=scene)
+        required_tag_ids = {scene_tag_id}
+
+        if filters:
+            for f_key, f_value in filters.items():
+                try:
+                    f_tag = cls.objects.get(name=f_key, value=f_value)
+                    required_tag_ids.add(f_tag.tag_id)
+                except cls.DoesNotExist:
+                    return []
+
+        str_required = {str(tid) for tid in required_tag_ids}
+
+        index_sets = LogIndexSet.objects.filter(
+            space_uid__endswith=str(bk_biz_id),
+            is_active=True,
+        ).values_list("tag_ids", flat=True)
+
+        candidate_tag_ids = set()
+        for raw_tag_ids in index_sets:
+            if not raw_tag_ids:
+                continue
+            id_set = {str(t) for t in raw_tag_ids if t}
+            if str_required.issubset(id_set):
+                candidate_tag_ids.update(id_set)
+
+        if not candidate_tag_ids:
+            return []
+
+        return list(
+            cls.objects.filter(
+                tag_id__in=[int(i) for i in candidate_tag_ids],
+                name=dimension_key,
+            )
+            .exclude(value="")
+            .values_list("value", flat=True)
+            .distinct()
+        )
 
 
 class AsyncTask(OperateRecordModel):
