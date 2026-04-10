@@ -437,6 +437,7 @@ class ModifyTimeSeriesGroupResource(MetaDataAPIGWResource):
         enable_field_black_list = serializers.BooleanField(required=False, label="黑名单的启用状态")
         metric_info_list = serializers.ListField(required=False, label="metric信息")
         data_label = serializers.CharField(required=False, label="数据标签")
+        options = serializers.DictField(required=False, label="结果表选项内容")
 
 
 class DeleteTimeSeriesGroupResource(MetaDataAPIGWResource):

@@ -30,6 +30,7 @@ import { get } from '@vueuse/core';
 import { alertTraces } from 'monitor-api/modules/alert_v2';
 
 import { ExploreTableLoadingEnum } from '@/pages/trace-explore/components/trace-explore-table/typing';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { ALertTracesData, ALertTracesQueryConfig } from '../typings';
 
@@ -39,6 +40,8 @@ import type { ALertTracesData, ALertTracesQueryConfig } from '../typings';
  * @param {MaybeRef<string>} alertId 告警ID
  */
 export const useAlertTraces = (alertId: MaybeRef<string>) => {
+  const alarmCenterDetailStore = useAlarmCenterDetailStore();
+
   /** 调用链表格展示数据 */
   const traceList = shallowRef([]);
   /** 调用链查询配置 */
@@ -76,10 +79,11 @@ export const useAlertTraces = (alertId: MaybeRef<string>) => {
     } else {
       tableLoading[ExploreTableLoadingEnum.SCROLL] = true;
     }
-    const data = await alertTraces<ALertTracesData>({
+    const data: ALertTracesData = await alertTraces({
       alert_id: get(alertId),
       offset: pagination.offset,
       limit: pagination.limit,
+      bk_biz_id: alarmCenterDetailStore.bizId,
     });
     if (pagination.offset === 0) {
       traceList.value = data.list;

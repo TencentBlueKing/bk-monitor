@@ -476,6 +476,10 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                           query_string: keywords_query_string,
                         }
                       : { index_set_id: extendFields.index_set_id || '' };
+                } else if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
+                  logParam = {
+                    query_string: keywords_query_string?.trim() || '*',
+                  };
                 }
                 const tableValue = () => {
                   if (dataSourceLabel === 'bk_monitor' && dataTypeLabel === 'alert') {

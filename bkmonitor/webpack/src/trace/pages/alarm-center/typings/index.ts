@@ -43,6 +43,8 @@ export * from './table';
  * @description: 告警中心URL参数
  */
 export interface AlarmUrlParams {
+  /** 告警bizID */
+  alarmBizId: number;
   /** 告警ID */
   alarmId: string;
   /** 告警类型 */
