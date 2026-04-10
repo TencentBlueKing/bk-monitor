@@ -176,10 +176,10 @@ class ListPipelineRequestSerializer(BasePipelineRequestSerializer):
 class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
     """代码重定义规则基础请求序列化器"""
 
-    bk_biz_id = serializers.IntegerField(label="业务 ID")
-    app_name = serializers.CharField(label="应用名")
-    service_name = serializers.CharField(label="本服务")
-    kind = serializers.ChoiceField(label="角色", choices=[("caller", "caller"), ("callee", "callee")])
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+    app_name = serializers.CharField(label=_("应用名"))
+    service_name = serializers.CharField(label=_("本服务"))
+    kind = serializers.ChoiceField(label=_("角色"), choices=[("caller", "caller"), ("callee", "callee")])
 
     def validate_callee_kind_consistency(self, attrs):
         """验证 callee 角色的一致性规则"""
@@ -195,10 +195,16 @@ class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
 class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则列表查询请求序列化器"""
 
-    callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True, default=None)
-    callee_service = serializers.CharField(label="被调 Service", required=False, allow_blank=True, default=None)
-    callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True, default=None)
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
+    # 不传 service_name 时，返回全量视图
+    service_name = serializers.CharField(label=_("本服务"), allow_null=True, default=None)
+    kind = serializers.ChoiceField(
+        label=_("角色"), choices=[("caller", "caller"), ("callee", "callee")], required=False
+    )
+
+    callee_server = serializers.CharField(label=_("被调服务"), required=False, allow_blank=True, default=None)
+    callee_service = serializers.CharField(label=_("被调 Service"), required=False, allow_blank=True, default=None)
+    callee_method = serializers.CharField(label=_("被调接口"), required=False, allow_blank=True, default=None)
+    is_mock = serializers.BooleanField(label=_("是否使用 mock 数据"), required=False, default=False)
 
     def validate(self, attrs):
         """验证请求参数"""
