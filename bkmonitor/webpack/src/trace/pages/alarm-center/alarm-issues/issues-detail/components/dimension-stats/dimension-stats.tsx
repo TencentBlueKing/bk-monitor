@@ -52,6 +52,7 @@ export default defineComponent({
     });
 
     const handleMouseEnter = (e: MouseEvent, items: AnalysisListItemBucket[]) => {
+      if (!items.length) return;
       popoverList.value = items;
       tooltipOptions.show = true;
       handleMouseMove(e);

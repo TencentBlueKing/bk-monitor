@@ -128,12 +128,14 @@ export interface IssueHistoryItem {
   alert_count: number;
   /** 负责人用户名列表 */
   assignee: string[];
+  /** Issue 业务Id */
+  bk_biz_id: number;
   /** 创建时间（秒级时间戳） */
   create_time: number;
   /** 首条关联告警时间（秒级时间戳） */
   first_alert_time: number;
   /** Issue 唯一标识 */
-  id: string;
+  issue_id: string;
   /** 最近关联告警时间（秒级时间戳） */
   last_alert_time: number;
   /** Issue 名称（策略名称） */

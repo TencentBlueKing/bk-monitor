@@ -62,7 +62,7 @@ export default defineComponent({
     /** 新开页展示issues详情 */
     const handleClick = (item: IssueHistoryItem) => {
       console.log('handleClick', item);
-      const hash = `#/alarm-center/?alarmType=issues&alarmId=${item.id}&showDetail=true&issueFirstAlarmTime=${item.first_alert_time}`;
+      const hash = `#/alarm-center/?alarmType=issues&detailId=${item.issue_id}&detailBizId=${item.bk_biz_id}&showDetail=true&issueFirstAlarmTime=${item.first_alert_time}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     };

@@ -139,8 +139,6 @@ export default defineComponent({
      * @param id 优先级id
      */
     const handlePriorityClick = (id: IssuePriorityType) => {
-      priorityPopover.value?.hide();
-
       loadings.priority = true;
       updateIssuesPriority({
         issues: [
@@ -152,6 +150,7 @@ export default defineComponent({
         priority: id,
       })
         .then(() => {
+          priorityPopover.value?.hide();
           emit('priorityChange', id);
         })
         .finally(() => {
@@ -279,6 +278,7 @@ export default defineComponent({
                   <Loading
                     loading={this.loadings.priority}
                     mode='spin'
+                    size='small'
                     theme='primary'
                   >
                     <div class='priority-select-wrap'>

@@ -29,7 +29,6 @@ import { useRouter } from 'vue-router';
 
 import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
-import { type ActionTableItem } from '../../typings';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
 import { useActionHandlers } from './hooks/use-action-handlers';
@@ -38,6 +37,7 @@ import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 
 import type {
+  ActionTableItem,
   AlertAllActionEnum,
   AlertContentNameEditInfo,
   AlertTableItem,
