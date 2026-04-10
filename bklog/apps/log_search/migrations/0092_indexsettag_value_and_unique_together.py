@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("log_search", "0090_clear_favorite_group"),
+        ("log_search", "0091_alter_logindexset_doris_table_id"),
     ]
 
     operations = [
