@@ -23,7 +23,7 @@ import abc
 
 from django.conf import settings
 from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy as _lazy
+from django.utils.translation import gettext_lazy
 from iam import Resource
 
 from apps.api import TransferApi
@@ -84,7 +84,7 @@ class Business(ResourceMeta):
 
     system_id = "bk_monitorv3"
     id = "space"
-    name = _lazy("空间")
+    name = gettext_lazy("空间")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "space_list"}]
 
@@ -128,7 +128,7 @@ class Business(ResourceMeta):
 class Collection(ResourceMeta):
     system_id = settings.BK_IAM_SYSTEM_ID
     id = "collection"
-    name = _lazy("采集项")
+    name = gettext_lazy("采集项")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "collection_list_v2"}]
 
@@ -157,7 +157,7 @@ class Collection(ResourceMeta):
 class EsSource(ResourceMeta):
     system_id = settings.BK_IAM_SYSTEM_ID
     id = "es_source"
-    name = _lazy("ES源")
+    name = gettext_lazy("ES源")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "es_source_list_v2"}]
 
@@ -189,7 +189,7 @@ class EsSource(ResourceMeta):
 class Indices(ResourceMeta):
     system_id = settings.BK_IAM_SYSTEM_ID
     id = "indices"
-    name = _lazy("索引集")
+    name = gettext_lazy("索引集")
     selection_mode = "instance"
     related_instance_selections = [{"system_id": system_id, "id": "indices_list_v2"}]
 

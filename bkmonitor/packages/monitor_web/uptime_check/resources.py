@@ -12,24 +12,17 @@ import copy
 import json
 import re
 import threading
-import urllib.parse
-from base64 import b64encode
 from collections import defaultdict
 from decimal import Decimal
 from typing import Any, cast
 
 import arrow
-import yaml
 from bk_monitor_base.infras.threading.local import get_request_username
 from bk_monitor_base.uptime_check import (
     BEAT_STATUS,
     TASK_MIN_PERIOD,
     UPTIME_CHECK_ALLOWED_HEADERS,
-    UPTIME_CHECK_AVAILABLE_DEFAULT_VALUE,
     UPTIME_CHECK_DB,
-    UPTIME_CHECK_MONIT_RESPONSE,
-    UPTIME_CHECK_MONIT_RESPONSE_CODE,
-    UPTIME_CHECK_SUMMARY_TIME_RANGE,
     UPTIME_CHECK_TASK_DETAIL_GROUP_BY_MINUTE1_TIME_RANGE,
     UPTIME_CHECK_TASK_DETAIL_TIME_RANGE,
     UPTIME_DATA_SOURCE_LABEL,
@@ -40,8 +33,6 @@ from bk_monitor_base.uptime_check import (
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
     control_task,
-    generate_task_sub_config,
-    get_node,
     get_task,
     # 操作函数
     list_groups,
@@ -54,17 +45,14 @@ from bk_monitor_base.uptime_check import (
 )
 from django.conf import settings
 from django.utils.translation import gettext as _
-from requests.auth import to_native_string
-from yaml import SafeDumper
 
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
+from bkmonitor.utils.common_utils import host_key, logger, safe_int
 from bkmonitor.utils.country import ISP_LIST
-from bkmonitor.utils.encode import EncodeWebhook
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
@@ -82,56 +70,10 @@ from core.drf_resource.base import Resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
-from monitor_web.uptime_check.constants import UPTIME_CHECK_CONFIG_TEMPLATE
 from monitor_web.uptime_check.serializers import UptimeCheckTaskSerializer
 from monitor_web.uptime_check.utils import get_uptime_check_task_url_list
 
 MAX_DISPLAY_TASK = 3
-
-
-class GetHTTPConfig(EncodeWebhook):
-    def get_authorization(self, authorize):
-        auth_type = authorize.get("auth_type")
-        auth_config = authorize.get("auth_config")
-        if auth_type == "basic_auth":
-            username = str(auth_config["username"]).encode("latin1")
-            password = str(auth_config["password"]).encode("latin1")
-            self.headers["Authorization"] = "Basic " + to_native_string(
-                b64encode(b":".join((username, password))).strip()
-            )
-        if auth_type == "bearer_token":
-            self.headers["Authorization"] = "Bearer " + auth_config["token"]
-        return self.headers
-
-    def get_body(self, body):
-        encode_body = super().encode_body(body)
-        if isinstance(encode_body, bytes):
-            return encode_body.decode()
-        return encode_body
-
-
-def url_join_args(url_list, query=None, **kwargs):
-    """
-    拼接get请求参数
-    :param url_list: 原url列表，可带?或不带
-    :param query: urllib.parse.urlencode支持的query
-    :param kwargs: 未出现的参数，将组合成字典
-    :return: 拼接好的url
-    """
-    results = []
-    for url in url_list:
-        result = url
-        if not result.endswith("?") and (query or kwargs):
-            result = url + "?"
-        if query:
-            result = result + urllib.parse.urlencode(query)
-        if kwargs:
-            if query:
-                result = result + "&" + urllib.parse.urlencode(kwargs)
-            else:
-                result = result + urllib.parse.urlencode(kwargs)
-        results.append(result)
-    return results
 
 
 def handle_response_data_list(response_data_list):
@@ -311,31 +253,6 @@ class GetHttpHeadersResource(Resource):
         return UPTIME_CHECK_ALLOWED_HEADERS
 
 
-class GenerateYamlConfigResource(Resource):
-    """
-    将object的配置转换为yaml配置
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        config = serializers.DictField(required=True)
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        # 默认情况下 SafeDumper 会将空字符在生成的yaml文件中显示成 null
-        # 需要在此进行进行处理，将 null 替换为空
-        SafeDumper.add_representer(
-            type(None), lambda dumper, value: dumper.represent_scalar("tag:yaml.org,2002:null", "")
-        )
-        try:
-            yaml_content = yaml.safe_dump(
-                validated_request_data["config"], default_flow_style=False, encoding="utf-8", allow_unicode=True
-            )
-        except Exception as e:
-            logger.error(f"生成yaml配置文件时出错：{e}")
-            raise CustomException(_("生成yaml配置文件时出错：%s") % e)
-
-        return yaml_content
-
-
 class TestTaskResource(Resource):
     """
     进行拨测任务测试
@@ -371,239 +288,6 @@ class TestTaskResource(Resource):
             )
         except TestTaskError as e:
             raise CustomException(e.message)
-
-
-class GenerateConfigResource(Resource):
-    """
-    生成正式保存任务时【最终】需要下发到节点机器上的yaml文件
-        一个拨测节点上会执行多个拨测任务
-        最终的yaml配置文件为：
-        for task in tasks:
-            final_config_dict += task.generate_sub_config()
-
-    注意测试时下发的yaml配置文件不在此生成
-    如果需要修改测试时用的yaml文件模板，请到 bk_monitor_base 中修改
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        ip = serializers.IPAddressField(required=True)
-        output_config = serializers.DictField(required=True)
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        bk_tenant_id = cast(str, get_request_tenant_id())
-        try:
-            node = get_node(bk_tenant_id=bk_tenant_id, ip=validated_request_data["ip"])
-        except Exception:
-            raise CustomException(_("不存在的节点ip=%s") % validated_request_data["ip"])
-
-        tasks = list_tasks(bk_tenant_id=bk_tenant_id, bk_biz_id=node.bk_biz_id, query={"node_id": node.id})
-
-        tcp_tasks = []
-        udp_tasks = []
-        http_tasks = []
-        icmp_tasks = []
-        # default_max_timeout值控制对应任务默认最大执行超时时间，这里默认15000ms可以满足大部分的场景
-        default_max_timeout: dict[str, int] = defaultdict(lambda: settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT)
-        config = copy.deepcopy(UPTIME_CHECK_CONFIG_TEMPLATE)
-        for task in tasks:
-            # 只生成运行中和启动中的任务配置，测试完成未保存的任务配置不会在这里生成
-            if task.status in (UptimeCheckTaskStatus.RUNNING, UptimeCheckTaskStatus.STARTING):
-                sub_config = resource.uptime_check.generate_sub_config({"task_id": task.id})
-                if not sub_config:
-                    continue
-                task_conf_timeout = int(sub_config[0]["timeout"].strip("ms"))
-
-                # 取默认最大超时和子任务超时中的最大值作为任务最大执行超时
-                if task.protocol == UptimeCheckTaskProtocol.TCP:
-                    tcp_tasks = tcp_tasks + sub_config
-                    default_max_timeout["tcp"] = max(default_max_timeout["tcp"], task_conf_timeout)
-
-                elif task.protocol == UptimeCheckTaskProtocol.UDP:
-                    udp_tasks = udp_tasks + sub_config
-                    default_max_timeout["udp"] = max(default_max_timeout["udp"], task_conf_timeout)
-
-                elif task.protocol == UptimeCheckTaskProtocol.HTTP:
-                    http_tasks = http_tasks + sub_config
-                    default_max_timeout["http"] = max(default_max_timeout["http"], task_conf_timeout)
-
-                elif task.protocol == UptimeCheckTaskProtocol.ICMP:
-                    icmp_tasks = icmp_tasks + sub_config
-                    default_max_timeout["icmp"] = max(default_max_timeout["icmp"], task_conf_timeout)
-
-        # 设置拨测节点信息
-        config["uptimecheckbeat"]["node_id"] = node.id
-        config["uptimecheckbeat"]["bk_cloud_id"] = node.plat_id
-        config["uptimecheckbeat"]["bk_biz_id"] = node.bk_biz_id
-
-        # 刷新任务配置
-        config["uptimecheckbeat"]["tcp_task"]["tasks"] = tcp_tasks
-        config["uptimecheckbeat"]["udp_task"]["tasks"] = udp_tasks
-        config["uptimecheckbeat"]["http_task"]["tasks"] = http_tasks
-        config["uptimecheckbeat"]["icmp_task"]["tasks"] = icmp_tasks
-        # 设置各类任务最大超时
-        config["uptimecheckbeat"]["tcp_task"]["max_timeout"] = "{}ms".format(default_max_timeout["tcp"])
-        config["uptimecheckbeat"]["udp_task"]["max_timeout"] = "{}ms".format(default_max_timeout["udp"])
-        config["uptimecheckbeat"]["http_task"]["max_timeout"] = "{}ms".format(default_max_timeout["http"])
-        config["uptimecheckbeat"]["icmp_task"]["max_timeout"] = "{}ms".format(default_max_timeout["icmp"])
-        # 去除测试配置参数
-        del config["output.console"]
-
-        config.pop("output.gse", None)
-        config.pop("output.bkpipe", None)
-        config.update(validated_request_data["output_config"])
-
-        return resource.uptime_check.generate_yaml_config({"config": config})
-
-
-class GenerateSubConfigResource(Resource):
-    """
-    生成拨测节点所使用的yaml配置文件
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        task_id = serializers.IntegerField(required=False)
-        test = serializers.BooleanField(required=False, default=False)
-        config = serializers.DictField(required=False, default={}, label=(_("拨测任务配置")))
-        protocol = serializers.ChoiceField(choices=("HTTP", "TCP", "UDP", "ICMP"), required=False)
-        labels = serializers.DictField(required=False, default={}, label=_("自定义标签"))
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        """
-        生成 bkmonitorbeat 任务配置
-
-        Args:
-            validated_request_data: 请求数据，包含 task_id 或 (config + protocol) 组合
-
-        Returns:
-            list: 任务配置列表
-        """
-        bk_tenant_id = get_request_tenant_id()
-        task_id = validated_request_data.get("task_id", 0)
-        test = validated_request_data.get("test", False)
-
-        # 兼容测试和正式下发两种情况: 测试需要传入 config 和 protocol，正式下发只需传入 task_id
-        if task_id:
-            try:
-                task_model = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
-            except Exception:
-                raise CustomException(_("不存在的任务id:%s") % task_id)
-            bk_biz_id = task_model.bk_biz_id
-            protocol = task_model.protocol
-            config = task_model.config
-            labels = task_model.labels or {}
-        else:
-            config = validated_request_data.get("config")
-            protocol: str = validated_request_data["protocol"]
-            labels = validated_request_data.get("labels") or {}
-            bk_biz_id = 0
-
-        if not config:
-            raise CustomException(_("任务配置为空，请检查任务参数是否正确"))
-
-        # 通过 operation 层调用
-        return generate_task_sub_config(
-            protocol=protocol,
-            config=config,
-            task_id=task_id,
-            bk_biz_id=bk_biz_id,
-            labels=labels,
-            test=test,
-        )
-
-
-class TaskDataResource(Resource):
-    """
-    根据拨测任务id获取任务近一小时数据 / 可用率 / 响应时间
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        SELECT_CHOICE = {
-            "available": _("可用率"),
-            "task_duration": _("响应时间"),
-        }
-
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        task_id = serializers.CharField(required=True, label="拨测任务ID")
-        type = serializers.ChoiceField(required=False, label="数据类型", choices=list(SELECT_CHOICE.keys()))
-        node_id = serializers.CharField(required=False, label="节点ID")
-
-    @staticmethod
-    def make_select_param(task: UptimeCheckTask, value_filed_list: list[str], node_id: str | None, bk_biz_id: int = 0):
-        kwargs_list = []
-        end = arrow.utcnow().timestamp
-        start = end - UPTIME_CHECK_SUMMARY_TIME_RANGE * 3600
-
-        filter_dict = {"task_id": str(task.id)}
-        # node id 已不再使用： 使用节点的ip+cloud_id
-        if node_id:
-            bk_target_ip, bk_cloud_id = parse_host_id(node_id)
-            filter_dict.update({"bk_target_ip": bk_target_ip, "bk_cloud_id": bk_cloud_id})
-
-        for monitor_field in value_filed_list:
-            kwargs = {
-                "data_source_label": UPTIME_DATA_SOURCE_LABEL,
-                "data_type_label": UPTIME_DATA_TYPE_LABEL,
-                "bk_biz_id": bk_biz_id,
-                "time_start": start,
-                "time_end": end,
-                "filter_dict": filter_dict,
-                "monitor_field": monitor_field,
-                "time_step": 0,
-                "interval": task.config["period"],
-                "result_table_id": f"{str(task.bk_biz_id)}_{UPTIME_CHECK_DB}_{task.protocol.lower()}",
-            }
-
-            if monitor_field == "available":
-                kwargs["unit"] = " %"
-                kwargs["series_name"] = _("可用率")
-                kwargs["conversion"] = 0.01
-            elif monitor_field == "task_duration":
-                kwargs["unit"] = " ms"
-                kwargs["series_name"] = _("响应时间")
-                kwargs["conversion"] = 1
-
-            kwargs_list.append(kwargs)
-
-        return kwargs_list
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        bk_tenant_id = cast(str, get_request_tenant_id())
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        try:
-            task = get_task(
-                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=int(validated_request_data["task_id"])
-            )
-        except Exception:
-            err_msg = _("未找到拨测任务ID=%s") % validated_request_data["task_id"]
-            logger.error(err_msg)
-            raise CustomException(err_msg)
-
-        if validated_request_data.get("type", ""):
-            value_field = [validated_request_data["type"]]
-        else:
-            value_field = ["available", "task_duration"]
-
-        kwargs_list = self.make_select_param(
-            task, value_field, validated_request_data.get("node_id"), validated_request_data["bk_biz_id"]
-        )
-
-        # 执行查询
-        try:
-            response_data_list = resource.commons.graph_point.bulk_request(kwargs_list)
-        except Exception as e:
-            err_msg = _("生成图表时发生异常: %s") % e
-            logger.exception(err_msg)
-            raise CustomException(err_msg)
-
-        response_data_list = handle_response_data_list(response_data_list)
-        for line in response_data_list["series"]:
-            if line["name"] == _("响应时间"):
-                line["yAxis"] = 1
-                line["tooltip"] = {"valueSuffix": " ms"}
-            elif line["name"] == _("可用率"):
-                line["tooltip"] = {"valueSuffix": " %"}
-
-        return response_data_list
 
 
 class TaskDetailResource(Resource):
@@ -912,22 +596,6 @@ class TaskGraphAndMapResource(Resource):
     def get_threshold_line(self, type, task):
         # 获取监控策略的期望可用率或响应时长阈值线数据
         threshold_result = []
-        # for monitor_source in task.monitors:
-        #     if (_('可用率') in monitor_source.monitor_name and type == 'available') \
-        #             or (_('响应时间') in monitor_source.monitor_name and type == 'task_duration'):
-        #         for monitor_item in monitor_source.monitor_item_list:
-        #             # 获取监控策略对应的检测算法配置
-        #             detect_algorithm_config = monitor_item.condition_config
-        #             # 暂时只考虑静态阈值
-        #             if detect_algorithm_config and detect_algorithm_config[0].algorithm_id == 1000:
-        #                 config = json.loads(detect_algorithm_config[0].strategy_option)
-        #                 threshold_result.append(
-        #                     {
-        #                         'value': config.get('threshold'),
-        #                         'name': monitor_item.title,
-        #                         'level': monitor_item.monitor_level
-        #                     }
-        #                 )
         if threshold_result:
             # 若存在多级告警策略，显示级别高的；对于多个同高级别告警，可用率显示阈值小的，响应时长显示阈值大的
             level_sort = sorted(threshold_result, key=lambda x: x["level"])
@@ -1238,58 +906,6 @@ class GetStrategyStatusResource(Resource):
         )
 
 
-class SwitchStrategyByTaskIDResource(Resource):
-    """
-    根据拨测任务id启用/停用监控策略
-    封装 resource.config.list_strategy_by_monitor_id 方法
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True)
-        task_id = serializers.IntegerField(required=True)
-        is_enabled = serializers.BooleanField(required=True)
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        # TODO：切换到新的策略配置
-        pass
-
-
-class GenerateDefaultStrategyResource(Resource):
-    """
-    创建拨测任务后，根据拨测任务自动生成告警策略
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        task_id = serializers.IntegerField(required=True, label="拨测任务id")
-
-    @staticmethod
-    def gen_default_strategy(task, monitor_target, display_name, method, threshold, condition=""):
-        """
-        生成默认监控策略
-        """
-        # TODO：接入新的告警策略
-        pass
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        try:
-            task = get_task(task_id=validated_request_data["task_id"])
-        except Exception:
-            raise CustomException(_("不存在的任务id:%s") % validated_request_data["task_id"])
-
-        # 拨测任务默认生成可用率监控策略
-        self.gen_default_strategy(task, "available", _("可用率"), "lt", UPTIME_CHECK_AVAILABLE_DEFAULT_VALUE)
-
-        if task.protocol == UptimeCheckTaskProtocol.HTTP:
-            # 如果HTTP任务指定了状态码
-            if task.config["response_code"] and (task.protocol == UptimeCheckTaskProtocol.HTTP):
-                self.gen_default_strategy(
-                    task, "response_code", _("状态码"), "gte", 1, UPTIME_CHECK_MONIT_RESPONSE_CODE
-                )
-            # 如果指定了响应内容
-            if task.config["response"]:
-                self.gen_default_strategy(task, "response", _("响应内容"), "gte", 1, UPTIME_CHECK_MONIT_RESPONSE)
-
-
 class UpdateTaskRunningStatusResource(Resource):
     """
     周期查询拨测任务启动状态，用于后台celery任务
@@ -1308,27 +924,6 @@ class UpdateTaskRunningStatusResource(Resource):
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             task_ids=[task_id],
-        )
-
-
-class BatchUpdateTaskRunningStatusResource(Resource):
-    """周期更新任务状态，用于celery周期任务"""
-
-    def perform_request(self, validated_request_data: list[int]):
-        logger.info("start celery period task: period update uptime check task running status")
-        bk_tenant_id = cast(str, get_request_tenant_id())
-        task_id_list = validated_request_data
-
-        if task_id_list:
-            first_task = get_task(task_id=task_id_list[0])
-            bk_biz_id = first_task.bk_biz_id
-        else:
-            return
-
-        refresh_task_status(
-            bk_tenant_id=bk_tenant_id,
-            bk_biz_id=bk_biz_id,
-            task_ids=task_id_list,
         )
 
 
@@ -2668,38 +2263,6 @@ class SelectCarrierOperator(Resource):
         # 从 Define 对象提取 carrieroperator 字段
         carrieroperators = [node.carrieroperator for node in nodes]
         return list(dict.fromkeys(carrieroperators))  # 保留顺序的去重
-
-
-class UptimeCheckNodeInfoResource(Resource):
-    """
-    提供给kernel api使用，查询uptime_check_node表的信息
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        ids = serializers.ListField(label="拨测节点id列表", child=serializers.IntegerField(), required=True)
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        bk_tenant_id = cast(str, get_request_tenant_id())
-        nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": validated_request_data["ids"]})
-        result = {}
-        for node in nodes:
-            result[node.id] = node.model_dump()
-        return result
-
-
-class UptimeCheckTaskInfoResource(Resource):
-    """
-    提供给kernel api使用，查询uptime_check_task表的信息
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        ids = serializers.ListField(label="拨测任务id列表", child=serializers.IntegerField(), required=True)
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        task_ids = validated_request_data["ids"]
-        tasks = list_tasks(query={"task_ids": task_ids})
-        # 转换为 {id: task_dict} 的格式
-        return {task.id: task.model_dump() for task in tasks}
 
 
 class TopoTemplateHostResource(Resource):

@@ -15,6 +15,7 @@ import math
 import re
 import time
 from collections import defaultdict
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -440,10 +441,11 @@ class TimeSeriesGroup(CustomGroupBase):
             aggregated_metrics[field_name].setdefault("field_name", field_name)
 
             # 合并 tag_value_list
-            tag_value_list = item.get("tag_value_list", {})
+            tag_value_list = item.get("tag_value_list") or {}
             for tag_name, tag_info in tag_value_list.items():
                 existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
-                new_values = set(tag_info.get("values", []))
+                tag_info = tag_info or {}
+                new_values = set(tag_info.get("values") or [])
                 new_update_time = tag_info.get("last_update_time", 0)
 
                 if existing_tag:
@@ -788,6 +790,7 @@ class TimeSeriesGroup(CustomGroupBase):
         enable_field_black_list=None,
         metric_info_list=None,
         data_label: str | None = None,
+        options: dict[str, Any] | None = None,
     ):
         """
         修改一个自定义时序组
@@ -799,6 +802,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param enable_field_black_list: 黑名单的启用状态，bool,
         :param metric_info_list: metric信息
         :param data_label: 数据标签
+        :param options: 结果表选项内容
         :return: True or raise
         """
         return self.modify_custom_group(
@@ -810,6 +814,7 @@ class TimeSeriesGroup(CustomGroupBase):
             field_list=field_list,
             enable_field_black_list=enable_field_black_list,
             data_label=data_label,
+            options=options,
         )
 
     @atomic(config.DATABASE_CONNECTION_NAME)
