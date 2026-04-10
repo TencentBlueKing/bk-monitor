@@ -73,12 +73,12 @@ class TestCommonBuiltInFields(TestCase):
     def test_field_output_types(self):
         """验证各内置字段的 output_type 映射"""
         expected_types = {
-            "bk_host_id": "double",   # field_type=float → double
+            "bk_host_id": "long",   # field_type=float → long
             "__ext": "dict",           # field_type=object → dict
-            "cloudId": "double",       # field_type=float → double
+            "cloudId": "long",       # field_type=float → long
             "serverIp": "string",      # field_type=string → string
             "path": "string",          # field_type=string → string
-            "gseIndex": "double",      # field_type=float → double
+            "gseIndex": "long",      # field_type=float → long
         }
         storage = ALL_ETL_CLASSES[0][1]()
         rules = storage._build_built_in_fields_v4(get_fresh_config())
