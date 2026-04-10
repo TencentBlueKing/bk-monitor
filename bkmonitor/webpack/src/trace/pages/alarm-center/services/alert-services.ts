@@ -841,7 +841,6 @@ export class AlertService extends AlarmService {
       paramsClone.query_string = window.APM_QUERY_STRING || '';
     }
     // #endif
-    console.log('getFilterTableList = ', paramsClone);
     const data = await searchAlert(
       {
         ...paramsClone,

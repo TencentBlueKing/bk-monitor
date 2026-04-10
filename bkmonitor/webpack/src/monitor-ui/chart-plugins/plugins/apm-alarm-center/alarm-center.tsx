@@ -63,6 +63,9 @@ export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps,
     if (!el) return;
 
     const savedI18n = window.i18n;
+    // 本地测试使用
+    // const { mount } = await import('monitor-alarm-center');
+    // 线上使用
     const { mount } = await import('@blueking/monitor-alarm-center');
     window.i18n = savedI18n;
 
