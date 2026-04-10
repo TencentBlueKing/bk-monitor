@@ -386,6 +386,7 @@ def build_doris_regexp(pattern: str, placeholder_index: int, predefined_varibles
         raise ValueError(f"placeholder index out of range: {placeholder_index}")
 
     parts = []
+
     for token in tokens:
         part = ""
         if token["token_type"] == "literal":
