@@ -2096,6 +2096,10 @@ class GetKubernetesObjectCount(ApiAuthResource):
                     dashboard_id = "node"
 
                 if dashboard_id:
+                    if resource_name in ("master_node", "work_node"):
+                        # k8s-new 当前不支持按 node roles 精确过滤，避免生成会误导用户的全集群节点链接
+                        results.append(item)
+                        continue
                     search = None
                     # 节点维度需要检查共享集群
                     if dashboard_id == "node" and api.kubernetes.is_shared_cluster(bcs_cluster_id, bk_biz_id):
@@ -2243,64 +2247,22 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
         failure_count = status_summary.get(BCSWorkload.STATE_FAILURE, 0)
 
         if success_count:
-            # 构建健康 Workload 的链接 (新版 k8s-new 页面格式)
-            selector_search = []
-            if bcs_cluster_id:
-                selector_search.append({"bcs_cluster_id": bcs_cluster_id})
-            # 将旧版 selectorSearch 转换为新版 filterBy 格式
-            filter_by, cluster_id = {}, bcs_cluster_id or ""
-            for item in selector_search:
-                for key, val in item.items():
-                    if key == "bcs_cluster_id":
-                        cluster_id = val
-                    else:
-                        filter_by[key] = [val]
-            filter_by_str = json.dumps(filter_by)
-
             data.append(
                 {
                     "name": _("健康"),
                     "value": success_count,
                     "color": "#2dcb56",
                     "borderColor": "#2dcb56",
-                    "link": {
-                        "target": "blank",
-                        "url": (
-                            f"?bizId={bk_biz_id}#/k8s-new?"
-                            f'cluster={cluster_id}&filterBy={filter_by_str}&groupBy=["namespace","workload"]'
-                            f"&sceneId=kubernetes&scene=performance&activeTab=list"
-                        ),
-                    },
                 }
             )
 
         if failure_count:
-            # 构建异常 Workload 的链接 (新版 k8s-new 页面格式)
-            selector_search = []
-            if bcs_cluster_id:
-                selector_search.append({"bcs_cluster_id": bcs_cluster_id})
-            filter_by, cluster_id = {}, bcs_cluster_id or ""
-            for item in selector_search:
-                for key, val in item.items():
-                    if key == "bcs_cluster_id":
-                        cluster_id = val
-                    else:
-                        filter_by[key] = [val]
-            filter_by_str = json.dumps(filter_by)
             data.append(
                 {
                     "name": _("异常"),
                     "value": failure_count,
                     "color": "#ea3636",
                     "borderColor": "#ea3636",
-                    "link": {
-                        "target": "blank",
-                        "url": (
-                            f"?bizId={bk_biz_id}#/k8s-new?"
-                            f'cluster={cluster_id}&filterBy={filter_by_str}&groupBy=["namespace","workload"]'
-                            f"&sceneId=kubernetes&scene=performance&activeTab=list"
-                        ),
-                    },
                 }
             )
 

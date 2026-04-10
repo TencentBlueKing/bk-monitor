@@ -518,6 +518,8 @@ class BCSBase(models.Model):
         """根据 dashboard_id 获取 scene 和 groupBy"""
         if dashboard_id == "node":
             return "capacity", json.dumps(["node"])
+        elif dashboard_id == "cluster":
+            return "performance", json.dumps(["namespace"])
         elif dashboard_id in ("service", "ingress"):
             return "network", json.dumps(["namespace", dashboard_id])
         elif dashboard_id in ("pod", "container", "workload"):
@@ -544,22 +546,60 @@ class BCSBase(models.Model):
         return None
 
     @staticmethod
+    def _normalize_workload_filter(raw_filter: dict) -> list[str]:
+        """新版 workload 过滤值格式为 Kind:Name。"""
+        workload_values = []
+        workload_type = raw_filter.get("workload_type")
+        workload_name = raw_filter.get("workload_name", raw_filter.get("name"))
+        if isinstance(workload_type, list):
+            workload_type = workload_type[0] if workload_type else ""
+        if isinstance(workload_name, list):
+            workload_name = workload_name[0] if workload_name else ""
+        if workload_name:
+            workload_values.append(
+                f"{workload_type}:{workload_name}" if workload_type and ":" not in workload_name else workload_name
+            )
+        return workload_values
+
+    @staticmethod
+    def _build_k8s_new_filters(dashboard_id: str, raw_filter: dict) -> tuple[str, dict, set[str]]:
+        """统一处理旧版 selector/filter 参数到新版 cluster/filterBy 参数。"""
+        bcs_cluster_id = ""
+        filter_by = {}
+        dropped_keys = set()
+        if dashboard_id == "workload":
+            workload_values = BCSBase._normalize_workload_filter(raw_filter)
+            if workload_values:
+                filter_by["workload"] = workload_values
+
+        for key, value in raw_filter.items():
+            if key == "bcs_cluster_id":
+                bcs_cluster_id = value if not isinstance(value, list) else value[0] if value else ""
+                continue
+            if dashboard_id == "workload" and key in ("name", "workload_name", "workload_type"):
+                continue
+            new_key = BCSBase._map_k8s_filter_key(key, dashboard_id)
+            if new_key:
+                filter_by[new_key] = value if isinstance(value, list) else [value]
+            else:
+                dropped_keys.add(key)
+
+        return bcs_cluster_id, filter_by, dropped_keys
+
+    @staticmethod
+    def _build_unavailable_link_value(value: Any) -> dict:
+        return {"value": value, "target": "null_event", "url": ""}
+
+    @staticmethod
     def build_link(bk_biz_id, text, dashboard, filter_query):
         """构建 K8S 资源详情链接（新版 k8s-new 页面格式）
 
         旧版格式: ?bizId={id}#/k8s?filter-namespace=xxx&filter-pod_name=yyy&dashboardId=pod&sceneType=detail
         新版格式: ?bizId={id}#/k8s-new?cluster=xxx&filterBy={"namespace":["xxx"],"pod":["yyy"]}&groupBy=["pod"]
         """
-        bcs_cluster_id = ""
-        filter_by = {}
-        for key, value in filter_query.items():
-            if key == "bcs_cluster_id":
-                bcs_cluster_id = value if not isinstance(value, list) else value[0] if value else ""
-                continue
-            new_key = BCSBase._map_k8s_filter_key(key, dashboard)
-            if new_key:
-                filter_by[new_key] = value if isinstance(value, list) else [value]
-
+        bcs_cluster_id, filter_by, dropped_keys = BCSBase._build_k8s_new_filters(dashboard, filter_query)
+        if dropped_keys:
+            return BCSBase._build_unavailable_link_value(text)
         scene, group_by_str = BCSBase._get_k8s_scene_and_group_by(dashboard)
         url = (
             f"?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
@@ -577,18 +617,14 @@ class BCSBase(models.Model):
         旧版格式: ?bizId={id}#/k8s?sceneId=kubernetes&dashboardId=pod&sceneType=overview&queryData={"selectorSearch":[...]}
         新版格式: ?bizId={id}#/k8s-new?cluster=xxx&filterBy={"pod":["xxx"]}&groupBy=["pod"]&sceneId=kubernetes
         """
-        bcs_cluster_id = ""
-        filter_by = {}
+        raw_filter = {}
         if search:
             for item in search:
-                for key, val in item.items():
-                    if key == "bcs_cluster_id":
-                        bcs_cluster_id = val
-                    else:
-                        new_key = BCSBase._map_k8s_filter_key(key, dashboard_id)
-                        if new_key:
-                            filter_by[new_key] = [val]
+                raw_filter.update(item)
 
+        bcs_cluster_id, filter_by, dropped_keys = BCSBase._build_k8s_new_filters(dashboard_id, raw_filter)
+        if dropped_keys:
+            return BCSBase._build_unavailable_link_value(value)
         scene, group_by_str = BCSBase._get_k8s_scene_and_group_by(dashboard_id)
         url = (
             f"?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
