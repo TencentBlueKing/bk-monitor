@@ -94,8 +94,9 @@ class TestGetKubernetesContainer:
                 "name": "节点IP",
                 "type": "link",
                 "value": {
-                    "target": "null_event",
-                    "url": "",
+                    "target": "blank",
+                    "url": '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                    "&sceneId=kubernetes&scene=capacity&activeTab=list",
                     "value": NODE_IP,
                 },
             },
@@ -211,8 +212,9 @@ class TestGetKubernetesContainer:
                 "name": "节点IP",
                 "type": "link",
                 "value": {
-                    "target": "null_event",
-                    "url": "",
+                    "target": "blank",
+                    "url": '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                    "&sceneId=kubernetes&scene=capacity&activeTab=list",
                     "value": NODE_IP,
                 },
             },

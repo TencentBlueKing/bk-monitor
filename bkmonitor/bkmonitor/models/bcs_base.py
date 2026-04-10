@@ -587,19 +587,13 @@ class BCSBase(models.Model):
         return bcs_cluster_id, filter_by, dropped_keys
 
     @staticmethod
-    def _build_unavailable_link_value(value: Any) -> dict:
-        return {"value": value, "target": "null_event", "url": ""}
-
-    @staticmethod
     def build_link(bk_biz_id, text, dashboard, filter_query):
         """构建 K8S 资源详情链接（新版 k8s-new 页面格式）
 
         旧版格式: ?bizId={id}#/k8s?filter-namespace=xxx&filter-pod_name=yyy&dashboardId=pod&sceneType=detail
         新版格式: ?bizId={id}#/k8s-new?cluster=xxx&filterBy={"namespace":["xxx"],"pod":["yyy"]}&groupBy=["pod"]
         """
-        bcs_cluster_id, filter_by, dropped_keys = BCSBase._build_k8s_new_filters(dashboard, filter_query)
-        if dropped_keys:
-            return BCSBase._build_unavailable_link_value(text)
+        bcs_cluster_id, filter_by, _ = BCSBase._build_k8s_new_filters(dashboard, filter_query)
         scene, group_by_str = BCSBase._get_k8s_scene_and_group_by(dashboard)
         url = (
             f"?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
@@ -622,9 +616,7 @@ class BCSBase(models.Model):
             for item in search:
                 raw_filter.update(item)
 
-        bcs_cluster_id, filter_by, dropped_keys = BCSBase._build_k8s_new_filters(dashboard_id, raw_filter)
-        if dropped_keys:
-            return BCSBase._build_unavailable_link_value(value)
+        bcs_cluster_id, filter_by, _ = BCSBase._build_k8s_new_filters(dashboard_id, raw_filter)
         scene, group_by_str = BCSBase._get_k8s_scene_and_group_by(dashboard_id)
         url = (
             f"?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"

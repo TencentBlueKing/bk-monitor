@@ -2096,10 +2096,6 @@ class GetKubernetesObjectCount(ApiAuthResource):
                     dashboard_id = "node"
 
                 if dashboard_id:
-                    if resource_name in ("master_node", "work_node"):
-                        # k8s-new 当前不支持按 node roles 精确过滤，避免生成会误导用户的全集群节点链接
-                        results.append(item)
-                        continue
                     search = None
                     # 节点维度需要检查共享集群
                     if dashboard_id == "node" and api.kubernetes.is_shared_cluster(bcs_cluster_id, bk_biz_id):
@@ -2253,6 +2249,14 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
                     "value": success_count,
                     "color": "#2dcb56",
                     "borderColor": "#2dcb56",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            f"?bizId={bk_biz_id}#/k8s-new?"
+                            f'cluster={bcs_cluster_id or ""}&filterBy={{}}&groupBy=["namespace","workload"]'
+                            f"&sceneId=kubernetes&scene=performance&activeTab=list"
+                        ),
+                    },
                 }
             )
 
@@ -2263,6 +2267,14 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
                     "value": failure_count,
                     "color": "#ea3636",
                     "borderColor": "#ea3636",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            f"?bizId={bk_biz_id}#/k8s-new?"
+                            f'cluster={bcs_cluster_id or ""}&filterBy={{}}&groupBy=["namespace","workload"]'
+                            f"&sceneId=kubernetes&scene=performance&activeTab=list"
+                        ),
+                    },
                 }
             )
 

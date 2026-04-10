@@ -124,10 +124,24 @@ class TestGetKubernetesObjectCount:
         expect = [
             {
                 "label": "Master节点",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
+                    ),
+                },
                 "value": 0,
             },
             {
                 "label": "Worker节点",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
+                    ),
+                },
                 "value": 0,
             },
             {

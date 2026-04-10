@@ -27,12 +27,26 @@ class TestGetKubernetesWorkloadStatus:
                 {
                     "borderColor": "#2dcb56",
                     "color": "#2dcb56",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=2#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
+                        ),
+                    },
                     "name": "健康",
                     "value": 1,
                 },
                 {
                     "borderColor": "#ea3636",
                     "color": "#ea3636",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=2#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
+                        ),
+                    },
                     "name": "异常",
                     "value": 1,
                 },
@@ -56,12 +70,26 @@ class TestGetKubernetesWorkloadStatus:
                 {
                     "borderColor": "#2dcb56",
                     "color": "#2dcb56",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=-3#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
+                        ),
+                    },
                     "name": "健康",
                     "value": 1,
                 },
                 {
                     "borderColor": "#ea3636",
                     "color": "#ea3636",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=-3#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
+                        ),
+                    },
                     "name": "异常",
                     "value": 1,
                 },
