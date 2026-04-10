@@ -34,6 +34,7 @@
           display: block;
           width: 1px;
           height: 16px;
+          margin-right: 10px;
           margin-left: 12px;
           content: '';
           background: #c4c6cc;
@@ -68,7 +69,6 @@
       }
 
       .alarm-center-jump-main {
-        margin-left: 10px;
         cursor: pointer;
 
         &:hover {
@@ -104,39 +104,40 @@
   }
 }
 
-.apm-bk-sideslider, .apm-alarm-center-page {
-    .mr-24 {
-        margin-right: 24px;
-    }
+.apm-bk-sideslider,
+.apm-alarm-center-page {
+  .mr-24 {
+    margin-right: 24px;
+  }
 
-    .ml-16 {
-        margin-left: 16px;
-    }
-    
-    .ml-6 {
-        margin-left: 6px;
-    }
+  .ml-16 {
+    margin-left: 16px;
+  }
+
+  .ml-6 {
+    margin-left: 6px;
+  }
 }
 
 #apm {
-    // 处理apm下padding被污染问题
-    .tippy-box[data-theme~='padding-0'] {
-        .tippy-content {
-            padding: 0;
-        }
+  // 处理apm下padding被污染问题
+  .tippy-box[data-theme~='padding-0'] {
+    .tippy-content {
+      padding: 0;
+    }
+  }
+
+  // 告警详情异常
+  .event-detail-head-main {
+    // tag内的icon
+    .level-tag {
+      margin-right: 0;
+      line-height: 13px;
     }
 
-    // 告警详情异常
-    .event-detail-head-main {
-        // tag内的icon
-        .level-tag {
-            margin-right: 0;
-            line-height: 13px;
-        }
-
-        // id内的icon
-        .temporary-share {
-            line-height: 20px;
-        }
+    // id内的icon
+    .temporary-share {
+      line-height: 20px;
     }
+  }
 }

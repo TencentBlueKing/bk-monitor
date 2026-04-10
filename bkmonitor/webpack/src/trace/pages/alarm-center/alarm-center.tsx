@@ -317,6 +317,9 @@ export default defineComponent({
     const handleFilterModeChange = (mode: EMode) => {
       handleCurrentPageChange(1);
       alarmStore.filterMode = mode;
+      // #if IS_APM_MONITOR
+      bridgeEmit('filterModeChange', mode);
+      // #endif
     };
     const handleResidentConditionChange = (condition: CommonCondition[]) => {
       alarmStore.residentCondition = condition;
