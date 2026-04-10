@@ -88,6 +88,28 @@ class TestPlaceholderAnalysisHandler(TestCase):
         self.assertIn("LIMIT 2", first_call_params["sql"])
         self.assertEqual(mock_chart_handler.call_args_list[0].kwargs["clustered_rt"], "2_bklog_1_clustered")
 
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_distribution_uses_requested_pattern_level(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"val": "404", "cnt": 6}]},
+            {"list": [{"unique_count": 1}]},
+            {"list": [{"total_count": 6}]},
+        ]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "pattern_level": "03",
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
+
+        first_call_params = mock_chart_handler.call_args_list[0].args[0]
+        self.assertIn("WHERE __dist_03 = 'deadbeef'", first_call_params["sql"])
+        self.assertNotIn("__dist_05 = 'deadbeef'", first_call_params["sql"])
+
     def test_get_distribution_raises_for_non_doris_storage(self):
         ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(
             storage_type=StorageTypeEnum.ELASTICSEARCH.value

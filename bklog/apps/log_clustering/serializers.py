@@ -74,6 +74,7 @@ class PlaceholderDistributionSerializer(serializers.Serializer):
     signature = serializers.CharField()
     pattern = serializers.CharField()
     placeholder_index = serializers.IntegerField(min_value=0)
+    pattern_level = serializers.CharField(required=False, default=PatternEnum.LEVEL_05.value)
 
     start_time = DateTimeFieldWithEpoch(required=True)
     end_time = DateTimeFieldWithEpoch(required=True)
@@ -92,6 +93,11 @@ class PlaceholderDistributionSerializer(serializers.Serializer):
         if not value.strip():
             raise serializers.ValidationError("pattern cannot be empty.")
         return value
+
+    def validate_pattern_level(self, value):
+        if str(value) not in {"01", "03", "05", "07", "09"}:
+            raise serializers.ValidationError("pattern_level is invalid.")
+        return str(value)
 
 
 class StringOrListField(serializers.Field):

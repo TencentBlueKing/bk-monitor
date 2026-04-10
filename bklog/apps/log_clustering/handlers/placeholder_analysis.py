@@ -25,7 +25,7 @@ from django.conf import settings
 from django.utils.translation import gettext as _
 
 from apps.exceptions import ValidationError
-from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.constants import AGGS_FIELD_PREFIX, PatternEnum, StorageTypeEnum
 from apps.log_clustering.exceptions import PlaceholderAnalysisNotSupportedException
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.utils.pattern import (
@@ -206,12 +206,13 @@ class PlaceholderAnalysisHandler:
 
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
         field_name = self.clustering_config.clustering_fields
         limit = self.params.get("limit", self.DEFAULT_LIMIT)
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
             f"SELECT {extract_sql} AS val, COUNT(*) AS cnt "
-            f"WHERE __dist_05 = '{signature}' "
+            f"WHERE {signature_field} = '{signature}' "
             f"AND {extract_sql} != '' "
             f"GROUP BY {extract_sql} "
             "ORDER BY cnt DESC "
@@ -223,24 +224,32 @@ class PlaceholderAnalysisHandler:
 
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
         field_name = self.clustering_config.clustering_fields
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
             f"SELECT COUNT(DISTINCT {extract_sql}) AS unique_count "
-            f"WHERE __dist_05 = '{signature}' "
+            f"WHERE {signature_field} = '{signature}' "
             f"AND {extract_sql} != ''"
         )
 
     def _build_total_count_sql(self, raw_regex: str) -> str:
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
         field_name = self.clustering_config.clustering_fields
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
             "SELECT COUNT(*) AS total_count "
-            f"WHERE __dist_05 = '{signature}' "
+            f"WHERE {signature_field} = '{signature}' "
             f"AND {extract_sql} != ''"
         )
+
+    def _get_signature_field(self) -> str:
+        pattern_level = str(self.params.get("pattern_level") or PatternEnum.LEVEL_05.value)
+        if pattern_level not in {"01", "03", "05", "07", "09"}:
+            raise ValidationError(_("pattern_level 不合法: {level}").format(level=pattern_level))
+        return f"{AGGS_FIELD_PREFIX}_{pattern_level}"
 
     def _build_query_params(self, sql: str) -> dict:
         """把聚类分析上下文转换成 UnifyQueryChartHandler 可消费的参数。"""
