@@ -9,8 +9,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 36px;
+    min-width: 36px;
     height: 36px;
+    padding: 0 6px;
     border-radius: 6px;
 
     .sign-icon {
