@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
+import logging
 import os
 import tarfile
 from uuid import uuid4
@@ -19,6 +20,8 @@ from django.core.files.storage import default_storage
 from django.utils.translation import gettext as _
 
 from core.errors.event_plugin import PluginParseError
+
+logger = logging.getLogger(__name__)
 
 
 class PackageHandler:
@@ -96,15 +99,34 @@ class PackageHandler:
     @classmethod
     def from_tar_file(cls, tar_file):
         """
-        从压缩包提取出来
+        从压缩包提取出来，逐一校验成员路径，防止路径穿越攻击。
+
+        只处理普通文件（isreg），跳过目录、符号链接、硬链接、
+        FIFO、字符/块设备等所有非普通文件类型。
         """
         package_dir = str(uuid4())
+        # 计算存储根目录的规范路径，用于后续前缀校验
+        storage_root = os.path.normpath(os.path.join(cls.get_media_root(), package_dir))
+
         with tarfile.open(fileobj=tar_file, mode="r:gz") as tar:
             _fileobj = tar.fileobj
-            # 这里不能使用getmenbers，如果使用就无法获取到子目录下的文件，因此需要使用迭代器，利用self.next依次获取文件
+            # 利用 self.next 依次获取文件
             for tarinfo in tar:
-                if tarinfo.isdir():
+                # 只允许普通文件，其余类型（目录/symlink/hardlink/FIFO/设备文件等）全部跳过
+                if not tarinfo.isreg():
+                    logger.warning(
+                        "Skipping non-regular tar member (type=%s): %s",
+                        tarinfo.type,
+                        tarinfo.name,
+                    )
                     continue
+
+                # 校验路径：展开后必须在 storage_root 目录之内
+                member_path = os.path.normpath(os.path.join(storage_root, tarinfo.name))
+                if not member_path.startswith(storage_root + os.sep) and member_path != storage_root:
+                    logger.warning("Skipping tar member with path traversal risk: %s", tarinfo.name)
+                    continue
+
                 _fileobj.seek(tarinfo.offset_data)
                 try:
                     default_storage.save(
@@ -113,4 +135,4 @@ class PackageHandler:
                     )
                 except Exception as e:
                     raise PluginParseError({"msg": _("插件包保存失败: %s") % e})
-            return cls(package_dir=package_dir)
+        return cls(package_dir=package_dir)

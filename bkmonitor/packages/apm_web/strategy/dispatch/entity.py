@@ -66,15 +66,20 @@ class EntitySet:
         )
         if datasource_index_set_id:
             for service_name in self.service_names:
-                service_indexes[service_name] = [{"index_set_id": datasource_index_set_id, "is_app_datasource": True}]
+                service_indexes[service_name] = [
+                    {"index_set_id": datasource_index_set_id, "is_app_datasource": True, "bk_biz_id": self.bk_biz_id}
+                ]
 
         for relation in ServiceLogHandler.get_log_relations(self.bk_biz_id, self.app_name, self.service_names):
-            if relation.related_bk_biz_id != self.bk_biz_id:
-                # 跨业务关联意味着告警也要跨业务下发，当前不支持。
-                continue
-
             service_indexes.setdefault(relation.service_name, []).extend(
-                [{"index_set_id": index_set_id, "is_app_datasource": False} for index_set_id in relation.value_list]
+                [
+                    {
+                        "index_set_id": index_set_id,
+                        "is_app_datasource": False,
+                        "bk_biz_id": relation.related_bk_biz_id,
+                    }
+                    for index_set_id in relation.value_list
+                ]
             )
 
         return service_indexes
@@ -106,15 +111,28 @@ class EntitySet:
 
     def get_first_log_index_set_id_or_none(self, service_name: str) -> int | None:
         """
-        获取服务关联的第一个日志索引集ID
+        获取服务关联的第一个日志索引集 ID
         :param service_name: 服务名
         :return: 日志索引集 ID 或 None
         """
         try:
             with self._lock:
-                return self._service_log_indexes_map[service_name][0]["index_set_id"]
-        except (KeyError, IndexError):
+                indexes = self._service_log_indexes_map[service_name]
+        except KeyError:
             return None
+
+        if not indexes:
+            return None
+
+        for item in indexes:
+            if item.get("is_app_datasource"):
+                return item["index_set_id"]
+
+        for item in indexes:
+            if item.get("bk_biz_id") == self.bk_biz_id:
+                return item["index_set_id"]
+
+        return indexes[0]["index_set_id"]
 
     def get_workloads(self, service_name: str) -> list[dict[str, Any]]:
         """
@@ -152,13 +170,30 @@ class EntitySet:
         return self.get_datasource_index_set_id_or_none("trace")
 
     @lru_cache_with_ttl(ttl=60, maxsize=128)
-    def get_rpc_service_config_or_none(self, service_name: str) -> dict[str, Any] | None:
+    def get_system(self, service_name: str) -> dict[str, Any]:
         """
-        获取服务 RPC 配置
+        获取服务的系统信息
         :param service_name: 服务名
-        :return: RPC 配置或 None
+        :return: 无 system 返回 {}，否则 {name, sdk, temporality}
         """
-        return ServiceHandler.get_rpc_service_config_or_none(self._service_node_map[service_name])
+        return ServiceHandler.get_system(self._service_node_map[service_name])
+
+    def get_log_relations(self, service_name: str) -> list[dict[str, Any]]:
+        """
+        获取服务关联的日志索引集列表
+        :param service_name: 服务名
+        :return: 日志索引关联列表
+        """
+        with self._lock:
+            return self._service_log_indexes_map.get(service_name, [])
+
+    def get_node_or_none(self, service_name: str) -> dict[str, Any] | None:
+        """
+        获取服务对应的拓扑节点信息
+        :param service_name: 服务名
+        :return: 拓扑节点信息或 None
+        """
+        return self._service_node_map.get(service_name)
 
     @staticmethod
     def get_service_workloads(

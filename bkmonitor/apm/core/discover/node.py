@@ -44,6 +44,11 @@ class NodeDiscover(DiscoverBase):
     # 批量处理 span 时 每批次的数量
     HANDLE_SPANS_BATCH_SIZE = 10000
 
+    # 节点过期时间（天）
+    # 背景：之前节点过期时间设置为 Trace 数据的保留时间，但对于零星上报、活动类服务可能存在较长时间未上报 Trace 的情况，
+    # 导致节点过早过期被删除，影响监控和展示。故调整为 180 天，兼顾数据时效性和完整性。
+    EXPIRED_DAYS = 180
+
     @property
     def extra_data_factory(self):
         return defaultdict(
@@ -393,7 +398,7 @@ class NodeDiscover(DiscoverBase):
             instance_map[instance_key]["extra_data"]["predicate_value"] = extract_field_value(predicate_key, span)
 
     def clear_expired(self):
-        boundary = datetime.now() - timedelta(self.application.trace_datasource.retention)
+        boundary = datetime.now() - timedelta(days=self.EXPIRED_DAYS)
         filter_params = {
             "bk_biz_id": self.bk_biz_id,
             "app_name": self.app_name,

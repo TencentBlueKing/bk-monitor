@@ -1076,7 +1076,7 @@ class ClusterConfig(models.Model):
         return config
 
     @classmethod
-    def sync_cluster_config(cls, cluster: "ClusterInfo") -> None:
+    def sync_cluster_config(cls, cluster: "ClusterInfo", sync_namespaces: list[str] | None = None) -> None:
         """
         同步集群配置
 
@@ -1086,6 +1086,7 @@ class ClusterConfig(models.Model):
 
         Args:
             cluster: 集群信息
+            sync_namespaces: 指定同步的命名空间列表
         """
 
         # 根据集群类型获取kind和namespace
@@ -1094,6 +1095,10 @@ class ClusterConfig(models.Model):
 
         # 获取或创建bkbase集群配置记录
         for namespace in namespaces:
+            # 如果指定同步的命名空间列表不为空，则只同步指定的命名空间
+            if sync_namespaces and namespace not in sync_namespaces:
+                continue
+
             cluster_config, _ = ClusterConfig.objects.get_or_create(
                 bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
             )

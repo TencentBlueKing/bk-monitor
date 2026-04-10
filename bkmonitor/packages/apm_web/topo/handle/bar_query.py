@@ -322,11 +322,7 @@ class LinkHelper:
         """获取应用的关联应用概览页跳转链接"""
 
         # 获取应用关联
-        relation = AppServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_name=service_name,
-        ).first()
+        relation = AppServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
         if not relation:
             return None
 

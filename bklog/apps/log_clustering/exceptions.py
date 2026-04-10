@@ -141,3 +141,8 @@ class ClusteringOwnersNotExistException(BaseClusteringException):
 class DorisStorageNotExistException(BaseClusteringException):
     ERROR_CODE = "026"
     MESSAGE = _("日志聚类-Doris 存储集群配置不存在: {index_set_id}")
+
+
+class PlaceholderAnalysisNotSupportedException(BaseClusteringException):
+    ERROR_CODE = "027"
+    MESSAGE = _("当前 Pattern 暂不支持占位符分析: {reason}")

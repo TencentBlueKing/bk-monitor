@@ -70,6 +70,30 @@ class PatternSearchSerlaizer(serializers.Serializer):
         return attrs
 
 
+class PlaceholderDistributionSerializer(serializers.Serializer):
+    signature = serializers.CharField()
+    pattern = serializers.CharField()
+    placeholder_index = serializers.IntegerField(min_value=0)
+
+    start_time = DateTimeFieldWithEpoch(required=True)
+    end_time = DateTimeFieldWithEpoch(required=True)
+
+    sort = serializers.ChoiceField(choices=["count_desc"], required=False, default="count_desc")
+    limit = serializers.IntegerField(required=False, default=100, min_value=1, max_value=100)
+
+    groups = serializers.DictField(required=False, default=dict)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    addition = serializers.ListField(required=False, default=list)
+    host_scopes = serializers.DictField(required=False, default=dict)
+    ip_chooser = serializers.DictField(required=False, default=dict)
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=False, default=None, allow_null=True)
+
+    def validate_pattern(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("pattern cannot be empty.")
+        return value
+
+
 class StringOrListField(serializers.Field):
     def to_internal_value(self, data):
         if isinstance(data, str):

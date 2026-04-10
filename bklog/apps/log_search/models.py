@@ -389,7 +389,7 @@ class LogIndexSet(SoftDeleteModel):
 
     # doris
     support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
-    doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
+    doris_table_id = models.TextField(_("doris表名"), null=True, default=None)
 
     query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
 

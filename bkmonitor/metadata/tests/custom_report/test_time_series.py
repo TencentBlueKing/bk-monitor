@@ -74,6 +74,7 @@ def create_and_delete_records():
     models.TimeSeriesMetric.objects.filter(
         group_id=DEFAULT_GROUP_ID, field_name__in=["disk_usage", "disk_usage1", "disk_usage2"]
     ).delete()
+    models.ResultTableField.objects.filter(table_id=DEFAULT_TABLE_ID).delete()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -178,3 +179,30 @@ def test_delete_ts_metrics(create_and_delete_records):
 
     objs = models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID, field_name="disk_usage1")
     assert not objs.exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bulk_refresh_rt_fields_with_none_values(create_and_delete_records):
+    group = models.TimeSeriesGroup.objects.get(table_id=DEFAULT_TABLE_ID)
+    metric_info_list = [
+        {
+            "field_name": "disk_usage4",
+            "tag_value_list": {
+                "endpoint": {"last_update_time": 1701506528, "values": None},
+            },
+            "last_modify_time": 1701506528,
+        }
+    ]
+
+    group.bulk_refresh_rt_fields(DEFAULT_TABLE_ID, metric_info_list)
+
+    assert models.ResultTableField.objects.filter(
+        table_id=DEFAULT_TABLE_ID,
+        field_name="disk_usage4",
+        tag=models.ResultTableField.FIELD_TAG_METRIC,
+    ).exists()
+    assert models.ResultTableField.objects.filter(
+        table_id=DEFAULT_TABLE_ID,
+        field_name="endpoint",
+        tag=models.ResultTableField.FIELD_TAG_DIMENSION,
+    ).exists()
