@@ -414,7 +414,7 @@ class ReleaseAppConfigResource(Resource):
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
         code_relabel_config = serializers.ListField(
-            label="返回码重定义配置", child=serializers.DictField(), required=False, default=list
+            label="返回码重定义配置", child=serializers.DictField(), required=False, allow_null=True
         )
 
         qps = serializers.IntegerField(label="qps", min_value=1, required=False)
@@ -447,7 +447,7 @@ class ReleaseAppConfigResource(Resource):
             app_name,
             app_name,
             ApdexConfig.APP_LEVEL,
-            validated_request_data.get("code_relabel_config", []),
+            validated_request_data.get("code_relabel_config"),
         )
 
         for service_config in service_configs:
@@ -558,8 +558,25 @@ class ReleaseAppConfigResource(Resource):
         )
 
     def set_code_relabel_config(self, bk_biz_id, app_name, config_key, config_level, code_relabel_list):
-        if not code_relabel_list:
+        if code_relabel_list is None:
+            # None：表示本次更新不涉及 code_relabel，直接跳过。
             return
+
+        if not code_relabel_list:
+            # []：表示规则清空，需要删除相应的配置项。
+            NormalTypeValueConfig.delete_config(
+                bk_biz_id,
+                app_name,
+                [
+                    {
+                        "config_level": config_level,
+                        "config_key": config_key,
+                        "type": ConfigTypes.CODE_RELABEL_CONFIG,
+                    }
+                ],
+            )
+            return
+
         type_value_config = {"type": ConfigTypes.CODE_RELABEL_CONFIG, "value": json.dumps(code_relabel_list)}
         NormalTypeValueConfig.refresh_config(
             bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
