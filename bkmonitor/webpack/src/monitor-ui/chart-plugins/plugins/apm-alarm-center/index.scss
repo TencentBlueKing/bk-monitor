@@ -1,6 +1,107 @@
-.apm-alarm-center-page {
-    height: calc(100% + 24px);
-    margin: -8px -16px -16px;
+#apm-alarm-center-main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+
+  .apm-alarm-center-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 40px;
+    padding: 0 8px;
+    background: #f0f1f5;
+
+    .header-left {
+      display: flex;
+
+      .alarm-relate-main {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        padding: 0 8px;
+        cursor: pointer;
+        background: #f0f1f5;
+
+        &:hover {
+          .alarm-relate-text {
+            color: #3a84ff;
+          }
+        }
+
+        &::after {
+          display: block;
+          width: 1px;
+          height: 16px;
+          margin-left: 12px;
+          content: '';
+          background: #c4c6cc;
+        }
+
+        .alarm-relate-dropdown-list {
+          width: 100px;
+
+          .alarm-relate-dropdown-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 32px;
+            padding: 0 12px;
+
+            .bk-checkbox-text {
+              font-size: 12px !important;
+            }
+          }
+        }
+
+        .icon-angle-down {
+          display: inline-block;
+          margin-left: 2px;
+          font-size: 16px !important;
+          color: #4d4f56;
+        }
+
+        .icon-flip {
+          transform: rotate(180deg);
+        }
+      }
+
+      .alarm-center-jump-main {
+        margin-left: 10px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+
+        .icon-gaojing2 {
+          margin-right: 4px;
+          font-size: 12px !important;
+        }
+      }
+    }
+
+    .header-right {
+      cursor: pointer;
+
+      .add-strategy-main {
+        &:hover {
+          color: #3a84ff;
+        }
+
+        .icon-monitor {
+          margin-right: 4px;
+          font-size: 12px !important;
+        }
+      }
+    }
+  }
+
+  .apm-alarm-center-content {
+    flex: 1;
+    overflow-y: auto;
+  }
 }
 
 .apm-bk-sideslider, .apm-alarm-center-page {

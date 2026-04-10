@@ -424,4 +424,13 @@ export default {
   正则表达式: 'Regular expression',
   '根据规则自动发现未来新指标，存量指标不生效。':
     'Automatically discover new metrics according to rules, existing metrics do not take effect.',
+  告警关联: 'Alarm related',
+  查看策略列表: 'View strategy list',
+  本服务: 'This service',
+  告警中心: 'Alarm center',
+  短信: 'SMS',
+  微信: 'WeChat',
+  企业微信: 'WeChat Work',
+  邮件: 'Email',
+  个人中心: 'Personal center',
 };

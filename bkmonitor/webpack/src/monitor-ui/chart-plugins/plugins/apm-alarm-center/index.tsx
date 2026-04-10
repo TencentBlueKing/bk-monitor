@@ -1,110 +1,266 @@
-/**
- * 告警中心容器（Vue 2 宿主）
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * 在 Vue 2 + vue-tsx-support 的图表插件环境中，挂载独立的 Vue 3 子应用（monitor-alarm-center），
- * 实现「大屏/仪表盘等场景嵌入告警中心 UI」而无需整站迁移到 Vue 3。
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 职责概要：
- * - 动态 import 子应用入口，在根 DOM 上调用 mount，并保存返回的 handle；
- * - 将父组件传入的 v3Props 作为子应用 props，深度监听变更后调用 handle.update；
- * - 销毁前 unmount，并配合 isUnmounted 避免异步 mount 完成后组件已卸载仍操作 DOM。
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * 说明：子应用挂载期间会临时覆盖 window.i18n，挂载结束后恢复，避免污染宿主全局 i18n。
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-/** 父级传给 Vue 3 告警中心子应用的透传属性（由子应用自行消费） */
-interface AlarmCenterContainerProps {
-  /** 传递给 Vue 3 子应用的属性 */
-  v3Props?: Record<string, unknown>;
-}
-
-interface AlarmCenterContainerEvents {
-  /** Vue 3 子应用向外抛出的事件 */
-  onV3Event?: (event: string, ...args: unknown[]) => void;
-}
+import QuickAddStrategy from 'apm/pages/alarm-template/quick-add-strategy/quick-add-strategy';
+import AlarmCenter from './alarm-center';
+import type { IViewOptions } from '../../typings';
+import { alertBuiltinFilter } from 'monitor-api/modules/model';
+import { fetchItemStatus } from 'monitor-api/modules/strategies';
+import { generateQueryString } from 'monitor-api/modules/alert_v2';
 
 import './index.scss';
+
 @Component
-export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps, AlarmCenterContainerEvents> {
-  /** 透传给 monitor-alarm-center 的 props，变更时会触发子应用 update */
-  @Prop({ type: Object, default: () => ({}) })
-  readonly v3Props!: Record<string, unknown>;
+export default class ApmAlarmCenter extends tsc<any, any> {
+  // 图表特殊参数
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  // 图表的数据时间间隔
+  // @InjectReactive('timeRange') readonly timeRange: [string, string];
+  // 告警关联下拉是否展示
+  isDropdownShow = false;
+  // 一键添加策略弹窗是否展示
+  showQuickAddStrategy = false;
+  // 页面加载状态
+  pageLoading = false;
+  // 告警策略数量（当前应用/服务标签下已关联策略数）
+  strategyCount = 0;
+  /** 告警关联范围选项，id 对应 builtin filter 的 target_types */
+  alarmRelateList = [
+    {
+      id: 'APM-SERVICE',
+      name: this.$t('本服务'),
+      checked: true,
+    },
+    {
+      id: 'HOST',
+      name: this.$t('主机'),
+      checked: false,
+    },
+    {
+      id: 'K8S-WORKLOAD',
+      name: this.$t('容器'),
+      checked: false,
+    },
+  ];
 
-  /**
-   * 标记组件是否已进入销毁流程。
-   * mount 为异步：若在 import 完成前路由离开或父级销毁，需跳过 mount 及后续赋值，防止内存泄漏与异常。
-   */
-  private isUnmounted = false;
+  /** 由内置筛选接口生成的查询串，传给嵌入的告警中心作为初始条件 */
+  queryString = '';
+  /** ui条件转换成的语句模式查询串 */
+  conditionsToQueryString = '';
 
-  /**
-   * 在实例上定义非响应式、不可枚举的 _v3handle，存放子应用 mount 返回的控制句柄（update / unmount）。
-   * 使用 defineProperty 避免 Vue 2 对未知字段做响应式包装，也避免出现在 devtools 枚举中。
-   */
-  created() {
-    Object.defineProperty(this, '_v3handle', {
-      value: null,
-      writable: true,
-      enumerable: false,
-    });
+  /** 告警关联选中展示的文本 */
+  get alarmRelateListCheckedDisplay() {
+    return this.alarmRelateList
+      .filter(item => item.checked)
+      .map(item => item.name)
+      .join(', ');
   }
 
-  /**
-   * 在 ref="root" 的 div 上挂载 Vue 3 子应用。
-   *
-   * 执行顺序要点：
-   * 1. 保存当前 window.i18n，供子应用或构建链在加载时使用；
-   * 2. 动态加载 monitor-alarm-center，取出 mount；
-   * 3. 立即恢复 window.i18n，缩短全局污染窗口；
-   * 4. 若组件已卸载则不再 mount；
-   * 5. 调用 mount(el, { props, onEvent })，onEvent 桥接到 Vue 2 的 v3Event 事件。
-   */
-  async mounted() {
-    const el = this.$refs.root as HTMLElement;
-    if (!el) return;
+  @Watch('alarmRelateList', { immediate: true, deep: true })
+  handleAlarmRelateListChange() {
+    this.getBuiltinFilter();
+  }
 
-    const savedI18n = (window as any).i18n;
-    // @ts-expect-error -- Vue 3 library, no type declarations
-    const { mount } = await import('monitor-alarm-center');
-    (window as any).i18n = savedI18n;
+  /** 告警关联下拉是否展示 */
+  handleDropdownShow(isShow: boolean) {
+    this.isDropdownShow = isShow;
+  }
 
-    if (this.isUnmounted) return;
+  /** 一键添加策略弹窗是否展示 */
+  handleShowQuickAddStrategyChange(isShow: boolean) {
+    this.showQuickAddStrategy = isShow;
+  }
 
-    (this as any)._v3handle = mount(el, {
-      props: { ...this.v3Props },
-      onEvent: (event: string, ...args: unknown[]) => {
-        this.$emit('v3Event', event, ...args);
+  /** 新窗口打开策略配置页，并按当前服务预填 label 过滤 */
+  handleToStrategyListAndEvnetCenter() {
+    const serviceName = this.viewOptions.filters?.service_name;
+    const filters = serviceName ? [{ key: 'label_name', value: [`/APM-SERVICE(${serviceName})/`] }] : [];
+    const { href } = this.$router.resolve({
+      path: '/strategy-config',
+      query: {
+        filters: JSON.stringify(filters),
       },
     });
+    const targetUrl = `/?bizId=${this.$store.getters.bizId}${href}`;
+    window.open(targetUrl, '_blank');
   }
 
-  /**
-   * v3Props 深度变化时同步到子应用（若已 mount）。
-   * 子应用通过 handle.update 合并新 props，无需整页重载。
-   */
-  @Watch('v3Props', { deep: true })
-  onV3PropsChange(val: Record<string, unknown>) {
-    (this as any)._v3handle?.update({ ...val });
+  /** 新窗口打开 Trace 告警中心，携带当前 queryString 与业务 ID */
+  handleToAlarmCenter() {
+    const { href } = this.$router.resolve({
+      path: '/trace/alarm-center',
+      query: {
+        queryString: this.conditionsToQueryString,
+        filterMode: 'queryString',
+        alarmType: 'alert',
+        bizIds: [this.$store.getters.bizId],
+      },
+    });
+    const targetUrl = `/?bizId=${this.$store.getters.bizId}${href}`;
+    window.open(targetUrl, '_blank');
   }
 
-  /**
-   * Vue 2 生命周期：组件销毁前卸载子应用并清空句柄。
-   * 先置 isUnmounted，使尚未完成的 mounted 异步路径在后续步骤中短路。
-   */
-  beforeDestroy() {
-    this.isUnmounted = true;
-    (this as any)._v3handle?.unmount();
-    (this as any)._v3handle = null;
+  /** 根据当前应用、服务与勾选的关联类型，拉取告警中心可用的 query_string */
+  async getBuiltinFilter() {
+    this.pageLoading = true;
+    const params = {
+      app_name: this.viewOptions.filters?.app_name,
+      service_name: this.viewOptions.filters?.service_name,
+      target_types: this.alarmRelateList.filter(item => item.checked).map(item => item.id),
+    };
+    try {
+      const data = await alertBuiltinFilter(params);
+      this.queryString = data.query_string;
+    } finally {
+      this.$nextTick(() => {
+        this.pageLoading = false;
+      });
+    }
   }
 
-  /** 仅提供挂载根节点；实际内容由 Vue 3 子应用渲染到该节点内 */
+  /** 查询当前 APM 应用/服务标签下的策略数量，用于头部展示 */
+  async getAlarmStatus() {
+    const data = await fetchItemStatus({
+      labels: [
+        `APM-APP(${this.viewOptions.filters?.app_name})`,
+        `APM-SERVICE(${this.viewOptions.filters?.service_name})`,
+      ],
+    });
+    this.strategyCount = data.strategy_count;
+  }
+
+  /** 嵌入告警中心（V3）透出的事件；conditionChange 为 UI 条件变化，其余可扩展处理查询变更等 */
+  async handleV3EventChange(eventName: string, params: unknown) {
+    if (eventName === 'conditionChange') {
+      const queryString = await generateQueryString({
+        conditions: params,
+      });
+      this.conditionsToQueryString = queryString;
+      return
+    }
+    this.conditionsToQueryString = params as string;
+  }
+
+  created() {
+    this.getAlarmStatus();
+  }
+
   render() {
     return (
       <div
-        ref='root'
+        id='apm-alarm-center-main'
         class='apm-alarm-center-page'
-      />
+      >
+        <div class='apm-alarm-center-header'>
+          <div class='header-left'>
+            <div class='alarm-relate-main'>
+              <span>{this.$t('告警关联')}：</span>
+              <bk-dropdown-menu
+                trigger='click'
+                onHide={() => this.handleDropdownShow(false)}
+                onShow={() => this.handleDropdownShow(true)}
+              >
+                <span slot='dropdown-trigger'>
+                  <span class='alarm-relate-text'>{this.alarmRelateListCheckedDisplay}</span>
+                  <i class={['bk-icon icon-angle-down', { 'icon-flip': this.isDropdownShow }]} />
+                </span>
+                <ul
+                  class='bk-dropdown-list alarm-relate-dropdown-list'
+                  slot='dropdown-content'
+                >
+                  {this.alarmRelateList.map(item => (
+                    <li
+                      key={item.id}
+                      class='alarm-relate-dropdown-item'
+                    >
+                      <bk-checkbox
+                        v-model={item.checked}
+                        disabled={item.id === 'APM-SERVICE'}>
+                        {item.name}
+                      </bk-checkbox>
+                    </li>
+                  ))}
+                </ul>
+              </bk-dropdown-menu>
+            </div>
+            <span
+              class='alarm-center-jump-main'
+              onClick={this.handleToAlarmCenter}
+            >
+              <i class='icon-monitor icon-gaojing2' />
+              <span>{this.$t('告警中心')}</span>
+            </span>
+          </div>
+          <div class='header-right'>
+            <span
+              style='margin-right: 18px;'
+              onClick={this.handleToStrategyListAndEvnetCenter}
+            >
+              <i18n
+                path='该服务已关联{0}个告警策略'
+                tag='span'
+              >
+                <span
+                  v-bk-tooltips={{ content: this.$t('查看策略列表') }}
+                  style='color: #3a84ff;font-weight: 700;margin: 0 4px;'
+                >
+                  {this.strategyCount}
+                </span>
+              </i18n>
+            </span>
+            <span
+              class='add-strategy-main'
+              onClick={() => this.handleShowQuickAddStrategyChange(true)}
+            >
+              <i class='icon-monitor icon-gaojing2' />
+              <span>{this.$t('一键添加策略')}</span>
+            </span>
+          </div>
+        </div>
+        <div
+          class='apm-alarm-center-content'
+          v-bkloading={{ isLoading: this.pageLoading }}
+        >
+          {!this.pageLoading && (
+            <AlarmCenter
+              v3Props={{ queryString: this.queryString }}
+              onV3Event={this.handleV3EventChange}
+            />
+          )}
+        </div>
+        <QuickAddStrategy
+          params={{
+            app_name: this.viewOptions.filters?.app_name,
+            service_name: this.viewOptions.filters?.service_name,
+          }}
+          show={this.showQuickAddStrategy}
+          onShowChange={this.handleShowQuickAddStrategyChange}
+        />
+      </div>
     );
   }
 }
