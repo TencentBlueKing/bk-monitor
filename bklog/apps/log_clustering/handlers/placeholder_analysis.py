@@ -208,14 +208,12 @@ class PlaceholderAnalysisHandler:
         signature = escape_sql_literal(self.params["signature"])
         field_name = self.clustering_config.clustering_fields
         limit = self.params.get("limit", self.DEFAULT_LIMIT)
+        extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
-            "SELECT val, COUNT(*) AS cnt "
-            "FROM ("
-            f"SELECT regexp_extract({field_name}, '{regex}', 1) AS val "
-            f"WHERE __dist_05 = '{signature}'"
-            ") t "
-            "WHERE val != '' "
-            "GROUP BY val "
+            f"SELECT {extract_sql} AS val, COUNT(*) AS cnt "
+            f"WHERE __dist_05 = '{signature}' "
+            f"AND {extract_sql} != '' "
+            f"GROUP BY {extract_sql} "
             "ORDER BY cnt DESC "
             f"LIMIT {limit}"
         )
@@ -226,26 +224,22 @@ class PlaceholderAnalysisHandler:
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
         field_name = self.clustering_config.clustering_fields
+        extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
-            "SELECT COUNT(DISTINCT val) AS unique_count "
-            "FROM ("
-            f"SELECT regexp_extract({field_name}, '{regex}', 1) AS val "
-            f"WHERE __dist_05 = '{signature}'"
-            ") t "
-            "WHERE val != ''"
+            f"SELECT COUNT(DISTINCT {extract_sql}) AS unique_count "
+            f"WHERE __dist_05 = '{signature}' "
+            f"AND {extract_sql} != ''"
         )
 
     def _build_total_count_sql(self, raw_regex: str) -> str:
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
         field_name = self.clustering_config.clustering_fields
+        extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
             "SELECT COUNT(*) AS total_count "
-            "FROM ("
-            f"SELECT regexp_extract({field_name}, '{regex}', 1) AS val "
-            f"WHERE __dist_05 = '{signature}'"
-            ") t "
-            "WHERE val != ''"
+            f"WHERE __dist_05 = '{signature}' "
+            f"AND {extract_sql} != ''"
         )
 
     def _build_query_params(self, sql: str) -> dict:

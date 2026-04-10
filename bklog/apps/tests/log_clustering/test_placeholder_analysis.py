@@ -82,6 +82,8 @@ class TestPlaceholderAnalysisHandler(TestCase):
             ],
         )
         self.assertIn("WHERE __dist_05 = 'deadbeef'", first_call_params["sql"])
+        self.assertNotIn("FROM (", first_call_params["sql"])
+        self.assertIn("GROUP BY regexp_extract(", first_call_params["sql"])
         self.assertIn("ORDER BY cnt DESC", first_call_params["sql"])
         self.assertIn("LIMIT 2", first_call_params["sql"])
         self.assertEqual(mock_chart_handler.call_args_list[0].kwargs["clustered_rt"], "2_bklog_1_clustered")
