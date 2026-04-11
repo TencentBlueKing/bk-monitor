@@ -1287,10 +1287,12 @@ const store = new Vuex.Store({
       RequestPool.execCanceToken(cancelTokenKey);
       const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
 
-      // 区分联合查询和单选查询
-      const searchUrl = !state.indexItem.isUnionIndex
-        ? `/search/index_set/${state.indexId}/search/`
-        : '/search/index_set/union_search/';
+      // 区分场景化检索、联合查询和单选查询
+      const searchUrl = isSceneRetrieve(state)
+        ? '/search/scene/search/'
+        : !state.indexItem.isUnionIndex
+          ? `/search/index_set/${state.indexId}/search/`
+          : '/search/index_set/union_search/';
 
       const { start_time, end_time } = state.indexItem;
 

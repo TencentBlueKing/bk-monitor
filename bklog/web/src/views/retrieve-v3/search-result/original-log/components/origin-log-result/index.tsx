@@ -30,6 +30,7 @@ import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } 
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { isSceneRetrieve } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import DOMPurify from 'dompurify';
@@ -116,7 +117,9 @@ export default defineComponent({
     const requestLogList = (isManualSearch = true) => {
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-      const searchUrl = `/search/index_set/${props.indexSetId}/search/`;
+      const searchUrl = isSceneRetrieve(store.state)
+        ? '/search/scene/search/'
+        : `/search/index_set/${props.indexSetId}/search/`;
       // size = props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
