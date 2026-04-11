@@ -268,11 +268,11 @@
         width: 18px;
         font-size: 18px;
         color: #979ba5;
-        cursor: grab;
+        cursor: move;
         text-align: left;
 
         &:active {
-          cursor: grabbing;
+          cursor: default;
         }
       }
 

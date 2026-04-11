@@ -62,7 +62,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
+import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneRetrieve } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
@@ -305,9 +305,6 @@ const store = new Vuex.Store({
         sort_list,
         format,
         timezone,
-        retrieve_type,
-        scene_active,
-        scene_filter_values,
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
@@ -325,7 +322,7 @@ const store = new Vuex.Store({
         searchParams.keyword = '*';
       }
 
-      return {
+      const baseParams = {
         start_time,
         end_time,
         format,
@@ -339,11 +336,15 @@ const store = new Vuex.Store({
         sort_list,
         bk_biz_id: state.bkBizId,
         time_zone: timezone,
-        retrieve_type,
-        scene_active,
-        scene_filter_values,
         ...searchParams,
       };
+
+      // 场景化检索：附加 table_id_conditions
+      if (isSceneRetrieve(state)) {
+        baseParams.table_id_conditions = buildTableIdConditions(state);
+      }
+
+      return baseParams;
     },
     /**
      * API 请求参数 addition 格式化

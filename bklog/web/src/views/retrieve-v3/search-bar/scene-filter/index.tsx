@@ -68,7 +68,7 @@ export default defineComponent({
     });
 
     const syncUrlParams = () => {
-      const { scene_active, scene_filter_values } = store.getters.retrieveParams;
+      const { scene_active, scene_filter_values } = store.state.indexItem;
       const resolver = new RetrieveUrlResolver({
         scene_active,
         scene_filter_values,

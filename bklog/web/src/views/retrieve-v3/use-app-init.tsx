@@ -557,7 +557,7 @@ export default () => {
   getIndexSetList(() => {
     reoverRouteParams();
   });
-  
+
   requestSceneConfigs();
 
   const handleSpaceIdChange = () => {

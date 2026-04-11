@@ -215,8 +215,8 @@ export default defineComponent({
     };
 
     const handleInputClear = (fieldName: string) => {
-        localInputValues.value = { ...localInputValues.value, [fieldName]: '' };
-        handleFieldChange(fieldName, '');
+      localInputValues.value = { ...localInputValues.value, [fieldName]: '' };
+      handleFieldChange(fieldName, '');
     };
 
 

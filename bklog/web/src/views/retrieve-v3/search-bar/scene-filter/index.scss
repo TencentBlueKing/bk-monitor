@@ -10,10 +10,6 @@
   z-index: 4;
   transition: margin 0.2s ease, padding 0.2s ease, border-radius 0.2s ease;
 
-  .scene-filter-panel-wrapper {
-    overflow: hidden;
-  }
-
   // 非吸顶时隐藏 SceneFilterTags
   .scene-filter-tags-sticky {
     display: none;
