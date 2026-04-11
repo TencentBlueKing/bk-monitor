@@ -449,6 +449,12 @@ const getSceneFields = {
   method: 'post',
 };
 
+/** 场景化检索 - 趋势图 */
+const getSceneDateHistogram = {
+  url: '/search/scene/date_histogram/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -505,4 +511,5 @@ export {
   getGrepResultTotal,
   getSceneConfigs,
   getSceneFields,
+  getSceneDateHistogram,
 };
