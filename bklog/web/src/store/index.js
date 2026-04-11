@@ -339,8 +339,9 @@ const store = new Vuex.Store({
         ...searchParams,
       };
 
-      // 场景化检索：附加 table_id_conditions
+      // 场景化检索：附加 space_uid 和 table_id_conditions
       if (isSceneRetrieve(state)) {
+        baseParams.space_uid = state.spaceUid;
         baseParams.table_id_conditions = buildTableIdConditions(state);
       }
 
@@ -1146,14 +1147,24 @@ const store = new Vuex.Store({
         return;
       }
       commit('resetIndexFieldInfo', { is_loading: true });
-      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+      const isScene = isSceneRetrieve(state);
+      const urlStr = isScene
+        ? 'retrieve/getSceneFields'
+        : isUnionIndex
+          ? 'unionSearch/unionMapping'
+          : 'retrieve/getLogTableHead';
       !isUnionIndex && commit('deleteApiError', urlStr);
       const queryData = {
         start_time,
         end_time,
         is_realtime: 'True',
       };
-      if (isUnionIndex) {
+      if (isScene) {
+        Object.assign(queryData, {
+          space_uid: state.spaceUid,
+          table_id_conditions: buildTableIdConditions(state),
+        });
+      } else if (isUnionIndex) {
         Object.assign(queryData, {
           index_set_ids: ids,
         });
@@ -1164,9 +1175,9 @@ const store = new Vuex.Store({
         .request(
           urlStr,
           {
-            params: { index_set_id: ids[0] },
-            query: !isUnionIndex ? queryData : undefined,
-            data: isUnionIndex ? queryData : undefined,
+            params: isScene ? {} : { index_set_id: ids[0] },
+            query: (!isScene && !isUnionIndex) ? queryData : undefined,
+            data: (isScene || isUnionIndex) ? queryData : undefined,
           },
           isUnionIndex ? {} : { catchIsShowMessage: false },
         )

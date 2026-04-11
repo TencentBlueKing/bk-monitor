@@ -443,6 +443,12 @@ const getSceneConfigs = {
   method: 'get',
 };
 
+/** 场景化检索 - 字段列表 */
+const getSceneFields = {
+  url: '/search/scene/fields/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -498,4 +504,5 @@ export {
   updateFieldsAlias,
   getGrepResultTotal,
   getSceneConfigs,
+  getSceneFields,
 };
