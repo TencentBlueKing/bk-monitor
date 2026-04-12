@@ -66,6 +66,7 @@ from monitor_web.strategies.metric_list_cache import (
     DefaultDimensions,
 )
 from monitor_web.strategies.serializers import (
+    apply_intelligent_detect_bkfara_grey,
     handle_target,
     is_validate_target,
     validate_action_config,
@@ -1608,6 +1609,7 @@ class StrategyConfigResource(Resource):
         return super().validate_request_data(request_data)
 
     def handle_strategy_dict(self, strategy_dict):
+        is_new_strategy = not strategy_dict.get("id")
         no_data_config = strategy_dict.pop("no_data_config", None)
         message_template = strategy_dict.pop("message_template", None)
         for item in strategy_dict["item_list"]:
@@ -1624,6 +1626,9 @@ class StrategyConfigResource(Resource):
             item.update(no_data_config=no_data_config)
             item["algorithm_list"] = []
             for algorithm in item.pop("detect_algorithm_list", []):
+                algorithm["algorithm_list"] = apply_intelligent_detect_bkfara_grey(
+                    algorithm["algorithm_list"], is_new_strategy=is_new_strategy
+                )
                 if len(algorithm["algorithm_list"]) == 0:
                     item["algorithm_list"].append(
                         {
@@ -2341,8 +2346,12 @@ class BackendStrategyConfigResource(Resource):
 
     def perform_request(self, validated_request_data):
         # 补全算法单位
+        is_new_strategy = not validated_request_data.get("id")
         item_list = validated_request_data["item_list"]
         for item in item_list:
+            item["algorithm_list"] = apply_intelligent_detect_bkfara_grey(
+                item["algorithm_list"], is_new_strategy=is_new_strategy
+            )
             if not item["rt_query_config"]:
                 continue
 

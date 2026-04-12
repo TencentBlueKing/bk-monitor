@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.conf import settings
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
@@ -128,7 +128,7 @@ def validate_algorithm_msg(value):
         check_config = algorithm_msg["algorithm_config"]
         type_serializer = algorithm_type + "Serializer"
         try:
-            serializer_cls = import_string("bkmonitor.strategy.serializers.{}".format(type_serializer))
+            serializer_cls = import_string(f"bkmonitor.strategy.serializers.{type_serializer}")
             serializer = serializer_cls(data=check_config)
             serializer.is_valid(raise_exception=True)
             algorithm_msg["algorithm_config"] = serializer.validated_data
@@ -136,6 +136,21 @@ def validate_algorithm_msg(value):
             pass
         except Exception as e:
             raise e
+    return value
+
+
+def apply_intelligent_detect_bkfara_grey(value, is_new_strategy=False):
+    """仅在新建策略时，将智能异常检测路由到 BKFara。"""
+    if not is_new_strategy:
+        return value
+
+    for algorithm_msg in value:
+        if algorithm_msg.get("algorithm_type") != "IntelligentDetect":
+            continue
+
+        algorithm_config = algorithm_msg.setdefault("algorithm_config", {})
+        if isinstance(algorithm_config, dict):
+            algorithm_config["grey_to_bkfara"] = True
     return value
 
 
