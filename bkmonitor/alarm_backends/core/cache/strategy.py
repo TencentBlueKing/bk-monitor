@@ -898,37 +898,6 @@ class StrategyCacheManager(CacheManager):
         cls.cache.expire(cls.FTA_ALERT_CACHE_KEY, cls.CACHE_TIMEOUT)
 
     @classmethod
-    def inject_issue_config(cls, strategies: list[dict]) -> None:
-        """在策略缓存写入前，将 StrategyIssueConfig 数据注入每条策略 dict。
-
-        refresh_strategy 直接把 strategies_map 中的 dict 序列化写入 Redis，
-        而 StrategyIssueConfig 是独立的 MySQL 表，不在 get_strategies_map() 的查询范围内。
-        若不在此处注入，每次 cron 全量刷新后 issue_config 字段就会被覆盖为 null，
-        导致 IssueAggregationProcessor._get_strategy_config() 返回 None 而跳过处理。
-        """
-        from bkmonitor.models.issue import StrategyIssueConfig
-
-        strategy_ids = [s["id"] for s in strategies]
-        configs = StrategyIssueConfig.objects.filter(
-            strategy_id__in=strategy_ids,
-            is_deleted=False,
-        ).values("strategy_id", "is_enabled", "aggregate_dimensions", "conditions", "alert_levels")
-        config_map = {c["strategy_id"]: c for c in configs}
-
-        for strategy in strategies:
-            cfg = config_map.get(strategy["id"])
-            strategy["issue_config"] = (
-                {
-                    "is_enabled": cfg["is_enabled"],
-                    "aggregate_dimensions": cfg["aggregate_dimensions"],
-                    "conditions": cfg["conditions"],
-                    "alert_levels": cfg["alert_levels"],
-                }
-                if cfg
-                else None
-            )
-
-    @classmethod
     def refresh_strategy(cls, strategies: list[dict], old_groups=None):
         """
         刷新策略缓存
@@ -1150,7 +1119,6 @@ class StrategyCacheManager(CacheManager):
             cls.add_enabled_cluster_condition,
             cls.refresh_strategy_ids,  # 刷新缓存策略ID
             cls.refresh_bk_biz_ids,  # 刷新缓存业务ID
-            cls.inject_issue_config,  # 注入 StrategyIssueConfig，须在 refresh_strategy 前执行
             cls.refresh_strategy,  # 刷新缓存策略详细信息和策略分组信息
             cls.refresh_real_time_strategy_ids,  # 刷新实时数据的相关策略
             cls.refresh_gse_alarm_strategy_ids,  # 刷新gse事件策略ID列表缓存
@@ -1329,7 +1297,6 @@ class StrategyCacheManager(CacheManager):
             refresh_bk_biz_ids,
             refresh_nodata_strategy_ids,
             refresh_aiops_sdk_strategy_ids,
-            cls.inject_issue_config,  # 注入 StrategyIssueConfig，须在 refresh_strategy 前执行
             refresh_strategy,
         ]
 
