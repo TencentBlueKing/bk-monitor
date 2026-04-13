@@ -24,7 +24,7 @@ from itertools import chain
 from typing import Any
 
 import arrow
-from bk_monitor_base.strategy import get_strategy, parse_metric_id
+from bk_monitor_base.strategy import StrategyNotExistError, get_strategy, parse_metric_id
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
@@ -2384,7 +2384,7 @@ class StrategySnapshotResource(Resource):
             strategy_update_time = arrow.get(strategy_config["update_time"])
             if current_update_time.int_timestamp != strategy_update_time.int_timestamp:
                 changed_status = self.ConfigChangedStatus.UPDATED
-        except StrategyModel.DoesNotExist:
+        except StrategyNotExistError:
             changed_status = self.ConfigChangedStatus.DELETED
 
         if current_strategy and "intelligent_detect" in strategy_config["items"][0]["query_configs"][0]:
