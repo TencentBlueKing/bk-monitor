@@ -144,7 +144,6 @@ export default defineComponent({
     const currentRow = ref<IClusterItem | null>(null);
     /** 当前选中集群的配置信息 */
     const setupConfig = ref<ISetupConfig | null>(null);
-    // showBizCount
     const columns = computed(() => {
       const baseColumns = [
         {
@@ -315,7 +314,6 @@ export default defineComponent({
       },
       { deep: true },
     );
-
     // ==================== 渲染函数 ====================
 
     /**

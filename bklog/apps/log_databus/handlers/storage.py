@@ -210,7 +210,8 @@ class StorageHandler:
                 "biz_count": i["biz_count"],
                 "storage_cluster_id": i["cluster_config"].get("cluster_id"),
                 "storage_cluster_name": i["cluster_config"].get("cluster_name"),
-                "storage_display_name": i["cluster_config"].get("display_name"),
+                "storage_display_name": i["cluster_config"].get("display_name")
+                or i["cluster_config"].get("cluster_name"),
                 "storage_version": i["cluster_config"].get("version"),
                 "storage_type": i["cluster_type"],
                 "priority": i["priority"],

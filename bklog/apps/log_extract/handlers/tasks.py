@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
+import ast
 import ipaddress
 from datetime import timedelta
 from typing import List
@@ -406,7 +407,7 @@ class TasksHandler(object):
                 preview_ip_list.append(new_preview_ip)
             task["preview_ip_list"] = preview_ip_list
         else:
-            task["preview_ip_list"] = eval(task["preview_ip_list"])
+            task["preview_ip_list"] = ast.literal_eval(task["preview_ip_list"])
         return task
 
     @classmethod
