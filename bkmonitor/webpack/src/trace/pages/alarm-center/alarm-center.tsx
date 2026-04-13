@@ -93,7 +93,7 @@ import { IssuesBatchActionEnum } from './alarm-issues/constant';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
-import { showOperationResult, updateIssuesPriority } from './alarm-issues/services/issues-operations';
+import { exportIssues, showOperationResult, updateIssuesPriority } from './alarm-issues/services/issues-operations';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -1049,6 +1049,14 @@ export default defineComponent({
                           <IssuesToolbar
                             batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
                             issuesIds={this.selectedRowKeys}
+                            onExport={async () => {
+                              const selectedIds = new Set(this.selectedRowKeys);
+                              const issues = (this.data as IssueItem[])
+                                .filter(item => selectedIds.has(item.id))
+                                .map(item => ({ bk_biz_id: item.bk_biz_id, issue_id: item.id }));
+                              await exportIssues(issues);
+                              Message({ theme: 'success', message: 'TODO 导出待联调' });
+                            }}
                           >
                             <IssuesTable
                               columns={this.tableSourceColumns}

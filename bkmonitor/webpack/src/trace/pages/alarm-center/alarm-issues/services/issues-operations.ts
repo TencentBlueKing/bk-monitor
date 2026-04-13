@@ -39,6 +39,7 @@ import type { RequestOptions } from '../../services/base';
 import type {
   AssignIssuesParams,
   FollowUpIssuesParams,
+  IssueIdentifier,
   IssuesOperationDialogEvent,
   ResolveIssuesParams,
   UpdatePriorityParams,
@@ -140,6 +141,18 @@ export const followUpIssues = async (
 ): Promise<IssuesOperationDialogEvent<'follow_up'>> => {
   const data = await addIssueFollowUp(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
+};
+
+/**
+ * @description 导出 Issues 列表，封装底层 API 调用（当前为 mock 占位，待后端接口就绪后替换）
+ * @param {IssueIdentifier[]} issues - 跨业务批量操作 Issue 标识列表
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<void>}
+ */
+export const exportIssues = async (issues: IssueIdentifier[], options?: RequestOptions): Promise<void> => {
+  console.log('exportIssues', issues, options);
+  // TODO: 替换为真实 API 调用，如 exportIssueList({ issues }, options)
+  await new Promise(resolve => setTimeout(resolve, 1500));
 };
 
 /**
