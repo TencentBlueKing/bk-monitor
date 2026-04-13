@@ -366,7 +366,7 @@ class BaseMetricCacheManager:
             for metrics in chunks(to_be_update, 500):
                 init_md5_metrics = []
                 for metric in metrics:
-                    _metric = MetricListCache(**metric)
+                    _metric = MetricListCache(bk_tenant_id=self.bk_tenant_id, **metric)
                     init_md5_metrics.append(_metric)
                 fields = [
                     field.name
@@ -1903,7 +1903,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                         "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
                         "data_type_label": DataTypeLabel.TIME_SERIES,
                         "data_target": data_target,
-                        "data_label": plugin.plugin_id,
+                        "data_label": f"{plugin.plugin_type}_{plugin.plugin_id}".lower(),
                     }
 
     def get_metrics_by_table(self, table):

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, InjectReactive } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -32,33 +32,38 @@ import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 
 import { METHOD_LIST } from '../../../../../../../../../constant/constant';
 import FunctionSelect from '../../../../../../../../strategy-config/strategy-config-set-new/monitor-data/function-select';
+import { type IGroupListItem, type RequestHandlerMap, DEFAULT_HEIGHT_OFFSET, NULL_LABEL } from '../../../../../../type';
 import { matchRuleFn } from '../../../../../../utils';
-import type { ICustomTsFields, IUnitItem } from '../../../../../../../service';
-import { DEFAULT_HEIGHT_OFFSET, type IGroupListItem, NULL_LABEL, type RequestHandlerMap } from '../../../../../../type';
+
+import type { ICustomTsFields, IGroupingRule, IUnitItem } from '../../../../../../../service';
 
 import './index.scss';
 
+/** 指标项类型定义 */
+type IMetricItem = ICustomTsFields['list'][number] & { error?: string; isNew?: boolean; selection: boolean };
+
 /** 组件 Props 接口定义 */
 interface IProps {
-  /** 指标数据 */
-  metricData: IMetricItem;
-  /** 单位列表 */
-  unitList: IUnitItem[];
+  /** 默认分组信息 */
+  defaultGroupInfo: { id: number; name: string };
+  /** 维度表 */
+  dimensionTable: IGroupingRule['dimension_config'];
   /** 分组选择列表 */
   groupSelectList: { id: number; name: string }[];
-  /** 维度表 */
-  dimensionTable: ICustomTsFields['dimensions'];
   /** 所有数据预览 */
   // allDataPreview: Record<string, any>;
   /** 分组映射表 */
   groupsMap: Map<string, IGroupListItem>;
-  /** 默认分组信息 */
-  defaultGroupInfo: { id: number; name: string };
+  /** 指标数据 */
+  metricData: IMetricItem;
+  /** 单位列表 */
+  unitList: IUnitItem[];
 }
 
-/** 指标项类型定义 */
-type IMetricItem = ICustomTsFields['metrics'][number] & { selection: boolean; isNew?: boolean; error?: string };
-
+/**
+ * 指标详情面板组件
+ * 展示单个指标的详细信息，支持内联编辑别名、单位、汇聚方法、函数、关联维度、上报周期等字段
+ */
 @Component
 export default class MetricDetail extends tsc<IProps, any> {
   @Prop({ default: () => {} }) metricData: IProps['metricData'];
@@ -188,7 +193,10 @@ export default class MetricDetail extends tsc<IProps, any> {
       type: 'metric',
       name: metricInfo.name,
       id: metricInfo.id,
-      scope: metricInfo.scope,
+      scope: {
+        id: metricInfo.scope_id,
+        name: metricInfo.scope_name,
+      },
       config: metricInfo.config,
       dimensions: metricInfo.dimensions,
     };
@@ -233,6 +241,7 @@ export default class MetricDetail extends tsc<IProps, any> {
     await this.updateCustomFields('alias', currentDescription, metricInfo);
   }
 
+  /** 回车确认别名编辑，触发输入框失焦以保存 */
   handleEnterEditAlias() {
     this.descriptionInput.blur();
   }
@@ -284,6 +293,7 @@ export default class MetricDetail extends tsc<IProps, any> {
     await this.updateCustomFields('aggregate_method', this.copyAggregation, metricInfo);
   }
 
+  /** 显示编辑单位选择器并自动展开下拉框 */
   handleShowEditUnit(unit: string) {
     this.copyUnit = unit;
     this.canEditUnit = true;
@@ -350,8 +360,8 @@ export default class MetricDetail extends tsc<IProps, any> {
       <bk-select
         key={row.name}
         clearable={false}
-        value={row.scope.id}
         disabled={!row.movable}
+        value={row.scope_id}
         displayTag
         searchable
         onChange={(v: number) => this.handleGroupSelectToggle(v, row)}
@@ -606,8 +616,8 @@ export default class MetricDetail extends tsc<IProps, any> {
                       <bk-option
                         id={dim}
                         key={dim}
-                        value={dim}
                         name={dim}
+                        value={dim}
                       />
                     ))}
                   </bk-select>

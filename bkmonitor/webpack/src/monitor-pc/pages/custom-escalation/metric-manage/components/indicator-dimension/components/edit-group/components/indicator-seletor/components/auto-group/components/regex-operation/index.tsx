@@ -1,9 +1,35 @@
-import { Component, Prop, Watch, InjectReactive, Inject } from 'vue-property-decorator';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './index.scss';
-import type { IListItem } from '../../../result-preview';
 import type { RequestHandlerMap } from '../../../../../../../../../../type';
+import type { IListItem } from '../../../result-preview';
+
+import './index.scss';
 
 @Component({
   name: 'RegexOperation',
@@ -52,6 +78,7 @@ export default class RegexOperation extends tsc<any> {
     this.$emit('regexInput', { id: this.data.id, name });
   }
 
+  /** 处理回车事件，先触发失焦再执行预览 */
   handleRegexEnter() {
     this.handleRegexBlur();
     this.$nextTick(() => {
@@ -112,8 +139,8 @@ export default class RegexOperation extends tsc<any> {
           return (
             <div class='no-preview-regex-main'>
               <bk-exception
-                type='empty'
                 scene='part'
+                type='empty'
               >
                 <div class='tip-main'>
                   <i class='bk-icon icon-exclamation-circle-shape warning-icon' />
@@ -127,8 +154,8 @@ export default class RegexOperation extends tsc<any> {
         return (
           <div class='no-regex-main'>
             <bk-exception
-              type='empty'
               scene='part'
+              type='empty'
             >
               <div class='tip-main'>{this.$t('输入表达式后，必须点击预览，方可生效')}</div>
             </bk-exception>
@@ -160,8 +187,8 @@ export default class RegexOperation extends tsc<any> {
     return (
       <div class='no-regex-main'>
         <bk-exception
-          type='empty'
           scene='part'
+          type='empty'
         >
           <div class='tip-main'>{this.$t('输入表达式后，必须点击预览，方可生效')}</div>
         </bk-exception>
@@ -186,17 +213,17 @@ export default class RegexOperation extends tsc<any> {
         <bk-input
           v-model={this.regexValue}
           placeholder={this.$t('支持 JS 正则匹配方式，如子串前匹配go_, 模糊匹配(.*?)_total')}
-          onInput={this.handleRegexInput}
           onBlur={this.handleRegexBlur}
           onEnter={this.handleRegexEnter}
+          onInput={this.handleRegexInput}
         />
         <div class='preview-btn-main'>
           <bk-button
-            size='small'
             class='preview-btn'
-            theme='primary'
-            loading={this.previewLoading}
             disabled={!this.regexValue}
+            loading={this.previewLoading}
+            size='small'
+            theme='primary'
             outline
             onClick={this.handlePreview}
           >

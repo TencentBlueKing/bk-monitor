@@ -533,6 +533,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         key='status'
         v-model={this.dialog.statusDialog.show}
         actions={this.actions}
+        bizId={this.bizId}
         total={this.total}
       />,
       <Feedback

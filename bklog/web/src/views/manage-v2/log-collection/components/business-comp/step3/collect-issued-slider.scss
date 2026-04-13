@@ -47,4 +47,167 @@
             margin-right: 12px;
         }
     }
+
+    /* 容器采集状态样式 */
+    .container-status-content {
+        height: 100%;
+        overflow-y: auto;
+
+        .running {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            background: url('@/images/loading.svg');
+            margin-right: 4px;
+            background-size: cover;
+            vertical-align: middle;
+            animation: container-spin 2s linear infinite;
+        }
+
+        .item-circle {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+            border: 1px solid #eee;
+
+            &.success {
+                background: #CBF0DA;
+                border: 1px solid #2CAF5E;
+            }
+
+            &.failed {
+                background: #FFDDDD;
+                border: 1px solid #EA3636;
+            }
+        }
+
+        .container-nav-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            .container-tab {
+                display: inline-block;
+                background: #F0F1F5;
+                border-radius: 2px;
+                padding: 4px;
+                font-size: 12px;
+                height: 32px;
+
+                .container-tab-item {
+                    display: inline-block;
+                    height: 24px;
+                    line-height: 24px;
+                    padding: 0 12px;
+                    border-radius: 2px;
+                    cursor: pointer;
+                    position: relative;
+                    color: #4D4F56;
+
+                    &::after {
+                        content: '';
+                        display: inline-block;
+                        width: 1px;
+                        height: 12px;
+                        background: #D3D6E2;
+                        margin: 0 12px;
+                        position: absolute;
+                        left: -12px;
+                        top: 7px;
+                    }
+
+                    &:first-child {
+                        &::after {
+                            display: none;
+                        }
+                    }
+
+                    &.active {
+                        background: #fff;
+                        color: #3A84FF;
+
+                        &::after {
+                            display: none;
+                        }
+                    }
+
+                    &.disabled {
+                        cursor: not-allowed;
+                        color: #979BA5;
+                    }
+                }
+            }
+        }
+
+        .container-status-cell {
+            display: flex;
+            align-items: center;
+        }
+
+        .container-table-section {
+            .container-table-item {
+                margin-top: 20px;
+
+                .container-table-title {
+                    padding: 10px 23px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    background: #f0f1f5;
+                    border: 1px solid #dcdee5;
+                    border-bottom: none;
+
+                    > span {
+                        &:first-child {
+                            font-size: 14px;
+                            margin-right: 4px;
+                        }
+
+                        &:nth-child(2) {
+                            font-weight: 700;
+                            color: #63656e;
+                        }
+                    }
+
+                    .icon-down-shape {
+                        display: inline-block;
+                        transform: translateY(-1px);
+                    }
+
+                    &.close-table {
+                        border-bottom: 1px solid #dcdee5;
+
+                        .icon-down-shape {
+                            transform: rotateZ(-90deg) translateX(1px);
+                        }
+                    }
+                }
+
+                .container-table-main {
+                    &.hidden {
+                        height: 0;
+                        overflow: hidden;
+                    }
+
+                    &.show {
+                        height: auto;
+                    }
+                }
+
+                .container-retry-link {
+                    color: #3a84ff;
+                }
+            }
+        }
+
+        @keyframes container-spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    }
 }

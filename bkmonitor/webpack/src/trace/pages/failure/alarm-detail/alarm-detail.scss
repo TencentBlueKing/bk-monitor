@@ -15,29 +15,6 @@ $statusColors: #ea3635 #ff9c00 #699df4;
   }
 }
 
-.tag-column-popover {
-  padding: 3px 8px !important;
-
-  .tag-column {
-    width: 100%;
-  }
-
-  .tag-item {
-    display: inline-block;
-    max-width: 100%;
-    height: 22px;
-    padding: 0 10px;
-    margin: 2px;
-    margin-right: 3px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 22px;
-    white-space: nowrap;
-    background: #f0f1f5;
-    border-radius: 2px;
-  }
-}
-
 .alarm-detail {
   height: 100%;
   padding: 20px 16px;
@@ -58,31 +35,71 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       }
     }
 
-    .tag-column {
-      display: flex;
-      overflow: hidden;
+    .t-table__body {
+      td:has(.alarm-tags-col) {
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      tr:not(.t-table__row--full) {
+        &:hover {
+          .alarm-tags-col {
+            .tag-item {
+              background-color: var(--tag-hover-bg-color);
+            }
+
+            .collapse-tag {
+              background-color: #dcdee5;
+            }
+          }
+        }
+      }
     }
 
-    .tag-column-wrap {
-      display: flex;
-      width: 100%;
-    }
+    .alarm-tags-col.bk-common-tag-show {
+      --tag-height: 22px;
 
-    .tag-item {
-      display: inline-block;
+      display: flex;
+      flex-wrap: nowrap;
       align-items: center;
-      max-width: 100%;
-      min-width: 42px;
-      height: 22px;
-      padding: 0 10px;
-      margin: 2px;
-      margin-right: 3px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      line-height: 22px;
-      white-space: nowrap;
-      background: #f0f1f5;
-      border-radius: 2px;
+      height: var(--tag-height);
+
+      &.alarm-col {
+        min-height: var(--tag-height);
+      }
+
+      .item-tags {
+        flex-wrap: nowrap;
+      }
+
+      .tag-item {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        max-width: 180px;
+        height: var(--tag-height);
+        padding: 0 8px;
+        color: var(--tag-color);
+        background-color: var(--tag-bg-color);
+        border-radius: 2px;
+
+        &:hover {
+          color: var(--tag-hover-color);
+          background-color: var(--tag-hover-bg-color);
+        }
+
+        .bk-tag-text{
+          height: 100%;
+        }
+
+        .alarm-detail-tag-ellipsis {
+          display: inline-block;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
     }
 
     .time-column {

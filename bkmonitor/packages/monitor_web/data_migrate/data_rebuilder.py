@@ -37,9 +37,11 @@ from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_
 from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.models.space.constants import EtlConfigs
 from metadata.utils.gse import KafkaGseSyncer
+from monitor.models import ApplicationConfig
 from monitor_web.collecting.constant import OperationType
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.data_migrate.constants import DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import (
@@ -52,6 +54,9 @@ from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.manager.process import ProcessPluginManager
 
 logger = logging.getLogger(__name__)
+
+UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL = "monitor.uptimechecktask"
+COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL = "monitor_web.collectconfigmeta"
 
 
 DEFAULT_KAFKA_CLUSTER_NAMES = {
@@ -162,6 +167,33 @@ def init_global_plugin(bk_tenant_id: str):
             )
 
 
+def _get_closed_record_ids_from_application_config(bk_biz_id: int, model_label: str) -> set[int]:
+    """从 ``ApplicationConfig`` 中获取导入阶段记录的关闭对象 ID。"""
+    config = ApplicationConfig.objects.filter(
+        cc_biz_id=bk_biz_id,
+        key=DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY,
+    ).first()
+    if not config or not isinstance(config.value, dict):
+        return set()
+
+    raw_record_ids = config.value.get(model_label, [])
+    if not isinstance(raw_record_ids, list):
+        return set()
+
+    closed_record_ids: set[int] = set()
+    for record_id in raw_record_ids:
+        try:
+            closed_record_ids.add(int(record_id))
+        except (TypeError, ValueError):
+            logger.warning(
+                "skip invalid close record id: bk_biz_id=%s model_label=%s record_id=%s",
+                bk_biz_id,
+                model_label,
+                record_id,
+            )
+    return closed_record_ids
+
+
 def rebuild_collect_plugins(
     bk_tenant_id: str,
     bk_biz_id: int,
@@ -181,6 +213,10 @@ def rebuild_collect_plugins(
     collect_configs = CollectConfigMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
     if collect_config_ids:
         collect_configs = collect_configs.filter(id__in=collect_config_ids)
+    closed_collect_config_ids = _get_closed_record_ids_from_application_config(
+        bk_biz_id=bk_biz_id,
+        model_label=COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL,
+    )
     plugin_ids = list(set(collect_configs.values_list("plugin_id", flat=True)))
 
     # 获取插件，顺便检查插件是否存在
@@ -259,6 +295,14 @@ def rebuild_collect_plugins(
     for collect_config in collect_configs:
         collect_config.deployment_config.subscription_id = 0
         collect_config.deployment_config.save()
+        collect_config_pk = int(collect_config.pk)
+        if collect_config_pk not in closed_collect_config_ids:
+            logger.info(
+                "skip install collect config not found in close_records: bk_biz_id=%s collect_config_id=%s",
+                bk_biz_id,
+                collect_config_pk,
+            )
+            continue
         installer = get_collect_installer(collect_config)
         installer.install(
             install_config={
@@ -283,18 +327,35 @@ def rebuild_uptime_check(bk_tenant_id: str, bk_biz_id: int, task_ids: list[int] 
     if not tasks.exists():
         return
 
+    closed_task_ids = _get_closed_record_ids_from_application_config(
+        bk_biz_id=bk_biz_id,
+        model_label=UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL,
+    )
+
     # 启用独立数据源模式
     tasks.update(indepentent_dataid=True)
 
+    deployed_task_ids: list[int] = []
     for task in tasks:
+        if task.pk not in closed_task_ids:
+            logger.info(
+                "skip deploy uptime check task not found in close_records: bk_biz_id=%s task_id=%s",
+                bk_biz_id,
+                task.pk,
+            )
+            continue
         print("deploy uptime check task: ", task.pk, task.name)
         result = control_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task.pk, action="deploy")
         print(f"deploy uptime check task {task.pk} {task.name} result: {result}")
+        deployed_task_ids.append(task.pk)
+
+    if not deployed_task_ids:
+        return
 
     time.sleep(10)
 
     # 刷新任务状态
-    refresh_task_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_ids=[task.pk for task in tasks])
+    refresh_task_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_ids=deployed_task_ids)
 
 
 def rebuild_time_series_group(
@@ -350,7 +411,7 @@ def rebuild_event_group(
     kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=kafka_cluster_name)
     es_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=es_cluster_name)
     event_groups = EventGroup.objects.filter(
-        bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, event_group_id__in=event_group_ids, is_delete=False
+        bk_tenant_id=bk_tenant_id, event_group_id__in=event_group_ids, is_delete=False
     )
 
     data_ids = list(event_groups.values_list("bk_data_id", flat=True))
@@ -424,9 +485,7 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
     biz_result_tables = ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     # 排除trace
-    log_data_sources = DataSource.objects.filter(
-        bk_tenant_id=bk_tenant_id, etl_config=EtlConfigs.BK_FLAT_BATCH.value, is_enable=True
-    )
+    log_data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, etl_config=EtlConfigs.BK_FLAT_BATCH.value)
     dsrt = DataSourceResultTable.objects.filter(
         table_id__in=biz_result_tables.values_list("table_id", flat=True),
         bk_data_id__in=log_data_sources.values_list("bk_data_id", flat=True),
@@ -459,6 +518,8 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
 
     # 替换数据源kafka并注册到gse和bkbase
     for data_source in data_sources:
+        if not data_source.is_enable:
+            continue
         _register_data_source(
             bk_biz_id=bk_biz_id,
             data_source=data_source,

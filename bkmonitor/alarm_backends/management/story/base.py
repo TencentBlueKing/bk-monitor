@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,14 +7,33 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
+
+from kafka import KafkaConsumer
 
 from alarm_backends.management.story.color import ConsoleColor
 
 logger = logging.getLogger("self_monitor")
+HEALTHZ_KAFKA_TIMEOUT_MS = 3000
+HEALTHZ_KAFKA_SESSION_TIMEOUT_MS = 10000
+KAFKA_REQUEST_TIMEOUT_BUFFER_MS = 1000
 
 
-class StoryCollection(object):
+def normalize_kafka_request_timeout(request_timeout_ms, session_timeout_ms):
+    return max(request_timeout_ms, session_timeout_ms + KAFKA_REQUEST_TIMEOUT_BUFFER_MS)
+
+
+def create_healthz_kafka_consumer(*topics, **kwargs):
+    kwargs.setdefault("session_timeout_ms", HEALTHZ_KAFKA_SESSION_TIMEOUT_MS)
+    kwargs["request_timeout_ms"] = normalize_kafka_request_timeout(
+        kwargs.pop("request_timeout_ms", HEALTHZ_KAFKA_TIMEOUT_MS), kwargs["session_timeout_ms"]
+    )
+    kwargs.setdefault("api_version_auto_timeout_ms", HEALTHZ_KAFKA_TIMEOUT_MS)
+    return KafkaConsumer(*topics, **kwargs)
+
+
+class StoryCollection:
     stories = []
 
     def register(self, story):
@@ -27,7 +45,7 @@ class StoryCollection(object):
         self.stories = list(filter(lambda s: len(s.steps) > 0, self.stories))
         for i, story in enumerate(self.stories):
             story = reset_story(story)
-            story.log_header(f"{i+1}/{len(self.stories)}:  {story}".ljust(80, "*"))  # noqa
+            story.log_header(f"{i + 1}/{len(self.stories)}:  {story}".ljust(80, "*"))  # noqa
             story.check()
 
     @property
@@ -42,11 +60,11 @@ class StoryCollection(object):
         if problems:
             print(f"{ConsoleColor.HEADER}" + "Problems List".center(80, "*") + f"{ConsoleColor.ENDC}")
         for i, p in enumerate(problems):
-            print(f"{ConsoleColor.HEADER}{i+1}/{len(problems)}:  {p}{ConsoleColor.ENDC}")
+            print(f"{ConsoleColor.HEADER}{i + 1}/{len(problems)}:  {p}{ConsoleColor.ENDC}")
             p.resolve()
 
     def pre_run(self):
-        print("Valid check item: {}".format(len(self.stories)))
+        print(f"Valid check item: {len(self.stories)}")
 
     @classmethod
     def mark(cls):
@@ -78,7 +96,7 @@ def register_step(story_cls):
             story = s
             break
     else:
-        raise OSError("can't find story: {}".format(story_cls))
+        raise OSError(f"can't find story: {story_cls}")
 
     def register(cls):
         step = cls(story)
@@ -90,7 +108,7 @@ def register_step(story_cls):
     return register
 
 
-class StepController(object):
+class StepController:
     def can_be_loaded(self):
         return self._check()
 
@@ -98,7 +116,7 @@ class StepController(object):
         return True
 
 
-class Problem(object):
+class Problem:
     def __init__(self, p_name, story, **context):
         self.name = p_name
         self.story = story
@@ -120,19 +138,19 @@ class Problem(object):
         return self.name
 
 
-class BaseStory(object):
+class BaseStory:
     name = ""
     problems = []
     steps = []
 
     def check(self):
         for i, step in enumerate(self.steps):
-            print("  [step]{}. {}...".format(i + 1, step))
+            print(f"  [step]{i + 1}. {step}...")
             try:
                 p = step.check()
             except Exception as err:
-                logger.exception("请关注！自监控执行健康检查异常: {}".format(err))
-                p = StepCheckError("请关注！自监控执行健康检查异常: {}".format(err), self)
+                logger.exception(f"请关注！自监控执行健康检查异常: {err}")
+                p = StepCheckError(f"请关注！自监控执行健康检查异常: {err}", self)
             if p:
                 if isinstance(p, list):
                     self.problems.extend(p)
@@ -164,7 +182,7 @@ class BaseStory(object):
         return self.__class__.name
 
 
-class CheckStep(object):
+class CheckStep:
     name = ""
     controller = StepController()
 

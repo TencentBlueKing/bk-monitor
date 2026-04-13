@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.decorators import method_decorator
+from django.views.decorators.gzip import gzip_page
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
@@ -257,11 +259,17 @@ class SceneViewViewSet(ResourceViewSet):
             "GET",
             resource.scene_view.get_custom_ts_metric_groups,
             endpoint="get_custom_ts_metric_groups",
+            decorators=[method_decorator(gzip_page)],
         ),
         ResourceRoute(
             "POST",
             resource.scene_view.get_custom_ts_dimension_values,
             endpoint="get_custom_ts_dimension_values",
+        ),
+        ResourceRoute(
+            "POST",
+            resource.scene_view.get_custom_ts_metric_agg_info,
+            endpoint="get_custom_ts_metric_agg_info",
         ),
         ResourceRoute(
             "POST",
