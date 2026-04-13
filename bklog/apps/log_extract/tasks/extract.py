@@ -40,7 +40,6 @@ from apps.log_extract.constants import (
     ScheduleStatus,
 )
 from apps.log_extract.fileserver import FileServer
-from apps.log_extract.handlers.tasks import TasksHandler
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.log_extract.utils.packing import (
     get_filter_content,
@@ -125,9 +124,14 @@ class LogExtractUtils:
     def _packing(self):
         task_id = self.task_id
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.PACKING.value)
+
+        # 动态获取 ip_list
+        from apps.log_extract.handlers.tasks import TasksHandler
+
         new_ip_list = TasksHandler.get_new_ip_list_from_target_nodes(task_id)
         if new_ip_list:
             self.ip_list = new_ip_list
+
         ip_list = self.ip_list
         file_path = self.file_path
         bk_biz_id = self.bk_biz_id
