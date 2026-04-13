@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import copy
+import re
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -78,6 +79,7 @@ class PlaceholderAnalysisHandler:
     """占位符值分布分析入口，收口参数校验、SQL 构造和结果格式化。"""
 
     DEFAULT_LIMIT = 100
+    INTERVAL_PATTERN = re.compile(r"^(?P<value>\d+)(?P<unit>[mhd])$")
 
     def __init__(self, index_set_id, params):
         self.index_set_id = int(index_set_id)
@@ -87,6 +89,42 @@ class PlaceholderAnalysisHandler:
     def get_distribution(self) -> dict:
         """返回单个占位符的 TopN 值分布和精确 unique_count。"""
 
+        context = self._prepare_placeholder_analysis()
+        raw_regex = context["raw_regex"]
+        distribution_rows = self._query_distribution(self._build_distribution_sql(raw_regex))
+        unique_count = self._query_count(self._build_unique_count_sql(raw_regex), "unique_count")
+        total_count = self._query_count(self._build_total_count_sql(raw_regex), "total_count")
+
+        return self._format_response(
+            placeholder=context["placeholder"],
+            values=distribution_rows,
+            unique_count=unique_count,
+            total_count=total_count,
+        )
+
+    def get_trend(self) -> dict:
+        """返回整体趋势与当前选中值趋势。"""
+
+        context = self._prepare_placeholder_analysis()
+        raw_regex = context["raw_regex"]
+        selected_value = self.params.get("value", "")
+        interval = self._resolve_interval()
+        overall = self._query_trend(self._build_trend_sql(raw_regex, interval=interval))
+        if selected_value:
+            selected = self._query_trend(self._build_trend_sql(raw_regex, interval=interval, selected_value=selected_value))
+        else:
+            selected = []
+
+        return {
+            "placeholder_name": context["placeholder"]["name"],
+            "placeholder_index": context["placeholder"]["index"],
+            "selected_value": selected_value,
+            "interval": interval,
+            "overall": overall,
+            "selected": selected,
+        }
+
+    def _prepare_placeholder_analysis(self) -> dict:
         self._load_clustering_context()
         self._validate_storage_type()
         self._validate_groups()
@@ -94,20 +132,13 @@ class PlaceholderAnalysisHandler:
         pattern = self._resolve_pattern()
         placeholders = self._resolve_placeholders(pattern)
         placeholder = self._resolve_target_placeholder(placeholders)
-
         self._evaluate_pattern_risk(pattern)
 
-        raw_regex = self._build_regex(pattern)
-        distribution_rows = self._query_distribution(self._build_distribution_sql(raw_regex))
-        unique_count = self._query_count(self._build_unique_count_sql(raw_regex), "unique_count")
-        total_count = self._query_count(self._build_total_count_sql(raw_regex), "total_count")
-
-        return self._format_response(
-            placeholder=placeholder,
-            values=distribution_rows,
-            unique_count=unique_count,
-            total_count=total_count,
-        )
+        return {
+            "pattern": pattern,
+            "placeholder": placeholder,
+            "raw_regex": self._build_regex(pattern),
+        }
 
     def _load_clustering_context(self):
         self.clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
@@ -219,6 +250,22 @@ class PlaceholderAnalysisHandler:
             f"LIMIT {limit}"
         )
 
+    def _build_trend_sql(self, raw_regex: str, interval: str, selected_value: str = "") -> str:
+        regex = escape_sql_literal(raw_regex)
+        signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
+        extract_sql = self._get_extract_sql(regex)
+        bucket_sql = self._get_bucket_sql(interval)
+        sql = (
+            f"SELECT {bucket_sql} AS bucket, COUNT(*) AS cnt "
+            f"WHERE {signature_field} = '{signature}' "
+            f"AND {extract_sql} != '' "
+        )
+        if selected_value:
+            sql += f"AND {extract_sql} = '{escape_sql_literal(str(selected_value))}' "
+        sql += f"GROUP BY {bucket_sql} ORDER BY {bucket_sql} ASC"
+        return sql
+
     def _build_unique_count_sql(self, raw_regex: str) -> str:
         """unique_count 必须独立 COUNT DISTINCT，不能由 TopN 分布近似推导。"""
 
@@ -250,6 +297,42 @@ class PlaceholderAnalysisHandler:
         if pattern_level not in {"01", "03", "05", "07", "09"}:
             raise ValidationError(_("pattern_level 不合法: {level}").format(level=pattern_level))
         return f"{AGGS_FIELD_PREFIX}_{pattern_level}"
+
+    def _get_extract_sql(self, escaped_regex: str) -> str:
+        field_name = self.clustering_config.clustering_fields
+        return f"regexp_extract({field_name}, '{escaped_regex}', 1)"
+
+    def _get_bucket_sql(self, interval: str) -> str:
+        bucket_ms = self._interval_to_milliseconds(interval)
+        return f"CAST(FLOOR(dtEventTimeStamp / {bucket_ms}) * {bucket_ms} AS BIGINT)"
+
+    def _resolve_interval(self) -> str:
+        interval = str(self.params.get("interval") or "auto")
+        if interval == "auto":
+            duration_ms = max(self._to_int(self.params["end_time"]) - self._to_int(self.params["start_time"]), 0)
+            if duration_ms <= 60 * 60 * 1000:
+                return "1m"
+            if duration_ms <= 6 * 60 * 60 * 1000:
+                return "5m"
+            if duration_ms <= 3 * 24 * 60 * 60 * 1000:
+                return "1h"
+            return "1d"
+
+        self._interval_to_milliseconds(interval)
+        return interval
+
+    def _interval_to_milliseconds(self, interval: str) -> int:
+        match = self.INTERVAL_PATTERN.match(interval)
+        if not match:
+            raise ValidationError(_("interval 不合法: {interval}").format(interval=interval))
+        value = int(match.group("value"))
+        unit = match.group("unit")
+        unit_to_ms = {
+            "m": 60 * 1000,
+            "h": 60 * 60 * 1000,
+            "d": 24 * 60 * 60 * 1000,
+        }
+        return value * unit_to_ms[unit]
 
     def _build_query_params(self, sql: str) -> dict:
         """把聚类分析上下文转换成 UnifyQueryChartHandler 可消费的参数。"""
@@ -303,6 +386,13 @@ class PlaceholderAnalysisHandler:
         if not result.get("list"):
             return 0
         return self._to_int(result["list"][0].get(field_name, 0))
+
+    def _query_trend(self, sql: str) -> list[dict]:
+        result = self._query_chart_data(sql)
+        return [
+            {"time": self._to_int(item.get("bucket", 0)), "count": self._to_int(item.get("cnt", 0))}
+            for item in result.get("list", [])
+        ]
 
     @staticmethod
     def _to_int(value) -> int:

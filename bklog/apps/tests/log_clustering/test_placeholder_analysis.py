@@ -150,3 +150,136 @@ class TestPlaceholderAnalysisHandler(TestCase):
 
         with self.assertRaises(ValidationError):
             PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_trend_returns_overall_and_selected_series(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"bucket": 1710000000000, "cnt": 10}, {"bucket": 1710003600000, "cnt": 15}]},
+            {"list": [{"bucket": 1710000000000, "cnt": 3}, {"bucket": 1710003600000, "cnt": 5}]},
+        ]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "pattern_level": "03",
+            "value": "404",
+            "interval": "4h",
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        result = PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_trend()
+
+        self.assertEqual(
+            result,
+            {
+                "placeholder_name": "NUMBER",
+                "placeholder_index": 1,
+                "selected_value": "404",
+                "interval": "4h",
+                "overall": [
+                    {"time": 1710000000000, "count": 10},
+                    {"time": 1710003600000, "count": 15},
+                ],
+                "selected": [
+                    {"time": 1710000000000, "count": 3},
+                    {"time": 1710003600000, "count": 5},
+                ],
+            },
+        )
+
+        overall_sql = mock_chart_handler.call_args_list[0].args[0]["sql"]
+        selected_sql = mock_chart_handler.call_args_list[1].args[0]["sql"]
+        self.assertIn("WHERE __dist_03 = 'deadbeef'", overall_sql)
+        self.assertIn("GROUP BY CAST(FLOOR(dtEventTimeStamp / 14400000) * 14400000 AS BIGINT)", overall_sql)
+        self.assertNotIn("= '404'", overall_sql)
+        self.assertIn("= '404'", selected_sql)
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_trend_auto_interval_uses_date_histogram_style_resolution(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [{"list": []}]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "interval": "auto",
+            "start_time": 1710000000000,
+            "end_time": 1710001800000,
+        }
+
+        result = PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_trend()
+
+        self.assertEqual(result["interval"], "1m")
+        overall_sql = mock_chart_handler.call_args_list[0].args[0]["sql"]
+        self.assertIn("GROUP BY CAST(FLOOR(dtEventTimeStamp / 60000) * 60000 AS BIGINT)", overall_sql)
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_trend_skips_selected_query_when_value_is_empty(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"bucket": 1710000000000, "cnt": 10}]},
+        ]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "value": "",
+            "interval": "1h",
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        result = PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_trend()
+
+        self.assertEqual(result["selected"], [])
+        self.assertEqual(len(mock_chart_handler.call_args_list), 1)
+
+    def test_get_trend_raises_when_interval_is_invalid(self):
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "interval": "abc",
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        with self.assertRaises(ValidationError):
+            PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_trend()
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_trend_auto_interval_uses_histogram_boundaries(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": []},
+            {"list": []},
+            {"list": []},
+            {"list": []},
+            {"list": []},
+            {"list": []},
+            {"list": []},
+            {"list": []},
+        ]
+        cases = [
+            (60 * 60 * 1000, "1m", 60000),
+            (6 * 60 * 60 * 1000, "5m", 300000),
+            (72 * 60 * 60 * 1000, "1h", 3600000),
+            (72 * 60 * 60 * 1000 + 1, "1d", 86400000),
+        ]
+
+        for duration_ms, expected_interval, expected_bucket_ms in cases:
+            params = {
+                "signature": "deadbeef",
+                "pattern": "prefix #PATH# middle #NUMBER# suffix",
+                "placeholder_index": 1,
+                "value": "404",
+                "interval": "auto",
+                "start_time": 1710000000000,
+                "end_time": 1710000000000 + duration_ms,
+            }
+
+            result = PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_trend()
+            self.assertEqual(result["interval"], expected_interval)
+            overall_sql = mock_chart_handler.call_args_list[-2].args[0]["sql"]
+            self.assertIn(
+                f"GROUP BY CAST(FLOOR(dtEventTimeStamp / {expected_bucket_ms}) * {expected_bucket_ms} AS BIGINT)",
+                overall_sql,
+            )

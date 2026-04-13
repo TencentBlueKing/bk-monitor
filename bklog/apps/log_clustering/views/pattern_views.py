@@ -32,6 +32,7 @@ from apps.log_clustering.permission import PatternPermission
 from apps.log_clustering.serializers import (
     DeleteRemarkSerializer,
     PlaceholderDistributionSerializer,
+    PlaceholderTrendSerializer,
     PatternSearchSerlaizer,
     PatternStrategySerializer,
     SetOwnerSerializer,
@@ -223,6 +224,79 @@ class PatternViewSet(APIViewSet):
         """
         params = self.params_valid(PlaceholderDistributionSerializer)
         return Response(PlaceholderAnalysisHandler(index_set_id=index_set_id, params=params).get_distribution())
+
+    @detail_route(methods=["POST"], url_path="placeholder_trend")
+    def placeholder_trend(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/placeholder_trend/ 日志聚类-占位符趋势分析
+        @apiName placeholder_trend
+        @apiGroup log_clustering
+        @apiDescription 在当前 Pattern、分组与检索上下文下，返回占位符整体趋势与选中值趋势。仅支持 Doris 聚类结果表。
+        @apiParam {Number} index_set_id 索引集 ID
+        @apiParam {String} signature Pattern 指纹
+        @apiParam {String} pattern Pattern 内容
+        @apiParam {Number} placeholder_index 占位符索引
+        @apiParam {String="01","03","05","07","09"} [pattern_level="05"] 聚类敏感度
+        @apiParam {String} [value=""] 当前选中的占位符值；为空时仅返回整体趋势
+        @apiParam {String="auto"} [interval="auto"] 时间粒度；支持 auto 或 date_histogram 风格值，如 1m、5m、1h、1d
+        @apiParam {String} start_time 开始时间
+        @apiParam {String} end_time 结束时间
+        @apiParam {Object} [groups] 当前 Pattern 分组上下文
+        @apiParam {String} [keyword] 关键词检索条件
+        @apiParam {Object[]} [addition] 附加检索条件
+        @apiParam {Object} [host_scopes] 主机范围
+        @apiParam {Object} [ip_chooser] IP 选择器
+        @apiParam {Number} [bk_biz_id] 业务 ID
+        @apiParamExample {json} 请求参数
+        {
+            "signature": "e4b60ecf",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "pattern_level": "05",
+            "value": "404",
+            "interval": "auto",
+            "start_time": "2026-03-20 00:00:00",
+            "end_time": "2026-03-20 24:00:00",
+            "groups": {
+                "service_name": "api"
+            },
+            "keyword": "request failed",
+            "addition": [
+                {
+                    "field": "level",
+                    "operator": "is",
+                    "value": "error"
+                }
+            ]
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "placeholder_name": "NUMBER",
+                "placeholder_index": 1,
+                "selected_value": "404",
+                "interval": "1h",
+                "overall": [
+                    {
+                        "time": 1710864000000,
+                        "count": 10
+                    }
+                ],
+                "selected": [
+                    {
+                        "time": 1710864000000,
+                        "count": 3
+                    }
+                ]
+            },
+            "result": true
+        }
+        @apiError 非 Doris 或未配置 clustered_rt 时抛 PlaceholderAnalysisNotSupportedException；groups 非法或与 addition 冲突时为参数校验错误
+        """
+        params = self.params_valid(PlaceholderTrendSerializer)
+        return Response(PlaceholderAnalysisHandler(index_set_id=index_set_id, params=params).get_trend())
 
     @detail_route(methods=["POST"], url_path="remark")
     def set_remark(self, request, index_set_id):
