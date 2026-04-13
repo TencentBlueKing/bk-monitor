@@ -420,10 +420,14 @@ function svgRequireInlinePlugin(): VitePlugin {
  *   3. 在 overlay div 上拦截所有鼠标/指针事件的冒泡 (`stopPropagation`)，
  *      阻止 bkui-vue `v-clickoutside` 指令（冒泡阶段注册在 document 上）的误判。
  *
- * 对 `tdesign-vue-next/es/popup/popup.mjs` 做精确文本替换，全部命中时才生效。
+ * 同时支持两种来源：
+ * - `tdesign-vue-next/es/popup/popup.mjs`（trace 直接依赖，空格缩进）
+ * - `@blueking/tdesign-ui/vue3/index.es.min.js`（bundled 产物，tab 缩进，部分逻辑内联）
+ *
+ * 所有替换均使用正则 + 捕获缩进的方式，自适应空格与 tab 两种格式。
  *
  * **维护提示**：TDesign 升级若改动上述字符串，插件会 `console.warn` 且不打补丁；
- * 需对照新版本 `popup.mjs` 调整 `replace` 的锚点文本，或评估是否可移除本插件。
+ * 需对照新版本源码调整 `replace` 的锚点正则，或评估是否可移除本插件。
  */
 function patchTDesignPopupTimingPlugin(): VitePlugin {
   /** 打开弹窗后短时间内忽略 document mousedown，避免与打开手势同一事件环冲突。 */
@@ -432,55 +436,67 @@ function patchTDesignPopupTimingPlugin(): VitePlugin {
     name: 'vite-plugin-patch-tdesign-popup-timing',
     enforce: 'pre',
     transform(code: string, id: string) {
-      if (!id.includes('tdesign-vue-next') || !id.endsWith('popup/popup.mjs')) return;
+      const isTDesignPopupModule = id.includes('tdesign-vue-next') && id.endsWith('popup/popup.mjs');
+      const isBundledTDesignUI =
+        id.includes('@blueking/tdesign-ui') && id.endsWith('.js') && code.includes('function onDocumentMouseDown');
+      if (!isTDesignPopupModule && !isBundledTDesignUI) return;
 
       let patched = code;
 
       // 1) 在 showTimeout / hideTimeout 后面插入 _showTs 变量
       patched = patched.replace(
-        'var showTimeout;\n    var hideTimeout;',
-        'var showTimeout;\n    var hideTimeout;\n    var _showTs = 0;'
+        /var showTimeout;\s*\n(\s*)var hideTimeout;/,
+        (_, indent) => `var showTimeout;\n${indent}var hideTimeout;\n${indent}var _showTs = 0;`
       );
 
       // 2) show() 函数入口处记录时间戳
       patched = patched.replace(
-        'function show(ev) {\n      clearAllTimeout();',
-        'function show(ev) {\n      _showTs = Date.now();\n      clearAllTimeout();'
+        /function show\(ev\) \{\s*\n(\s*)clearAllTimeout\(\);/,
+        (_, indent) => `function show(ev) {\n${indent}_showTs = Date.now();\n${indent}clearAllTimeout();`
       );
 
       // 3) onDocumentMouseDown 增加：时间守卫 + DOM 属性回溯守卫
       patched = patched.replace(
-        'function onDocumentMouseDown(ev) {\n      var _popperEl$value, _triggerEl$value;',
-        [
-          'function onDocumentMouseDown(ev) {',
-          `      if (Date.now() - _showTs < ${GUARD_MS}) return;`,
-          "      if (ev.target.closest && ev.target.closest('[data-td-popup=\"' + id + '\"]')) return;",
-          '      var _popperEl$value, _triggerEl$value;',
-        ].join('\n')
+        /function onDocumentMouseDown\(ev\) \{\s*\n(\s*)var _popperEl\$value, _triggerEl\$value;/,
+        (_, indent) =>
+          [
+            'function onDocumentMouseDown(ev) {',
+            `${indent}if (Date.now() - _showTs < ${GUARD_MS}) return;`,
+            `${indent}if (ev.target.closest && ev.target.closest('[data-td-popup="' + id + '"]')) return;`,
+            `${indent}var _popperEl$value, _triggerEl$value;`,
+          ].join('\n')
       );
 
       // 4) updatePopper 的 isHidden 关闭分支：对 click 触发的 Popup 完全跳过。
       //    trigger 元素在父组件 re-render 期间被临时从 DOM 卸载是正常行为，
       //    不应导致 click 触发的弹窗关闭。
+      //    非 bundled 版本：} else { setVisible(false, { ... })
       patched = patched.replace(
-        'if (!isHidden) {\n            popper.state.elements.reference = triggerEl.value;\n            popper.update();\n          } else {\n            setVisible(false, {',
-        'if (!isHidden) {\n            popper.state.elements.reference = triggerEl.value;\n            popper.update();\n          } else if (props2.trigger !== "click") {\n            setVisible(false, {'
+        /(popper\.update\(\);\s*\n(\s*)\})\s*else\s*\{\s*\n(\s*)setVisible\(false,\s*\{/,
+        (_, prefix, _closeIndent, setVisibleIndent) =>
+          `${prefix} else if (props2.trigger !== "click") {\n${setVisibleIndent}setVisible(false, {`
+      );
+      //    bundled 版本：} else setVisible(false, { trigger: ... });
+      patched = patched.replace(
+        /(popper\.update\(\);\s*\n(\s*)\})\s*else\s+setVisible\(false,/,
+        (_, prefix) => `${prefix} else if (props2.trigger !== "click") setVisible(false,`
       );
 
       // 5) 在 overlay 上拦截所有鼠标/指针事件的冒泡，
       //    阻止 bkui-vue v-clickoutside 等全局冒泡阶段 handler 的误判。
       //    TDesign 自身的 onDocumentMouseDown 使用 capture 阶段，不受影响。
       patched = patched.replace(
-        '"onClick": onOverlayClick,\n        "onMouseenter": onMouseenter,\n        "onMouseleave": onMouseLeave',
-        [
-          '"onClick": function(e) { e.stopPropagation(); onOverlayClick(e); },',
-          '        "onMousedown": function(e) { e.stopPropagation(); },',
-          '        "onMouseup": function(e) { e.stopPropagation(); },',
-          '        "onPointerdown": function(e) { e.stopPropagation(); },',
-          '        "onPointerup": function(e) { e.stopPropagation(); },',
-          '        "onMouseenter": onMouseenter,',
-          '        "onMouseleave": onMouseLeave',
-        ].join('\n')
+        /"onClick": onOverlayClick,\s*\n(\s*)"onMouseenter": onMouseenter,\s*\n\s*"onMouseleave": onMouseLeave/,
+        (_, indent) =>
+          [
+            '"onClick": function(e) { e.stopPropagation(); onOverlayClick(e); },',
+            `${indent}"onMousedown": function(e) { e.stopPropagation(); },`,
+            `${indent}"onMouseup": function(e) { e.stopPropagation(); },`,
+            `${indent}"onPointerdown": function(e) { e.stopPropagation(); },`,
+            `${indent}"onPointerup": function(e) { e.stopPropagation(); },`,
+            `${indent}"onMouseenter": onMouseenter,`,
+            `${indent}"onMouseleave": onMouseLeave`,
+          ].join('\n')
       );
 
       if (patched === code) {

@@ -38,13 +38,18 @@ import './index.scss';
 export default class ApmAlarmCenter extends tsc<any, any> {
   // 图表特殊参数
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  // 图表的数据时间间隔
+  @InjectReactive('timeRange') readonly timeRange: [string, string];
+  // 图表刷新间隔
+  @InjectReactive('refreshInterval') readonly panleRefleshInterval: number;
+  // 立即刷新图表
+  @InjectReactive('refreshImmediate') readonly panelRefleshImmediate: string;
   // dashboardId
   @Inject('handlePageTabChange') handlePageTabChange: (
     id: string,
     customRouterQuery: Record<string, number | string>
   ) => void;
-  // 图表的数据时间间隔
-  // @InjectReactive('timeRange') readonly timeRange: [string, string];
+
   // 告警关联下拉是否展示
   isDropdownShow = false;
   // 一键添加策略弹窗是否展示
@@ -302,7 +307,12 @@ export default class ApmAlarmCenter extends tsc<any, any> {
         >
           {!this.pageLoading && (
             <AlarmCenter
-              v3Props={{ queryString: this.queryString }}
+              v3Props={{
+                queryString: this.queryString,
+                timeRange: this.timeRange,
+                refreshInterval: this.panleRefleshInterval,
+                refreshImmediate: this.panelRefleshImmediate,
+              }}
               onV3Event={this.handleV3EventChange}
             />
           )}
