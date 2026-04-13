@@ -231,7 +231,9 @@ class TasksHandler:
         extract_link: ExtractLink = ExtractLink.objects.filter(link_id=task.link_id).first()
         # bkrepo时为worker调用
         if extract_link.link_type == ExtractLinkType.BK_REPO.value:
-            log_extract_task.delay(task_id=task.task_id, **params)
+            # 将当前请求上下文的 time_zone 传入 Celery 任务
+            time_zone = get_local_param("time_zone", settings.TIME_ZONE)
+            log_extract_task.delay(task_id=task.task_id, time_zone=time_zone, **params)
         else:
             self.run_pipeline(task=task, **params)
 

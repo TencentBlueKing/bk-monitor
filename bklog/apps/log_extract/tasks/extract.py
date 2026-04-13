@@ -48,8 +48,10 @@ from apps.log_extract.utils.packing import (
 )
 from apps.log_extract.utils.transit_server import TransitServer
 from apps.utils.db import array_chunk
+from apps.utils.local import activate_request, set_local_param
 from apps.utils.log import logger
 from apps.utils.remote_storage import BKREPOStorage
+from apps.utils.thread import generate_request
 
 
 @app.task(ignore_result=True, queue="async_export")
@@ -64,7 +66,11 @@ def log_extract_task(
     account,
     os_type,
     username,
+    time_zone=None,
 ):
+    activate_request(generate_request(username=username))
+    set_local_param("time_zone", time_zone or settings.TIME_ZONE)
+
     LogExtractUtils(
         task_id=task_id,
         operator=operator,
