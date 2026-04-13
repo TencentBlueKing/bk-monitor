@@ -161,8 +161,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-alarm-center':
-        specifier: 0.0.2
-        version: 0.0.2(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.3
+        version: 0.0.3(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -1661,8 +1661,8 @@ packages:
   '@blueking/login-modal@1.0.6':
     resolution: {integrity: sha512-zjDHiCNY2Aydo9BcFiGiiw8uodPkCSK+SthXQZQQ/8Bq4nHnz+Hkuo8rnPrwuDIgB2E2C6X+T5+6jDXqTwrZyg==}
 
-  '@blueking/monitor-alarm-center@0.0.2':
-    resolution: {integrity: sha512-uuBZTzfhrvauzKZ5tkR2u70ArDcpRTtPvikwXkvkKD8SG1yg9oriOYrPJOujd7cFuBqiZnYnrAVjPSEWPdRKUA==}
+  '@blueking/monitor-alarm-center@0.0.3':
+    resolution: {integrity: sha512-E7LdIUHuVU2quRz573BZmKULSZyxa7tCKzDUurN1KKQvvNn+fxWM/WbVTkjmSphWgv6thIPDALg9P4Fwku38Tg==}
 
   '@blueking/monitor-apm-log@2.3.11':
     resolution: {integrity: sha512-MeJfgihwKEfqUO++0LEP+DVI4qUzF9R/SJnFbllo8JXS3y3P5WgqqDeiZO1NE55uy3ohQ7j2pGuzCRNwLFEzag==}
@@ -10503,7 +10503,7 @@ snapshots:
 
   '@blueking/login-modal@1.0.6': {}
 
-  '@blueking/monitor-alarm-center@0.0.2(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-alarm-center@0.0.3(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
       '@prometheus-io/lezer-promql': 0.305.0(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
