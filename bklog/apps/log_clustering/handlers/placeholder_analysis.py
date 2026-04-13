@@ -272,10 +272,10 @@ class PlaceholderAnalysisHandler:
         limit = self.params.get("limit", self.DEFAULT_LIMIT)
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
-            f"SELECT {extract_sql} AS val, COUNT(*) AS cnt "
-            f"WHERE {signature_field} = '{signature}' "
-            f"AND {extract_sql} != '' "
-            f"GROUP BY {extract_sql} "
+            "SELECT val, COUNT(*) AS cnt "
+            f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
+            "WHERE val != '' "
+            "GROUP BY val "
             "ORDER BY cnt DESC "
             f"LIMIT {limit}"
         )
@@ -320,9 +320,9 @@ class PlaceholderAnalysisHandler:
         field_name = self.clustering_config.clustering_fields
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
-            f"SELECT COUNT(DISTINCT {extract_sql}) AS unique_count "
-            f"WHERE {signature_field} = '{signature}' "
-            f"AND {extract_sql} != ''"
+            "SELECT COUNT(DISTINCT val) AS unique_count "
+            f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
+            "WHERE val != ''"
         )
 
     def _build_total_count_sql(self, raw_regex: str) -> str:
@@ -333,8 +333,8 @@ class PlaceholderAnalysisHandler:
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
             "SELECT COUNT(*) AS total_count "
-            f"WHERE {signature_field} = '{signature}' "
-            f"AND {extract_sql} != ''"
+            f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
+            "WHERE val != ''"
         )
 
     def _get_signature_field(self) -> str:
