@@ -168,13 +168,3 @@ class SpaceManager(models.Manager):
             return int(obj.space_id)
         # 非bkcc空间类型，返回负值
         return -obj.id
-
-
-class SpaceResourceManager(models.Manager):
-    def get_resource_by_resource_type(self, space_type_id: str, resource_type: str) -> list:
-        """通过资源类型，获取对应的资源"""
-        return list(
-            self.filter(space_type_id=space_type_id, resource_type=resource_type).values(
-                "resource_id", "dimension_values"
-            )
-        )

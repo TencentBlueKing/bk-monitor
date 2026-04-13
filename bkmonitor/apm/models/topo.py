@@ -53,6 +53,12 @@ class TopoBase(models.Model):
 
 
 class TopoNode(TopoBase):
+
+    # 节点过期时间（天）
+    # 背景：之前节点过期时间设置为 Trace 数据的保留时间，但对于零星上报、活动类服务可能存在较长时间未上报 Trace 的情况，
+    # 导致节点过早过期被删除，影响监控和展示。故调整为 180 天，兼顾数据时效性和完整性。
+    EXPIRED_DAYS = 180
+    
     # extra_data会存储category类型
     # 如果这个Node是http类型，那么在extra_data数据：
     # {"category":"http","kind":"service","predicate_value":"POST","service_language":"python","instance":{}}

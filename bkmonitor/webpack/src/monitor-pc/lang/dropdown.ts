@@ -144,4 +144,5 @@ export default {
   分派给我的: 'Assigned to Me',
   通知给我: 'Notify Me',
   自定义时间: 'Custom time',
+  用户操作: 'User Operation',
 };

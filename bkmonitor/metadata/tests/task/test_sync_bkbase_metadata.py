@@ -257,7 +257,6 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
     Case2. Kafka集群变更 + Topic变更 + VM集群变更
     """
 
-    mocker.patch("django.conf.settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE", True)
     mocker.patch("django.conf.settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB", True)
 
     # Case1. Kafka集群不存在 + VM集群不存在
@@ -277,7 +276,7 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
         vm_record = models.AccessVMRecord.objects.get(result_table_id="1001_bkmonitor_time_series_50010.__default__")
 
         assert ds.mq_cluster_id == kafka_cluster_new.cluster_id
-        assert ds.mq_config_id == mq_config.id
+        assert ds.mq_config_id == mq_config.pk
         assert vm_record.vm_cluster_id == vm_cluster_new.cluster_id
 
     with patch("redis.StrictRedis.hgetall", return_value=redis_value_for_metric_when_cluster_exists) as mock_hgetall:  # noqa
@@ -293,7 +292,7 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
         vm_record = models.AccessVMRecord.objects.get(result_table_id="1001_bkmonitor_time_series_50011.__default__")
 
         assert ds.mq_cluster_id == kafka_cluster_new.cluster_id
-        assert ds.mq_config_id == mq_config.id
+        assert ds.mq_config_id == mq_config.pk
         assert vm_record.vm_cluster_id == vm_cluster_new.cluster_id
         assert mq_config.partition == 3
         assert mq_config.topic == "bkm_test2_metric_topic"
@@ -311,7 +310,6 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
         key = "databus_v4_dataid:60010"
         table_id = "1001_bkmonitor_log_60010.__default__"
 
-        mocker.patch("django.conf.settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE", True)
         mocker.patch("django.conf.settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB", True)
 
         # 调用测试函数
@@ -319,29 +317,15 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
 
         ds = models.DataSource.objects.get(bk_data_id=60010)
         kafka_cluster = models.ClusterInfo.objects.get(domain_name="test2.kafka.db")
-        es_cluster = models.ClusterInfo.objects.get(domain_name="test.es.db")
         es_cluster2 = models.ClusterInfo.objects.get(domain_name="test2.es.db")
         mq_config = models.KafkaTopicInfo.objects.get(bk_data_id=60010)
         es_storage = models.ESStorage.objects.get(table_id=table_id)
 
         assert ds.mq_cluster_id == kafka_cluster.cluster_id
-        assert ds.mq_config_id == mq_config.id
+        assert ds.mq_config_id == mq_config.pk
         assert es_storage.storage_cluster_id == es_cluster2.cluster_id
         assert mq_config.partition == 6
         assert mq_config.topic == "bkm_test_log_topic"
-
-        # 验证StorageClusterRecord记录是否被正确同步
-        cluster_records = models.StorageClusterRecord.objects.filter(table_id=table_id, is_deleted=False)
-        assert cluster_records.count() == 2  # 确保有2个集群记录
-
-        current_record = models.StorageClusterRecord.objects.get(is_current=True, table_id=table_id)
-        assert current_record.cluster_id == es_cluster2.cluster_id
-
-        old_record = models.StorageClusterRecord.objects.get(table_id=table_id, cluster_id=es_cluster.cluster_id)
-        assert not old_record.is_current
-
-        deleted_record = models.StorageClusterRecord.objects.get(cluster_id=1000)
-        assert deleted_record.is_deleted
 
 
 @pytest.mark.django_db(databases="__all__")

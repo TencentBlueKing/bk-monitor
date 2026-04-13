@@ -13,11 +13,12 @@ export const customTimeSeriesList = request('GET', 'rest/v2/custom_metric_report
 export const customTimeSeriesDetail = request('GET', 'rest/v2/custom_metric_report/custom_time_series_detail/');
 export const validateCustomTsGroupName = request('GET', 'rest/v2/custom_metric_report/validate_custom_ts_group_name/');
 export const validateCustomTsGroupLabel = request('GET', 'rest/v2/custom_metric_report/validate_custom_ts_group_label/');
+export const validateCustomTsMetricFieldName = request('POST', 'rest/v2/custom_metric_report/validate_custom_ts_metric_field_name/');
 export const createCustomTimeSeries = request('POST', 'rest/v2/custom_metric_report/create_custom_time_series/');
 export const modifyCustomTimeSeries = request('POST', 'rest/v2/custom_metric_report/modify_custom_time_series/');
 export const deleteCustomTimeSeries = request('POST', 'rest/v2/custom_metric_report/delete_custom_time_series/');
 export const addCustomMetric = request('POST', 'rest/v2/custom_metric_report/add_custom_metric/');
-export const getCustomTsFields = request('GET', 'rest/v2/custom_metric_report/get_custom_ts_fields/');
+export const getCustomTsFields = request('POST', 'rest/v2/custom_metric_report/get_custom_ts_fields/');
 export const modifyCustomTsFields = request('POST', 'rest/v2/custom_metric_report/modify_custom_ts_fields/');
 export const importCustomTimeSeriesFields = request('POST', 'rest/v2/custom_metric_report/import_custom_time_series_fields/');
 export const exportCustomTimeSeriesFields = request('GET', 'rest/v2/custom_metric_report/export_custom_time_series_fields/');
@@ -44,6 +45,7 @@ export default {
   customTimeSeriesDetail,
   validateCustomTsGroupName,
   validateCustomTsGroupLabel,
+  validateCustomTsMetricFieldName,
   createCustomTimeSeries,
   modifyCustomTimeSeries,
   deleteCustomTimeSeries,

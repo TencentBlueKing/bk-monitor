@@ -1,20 +1,30 @@
 from __future__ import annotations
 
+import logging
+import shutil
+import tarfile
+import tempfile
 from collections import OrderedDict
 from collections.abc import Sequence
 from itertools import chain
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin
 
+from django.conf import settings
 from django.core import serializers
+from django.core.files.storage import default_storage
 from django.db.models import Model, QuerySet
 from django.utils import timezone
 
 from metadata.models import DataSource, ResultTable
+
+logger = logging.getLogger(__name__)
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, KafkaStorage
 from monitor_web.data_migrate.biz_matadata import find_biz_table_and_data_id
 from monitor_web.data_migrate.constants import DEFAULT_ENCODING, EXPORT_QUERYSET_CHUNK_SIZE
 from monitor_web.data_migrate.fetcher.apm import get_apm_fetcher
+from monitor_web.data_migrate.fetcher.dashboard import get_bk_dataview_fetcher
 from monitor_web.data_migrate.fetcher.apm_ebpf import get_apm_ebpf_fetcher
 from monitor_web.data_migrate.fetcher.apm_web import get_apm_web_fetcher
 from monitor_web.data_migrate.fetcher.base import FetcherResultType
@@ -105,6 +115,7 @@ def _build_biz_export_context(
             ("apm_ebpf", get_apm_ebpf_fetcher(bk_biz_id)),
             ("metadata_space", get_metadata_space_fetcher(bk_biz_id)),
             ("metadata_bcs", get_metadata_bcs_fetcher(bk_biz_id)),
+            ("bk_dataview", get_bk_dataview_fetcher(bk_biz_id)),
         ]
     )
 
@@ -339,3 +350,45 @@ def export_biz_data_to_directory(
 
     write_json_file(target_directory / "manifest.json", manifest, encoding=DEFAULT_ENCODING)
     return target_directory
+
+
+def upload_export_directory_to_storage(directory_path: str | Path) -> str:
+    """将导出目录打包为 tar.gz 并上传到 default_storage，返回下载链接。
+
+    流程：
+    1. 将导出目录打成 tar.gz 压缩包
+    2. 通过 ``default_storage.save`` 上传到 bkrepo
+    3. 生成并返回下载 URL
+
+    Args:
+        directory_path: ``export_biz_data_to_directory`` 返回的导出目录路径
+
+    Returns:
+        可直接访问的下载 URL
+    """
+    target_directory = Path(directory_path)
+    archive_name = target_directory.name
+    timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
+
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        tarfile_path = Path(tmp_dir) / f"{archive_name}.tar.gz"
+        with tarfile.open(tarfile_path, "w:gz") as tar:
+            tar.add(str(target_directory), arcname=archive_name)
+
+        storage_path = f"data_migrate/export/{archive_name}-{timestamp}.tar.gz"
+        with tarfile_path.open("rb") as f:
+            default_storage.save(storage_path, f)
+
+        download_url = default_storage.url(storage_path)
+
+        if hasattr(settings, "BK_MONITOR_HOST") and settings.BK_MONITOR_HOST.startswith("https://"):
+            download_url = download_url.replace("http://", "https://")
+
+        if not download_url.startswith("http"):
+            download_url = urljoin(settings.BK_MONITOR_HOST, download_url)
+
+        logger.info("upload_export_directory_to_storage: 上传完成, download_url=%s", download_url)
+        return download_url
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)

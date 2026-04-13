@@ -44,11 +44,20 @@ def get_collector_plugin_fetcher(bk_biz_id: int | None) -> list[FetcherResultTyp
     """
     获取业务下的插件定义链。
 
-    ``CollectorPluginMeta`` 本身就带有 ``bk_biz_id``，因此插件主表直接按业务过滤。
-    然后再基于这批插件的 ``plugin_id`` 回查版本表，以及版本依赖的 config/info。
+    业务采集配置可能引用全局插件（例如 ``bkprocessbeat``），因此不能只按
+    ``CollectorPluginMeta.bk_biz_id`` 过滤，否则会遗漏 ``DeploymentConfigVersion``
+    依赖的 ``PluginVersionHistory`` 记录，导致导入阶段出现外键错误。
     """
-    plugin_filters = None if bk_biz_id is None else {"bk_biz_id": bk_biz_id}
-    plugin_queryset = CollectorPluginMeta.objects.filter(**(plugin_filters or {}))
+    if bk_biz_id is None:
+        plugin_filters = None
+        plugin_queryset = CollectorPluginMeta.objects.all()
+    else:
+        collect_config_plugin_ids = _get_collect_config_queryset(bk_biz_id).values_list("plugin_id", flat=True)
+        biz_plugin_ids = CollectorPluginMeta.objects.filter(bk_biz_id=bk_biz_id).values_list("plugin_id", flat=True)
+        plugin_id_list = sorted({*collect_config_plugin_ids, *biz_plugin_ids})
+        plugin_filters = {"plugin_id__in": plugin_id_list}
+        plugin_queryset = CollectorPluginMeta.objects.filter(**plugin_filters)
+
     plugin_ids = plugin_queryset.values_list("plugin_id", flat=True)
     plugin_versions = PluginVersionHistory.objects.filter(plugin_id__in=plugin_ids)
 

@@ -322,6 +322,12 @@ PROCESS_OVER_FLOW = Counter(
     labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name", "redis_node"),
 )
 
+TRIGGER_EVENT_RATE_LIMIT_DROP = Counter(
+    name="bkmonitor_trigger_event_rate_limit_drop_total",
+    documentation="trigger 模块按策略+数据时间戳限流后丢弃的 event 数",
+    labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name", "redis_node"),
+)
+
 DETECT_PROCESS_LATENCY = Histogram(
     name="bkmonitor_detect_process_latency",
     documentation="告警从 access 到 detect 模块的整体处理延迟",

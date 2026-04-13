@@ -337,7 +337,8 @@ class EtlStorage:
         for field in built_in_fields:
             field_name = field["field_name"]
             alias_name = field.get("alias_name", field_name)
-            field_type = field["field_type"]
+            # 优先使用es_type确定output_type
+            field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
             # 跳过log、iterationIndex字段，它会在后面单独处理
             if field_name in ["log", "iterationIndex"]:
@@ -944,7 +945,6 @@ class EtlStorage:
 
                 nano_time_field = copy.deepcopy(time_field)
                 nano_time_field["field_name"] = "dtEventTimeStampNanos"
-                nano_time_field["field_type"] = "long" if field["option"]["time_format"] == "epoch_micros" else "string"
                 nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
@@ -1260,7 +1260,9 @@ class EtlStorage:
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
             collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
-            collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
+            collector_config["storage_display_name"] = (
+                result_table_storage["cluster_config"].get("display_name") or collector_config["storage_cluster_name"]
+            )
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 

@@ -23,44 +23,44 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import DimensionBatchEdit from './components/batch-edit';
+
 import infoSrc from '../../../../../../../static/images/png/dimension-guide.png';
-import { fuzzyMatch } from '../../../../utils';
 import { NULL_LABEL } from '../../../../type';
-import type { ICustomTsFields } from '../../../../../service';
+import { fuzzyMatch } from '../../../../utils';
+import DimensionBatchEdit from './components/batch-edit';
+
+import type { IGroupingRule } from '../../../../../service';
 import type { RequestHandlerMap } from '../../../../type';
 
 import './index.scss';
 
 /**
- * 组件 Props 接口定义
+ * 维度详情类型定义
+ * 从 ICustomTsFields 的 dimensions 数组中提取单个维度项的类型
  */
-interface IProps {
-  /** 选中的分组信息，包含分组ID和名称 */
-  selectedGroupInfo: { id: number; name: string };
-  /** 表格加载状态 */
-  loading: boolean;
-  /** 维度表格数据列表 */
-  dimensionTable: DimensionDetail[];
-}
+type DimensionDetail = IGroupingRule['dimension_config'][number] & { scope: { id: number; name: string } };
 
 /**
  * 组件事件接口定义
  */
 interface IEmits {
-  /** 刷新事件，当数据更新后触发 */
-  onRefresh: () => void;
   /** 别名变化事件 */
   onAliasChange: () => void;
+  /** 刷新事件，当数据更新后触发 */
+  onRefresh: () => void;
 }
 
 /**
- * 维度详情类型定义
- * 从 ICustomTsFields 的 dimensions 数组中提取单个维度项的类型
+ * 组件 Props 接口定义
  */
-type DimensionDetail = ICustomTsFields['dimensions'][number];
+interface IProps {
+  /** 维度表格数据列表 */
+  dimensionTable: DimensionDetail[];
+  /** 选中的分组信息，包含分组ID和名称 */
+  selectedGroupInfo: { id: number; name: string };
+}
 
 /**
  * 维度列表组件
@@ -72,15 +72,27 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
   @Prop({ default: () => {} }) selectedGroupInfo: IProps['selectedGroupInfo'];
   /** 维度表格数据列表 */
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
-  /** 表格加载状态 */
-  @Prop({ default: false }) loading: IProps['loading'];
 
   @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('isAPM') readonly isAPM: boolean;
   @InjectReactive('appName') readonly appName: string;
   @InjectReactive('serviceName') readonly serviceName: string;
-
+  /** 表格渲染key */
+  tableRenderKey = 0;
+  /** 表格加载状态 */
+  tableLoading = false;
+  /** 底部加载状态配置 */
+  bottomLoadingOptions = {
+    size: 'small',
+    isLoading: false,
+  };
+  /** 分页信息 */
+  pagination = {
+    page: 1,
+    pageSize: 20,
+    total: 0,
+  };
   /** 编辑时临时保存的别名，用于在失焦时判断是否需要更新 */
   copyAlias = '';
   /** 当前正在编辑的行索引，-1 表示没有行在编辑状态 */
@@ -89,6 +101,8 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
   search = '';
   /** 是否显示维度批量编辑抽屉 */
   isShowDimensionSlider = false;
+  /** 当前显示的表格数据（分页后的数据） */
+  showTableData: DimensionDetail[] = [];
 
   /**
    * 过滤后的表格数据
@@ -98,102 +112,6 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
     return this.dimensionTable.filter(item => {
       return fuzzyMatch(item.name, this.search) || fuzzyMatch(item.config.alias, this.search);
     });
-  }
-
-  @Watch('selectedGroupInfo', { immediate: true })
-  handleSelectedGroupInfoChange() {
-    this.search = '';
-  }
-
-  /**
-   * 显示维度批量编辑抽屉
-   */
-  handleShowDimensionSlider() {
-    this.isShowDimensionSlider = true;
-  }
-
-  /**
-   * 处理别名输入框聚焦事件
-   * @param props 表格行属性，包含 row 和 $index
-   */
-  handleDescFocus(props) {
-    this.copyAlias = props.row.config.alias;
-    this.editingIndex = props.$index;
-  }
-
-  /**
-   * 处理别名编辑完成事件
-   * 当别名输入框失焦时，如果别名有变化则更新到服务器
-   * @param row 当前编辑的维度数据
-   */
-  async handleEditDescription(row: DimensionDetail) {
-    if (this.copyAlias === row.config.alias) return;
-    row.config.alias = this.copyAlias;
-    await this.updateDimensionField(row, 'alias', this.copyAlias);
-    this.$emit('aliasChange');
-  }
-
-  /**
-   * 切换维度的显示/隐藏状态
-   * @param v 切换后的状态值
-   * @param row 当前操作的维度数据
-   */
-  handleEditHidden(v, row) {
-    row.config.hidden = !row.config.hidden;
-    this.updateDimensionField(row, 'hidden', !v);
-  }
-
-  /**
-   * 处理常用维度切换
-   * @param row 当前操作的维度数据
-   * @param val 是否设置为常用维度
-   */
-  async handleCommonChange(row: DimensionDetail, val: boolean) {
-    row.config.common = val;
-    await this.updateDimensionField(row, 'common', val);
-  }
-
-  /**
-   * 统一更新维度字段的API调用
-   * 根据字段类型（alias、hidden、common 或其他）构建不同的更新结构
-   * @param dimensionInfo 要更新的维度信息
-   * @param k 要更新的字段名
-   * @param v 要更新的字段值
-   */
-  async updateDimensionField(dimensionInfo: DimensionDetail, k: string, v: any) {
-    const updateField = {
-      type: 'dimension',
-      name: dimensionInfo.name,
-      scope: dimensionInfo.scope,
-      config: {},
-    };
-    if (['alias', 'hidden', 'common'].includes(k)) {
-      updateField.config[k] = v;
-    } else {
-      updateField[k] = v;
-      delete updateField.config;
-    }
-    try {
-      const params = {
-        time_series_group_id: this.timeSeriesGroupId,
-        update_fields: [updateField],
-      };
-      if (this.isAPM) {
-        delete params.time_series_group_id;
-        Object.assign(params, {
-          app_name: this.appName,
-          service_name: this.serviceName,
-        });
-      }
-      await this.requestHandlerMap.modifyCustomTsFields(params);
-      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
-    } catch (e) {
-      console.error('Update dimension failed:', e);
-      this.$bkMessage({
-        message: this.$t('更新失败'),
-        theme: 'error',
-      });
-    }
   }
 
   /**
@@ -235,11 +153,11 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
                   this.editingIndex = -1;
                   this.handleEditDescription(props.row);
                 }}
-                onEnter={() => {
-                  this.handleEditDescription(props.row);
-                }}
                 onChange={v => {
                   this.copyAlias = v;
+                }}
+                onEnter={() => {
+                  this.handleEditDescription(props.row);
                 }}
               />
             </div>
@@ -256,9 +174,7 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
               class='name'
               v-bk-overflow-tips
             >
-              {props.row.scope.name && props.row.scope.name === NULL_LABEL
-                ? this.$t('默认分组')
-                : props.row.scope.name || '--'}
+              {props.row.scope.name === NULL_LABEL ? this.$t('默认分组') : props.row.scope.name || '--'}
             </div>
           ),
         },
@@ -328,6 +244,133 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
     ];
   }
 
+  /** 表格最大高度 */
+  get maxHeight() {
+    return this.isAPM ? window.innerHeight - 180 : window.innerHeight - 550;
+  }
+
+  @Watch('search')
+  handleSearchChange() {
+    this.tableRenderKey++;
+  }
+
+  /** 监听选中分组变化，重置搜索关键词 */
+  @Watch('selectedGroupInfo', { immediate: true })
+  handleSelectedGroupInfoChange() {
+    this.search = '';
+    this.tableRenderKey++;
+  }
+
+  @Watch('tableData', { immediate: true })
+  handleTableDataChange() {
+    if (this.isAPM) {
+      this.pagination.pageSize = 50;
+    }
+    this.pagination.page = 1;
+    if (this.tableData.length) {
+      this.tableLoading = true;
+      this.pagination.total = this.tableData.length;
+    }
+    this.showTableData = this.tableData.slice(0, this.pagination.pageSize);
+    setTimeout(() => {
+      this.tableLoading = false;
+    }, 500);
+  }
+
+  /**
+   * 显示维度批量编辑抽屉
+   */
+  handleShowDimensionSlider() {
+    this.isShowDimensionSlider = true;
+  }
+
+  /**
+   * 处理别名输入框聚焦事件
+   * @param props 表格行属性，包含 row 和 $index
+   */
+  handleDescFocus(props) {
+    this.copyAlias = props.row.config.alias;
+    this.editingIndex = props.$index;
+  }
+
+  /**
+   * 处理别名编辑完成事件
+   * 当别名输入框失焦时，如果别名有变化则更新到服务器
+   * @param row 当前编辑的维度数据
+   */
+  async handleEditDescription(row: DimensionDetail) {
+    if (this.copyAlias === row.config.alias) return;
+    row.config.alias = this.copyAlias;
+    await this.updateDimensionField(row, 'alias', this.copyAlias);
+    this.$emit('aliasChange');
+  }
+
+  /**
+   * 切换维度的显示/隐藏状态
+   * @param v 切换后的状态值
+   * @param row 当前操作的维度数据
+   */
+  handleEditHidden(v, row) {
+    row.config.hidden = !row.config.hidden;
+    this.updateDimensionField(row, 'hidden', !v);
+  }
+
+  /**
+   * 处理常用维度切换
+   * @param row 当前操作的维度数据
+   * @param val 是否设置为常用维度
+   */
+  async handleCommonChange(row: DimensionDetail, val: boolean) {
+    row.config.common = val;
+    await this.updateDimensionField(row, 'common', val);
+  }
+
+  /**
+   * 统一更新维度字段的API调用
+   * 根据字段类型（alias、hidden、common 或其他）构建不同的更新结构
+   * @param dimensionInfo 要更新的维度信息
+   * @param k 要更新的字段名
+   * @param v 要更新的字段值
+   */
+  async updateDimensionField(dimensionInfo: DimensionDetail, k: string, v: any) {
+    const updateField = {
+      type: 'dimension',
+      name: dimensionInfo.name,
+      scope: {
+        id: this.selectedGroupInfo.id,
+        name: this.selectedGroupInfo.name,
+      },
+      config: {},
+    };
+    if (['alias', 'hidden', 'common'].includes(k)) {
+      updateField.config[k] = v;
+    } else {
+      updateField[k] = v;
+      delete updateField.config;
+    }
+    try {
+      const params = {
+        time_series_group_id: this.timeSeriesGroupId,
+        update_fields: [updateField],
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      await this.requestHandlerMap.modifyCustomTsFields(params);
+      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+    } catch (e) {
+      console.error('Update dimension failed:', e);
+      this.$bkMessage({
+        message: this.$t('更新失败'),
+        theme: 'error',
+      });
+    }
+  }
+
   /**
    * 保存抽屉信息
    * @param updateArray 更新数组
@@ -353,6 +396,22 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
     this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
 
+   /**
+   * 处理表格滚动到底部事件
+   * 加载下一页数据（虚拟滚动）
+   */
+   handleScrollToBottom() {
+    if (this.pagination.page * this.pagination.pageSize < this.pagination.total) {
+      this.bottomLoadingOptions.isLoading = true;
+      this.showTableData.push(...this.tableData.slice(this.pagination.page * this.pagination.pageSize, (this.pagination.page + 1) * this.pagination.pageSize));
+      this.pagination.page++;
+      setTimeout(() => {
+        this.bottomLoadingOptions.isLoading = false;
+      }, 500);
+      
+    }
+  }
+
   render() {
     return (
       <div class='dimension-table-content'>
@@ -371,35 +430,39 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
             v-model={this.search}
             placeholder={this.$t('搜索 名称、别名')}
             right-icon='icon-monitor icon-mc-search'
+            clearable
           />
         </div>
         <div
           class='table-container'
-          v-bkloading={{ isLoading: this.loading }}
         >
           <bk-table
+            key={this.tableRenderKey}
             class='dimension-table'
-            data={this.tableData}
-            max-height={window.innerHeight - 550}
+            v-bkloading={{ isLoading: this.tableLoading }}
+            scroll-loading={this.bottomLoadingOptions}
+            on-scroll-end={this.handleScrollToBottom}
+            data={this.showTableData}
+            max-height={this.maxHeight}
             row-hover='auto'
           >
             {this.columnConfigs.map(config => (
               <bk-table-column
                 key={config.id}
-                prop={config.id}
                 width={config.width}
-                minWidth={config.minWidth}
-                renderHeader={config?.renderHeaderFn ? () => config.renderHeaderFn(config) : undefined}
                 label={config.label}
+                minWidth={config.minWidth}
+                prop={config.id}
+                renderHeader={config?.renderHeaderFn ? () => config.renderHeaderFn(config) : undefined}
                 scopedSlots={config.scopedSlots}
               />
             ))}
           </bk-table>
         </div>
         <DimensionBatchEdit
-          selectedGroupInfo={this.selectedGroupInfo}
           dimensionTable={this.dimensionTable}
           isShow={this.isShowDimensionSlider}
+          selectedGroupInfo={this.selectedGroupInfo}
           onHidden={v => {
             this.isShowDimensionSlider = v;
           }}

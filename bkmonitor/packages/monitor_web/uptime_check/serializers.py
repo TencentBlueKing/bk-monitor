@@ -222,7 +222,7 @@ class UptimeCheckTaskSerializer(serializers.Serializer):
             raise CustomException(_("已存在相同名称的拨测任务"))
 
         # 独立数据源模式
-        if settings.ENABLE_MULTI_TENANT_MODE:
+        if settings.ENABLE_MULTI_TENANT_MODE or settings.ENABLE_UPTIMECHECK_BKDATA:
             # 多租户模式下，必须使用独立数据源模式
             independent_dataid = True
         else:

@@ -71,14 +71,14 @@ class TestCommonBuiltInFields(TestCase):
                                           f"[{etl_name}] {rule['output_id']} should not have time parsing")
 
     def test_field_output_types(self):
-        """验证各内置字段的 output_type 映射"""
+        """验证各内置字段的 output_type 映射（优先使用 option.es_type）"""
         expected_types = {
-            "bk_host_id": "double",   # field_type=float → double
-            "__ext": "dict",           # field_type=object → dict
-            "cloudId": "double",       # field_type=float → double
-            "serverIp": "string",      # field_type=string → string
-            "path": "string",          # field_type=string → string
-            "gseIndex": "double",      # field_type=float → double
+            "bk_host_id": "long",   # es_type=integer → long
+            "__ext": "dict",           # es_type=object → dict
+            "cloudId": "long",       # es_type=integer → long
+            "serverIp": "string",      # es_type=keyword → string
+            "path": "string",          # es_type=keyword → string
+            "gseIndex": "long",      # es_type=long → long
         }
         storage = ALL_ETL_CLASSES[0][1]()
         rules = storage._build_built_in_fields_v4(get_fresh_config())
