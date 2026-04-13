@@ -745,7 +745,7 @@ class ExplorerHandler:
         return topo_list
 
     @classmethod
-    def get_ip_list_by_service_template(cls, bk_biz_id, target_nodes):
+    def get_ip_list_by_service_template(cls, bk_biz_id, target_nodes, is_allowed_topo_list_null=False):
         params = {"bk_biz_id": bk_biz_id, "fields": ["bk_host_id", "bk_host_innerip", "bk_cloud_id"]}
         service_template_ids = [
             target_node["bk_inst_id"]
@@ -754,7 +754,7 @@ class ExplorerHandler:
         ]
         params["bk_service_template_ids"] = service_template_ids
         ip_list = batch_request(func=CCApi.find_host_by_service_template, params=params)
-        if not ip_list:
+        if not ip_list and not is_allowed_topo_list_null:
             raise exceptions.ObjsNotHaveHost
         for ip_info in ip_list:
             ip_info["ip"] = ip_info.pop("bk_host_innerip")

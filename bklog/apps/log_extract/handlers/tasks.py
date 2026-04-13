@@ -482,7 +482,25 @@ class TasksHandler:
         return task
 
     @staticmethod
-    def get_new_ip_list_from_target_nodes(task_id):
+    def _deduplicate_ip_list(ip_list):
+        """
+        对 ip_list 进行去重，返回去重后的字典列表
+        :param ip_list: [{"ip": ..., "bk_cloud_id": ..., "bk_host_id": ...}, ...]
+        :return: 去重后的 ip_list
+        """
+        after_deduplicate_ip_list = []
+        seen = set()
+        for ip_info in ip_list:
+            key = (ip_info["ip"], ip_info["bk_cloud_id"], ip_info["bk_host_id"])
+            if key not in seen:
+                seen.add(key)
+                after_deduplicate_ip_list.append(
+                    {"ip": ip_info["ip"], "bk_cloud_id": ip_info["bk_cloud_id"], "bk_host_id": ip_info["bk_host_id"]}
+                )
+        return after_deduplicate_ip_list
+
+    @classmethod
+    def get_new_ip_list_from_target_nodes(cls, task_id):
         """
         通过 target_nodes 动态获取最新 ip_list
         """
@@ -497,31 +515,32 @@ class TasksHandler:
         if target_node_type == LogExtractTargetNodeTypeEnum.INSTANCE.value or not target_nodes:
             return None
 
-        new_topo_list = ExplorerHandler.get_topo_list_by_nodes(
-            task.bk_biz_id, target_nodes, is_allowed_topo_list_null=True
-        )
+        raw_ip_list = []
 
-        if not new_topo_list:
+        # 服务模板获取原始 ip_list
+        if target_node_type == LogExtractTargetNodeTypeEnum.SERVICE_TEMPLATE.value:
+            raw_ip_list = ExplorerHandler.get_ip_list_by_service_template(
+                task.bk_biz_id, target_nodes, is_allowed_topo_list_null=True
+            )
+
+        # 动态拓补获取原始 ip_list
+        elif target_node_type == LogExtractTargetNodeTypeEnum.TOPO.value:
+            topo_list = ExplorerHandler.get_topo_list_by_nodes(
+                task.bk_biz_id, target_nodes, is_allowed_topo_list_null=True
+            )
+            raw_ip_list = [
+                {
+                    "ip": topo["host"]["bk_host_innerip"],
+                    "bk_cloud_id": topo["host"]["bk_cloud_id"],
+                    "bk_host_id": topo["host"]["bk_host_id"],
+                }
+                for topo in (topo_list or [])
+            ]
+
+        if not raw_ip_list:
             return None
 
-        new_ip_list = []
-        ip_info_tuples = set()
-
-        # 获取去重后的 new_ip_list
-        for topo in new_topo_list:
-            bk_host_innerip = topo["host"]["bk_host_innerip"]
-            bk_cloud_id = topo["host"]["bk_cloud_id"]
-            bk_host_id = topo["host"]["bk_host_id"]
-            ip_info_tuple = (bk_host_innerip, bk_cloud_id, bk_host_id)
-            if ip_info_tuple not in ip_info_tuples:
-                ip_info_tuples.add(ip_info_tuple)
-                new_ip_list.append(
-                    {
-                        "ip": bk_host_innerip,
-                        "bk_cloud_id": bk_cloud_id,
-                        "bk_host_id": bk_host_id,
-                    }
-                )
+        new_ip_list = cls._deduplicate_ip_list(raw_ip_list)
 
         # 将最新的 ip_list 格式化为字符串后更新至数据库
         formatted_new_ip_list = []
