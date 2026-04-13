@@ -285,6 +285,7 @@ export default defineComponent({
         <AlarmStatusDialog
           v-model:show={alarmStatusDetailShow.value}
           actions={alarmStatusActions.value}
+          alarmBizId={bizId.value}
           total={alarmStatusTotal.value}
         />
         <AlarmDispatchDialog

@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, onMounted, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router/composables';
 
 import useLocale from '@/hooks/use-locale';
 import ItemSkeleton from '@/skeleton/item-skeleton';
@@ -43,12 +44,23 @@ import 'tippy.js/themes/light.css';
 
 export default defineComponent({
   name: 'LeftList',
-  emits: ['choose'],
+  emits: ['choose', 'loading'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const route = useRoute();
+    const router = useRouter();
     const { indexGroupLoading, getIndexGroupList } = useOperation();
     const activeKey = ref<number | string>('all');
+
+    // 监听左侧列表加载状态变化，通知父组件
+    watch(
+      () => indexGroupLoading.value,
+      (val) => {
+        emit('loading', val);
+      },
+      { immediate: true },
+    );
     const addPanelRef = ref();
     const addIndexSetRef = ref();
     const rootRef = ref();
@@ -80,6 +92,20 @@ export default defineComponent({
     const handleItem = (item: IListItemData) => {
       activeKey.value = item.index_set_id ?? '';
       emit('choose', item);
+
+      // 更新路由参数
+      const newIndexSetId = item.index_set_id === 'all' ? undefined : String(item.index_set_id);
+      const currentIndexSetId = route.query.indexSetId;
+
+      if (newIndexSetId !== currentIndexSetId) {
+        const query = { ...route.query };
+        if (newIndexSetId) {
+          query.indexSetId = newIndexSetId;
+        } else {
+          delete query.indexSetId;
+        }
+        router.replace({ query });
+      }
     };
 
     const handelDelItem = (item: IListItemData) => {
@@ -92,6 +118,7 @@ export default defineComponent({
         .then(res => {
           if (res.result) {
             showMessage(t('删除成功'));
+            handleItem(baseItem.value[0]);
             getListData();
           }
         })
@@ -100,22 +127,39 @@ export default defineComponent({
         });
     };
 
+    const handleRenameItem = () => {
+      getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
+        listData.value = data.list;
+        total.value = data.total;
+        initActionPop();
+        const updatedItem = data.list.find(item => item.index_set_id === activeKey.value);
+        if (updatedItem) {
+          emit('choose', updatedItem);
+        }
+      });
+    };
+
     const renderBaseItem = (item: IListItemData) => (
       <ListItem
         activeKey={activeKey.value}
         data={item}
         on-choose={handleItem}
         on-delete={handelDelItem}
+        on-rename={handleRenameItem}
       />
     );
     /**
      * 获取列表数据
+     * @returns Promise，数据加载完成后 resolve
      */
-    const getListData = () => {
-      getIndexGroupList((data: {list: IListItemData[], total: number}) => {
-        listData.value = data.list;
-        total.value = data.total;
-        initActionPop();
+    const getListData = (): Promise<{ list: IListItemData[]; total: number }> => {
+      return new Promise((resolve) => {
+        getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
+          listData.value = data.list;
+          total.value = data.total;
+          initActionPop();
+          resolve(data);
+        });
       });
     };
 
@@ -148,10 +192,22 @@ export default defineComponent({
     };
 
     onMounted(async () => {
-      await getListData();
-      setTimeout(() => {
-        handleItem(baseItem.value[0]);
-      }, 1500);
+      const data = await getListData();
+
+      // 优先从路由参数获取 indexSetId
+      const routeIndexSetId = route.query.indexSetId;
+
+      if (routeIndexSetId) {
+        // 查找匹配的索引集
+        const targetItem = data.list.find(item => String(item.index_set_id) === String(routeIndexSetId));
+        if (targetItem) {
+          activeKey.value = targetItem.index_set_id ?? '';
+          emit('choose', targetItem);
+          return;
+        }
+      }
+      // 默认选中"全部采集项"
+      handleItem(baseItem.value[0]);
     });
 
     onBeforeUnmount(() => {

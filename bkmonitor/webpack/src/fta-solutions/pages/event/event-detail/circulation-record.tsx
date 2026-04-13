@@ -513,6 +513,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         <NoticeStatusDialog
           v-model={this.isShowHandleStatus}
           actionId={`${this.offsetId}`}
+          bizId={this.detail.bk_biz_id}
         />
       </div>
     );

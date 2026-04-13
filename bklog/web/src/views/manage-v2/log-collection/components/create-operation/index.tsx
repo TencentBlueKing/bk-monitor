@@ -132,7 +132,9 @@ export default defineComponent({
       return [...firstStep, ...targetSteps];
     });
 
-    const isShowStatusBtn = computed(() => isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value);
+    const isShowStatusBtn = computed(() => {
+      return isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value;
+    });
 
     const containerWidth = ref(0);
     let resizeObserver: ResizeObserver | null = null;
@@ -147,7 +149,9 @@ export default defineComponent({
       if (route.query.step) {
         step.value = Number(route.query.step);
       }
-      step.value !== 1 && isEdit && collectId.value && getCollectStatus(Number(collectId.value));
+      if (step.value !== 1 && isEdit && collectId.value) {
+        getCollectStatus(Number(collectId.value));
+      }
       if (mainRef.value) {
         resizeObserver = new ResizeObserver(entries => {
           const entry = entries[0];
@@ -267,7 +271,8 @@ export default defineComponent({
     });
 
     return () => {
-      const Component = currentStep.value.find(item => item.icon === step.value)?.components;
+      const currentStepInfo = currentStep.value.find(item => item.icon === step.value);
+      const Component = currentStepInfo?.components;
       return (
         <div
           ref={mainRef}
@@ -338,6 +343,10 @@ export default defineComponent({
             }}
             on-prev={() => {
               step.value = step.value - 1;
+            }}
+            on-detail={data => {
+              dataConfig.value = data;
+              currentCollectorId.value = data.collector_config_id;
             }}
           />
         </div>

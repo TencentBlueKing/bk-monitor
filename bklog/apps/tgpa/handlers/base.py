@@ -23,12 +23,13 @@ import os
 import shutil
 import zipfile
 from pathlib import Path
+from urllib.parse import urlencode
 
 import arrow
 import magic
+import requests
 import ujson
 from django.conf import settings
-from qcloud_cos import CosConfig, CosS3Client
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import ContainerCollectorType, EtlConfig
@@ -46,9 +47,10 @@ from apps.tgpa.constants import (
     TGPA_TASK_SORT_FIELDS,
     TGPA_TASK_TARGET_FIELDS,
     EXTRACT_FILE_MAX_ITERATIONS,
-    COS_DOWNLOAD_MAX_SIZE,
-    COS_DOWNLOAD_CHUNK_SIZE,
+    FILE_DOWNLOAD_MAX_SIZE,
+    FILE_DOWNLOAD_CHUNK_SIZE,
 )
+from apps.tgpa.exceptions import TGPAFileResponseError
 from apps.tgpa.handlers.decrypt import BaseDecryptHandler
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
@@ -57,91 +59,124 @@ from apps.utils.log import logger
 class TGPAFileHandler:
     """TGPA文件处理"""
 
-    def __init__(self, temp_dir, output_dir, meta_fields=None, decrypt_handler: BaseDecryptHandler = None):
+    def __init__(
+        self, temp_dir, output_dir, meta_fields=None, decrypt_handler: BaseDecryptHandler = None, bk_biz_id=None
+    ):
         # temp_dir: 临时目录，处理完成后删除; output_dir: 输出目录，存放处理后的文件
         self.temp_dir = temp_dir
         self.output_dir = output_dir
         self.meta_fields = meta_fields or {}
         # decrypt_handler: 解密处理器，用于解密日志文件，如果为None则不进行解密
         self.decrypt_handler = decrypt_handler
+        self.bk_biz_id = bk_biz_id
 
-    @staticmethod
-    def _get_cos_client():
-        """获取COS客户端实例"""
-        config = CosConfig(
-            SecretId=settings.TGPA_TASK_QCLOUD_SECRET_ID,
-            SecretKey=settings.TGPA_TASK_QCLOUD_SECRET_KEY,
-            Region=settings.TGPA_TASK_QCLOUD_COS_REGION,
-            Domain=settings.TGPA_TASK_QCLOUD_COS_DOMAIN,
-        )
-        return CosS3Client(config)
-
-    @staticmethod
-    def get_cos_file_info(file_name):
+    @classmethod
+    def _build_download_url(cls, file_name, bk_biz_id):
         """
-        通过COS head_object获取文件信息
-        :param file_name: COS上的文件名
+        构建 TransceiverTool 文件下载 URL
+        :param file_name: 文件名
+        :param bk_biz_id: 业务ID，作为 ccid 参数
+        :return: 完整的下载 URL
+        """
+        base_url = settings.TGPA_TRANSCEIVER_TOOL_URL
+        params = urlencode({"ccid": bk_biz_id, "filename": file_name})
+        return f"{base_url}?{params}"
+
+    @staticmethod
+    def _check_response_is_file(response, file_name):
+        """
+        检查响应是否为文件内容。
+        """
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type:
+            try:
+                error_body = response.json()
+            except Exception:
+                error_body = response.text[:1024]
+            logger.error(
+                "TransceiverTool returned non-file response, file_name=%s, content_type=%s, body=%s",
+                file_name,
+                content_type,
+                error_body,
+            )
+            raise TGPAFileResponseError()
+
+    @classmethod
+    def get_file_info(cls, file_name, bk_biz_id):
+        """
+        获取文件信息
+        :param file_name: 文件名
+        :param bk_biz_id: 业务ID
         :return: dict，包含文件大小等信息，例如 {"content_length": 1024, ...}
         """
-        client = TGPAFileHandler._get_cos_client()
-        head_response = client.head_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
-        return {
-            "content_length": int(head_response.get("Content-Length", 0)),
-            "content_type": head_response.get("Content-Type", ""),
-        }
+        url = cls._build_download_url(file_name, bk_biz_id)
+        # 使用 GET + stream 代替 HEAD，因为 TGPA 文件下载接口不支持 HEAD 方法
+        with requests.get(url, stream=True, timeout=30) as response:
+            response.raise_for_status()
+            cls._check_response_is_file(response, file_name)
+            return {
+                "content_length": int(response.headers.get("Content-Length", 0)),
+                "content_type": response.headers.get("Content-Type", ""),
+            }
 
-    @staticmethod
-    def stream_from_cos(file_name, chunk_size=COS_DOWNLOAD_CHUNK_SIZE):
+    @classmethod
+    def get_file_stream(cls, file_name, bk_biz_id):
         """
-        从COS流式读取文件
+        流式读取文件
+        :param file_name: 文件名
+        :param bk_biz_id: 业务ID
         """
-        client = TGPAFileHandler._get_cos_client()
-        response = client.get_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
-        while True:
-            chunk = response["Body"].read(chunk_size)
-            if not chunk:
-                break
-            yield chunk
+        chunk_size = FILE_DOWNLOAD_CHUNK_SIZE
+        url = cls._build_download_url(file_name, bk_biz_id)
+        response = requests.get(url, stream=True, timeout=300)
+        try:
+            response.raise_for_status()
+            cls._check_response_is_file(response, file_name)
+            yield from response.iter_content(chunk_size=chunk_size)
+        finally:
+            response.close()
 
     def download_file(self, file_name):
         """
-        从腾讯云COS下载文件
+        下载文件到本地
         """
-        client = TGPAFileHandler._get_cos_client()
-        response = client.get_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
+        url = self._build_download_url(file_name, self.bk_biz_id)
+        with requests.get(url, stream=True, timeout=300) as response:
+            response.raise_for_status()
+            self._check_response_is_file(response, file_name)
 
-        # 提取纯文件名，防止路径穿越攻击
-        safe_name = os.path.basename(file_name)
-        if safe_name != file_name:
-            logger.warning(
-                "download_file: file_name contains path components, original=%s, sanitized=%s", file_name, safe_name
-            )
-        save_path = os.path.join(self.temp_dir, safe_name)
-        os.makedirs(self.temp_dir, exist_ok=True)
+            # 提取纯文件名，防止路径穿越攻击
+            safe_name = os.path.basename(file_name)
+            if safe_name != file_name:
+                logger.warning(
+                    "download_file: file_name contains path components, original=%s, sanitized=%s",
+                    file_name,
+                    safe_name,
+                )
+            save_path = os.path.join(self.temp_dir, safe_name)
+            os.makedirs(self.temp_dir, exist_ok=True)
 
-        # 允许2倍容差，防止传输编码等差异
-        content_length = int(response.get("Content-Length", COS_DOWNLOAD_MAX_SIZE))
-        max_size = min(content_length * 2, COS_DOWNLOAD_MAX_SIZE)
+            # 允许2倍容差，防止传输编码等差异；Content-Length 缺失时回退到 FILE_DOWNLOAD_MAX_SIZE
+            content_length = int(response.headers.get("Content-Length", 0))
+            if content_length > 0:
+                max_size = min(content_length * 2, FILE_DOWNLOAD_MAX_SIZE)
+            else:
+                max_size = FILE_DOWNLOAD_MAX_SIZE
 
-        # 分块读取文件，防止内存占用过大，同时避免文件流被提前消费导致无限循环写入
-        chunk_size = COS_DOWNLOAD_CHUNK_SIZE
-        read_len = 0
-        try:
-            with open(save_path, "wb") as fp:
-                while True:
-                    chunk = response["Body"].read(chunk_size)
-                    if not chunk:
-                        break
-                    read_len += len(chunk)
-
-                    if read_len > max_size:
-                        raise Exception(f"文件 {file_name} 大小超过最大限制 {max_size} 字节")
-                    fp.write(chunk)
-        except Exception:
-            # 异常时清理已下载的临时文件
-            if os.path.exists(save_path):
-                os.remove(save_path)
-            raise
+            # 分块读取文件，防止内存占用过大
+            read_len = 0
+            try:
+                with open(save_path, "wb") as fp:
+                    for chunk in response.iter_content(chunk_size=FILE_DOWNLOAD_CHUNK_SIZE):
+                        read_len += len(chunk)
+                        if read_len > max_size:
+                            raise Exception(f"文件 {file_name} 大小超过最大限制 {max_size} 字节")
+                        fp.write(chunk)
+            except Exception:
+                # 异常时清理已下载的临时文件
+                if os.path.exists(save_path):
+                    os.remove(save_path)
+                raise
 
         return save_path
 
@@ -271,7 +306,7 @@ class TGPAFileHandler:
         """
         下载文件、解压、解密，然后重新打包为zip文件。
         如果没有配置解密处理器，则直接返回原始下载文件路径，无需额外处理。
-        :param file_name: COS上的文件名
+        :param file_name: 文件名
         :return: 文件路径
         """
         saved_path = self.download_file(file_name)
