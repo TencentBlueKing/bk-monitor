@@ -444,7 +444,7 @@ class TasksHandler:
         """
         静态拓补转换 ip_list 为 target_nodes
         """
-        # 如果不是实例节点类型, 或者已经有 target_nodes, 则直接返回
+        # 如果不是静态拓补节点类型, 或者已经有 target_nodes, 则直接返回
         if task["target_node_type"] != LogExtractTargetNodeTypeEnum.INSTANCE.value or task["target_nodes"]:
             return task
 
