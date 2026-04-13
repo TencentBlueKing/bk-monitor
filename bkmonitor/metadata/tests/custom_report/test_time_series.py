@@ -88,9 +88,8 @@ def test_create_ts_metrics(create_and_delete_records):
             "last_modify_time": 1701506528,
         }
     ]
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID, table_id=DEFAULT_TABLE_ID, metric_info_list=metric_info_list, is_auto_discovery=True
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
     assert models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID).count() == 4
 
     objs = models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID, field_name="disk_usage4")
@@ -115,9 +114,8 @@ def test_update_ts_metrics(create_and_delete_records):
         group_id=DEFAULT_GROUP_ID, field_name="disk_usage1"
     ).last_modify_time
     assert last_modify_time.strftime("%Y-%m-%d") == datetime.datetime.now().strftime("%Y-%m-%d")
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID, table_id=DEFAULT_TABLE_ID, metric_info_list=metric_info_list, is_auto_discovery=True
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
     assert models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID).count() == 3
 
     objs = models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID, field_name="disk_usage1")
@@ -143,9 +141,8 @@ def test_disable_ts_metrics(create_and_delete_records):
         group_id=DEFAULT_GROUP_ID, field_name="disk_usage1"
     ).last_modify_time
     assert last_modify_time.strftime("%Y-%m-%d") == datetime.datetime.now().strftime("%Y-%m-%d")
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID, table_id=DEFAULT_TABLE_ID, metric_info_list=metric_info_list, is_auto_discovery=True
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
     assert models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID).count() == 3
 
     objs = models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID, field_name="disk_usage1")
@@ -172,9 +169,8 @@ def test_delete_ts_metrics(create_and_delete_records):
     ).last_modify_time
     assert last_modify_time.strftime("%Y-%m-%d") == datetime.datetime.now().strftime("%Y-%m-%d")
     assert models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID).count() == 3
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID, table_id=DEFAULT_TABLE_ID, metric_info_list=metric_info_list, is_auto_discovery=False
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
     assert models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID).count() == 2
 
     objs = models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID, field_name="disk_usage1")

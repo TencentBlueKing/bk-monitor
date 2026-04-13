@@ -26,6 +26,8 @@
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import * as authorityMap from '@/common/authority-map';
 import tippy, { type Instance } from 'tippy.js';
 import { tenantManager } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
@@ -39,15 +41,16 @@ import {
   COLLECTOR_SCENARIO_ENUM,
   STATUS_ENUM_FILTER,
 } from '../../utils';
+import { projectManages } from '@/common/util';
 import useResizeObserver from '@/hooks/use-resize-observe';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
 import $http from '@/api';
 import { useCollectList } from '../../hook/useCollectList';
 import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
-import EmptyStatus from '@/components/empty-status/index.vue';
-import './table-list.scss';
+import StopTypeDialog from './stop-type-dialog';
 import TableComponent from '../common-comp/table-component';
+import './table-list.scss';
 
 const CancelToken = axios.CancelToken;
 
@@ -67,19 +70,21 @@ interface ITableRowData {
   daily_usage?: number;
   total_usage?: number;
   bk_data_name?: string;
-  parent_index_sets?: Array<{ index_set_name: string; [key: string]: unknown }>;
+  bk_data_id?: number | string;
+  parent_index_sets?: Array<{ index_set_name: string;[key: string]: unknown }>;
   scenario_id?: string;
   scenario_name?: string;
   collector_scenario_id?: string;
   collector_scenario_name?: string;
   retention?: number;
-  tags?: Array<{ name: string; [key: string]: unknown }>;
+  tags?: Array<{ name: string;[key: string]: unknown }>;
   created_by?: string;
   created_at?: string;
   updated_by?: string;
   updated_at?: string;
   environment?: string;
   [key: string]: unknown;
+  log_access_type?: string;
 }
 
 /**
@@ -156,6 +161,7 @@ const DELAY_CONSTANTS = {
  * 字段ID到列键的映射
  */
 const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
+  bk_data_id: 'bk_data_id',
   collector_config_name: 'name',
   storage_usage: 'daily_usage',
   total_usage: 'total_usage',
@@ -178,12 +184,18 @@ export default defineComponent({
       type: Object as PropType<IListItemData>,
       default: () => ({}),
     },
+    leftLoading: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: [],
 
   setup(props) {
     const { t } = useLocale();
+    const store = useStore();
+    const showStopTypeDialog = ref(false);
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
     /**
@@ -201,13 +213,16 @@ export default defineComponent({
     const checkInfo = ref('');
 
     // 使用自定义 hook 管理状态
-    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId } = useCollectList();
+    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
     const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
+    const isLoading = computed(() => listLoading.value || props.leftLoading);
     // 保存原始数据顺序的索引映射（用于恢复排序）
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
     // 用户信息映射（username -> display_name）
     const userDisplayNameMap = ref<Map<string, string>>(new Map());
+    // 全量标签列表（用于标签管理）
+    const selectLabelList = ref<Array<{ tag_id: number; name: string; color: string; is_built_in?: boolean }>>([]);
 
     // 容器和表格高度相关
     const containerRef = ref<HTMLElement | null>(null);
@@ -242,6 +257,9 @@ export default defineComponent({
     });
 
     const sortConfig = ref<ISortConfig>({});
+    const stopTypeKey = ref(true);
+    /** 当前操作行是否为自定义上报类型 */
+    const isCustomReport = computed(() => currentRow.value?.log_access_type === 'custom_report');
     /**
      * 获取空状态类型
      * @returns 空状态类型
@@ -356,13 +374,18 @@ export default defineComponent({
      */
     const renderMenu = (row: ITableRowData): IMenuItem[] => {
       const type = row?.log_access_type || 'linux';
+      // status 是异步获取的，可能暂时为空，默认按非 terminated 状态处理
+      const status = row?.status || '';
 
       if (!type) {
         return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
       }
 
       if (type === 'custom_report') {
-        return MENU_LIST.filter(item => ['desensitization', 'disable', 'delete'].includes(item.key));
+        const excludeKey = status !== 'terminated' ? 'start' : 'stop';
+        return MENU_LIST.filter(
+          item => ['clean', 'desensitization', 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
+        );
       }
 
       if (['bkdata', 'es'].includes(type)) {
@@ -408,6 +431,13 @@ export default defineComponent({
     // 所有列定义
     const allColumns = computed(() => [
       {
+        title: t('数据ID'),
+        colKey: 'bk_data_id',
+        width: 100,
+        ellipsis: true,
+        fixed: 'left',
+      },
+      {
         title: t('采集名'),
         colKey: 'name',
         sorter: true,
@@ -416,7 +446,8 @@ export default defineComponent({
           <span
             class='link'
             on-click={() => {
-              const type = row.storage_cluster_id !== -1 ? 'view' : 'edit';
+              const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+              const type = isBkDataOrEs || row.storage_cluster_id !== -1 ? 'view' : 'edit';
               handleEditOperation(row, type);
             }}
           >
@@ -504,15 +535,17 @@ export default defineComponent({
         title: t('标签'),
         colKey: 'tags',
         showTips: false,
-        cell: (h, { row }: { row: ITableRowData }) =>
-          (row.tags || []).length > 0 ? (
-            <TagMore
-              tags={row.tags}
-              title={t('标签')}
-            />
-          ) : (
-            '--'
-          ),
+        cell: (h, { row }: { row: ITableRowData }) => (
+          <TagMore
+            mode='label'
+            tags={row.tags || []}
+            rowData={row}
+            selectLabelList={selectLabelList.value}
+            title={t('标签')}
+            on-refresh-label-list={() => fetchLabelList()}
+            on-update-tags={(newTags) => handleUpdateTags(row, newTags)}
+          />
+        ),
         width: 200,
       },
       {
@@ -557,48 +590,56 @@ export default defineComponent({
         colKey: 'operation',
         width: 110,
         fixed: 'right',
-        cell: (h, { row }: { row: ITableRowData }) => (
-          <div class='table-operation'>
-            <span
-              class={{
-                'link mr-6': true,
-                disabled: !getOperatorCanClick(row, 'search'),
-              }}
-              on-click={() => handleEditOperation(row, 'search')}
-            >
-              {t('检索')}
-            </span>
-            <span
-              class={{
-                link: true,
-                disabled: !getOperatorCanClick(row, 'edit'),
-              }}
-              on-click={() => handleEditOperation(row, 'edit')}
-            >
-              {t('编辑')}
-            </span>
-            <span class='bk-icon icon-more more-btn table-more-btn' />
-            <div
-              style={{ display: 'none' }}
-              class='row-menu-popover'
-            >
-              <div class='row-menu-content'>
-                {renderMenu(row).map(item => (
-                  <span
-                    key={item.key}
-                    class={{
-                      'menu-item': true,
-                      disabled: !getOperatorCanClick(row, item.key),
-                    }}
-                    on-Click={() => handleMenuClick(item.key, row)}
-                  >
-                    {item.label}
-                  </span>
-                ))}
+        cell: (h, { row }: { row: ITableRowData }) => {
+          const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+          const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
+          const searchKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.SEARCH_LOG_AUTH;
+          return (
+            <div class='table-operation'>
+              <span
+                class={{
+                  'link mr-6': true,
+                  disabled: !getOperatorCanClick(row, 'search'),
+                }}
+                v-cursor={{ active: !row.permission?.[searchKey] }}
+                on-click={() => handleEditOperation(row, 'search')}
+              >
+                {t('检索')}
+              </span>
+              <span
+                class={{
+                  link: true,
+                  disabled: !getOperatorCanClick(row, 'edit'),
+                }}
+                v-cursor={{ active: !row.permission?.[editKey] }}
+                on-click={() => handleEditOperation(row, 'edit')}
+              >
+                {t('编辑')}
+              </span>
+              <span class='bk-icon icon-more more-btn table-more-btn' />
+              <div
+                style={{ display: 'none' }}
+                class='row-menu-popover'
+              >
+                <div class='row-menu-content'>
+                  {renderMenu(row).map(item => (
+                    <span
+                      key={item.key}
+                      v-cursor={{ active: !row.permission?.[editKey] }}
+                      class={{
+                        'menu-item': true,
+                        disabled: !getOperatorCanClick(row, item.key),
+                      }}
+                      on-Click={() => handleMenuClick(item.key, row)}
+                    >
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ),
+          );
+        },
       },
     ]);
 
@@ -636,6 +677,17 @@ export default defineComponent({
     watch(
       () => props.indexSet,
       () => {
+        // 清空过滤条件
+        conditions.value = [];
+        filterValue.value = {
+          log_access_type: '',
+          collector_scenario_id: '',
+          storage_cluster_name: '',
+          status: '',
+          created_by: '',
+          updated_by: '',
+        };
+        searchKey.value = '';
         reloadList();
       },
     );
@@ -697,13 +749,25 @@ export default defineComponent({
       }
     };
 
+    /** 获取全量标签列表 */
+    const fetchLabelList = () => {
+      $http.request('unionSearch/unionLabelList').then(res => {
+        selectLabelList.value = res.data || [];
+      });
+    };
+
+    /** 更新行数据中的标签 */
+    const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string;[key: string]: unknown }>) => {
+      row.tags = newTags;
+    };
+
     onMounted(() => {
       getCollectorFieldEnums();
+      fetchLabelList();
       nextTick(() => {
         if (!authGlobalInfo.value) {
           checkCreateAuth();
         }
-        listLoading.value = true;
         // 初始化时计算表格最大高度
         calculateMaxTableHeight();
         // 监听窗口大小变化
@@ -916,7 +980,7 @@ export default defineComponent({
      * @param items - 过滤选项数组
      * @returns 用户ID数组
      */
-    const extractUserIds = (items: Array<{ key?: string; [key: string]: unknown }>): string[] => {
+    const extractUserIds = (items: Array<{ key?: string;[key: string]: unknown }>): string[] => {
       return (items || []).map(item => item.key).filter(Boolean) as string[];
     };
 
@@ -927,7 +991,7 @@ export default defineComponent({
      * @returns 处理后的过滤选项数组
      */
     const processFilterItemsWithUserInfo = (
-      items: Array<{ key?: string; label?: string; [key: string]: unknown }>,
+      items: Array<{ key?: string; label?: string;[key: string]: unknown }>,
       userInfoMap: Map<string, { display_name: string }>,
     ) => {
       return (items || []).map(item => ({
@@ -1005,11 +1069,14 @@ export default defineComponent({
      * @param row - 表格行数据
      */
     const requestDeleteCollect = (row: ITableRowData) => {
+      const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+      const requestConfig = isBkDataOrEs
+        ? { api: 'indexSet/remove', params: { index_set_id: row.index_set_id } }
+        : { api: 'collect/deleteCollect', params: { collector_config_id: row.collector_config_id } };
+
       $http
-        .request('collect/deleteCollect', {
-          params: {
-            collector_config_id: row.collector_config_id,
-          },
+        .request(requestConfig.api, {
+          params: requestConfig.params,
         })
         .then(res => {
           if (res.result) {
@@ -1028,6 +1095,9 @@ export default defineComponent({
      * @param row - 表格行数据
      */
     const handleMenuClick = (key: string, row: ITableRowData) => {
+      // 前置校验：视觉禁用的菜单项，点击也不应执行
+      if (!getOperatorCanClick(row, key)) return;
+
       currentRow.value = row;
       // 关闭所有 tippy 实例
       for (const instance of tippyInstances) {
@@ -1055,21 +1125,19 @@ export default defineComponent({
 
       // 停用
       if (key === 'stop') {
-        showCollectIssuedSlider.value = true;
+        showStopTypeDialog.value = true;
         return;
       }
 
-      // 删除操作
+      // 删除操作（getOperatorCanClick 已做前置校验，这里直接弹确认框）
       if (key === 'delete') {
-        if (row.status !== 'running') {
-          window.mainComponent?.$bkInfo({
-            type: 'warning',
-            subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name || row.name }),
-            confirmFn: () => {
-              requestDeleteCollect(row);
-            },
-          });
-        }
+        window.mainComponent?.$bkInfo({
+          type: 'warning',
+          subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name || row.name }),
+          confirmFn: () => {
+            requestDeleteCollect(row);
+          },
+        });
         return;
       }
 
@@ -1095,6 +1163,30 @@ export default defineComponent({
       }
 
       handleEditOperation(row, key);
+    };
+
+    /**
+     * 自定义上报类型直接调用停用接口
+     * @param isStopIndexSet - 是否停用索引集
+     */
+    const handleDirectStop = (isStopIndexSet: boolean) => {
+      $http
+        .request('collect/stopCollect', {
+          params: {
+            collector_config_id: currentRow.value.collector_config_id,
+          },
+          data: {
+            is_stop_index_set: isStopIndexSet,
+          },
+        })
+        .then((res) => {
+          if (res.result) {
+            reloadList();
+          }
+        })
+        .catch(() => {
+          showMessage(t('停用失败'), 'error');
+        });
     };
 
     /**
@@ -1225,6 +1317,8 @@ export default defineComponent({
       return hasSearch || hasFilter;
     });
 
+    const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
+
     /**
      * 处理空状态操作
      * @param type - 操作类型
@@ -1254,6 +1348,8 @@ export default defineComponent({
               icon='plus'
               theme='primary'
               on-Click={handleCreateOperation}
+              v-cursor={{ active: isAllowedCreate }}
+              disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
             >
               {t('采集项')}
             </bk-button>
@@ -1261,7 +1357,7 @@ export default defineComponent({
           <bk-input
             class='tool-search-select'
             value={searchKey.value}
-            placeholder={t('搜索 采集名、存储名')}
+            placeholder={t('搜索 数据ID、采集名、存储名')}
             clearable
             right-icon={'bk-icon icon-search'}
             on-input={(val: string) => {
@@ -1274,6 +1370,7 @@ export default defineComponent({
             on-enter={() => {
               reloadList();
             }}
+            on-right-icon-click={reloadList}
           />
         </div>
         <div
@@ -1285,7 +1382,7 @@ export default defineComponent({
             columns={allColumns.value}
             data={tableList.value}
             sortConfig={sortConfig.value}
-            loading={listLoading.value}
+            loading={isLoading.value}
             on-page-change={handlePageChange}
             pagination={pagination.value}
             height={maxTableHeight.value}
@@ -1319,13 +1416,32 @@ export default defineComponent({
             collectorConfigId={
               currentRow.value.collector_config_id ? Number(currentRow.value.collector_config_id) : undefined
             }
+            stopTypeKey={stopTypeKey.value}
             status={currentRow.value.status}
             config={currentRow.value}
             isStopCollection={true}
+            isContainer={currentRow.value.environment === 'container'}
             on-change={(value: boolean) => {
               showCollectIssuedSlider.value = value;
             }}
-            on-refresh={reloadList}
+            on-refresh={() => {
+              reloadList();
+              showCollectIssuedSlider.value = false;
+            }}
+          />
+          <StopTypeDialog
+            showDialog={showStopTypeDialog.value}
+            isCustomReport={isCustomReport.value}
+            on-update={(val: boolean) => {
+              showCollectIssuedSlider.value = true;
+              stopTypeKey.value = val;
+            }}
+            on-confirm={(val: boolean) => {
+              handleDirectStop(val);
+            }}
+            on-cancel={() => {
+              showStopTypeDialog.value = false;
+            }}
           />
         </div>
       </div>

@@ -26,18 +26,16 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  customTimeSeriesDetail,
-  type getCustomTsFields,
-  modifyCustomTimeSeries,
-  type ICustomTimeSeriesDetail,
-} from '../service';
-
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
-import IndicatorDimension from './components/indicator-dimension';
-
+import {
+  type getCustomTsFields,
+  type ICustomTimeSeriesDetail,
+  customTimeSeriesDetail,
+  modifyCustomTimeSeries,
+} from '../service';
 import BasicInfo from './components/basic-info';
 import HelpInfo from './components/help-info';
+import IndicatorDimension from './components/indicator-dimension';
 
 import './index.scss';
 
@@ -59,7 +57,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   isShowHelpPanel = (localStorage.getItem(this.helpPanelStorageKey) ?? 'true') === 'true';
 
   // 详情数据
-  detailData = {
+  detailData: ICustomTimeSeriesDetail = {
     time_series_group_id: 0,
     bk_data_id: 0,
     access_token: '',
@@ -71,7 +69,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     protocol: '',
     last_time: '',
     auto_discover: false,
-  } as ICustomTimeSeriesDetail;
+  };
 
   /**
    * 组件创建时的初始化
@@ -190,8 +188,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           <div class='custom-detail'>
             {/* 基本信息 */}
             <BasicInfo
-              detailData={this.detailData}
               copyIsPlatform={this.copyIsPlatform}
+              detailData={this.detailData}
               onEditFiled={this.handleEditFiled}
             />
             {/* 指标/维度列表 */}

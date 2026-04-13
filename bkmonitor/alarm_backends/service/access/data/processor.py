@@ -145,6 +145,69 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
         return False
 
+    def _check_circuit_breaking_before_pull(self) -> bool:
+        """在数据查询前检查策略级别熔断并剔除触发熔断的策略。
+
+        :return: True 表示所有策略都被熔断，需要跳过数据查询；False 表示仍有策略需要处理
+        :raises: 不会抛出异常，内部已处理所有异常情况
+        """
+        if not hasattr(self, "items"):
+            return False
+
+        circuit_breaking_manager = AccessDataCircuitBreakingManager()
+        circuit_breaking_strategies = []
+        remaining_items = []
+
+        # 检查策略组中的每个策略是否需要熔断（只检查策略ID维度）
+        for item in self.items:
+            strategy = item.strategy
+
+            # 只检查策略级别的熔断（其他维度已在任务分发模块处理）
+            if circuit_breaking_manager.is_strategy_only_circuit_breaking(
+                strategy_id=strategy.id, labels=getattr(strategy, "labels", None)
+            ):
+                circuit_breaking_strategies.append(
+                    {
+                        "strategy_id": strategy.id,
+                        "item_id": item.id,
+                    }
+                )
+            else:
+                # 未触发熔断的策略保留
+                remaining_items.append(item)
+
+        # 如果有策略触发熔断，记录日志并更新策略列表
+        if circuit_breaking_strategies:
+            strategy_group_key = getattr(self, "strategy_group_key", "unknown")
+
+            for cb_strategy in circuit_breaking_strategies:
+                logger.warning(
+                    f"[circuit breaking] strategy({cb_strategy['strategy_id']}),"
+                    f"item({cb_strategy['item_id']}) "
+                    f"circuit breaking triggered before data pull, "
+                    f"strategy_group_key: {strategy_group_key}"
+                )
+
+            logger.info(
+                f"[circuit breaking] Circuit breaking applied before data pull: "
+                f"{len(circuit_breaking_strategies)}/{len(self.items)} strategies filtered, "
+                f"remaining: {len(remaining_items)} strategies, "
+                f"strategy_group_key: {strategy_group_key}"
+            )
+
+            # 更新策略列表，只保留未熔断的策略
+            self.items = remaining_items
+
+            # 如果所有策略都被熔断，返回True跳过数据查询
+            if not remaining_items:
+                logger.info(
+                    f"[circuit breaking] All strategies in group {strategy_group_key} are circuit broken, "
+                    f"skipping data query"
+                )
+                return True
+
+        return False
+
     def pull(self):
         pass
 

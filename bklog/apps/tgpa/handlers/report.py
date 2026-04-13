@@ -71,7 +71,7 @@ class TGPAReportHandler:
         """
         下载并处理文件
         """
-        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields, bk_biz_id=self.bk_biz_id)
         file_handler.download_and_process_file(self.file_name)
 
     @classmethod

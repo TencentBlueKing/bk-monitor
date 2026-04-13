@@ -23,13 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// 模糊匹配
+/**
+ * 模糊匹配（大小写不敏感）
+ * @param str 被匹配的字符串
+ * @param pattern 匹配模式
+ * @returns 是否包含匹配模式
+ */
 export const fuzzyMatch = (str: string, pattern: string) => {
   const lowerStr = String(str || '').toLowerCase();
   const lowerPattern = String(pattern || '').toLowerCase();
   return lowerStr.includes(lowerPattern);
 };
 
+/**
+ * 将文本复制到系统剪贴板
+ * 通过创建临时 textarea 元素实现 execCommand('copy')
+ * @param value 要复制的文本内容
+ */
 export const execCopy = (value: string) => {
   const textarea = document.createElement('textarea');
   document.body.appendChild(textarea);
@@ -41,7 +51,12 @@ export const execCopy = (value: string) => {
   document.body.removeChild(textarea);
 };
 
-/* 匹配规则通过正则匹配 */
+/**
+ * 通过正则表达式匹配字符串
+ * @param str 被匹配的字符串
+ * @param matchStr 正则表达式字符串
+ * @returns 是否匹配成功，正则语法错误时返回 false
+ */
 export const matchRuleFn = (str: string, matchStr: string) => {
   let isMatch = false;
   try {

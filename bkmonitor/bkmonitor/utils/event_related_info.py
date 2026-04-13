@@ -311,7 +311,7 @@ def get_data_source_log(
         {
             key: value
             for key, value in dimensions.items()
-            if key in query_config.get("agg_dimension", []) and value != ""
+            if key in query_config.get("agg_dimension", []) and value not in ("", None)
         }
     )
 
@@ -337,7 +337,7 @@ def get_data_source_log(
         addition = [
             {"field": dimension_field, "operator": "=", "value": dimension_value}
             for dimension_field, dimension_value in dimensions.items()
-            if dimension_field in query_config.get("agg_dimension", []) and dimension_value != ""
+            if dimension_field in query_config.get("agg_dimension", []) and dimension_value not in ("", None)
         ]
         params = {
             "bizId": bk_biz_id,

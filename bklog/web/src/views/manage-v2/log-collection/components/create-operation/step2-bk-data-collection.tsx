@@ -155,6 +155,14 @@ interface IIndexSetData {
   sort_fields?: string[];
   /** 目标字段列表 */
   target_fields?: string[];
+  /** 所属索引集列表 */
+  parent_index_set_ids?: number[];
+  /** 时间字段 */
+  time_field?: string;
+  /** 时间字段类型 */
+  time_field_type?: string;
+  /** 时间字段精度单位 */
+  time_field_unit?: string;
   [key: string]: unknown;
 }
 
@@ -320,6 +328,9 @@ export default defineComponent({
               sortable={false}
               value={configData.value.indexes}
               on-custom-add={handleAddDataSource}
+              on-change={(val: IIndexItem[]) => {
+                configData.value.indexes = val;
+              }}
             />
             <div class='data-source-table'>
               {/* 计算平台场景：显示字段列表 */}
@@ -478,7 +489,17 @@ export default defineComponent({
         store.commit('collect/updateCurIndexSet', indexSetData);
 
         // 更新配置数据
-        const { indexes, index_set_name, view_roles, storage_cluster_id, sort_fields, target_fields } = indexSetData;
+        const {
+          indexes,
+          index_set_name,
+          view_roles,
+          storage_cluster_id,
+          sort_fields, target_fields,
+          parent_index_set_ids,
+          time_field,
+          time_field_type,
+          time_field_unit,
+        } = indexSetData;
         configData.value = {
           ...configData.value,
           indexes: indexes || [],
@@ -487,7 +508,17 @@ export default defineComponent({
           storage_cluster_id: storage_cluster_id ?? null,
           sort_fields: sort_fields || [],
           target_fields: target_fields || [],
+          parent_index_set_ids: parent_index_set_ids || [],
         };
+
+        // 编辑模式回填时间索引配置（ES场景必需）
+        if (time_field) {
+          timeIndex.value = {
+            time_field,
+            time_field_type,
+            time_field_unit,
+          };
+        }
 
         /**
          * 如果有索引，初始化显示列表和字段选择列表
