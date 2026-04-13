@@ -271,7 +271,7 @@ class TasksHandler:
             task_status = task_service.get_state(pipeline_id)
         except Exception:  # pylint: disable=broad-except
             # 存在多主机，单主机日志下载的情况，因此有可能有些pipeline节点未执行
-            logger.info(f"pipeline任务不存在，pipeline_id=>[{pipeline_id}]")
+            logger.info("pipeline任务不存在，pipeline_id=>[%s]", pipeline_id)
             task["task_step_status"] = []
             return Response(task)
 
