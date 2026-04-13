@@ -30,6 +30,7 @@ import {
   defineComponent,
   // #if IS_APM_MONITOR
   inject,
+  onBeforeUnmount,
   // #endif
   onBeforeMount,
   shallowRef,
@@ -109,7 +110,7 @@ export default defineComponent({
     const appStore = useAppStore();
 
     // #if IS_APM_MONITOR
-    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, string>);
+    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
     const bridgeEmit = inject(BRIDGE_EMIT_KEY, (() => {}) as (event: string, ...args: unknown[]) => void);
     if (bridgeProps.queryString) {
       window.APM_QUERY_STRING = bridgeProps.queryString;
@@ -260,9 +261,21 @@ export default defineComponent({
       }
     );
 
+    // #if IS_APM_MONITOR
+    watch(bridgeProps, () => {
+      console.log('bridgeProps change === ', bridgeProps);
+      alarmStore.refreshImmediate = bridgeProps.refreshImmediate;
+      alarmStore.refreshInterval = Number(bridgeProps.refreshInterval);
+      alarmStore.timeRange = bridgeProps.timeRange;
+    }, {
+      immediate: true,
+      deep: true,
+    })
+    // #endif
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
+
     /** 快捷筛选 */
     const handleFilterValueChange = (filterValue: CommonCondition[], category: string) => {
       handleCurrentPageChange(1);
@@ -741,7 +754,11 @@ export default defineComponent({
       getUrlParams();
       setUrlParams();
     });
-
+    // #if IS_APM_MONITOR
+    onBeforeUnmount(() => {
+      window.APM_QUERY_STRING = '';
+    });
+    // #endif
     return {
       isFirstInit,
       quickFilterList,
