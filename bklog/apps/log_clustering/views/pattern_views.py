@@ -32,6 +32,7 @@ from apps.log_clustering.permission import PatternPermission
 from apps.log_clustering.serializers import (
     DeleteRemarkSerializer,
     PlaceholderDistributionSerializer,
+    PlaceholderSamplesSerializer,
     PlaceholderTrendSerializer,
     PatternSearchSerlaizer,
     PatternStrategySerializer,
@@ -172,6 +173,7 @@ class PatternViewSet(APIViewSet):
         @apiSuccess {String} data.placeholder_name 当前分析的占位符名称
         @apiSuccess {Number} data.placeholder_index 当前分析的占位符序号
         @apiSuccess {Number} data.unique_count regexp 提取非空的去重取值个数（独立 COUNT DISTINCT，非由 TopN 推导）
+        @apiSuccess {Number} data.total_count regexp_extract 成功提取非空值的总次数，用于顶部摘要与百分比分母
         @apiSuccess {Object[]} data.values 按 count 降序的 TopN 分布
         @apiSuccess {String} data.values.value 提取到的原始字符串
         @apiSuccess {Number} data.values.count 该取值出现次数
@@ -205,6 +207,7 @@ class PatternViewSet(APIViewSet):
                 "placeholder_name": "NUMBER",
                 "placeholder_index": 1,
                 "unique_count": 3,
+                "total_count": 10,
                 "values": [
                     {
                         "value": "404",
@@ -297,6 +300,91 @@ class PatternViewSet(APIViewSet):
         """
         params = self.params_valid(PlaceholderTrendSerializer)
         return Response(PlaceholderAnalysisHandler(index_set_id=index_set_id, params=params).get_trend())
+
+    @detail_route(methods=["POST"], url_path="placeholder_samples")
+    def placeholder_samples(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/placeholder_samples/ 日志聚类-占位符相关样本
+        @apiName placeholder_samples
+        @apiGroup log_clustering
+        @apiDescription 返回当前选中占位符值的相关样本记录。仅支持 Doris 聚类结果表，返回完整行数据及字段信息，前端按实际表结构渲染。
+        @apiParam {Number} index_set_id 索引集 ID
+        @apiParam {String} signature Pattern 指纹
+        @apiParam {String} pattern Pattern 内容
+        @apiParam {Number} placeholder_index 占位符索引
+        @apiParam {String="01","03","05","07","09"} [pattern_level="05"] 聚类敏感度
+        @apiParam {String} value 当前选中的占位符值，不能为空
+        @apiParam {String} start_time 开始时间
+        @apiParam {String} end_time 结束时间
+        @apiParam {Int} [limit=20] 样本返回条数，最小 1，最大 100
+        @apiParam {Object} [groups] 当前 Pattern 分组上下文
+        @apiParam {String} [keyword] 关键词检索条件
+        @apiParam {Object[]} [addition] 附加检索条件
+        @apiParam {Object} [host_scopes] 主机范围
+        @apiParam {Object} [ip_chooser] IP 选择器
+        @apiParam {Number} [bk_biz_id] 业务 ID
+        @apiParamExample {json} 请求参数
+        {
+            "signature": "e4b60ecf",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "pattern_level": "05",
+            "value": "404",
+            "limit": 20,
+            "start_time": "2026-03-20 00:00:00",
+            "end_time": "2026-03-20 01:00:00",
+            "groups": {
+                "service_name": "api"
+            },
+            "keyword": "request failed",
+            "addition": [
+                {
+                    "field": "level",
+                    "operator": "is",
+                    "value": "error"
+                }
+            ]
+        }
+        @apiSuccess {String} data.placeholder_name 当前分析的占位符名称
+        @apiSuccess {Number} data.placeholder_index 当前分析的占位符序号
+        @apiSuccess {String} data.selected_value 当前选中的占位符值
+        @apiSuccess {Object[]} data.samples 相关样本完整记录列表
+        @apiSuccess {Object[]} data.result_schema 查询结果字段 schema
+        @apiSuccess {String[]} data.select_fields_order 查询结果字段顺序
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "placeholder_name": "NUMBER",
+                "placeholder_index": 1,
+                "selected_value": "404",
+                "samples": [
+                    {
+                        "dtEventTimeStamp": "1710000000000",
+                        "serverIp": "1.1.1.1",
+                        "message": "request failed, code=404"
+                    }
+                ],
+                "result_schema": [
+                    {
+                        "field_alias": "dtEventTimeStamp"
+                    },
+                    {
+                        "field_alias": "serverIp"
+                    },
+                    {
+                        "field_alias": "message"
+                    }
+                ],
+                "select_fields_order": ["dtEventTimeStamp", "serverIp", "message"]
+            },
+            "result": true
+        }
+        @apiError 非 Doris 或未配置 clustered_rt 时抛 PlaceholderAnalysisNotSupportedException；value 为空、groups 非法或与 addition 冲突时为参数校验错误
+        """
+        params = self.params_valid(PlaceholderSamplesSerializer)
+        return Response(PlaceholderAnalysisHandler(index_set_id=index_set_id, params=params).get_samples())
 
     @detail_route(methods=["POST"], url_path="remark")
     def set_remark(self, request, index_set_id):

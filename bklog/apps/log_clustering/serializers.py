@@ -105,6 +105,11 @@ class PlaceholderTrendSerializer(PlaceholderDistributionSerializer):
     interval = serializers.CharField(required=False, default="auto", max_length=16)
 
 
+class PlaceholderSamplesSerializer(PlaceholderDistributionSerializer):
+    value = serializers.CharField(required=True, allow_blank=False)
+    limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
+
+
 class StringOrListField(serializers.Field):
     def to_internal_value(self, data):
         if isinstance(data, str):

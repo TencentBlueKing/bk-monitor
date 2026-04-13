@@ -107,7 +107,7 @@ class PlaceholderAnalysisHandler:
 
         context = self._prepare_placeholder_analysis()
         raw_regex = context["raw_regex"]
-        selected_value = self.params.get("value", "")
+        selected_value = self._resolve_selected_value()
         interval = self._resolve_interval()
         overall = self._query_trend(self._build_trend_sql(raw_regex, interval=interval))
         if selected_value:
@@ -122,6 +122,22 @@ class PlaceholderAnalysisHandler:
             "interval": interval,
             "overall": overall,
             "selected": selected,
+        }
+
+    def get_samples(self) -> dict:
+        """返回当前选中值的相关样本。"""
+
+        context = self._prepare_placeholder_analysis()
+        selected_value = self._resolve_selected_value(required=True)
+        samples_result = self._query_samples(self._build_samples_sql(context["raw_regex"], selected_value))
+        return {
+            "placeholder_name": context["placeholder"]["name"],
+            "placeholder_index": context["placeholder"]["index"],
+            "selected_value": selected_value,
+            "samples": samples_result["list"],
+            "total_records": samples_result["total_records"],
+            "result_schema": samples_result["result_schema"],
+            "select_fields_order": samples_result["select_fields_order"],
         }
 
     def _prepare_placeholder_analysis(self) -> dict:
@@ -202,6 +218,12 @@ class PlaceholderAnalysisHandler:
             raise ValidationError(_("placeholder_index 超出占位符范围"))
         return placeholders[placeholder_index]
 
+    def _resolve_selected_value(self, required: bool = False) -> str:
+        value = str(self.params.get("value", "") or "")
+        if required and not value:
+            raise ValidationError(_("value 不能为空"))
+        return value
+
     def _evaluate_pattern_risk(self, pattern: str):
         """风险只做日志观测，不阻断 Sprint 1 查询主链路。"""
 
@@ -265,6 +287,21 @@ class PlaceholderAnalysisHandler:
             sql += f"AND {extract_sql} = '{escape_sql_literal(str(selected_value))}' "
         sql += f"GROUP BY {bucket_sql} ORDER BY {bucket_sql} ASC"
         return sql
+
+    def _build_samples_sql(self, raw_regex: str, selected_value: str) -> str:
+        regex = escape_sql_literal(raw_regex)
+        signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
+        extract_sql = self._get_extract_sql(regex)
+        value = escape_sql_literal(selected_value)
+        limit = int(self.params.get("limit", 20))
+        return (
+            "SELECT * "
+            f"WHERE {signature_field} = '{signature}' "
+            f"AND {extract_sql} = '{value}' "
+            "ORDER BY dtEventTimeStamp DESC "
+            f"LIMIT {limit}"
+        )
 
     def _build_unique_count_sql(self, raw_regex: str) -> str:
         """unique_count 必须独立 COUNT DISTINCT，不能由 TopN 分布近似推导。"""
@@ -394,6 +431,15 @@ class PlaceholderAnalysisHandler:
             for item in result.get("list", [])
         ]
 
+    def _query_samples(self, sql: str) -> dict:
+        result = self._query_chart_data(sql)
+        return {
+            "list": [dict(item) for item in result.get("list", [])],
+            "total_records": self._to_int(result.get("total_records", len(result.get("list", [])))),
+            "result_schema": result.get("result_schema", []),
+            "select_fields_order": result.get("select_fields_order", []),
+        }
+
     @staticmethod
     def _to_int(value) -> int:
         try:
@@ -414,6 +460,7 @@ class PlaceholderAnalysisHandler:
             "placeholder_name": placeholder["name"],
             "placeholder_index": placeholder["index"],
             "unique_count": unique_count,
+            "total_count": total_count,
             "values": [
                 {
                     "value": item["value"],

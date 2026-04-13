@@ -66,6 +66,7 @@ class TestPlaceholderAnalysisHandler(TestCase):
                 "placeholder_name": "NUMBER",
                 "placeholder_index": 1,
                 "unique_count": 3,
+                "total_count": 10,
                 "values": [
                     {"value": "404", "count": 6, "percentage": 60.0},
                     {"value": "500", "count": 4, "percentage": 40.0},
@@ -283,3 +284,119 @@ class TestPlaceholderAnalysisHandler(TestCase):
                 f"GROUP BY CAST(FLOOR(dtEventTimeStamp / {expected_bucket_ms}) * {expected_bucket_ms} AS BIGINT)",
                 overall_sql,
             )
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_samples_returns_logs_for_selected_value(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.return_value = {
+            "list": [
+                {
+                    "dtEventTimeStamp": "1710000000000",
+                    "serverIp": "1.1.1.1",
+                    "message": "request failed, code=404",
+                },
+                {
+                    "dtEventTimeStamp": "1709996400000",
+                    "serverIp": "1.1.1.2",
+                    "message": "request failed again, code=404",
+                },
+            ],
+            "total_records": 2,
+            "result_schema": [
+                {"field_alias": "dtEventTimeStamp"},
+                {"field_alias": "serverIp"},
+                {"field_alias": "message"},
+            ],
+            "select_fields_order": ["dtEventTimeStamp", "serverIp", "message"],
+        }
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "pattern_level": "03",
+            "value": "404",
+            "limit": 2,
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        result = PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_samples()
+
+        self.assertEqual(
+            result,
+            {
+                "placeholder_name": "NUMBER",
+                "placeholder_index": 1,
+                "selected_value": "404",
+                "samples": [
+                    {
+                        "dtEventTimeStamp": "1710000000000",
+                        "serverIp": "1.1.1.1",
+                        "message": "request failed, code=404",
+                    },
+                    {
+                        "dtEventTimeStamp": "1709996400000",
+                        "serverIp": "1.1.1.2",
+                        "message": "request failed again, code=404",
+                    },
+                ],
+                "total_records": 2,
+                "result_schema": [
+                    {"field_alias": "dtEventTimeStamp"},
+                    {"field_alias": "serverIp"},
+                    {"field_alias": "message"},
+                ],
+                "select_fields_order": ["dtEventTimeStamp", "serverIp", "message"],
+            },
+        )
+        sql = mock_chart_handler.call_args.args[0]["sql"]
+        self.assertIn("SELECT *", sql)
+        self.assertIn("WHERE __dist_03 = 'deadbeef'", sql)
+        self.assertIn("AND regexp_extract(log,", sql)
+        self.assertIn("= '404'", sql)
+        self.assertIn("ORDER BY dtEventTimeStamp DESC", sql)
+        self.assertIn("LIMIT 2", sql)
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_samples_injects_groups_into_addition(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.return_value = {
+            "list": [],
+            "total_records": 0,
+            "result_schema": [],
+            "select_fields_order": [],
+        }
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "value": "404",
+            "limit": 5,
+            "groups": {"service_name": "api"},
+            "addition": [{"field": "level", "operator": "is", "value": "error"}],
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_samples()
+
+        call_params = mock_chart_handler.call_args.args[0]
+        self.assertEqual(
+            call_params["addition"],
+            [
+                {"field": "level", "operator": "is", "value": "error"},
+                {"field": "service_name", "operator": "is", "value": "api", "condition": "and"},
+            ],
+        )
+        self.assertIn("LIMIT 5", call_params["sql"])
+
+    def test_get_samples_raises_when_value_is_empty(self):
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "value": "",
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        with self.assertRaises(ValidationError):
+            PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_samples()
