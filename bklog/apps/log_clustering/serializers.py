@@ -110,6 +110,10 @@ class PlaceholderSamplesSerializer(PlaceholderDistributionSerializer):
     limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
 
 
+class PlaceholderExportSerializer(PlaceholderSamplesSerializer):
+    pass
+
+
 class StringOrListField(serializers.Field):
     def to_internal_value(self, data):
         if isinstance(data, str):

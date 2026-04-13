@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import arrow
+from django.http import StreamingHttpResponse
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -32,6 +34,7 @@ from apps.log_clustering.permission import PatternPermission
 from apps.log_clustering.serializers import (
     DeleteRemarkSerializer,
     PlaceholderDistributionSerializer,
+    PlaceholderExportSerializer,
     PlaceholderSamplesSerializer,
     PlaceholderTrendSerializer,
     PatternSearchSerlaizer,
@@ -385,6 +388,66 @@ class PatternViewSet(APIViewSet):
         """
         params = self.params_valid(PlaceholderSamplesSerializer)
         return Response(PlaceholderAnalysisHandler(index_set_id=index_set_id, params=params).get_samples())
+
+    @detail_route(methods=["POST"], url_path="placeholder_export")
+    def placeholder_export(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/placeholder_export/ 日志聚类-占位符样本导出
+        @apiName placeholder_export
+        @apiGroup log_clustering
+        @apiDescription 导出当前选中占位符值的相关样本记录，导出内容与 placeholder_samples 查询上下文保持一致。
+        @apiParam {Number} index_set_id 索引集 ID
+        @apiParam {String} signature Pattern 指纹
+        @apiParam {String} pattern Pattern 内容
+        @apiParam {Number} placeholder_index 占位符索引
+        @apiParam {String="01","03","05","07","09"} [pattern_level="05"] 聚类敏感度
+        @apiParam {String} value 当前选中的占位符值，不能为空
+        @apiParam {String} start_time 开始时间
+        @apiParam {String} end_time 结束时间
+        @apiParam {Int} [limit=20] 导出样本条数，最小 1，最大 100
+        @apiParam {Object} [groups] 当前 Pattern 分组上下文
+        @apiParam {String} [keyword] 关键词检索条件
+        @apiParam {Object[]} [addition] 附加检索条件
+        @apiParam {Object} [host_scopes] 主机范围
+        @apiParam {Object} [ip_chooser] IP 选择器
+        @apiParam {Number} [bk_biz_id] 业务 ID
+        @apiParamExample {json} 请求参数
+        {
+            "signature": "e4b60ecf",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "pattern_level": "05",
+            "value": "404",
+            "limit": 20,
+            "start_time": "2026-03-20 00:00:00",
+            "end_time": "2026-03-20 01:00:00",
+            "groups": {
+                "service_name": "api"
+            },
+            "keyword": "request failed",
+            "addition": [
+                {
+                    "field": "level",
+                    "operator": "is",
+                    "value": "error"
+                }
+            ]
+        }
+        @apiSuccessExample {text/csv} 成功返回:
+        dtEventTimeStamp,serverIp,message
+        1710000000000,1.1.1.1,request failed, code=404
+        1709996400000,1.1.1.2,request failed again, code=404
+        @apiError 非 Doris 或未配置 clustered_rt 时抛 PlaceholderAnalysisNotSupportedException；value 为空、groups 非法或与 addition 冲突时为参数校验错误
+        """
+        params = self.params_valid(PlaceholderExportSerializer)
+        handler = PlaceholderAnalysisHandler(index_set_id=index_set_id, params=params)
+        file_name = f"bklog_placeholder_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
+        response = StreamingHttpResponse(
+            handler.export_samples(),
+            content_type="application/octet-stream",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+        return response
 
     @detail_route(methods=["POST"], url_path="remark")
     def set_remark(self, request, index_set_id):

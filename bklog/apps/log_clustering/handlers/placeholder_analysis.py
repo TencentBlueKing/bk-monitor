@@ -140,6 +140,14 @@ class PlaceholderAnalysisHandler:
             "select_fields_order": samples_result["select_fields_order"],
         }
 
+    def export_samples(self):
+        """导出当前选中值的相关样本。"""
+
+        context = self._prepare_placeholder_analysis()
+        selected_value = self._resolve_selected_value(required=True)
+        sql = self._build_samples_sql(context["raw_regex"], selected_value)
+        return self._build_chart_handler(sql).export_chart_data()
+
     def _prepare_placeholder_analysis(self) -> dict:
         self._load_clustering_context()
         self._validate_storage_type()
@@ -399,10 +407,11 @@ class PlaceholderAnalysisHandler:
     def _query_chart_data(self, sql: str) -> dict:
         """统一从 clustered_rt 查询 Doris SQL，避免落到默认 _analysis 表。"""
 
+        return self._build_chart_handler(sql).get_chart_data()
+
+    def _build_chart_handler(self, sql: str) -> ClusteringUnifyQueryChartHandler:
         params = self._build_query_params(sql)
-        return ClusteringUnifyQueryChartHandler(
-            params, clustered_rt=self.clustering_config.clustered_rt
-        ).get_chart_data()
+        return ClusteringUnifyQueryChartHandler(params, clustered_rt=self.clustering_config.clustered_rt)
 
     def _query_distribution(self, sql: str) -> list[dict]:
         result = self._query_chart_data(sql)

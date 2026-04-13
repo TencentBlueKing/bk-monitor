@@ -400,3 +400,37 @@ class TestPlaceholderAnalysisHandler(TestCase):
 
         with self.assertRaises(ValidationError):
             PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_samples()
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_export_samples_uses_export_chart_data_with_selected_value(self, mock_chart_handler):
+        mock_chart_handler.return_value.export_chart_data.return_value = iter(["csv-header\n", "csv-row\n"])
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "pattern_level": "03",
+            "value": "404",
+            "limit": 5,
+            "groups": {"service_name": "api"},
+            "addition": [{"field": "level", "operator": "is", "value": "error"}],
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        export_iter = PlaceholderAnalysisHandler(INDEX_SET_ID, params).export_samples()
+
+        self.assertEqual(list(export_iter), ["csv-header\n", "csv-row\n"])
+        call_params = mock_chart_handler.call_args.args[0]
+        self.assertIn("SELECT *", call_params["sql"])
+        self.assertIn("WHERE __dist_03 = 'deadbeef'", call_params["sql"])
+        self.assertIn("= '404'", call_params["sql"])
+        self.assertIn("ORDER BY dtEventTimeStamp DESC", call_params["sql"])
+        self.assertIn("LIMIT 5", call_params["sql"])
+        self.assertEqual(
+            call_params["addition"],
+            [
+                {"field": "level", "operator": "is", "value": "error"},
+                {"field": "service_name", "operator": "is", "value": "api", "condition": "and"},
+            ],
+        )
+        mock_chart_handler.return_value.export_chart_data.assert_called_once()
