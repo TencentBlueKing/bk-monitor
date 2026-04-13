@@ -32,6 +32,17 @@ logger = logging.getLogger("incident.notice")
 class IncidentNoticeHelper:
     """故障通知辅助类"""
 
+    NOTICE_CHANNEL_MAPPING = {
+        "im": NoticeWay.QY_WEIXIN,
+        "email": NoticeWay.MAIL,
+        "sms": NoticeWay.SMS,
+        "voice_call": NoticeWay.VOICE,
+        "group_robot": NoticeWay.WX_BOT,
+        "bk_info_flow": NoticeWay.BK_CHAT,
+    }
+    INCIDENT_OWNER_GROUP = "incident-owner"
+    ALERT_OWNER_GROUP = "alert-owner"
+
     @classmethod
     def get_incident_context(
         cls, incident: IncidentDocument, title: str = None, operation_type: IncidentOperationType = None, **kwargs
@@ -355,6 +366,88 @@ class IncidentNoticeHelper:
         return f"{site_url}/?bizId={incident.bk_biz_id}#/trace/incident/detail/{incident_doc_id or incident.id}"
 
     @classmethod
+    def _get_alert_owners(cls, incident: IncidentDocument) -> list[str]:
+        owners = set()
+        incident_alerts = getattr(getattr(incident.snapshot, "content", None), "incident_alerts", []) or []
+        for item in incident_alerts:
+            if not isinstance(item, dict) or not item.get("id"):
+                continue
+            if item.get("assignee"):
+                owners.update(item.get("assignee") or [])
+                continue
+            try:
+                alert_doc = AlertDocument.get(item["id"])
+                owners.update(alert_doc.assignee or [])
+            except AlertNotFoundError:
+                logger.warning(f"Alert document not found: {item['id']}, skip resolving alert-owner")
+            except Exception as err:
+                logger.warning(f"Resolve alert-owner failed for alert {item['id']}: {err}")
+        return sorted(owners)
+
+    @classmethod
+    def _resolve_config_receivers(cls, incident: IncidentDocument, channel_config: dict) -> list[str]:
+        if not isinstance(channel_config, dict):
+            return []
+
+        direct_receivers = channel_config.get("chat_ids") or channel_config.get("receivers")
+        receivers = set(direct_receivers or channel_config.get("users") or [])
+        groups = set(channel_config.get("groups") or [])
+        if cls.INCIDENT_OWNER_GROUP in groups:
+            receivers.update(incident.assignees or [])
+        if cls.ALERT_OWNER_GROUP in groups:
+            receivers.update(cls._get_alert_owners(incident))
+        return sorted({str(receiver) for receiver in receivers if receiver})
+
+    @classmethod
+    def _get_configured_notice_targets(
+        cls, incident: IncidentDocument, notice_config: dict | None = None
+    ) -> list[dict]:
+        notice_config = notice_config if isinstance(notice_config, dict) else {}
+        module_config = notice_config.get("module") or {}
+        targets = []
+        for channel_key, channel_config in module_config.items():
+            notice_way = cls.NOTICE_CHANNEL_MAPPING.get(channel_key)
+            if not notice_way or not isinstance(channel_config, dict) or not channel_config.get("is_select"):
+                continue
+            receivers = cls._resolve_config_receivers(incident, channel_config)
+            if receivers:
+                targets.append(
+                    {
+                        "channel_key": channel_key,
+                        "notice_way": notice_way,
+                        "receivers": receivers,
+                    }
+                )
+        return targets
+
+    @classmethod
+    def _send_notice_by_way(
+        cls,
+        incident: IncidentDocument,
+        notice_way: str,
+        receivers: list[str],
+        title: str = None,
+        operation_type: IncidentOperationType = None,
+        **kwargs,
+    ) -> dict:
+        if notice_way == NoticeWay.WX_BOT:
+            return cls._send_wxwork_bot_notice(
+                incident=incident,
+                chat_ids=receivers,
+                title=title,
+                operation_type=operation_type,
+                **kwargs,
+            )
+        return cls._send_personal_notice(
+            incident=incident,
+            user_ids=receivers,
+            notice_way=notice_way,
+            title=title,
+            operation_type=operation_type,
+            **kwargs,
+        )
+
+    @classmethod
     def send_incident_notice(
         cls,
         incident: IncidentDocument,
@@ -375,6 +468,22 @@ class IncidentNoticeHelper:
         :return: 发送结果，格式: {notice_way: {receiver: {result, message}}}
         """
         all_results = {}
+
+        notice_config = kwargs.get("notice_config")
+        configured_targets = cls._get_configured_notice_targets(incident, notice_config=notice_config)
+        if configured_targets:
+            for target in configured_targets:
+                result = cls._send_notice_by_way(
+                    incident=incident,
+                    notice_way=target["notice_way"],
+                    receivers=target["receivers"],
+                    title=title,
+                    operation_type=operation_type,
+                    **kwargs,
+                )
+                if result:
+                    all_results[target["notice_way"]] = result
+            return all_results
 
         # 1. 发送企业微信群机器人通知
         if chat_ids:

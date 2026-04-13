@@ -1707,7 +1707,9 @@ class QueryTimeSeriesMetricResource(TimeSeriesMetricConditionQueryMixin, Resourc
             raise ValueError(_("自定义时序分组不存在，请确认后重试"))
 
         # 构建查询集
-        query_set = models.TimeSeriesMetric.objects.filter(group_id=group_id)
+        query_set = models.TimeSeriesMetric.objects.filter(group_id=group_id).exclude(
+            scope_id=models.TimeSeriesMetric.DISABLE_SCOPE_ID
+        )
 
         # 应用搜索条件
         query_set = self._apply_search_filters(query_set, validated_request_data)
