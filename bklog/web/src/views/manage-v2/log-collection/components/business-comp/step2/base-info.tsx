@@ -28,10 +28,11 @@ import { defineComponent, ref, computed, watch, nextTick, type PropType } from '
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { useRoute } from 'vue-router/composables';
 import InfoTips from '../../common-comp/info-tips';
 import IndexSetSelect from './index-set-select';
 import $http from '@/api';
+import { xssFilter } from '@/common/util';
+import { useCustomTypeIntro } from '../../../hook/useCustomTypeIntro';
 
 import './base-info.scss';
 
@@ -72,7 +73,6 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
-    const route = useRoute();
 
     // ==================== 响应式数据 ====================
     /** 表单数据 */
@@ -97,7 +97,16 @@ export default defineComponent({
     /** 全局数据（包含自定义上报类型列表） */
     const globalsData = computed(() => store.getters['globals/globalsData']);
 
-    const disabled = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const disabled = computed(() => props.isEdit);
+
+    // ==================== 帮助文档相关（使用公共 Hook） ====================
+    const { customTypeIntro, initProxyHost } = useCustomTypeIntro({
+      getCustomType: () => formData.value.custom_type,
+      getData: () => formData.value as Record<string, any>,
+    });
+
+    // 初始化时获取代理主机列表
+    initProxyHost();
 
     // ==================== 校验相关 ====================
     /** 数据名格式正则：只支持字母、数字、下划线 */
@@ -437,6 +446,32 @@ export default defineComponent({
       );
     };
 
-    return () => <div class='base-info-box'>{renderBaseInfo()}</div>;
+    /**
+     * 渲染帮助文档面板
+     */
+    const renderHelpPanel = () => {
+      const shouldShowCategory = showCategoryKey.includes(props.typeKey);
+      if (!shouldShowCategory) return null;
+
+      return (
+        <div class='help-panel-container'>
+          <div class='help-panel'>
+            <div class='top-title'>
+              <p>{t('帮助文档')}</p>
+            </div>
+            <div
+              class='html-container'
+              // @ts-expect-error
+              domPropsInnerHTML={xssFilter(customTypeIntro.value)}
+            ></div>
+          </div>
+        </div>
+      );
+    };
+
+    return () => <div class='base-info'>
+      <div class='base-info-box'>{renderBaseInfo()}</div>
+      <div class='help-panel-box'>{renderHelpPanel()}</div>
+    </div>;
   },
 });

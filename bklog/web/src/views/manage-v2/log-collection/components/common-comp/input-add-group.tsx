@@ -134,10 +134,7 @@ export default defineComponent({
             on-Click={handleAdd}
           />
           <span
-            class={{
-              'bk-icon icon-minus-circle-shape icons': true,
-              disabled: props.valueList.length === 1,
-            }}
+            class='bk-icon icon-minus-circle-shape icons'
             on-Click={() => handleDel(index)}
           />
         </div>

@@ -60,9 +60,10 @@ const TypeEnum = {
   ACTION: 'ACTION',
   ALERT_QOS: 'ALERT_QOS',
   EVENT_DROP: 'EVENT_DROP',
+  USER_ACTION: 'USER_ACTION',
 } as const;
-
 const OperateMap = {
+  [TypeEnum.USER_ACTION]: `【${window.i18n.t('用户操作')}】`,
   [TypeEnum.CREATE]: `【${window.i18n.t('告警产生')}】`,
   [TypeEnum.CONVERGE]: `【${window.i18n.t('告警收敛')}】`,
   [TypeEnum.RECOVER]: `【${window.i18n.t('告警恢复')}】`,
@@ -79,6 +80,7 @@ const OperateMap = {
   [TypeEnum.EVENT_DROP]: `【${window.i18n.t('事件忽略')}】`,
 };
 const iconMap = {
+  [TypeEnum.USER_ACTION]: '👤',
   [TypeEnum.CREATE]: '🚨',
   [TypeEnum.CONVERGE]: '🎯',
   [TypeEnum.RECOVER]: '✅',
@@ -151,74 +153,79 @@ export default defineComponent({
      */
     const circulationFilter = shallowRef([
       {
-        id: 'CREATE',
+        id: TypeEnum.USER_ACTION,
+        name: t('用户操作'),
+        icon: iconMap[TypeEnum.USER_ACTION],
+      },
+      {
+        id: TypeEnum.CREATE,
         name: t('告警产生'),
-        icon: '🚨',
+        icon: iconMap[TypeEnum.CREATE],
       },
       {
-        id: 'CONVERGE',
+        id: TypeEnum.CONVERGE,
         name: t('告警收敛'),
-        icon: '🎯',
+        icon: iconMap[TypeEnum.CONVERGE],
       },
       {
-        id: 'RECOVER',
+        id: TypeEnum.RECOVER,
         name: t('告警恢复'),
-        icon: '✅',
+        icon: iconMap[TypeEnum.RECOVER],
       },
       {
-        id: 'RECOVERING',
+        id: TypeEnum.RECOVERING,
         name: t('告警恢复中'),
-        icon: '🔄',
+        icon: iconMap[TypeEnum.RECOVERING],
       },
       {
-        id: 'CLOSE',
+        id: TypeEnum.CLOSE,
         name: t('告警关闭'),
-        icon: '❌',
+        icon: iconMap[TypeEnum.CLOSE],
       },
       {
-        id: 'DELAY_RECOVER',
+        id: TypeEnum.DELAY_RECOVER,
         name: t('延迟恢复'),
-        icon: '⏰',
+        icon: iconMap[TypeEnum.DELAY_RECOVER],
       },
       {
-        id: 'ABORT_RECOVER',
+        id: TypeEnum.ABORT_RECOVER,
         name: t('中断恢复'),
-        icon: '🔌',
+        icon: iconMap[TypeEnum.ABORT_RECOVER],
       },
       {
-        id: 'SYSTEM_RECOVER',
+        id: TypeEnum.SYSTEM_RECOVER,
         name: t('系统恢复'),
-        icon: '✅',
+        icon: iconMap[TypeEnum.SYSTEM_RECOVER],
       },
       {
-        id: 'SYSTEM_CLOSE',
+        id: TypeEnum.SYSTEM_CLOSE,
         name: t('系统关闭'),
-        icon: '❌',
+        icon: iconMap[TypeEnum.SYSTEM_CLOSE],
       },
       {
-        id: 'ACK',
+        id: TypeEnum.ACK,
         name: t('告警确认'),
-        icon: '✔︎',
+        icon: iconMap[TypeEnum.ACK],
       },
       {
-        id: 'SEVERITY_UP',
+        id: TypeEnum.SEVERITY_UP,
         name: t('告警级别调整'),
-        icon: '📉📈',
+        icon: iconMap[TypeEnum.SEVERITY_UP],
       },
       {
-        id: 'ACTION',
+        id: TypeEnum.ACTION,
         name: t('处理动作'),
-        icon: '🔧',
+        icon: iconMap[TypeEnum.ACTION],
       },
       {
-        id: 'ALERT_QOS',
+        id: TypeEnum.ALERT_QOS,
         name: t('告警流控'),
-        icon: '🚦',
+        icon: iconMap[TypeEnum.ALERT_QOS],
       },
       {
-        id: 'EVENT_DROP',
+        id: TypeEnum.EVENT_DROP,
         name: t('事件忽略'),
-        icon: '🚫',
+        icon: iconMap[TypeEnum.EVENT_DROP],
       },
     ]);
     /**
@@ -483,7 +490,9 @@ export default defineComponent({
           const showTip =
             i === item.index &&
             item.source_time &&
-            (item.operate === 'CREATE' || item.operate === 'CONVERGE' || item.operate === 'EVENT_DROP');
+            (item.operate === TypeEnum.CREATE ||
+              item.operate === TypeEnum.CONVERGE ||
+              item.operate === TypeEnum.EVENT_DROP);
           return (
             <span
               key={i}
@@ -517,7 +526,7 @@ export default defineComponent({
         dom = (
           <span>
             <span
-              class={{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }}
+              class={{ 'tip-dashed': item.operate === TypeEnum.CREATE || item.operate === TypeEnum.CONVERGE }}
               v-bk-tooltips={{
                 placement: 'top',
                 content: item.source_time ? `${this.$t('数据时间')}：${item.source_time}` : '',
@@ -533,7 +542,7 @@ export default defineComponent({
             {child}
           </span>
         );
-        if (item.operate === 'ACTION') {
+        if (item.operate === TypeEnum.ACTION) {
           const textList = item.contents[0].split('$');
           let link = null;
           if (item.action_plugin_type === 'notice') {
@@ -572,7 +581,7 @@ export default defineComponent({
         //   <span class="notice-status">{this.alertStatusMap[item.contents[3]]}</span>,
         //   <span class="can-click" on-click={() => this.handleNoticeDetail(item.offset)}> { this.$t('点击查看明细') } </span>
         // ]
-      } else if (item.operate === 'ACK') {
+      } else if (item.operate === TypeEnum.ACK || item.operate === TypeEnum.USER_ACTION) {
         dom = [
           item.contents[0],
           <span
@@ -584,11 +593,11 @@ export default defineComponent({
         ];
       } else if (
         item.contents.length > 1 &&
-        (item.operate === 'CREATE' || item.operate === 'CONVERGE' || item.operate === 'EVENT_DROP')
+        (item.operate === TypeEnum.CREATE || item.operate === TypeEnum.CONVERGE || item.operate === TypeEnum.EVENT_DROP)
       ) {
         dom = convergeDom();
       }
-      if (item.operate === 'EVENT_DROP') {
+      if (item.operate === TypeEnum.EVENT_DROP) {
         if (item.count > 1) {
           dom = (
             <span>

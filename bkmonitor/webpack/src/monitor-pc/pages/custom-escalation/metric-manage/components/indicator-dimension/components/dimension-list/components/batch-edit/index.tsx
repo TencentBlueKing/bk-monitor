@@ -1,3 +1,6 @@
+import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,13 +27,9 @@
  * IN THE SOFTWARE.
  */
 import _ from 'lodash';
-import { Component, Emit, Prop, Watch, InjectReactive } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import { Debounce, deepClone } from 'monitor-common/utils';
 
 import ColumnCheck from '../../../../../../../../performance/column-check/column-check.vue';
-import type { ICustomTsFields } from '../../../../../../../service';
 import {
   type IColumnConfig,
   type PopoverChildRef,
@@ -42,35 +41,37 @@ import {
 } from '../../../../../../type';
 import { fuzzyMatch } from '../../../../../../utils';
 
+import type { IGroupingRule } from '../../../../../../../service';
+
 import './index.scss';
 
-/** 组件 Props 接口 */
-interface IProps {
-  /** 选中的分组信息 */
-  selectedGroupInfo: { id: number; name: string };
-  /** 维度表格数据 */
-  dimensionTable: IDimensionItem[];
-  /** 是否显示侧边栏 */
-  isShow: boolean;
-}
+/** 维度项类型定义 */
+type IDimensionItem = {
+  /** 错误信息 */
+  error?: string;
+  /** 是否为新添加的项 */
+  isNew?: boolean;
+  /** 是否选中 */
+  selection?: boolean;
+} & Partial<IGroupingRule['dimension_config'][number] & { scope: { id: number; name: string } }>;
 
 /** 组件事件接口 */
 interface IEmits {
   /** 隐藏事件 */
   onHidden: (v: boolean) => void;
   /** 保存信息事件 */
-  onSaveInfo: (newRows: IDimensionItem[], delArray: Partial<ICustomTsFields['dimensions'][number]>[]) => void;
+  onSaveInfo: (newRows: IDimensionItem[], delArray: Partial<IGroupingRule['dimension_config'][number]>[]) => void;
 }
 
-/** 维度项类型定义 */
-type IDimensionItem = Partial<ICustomTsFields['dimensions'][number]> & {
-  /** 是否选中 */
-  selection?: boolean;
-  /** 是否为新添加的项 */
-  isNew?: boolean;
-  /** 错误信息 */
-  error?: string;
-};
+/** 组件 Props 接口 */
+interface IProps {
+  /** 维度表格数据 */
+  dimensionTable: IDimensionItem[];
+  /** 是否显示侧边栏 */
+  isShow: boolean;
+  /** 选中的分组信息 */
+  selectedGroupInfo: { id: number; name: string };
+}
 
 /** 批量编辑初始值映射 */
 const initMap = {
@@ -79,6 +80,11 @@ const initMap = {
   common: false,
 };
 
+/**
+ * 维度批量编辑组件
+ * 以侧边栏形式展示维度的可编辑表格，支持批量修改别名、显示状态、常用维度等字段，
+ * 以及新增/删除维度行
+ */
 @Component
 export default class DimensionTableSlide extends tsc<IProps, IEmits> {
   /** 选中的分组信息 */
@@ -127,7 +133,7 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
   /** 当前显示的表格数据（分页后的数据） */
   showTableData: IDimensionItem[] = [];
   /** 删除的维度名称列表 */
-  delArray: Partial<ICustomTsFields['dimensions'][number]>[] = [];
+  delArray: Partial<IGroupingRule['dimension_config'][number]>[] = [];
   /** 全选标志位 */
   allCheckValue: 0 | 1 | 2 = CheckboxStatus.UNCHECKED;
   /** 当前的 Popover Key 值 */
@@ -161,8 +167,8 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
    * @param newVal 新的维度表格数据
    */
   @Watch('dimensionTable', { immediate: true, deep: true })
-  handleDimensionTableChange(newVal: IDimensionItem[]) {
-    this.localTable = deepClone(newVal);
+  handleDimensionTableChange() {
+    this.localTable = deepClone(this.dimensionTable.map(item => Object.assign({}, item, { type: 'dimension' })));
     for (const row of this.localTable) {
       this.$set(row, 'selection', false);
     }
@@ -176,7 +182,7 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
   @Emit('hidden')
   handleCancel() {
     this.delArray = [];
-    this.localTable = deepClone(this.dimensionTable);
+    this.localTable = deepClone(this.dimensionTable.map(item => Object.assign({}, item, { type: 'dimension' })));
     for (const row of this.localTable) {
       row.selection = false;
     }
@@ -262,7 +268,6 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
   renderInputColumn(row: IDimensionItem, field: string, refKey = '') {
     return (
       <bk-input
-        class='slider-input'
         ref={
           refKey
             ? el => {
@@ -270,6 +275,7 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
               }
             : ''
         }
+        class='slider-input'
         v-model={row.config[field]}
       />
     );
@@ -353,6 +359,7 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
     }
   }
 
+  /** 根据当前选中行数更新全选状态 */
   updateCheckValue() {
     const checkedLength = this.localTable.filter(item => item.selection).length;
     const allLength = this.localTable.length;
@@ -500,6 +507,7 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
     );
   }
 
+  /** 处理全选/取消全选变化 */
   handleCheckAllChange({ value }) {
     const v = value === CheckboxStatus.ALL_CHECKED;
     for (const item of this.localTable) {
@@ -508,6 +516,7 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
     this.updateCheckValue();
   }
 
+  /** 渲染名称列表头（包含全选复选框） */
   renderNameHeader() {
     return (
       <div class='name-header'>
@@ -769,9 +778,9 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
           <div class='slider-search'>
             <bk-input
               v-model={this.search}
-              clearable
               placeholder={this.$t('搜索 名称、别名')}
               right-icon='bk-icon icon-search'
+              clearable
               on-change={this.handleSearchChange}
             />
           </div>
@@ -835,8 +844,8 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
           <div class='slider-footer'>
             <bk-button
               disabled={!this.localTable.length}
-              theme='primary'
               loading={this.saveLoading}
+              theme='primary'
               onClick={this.handleSave}
             >
               {this.$t('保存')}
