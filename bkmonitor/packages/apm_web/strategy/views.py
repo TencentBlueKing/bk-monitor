@@ -152,10 +152,13 @@ class StrategyTemplateViewSet(GenericViewSet):
         # 过滤服务支持的告警策略模板类型
         service_name: str | None = self.query_data.get("service_name")
         if self.query_data["simple"] and service_name:
-            entity_set: dispatch.EntitySet = dispatch.EntitySet(
-                self.query_data["bk_biz_id"], self.query_data["app_name"], [service_name]
-            )
-            queryset = queryset.filter(system__in=dispatch.SystemChecker(entity_set).check_systems())
+            try:
+                supported_systems: list[str] = dispatch.SystemChecker(
+                    dispatch.EntitySet(self.query_data["bk_biz_id"], self.query_data["app_name"], [service_name])
+                ).check_systems()
+            except ValueError:
+                supported_systems: list[str] = [constants.StrategyTemplateSystem.TRACE.value]
+            queryset = queryset.filter(system__in=supported_systems)
 
         total = queryset.count()
         if self.query_data["simple"]:
