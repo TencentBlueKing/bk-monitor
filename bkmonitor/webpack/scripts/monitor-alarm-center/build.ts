@@ -493,13 +493,12 @@ function patchTDesignPopupTimingPlugin(): VitePlugin {
 }
 
 /**
- * Vite 插件：复用 `ifdef-loader/preprocessor` 的 `parse`，行为对齐 webpack 侧的 `ifdef-loader`。
+ * Vite 插件：复用 `ifdef-loader/preprocessor` 的 `parse`。
  *
- * - 宏：`IS_APM_MONITOR: true`，源码中 `#if IS_APM_MONITOR` 保留 APM 专用分支，否则剔除。
- * - JSX 预处理：将 JSX 块注释里包住的 `#if / elif / else / endif` 行展开为独立行，再交给预处理器
- *   （见下方 `normalized` 正则，避免注释块导致指令不可见）。
- * - 参数：`verbose` 便于分支不满足时排查；`fillWithBlanks` 用空格占位删行，减少行号漂移。
- * - 跳过：源码不含 `#if` 或路径为 node_modules 时不调用 `ifdefParse`，降低大依赖树开销。
+ * - **本脚本（告警中心 lib）**：`IS_APM_MONITOR: true`，专打嵌入 APM 的产物。
+ * - **trace 主站 webpack**：`trace-ifdef-webpack.js`（本目录，由 `webpack.config.js` require），
+ *   `IS_APM_MONITOR: false`，与下方 JSX 预处理及 ifdef 选项保持一致。
+ * - JSX 预处理：将 JSX 块注释里包住的 `#if / elif / else / endif` 行展开为独立行（与 webpack 侧同正则）。
  */
 function ifdefPlugin(): VitePlugin {
   /** 与业务源码中 `#if IS_APM_MONITOR` 等条件对应；本脚本专打 APM 库，故固定为 true。 */
