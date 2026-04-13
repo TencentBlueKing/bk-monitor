@@ -117,6 +117,7 @@ class ServiceBase(models.Model):
         records: list[dict[str, Any]] | None = None,
         scope: SyncScope = SyncScope.SERVICE,
         is_delete: bool = True,
+        **extra_filters,
     ) -> dict[str, Any]:
         """统一更新入口，按 DIFF_KEYS 比对存量，执行增/改/删。
 
@@ -138,12 +139,16 @@ class ServiceBase(models.Model):
         is_delete (bool): 是否删除存量中多余的记录，默认为 True。
           为 True 时，不在 records 中的存量记录会被删除（完整同步语义）；
           为 False 时，仅执行新增和更新，不删除任何已有记录（增量同步语义）。
+
+        **extra_filters: 额外的 ORM 过滤条件，以关键字参数形式传入，
+          会被合并到 base_q 查询条件中（即 Q(bk_biz_id=..., app_name=..., **extra_filters)），
+          用于在基础的 bk_biz_id + app_name 之外进一步缩小存量记录的查询范围。
         """
 
         records: list[dict[str, Any]] = records or []
 
         # 1. 构建工作集查询条件
-        base_q = Q(bk_biz_id=bk_biz_id, app_name=app_name)
+        base_q = Q(bk_biz_id=bk_biz_id, app_name=app_name, **extra_filters)
         if scope == SyncScope.SERVICE:
             base_q &= Q(is_global=False, service_name=service_name)
         elif scope == SyncScope.GLOBAL:

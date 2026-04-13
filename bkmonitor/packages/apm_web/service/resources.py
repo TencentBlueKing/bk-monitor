@@ -26,6 +26,7 @@ from django.db.models.functions import Length
 from api.cmdb.define import Business
 
 from apm_web.constants import (
+    SyncScope,
     CategoryEnum,
     CMDBCategoryIconMap,
     ServiceDetailReqTypeChoices,
@@ -66,7 +67,6 @@ from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import lru_cache_with_ttl
-from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
@@ -803,63 +803,36 @@ class SetCodeRedefinedRuleResource(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
-        service_name: str = validated_request_data["service_name"]
-        kind: str = validated_request_data["kind"]
         rules: list = validated_request_data["rules"]
+        service_name: str | None = validated_request_data["service_name"]
 
-        username = get_request_username()
-
-        # 获取当前数据库中的所有规则
-        base_filters = {
+        sync_records: list[dict[str, Any]] = [
+            {
+                "bk_biz_id": bk_biz_id,
+                "app_name": app_name,
+                "service_name": _service_name,
+                "is_global": rule["is_global"],
+                "kind": rule["kind"],
+                "callee_server": rule["callee_server"],
+                "callee_service": rule["callee_service"],
+                "callee_method": rule["callee_method"],
+                "code_type_rules": rule["code_type_rules"],
+                "enabled": rule["enabled"],
+            }
+            for rule in rules
+            for _service_name in rule["service_names"]
+        ]
+        params: dict[str, Any] = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
-            "service_name": service_name,
-            "kind": kind,
+            "service_name": service_name or "",
+            "scope": SyncScope.SERVICE if service_name else SyncScope.ALL,
+            "records": sync_records,
         }
-        existing_rules = CodeRedefinedConfigRelation.objects.filter(**base_filters)
+        if "kind" in validated_request_data:
+            params["kind"] = validated_request_data["kind"]
 
-        # 构建前端传入规则的唯一标识集合
-        incoming_rule_keys = set()
-        for rule in rules:
-            rule_key = (rule["callee_server"], rule["callee_service"], rule["callee_method"])
-            incoming_rule_keys.add(rule_key)
-
-        # 处理每个传入的规则（新增/修改）
-        for rule in rules:
-            callee_server: str = rule["callee_server"]
-            callee_service: str = rule["callee_service"]
-            callee_method: str = rule["callee_method"]
-            code_type_rules = rule["code_type_rules"]
-            enabled: bool = rule.get("enabled", True)
-
-            # 使用组合键进行 upsert
-            filters = {
-                **base_filters,
-                "callee_server": callee_server,
-                "callee_service": callee_service,
-                "callee_method": callee_method,
-            }
-
-            # 只更新必要字段，不更新组合键字段
-            defaults = {
-                "code_type_rules": code_type_rules,
-                "enabled": enabled,
-                "updated_by": username,
-            }
-
-            obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=defaults, **filters)
-            if created:
-                CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
-
-        # 删除前端没有传递的规则
-        rules_to_delete = []
-        for existing_rule in existing_rules:
-            existing_key = (existing_rule.callee_server, existing_rule.callee_service, existing_rule.callee_method)
-            if existing_key not in incoming_rule_keys:
-                rules_to_delete.append(existing_rule.id)
-
-        if rules_to_delete:
-            CodeRedefinedConfigRelation.objects.filter(id__in=rules_to_delete).delete()
+        CodeRedefinedConfigRelation.sync_relations(**params)
 
         # 同步下发：汇总整个应用的 code_relabel 列表并下发到 APM
         self.publish_code_relabel_to_apm(bk_biz_id, app_name)

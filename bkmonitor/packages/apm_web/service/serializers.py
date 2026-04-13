@@ -187,7 +187,7 @@ class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
         service_name = attrs.get("service_name")
         callee_server = attrs.get("callee_server")
 
-        if kind == "callee" and callee_server and callee_server != service_name:
+        if kind == "callee" and service_name and callee_server and callee_server != service_name:
             raise serializers.ValidationError(_("callee 场景下 callee_server 必须等于 service_name"))
         return attrs
 
@@ -214,31 +214,60 @@ class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer)
 class CodeRedefinedRuleItemSerializer(serializers.Serializer):
     """单个代码重定义规则项序列化器"""
 
-    callee_server = serializers.CharField(label="被调服务", allow_blank=True)
-    callee_service = serializers.CharField(label="被调 Service", allow_blank=True)
-    callee_method = serializers.CharField(label="被调接口", allow_blank=True)
-    code_type_rules = serializers.JSONField(label="返回码映射")
-    enabled = serializers.BooleanField(label="是否启用", required=False, default=True)
+    kind = serializers.ChoiceField(
+        label=_("角色"), choices=[("caller", "caller"), ("callee", "callee")], required=False
+    )
+    service_names = serializers.ListSerializer(
+        label=_("服务名列表"), child=serializers.CharField(), allow_null=True, default=None
+    )
+    is_global = serializers.BooleanField(label=_("是否全局"), default=False)
+    callee_server = serializers.CharField(label=_("被调服务"), allow_blank=True)
+    callee_service = serializers.CharField(label=_("被调 Service"), allow_blank=True)
+    callee_method = serializers.CharField(label=_("被调接口"), allow_blank=True)
+    code_type_rules = serializers.JSONField(label=_("返回码映射"))
+    enabled = serializers.BooleanField(label=_("是否启用"), required=False, default=True)
 
 
 class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
-    rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label="规则列表", min_length=1)
+    service_name = serializers.CharField(label=_("本服务"), allow_null=True, default=None)
+    kind = serializers.ChoiceField(
+        label=_("角色"), choices=[("caller", "caller"), ("callee", "callee")], required=False
+    )
+    rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label=_("规则列表"), min_length=1)
 
-    def validate(self, attrs):
-        """验证参数；callee 角色下强制覆盖 callee_server=service_name"""
-        kind = attrs.get("kind")
-        service_name = attrs.get("service_name")
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """验证参数：callee 角色下强制覆盖 callee_server=service_name"""
+        kind: str | None = attrs.get("kind")
+        service_name: str | None = attrs.get("service_name")
 
-        # 对每个规则项进行验证
-        if kind == "callee":
-            for rule in attrs.get("rules", []):
+        # 填充内层的 kind 和 service_names 并校验
+        for rule in attrs.get("rules", []):
+            rule["kind"] = rule.get("kind", kind)
+            if not rule["kind"]:
+                raise serializers.ValidationError(_("kind 不能为空"))
+
+            # 外层有 service_name 时，强制覆盖 service_names
+            rule["service_names"] = [service_name] if service_name else rule.get("service_names")
+            if rule.get("is_global"):
+                rule["service_names"] = [""]
+            if not rule["service_names"]:
+                raise serializers.ValidationError(_("服务配置的 service_name 和 service_names 不能同时为空"))
+
+            if rule["kind"] != "callee":
+                continue
+            for _service_name in rule["service_names"]:
+                if not _service_name:
+                    continue
                 # 复用基础校验逻辑
-                rule_attrs = {"kind": kind, "service_name": service_name, "callee_server": rule.get("callee_server")}
+                rule_attrs = {
+                    "kind": rule["kind"],
+                    "service_name": _service_name,
+                    "callee_server": rule["callee_server"],
+                }
                 self.validate_callee_kind_consistency(rule_attrs)
-                rule["callee_server"] = service_name
-
+                rule["callee_server"] = _service_name
         return attrs
 
 
