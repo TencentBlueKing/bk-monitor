@@ -103,9 +103,11 @@ class TasksHandler:
         if task.created_by != self.request_user:
             raise exceptions.TasksRecreateFailed
 
+        ip_list = [after_format_ip for ip in task.ip_list if (after_format_ip := self.format_ip(ip)) is not None]
+
         return self.create(
             bk_biz_id=task.bk_biz_id,
-            ip_list=task.ip_list,
+            ip_list=ip_list,
             request_file_list=task.file_path,
             filter_type=task.filter_type,
             remark=task.remark,
@@ -421,7 +423,7 @@ class TasksHandler:
                 task["message"] = _("缺少bk_cloud_id")
                 break
             ip_list.append(new_ip)
-            task["ip_list"] = ip_list
+        task["ip_list"] = ip_list
 
         preview_ip_list = []
         # 兼容历史数据
@@ -485,6 +487,10 @@ class TasksHandler:
         通过 target_nodes 动态获取最新 ip_list
         """
         task = Tasks.objects.filter(task_id=task_id).first()
+
+        if not task:
+            return None
+
         target_node_type = task.target_node_type
         target_nodes = task.target_nodes
 
@@ -524,8 +530,6 @@ class TasksHandler:
             if ip.get("bk_host_id"):
                 ip_key = f"{ip_key}:{ip['bk_host_id']}"
             formatted_new_ip_list.append(ip_key)
-
-        task.ip_list = formatted_new_ip_list
 
         Tasks.objects.filter(task_id=task_id).update(ip_list=formatted_new_ip_list)
 

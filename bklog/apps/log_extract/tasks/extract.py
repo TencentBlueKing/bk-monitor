@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import html
 import os
 import random
@@ -40,6 +40,7 @@ from apps.log_extract.constants import (
     ScheduleStatus,
 )
 from apps.log_extract.fileserver import FileServer
+from apps.log_extract.handlers.tasks import TasksHandler
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.log_extract.utils.packing import (
     get_filter_content,
@@ -79,7 +80,7 @@ def log_extract_task(
     ).extract()
 
 
-class LogExtractUtils(object):
+class LogExtractUtils:
     def __init__(
         self,
         task_id,
@@ -124,6 +125,9 @@ class LogExtractUtils(object):
     def _packing(self):
         task_id = self.task_id
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.PACKING.value)
+        new_ip_list = TasksHandler.get_new_ip_list_from_target_nodes(task_id)
+        if new_ip_list:
+            self.ip_list = new_ip_list
         ip_list = self.ip_list
         file_path = self.file_path
         bk_biz_id = self.bk_biz_id
@@ -167,7 +171,7 @@ class LogExtractUtils(object):
             bk_biz_id=bk_biz_id,
             operator=operator,
             account=self.account,
-            task_name="[BKLOG] {} File By {}".format(task_name, self.username),
+            task_name=f"[BKLOG] {task_name} File By {self.username}",
             script_params=script_content["script_params"],
         )
         self.task_instance_id = FileServer.get_task_id(task_result)
@@ -300,7 +304,7 @@ class LogExtractUtils(object):
             bk_biz_id=bk_biz_id,
             operator=operator,
             account=self.account,
-            task_name="[BKLOG] File Distribution By {}".format(self.username),
+            task_name=f"[BKLOG] File Distribution By {self.username}",
         )
 
         task_instance_id = FileServer.get_task_id(task_result)
@@ -322,8 +326,9 @@ class LogExtractUtils(object):
         bk_biz_id = self.bk_biz_id
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.DISTRIBUTING.value)
         task_instance_id = self.task_instance_id
-        query_result = self._poll_status(task_instance_id, operator, bk_biz_id,
-                                         is_platform=settings.ENABLE_MULTI_TENANT_MODE)
+        query_result = self._poll_status(
+            task_instance_id, operator, bk_biz_id, is_platform=settings.ENABLE_MULTI_TENANT_MODE
+        )
 
         # 判断脚本是否执行结束
         if not FileServer.is_finished_for_single_ip(query_result):
@@ -368,7 +373,7 @@ class LogExtractUtils(object):
             bk_biz_id=bk_biz_id,
             operator=operator,
             account=account,
-            task_name="[BKLOG] Cos Upload By {}".format(self.username),
+            task_name=f"[BKLOG] Cos Upload By {self.username}",
         )
         self.task_instance_id = FileServer.get_task_id(task_result)
         self.pack_file_name = cos_pack_file_name

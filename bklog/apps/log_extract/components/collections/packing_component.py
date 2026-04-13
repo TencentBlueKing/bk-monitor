@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import html
 
 from django.utils.translation import gettext as _
@@ -31,6 +31,7 @@ from apps.log_extract.constants import (
     PACK_TASK_SCRIPT_NOT_HAVE_ENOUGH_CAP_ERROR_CODE,
 )
 from apps.log_extract.fileserver import FileServer
+from apps.log_extract.handlers.tasks import TasksHandler
 from apps.log_extract.models import Tasks
 from apps.log_extract.utils.packing import (
     get_filter_content,
@@ -76,7 +77,8 @@ class FilePackingService(BaseService):
         # 更新任务状态
         task_id = data.get_one_of_inputs("task_id")
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.PACKING.value)
-        ip_list = data.get_one_of_inputs("ip_list")
+        new_ip_list = TasksHandler.get_new_ip_list_from_target_nodes(task_id)
+        ip_list = new_ip_list if new_ip_list else data.get_one_of_inputs("ip_list")
         file_path = data.get_one_of_inputs("file_path")
         bk_biz_id = data.get_one_of_inputs("bk_biz_id")
         filter_content = data.get_one_of_inputs("filter_content")
