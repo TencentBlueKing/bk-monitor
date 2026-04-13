@@ -192,9 +192,9 @@ def query_vm_datalink_all(bk_data_id: int) -> dict:
     table_id_option_dict = models.ResultTableOption.batch_result_table_option(
         real_table_id_list, bk_tenant_id=ds.bk_tenant_id
     )
-    # 获取字段信息
+    # 获取字段信息，不开启 lite 模式
     table_field_dict = models.ResultTableField.batch_get_fields(
-        real_table_id_list, is_consul_config=True, bk_tenant_id=ds.bk_tenant_id
+        real_table_id_list, is_consul_config=True, bk_tenant_id=ds.bk_tenant_id, lite_mode=False
     )
     # 判断需要未删除，而且在启用状态的结果表
     for rt, rt_info in real_table_ids.items():

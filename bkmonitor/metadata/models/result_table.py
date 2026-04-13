@@ -2512,6 +2512,7 @@ class ResultTableField(models.Model):
         table_id_list: list[str],
         is_consul_config: bool | None = False,
         bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        lite_mode: bool | None = None,
     ) -> dict:
         table_field_option_dict = ResultTableFieldOption.batch_field_option(
             table_id_list=table_id_list, bk_tenant_id=bk_tenant_id
@@ -2540,7 +2541,11 @@ class ResultTableField(models.Model):
                 item["field_name"] = i.alias_name
                 item["alias_name"] = i.field_name
 
-            if settings.ENABLE_CONSUL_LITE_MODE and is_consul_config:
+            # 如果 lite_mode 为 None，则使用默认值
+            if lite_mode is None:
+                lite_mode = settings.ENABLE_CONSUL_LITE_MODE
+
+            if lite_mode and is_consul_config:
                 logger.debug("Consul Lite Mode Enabled, remove unnecessary fields")
                 if item["default_value"] is None:
                     item.pop("default_value")
