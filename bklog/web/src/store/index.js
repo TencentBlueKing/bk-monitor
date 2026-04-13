@@ -307,6 +307,9 @@ const store = new Vuex.Store({
         sort_list,
         format,
         timezone,
+        retrieve_type,
+        scene_active,
+        scene_filter_values,
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
@@ -348,6 +351,9 @@ const store = new Vuex.Store({
         sort_list: local_sort_list,
         bk_biz_id: state.bkBizId,
         time_zone: timezone,
+        retrieve_type,
+        scene_active,
+        scene_filter_values,
         ...searchParams,
       };
     },
