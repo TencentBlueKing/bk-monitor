@@ -61,8 +61,8 @@ class PatternViewSet(APIViewSet):
         @apiName pattern_search
         @apiGroup log_clustering
         @apiParam {String} pattern_level 聚类敏感度 01 03 05 06 07 08
-        @apiParam {String} start_time 开始时间
-        @apiParam {String} end_time 结束时间
+        @apiParam {Number} start_time 开始时间，毫秒时间戳
+        @apiParam {Number} end_time 结束时间，毫秒时间戳
         @apiParam {String} time_range 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]
         @apiParam {String} keyword 搜索关键字
         @apiParam {Json} ip IP列表
@@ -163,8 +163,8 @@ class PatternViewSet(APIViewSet):
         @apiParam {String} signature 当前 Pattern 的 signature，作为 __dist_05 等值条件参与子查询
         @apiParam {String} pattern 当前 Pattern 展示文本，仅作为展示 DSL 输入，用于生成 regexp_extract 规则
         @apiParam {Int} placeholder_index 占位符在 Pattern 中的顺序，从 0 开始，须与 pattern_search 返回的 placeholders[].index 一致
-        @apiParam {String} start_time 开始时间，与日志检索一致，支持时间字符串或毫秒时间戳
-        @apiParam {String} end_time 结束时间
+        @apiParam {Number} start_time 开始时间，毫秒时间戳
+        @apiParam {Number} end_time 结束时间，毫秒时间戳
         @apiParam {String} [sort] 排序，仅支持 count_desc，默认 count_desc
         @apiParam {Int} [limit] 返回值分布条数上限，默认 100，最小 1，最大 100
         @apiParam {Object} [groups] 当前聚类行的 group_by 上下文；key 须为聚类配置 group_fields 子集，后端合并为等值过滤；若与 addition 同字段语义冲突则参数错误
@@ -186,8 +186,8 @@ class PatternViewSet(APIViewSet):
             "signature": "e4b60ecf",
             "pattern": "prefix #PATH# middle #NUMBER# suffix",
             "placeholder_index": 1,
-            "start_time": "2026-03-20 00:00:00",
-            "end_time": "2026-03-20 01:00:00",
+            "start_time": 1773916800000,
+            "end_time": 1773920400000,
             "sort": "count_desc",
             "limit": 100,
             "groups": {
@@ -245,8 +245,8 @@ class PatternViewSet(APIViewSet):
         @apiParam {String="01","03","05","07","09"} [pattern_level="05"] 聚类敏感度
         @apiParam {String} [value=""] 当前选中的占位符值；为空时仅返回整体趋势
         @apiParam {String="auto"} [interval="auto"] 时间粒度；支持 auto 或 date_histogram 风格值，如 1m、5m、1h、1d
-        @apiParam {String} start_time 开始时间
-        @apiParam {String} end_time 结束时间
+        @apiParam {Number} start_time 开始时间，毫秒时间戳
+        @apiParam {Number} end_time 结束时间，毫秒时间戳
         @apiParam {Object} [groups] 当前 Pattern 分组上下文
         @apiParam {String} [keyword] 关键词检索条件
         @apiParam {Object[]} [addition] 附加检索条件
@@ -261,8 +261,8 @@ class PatternViewSet(APIViewSet):
             "pattern_level": "05",
             "value": "404",
             "interval": "auto",
-            "start_time": "2026-03-20 00:00:00",
-            "end_time": "2026-03-20 24:00:00",
+            "start_time": 1773916800000,
+            "end_time": 1774003200000,
             "groups": {
                 "service_name": "api"
             },
@@ -317,8 +317,8 @@ class PatternViewSet(APIViewSet):
         @apiParam {Number} placeholder_index 占位符索引
         @apiParam {String="01","03","05","07","09"} [pattern_level="05"] 聚类敏感度
         @apiParam {String} value 当前选中的占位符值，不能为空
-        @apiParam {String} start_time 开始时间
-        @apiParam {String} end_time 结束时间
+        @apiParam {Number} start_time 开始时间，毫秒时间戳
+        @apiParam {Number} end_time 结束时间，毫秒时间戳
         @apiParam {Int} [limit=20] 样本返回条数，最小 1，最大 100
         @apiParam {Object} [groups] 当前 Pattern 分组上下文
         @apiParam {String} [keyword] 关键词检索条件
@@ -334,8 +334,8 @@ class PatternViewSet(APIViewSet):
             "pattern_level": "05",
             "value": "404",
             "limit": 20,
-            "start_time": "2026-03-20 00:00:00",
-            "end_time": "2026-03-20 01:00:00",
+            "start_time": 1773916800000,
+            "end_time": 1773920400000,
             "groups": {
                 "service_name": "api"
             },
@@ -402,8 +402,8 @@ class PatternViewSet(APIViewSet):
         @apiParam {Number} placeholder_index 占位符索引
         @apiParam {String="01","03","05","07","09"} [pattern_level="05"] 聚类敏感度
         @apiParam {String} value 当前选中的占位符值，不能为空
-        @apiParam {String} start_time 开始时间
-        @apiParam {String} end_time 结束时间
+        @apiParam {Number} start_time 开始时间，毫秒时间戳
+        @apiParam {Number} end_time 结束时间，毫秒时间戳
         @apiParam {Int} [limit=20] 导出样本条数，最小 1，最大 100
         @apiParam {Object} [groups] 当前 Pattern 分组上下文
         @apiParam {String} [keyword] 关键词检索条件
@@ -419,8 +419,8 @@ class PatternViewSet(APIViewSet):
             "pattern_level": "05",
             "value": "404",
             "limit": 20,
-            "start_time": "2026-03-20 00:00:00",
-            "end_time": "2026-03-20 01:00:00",
+            "start_time": 1773916800000,
+            "end_time": 1773920400000,
             "groups": {
                 "service_name": "api"
             },

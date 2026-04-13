@@ -76,8 +76,8 @@ class PlaceholderDistributionSerializer(serializers.Serializer):
     placeholder_index = serializers.IntegerField(min_value=0)
     pattern_level = serializers.CharField(required=False, default=PatternEnum.LEVEL_05.value)
 
-    start_time = DateTimeFieldWithEpoch(required=True)
-    end_time = DateTimeFieldWithEpoch(required=True)
+    start_time = serializers.IntegerField(label="开始时间", required=True)
+    end_time = serializers.IntegerField(label="结束时间", required=True)
 
     sort = serializers.ChoiceField(choices=["count_desc"], required=False, default="count_desc")
     limit = serializers.IntegerField(required=False, default=100, min_value=1, max_value=100)

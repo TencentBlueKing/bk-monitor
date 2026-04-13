@@ -354,7 +354,7 @@ class PlaceholderAnalysisHandler:
     def _resolve_interval(self) -> str:
         interval = str(self.params.get("interval") or "auto")
         if interval == "auto":
-            duration_ms = max(self._to_int(self.params["end_time"]) - self._to_int(self.params["start_time"]), 0)
+            duration_ms = max(self.params["end_time"] - self.params["start_time"], 0)
             if duration_ms <= 60 * 60 * 1000:
                 return "1m"
             if duration_ms <= 6 * 60 * 60 * 1000:
