@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 
 from api.bcs_storage.default import FetchResource
@@ -26,49 +26,55 @@ class TestGetKubernetesObjectCount:
         monkeypatch.setattr(FetchResource, "cache_type", None)
         actual = resource.scene_view.get_kubernetes_object_count({"bk_biz_id": 2})
         expect = [
-            {'label': '集群', 'value': 0},
-            {'label': 'Namespace', 'value': 2},
+            {"label": "集群", "value": 0},
+            {"label": "Namespace", "value": 2},
             {
-                'label': '节点(Node)',
-                'link': {
-                    'target': 'blank',
-                    'url': '?bizId=2#/k8s?dashboardId=node&sceneId=kubernetes&sceneType=overview',
+                "label": "节点(Node)",
+                "link": {
+                    "target": "blank",
+                    "url": '?bizId=2#/k8s-new?cluster=&filterBy={}&groupBy=["node"]&sceneId=kubernetes&scene=capacity&activeTab=list',
                 },
-                'value': 0,
+                "value": 0,
             },
             {
-                'label': 'Pod',
-                'link': {
-                    'target': 'blank',
-                    'url': '?bizId=2#/k8s?dashboardId=pod&sceneId=kubernetes&sceneType=overview',
+                "label": "Pod",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=2#/k8s-new?cluster=&filterBy={}&groupBy=["namespace", "pod"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
+                    ),
                 },
-                'value': 0,
+                "value": 0,
             },
         ]
         assert actual == expect
 
         actual = resource.scene_view.get_kubernetes_object_count({"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000"})
         expect = [
-            {'label': '集群', 'value': 0},
-            {'label': 'Namespace', 'value': 2},
+            {"label": "集群", "value": 0},
+            {"label": "Namespace", "value": 2},
             {
-                'label': '节点(Node)',
-                'link': {
-                    'target': 'blank',
-                    'url': '?bizId=2#/k8s?dashboardId=node&sceneId=kubernetes&sceneType=overview',
-                },
-                'value': 0,
-            },
-            {
-                'label': 'Pod',
-                'link': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=2#/k8s?dashboardId=pod&sceneId=kubernetes&sceneType=overview'
-                        '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"}]}'
+                "label": "节点(Node)",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
                     ),
                 },
-                'value': 0,
+                "value": 0,
+            },
+            {
+                "label": "Pod",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["namespace", "pod"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
+                    ),
+                },
+                "value": 0,
             },
         ]
         assert actual == expect
@@ -88,26 +94,26 @@ class TestGetKubernetesObjectCount:
         )
         expect = [
             {
-                'label': 'Pod',
-                'link': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?dashboardId=pod&sceneId=kubernetes&sceneType=overview'
-                        '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00002"}]}'
+                "label": "Pod",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00002&filterBy={}&groupBy=["namespace", "pod"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
                 },
-                'value': 0,
+                "value": 0,
             },
             {
-                'label': '容器',
-                'link': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?dashboardId=container&sceneId=kubernetes&sceneType=overview'
-                        '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00002"}]}'
+                "label": "容器",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00002&filterBy={}&groupBy=["namespace", "container"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
                 },
-                'value': 0,
+                "value": 0,
             },
         ]
         assert actual == expect
@@ -117,48 +123,48 @@ class TestGetKubernetesObjectCount:
         )
         expect = [
             {
-                'label': 'Master节点',
-                'link': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?dashboardId=node&sceneId=kubernetes&sceneType=overview'
-                        '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"roles":"control-plane"}]}'
+                "label": "Master节点",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
                     ),
                 },
-                'value': 0,
+                "value": 0,
             },
             {
-                'label': 'Worker节点',
-                'link': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?dashboardId=node&sceneId=kubernetes&sceneType=overview'
-                        '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"roles":""}]}'
+                "label": "Worker节点",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
                     ),
                 },
-                'value': 0,
+                "value": 0,
             },
             {
-                'label': 'Pod',
-                'link': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?dashboardId=pod&sceneId=kubernetes&sceneType=overview'
-                        '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"}]}'
+                "label": "Pod",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["namespace", "pod"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
                 },
-                'value': 0,
+                "value": 0,
             },
             {
-                'label': '容器',
-                'link': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?dashboardId=container&sceneId=kubernetes&sceneType=overview'
-                        '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"}]}'
+                "label": "容器",
+                "link": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["namespace", "container"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
                 },
-                'value': 0,
+                "value": 0,
             },
         ]
         assert actual == expect

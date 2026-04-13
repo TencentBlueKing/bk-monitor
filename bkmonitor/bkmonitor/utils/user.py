@@ -118,10 +118,12 @@ def get_user_display_name(username: str):
     if settings.ROLE == "web":
         request = get_request(peaceful=True)
         if request:
-            # 这里获取display_name会有一次数据库查询，因此这里先取出来
-            display_name = getattr(request.user, "display_name", None)
-            if display_name:
-                return display_name
+            # 仅当查询的是当前请求用户自身时，才使用请求上下文避免额外的数据库查询
+            # 若查询其他用户的展示名（如告警日志中的操作人），需走正常查询路径
+            if getattr(request.user, "username", None) == username:
+                display_name = getattr(request.user, "display_name", None)
+                if display_name:
+                    return display_name
 
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return username

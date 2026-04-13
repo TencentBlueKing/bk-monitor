@@ -55,6 +55,10 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    alarmBizId: {
+      type: Number,
+      default: null,
+    },
   },
   emits: {
     'update:show': (val: boolean) => typeof val === 'boolean',
@@ -131,7 +135,7 @@ export default defineComponent({
     const getNoticeStatusData = async actionId => {
       loading.value = true;
       if (!noticeData.tableColumns.length) {
-        noticeData.tableColumns = await getNoticeWay()
+        noticeData.tableColumns = await getNoticeWay({ bk_biz_id: props.alarmBizId })
           .then(res =>
             res.map(item => ({
               label: item.label,
@@ -140,7 +144,7 @@ export default defineComponent({
           )
           .catch(() => []);
       }
-      await subActionDetail({ parent_action_id: actionId })
+      await subActionDetail({ parent_action_id: actionId, bk_biz_id: props.alarmBizId })
         .then(data => {
           noticeData.tableData = Object.keys(data || {}).map(key => {
             const temp: any = { target: key, _id: random(3) };

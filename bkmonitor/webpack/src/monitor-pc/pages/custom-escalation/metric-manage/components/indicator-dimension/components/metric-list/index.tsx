@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Watch, Prop, Ref, InjectReactive } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -31,74 +31,71 @@ import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils';
 
 import EmptyStatus from '../../../../../../../components/empty-status/empty-status';
-import type { EmptyStatusType } from '../../../../../../../components/empty-status/types';
-import TableSkeleton from '../../../../../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../../../../../constant/constant';
 import ColumnCheck from '../../../../../../performance/column-check/column-check.vue';
+import { type IGroupListItem, type RequestHandlerMap, DEFAULT_HEIGHT_OFFSET, NULL_LABEL } from '../../../../type';
 import { matchRuleFn } from '../../../../utils';
-import type { ICustomTsFields, IUnitItem } from '../../../../../service';
-import { DEFAULT_HEIGHT_OFFSET, type IGroupListItem, NULL_LABEL, type RequestHandlerMap } from '../../../../type';
 import BatchEdit from './components/batch-edit';
 import MetricDetail from './components/metric-detail';
+
+import type { EmptyStatusType } from '../../../../../../../components/empty-status/types';
+import type { ICustomTsFields, IGroupingRule, IUnitItem } from '../../../../../service';
 import type { IMetricGroupMapItem } from '../../index';
 
 import './index.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-export type IMetricItem = ICustomTsFields['metrics'][number] & { selection: boolean; isNew?: boolean; error?: string };
+/** 指标项类型定义，在基础字段数据基础上增加错误信息、新增标记和选中状态 */
+export type IMetricItem = ICustomTsFields['list'][number] & { error?: string; isNew?: boolean; selection: boolean };
+
+/** 组件事件接口 */
+interface IEmits {
+  onAliasChange: () => void;
+  onHandleBatchAddGroup: (groupName: string, metricList: { field_id: number; metric_name: string }[]) => void;
+  onRefresh: () => void;
+  onShowAddGroup: () => void;
+  onSwitcherChange: (v: boolean) => void;
+}
 
 interface IProps {
-  /** 当前选中的分组信息 */
-  selectedGroupInfo: { id: number; name: string };
-  /** 指标表格数据列表 */
-  metricTable: IMetricItem[];
-  /** 单位列表 */
-  unitList: IUnitItem[];
+  /** 默认分组信息 */
+  defaultGroupInfo: { id: number; name: string };
+  /** 维度表格数据 */
+  dimensionTable: IGroupingRule['dimension_config'];
   /** 分组选择列表 */
   groupSelectList: { id: number; name: string }[];
-  /** 维度表格数据 */
-  dimensionTable: ICustomTsFields['dimensions'];
-  /** 表格加载状态 */
-  loading: boolean;
   /** 所有数据预览 */
   // allDataPreview: Record<string, any>;
   /** 分组映射表，key为分组名称，value为分组信息 */
   groupsMap: Map<string, IGroupListItem>;
-  /** 全选状态值：0-未选，1-部分选中，2-全选 */
-  allCheckValue: number;
-  /** 默认分组信息 */
-  defaultGroupInfo: { id: number; name: string };
+  /** 表格加载状态 */
+  loading: boolean;
   /** 指标分组映射表 */
   metricGroupsMap: Map<string, IMetricGroupMapItem>;
+  /** 当前选中的分组信息 */
+  selectedGroupInfo: { id: number; name: string };
+  /** 单位列表 */
+  unitList: IUnitItem[];
+  /** 时间序列分组 ID */
+  timeSeriesGroupId: number;
 }
 
-interface IEmits {
-  onShowAddGroup: () => void;
-  onHandleBatchAddGroup: (groupName: string, metricList: { field_id: number; metric_name: string }[]) => void;
-  onRefresh: () => void;
-  onSwitcherChange: (v: boolean) => void;
-  onRowCheck: () => void;
-  onUpdateAllSelection: (v: boolean) => void;
-  onSearchChange: (list: any[]) => void;
-  onAliasChange: () => void;
-}
-
+/**
+ * 指标列表组件
+ * 展示指标数据表格，支持搜索、分页、全选/反选、分组切换、指标详情、批量编辑等功能
+ */
 @Component
 export default class MetricList extends tsc<IProps, IEmits> {
   @Prop({ default: () => {} }) selectedGroupInfo: IProps['selectedGroupInfo'];
-  @Prop({ default: () => [] }) metricTable: IProps['metricTable'];
   @Prop({ default: () => [] }) unitList: IProps['unitList'];
   @Prop({ default: () => [] }) groupSelectList: IProps['groupSelectList'];
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
-  @Prop({ default: false }) loading: IProps['loading'];
-  // @Prop({ default: () => {} }) allDataPreview: IProps['allDataPreview'];
-  @Prop({ default: 0 }) allCheckValue: IProps['allCheckValue'];
   @Prop({ default: () => {} }) defaultGroupInfo: IProps['defaultGroupInfo'];
   @Prop({ default: () => new Map() }) groupsMap: IProps['groupsMap'];
   @Prop({ default: () => new Map() }) metricGroupsMap: IProps['metricGroupsMap'];
+  @Prop({ default: () => 0 }) timeSeriesGroupId: IProps['timeSeriesGroupId'];
 
   @InjectReactive('isAPM') readonly isAPM: boolean;
-  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
   @InjectReactive('appName') readonly appName: string;
   @InjectReactive('serviceName') readonly serviceName: string;
@@ -118,10 +115,48 @@ export default class MetricList extends tsc<IProps, IEmits> {
     select: [],
   };
 
+  /** 表格加载状态 */
+  loading = false;
+
+  /** 指标筛选条件对象 */
+  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = [
+    {
+      key: 'name',
+      values: [],
+      search_type: 'fuzzy',
+    },
+    {
+      key: 'field_config_alias',
+      values: [],
+      search_type: 'fuzzy',
+    },
+    {
+      key: 'field_config_unit',
+      values: [],
+      search_type: 'exact',
+    },
+    {
+      key: 'field_config_aggregate_method',
+      values: [],
+      search_type: 'exact',
+    },
+    {
+      key: 'field_config_hidden',
+      values: [],
+      search_type: 'exact',
+    },
+  ];
+
+  /** 全选状态值：0-取消全选，1-半选，2-全选 */
+  allCheckValue: 0 | 1 | 2 = 0;
+
   /** 别名编辑时的备份值，用于判断是否有修改 */
   copyAlias = '';
   /** 是否显示确认关闭对话框 */
   isShowDialog = false;
+
+  /** 指标表格数据 */
+  metricTable: IMetricItem[] = [];
 
   /** 字段设置数据，控制表格列的显示/隐藏 */
   fieldSettingData: any = {};
@@ -161,7 +196,8 @@ export default class MetricList extends tsc<IProps, IEmits> {
   isShowMetricSlider = false;
   /** 表格盒子高度 */
   tableBoxHeight = window.innerHeight;
-
+  /** 当前选中的指标列表映射(含跨页)，使用普通对象以兼容 Vue 2 响应式 */
+  selectedMetricMap: Record<number, IMetricItem> = {};
   /** 计算详情侧边栏宽度，根据屏幕宽度自适应 */
   get computedWidth() {
     return window.innerWidth < 1920 ? 388 : 456;
@@ -174,26 +210,22 @@ export default class MetricList extends tsc<IProps, IEmits> {
 
   /** 获取当前选中项的数量 */
   get selectionLength() {
-    const selectionList = this.metricTableVal.filter(item => item.selection);
-    return selectionList.length;
+    return Object.keys(this.selectedMetricMap).length;
   }
 
-  /** 获取当前页的指标表格数据，包含分页逻辑 */
-  get metricTableVal() {
-    this.tableInstance.total = this.metricTable.length;
-    return this.metricTable.slice(
-      this.tableInstance.pageSize * (this.tableInstance.page - 1),
-      this.tableInstance.pageSize * this.tableInstance.page
-    );
+  get tableHeight() {
+    return this.isAPM ? window.innerHeight - 220 : window.innerHeight - 610
   }
 
   /** 获取当前激活的指标详情数据 */
   get metricData() {
-    return this.metricTableVal[this.detailActiveIndex] || ({} as IMetricItem);
+    const emptyObj = {};
+    return this.metricTable[this.detailActiveIndex] || (emptyObj as IMetricItem);
   }
 
   /** 获取搜索选择器的配置数据 */
   get metricSearchData() {
+    const unitList = this.unitList.flatMap(item => item.formats);
     return [
       {
         name: this.$t('名称'),
@@ -211,7 +243,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
         name: this.$t('单位'),
         id: 'unit',
         multiple: false,
-        children: this.unitList,
+        children: unitList,
       },
       {
         name: this.$t('汇聚方法'),
@@ -224,8 +256,8 @@ export default class MetricList extends tsc<IProps, IEmits> {
         id: 'show',
         multiple: false,
         children: [
-          { id: 'true', name: this.$t('显示') },
-          { id: 'false', name: this.$t('隐藏') },
+          { id: 'false', name: this.$t('显示') },
+          { id: 'true', name: this.$t('隐藏') },
         ],
       },
     ];
@@ -236,10 +268,13 @@ export default class MetricList extends tsc<IProps, IEmits> {
     return Array.from(this.groupsMap.keys()).filter(item => !!item);
   }
 
+  /** 监听选中分组变化，重置分页和搜索条件并刷新数据 */
   @Watch('selectedGroupInfo', { immediate: true })
   handleSelectedGroupInfoChange() {
     this.tableInstance.page = 1;
     this.search = [];
+    this.selectedMetricMap = {};
+    this.handleGetCustomTsFields();
   }
 
   /** 监听指标数据变化，当数据为空时关闭详情面板 */
@@ -250,6 +285,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
     }
   }
 
+  /** 监听搜索条件变化，更新空状态类型 */
   @Watch('search', { immediate: true, deep: true })
   handleSearchValueChange() {
     this.emptyType = this.search.length ? 'search-empty' : 'empty';
@@ -325,7 +361,52 @@ export default class MetricList extends tsc<IProps, IEmits> {
         id: 'set',
       },
     };
-    this.table.data = this.metricTableVal;
+  }
+
+  /**
+   * 分页获取指标表格数据
+   */
+  handleGetCustomTsFields() {
+    if (!this.isAPM && !this.timeSeriesGroupId) {
+      return;
+    }
+    this.metricTable = [];
+    this.loading = true;
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
+      page: this.tableInstance.page,
+      page_size: this.tableInstance.pageSize,
+      conditions: [
+        {
+          key: 'scope_id',
+          values: this.selectedGroupInfo.id === -1 ? [] : [this.selectedGroupInfo.id],
+          search_type: 'exact' as const,
+        },
+        ...this.metricSearchObj,
+      ],
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    this.requestHandlerMap
+      .getCustomTsFields(params)
+      .then(data => {
+        this.metricTable = data.list.map(item => ({
+          ...item,
+          selection: false,
+        }));
+        this.tableInstance.total = data.total;
+        this.$nextTick(() => {
+          this.updateAllSelection();
+        });
+      })
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   /**
@@ -358,7 +439,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
    */
   handleGroupSelectToggle(id: number, row: IMetricItem) {
     const name = this.groupSelectList.find(item => item.id === id)?.name;
-    if (name === row.scope.name) {
+    if (name === row.scope_name) {
       return;
     }
     let infoObj = {
@@ -435,7 +516,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
       <ColumnCheck
         {...{
           props: {
-            list: this.metricTableVal,
+            list: this.metricTable,
             value: this.allCheckValue,
             defaultType: 'current',
           },
@@ -447,6 +528,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
     );
   }
 
+  /** 处理空状态下的操作（如清空过滤条件） */
   handleEmptyOperation(type: string) {
     if (type === 'clear-filter') {
       this.handleSearchChange([]);
@@ -486,11 +568,11 @@ export default class MetricList extends tsc<IProps, IEmits> {
               this.editingIndex = -1;
               this.handleEditDescription(props.row);
             }}
-            onEnter={() => {
-              this.handleEditDescription(props.row);
-            }}
             onChange={v => {
               this.copyAlias = v;
+            }}
+            onEnter={() => {
+              this.handleEditDescription(props.row);
             }}
           />
         </div>
@@ -524,22 +606,21 @@ export default class MetricList extends tsc<IProps, IEmits> {
     const { name, group, alias, hidden } = this.fieldSettingData;
     return (
       <div
-        class='indicator-table'
         ref='tableBoxRef'
+        class='indicator-table'
       >
         <bk-table
           v-bkloading={{ isLoading: this.loading }}
           empty-text={this.$t('无数据')}
-          max-height={this.isAPM ? window.innerHeight - 220 : window.innerHeight - 610}
+          height={this.tableHeight}
           on-header-dragend={(newWidth, _, col) => {
             if (col.property === 'group') {
               this.groupWidth = newWidth;
             }
           }}
-          on-selection-change={this.handleCheckChange}
           {...{
             props: {
-              data: this.metricTableVal,
+              data: this.metricTable,
             },
           }}
         >
@@ -553,10 +634,10 @@ export default class MetricList extends tsc<IProps, IEmits> {
             scopedSlots={{
               default: ({ row }) => (
                 <bk-checkbox
-                  v-bk-tooltips={{ content: this.$t('该指标已预设分组，暂不支持页面修改。'), disabled: row.movable }}
                   v-model={row.selection}
+                  v-bk-tooltips={{ content: this.$t('该指标已预设分组，暂不支持页面修改。'), disabled: row.movable }}
                   disabled={!row.movable}
-                  onChange={this.handleRowCheck}
+                  onChange={() => this.handleRowCheck(row)}
                 />
               ),
             }}
@@ -568,9 +649,9 @@ export default class MetricList extends tsc<IProps, IEmits> {
           {name.checked && (
             <bk-table-column
               key='name'
+              fixed='left'
               label={this.$t('名称')}
               minWidth='150'
-              fixed='left'
               prop='name'
               scopedSlots={nameSlot}
             />
@@ -625,6 +706,10 @@ export default class MetricList extends tsc<IProps, IEmits> {
     );
   }
 
+  resetAllSelection() {
+    this.allCheckValue = 0;
+  }
+
   /**
    * 批量添加选中指标至指定分组
    * @param groupName 分组名称
@@ -637,12 +722,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
     this.$emit(
       'handleBatchAddGroup',
       groupName,
-      this.metricTableVal
-        .filter(item => item.selection)
-        .map(metric => ({
-          field_id: metric.id,
-          metric_name: metric.name,
-        }))
+      Object.values(this.selectedMetricMap).map(item => item.id)
     );
   }
 
@@ -657,8 +737,8 @@ export default class MetricList extends tsc<IProps, IEmits> {
    * @param v 新的页码
    */
   handlePageChange(v: number) {
-    this.updateAllSelection();
     this.tableInstance.page = v;
+    this.handleGetCustomTsFields();
   }
 
   /**
@@ -668,38 +748,133 @@ export default class MetricList extends tsc<IProps, IEmits> {
   handleLimitChange(v: number) {
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = v;
-    this.updateAllSelection();
+    this.handleGetCustomTsFields();
+  }
+
+  /**
+   * 更新选中状态值
+   */
+  updateCheckValue(): void {
+    const checkedLength = this.metricTable.filter(item => item.selection).length;
+    const allLength = this.metricTable.length;
+
+    if (checkedLength > 0) {
+      this.allCheckValue = checkedLength < allLength ? 1 : 2;
+    } else {
+      this.allCheckValue = 0;
+    }
   }
 
   /** 行选择变化事件 */
-  @Emit('rowCheck')
-  handleRowCheck() {}
+  handleRowCheck(row: IMetricItem) {
+    if (row.selection) {
+      this.$set(this.selectedMetricMap, row.id, row);
+    } else {
+      this.$delete(this.selectedMetricMap, row.id);
+    }
+    this.updateCheckValue();
+  }
 
   /**
    * 处理全选/取消全选变化
    * @param value 选择状态：0-未选，1-部分选中，2-全选
    */
   handleCheckChange({ value }) {
-    this.updateAllSelection(value === 2);
+    const isCheckAll = value === 2;
+    for (const item of this.metricTable) {
+      if (!item.movable) {
+        continue;
+      }
+      if (isCheckAll) {
+        this.$set(this.selectedMetricMap, item.id, item);
+      } else {
+        this.$delete(this.selectedMetricMap, item.id);
+      }
+    }
+    this.updateAllSelection();
   }
 
   /**
    * 更新全选状态
-   * @param v 是否全选
+   * @param v 是否选中
    */
-  @Emit('updateAllSelection')
-  updateAllSelection(v = false) {
-    return v;
+  updateAllSelection(): void {
+    for (const item of this.metricTable) {
+      if (!item.movable) {
+        continue;
+      }
+      item.selection = !!this.selectedMetricMap[item.id];
+      
+    }
+    this.updateCheckValue();
   }
 
   /**
    * 处理搜索条件变化
    * @param list 搜索条件列表
    */
-  @Emit('searchChange')
-  handleSearchChange(list) {
+  @Debounce(300)
+  handleSearchChange(list = []) {
+    this.tableInstance.page = 1;
     this.search = list;
-    return list;
+    const searchKeyMap = {
+      name: {
+        key: 'name',
+        index: 0,
+      },
+      alias: {
+        key: 'field_config_alias',
+        index: 1,
+      },
+      unit: {
+        key: 'field_config_unit',
+        index: 2,
+      },
+      aggregate: {
+        key: 'field_config_aggregate_method',
+        index: 3,
+      },
+      show: {
+        key: 'field_config_hidden',
+        index: 4,
+      },
+    };
+    const searchParam: typeof this.metricSearchObj = [
+      {
+        key: 'name',
+        values: [],
+        search_type: 'fuzzy',
+      },
+      {
+        key: 'field_config_alias',
+        values: [],
+        search_type: 'fuzzy',
+      },
+      {
+        key: 'field_config_unit',
+        values: [],
+        search_type: 'exact',
+      },
+      {
+        key: 'field_config_aggregate_method',
+        values: [],
+        search_type: 'exact',
+      },
+      {
+        key: 'field_config_hidden',
+        values: [],
+        search_type: 'exact',
+      },
+    ];
+    if (list.length === 1 && list[0].type === 'text') {
+      searchParam[0].values.push(list[0].id);
+    } else {
+      for (const item of list) {
+        searchParam[searchKeyMap[item.id].index].values.push(...item.values.map(v => v.id));
+      }
+    }
+    this.metricSearchObj = searchParam;
+    this.handleGetCustomTsFields();
   }
 
   /** 点击管理按钮，显示批量编辑侧边栏 */
@@ -721,7 +896,10 @@ export default class MetricList extends tsc<IProps, IEmits> {
         type: 'metric',
         name: metricInfo.name,
         id: metricInfo.id,
-        scope: metricInfo.scope,
+        scope: {
+          id: metricInfo.scope_id,
+          name: metricInfo.scope_name,
+        },
         config: metricInfo.config,
       };
       if (!isConfigKey) {
@@ -796,11 +974,11 @@ export default class MetricList extends tsc<IProps, IEmits> {
     return (
       <bk-select
         key={row.name}
-        value={row.scope.id}
-        displayTag
-        searchable
         clearable={false}
         disabled={!row.movable}
+        value={row.scope_id}
+        displayTag
+        searchable
         onChange={(v: number) => this.handleGroupSelectToggle(v, row)}
       >
         {this.groupSelectList.map(item => (
@@ -835,14 +1013,19 @@ export default class MetricList extends tsc<IProps, IEmits> {
     );
   }
 
+  /**
+   * 处理详情面板外部点击事件
+   * 点击详情面板外部区域时关闭面板（排除弹窗、下拉等浮层区域）
+   */
   handleClickDetailOutside(event: MouseEvent) {
     const isClickDetail = this.metricDetailRef?.contains(event.target as Node);
     const isNodeExisted = !document.contains(event.target as Node);
     const isClickFunctionPanel = event.target.closest('#function-menu-panel-main');
+    const isClickCycleItem = event.target.closest('.cycle-item');
     const isClickSelectPanel = ['bk-select-search-input', 'bk-option-content-default', 'bk-option-name'].includes(
       (event.target as HTMLElement).className
     );
-    if (isClickDetail || isNodeExisted || isClickSelectPanel || isClickFunctionPanel) {
+    if (isClickDetail || isNodeExisted || isClickSelectPanel || isClickFunctionPanel || isClickCycleItem) {
       return;
     }
     if (this.showDetail) {
@@ -943,8 +1126,8 @@ export default class MetricList extends tsc<IProps, IEmits> {
                   >
                     <div class='list-item'>{option.name}</div>
                     <div
-                      class='header-select-list mh-300'
                       style='width: 280px;'
+                      class='header-select-list mh-300'
                       slot='content'
                     >
                       {this.groupNames.map(group => (
@@ -977,54 +1160,46 @@ export default class MetricList extends tsc<IProps, IEmits> {
           />
         </div>
         <div class='strategy-config-wrap'>
-          {this.loading ? (
-            <TableSkeleton type={2} />
-          ) : (
-            <div
-              class='table-box'
-              v-bkloading={{ isLoading: this.loading }}
-            >
-              {[
-                this.getTableComponent(),
-                this.metricTableVal?.length ? (
-                  <bk-pagination
-                    key='table-pagination'
-                    class='list-pagination'
-                    v-show={this.metricTableVal.length}
-                    align='right'
-                    count={this.tableInstance.total}
-                    current={this.tableInstance.page}
-                    limit={this.tableInstance.pageSize}
-                    limit-list={this.tableInstance.pageList}
-                    size='small'
-                    pagination-able
-                    show-total-count
-                    on-change={this.handlePageChange}
-                    on-limit-change={this.handleLimitChange}
-                  />
-                ) : undefined,
-              ]}
-            </div>
-          )}
+          <div class='table-box'>
+            {[
+              this.getTableComponent(),
+              this.metricTable.length ? (
+                <bk-pagination
+                  key='table-pagination'
+                  class='list-pagination'
+                  v-show={this.metricTable.length}
+                  align='right'
+                  count={this.tableInstance.total}
+                  current={this.tableInstance.page}
+                  limit={this.tableInstance.pageSize}
+                  limit-list={this.tableInstance.pageList}
+                  size='small'
+                  pagination-able
+                  show-total-count
+                  on-change={this.handlePageChange}
+                  on-limit-change={this.handleLimitChange}
+                />
+              ) : undefined,
+            ]}
+          </div>
           <div
+            ref='metricDetailRef'
             style={{ width: `${this.computedWidth}px`, height: `${this.tableBoxHeight}px` }}
             class='detail'
             v-show={this.showDetail}
-            ref='metricDetailRef'
           >
             <MetricDetail
-              metricData={this.metricData}
-              unitList={this.unitList}
-              groupSelectList={this.groupSelectList}
               defaultGroupInfo={this.defaultGroupInfo}
               dimensionTable={this.dimensionTable}
-              // allDataPreview={this.allDataPreview}
+              groupSelectList={this.groupSelectList}
               groupsMap={this.groupsMap}
-              onShowAddGroup={this.handleShowGroupManage}
+              metricData={this.metricData}
+              unitList={this.unitList}
               onClose={() => {
                 this.showDetail = false;
               }}
               onRefresh={() => this.$emit('refresh')}
+              onShowAddGroup={this.handleShowGroupManage}
             />
           </div>
         </div>
@@ -1039,15 +1214,15 @@ export default class MetricList extends tsc<IProps, IEmits> {
           onConfirm={() => this.switcherChange(false)}
         />
         <BatchEdit
-          selectedGroupInfo={this.selectedGroupInfo}
           dimensionTable={this.dimensionTable}
           isShow={this.isShowMetricSlider}
-          metricTable={this.metricTable}
+          defaultGroupInfo={this.defaultGroupInfo}
+          selectedGroupInfo={this.selectedGroupInfo}
           unitList={this.unitList}
-          onEditSuccess={this.handleEditSuccess}
           onClose={() => {
             this.isShowMetricSlider = false;
           }}
+          onEditSuccess={this.handleEditSuccess}
         />
       </div>
     );

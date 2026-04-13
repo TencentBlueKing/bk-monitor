@@ -26,6 +26,7 @@
 
 import { type PropType, computed, defineComponent } from 'vue';
 
+import { tipsContent } from 'trace/components/space-select/tips-content';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
@@ -144,6 +145,7 @@ export default defineComponent({
     bizIdsChange: (_v: (number | string)[]) => true,
     favoriteSave: (_isEdit: boolean) => true,
     showResidentBtnChange: (_v: boolean) => true,
+    copyWhere: (_v: CommonCondition[]) => true,
   },
   setup(_props, { emit }) {
     const { t } = useI18n();
@@ -184,6 +186,9 @@ export default defineComponent({
     const handleShowResidentBtnChange = val => {
       emit('showResidentBtnChange', val);
     };
+    const handleCopyWhere = val => {
+      emit('copyWhere', val);
+    };
 
     return {
       showAlarmModule,
@@ -196,6 +201,7 @@ export default defineComponent({
       handleBizIdsChange,
       handleFavoriteSave,
       handleShowResidentBtnChange,
+      handleCopyWhere,
       ...useSpaceSelect(),
     };
   },
@@ -229,6 +235,7 @@ export default defineComponent({
         selectFavorite={this.selectFavorite}
         where={this.conditions}
         onCommonWhereChange={this.handleResidentConditionChange}
+        onCopyWhere={this.handleCopyWhere}
         onFavorite={this.handleFavoriteSave}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
@@ -256,15 +263,10 @@ export default defineComponent({
                   trigger: (options: ITriggerSlotOptions) => (
                     <SelectorTrigger
                       class='selector-trigger-space-select'
-                      tips={options.valueStrList
-                        .map(
-                          (item, index) =>
-                            `${index !== 0 ? `   , ${item.name}` : item.name}${item.id ? `(${item.id})` : ''}`
-                        )
-                        .join('')}
                       active={options.active}
                       hasRightSplit={true}
                       isError={options.error}
+                      tips={options.valueStrList.length ? tipsContent(options.valueStrList) : ''}
                     >
                       {{
                         top: () => <span>{this.t('空间')}</span>,

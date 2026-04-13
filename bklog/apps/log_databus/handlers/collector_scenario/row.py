@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -193,6 +192,7 @@ class RowCollectorScenario(CollectorScenario):
                 "exclude_files": config["local"][0].get("exclude_files", []),
                 "conditions": conditions,
                 "encoding": config["local"][0]["encoding"],
+                "tail_files": config["local"][0].get("tail_files", True),
             }
         except (IndexError, KeyError, ValueError) as e:
             logger.exception(f"解析订阅步骤失败，参数:{steps}，错误:{e}")

@@ -33,6 +33,7 @@ import './feedback.scss';
 
 const TAGS = [window.i18n.tc('无法给予帮助'), window.i18n.tc('结果不准确'), window.i18n.tc('问题定位不清晰')];
 interface AlarmConfirmProps {
+  bizId: number;
   ids?: Array<string>;
   show: boolean;
 }
@@ -47,6 +48,7 @@ interface IEvent {
 })
 export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: [Number, String], default: +window.bk_biz_id }) bizId: number;
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
 
   loading = false;
@@ -90,6 +92,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
       alert_id: this.ids[0],
       is_anomaly: this.state === 1,
       description: this.description,
+      bk_biz_id: this.bizId,
     };
     this.loading = true;
     const res = await feedbackAlert(params)

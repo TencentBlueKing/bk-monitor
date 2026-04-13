@@ -98,7 +98,7 @@ export default defineComponent({
     /* 已选择部分文字 */
     const valueStr = shallowRef('');
     /* 已选择部分文字（包含id） */
-    const valueStrList = shallowRef<{ id: string; name: string }[]>([]);
+    const valueStrList = shallowRef<{ id: string; name: string; tags: ILocalSpaceList['tags'] }[]>([]);
     /* 是否标红 */
     const isErr = shallowRef(false);
     /* 是否弹出弹窗 */
@@ -187,6 +187,7 @@ export default defineComponent({
           strList.push({
             name: item.name,
             id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
+            tags: item?.tags || [],
           });
         }
       }
@@ -354,6 +355,7 @@ export default defineComponent({
           strList.push({
             name: item.name,
             id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
+            tags: item?.tags || [],
           });
         }
       }
@@ -399,7 +401,7 @@ export default defineComponent({
       spaceTypeIdList.value = Object.keys(spaceTypeMap).map(key => ({
         id: key,
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
-        styles: SPACE_TYPE_MAP[key] || SPACE_TYPE_MAP.default,
+        styles: SPACE_TYPE_MAP[key]?.light || SPACE_TYPE_MAP.default.light,
       }));
       return list;
     }
@@ -901,7 +903,7 @@ export default defineComponent({
                         item.tags?.map?.(tag => (
                           <span
                             key={tag.id}
-                            style={{ ...(SPACE_TYPE_MAP[tag.id] || SPACE_TYPE_MAP.default) }}
+                            style={{ ...(SPACE_TYPE_MAP[tag.id]?.light || SPACE_TYPE_MAP.default.light) }}
                             class='space-tags-item'
                           >
                             {SPACE_TYPE_MAP[tag.id]?.name || this.t('未知')}

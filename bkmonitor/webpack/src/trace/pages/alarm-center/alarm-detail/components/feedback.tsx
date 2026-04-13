@@ -44,6 +44,10 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    alarmBizId: {
+      type: Number,
+      default: null,
+    },
   },
   emits: ['update:isShow', 'confirm'],
   setup(props, { emit }) {
@@ -81,6 +85,7 @@ export default defineComponent({
         alert_id: props.ids[0],
         is_anomaly: state.value === 1,
         description: description.value,
+        bk_biz_id: props.alarmBizId,
       };
       loading.value = true;
       const res = await feedbackAlert(params)

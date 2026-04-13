@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import importlib
 import os
 
@@ -76,7 +77,7 @@ def load_env():
     env = os.path.join(project_path, f"{ENVIRONMENT}.env.yml" if not env else f"{env}.{ENVIRONMENT}.env.yml")
     assert os.path.exists(env), f"{env} not exists"
     with open(env, encoding="utf-8") as f:
-        content = yaml.load(f, Loader=yaml.FullLoader)
+        content = yaml.safe_load(f)
     assert content, f"{env} must have content"
     return content
 

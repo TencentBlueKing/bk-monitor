@@ -112,6 +112,7 @@
           <JsonFormatWrapper
             :data="jsonText"
             :deep="5"
+            class="log-report-json-wrapper"
           />
         </div>
       </template>
@@ -316,6 +317,12 @@
           }
         }
       }
+    }
+  }
+
+  .log-report-json-wrapper {
+    :deep(.json-pagination-wrapper) {
+      max-height: calc(-52px + 100vh);
     }
   }
 </style>

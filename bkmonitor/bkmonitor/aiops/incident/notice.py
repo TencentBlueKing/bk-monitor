@@ -471,9 +471,7 @@ class IncidentNoticeHelper:
 
         notice_config = kwargs.get("notice_config")
         configured_targets = cls._get_configured_notice_targets(incident, notice_config=notice_config)
-        if isinstance(notice_config, dict):
-            if not configured_targets:
-                return {}
+        if configured_targets:
             for target in configured_targets:
                 result = cls._send_notice_by_way(
                     incident=incident,
