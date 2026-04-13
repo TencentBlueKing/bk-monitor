@@ -120,6 +120,10 @@ export default defineComponent({
         const res = await $http.request('container/getWorkLoadType');
         if (res.code === 0) {
           typeList.value = res.data.map((item: string) => ({ id: item, name: item }));
+          // 编辑态：typeList 加载完成后，如果已有 workload_type，主动请求名称列表
+          if (formData.workload_type) {
+            getWorkLoadNameList();
+          }
         }
       } catch (err) {
         console.log(err);
@@ -194,12 +198,19 @@ export default defineComponent({
             loading={nameListLoading.value}
             // placeholder={placeHolderStr.value}
             value={formData.workload_name}
+            allow-create={!nameListLoading.value}
             searchable
             on-selected={(val: string) => {
               formData.workload_name = val;
             }}
             onToggle={(status: boolean) => {
               isOptionOpen.value = status;
+            }}
+            on-change={(val: string) => {
+              formData.workload_name = val;
+            }}
+            on-clear={() => {
+              formData.workload_name = '';
             }}
           >
             {nameList.value.map((option, index) => (

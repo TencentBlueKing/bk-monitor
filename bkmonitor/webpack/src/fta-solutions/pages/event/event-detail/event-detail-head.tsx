@@ -241,6 +241,7 @@ export default class EventDetailHead extends tsc<EventDetailHeadProps, IEvent> {
         />
         <Feedback
           key='feedback'
+          bizId={this.bizId}
           ids={[this.basicInfo.id]}
           show={this.feedbackDialog}
           onChange={this.handleFeedback}

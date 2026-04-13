@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import IndicatorSelector from './components/indicator-seletor';
 
-import type { IGroupingRule } from '../../../../../service';
+import type { ICustomTsFields, IGroupingRule } from '../../../../../service';
 
 import './index.scss';
 
@@ -50,8 +50,14 @@ interface IProps {
   isShow: boolean;
   /** 分组名称列表，用于校验重名 */
   nameList: string[];
+  /** 默认分组信息 */
+  defaultGroupInfo: { id: number; name: string };
 }
 
+/**
+ * 新增/编辑分组对话框组件
+ * 以侧边栏形式展示分组编辑表单，包含名称输入和指标选择器（支持手动选择和自动发现规则）
+ */
 @Component
 export default class AddGroupDialog extends tsc<IProps, IEmits> {
   /** 是否显示对话框 */
@@ -62,6 +68,9 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
   @Prop({ default: () => ({}) }) groupInfo: IProps['groupInfo'];
   /** 分组名称列表，用于校验重名 */
   @Prop({ default: () => [] }) nameList: IProps['nameList'];
+  /** 默认分组信息 */
+  @Prop({ default: () => {} }) defaultGroupInfo: IProps['defaultGroupInfo'];
+
   /** 表单组件引用 */
   @Ref('groupRef') readonly groupRef!: HTMLFormElement;
   /** 指标选择器组件引用 */
@@ -70,14 +79,19 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
   /** 本地分组信息，用于表单编辑 */
   localGroupInfo: Partial<IGroupingRule> = {
     create_from: 'user',
-    scope_id: 0,
+    id: 0,
     auto_rules: [],
-    metric_list: [],
   };
 
+  /** 分组表单数据 */
   formData = {
     name: '',
   };
+
+  /** 分组关联的指标列表 */
+  merticList: ICustomTsFields['list'] = [];
+  /** 是否正在提交 */
+  isSubmiting = false;
 
   /** 分组表单验证规则 */
   get rules() {
@@ -132,19 +146,26 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
 
   /** 提交分组表单 */
   handleSubmit() {
+    this.isSubmiting = true;
     this.groupRef?.validate().then(valid => {
       if (valid) {
         // 构建提交配置：包含手动选择的指标和自动规则
-        const config: Partial<IGroupingRule> = {
-          scope_id: this.localGroupInfo.scope_id,
+        const originalManualidSet = new Set(this.indicatorSelectorRef.originalManualList.map(item => item.id));
+        const manualIdSet = new Set(this.indicatorSelectorRef.manualList.map(item => item.id as number));
+        for (const id of manualIdSet) {
+          if (originalManualidSet.has(id)) {
+            // 删除未变动的
+            manualIdSet.delete(id);
+            originalManualidSet.delete(id);
+          }
+        }
+ 
+        const config = {
+          scope_id: this.localGroupInfo.id,
           name: this.formData.name,
           // 手动选择的指标列表
-          metric_list: this.indicatorSelectorRef.manualList
-            .filter(item => !item.isDeleted)
-            .map(item => ({
-              field_id: Number(item.id),
-              metric_name: item.name,
-            })),
+          update_ids: Array.from(manualIdSet),
+          remove_ids: Array.from(originalManualidSet),
           // 自动规则列表
           auto_rules: this.indicatorSelectorRef.autoList.reduce<string[]>((dataList, item) => {
             if (item.name && !item.isDeleted) {
@@ -171,11 +192,11 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
 
   /** 清空表单数据和错误信息，重置为初始状态 */
   clear() {
+    this.isSubmiting = false;
     this.groupRef?.clearError?.();
     this.localGroupInfo = {
-      scope_id: 0,
+      id: 0,
       auto_rules: [],
-      metric_list: [],
       create_from: 'user',
     };
     this.formData = {
@@ -190,7 +211,7 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
   async handleBeforeCloseSettings(): Promise<boolean> {
     /** 编辑后存在差异 */
     const isNameChange = this.groupInfo.name !== this.formData.name;
-    const isMetricListChange = this.groupInfo.metric_list.length !== this.indicatorSelectorRef.manualList.length;
+    const isMetricListChange = this.groupInfo.metric_count !== this.indicatorSelectorRef.manualList.length;
     const isAutoRulesChange = this.groupInfo.auto_rules.length !== this.indicatorSelectorRef.autoList.length;
     if (isNameChange || isMetricListChange || isAutoRulesChange) {
       const res = await new Promise((resolve, reject) => {
@@ -252,16 +273,19 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
             </bk-form-item>
             <bk-form-item label={this.$t('选择指标')}>
               <IndicatorSelector
-                isEdit={this.isEdit}
                 ref='indicatorSelectorRef'
+                defaultGroupInfo={this.defaultGroupInfo}
                 groupInfo={this.localGroupInfo}
+                isEdit={this.isEdit}
               />
             </bk-form-item>
           </bk-form>
         </div>
         <div slot='footer'>
           <bk-button
+            disabled={this.isSubmiting}
             style='margin-right: 8px;'
+            loading={this.isSubmiting}
             class='operate-btn'
             theme='primary'
             onClick={this.handleSubmit}

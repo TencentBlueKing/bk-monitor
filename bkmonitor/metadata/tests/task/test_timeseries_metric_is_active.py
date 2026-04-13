@@ -81,12 +81,8 @@ def test_create_metric_with_is_active_true(create_and_delete_records):
         }
     ]
 
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID,
-        table_id=DEFAULT_TABLE_ID,
-        metric_info_list=metric_info_list,
-        is_auto_discovery=True,
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
 
     # 验证新创建的指标存在且 is_active=True
     new_metric = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="new_metric1")
@@ -115,12 +111,8 @@ def test_update_existing_metric_to_active(create_and_delete_records):
     metric3_before = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="metric3")
     assert metric3_before.is_active is False
 
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID,
-        table_id=DEFAULT_TABLE_ID,
-        metric_info_list=metric_info_list,
-        is_auto_discovery=True,
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
 
     # 验证更新后 metric3 是 True
     metric3_after = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="metric3")
@@ -148,12 +140,8 @@ def test_set_metric_to_inactive_when_not_in_list(create_and_delete_records):
     metric2_before = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="metric2")
     assert metric2_before.is_active is True
 
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID,
-        table_id=DEFAULT_TABLE_ID,
-        metric_info_list=metric_info_list,
-        is_auto_discovery=True,
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
 
     # 验证 metric1 仍然是 True（在列表中）
     metric1 = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="metric1")
@@ -193,12 +181,8 @@ def test_mixed_scenario_active_and_inactive(create_and_delete_records):
         },
     ]
 
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID,
-        table_id=DEFAULT_TABLE_ID,
-        metric_info_list=metric_info_list,
-        is_auto_discovery=True,
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
 
     # 验证在列表中的指标是 True
     metric1 = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="metric1")
@@ -240,12 +224,8 @@ def test_create_and_update_metrics_together(create_and_delete_records):
     initial_count = models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID).count()
     assert initial_count == 3
 
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID,
-        table_id=DEFAULT_TABLE_ID,
-        metric_info_list=metric_info_list,
-        is_auto_discovery=True,
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
 
     # 验证新指标创建成功且 is_active=True
     new_metric = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="new_metric2")
@@ -281,12 +261,8 @@ def test_empty_metric_list_sets_all_to_inactive(create_and_delete_records):
     metric2_before = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="metric2")
     assert metric2_before.is_active is True
 
-    models.TimeSeriesMetric.bulk_refresh_ts_metrics(
-        group_id=DEFAULT_GROUP_ID,
-        table_id=DEFAULT_TABLE_ID,
-        metric_info_list=metric_info_list,
-        is_auto_discovery=True,
-    )
+    group = models.TimeSeriesGroup.objects.get(time_series_group_id=DEFAULT_GROUP_ID)
+    models.TimeSeriesMetric.bulk_refresh_ts_metrics(group=group, metric_info_list=metric_info_list)
 
     # 验证所有指标都更新为 False
     metric1_after = models.TimeSeriesMetric.objects.get(group_id=DEFAULT_GROUP_ID, field_name="metric1")

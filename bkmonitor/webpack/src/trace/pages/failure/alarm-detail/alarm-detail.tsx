@@ -38,7 +38,7 @@ import {
 } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Loading, Message, Popover } from 'bkui-vue';
+import { Loading, Message, Tag } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import {
   feedbackIncidentRoot,
@@ -50,9 +50,12 @@ import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils.js';
 import { type CheckboxGroupValue } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
+import { type TippyContent, useTippy } from 'vue-tippy';
 
 import ExceptionComp from '../../../components/exception';
 import SetMealAdd from '../../../store/modules/set-meal-add';
+import CollapseTags from '../../trace-explore/components/trace-explore-table/components/table-cell/collapse-tags';
+import { isEllipsisActiveLine } from '../../trace-explore/components/trace-explore-table/utils/dom-helper';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
@@ -339,12 +342,23 @@ export default defineComponent({
       return `${ackOperator || ''}${t('已确认')}`;
     };
 
-    const columns = shallowRef<TableColumn[]>([
+    /** 记录各列拖拽后的宽度，key 为 colKey，value 为像素宽度 */
+    const columnsWidthMap = reactive<Record<string, number>>({});
+
+    /** 表格列宽拖拽回调：同步到 columnsWidthMap，使所有表格列宽保持一致 */
+    const handleColumnResizeChange = (context: { columnsWidth: Record<string, number> }) => {
+      const widths = context?.columnsWidth;
+      if (!widths) return;
+      for (const [colKey, width] of Object.entries(widths)) {
+        columnsWidthMap[colKey] = width;
+      }
+    };
+
+    const baseColumns: TableColumn[] = [
       {
         title: '#',
         type: 'seq',
         colKey: 'serial-number',
-        minWidth: 48,
         width: 48,
         disabled: true,
         checked: true,
@@ -352,7 +366,7 @@ export default defineComponent({
       {
         title: t('告警ID'),
         colKey: 'id',
-        minWidth: 134,
+        width: 180,
         ellipsis: {
           popperOptions: {
             strategy: 'fixed',
@@ -393,7 +407,6 @@ export default defineComponent({
       {
         title: t('告警名称'),
         colKey: 'alert_name',
-        minWidth: 134,
         fixed: 'left',
         ellipsis: {
           popperOptions: {
@@ -423,47 +436,17 @@ export default defineComponent({
       {
         title: t('维度'),
         colKey: 'dimensions',
-        minWidth: 134,
+        width: 246,
         fixed: 'left',
-        ellipsis: {
-          popperOptions: {
-            strategy: 'fixed',
-          },
-        },
+        ellipsis: false,
         cell: (_, { row: data }) => {
           const isEmpty = !data?.dimensions?.length;
           if (isEmpty) return '--';
-          const key = random(10);
-          const content = (
-            <div
-              id={key}
-              class='tag-column'
-            >
-              {data.dimensions.map(item => (
-                <div
-                  key={item.id}
-                  class='tag-item set-item'
-                >
-                  {item.display_key} = {item.display_value}
-                </div>
-              ))}
-            </div>
-          );
-          return (
-            <div class='tag-column-wrap'>
-              <Popover
-                extCls='tag-column-popover'
-                v-slots={{
-                  default: () => content,
-                  content: () => content,
-                }}
-                arrow={true}
-                maxWidth={400}
-                placement='top'
-                theme='light common-table'
-              />
-            </div>
-          );
+          const tags = data.dimensions.map(item => ({
+            alias: `${item.display_key} = ${item.display_value}`,
+            value: item.display_value,
+          }));
+          return renderTagsCell(tags);
         },
       },
       {
@@ -475,7 +458,6 @@ export default defineComponent({
             strategy: 'fixed',
           },
         },
-        minWidth: 60,
         cell: (_, { row: data }) => {
           return data.bk_biz_name || '--';
         },
@@ -484,7 +466,6 @@ export default defineComponent({
         title: t('分类'),
         colKey: 'category_display',
         width: 134,
-        minWidth: 60,
         ellipsis: {
           popperOptions: {
             strategy: 'fixed',
@@ -497,53 +478,22 @@ export default defineComponent({
       {
         title: t('告警指标'),
         colKey: 'index',
-        minWidth: 134,
-        ellipsis: {
-          popperOptions: {
-            strategy: 'fixed',
-          },
-        },
+        width: 246,
+        ellipsis: false,
         cell: (_, { row: data }) => {
           const isEmpty = !data?.metric_display?.length;
           if (isEmpty) return '--';
-          const key = random(10);
-          const content = (
-            <div
-              id={key}
-              class='tag-column'
-            >
-              {data.metric_display.map(item => (
-                <div
-                  key={item.id}
-                  class='tag-item set-item'
-                >
-                  {item.name || item.id}
-                </div>
-              ))}
-            </div>
-          );
-          return (
-            <div class='tag-column-wrap'>
-              {/* {content} */}
-              <Popover
-                extCls='tag-column-popover'
-                v-slots={{
-                  default: () => content,
-                  content: () => content,
-                }}
-                arrow={true}
-                maxWidth={400}
-                placement='top'
-                theme='light common-table'
-              />
-            </div>
-          );
+          const tags = data.metric_display.map(item => ({
+            alias: item.name || item.id,
+            value: item.id,
+          }));
+          return renderTagsCell(tags);
         },
       },
       {
         title: t('告警状态'),
         colKey: 'status',
-        minWidth: 134,
+        width: 100,
         ellipsis: {
           popperOptions: {
             strategy: 'fixed',
@@ -561,7 +511,7 @@ export default defineComponent({
       {
         title: t('告警阶段'),
         colKey: 'stage_display',
-        minWidth: 80,
+        width: 100,
         ellipsis: {
           popperOptions: {
             strategy: 'fixed',
@@ -574,7 +524,6 @@ export default defineComponent({
       {
         title: t('告警开始/结束时间'),
         colKey: 'time',
-        minWidth: 145,
         ellipsis: {
           popperOptions: {
             strategy: 'fixed',
@@ -593,7 +542,6 @@ export default defineComponent({
         title: t('持续时间'),
         colKey: 'duration',
         width: 155,
-        minWidth: 155,
         fixed: 'right',
         ellipsis: (_, { row: data }) => {
           return data.duration;
@@ -653,7 +601,18 @@ export default defineComponent({
           );
         },
       },
-    ]);
+    ];
+
+    /** 动态合并拖拽列宽后的 columns，使所有表格同步 */
+    const columns = computed<TableColumn[]>(() => {
+      return baseColumns.map(col => {
+        const resizedWidth = columnsWidthMap[col.colKey];
+        if (resizedWidth != null && col.resizable !== false) {
+          return { ...col, width: resizedWidth };
+        }
+        return col;
+      });
+    });
 
     const { changeTableSetting } = useTableChangeSetting(settingCheckedList);
 
@@ -885,12 +844,115 @@ export default defineComponent({
       }
     });
 
+    /** 标签溢出 tooltip 相关 —— 与告警中心 CommonTable 中 useTableEllipsis 机制对齐 */
+    const TAG_ELLIPSIS_CLASS = 'alarm-detail-tag-ellipsis';
+
+    /**
+     * 通用标签列渲染方法 —— 维度列、告警指标列共用
+     * @param tags 标签数据数组，每项包含 alias(显示文本) 和 value
+     */
+    const renderTagsCell = (tags: { alias: string; value: string }[]) => {
+      return (
+        <CollapseTags
+          class='alarm-col alarm-tags-col'
+          v-slots={{
+            customTag: (tag, index) => (
+              <Tag
+                key={index}
+                style={{
+                  '--tag-color': '#4D4F56',
+                  '--tag-bg-color': '#F0F1F5',
+                  '--tag-hover-color': '#4D4F56',
+                  '--tag-hover-bg-color': '#DCDEE5',
+                }}
+                class='tag-item'
+              >
+                {{
+                  default: () => <span class={TAG_ELLIPSIS_CLASS}>{tag?.alias || tag}</span>,
+                }}
+              </Tag>
+            ),
+          }}
+          data={tags}
+          ellipsisTip={ellipsisTags => ellipsisTags.map(tag => tag?.alias || tag).join('<br/>')}
+          ellipsisTippyOptions={{ allowHTML: true }}
+        />
+      );
+    };
+
+    let tagTippyInstance = null;
+    let tagMouseenterTimer = null;
+    let tagPopoverDelayTimer = null;
+
+    const handleTagMouseenter = (e: MouseEvent) => {
+      if (tagMouseenterTimer) {
+        clearTimeout(tagMouseenterTimer);
+        tagMouseenterTimer = null;
+      }
+      // 缓存 target 引用，避免微前端环境下异步任务中 e.target 被置空
+      const eventTarget = e.target as HTMLElement;
+      tagMouseenterTimer = setTimeout(() => {
+        const targetDom = eventTarget?.closest?.(`.${TAG_ELLIPSIS_CLASS}`) as HTMLElement;
+        if (!targetDom) return;
+        const { isEllipsisActive, content } = isEllipsisActiveLine(targetDom);
+        if (!isEllipsisActive) return;
+        handleTagTippyHide();
+        tagTippyInstance = useTippy(targetDom, {
+          content: () => content as TippyContent,
+          appendTo: () => document.body,
+          placement: 'top',
+          theme: 'dark max-width-50vw text-wrap',
+          arrow: true,
+          onHidden: () => handleTagTippyHide(),
+        });
+        tagPopoverDelayTimer = setTimeout(() => {
+          tagTippyInstance?.show?.(0);
+        }, 100);
+      }, 200);
+    };
+
+    const handleTagMouseleave = (e: MouseEvent) => {
+      const targetDom = e.target as HTMLElement;
+      if (!targetDom?.matches?.(`.${TAG_ELLIPSIS_CLASS}`)) return;
+      clearTimeout(tagMouseenterTimer);
+      clearTimeout(tagPopoverDelayTimer);
+      tagMouseenterTimer = null;
+      tagPopoverDelayTimer = null;
+    };
+
+    const handleTagTippyHide = () => {
+      clearTimeout(tagMouseenterTimer);
+      clearTimeout(tagPopoverDelayTimer);
+      tagMouseenterTimer = null;
+      tagPopoverDelayTimer = null;
+      tagTippyInstance?.hide?.(0);
+      tagTippyInstance?.destroy?.();
+      tagTippyInstance = null;
+    };
+
+    const initTagEllipsisListeners = () => {
+      const rootDom = alarmDetailRef.value;
+      if (!rootDom) return;
+      rootDom.addEventListener('mouseenter', handleTagMouseenter, true);
+      rootDom.addEventListener('mouseleave', handleTagMouseleave, true);
+    };
+
+    const destroyTagEllipsisListeners = () => {
+      const rootDom = alarmDetailRef.value;
+      if (!rootDom) return;
+      rootDom.removeEventListener('mouseenter', handleTagMouseenter, true);
+      rootDom.removeEventListener('mouseleave', handleTagMouseleave, true);
+    };
+
     onMounted(() => {
       document.body.addEventListener('click', handleHideMoreOperate);
+      initTagEllipsisListeners();
     });
     onUnmounted(() => {
       handleHideMoreOperate();
       document.body.removeEventListener('click', handleHideMoreOperate);
+      handleTagTippyHide();
+      destroyTagEllipsisListeners();
     });
     const handleAlarmDispatchSuccess = () => {};
     const handleChangeCollapse = ({ id, isCollapse }) => {
@@ -979,6 +1041,7 @@ export default defineComponent({
       tableMaxHeight,
       randomKey,
       changeTableSetting,
+      handleColumnResizeChange,
     };
   },
   render() {
@@ -1077,8 +1140,10 @@ export default defineComponent({
                     data={item.alerts}
                     maxHeight={this.tableMaxHeight}
                     needCustomScroll={false}
+                    resizable={true}
                     scroll={{ type: 'virtual' }}
                     tooltip-config={{ showAll: false }}
+                    onColumnResizeChange={this.handleColumnResizeChange}
                     onDisplayColumnsChange={value => {
                       this.changeTableSetting(value);
                       this.randomKey = random(6);
