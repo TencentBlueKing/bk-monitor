@@ -79,6 +79,12 @@ export default defineComponent({
       storage_replies: 1,
       retention: 7,
       es_shards: 3,
+      allocation_min_days: 0,
+    };
+
+    const storageFormRef = ref(null);
+    const formData = ref({
+      ...STORAGE_DEFAULTS,
       need_assessment: false,
       allocation_min_days: 0,
     });
@@ -238,6 +244,20 @@ export default defineComponent({
       };
     };
     /**
+     * 选择集群时重置为默认值（切换集群场景）
+     */
+    const handleSelectStorageCluster = row => {
+      const { setup_config: setupConfig } = row;
+      formData.value = {
+        ...formData.value,
+        storage_cluster_id: row.storage_cluster_id,
+        retention: setupConfig?.retention_days_default || 7,
+        storage_replies: setupConfig?.number_of_replicas_default || 1,
+        es_shards: setupConfig?.es_shards_default || 3,
+        allocation_min_days: 0,
+      };
+    };
+    /**
      * 选择集群
      * @param row
      */
@@ -285,6 +305,7 @@ export default defineComponent({
     onMounted(async () => {
       initData();
       loading.value = true;
+      checkDorisAccess();
       const isStorageEdit = ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
       if (isStorageEdit) {
         await $http
@@ -396,69 +417,71 @@ export default defineComponent({
               </template>
             </bk-input>
           </bk-form-item>
-          {clusterData.value.enable_hot_warm && (
+          {!isDorisMode.value && [
+            clusterData.value.enable_hot_warm && (
+              <bk-form-item
+                label={t('热数据天数')}
+                property='allocation_min_days'
+              >
+                <bk-input
+                  class='number-input'
+                  type='number'
+                  min={0}
+                  value={formData.value.allocation_min_days}
+                  on-input={val => {
+                    formData.value.allocation_min_days = val;
+                  }}
+                  on-blur={val => {
+                    if (val === '') {
+                      formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default || 7;
+                    }
+                  }}
+                >
+                  <template slot='append'>
+                    <div class='group-text'>{t('天')}</div>
+                  </template>
+                </bk-input>
+              </bk-form-item>
+            ),
             <bk-form-item
-              label={t('热数据天数')}
-              property='allocation_min_days'
+              label={t('副本数')}
+              property='storage_replies'
             >
               <bk-input
                 class='number-input'
                 type='number'
                 min={0}
-                value={formData.value.allocation_min_days}
+                value={formData.value.storage_replies}
                 on-input={val => {
-                  formData.value.allocation_min_days = val;
+                  formData.value.storage_replies = val;
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default || 7;
+                    formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 1;
                   }
                 }}
-              >
-                <template slot='append'>
-                  <div class='group-text'>{t('天')}</div>
-                </template>
-              </bk-input>
-            </bk-form-item>
-          )}
-          <bk-form-item
-            label={t('副本数')}
-            property='storage_replies'
-          >
-            <bk-input
-              class='number-input'
-              type='number'
-              min={0}
-              value={formData.value.storage_replies}
-              on-input={val => {
-                formData.value.storage_replies = val;
-              }}
-              on-blur={val => {
-                if (val === '') {
-                  formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 1;
-                }
-              }}
-            />
-          </bk-form-item>
-          <bk-form-item
-            label={t('分片数')}
-            property='es_shards'
-          >
-            <bk-input
-              class='number-input'
-              type='number'
-              min={1}
-              value={formData.value.es_shards}
-              on-input={val => {
-                formData.value.es_shards = val;
-              }}
-              on-blur={val => {
-                if (val === '') {
-                  formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 3;
-                }
-              }}
-            />
-          </bk-form-item>
+              />
+            </bk-form-item>,
+            <bk-form-item
+              label={t('分片数')}
+              property='es_shards'
+            >
+              <bk-input
+                class='number-input'
+                type='number'
+                min={1}
+                value={formData.value.es_shards}
+                on-input={val => {
+                  formData.value.es_shards = val;
+                }}
+                on-blur={val => {
+                  if (val === '') {
+                    formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 3;
+                  }
+                }}
+              />
+            </bk-form-item>,
+          ]}
         </bk-form>
       </div>
     );

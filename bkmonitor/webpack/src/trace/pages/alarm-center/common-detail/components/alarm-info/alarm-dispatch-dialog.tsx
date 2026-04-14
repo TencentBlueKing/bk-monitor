@@ -71,7 +71,7 @@ export default defineComponent({
     /* 通知方式列表 */
     const getNoticeWayList = async () => {
       if (!noticeWayList.value.length) {
-        noticeWayList.value = await getNoticeWay()
+        noticeWayList.value = await getNoticeWay({ bk_biz_id: props.alarmBizId })
           .then(data => data.filter(item => item.type !== 'wxwork-bot'))
           .catch(() => []);
         const ways = noticeWayList.value.map(item => item.type);

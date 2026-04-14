@@ -37,20 +37,18 @@ from core.errors.custom_report import (
     CustomValidationLabelError,
     CustomValidationNameError,
 )
+from monitor_web.custom_report.handlers.metric.query import MetricQueryConverter
 from monitor_web.constants import ETL_CONFIG
 from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, CustomTSMetricType, DEFAULT_FIELD_SCOPE
 from monitor_web.custom_report.serializers.metric import (
     BaseCustomTSSerializer,
-    CustomTSScopeRequestSerializer,
     CustomTSTableSerializer,
     BasicMetricRequestSerializer,
     BasicScopeSerializer,
     DimensionConfigRequestSerializer,
     MetricConfigRequestSerializer,
     ImportExportScopeSerializer,
-    DimensionConfigResponseSerializer,
-    MetricConfigResponseSerializer,
-    CustomTSScopeResponseSerializer,
+    CustomTSGroupingRuleResponseSerializer,
     BaseCustomTSTableSerializer,
 )
 from monitor_web.models.custom_report import (
@@ -127,6 +125,24 @@ def count_rt_bound_strategies(table_ids, data_source_label, data_type_label, bk_
 
 
 class CustomTSScopeMixin:
+    def build_mandatory_conditions(
+        self, mandatory_conditions: list[dict], conditions: list[dict] | None = None
+    ) -> list[dict]:
+        """
+        构建统一的强制过滤条件，优先级遵循外部传入条件；当外部未指定禁用过滤时默认排除 disabled 指标。
+        """
+        conditions = conditions or []
+        if any(c.get("key") == "field_config_disabled" for c in [*conditions, *mandatory_conditions]):
+            return mandatory_conditions
+
+        return mandatory_conditions + [
+            {
+                "key": "field_config_disabled",
+                "values": ["false"],
+                "search_type": "exact",
+            }
+        ]
+
     def get_query_scope_filters(self, params: dict) -> dict:
         """
         :param params: 请求参数
@@ -238,6 +254,48 @@ class ValidateCustomTsGroupLabel(Resource):
                 )
         params["data_label"] = ",".join(data_labels)
         return True
+
+
+class ValidateCustomTsMetricFieldName(Resource):
+    """
+    校验 default field_scope 下是否存在同名指标，返回重复字段名列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        time_series_group_id = serializers.IntegerField(required=True)
+        field_names = serializers.ListField(
+            required=True,
+            allow_empty=False,
+            child=serializers.CharField(max_length=255),
+        )
+
+    def perform_request(self, params: dict):
+        converter = MetricQueryConverter(params["time_series_group_id"])
+        metric_data = converter.query_time_series_metric(
+            page=1,
+            page_size=-1,
+            order_by="name",
+            conditions=[
+                {
+                    "key": "name",
+                    "values": params["field_names"],
+                    "search_type": "exact_case_sensitive",
+                }
+            ],
+            mandatory_conditions=[
+                {
+                    "key": "field_scope",
+                    "values": [DEFAULT_FIELD_SCOPE],
+                },
+                {
+                    "key": "field_config_disabled",
+                    "values": ["false"],
+                },
+            ],
+        )
+        duplicated_field_names = sorted({metric.name for metric in metric_data.metrics})
+        return duplicated_field_names
 
 
 class CreateCustomTimeSeries(Resource):
@@ -660,65 +718,98 @@ class CustomTimeSeriesDetail(Resource):
 
 class GetCustomTsFields(CustomTSScopeMixin, Resource):
     """
-    获取自定义指标字段
+    获取自定义指标字段（管理页面用）
+    支持分页和条件过滤，仅返回指标数据
     """
 
     class RequestSerializer(BaseCustomTSSerializer):
-        pass
+        class ConditionSerializer(serializers.Serializer):
+            key = serializers.ChoiceField(
+                choices=[
+                    "name",
+                    "field_config_alias",
+                    "field_config_unit",
+                    "field_config_aggregate_method",
+                    "field_config_hidden",
+                    "field_config_disabled",
+                    "scope_id",
+                    "field_id",
+                ],
+                required=True,
+            )
+            values = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+            search_type = serializers.ChoiceField(
+                choices=[
+                    "regex",
+                    "regex_case_sensitive",
+                    "fuzzy",
+                    "fuzzy_case_sensitive",
+                    "exact",
+                    "exact_case_sensitive",
+                ],
+                required=False,
+                default="fuzzy",
+            )
+            negate = serializers.BooleanField(required=False, default=False)
+
+        page = serializers.IntegerField(label=_("页码"), default=1, min_value=1, required=False)
+        page_size = serializers.IntegerField(
+            label=_("每页数量，-1 表示不分页"), default=20, min_value=-1, max_value=100000, required=False
+        )
+        conditions = ConditionSerializer(label=_("搜索条件"), many=True, required=False, default=list)
+        mandatory_conditions = ConditionSerializer(label=_("强制搜索条件"), many=True, required=False, default=list)
+        condition_connector = serializers.ChoiceField(
+            label=_("不同字段之间的连接方式"),
+            choices=["and", "or"],
+            default="and",
+            required=False,
+        )
+        order_by = serializers.ChoiceField(
+            label=_("排序字段"),
+            choices=["name", "-name", "update_time", "-update_time"],
+            default="name",
+            required=False,
+        )
 
     class ResponseSerializer(serializers.Serializer):
-        class BaseFieldSerializer(serializers.Serializer):
-            type = serializers.ChoiceField(label=_("字段类型"), choices=CustomTSMetricType.choices())
-            scope = BasicScopeSerializer(label=_("分组信息"))
-            name = serializers.CharField(label=_("字段名称"))
+        total = serializers.IntegerField(label=_("总数"))
+        list = serializers.ListField(label=_("指标列表"))
 
-        class DimensionSerializer(BaseFieldSerializer):
-            config = DimensionConfigResponseSerializer(label=_("维度配置"))
+    def get_extra_mandatory_conditions(self, params: dict) -> list[dict]:
+        """子类可覆盖此方法注入额外的查询条件"""
+        return []
 
-        class MetricSerializer(BaseFieldSerializer):
-            id = serializers.IntegerField(label=_("指标 ID"))
-            movable = serializers.BooleanField(label=_("是否可移动"))
-            field_scope = serializers.CharField(label=_("数据分组"))
-            config = MetricConfigResponseSerializer(label=_("指标配置"))
-            dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField())
-            create_time = serializers.FloatField(label=_("创建时间"), allow_null=True)
-            update_time = serializers.FloatField(label=_("更新时间"), allow_null=True)
-
-        dimensions = serializers.ListField(label=_("维度列表"), child=DimensionSerializer())
-        metrics = serializers.ListField(label=_("指标列表"), child=MetricSerializer())
-
-    def get_movable(self, metric_obj: ScopeQueryMetricResponseDTO, params: dict) -> bool:
+    def get_movable(self, metric_obj, params: dict) -> bool:
+        """判断指标是否可移动（即是否属于默认分组）"""
         return metric_obj.field_scope == DEFAULT_FIELD_SCOPE
 
     def perform_request(self, params: dict):
         time_series_group_id: int = params["time_series_group_id"]
-        converter = ScopeQueryConverter(time_series_group_id)
-        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope(
-            **self.get_query_scope_filters(params)
-        )
-        scope_objs = converter.filter_disabled_metric(scope_objs)
+        converter = MetricQueryConverter(time_series_group_id)
 
-        dimensions: list[dict[str, Any]] = []
-        metrics: list[dict[str, Any]] = []
-        for scope_obj in scope_objs:
-            for metric_obj in scope_obj.metric_list:
-                metric_dict: dict[str, Any] = {
-                    "scope": {"id": scope_obj.id, "name": scope_obj.name},
-                    "type": CustomTSMetricType.METRIC,
-                    "movable": self.get_movable(metric_obj, params),
-                }
-                metric_dict.update(asdict(metric_obj))
-                metrics.append(metric_dict)
-            for dimension_name, dimension_obj in scope_obj.dimension_config.items():
-                dimensions.append(
-                    {
-                        "scope": {"id": scope_obj.id, "name": scope_obj.name},
-                        "name": dimension_name,
-                        "type": CustomTSMetricType.DIMENSION,
-                        "config": asdict(dimension_obj),
-                    }
-                )
-        return {"dimensions": dimensions, "metrics": metrics}
+        conditions = params.get("conditions", [])
+        mandatory_conditions = list(params.get("mandatory_conditions") or [])
+
+        mandatory_conditions.extend(self.get_extra_mandatory_conditions(params))
+        mandatory_conditions = self.build_mandatory_conditions(
+            mandatory_conditions=mandatory_conditions,
+            conditions=conditions,
+        )
+        paginated_result = converter.query_time_series_metric(
+            conditions=conditions if conditions else None,
+            mandatory_conditions=mandatory_conditions if mandatory_conditions else None,
+            condition_connector=params.get("condition_connector", "and"),
+            page=params.get("page", 1),
+            page_size=params.get("page_size", 20),
+            order_by=params.get("order_by", "name"),
+        )
+
+        metrics_list = []
+        for m in paginated_result.metrics:
+            metric_dict = asdict(m)
+            metric_dict["movable"] = self.get_movable(m, params)
+            metrics_list.append(metric_dict)
+        return {"total": paginated_result.total, "list": metrics_list}
 
 
 class ModifyCustomTsFields(CustomTSScopeMixin, Resource):
@@ -893,6 +984,7 @@ class AddCustomMetricResource(Resource):
 class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
     """
     获取自定义指标分组规则列表
+    仅返回分组和维度信息 + 指标数量
     """
 
     class RequestSerializer(BaseCustomTSSerializer):
@@ -900,16 +992,43 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
 
     many_response_data = True
 
-    class ResponseSerializer(CustomTSScopeResponseSerializer):
-        dimension_config = None
+    class ResponseSerializer(CustomTSGroupingRuleResponseSerializer):
+        pass
+
+    def get_extra_mandatory_conditions(self, params: dict) -> list[dict]:
+        """子类可覆盖此方法注入额外的 metric_count 过滤条件"""
+        return []
 
     def perform_request(self, params: dict):
+        # 收集额外的 metric_count 过滤条件
+        extra_mandatory_conditions = self.get_extra_mandatory_conditions(params)
         converter = ScopeQueryConverter(params["time_series_group_id"])
         scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope(
-            **self.get_query_scope_filters(params)
+            include_metrics=False,
+            mandatory_conditions=self.build_mandatory_conditions(
+                mandatory_conditions=extra_mandatory_conditions,
+            ),
+            **self.get_query_scope_filters(params),
         )
-        scope_objs = converter.filter_disabled_metric(scope_objs)
-        result: list[dict[str, Any]] = [asdict(scope_obj) for scope_obj in scope_objs]
+        result: list[dict[str, Any]] = []
+
+        for scope_obj in scope_objs:
+            # 将 dimension_config 字典转为列表结构
+            dimension_config_list = [
+                {"name": dim_name, "config": asdict(dim_config)}
+                for dim_name, dim_config in scope_obj.dimension_config.items()
+            ]
+
+            result.append(
+                {
+                    "id": scope_obj.id,
+                    "name": scope_obj.name,
+                    "dimension_config": dimension_config_list,
+                    "metric_count": scope_obj.metric_count,
+                    "auto_rules": scope_obj.auto_rules,
+                    "create_from": scope_obj.create_from,
+                }
+            )
         result.sort(key=lambda x: (x["name"] != UNGROUP_SCOPE_NAME, x["name"].lower()))
         return result
 
@@ -919,20 +1038,30 @@ class CreateOrUpdateGroupingRule(CustomTSScopeMixin, Resource):
     更新自定义指标分组规则
     """
 
-    class RequestSerializer(BaseCustomTSSerializer, CustomTSScopeRequestSerializer):
-        pass
+    class RequestSerializer(BaseCustomTSSerializer):
+        scope_id = serializers.IntegerField(label=_("分组 ID"), allow_null=True, required=False)
+        name = serializers.CharField(label=_("分组名称"))
+        auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
+        remove_ids = serializers.ListField(
+            label=_("需要移回默认分组的指标 ID 列表"),
+            child=serializers.IntegerField(),
+            required=False,
+            default=list,
+        )
+        update_ids = serializers.ListField(
+            label=_("需要移动到当前分组的指标 ID 列表"),
+            child=serializers.IntegerField(),
+            required=False,
+            default=list,
+        )
 
-    class ResponseSerializer(CustomTSScopeResponseSerializer):
-        pass
+        def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+            remove_ids = set(attrs.get("remove_ids", []))
+            update_ids = set(attrs.get("update_ids", []))
+            if remove_ids & update_ids:
+                raise serializers.ValidationError(_("`remove_ids` 与 `update_ids` 不能有重复的指标 ID"))
 
-    def _merge_scope_ids(self, params: dict, scope_id: int) -> dict:
-        """合并 scope_ids 参数，避免冲突"""
-        query_filters = self.get_query_scope_filters(params)
-        scope_ids = query_filters.get("scope_ids", [])
-        if scope_id not in scope_ids:
-            scope_ids.append(scope_id)
-        query_filters["scope_ids"] = scope_ids
-        return query_filters
+            return attrs
 
     def perform_request(self, params: dict):
         scope_request_obj = ScopeCURequestDTO(
@@ -949,25 +1078,14 @@ class CreateOrUpdateGroupingRule(CustomTSScopeMixin, Resource):
             default_scope_name=self.get_default_scope_name(params), include_metrics=False
         )
 
-        # 查询分组信息
-        scope_obj = scope_converter.query_time_series_scope(**self._merge_scope_ids(params, scope_cu_obj.id))[0]
-
-        origin_metric_ids: set[int] = {metric_obj.id for metric_obj in scope_obj.metric_list}
-        update_metric_ids: set[int] = {metric_dict["id"] for metric_dict in params["metric_list"]}
-        remove_metric_ids: set[int] = origin_metric_ids - update_metric_ids
-        update_metric_ids: set[int] = update_metric_ids - origin_metric_ids
-
         field_modify_service = FieldsModifyService(time_series_group_id=params["time_series_group_id"])
-        for metric_id in remove_metric_ids:
+        for metric_id in set(params["remove_ids"]):
             field_modify_service.add_metric(ModifyMetric(id=metric_id, scope_id=default_scope_obj.id))
-        for metric_id in update_metric_ids:
-            field_modify_service.add_metric(ModifyMetric(id=metric_id, scope_id=scope_obj.id))
+        for metric_id in set(params["update_ids"]):
+            field_modify_service.add_metric(ModifyMetric(id=metric_id, scope_id=scope_cu_obj.id))
         field_modify_service.apply_change()
 
-        updated_scope_obj: ScopeQueryResponseDTO = scope_converter.filter_disabled_metric(
-            scope_converter.query_time_series_scope(**self._merge_scope_ids(params, scope_obj.id))
-        )[0]
-        return asdict(updated_scope_obj)
+        return {"scope_id": scope_cu_obj.id}
 
 
 class PreviewGroupingRule(CustomTSScopeMixin, Resource):
@@ -979,27 +1097,35 @@ class PreviewGroupingRule(CustomTSScopeMixin, Resource):
         auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), child=serializers.CharField(), default=[])
 
     def perform_request(self, params: dict):
-        # 预编译正则表达式
-        rule_compile_map: dict[str, re.Pattern] = {rule: re.compile(rule) for rule in params["auto_rules"]}
-        converter = ScopeQueryConverter(params["time_series_group_id"])
-        default_scope_obj = converter.get_default_scope_obj(
-            default_scope_name=self.get_default_scope_name(params), include_metrics=True
-        )
-        default_scope_obj = converter.filter_disabled_metric([default_scope_obj])[0]
-        auto_metrics: dict[str, list[str]] = defaultdict(list)
-        for metric_obj in default_scope_obj.metric_list:
-            metric_name: str = metric_obj.name
-            for rule, pattern in rule_compile_map.items():
-                if pattern.match(metric_name):
-                    auto_metrics[rule].append(metric_name)
+        auto_rules = params["auto_rules"]
+        if not auto_rules:
+            return {"auto_metrics": []}
 
+        scope_converter = ScopeQueryConverter(params["time_series_group_id"])
+        default_scope_obj = scope_converter.get_default_scope_obj(
+            default_scope_name=self.get_default_scope_name(params), include_metrics=False
+        )
+
+        # API 层面直接正则匹配，只返回命中的指标
+        matched_metrics = (
+            MetricQueryConverter(params["time_series_group_id"])
+            .query_time_series_metric(
+                conditions=[
+                    {"key": "scope_id", "values": [str(default_scope_obj.id)], "search_type": "exact"},
+                    {"key": "field_config_disabled", "values": ["false"], "search_type": "exact"},
+                    {"key": "name", "values": auto_rules, "search_type": "regex"},
+                ],
+                page_size=100000,
+            )
+            .metrics
+        )
+        metric_names = [m.name for m in matched_metrics]
+
+        # 按规则分组
         return {
             "auto_metrics": [
-                {
-                    "auto_rule": auto_rule,
-                    "metrics": metrics,
-                }
-                for auto_rule, metrics in auto_metrics.items()
+                {"auto_rule": rule, "metrics": [name for name in metric_names if re.match(rule, name)]}
+                for rule in auto_rules
             ],
         }
 

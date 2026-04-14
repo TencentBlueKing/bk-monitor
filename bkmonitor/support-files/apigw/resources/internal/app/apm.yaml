@@ -1295,6 +1295,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "apm service list"
+  /app/apm/service/service_list/:
+    post:
+      operationId: apm_service_list
+      description: 【APM】查询应用下服务列表（含语言、系统、日志关联、K8s 平台信息）
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/service_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm service list with language, system, log relations and k8s platform info"
   /app/apm/profile_query_export/:
     get:
       operationId: profile_query_export

@@ -927,7 +927,7 @@ class Application(AbstractRecordModel):
         # 1. 获取服务Apdex配置
         from apm_web.models import ApdexServiceRelation
 
-        apdexs = ApdexServiceRelation.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        apdexs = ApdexServiceRelation.get_relation_qs(self.bk_biz_id, self.app_name)
         for apdex in apdexs:
             # 服务需要额外携带一个UNSPECIFIED类型的配置
             apdex_config = [{"span_kind": SpanKindKey.UNSPECIFIED, "predicate_key": "", "apdex_t": apdex.apdex_value}]

@@ -1223,13 +1223,11 @@ class ServiceDetailResource(Resource):
         ]
 
     def add_service_relation(self, bk_biz_id, app_name, service):
-        query_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service["topo_key"]}
+        service_name: str = service["topo_key"]
         # -- 添加cmdb关联信息
-        cmdb_query = CMDBServiceRelation.objects.filter(**query_params)
-        if cmdb_query.exists():
-            instance = cmdb_query.first()
-            bk_biz_id = instance.bk_biz_id
-            template_id = instance.template_id
+        cmdb_obj: CMDBServiceRelation = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
+        if cmdb_obj:
+            template_id = cmdb_obj.template_id
             template = {t["id"]: t for t in CMDBServiceTemplateResource.get_templates(bk_biz_id)}.get(template_id, {})
             service.update(
                 {
@@ -1240,9 +1238,9 @@ class ServiceDetailResource(Resource):
             )
 
         # -- 添加日志关联
-        log_query = LogServiceRelation.objects.filter(**query_params)
-        if log_query.exists():
-            log_data = LogServiceRelationOutputSerializer(instance=log_query.first()).data
+        log_obj: LogServiceRelation = LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
+        if log_obj:
+            log_data: dict[str, Any] = LogServiceRelationOutputSerializer(instance=log_obj).data
             if log_data["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
                 service.update(
                     {
@@ -1255,11 +1253,10 @@ class ServiceDetailResource(Resource):
                 service.update({"log_type": log_data["log_type_alias"], "log_value": log_data["value"]})
 
         # -- 添加app关联
-        app_query = AppServiceRelation.objects.filter(**query_params)
-        if app_query.exists():
-            instance = app_query.first()
-            res = AppServiceRelationSerializer(instance=instance).data
-            relate_bk_biz_id = instance.relate_bk_biz_id
+        app_obj: AppServiceRelation = AppServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
+        if app_obj:
+            res: dict[str, Any] = AppServiceRelationSerializer(instance=app_obj).data
+            relate_bk_biz_id = app_obj.relate_bk_biz_id
             biz = {i.bk_biz_id: i for i in api.cmdb.get_business(bk_biz_ids=[relate_bk_biz_id])}.get(relate_bk_biz_id)
             service.update(
                 {
@@ -2464,10 +2461,13 @@ class QueryEndpointStatisticsResource(PageListResource):
         # 匹配到正则的结果优先展示
         return match_res + no_match_res
 
-    def perform_request(self, validated_data):
+    def perform_request(self, validated_data: dict[str, Any]):
         """
         根据app_name service_name查询span 遍历span然后取db.system,http.method..等等这些字段 没有就为空
         """
+        bk_biz_id: int = validated_data["bk_biz_id"]
+        app_name: str = validated_data["app_name"]
+
         if validated_data.get("span_keys", []):
             self.span_keys = validated_data.get("span_keys")
         # 设置默认排序
@@ -2476,21 +2476,19 @@ class QueryEndpointStatisticsResource(PageListResource):
         filter_params = self.build_filter_params(validated_data["filter_params"])
         service_name = get_service_from_params(filter_params)
         is_component = False
-        uri_queryset = UriServiceRelation.objects.filter(
-            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-        )
+        uri_queryset = UriServiceRelation.get_relation_qs(bk_biz_id, app_name)
 
         if service_name:
             node = ServiceHandler.get_node(
-                validated_data["bk_biz_id"],
-                validated_data["app_name"],
+                bk_biz_id,
+                app_name,
                 service_name,
                 raise_exception=False,
             )
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
-                    validated_data["bk_biz_id"],
-                    validated_data["app_name"],
+                    bk_biz_id,
+                    app_name,
                     service_name,
                     filter_params,
                     validated_data.get("component_instance_id"),
@@ -2503,8 +2501,8 @@ class QueryEndpointStatisticsResource(PageListResource):
 
         buckets = api.apm_api.query_span(
             {
-                "bk_biz_id": validated_data["bk_biz_id"],
-                "app_name": validated_data["app_name"],
+                "bk_biz_id": bk_biz_id,
+                "app_name": app_name,
                 "start_time": validated_data["start_time"],
                 "end_time": validated_data["end_time"],
                 "filter_params": filter_params,
@@ -3200,19 +3198,3 @@ class SimpleServiceList(Resource):
         ]
 
 
-class ServiceConfigResource(Resource):
-    bk_biz_id = serializers.IntegerField(label="业务id")
-    app_name = serializers.CharField(label="应用名称")
-    service_name = serializers.CharField(label="应用名称")
-    start_time = serializers.IntegerField(label="开始时间", required=False)
-    end_time = serializers.IntegerField(label="结束时间", required=False)
-
-    def perform_request(self, validate_data):
-        group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-            metric_group.GroupEnum.TRPC, validate_data["bk_biz_id"], validate_data["app_name"]
-        )
-        return group.get_server_config(
-            server=validate_data["service_name"],
-            start_time=validate_data.get("start_time"),
-            end_time=validate_data.get("end_time"),
-        )

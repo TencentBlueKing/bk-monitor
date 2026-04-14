@@ -17,6 +17,7 @@ from apm_web.service.resources import (
     LogServiceRelationBkLogIndexSet,
     ServiceConfigResource,
     ServiceInfoResource,
+    ServiceListResource,
     ServiceUrlListResource,
     UriregularVerifyResource,
     PipelineOverviewResource,
@@ -50,6 +51,8 @@ class ServiceViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
+        # MCP 服务列表
+        ResourceRoute("POST", ServiceListResource, "service_list"),
         # 修改服务配置
         ResourceRoute("POST", ServiceConfigResource, "service_config"),
         # 获取服务配置

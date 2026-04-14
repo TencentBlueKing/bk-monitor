@@ -4,6 +4,7 @@ EXPORT_QUERYSET_CHUNK_SIZE = 10000
 
 SEQUENCE_FILE_NAME = "sequences.json"
 RECOVERY_RECORDS_DIRECTORY_NAME = "recovery_records"
+DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY = "data_migrate_closed_records"
 
 SEQUENCE_MODEL_SPECS: tuple[str, ...] = (
     "apm",
@@ -11,6 +12,11 @@ SEQUENCE_MODEL_SPECS: tuple[str, ...] = (
     "apm_web",
     "calendars",
     "fta_web",
+    "bk_dataview.Dashboard",
+    "bk_dataview.DataSource",
+    "bk_dataview.Org",
+    "bk_dataview.Preferences",
+    "bk_dataview.Star",
     "bkmonitor.AIFeatureSettings",
     "bkmonitor.AlertAssignGroup",
     "bkmonitor.AlertAssignRule",

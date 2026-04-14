@@ -32,12 +32,23 @@ import { getAlertK8sScenarioList, getAlertK8sTarget } from '../services/alarm-de
 
 import type { AlertK8sTargetItem, K8sTableColumnKeysEnum, SceneEnum } from '../typings';
 
+/** useAlertK8s 入参选项 */
+interface UseAlertK8sOptions {
+  /** 告警ID */
+  alertId: MaybeRef<string>;
+  /** 业务ID */
+  bizId: MaybeRef<number>;
+}
+
 /**
  * @function useAlertK8s 获取告警关联的 k8s基础信息 hook
  * @description 告警详情 - k8s 可选场景列表 & 关联容器对象列表
- * @param {MaybeRef<string>} alertId 告警ID
+ * @param {UseAlertK8sOptions} options 选项参数
+ * @param {MaybeRef<string>} options.alertId 告警ID
+ * @param {MaybeRef<number>} options.bizId 业务ID
  */
-export const useAlertK8s = (alertId: MaybeRef<string>) => {
+export const useAlertK8s = (options: UseAlertK8sOptions) => {
+  const { alertId, bizId } = options;
   /** 场景 */
   const scene = shallowRef<SceneEnum>();
   /** 当前选择的关联容器对象 */
@@ -80,7 +91,7 @@ export const useAlertK8s = (alertId: MaybeRef<string>) => {
    * @returns {Promise<void>}
    */
   const getSceneList = async () => {
-    const list = await getAlertK8sScenarioList(get(alertId));
+    const list = await getAlertK8sScenarioList({ alertId: get(alertId), bizId: get(bizId) });
     sceneList.value = list;
   };
 
@@ -89,7 +100,7 @@ export const useAlertK8s = (alertId: MaybeRef<string>) => {
    * @returns {Promise<void>}
    */
   const getTargetList = async () => {
-    const result = await getAlertK8sTarget(get(alertId));
+    const result = await getAlertK8sTarget({ alertId: get(alertId), bizId: get(bizId) });
     targetList.value = result.target_list;
     groupBy.value = result.resource_type;
   };

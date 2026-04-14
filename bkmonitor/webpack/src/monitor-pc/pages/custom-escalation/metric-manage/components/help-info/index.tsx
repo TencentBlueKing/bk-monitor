@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { proxyHostInfo, type ICustomTimeSeriesDetail } from '../../../service';
+import { type ICustomTimeSeriesDetail, proxyHostInfo } from '../../../service';
 
 import './index.scss';
 
@@ -34,10 +34,10 @@ import './index.scss';
  * 组件属性接口
  */
 interface IProps {
-  /** 是否显示帮助面板 */
-  isShow: boolean;
   /** 详情数据，包含数据通道ID、访问令牌等信息 */
   detailData: ICustomTimeSeriesDetail;
+  /** 是否显示帮助面板 */
+  isShow: boolean;
 }
 @Component
 export default class HelpInfo extends tsc<IProps> {
@@ -370,8 +370,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   </div>
                   <textarea
                     ref='golangCopy'
-                    class='copy-textarea'
                     style='display: none;'
+                    class='copy-textarea'
                   />
                 </div>
               </div>
@@ -395,8 +395,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   </div>
                   <textarea
                     ref='pythonCopy'
-                    class='copy-textarea'
                     style='display: none;'
+                    class='copy-textarea'
                   />
                 </div>
               </div>
