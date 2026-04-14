@@ -1,7 +1,7 @@
 import pytest
 
 from monitor_web.models.scene_view import SceneViewModel
-from monitor_web.scene_view.builtin.collect import CollectBuiltinProcessor
+from monitor_web.scene_view.builtin.collect import CollectBuiltinProcessor, get_simple_panel_count
 
 
 class TestCollectBuiltinProcessor:
@@ -42,3 +42,29 @@ class TestCollectBuiltinProcessor:
         assert result["mode"] == "auto"
         assert len(result["panels"]) == 3
         assert result["options"]["show_panel_count"] is True
+
+    def test_get_simple_panel_count_returns_zero_for_custom_event(self):
+        """custom_event_* 场景不展示 panel_count，应直接返回 0 而不查询 DB。"""
+        view = SceneViewModel(
+            bk_biz_id=2,
+            scene_id="custom_event_6475",
+            id="default",
+            name="Default",
+            mode="custom",
+            variables=[],
+            options={},
+        )
+        assert get_simple_panel_count(view) == 0
+
+    def test_get_simple_panel_count_returns_zero_for_custom_metric(self):
+        """custom_metric_* 场景不展示 panel_count，应直接返回 0 而不查询 DB。"""
+        view = SceneViewModel(
+            bk_biz_id=2,
+            scene_id="custom_metric_123",
+            id="default",
+            name="Default",
+            mode="auto",
+            variables=[],
+            options={},
+        )
+        assert get_simple_panel_count(view) == 0

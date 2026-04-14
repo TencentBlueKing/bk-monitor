@@ -77,10 +77,6 @@ interface ICustomTsMetricGroups {
     }[];
     metrics: {
       alias: string;
-      dimensions: {
-        alias: string;
-        name: string;
-      }[];
       field_id: number;
       metric_name: string;
     }[];
@@ -166,9 +162,25 @@ export const getSceneView = SceneViewApi.getSceneView<{
   }[];
 }>;
 
+export const getCustomTsMetricAggInfo: (
+  params:
+    | { apm_service_name?: string; bk_biz_id?: number; metric_ids: number[] }
+    | { bk_biz_id?: number; metric_ids: number[]; time_series_group_id?: number }
+) => Promise<{
+  all_dimensions: {
+    alias: string;
+    name: string;
+  }[];
+  common_dimensions: {
+    alias: string;
+    name: string;
+  }[];
+}> = SceneViewApi.getCustomTsMetricAggInfo;
+
 export default {
   getCustomTsMetricGroups,
   getCustomTsDimensionValues,
   getCustomTsGraphConfig,
+  getCustomTsMetricAggInfo,
   getSceneView,
 };

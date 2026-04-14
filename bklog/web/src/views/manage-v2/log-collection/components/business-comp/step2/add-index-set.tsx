@@ -88,17 +88,20 @@ export default defineComponent({
      */
     const handleRequest = async (config: { method: string; params?: any; data?: any; message: string }) => {
       loading.value = true;
-      const res = await $http.request(config.method, {
-        params: config.params,
-        data: config.data,
-      });
+      try {
+        const res = await $http.request(config.method, {
+          params: config.params,
+          data: config.data,
+        });
 
-      if (res.result) {
-        showMessage(config.message);
-        emit('submit', editData.value);
-        handleEditGroupCancel();
+        if (res.result) {
+          showMessage(config.message);
+          emit('submit', editData.value);
+          handleEditGroupCancel();
+        }
+      } finally {
+        loading.value = false;
       }
-      loading.value = false;
     };
 
     /**

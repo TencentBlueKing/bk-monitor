@@ -582,12 +582,40 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
+        class QueryTimeSeriesScopeConditionSerializer(serializers.Serializer):
+            key = serializers.ChoiceField(
+                choices=["name", "field_config_disabled"],
+                required=True,
+                label="搜索字段",
+            )
+            values = serializers.ListField(child=serializers.CharField(), required=True, label="搜索值列表", min_length=0)
+            search_type = serializers.ChoiceField(
+                choices=[
+                    "regex",
+                    "regex_case_sensitive",
+                    "fuzzy",
+                    "fuzzy_case_sensitive",
+                    "exact",
+                    "exact_case_sensitive",
+                ],
+                required=False,
+                default="fuzzy",
+                label="搜索类型",
+            )
+            negate = serializers.BooleanField(required=False, default=False, label="是否取反")
+
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         scope_ids = serializers.ListField(
             child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
         )
         scope_name = serializers.CharField(required=False, label="指标分组名称")
         include_metrics = serializers.BooleanField(required=False, default=False, label="是否返回指标数据")
+        mandatory_conditions = serializers.ListField(
+            child=QueryTimeSeriesScopeConditionSerializer(),
+            required=False,
+            allow_empty=True,
+            label="强制过滤条件列表",
+        )
 
 
 class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
@@ -606,6 +634,7 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
             key = serializers.ChoiceField(
                 choices=[
                     "name",
+                    "field_scope",
                     "field_config_alias",
                     "field_config_unit",
                     "field_config_aggregate_method",
@@ -621,30 +650,61 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
                 child=serializers.CharField(),
                 required=True,
                 label="搜索值列表（多个值用OR连接）",
-                min_length=1,
+                min_length=0,
             )
             search_type = serializers.ChoiceField(
-                choices=["regex", "fuzzy", "exact"],
+                choices=[
+                    "regex",
+                    "regex_case_sensitive",
+                    "fuzzy",
+                    "fuzzy_case_sensitive",
+                    "exact",
+                    "exact_case_sensitive",
+                ],
                 required=False,
                 default="fuzzy",
-                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配（仅对name字段有效，其他字段默认为exact）",
+                label="搜索类型：regex-正则表达式，regex_case_sensitive-区分大小写正则，fuzzy-模糊搜索，fuzzy_case_sensitive-区分大小写模糊搜索，exact-精确匹配，exact_case_sensitive-区分大小写精确匹配（仅对 name 和 field_config_alias 生效）",
+            )
+            negate = serializers.BooleanField(
+                required=False,
+                default=False,
+                label="是否取反：为 true 时对整个条件取反（NOT），默认为 false",
             )
 
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         page = serializers.IntegerField(default=1, required=False, label="页数", min_value=1)
-        page_size = serializers.IntegerField(default=10, required=False, label="页长", min_value=1, max_value=1000)
+        page_size = serializers.IntegerField(
+            default=10, required=False, label="页长，-1 表示不分页", min_value=-1, max_value=100000
+        )
         conditions = serializers.ListField(
             child=QueryTimeSeriesMetricConditionSerializer(),
             required=False,
-            label="搜索条件列表，同一字段的多个值用OR，不同字段之间用AND",
+            label="搜索条件列表，同一字段的多个值用OR，不同字段之间的连接方式由condition_connector决定",
             allow_empty=True,
+        )
+        mandatory_conditions = serializers.ListField(
+            child=QueryTimeSeriesMetricConditionSerializer(),
+            required=False,
+            label="强制过滤条件列表，始终以 AND 方式与其他条件组合，不受 condition_connector 影响",
+            allow_empty=True,
+        )
+        condition_connector = serializers.ChoiceField(
+            choices=["and", "or"],
+            required=False,
+            default="and",
+            label="不同字段之间的连接方式：and-且（交集），or-或（并集）",
         )
         order_by = serializers.ChoiceField(
             choices=["name", "update_time", "-name", "-update_time"],
             required=False,
             default="-update_time",
             label="排序字段：name-按名称升序，update_time-按更新时间升序，-name-按名称降序，-update_time-按更新时间降序",
+        )
+        count_only = serializers.BooleanField(
+            required=False,
+            default=False,
+            label="仅返回数量：为 true 时只返回 total，不返回 metrics 列表",
         )
 
 
