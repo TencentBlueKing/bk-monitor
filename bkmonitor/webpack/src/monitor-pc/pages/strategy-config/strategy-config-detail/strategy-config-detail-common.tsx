@@ -56,7 +56,7 @@ import {
   hasExcludeNoticeWayOptions,
   intervalModeNames,
 } from '../strategy-config-set-new/notice-config/notice-config';
-import { levelList, noticeMethod } from '../strategy-config-set-new/type';
+import { type IIssueConfig, LEVEL_LIST, levelList, noticeMethod } from '../strategy-config-set-new/type';
 import {
   type dataModeType,
   type IDetectionConfig,
@@ -356,6 +356,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   };
 
   targetDetailLoading = false;
+  /* issue聚合 */
+  issueConfig: IIssueConfig = null;
 
   get calendarsData() {
     if (this.calendars.length) return this.calendars;
@@ -446,6 +448,12 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   // 是否显示判断条件
   get isNeedJudgingCondition() {
     return this.metricData?.[0]?.data_type_label !== 'alert';
+  }
+
+  get needIssueConfigIndex() {
+    return this.actionsData.findIndex(item => {
+      return item.signal.length === 1 && item.signal[0] === 'abnormal';
+    });
   }
 
   created() {
@@ -775,6 +783,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     this.getAnalyzingData(data);
     this.getActionsData(data);
     this.getNoticeConfigData(data);
+    this.issueConfig = data?.issue_config || null;
   }
 
   /**
@@ -1358,24 +1367,36 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       >
                         <div class='item-head'>{item.signal.map(key => signalNames[key]).join(',')}</div>
                         <div class='item-content'>
-                          <span class='title'>{this.$t('动作')}:</span>
-                          <span class='content'>
-                            <div
-                              style='position: relative;top: -4px;'
-                              class='bk-button-group'
-                            >
-                              {ACTION_TYPE_OPTIONS.map(action => (
-                                <bk-button
-                                  key={action.id}
-                                  class={item.activeTab === action.id ? 'is-selected' : ''}
-                                  size='small'
-                                  onClick={() => this.handleActionsDataTabChange(index, action.id)}
+                          {this.needIssueConfigIndex === index && this.issueConfig
+                            ? [
+                                <span
+                                  key={'tab-01'}
+                                  class='title'
                                 >
-                                  {action.name}
-                                </bk-button>
-                              ))}
-                            </div>
-                          </span>
+                                  {this.$t('动作')}:
+                                </span>,
+                                <span
+                                  key={'tab-02'}
+                                  class='content'
+                                >
+                                  <div
+                                    style='position: relative;top: -4px;'
+                                    class='bk-button-group'
+                                  >
+                                    {ACTION_TYPE_OPTIONS.map(action => (
+                                      <bk-button
+                                        key={action.id}
+                                        class={item.activeTab === action.id ? 'is-selected' : ''}
+                                        size='small'
+                                        onClick={() => this.handleActionsDataTabChange(index, action.id)}
+                                      >
+                                        {action.name}
+                                      </bk-button>
+                                    ))}
+                                  </div>
+                                </span>,
+                              ]
+                            : undefined}
                         </div>
                         {item.activeTab === actionType.action
                           ? [
@@ -1425,21 +1446,48 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                 class='item-content'
                               >
                                 <span class='title'>{this.$t('聚合维度')}:</span>
-                                <span class='content'>xxxx</span>
+                                <span class='content'>
+                                  {this.issueConfig?.aggregate_dimensions?.join(', ') || '--'}
+                                </span>
                               </div>,
                               <div
                                 key='action-02'
                                 class='item-content'
                               >
                                 <span class='title'>{this.$t('过滤条件')}:</span>
-                                <span class='content'>xxxx</span>
+                                <span class='content'>
+                                  {this.issueConfig?.conditions?.map((item, cIndex) => (
+                                    <span
+                                      key={`${cIndex}_conditions`}
+                                      class='conditions-item'
+                                    >
+                                      {cIndex > 0 && <span class='where-condition'>{` ${item.condition} `}</span>}
+                                      <span>{` ${item.key} `}</span>
+                                      <span class='where-method'>{` ${item.method} `}</span>
+                                      <span class='where-content'>{` ${item.value.join(',')} `}</span>
+                                    </span>
+                                  ))}
+                                </span>
                               </div>,
                               <div
                                 key='action-03'
                                 class='item-content'
                               >
                                 <span class='title'>{this.$t('生效告警级别')}:</span>
-                                <span class='content'>xxxx</span>
+                                <span class='content'>
+                                  {this.issueConfig?.alert_levels.map(a => {
+                                    const levelItem = LEVEL_LIST.find(l => a === l.id);
+                                    return (
+                                      <span
+                                        key={a}
+                                        class='level-item'
+                                      >
+                                        <i class={`icon-monitor ${levelItem.icon}`} />
+                                        {levelItem.name}
+                                      </span>
+                                    );
+                                  })}
+                                </span>
                               </div>,
                             ]}
                       </div>
