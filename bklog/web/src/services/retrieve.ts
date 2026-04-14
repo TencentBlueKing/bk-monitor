@@ -455,6 +455,12 @@ const getSceneDateHistogram = {
   method: 'post',
 };
 
+/** 场景化检索 - 请求字段提示词列表 */
+const getSceneAggField = {
+  url: '/search/scene/agg_field/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -512,4 +518,5 @@ export {
   getSceneConfigs,
   getSceneFields,
   getSceneDateHistogram,
+  getSceneAggField,
 };

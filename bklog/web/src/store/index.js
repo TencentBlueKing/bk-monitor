@@ -1520,11 +1520,20 @@ const store = new Vuex.Store({
 
       if (!fields.length) return Promise.resolve(true);
 
-      const urlStr = state.indexItem.isUnionIndex ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
+      // 区分场景化检索、联合查询和普通查询
+      const isScene = isSceneRetrieve(state);
+      let urlStr;
+      if (isScene) {
+        urlStr = 'retrieve/getSceneAggField';
+      } else if (state.indexItem.isUnionIndex) {
+        urlStr = 'unionSearch/unionTerms';
+      } else {
+        urlStr = 'retrieve/getAggsTerms';
+      }
 
-      const queryData = {
+      // 公共参数
+      const baseQueryData = {
         keyword: '*',
-        fields,
         addition: formatAdditionalFields(state, payload?.addition ?? []),
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
@@ -1532,20 +1541,28 @@ const store = new Vuex.Store({
         bk_biz_id: state.bkBizId,
       };
 
-      if (state.indexItem.isUnionIndex) {
-        Object.assign(queryData, {
-          index_set_ids: state.unionIndexList,
-        });
+      let queryData;
+      if (isScene) {
+        // 场景化接口参数
+        queryData = {
+          ...baseQueryData,
+          space_uid: state.spaceUid,
+          table_id_conditions: buildTableIdConditions(state),
+          agg_field: fields[0], // 场景化接口只支持单字段
+        };
+      } else {
+        // 普通接口参数
+        queryData = {
+          ...baseQueryData,
+          fields,
+          ...(state.indexItem.isUnionIndex && { index_set_ids: state.unionIndexList }),
+        };
       }
 
-      const params = {
-        index_set_id: state.indexId,
-      };
-
-      const body = {
-        params,
-        data: queryData,
-      };
+      // 场景化不需要 params（不传 index_set_id）
+      const body = isScene
+        ? { data: queryData }
+        : { params: { index_set_id: state.indexId }, data: queryData };
 
       return http
         .request(urlStr, body, {
