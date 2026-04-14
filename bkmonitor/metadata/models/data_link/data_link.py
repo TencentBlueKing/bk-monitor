@@ -1280,10 +1280,6 @@ class DataLink(models.Model):
 
         try:
             with transaction.atomic():
-                # 若存在旧记录占用了相同的 bkbase_rt_name 但 data_link_name 不同，先清理
-                BkBaseResultTable.objects.filter(bkbase_rt_name=bkbase_vmrt_name).exclude(
-                    data_link_name=self.data_link_name
-                ).delete()
                 BkBaseResultTable.objects.update_or_create(
                     data_link_name=self.data_link_name,
                     defaults={
