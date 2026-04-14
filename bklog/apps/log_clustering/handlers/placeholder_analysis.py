@@ -20,12 +20,15 @@ the project delivered to anyone in the future.
 """
 
 import copy
+import re
+import csv
+from io import StringIO
 
 from django.conf import settings
 from django.utils.translation import gettext as _
 
 from apps.exceptions import ValidationError
-from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.constants import AGGS_FIELD_PREFIX, PatternEnum, StorageTypeEnum
 from apps.log_clustering.exceptions import PlaceholderAnalysisNotSupportedException
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.utils.pattern import (
@@ -78,6 +81,8 @@ class PlaceholderAnalysisHandler:
     """占位符值分布分析入口，收口参数校验、SQL 构造和结果格式化。"""
 
     DEFAULT_LIMIT = 100
+    EXPORT_LIMIT = 10000
+    INTERVAL_PATTERN = re.compile(r"^(?P<value>\d+)(?P<unit>[mhd])$")
 
     def __init__(self, index_set_id, params):
         self.index_set_id = int(index_set_id)
@@ -87,27 +92,99 @@ class PlaceholderAnalysisHandler:
     def get_distribution(self) -> dict:
         """返回单个占位符的 TopN 值分布和精确 unique_count。"""
 
-        self._load_clustering_context()
-        self._validate_storage_type()
-        self._validate_groups()
-
-        pattern = self._resolve_pattern()
-        placeholders = self._resolve_placeholders(pattern)
-        placeholder = self._resolve_target_placeholder(placeholders)
-
-        self._evaluate_pattern_risk(pattern)
-
-        raw_regex = self._build_regex(pattern)
+        context = self._prepare_placeholder_analysis()
+        raw_regex = context["raw_regex"]
         distribution_rows = self._query_distribution(self._build_distribution_sql(raw_regex))
         unique_count = self._query_count(self._build_unique_count_sql(raw_regex), "unique_count")
         total_count = self._query_count(self._build_total_count_sql(raw_regex), "total_count")
 
         return self._format_response(
-            placeholder=placeholder,
+            placeholder=context["placeholder"],
             values=distribution_rows,
             unique_count=unique_count,
             total_count=total_count,
         )
+
+    def get_trend(self) -> dict:
+        """返回整体趋势与当前选中值趋势。"""
+
+        context = self._prepare_placeholder_analysis()
+        raw_regex = context["raw_regex"]
+        selected_value = self._resolve_selected_value()
+        interval = self._resolve_interval()
+        overall = self._query_trend(self._build_trend_sql(raw_regex, interval=interval))
+        if selected_value:
+            selected = self._query_trend(
+                self._build_trend_sql(raw_regex, interval=interval, selected_value=selected_value)
+            )
+        else:
+            selected = []
+
+        return {
+            "placeholder_name": context["placeholder"]["name"],
+            "placeholder_index": context["placeholder"]["index"],
+            "selected_value": selected_value,
+            "interval": interval,
+            "overall": overall,
+            "selected": selected,
+        }
+
+    def get_samples(self) -> dict:
+        """返回当前选中值的相关样本。"""
+
+        context = self._prepare_placeholder_analysis()
+        selected_value = self._resolve_selected_value(required=True)
+        samples_result = self._query_samples(self._build_samples_sql(context["raw_regex"], selected_value))
+        return {
+            "placeholder_name": context["placeholder"]["name"],
+            "placeholder_index": context["placeholder"]["index"],
+            "selected_value": selected_value,
+            "samples": samples_result["list"],
+            "total_records": samples_result["total_records"],
+            "result_schema": samples_result["result_schema"],
+            "select_fields_order": samples_result["select_fields_order"],
+        }
+
+    def export_distribution(self):
+        """导出占位符值分布表。"""
+
+        context = self._prepare_placeholder_analysis()
+        raw_regex = context["raw_regex"]
+        distribution_rows = self._query_distribution(self._build_distribution_sql(raw_regex, limit=self.EXPORT_LIMIT))
+        total_count = self._query_count(self._build_total_count_sql(raw_regex), "total_count")
+        row_buffer = StringIO()
+        csv_writer = csv.writer(row_buffer)
+        csv_writer.writerow(["value", "count", "percentage"])
+        yield row_buffer.getvalue().encode("utf-8")
+        row_buffer.seek(0)
+        row_buffer.truncate()
+
+        for item in distribution_rows:
+            csv_writer.writerow(
+                [
+                    item["value"],
+                    item["count"],
+                    f"{self._calculate_percentage(item['count'], total_count):.2f}%",
+                ]
+            )
+            yield row_buffer.getvalue().encode("utf-8")
+            row_buffer.seek(0)
+            row_buffer.truncate()
+
+    def _prepare_placeholder_analysis(self) -> dict:
+        self._load_clustering_context()
+        self._validate_storage_type()
+
+        pattern = self._resolve_pattern()
+        placeholders = self._resolve_placeholders(pattern)
+        placeholder = self._resolve_target_placeholder(placeholders)
+        self._evaluate_pattern_risk(pattern)
+
+        return {
+            "pattern": pattern,
+            "placeholder": placeholder,
+            "raw_regex": self._build_regex(pattern),
+        }
 
     def _load_clustering_context(self):
         self.clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
@@ -120,38 +197,6 @@ class PlaceholderAnalysisHandler:
             raise PlaceholderAnalysisNotSupportedException(
                 PlaceholderAnalysisNotSupportedException.MESSAGE.format(reason=_("当前业务不是 Doris 聚类结果表"))
             )
-
-    def _validate_groups(self):
-        """groups 只允许描述当前聚类行上下文，不能和 addition 语义冲突。"""
-
-        groups = self.params.get("groups", {})
-        addition = self.params.get("addition", [])
-        group_fields = set(self.clustering_config.group_fields or [])
-
-        invalid_fields = sorted(set(groups) - group_fields)
-        if invalid_fields:
-            raise ValidationError(_("groups 包含非法字段: {fields}").format(fields=", ".join(invalid_fields)))
-
-        for item in addition:
-            field = item.get("field")
-            if field not in groups:
-                continue
-            if not self._is_addition_compatible_with_group(item, groups[field]):
-                raise ValidationError(_("groups 与 addition 在字段 {field} 上冲突").format(field=field))
-
-    @staticmethod
-    def _is_addition_compatible_with_group(addition, group_value):
-        operator = addition.get("operator")
-        value = addition.get("value")
-        if operator == "is":
-            return str(value) == str(group_value)
-        if operator == "is one of":
-            if isinstance(value, list):
-                value_list = value
-            else:
-                value_list = str(value).split(",")
-            return str(group_value) in [str(item) for item in value_list]
-        return False
 
     def _resolve_pattern(self) -> str:
         pattern = self.params["pattern"].strip()
@@ -170,6 +215,12 @@ class PlaceholderAnalysisHandler:
         if placeholder_index >= len(placeholders):
             raise ValidationError(_("placeholder_index 超出占位符范围"))
         return placeholders[placeholder_index]
+
+    def _resolve_selected_value(self, required: bool = False) -> str:
+        value = str(self.params.get("value", "") or "")
+        if required and not value:
+            raise ValidationError(_("value 不能为空"))
+        return value
 
     def _evaluate_pattern_risk(self, pattern: str):
         """风险只做日志观测，不阻断 Sprint 1 查询主链路。"""
@@ -201,46 +252,133 @@ class PlaceholderAnalysisHandler:
                 PlaceholderAnalysisNotSupportedException.MESSAGE.format(reason=str(error))
             ) from error
 
-    def _build_distribution_sql(self, raw_regex: str) -> str:
+    def _build_distribution_sql(self, raw_regex: str, limit: int | None = None) -> str:
         """分布查询只保留 regexp_extract 与聚合逻辑，其他过滤交给 UnifyQuery 注入。"""
 
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
         field_name = self.clustering_config.clustering_fields
-        limit = self.params.get("limit", self.DEFAULT_LIMIT)
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
-        return (
-            f"SELECT {extract_sql} AS val, COUNT(*) AS cnt "
-            f"WHERE __dist_05 = '{signature}' "
-            f"AND {extract_sql} != '' "
-            f"GROUP BY {extract_sql} "
+        sql = (
+            "SELECT val, COUNT(*) AS cnt "
+            f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
+            f"WHERE val != ''{self._build_value_keyword_filter()} "
+            "GROUP BY val "
             "ORDER BY cnt DESC "
-            f"LIMIT {limit}"
         )
+        if limit is None:
+            limit = self.params.get("limit", self.DEFAULT_LIMIT)
+        if limit:
+            sql += f"LIMIT {limit}"
+        return sql
+
+    def _build_trend_sql(self, raw_regex: str, interval: str, selected_value: str = "") -> str:
+        regex = escape_sql_literal(raw_regex)
+        signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
+        extract_sql = self._get_extract_sql(regex)
+        bucket_sql = self._get_bucket_sql(interval)
+        sql = (
+            f"SELECT {bucket_sql} AS bucket, COUNT(*) AS cnt "
+            f"WHERE {signature_field} = '{signature}' "
+            f"AND {extract_sql} != '' "
+        )
+        if selected_value:
+            sql += f"AND {extract_sql} = '{escape_sql_literal(str(selected_value))}' "
+        sql += f"GROUP BY {bucket_sql} ORDER BY {bucket_sql} ASC"
+        return sql
+
+    def _build_samples_sql(self, raw_regex: str, selected_value: str, with_limit: bool = True) -> str:
+        regex = escape_sql_literal(raw_regex)
+        signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
+        extract_sql = self._get_extract_sql(regex)
+        value = escape_sql_literal(selected_value)
+        sql = (
+            "SELECT * "
+            f"WHERE {signature_field} = '{signature}' "
+            f"AND {extract_sql} = '{value}' "
+            "ORDER BY dtEventTimeStamp DESC "
+        )
+        if with_limit:
+            limit = int(self.params.get("limit", 20))
+            sql += f"LIMIT {limit}"
+        return sql
 
     def _build_unique_count_sql(self, raw_regex: str) -> str:
         """unique_count 必须独立 COUNT DISTINCT，不能由 TopN 分布近似推导。"""
 
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
         field_name = self.clustering_config.clustering_fields
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
-            f"SELECT COUNT(DISTINCT {extract_sql}) AS unique_count "
-            f"WHERE __dist_05 = '{signature}' "
-            f"AND {extract_sql} != ''"
+            "SELECT COUNT(DISTINCT val) AS unique_count "
+            f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
+            f"WHERE val != ''{self._build_value_keyword_filter()}"
         )
 
     def _build_total_count_sql(self, raw_regex: str) -> str:
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
+        signature_field = self._get_signature_field()
         field_name = self.clustering_config.clustering_fields
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
         return (
             "SELECT COUNT(*) AS total_count "
-            f"WHERE __dist_05 = '{signature}' "
-            f"AND {extract_sql} != ''"
+            f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
+            f"WHERE val != ''{self._build_value_keyword_filter()}"
         )
+
+    def _get_signature_field(self) -> str:
+        pattern_level = str(self.params.get("pattern_level") or PatternEnum.LEVEL_05.value)
+        if pattern_level not in {"01", "03", "05", "07", "09"}:
+            raise ValidationError(_("pattern_level 不合法: {level}").format(level=pattern_level))
+        return f"{AGGS_FIELD_PREFIX}_{pattern_level}"
+
+    def _get_extract_sql(self, escaped_regex: str) -> str:
+        field_name = self.clustering_config.clustering_fields
+        return f"regexp_extract({field_name}, '{escaped_regex}', 1)"
+
+    def _build_value_keyword_filter(self) -> str:
+        value_keyword = str(self.params.get("value_keyword", "") or "").strip()
+        if not value_keyword:
+            return ""
+        return f" AND INSTR(val, '{escape_sql_literal(value_keyword)}') > 0"
+
+    def _get_bucket_sql(self, interval: str) -> str:
+        bucket_ms = self._interval_to_milliseconds(interval)
+        return f"CAST(FLOOR(dtEventTimeStamp / {bucket_ms}) * {bucket_ms} AS BIGINT)"
+
+    def _resolve_interval(self) -> str:
+        interval = str(self.params.get("interval") or "auto")
+        if interval == "auto":
+            duration_ms = max(self.params["end_time"] - self.params["start_time"], 0)
+            if duration_ms <= 60 * 60 * 1000:
+                return "1m"
+            if duration_ms <= 6 * 60 * 60 * 1000:
+                return "5m"
+            if duration_ms <= 3 * 24 * 60 * 60 * 1000:
+                return "1h"
+            return "1d"
+
+        self._interval_to_milliseconds(interval)
+        return interval
+
+    def _interval_to_milliseconds(self, interval: str) -> int:
+        match = self.INTERVAL_PATTERN.match(interval)
+        if not match:
+            raise ValidationError(_("interval 不合法: {interval}").format(interval=interval))
+        value = int(match.group("value"))
+        unit = match.group("unit")
+        unit_to_ms = {
+            "m": 60 * 1000,
+            "h": 60 * 60 * 1000,
+            "d": 24 * 60 * 60 * 1000,
+        }
+        return value * unit_to_ms[unit]
 
     def _build_query_params(self, sql: str) -> dict:
         """把聚类分析上下文转换成 UnifyQueryChartHandler 可消费的参数。"""
@@ -261,7 +399,9 @@ class PlaceholderAnalysisHandler:
         # groups 表示当前聚类行的 group_by 上下文，统一收敛为等值 addition。
         merged = copy.deepcopy(self.params.get("addition", []))
         existing_fields = {item.get("field") for item in merged}
-        for field, value in self.params.get("groups", {}).items():
+        for field, value in (self.params.get("groups") or {}).items():
+            if not field:
+                continue
             if field in existing_fields:
                 continue
             merged.append({"field": field, "operator": "is", "value": value, "condition": "and"})
@@ -270,10 +410,11 @@ class PlaceholderAnalysisHandler:
     def _query_chart_data(self, sql: str) -> dict:
         """统一从 clustered_rt 查询 Doris SQL，避免落到默认 _analysis 表。"""
 
+        return self._build_chart_handler(sql).get_chart_data()
+
+    def _build_chart_handler(self, sql: str) -> ClusteringUnifyQueryChartHandler:
         params = self._build_query_params(sql)
-        return ClusteringUnifyQueryChartHandler(
-            params, clustered_rt=self.clustering_config.clustered_rt
-        ).get_chart_data()
+        return ClusteringUnifyQueryChartHandler(params, clustered_rt=self.clustering_config.clustered_rt)
 
     def _query_distribution(self, sql: str) -> list[dict]:
         result = self._query_chart_data(sql)
@@ -295,6 +436,22 @@ class PlaceholderAnalysisHandler:
             return 0
         return self._to_int(result["list"][0].get(field_name, 0))
 
+    def _query_trend(self, sql: str) -> list[dict]:
+        result = self._query_chart_data(sql)
+        return [
+            {"time": self._to_int(item.get("bucket", 0)), "count": self._to_int(item.get("cnt", 0))}
+            for item in result.get("list", [])
+        ]
+
+    def _query_samples(self, sql: str) -> dict:
+        result = self._query_chart_data(sql)
+        return {
+            "list": [dict(item) for item in result.get("list", [])],
+            "total_records": self._to_int(result.get("total_records", len(result.get("list", [])))),
+            "result_schema": result.get("result_schema", []),
+            "select_fields_order": result.get("select_fields_order", []),
+        }
+
     @staticmethod
     def _to_int(value) -> int:
         try:
@@ -315,6 +472,7 @@ class PlaceholderAnalysisHandler:
             "placeholder_name": placeholder["name"],
             "placeholder_index": placeholder["index"],
             "unique_count": unique_count,
+            "total_count": total_count,
             "values": [
                 {
                     "value": item["value"],

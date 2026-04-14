@@ -74,15 +74,17 @@ class PlaceholderDistributionSerializer(serializers.Serializer):
     signature = serializers.CharField()
     pattern = serializers.CharField()
     placeholder_index = serializers.IntegerField(min_value=0)
+    pattern_level = serializers.CharField(required=False, default=PatternEnum.LEVEL_05.value)
 
-    start_time = DateTimeFieldWithEpoch(required=True)
-    end_time = DateTimeFieldWithEpoch(required=True)
+    start_time = serializers.IntegerField(label="开始时间", required=True)
+    end_time = serializers.IntegerField(label="结束时间", required=True)
 
     sort = serializers.ChoiceField(choices=["count_desc"], required=False, default="count_desc")
     limit = serializers.IntegerField(required=False, default=100, min_value=1, max_value=100)
 
     groups = serializers.DictField(required=False, default=dict)
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    value_keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
     addition = serializers.ListField(required=False, default=list)
     host_scopes = serializers.DictField(required=False, default=dict)
     ip_chooser = serializers.DictField(required=False, default=dict)
@@ -92,6 +94,25 @@ class PlaceholderDistributionSerializer(serializers.Serializer):
         if not value.strip():
             raise serializers.ValidationError("pattern cannot be empty.")
         return value
+
+    def validate_pattern_level(self, value):
+        if str(value) not in {"01", "03", "05", "07", "09"}:
+            raise serializers.ValidationError("pattern_level is invalid.")
+        return str(value)
+
+
+class PlaceholderTrendSerializer(PlaceholderDistributionSerializer):
+    value = serializers.CharField(required=False, allow_blank=True, default="")
+    interval = serializers.CharField(required=False, default="auto", max_length=16)
+
+
+class PlaceholderSamplesSerializer(PlaceholderDistributionSerializer):
+    value = serializers.CharField(required=True, allow_blank=False)
+    limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
+
+
+class PlaceholderExportSerializer(PlaceholderDistributionSerializer):
+    limit = serializers.IntegerField(required=False, default=None, allow_null=True)
 
 
 class StringOrListField(serializers.Field):
