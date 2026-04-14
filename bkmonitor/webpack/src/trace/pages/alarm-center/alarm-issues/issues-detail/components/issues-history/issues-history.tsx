@@ -105,7 +105,7 @@ export default defineComponent({
           ) : this.historyList.length ? (
             this.historyList.map(item => (
               <div
-                key={item.id}
+                key={item.issue_id}
                 class='issues-history-item'
               >
                 <div
