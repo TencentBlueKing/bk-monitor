@@ -169,7 +169,6 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   }
 
   async getCustomTsMetricGroupsData() {
-    const needParseUrl = Boolean(this.$route.query?.viewPayload);
     if (this.timeSeriesGroupId < 1 && !this.isApmMode) {
       return [];
     }
@@ -186,16 +185,6 @@ export default class ViewContent extends tsc<IProps, IEmit> {
       }
       const result = await this.requestHandlerMap.getCustomTsMetricGroups(params);
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
-      if (!needParseUrl && this.isApmMode) {
-        const metricGroup = result.metric_groups;
-        const defaultSelectedData = {
-          groupName: metricGroup[0]?.name || '',
-          metricsName: [metricGroup[0]?.metrics[0]?.metric_name || ''],
-        };
-        customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(
-          metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [defaultSelectedData] : []
-        );
-      }
     } finally {
       this.handleCustomTsMetricGroups();
     }
