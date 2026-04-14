@@ -107,6 +107,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 return
 
             incident_info = sync_info["incident_info"]
+            should_send_notice = incident_info.pop("send_notice", None)
+            notice_config = incident_info.pop("notice_config", None)
             incident_info["incident_id"] = sync_info["incident_id"]
             incident_document = IncidentDocument(**incident_info)
 
@@ -181,6 +183,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 assignees=incident_document.assignees,
                 incident_document=incident_document,  # 直接传入文档，避免 ES 查询延迟
                 incident_name=incident_info.get("incident_name"),  # 用于判断是否为匿名故障
+                should_send_notice=should_send_notice,
+                notice_config=notice_config,
             )
             self.generate_alert_operations(
                 snapshot_alerts,
@@ -241,6 +245,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         # 更新故障归档记录
         try:
             incident_info = sync_info["incident_info"]
+            should_send_notice = incident_info.pop("send_notice", None)
+            notice_config = incident_info.pop("notice_config", None)
             incident_info["incident_id"] = sync_info["incident_id"]
             merge_info = incident_info.pop("merge_info", None) or {}
             incident_document = IncidentDocument.get(
@@ -295,6 +301,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     operate_time=operate_time,
                     merge_info=merge_info,
                     alert_count=alert_count,
+                    should_send_notice=should_send_notice,
+                    notice_config=notice_config,
                 )
             return
         except Exception as e:
@@ -368,6 +376,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                         from_value=update_info["from"],
                         to_value=update_info["to"],
                         merge_info=merge_info,
+                        should_send_notice=should_send_notice,
+                        notice_config=notice_config,
                         incident_document=incident_document,  # 传递 incident_document 用于计算观察时长
                     )
                 setattr(incident_document, incident_key, update_info["to"])

@@ -1658,6 +1658,13 @@ class Item(AbstractConfig):
         return records
 
 
+class _Empty:
+    """用于区分"字段未传"与"显式传 None"的 sentinel 对象。"""
+
+
+ISSUE_CONFIG_EMPTY = _Empty()
+
+
 class IssueConfig:
     """Issues 聚合配置，挂在 Strategy 对象上，与 ActionRelation 并列。
 
@@ -1804,7 +1811,7 @@ class Strategy(AbstractConfig):
         priority_group_key: str = None,
         metric_type: str = "",
         instance: StrategyModel = None,
-        issue_config: dict | None = None,
+        issue_config: dict | None | _Empty = ISSUE_CONFIG_EMPTY,
         **kwargs,
     ):
         """
@@ -1836,10 +1843,11 @@ class Strategy(AbstractConfig):
         self.priority = priority
         self.priority_group_key = priority_group_key or ""
         self.instance = instance
-        # issue_config 由 from_models() 或 perform_request() 通过 _issue_config_in_request 标志写入；
-        # __init__ 阶段仅做结构初始化，不触发 save。
-        self.issue_config: IssueConfig | None = IssueConfig(**issue_config) if issue_config else None
-        self._issue_config_in_request: bool = False
+        # ISSUE_CONFIG_EMPTY（sentinel）= 字段未传，不操作已有配置
+        # None = 显式传 null，删除已有配置
+        # dict = 显式传值，upsert 配置
+        self._issue_config_in_request: bool = not isinstance(issue_config, _Empty)
+        self.issue_config: IssueConfig | None = IssueConfig(**issue_config) if isinstance(issue_config, dict) else None
 
         if isinstance(self.update_time, int | str):
             self.update_time = arrow.get(update_time).datetime
@@ -2056,7 +2064,7 @@ class Strategy(AbstractConfig):
 
         anomaly_template = None
         recovery_template = None
-        for template in notice.config.get("template"):
+        for template in notice.config.get("template", []):
             if template["signal"] == ActionSignal.ABNORMAL:
                 anomaly_template = template
             elif template["signal"] == ActionSignal.RECOVERED:
