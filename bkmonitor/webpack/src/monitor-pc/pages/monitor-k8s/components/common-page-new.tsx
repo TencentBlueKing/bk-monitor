@@ -614,6 +614,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     };
     this.handleResetRouteQuery();
   }
+  @Provide('handleTimeRangeChange')
+  handleTimeRangeChange(v: TimeRangeType) {
+    this.timeRange = v;
+    this.handleResetRouteQuery();
+    this.$emit('timeRangeChange', v);
+  }
   mounted() {
     this.timezone = getDefaultTimezone();
     this.initData();
@@ -1517,11 +1523,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleRefreshChange(v: number) {
     this.refreshInterval = v;
     this.handleResetRouteQuery();
-  }
-  handleTimeRangeChange(v: TimeRangeType) {
-    this.timeRange = v;
-    this.handleResetRouteQuery();
-    this.$emit('timeRangeChange', v);
   }
   /** 时区变更 */
   handleTimezoneChange(timezone: string) {
