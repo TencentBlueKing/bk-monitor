@@ -6,6 +6,7 @@ from ai_agent.services.local_command_handler import (
     CommandHandler,
     local_command_handler,
 )
+from apps.log_clustering.constants import AGGS_FIELD_PREFIX
 from apps.log_unifyquery.builder.context import build_context_params
 from apps.utils.log import logger
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -206,3 +207,129 @@ class QuerystringGenerateJSONCommandHandler(QuerystringGenerateCommandHandler):
     """
 
     pass
+
+
+@local_command_handler("clustering_regex_generate")
+class ClusteringRegexGenerateCommandHandler(CommandHandler):
+    """
+    聚类正则生成命令处理器
+    通过 signature 查询同类日志，提供多条同结构日志样本给 LLM，生成更精准的正则表达式
+
+    命令参数:
+    - index_set_id: 索引集ID
+    - signature: 数据指纹 (聚类签名)
+    - origin_log: 原始日志内容
+    - target_text: 用户选中的待匹配文本片段
+    - pattern_level: 聚类敏感度等级，默认为 "05"
+    """
+
+    # 查询同类日志的最大条数
+    MAX_SAMPLE_COUNT = 10
+    # 查询同类日志的默认时间范围（天）
+    DEFAULT_QUERY_DAYS = 1
+
+    def _query_same_signature_logs(
+        self,
+        index_set_id: int,
+        signature: str,
+        aggs_field: str,
+        bk_biz_id: int,
+    ) -> list[str]:
+        """
+        查询与给定 signature 相同的日志，返回日志内容列表
+        """
+        from apps.log_unifyquery.handler.base import UnifyQueryHandler
+
+        end_time = arrow.now().int_timestamp * 1000
+        start_time = arrow.now().shift(days=-self.DEFAULT_QUERY_DAYS).int_timestamp * 1000
+
+        params = {
+            "keyword": "*",
+            "addition": [{"field": aggs_field, "operator": "is", "value": signature}],
+            "begin": 0,
+            "size": self.MAX_SAMPLE_COUNT,
+            "bk_biz_id": bk_biz_id,
+            "index_set_ids": [index_set_id],
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+
+        try:
+            result = UnifyQueryHandler(params).search()
+            return [item["log"] for item in result.get("list", []) if item.get("log") and isinstance(item["log"], str)]
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                "Failed to query same signature logs for index_set_id=%s, signature=%s, reason: %s",
+                index_set_id,
+                signature,
+                e,
+            )
+            return []
+
+    def process_content(self, context: list[dict]) -> str:
+        from apps.log_clustering.models import ClusteringConfig
+
+        template = self.get_template()
+        variables = self.extract_context_vars(context)
+
+        index_set_id = int(variables["index_set_id"])
+        signature = variables["signature"]
+        origin_log = variables.get("origin_log", "")
+        target_text = variables.get("target_text", "")
+        pattern_level = variables.get("pattern_level", "05")
+
+        # 获取聚类配置
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id, raise_exception=False)
+        if not clustering_config:
+            logger.warning("ClusteringConfig not found for index_set_id=%s", index_set_id)
+            return self.jinja_env.render(
+                template,
+                {
+                    "origin_log": origin_log,
+                    "target_text": target_text,
+                    "sample_logs": "",
+                },
+            )
+
+        # 确定同类型聚合字段
+        aggs_field = "signature" if clustering_config.use_mini_link else f"{AGGS_FIELD_PREFIX}_{pattern_level}"
+
+        # 查询同类日志（最多 10 条）
+        sample_logs = self._query_same_signature_logs(
+            index_set_id=index_set_id,
+            signature=signature,
+            aggs_field=aggs_field,
+            bk_biz_id=clustering_config.bk_biz_id,
+        )
+
+        # 去重并排除原始日志
+        seen = {origin_log}
+        unique_samples = []
+        for log_content in sample_logs:
+            if log_content in seen:
+                continue
+            seen.add(log_content)
+            unique_samples.append(log_content)
+
+        sample_logs_text = "\n".join(f"[样本 {i + 1}] {log}" for i, log in enumerate(unique_samples))
+
+        return self.jinja_env.render(
+            template,
+            {
+                "origin_log": origin_log,
+                "target_text": target_text,
+                "sample_logs": sample_logs_text,
+            },
+        )
+
+    def get_template(self) -> str:
+        return """
+## 原始日志
+{{ origin_log }}
+
+## 待匹配字符串
+{{ target_text }}
+
+## 参考日志列表
+{{ sample_logs }}
+        """
