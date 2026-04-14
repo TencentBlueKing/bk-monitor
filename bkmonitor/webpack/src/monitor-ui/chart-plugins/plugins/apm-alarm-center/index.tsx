@@ -136,6 +136,8 @@ export default class ApmAlarmCenter extends tsc<any, any> {
         queryString: this.conditionsToQueryString,
         filterMode: 'queryString',
         alarmType: 'alert',
+        from: this.timeRange[0],
+        to: this.timeRange[1],
         bizIds: [this.$store.getters.bizId],
       },
     });
