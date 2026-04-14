@@ -996,21 +996,23 @@ class DataLink(models.Model):
         )
 
         with transaction.atomic():
-            vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(
+            vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                data_link_name=self.data_link_name,
                 namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "data_link_name": self.data_link_name,
+                    "bk_biz_id": bk_biz_id,
+                },
             )
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                data_id_name=bkbase_raw_data_name,
-                data_link_name=self.data_link_name,
                 namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
+                    "data_id_name": bkbase_raw_data_name,
+                    "data_link_name": self.data_link_name,
+                    "bk_biz_id": bk_biz_id,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{bkbase_vmrt_name}"],
                 },
@@ -1278,11 +1280,14 @@ class DataLink(models.Model):
 
         try:
             with transaction.atomic():
+                # 若存在旧记录占用了相同的 bkbase_rt_name 但 data_link_name 不同，先清理
+                BkBaseResultTable.objects.filter(bkbase_rt_name=bkbase_vmrt_name).exclude(
+                    data_link_name=self.data_link_name
+                ).delete()
                 BkBaseResultTable.objects.update_or_create(
                     data_link_name=self.data_link_name,
-                    monitor_table_id=table_id,
-                    storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
                     defaults={
+                        "monitor_table_id": table_id,
                         "bkbase_rt_name": bkbase_vmrt_name,
                         "bkbase_data_name": bkbase_data_name,
                         "bkbase_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
