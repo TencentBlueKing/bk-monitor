@@ -32,7 +32,7 @@ class TestCommonFlatBuiltInFields(TestCase):
                 self.assertEqual(rule["operator"]["type"], "assign")
                 self.assertEqual(rule["operator"]["key_index"], "iterationindex")
                 self.assertEqual(rule["operator"]["alias"], "iterationIndex")
-                # es_type=integer → output_type
+                # es_type=integer → output_type=long
                 self.assertEqual(rule["operator"]["output_type"], "long")
 
     def test_flat_field_false_no_rule(self):
