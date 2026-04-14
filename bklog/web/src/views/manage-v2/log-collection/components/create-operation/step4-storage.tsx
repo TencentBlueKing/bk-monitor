@@ -27,9 +27,12 @@
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
 import { useRoute } from 'vue-router/composables';
 
+import ClusterTypeTabs from '../../../es-cluster/cluster-manage/cluster-type-tabs.tsx';
+import { CLUSTER_TYPES, ClusterType, useClusterType } from '../../../es-cluster/cluster-manage/use-cluster-type';
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
@@ -67,15 +70,16 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
     const route = useRoute();
+    const router = useRouter();
     const { cardRender, sortByPermission } = useOperation();
+
     const activeName = ref(['shared', 'exclusive']);
     const storageList = ref([]);
     const clusterSelect = ref();
     const clusterData = ref({});
     const loading = ref(false);
     const submitLoading = ref(false);
-    const storageFormRef = ref(null);
-    const formData = ref({
+    const STORAGE_DEFAULTS = {
       storage_replies: 1,
       retention: 7,
       es_shards: 3,
@@ -86,12 +90,54 @@ export default defineComponent({
     const formData = ref({
       ...STORAGE_DEFAULTS,
       need_assessment: false,
-      allocation_min_days: 0,
+      ...props.configData,
     });
     const cleanStash = ref({});
 
     const bkBizId = computed(() => store.state.bkBizId);
+    const spaceUid = computed(() => store.getters.spaceUid);
     const curCollect = computed(() => store.getters['collect/curCollect']);
+
+    const getInitialTab = (): ClusterType => {
+      const tabQuery = route.query.tab;
+      if (tabQuery === 'doris') return CLUSTER_TYPES.DORIS;
+      return CLUSTER_TYPES.ES;
+    };
+
+    const resetClusterSelection = () => {
+      clusterSelect.value = undefined;
+      clusterData.value = {};
+      (formData.value as any).storage_cluster_id = undefined;
+      Object.assign(formData.value, STORAGE_DEFAULTS);
+    };
+
+    const { activeTab, isDorisMode, isDorisEnabled, checkDorisAccess, handleTabClick } = useClusterType({
+      bkBizId,
+      spaceUid,
+      initialTab: getInitialTab(),
+      onAccessDenied: () => {
+        const { tab, ...restQuery } = route.query;
+        router.replace({
+          name: route.name,
+          params: route.params,
+          query: restQuery,
+        });
+      },
+      onTabChange: async type => {
+        const currentQuery = { ...route.query };
+        currentQuery.tab = type === CLUSTER_TYPES.DORIS ? 'doris' : 'es';
+        router.replace({
+          name: route.name,
+          params: route.params,
+          query: currentQuery,
+        });
+
+        storageList.value = [];
+        resetClusterSelection();
+        await getStorage();
+      },
+    });
+
     const collapseList = computed(() => [
       {
         title: t('共享集群'),
@@ -105,6 +151,7 @@ export default defineComponent({
         data: storageList.value.filter(item => !item.is_platform),
       },
     ]);
+
     /**
      * 是否为自定义上报
      */
@@ -213,14 +260,16 @@ export default defineComponent({
      * 功能：请求存储数据，将有管理权限的存储项优先展示，处理加载状态和错误提示
      */
     const getStorage = async () => {
-      const queryParams = { bk_biz_id: bkBizId.value };
+      const queryParams = {
+        bk_biz_id: bkBizId.value,
+        cluster_type: activeTab.value,
+      };
 
       try {
         loading.value = true;
         const res = await $http.request('collect/getStorage', { query: queryParams });
 
         if (res.data) {
-          // 调用通用排序函数处理数据
           storageList.value = sortByPermission(res.data);
         }
       } catch (error) {
@@ -229,20 +278,7 @@ export default defineComponent({
         loading.value = false;
       }
     };
-    /**
-     * 选择集群时重置为默认值（切换集群场景）
-     */
-    const handleSelectStorageCluster = row => {
-      const { setup_config: setupConfig } = row;
-      formData.value = {
-        ...formData.value,
-        storage_cluster_id: row.storage_cluster_id,
-        retention: setupConfig?.retention_days_default || 7,
-        storage_replies: setupConfig?.number_of_replicas_default || 1,
-        es_shards: setupConfig?.es_shards_default || 3,
-        allocation_min_days: 0,
-      };
-    };
+
     /**
      * 选择集群时重置为默认值（切换集群场景）
      */
@@ -324,7 +360,7 @@ export default defineComponent({
             }
           });
       }
-      getStorage();
+      await getStorage();
       if (!isCustomReport.value) {
         getCleanStash();
       }
@@ -358,6 +394,7 @@ export default defineComponent({
             loading={loading.value}
             name={item.title}
             showBizCount={item.key === 'shared'}
+            showDesc={!isDorisMode.value}
             on-choose={handleChooseCluster}
           />
         </div>
@@ -370,6 +407,12 @@ export default defineComponent({
         class='cluster-box'
         v-bkloading={{ isLoading: loading.value }}
       >
+        <ClusterTypeTabs
+          activeTab={activeTab.value}
+          isDorisEnabled={isDorisEnabled.value}
+          on-tab-click={handleTabClick}
+        />
+
         <bk-collapse value={activeName.value}>{collapseList.value.map(item => renderCollapseItem(item))}</bk-collapse>
       </div>
     );
