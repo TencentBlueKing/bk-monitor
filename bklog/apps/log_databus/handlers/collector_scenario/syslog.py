@@ -174,7 +174,6 @@ class SysLogScenario(CollectorScenario):
                     "tag": "dimension",
                     "alias_name": "iterationindex",
                     "description": "迭代ID",
-                    "flat_field": True,
                     "option": build_es_option_type("integer", es_version),
                 },
                 {

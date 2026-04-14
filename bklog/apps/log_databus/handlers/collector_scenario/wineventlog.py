@@ -273,7 +273,6 @@ class WinEventLogScenario(CollectorScenario):
                     "alias_name": "provider_name",
                     "description": "来源名称",
                     "option": build_es_option_type("keyword", es_version),
-                    "flat_field": True,
                 },
                 {
                     "field_name": "winEventTask",
