@@ -151,19 +151,24 @@ class TestPlaceholderAnalysisHandler(TestCase):
         with self.assertRaises(PlaceholderAnalysisNotSupportedException):
             PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
 
-    def test_get_distribution_raises_when_groups_conflict_with_addition(self):
+    def test_merge_groups_accepts_temporary_group_fields(self):
         params = {
             "signature": "deadbeef",
             "pattern": "#NUMBER#",
             "placeholder_index": 0,
             "start_time": 1710000000000,
             "end_time": 1710003600000,
-            "groups": {"service_name": "api"},
-            "addition": [{"field": "service_name", "operator": "is", "value": "web"}],
+            "groups": {"temporary_group": "api", "service_name": "web"},
         }
 
-        with self.assertRaises(ValidationError):
-            PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
+        handler = PlaceholderAnalysisHandler(INDEX_SET_ID, params)
+        self.assertEqual(
+            handler._merge_groups_into_addition(),
+            [
+                {"field": "temporary_group", "operator": "is", "value": "api", "condition": "and"},
+                {"field": "service_name", "operator": "is", "value": "web", "condition": "and"},
+            ],
+        )
 
     def test_get_distribution_raises_when_placeholder_index_out_of_range(self):
         params = {

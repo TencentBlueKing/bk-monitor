@@ -174,7 +174,6 @@ class PlaceholderAnalysisHandler:
     def _prepare_placeholder_analysis(self) -> dict:
         self._load_clustering_context()
         self._validate_storage_type()
-        self._validate_groups()
 
         pattern = self._resolve_pattern()
         placeholders = self._resolve_placeholders(pattern)
@@ -198,38 +197,6 @@ class PlaceholderAnalysisHandler:
             raise PlaceholderAnalysisNotSupportedException(
                 PlaceholderAnalysisNotSupportedException.MESSAGE.format(reason=_("当前业务不是 Doris 聚类结果表"))
             )
-
-    def _validate_groups(self):
-        """groups 只允许描述当前聚类行上下文，不能和 addition 语义冲突。"""
-
-        groups = self.params.get("groups", {})
-        addition = self.params.get("addition", [])
-        group_fields = set(self.clustering_config.group_fields or [])
-
-        invalid_fields = sorted(set(groups) - group_fields)
-        if invalid_fields:
-            raise ValidationError(_("groups 包含非法字段: {fields}").format(fields=", ".join(invalid_fields)))
-
-        for item in addition:
-            field = item.get("field")
-            if field not in groups:
-                continue
-            if not self._is_addition_compatible_with_group(item, groups[field]):
-                raise ValidationError(_("groups 与 addition 在字段 {field} 上冲突").format(field=field))
-
-    @staticmethod
-    def _is_addition_compatible_with_group(addition, group_value):
-        operator = addition.get("operator")
-        value = addition.get("value")
-        if operator == "is":
-            return str(value) == str(group_value)
-        if operator == "is one of":
-            if isinstance(value, list):
-                value_list = value
-            else:
-                value_list = str(value).split(",")
-            return str(group_value) in [str(item) for item in value_list]
-        return False
 
     def _resolve_pattern(self) -> str:
         pattern = self.params["pattern"].strip()
@@ -433,7 +400,9 @@ class PlaceholderAnalysisHandler:
         # groups 表示当前聚类行的 group_by 上下文，统一收敛为等值 addition。
         merged = copy.deepcopy(self.params.get("addition", []))
         existing_fields = {item.get("field") for item in merged}
-        for field, value in self.params.get("groups", {}).items():
+        for field, value in (self.params.get("groups") or {}).items():
+            if not field:
+                continue
             if field in existing_fields:
                 continue
             merged.append({"field": field, "operator": "is", "value": value, "condition": "and"})
