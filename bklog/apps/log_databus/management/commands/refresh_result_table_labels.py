@@ -47,10 +47,10 @@ class Command(BaseCommand):
                     success += 1
                     continue
                 try:
-                    TransferApi.modify_result_table({
+                    TransferApi.switch_result_table({
                         "table_id": cfg.table_id,
+                        "operator": "admin",
                         "labels": labels,
-                        "bk_biz_id": cfg.bk_biz_id,
                     })
                     success += 1
                     logger.info("[refresh_labels] %s -> %s", cfg.table_id, labels)
