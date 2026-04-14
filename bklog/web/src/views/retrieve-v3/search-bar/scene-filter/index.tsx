@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { getOs } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -34,7 +34,7 @@ import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { isEqual } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { RetrieveEvent } from '../../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import SceneFilterTags from '../../../retrieve-v2/sub-bar/scene-filter-tags';
 import V3Searchbar from '../index';
 import FilterPanel from './filter-panel';
@@ -46,7 +46,13 @@ import './index.scss';
 
 export default defineComponent({
   name: 'SceneFilter',
-  setup() {
+  props: {
+    isSticky: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props) {
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
@@ -164,10 +170,36 @@ export default defineComponent({
       shortcut: `(${shortcutKey})`,
     });
 
+    // 监听场景筛选面板高度变化并上报
+    let panelObserver: ResizeObserver | undefined;
+
+    onMounted(() => {
+      const el = document.querySelector('.scene-filter-panel-section') as HTMLElement;
+      if (!el) return;
+
+      // 初始化高度
+      RetrieveHelper.setSceneFilterPanelHeight(el.offsetHeight);
+
+      panelObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          RetrieveHelper.setSceneFilterPanelHeight((entry.target as HTMLElement).offsetHeight);
+        }
+      });
+      panelObserver.observe(el);
+    });
+
+    onUnmounted(() => {
+      if (panelObserver) {
+        panelObserver.disconnect();
+        panelObserver = undefined;
+      }
+      // 组件卸载时重置高度为 0
+      RetrieveHelper.setSceneFilterPanelHeight(0);
+    });
+
     return () => (
       <div class='scene-filter-root'>
-        <div class='scene-filter-panel-wrapper'>
-          <SceneFilterTags class='scene-filter-tags-sticky' />
+        <div class='scene-filter-panel-section'>
           <FilterPanel
             activeScene={activeScene.value}
             filterValues={filterValues.value}
@@ -178,15 +210,18 @@ export default defineComponent({
             on-display-fields-change={handleDisplayFieldsChange}
           />
         </div>
-        <V3Searchbar />
-        <transition name='slide-hint'>
-          {showQueryHint.value && (
-            <div class='query-hint-bar'>
-              <i class='bklog-icon bklog-circle-alert-filled query-hint-icon' />
-              <span class='query-hint-text'>{hintText()}</span>
-            </div>
-          )}
-        </transition>
+        <div class='scene-search-sticky'>
+          {props.isSticky && <SceneFilterTags />}
+          <V3Searchbar />
+          <transition name='slide-hint'>
+            {showQueryHint.value && (
+              <div class='query-hint-bar'>
+                <i class='bklog-icon bklog-circle-alert-filled query-hint-icon' />
+                <span class='query-hint-text'>{hintText()}</span>
+              </div>
+            )}
+          </transition>
+        </div>
       </div>
     );
   },
