@@ -84,6 +84,7 @@ class PlaceholderDistributionSerializer(serializers.Serializer):
 
     groups = serializers.DictField(required=False, default=dict)
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    value_keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
     addition = serializers.ListField(required=False, default=list)
     host_scopes = serializers.DictField(required=False, default=dict)
     ip_chooser = serializers.DictField(required=False, default=dict)

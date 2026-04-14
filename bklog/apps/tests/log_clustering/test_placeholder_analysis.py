@@ -111,6 +111,31 @@ class TestPlaceholderAnalysisHandler(TestCase):
         self.assertIn("WHERE __dist_03 = 'deadbeef'", first_call_params["sql"])
         self.assertNotIn("__dist_05 = 'deadbeef'", first_call_params["sql"])
 
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_distribution_supports_value_keyword_fuzzy_search(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"val": "404", "cnt": 6}]},
+            {"list": [{"unique_count": 1}]},
+            {"list": [{"total_count": 6}]},
+        ]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "value_keyword": "40",
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
+
+        distribution_sql = mock_chart_handler.call_args_list[0].args[0]["sql"]
+        unique_count_sql = mock_chart_handler.call_args_list[1].args[0]["sql"]
+        total_count_sql = mock_chart_handler.call_args_list[2].args[0]["sql"]
+        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", distribution_sql)
+        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", unique_count_sql)
+        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", total_count_sql)
+
     def test_get_distribution_raises_for_non_doris_storage(self):
         ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(
             storage_type=StorageTypeEnum.ELASTICSEARCH.value
@@ -151,6 +176,13 @@ class TestPlaceholderAnalysisHandler(TestCase):
 
         with self.assertRaises(ValidationError):
             PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
+
+    def test_escape_like_literal_handles_special_characters(self):
+        escape = PlaceholderAnalysisHandler._escape_like_literal
+        self.assertEqual(escape("100%"), "100\\%")
+        self.assertEqual(escape("a_b"), "a\\_b")
+        self.assertEqual(escape("it's"), "it''s")
+        self.assertEqual(escape(r"c:\path"), r"c:\\path")
 
     @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
     def test_get_trend_returns_overall_and_selected_series(self, mock_chart_handler):
@@ -457,3 +489,25 @@ class TestPlaceholderAnalysisHandler(TestCase):
         call_params = mock_chart_handler.call_args_list[0].args[0]
         self.assertIn("LIMIT 10000", call_params["sql"])
         self.assertNotIn("LIMIT 2", call_params["sql"])
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_export_distribution_supports_value_keyword_fuzzy_search(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"val": "404", "cnt": 6}]},
+            {"list": [{"total_count": 6}]},
+        ]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "value_keyword": "40",
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        b"".join(PlaceholderAnalysisHandler(INDEX_SET_ID, params).export_distribution())
+
+        distribution_sql = mock_chart_handler.call_args_list[0].args[0]["sql"]
+        total_count_sql = mock_chart_handler.call_args_list[1].args[0]["sql"]
+        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", distribution_sql)
+        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", total_count_sql)

@@ -296,7 +296,7 @@ class PlaceholderAnalysisHandler:
         sql = (
             "SELECT val, COUNT(*) AS cnt "
             f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
-            "WHERE val != '' "
+            f"WHERE val != ''{self._build_value_keyword_filter()} "
             "GROUP BY val "
             "ORDER BY cnt DESC "
         )
@@ -350,7 +350,7 @@ class PlaceholderAnalysisHandler:
         return (
             "SELECT COUNT(DISTINCT val) AS unique_count "
             f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
-            "WHERE val != ''"
+            f"WHERE val != ''{self._build_value_keyword_filter()}"
         )
 
     def _build_total_count_sql(self, raw_regex: str) -> str:
@@ -362,7 +362,7 @@ class PlaceholderAnalysisHandler:
         return (
             "SELECT COUNT(*) AS total_count "
             f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
-            "WHERE val != ''"
+            f"WHERE val != ''{self._build_value_keyword_filter()}"
         )
 
     def _get_signature_field(self) -> str:
@@ -374,6 +374,13 @@ class PlaceholderAnalysisHandler:
     def _get_extract_sql(self, escaped_regex: str) -> str:
         field_name = self.clustering_config.clustering_fields
         return f"regexp_extract({field_name}, '{escaped_regex}', 1)"
+
+    def _build_value_keyword_filter(self) -> str:
+        value_keyword = str(self.params.get("value_keyword", "") or "").strip()
+        if not value_keyword:
+            return ""
+        escaped_value = self._escape_like_literal(value_keyword)
+        return f" AND val LIKE '%{escaped_value}%' ESCAPE '\\\\'"
 
     def _get_bucket_sql(self, interval: str) -> str:
         bucket_ms = self._interval_to_milliseconds(interval)
@@ -491,6 +498,11 @@ class PlaceholderAnalysisHandler:
         if total_count <= 0:
             return 0
         return round(count * 100 / total_count, 2)
+
+    @staticmethod
+    def _escape_like_literal(value: str) -> str:
+        """Escape user input for a SQL LIKE pattern; distinct from escape_sql_literal used for regex SQL literals."""
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("'", "''")
 
     def _format_response(self, placeholder: dict, values: list[dict], unique_count: int, total_count: int) -> dict:
         return {

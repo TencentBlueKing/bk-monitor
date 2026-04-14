@@ -169,6 +169,7 @@ class PatternViewSet(APIViewSet):
         @apiParam {Int} [limit] 返回值分布条数上限，默认 100，最小 1，最大 100
         @apiParam {Object} [groups] 当前聚类行的 group_by 上下文；key 须为聚类配置 group_fields 子集，后端合并为等值过滤；若与 addition 同字段语义冲突则参数错误
         @apiParam {String} [keyword] 检索关键字，透传给 UnifyQuery
+        @apiParam {String} [value_keyword] 值分布搜索关键字；对占位符值做模糊搜索
         @apiParam {Array} [addition] 检索条件，含 field、operator、value 等，透传给 UnifyQuery
         @apiParam {Object} [host_scopes] 主机过滤范围，透传给 UnifyQuery
         @apiParam {Object} [ip_chooser] 主机选择器，透传给 UnifyQuery
@@ -194,6 +195,7 @@ class PatternViewSet(APIViewSet):
                 "service_name": "api"
             },
             "keyword": "request failed",
+            "value_keyword": "404",
             "addition": [
                 {
                     "field": "level",
@@ -395,7 +397,7 @@ class PatternViewSet(APIViewSet):
         @api {post} /pattern/$index_set_id/placeholder_export/ 日志聚类-占位符值分布导出
         @apiName placeholder_export
         @apiGroup log_clustering
-        @apiDescription 导出当前占位符值分布表，导出内容与 placeholder_distribution 查询上下文保持一致。导出使用独立上限 10000 条，超出时按出现次数降序截断。
+        @apiDescription 导出当前占位符值分布表，导出内容与 placeholder_distribution 查询上下文保持一致。支持按值模糊搜索。导出使用独立上限 10000 条，超出时按出现次数降序截断。
         @apiParam {Number} index_set_id 索引集 ID
         @apiParam {String} signature Pattern 指纹
         @apiParam {String} pattern Pattern 内容
@@ -406,6 +408,7 @@ class PatternViewSet(APIViewSet):
         @apiParam {String="count_desc"} [sort="count_desc"] 排序方式
         @apiParam {Object} [groups] 当前 Pattern 分组上下文
         @apiParam {String} [keyword] 关键词检索条件
+        @apiParam {String} [value_keyword] 值分布搜索关键字；对占位符值做模糊搜索
         @apiParam {Object[]} [addition] 附加检索条件
         @apiParam {Object} [host_scopes] 主机范围
         @apiParam {Object} [ip_chooser] IP 选择器
@@ -424,6 +427,7 @@ class PatternViewSet(APIViewSet):
                 "service_name": "api"
             },
             "keyword": "request failed",
+            "value_keyword": "404",
             "addition": [
                 {
                     "field": "level",
