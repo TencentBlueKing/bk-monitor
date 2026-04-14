@@ -31,6 +31,7 @@ import type { IViewOptions } from '../../typings';
 import { alertBuiltinFilter } from 'monitor-api/modules/model';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 import { generateQueryString } from 'monitor-api/modules/alert_v2';
+import type { TimeRangeType } from 'trace/components/time-range/utils';
 
 import './index.scss';
 
@@ -49,6 +50,8 @@ export default class ApmAlarmCenter extends tsc<any, any> {
     id: string,
     customRouterQuery: Record<string, number | string>
   ) => void;
+  // 处理时间范围变化
+  @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: TimeRangeType) => void;
 
   // 告警关联下拉是否展示
   isDropdownShow = false;
@@ -177,6 +180,10 @@ export default class ApmAlarmCenter extends tsc<any, any> {
 
   /** 嵌入告警中心（V3）透出的事件；conditionChange 为 UI 条件变化，其余可扩展处理查询变更等 */
   async handleV3EventChange(eventName: string, params: string | unknown[]) {
+    if (eventName === 'alarmTrendChartZoomChange') {
+      this.handleTimeRangeChange(params as TimeRangeType);
+      return;
+    }
     if (eventName === 'filterModeChange') {
       if (params === 'ui') {
         // 语句模式切换为ui模式

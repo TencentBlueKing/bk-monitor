@@ -29,6 +29,7 @@ import {
   computed,
   defineComponent,
   // #if IS_APM_MONITOR
+  provide,
   inject,
   onBeforeUnmount,
   // #endif
@@ -115,6 +116,10 @@ export default defineComponent({
     if (bridgeProps.queryString) {
       window.APM_QUERY_STRING = bridgeProps.queryString;
     }
+    const handleAlarmTrendChartZoomChange = (v: [number, number]) => {
+      bridgeEmit('alarmTrendChartZoomChange', v);
+    };
+    provide('handleAlarmTrendChartZoomChange', handleAlarmTrendChartZoomChange);
     // #endif
 
     const {
@@ -263,7 +268,6 @@ export default defineComponent({
 
     // #if IS_APM_MONITOR
     watch(bridgeProps, () => {
-      console.log('bridgeProps change === ', bridgeProps);
       alarmStore.refreshImmediate = bridgeProps.refreshImmediate;
       alarmStore.refreshInterval = Number(bridgeProps.refreshInterval);
       alarmStore.timeRange = bridgeProps.timeRange;
