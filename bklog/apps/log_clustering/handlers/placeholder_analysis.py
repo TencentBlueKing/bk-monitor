@@ -21,6 +21,8 @@ the project delivered to anyone in the future.
 
 import copy
 import re
+import csv
+from io import StringIO
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -79,6 +81,7 @@ class PlaceholderAnalysisHandler:
     """占位符值分布分析入口，收口参数校验、SQL 构造和结果格式化。"""
 
     DEFAULT_LIMIT = 100
+    EXPORT_LIMIT = 10000
     INTERVAL_PATTERN = re.compile(r"^(?P<value>\d+)(?P<unit>[mhd])$")
 
     def __init__(self, index_set_id, params):
@@ -111,7 +114,9 @@ class PlaceholderAnalysisHandler:
         interval = self._resolve_interval()
         overall = self._query_trend(self._build_trend_sql(raw_regex, interval=interval))
         if selected_value:
-            selected = self._query_trend(self._build_trend_sql(raw_regex, interval=interval, selected_value=selected_value))
+            selected = self._query_trend(
+                self._build_trend_sql(raw_regex, interval=interval, selected_value=selected_value)
+            )
         else:
             selected = []
 
@@ -140,13 +145,31 @@ class PlaceholderAnalysisHandler:
             "select_fields_order": samples_result["select_fields_order"],
         }
 
-    def export_samples(self):
-        """导出当前选中值的相关样本。"""
+    def export_distribution(self):
+        """导出占位符值分布表。"""
 
         context = self._prepare_placeholder_analysis()
-        selected_value = self._resolve_selected_value(required=True)
-        sql = self._build_samples_sql(context["raw_regex"], selected_value)
-        return self._build_chart_handler(sql).export_chart_data()
+        raw_regex = context["raw_regex"]
+        distribution_rows = self._query_distribution(self._build_distribution_sql(raw_regex, limit=self.EXPORT_LIMIT))
+        total_count = self._query_count(self._build_total_count_sql(raw_regex), "total_count")
+        row_buffer = StringIO()
+        csv_writer = csv.writer(row_buffer)
+        csv_writer.writerow(["value", "count", "percentage"])
+        yield row_buffer.getvalue().encode("utf-8")
+        row_buffer.seek(0)
+        row_buffer.truncate()
+
+        for item in distribution_rows:
+            csv_writer.writerow(
+                [
+                    item["value"],
+                    item["count"],
+                    f"{self._calculate_percentage(item['count'], total_count):.2f}%",
+                ]
+            )
+            yield row_buffer.getvalue().encode("utf-8")
+            row_buffer.seek(0)
+            row_buffer.truncate()
 
     def _prepare_placeholder_analysis(self) -> dict:
         self._load_clustering_context()
@@ -262,23 +285,26 @@ class PlaceholderAnalysisHandler:
                 PlaceholderAnalysisNotSupportedException.MESSAGE.format(reason=str(error))
             ) from error
 
-    def _build_distribution_sql(self, raw_regex: str) -> str:
+    def _build_distribution_sql(self, raw_regex: str, limit: int | None = None) -> str:
         """分布查询只保留 regexp_extract 与聚合逻辑，其他过滤交给 UnifyQuery 注入。"""
 
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
         signature_field = self._get_signature_field()
         field_name = self.clustering_config.clustering_fields
-        limit = self.params.get("limit", self.DEFAULT_LIMIT)
         extract_sql = f"regexp_extract({field_name}, '{regex}', 1)"
-        return (
+        sql = (
             "SELECT val, COUNT(*) AS cnt "
             f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
             "WHERE val != '' "
             "GROUP BY val "
             "ORDER BY cnt DESC "
-            f"LIMIT {limit}"
         )
+        if limit is None:
+            limit = self.params.get("limit", self.DEFAULT_LIMIT)
+        if limit:
+            sql += f"LIMIT {limit}"
+        return sql
 
     def _build_trend_sql(self, raw_regex: str, interval: str, selected_value: str = "") -> str:
         regex = escape_sql_literal(raw_regex)
@@ -296,20 +322,22 @@ class PlaceholderAnalysisHandler:
         sql += f"GROUP BY {bucket_sql} ORDER BY {bucket_sql} ASC"
         return sql
 
-    def _build_samples_sql(self, raw_regex: str, selected_value: str) -> str:
+    def _build_samples_sql(self, raw_regex: str, selected_value: str, with_limit: bool = True) -> str:
         regex = escape_sql_literal(raw_regex)
         signature = escape_sql_literal(self.params["signature"])
         signature_field = self._get_signature_field()
         extract_sql = self._get_extract_sql(regex)
         value = escape_sql_literal(selected_value)
-        limit = int(self.params.get("limit", 20))
-        return (
+        sql = (
             "SELECT * "
             f"WHERE {signature_field} = '{signature}' "
             f"AND {extract_sql} = '{value}' "
             "ORDER BY dtEventTimeStamp DESC "
-            f"LIMIT {limit}"
         )
+        if with_limit:
+            limit = int(self.params.get("limit", 20))
+            sql += f"LIMIT {limit}"
+        return sql
 
     def _build_unique_count_sql(self, raw_regex: str) -> str:
         """unique_count 必须独立 COUNT DISTINCT，不能由 TopN 分布近似推导。"""

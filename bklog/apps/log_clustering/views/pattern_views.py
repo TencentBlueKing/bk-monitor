@@ -392,33 +392,32 @@ class PatternViewSet(APIViewSet):
     @detail_route(methods=["POST"], url_path="placeholder_export")
     def placeholder_export(self, request, index_set_id):
         """
-        @api {post} /pattern/$index_set_id/placeholder_export/ 日志聚类-占位符样本导出
+        @api {post} /pattern/$index_set_id/placeholder_export/ 日志聚类-占位符值分布导出
         @apiName placeholder_export
         @apiGroup log_clustering
-        @apiDescription 导出当前选中占位符值的相关样本记录，导出内容与 placeholder_samples 查询上下文保持一致。
+        @apiDescription 导出当前占位符值分布表，导出内容与 placeholder_distribution 查询上下文保持一致。导出使用独立上限 10000 条，超出时按出现次数降序截断。
         @apiParam {Number} index_set_id 索引集 ID
         @apiParam {String} signature Pattern 指纹
         @apiParam {String} pattern Pattern 内容
         @apiParam {Number} placeholder_index 占位符索引
         @apiParam {String="01","03","05","07","09"} [pattern_level="05"] 聚类敏感度
-        @apiParam {String} value 当前选中的占位符值，不能为空
         @apiParam {Number} start_time 开始时间，毫秒时间戳
         @apiParam {Number} end_time 结束时间，毫秒时间戳
-        @apiParam {Int} [limit=20] 导出样本条数，最小 1，最大 100
+        @apiParam {String="count_desc"} [sort="count_desc"] 排序方式
         @apiParam {Object} [groups] 当前 Pattern 分组上下文
         @apiParam {String} [keyword] 关键词检索条件
         @apiParam {Object[]} [addition] 附加检索条件
         @apiParam {Object} [host_scopes] 主机范围
         @apiParam {Object} [ip_chooser] IP 选择器
         @apiParam {Number} [bk_biz_id] 业务 ID
+        @apiParam {Number} [limit] 页面展示参数，导出时忽略；导出固定最多 10000 条
         @apiParamExample {json} 请求参数
         {
             "signature": "e4b60ecf",
             "pattern": "prefix #PATH# middle #NUMBER# suffix",
             "placeholder_index": 1,
             "pattern_level": "05",
-            "value": "404",
-            "limit": 20,
+            "sort": "count_desc",
             "start_time": 1773916800000,
             "end_time": 1773920400000,
             "groups": {
@@ -434,16 +433,16 @@ class PatternViewSet(APIViewSet):
             ]
         }
         @apiSuccessExample {text/csv} 成功返回:
-        dtEventTimeStamp,serverIp,message
-        1710000000000,1.1.1.1,request failed, code=404
-        1709996400000,1.1.1.2,request failed again, code=404
-        @apiError 非 Doris 或未配置 clustered_rt 时抛 PlaceholderAnalysisNotSupportedException；value 为空、groups 非法或与 addition 冲突时为参数校验错误
+        value,count,percentage
+        404,6,60.00%
+        500,4,40.00%
+        @apiError 非 Doris 或未配置 clustered_rt 时抛 PlaceholderAnalysisNotSupportedException；groups 非法或与 addition 冲突时为参数校验错误
         """
         params = self.params_valid(PlaceholderExportSerializer)
         handler = PlaceholderAnalysisHandler(index_set_id=index_set_id, params=params)
         file_name = f"bklog_placeholder_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
         response = StreamingHttpResponse(
-            handler.export_samples(),
+            handler.export_distribution(),
             content_type="application/octet-stream",
         )
         response["Content-Disposition"] = f'attachment; filename="{file_name}"'

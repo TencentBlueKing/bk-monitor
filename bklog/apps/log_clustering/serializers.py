@@ -110,8 +110,8 @@ class PlaceholderSamplesSerializer(PlaceholderDistributionSerializer):
     limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
 
 
-class PlaceholderExportSerializer(PlaceholderSamplesSerializer):
-    pass
+class PlaceholderExportSerializer(PlaceholderDistributionSerializer):
+    limit = serializers.IntegerField(required=False, default=None, allow_null=True)
 
 
 class StringOrListField(serializers.Field):

@@ -402,30 +402,33 @@ class TestPlaceholderAnalysisHandler(TestCase):
             PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_samples()
 
     @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
-    def test_export_samples_uses_export_chart_data_with_selected_value(self, mock_chart_handler):
-        mock_chart_handler.return_value.export_chart_data.return_value = iter(["csv-header\n", "csv-row\n"])
+    def test_export_distribution_returns_distribution_csv(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"val": "404", "cnt": 6}, {"val": "500", "cnt": 4}]},
+            {"list": [{"total_count": 10}]},
+        ]
         params = {
             "signature": "deadbeef",
             "pattern": "prefix #PATH# middle #NUMBER# suffix",
             "placeholder_index": 1,
             "pattern_level": "03",
-            "value": "404",
-            "limit": 5,
+            "limit": 2,
             "groups": {"service_name": "api"},
             "addition": [{"field": "level", "operator": "is", "value": "error"}],
             "start_time": 1710000000000,
             "end_time": 1710003600000,
         }
 
-        export_iter = PlaceholderAnalysisHandler(INDEX_SET_ID, params).export_samples()
+        export_bytes = b"".join(PlaceholderAnalysisHandler(INDEX_SET_ID, params).export_distribution())
+        export_text = export_bytes.decode("utf-8")
 
-        self.assertEqual(list(export_iter), ["csv-header\n", "csv-row\n"])
-        call_params = mock_chart_handler.call_args.args[0]
-        self.assertIn("SELECT *", call_params["sql"])
+        self.assertIn("value,count,percentage", export_text)
+        self.assertIn("404,6,60.00%", export_text)
+        self.assertIn("500,4,40.00%", export_text)
+        call_params = mock_chart_handler.call_args_list[0].args[0]
         self.assertIn("WHERE __dist_03 = 'deadbeef'", call_params["sql"])
-        self.assertIn("= '404'", call_params["sql"])
-        self.assertIn("ORDER BY dtEventTimeStamp DESC", call_params["sql"])
-        self.assertIn("LIMIT 5", call_params["sql"])
+        self.assertIn("ORDER BY cnt DESC", call_params["sql"])
+        self.assertIn("LIMIT 10000", call_params["sql"])
         self.assertEqual(
             call_params["addition"],
             [
@@ -433,4 +436,24 @@ class TestPlaceholderAnalysisHandler(TestCase):
                 {"field": "service_name", "operator": "is", "value": "api", "condition": "and"},
             ],
         )
-        mock_chart_handler.return_value.export_chart_data.assert_called_once()
+
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_export_distribution_ignores_request_limit(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"val": "404", "cnt": 6}]},
+            {"list": [{"total_count": 6}]},
+        ]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "prefix #PATH# middle #NUMBER# suffix",
+            "placeholder_index": 1,
+            "limit": 2,
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        b"".join(PlaceholderAnalysisHandler(INDEX_SET_ID, params).export_distribution())
+
+        call_params = mock_chart_handler.call_args_list[0].args[0]
+        self.assertIn("LIMIT 10000", call_params["sql"])
+        self.assertNotIn("LIMIT 2", call_params["sql"])
