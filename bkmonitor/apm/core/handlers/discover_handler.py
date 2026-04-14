@@ -20,8 +20,8 @@ from core.drf_resource.exceptions import CustomException
 
 class DiscoverHandler:
     @classmethod
-    def get_retention_filter_params(cls, bk_biz_id, app_name):
-        retention = cls.get_app_retention(bk_biz_id, app_name)
+    def get_retention_filter_params(cls, bk_biz_id, app_name, retention=None):
+        retention = cls.get_app_retention(bk_biz_id, app_name) if retention is None else retention
         # 获取过期分界线
         last = datetime.datetime.now() - datetime.timedelta(retention)
         return {

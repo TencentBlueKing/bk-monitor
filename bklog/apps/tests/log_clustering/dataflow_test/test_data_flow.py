@@ -1,5 +1,6 @@
 import json
 from dataclasses import asdict
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -13,6 +14,7 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 )
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_search.models import LogIndexSet
 
 ALL_FIELDS_DICT = {
     "time": "time",
@@ -54,6 +56,47 @@ CLUSTERINGCONFIG_CREATE_PARAMS = {
     "normal_strategy_enable": 0,
     "regex_rule_type": "template",
     "regex_template_id": 1,
+}
+LOG_INDEX_SET_CREATE_PARAMS = {
+    "created_by": "admin",
+    "updated_by": "admin",
+    "is_deleted": False,
+    "index_set_id": 30,
+    "index_set_name": "[采集项]采集名30",
+    "space_uid": "bkcc__2",
+    "project_id": 0,
+    "category_id": "os",
+    "bkdata_project_id": None,
+    "collector_config_id": 13,
+    "scenario_id": "log",
+    "storage_cluster_id": 6,
+    "source_id": None,
+    "orders": 0,
+    "view_roles": [],
+    "pre_check_tag": True,
+    "pre_check_msg": None,
+    "is_active": True,
+    "fields_snapshot": {},
+    "is_trace_log": False,
+    "source_app_code": "bk_log_search",
+    "time_field": "dtEventTimeStamp",
+    "time_field_type": "date",
+    "time_field_unit": "millisecond",
+    "tag_ids": [],
+    "bcs_project_id": "",
+    "is_editable": True,
+    "target_fields": [],
+    "sort_fields": [],
+    "result_window": 10000,
+    "max_analyzed_offset": 0,
+    "max_async_count": 0,
+    "support_doris": True,
+    "doris_table_id": None,
+    "query_alias_settings": [
+        {"field_name": "serverIp", "query_alias": "sip", "path_type": "string"},
+        {"field_name": "log", "query_alias": "message", "path_type": "text"},
+        {"field_name": "missingField", "query_alias": "ignored", "path_type": "string"},
+    ],
 }
 RESULT = (
     "where `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' or `log` LIKE 'info' )",
@@ -248,3 +291,165 @@ class TestPatternSearch(TestCase):
         self.assertNotIn("elastic_storage", node_types)
         self.assertEqual(doris_node["cluster"], "test_doris_cluster")
         self.assertEqual(doris_node["custom_param_config"]["expires_dup"], "30d")
+
+    @patch.object(
+        DataFlowHandler,
+        "get_fields_dict",
+        return_value={
+            "dtEventTimeStamp": "dtEventTimeStamp",
+            "log": "log",
+            "serverIp": "serverIp",
+            "gseIndex": "gseIndex",
+        },
+    )
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.DataAccessHandler.get_fields")
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_with_doris_storage(
+        self, mock_create_or_update_log_router, mock_get_fields, _mock_get_fields_dict
+    ):
+        mock_get_fields.return_value = [
+            {"field_name": "dtEventTimeStamp", "field_type": "timestamp"},
+            {"field_name": "log", "field_type": "string"},
+            {"field_name": "serverIp", "field_type": "long"},
+            {"field_name": "gseIndex", "field_type": "long"},
+        ]
+        LogIndexSet.objects.create(**LOG_INDEX_SET_CREATE_PARAMS)
+        ClusteringConfig.objects.create(
+            **CLUSTERINGCONFIG_CREATE_PARAMS,
+            storage_type=StorageTypeEnum.DORIS.value,
+            clustered_rt="2_bklog_30_clustered",
+            bkdata_etl_result_table_id="2_bklog_30_clean",
+            predict_flow={
+                "doris": {
+                    "fields": json.dumps(
+                        [
+                            {"alias": "staleField", "field": "staleField", "type": "string", "config": ""},
+                        ]
+                    )
+                }
+            },
+        )
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=30, raise_exception=True)
+
+        self.assertTrue(result)
+        mock_create_or_update_log_router.assert_called_once()
+        route_params = mock_create_or_update_log_router.call_args.args[0]
+        self.assertEqual(route_params["data_label"], "bklog_index_set_30_clustered")
+        self.assertEqual(route_params["table_id"], "bklog_index_set_30_2_bklog_30_clustered.__doris__")
+        # 同一物理字段会保留两条 alias：自定义 alias 和原始大小写字段名。
+        self.assertEqual(
+            route_params["query_alias_settings"],
+            [
+                {"field_name": "dteventtimestamp", "query_alias": "dtEventTimeStamp"},
+                {"field_name": "serverip", "query_alias": "sip", "path_type": "string"},
+                {"field_name": "log", "query_alias": "message", "path_type": "text"},
+                {"field_name": "serverip", "query_alias": "serverIp"},
+                {"field_name": "gseindex", "query_alias": "gseIndex"},
+            ],
+        )
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_es_route(self, mock_create_or_update_log_router):
+        LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 31})
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "index_set_id": 31,
+                "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                "clustered_rt": "2_bklog_31_clustered",
+            }
+        )
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=31, raise_exception=True)
+
+        self.assertTrue(result)
+        mock_create_or_update_log_router.assert_called_once()
+        route_params = mock_create_or_update_log_router.call_args.args[0]
+        self.assertEqual(route_params["data_label"], "bklog_index_set_31_clustered")
+        self.assertEqual(route_params["cluster_id"], 6)
+        self.assertEqual(route_params["index_set"], "2_bklog_31_clustered")
+        self.assertEqual(route_params["table_id"], "bklog_index_set_31_2_bklog_31_clustered.__default__")
+        self.assertEqual(route_params["query_alias_settings"], LOG_INDEX_SET_CREATE_PARAMS["query_alias_settings"])
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_returns_false_when_index_set_missing(self, mock_create_or_update_log_router):
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "clustered_rt": "2_bklog_30_clustered",
+            }
+        )
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=30)
+
+        self.assertFalse(result)
+        mock_create_or_update_log_router.assert_not_called()
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_returns_false_when_clustering_config_missing(self, mock_create_or_update_log_router):
+        LogIndexSet.objects.create(**LOG_INDEX_SET_CREATE_PARAMS)
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=30)
+
+        self.assertFalse(result)
+        mock_create_or_update_log_router.assert_not_called()
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_returns_false_when_clustered_rt_missing(self, mock_create_or_update_log_router):
+        LogIndexSet.objects.create(**LOG_INDEX_SET_CREATE_PARAMS)
+        ClusteringConfig.objects.create(**CLUSTERINGCONFIG_CREATE_PARAMS, clustered_rt="")
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=30)
+
+        self.assertFalse(result)
+        mock_create_or_update_log_router.assert_not_called()
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_returns_false_when_doris_but_etl_rt_missing(self, mock_create_or_update_log_router):
+        LogIndexSet.objects.create(**LOG_INDEX_SET_CREATE_PARAMS)
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "storage_type": StorageTypeEnum.DORIS.value,
+                "clustered_rt": "2_bklog_30_clustered",
+                "bkdata_etl_result_table_id": "",
+            }
+        )
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=30)
+
+        self.assertFalse(result)
+        mock_create_or_update_log_router.assert_not_called()
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_returns_false_when_transfer_api_raise(self, mock_create_or_update_log_router):
+        mock_create_or_update_log_router.side_effect = RuntimeError("boom")
+        LogIndexSet.objects.create(**LOG_INDEX_SET_CREATE_PARAMS)
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "clustered_rt": "2_bklog_30_clustered",
+            }
+        )
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=30, raise_exception=False)
+
+        self.assertFalse(result)
+        mock_create_or_update_log_router.assert_called_once()
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_raise_when_transfer_api_raise(self, mock_create_or_update_log_router):
+        mock_create_or_update_log_router.side_effect = RuntimeError("boom")
+        LogIndexSet.objects.create(**LOG_INDEX_SET_CREATE_PARAMS)
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "clustered_rt": "2_bklog_30_clustered",
+            }
+        )
+
+        with self.assertRaises(RuntimeError):
+            DataFlowHandler.sync_clustered_route(index_set_id=30, raise_exception=True)
+
+        mock_create_or_update_log_router.assert_called_once()

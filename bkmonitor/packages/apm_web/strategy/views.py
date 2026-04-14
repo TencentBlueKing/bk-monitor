@@ -148,6 +148,18 @@ class StrategyTemplateViewSet(GenericViewSet):
         queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"]).order_by(
             *self.query_data["order_by"]
         )
+
+        # 过滤服务支持的告警策略模板类型
+        service_name: str | None = self.query_data.get("service_name")
+        if self.query_data["simple"] and service_name:
+            try:
+                supported_systems: list[str] = dispatch.SystemChecker(
+                    dispatch.EntitySet(self.query_data["bk_biz_id"], self.query_data["app_name"], [service_name])
+                ).check_systems()
+            except ValueError:
+                supported_systems: list[str] = [constants.StrategyTemplateSystem.TRACE.value]
+            queryset = queryset.filter(system__in=supported_systems)
+
         total = queryset.count()
         if self.query_data["simple"]:
             strategy_template_list = serializers.StrategyTemplateSimpleSearchModelSerializer(queryset, many=True).data
@@ -607,5 +619,10 @@ class AlertViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("POST", resources.AlertBuiltinFilterResource, endpoint="builtin_filter"),
+        ResourceRoute(
+            "POST",
+            resources.AlertBuiltinFilterResource,
+            endpoint="builtin_filter",
+            decorators=[user_visit_record],
+        ),
     ]

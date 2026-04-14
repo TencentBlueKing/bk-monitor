@@ -412,7 +412,7 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                 "instance_list": [
                     {"bcs_cluster_id": cid, "display_name": d["display_name"]} for cid, d in k8s_clusters.items()
                 ][:50],
-                "link_tpl": "/k8s?filter-bcs_cluster_id={bcs_cluster_id}&sceneId=kubernetes&sceneType=overview",
+                "link_tpl": "/k8s-new?cluster={bcs_cluster_id}&sceneId=kubernetes&scene=performance&activeTab=list",
             }
         else:
             cid, cdata = next(iter(k8s_clusters.items()))
@@ -423,9 +423,9 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                         {"bcs_cluster_id": cid, "node": n, "display_name": dn} for n, dn in cdata["nodes"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-node_name={node}&dashboardId=node"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"node":["{node}"]}}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
                     ),
                 }
             if cdata["services"]:
@@ -435,9 +435,9 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                         {"bcs_cluster_id": cid, "service": s, "display_name": dn} for s, dn in cdata["services"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-service_name={service}&dashboardId=service"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"namespace":[],"service":["{service}"]}}&groupBy=["namespace","service"]'
+                        "&sceneId=kubernetes&scene=network&activeTab=list"
                     ),
                 }
             if cdata["pods"]:
@@ -447,9 +447,9 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                         {"bcs_cluster_id": cid, "pod": p, "display_name": dn} for p, dn in cdata["pods"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-pod_name={pod}&dashboardId=pod"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"namespace":[],"pod":["{pod}"]}}&groupBy=["namespace","pod"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
                 }
 

@@ -57,6 +57,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    alarmBizId: {
+      type: Number,
+      default: null,
+    },
   },
   emits: {
     showChange: (_val: boolean) => true,
@@ -75,7 +79,7 @@ export default defineComponent({
     const getNoticeStatusData = async () => {
       loading.value = true;
       if (!tableColumns.value.length) {
-        const columns = await getNoticeWay()
+        const columns = await getNoticeWay({ bk_biz_id: props.alarmBizId })
           .then(res =>
             res.map(item => ({
               colKey: item.type,
@@ -118,7 +122,7 @@ export default defineComponent({
           ...columns,
         ];
       }
-      await subActionDetail({ parent_action_id: props.actionId })
+      await subActionDetail({ parent_action_id: props.actionId, bk_biz_id: props.alarmBizId })
         .then(data => {
           tableData.value = Object.keys(data || {}).map(key => {
             const temp = { target: key };

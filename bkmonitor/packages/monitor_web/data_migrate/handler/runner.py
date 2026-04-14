@@ -9,7 +9,7 @@ from monitor_web.data_migrate.constants import RECOVERY_RECORDS_DIRECTORY_NAME
 from monitor_web.data_migrate.handler.base import BaseDirectoryHandler, HandlerExecutionError
 from monitor_web.data_migrate.handler.cluster import SanitizeClusterInfoHandler
 from monitor_web.data_migrate.handler.cluster_id import ReplaceClusterIdHandler
-from monitor_web.data_migrate.handler.model_disable import DisableModelsHandler
+from monitor_web.data_migrate.handler.model_disable import DisableModelsHandler, MODEL_DISABLE_HANDLERS
 from monitor_web.data_migrate.handler.tenant import ReplaceTenantIdHandler
 from monitor_web.data_migrate.utils import read_json_file, write_json_file
 
@@ -110,6 +110,77 @@ def _load_disable_model_recovery_records(
                 raise ValueError(f"恢复记录文件结构非法: {relative_file_path}")
             recovery_records.extend(file_payload)
     return recovery_records
+
+
+def _get_latest_disable_models_handler(handler_history: list[dict[str, Any]]) -> dict[str, Any]:
+    """获取最近一次 ``disable-models`` 的执行记录。"""
+    source_handler = next(
+        (
+            handler_payload
+            for handler_payload in reversed(handler_history)
+            if handler_payload.get("name") == "disable_models"
+        ),
+        None,
+    )
+    if source_handler is None:
+        raise ValueError("没有找到 disable-models 执行记录")
+    return source_handler
+
+
+def get_close_records_by_biz_from_directory(directory_path: str | Path) -> dict[int, dict[str, list[int]]]:
+    """
+    按业务聚合最近一次 ``disable-models`` 生成的关闭记录。
+
+    返回值结构示例：
+        {
+            2: {"bkmonitor.strategymodel": [1, 2]},
+            3: {"monitor.uptimechecktask": [4]},
+        }
+    """
+    target_directory = Path(directory_path)
+    manifest = read_json_file(target_directory / "manifest.json")
+    handler_history = manifest.get("handlers", [])
+    source_handler = _get_latest_disable_models_handler(handler_history)
+
+    close_records_by_biz: dict[int, dict[str, list[int]]] = {}
+    for recovery_record in _load_disable_model_recovery_records(target_directory, source_handler):
+        model_label = str(recovery_record.get("model", "")).strip().lower()
+        if model_label not in MODEL_DISABLE_HANDLERS:
+            continue
+
+        pk = recovery_record.get("pk")
+        if pk is None:
+            continue
+
+        biz_id = int(recovery_record.get("biz_id", 0))
+        biz_close_records = close_records_by_biz.setdefault(
+            biz_id,
+            {registered_model_label: [] for registered_model_label in MODEL_DISABLE_HANDLERS},
+        )
+        biz_close_records[model_label].append(int(pk))
+
+    for biz_close_records in close_records_by_biz.values():
+        for model_label, ids in biz_close_records.items():
+            biz_close_records[model_label] = list(dict.fromkeys(ids))
+
+    return close_records_by_biz
+
+
+def get_close_records_from_directory(directory_path: str | Path) -> dict[str, list[int]]:
+    """
+    获取最近一次 ``disable-models`` 处理生成的关闭记录。
+
+    基于 ``disable-models`` 的恢复记录文件聚合出接口需要的 ``close_records`` 结构。
+    """
+    close_records: dict[str, list[int]] = {model_label: [] for model_label in MODEL_DISABLE_HANDLERS}
+    for biz_close_records in get_close_records_by_biz_from_directory(directory_path).values():
+        for model_label, ids in biz_close_records.items():
+            close_records[model_label].extend(ids)
+
+    for model_label, ids in close_records.items():
+        close_records[model_label] = list(dict.fromkeys(ids))
+
+    return close_records
 
 
 def restore_disabled_models_in_directory(

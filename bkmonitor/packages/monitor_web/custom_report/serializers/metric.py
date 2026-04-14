@@ -69,29 +69,16 @@ class BaseCustomTSSerializer(serializers.Serializer):
     time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
 
 
-class CustomTSScopeRequestSerializer(serializers.Serializer):
-    scope_id = serializers.IntegerField(label=_("分组 ID"), allow_null=True, required=False)
+
+class CustomTSGroupingRuleResponseSerializer(serializers.Serializer):
+    """分组规则列表响应序列化器 — 仅返回分组+维度+指标数量"""
+
+    id = serializers.IntegerField(label=_("分组 ID"))
     name = serializers.CharField(label=_("分组名称"))
-    metric_list = serializers.ListField(label=_("关联指标"), child=BasicMetricRequestSerializer(), default=list)
-    auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
-
-    def validate(self, attrs: dict) -> dict:
-        attrs["name"] = attrs["name"].strip()
-        return super().validate(attrs)
-
-
-class CustomTSScopeResponseSerializer(serializers.Serializer):
-    id = serializers.IntegerField(label=_("分组 ID"), source="scope_id")
-    name = serializers.CharField(label=_("分组名称"))
-    dimension_config = serializers.DictField(label=_("维度配置"))
-    metric_list = serializers.ListField(label=_("指标列表"), child=BasicMetricResponseSerializer())
+    dimension_config = serializers.ListField(label=_("维度配置"), default=list)
+    metric_count = serializers.IntegerField(label=_("指标数量"))
     auto_rules = serializers.ListField(label=_("自动规则"))
     create_from = serializers.CharField(label=_("创建来源"))
-
-    def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
-        validated_data = super().to_internal_value(data)
-        validated_data["metric_count"] = len(validated_data["metric_list"])
-        return validated_data
 
 
 class DimensionConfigRequestSerializer(serializers.Serializer):
