@@ -23,7 +23,7 @@ class TestCommonBuiltInFields(TestCase):
     """测试 _build_built_in_fields_v4 在所有 ETL 类型下的行为"""
 
     # 标准配置下应生成的内置字段 output_id（排除 log 和 iterationIndex）
-    EXPECTED_BUILT_IN_IDS = {"bk_host_id", "__ext", "cloudId", "serverIp", "path", "gseIndex", "dtEventTimeStamp"}
+    EXPECTED_BUILT_IN_IDS = {"bk_host_id", "__ext", "cloudId", "serverIp", "path", "gseIndex", "dtEventTimeStamp", "time"}
 
     def test_standard_config_all_etl_types(self):
         """4 ETL 类型 × 标准配置：应生成 7 个内置字段规则（6 普通 + 1 时间）"""
@@ -66,7 +66,7 @@ class TestCommonBuiltInFields(TestCase):
                 storage = etl_cls()
                 rules = storage._build_built_in_fields_v4(get_fresh_config())
                 for rule in rules:
-                    if rule["output_id"] != "dtEventTimeStamp":
+                    if rule["output_id"] not in ("dtEventTimeStamp", "time"):
                         self.assertIsNone(rule["operator"]["in_place_time_parsing"],
                                           f"[{etl_name}] {rule['output_id']} should not have time parsing")
 
@@ -105,4 +105,4 @@ class TestCommonBuiltInFields(TestCase):
                 config = make_empty_fields_config()
                 rules = storage._build_built_in_fields_v4(config)
                 output_ids = get_output_ids(rules)
-                self.assertEqual(output_ids, {"dtEventTimeStamp"})
+                self.assertEqual(output_ids, {"dtEventTimeStamp", "time"})

@@ -2536,6 +2536,7 @@ class Command(BaseCommand):
 
         try:
             from django.conf import settings
+
             from metadata.models.space.constants import (
                 SPACE_TO_RESULT_TABLE_KEY,
             )

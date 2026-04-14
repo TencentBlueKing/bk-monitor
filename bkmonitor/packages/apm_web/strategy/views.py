@@ -619,5 +619,10 @@ class AlertViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("POST", resources.AlertBuiltinFilterResource, endpoint="builtin_filter"),
+        ResourceRoute(
+            "POST",
+            resources.AlertBuiltinFilterResource,
+            endpoint="builtin_filter",
+            decorators=[user_visit_record],
+        ),
     ]
