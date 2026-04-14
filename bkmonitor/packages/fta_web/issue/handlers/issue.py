@@ -86,6 +86,8 @@ class IssueQueryHandler(BaseBizQueryHandler):
         conditions: list = None,
         page: int = 1,
         page_size: int = 10,
+        trend_start_time: int = None,
+        trend_end_time: int = None,
         **kwargs,
     ):
         super().__init__(
@@ -105,6 +107,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # 默认排序：活跃状态优先，同状态按更新时间倒序
         if not self.ordering:
             self.ordering = ["status", "-update_time"]
+
+        self.trend_start_time = trend_start_time if trend_start_time is not None else self.start_time
+        self.trend_end_time = trend_end_time if trend_end_time is not None else self.end_time
 
     def get_search_object(self, start_time: int = None, end_time: int = None, **kwargs) -> Search:
         start_time = start_time or self.start_time
@@ -381,13 +386,18 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 issue["anomaly_message"] = "--"
             return
 
+        # 仅用于限定 _fill_anomaly_message 查询 AlertDocument 的索引范围
         start_time = int(min(first_alert_times))
         end_time = int(max(last_alert_times))
-        interval = self.calculate_agg_interval(start_time, end_time)
+
+        # 趋势图时间范围：优先使用前端传入的固定范围，兜底退回本页 Issue 的实际告警时间边界
+        trend_start = self.trend_start_time if self.trend_start_time is not None else start_time
+        trend_end = self.trend_end_time if self.trend_end_time is not None else end_time
+        interval = self.calculate_agg_interval(trend_start, trend_end)
 
         # 生成默认零值时间序列
-        aligned_start = start_time // interval * interval
-        aligned_end = end_time // interval * interval + interval
+        aligned_start = trend_start // interval * interval
+        aligned_end = trend_end // interval * interval + interval
         default_time_series = [[ts * 1000, 0] for ts in range(aligned_start, aligned_end, interval)]
 
         # 启动后台线程查询 anomaly_message 和 alert_count
@@ -403,18 +413,18 @@ class IssueQueryHandler(BaseBizQueryHandler):
         try:
             from fta_web.issue.resources import IssueAlertDateHistogramResultResource
 
-            if (end_time - start_time) <= SLICED_THRESHOLD:
+            if (trend_end - trend_start) <= SLICED_THRESHOLD:
                 result = IssueAlertDateHistogramResultResource().request(
-                    start_time=start_time,
-                    end_time=end_time,
+                    start_time=trend_start,
+                    end_time=trend_end,
                     interval=interval,
                     conditions=[{"key": "issue_id", "value": issue_ids, "method": "eq"}],
                     group_by=["issue_id"],
                 )
             else:
                 result = IssueAlertDateHistogramResultResource.sliced_date_histogram(
-                    start_time=start_time,
-                    end_time=end_time,
+                    start_time=trend_start,
+                    end_time=trend_end,
                     interval=interval,
                     handler_kwargs={
                         "conditions": [{"key": "issue_id", "value": issue_ids, "method": "eq"}],
