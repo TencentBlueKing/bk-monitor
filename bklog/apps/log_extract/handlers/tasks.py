@@ -493,7 +493,7 @@ class TasksHandler:
         after_deduplicate_ip_list = []
         seen = set()
         for ip_info in ip_list:
-            key = (ip_info["ip"], ip_info["bk_cloud_id"], ip_info["bk_host_id"])
+            key = (ip_info["ip"], ip_info["bk_cloud_id"])
             if key not in seen:
                 seen.add(key)
                 after_deduplicate_ip_list.append(
@@ -552,7 +552,8 @@ class TasksHandler:
                 ip_key = f"{ip_key}:{ip['bk_host_id']}"
             formatted_new_ip_list.append(ip_key)
 
-        Tasks.objects.filter(task_id=task_id).update(ip_list=formatted_new_ip_list)
+        task.ip_list = formatted_new_ip_list
+        task.save(update_fields=["ip_list"])
 
         return new_ip_list
 
