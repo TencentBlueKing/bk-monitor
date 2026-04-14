@@ -330,8 +330,8 @@ class EtlStorage:
             # 优先使用es_type确定output_type
             field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
-            # 跳过 flat_field=True 的字段，它们来自 iter_item，会在后面单独处理
-            if field.get("flat_field", False):
+            # 跳过 flat_field=True 的字段和 log 字段，它们来自 iter_item，会在后面单独处理
+            if field.get("flat_field", False) or field_name in ["log"]:
                 continue
 
             rules.append(
