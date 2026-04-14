@@ -41,7 +41,7 @@
     padding: 0 16px;
     margin-bottom: 4px;
     overflow: hidden;
-    font-family: MicrosoftYaHei;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
     font-size: 13px;
     color: #4d4f56;
 
@@ -50,7 +50,7 @@
     }
 
     .group-count {
-      width: 20px;
+      min-width: 20px;
       height: 20px;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 12px;
@@ -72,7 +72,7 @@
 
     &.group-selected {
       color: #3a84ff;
-      background-color: #e1ecff;
+      background: #e1ecff !important;
 
       .icon-monitor,
       .group-count {
@@ -84,6 +84,12 @@
   .top-group {
     padding-bottom: 4px;
     border-bottom: 1px solid #dcdee5;
+
+    .group {
+      &:hover {
+        background: #eaebf0;
+      }
+    }
 
     .group-name {
       display: flex;
@@ -160,7 +166,7 @@
       position: relative;
 
       &:hover {
-        background: #f0f1f5;
+        background: #eaebf0;
 
         .group-count {
           display: none;
@@ -210,7 +216,7 @@
   }
 
   .empty-group {
-    font-family: MicrosoftYaHei;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 
     .empty-tip {
       margin-top: 8px;
@@ -261,7 +267,7 @@
   }
 
   .content-main {
-    font-family: MicrosoftYaHei;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
     color: #4d4f56;
 
     .group-namme-main {

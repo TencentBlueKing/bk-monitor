@@ -1,5 +1,31 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import _ from 'lodash';
 
 import './index.scss';
@@ -9,15 +35,15 @@ import './index.scss';
  */
 export interface IListItem {
   /** 唯一标识 */
-  id: string | number;
-  /** 显示名称 */
-  name: string;
+  id: number | string;
   /** 是否为新增 */
   isAdded?: boolean;
-  /** 是否为删除 */
-  isDeleted?: boolean;
   /** 是否为变更 */
   isChanged?: boolean;
+  /** 是否为删除 */
+  isDeleted?: boolean;
+  /** 显示名称 */
+  name: string;
 }
 
 /**
@@ -27,7 +53,6 @@ export interface IListItem {
 @Component({
   name: 'ResultPreview',
 })
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class ResultPreview extends tsc<any> {
   /** 是否为编辑模式 */
   @Prop({ default: false, type: Boolean }) isEdit: boolean;
@@ -91,7 +116,7 @@ export default class ResultPreview extends tsc<any> {
    * 监听手动分组列表变化
    * @param newVal 新的手动分组列表
    */
-  @Watch('manualList', { immediate: true })
+  @Watch('manualList', { immediate: true, deep: true })
   onManualListChange(newVal: IListItem[]) {
     this.localManualList = [];
     const rawManualListKeys = this.localRawManualList.map(item => item.id);
@@ -249,10 +274,10 @@ export default class ResultPreview extends tsc<any> {
             </bk-checkbox>
           )}
           <bk-button
-            type='primary'
-            text
             class='clear-btn'
             size='small'
+            type='primary'
+            text
             onClick={this.handleClearAll}
           >
             {this.$t('清空选择')}
@@ -260,8 +285,8 @@ export default class ResultPreview extends tsc<any> {
         </div>
         <div class='list-main'>
           <bk-collapse
-            v-model={this.activePanel}
             ext-cls='collapse-main'
+            v-model={this.activePanel}
           >
             <bk-collapse-item name='auto'>
               <span>{this.$t('自动发现规则')}：</span>
@@ -297,8 +322,8 @@ export default class ResultPreview extends tsc<any> {
               <div slot='content'>
                 {this.localAutoList.map(item => (
                   <div
-                    class='content-list-item'
                     key={item.id}
+                    class='content-list-item'
                   >
                     {this.isEdit && (
                       <span>
@@ -321,10 +346,10 @@ export default class ResultPreview extends tsc<any> {
                       />
                     ) : (
                       <bk-button
-                        text
                         class='recover-btn'
-                        theme='primary'
                         size='small'
+                        theme='primary'
+                        text
                         onClick={() => this.handleRecoverAuto(item)}
                       >
                         {this.$t('恢复')}
@@ -335,8 +360,8 @@ export default class ResultPreview extends tsc<any> {
               </div>
             </bk-collapse-item>
             <bk-collapse-item
-              name='manul'
               style='margin-top: 16px;'
+              name='manul'
             >
               <span>{this.$t('已选择')}：</span>
               <i18n path='{0} 个指标'>
@@ -364,8 +389,8 @@ export default class ResultPreview extends tsc<any> {
               <div slot='content'>
                 {this.localManualList.map(item => (
                   <div
-                    class='content-list-item'
                     key={item.id}
+                    class='content-list-item'
                   >
                     {this.isEdit && (
                       <span>
@@ -387,10 +412,10 @@ export default class ResultPreview extends tsc<any> {
                       />
                     ) : (
                       <bk-button
-                        text
                         class='recover-btn'
-                        theme='primary'
                         size='small'
+                        theme='primary'
+                        text
                         onClick={() => this.handleRecoverManual(item)}
                       >
                         {this.$t('恢复')}

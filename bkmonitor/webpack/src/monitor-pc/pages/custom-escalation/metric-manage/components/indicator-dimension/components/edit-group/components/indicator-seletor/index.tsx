@@ -1,11 +1,40 @@
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import type { RequestHandlerMap } from '../../../../../../type';
+
 import _ from 'lodash';
+import { random } from 'monitor-common/utils/utils';
+
 import AutoGroup from './components/auto-group';
 import ManualGroup, { type ITableRowData } from './components/manual-group';
 import ResultPreview, { type IListItem } from './components/result-preview';
+
 import type { IGroupingRule } from '../../../../../../../service';
-import { random } from 'monitor-common/utils/utils';
 
 import './index.scss';
 
@@ -21,6 +50,14 @@ export default class IndicatorSelector extends tsc<any> {
   @Prop({ default: false, type: Boolean }) isEdit: boolean;
   /** 分组规则信息 */
   @Prop() groupInfo: IGroupingRule;
+  /** 默认分组信息 */
+  @Prop({ default: () => {} }) defaultGroupInfo: { id: number; name: string };
+
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
 
   /** 手动分组组件的引用 */
   @Ref() manualGroupMainRef: InstanceType<typeof ManualGroup>;
@@ -51,19 +88,23 @@ export default class IndicatorSelector extends tsc<any> {
   localAutoList: IListItem[] = [];
   /** 所有可用的指标数据列表 */
   totalMetrics: ITableRowData[] = [];
+  /** 原始手动分组列表 */
+  originalManualList: ITableRowData[] = [];
 
   /**
    * 监听分组信息变化，同步更新手动分组和自动分组列表
    */
   @Watch('groupInfo', { immediate: true, deep: true })
-  handleGroupInfoChange() {
-    this.manualList =
-      this.groupInfo.metric_list?.map(item => ({
-        id: item.field_id,
-        name: item.metric_name,
-        isAdded: false,
-        isDeleted: false,
-      })) || [];
+  async handleGroupInfoChange() {
+    if (!this.groupInfo.id) return;
+    const currentSelectedMetrics = await this.fetchCurrentSelectedMetrics();
+    this.originalManualList = currentSelectedMetrics;
+    this.manualList = currentSelectedMetrics.map(item => ({
+      id: item.id,
+      name: item.name,
+      isAdded: false,
+      isDeleted: false,
+    }));
     this.localManualList = _.cloneDeep(this.manualList);
     this.autoList =
       this.groupInfo.auto_rules?.map(item => ({
@@ -76,6 +117,31 @@ export default class IndicatorSelector extends tsc<any> {
     this.localAutoList = _.cloneDeep(this.autoList);
   }
 
+  /** 拉取当前分组已选中的指标列表 */
+  async fetchCurrentSelectedMetrics() {
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
+      page: 1,
+      page_size: -1,
+      conditions: [
+        {
+          key: 'scope_id',
+          values: [this.groupInfo.id],
+          search_type: 'exact' as const,
+        },
+      ],
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    const data = await this.requestHandlerMap.getCustomTsFields(params);
+    return data.list;
+  }
+
   /**
    * 切换标签页
    * @param id 标签页ID，'manual' 或 'auto'
@@ -84,12 +150,9 @@ export default class IndicatorSelector extends tsc<any> {
     this.activeTab = id;
   }
 
-  /**
-   * 处理总指标列表变化
-   * @param totalMetrics 更新后的总指标列表
-   */
-  handleTotalMetricsChange(totalMetrics: ITableRowData[]) {
-    this.totalMetrics = totalMetrics;
+  /** 更新全量指标列表缓存，用于手动分组行选择的状态同步 */
+  handleMetricListChange(metricList: ITableRowData[]) {
+    this.totalMetrics = metricList;
   }
 
   /**
@@ -131,10 +194,12 @@ export default class IndicatorSelector extends tsc<any> {
    * 清空手动分组和自动分组的选中项
    */
   handleClearAll() {
-    this.manualList = [];
     this.manualGroupMainRef?.clearSelect();
-    this.autoList = [];
     this.autoGroupMainRef?.clearSelect();
+    this.$nextTick(() => {
+      this.autoList = [];
+      this.manualList = [];
+    })
   }
 
   /**
@@ -146,6 +211,7 @@ export default class IndicatorSelector extends tsc<any> {
     if (deleteRow) {
       this.manualGroupMainRef?.toggleRowSelection(deleteRow, false);
     }
+    this.manualList = this.manualList.filter(row => row.id !== item.id);
   }
 
   /**
@@ -153,6 +219,10 @@ export default class IndicatorSelector extends tsc<any> {
    * @param item 要恢复的列表项
    */
   handleRecoverManualItem(item: IListItem) {
+    this.manualList.push({
+      id: item.id,
+      name: item.name,
+    });
     const recoverRow = this.totalMetrics.find(row => row.id === item.id);
     if (recoverRow) {
       this.manualGroupMainRef?.toggleRowSelection(recoverRow, true);
@@ -190,8 +260,8 @@ export default class IndicatorSelector extends tsc<any> {
           <div class='tab-main'>
             {this.tabList.map(item => (
               <div
-                class={['tab-item', { 'is-active': this.activeTab === item.id }]}
                 key={item.id}
+                class={['tab-item', { 'is-active': this.activeTab === item.id }]}
                 onClick={() => this.handleTabChange(item.id)}
               >
                 <div class='top-bar' />
@@ -202,35 +272,36 @@ export default class IndicatorSelector extends tsc<any> {
           </div>
           <div class='group-main'>
             <ManualGroup
-              isEdit={this.isEdit}
+              ref='manualGroupMainRef'
               v-show={this.activeTab === 'manual'}
               groupInfo={this.groupInfo}
+              defaultGroupInfo={this.defaultGroupInfo}
+              isEdit={this.isEdit}
               manualList={this.manualList}
-              ref='manualGroupMainRef'
+              onMetricListChange={this.handleMetricListChange}
               onSelectChange={this.handleSelectManualChange}
-              onTotalMetricsChange={this.handleTotalMetricsChange}
             />
             <AutoGroup
-              autoList={this.autoList}
               ref='autoGroupMainRef'
               v-show={this.activeTab === 'auto'}
-              onRegexInput={this.handleRegexInput}
+              autoList={this.autoList}
               onDeleteItem={this.handleDeleteAutoItem}
+              onRegexInput={this.handleRegexInput}
             />
           </div>
         </div>
         <div class='preview-main'>
           <ResultPreview
-            manualList={this.manualList}
             autoList={this.autoList}
+            isEdit={this.isEdit}
             localRawAutoList={this.localAutoList}
             localRawManualList={this.localManualList}
-            isEdit={this.isEdit}
+            manualList={this.manualList}
             onClearSelect={this.handleClearAll}
-            onRemoveManual={this.handleRemoveManual}
-            onRemoveAuto={this.handleRemoveAuto}
-            onRecoverManualItem={this.handleRecoverManualItem}
             onRecoverAutoItem={this.handleRecoverAutoItem}
+            onRecoverManualItem={this.handleRecoverManualItem}
+            onRemoveAuto={this.handleRemoveAuto}
+            onRemoveManual={this.handleRemoveManual}
           />
         </div>
       </div>

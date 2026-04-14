@@ -46,6 +46,7 @@ export default defineComponent({
     const eventQueryConfig = shallowRef(null);
     const getData = async (params: { limit: number; offset: number; sort: string[]; sources: string[] }) => {
       const res = await alertEvents({
+        bk_biz_id: props.detail.bk_biz_id,
         alert_id: props.detail.id,
         limit: params.limit,
         offset: params.offset,
@@ -69,6 +70,7 @@ export default defineComponent({
 
     const getDataCount = async (_params?: { sources: string[] }) => {
       const data = await alertEventTotal({
+        bk_biz_id: props.detail.bk_biz_id,
         alert_id: props.detail.id,
       }).catch(() => {
         return {

@@ -222,6 +222,10 @@ class DataIdConfig(DataLinkResourceConfigBase):
             "prefer_kafka_cluster_name": prefer_kafka_cluster_name,
         }
 
+        # 如果开启dataid注册时能够指定集群名称，则添加prefer_kafka_cluster_name字段
+        if settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME:
+            render_params["prefer_kafka_cluster_name"] = prefer_kafka_cluster_name
+
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
             render_params["tenant"] = self.bk_tenant_id

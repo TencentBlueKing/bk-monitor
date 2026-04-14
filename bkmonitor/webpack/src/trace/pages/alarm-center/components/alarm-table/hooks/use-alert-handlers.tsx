@@ -54,7 +54,7 @@ export interface UseAlertHandlersOptions {
   /** 保存告警内容数据含义回调 */
   saveContentNameEmit: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) => void;
   /** 显示告警详情抽屉回调 */
-  showDetailEmit: (id: string, defaultTab?: string) => void;
+  showDetailEmit: (row: AlertTableItem, defaultTab?: string) => void;
 }
 
 export type UseAlertHandlersReturnType = ReturnType<typeof useAlertHandlers>;
@@ -83,9 +83,11 @@ export const useAlertHandlers = ({
 
   /**
    * @description: 展示 告警 详情抽屉
+   * @param {AlertTableItem} row - 告警记录行数据
+   * @param {string} defaultTab - 默认选中的 Tab 页签名
    */
-  const handleAlertSliderShowDetail = (id: string, defaultTab?: string) => {
-    showDetailEmit(id, defaultTab);
+  const handleAlertSliderShowDetail = (row: AlertTableItem, defaultTab?: string) => {
+    showDetailEmit(row, defaultTab);
   };
 
   /**

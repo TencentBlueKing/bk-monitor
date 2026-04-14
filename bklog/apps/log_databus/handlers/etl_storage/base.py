@@ -322,7 +322,8 @@ class EtlStorage:
         for field in built_in_fields:
             field_name = field["field_name"]
             alias_name = field.get("alias_name", field_name)
-            field_type = field["field_type"]
+            # 优先使用es_type确定output_type
+            field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
             # 跳过log、iterationIndex字段，它会在后面单独处理
             if field_name in ["log", "iterationIndex"]:
