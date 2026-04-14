@@ -166,6 +166,61 @@ class SearchIssueResource(Resource):
         return result
 
 
+class IssueDetailResource(Resource):
+    """获取单个 Issue 的元数据信息（不包含告警动态数据）"""
+
+    class RequestSerializer(serializers.Serializer):
+        id = IssueIDField(label="Issue ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        """获取 Issue 元数据，告警动态数据由前端调用告警中心接口获取"""
+        issue_id = validated_request_data["id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+
+        issue = _get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        result = IssueQueryHandler.clean_document(issue)
+
+        # 填充 anomaly_message（查询最新告警的 description）
+        self._fill_anomaly_message(issue, result)
+
+        return result
+
+    @staticmethod
+    def _fill_anomaly_message(issue: "IssueDocument", result: dict) -> None:
+        """查询最新告警的 description 作为 anomaly_message"""
+        from bkmonitor.documents.alert import AlertDocument
+
+        try:
+            # 优先使用 first_alert_time 限定索引范围；
+            # 兜底使用 create_time 时提前 7 天，因为 issue.create_time 晚于实际告警时间
+            _FALLBACK_BUFFER = 7 * 86400
+            if issue.first_alert_time:
+                start_time = int(issue.first_alert_time)
+            else:
+                start_time = int(issue.create_time) - _FALLBACK_BUFFER
+            end_time = int(time.time())
+            search = (
+                AlertDocument.search(start_time=start_time, end_time=end_time)
+                .filter("term", **{"event.bk_biz_id": issue.bk_biz_id})
+                .filter("term", issue_id=issue.id)
+                .sort({"create_time": {"order": "desc"}})
+                .params(size=1)
+                .source(["event.description"])
+            )
+            hits = search.execute().hits
+            if hits:
+                source = hits[0].to_dict()
+                event_data = source.get("event", {})
+                description = event_data.get("description", "") if isinstance(event_data, dict) else ""
+                result["anomaly_message"] = description or "--"
+            else:
+                result["anomaly_message"] = "--"
+        except Exception as e:
+            logger.exception("IssueDetailResource._fill_anomaly_message failed: %s", e)
+            result["anomaly_message"] = "--"
+
+
 class IssueAlertDateHistogramResultResource(Resource):
     """查询 Issue 关联的告警趋势图（支持 group_by 分组维度）"""
 

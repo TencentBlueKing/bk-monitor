@@ -313,7 +313,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
         return aggs
 
     @classmethod
-    def clean_document(cls, doc: Any) -> dict:
+    def clean_document(cls, doc: IssueDocument) -> dict:
         """数据清洗：从 ES Hit 中提取并格式化字段"""
         if isinstance(doc, dict):
             data = doc

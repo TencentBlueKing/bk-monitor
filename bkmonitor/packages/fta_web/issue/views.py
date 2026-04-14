@@ -19,7 +19,7 @@ class IssueViewSet(ResourceViewSet):
     """Issues 功能接口 ViewSet"""
 
     # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
-    READ_ONLY_ENDPOINTS = ["issue/search", "issue/activities", "issue/history"]
+    READ_ONLY_ENDPOINTS = ["issue/search", "issue/detail", "issue/activities", "issue/history"]
 
     class IssueBusinessActionPermission(IAMPermission):
         """
@@ -62,6 +62,8 @@ class IssueViewSet(ResourceViewSet):
     resource_routes = [
         # Issue 列表查询
         ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
+        # Issue 详情（元数据）
+        ResourceRoute("GET", resource.issue.issue_detail, endpoint="issue/detail"),
         # 指派负责人（含改派，支持批量）
         ResourceRoute("POST", resource.issue.assign_issue, endpoint="issue/assign"),
         # 标记为已解决（支持批量）
