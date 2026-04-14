@@ -270,6 +270,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
         allow_empty=True,
     )
     simple = serializers.BooleanField(label=_("是否仅返回概要信息"), default=False)
+    service_name = serializers.CharField(label=_("服务名称"), required=False)
 
 
 class BaseStrategyTemplateUpdateSerializer(BaseEditDataSerializer):
