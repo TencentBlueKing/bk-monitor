@@ -132,9 +132,9 @@ class TestPlaceholderAnalysisHandler(TestCase):
         distribution_sql = mock_chart_handler.call_args_list[0].args[0]["sql"]
         unique_count_sql = mock_chart_handler.call_args_list[1].args[0]["sql"]
         total_count_sql = mock_chart_handler.call_args_list[2].args[0]["sql"]
-        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", distribution_sql)
-        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", unique_count_sql)
-        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", total_count_sql)
+        self.assertIn("AND INSTR(val, '40') > 0", distribution_sql)
+        self.assertIn("AND INSTR(val, '40') > 0", unique_count_sql)
+        self.assertIn("AND INSTR(val, '40') > 0", total_count_sql)
 
     def test_get_distribution_raises_for_non_doris_storage(self):
         ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(
@@ -182,12 +182,23 @@ class TestPlaceholderAnalysisHandler(TestCase):
         with self.assertRaises(ValidationError):
             PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
 
-    def test_escape_like_literal_handles_special_characters(self):
-        escape = PlaceholderAnalysisHandler._escape_like_literal
-        self.assertEqual(escape("100%"), "100\\%")
-        self.assertEqual(escape("a_b"), "a\\_b")
-        self.assertEqual(escape("it's"), "it''s")
-        self.assertEqual(escape(r"c:\path"), r"c:\\path")
+    def test_value_keyword_filter_uses_instr_with_escaped_literal(self):
+        handler = PlaceholderAnalysisHandler(
+            INDEX_SET_ID,
+            {
+                "signature": "deadbeef",
+                "pattern": "#NUMBER#",
+                "placeholder_index": 0,
+                "value_keyword": r"100%_o'clock\path",
+                "start_time": 1710000000000,
+                "end_time": 1710003600000,
+            },
+        )
+
+        self.assertEqual(
+            handler._build_value_keyword_filter(),
+            r" AND INSTR(val, '100%_o''clock\\path') > 0",
+        )
 
     @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
     def test_get_trend_returns_overall_and_selected_series(self, mock_chart_handler):
@@ -514,5 +525,5 @@ class TestPlaceholderAnalysisHandler(TestCase):
 
         distribution_sql = mock_chart_handler.call_args_list[0].args[0]["sql"]
         total_count_sql = mock_chart_handler.call_args_list[1].args[0]["sql"]
-        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", distribution_sql)
-        self.assertIn("AND val LIKE '%40%' ESCAPE '\\\\'", total_count_sql)
+        self.assertIn("AND INSTR(val, '40') > 0", distribution_sql)
+        self.assertIn("AND INSTR(val, '40') > 0", total_count_sql)

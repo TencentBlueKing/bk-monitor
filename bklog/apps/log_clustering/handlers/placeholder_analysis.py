@@ -346,8 +346,7 @@ class PlaceholderAnalysisHandler:
         value_keyword = str(self.params.get("value_keyword", "") or "").strip()
         if not value_keyword:
             return ""
-        escaped_value = self._escape_like_literal(value_keyword)
-        return f" AND val LIKE '%{escaped_value}%' ESCAPE '\\\\'"
+        return f" AND INSTR(val, '{escape_sql_literal(value_keyword)}') > 0"
 
     def _get_bucket_sql(self, interval: str) -> str:
         bucket_ms = self._interval_to_milliseconds(interval)
@@ -467,11 +466,6 @@ class PlaceholderAnalysisHandler:
         if total_count <= 0:
             return 0
         return round(count * 100 / total_count, 2)
-
-    @staticmethod
-    def _escape_like_literal(value: str) -> str:
-        """Escape user input for a SQL LIKE pattern; distinct from escape_sql_literal used for regex SQL literals."""
-        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("'", "''")
 
     def _format_response(self, placeholder: dict, values: list[dict], unique_count: int, total_count: int) -> dict:
         return {
