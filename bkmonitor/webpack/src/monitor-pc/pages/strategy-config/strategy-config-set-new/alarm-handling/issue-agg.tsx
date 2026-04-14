@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getVariableValue } from 'monitor-api/modules/grafana';
@@ -36,39 +36,25 @@ import {
   type IFilterItem,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
+  ECondition,
   EFieldType,
 } from '../../../../components/retrieval-filter/utils';
 import CommonItem from '../components/common-form-item';
+import { type IIssueConfig, LEVEL_LIST } from '../type';
 
 import type { ICommonItem, IDetectionConfig, MetricDetail } from '../typings/index';
 
 import './issue-agg.scss';
 
-/** 告警级别列表 */
-const LEVEL_LIST = [
-  { id: 1, name: window.i18n.t('致命'), icon: 'icon-danger' },
-  { id: 2, name: window.i18n.t('预警'), icon: 'icon-mind-fill' },
-  { id: 3, name: window.i18n.t('提醒'), icon: 'icon-tips' },
-];
-
-export interface IIssueAggValue {
-  /** 聚合维度 */
-  agg_dimensions: string[];
-  /** 过滤条件 */
-  conditions: IFilterItem[];
-  /** 生效告警级别 */
-  levels: number[];
-}
-
 interface IEvents {
-  onChange?: IIssueAggValue;
+  onChange?: IIssueConfig;
 }
 
 interface IProps {
   detectionConfig?: IDetectionConfig;
   metricData?: MetricDetail[];
   readonly?: boolean;
-  value?: IIssueAggValue;
+  value?: IIssueConfig;
 }
 
 @Component({
@@ -78,27 +64,19 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
   @Prop({ type: Object, default: () => ({}) }) detectionConfig: IDetectionConfig;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
-  @Prop({
-    type: Object,
-    default: () => ({
-      agg_dimensions: [],
-      conditions: [],
-      levels: [1, 2, 3],
-    }),
-  })
-  value: IIssueAggValue;
+  @Prop({ type: Object, default: () => null }) value: IIssueConfig;
 
   /** 根据 detectionConfig.data 中的 level 计算默认告警级别 */
-  get defaultLevels(): number[] {
-    const levels = this.detectionConfig?.data?.map(item => item.level).filter(Boolean);
-    // 去重并排序
-    return [...new Set(levels)].sort((a, b) => a - b);
-  }
+  // get defaultLevels(): number[] {
+  //   const levels = this.detectionConfig?.data?.map(item => item.level).filter(Boolean);
+  //   // 去重并排序
+  //   return [...new Set(levels)].sort((a, b) => a - b);
+  // }
 
-  localValue: IIssueAggValue = {
-    agg_dimensions: [],
+  localValue: IIssueConfig = {
+    aggregate_dimensions: [],
     conditions: [],
-    levels: [],
+    alert_levels: [],
   };
 
   /** 维度值缓存 */
@@ -133,49 +111,10 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
     return firstMetric.dimensions?.filter(d => intersectionIds.includes(d.id as string)) || [];
   }
 
-  @Watch('value', { immediate: true, deep: true })
-  handleValueChange(val: IIssueAggValue) {
-    if (val && Object.keys(val).length > 0) {
-      this.localValue = { ...val };
-    }
-  }
-
-  @Watch('defaultLevels', { immediate: true })
-  handleDefaultLevelsChange(levels: number[]) {
-    // 如果 localValue.levels 为空，使用 defaultLevels 作为默认值
-    if (levels.length > 0 && this.localValue.levels.length === 0) {
-      this.localValue.levels = levels;
-    }
-  }
-
-  @Emit('change')
-  handleChange() {
-    return this.localValue;
-  }
-
-  /** 聚合维度变更 */
-  handleDimensionsChange(val: string[]) {
-    this.localValue.agg_dimensions = val;
-    this.handleChange();
-  }
-
-  /** 条件变更 */
-  handleConditionsChange(val: IFilterItem[]) {
-    this.localValue.conditions = val;
-    this.handleChange();
-  }
-
-  /** 告警级别变更 */
-  handleLevelsChange(val: number[]) {
-    if (val.length === 0) return; // 至少选择一个
-    this.localValue.levels = val;
-    this.handleChange();
-  }
-
   /** 获取维度字段列表（用于条件选择器） */
   get filterFields(): IFilterField[] {
     return this.dimensions.map(item => ({
-      alias: String(item.name),
+      alias: `${item.name}（${item.id}）`,
       is_option_enabled: true,
       name: String(item.id),
       type: EFieldType.keyword,
@@ -187,6 +126,63 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
         value: m.id as EMethod,
       })),
     }));
+  }
+
+  get conditions() {
+    return this.localValue.conditions.map(item => {
+      const field = this.filterFields.find(f => f.name === item.key);
+      const method = (field?.supported_operations || []).find(m => m.value === item.method);
+      return {
+        key: { id: field?.name || item.key, name: field?.alias || item.key },
+        condition: {
+          id: item.condition === 'and' ? ECondition.and : ECondition.or,
+          name: item.condition === 'and' ? 'AND' : 'OR',
+        },
+        method: { id: method?.value || item.method, name: method?.alias || item.method },
+        value: item.value.map(v => ({
+          id: v,
+          name: v,
+        })),
+      };
+    });
+  }
+
+  created() {
+    if (this.value) {
+      this.localValue.aggregate_dimensions = this.value?.aggregate_dimensions || [];
+      this.localValue.alert_levels = this.value?.alert_levels || [];
+      this.localValue.conditions = this.value?.conditions || [];
+    }
+  }
+
+  @Emit('change')
+  handleChange() {
+    return this.localValue;
+  }
+
+  /** 聚合维度变更 */
+  handleDimensionsChange(val: string[]) {
+    this.localValue.aggregate_dimensions = val;
+    this.handleChange();
+  }
+
+  /** 条件变更 */
+  handleConditionsChange(val: IFilterItem[]) {
+    this.localValue.conditions = val.map(item => {
+      return {
+        key: item.key.id,
+        method: item.method.id,
+        condition: item.condition.id,
+        value: item.value.map(v => v.id),
+      };
+    });
+    this.handleChange();
+  }
+
+  /** 告警级别变更 */
+  handleLevelsChange(val: number[]) {
+    this.localValue.alert_levels = val;
+    this.handleChange();
   }
 
   /** 获取维度值的方法 */
@@ -254,15 +250,13 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
   render() {
     return (
       <div class='issue-agg-container'>
-        <CommonItem
-          title={this.$t('聚合维度')}
-          isRequired
-        >
+        <CommonItem title={this.$t('聚合维度')}>
           <bk-select
             class='dimension-select'
-            v-model={this.localValue.agg_dimensions}
+            v-model={this.localValue.aggregate_dimensions}
             behavior='simplicity'
             disabled={this.readonly}
+            is-tag-width-limit={false}
             placeholder={this.$t('请选择聚合维度')}
             size='small'
             display-tag
@@ -274,8 +268,10 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
               <bk-option
                 id={item.id}
                 key={item.id}
-                name={item.name}
-              />
+                name={item.id}
+              >
+                {`${item.name} (${item.id})`}
+              </bk-option>
             ))}
           </bk-select>
         </CommonItem>
@@ -297,20 +293,19 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             addBtnAlign={'right'}
             fields={this.filterFields}
             getValueFn={this.getValueFn}
+            hasAllType={false}
             hasConditionChange={true}
             hasInput={false}
             kvTagHasHideBtn={false}
-            value={this.localValue.conditions}
+            value={this.conditions as unknown as IFilterItem[]}
+            zIndex={9999}
             onChange={this.handleConditionsChange}
           />
         </CommonItem>
-        <CommonItem
-          title={this.$t('生效告警级别')}
-          isRequired
-        >
+        <CommonItem title={this.$t('生效告警级别')}>
           <bk-checkbox-group
             class='levels-checkbox'
-            v-model={this.localValue.levels}
+            v-model={this.localValue.alert_levels}
             onChange={this.handleLevelsChange}
           >
             {LEVEL_LIST.map(level => (

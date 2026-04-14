@@ -48,10 +48,12 @@ interface IProps {
   addBtnAlign?: 'left' | 'right';
   clearKey?: string;
   fields: IFilterField[];
+  hasAllType?: boolean;
   hasConditionChange?: boolean;
   hasInput?: boolean;
   kvTagHasHideBtn?: boolean;
   value?: IFilterItem[];
+  zIndex?: number;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IFilterItem[]) => void;
 }
@@ -74,6 +76,9 @@ export default class UiSelector extends tsc<IProps> {
   @Prop({ type: String, default: 'left' }) addBtnAlign: 'left' | 'right';
   @Prop({ type: Boolean, default: false }) hasConditionChange: boolean;
   @Prop({ type: Boolean, default: true }) kvTagHasHideBtn: boolean;
+  @Prop({ type: Boolean, default: true }) hasAllType: boolean;
+  @Prop({ type: Number, default: 998 }) zIndex: number;
+
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -126,7 +131,7 @@ export default class UiSelector extends tsc<IProps> {
       interactive: true,
       boundary: 'window',
       distance: 20,
-      zIndex: 998,
+      zIndex: this.zIndex,
       animation: 'slide-toggle',
       followCursor: false,
       onHidden: () => {
@@ -442,13 +447,17 @@ export default class UiSelector extends tsc<IProps> {
           <div ref='selector'>
             <UiSelectorOptions
               fields={[
-                {
-                  type: EFieldType.all,
-                  name: '*',
-                  alias: this.$tc('全文检索'),
-                  is_option_enabled: false,
-                  supported_operations: [],
-                },
+                ...(this.hasAllType
+                  ? [
+                      {
+                        type: EFieldType.all,
+                        name: '*',
+                        alias: this.$tc('全文检索'),
+                        is_option_enabled: false,
+                        supported_operations: [],
+                      },
+                    ]
+                  : []),
                 ...this.fields,
               ]}
               getValueFn={this.getValueFn}

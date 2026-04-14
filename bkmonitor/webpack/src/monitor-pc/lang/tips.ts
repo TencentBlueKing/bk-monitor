@@ -464,4 +464,5 @@ export default {
   添加跟进信息成功: 'Add follow-up information successfully',
   告警事件数: 'Alarm Event Count',
   标记为已解决成功: 'Mark as resolved successfully',
+  已配置issue聚合: 'Issue aggregation already configured',
 };

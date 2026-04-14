@@ -249,6 +249,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       connector: 'and',
       data: [],
     },
+    issueConfig: null,
   };
   triggerTypeList = [{ id: 1, name: window.i18n.tc('累计') }];
   numbersScope = {
@@ -465,6 +466,17 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 },
               },
             })),
+            issue_config:
+              this.data.issueConfig?.alert_levels?.length ||
+              this.data.issueConfig?.conditions?.length ||
+              this.data.issueConfig?.aggregate_dimensions?.length
+                ? {
+                    is_enabled: true,
+                    aggregate_dimensions: this.data.issueConfig.aggregate_dimensions,
+                    alert_levels: this.data.issueConfig.alert_levels,
+                    conditions: this.data.issueConfig.conditions,
+                  }
+                : null,
           };
         }
         return false;
@@ -849,9 +861,16 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             allAction={this.allAction}
             allDefense={this.defenseList}
             isSimple={true}
+            issueConfig={this.data.issueConfig}
+            metricData={this.selectMetricData}
             value={this.data.alarmItems}
             onAddMeal={() => this.handleHideDialog(false)}
-            onChange={v => (this.data.alarmItems = v)}
+            onChange={v => {
+              this.data.alarmItems = v;
+            }}
+            onIssueConfigChange={v => {
+              this.data.issueConfig = v;
+            }}
           />
         );
       case 14 /* 修改告警组 */:
@@ -955,7 +974,9 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   showControls={false}
                   size='small'
                   type='number'
-                  onFocus={() => (this.data.noticeIntervalError = false)}
+                  onFocus={() => {
+                    this.data.noticeIntervalError = false;
+                  }}
                 />
               </i18n>
               <span
