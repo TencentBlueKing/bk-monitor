@@ -100,7 +100,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "function": [],
             "reference_name": "a",
         }
-        return {
+        base = {
             "space_uid": self.space_uid,
             "query_list": [query_dict],
             "metric_merge": "a",
@@ -110,6 +110,9 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "down_sample_range": "",
             "timezone": get_local_param("time_zone", settings.TIME_ZONE),
         }
+        if self.bk_biz_id:
+            base["bk_biz_id"] = self.bk_biz_id
+        return base
 
     def _transform_scene_additions(self) -> dict:
         """Convert addition to unify-query conditions format, without index_info dependency."""
@@ -241,6 +244,8 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
         }
+        if self.bk_biz_id:
+            query_body["bk_biz_id"] = self.bk_biz_id
 
         logger.info("[scene_fields] space_uid=%s, conditions=%s", self.space_uid, json.dumps(self.table_id_conditions))
         field_data = UnifyQueryApi.query_field_map(query_body)
@@ -297,6 +302,8 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
         }
+        if self.bk_biz_id:
+            query_body["bk_biz_id"] = self.bk_biz_id
 
         logger.info("[scene_date_histogram] space_uid=%s", self.space_uid)
         return self.query_ts(query_body)
@@ -324,6 +331,8 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
         }
+        if self.bk_biz_id:
+            query_body["bk_biz_id"] = self.bk_biz_id
 
         logger.info("[scene_agg_field] space_uid=%s, field=%s", self.space_uid, agg_field)
         return self.query_ts_reference(query_body)
