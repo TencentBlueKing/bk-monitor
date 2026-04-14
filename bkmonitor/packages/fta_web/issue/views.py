@@ -19,7 +19,7 @@ class IssueViewSet(ResourceViewSet):
     """Issues 功能接口 ViewSet"""
 
     # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
-    READ_ONLY_ENDPOINTS = ["issue/search", "issue/activities", "issue/history"]
+    READ_ONLY_ENDPOINTS = ["issue/search", "issue/detail", "issue/activities", "issue/history"]
 
     class IssueBusinessActionPermission(IAMPermission):
         """
