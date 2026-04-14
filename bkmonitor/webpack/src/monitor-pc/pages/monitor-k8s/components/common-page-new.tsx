@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';

@@ -135,7 +135,6 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   // 对比类型
   @InjectReactive('compareType') compareType: PanelToolsType.CompareId;
   @InjectReactive('readonly') readonly: boolean;
-  @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: TimeRangeType) => void;
 
   /** 鼠标在图表内 */
   showHeaderMoreTool = true;
@@ -182,12 +181,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get needWaterMask() {
     return !['log-retrieve', 'event-explore'].includes(this.panel?.type);
   }
-  @Watch('panel.type', { immediate: true })
-  handlePanelTypeChange() {
-   if (this.panel.type === 'alarm_center') {
-    this.handleTimeRangeChange(['now-7d', 'now']);
-   }
-  }
+
   beforeCreate() {
     initLogRetrieveWindowsFields();
   }
