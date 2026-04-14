@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Inject, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AlarmTemplate from 'apm/pages/alarm-template/alarm-template';
@@ -135,6 +135,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   // 对比类型
   @InjectReactive('compareType') compareType: PanelToolsType.CompareId;
   @InjectReactive('readonly') readonly: boolean;
+  @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: TimeRangeType) => void;
 
   /** 鼠标在图表内 */
   showHeaderMoreTool = true;
@@ -180,6 +181,12 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   get needWaterMask() {
     return !['log-retrieve', 'event-explore'].includes(this.panel?.type);
+  }
+  @Watch('panel.type', { immediate: true })
+  handlePanelTypeChange() {
+   if (this.panel.type === 'alarm_center') {
+    this.handleTimeRangeChange(['now-7d', 'now']);
+   }
   }
   beforeCreate() {
     initLogRetrieveWindowsFields();
