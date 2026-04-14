@@ -23,6 +23,8 @@ from io import StringIO
 from itertools import chain
 from typing import Any
 
+import arrow
+from bk_monitor_base.strategy import StrategyNotExistError, get_strategy, parse_metric_id
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
@@ -59,7 +61,6 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.alert_drilling import clean_where_conditions, normalize_histogram_quantile_group_by
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
@@ -129,6 +130,7 @@ from monitor_web.aiops.metric_recommend.constant import (
 )
 from monitor_web.constants import AlgorithmType
 from monitor_web.models import CustomEventGroup
+from utils.strategy import fill_user_groups
 
 logger = logging.getLogger("root")
 
@@ -2376,25 +2378,25 @@ class StrategySnapshotResource(Resource):
         changed_status = self.ConfigChangedStatus.UNCHANGED
         current_strategy = None
         try:
-            strategy = StrategyModel.objects.get(id=strategy_config["id"])
-            is_enabled = strategy.is_enabled
-            current_strategy = Strategy.from_models([strategy])[0]
-        except StrategyModel.DoesNotExist:
-            changed_status = self.ConfigChangedStatus.DELETED
-        else:
-            if int(strategy.update_time.timestamp()) != strategy_config["update_time"]:
+            current_strategy = get_strategy(bk_biz_id=alert.bk_biz_id, strategy_id=strategy_config["id"])
+            is_enabled = current_strategy["is_enabled"]
+            current_update_time = arrow.get(current_strategy["update_time"])
+            strategy_update_time = arrow.get(strategy_config["update_time"])
+            if current_update_time.int_timestamp != strategy_update_time.int_timestamp:
                 changed_status = self.ConfigChangedStatus.UPDATED
+        except StrategyNotExistError:
+            changed_status = self.ConfigChangedStatus.DELETED
 
         if current_strategy and "intelligent_detect" in strategy_config["items"][0]["query_configs"][0]:
             if not strategy_config["items"][0]["query_configs"][0]["intelligent_detect"].get("use_sdk", False):
                 # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
-                strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
+                strategy_config["items"][0]["query_configs"][0] = current_strategy["items"][0]["query_configs"][0]
 
         strategy_config.update(strategy_status=changed_status)
         strategy_config["create_time"] = utc2datetime(strategy_config["create_time"])
         strategy_config["update_time"] = utc2datetime(strategy_config["update_time"])
         strategy_config["is_enabled"] = is_enabled
-        Strategy.fill_user_groups([strategy_config])
+        fill_user_groups([strategy_config])
         return strategy_config
 
 
