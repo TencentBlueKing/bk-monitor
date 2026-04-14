@@ -149,9 +149,16 @@ export default defineComponent({
         ],
         priority: id,
       })
-        .then(() => {
-          priorityPopover.value?.hide();
-          emit('priorityChange', id);
+        .then(({ succeeded }) => {
+          const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
+          if (activeItem) {
+            priorityPopover.value?.hide();
+            emit('priorityChange', id);
+          }
+          Message({
+            theme: activeItem ? 'success' : 'error',
+            message: activeItem ? t('操作成功') : t('操作失败'),
+          });
         })
         .finally(() => {
           loadings.priority = false;
@@ -184,8 +191,15 @@ export default defineComponent({
         ],
         assignee: userList.value,
       })
-        .then(() => {
-          emit('assigneeChange', userList.value);
+        .then(({ succeeded }) => {
+          const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
+          if (activeItem) {
+            emit('assigneeChange', userList.value);
+          }
+          Message({
+            theme: activeItem ? 'success' : 'error',
+            message: activeItem ? t('操作成功') : t('操作失败'),
+          });
         })
         .finally(() => {
           loadings.assignee = false;
@@ -202,7 +216,7 @@ export default defineComponent({
     };
 
     /**
-     * 标记已解决
+     * issues 操作
      */
     const handleConfirm = () => {
       dialogLoading.value = true;
@@ -217,13 +231,13 @@ export default defineComponent({
         .then(({ succeeded }) => {
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
-            Message({
-              theme: 'success',
-              message: t('操作成功'),
-            });
             handleDialogChange(false);
             emit('confirm', actionType.value);
           }
+          Message({
+            theme: activeItem ? 'success' : 'error',
+            message: activeItem ? t('操作成功') : t('操作失败'),
+          });
         })
         .finally(() => {
           dialogLoading.value = false;
