@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -274,6 +273,7 @@ class WinEventLogScenario(CollectorScenario):
                     "alias_name": "provider_name",
                     "description": "来源名称",
                     "option": build_es_option_type("keyword", es_version),
+                    "flat_field": True,
                 },
                 {
                     "field_name": "winEventTask",
