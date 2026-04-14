@@ -454,9 +454,10 @@ class ListIssueActivitiesResource(Resource):
 
     def perform_request(self, validated_request_data):
         issue_id = validated_request_data["issue_id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
 
         # 校验 Issue 存在且归属当前业务（单条查询，bk_biz_id 为单个值）
-        _get_issue_or_raise(issue_id, bk_biz_id=validated_request_data["bk_biz_id"])
+        _get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
 
         # 查询该 Issue 的全部活动日志，按时间降序排列（最近发生的在前）
         # 使用 all_indices=True 避免跨天漏查（活动日志与 Issue 可能跨天）
@@ -470,6 +471,7 @@ class ListIssueActivitiesResource(Resource):
 
         return [
             {
+                "bk_biz_id": hit.bk_biz_id,
                 "activity_id": hit.meta.id,
                 "activity_type": hit.activity_type,
                 "operator": hit.operator or "",
@@ -510,6 +512,7 @@ class ListIssueHistoryResource(Resource):
 
         return [
             {
+                "bk_biz_id": hit.bk_biz_id,
                 "issue_id": hit.meta.id,
                 "name": hit.name,
                 "status": hit.status,
