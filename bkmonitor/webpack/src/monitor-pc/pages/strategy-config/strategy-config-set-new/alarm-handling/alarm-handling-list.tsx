@@ -240,6 +240,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
           key={`${index}_tab`}
           class='action-tab-form-item'
           title={this.$t('动作')}
+          show-semicolon
         >
           <div class='bk-button-group'>
             {ACTION_TYPE_OPTIONS.map(action => (

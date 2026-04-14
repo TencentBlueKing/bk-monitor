@@ -2010,4 +2010,5 @@ export default {
   Y轴最小值自适应: 'Y-axis minimum value adaptive',
   动作: 'Action',
   Issue聚合: 'Issue aggregation',
+  生效告警级别: 'Effective alarm level',
 };

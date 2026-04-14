@@ -250,7 +250,10 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
   render() {
     return (
       <div class='issue-agg-container'>
-        <CommonItem title={this.$t('聚合维度')}>
+        <CommonItem
+          title={this.$t('聚合维度')}
+          show-semicolon
+        >
           <bk-select
             class='dimension-select'
             v-model={this.localValue.aggregate_dimensions}
@@ -275,7 +278,10 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             ))}
           </bk-select>
         </CommonItem>
-        <CommonItem title={this.$t('过滤条件')}>
+        <CommonItem
+          title={this.$t('过滤条件')}
+          show-semicolon
+        >
           <UiSelector
             class='condition-select'
             scopedSlots={{
@@ -302,7 +308,10 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             onChange={this.handleConditionsChange}
           />
         </CommonItem>
-        <CommonItem title={this.$t('生效告警级别')}>
+        <CommonItem
+          title={this.$t('生效告警级别')}
+          show-semicolon
+        >
           <bk-checkbox-group
             class='levels-checkbox'
             v-model={this.localValue.alert_levels}
