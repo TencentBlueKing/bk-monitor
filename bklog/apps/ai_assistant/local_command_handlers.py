@@ -6,7 +6,6 @@ from ai_agent.services.local_command_handler import (
     CommandHandler,
     local_command_handler,
 )
-from apps.log_clustering.constants import AGGS_FIELD_PREFIX
 from apps.log_unifyquery.builder.context import build_context_params
 from apps.utils.log import logger
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -268,6 +267,7 @@ class ClusteringRegexGenerateCommandHandler(CommandHandler):
 
     def process_content(self, context: list[dict]) -> str:
         from apps.log_clustering.models import ClusteringConfig
+        from apps.log_clustering.constants import AGGS_FIELD_PREFIX
 
         template = self.get_template()
         variables = self.extract_context_vars(context)
