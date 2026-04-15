@@ -46,10 +46,13 @@ export default defineComponent({
       type: String,
       required: true,
     },
+    bizId: {
+      type: Number,
+    },
   },
   setup(props) {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, alarmDetail } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, alarmDetail, bizId } = storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -64,6 +67,7 @@ export default defineComponent({
       newVal => {
         if (newVal) {
           alarmId.value = newVal;
+          bizId.value = props.bizId;
         }
       },
       { immediate: true }

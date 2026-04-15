@@ -319,6 +319,7 @@ export default defineComponent({
             <IssuesDetailAlarmPanel
               key={latestAlertId.value}
               alarmId={latestAlertId.value || ''}
+              bizId={props.detail.bk_biz_id}
             />
           ) : (
             emptyRender()
@@ -330,6 +331,7 @@ export default defineComponent({
             <IssuesDetailAlarmPanel
               key={earliestAlertId.value}
               alarmId={earliestAlertId.value}
+              bizId={props.detail.bk_biz_id}
             />
           ) : (
             emptyRender()
