@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, defineComponent, inject, onMounted, provide, ref, shallowRef, watch } from 'vue';
+import { type Ref, defineComponent, inject, provide, ref, shallowRef, watch } from 'vue';
 
 import { Loading } from 'bkui-vue';
 import { incidentAlertView } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 
 import ExceptionComp from '../../../components/exception';
-import DashboardPanel from '../../../plugins/components/flex-virtual-dashboard-panel';
+import DashboardPanel from '../../../plugins/components/lazy-dashboard-panel';
 import { useIncidentInject } from '../utils';
 import MetricsCollapse from './metrics-collapse';
 
@@ -66,6 +66,7 @@ export default defineComponent({
     const loading = ref(false);
     const dataZoomTimeRange = ref({ timeRange: [] });
     provide('dataZoomTimeRange', dataZoomTimeRange);
+
     // 错误状态/空状态
     const exceptionData = shallowRef({
       isError: false,
@@ -198,19 +199,21 @@ export default defineComponent({
     const len = this.recommendedMetricPanels.length;
     return (
       <Loading
-        class='failure-view bk-scroll-y'
+        class='failure-view-wrapper'
         loading={this.loading}
       >
-        {len > 0 ? (
-          this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))
-        ) : (
-          <ExceptionComp
-            errorMsg={this.exceptionData.errorMsg}
-            imgHeight={160}
-            isError={this.exceptionData.isError}
-            title={this.exceptionData.isError ? this.t('查询异常') : this.t('暂无告警视图')}
-          />
-        )}
+        <div class='failure-view'>
+          {len > 0 ? (
+            this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))
+          ) : (
+            <ExceptionComp
+              errorMsg={this.exceptionData.errorMsg}
+              imgHeight={160}
+              isError={this.exceptionData.isError}
+              title={this.exceptionData.isError ? this.t('查询异常') : this.t('暂无告警视图')}
+            />
+          )}
+        </div>
       </Loading>
     );
   },

@@ -30,13 +30,16 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute } from 'vue-router/composables';
 import { useOperation } from '../../hook/useOperation';
-import { showMessage } from '../../utils';
+import { showMessage, visibleScopeSelectList } from '../../utils';
+import { deepClone } from '@/common/util';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
+import { useSpaceSelector } from '../../../hooks/use-space-selector';
+import * as authorityMap from '@/common/authority-map';
 import $http from '@/api';
 
-import type { ISelectItem } from '../../utils';
+import type { ISelectItem } from '../../type';
 
 import './step3-clean.scss';
 
@@ -69,9 +72,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 是否从清洗列表进入
+     */
+    isCleanField: {
+      type: Boolean,
+      default: false,
+    },
   },
 
-  emits: ['next', 'prev', 'cancel'],
+  emits: ['next', 'prev', 'cancel', 'change-submit'],
 
   setup(props, { emit }) {
     const store = useStore();
@@ -104,6 +114,7 @@ export default defineComponent({
      */
     const pathExample = ref();
     const isDebugLoading = ref(false);
+    const isPathDebugLoading = ref(false);
     /**
      * 日志样例
      */
@@ -137,7 +148,7 @@ export default defineComponent({
         name: t('自定义'),
       },
     ];
-    const cleaningMode = ref('bk_log_json');
+    const cleaningMode = ref('bk_log_text');
     const enableMetaData = ref(false);
     const loading = ref(false);
     const logOriginalLoading = ref(false);
@@ -151,11 +162,23 @@ export default defineComponent({
     const templateList = ref([]);
     const templateListLoading = ref(false);
 
+    const visibleBkBiz = ref([]);
+    const cacheVisibleList = ref([]);
+    /**
+     * 采集项下拉选项
+     */
+    const cleanCollectorList = ref([]);
+    const cleanCollectorId = ref();
+    const indexSetSelectLoading = ref(false);
+
     const builtInFieldsList = ref([]);
     const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
     const globalsData = computed(() => store.getters['globals/globalsData']);
     const curCollect = computed(() => store.getters['collect/curCollect']);
     const bkBizId = computed(() => store.getters.bkBizId);
+    const mySpaceList = computed(() => store.state.mySpaceList);
+
+    const showCardConfig = computed(() => (!props.isTempField ? cardConfig.slice(0, -1) : cardConfig));
     /**
      * 分隔符
      */
@@ -172,7 +195,8 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const isUpdate = computed(() => ['collectEdit', 'collectField'].includes(String(route.name ?? '')) && props.isEdit);
+    const isEditTemp = computed(() => route.name === 'clean-template-edit');
 
     const formData = ref({
       // 最后一次正确的结果，保存以此数据为准
@@ -192,7 +216,7 @@ export default defineComponent({
       etl_fields: [],
       fields: [],
       visible_type: 'current_biz', // 可见范围单选项
-      visible_bk_biz: [], // 多个业务
+      visible_bk_biz_id: [], // 多个业务
       log_original: '',
       log_reporting_time: true, // 日志上报时间
       field_name: '',
@@ -203,7 +227,7 @@ export default defineComponent({
     const rowTemplate = ref({
       alias_name: '',
       description: '',
-      field_type: '',
+      field_type: 'string',
       is_case_sensitive: false,
       is_analyzed: false,
       is_built_in: false,
@@ -222,10 +246,85 @@ export default defineComponent({
 
     const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
 
+    const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
+
+    const isEditCleanItem = computed(() => route.name === 'clean-edit' || route.name === 'v2-clean-edit');
+
     onMounted(() => {
-      setDetail();
+      // 清洗列表进入
+      if (props.isCleanField) {
+        if (isEditCleanItem.value) {
+          cleanCollectorId.value = Number(route.params.collectorId);
+        }
+        initCleanItem();
+        return;
+      }
+      // 清洗模板进入
+      if (props.isTempField) {
+        cleaningMode.value = 'bk_log_json';
+        isEditTemp.value && initCleanTemp();
+        return;
+      }
+      const id = isUpdate.value ? route.params.collectorId : route.query.collectorId;
+      setDetail(id);
       getTemplate();
     });
+    /**
+     * 当为清洗列表 - 创建/编辑清洗的时候，获取采集项下拉框内容
+     */
+    const initCleanItem = () => {
+      // 初始化清洗项
+      indexSetSelectLoading.value = true;
+      const query = {
+        bk_biz_id: bkBizId.value,
+        have_data_id: 1,
+        have_table_id: 1,
+      };
+      // 获取采集项列表
+      $http
+        .request('collect/getAllCollectors', { query })
+        .then(res => {
+          indexSetSelectLoading.value = false;
+          const { data } = res;
+          cleanCollectorList.value = data || [];
+        })
+        .catch(() => {
+          indexSetSelectLoading.value = false;
+        });
+    };
+
+    const setTempDetail = data => {
+      formData.value = {
+        ...formData.value,
+        ...data,
+      };
+      delimiter.value = data.etl_params.separator;
+      templateName.value = data.name;
+      cleaningMode.value = data.clean_type;
+      visibleBkBiz.value = data.visible_bk_biz_id;
+    };
+
+    const initCleanTemp = () => {
+      const { templateId } = route.params;
+      basicLoading.value = true;
+      $http
+        .request('clean/templateDetail', {
+          params: {
+            clean_template_id: templateId,
+          },
+          query: {
+            bk_biz_id: bkBizId.value,
+          },
+        })
+        .then(res => {
+          if (res.data) {
+            setTempDetail(res.data);
+          }
+        })
+        .finally(() => {
+          basicLoading.value = false;
+        });
+    };
     /**
      * 获取模版列表
      * @param isSave
@@ -253,31 +352,39 @@ export default defineComponent({
           },
         });
         if (res.data) {
-          const { etl_fields, clean_type, etl_params } = res.data;
+          const { etl_fields, clean_type, etl_params, visible_bk_biz_id } = res.data;
           const timeField = etl_fields?.find(item => item.is_time);
           const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
           const fieldName = timeField?.field_name || '';
+          const timeFormat = timeField?.option?.time_format || '';
+          const timeZoneVal = timeField?.option?.time_zone || '';
           cleaningMode.value = clean_type;
+          enableMetaData.value = !!etl_params.path_regexp;
+          visibleBkBiz.value = visible_bk_biz_id;
           formData.value = {
             ...formData.value,
             ...res.data,
             log_reporting_time: logReportingTime,
             field_name: fieldName,
+            time_format: timeFormat,
+            time_zone: timeZoneVal,
           };
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
           }
+          cacheTemplateData.value = deepClone(formData.value);
           return;
         }
         formData.value.etl_params.retain_original_text = true;
         formData.value.etl_params.enable_retain_content = true;
+        cacheTemplateData.value = deepClone(formData.value);
       } catch (error) {
         console.log(error);
       }
     };
 
     // 新建、编辑采集项时获取更新详情
-    const setDetail = () => {
+    const setDetail = id => {
       /**
        * 初始化导入的配置
        */
@@ -288,7 +395,6 @@ export default defineComponent({
         ...props.configData,
         etl_fields: eltField,
       };
-      const id = isUpdate.value ? route.params.collectorId : route.query.collectorId;
       if (!id) {
         return;
       }
@@ -299,9 +405,13 @@ export default defineComponent({
         })
         .then(async res => {
           if (res.data) {
-            store.commit('collect/setCurCollect', res.data);
-            builtInFieldsList.value = curCollect.value.fields.filter(item => item.is_built_in);
-            if (props.isEdit || props.isClone) {
+            // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
+            if (!props.isClone) {
+              store.commit('collect/setCurCollect', res.data);
+            }
+            const fieldsSource = props.isClone ? res.data.fields : curCollect.value.fields;
+            builtInFieldsList.value = (fieldsSource || []).filter(item => item.is_built_in);
+            if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
             }
@@ -323,7 +433,7 @@ export default defineComponent({
         data: pathExample.value,
       };
       const urlParams = {};
-      isDebugLoading.value = true;
+      isPathDebugLoading.value = true;
       urlParams.collector_config_id = curCollect.value.collector_config_id;
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
@@ -338,7 +448,7 @@ export default defineComponent({
           console.log(err);
         })
         .finally(() => {
-          isDebugLoading.value = false;
+          isPathDebugLoading.value = false;
         });
     };
 
@@ -377,8 +487,6 @@ export default defineComponent({
       if (!isRefresh) {
         formData.value.etl_fields = [];
       }
-      // 先置空防止接口失败显示旧数据
-      formData.value.etl_params.metadata_fields = [];
       if (props.isTempField) {
         requestUrl = 'clean/getEtlPreview';
       } else {
@@ -398,8 +506,13 @@ export default defineComponent({
             item.verdict = judgeNumber(item);
           }
           const fields = formData.value.etl_fields;
-          const list = dataFields.reduce((arr, item) => {
-            const field = { ...structuredClone(rowTemplate.value), ...item };
+          const list = dataFields.reduce((arr, item, index) => {
+            const field = { 
+              ...structuredClone(rowTemplate.value),
+              ...item,
+              // 如果接口未返回 field_index，则使用数组索引作为唯一标识
+              field_index: item.field_index ?? index + 1,
+            };
             arr.push(field);
             return arr;
           }, []);
@@ -408,7 +521,11 @@ export default defineComponent({
            */
           if (isRefresh) {
             formData.value.etl_fields = fields.map(item => {
-              const info = list.find(ele => ele.field_name === item.field_name);
+              let info = {};
+              info = list.find(ele => ele.field_name === item.field_name);
+              if (cleaningMode.value === 'bk_log_delimiter') {
+                info = list.find(ele => ele.field_index === item.field_index);
+              }
               return {
                 ...item,
                 value: info.value,
@@ -505,8 +622,11 @@ export default defineComponent({
               placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
               type='textarea'
               value={formData.value.etl_params.separator_regexp}
-              on-change={(val: string) => {
-                formData.value.etl_params.separator_regexp = val;
+              on-input={(val: string) => {
+                formData.value.etl_params = {
+                  ...formData.value.etl_params,
+                  separator_regexp: val,
+                };
               }}
             />
             <bk-button
@@ -580,21 +700,33 @@ export default defineComponent({
         showMessage(t('请输入模板名称'), 'error');
         return;
       }
+
+      const { etl_params, etl_fields, visible_type } = formData.value;
+      const data = {
+        name: templateName.value,
+        bk_biz_id: bkBizId.value,
+        clean_type: cleaningMode.value,
+        etl_params,
+        etl_fields,
+        visible_type,
+        visible_bk_biz_id: visibleBkBiz.value,
+      };
+      const urlParams = {};
+      if (isEditTemp.value) {
+        urlParams.clean_template_id = route.params.templateId;
+      }
+      const updateData = { params: urlParams, data };
+      const requestUrl = isEditTemp.value ? 'clean/updateTemplate' : 'clean/createTemplate';
       $http
-        .request('clean/createTemplate', {
-          data: {
-            name: templateName.value,
-            bk_biz_id: bkBizId.value,
-            clean_type: cleaningMode.value,
-            etl_params: formData.value.etl_params,
-            etl_fields: formData.value.etl_fields,
-          },
-        })
+        .request(requestUrl, updateData)
         .then(res => {
           if (res.result) {
             templateDialogVisible.value = false;
             getTemplate();
             showMessage(t('保存成功'), 'success');
+            if (props.isTempField) {
+              emit('change-submit', true);
+            }
           }
         })
         .catch(() => {
@@ -642,6 +774,7 @@ export default defineComponent({
     /** 选择清洗模式 */
     const handleChangeCleaningMode = (mode: string) => {
       cleaningMode.value = mode.value;
+      formData.value.etl_config = cleaningMode.value;
     };
 
     // 对时间格式做校验逻辑
@@ -671,14 +804,102 @@ export default defineComponent({
         });
       return result;
     };
+    /**
+     * 在清洗列表进入的时候，选择采集项之后的操作
+     * @param id
+     * @returns
+     */
+    const handleCollectorChange = async (id: number) => {
+      cleanCollectorId.value = id;
+      // 先校验有无采集项管理权限
+      const paramData = {
+        action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+        resources: [
+          {
+            type: 'collection',
+            id,
+          },
+        ],
+      };
+      const res = await store.dispatch('checkAndGetData', paramData);
+      if (res.isAllowed === false) {
+        return;
+      }
+      setDetail(id);
+    };
+    // 采集项列表点击申请采集项目管理权限
+    const applyProjectAccess = async item => {
+      try {
+        const res = await store.dispatch('getApplyData', {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: item.collector_config_id,
+            },
+          ],
+        });
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      }
+    };
     /** 清洗设置 */
     const renderSetting = () => (
       <div class='clean-setting'>
-        <bk-alert
-          class='clean-alert'
-          title={t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。')}
-          type='info'
-        />
+        {!props.isCleanField && !props.isTempField && (
+          <bk-alert
+            class='clean-alert'
+            title={t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。')}
+            type='info'
+          />
+        )}
+        {props.isCleanField && (
+          <div class='label-form-box'>
+            <span class='label-title'>{t('采集项')}</span>
+            <div class='form-box mt-5'>
+              <bk-select
+                class='index-set-select'
+                searchable
+                disabled={isEditCleanItem.value}
+                loading={indexSetSelectLoading.value}
+                value={cleanCollectorId.value}
+                on-change={handleCollectorChange}
+              >
+                {cleanCollectorList.value.map(option => (
+                  <bk-option
+                    id={option.collector_config_id}
+                    key={option.collector_config_id}
+                    name={option.collector_config_name}
+                  >
+                    {!option.permission?.[authorityMap.MANAGE_COLLECTION_AUTH] ? (
+                      <div class='option-slot-container no-authority'>
+                        <span class='text'>
+                          <span>{option.collector_config_name}</span>
+                          <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
+                        </span>
+                        <span
+                          class='apply-text'
+                          on-click={() => applyProjectAccess(option)}
+                        >
+                          {t('申请权限')}
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        class='option-slot-container'
+                        v-bk-overflow-tips
+                      >
+                        <span>{option.collector_config_name}</span>
+                        <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
+                      </div>
+                    )}
+                  </bk-option>
+                ))}
+              </bk-select>
+            </div>
+          </div>
+        )}
         <div class='label-form-box'>
           <span class='label-title'>{t('原始日志')}</span>
           <div class='form-box'>
@@ -781,56 +1002,76 @@ export default defineComponent({
             <bk-input
               type='textarea'
               value={logOriginal.value}
-              on-change={val => {
+              on-change={(val: string) => {
                 logOriginal.value = val;
               }}
             />
           </div>
         </div>
         <div class='label-form-box'>
-          <span class='label-title no-require'>{t('清洗模式')}</span>
-          <div class='form-box'>
-            <div class='example-box'>
-              {/* 应用模版 */}
-              {renderTemplateSelect()}
-              <span class='form-link'>
-                <i class='bklog-icon bklog-help link-icon' />
-                {t('说明文档')}
-              </span>
-            </div>
-            <div class='bk-button-group'>
-              {cleaningModeList.map(mode => (
-                <bk-button
-                  key={mode.value}
-                  class={{ 'is-selected': mode.value === cleaningMode.value }}
-                  on-click={() => handleChangeCleaningMode(mode)}
-                >
-                  {mode.label}
-                </bk-button>
-              ))}
-            </div>
-            {renderCleaningMode()}
-          </div>
-        </div>
-        <div class='label-form-box'>
-          <span class='label-title no-require'>{t('字段列表')}</span>
-          <div class='form-box'>
-            <FieldList
-              ref={fieldListRef}
-              builtInFieldsList={builtInFieldsList.value}
-              data={formData.value.etl_fields || []}
-              extractMethod={cleaningMode.value}
-              loading={isDebugLoading.value || basicLoading.value}
-              refresh={isValueRefresh.value}
-              originalTextTokenizeOnChars={defaultParticipleStr.value}
-              selectEtlConfig={cleaningMode.value}
-              on-change={data => {
-                formData.value.etl_fields = data;
+          <span class='label-title no-require'>{t('开启清洗')}</span>
+          <div class='form-box mt-5'>
+            <bk-switcher
+              size='large'
+              theme='primary'
+              value={isClean.value}
+              disabled={props.isTempField || (props.isCleanField && !cleanCollectorId.value)}
+              on-change={(val: boolean) => {
+                const type = val ? 'bk_log_json' : 'bk_log_text';
+                cleaningMode.value = type;
+                formData.value.etl_config = type;
               }}
-              on-refresh={() => debugHandler('refresh')}
             />
           </div>
         </div>
+        {isClean.value && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('清洗模式')}</span>
+            <div class='form-box'>
+              <div class='example-box'>
+                {/* 应用模版 */}
+                {renderTemplateSelect()}
+                <span class='form-link'>
+                  <i class='bklog-icon bklog-help link-icon' />
+                  {t('说明文档')}
+                </span>
+              </div>
+              <div class='bk-button-group'>
+                {cleaningModeList.map(mode => (
+                  <bk-button
+                    key={mode.value}
+                    class={{ 'is-selected': mode.value === cleaningMode.value }}
+                    on-click={() => handleChangeCleaningMode(mode)}
+                  >
+                    {mode.label}
+                  </bk-button>
+                ))}
+              </div>
+              {renderCleaningMode()}
+            </div>
+          </div>
+        )}
+        {isClean.value && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('字段列表')}</span>
+            <div class='form-box'>
+              <FieldList
+                ref={fieldListRef}
+                builtInFieldsList={builtInFieldsList.value}
+                data={formData.value.etl_fields || []}
+                extractMethod={cleaningMode.value}
+                loading={isDebugLoading.value || basicLoading.value}
+                refresh={isValueRefresh.value}
+                originalTextTokenizeOnChars={defaultParticipleStr.value}
+                selectEtlConfig={cleaningMode.value}
+                on-change={data => {
+                  formData.value.etl_fields = data;
+                }}
+                on-refresh={() => debugHandler('refresh')}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
     /** 高级设置 */
@@ -860,7 +1101,7 @@ export default defineComponent({
                   <bk-select
                     class='select-box'
                     value={formData.value.field_name}
-                    on-selected={val => {
+                    on-selected={(val: string) => {
                       formData.value.field_name = val;
                     }}
                   >
@@ -976,12 +1217,15 @@ export default defineComponent({
                   placeholder={defaultRegex}
                   value={formData.value.etl_params.path_regexp}
                   on-input={val => {
-                    formData.value.etl_params.path_regexp = val;
+                    formData.value.etl_params = {
+                      ...formData.value.etl_params,
+                      path_regexp: val,
+                    };
                   }}
                 />
                 <bk-button
                   class='debug-btn'
-                  disabled={!showDebugPathRegexBtn.value || isDebugLoading.value}
+                  disabled={!showDebugPathRegexBtn.value || isPathDebugLoading.value}
                   on-click={debuggerPathRegex}
                 >
                   {t('调试')}
@@ -1014,6 +1258,63 @@ export default defineComponent({
         )}
       </div>
     );
+    /**
+     *
+     * @returns 可见范围
+     */
+    const renderVisibility = () => {
+      const { virtualscrollSpaceList, isUseMark } = useSpaceSelector(visibleBkBiz);
+      isUseMark.value = false;
+      return (
+        <div class='visibility-settings'>
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('可见范围')}</span>
+            <div class='form-box'>
+              <bk-radio-group
+                value={formData.value.visible_type}
+                on-change={(val: string) => {
+                  formData.value.visible_type = val;
+                  visibleBkBiz.value = val !== 'multi_biz' ? [] : structuredClone(cacheVisibleList.value);
+                }}
+              >
+                {visibleScopeSelectList.map(item => (
+                  <bk-radio
+                    class='mr-24'
+                    value={item.id}
+                  >
+                    {item.name}
+                  </bk-radio>
+                ))}
+              </bk-radio-group>
+            </div>
+          </div>
+          {formData.value.visible_type === 'multi_biz' && (
+            <div class='label-form-box'>
+              <span class='label-title no-require'></span>
+              <div class='form-box'>
+                <bk-select
+                  style='width: 500px;'
+                  value={visibleBkBiz.value}
+                  list={mySpaceList.value}
+                  virtual-scroll-render={virtualscrollSpaceList}
+                  display-key={'space_full_code_name'}
+                  id-key={'bk_biz_id'}
+                  display-tag
+                  enable-virtual-scroll
+                  multiple
+                  searchable
+                  on-change={val => {
+                    console.log(val, 'val');
+                    visibleBkBiz.value = val;
+                    formData.value.visible_bk_biz_id = val;
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
     const cardConfig = [
       {
         title: t('清洗设置'),
@@ -1025,11 +1326,18 @@ export default defineComponent({
         key: 'advancedSetting',
         renderFn: renderAdvanced,
       },
+      {
+        title: t('可见范围设置'),
+        key: 'visibilitySettings',
+        renderFn: renderVisibility,
+      },
     ];
     /**
-     * 保存按钮
+     * 提交前的相关检验
+     * @param callback
+     * @returns
      */
-    const handleSubmit = async () => {
+    const handleSubmitValidate = async callback => {
       loading.value = true;
       // 校验字段表格
       const validatePromises = fieldListRef.value?.validateFieldTable();
@@ -1050,66 +1358,119 @@ export default defineComponent({
           loading.value = false;
           return;
         }
-        const list = formData.value.etl_fields.map(item => ({
-          ...item,
-          is_time: item.field_name === formData.value.field_name,
-        }));
+        const list = formData.value.etl_fields.map(item => {
+          const isTime = item.field_name === formData.value.field_name;
+          return {
+            ...item,
+            is_time: isTime,
+            option: {
+              time_zone: isTime ? formData.value.time_zone : '',
+              time_format: isTime ? formData.value.time_format : '',
+            },
+          };
+        });
         formData.value.etl_fields = list;
+      } else {
+        // 日志上报时间：清除所有字段的 is_time 和 option 中的时间信息
+        formData.value.etl_fields = formData.value.etl_fields.map(item => ({
+          ...item,
+          is_time: false,
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+        }));
       }
-      const { etl_params, etl_fields } = formData.value;
-      const { storage_cluster_id, allocation_min_days, storage_replies, es_shards, table_id, retention } =
-        curCollect.value;
-      /**
-       * 编辑/创建清洗
-       * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
-       */
-      const isNeedCreate = isUpdate.value && !!storage_cluster_id;
-      const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
-      const data = {
-        bk_biz_id: bkBizId.value,
-        etl_params,
-      };
-      const requestData = isNeedCreate
-        ? {
+      const { etl_fields } = formData.value;
+
+      if (isClean.value && etl_fields.length === 0) {
+        showMessage(t('请完成相关的清洗配置'), 'error');
+        loading.value = false;
+        return;
+      }
+      callback?.();
+    };
+    /**
+     * 保存按钮
+     */
+    const handleSubmit = async () => {
+      handleSubmitValidate(() => {
+        const { etl_params, etl_fields } = formData.value;
+        // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
+        etl_params.metadata_fields =
+          etl_params?.metadata_fields?.map(item => {
+            item.metadata_type = 'path';
+            return item;
+          }) ?? [];
+        // 关闭路径元数据开关时，path_regexp 传 null
+        if (!enableMetaData.value) {
+          etl_params.path_regexp = null;
+        }
+        const {
+          storage_cluster_id,
+          allocation_min_days,
+          storage_replies,
+          es_shards,
+          table_id,
+          retention,
+          storage_shards_nums,
+        } = curCollect.value;
+        /**
+         * 编辑/创建清洗
+         * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
+         */
+        const isNeedCreate = (isUpdate.value && !!storage_cluster_id) || props.isCleanField;
+        const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
+        const data = {
+          bk_biz_id: bkBizId.value,
+          etl_params,
+        };
+        const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etl_fields;
+        const requestData = isNeedCreate
+          ? {
             ...data,
-            fields: etl_fields,
+            fields: fieldsList,
             storage_cluster_id,
             allocation_min_days,
             storage_replies,
-            es_shards,
+            es_shards: es_shards ?? storage_shards_nums,
             table_id,
             retention,
             etl_config: cleaningMode.value,
           }
-        : {
+          : {
             ...data,
-            etl_fields,
+            etl_fields: fieldsList,
             clean_type: cleaningMode.value,
           };
-      $http
-        .request(url, {
-          params: {
-            collector_config_id: curCollect.value.collector_config_id,
-          },
-          data: requestData,
-        })
-        .then(res => {
-          loading.value = false;
-          if (res?.result) {
-            const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
-            emit('next', data);
-          }
-        })
-        .catch(() => {
-          loading.value = false;
-        });
+        $http
+          .request(url, {
+            params: {
+              collector_config_id: curCollect.value.collector_config_id,
+            },
+            data: requestData,
+          })
+          .then(res => {
+            loading.value = false;
+            if (res?.result) {
+              const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
+              emit('next', data);
+              if (props.isCleanField) {
+                emit('change-submit', true);
+              }
+            }
+          })
+          .catch(() => {
+            loading.value = false;
+          });
+      });
     };
     return () => (
       <div
         class='operation-step3-clean'
         v-bkloading={{ isLoading: basicLoading.value }}
       >
-        {cardRender(cardConfig)}
+        {cardRender(showCardConfig.value)}
         <ReportLogSlider
           isShow={showReportLogSlider.value}
           jsonText={jsonText.value}
@@ -1118,38 +1479,51 @@ export default defineComponent({
           }}
         />
         <div class='classify-btns-fixed'>
-          <bk-button
-            class='mr-8'
-            on-click={() => {
-              emit('prev');
-            }}
-          >
-            {t('上一步')}
-          </bk-button>
-          <bk-button
-            class='width-88 mr-8'
-            theme='primary'
-            loading={loading.value}
-            on-click={handleSubmit}
-          >
-            {t('下一步')}
-          </bk-button>
+          {!props.isTempField && !props.isCleanField && (
+            <bk-button
+              class='mr-8'
+              on-click={() => {
+                emit('prev', props.configData);
+              }}
+            >
+              {t('上一步')}
+            </bk-button>
+          )}
+          {!props.isTempField && (
+            <bk-button
+              class='width-88 mr-8'
+              theme='primary'
+              loading={loading.value}
+              on-click={handleSubmit}
+            >
+              {props.isCleanField ? t('保存') : t('下一步')}
+            </bk-button>
+          )}
+
           <bk-button
             class='template-btn'
+            disabled={formData.value.etl_fields.length === 0}
             on-click={() => {
-              templateDialogVisible.value = true;
+              handleSubmitValidate(() => {
+                templateDialogVisible.value = true;
+              });
             }}
           >
-            {t('另存为模板')}
+            {props.isTempField ? t('保存模板') : t('另存为模板')}
           </bk-button>
-          <bk-button
-            class='mr-8'
-            on-click={() => {
-              formData.value = { ...cacheTemplateData.value };
-            }}
-          >
-            {t('重置')}
-          </bk-button>
+          {!props.isTempField && !props.isCleanField && (
+            <bk-button
+              class='mr-8'
+              on-click={() => {
+                formData.value = deepClone(cacheTemplateData.value);
+                cleaningMode.value = cacheTemplateData.value.etl_config;
+                visibleBkBiz.value = cacheTemplateData.value.visible_bk_biz_id;
+                enableMetaData.value = !!cacheTemplateData.value.etl_params.path_regexp;
+              }}
+            >
+              {t('重置')}
+            </bk-button>
+          )}
           <bk-button
             on-click={() => {
               emit('cancel');
@@ -1167,6 +1541,9 @@ export default defineComponent({
           title={t('另存为模板')}
           value={templateDialogVisible.value}
           on-confirm={handleTempConfirm}
+          on-cancel={() => {
+            templateDialogVisible.value = false;
+          }}
         >
           <div class='template-content'>
             <span style='color: #63656e'>{t('模板名称')}</span>

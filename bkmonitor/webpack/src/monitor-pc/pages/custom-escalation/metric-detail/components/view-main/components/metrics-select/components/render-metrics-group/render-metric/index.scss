@@ -1,4 +1,17 @@
 .metric-select-metric-item {
+  position: relative;
+  margin: 0 8px 0 10px;
+
+  &:after {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 27px;
+    width: 1px;
+    content: '';
+    background: #dcdee5;
+  }
+
   &:hover,
   &.is-active {
     background: #f5f7fa;

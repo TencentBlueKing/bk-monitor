@@ -679,7 +679,13 @@ MENUS = [
                         "name": _("日志采集"),
                         "feature": "on",
                         "scenes": "scenario_log",
-                        "icon": "document",
+                        "icon": "rizhicaiji",
+                    },
+                    {
+                        "id": "tgpa_task",
+                        "name": _("客户端日志"),
+                        "feature": FEATURE_TOGGLE["tgpa_task"],
+                        "icon": "client-log",
                     },
                     {
                         "id": "tgpa_task",
@@ -722,13 +728,13 @@ MENUS = [
                         "id": "clean_templates",
                         "name": _("清洗模板"),
                         "feature": "on",
-                        "icon": "moban",
+                        "icon": "qingximoban",
                     },
                     {
                         "id": "log_desensitize",
                         "name": _("日志脱敏"),
                         "feature": FEATURE_TOGGLE["log_desensitize"],
-                        "icon": "moban",
+                        "icon": "rizhituomin",
                     },
                 ],
             },
@@ -749,13 +755,13 @@ MENUS = [
                         "id": "archive_list",
                         "name": _("归档列表"),
                         "feature": "on",
-                        "icon": "audit-fill",
+                        "icon": "guidangliebiao",
                     },
                     {
                         "id": "archive_restore",
                         "name": _("归档回溯"),
                         "feature": "on",
-                        "icon": "withdraw-fill",
+                        "icon": "guidanghuisu",
                     },
                 ],
             },
@@ -767,7 +773,7 @@ MENUS = [
                 "feature": os.environ.get("BKAPP_FEATURE_EXTRACT", "on"),
                 "children": [
                     {"id": "manage_log_extract", "name": _("日志提取配置"), "feature": "on", "icon": "cc-log"},
-                    {"id": "log_extract_task", "name": _("日志提取任务"), "feature": "on", "icon": "audit-fill"},
+                    {"id": "log_extract_task", "name": _("日志提取任务"), "feature": "on", "icon": "rizhitiqurenwu"},
                     {
                         "id": "extract_link_manage",
                         "name": _("提取链路管理"),
@@ -1298,7 +1304,7 @@ ALL_TENANT_SET_ID = 1
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
-APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
+APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
 # 预查询时间, 默认6h小时, 0代表禁用
@@ -1309,11 +1315,7 @@ except ValueError:
 
 # TGPA
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
-TGPA_TASK_QCLOUD_SECRET_ID = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_ID", "")
-TGPA_TASK_QCLOUD_SECRET_KEY = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_KEY", "")
-TGPA_TASK_QCLOUD_COS_REGION = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_REGION", "")
-TGPA_TASK_QCLOUD_COS_BUCKET = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_BUCKET", "")
-TGPA_TASK_QCLOUD_COS_DOMAIN = os.getenv("BKAPP_TGPA_TASK_QCLOUD_DOMAIN", "")
+TGPA_TRANSCEIVER_TOOL_URL = os.getenv("BKAPP_TGPA_TRANSCEIVER_TOOL_URL", "")
 
 """
 以下为框架代码 请勿修改

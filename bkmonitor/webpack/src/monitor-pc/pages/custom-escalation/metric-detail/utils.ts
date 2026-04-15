@@ -265,7 +265,7 @@ export const handleGetMinPrecision = (data: number[], formatter: ValueFormatter,
  * @param {string} alias  指标别名
  * */
 export const formatTipsContent = (name: string, alias: string) => {
-  return `${window.i18n.t('指标名：')}${name || '--'} <br/> ${window.i18n.t('指标别名：')}${alias || '--'}`;
+  return `${window.i18n.t('维度名：')}${name || '--'} <br/> ${window.i18n.t('维度别名：')}${alias || '--'}`;
 };
 
 export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {

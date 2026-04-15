@@ -233,6 +233,15 @@ export default defineComponent({
         extraLabelList.value[index].duplicateKey = isDuplicate;
       }
 
+      // 当用户修改后，检查是否可以清除全局错误状态
+      // 如果当前所有项都满足条件（key和value非空且不重复），则清除 isExtraError
+      const hasError = extraLabelList.value.some(
+        item => item.key === '' || item.value === '' || item.duplicateKey
+      );
+      if (!hasError) {
+        isExtraError.value = false;
+      }
+
       // 延迟提交变化，避免频繁触发
       nextTick(() => {
         handleExtraLabelsChange();
@@ -303,9 +312,8 @@ export default defineComponent({
       (newVal, oldVal) => {
         // 深度比较，避免相同引用时重复初始化
         if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
-          // 更新开关状态
-          switcherValue.value = newVal && newVal.length > 0;
-
+          // 更新开关状态（只有存在有效 key 的项才认为开启）
+          switcherValue.value = !!(newVal && newVal.filter(item => item.key).length > 0);
           // 只在第一次进入页面且 groupList 已加载时回填
           // 后续编辑时不再回填，避免覆盖用户的操作
           if (!hasInitialized.value && groupList.value.length > 0 && newVal && newVal.length > 0) {
@@ -320,16 +328,12 @@ export default defineComponent({
     expose({
       extraLabelsValidate,
     });
-    const renderInputItem = (item: IExtraLabel, index) => (
+    const renderInputItem = (item: IExtraLabel, index: number) => (
       <div class='device-metadata-input-item'>
         <div class='item-left'>
           <bk-input
             class={{ 'extra-error': item.key === '' && isExtraError.value }}
             value={item.key}
-            on-Blur={() => {
-              isExtraError.value = false;
-              item.duplicateKey = false;
-            }}
             on-Input={(val: string) => handleExtraLabelChange(index, 'key', val)}
           />
           {item.duplicateKey && (
@@ -343,9 +347,6 @@ export default defineComponent({
         <bk-input
           class={{ 'extra-error': item.value === '' && isExtraError.value }}
           value={item.value}
-          on-Blur={() => {
-            isExtraError.value = false;
-          }}
           on-Input={(val: string) => handleExtraLabelChange(index, 'value', val)}
         />
         <span
@@ -353,8 +354,8 @@ export default defineComponent({
           on-Click={handleAddExtraLabel}
         />
         <span
-          class={{ 'bk-icon icon-minus-circle-shape icons': true, disabled: extraLabelList.value.length === 1 }}
-          on-Click={handleDeleteExtraLabel}
+          class={{ 'bk-icon icon-minus-circle-shape icons': true }}
+          on-Click={() => handleDeleteExtraLabel(index)}
         />
       </div>
     );

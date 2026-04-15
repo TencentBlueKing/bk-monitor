@@ -18,6 +18,7 @@ from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import IssueDocument
+from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.issue import IssueStatus
 
@@ -411,7 +412,7 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                 "instance_list": [
                     {"bcs_cluster_id": cid, "display_name": d["display_name"]} for cid, d in k8s_clusters.items()
                 ][:50],
-                "link_tpl": "/k8s?filter-bcs_cluster_id={bcs_cluster_id}&sceneId=kubernetes&sceneType=overview",
+                "link_tpl": "/k8s-new?cluster={bcs_cluster_id}&sceneId=kubernetes&scene=performance&activeTab=list",
             }
         else:
             cid, cdata = next(iter(k8s_clusters.items()))
@@ -422,9 +423,9 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                         {"bcs_cluster_id": cid, "node": n, "display_name": dn} for n, dn in cdata["nodes"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-node_name={node}&dashboardId=node"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"node":["{node}"]}}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
                     ),
                 }
             if cdata["services"]:
@@ -434,9 +435,9 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                         {"bcs_cluster_id": cid, "service": s, "display_name": dn} for s, dn in cdata["services"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-service_name={service}&dashboardId=service"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"namespace":[],"service":["{service}"]}}&groupBy=["namespace","service"]'
+                        "&sceneId=kubernetes&scene=network&activeTab=list"
                     ),
                 }
             if cdata["pods"]:
@@ -446,9 +447,9 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                         {"bcs_cluster_id": cid, "pod": p, "display_name": dn} for p, dn in cdata["pods"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-pod_name={pod}&dashboardId=pod"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"namespace":[],"pod":["{pod}"]}}&groupBy=["namespace","pod"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
                 }
 
@@ -485,7 +486,8 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
 def _build_set_display_name(set_node: str, translation: list) -> str:
     """
     HOST/SERVICE 场景：从 origin_alarm.dimension_translation.bk_topo_node 提取 biz_name/set_name。
-    通过 bk_inst_id 精确匹配当前 set_node，避免同一告警多 Set 时取错名称。
+    有 bk_inst_id 时精确匹配，防止同一告警含多个 Set 时取错名称；
+    bk_inst_id 缺失时直接信任该集群条目（dimension_translation 里的集群条目即对应当前 set）。
     K8S 宿主机场景由调用方循环结束后统一批量填充。
     """
     set_id = int(set_node.split("|")[1]) if "|" in set_node else None
@@ -495,8 +497,11 @@ def _build_set_display_name(set_node: str, translation: list) -> str:
         name = item.get("bk_inst_name", "")
         if obj in ("biz", "业务"):
             biz_name = name
-        elif obj in ("set", "集群") and set_id and int(item.get("bk_inst_id") or 0) == set_id:
-            set_name = name
+        elif obj in ("set", "集群") and set_id:
+            inst_id = safe_int(item.get("bk_inst_id"), dft=None)
+            # inst_id 缺失或无法解析时直接信任该条目（translation 中集群条目即为当前 set）
+            if inst_id is None or inst_id == set_id:
+                set_name = name
     if biz_name and set_name:
         return f"{biz_name}/{set_name}"
     return set_node

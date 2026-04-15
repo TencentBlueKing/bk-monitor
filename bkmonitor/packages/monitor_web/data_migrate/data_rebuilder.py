@@ -30,18 +30,17 @@ from metadata.models import (
     ResultTableOption,
     StorageClusterRecord,
     TimeSeriesGroup,
-    TimeSeriesMetric,
-    TimeSeriesScope,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.models.space.constants import EtlConfigs
-from metadata.task.tasks import check_bkcc_space_builtin_datalink
 from metadata.utils.gse import KafkaGseSyncer
+from monitor.models import ApplicationConfig
 from monitor_web.collecting.constant import OperationType
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.data_migrate.constants import DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import (
@@ -54,6 +53,9 @@ from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.manager.process import ProcessPluginManager
 
 logger = logging.getLogger(__name__)
+
+UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL = "monitor.uptimechecktask"
+COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL = "monitor_web.collectconfigmeta"
 
 
 DEFAULT_KAFKA_CLUSTER_NAMES = {
@@ -72,6 +74,8 @@ def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
         bk_tenant_id (str): 租户ID
         bk_biz_id (int): 业务ID
     """
+    from metadata.task.tasks import check_bkcc_space_builtin_datalink
+
     # 检查并重新接入系统数据
     check_bkcc_space_builtin_datalink([(bk_tenant_id, bk_biz_id)])
 
@@ -157,6 +161,33 @@ def init_global_plugin(bk_tenant_id: str):
             )
 
 
+def _get_closed_record_ids_from_application_config(bk_biz_id: int, model_label: str) -> set[int]:
+    """从 ``ApplicationConfig`` 中获取导入阶段记录的关闭对象 ID。"""
+    config = ApplicationConfig.objects.filter(
+        cc_biz_id=bk_biz_id,
+        key=DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY,
+    ).first()
+    if not config or not isinstance(config.value, dict):
+        return set()
+
+    raw_record_ids = config.value.get(model_label, [])
+    if not isinstance(raw_record_ids, list):
+        return set()
+
+    closed_record_ids: set[int] = set()
+    for record_id in raw_record_ids:
+        try:
+            closed_record_ids.add(int(record_id))
+        except (TypeError, ValueError):
+            logger.warning(
+                "skip invalid close record id: bk_biz_id=%s model_label=%s record_id=%s",
+                bk_biz_id,
+                model_label,
+                record_id,
+            )
+    return closed_record_ids
+
+
 def rebuild_collect_plugins(
     bk_tenant_id: str,
     bk_biz_id: int,
@@ -173,12 +204,13 @@ def rebuild_collect_plugins(
         kafka_cluster_names (dict[str, str]): 集群名称映射 metric/log/event 对应 kafka 集群名称
         es_cluster_names (dict[str, str]): 集群名称映射 metric/log/event 对应 es 集群名称
     """
-    # 初始化租户下全局插件
-    init_global_plugin(bk_tenant_id)
-
     collect_configs = CollectConfigMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
     if collect_config_ids:
         collect_configs = collect_configs.filter(id__in=collect_config_ids)
+    closed_collect_config_ids = _get_closed_record_ids_from_application_config(
+        bk_biz_id=bk_biz_id,
+        model_label=COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL,
+    )
     plugin_ids = list(set(collect_configs.values_list("plugin_id", flat=True)))
 
     # 获取插件，顺便检查插件是否存在
@@ -186,10 +218,16 @@ def rebuild_collect_plugins(
         Q(bk_biz_id=bk_biz_id, plugin_id__in=plugin_ids) | Q(bk_biz_id=0, plugin_id="bkprocessbeat"),
         bk_tenant_id=bk_tenant_id,
     )
-    exists_plugin_ids = plugins.values_list("id", flat=True)
-    if len(exists_plugin_ids) != len(plugin_ids):
+    exists_plugin_ids = plugins.values_list("plugin_id", flat=True)
+    if not set(exists_plugin_ids).issuperset(set(plugin_ids)):
         missing_plugin_ids = set(plugin_ids) - set(exists_plugin_ids)
         raise ValueError(f"插件不存在: {missing_plugin_ids}")
+
+    # 如果进程插件不需要，则不需要在本轮进行重建
+    if "bkprocessbeat" not in plugin_ids:
+        plugins = CollectorPluginMeta.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, plugin_id__in=plugin_ids
+        )
 
     set_local_tenant_id(bk_tenant_id)
 
@@ -251,6 +289,14 @@ def rebuild_collect_plugins(
     for collect_config in collect_configs:
         collect_config.deployment_config.subscription_id = 0
         collect_config.deployment_config.save()
+        collect_config_pk = int(collect_config.pk)
+        if collect_config_pk not in closed_collect_config_ids:
+            logger.info(
+                "skip install collect config not found in close_records: bk_biz_id=%s collect_config_id=%s",
+                bk_biz_id,
+                collect_config_pk,
+            )
+            continue
         installer = get_collect_installer(collect_config)
         installer.install(
             install_config={
@@ -275,18 +321,35 @@ def rebuild_uptime_check(bk_tenant_id: str, bk_biz_id: int, task_ids: list[int] 
     if not tasks.exists():
         return
 
+    closed_task_ids = _get_closed_record_ids_from_application_config(
+        bk_biz_id=bk_biz_id,
+        model_label=UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL,
+    )
+
     # 启用独立数据源模式
     tasks.update(indepentent_dataid=True)
 
+    deployed_task_ids: list[int] = []
     for task in tasks:
+        if task.pk not in closed_task_ids:
+            logger.info(
+                "skip deploy uptime check task not found in close_records: bk_biz_id=%s task_id=%s",
+                bk_biz_id,
+                task.pk,
+            )
+            continue
         print("deploy uptime check task: ", task.pk, task.name)
         result = control_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task.pk, action="deploy")
         print(f"deploy uptime check task {task.pk} {task.name} result: {result}")
+        deployed_task_ids.append(task.pk)
+
+    if not deployed_task_ids:
+        return
 
     time.sleep(10)
 
     # 刷新任务状态
-    refresh_task_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_ids=[task.pk for task in tasks])
+    refresh_task_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_ids=deployed_task_ids)
 
 
 def rebuild_time_series_group(
@@ -306,25 +369,13 @@ def rebuild_time_series_group(
         bk_tenant_id=bk_tenant_id, time_series_group_id__in=time_series_group_ids, is_delete=False
     )
 
-    # 如果分组不存在，则设置为默认分组
-    scope_ids = list(
-        TimeSeriesScope.objects.filter(
-            bk_tenant_id=bk_tenant_id, group_id__in=time_series_group_ids, scope_name="default"
-        ).values_list("id", flat=True)
-    )
-    for time_series_metric in TimeSeriesMetric.objects.filter(
-        bk_tenant_id=bk_tenant_id, group_id__in=time_series_group_ids
-    ):
-        if time_series_metric.scope_id in scope_ids:
-            continue
-        time_series_metric.scope_id = 0
-        time_series_metric.save()
-
     data_ids = list(time_series_groups.values_list("bk_data_id", flat=True))
     table_ids = list(time_series_groups.values_list("table_id", flat=True))
 
+    # 排除已经创建过DataIdConfig的数据源
     data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids)
     data_sources.update(mq_cluster_id=kafka_cluster.cluster_id)
+
     for data_source in data_sources:
         _register_data_source(bk_biz_id=bk_biz_id, data_source=data_source, need_register_to_bkbase=True)
 
@@ -351,7 +402,7 @@ def rebuild_event_group(
     kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=kafka_cluster_name)
     es_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=es_cluster_name)
     event_groups = EventGroup.objects.filter(
-        bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, event_group_id__in=event_group_ids, is_delete=False
+        bk_tenant_id=bk_tenant_id, event_group_id__in=event_group_ids, is_delete=False
     )
 
     data_ids = list(event_groups.values_list("bk_data_id", flat=True))
@@ -454,10 +505,12 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
     storage_cluster_records.update(cluster_id=es_cluster.cluster_id)
 
     # 替换数据源的集群信息
-    data_sources.update(mq_cluster_id=kafka_cluster.cluster_id, is_enable=True)
+    data_sources.update(mq_cluster_id=kafka_cluster.cluster_id)
 
     # 替换数据源kafka并注册到gse和bkbase
     for data_source in data_sources:
+        if not data_source.is_enable:
+            continue
         _register_data_source(
             bk_biz_id=bk_biz_id,
             data_source=data_source,
@@ -602,6 +655,18 @@ def rebuild_custom_report(
         event_group_ids=list(event_groups.values_list("bk_event_group_id", flat=True)),
     )
 
+    # APM的指标数据
+    apm_metric_data_ids = MetricDataSource.objects.filter(bk_biz_id=bk_biz_id).values_list("bk_data_id", flat=True)
+    time_series_groups = TimeSeriesGroup.objects.filter(
+        bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id__in=apm_metric_data_ids
+    )
+    rebuild_time_series_group(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_id=bk_biz_id,
+        kafka_cluster_name=metric_kafka_cluster.cluster_name,
+        time_series_group_ids=list(time_series_groups.values_list("time_series_group_id", flat=True)),
+    )
+
 
 def rebuild_k8s_data(
     bk_tenant_id: str,
@@ -627,53 +692,62 @@ def rebuild_k8s_data(
     ]
     event_data_ids = [cluster.K8sEventDataID for cluster in clusters if cluster.K8sEventDataID]
 
-    rebuild_time_series_group(
-        bk_tenant_id=bk_tenant_id,
-        bk_biz_id=bk_biz_id,
-        kafka_cluster_name=metric_kafka_cluster.cluster_name,
-        time_series_group_ids=metric_data_ids,
-    )
+    if metric_data_ids:
+        time_series_groups = TimeSeriesGroup.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id__in=metric_data_ids
+        )
+        rebuild_time_series_group(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            kafka_cluster_name=metric_kafka_cluster.cluster_name,
+            time_series_group_ids=list(time_series_groups.values_list("time_series_group_id", flat=True)),
+        )
 
-    rebuild_event_group(
-        bk_tenant_id=bk_tenant_id,
-        bk_biz_id=bk_biz_id,
-        kafka_cluster_name=event_kafka_cluster.cluster_name,
-        es_cluster_name=es_cluster.cluster_name,
-        event_group_ids=event_data_ids,
-    )
+    if event_data_ids:
+        event_groups = EventGroup.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id__in=event_data_ids
+        )
+        rebuild_event_group(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            kafka_cluster_name=event_kafka_cluster.cluster_name,
+            es_cluster_name=es_cluster.cluster_name,
+            event_group_ids=list(event_groups.values_list("event_group_id", flat=True)),
+        )
 
 
-def find_biz_custom_report_data_ids(bk_biz_id: int) -> dict[str, set[int]]:
+def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) -> dict[str, dict[int, dict[str, Any]]]:
     """查询业务下需要执行双写迁移的自定义上报数据ID。
 
     覆盖范围：页面创建的自定义指标/事件、K8S 内置指标、APM 以及自定义日志上报。
 
     Args:
-        bk_biz_id: 业务ID
+        bk_tenant_id (str): 租户ID
+        bk_biz_ids (list[int]): 业务ID列表
 
     Returns:
-        dict[str, set[int]]: 按类别分组的数据ID集合，包含以下 key：
-            - ``custom_metric``: 自定义指标上报
-            - ``custom_event``: 自定义事件上报
-            - ``k8s``: K8S 内置指标/事件上报
-            - ``apm``: APM 上报
-            - ``log``: 日志自定义上报（与 APM 有重叠）
+        dict[str, dict[int, dict[str, Any]]]: 按类别分组的数据ID到topic名称的映射，包含以下 key：
+            - custom_metric: 自定义指标上报
+            - custom_event: 自定义事件上报
+            - k8s: K8S 内置指标/事件上报
+            - apm: APM 上报
+            - log: 日志自定义上报（与 APM 有重叠）
     """
     # 页面创建的自定义指标/事件上报
-    custom_metric_ids = set(
-        CustomTSTable.objects.filter(bk_biz_id=bk_biz_id)
+    custom_metric_ids = (
+        CustomTSTable.objects.filter(bk_biz_id__in=bk_biz_ids)
         .exclude(name__in=["process_perf", "process_port"])
         .values_list("bk_data_id", flat=True)
     )
 
-    custom_event_ids = set(
-        CustomEventGroup.objects.filter(bk_biz_id=bk_biz_id, type="custom_event").values_list("bk_data_id", flat=True)
+    custom_event_ids = CustomEventGroup.objects.filter(bk_biz_id__in=bk_biz_ids, type="custom_event").values_list(
+        "bk_data_id", flat=True
     )
 
     # K8S内置的指标上报
     k8s_ids: set[int] = set()
     for dataids in (
-        BCSClusterInfo.objects.filter(bk_biz_id=bk_biz_id)
+        BCSClusterInfo.objects.filter(bk_biz_id__in=bk_biz_ids)
         .exclude(
             status__in=[
                 BCSClusterInfo.CLUSTER_STATUS_DELETED,
@@ -688,17 +762,66 @@ def find_biz_custom_report_data_ids(bk_biz_id: int) -> dict[str, set[int]]:
     # APM 上报
     apm_ids: set[int] = set()
     for model in (MetricDataSource, TraceDataSource, LogDataSource, ProfileDataSource):
-        apm_ids.update(model.objects.filter(bk_biz_id=bk_biz_id).values_list("bk_data_id", flat=True))
+        apm_ids.update(model.objects.filter(bk_biz_id__in=bk_biz_ids).values_list("bk_data_id", flat=True))
 
     # 日志自定义上报(与APM有重叠)
-    log_ids = set(LogGroup.objects.filter(bk_biz_id=bk_biz_id).values_list("bk_data_id", flat=True))
+    log_ids = set(LogGroup.objects.filter(bk_biz_id__in=bk_biz_ids).values_list("bk_data_id", flat=True))
+
+    # 数据ID到topic名称的映射
+    data_id_to_topic_name = {
+        data_source.bk_data_id: data_source.mq_config.topic
+        for data_source in DataSource.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            bk_data_id__in=[*custom_metric_ids, *custom_event_ids, *k8s_ids, *apm_ids, *log_ids],
+        )
+    }
+
+    # 数据ID到kafka集群的名称的映射
+    data_id_to_kafka_cluster_name = get_data_id_to_cluster_name(
+        bk_tenant_id=bk_tenant_id, bk_data_ids=list(data_id_to_topic_name.keys())
+    )
 
     return {
-        "custom_metric": custom_metric_ids,
-        "custom_event": custom_event_ids,
-        "k8s": k8s_ids,
-        "apm": apm_ids,
-        "log": log_ids,
+        "custom_metric": {
+            data_id: {
+                "data_id": data_id,
+                "topic_name": data_id_to_topic_name[data_id],
+                "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
+            }
+            for data_id in custom_metric_ids
+        },
+        "custom_event": {
+            data_id: {
+                "data_id": data_id,
+                "topic_name": data_id_to_topic_name[data_id],
+                "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
+            }
+            for data_id in custom_event_ids
+        },
+        "k8s": {
+            data_id: {
+                "data_id": data_id,
+                "topic_name": data_id_to_topic_name[data_id],
+                "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
+            }
+            for data_id in k8s_ids
+        },
+        "apm": {
+            data_id: {
+                "data_id": data_id,
+                "topic_name": data_id_to_topic_name[data_id],
+                "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
+            }
+            for data_id in apm_ids
+        },
+        "log": {
+            data_id: {
+                "data_id": data_id,
+                "topic_name": data_id_to_topic_name[data_id],
+                "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
+            }
+            for data_id in log_ids
+        },
     }
 
 
@@ -768,11 +891,14 @@ def get_data_id_to_cluster_name(bk_tenant_id: str, bk_data_ids: list[int]) -> di
     return {data_source.bk_data_id: cluster_id_to_names[data_source.mq_cluster_id] for data_source in data_sources}
 
 
-def add_new_migrate_data_id_routes(data_id_to_cluster_name: dict[int, str]):
+def add_new_migrate_data_id_routes(data_id_infos: dict[int, dict[str, Any]]):
     """为迁移的上报dataid添加双写路由
 
     Args:
-        data_id_to_cluster_name: 数据ID到新kafka集群的名称的映射
+        data_id_infos: 数据ID信息列表，包含以下 key：
+            - data_id: 数据ID
+            - topic_name: 主题名称
+            - kafka_cluster_name: kafka集群名称
     """
 
     # 获取迁移的kafka集群
@@ -781,8 +907,12 @@ def add_new_migrate_data_id_routes(data_id_to_cluster_name: dict[int, str]):
         for c in ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name__startswith="migrate_")
     }
 
-    for data_id, cluster_name in data_id_to_cluster_name.items():
-        cluster_name = f"migrate_{cluster_name}"
+    for data_id_info in data_id_infos.values():
+        data_id = data_id_info["data_id"]
+        topic_name = data_id_info["topic_name"]
+        kafka_cluster_name = data_id_info["kafka_cluster_name"]
+
+        cluster_name = f"migrate_{kafka_cluster_name}"
         cluster = migrate_kafka_clusters.get(cluster_name)
         if cluster is None:
             print(f"data_id({data_id}) migrate failed, kafka cluster({cluster_name}) not found")
@@ -824,7 +954,7 @@ def add_new_migrate_data_id_routes(data_id_to_cluster_name: dict[int, str]):
             "name": f"migrate_kafka_data_id_{data_id}",
             "stream_to": {
                 "stream_to_id": cluster.gse_stream_to_id,
-                ClusterInfo.TYPE_KAFKA: {"topic_name": data_source.mq_config.topic},
+                ClusterInfo.TYPE_KAFKA: {"topic_name": topic_name},
             },
         }
 
@@ -832,7 +962,7 @@ def add_new_migrate_data_id_routes(data_id_to_cluster_name: dict[int, str]):
         params = {
             "condition": {"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
             "operation": {"operator_name": data_source.creator},
-            "specification": {"route": [exist_route_config[0], new_route]},
+            "specification": {"route": [*exist_route_config, new_route]},
         }
         try:
             api.gse.update_route(**params)

@@ -107,6 +107,25 @@ class TraceDataSourceConfig:
 
     TRACE_FIELD_LIST = [
         {
+            "field_name": "bk_biz_id",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            # metadata 创建结果表会进行保留字段检查，用于防止用户创建字段与内置字段冲突。
+            # APM 是内置场景，无需进行保留字段检查，直接放行，此处添加该豁免很重要，是否会导致创建应用流程报错。
+            "is_reserved_check": False,
+            "description": "Bk Biz Id",
+        },
+        {
+            "field_name": "app_name",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "App Name",
+        },
+        {
             "field_name": "attributes",
             "field_type": ResultTableField.FIELD_TYPE_OBJECT,
             "tag": ResultTableField.FIELD_TAG_DIMENSION,
