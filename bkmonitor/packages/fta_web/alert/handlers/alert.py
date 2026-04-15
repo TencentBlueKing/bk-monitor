@@ -634,8 +634,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "page_size": self.page_size,
             }
         )
-        # 通知方式查询结果缓存，避免同一请求内重复查询 ES
-        self._alert_notice_ways_cache: dict[str, set] | None = None
 
     def get_search_object(
         self,
@@ -937,7 +935,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             alert_ids = self._get_alert_ids_by_notice_way(condition["value"])
             if not alert_ids:
                 alert_ids = [0]
-            return Q("ids", values=alert_ids)
+            return Q("terms", id=alert_ids)
         elif condition["key"].startswith("tags."):
             # 对 tags 开头的字段进行特殊处理
             return Q(
@@ -968,6 +966,39 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 alert_ids = [0]
 
             return Q("ids", values=alert_ids)
+
+        elif condition["origin_key"] == "converge_id" and condition["key"] == "id":
+            # 收敛记录ID查询：通过 converge_id 批量获取动作实例，找到被收敛的告警ID列表
+            alert_ids = []
+            try:
+                action_instances = ActionInstanceDocument.mget(
+                    condition["value"], ["converge_id", "is_converge_primary"]
+                )
+                converge_ids = [inst.converge_id for inst in action_instances if inst and inst.is_converge_primary]
+                if converge_ids:
+                    queryset = ConvergeRelation.objects.filter(
+                        converge_id__in=converge_ids, converge_status=ConvergeStatus.SKIPPED
+                    ).only("alerts")
+                    alert_ids = list(chain(*[converge.alerts for converge in queryset]))
+            except Exception:
+                pass
+
+            if not alert_ids:
+                alert_ids = [0]
+
+            return Q("ids", values=list(set(alert_ids)))
+
+        elif condition["origin_key"] == "action_id" and condition["key"] == "id":
+            # 处理记录ID查询：通过 action_id 获取关联的告警ID列表
+            alert_ids, _ = get_alert_ids_by_action_id(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("ids", values=alert_ids)
+
+        elif condition["key"] == "event.ipv6":
+            # IPv6 地址查询：将缩写的 IPv6 地址展开为完整格式
+            condition["value"] = [exploded_ip(v) for v in condition["value"]]
+
         elif condition["key"] == "query_string":
             con_q = None
             for query_string in condition["value"]:
@@ -1255,12 +1286,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
         返回:
             {alert_id: {notice_way1, notice_way2, ...}, ...}
         """
-        # 命中缓存时直接返回，避免重复 ES 请求
-        if self._alert_notice_ways_cache is not None:
-            if alert_ids is None:
-                return self._alert_notice_ways_cache
-            return {aid: ways for aid, ways in self._alert_notice_ways_cache.items() if aid in alert_ids}
-
         result = {}
 
         action_search = ActionInstanceDocument.search(start_time=self.start_time, end_time=self.end_time)
@@ -1301,10 +1326,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
             if notice_ways:
                 result[bucket.key] = notice_ways
 
-        # 全量查询时缓存结果，供后续调用复用
-        if alert_ids is None:
-            self._alert_notice_ways_cache = result
-
         return result
 
     def _get_alert_ids_by_notice_way(self, notice_ways: list) -> list:
@@ -1313,7 +1334,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
         matched_alert_ids = []
 
         try:
-            alert_notice_ways = self._query_alert_notice_ways(alert_ids=None)
+            # 先获取当前查询条件匹配的 alert_ids，限定查询范围
+            alert_ids = self._collect_current_alert_ids()
+            if not alert_ids:
+                return []
+
+            alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
 
             for alert_id, ways in alert_notice_ways.items():
                 if ways & target_ways:
@@ -1323,6 +1349,27 @@ class AlertQueryHandler(BaseBizQueryHandler):
             logger.error(f"_get_alert_ids_by_notice_way error: {e}")
 
         return matched_alert_ids
+
+    def _collect_current_alert_ids(self) -> set:
+        """通过当前查询条件（排除 notice_way）获取匹配的 alert_id 集合"""
+        search_object = self.get_search_object()
+
+        # 过滤掉 notice_way 条件，避免循环依赖
+        filtered_conditions = [c for c in (self.conditions or []) if c.get("origin_key") != "notice_way"]
+        original_conditions = self.conditions
+        self.conditions = filtered_conditions
+        try:
+            search_object = self.add_conditions(search_object)
+        finally:
+            self.conditions = original_conditions
+        search_object = self.add_query_string(search_object)
+        search_object = search_object[:0]
+        search_object.aggs.bucket("alert_ids", "terms", field="id", size=10000)
+        result = search_object.execute()
+
+        if result.aggs:
+            return set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+        return set()
 
     def handle_aggs_notice_way(self, alert_ids):
         """通过ES聚合统计告警通知类型分布"""

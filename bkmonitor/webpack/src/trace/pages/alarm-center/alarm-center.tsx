@@ -74,6 +74,7 @@ import {
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
+import type { ColumnResizeContext } from './typings/table';
 import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
@@ -118,6 +119,7 @@ export default defineComponent({
       storageColumns,
       allTableFields,
       lockedTableFields,
+      fieldsWidthConfig,
     } = useAlarmTableColumns();
 
     const {
@@ -502,14 +504,18 @@ export default defineComponent({
     const handlePreviousDetail = () => {
       let index = data.value.findIndex(item => item.id === alarmId.value);
       index = index === -1 ? 0 : index;
-      alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
+      const target = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1];
+      alarmId.value = target.id;
+      alarmBizId.value = target.bk_biz_id;
     };
 
     /** 下一个详情 */
     const handleNextDetail = () => {
       let index = data.value.findIndex(item => item.id === alarmId.value);
       index = index === -1 ? 0 : index;
-      alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
+      const target = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1];
+      alarmId.value = target.id;
+      alarmBizId.value = target.bk_biz_id;
     };
 
     /**
@@ -768,6 +774,7 @@ export default defineComponent({
       handleCurrentPageChange,
       handlePageSizeChange,
       handleSortChange,
+      fieldsWidthConfig,
       handleGetResidentSettingUserConfig,
       handleSetResidentSettingUserConfig,
       handleShowAlertDetail,
@@ -896,6 +903,10 @@ export default defineComponent({
                           selectedRowKeys={this.selectedRowKeys}
                           sort={this.ordering}
                           timeRange={this.alarmStore.timeRange}
+                          onColumnResizeChange={(ctx: ColumnResizeContext) => {
+                            if (ctx?.columnsWidth)
+                              this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
+                          }}
                           onCurrentPageChange={this.handleCurrentPageChange}
                           onDisplayColFieldsChange={displayColFields => {
                             this.storageColumns = displayColFields;

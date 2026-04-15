@@ -23,41 +23,47 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { ALL_LABEL, NULL_LABEL, type IGroupListItem } from '../../../../type';
+import { Debounce } from 'monitor-common/utils';
+
+import { type IGroupListItem, ALL_LABEL, NULL_LABEL } from '../../../../type';
 import EditGroupDialog from '../edit-group';
+
 import type { IGroupingRule } from '../../../../../service';
 import type { RequestHandlerMap } from '../../../../type';
 
 import './index.scss';
 
+/** 组件事件接口 */
+interface IEmits {
+  /** 切换分组时触发 */
+  onChangeGroup: (groupInfo: { id: number; name: string }) => void;
+  /** 编辑分组成功时触发 */
+  onEditGroupSuccess: (config: Partial<IGroupingRule>, isCreate: boolean) => void;
+  /** 删除分组时触发 */
+  onGroupDelByName: (name: string) => void;
+}
+
 interface IProps {
+  /** 默认分组信息 */
+  defaultGroupInfo: { id: number; name: string };
   /** 分组列表 */
   groupList: IGroupListItem[];
-  /** 指标总数 */
-  metricNum: number;
-  /** 未分组指标数量 */
-  nonGroupNum: number;
   /** 是否为搜索模式 */
   isSearchMode: boolean;
-  /** 分组映射表，key为分组名称，value为分组信息 */
-  groupsMap: Map<string, IGroupListItem>;
 }
 
-interface IEmits {
-  onEditGroupSuccess: (config: Partial<IGroupingRule>, isCreate: boolean) => void;
-  onGroupDelByName: (name: string) => void;
-  onChangeGroup: (groupInfo: { id: number; name: string }) => void;
-}
-
+/**
+ * 分组列表组件
+ * 左侧面板展示"全部"、"默认分组"及自定义分组列表，
+ * 支持搜索分组、新增/编辑/删除分组、拖拽排序等功能
+ */
 @Component
 export default class CustomGroupingList extends tsc<IProps, IEmits> {
   @Prop({ default: () => [] }) groupList: IProps['groupList'];
-  @Prop({ default: 0 }) metricNum: number;
-  @Prop({ default: 0 }) nonGroupNum: IProps['nonGroupNum'];
   @Prop({ default: false }) isSearchMode: IProps['isSearchMode'];
-  @Prop({ default: () => new Map() }) groupsMap: IProps['groupsMap'];
+  @Prop({ default: () => {} }) defaultGroupInfo: IProps['defaultGroupInfo'];
 
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
@@ -76,12 +82,12 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   selectedGroupInfo = { id: 0, name: ALL_LABEL };
   /** 当前编辑的分组信息 */
   currentGroupInfo: IGroupingRule = {
-    scope_id: 0,
+    id: 0,
     name: '',
     auto_rules: [],
-    metric_list: [],
     metric_count: 0,
     create_from: 'user',
+    dimension_config: [],
   };
 
   /** 顶部分组列表（全部、未分组） */
@@ -127,6 +133,22 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
     return this.groupList.filter(item => item.name !== NULL_LABEL);
   }
 
+  /**
+   * 获取未分组数量
+   */
+  get nonGroupNum() {
+    return this.groupList.find(item => item.name === NULL_LABEL)?.metricCount || 0;
+  }
+
+  /**
+   * 获取指标总数
+   * @returns 指标列表的长度
+   */
+  get totalMetricNum() {
+    return this.groupList.reduce((acc, item) => acc + item.metricCount, 0);
+  }
+
+  /** 监听分组列表变化，初始化时自动选中"全部"分组 */
   @Watch('groupList', { immediate: true })
   handleGroupListChange(list: IGroupListItem[]) {
     if (list.length > 0 && !this.isInit) {
@@ -163,16 +185,6 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
     }
   }
 
-  // handleMenuClick(type: 'delete' | 'edit', groupName) {
-  //   // TODO[中等]
-  //   this.$emit('menuClick', type, groupName);
-  // }
-
-  // 拖拽开始，记录当前拖拽的ID
-  // handleDragstart(index: number, e) {
-  //   this.dragId = index.toString();
-  // }
-
   /**
    * 处理新增分组操作
    * 打开新增分组对话框
@@ -181,26 +193,6 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
     this.showAddGroupDialog = true;
   }
 
-  // 拖拽经过事件，设置当前拖拽ID
-  // handleDragover(index: number, e: DragEvent) {
-  //   e.preventDefault();
-  //   this.dragoverId = index.toString();
-  // }
-
-  // 拖拽离开事件，清除当前拖拽的ID
-  // handleDragleave() {
-  //   this.dragoverId = '';
-  // }
-
-  // @Emit('groupListOrder')
-  // saveGroupRuleOrder(tab) {
-  //   this.$store.dispatch('custom-escalation/saveGroupingRuleOrder', {
-  //     time_series_group_id: this.timeSeriesGroupId,
-  //     group_names: tab.map(item => item.name),
-  //   });
-  //   return tab;
-  // }
-
   /**
    * 根据分组类型获取指标数量
    * @param type 分组类型（ALL_LABEL: 全部, NULL_LABEL: 未分组）
@@ -208,7 +200,7 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
    */
   getCountByType(type: string) {
     const countMap = {
-      [ALL_LABEL]: this.metricNum,
+      [ALL_LABEL]: this.totalMetricNum,
       [NULL_LABEL]: this.nonGroupNum,
     };
     return countMap[type];
@@ -223,10 +215,10 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
     this.currentGroupInfo = {
       name: '',
       auto_rules: [],
-      metric_list: [],
-      scope_id: 0,
+      id: 0,
       metric_count: 0,
       create_from: 'user',
+      dimension_config: [],
     };
     this.$nextTick(() => {
       this.isEdit = false;
@@ -262,6 +254,7 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
    * 处理搜索输入
    * @param val 搜索关键词
    */
+  @Debounce(500)
   handleSearchInput(val: string) {
     this.searchGroupKeyword = val;
   }
@@ -283,9 +276,10 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
         const currentGroupInfo = this.groupList.filter(item => item.name === groupName)[0];
         if (currentGroupInfo) {
           this.currentGroupInfo.name = currentGroupInfo.name;
-          this.currentGroupInfo.metric_list = currentGroupInfo.metricList || [];
+          this.currentGroupInfo.metric_count = currentGroupInfo.metricCount || 0;
+          // this.currentGroupInfo.metric_list = currentGroupInfo.metricList || [];
           this.currentGroupInfo.auto_rules = currentGroupInfo.matchRules || [];
-          this.currentGroupInfo.scope_id = currentGroupInfo.scopeId;
+          this.currentGroupInfo.id = currentGroupInfo.scopeId;
           this.currentGroupInfo.create_from = currentGroupInfo.createFrom;
           this.isEdit = true;
           this.showAddGroupDialog = true;
@@ -330,17 +324,6 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   }
 
   /**
-   * 根据分组名称获取该分组下的指标数量
-   * @param name 分组名称
-   * @returns 指标数量，如果分组不存在则返回0
-   */
-  getGroupCountByName(name: string) {
-    const group = this.groupsMap.get(name);
-    if (!group) return 0;
-    return group.metricList.length || 0;
-  }
-
-  /**
    * 执行删除分组操作
    * 关闭删除对话框并触发删除事件
    */
@@ -359,8 +342,12 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
     this.showDelDialog = false;
   }
 
-  scrollListToBottom() {
-    this.groupListRef.scrollTop = this.groupListRef.scrollHeight;
+  /** 将分组列表滚动到指定分组名的列表项位置 */
+  scrollToGroup(groupName: string) {
+    this.$nextTick(() => {
+      const target = this.groupListRef?.querySelector(`[data-group-name="${groupName}"]`) as HTMLElement;
+      target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }
 
   render() {
@@ -373,8 +360,8 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
               class={['group', this.selectedGroupInfo.name === group.id ? 'group-selected' : '']}
               onClick={() =>
                 this.changeSelectedLabel({
-                  id: group.id === ALL_LABEL ? -1 : 0,
-                  name: group.id,
+                  id: group.id === ALL_LABEL ? -1 : this.defaultGroupInfo.id,
+                  name: group.id === ALL_LABEL ? group.id : this.defaultGroupInfo.name,
                 })
               }
             >
@@ -394,48 +381,40 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
           <bk-input
             ext-cls='search-group'
             placeholder={this.$t('搜索 自定义分组名称')}
+            clearable
             right-icon='icon-monitor icon-mc-search'
             value={this.searchGroupKeyword}
             onInput={this.handleSearchInput} // 绑定输入事件
           />
         </div>
         <div
-          class='filter-group-list-main'
           ref='groupListRef'
+          class='filter-group-list-main'
         >
           {this.filteredCustomGroups.length ? ( // 过滤后的列表
             <div class='custom-group'>
               {this.filteredCustomGroups.map(group => (
                 <div
                   key={group.name}
-                  class={[
-                    'group',
-                    // this.dragoverId === index.toString() ? 'is-dragover' : '',
-                    this.selectedGroupInfo.name === group.name ? 'group-selected' : '',
-                  ]}
-                  // draggable={!this.isSearchMode}
+                  class={['group', this.selectedGroupInfo.name === group.name ? 'group-selected' : '']}
+                  data-group-name={group.name}
                   onClick={() =>
                     this.changeSelectedLabel({
                       id: group.scopeId,
                       name: group.name,
                     })
                   }
-                  // onDragleave={this.handleDragleave}
-                  // onDragover={e => this.handleDragover(index, e)}
-                  // onDragstart={e => this.handleDragstart(index, e)}
-                  // onDrop={this.handleDrop}
                 >
-                  {/* {!this.isSearchMode && <i class='icon-monitor icon-mc-tuozhuai item-drag' />} */}
                   <div class='group-name'>
                     <i class='icon-monitor icon-FileFold-Close' />
                     <div
-                      v-bk-overflow-tips
                       class='name-text'
+                      v-bk-overflow-tips
                     >
                       {group.name}
                     </div>
                   </div>
-                  <div class='group-count'>{this.getGroupCountByName(group.name)}</div>
+                  <div class='group-count'>{group.metricCount}</div>
                   <bk-popover
                     ref='menuPopover'
                     class='group-popover'
@@ -515,9 +494,10 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
         <EditGroupDialog
           ref='editGroupDialogRef'
           groupInfo={this.currentGroupInfo}
+          defaultGroupInfo={this.defaultGroupInfo}
           isEdit={this.isEdit}
-          nameList={this.groupNameList}
           isShow={this.showAddGroupDialog}
+          nameList={this.groupNameList}
           onCancel={this.handleCancel}
           onGroupSubmit={this.handleSubmitGroup}
           {...{

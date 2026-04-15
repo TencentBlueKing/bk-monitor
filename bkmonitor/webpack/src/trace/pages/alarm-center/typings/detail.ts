@@ -277,10 +277,15 @@ export interface IGraphTarget {
 
 /** 图表目标数据 */
 export interface IGraphTargetData {
+  /** 查询表达式（如 'a'） */
   expression: string;
+  /** 函数列表 */
   functions: any[];
+  /** 查询配置列表 */
   query_configs: IGraphQueryConfig[];
-  function: {
+  /** 时间对比配置 */
+  function?: {
+    /** 时间对比偏移量列表（如 ['1d', '1w']） */
     time_compare: string[];
   };
 }

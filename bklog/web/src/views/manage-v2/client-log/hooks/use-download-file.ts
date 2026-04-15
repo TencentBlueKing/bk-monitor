@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { blobDownload } from '@/common/util';
+import { blobDownload, readBlobRespToJson } from '@/common/util';
 import { axiosInstance } from '@/api';
 import { Message } from 'bk-magic-vue';
 import { t } from '@/hooks/use-locale';
@@ -54,14 +54,25 @@ export const useDownloadFile = () => {
           },
           responseType: 'blob',
         })
-        .then((res) => {
+        .then(async (res) => {
           const contentType = res.headers?.['content-type'] || '';
           if (!contentType.includes('application/zip')) {
-            Message({
-              theme: 'error',
-              message: t('文件不存在'),
-            });
-            return;
+            try {
+              const jsonData = await readBlobRespToJson(res.data);
+              if (jsonData?.code !== 0) {
+                Message({
+                  theme: 'error',
+                  message: jsonData?.message || t('文件不存在'),
+                });
+                return;
+              }
+            } catch {
+              Message({
+                theme: 'error',
+                message: t('文件不存在'),
+              });
+              return;
+            }
           }
           blobDownload(res.data, fileName);
         })

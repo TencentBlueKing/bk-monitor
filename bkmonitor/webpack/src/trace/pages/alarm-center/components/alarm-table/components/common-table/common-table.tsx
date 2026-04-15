@@ -32,6 +32,7 @@ import TableSkeleton from '../../../../../../components/skeleton/table-skeleton'
 import { useTableCell } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
 import { useTableEllipsis } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
 import {
+  type ColumnResizeContext,
   type TableEmpty,
   type TablePagination,
   type TableRenderer,
@@ -127,12 +128,19 @@ export default defineComponent({
     },
   },
   emits: {
+    /** 当前页变化回调 */
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
+    /** 每页条数变化回调 */
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
+    /** 排序变化回调 */
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
+    /** 显示列配置变化回调 */
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
+    /** 行选择变化回调 */
     selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) =>
       Array.isArray(selectedRowKeys) && options,
+    /** 列宽拖拽变化回调 */
+    columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
@@ -261,6 +269,15 @@ export default defineComponent({
     };
 
     /**
+     * @description 表格列宽拖拽变化时的回调
+     * @param {ColumnResizeContext} context 包含列宽映射的上下文对象
+     * @returns {void}
+     */
+    const handleColumnResizeChange = (context: ColumnResizeContext) => {
+      emit('columnResizeChange', context);
+    };
+
+    /**
      * @description 表格最后一行渲染方法(默认填充一个 div 占位)
      * @returns {SlotReturnValue} 表格最后一行dom内容
      */
@@ -314,6 +331,7 @@ export default defineComponent({
       handleSelectChange,
       handlePageSizeChange,
       handleDisplayColFieldsChange,
+      handleColumnResizeChange,
       tableLastFullRowRender,
       tableEmptyRender,
     };
@@ -347,6 +365,7 @@ export default defineComponent({
           size={this.tableSize}
           sort={this.tableSort}
           tableLayout='fixed'
+          onColumnResizeChange={this.handleColumnResizeChange}
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
           onSelectChange={this.handleSelectChange}
           onSortChange={this.handleSortChange}

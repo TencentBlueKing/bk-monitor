@@ -335,6 +335,7 @@ class CustomGroupBase(models.Model):
         max_rate=None,
         enable_field_black_list: bool | None = None,
         data_label: str | None = None,
+        options: dict[str, Any] | None = None,
     ):
         """
         修改一个事件组
@@ -347,6 +348,8 @@ class CustomGroupBase(models.Model):
         :param max_rate: 上报最大速率
         :param enable_field_black_list: 是否开启黑名单
         :param data_label: 数据标签
+        :param options: 结果表选项内容，会与 enable_field_black_list 产生的选项合并，
+            若存在同名键则 enable_field_black_list 的值优先
         :return: True or raise
         """
         # 不可修改已删除的事件组
@@ -403,7 +406,6 @@ class CustomGroupBase(models.Model):
             logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] is updated by->[{operator}]")
 
         # 判断黑白名单是否发生变化
-        options: dict[str, Any] | None = None
         if enable_field_black_list is not None:
             current_enable_field_black_list_option = ResultTableOption.objects.filter(
                 table_id=self.table_id,
@@ -414,22 +416,30 @@ class CustomGroupBase(models.Model):
                 current_enable_field_black_list_option.get_value() if current_enable_field_black_list_option else None
             )
             if current_enable_field_black_list_option_value != enable_field_black_list:
-                # 获取当前结果表的option配置，options的更新必须提供所有option的配置
-                options = {
-                    option_obj.name: option_obj.get_value()
-                    for option_obj in ResultTableOption.objects.filter(
-                        table_id=self.table_id,
-                        bk_tenant_id=self.bk_tenant_id,
-                    )
-                }
+                if options is None:
+                    options = {}
                 options[ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST] = enable_field_black_list
                 logger.info(
                     f"{self.__class__.__name__}->[{self.custom_group_id}] has change enable_field_black_list->[{enable_field_black_list}]"
                 )
 
+        # 合并结果表选项内容
+        rt_options: dict[str, Any] | None = None
+        if options is not None:
+            # 获取当前结果表的option配置
+            rt_options = {
+                option_obj.name: option_obj.get_value()
+                for option_obj in ResultTableOption.objects.filter(
+                    table_id=self.table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                )
+            }
+            # 合并结果表选项内容
+            rt_options.update(options)
+
         # 这里之前在split的情况下是不做field_list的更新的 之前的背景是会动态更新指标 而不应该用户去设置指标
         # 但是如果用户需要修改元信息的时候 会出现该接口无法更新的情况 所以这里先去掉这个限制
-        if field_list is not None or data_label is not None or options is not None:
+        if field_list is not None or data_label is not None or rt_options is not None:
             try:
                 rt = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
             except ResultTable.DoesNotExist:
@@ -440,8 +450,8 @@ class CustomGroupBase(models.Model):
                 modify_params.update({"field_list": field_list, "is_time_field_only": True, "is_reserved_check": False})
             if data_label is not None:
                 modify_params["data_label"] = data_label
-            if options is not None:
-                modify_params["option"] = options
+            if rt_options is not None:
+                modify_params["option"] = rt_options
 
             if modify_params:
                 rt.modify(operator=operator, **modify_params)

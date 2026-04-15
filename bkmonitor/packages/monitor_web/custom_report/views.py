@@ -48,7 +48,7 @@ class CustomEventReportViewSet(ResourceViewSet):
 
 
 class CustomMetricReportViewSet(ResourceViewSet):
-    query_post_actions = ["get_custom_report_dashboard_config"]
+    query_post_actions = ["get_custom_report_dashboard_config", "get_custom_ts_fields"]
 
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS or self.action in self.query_post_actions:
@@ -67,6 +67,12 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ResourceRoute(
             "GET", resource.custom_report.validate_custom_ts_group_label, endpoint="validate_custom_ts_group_label"
         ),
+        # 校验自定义指标字段名是否合法
+        ResourceRoute(
+            "POST",
+            resource.custom_report.validate_custom_ts_metric_field_name,
+            endpoint="validate_custom_ts_metric_field_name",
+        ),
         # 创建自定义指标
         ResourceRoute("POST", resource.custom_report.create_custom_time_series, endpoint="create_custom_time_series"),
         # 修改自定义指标
@@ -76,7 +82,7 @@ class CustomMetricReportViewSet(ResourceViewSet):
         # 添加自定义指标
         ResourceRoute("POST", resource.custom_report.add_custom_metric, endpoint="add_custom_metric"),
         # 指标字段 API
-        ResourceRoute("GET", resource.custom_report.get_custom_ts_fields, endpoint="get_custom_ts_fields"),
+        ResourceRoute("POST", resource.custom_report.get_custom_ts_fields, endpoint="get_custom_ts_fields"),
         ResourceRoute("POST", resource.custom_report.modify_custom_ts_fields, endpoint="modify_custom_ts_fields"),
         ResourceRoute(
             "POST",

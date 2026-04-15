@@ -76,6 +76,27 @@
     }
   }
 
+  .dimension-analysis-promql-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 40px 16px;
+
+    .promql-empty-state {
+      .bk-exception-img {
+        width: 120px;
+        height: 120px;
+      }
+
+      .bk-exception-description {
+        margin-top: 16px;
+        font-size: 14px;
+        color: #63656e;
+      }
+    }
+  }
+
   .dimension-analysis-table-view {
     position: relative;
     display: flex;

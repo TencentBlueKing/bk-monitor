@@ -30,6 +30,7 @@ from core.drf_resource import api
 from metadata import config
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromSystem
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR
 from metadata.utils.basic import getitems
 
 from .common import BaseModel, Label, OptionBase
@@ -607,7 +608,19 @@ class ResultTable(models.Model):
                 datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
+
+            # 如果是插件清洗类型，并且单独开启插件V4链路，则使用V4链路
+            is_plugin_v4_datalink = options.get(
+                ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False
+            ) and datasource.etl_config in [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
+            if is_plugin_v4_datalink and not is_v4_datalink_etl_config:
+                is_v4_datalink_etl_config = True
+
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
+                # 插件类型额外判定,如果数据源是GSE创建的，则需要注册到BKBASE
+                if is_plugin_v4_datalink and datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
+                    datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
+
                 # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
                 # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
                 bk_data_id = datasource.bk_data_id
@@ -2821,8 +2834,9 @@ class LogV4DataLinkOption(pydantic.BaseModel):
 
         storage_keys: list[str] = pydantic.Field(description="存储键")
         json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
+        original_json_fields: list[str] = pydantic.Field(description="原始JSON字段列表", default_factory=list)
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
-        flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒")
+        flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
 
     class CleanRule(pydantic.BaseModel):
         """清洗规则"""
@@ -2832,8 +2846,8 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         operator: dict[str, Any] = pydantic.Field(description="操作符")
 
     clean_rules: list[CleanRule] = pydantic.Field(min_length=1, description="清洗规则")
-    es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置")
-    doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置")
+    es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置", default=None)
+    doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置", default=None)
 
     @pydantic.model_validator(mode="after")
     def validate_config(self) -> Self:
@@ -2859,6 +2873,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
+    OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
 
     # 选项类型

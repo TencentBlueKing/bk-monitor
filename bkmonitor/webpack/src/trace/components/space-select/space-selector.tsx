@@ -45,7 +45,13 @@ import { useRoute } from 'vue-router';
 import { useTippy } from 'vue-tippy';
 
 import { useAppStore } from '../../store/modules/app';
-import { type ILocalSpaceList, ETagsType, SPACE_SELECTOR_EMITS, SPACE_SELECTOR_PROPS } from './typing';
+import {
+  type ILocalSpaceList,
+  type IValueStrListItem,
+  ETagsType,
+  SPACE_SELECTOR_EMITS,
+  SPACE_SELECTOR_PROPS,
+} from './typing';
 import { getEventPaths, SPACE_TYPE_MAP } from './utils';
 
 import type { ISpaceItem } from 'monitor-common/typings';
@@ -98,7 +104,7 @@ export default defineComponent({
     /* 已选择部分文字 */
     const valueStr = shallowRef('');
     /* 已选择部分文字（包含id） */
-    const valueStrList = shallowRef<{ id: string; name: string; tags: ILocalSpaceList['tags'] }[]>([]);
+    const valueStrList = shallowRef<IValueStrListItem[]>([]);
     /* 是否标红 */
     const isErr = shallowRef(false);
     /* 是否弹出弹窗 */
@@ -186,7 +192,8 @@ export default defineComponent({
           nameList.push(item.name);
           strList.push({
             name: item.name,
-            id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
+            id: item.id,
+            idDisplayName: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
             tags: item?.tags || [],
           });
         }
@@ -354,7 +361,8 @@ export default defineComponent({
           valueList.push(item.name);
           strList.push({
             name: item.name,
-            id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
+            id: item.id,
+            idDisplayName: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
             tags: item?.tags || [],
           });
         }
@@ -757,7 +765,7 @@ export default defineComponent({
                       class='selected-text-item'
                     >
                       {index !== 0 ? `   , ${item.name}` : item.name}
-                      {!!item.id && <span class='selected-text-id'>({item.id})</span>}
+                      {!!item.idDisplayName && <span class='selected-text-id'>({item.idDisplayName})</span>}
                     </span>
                   ))
                 : this.valueStr}

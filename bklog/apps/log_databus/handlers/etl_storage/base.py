@@ -322,7 +322,8 @@ class EtlStorage:
         for field in built_in_fields:
             field_name = field["field_name"]
             alias_name = field.get("alias_name", field_name)
-            field_type = field["field_type"]
+            # 优先使用es_type确定output_type
+            field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
             # 跳过log、iterationIndex字段，它会在后面单独处理
             if field_name in ["log", "iterationIndex"]:
@@ -397,6 +398,27 @@ class EtlStorage:
                             "desc": time_field.get("description"),
                             "input_type": None,
                             "output_type": self._get_output_type(time_field_type),
+                            "fixed_value": None,
+                            "is_time_field": None,
+                            "time_format": None,
+                            "in_place_time_parsing": v4_time_parsing,
+                            "default_value": None,
+                        },
+                    }
+                )
+
+                # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
+                rules.append(
+                    {
+                        "input_id": "json_data",
+                        "output_id": "time",
+                        "operator": {
+                            "type": "assign",
+                            "key_index": time_alias_name,
+                            "alias": "time",
+                            "desc": "data timestamp in epoch second",
+                            "input_type": None,
+                            "output_type": "long",
                             "fixed_value": None,
                             "is_time_field": None,
                             "time_format": None,
@@ -492,6 +514,27 @@ class EtlStorage:
                         "desc": user_time_field.get("description"),
                         "input_type": None,
                         "output_type": self._get_output_type(user_time_field["time_field_type"]),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
+
+            # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": "time",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": key_index,
+                        "alias": "time",
+                        "desc": "data timestamp in epoch second",
+                        "input_type": None,
+                        "output_type": "long",
                         "fixed_value": None,
                         "is_time_field": None,
                         "time_format": None,

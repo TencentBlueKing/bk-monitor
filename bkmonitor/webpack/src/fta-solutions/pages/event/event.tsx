@@ -792,8 +792,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
 
   handleGotoNew() {
-    const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${this.$store.getters.bizId}#/trace/alarm-center`;
-    window.location.href = url;
+    this.$router.push({
+      name: 'alarm-center',
+      query: {
+        ...this.$route.query,
+        filterMode: this.$route.query.queryString ? 'queryString' : 'ui',
+      },
+    });
   }
 
   /**
@@ -2677,7 +2682,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               class='header-tools'
               isSplitPanel={this.isSplitPanel}
               refreshInterval={this.refreshInterval}
-              showGotoNew={false}
+              showGotoNew={true}
               showListMenu={false}
               timeRange={this.timeRange}
               timezone={this.timezone}

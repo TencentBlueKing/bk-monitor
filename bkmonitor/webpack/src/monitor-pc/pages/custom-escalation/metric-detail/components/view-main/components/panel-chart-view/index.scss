@@ -1,5 +1,10 @@
 .panel-metric-chart-view {
   min-width: 1000px;
+  height: 100%;
+  padding: 0 12px 12px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+
   .chart-view-collapse {
     width: 100%;
 

@@ -33,13 +33,15 @@ import ApmCustomGraphV2 from 'monitor-pc/pages/custom-escalation/metric-detail/c
 import {
   getCustomTsDimensionValues,
   getCustomTsGraphConfig,
+  getCustomTsMetricAggInfo,
   getCustomTsMetricGroups,
   getSceneView,
 } from 'monitor-pc/pages/custom-escalation/service';
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import MetricManage from './components/metric-manage';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './apm-custom-graph-v2.scss';
 
@@ -64,7 +66,8 @@ export default class ApmViewContent extends tsc<any, any> {
   dimenstionParams: GetSceneViewParams | null = null;
   loading = true;
   isShowMetricManage = false;
-  metricManageTab: 'metric' | 'dimension' = 'metric';
+  metricManageTab: 'dimension' | 'metric' = 'metric';
+  init = true;
 
   get metricGroupList() {
     return customEscalationViewStore.metricGroupList;
@@ -83,7 +86,7 @@ export default class ApmViewContent extends tsc<any, any> {
       return {
         name: item.metric_name,
         scope_name: item.scope_name,
-        field_scope: item.field_scope,
+        field_id: item.field_id,
       };
     });
   }
@@ -111,7 +114,19 @@ export default class ApmViewContent extends tsc<any, any> {
   }
 
   getGroupDataSuccess() {
-    this.parseUrlParams();
+    this.init = false;
+    // 首次进入需要默认选中第一个分组的第一个指标
+    if (!this.parseUrlParams()) {
+      this.$nextTick(() => {
+        if (this.metricGroupList.length) {
+          const defaultSelectedMetrics = [{
+              groupName: this.metricGroupList[0]?.name || '',
+              metricsName: [this.metricGroupList[0].metrics[0]?.metric_name || ''],
+          }]
+          customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(defaultSelectedMetrics);
+        }
+      });
+    }
     this.loading = false;
   }
 
@@ -122,11 +137,9 @@ export default class ApmViewContent extends tsc<any, any> {
       // 过滤条件和维度回显
       this.dimenstionParams = {
         ...urlData,
-        metrics: undefined,
       };
       // 分组选中
       const convertData = this.convertMetricsData(urlData.metrics);
-      // 视图保存的 metric 可能被隐藏，需要过滤掉不存在的 metric
       const allMetricNameMap = this.metricGroupList.map(group => {
         return {
           groupName: group.name,
@@ -134,41 +147,57 @@ export default class ApmViewContent extends tsc<any, any> {
         };
       });
       // 过滤掉不存在的分组数据
-      const realMetricNameList = _.filter(convertData, item => {
+      let realMetricNameList = _.filter(convertData, item => {
         // 是否有对应的分组名称
         const group = allMetricNameMap.find(group => group.groupName === item.groupName);
         if (!group) return false;
         // 检查该 groupName 下的 metricsName 是否包含 item.metricsName 数组中的每个值
         return item.metricsName.every(metric => group.metricsName.includes(metric));
       });
+      
+      // 如果url参数中没有对应的分组数据，默认选中第一个分组的第一个指标
+      if (!realMetricNameList.length) {
+        realMetricNameList = [{
+            groupName: allMetricNameMap[0]?.groupName || '',
+            metricsName: [allMetricNameMap[0]?.metricsName[0] || ''],
+        }]
+      }
       // 更新 Store 上的 已选中分组和指标信息(currentSelectedGroupAndMetricNameList)
       customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(realMetricNameList);
     }
+    return !!urlData;
   }
 
   handleDimensionParamsChange(payload: GetSceneViewParams) {
+    if (this.init) return; // 汇聚周期组件在页面初始化时会发送2次emit，导致该函数异常触发2次致apm这边url参数回显异常
     this.dimenstionParams = Object.freeze(payload);
     this.updateUrlParams();
   }
 
-  handleMetricsSelectReset() {
+  handleResetData() {
     this.dimenstionParams = null;
-    this.updateUrlParams();
+    customEscalationViewStore.updateMetricGroupList([]);
   }
 
   // 更新url参数
   updateUrlParams() {
+    const newGraphConfigPayload = _.cloneDeep(this.graphConfigParams);
+    const { viewPayload } = this.customRouteQuery;
+    // 如果url中存在汇聚方法，刷新页面需要保留
+    if (viewPayload) {
+      const hasMethodMetric = JSON.parse(viewPayload).metrics.filter(item => item.method);
+      if (hasMethodMetric.length) {
+        for (const metric of hasMethodMetric) {
+          const result = newGraphConfigPayload.metrics.find(item => item.name === metric.name);
+          if (result) {
+            result.method = metric.method;
+          }
+        }
+      }
+    }
     this.handleCustomRouteQueryChange({
-      viewPayload: JSON.stringify(this.graphConfigParams),
+      viewPayload: JSON.stringify(newGraphConfigPayload),
     });
-
-    // this.$router.replace({
-    //   query: {
-    //     ...this.$route.query,
-    //     key: `${Date.now()}`, // query 相同时 router.replace 会报错
-    //     viewPayload: JSON.stringify(this.graphConfigParams),
-    //   },
-    // });
   }
 
   // 获取url参数
@@ -210,6 +239,10 @@ export default class ApmViewContent extends tsc<any, any> {
     this.apmCustomGraphV2Ref.getCustomTsMetricGroupsData();
   }
 
+  beforeDestroy() {
+    this.handleResetData();
+  }
+
   render() {
     return (
       <div
@@ -223,6 +256,7 @@ export default class ApmViewContent extends tsc<any, any> {
             getCustomTsMetricGroups,
             getCustomTsDimensionValues,
             getCustomTsGraphConfig,
+            getCustomTsMetricAggInfo,
             getSceneView,
           }}
           config={this.graphConfigParams}
@@ -232,7 +266,7 @@ export default class ApmViewContent extends tsc<any, any> {
           onCustomTsMetricGroups={this.getGroupDataSuccess}
           onDimensionParamsChange={this.handleDimensionParamsChange}
           onMetricManage={this.handleMetricManage}
-          onResetMetricsSelect={this.handleMetricsSelectReset}
+          onResetMetricsSelect={this.handleResetData}
         />
         <MetricManage
           isShow={this.isShowMetricManage}
