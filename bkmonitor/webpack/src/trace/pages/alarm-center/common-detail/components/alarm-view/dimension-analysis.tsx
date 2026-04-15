@@ -170,31 +170,33 @@ export default defineComponent({
         tableDataLoading.value = false;
         return [];
       }
-      const res = await graphDrillDown({
-        bk_biz_id: props.detail.bk_biz_id,
-        alert_id: props.detail.id,
-        aggregation_method: 'avg',
-        expression: props.detail.graph_panel?.targets?.[0]?.data?.expression || 'a',
-        query_configs: props.detail.graph_panel?.targets?.[0]?.data?.query_configs?.map(queryConfig => {
-          return {
-            ...queryConfig,
-            filter_dict: {
-              ...(queryConfig.filter_dict || {}),
-              ...(where.value.length
-                ? {
-                    drill_filter: where.value.reduce((prev, cur) => {
-                      prev[cur.key] = cur.value;
-                      return prev;
-                    }, {}),
-                  }
-                : {}),
-            },
-          };
-        }),
-        start_time: dayjs(chartClickPointEvent.value?.xAxis || viewerTimeRange.value[0]).unix(),
-        end_time: dayjs(viewerTimeRange.value[1]).unix(),
-        group_by: selectedDimension.value,
-      }).catch(() => []);
+      const res = props.detail.graph_panel
+        ? await graphDrillDown({
+            bk_biz_id: props.detail.bk_biz_id,
+            alert_id: props.detail.id,
+            aggregation_method: 'avg',
+            expression: props.detail.graph_panel?.targets?.[0]?.data?.expression || 'a',
+            query_configs: props.detail.graph_panel?.targets?.[0]?.data?.query_configs?.map(queryConfig => {
+              return {
+                ...queryConfig,
+                filter_dict: {
+                  ...(queryConfig.filter_dict || {}),
+                  ...(where.value.length
+                    ? {
+                        drill_filter: where.value.reduce((prev, cur) => {
+                          prev[cur.key] = cur.value;
+                          return prev;
+                        }, {}),
+                      }
+                    : {}),
+                },
+              };
+            }),
+            start_time: dayjs(chartClickPointEvent.value?.xAxis || viewerTimeRange.value[0]).unix(),
+            end_time: dayjs(viewerTimeRange.value[1]).unix(),
+            group_by: selectedDimension.value,
+          }).catch(() => [])
+        : [];
       tableData.value = res.map((item, index) => {
         return {
           ...item,
