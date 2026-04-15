@@ -233,7 +233,7 @@ class ClusteringRegexGenerateCommandHandler(CommandHandler):
         signature: str,
         aggs_field: str,
         bk_biz_id: int,
-    ) -> list[str]:
+    ) -> list[dict]:
         """
         查询与给定 signature 相同的日志，返回日志内容列表
         """
@@ -255,7 +255,7 @@ class ClusteringRegexGenerateCommandHandler(CommandHandler):
 
         try:
             result = UnifyQueryHandler(params).search()
-            return [item["log"] for item in result.get("list", []) if item.get("log") and isinstance(item["log"], str)]
+            return result.get("list", [])
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "Failed to query same signature logs for index_set_id=%s, signature=%s, reason: %s",
@@ -291,7 +291,6 @@ class ClusteringRegexGenerateCommandHandler(CommandHandler):
                 },
             )
 
-        # 确定同类型聚合字段
         aggs_field = "signature" if clustering_config.use_mini_link else f"{AGGS_FIELD_PREFIX}_{pattern_level}"
 
         # 查询同类日志（最多 10 条）
@@ -305,7 +304,8 @@ class ClusteringRegexGenerateCommandHandler(CommandHandler):
         # 去重并排除原始日志
         seen = {origin_log}
         unique_samples = []
-        for log_content in sample_logs:
+        for item in sample_logs:
+            log_content = item.get(clustering_config.clustering_fields, "")
             if log_content in seen:
                 continue
             seen.add(log_content)
