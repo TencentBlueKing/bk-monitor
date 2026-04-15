@@ -2381,7 +2381,7 @@ class StrategySnapshotResource(Resource):
         changed_status = self.ConfigChangedStatus.UNCHANGED
         current_strategy = None
         try:
-            current_strategy = get_strategy(bk_biz_id=alert.bk_biz_id, strategy_id=strategy_config["id"])
+            current_strategy = get_strategy(bk_biz_id=alert.event.bk_biz_id, strategy_id=strategy_config["id"])
             is_enabled = current_strategy["is_enabled"]
             current_update_time = arrow.get(current_strategy["update_time"])
             strategy_update_time = arrow.get(strategy_config["update_time"])
