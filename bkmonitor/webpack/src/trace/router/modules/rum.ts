@@ -34,6 +34,6 @@ export default [
   {
     path: '/rum/app/:appId/config',
     name: 'rumAppConfig',
-    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config'),
+    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
   },
 ] as RouteRecordRaw[];

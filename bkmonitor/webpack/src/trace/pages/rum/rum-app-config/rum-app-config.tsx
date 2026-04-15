@@ -23,30 +23,65 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { computed, defineComponent, reactive } from 'vue';
 
-import { Button } from 'bkui-vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
+
+import AppBasicInfo, { type IAppBasicInfo } from './components/app-basic-info';
+import NavBar from '@/components/nav-bar/nav-bar';
 
 import './rum-app-config.scss';
 
 export default defineComponent({
   name: 'RumAppConfigPage',
   setup() {
-    const route = useRoute();
+    const { t } = useI18n();
     const router = useRouter();
-    return () => (
+
+    /* 路由面包屑数据 */
+    const navList = computed(() => {
+      return [{ name: t('应用配置'), id: '' }];
+    });
+
+    /**
+     * 返回上一页
+     */
+    const handleBackPage = () => {
+      router.back();
+    };
+
+    /**
+     * 应用基本信息数据
+     */
+    const appBasicInfo = reactive<IAppBasicInfo>({
+      domain: 'www.example.com',
+      status: '启用中',
+      token: '**** 2323423',
+      alias: 'Web 端口官网',
+      desc: '这是蓝鲸作业平台的 RUM 应用',
+    });
+
+    return {
+      navList,
+      appBasicInfo,
+      handleBackPage,
+    };
+  },
+
+  render() {
+    return (
       <div class='rum-app-config-page'>
-        <div class='rum-app-config-page__bar'>
-          <Button
-            theme='primary'
-            text
-            onClick={() => router.push({ name: 'rum' })}
-          >
-            返回应用列表
-          </Button>
+        {/* 导航栏 */}
+        <NavBar
+          callbackRouterBack={this.handleBackPage}
+          needBack={true}
+          routeList={this.navList}
+        />
+        {/* 应用基本信息头部区域 */}
+        <div class='rum-app-config-page__header'>
+          <AppBasicInfo data={this.appBasicInfo} />
         </div>
-        <div class='rum-app-config-page__body'>应用配置（占位） · appId = {String(route.params.appId)}</div>
       </div>
     );
   },
