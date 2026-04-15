@@ -673,7 +673,10 @@ class AlertDetailResource(Resource):
         return result
 
     @staticmethod
-    def clean_graph_panel_where(graph_panel: dict) -> None:
+    def clean_graph_panel_where(graph_panel: dict | None) -> None:
+        if not graph_panel:
+            return
+
         for target in graph_panel.get("targets", []):
             for query_config in target.get("data", {}).get("query_configs", []):
                 query_config["where"] = clean_where_conditions(query_config.get("where", []))
