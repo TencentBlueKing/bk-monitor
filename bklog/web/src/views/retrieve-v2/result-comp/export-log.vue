@@ -193,6 +193,7 @@
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import { isSceneRetrieve } from '@/store/helper.ts';
 
   export default {
     components: {
@@ -316,6 +317,9 @@
       routerIndexSet() {
         return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
+      isScene() {
+        return isSceneRetrieve(this.$store.state);
+      },
     },
     watch: {
       totalCount(val) {
@@ -379,9 +383,14 @@
       quickDownload() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        const downRequestUrl = this.isUnionSearch
-          ? `/search/index_set/union_async_export/`
-          : `/search/index_set/${this.routerIndexSet}/quick_export/`;
+        let downRequestUrl;
+        if (this.isScene) {
+          downRequestUrl = '/search/scene/quick_export/';
+        } else if (this.isUnionSearch) {
+          downRequestUrl = `/search/index_set/union_async_export/`;
+        } else {
+          downRequestUrl = `/search/index_set/${this.routerIndexSet}/quick_export/`;
+        }
         const data = {
           ...params,
           size: this.totalCount,
@@ -431,11 +440,15 @@
       openDownloadUrl() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        let downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;
-        if (this.isUnionSearch) {
+        let downRequestUrl;
+        if (this.isScene) {
+          downRequestUrl = '/search/scene/export/';
+        } else if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
           downRequestUrl = '/search/index_set/union_search/export/';
           Object.assign(params, { index_set_ids: this.unionIndexList });
+        } else {
+          downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;
         }
         const data = {
           ...params,
@@ -470,7 +483,14 @@
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         const data = { ...params };
-        let downRequestUrl = this.isUnionSearch ? `retrieve/unionExportAsync` : 'retrieve/exportAsync';
+        let downRequestUrl;
+        if (this.isScene) {
+          downRequestUrl = 'retrieve/getSceneAsyncExport';
+        } else if (this.isUnionSearch) {
+          downRequestUrl = 'retrieve/unionExportAsync';
+        } else {
+          downRequestUrl = 'retrieve/exportAsync';
+        }
         data.size = this.totalCount;
         data.export_fields = this.submitSelectFiledList;
         data.is_desensitize = this.desensitizeRadioType === 'desensitize';
@@ -486,7 +506,7 @@
           });
         }
         this.exportLoading = true;
-        const requestConfig = this.isUnionSearch
+        const requestConfig = this.isScene || this.isUnionSearch
           ? { data }
           : {
               params: { index_set_id: this.routerIndexSet },

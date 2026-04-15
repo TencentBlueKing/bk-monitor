@@ -467,6 +467,24 @@ const getSceneTotal = {
   method: 'post',
 };
 
+/** 场景化检索 - 同步下载（取样下载） */
+const getSceneExport = {
+  url: '/search/scene/export/',
+  method: 'post',
+};
+
+/** 场景化检索 - 异步全文下载 */
+const getSceneAsyncExport = {
+  url: '/search/scene/async_export/',
+  method: 'post',
+};
+
+/** 场景化检索 - 快速下载 */
+const getSceneQuickExport = {
+  url: '/search/scene/quick_export/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -526,4 +544,7 @@ export {
   getSceneDateHistogram,
   getSceneAggField,
   getSceneTotal,
+  getSceneExport,
+  getSceneAsyncExport,
+  getSceneQuickExport,
 };

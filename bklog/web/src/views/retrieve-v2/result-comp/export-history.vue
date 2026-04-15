@@ -292,6 +292,7 @@
 <script>
   import { formatDate, blobDownload } from '@/common/util';
   import { mapGetters } from 'vuex';
+  import { isSceneRetrieve } from '@/store/helper.ts';
 
   import { axiosInstance } from '@/api';
 
@@ -353,6 +354,9 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
+      isScene() {
+        return isSceneRetrieve(this.$store.state);
+      },
     },
     watch: {
       showHistoryExport(val) {
@@ -390,11 +394,15 @@
         const data = params.search_dict;
         const stringParamsIndexSetID = String(params.log_index_set_id);
 
-        let downRequestUrl = `/search/index_set/${stringParamsIndexSetID}/export/`;
-        if (this.isUnionSearch) {
+        let downRequestUrl;
+        if (this.isScene) {
+          downRequestUrl = '/search/scene/export/';
+        } else if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
           downRequestUrl = '/search/index_set/union_search/export/';
           Object.assign(data, { index_set_ids: this.unionIndexList });
+        } else {
+          downRequestUrl = `/search/index_set/${stringParamsIndexSetID}/export/`;
         }
 
         axiosInstance
@@ -423,7 +431,15 @@
        */
       downloadAsync(data) {
         this.tableLoading = true;
-        let downRequestUrl = this.isUnionSearch ? `retrieve/unionExportAsync` : 'retrieve/exportAsync';
+        let downRequestUrl;
+
+        if (this.isScene) {
+          downRequestUrl = 'retrieve/getSceneAsyncExport';
+        } else if (this.isUnionSearch) {
+          downRequestUrl = 'retrieve/unionExportAsync';
+        } else {
+          downRequestUrl = 'retrieve/exportAsync';
+        }
 
         if (this.isUnionSearch) {
           Object.assign(data, {
@@ -437,7 +453,7 @@
           });
         }
 
-        const requestConfig = this.isUnionSearch
+        const requestConfig = this.isScene || this.isUnionSearch
           ? { data }
           : {
               params: { index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId },
