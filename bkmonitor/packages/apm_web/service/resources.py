@@ -185,7 +185,9 @@ class ServiceInfoResource(Resource):
     @classmethod
     def get_log_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
         return LogServiceRelationOutputSerializer(
-            instance=LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]),
+            instance=LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], True).order_by(
+                "is_global"
+            ),
             many=True,
         ).data
 
@@ -741,7 +743,7 @@ class ListCodeRedefinedRuleResource(Resource):
             "include_global": True,
         }
         if service_name is not None:
-            params["service_name"] = service_name
+            params["service_names"] = [service_name]
         if kind:
             params["kind"] = kind
 
@@ -829,7 +831,7 @@ class SetCodeRedefinedRuleResource(Resource):
             "scope": SyncScope.SERVICE if service_name else SyncScope.ALL,
             "records": sync_records,
         }
-        if "kind" in validated_request_data:
+        if validated_request_data.get("kind"):
             params["kind"] = validated_request_data["kind"]
 
         CodeRedefinedConfigRelation.sync_relations(**params)
@@ -884,10 +886,9 @@ class SetCodeRedefinedRuleResource(Resource):
             text = str(value).strip()
             return text if text else "*"
 
-        queryset = CodeRedefinedConfigRelation.objects.filter(
-            bk_biz_id=bk_biz_id, app_name=app_name, enabled=True
+        queryset = CodeRedefinedConfigRelation.get_relation_qs(
+            bk_biz_id, app_name, include_global=True, enabled=True
         ).order_by("service_name", "kind", "callee_server", "callee_service", "callee_method")
-
         grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
         for item in queryset:
             name = ";".join(
@@ -919,7 +920,7 @@ class SetCodeRedefinedRuleResource(Resource):
                 continue
 
             entry = {"name": name, "codes": codes}
-            group_key = (item.service_name, item.kind)
+            group_key = (star_if_empty(item.service_name), item.kind)
             grouped.setdefault(group_key, []).append(entry)
 
         # 组装最终列表

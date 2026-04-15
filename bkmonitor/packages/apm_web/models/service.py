@@ -286,8 +286,8 @@ class LogServiceRelation(ServiceBase):
     # 需要保证value_list中的值是是 int 类型
     value_list = models.JSONField("日志值列表", default=list)
 
-    DIFF_KEYS: list[str] = ["related_bk_biz_id"]
-    DEFAULT_KEYS: list[str] = ["log_type", "value", "value_list"]
+    DIFF_KEYS: list[str] = ["log_type", "related_bk_biz_id"]
+    DEFAULT_KEYS: list[str] = ["value", "value_list"]
 
     @classmethod
     def filter_by_index_set_id(cls, index_set_id):

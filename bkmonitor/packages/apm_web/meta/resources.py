@@ -51,6 +51,7 @@ from apm_web.constants import (
     SceneEventKey,
     ServiceRelationLogTypeChoices,
     StorageStatus,
+    SyncScope,
     TopoNodeKind,
     nodata_error_strategy_config_mapping,
 )
@@ -465,6 +466,10 @@ class ApplicationInfoResource(Resource):
             data[Application.SAMPLER_CONFIG_KEY] = self.convert_sampler_config(
                 instance.bk_biz_id, instance.app_name, data[Application.SAMPLER_CONFIG_KEY]
             )
+            # 补充关联日志配置
+            data["application_log_relation_configs"] = LogServiceRelationOutputSerializer(
+                instance=LogServiceRelation.get_relation_qs(instance.bk_biz_id, instance.app_name, [], True), many=True
+            ).data
             return data
 
     def perform_request(self, validated_request_data):
@@ -704,6 +709,20 @@ class SetupResource(Resource):
             subscription_id = serializers.IntegerField(label="订阅任务id", required=False)
             bk_data_id = serializers.IntegerField(label="数据id", required=False)
 
+        class LogRelationSerializer(serializers.Serializer):
+            log_type = serializers.CharField(label=_("日志类型"))
+            related_bk_biz_id = serializers.IntegerField(label=_("关联业务ID"))
+            value_list = serializers.ListField(child=serializers.IntegerField(), label=_("日志值列表"))
+
+            def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+                if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
+                    if "related_bk_biz_id" not in attrs or not attrs["related_bk_biz_id"]:
+                        raise ValueError(_("关联日志平台日志需要选择业务"))
+                else:
+                    attrs["related_bk_biz_id"] = None
+
+                return super().validate(attrs)
+
         application_id = serializers.IntegerField(label="应用id")
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="应用描述", max_length=255, allow_blank=True, required=False)
@@ -714,6 +733,9 @@ class SetupResource(Resource):
         application_instance_name_config = InstanceNameConfigSerializer(required=False)
         application_dimension_config = DimensionConfigSerializer(required=False)
         application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), default=[])
+        application_log_relation_configs = serializers.ListField(
+            label=_("日志关联配置"), child=LogRelationSerializer(), default=[]
+        )
 
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
         plugin_config = PluginConfigSerializer(required=False)
@@ -867,6 +889,26 @@ class SetupResource(Resource):
             )
             self._application.event_config = self._params[Application.EVENT_CONFIG_KEY]
 
+    class LogRelationProcessor(SetupProcessor):
+        update_key = ["application_log_relation_configs"]
+
+        def setup(self):
+            sync_records: list[dict[str, Any]] = [
+                {
+                    "bk_biz_id": self._application.bk_biz_id,
+                    "app_name": self._application.app_name,
+                    "service_name": "",
+                    "is_global": True,
+                    "log_type": relation_config["log_type"],
+                    "related_bk_biz_id": relation_config["related_bk_biz_id"],
+                    "value_list": relation_config["value_list"],
+                }
+                for relation_config in self._params["application_log_relation_configs"]
+            ]
+            LogServiceRelation.sync_relations(
+                self._application.bk_biz_id, self._application.app_name, "", sync_records, SyncScope.GLOBAL
+            )
+
     def perform_request(self, validated_data):
         try:
             application = Application.objects.get(application_id=validated_data["application_id"])
@@ -886,6 +928,7 @@ class SetupResource(Resource):
                 self.NoDataPeriodProcessor,
                 self.DbSetupProcessor,
                 self.QPSSetupProcessor,
+                self.LogRelationProcessor,
             ]
         ]
 

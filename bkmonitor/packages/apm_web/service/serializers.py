@@ -149,6 +149,7 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
             "log_type_alias",
             "updated_at",
             "updated_by",
+            "is_global",
         ]
 
 
@@ -247,6 +248,8 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
             rule["kind"] = rule.get("kind", kind)
             if not rule["kind"]:
                 raise serializers.ValidationError(_("kind 不能为空"))
+            elif kind and rule["kind"] != kind:
+                raise serializers.ValidationError(_("内外层的 kind 不一致"))
 
             # 外层有 service_name 时，强制覆盖 service_names
             rule["service_names"] = [service_name] if service_name else rule.get("service_names")
@@ -268,6 +271,23 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
                 }
                 self.validate_callee_kind_consistency(rule_attrs)
                 rule["callee_server"] = _service_name
+
+        # 唯一性校验
+        unique_set: set[str] = set()
+        for rule in attrs.get("rules", []):
+            unique_key = f"{rule['kind']}_{rule['callee_server']}_{rule['callee_service']}_{rule['callee_method']}_{rule['is_global']}"
+            if unique_key in unique_set:
+                raise serializers.ValidationError(
+                    _(
+                        f"规则列表中存在重复的规则，类型：{rule['kind']}，被调服务：{rule['callee_server']}，被调 Service：{rule['callee_service']}，被调接口：{rule['callee_method']}，是否全局：{rule['is_global']}"
+                    )
+                )
+            unique_set.add(unique_key)
+
+        # 如果是服务配置场景，过滤掉 is_global 为 True 的规则
+        if service_name:
+            attrs["rules"] = [rule for rule in attrs["rules"] if not rule["is_global"]]
+
         return attrs
 
 
