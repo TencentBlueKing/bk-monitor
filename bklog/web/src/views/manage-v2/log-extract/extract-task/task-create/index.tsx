@@ -114,8 +114,15 @@ export default defineComponent({
         targetNodeType.value = cloneNodeType;
         ipList.value = cloneData.ip_list ?? [];
 
-        if (cloneNodeType !== 'INSTANCE') {
-          targetNodes.value = cloneData.target_nodes ?? [];
+        if (cloneData.target_nodes?.length) {
+          targetNodes.value = cloneData.target_nodes;
+        } else if (cloneNodeType === 'INSTANCE' && ipList.value.length) {
+          targetNodes.value = ipList.value.map(item => ({
+            bk_obj_id: 'host',
+            bk_inst_id: item.bk_host_id,
+          }));
+        } else {
+          targetNodes.value = [];
         }
 
         fileOrPath.value = cloneData.preview_directory; // 克隆目录
@@ -270,15 +277,23 @@ export default defineComponent({
         if (nodeType === 'INSTANCE') {
           initSelectNewNameList(rawNodes);
           const newIpList = toTransformNode(rawNodes, 'INSTANCE', true);
+          const newTargetNodes = newIpList.map(item => ({
+            bk_obj_id: 'host',
+            bk_inst_id: item.bk_host_id,
+          }));
           const strategies = await http.request('extract/getAvailableExplorerPath', {
             data: {
               bk_biz_id: store.state.bkBizId,
               ip_list: newIpList,
+              target_nodes: newTargetNodes,
               target_node_type: 'INSTANCE',
             },
           });
           ipList.value = strategies.data.ip_list ?? newIpList;
-          targetNodes.value = [];
+          targetNodes.value = ipList.value.map(item => ({
+            bk_obj_id: 'host',
+            bk_inst_id: item.bk_host_id,
+          }));
           availablePaths.value = (strategies.data.strategies ?? []).map((item: any) => item.file_path);
         } else {
           const newTargetNodes = toTransformNode(rawNodes, nodeType as any);
@@ -331,6 +346,7 @@ export default defineComponent({
         bk_biz_id: store.state.bkBizId,
         ip_list: ipList.value,
         target_node_type: targetNodeType.value,
+        target_nodes: targetNodes.value,
         preview_directory: fileOrPath.value,
         preview_ip_list: previewRef.value?.getFindIpList(),
         preview_time_range: previewRef.value?.timeRange,
@@ -343,9 +359,6 @@ export default defineComponent({
         remark: remark.value,
         link_id: link_id.value,
       };
-      if (targetNodeType.value !== 'INSTANCE') {
-        requestData.target_nodes = targetNodes.value;
-      }
       http
         .request('extract/createDownloadTask', {
           data: requestData,
