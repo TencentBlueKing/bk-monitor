@@ -268,6 +268,19 @@ class StrategyConfigParser(BaseConfigParser):
             name = " ".join(expression_tokens)
         return query_configs, name, scenario
 
+    @staticmethod
+    def parse_issue_config(config: dict[str, Any]) -> dict[str, Any] | None:
+        issue_config = config.get("issue_config")
+        if issue_config is None:
+            return None
+
+        return {
+            "is_enabled": issue_config["enabled"],
+            "aggregate_dimensions": issue_config["dimensions"],
+            "conditions": parse_conditions(issue_config["conditions"]),
+            "alert_levels": [LEVEL_NAME_TO_ID[level] for level in issue_config["levels"]],
+        }
+
     def parse(self, config: dict) -> dict:
         # 生效时间段解析 yaml -> config
         time_ranges = self.get_time_ranges(config)
@@ -499,6 +512,7 @@ class StrategyConfigParser(BaseConfigParser):
             "detects": detects,
             "notice": notice,
             "actions": actions,
+            "issue_config": self.parse_issue_config(config),
         }
 
         return strategy
@@ -677,6 +691,27 @@ class StrategyConfigParser(BaseConfigParser):
 
         code_config["notice"] = notice
 
+    @staticmethod
+    def update_issue_config(config: dict[str, Any], code_config: dict[str, Any]):
+        issue_config = config.get("issue_config")
+        if not issue_config:
+            return
+
+        code_issue_config: dict[str, Any] = {
+            "enabled": issue_config.get("is_enabled", True),
+            "levels": [
+                LEVEL_ID_TO_NAME[level] for level in issue_config.get("alert_levels", []) if level in LEVEL_ID_TO_NAME
+            ],
+        }
+
+        if issue_config.get("aggregate_dimensions"):
+            code_issue_config["dimensions"] = issue_config["aggregate_dimensions"]
+
+        if issue_config.get("conditions"):
+            code_issue_config["conditions"] = create_conditions_expression(issue_config["conditions"])
+
+        code_config["issue_config"] = code_issue_config
+
     def unparse(self, config: dict) -> dict:
         # config --> yaml
         code_config = {"name": config["name"], "version": MaxVersion.STRATEGY}
@@ -817,6 +852,8 @@ class StrategyConfigParser(BaseConfigParser):
 
         if actions:
             code_config["actions"] = actions
+
+        self.update_issue_config(config, code_config)
 
         return code_config
 
