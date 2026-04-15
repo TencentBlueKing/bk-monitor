@@ -443,6 +443,7 @@ class DataLink(models.Model):
                         storage_keys=storage_option.storage_keys,
                         json_fields=storage_option.json_fields,
                         field_config_group=storage_option.field_config_group,
+                        original_json_fields=storage_option.original_json_fields,
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
                     )
