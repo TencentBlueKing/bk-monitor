@@ -160,6 +160,10 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
    * @return {*}
    */
   handleSignalChange(v: string[], index: number) {
+    if (index === this.needIssueConfigIndex && (v.length !== 1 || v[0] !== signalOptionType.abnormal)) {
+      this.handleIssueConfigChange(null);
+      this.activeTab = actionType.action;
+    }
     this.data[index].signal = v;
     this.handleChange();
   }

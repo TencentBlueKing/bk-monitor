@@ -1,4 +1,3 @@
-import { alertTopN } from 'monitor-api/modules/alert_v2';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -621,16 +620,10 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     return data;
   }
 
-  async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
-    const data = await alertTopN(
-      {
-        ...params,
-      },
-      config
-    ).catch(() => ({
+  async getRetrievalFilterValues(_params: Partial<CommonFilterParams>, _config = {}) {
+    return {
       doc_count: 0,
       fields: [],
-    }));
-    return data;
+    };
   }
 }

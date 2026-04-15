@@ -229,8 +229,8 @@ export default defineComponent({
     };
 
     // 显示告警详情
-    const handleShowAlertDetail = (id: string, defaultTab?: string) => {
-      emit('showAlertDetail', id, defaultTab);
+    const handleShowAlertDetail = (row: AlertTableItem, defaultTab?: string) => {
+      emit('showAlertDetail', row.id, defaultTab);
     };
 
     // 显示处理记录详情
