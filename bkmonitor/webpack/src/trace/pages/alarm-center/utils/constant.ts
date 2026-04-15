@@ -62,3 +62,19 @@ export const ALARM_CENTER_VIEW_TAB_MAP = {
   DIMENSION: 'dimension', // 维度分析
   ALARM_RECORDS: 'alarm_records', // 告警流转记录
 } as const;
+
+/** 数据类型枚举 */
+export const DataTypeEnum = {
+  LOG: 'log',
+  EVENT: 'event',
+} as const;
+
+/** 需要隐藏的 Tab 映射表（key: data_type, value: 需要隐藏的 Tab Key 列表） */
+export const HIDDEN_TABS_MAP: Record<string, AlarmCenterPanelTabType[]> = {
+  [DataTypeEnum.LOG]: [
+    ALARM_CENTER_PANEL_TAB_MAP.TRACE,
+    ALARM_CENTER_PANEL_TAB_MAP.HOST,
+    ALARM_CENTER_PANEL_TAB_MAP.EVENT,
+  ],
+  [DataTypeEnum.EVENT]: [ALARM_CENTER_PANEL_TAB_MAP.TRACE],
+};

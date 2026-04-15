@@ -25,7 +25,7 @@
  */
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { ALARM_CENTER_PANEL_TAB_MAP, AlarmCenterPanelTabList } from '../utils/constant';
+import { ALARM_CENTER_PANEL_TAB_MAP, AlarmCenterPanelTabList, HIDDEN_TABS_MAP } from '../utils/constant';
 
 /** 聚合条件 */
 export interface IAggCondition {
@@ -556,6 +556,12 @@ export class AlarmDetail {
 
   get alarmTabList() {
     return AlarmCenterPanelTabList.filter(item => {
+      /* 根据 data_type 隐藏特定 Tab */
+      const hiddenTabKeys = HIDDEN_TABS_MAP[this.data_type] || [];
+      if (hiddenTabKeys.includes(item.name)) {
+        return false;
+      }
+
       /* 主机和日志 */
       // if (item.name === ALARM_CENTER_PANEL_TAB_MAP.HOST || item.name === ALARM_CENTER_PANEL_TAB_MAP.LOG) {
       //   return this.dimensions?.some(item => ['bk_target_ip', 'ip'].includes(item.key));
