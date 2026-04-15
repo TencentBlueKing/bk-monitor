@@ -15,7 +15,8 @@ from rest_framework import serializers
 from constants.issue import IssueActivityType, IssuePriority, IssueStatus
 from core.drf_resource import Resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from fta_web.issue.resources import IssueIDField, _get_issue_or_raise
+from bkmonitor.documents.issue import IssueDocument
+from fta_web.issue.resources import IssueIDField
 
 
 class AssignResource(Resource):
@@ -28,7 +29,9 @@ class AssignResource(Resource):
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):
-        issue = _get_issue_or_raise(validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"])
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         assignee = validated_request_data["assignee"]
         operator = validated_request_data["operator"]
         if issue.status == IssueStatus.PENDING_REVIEW:
@@ -42,8 +45,8 @@ class AssignResource(Resource):
             )
         return {
             "bk_biz_id": issue.bk_biz_id,
-            "issue_id": str(issue.id),
-            "status": str(issue.status),
+            "issue_id": issue.id,
+            "status": issue.status,
             "assignee": list(issue.assignee or []),
             "update_time": issue.update_time,
         }
@@ -58,7 +61,9 @@ class ResolveResource(Resource):
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):
-        issue = _get_issue_or_raise(validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"])
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         issue.resolve(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
@@ -78,7 +83,9 @@ class ArchiveResource(Resource):
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):
-        issue = _get_issue_or_raise(validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"])
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         issue.archive(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
@@ -97,7 +104,9 @@ class ReopenResource(Resource):
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):
-        issue = _get_issue_or_raise(validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"])
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         issue.reopen(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
@@ -116,7 +125,9 @@ class RestoreResource(Resource):
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):
-        issue = _get_issue_or_raise(validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"])
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         issue.restore(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
@@ -139,12 +150,14 @@ class UpdatePriorityResource(Resource):
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):
-        issue = _get_issue_or_raise(validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"])
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         issue.update_priority(priority=validated_request_data["priority"], operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
-            "issue_id": str(issue.id),
-            "priority": str(issue.priority),
+            "issue_id": issue.id,
+            "priority": issue.priority,
             "update_time": issue.update_time,
         }
 
@@ -159,7 +172,9 @@ class AddFollowUpResource(Resource):
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):
-        issue = _get_issue_or_raise(validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"])
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         content = validated_request_data["content"]
         operator = validated_request_data["operator"]
         now = int(time.time())
