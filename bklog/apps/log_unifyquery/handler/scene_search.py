@@ -5,7 +5,9 @@ BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
 """
 
 import copy
+import csv
 import json
+from io import StringIO
 from typing import Any, Dict, List
 
 from django.conf import settings
@@ -14,7 +16,14 @@ from apps.api import UnifyQueryApi
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.utils import merge_nested_data
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
-from apps.log_unifyquery.constants import BASE_OP_MAP
+from apps.log_search.constants import (
+    ASYNC_EXPORT_SCROLL,
+    MAX_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
+    MAX_RESULT_WINDOW,
+)
+from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.local import get_local_param, get_request_external_username, get_request_username
@@ -346,3 +355,121 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         logger.info("[scene_total] space_uid=%s", self.space_uid)
         result = self.query_ts_raw(search_dict)
         return {"total": result.get("total", 0)}
+
+    def aggs_date_histogram(self, interval: str = "auto", group_field: str = None) -> dict:
+        params = copy.deepcopy(self.base_dict)
+        response = self._date_histogram_unify_query(interval, group_field, params)
+        if not response.get("series"):
+            return {"aggs": {}}
+        return self.obtain_result_data(interval, group_field, response)
+
+    # ------------------------------------------------------------------
+    # Export overrides — bypass index_set_obj / scenario_id dependencies
+    # ------------------------------------------------------------------
+
+    def pre_get_result(self, sorted_fields: list, size: int, scroll=None):
+        search_dict = copy.deepcopy(self.base_dict)
+        # Scene mode always uses bklog data_source; always apply order_by
+        order_by = []
+        for param in sorted_fields:
+            if param[1] == "asc":
+                order_by.append(param[0])
+            elif param[1] == "desc":
+                order_by.append(f"-{param[0]}")
+        search_dict["order_by"] = order_by
+
+        search_dict["from"] = self.search_params.get("begin", 0)
+        search_dict["limit"] = size
+        search_dict["scroll"] = scroll
+        search_dict["is_search_after"] = True
+        return UnifyQueryApi.query_ts_raw(search_dict)
+
+    def search_after_result(self, search_result, sorted_fields):
+        search_dict = copy.deepcopy(self.base_dict)
+        order_by = []
+        for param in sorted_fields:
+            if param[1] == "asc":
+                order_by.append(param[0])
+            elif param[1] == "desc":
+                order_by.append(f"-{param[0]}")
+        search_dict["order_by"] = order_by
+
+        result_size = len(search_result["list"])
+        max_result_window = MAX_RESULT_WINDOW
+        max_export_count = MAX_ASYNC_COUNT
+
+        search_dict["from"] = self.search_params.get("begin", 0)
+        search_dict["limit"] = max_result_window
+        search_dict["is_search_after"] = True
+        while result_size < max_export_count:
+            result_table_options = {
+                key: value
+                for key, value in search_result.get("result_table_options", {}).items()
+                if value.get(SEARCH_AFTER_KEY)
+            }
+
+            if not result_table_options:
+                break
+
+            search_dict["result_table_options"] = result_table_options
+            search_result = UnifyQueryApi.query_ts_raw(search_dict)
+            new_result_size = len(search_result.get("list", []))
+
+            if new_result_size == 0:
+                break
+
+            result_size += new_result_size
+            yield self._deal_query_result(search_result)
+
+    def export_data(self, is_quick_export: bool = False):
+        search_params = copy.deepcopy(self.base_dict)
+        search_params["limit"] = MAX_RESULT_WINDOW
+        search_params["scroll"] = ASYNC_EXPORT_SCROLL
+        search_params["slice_max"] = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else 0
+
+        max_result_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        total_count = 0
+        while total_count < max_result_count:
+            search_params["clear_cache"] = total_count == 0
+            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            if not search_result.get("list"):
+                break
+
+            yield self._deal_query_result(search_result)
+
+            total_count += len(search_result["list"])
+
+            if search_result.get("done", False):
+                break
+
+    def export_chart_data(self):
+        """Stream chart data as CSV rows — scene variant without index_set_id."""
+        search_params = copy.deepcopy(self.base_dict)
+        search_params["limit"] = MAX_RESULT_WINDOW
+        max_result_count = MAX_ASYNC_COUNT
+        total_count = 0
+
+        header_written = False
+        fields = []
+        row_buffer = StringIO()
+        csv_writer = csv.writer(row_buffer)
+        while total_count < max_result_count:
+            search_params["clear_cache"] = total_count == 0
+            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            if not search_result.get("list"):
+                break
+            if not header_written:
+                result_table_options = list(search_result.get("result_table_options", {}).values())
+                result_schema = result_table_options[0]["result_schema"] if result_table_options else []
+                fields = [field["field_alias"] for field in result_schema]
+                csv_writer.writerow(fields)
+                header_written = True
+            for record in search_result["list"]:
+                csv_writer.writerow([record.get(field, "") for field in fields])
+            yield row_buffer.getvalue()
+            row_buffer.seek(0)
+            row_buffer.truncate()
+
+            total_count += len(search_result["list"])
+            if search_result.get("done", False):
+                break
