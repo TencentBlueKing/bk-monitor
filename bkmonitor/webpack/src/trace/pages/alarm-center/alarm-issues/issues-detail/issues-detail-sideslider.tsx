@@ -26,6 +26,7 @@
 import { defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
+import { issueDetail } from 'monitor-api/modules/issue';
 import { convertDurationArray, random } from 'monitor-common/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
@@ -33,10 +34,10 @@ import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing
 import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
-import { fetchIssueDetailMock } from './mock-data';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import { mergeWhereList } from '@/components/retrieval-filter/utils';
 import TimeRange from '@/components/time-range/time-range';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 import type { CommonCondition } from '../../typings';
 import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../typing';
@@ -103,14 +104,17 @@ export default defineComponent({
       if (hasLoading) {
         loading.value = true;
       }
-      fetchIssueDetailMock({
+      const [start, end] = handleTransformToTimestamp(timeRange.value);
+      issueDetail({
         bk_biz_id: props.issueBizId,
         id: props.issueId,
+        start_time: start,
+        end_time: end,
       })
         .then(res => {
           detail.value = res;
         })
-        .catch(() => {
+        .finally(() => {
           loading.value = false;
         });
     };
