@@ -40,12 +40,12 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
 from constants.apm import (
+    DEFAULT_DATA_LABEL,
+    TRACE_RESULT_TABLE_OPTION,
     FlowType,
     OtlpKey,
     SpanKind,
-    TRACE_RESULT_TABLE_OPTION,
     TraceDataSourceConfig,
-    DEFAULT_DATA_LABEL,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
@@ -552,6 +552,46 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def to_json(self):
         return {**super().to_json(), "index_set_id": self.index_set_id}
 
+    def _build_result_table_option(self):
+        """构建结果表 option, V4 时声明 enable_v4_tracing_data_link"""
+        option = dict(TRACE_RESULT_TABLE_OPTION)
+        if settings.ENABLE_TRACING_BKDATA:
+            option["enable_v4_tracing_data_link"] = True
+        return option
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not obj:
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+        obj.create_data_id()
+        obj.create_or_update_result_table(**options)
+
+        option = options["option"]
+        if not option:
+            obj.stop(bk_biz_id, app_name)
+            return
+
+        obj.apply_datalink()
+
+    def apply_datalink(self):
+        """委托 metadata 层的 ResultTable.apply_datalink() 处理数据链路路由.
+
+        由于 APM 创建结果表时使用 is_sync_db=False, metadata 内部的 apply_datalink()
+        不会被自动调用. 此方法在 APM 业务流程完成后显式触发, 让 metadata 统一决定
+        走 V4 数据链路(apply_apm_datalink) 还是 GSE 链路(refresh_consul_config).
+        """
+        from metadata.models import ResultTable
+
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        try:
+            rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=self.result_table_id)
+        except ResultTable.DoesNotExist:
+            logger.warning("apply_datalink: ResultTable not found for table_id=%s, skip", self.result_table_id)
+            return
+        rt.apply_datalink()
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
@@ -600,7 +640,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "is_time_field_only": True,
             "bk_biz_id": self.bk_biz_id,
             "label": "application_check",
-            "option": TRACE_RESULT_TABLE_OPTION,
+            "option": self._build_result_table_option(),
             "time_option": {
                 "es_type": "date",
                 "es_format": "epoch_millis",

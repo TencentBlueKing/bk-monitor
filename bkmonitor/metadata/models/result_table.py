@@ -575,7 +575,11 @@ class ResultTable(models.Model):
     def apply_datalink(self, force_update: bool = False) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
-        from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
+        from metadata.task.datalink import (
+            apply_apm_datalink,
+            apply_event_group_datalink,
+            apply_log_datalink,
+        )
         from metadata.task.tasks import access_bkdata_vm
 
         # 获取数据源ID
@@ -622,10 +626,13 @@ class ResultTable(models.Model):
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
-            # 如果存在日志V4数据链路配置，则创建日志V4数据链路
-            if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
+            # APM Tracing V4 数据链路
+            if options and options.get(ResultTableOption.OPTION_ENABLE_V4_TRACING_DATA_LINK, False):
+                apply_apm_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            # 日志 V4 数据链路
+            elif options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
-            # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
+            # 事件组 V4 数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
@@ -2296,7 +2303,7 @@ class ResultTableField(models.Model):
         fields, field_names, option_data = cls()._compose_data(table_id, field_data, bk_tenant_id=bk_tenant_id)
 
         # 校验字段是否已经创建
-        cls()._check_existed_fields(table_id, field_names)
+        cls()._check_existed_fields(table_id, field_names, bk_tenant_id)
 
         # 写入数据
         cls.objects.bulk_create([cls(**field) for field in fields])
@@ -2845,6 +2852,7 @@ class ResultTableOption(OptionBase):
 
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
+    OPTION_ENABLE_V4_TRACING_DATA_LINK = "enable_v4_tracing_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
 
     # 选项类型
