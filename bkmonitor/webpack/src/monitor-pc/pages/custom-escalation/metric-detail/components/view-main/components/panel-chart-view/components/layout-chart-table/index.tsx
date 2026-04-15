@@ -303,7 +303,10 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   }
   updateRouterParams() {
     const viewPayload = JSON.parse(this.$route.query.viewPayload as string);
-    viewPayload.metrics.find(item => item?.name === this.panel.targets[0]?.metric?.name).method = this.currentMethod;
+    const targetMetric = viewPayload.metrics.find(item => item?.name === this.panel.targets[0]?.metric?.name);
+    if (targetMetric) {
+      targetMetric.method = this.currentMethod;
+    }
     this.$router.replace({
       query: {
         ...this.$route.query,
