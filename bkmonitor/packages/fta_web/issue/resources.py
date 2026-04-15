@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -25,6 +26,38 @@ from fta_web.issue.serializers import IssueSearchSerializer
 
 
 logger = logging.getLogger("root")
+
+
+def _get_issue_or_raise(issue_id: str, bk_biz_id: int | None = None) -> IssueDocument:
+    """
+    按 issue_id 查询 IssueDocument，不存在则抛出 IssueNotFoundError。
+    使用 all_indices=True 避免跨天漏查（对齐 IssueAggregationProcessor._find_active_issue 查询口径）。
+
+    Args:
+        issue_id: 要查询的 Issue ID。
+        bk_biz_id: 若传入，则在查出 Issue 后校验业务归属，防止越权操作。
+                   Issue 的 bk_biz_id 与传入值不匹配时抛出 IssueNotFoundError（而非权限错误），
+                   避免泄露其他业务的 Issue 存在信息。
+
+    Returns:
+        IssueDocument 实例。
+
+    Raises:
+        IssueNotFoundError: Issue 不存在，或 bk_biz_id 不匹配时抛出。
+    """
+    search = IssueDocument.search(all_indices=True).filter("term", **{"_id": issue_id}).params(size=1)
+    hits = search.execute().hits
+    if not hits:
+        raise IssueNotFoundError(f"Issue not found, issue_id={issue_id}")
+    source = hits[0].to_dict()
+    # IssueDocument._source 中含 id 字段，需先 pop 再显式传入 meta.id，
+    # 否则会触发 "multiple values for keyword argument 'id'"；
+    # 若不传 meta.id，__init__ 会自动生成新 ID，导致 UPSERT 退化为 INSERT。
+    source.pop("id", None)
+    issue = IssueDocument(id=hits[0].meta.id, **source)
+    if bk_biz_id is not None and int(issue.bk_biz_id) != int(bk_biz_id):
+        raise IssueNotFoundError(f"Issue not found, issue_id={issue_id}")
+    return issue
 
 
 class IssueIDField(serializers.CharField):
