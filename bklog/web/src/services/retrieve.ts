@@ -461,6 +461,12 @@ const getSceneAggField = {
   method: 'post',
 };
 
+/** 场景化检索 - 匹配日志总数 */
+const getSceneTotal = {
+  url: '/search/scene/total/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -519,4 +525,5 @@ export {
   getSceneFields,
   getSceneDateHistogram,
   getSceneAggField,
+  getSceneTotal,
 };

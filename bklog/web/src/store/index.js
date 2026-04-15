@@ -1821,9 +1821,12 @@ const store = new Vuex.Store({
       state.searchTotal = 0;
       const startTime = Math.floor(getters.retrieveParams.start_time);
       const endTime = Math.ceil(getters.retrieveParams.end_time);
+      const isScene = isSceneRetrieve(state);
+      const urlStr = isScene ? 'retrieve/getSceneTotal' : 'retrieve/fieldStatisticsTotal';
+
       return http
         .request(
-          'retrieve/fieldStatisticsTotal',
+          urlStr,
           {
             data: {
               ...getters.retrieveParams,
@@ -1843,7 +1846,7 @@ const store = new Vuex.Store({
         )
         .then((res) => {
           const { data } = res;
-          if (res.result === true) state.searchTotal = data.total_count;
+          if (res.result === true) state.searchTotal = data.total_count ?? data.total;
           return res;
         })
         .catch((err) => {
