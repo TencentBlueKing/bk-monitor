@@ -868,3 +868,42 @@ class BkDataDorisV4Provider:
             "result_table_id": result_table_id,
             "retention": retention,
         }
+
+    # ── 启停（V4：apply=启动，delete=停止）─────────
+
+    def apply(self):
+        """重新声明 V4 链路资源，等价于启动（apply_data_link 是声明式，幂等）"""
+        name = self._resource_name()
+        configs = self._build_configs()
+        logger.info("[ProfileDatasource] apply V4 data link (start), name=%s, config_count=%d", name, len(configs))
+        try:
+            self._apply_data_link_with_retry(configs)
+        except RetryError as e:
+            logger.error("[ProfileDatasource] apply V4 data link (start) retry exhausted, name=%s", name)
+            raise e.__cause__ if e.__cause__ else e
+
+    def delete(self):
+        """
+        删除 V4 链路资源，等价于停止。
+        按创建的逆序删除：Databus → DorisBinding（DataId 和 ResultTable 不删）。
+        """
+        name = self._resource_name()
+        databus_name = self._databus_name()
+        # 删除顺序：Databus → DorisBinding（DataId / ResultTable 为基础资源，不删）
+        delete_items = [
+            (DataLinkKind.DATABUS, databus_name),
+            (DataLinkKind.DORISBINDING, name),
+        ]
+        for kind_enum, resource_name in delete_items:
+            kind_value = DataLinkKind.get_choice_value(kind_enum.value)
+            logger.info(
+                "[ProfileDatasource] delete V4 resource, kind=%s, name=%s",
+                kind_value,
+                resource_name,
+            )
+            api.bkdata.delete_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                kind=kind_value,
+                namespace=_V4_NAMESPACE,
+                name=resource_name,
+            )

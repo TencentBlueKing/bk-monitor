@@ -1189,7 +1189,15 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def start(cls, bk_biz_id, app_name):
         profile_bk_biz_id = bk_biz_id if bk_biz_id >= 0 else settings.BK_DATA_BK_BIZ_ID
         if profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST:
-            # TODO: V4 链路暂未提供等效的 start 接口
+            # V4 声明式链路：没有启停接口，通过 apply 重新声明资源（等价于启动）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance, bk_tenant_id=bk_tenant_id, maintainer="", operator=""
+            )
+            provider.apply()
             return
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
         api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
@@ -1198,7 +1206,17 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def stop(cls, bk_biz_id, app_name):
         profile_bk_biz_id = bk_biz_id if bk_biz_id >= 0 else settings.BK_DATA_BK_BIZ_ID
         if profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST:
-            # TODO: V4 链路暂未提供等效的 stop 接口
+            # V4 声明式链路：没有启停接口，通过 delete 删除资源（等价于停止）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+            if not instance:
+                return
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance, bk_tenant_id=bk_tenant_id, maintainer="", operator=""
+            )
+            provider.delete()
             return
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if instance:
