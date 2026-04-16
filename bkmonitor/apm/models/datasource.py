@@ -31,7 +31,7 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
-from apm.models.doris import BkDataDorisProvider
+from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.db import JsonField
@@ -1113,7 +1113,6 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
         profile_bk_biz_id = bk_biz_id
@@ -1134,24 +1133,43 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
-        essentials = BkDataDorisProvider.from_datasource_instance(
-            obj,
-            maintainer=global_user if not apm_maintainers else f"{global_user},{apm_maintainers}",
-            operator=global_user,
-            name_stuffix=bk_biz_id,
-        ).provider()
-        obj.bk_data_id = essentials["bk_data_id"]
-        obj.result_table_id = essentials["result_table_id"]
-        obj.retention = essentials["retention"]
-        obj.save()
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
+        maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+
+        # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
+        use_v4 = profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST
+
+        if use_v4:
+            # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
+            essentials = BkDataDorisV4Provider.from_datasource_instance(
+                obj,
+                bk_tenant_id=bk_tenant_id,
+                maintainer=maintainer,
+                operator=global_user,
+            ).provider()
+        else:
+            # V3 命令式链路（原有逻辑）
+            essentials = BkDataDorisProvider.from_datasource_instance(
+                obj,
+                maintainer=maintainer,
+                operator=global_user,
+                name_stuffix=bk_biz_id,
+            ).provider()
+
+        with atomic(using=DATABASE_CONNECTION_NAME):
+            obj.bk_data_id = essentials["bk_data_id"]
+            obj.result_table_id = essentials["result_table_id"]
+            obj.retention = essentials["retention"]
+            obj.save()
 
         return
 
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def create_builtin_source(cls):
         # datasource is enough, no real app created.
+        # 注意：不使用 @atomic，因为 apply_datasource 内部已自行管理事务
+        # （V4 链路含轮询，不可放在长事务内）
         cls.apply_datasource(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME, option=True)
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(
             bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME
@@ -1169,11 +1187,19 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def start(cls, bk_biz_id, app_name):
+        profile_bk_biz_id = bk_biz_id if bk_biz_id >= 0 else settings.BK_DATA_BK_BIZ_ID
+        if profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST:
+            # TODO: V4 链路暂未提供等效的 start 接口
+            return
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
         api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
+        profile_bk_biz_id = bk_biz_id if bk_biz_id >= 0 else settings.BK_DATA_BK_BIZ_ID
+        if profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST:
+            # TODO: V4 链路暂未提供等效的 stop 接口
+            return
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if instance:
             api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
