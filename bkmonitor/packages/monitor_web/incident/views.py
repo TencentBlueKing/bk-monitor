@@ -78,4 +78,5 @@ class IncidentViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.incident.incident_date_histogram, endpoint="date_histogram"),
         # 全局配置接口
         ResourceRoute("POST", resource.incident.get_config, endpoint="get_config"),
+        # ResourceRoute("POST", resource.incident.get_config, endpoint="get_config"),
     ]
