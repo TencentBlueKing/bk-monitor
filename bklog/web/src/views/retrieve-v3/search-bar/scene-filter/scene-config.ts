@@ -25,7 +25,7 @@
  */
 
 import { SceneType } from './types';
-import type { FilterFieldConfig, SceneConfig, SceneConfigItem } from './types';
+import type { SceneConfig, SceneConfigItem } from './types';
 
 /**
  * 本地场景映射表：根据接口返回的 id 映射显示名称和图标。
@@ -46,16 +46,18 @@ const DEFAULT_SCENE_ICON = 'bklog-container-2';
 /**
  * 将接口返回的 SceneConfigItem 转换为内部使用的 SceneConfig。
  * - 场景名称和图标从 sceneMetaMap 映射获取，未匹配时回退到接口的 name 和默认图标。
- * - 筛选字段的 name/key 直接使用接口返回的 dimension.name/dimension.key。
  */
 export const transformSceneConfigItem = (item: SceneConfigItem): SceneConfig => {
   const meta = sceneMetaMap[item.id];
 
-  const fields: FilterFieldConfig[] = (item.dimensions ?? []).map(dim => ({
+  const fields = (item.dimensions ?? []).map(dim => ({
     name: dim.name,
     key: dim.key,
     fieldType: dim.type,
-    inputType: 'input',
+    choicesType: dim.choices_type,
+    choices: dim.choices,
+    required: dim.required,
+    ops: dim.ops,
   }));
 
   return {

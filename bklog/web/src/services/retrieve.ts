@@ -443,6 +443,12 @@ const getSceneConfigs = {
   method: 'get',
 };
 
+/** 场景化检索 - 维度值预览 */
+const getSceneDimensionValues = {
+  url: '/search/scene/dimension_values/',
+  method: 'post',
+};
+
 /** 场景化检索 - 字段列表 */
 const getSceneFields = {
   url: '/search/scene/fields/',
@@ -570,6 +576,7 @@ export {
   updateFieldsAlias,
   getGrepResultTotal,
   getSceneConfigs,
+  getSceneDimensionValues,
   getSceneFields,
   getSceneDateHistogram,
   getSceneAggsTerms,

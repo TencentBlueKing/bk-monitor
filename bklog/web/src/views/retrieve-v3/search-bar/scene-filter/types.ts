@@ -36,7 +36,7 @@ export enum SceneType {
 
 /** ============ 接口返回数据类型 ============ */
 
-/** 接口返回的维度字段 */
+/** 接口返回的维度字段（字段名与 API 返回 JSON 保持一致） */
 export interface SceneDimensionItem {
   /** 字段 key，提交请求时传递 */
   key: string;
@@ -48,6 +48,10 @@ export interface SceneDimensionItem {
   type: 'string' | 'integer';
   /** 支持的操作符列表 */
   ops: string[];
+  /** 选项类型：static 前端直接渲染 choices，dynamic 调用 dimension_values 拉取 */
+  choices_type?: 'static' | 'dynamic';
+  /** 静态候选值列表（仅 choices_type=static 时存在） */
+  choices?: Array<{ id: string; name: string }>;
 }
 
 /** 接口返回的场景配置项 */
@@ -60,19 +64,29 @@ export interface SceneConfigItem {
   dimensions: SceneDimensionItem[];
 }
 
-/** ============ 组件内部使用类型 ============ */
+/** ============ 维度值预览接口类型 ============ */
 
-/** 筛选字段的输入组件类型 */
-export type FilterInputType = 'select' | 'input';
-
-/** select 数据来源类型 */
-export type SelectSourceType = 'static' | 'api';
-
-/** select 静态选项 */
-export interface SelectOption {
-  id: string;
-  name: string;
+/** 维度值预览请求参数 */
+export interface SceneDimensionValuesRequest {
+  /** 业务 ID */
+  bkBizId: number;
+  /** 场景标识，如 "k8s" */
+  scene: string;
+  /** 要查询的维度 key */
+  dimensionKey: string;
+  /** 前置级联筛选条件 */
+  filters?: Record<string, string>;
 }
+
+/** 维度值预览响应 */
+export interface SceneDimensionValuesResponse {
+  /** 查询的维度 key（回显） */
+  dimensionKey: string;
+  /** 该维度下去重后的所有可选值 */
+  values: string[];
+}
+
+/** ============ 组件内部使用类型 ============ */
 
 /** 筛选字段配置（从接口 dimension 转换而来） */
 export interface FilterFieldConfig {
@@ -82,15 +96,15 @@ export interface FilterFieldConfig {
   key: string;
   /** 字段数据类型 */
   fieldType: 'string' | 'integer';
-  /** 输入组件类型 */
-  inputType: FilterInputType;
-  /** select 数据来源（仅 inputType 为 select 时有效） */
-  sourceType?: SelectSourceType;
-  /** 静态选项列表（仅 sourceType 为 static 时有效） */
-  staticOptions?: SelectOption[];
-  /** API 请求方法（仅 sourceType 为 api 时有效），后续扩展 */
-  apiFetcher?: () => Promise<SelectOption[]>;
-  /** 是否支持多选（仅 inputType 为 select 时有效） */
+  /** 选项类型：static 前端直接渲染 choices，dynamic 调用 dimension_values 拉取 */
+  choicesType?: 'static' | 'dynamic';
+  /** 静态候选值列表（仅 choicesType=static 时有效） */
+  choices?: Array<{ id: string; name: string }>;
+  /** 是否必填 */
+  required?: boolean;
+  /** 支持的操作符列表 */
+  ops?: string[];
+  /** 是否支持多选 */
   multiple?: boolean;
   /** 是否可搜索 */
   searchable?: boolean;

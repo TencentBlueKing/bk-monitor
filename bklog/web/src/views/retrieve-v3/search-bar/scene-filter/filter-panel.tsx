@@ -28,11 +28,12 @@ import { computed, defineComponent, reactive, ref, watch } from 'vue';
 
 import draggable from 'vuedraggable';
 
+import http from '@/api';
 import { messageWarn } from '@/common/bkmagic';
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { SceneType, type FilterFieldConfig, type FilterValues, type SceneConfig } from './types';
+import { SceneType, type FilterFieldConfig, type FilterValues, type SceneConfig, type SceneDimensionValuesResponse } from './types';
 
 import './filter-panel.scss';
 
@@ -72,6 +73,43 @@ export default defineComponent({
     const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
       .find(scene => scene.type === props.activeScene),
     );
+
+    /** 拉取 dynamic 类型维度的可选值 */
+    const fetchDynamicOptions = async (field: FilterFieldConfig) => {
+      const fieldState = getApiFieldState(field.key);
+      if (fieldState.loading) return;
+      fieldState.loading = true;
+
+      try {
+        // 构建级联筛选条件：已选的其他维度值
+        const filters: Record<string, string> = {};
+        const currentFields = currentScene.value?.fields ?? [];
+        for (const f of currentFields) {
+          if (f.key !== field.key && props.filterValues[f.key]) {
+            filters[f.key] = String(props.filterValues[f.key]);
+          }
+        }
+
+        const res = await http.request('retrieve/getSceneDimensionValues', {
+          data: {
+            bk_biz_id: store.state.bkBizId,
+            scene: props.activeScene,
+            dimension_key: field.key,
+            filters: Object.keys(filters).length > 0 ? filters : undefined,
+          },
+        });
+
+        const data = (res.data ?? res) as SceneDimensionValuesResponse;
+        console.log('fetchDynamicOptions data:', data);
+        const values = data.values ?? [];
+        fieldState.options = values.map(v => ({ id: v, name: v }));
+      } catch (err) {
+        console.error('fetchDynamicOptions error:', err);
+        fieldState.options = [];
+      } finally {
+        fieldState.loading = false;
+      }
+    };
 
     const visibleFields = computed<FilterFieldConfig[]>(() => {
       if (!currentScene.value) return [];
@@ -219,7 +257,6 @@ export default defineComponent({
       handleFieldChange(fieldName, '');
     };
 
-
     const renderSceneTabBar = () => (
       <div class='scene-tab-bar'>
         {sceneConfigs.value.map(scene => (
@@ -235,10 +272,11 @@ export default defineComponent({
     );
 
     const renderFilterField = (field: FilterFieldConfig) => {
-      if (field.inputType === 'select') {
-        const fieldState = field.sourceType === 'api' ? getApiFieldState(field.key) : null;
-        const options = field.sourceType === 'static' ? (field.staticOptions ?? []) : (fieldState?.options ?? []);
-        const loading = field.sourceType === 'api' ? (fieldState?.loading ?? false) : false;
+      if (field.choicesType === 'static' || field.choicesType === 'dynamic') {
+        const options = field.choicesType === 'static'
+          ? (field.choices ?? [])
+          : (getApiFieldState(field.key).options);
+        const loading = field.choicesType === 'dynamic' ? (getApiFieldState(field.key).loading ?? false) : false;
 
         return (
           <div class='filter-field-item' key={field.key}>
@@ -247,11 +285,16 @@ export default defineComponent({
               <bk-select
                 value={getFieldValue(field.key)}
                 placeholder={field.placeholder || t('请选择')}
-                searchable={field.searchable ?? false}
+                searchable={field.searchable ?? field.choicesType === 'dynamic'}
                 multiple={field.multiple ?? false}
                 clearable={true}
                 loading={loading}
                 on-change={(val: any) => handleFieldChange(field.key, val)}
+                on-toggle={(open: boolean) => {
+                  if (open && field.choicesType === 'dynamic') {
+                    fetchDynamicOptions(field);
+                  }
+                }}
               >
                 {options.map(opt => (
                   <bk-option id={opt.id} name={opt.name} key={opt.id} />
