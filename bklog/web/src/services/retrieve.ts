@@ -451,13 +451,13 @@ const getSceneFields = {
 
 /** 场景化检索 - 趋势图 */
 const getSceneDateHistogram = {
-  url: '/search/scene/date_histogram/',
+  url: '/search/scene/aggs/date_histogram/',
   method: 'post',
 };
 
-/** 场景化检索 - 请求字段提示词列表 */
-const getSceneAggField = {
-  url: '/search/scene/agg_field/',
+/** 场景化检索 - 多字段 terms 聚合（选项卡） */
+const getSceneAggsTerms = {
+  url: '/search/scene/aggs/terms/',
   method: 'post',
 };
 
@@ -566,7 +566,7 @@ export {
   getSceneConfigs,
   getSceneFields,
   getSceneDateHistogram,
-  getSceneAggField,
+  getSceneAggsTerms,
   getSceneFieldFetchTopList,
   getSceneFieldFetchValueList,
   getSceneFieldStatisticsInfo,

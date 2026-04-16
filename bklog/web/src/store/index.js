@@ -1524,7 +1524,7 @@ const store = new Vuex.Store({
       const isScene = isSceneRetrieve(state);
       let urlStr;
       if (isScene) {
-        urlStr = 'retrieve/getSceneAggField';
+        urlStr = 'retrieve/getSceneAggsTerms';
       } else if (state.indexItem.isUnionIndex) {
         urlStr = 'unionSearch/unionTerms';
       } else {
@@ -1543,12 +1543,11 @@ const store = new Vuex.Store({
 
       let queryData;
       if (isScene) {
-        // 场景化接口参数
         queryData = {
           ...baseQueryData,
           space_uid: state.spaceUid,
           table_id_conditions: buildTableIdConditions(state),
-          agg_field: fields[0], // 场景化接口只支持单字段
+          fields,
         };
       } else {
         // 普通接口参数
