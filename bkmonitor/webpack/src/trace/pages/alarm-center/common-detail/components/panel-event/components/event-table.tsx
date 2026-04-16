@@ -50,11 +50,13 @@ import bcsSvgUrl from '../../../../../../../monitor-common/svg/svg/bcs.svg?url';
 import landunSvgUrl from '../../../../../../../monitor-common/svg/svg/landun.svg?url';
 import defaultSvgUrl from '../../../../../../../monitor-common/svg/svg/default.svg?url';
 
+const escapeForSingleQuotedString = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
 const SourceIconSvgMap = {
-  [SourceTypeEnum.BCS]: bcsSvgUrl.replace(/'/g, "\\'"),
-  [SourceTypeEnum.BKCI]: landunSvgUrl.replace(/'/g, "\\'"),
-  [SourceTypeEnum.HOST]: hostSvgUrl.replace(/'/g, "\\'"),
-  [SourceTypeEnum.DEFAULT]: defaultSvgUrl.replace(/'/g, "\\'"),
+  [SourceTypeEnum.BCS]: escapeForSingleQuotedString(bcsSvgUrl),
+  [SourceTypeEnum.BKCI]: escapeForSingleQuotedString(landunSvgUrl),
+  [SourceTypeEnum.HOST]: escapeForSingleQuotedString(hostSvgUrl),
+  [SourceTypeEnum.DEFAULT]: escapeForSingleQuotedString(defaultSvgUrl),
 };
 // #endif
 
