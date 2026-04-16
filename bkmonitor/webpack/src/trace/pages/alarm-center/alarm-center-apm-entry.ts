@@ -83,7 +83,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import directives from '../../directive/index';
 import i18n from '../../i18n/i18n';
-import AlarmCenter from './alarm-center';
+import AlarmCenterApm, { BRIDGE_EMIT_KEY, BRIDGE_PROPS_KEY } from './alarm-center-apm';
 
 import '@blueking/tdesign-ui/vue3/index.css';
 
@@ -115,7 +115,7 @@ use([
   DataZoomSliderComponent,
 ]);
 
-export default AlarmCenter;
+export default AlarmCenterApm;
 
 /* ==================== 桥接类型定义 ==================== */
 
@@ -127,10 +127,7 @@ export interface BridgeProps {
 /** 向 Vue 2 宿主抛出事件的函数签名 */
 export type BridgeEmit = (event: string, ...args: unknown[]) => void;
 
-/** provide/inject 所使用的 key —— 桥接属性 */
-export const BRIDGE_PROPS_KEY = Symbol('bridgeProps');
-/** provide/inject 所使用的 key —— 桥接事件发射器 */
-export const BRIDGE_EMIT_KEY = Symbol('bridgeEmit');
+export { BRIDGE_PROPS_KEY, BRIDGE_EMIT_KEY };
 
 /** mount() 的可选配置项 */
 export interface MountOptions {
@@ -170,7 +167,7 @@ export function mount(el: string | HTMLElement, options?: MountOptions): MountHa
     routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
   });
 
-  const app = createApp(AlarmCenter);
+  const app = createApp(AlarmCenterApm);
 
   // 与构建期 CSS 中的 .apm-bk-* 一致，bkui-vue 运行时类名前缀（usePrefix / resolveClassName）
   provideGlobalConfig({ prefix: 'apm-bk' }, app);
