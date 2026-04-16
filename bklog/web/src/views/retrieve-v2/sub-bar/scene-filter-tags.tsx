@@ -26,17 +26,14 @@
 
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
-
-import { sceneConfigs } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
 
 import './scene-filter-tags.scss';
 
 interface TagItem {
-  fieldName: string;
-  label: string;
+  key: string;
+  name: string;
   value: string;
 }
 
@@ -47,7 +44,6 @@ export default defineComponent({
   name: 'SceneFilterTags',
   setup() {
     const store = useStore();
-    const { t } = useLocale();
 
     const containerRef = ref<HTMLDivElement>();
     const measureRef = ref<HTMLDivElement>();
@@ -66,7 +62,8 @@ export default defineComponent({
       indicator: ref<HTMLSpanElement | null>(null),
     };
 
-    const translateLabel = (label: string, skipI18n?: boolean) => (skipI18n ? label : t(label));
+
+    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
 
     const tags = computed<TagItem[]>(() => {
       const sceneActive = store.state.indexItem.scene_active;
@@ -74,23 +71,22 @@ export default defineComponent({
 
       if (!sceneActive || !filterValues) return [];
 
-      const sceneConfig = sceneConfigs.find(s => s.type === sceneActive);
+      const sceneConfig = sceneConfigs.value.find(s => s.type === sceneActive);
       if (!sceneConfig) return [];
 
       const result: TagItem[] = [];
 
       for (const field of sceneConfig.fields) {
-        const val = filterValues[field.fieldName];
+        const val = filterValues[field.key];
         if (val === undefined || val === null || val === '') continue;
         if (Array.isArray(val) && val.length === 0) continue;
 
         const displayValue = Array.isArray(val) ? val.join(', ') : String(val);
-        const label = translateLabel(field.label, field.skipI18n);
 
         result.push({
-          fieldName: field.fieldName,
-          label,
-          value: `${label}=${displayValue}`,
+          key: field.key,
+          name: field.name,
+          value: `${field.name}=${displayValue}`,
         });
       }
 
@@ -118,8 +114,8 @@ export default defineComponent({
 
     const measureItemWidth = (tag: TagItem): number => {
       if (!measureSpans.tag.value) return 0;
-      const displayValue = tag.value.slice(tag.label.length + 1);
-      measureSpans.tag.value.innerHTML = `<span class="tag-key">${tag.label}</span>`
+      const displayValue = tag.value.slice(tag.name.length + 1);
+      measureSpans.tag.value.innerHTML = `<span class="tag-key">${tag.name}</span>`
         + '<span class="tag-separator">=</span>'
         + `<span class="tag-value">${displayValue}</span>`;
       return measureSpans.tag.value.offsetWidth;
@@ -325,9 +321,9 @@ export default defineComponent({
                 key={index}
                 class='tag-item'
               >
-                <span class='tag-key'>{tag.label}</span>
+                <span class='tag-key'>{tag.name}</span>
                 <span class='tag-separator'>=</span>
-                <span class='tag-value'>{tag.value.slice(tag.label.length + 1)}</span>
+                <span class='tag-value'>{tag.value.slice(tag.name.length + 1)}</span>
               </span>
             ))}
           </div>
@@ -339,15 +335,15 @@ export default defineComponent({
 
           {visibleTags.value.map((tag, index) => (
             <span
-              key={tag.fieldName}
+              key={tag.key}
               style={{
                 marginRight: index < visibleTags.value.length - 1 ? `${TAG_GAP}px` : '0',
               }}
               class='tag-item'
             >
-              <span class='tag-key'>{tag.label}</span>
+              <span class='tag-key'>{tag.name}</span>
               <span class='tag-separator'>=</span>
-              <span class='tag-value'>{tag.value.slice(tag.label.length + 1)}</span>
+              <span class='tag-value'>{tag.value.slice(tag.name.length + 1)}</span>
             </span>
           ))}
 

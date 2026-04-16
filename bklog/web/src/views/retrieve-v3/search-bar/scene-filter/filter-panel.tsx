@@ -28,12 +28,12 @@ import { computed, defineComponent, reactive, ref, watch } from 'vue';
 
 import draggable from 'vuedraggable';
 
+import http from '@/api';
 import { messageWarn } from '@/common/bkmagic';
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
-import { sceneConfigs } from './scene-config';
-import { SceneType } from './types';
-import type { FilterFieldConfig, FilterValues, SceneConfig } from './types';
+import useStore from '@/hooks/use-store';
+import { SceneType, type FilterFieldConfig, type FilterValues, type SceneConfig, type SceneDimensionValuesResponse } from './types';
 
 import './filter-panel.scss';
 
@@ -42,7 +42,7 @@ export default defineComponent({
   components: { draggable },
   props: {
     activeScene: {
-      type: String as () => SceneType,
+      type: String,
       default: SceneType.Container,
     },
     filterValues: {
@@ -57,22 +57,66 @@ export default defineComponent({
   emits: ['scene-change', 'filter-change', 'clear', 'display-fields-change'],
   setup(props, { emit }) {
     const { t } = useLocale();
+    const store = useStore();
+
+    /** 场景配置列表 */
+    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+
+    /** 场景配置加载状态 */
+    const sceneLoading = computed(() => store.state.retrieve.sceneConfigs?.is_loading ?? false);
 
     /** 按需翻译：skipI18n 为 true 时跳过翻译，直接返回原文 */
     const translateLabel = (label: string, skipI18n?: boolean) => (skipI18n ? label : t(label));
 
     const apiOptions = reactive<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
 
-    const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs
+    const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
       .find(scene => scene.type === props.activeScene),
     );
+
+    /** 拉取 dynamic 类型维度的可选值 */
+    const fetchDynamicOptions = async (field: FilterFieldConfig) => {
+      const fieldState = getApiFieldState(field.key);
+      if (fieldState.loading) return;
+      fieldState.loading = true;
+
+      try {
+        // 构建级联筛选条件：已选的其他维度值
+        const filters: Record<string, string> = {};
+        const currentFields = currentScene.value?.fields ?? [];
+        for (const f of currentFields) {
+          if (f.key !== field.key && props.filterValues[f.key]) {
+            filters[f.key] = String(props.filterValues[f.key]);
+          }
+        }
+
+        const res = await http.request('retrieve/getSceneDimensionValues', {
+          data: {
+            bk_biz_id: store.state.bkBizId,
+            scene: props.activeScene,
+            dimension_key: field.key,
+            filters: Object.keys(filters).length > 0 ? filters : undefined,
+          },
+        });
+
+        const data = (res.data ?? res) as SceneDimensionValuesResponse;
+        console.log('fetchDynamicOptions data:', data);
+        const values = data.values ?? [];
+        fieldState.options = values.map(v => ({ id: v, name: v }));
+      } catch (err) {
+        console.error('fetchDynamicOptions error:', err);
+        fieldState.options = [];
+      } finally {
+        fieldState.loading = false;
+      }
+    };
 
     const visibleFields = computed<FilterFieldConfig[]>(() => {
       if (!currentScene.value) return [];
       const allFields = currentScene.value.fields;
       if (!props.displayFields) return allFields;
       return props.displayFields
-        .map(name => allFields.find(f => f.fieldName === name))
+        .map(key => allFields.find(f => f.key === key))
         .filter(Boolean) as FilterFieldConfig[];
     });
 
@@ -83,15 +127,15 @@ export default defineComponent({
     const editRestFields = computed<FilterFieldConfig[]>(() => {
       if (!currentScene.value) return [];
       const selectedSet = new Set(editDisplayFields.value);
-      return currentScene.value.fields.filter(f => !selectedSet.has(f.fieldName));
+      return currentScene.value.fields.filter(f => !selectedSet.has(f.key));
     });
 
     const allFieldsOfScene = computed<FilterFieldConfig[]>(() => currentScene.value?.fields ?? []);
 
     const getFieldLabel = (fieldName: string): string => {
-      const field = allFieldsOfScene.value.find(f => f.fieldName === fieldName);
+      const field = allFieldsOfScene.value.find(f => f.key === fieldName);
       if (!field) return fieldName;
-      return translateLabel(field.label, field.skipI18n);
+      return field.name;
     };
 
     const settingTippyOptions: any = {
@@ -105,7 +149,7 @@ export default defineComponent({
         if (props.displayFields) {
           editDisplayFields.value = [...props.displayFields];
         } else {
-          editDisplayFields.value = allFieldsOfScene.value.map(f => f.fieldName);
+          editDisplayFields.value = allFieldsOfScene.value.map(f => f.key);
         }
       },
     };
@@ -129,7 +173,7 @@ export default defineComponent({
     };
 
     const handleAddAllFields = () => {
-      editDisplayFields.value = allFieldsOfScene.value.map(f => f.fieldName);
+      editDisplayFields.value = allFieldsOfScene.value.map(f => f.key);
     };
 
     const handleClearAllFields = () => {
@@ -141,7 +185,7 @@ export default defineComponent({
         messageWarn(t('筛选字段不能为空'));
         return;
       }
-      const allNames = allFieldsOfScene.value.map(f => f.fieldName);
+      const allNames = allFieldsOfScene.value.map(f => f.key);
       const isDefault = editDisplayFields.value.length === allNames.length
         && editDisplayFields.value.every((name, i) => name === allNames[i]);
       emit('display-fields-change', isDefault ? null : [...editDisplayFields.value]);
@@ -152,7 +196,7 @@ export default defineComponent({
       settingPopoverRef.value?.hide();
     };
 
-    const handleSceneChange = (type: SceneType) => {
+    const handleSceneChange = (type: string) => {
       if (type === props.activeScene) return;
       emit('scene-change', type);
     };
@@ -209,19 +253,18 @@ export default defineComponent({
     };
 
     const handleInputClear = (fieldName: string) => {
-        localInputValues.value = { ...localInputValues.value, [fieldName]: '' };
-        handleFieldChange(fieldName, '');
+      localInputValues.value = { ...localInputValues.value, [fieldName]: '' };
+      handleFieldChange(fieldName, '');
     };
-
 
     const renderSceneTabBar = () => (
       <div class='scene-tab-bar'>
-        {sceneConfigs.map(scene => (
+        {sceneConfigs.value.map(scene => (
           <div
             class={['scene-tab-item', { 'is-active': scene.type === props.activeScene }]}
             onClick={() => handleSceneChange(scene.type)}
           >
-            <i class={`bklog-icon ${scene.icon} tab-icon`} />
+            {scene.icon && <i class={`bklog-icon ${scene.icon} tab-icon`} />}
             <span class='tab-label'>{translateLabel(scene.label, scene.skipI18n)}</span>
           </div>
         ))}
@@ -229,23 +272,29 @@ export default defineComponent({
     );
 
     const renderFilterField = (field: FilterFieldConfig) => {
-      if (field.inputType === 'select') {
-        const fieldState = field.sourceType === 'api' ? getApiFieldState(field.fieldName) : null;
-        const options = field.sourceType === 'static' ? (field.staticOptions ?? []) : (fieldState?.options ?? []);
-        const loading = field.sourceType === 'api' ? (fieldState?.loading ?? false) : false;
+      if (field.choicesType === 'static' || field.choicesType === 'dynamic') {
+        const options = field.choicesType === 'static'
+          ? (field.choices ?? [])
+          : (getApiFieldState(field.key).options);
+        const loading = field.choicesType === 'dynamic' ? (getApiFieldState(field.key).loading ?? false) : false;
 
         return (
-          <div class='filter-field-item' key={field.fieldName}>
-            <span class='field-label' v-bk-overflow-tips>{translateLabel(field.label, field.skipI18n)}</span>
+          <div class='filter-field-item' key={field.key}>
+            <span class='field-label' v-bk-overflow-tips>{field.name}</span>
             <div class='field-input'>
               <bk-select
-                value={getFieldValue(field.fieldName)}
+                value={getFieldValue(field.key)}
                 placeholder={field.placeholder || t('请选择')}
-                searchable={field.searchable ?? false}
+                searchable={field.searchable ?? field.choicesType === 'dynamic'}
                 multiple={field.multiple ?? false}
                 clearable={true}
                 loading={loading}
-                on-change={(val: any) => handleFieldChange(field.fieldName, val)}
+                on-change={(val: any) => handleFieldChange(field.key, val)}
+                on-toggle={(open: boolean) => {
+                  if (open && field.choicesType === 'dynamic') {
+                    fetchDynamicOptions(field);
+                  }
+                }}
               >
                 {options.map(opt => (
                   <bk-option id={opt.id} name={opt.name} key={opt.id} />
@@ -257,17 +306,17 @@ export default defineComponent({
       }
 
       return (
-        <div class='filter-field-item' key={field.fieldName}>
-          <span class='field-label' v-bk-overflow-tips>{translateLabel(field.label, field.skipI18n)}</span>
+        <div class='filter-field-item' key={field.key}>
+          <span class='field-label' v-bk-overflow-tips>{field.name}</span>
           <div class='field-input'>
             <bk-input
-              value={getLocalInputValue(field.fieldName)}
+              value={getLocalInputValue(field.key)}
               placeholder={field.placeholder || t('请输入')}
               clearable={true}
-              on-change={(val: string) => handleInputChange(field.fieldName, val)}
-              on-blur={() => handleInputConfirm(field.fieldName)}
-              on-enter={() => handleInputConfirm(field.fieldName)}
-              on-clear={() => handleInputClear(field.fieldName)}
+              on-change={(val: string) => handleInputChange(field.key, val)}
+              on-blur={() => handleInputConfirm(field.key)}
+              on-enter={() => handleInputConfirm(field.key)}
+              on-clear={() => handleInputClear(field.key)}
             />
           </div>
         </div>
@@ -291,8 +340,8 @@ export default defineComponent({
                 </div>
                 <ul class='setting-field-list'>
                   {editRestFields.value.map(field => (
-                    <li class='setting-field-item bklog-v3-popover-tag' key={field.fieldName} onClick={() => handleAddField(field.fieldName)}>
-                      <span class='field-name'>{translateLabel(field.label, field.skipI18n)}</span>
+                    <li class='setting-field-item bklog-v3-popover-tag' key={field.key} onClick={() => handleAddField(field.key)}>
+                      <span class='field-name'>{field.name}</span>
                       <i class='bklog-icon bklog-filled-right-arrow add-icon' />
                     </li>
                   ))}
@@ -347,7 +396,7 @@ export default defineComponent({
     );
 
     return () => (
-      <div class='scene-filter-panel'>
+      <div class='scene-filter-panel' v-bkloading={{ isLoading: sceneLoading.value }}>
         <div class='scene-filter-top'>
           <div class='top-left'>
             {renderSceneTabBar()}

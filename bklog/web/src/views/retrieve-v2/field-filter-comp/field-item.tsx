@@ -32,6 +32,7 @@ import { debounce } from 'lodash-es';
 
 import { axiosInstance } from '@/api';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
+import { isSceneRetrieve } from '../../../store/helper';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 
@@ -62,18 +63,23 @@ export default class FieldItem extends tsc<object> {
   fieldIconCache: Record<string, { icon: string; color: string; textColor: string }> = {};
 
   get queryParams() {
-    const indexSetIDs = this.isUnionSearch
-      ? this.unionIndexList
-      : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
-
-    return {
+    const isScene = isSceneRetrieve(this.$store.state);
+    const baseParams = {
       ...this.retrieveParams,
-      index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
       agg_field: this.agg_field,
       statisticalFieldData: this.statisticalFieldData,
       isFrontStatisticsL: this.isFrontStatistics,
     };
+
+    if (!isScene) {
+      const indexSetIDs = this.isUnionSearch
+        ? this.unionIndexList
+        : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
+      baseParams.index_set_ids = indexSetIDs;
+    }
+
+    return baseParams;
   }
 
   get fieldTypeMap() {
@@ -251,13 +257,16 @@ export default class FieldItem extends tsc<object> {
   /** 下载 */
   downloadFieldStatistics() {
     this.btnLoading = true;
+    const isScene = isSceneRetrieve(this.$store.state);
+    const downRequestUrl = isScene
+      ? '/search/scene/field/fetch_value_list/'
+      : '/field/index_set/fetch_value_list/';
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
-    const downRequestUrl = '/field/index_set/fetch_value_list/';
     const data = {
       ...this.retrieveParams,
-      index_set_ids: indexSetIDs,
+      ...(isScene ? {} : { index_set_ids: indexSetIDs }),
       field_type: this.fieldItem.field_type,
       agg_field: this.agg_field,
       limit: this.fieldData?.distinct_count,

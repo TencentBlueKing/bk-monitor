@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { getOs } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -34,11 +34,11 @@ import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { isEqual } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { RetrieveEvent } from '../../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import SceneFilterTags from '../../../retrieve-v2/sub-bar/scene-filter-tags';
 import V3Searchbar from '../index';
 import FilterPanel from './filter-panel';
-import { getAllSceneFieldNames } from './scene-config';
+import { getAllSceneFieldKeys } from './scene-config';
 import { SceneType } from './types';
 import type { FilterValues, SceneDisplayFields } from './types';
 
@@ -46,14 +46,22 @@ import './index.scss';
 
 export default defineComponent({
   name: 'SceneFilter',
-  setup() {
+  props: {
+    isSticky: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props) {
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
 
-    const activeScene = computed<SceneType>({
+    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+
+    const activeScene = computed<string>({
       get: () => store.state.indexItem.scene_active || SceneType.Container,
-      set: (val: SceneType) => {
+      set: (val: string) => {
         store.commit('updateIndexItem', { scene_active: val });
       },
     });
@@ -66,7 +74,7 @@ export default defineComponent({
     });
 
     const syncUrlParams = () => {
-      const { scene_active, scene_filter_values } = store.getters.retrieveParams;
+      const { scene_active, scene_filter_values } = store.state.indexItem;
       const resolver = new RetrieveUrlResolver({
         scene_active,
         scene_filter_values,
@@ -74,8 +82,8 @@ export default defineComponent({
 
       // 先清除所有可能的场景筛选字段，避免切换场景时残留旧字段
       const cleanQuery = { ...route.query };
-      for (const name of getAllSceneFieldNames()) {
-        cleanQuery[name] = undefined;
+      for (const key of getAllSceneFieldKeys(sceneConfigs.value)) {
+        cleanQuery[key] = undefined;
       }
 
       router.replace({
@@ -83,7 +91,7 @@ export default defineComponent({
       });
     };
 
-    const handleSceneChange = (type: SceneType) => {
+    const handleSceneChange = (type: string) => {
       activeScene.value = type;
       filterValues.value = {};
       syncUrlParams();
@@ -125,7 +133,7 @@ export default defineComponent({
     const showQueryHint = ref(false);
 
     /** 上次查询时的 activeScene 快照 */
-    const lastQueriedScene = ref<SceneType | null>(null);
+    const lastQueriedScene = ref<string | null>(null);
 
     // 监听查询事件，记录快照并隐藏提示条
     addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
@@ -157,16 +165,41 @@ export default defineComponent({
 
     const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
 
-    const hintText = () =>
-      t('检索条件有变更，请点击{icon}按钮重新查询{shortcut}', {
-        icon: '🔍',
-        shortcut: `(${shortcutKey})`,
+    const hintText = () => t('检索条件有变更，请点击{icon}按钮重新查询{shortcut}', {
+      icon: '🔍',
+      shortcut: `(${shortcutKey})`,
+    });
+
+    // 监听场景筛选面板高度变化并上报
+    let panelObserver: ResizeObserver | undefined;
+
+    onMounted(() => {
+      const el = document.querySelector('.scene-filter-panel-section') as HTMLElement;
+      if (!el) return;
+
+      // 初始化高度
+      RetrieveHelper.setSceneFilterPanelHeight(el.offsetHeight);
+
+      panelObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          RetrieveHelper.setSceneFilterPanelHeight((entry.target as HTMLElement).offsetHeight);
+        }
       });
+      panelObserver.observe(el);
+    });
+
+    onUnmounted(() => {
+      if (panelObserver) {
+        panelObserver.disconnect();
+        panelObserver = undefined;
+      }
+      // 组件卸载时重置高度为 0
+      RetrieveHelper.setSceneFilterPanelHeight(0);
+    });
 
     return () => (
       <div class='scene-filter-root'>
-        <div class='scene-filter-panel-wrapper'>
-          <SceneFilterTags class='scene-filter-tags-sticky' />
+        <div class='scene-filter-panel-section'>
           <FilterPanel
             activeScene={activeScene.value}
             filterValues={filterValues.value}
@@ -177,15 +210,18 @@ export default defineComponent({
             on-display-fields-change={handleDisplayFieldsChange}
           />
         </div>
-        <V3Searchbar />
-        <transition name='slide-hint'>
-          {showQueryHint.value && (
-            <div class='query-hint-bar'>
-              <i class='bklog-icon bklog-circle-alert-filled query-hint-icon' />
-              <span class='query-hint-text'>{hintText()}</span>
-            </div>
-          )}
-        </transition>
+        <div class='scene-search-sticky'>
+          {props.isSticky && <SceneFilterTags />}
+          <V3Searchbar />
+          <transition name='slide-hint'>
+            {showQueryHint.value && (
+              <div class='query-hint-bar'>
+                <i class='bklog-icon bklog-circle-alert-filled query-hint-icon' />
+                <span class='query-hint-text'>{hintText()}</span>
+              </div>
+            )}
+          </transition>
+        </div>
       </div>
     );
   },

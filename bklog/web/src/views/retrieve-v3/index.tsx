@@ -91,7 +91,7 @@ export default defineComponent({
       };
 
       if (isSceneMode.value) {
-        return <SceneFilter class={stickyClass} />;
+        return <SceneFilter isSticky={isSearchContextStickyTop.value} />;
       }
 
       return <V3Searchbar class={stickyClass} />;

@@ -62,7 +62,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
+import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneRetrieve } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
@@ -337,7 +337,7 @@ const store = new Vuex.Store({
         local_sort_list = getters.custom_sort_list;
       }
 
-      return {
+      const baseParams = {
         start_time,
         end_time,
         format,
@@ -356,6 +356,14 @@ const store = new Vuex.Store({
         scene_filter_values,
         ...searchParams,
       };
+
+      // 场景化检索：附加 space_uid 和 table_id_conditions
+      if (isSceneRetrieve(state)) {
+        baseParams.space_uid = state.spaceUid;
+        baseParams.table_id_conditions = buildTableIdConditions(state);
+      }
+
+      return baseParams;
     },
     /**
      * API 请求参数 addition 格式化
@@ -1166,14 +1174,24 @@ const store = new Vuex.Store({
         return;
       }
       commit('resetIndexFieldInfo', { is_loading: true });
-      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+      const isScene = isSceneRetrieve(state);
+      const urlStr = isScene
+        ? 'retrieve/getSceneFields'
+        : isUnionIndex
+          ? 'unionSearch/unionMapping'
+          : 'retrieve/getLogTableHead';
       !isUnionIndex && commit('deleteApiError', urlStr);
       const queryData = {
         start_time,
         end_time,
         is_realtime: 'True',
       };
-      if (isUnionIndex) {
+      if (isScene) {
+        Object.assign(queryData, {
+          space_uid: state.spaceUid,
+          table_id_conditions: buildTableIdConditions(state),
+        });
+      } else if (isUnionIndex) {
         Object.assign(queryData, {
           index_set_ids: ids,
         });
@@ -1184,9 +1202,9 @@ const store = new Vuex.Store({
         .request(
           urlStr,
           {
-            params: { index_set_id: ids[0] },
-            query: !isUnionIndex ? queryData : undefined,
-            data: isUnionIndex ? queryData : undefined,
+            params: isScene ? {} : { index_set_id: ids[0] },
+            query: (!isScene && !isUnionIndex) ? queryData : undefined,
+            data: (isScene || isUnionIndex) ? queryData : undefined,
           },
           isUnionIndex ? {} : { catchIsShowMessage: false },
         )
@@ -1307,10 +1325,12 @@ const store = new Vuex.Store({
       RequestPool.execCanceToken(cancelTokenKey);
       const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
 
-      // 区分联合查询和单选查询
-      const searchUrl = !state.indexItem.isUnionIndex
-        ? `/search/index_set/${state.indexId}/search/`
-        : '/search/index_set/union_search/';
+      // 区分场景化检索、联合查询和单选查询
+      const searchUrl = isSceneRetrieve(state)
+        ? '/search/scene/search/'
+        : !state.indexItem.isUnionIndex
+          ? `/search/index_set/${state.indexId}/search/`
+          : '/search/index_set/union_search/';
 
       const { start_time, end_time } = state.indexItem;
 
@@ -1527,11 +1547,20 @@ const store = new Vuex.Store({
 
       if (!fields.length) return Promise.resolve(true);
 
-      const urlStr = state.indexItem.isUnionIndex ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
+      // 区分场景化检索、联合查询和普通查询
+      const isScene = isSceneRetrieve(state);
+      let urlStr;
+      if (isScene) {
+        urlStr = 'retrieve/getSceneAggsTerms';
+      } else if (state.indexItem.isUnionIndex) {
+        urlStr = 'unionSearch/unionTerms';
+      } else {
+        urlStr = 'retrieve/getAggsTerms';
+      }
 
-      const queryData = {
+      // 公共参数
+      const baseQueryData = {
         keyword: '*',
-        fields,
         addition: formatAdditionalFields(state, payload?.addition ?? []),
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
@@ -1539,20 +1568,27 @@ const store = new Vuex.Store({
         bk_biz_id: state.bkBizId,
       };
 
-      if (state.indexItem.isUnionIndex) {
-        Object.assign(queryData, {
-          index_set_ids: state.unionIndexList,
-        });
+      let queryData;
+      if (isScene) {
+        queryData = {
+          ...baseQueryData,
+          space_uid: state.spaceUid,
+          table_id_conditions: buildTableIdConditions(state),
+          fields,
+        };
+      } else {
+        // 普通接口参数
+        queryData = {
+          ...baseQueryData,
+          fields,
+          ...(state.indexItem.isUnionIndex && { index_set_ids: state.unionIndexList }),
+        };
       }
 
-      const params = {
-        index_set_id: state.indexId,
-      };
-
-      const body = {
-        params,
-        data: queryData,
-      };
+      // 场景化不需要 params（不传 index_set_id）
+      const body = isScene
+        ? { data: queryData }
+        : { params: { index_set_id: state.indexId }, data: queryData };
 
       return http
         .request(urlStr, body, {
@@ -1811,14 +1847,17 @@ const store = new Vuex.Store({
       state.searchTotal = 0;
       const startTime = Math.floor(getters.retrieveParams.start_time);
       const endTime = Math.ceil(getters.retrieveParams.end_time);
+      const isScene = isSceneRetrieve(state);
+      const urlStr = isScene ? 'retrieve/getSceneFieldStatisticsTotal' : 'retrieve/fieldStatisticsTotal';
+
       return http
         .request(
-          'retrieve/fieldStatisticsTotal',
+          urlStr,
           {
             data: {
               ...getters.retrieveParams,
               bk_biz_id: state.bkBizId,
-              index_set_ids: state.indexItem.ids,
+              ...(isScene ? {} : { index_set_ids: state.indexItem.ids }),
               start_time: startTime,
               end_time: endTime,
               addition: formatAdditionalFields(state, [
@@ -1833,7 +1872,7 @@ const store = new Vuex.Store({
         )
         .then((res) => {
           const { data } = res;
-          if (res.result === true) state.searchTotal = data.total_count;
+          if (res.result === true) state.searchTotal = data.total_count ?? data.total;
           return res;
         })
         .catch((err) => {
