@@ -146,7 +146,8 @@ class AlertStrategyViewSet(APIViewSet):
         """
         params = self.params_valid(LogRelatedInfoSerializer)
         alert_id = params["alert_id"]
-        alert_infos = MonitorApi.get_alert_detail({"id": alert_id})
+        bk_biz_id = params.get("bk_biz_id")
+        alert_infos = MonitorApi.get_alert_detail({"id": alert_id, "bk_biz_id": bk_biz_id})
         query_config = alert_infos.get("extend_info", {})
         query_string = query_config.get("query_string", "*")
         agg_condition = query_config.get("agg_condition", [])
