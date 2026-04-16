@@ -1857,6 +1857,15 @@ class BaseIndexSetHandler:
         self.sync_router(index_set)
         return True
 
+    @staticmethod
+    def _set_table_info_is_enabled(router_params: dict):
+        """bulk_create_or_update_log_router 要求每个 table_info 项显式声明 is_enable。"""
+        if not router_params:
+            return
+        for item in router_params.get("table_info") or []:
+            if isinstance(item, dict):
+                item["is_enable"] = True
+
     @classmethod
     def get_index_set_table_info_list(
         cls,
@@ -2019,6 +2028,7 @@ class BaseIndexSetHandler:
                             "space_type": index_set.space_uid.split("__")[0],
                             "table_info": table_info_list,
                         }
+                        cls._set_table_info_is_enabled(request_params)
                         multi_execute_func.append(
                             result_key=data_label,
                             func=TransferApi.bulk_create_or_update_log_router,

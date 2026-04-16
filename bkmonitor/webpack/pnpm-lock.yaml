@@ -76,6 +76,9 @@ importers:
       eslint-plugin-vue:
         specifier: ^10.4.0
         version: 10.4.0(@typescript-eslint/parser@8.44.0(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.3))(eslint@9.35.0(jiti@2.5.1))(vue-eslint-parser@10.2.0(eslint@9.35.0(jiti@2.5.1)))
+      ifdef-loader:
+        specifier: ^2.3.2
+        version: 2.3.2
       lint-staged:
         specifier: ^16.1.6
         version: 16.1.6
@@ -139,6 +142,9 @@ importers:
       vite-bundle-analyzer:
         specifier: ^1.2.3
         version: 1.2.3
+      vite-plugin-css-injected-by-js:
+        specifier: ^4.0.1
+        version: 4.0.1(vite@7.1.7(@types/node@24.0.14)(jiti@2.5.1)(less@4.4.2)(sass@1.93.2)(terser@5.43.1)(yaml@2.8.1))
       vite-plugin-static-copy:
         specifier: ^3.1.2
         version: 3.1.2(vite@7.1.7(@types/node@24.0.14)(jiti@2.5.1)(less@4.4.2)(sass@1.93.2)(terser@5.43.1)(yaml@2.8.1))
@@ -154,6 +160,9 @@ importers:
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
+      '@blueking/monitor-alarm-center':
+        specifier: 0.0.5
+        version: 0.0.5(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -1652,6 +1661,9 @@ packages:
   '@blueking/login-modal@1.0.6':
     resolution: {integrity: sha512-zjDHiCNY2Aydo9BcFiGiiw8uodPkCSK+SthXQZQQ/8Bq4nHnz+Hkuo8rnPrwuDIgB2E2C6X+T5+6jDXqTwrZyg==}
 
+  '@blueking/monitor-alarm-center@0.0.5':
+    resolution: {integrity: sha512-k/C5OknVDF9XpIbBg1tB2GCV+7GTdz4W7E2dAlvkLkbjekDpKO+Q7c0t4cHSmAey8nh7uz/41QrP2R8p5BQXkA==}
+
   '@blueking/monitor-apm-log@2.3.11':
     resolution: {integrity: sha512-MeJfgihwKEfqUO++0LEP+DVI4qUzF9R/SJnFbllo8JXS3y3P5WgqqDeiZO1NE55uy3ohQ7j2pGuzCRNwLFEzag==}
 
@@ -1684,6 +1696,11 @@ packages:
 
   '@blueking/stylelint-config@0.0.3':
     resolution: {integrity: sha512-8Yqwcg/dZmeY4ptnobq1H3Z0r0UzGXm2bD4rc18a/b7AvcJDFe7Z+RIPYYvNtbg4cXzzSAGu73ImbSiFi1c8jw==}
+
+  '@blueking/tdesign-ui@0.0.1':
+    resolution: {integrity: sha512-2fE39Fvg9KcV4AJ5XeJYq/TzeRztypy3Q6Docs3rq+SymoTz3BztNnlXBiiD4+HHSplXnsscBDg70G8pKC4Twg==}
+    peerDependencies:
+      vue: ^3
 
   '@blueking/tdesign-ui@0.0.4':
     resolution: {integrity: sha512-r0dtDdRAul8JeM5p0FyFMgoCLPMW78JeIuzVWbtiiB8jO75dspfa7lOvhyvo6IitRUcR12WQQ43EAjNfdBdssQ==}
@@ -8278,6 +8295,11 @@ packages:
     resolution: {integrity: sha512-hQGQH4WVtV9BqsZbrGzOmOP4NdWqie948BnqtH+NPwdVt5mI+qALVRDvgzgdf+neN7bcrVVpV4ToyFkxg0U0xQ==}
     hasBin: true
 
+  tdesign-icons-vue-next@0.3.7:
+    resolution: {integrity: sha512-Q5ebVty/TCqhBa0l/17kkhjC0pBAOGvn7C35MAt1xS+johKVM9QEDOy9R6XEl332AiwQ37MwqioczqjYC30ckw==}
+    peerDependencies:
+      vue: ^3.0.0
+
   tdesign-icons-vue-next@0.4.4:
     resolution: {integrity: sha512-UPKyR5pea840aeI5p/k8VLVgfyVzndSyE4t1yRBD8uYWiuV0p29jZbDn8hMnes9Tz5JPgywCGzbk4QJzt684NA==}
     peerDependencies:
@@ -8705,6 +8727,11 @@ packages:
   vite-bundle-analyzer@1.2.3:
     resolution: {integrity: sha512-8nhwDGHWMKKgg6oegAOpDgTT7/yzTVzeYzLF4y8WBJoYu9gO7h29UpHiQnXD2rAvfQzDy5Wqe/Za5cgqhnxi5g==}
     hasBin: true
+
+  vite-plugin-css-injected-by-js@4.0.1:
+    resolution: {integrity: sha512-WfyRojojQyAO/KzWf+efcXpTPv6zJPXaRmr9EYq5a4v5I3PWCR7kR01hiri2lW6+rHm3a57kpwsf+iahIJi1Qw==}
+    peerDependencies:
+      vite: '>2.0.0-0'
 
   vite-plugin-static-copy@3.1.2:
     resolution: {integrity: sha512-aVmYOzptLVOI2b1jL+cmkF7O6uhRv1u5fvOkQgbohWZp2CbR22kn9ZqkCUIt9umKF7UhdbsEpshn1rf4720QFg==}
@@ -10476,6 +10503,21 @@ snapshots:
 
   '@blueking/login-modal@1.0.6': {}
 
+  '@blueking/monitor-alarm-center@0.0.5(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)':
+    dependencies:
+      '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
+      '@prometheus-io/lezer-promql': 0.305.0(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
+      bkui-vue: 2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))
+      dayjs: 1.11.18
+      monaco-editor: 0.44.0
+      vue: 3.5.29(typescript@5.9.3)
+      vue-tippy: 6.7.1(vue@3.5.29(typescript@5.9.3))
+    transitivePeerDependencies:
+      - '@lezer/highlight'
+      - '@lezer/lr'
+      - highlight.js
+      - typescript
+
   '@blueking/monitor-apm-log@2.3.11': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
@@ -10520,6 +10562,24 @@ snapshots:
       - postcss-jsx
       - postcss-markdown
       - supports-color
+
+  '@blueking/tdesign-ui@0.0.1(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@babel/runtime': 7.29.2
+      '@popperjs/core': 2.11.8
+      '@types/lodash-es': 4.17.12
+      '@types/sortablejs': 1.15.9
+      '@types/tinycolor2': 1.4.6
+      '@types/validator': 13.15.10
+      dayjs: 1.11.10
+      lodash-es: 4.18.1
+      mitt: 3.0.1
+      sortablejs: 1.15.6
+      tdesign-icons-vue-next: 0.3.7(vue@3.5.29(typescript@5.9.3))
+      tdesign-vue-next: 1.18.6(vue@3.5.29(typescript@5.9.3))
+      tinycolor2: 1.6.0
+      validator: 13.15.35
+      vue: 3.5.29(typescript@5.9.3)
 
   '@blueking/tdesign-ui@0.0.4(vue@3.5.29(typescript@5.9.3))':
     dependencies:
@@ -17919,6 +17979,11 @@ snapshots:
       unconfig: 7.3.3
       yaml: 2.8.1
 
+  tdesign-icons-vue-next@0.3.7(vue@3.5.29(typescript@5.9.3)):
+    dependencies:
+      '@babel/runtime': 7.29.2
+      vue: 3.5.29(typescript@5.9.3)
+
   tdesign-icons-vue-next@0.4.4(vue@3.5.29(typescript@5.9.3)):
     dependencies:
       '@babel/runtime': 7.29.2
@@ -18378,6 +18443,10 @@ snapshots:
       vfile-message: 2.0.4
 
   vite-bundle-analyzer@1.2.3: {}
+
+  vite-plugin-css-injected-by-js@4.0.1(vite@7.1.7(@types/node@24.0.14)(jiti@2.5.1)(less@4.4.2)(sass@1.93.2)(terser@5.43.1)(yaml@2.8.1)):
+    dependencies:
+      vite: 7.1.7(@types/node@24.0.14)(jiti@2.5.1)(less@4.4.2)(sass@1.93.2)(terser@5.43.1)(yaml@2.8.1)
 
   vite-plugin-static-copy@3.1.2(vite@7.1.7(@types/node@24.0.14)(jiti@2.5.1)(less@4.4.2)(sass@1.93.2)(terser@5.43.1)(yaml@2.8.1)):
     dependencies:

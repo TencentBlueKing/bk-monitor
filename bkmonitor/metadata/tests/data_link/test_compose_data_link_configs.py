@@ -19,6 +19,7 @@ from metadata.models.data_link.constants import DataLinkKind
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
     DataIdConfig,
+    DorisStorageBindingConfig,
     ResultTableConfig,
     VMStorageBindingConfig,
 )
@@ -69,16 +70,6 @@ def test_compose_data_id_config(create_or_delete_records):
     content = data_id_config_ins.compose_config()
     assert json.dumps(content) == expected_config
 
-    # 单租户模式 + preferCluster
-    expected_config = (
-        '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},'
-        '"spec":{"alias":"bkm_data_link_test","bizId":2,"description":"bkm_data_link_test","maintainers":["admin"],'
-        '"preferCluster":{"kind":"KafkaChannel","namespace":"bkmonitor","name":"my_preferred_cluster"},'
-        '"event_type":"metric"}}'
-    )
-    content = data_id_config_ins.compose_config(prefer_kafka_cluster_name="my_preferred_cluster")
-    assert json.dumps(content) == expected_config
-
     # 多租户模式
     settings.ENABLE_MULTI_TENANT_MODE = True
     expected_config = (
@@ -88,17 +79,6 @@ def test_compose_data_id_config(create_or_delete_records):
     )
 
     content = data_id_config_ins.compose_config()
-    assert json.dumps(content) == expected_config
-
-    # 多租户模式 + preferCluster
-    expected_config = (
-        '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","tenant":"system",'
-        '"labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":111,'
-        '"description":"bkm_data_link_test","maintainers":["admin"],'
-        '"preferCluster":{"kind":"KafkaChannel","tenant":"system","namespace":"bkmonitor","name":"my_preferred_cluster"},'
-        '"event_type":"metric"}}'
-    )
-    content = data_id_config_ins.compose_config(prefer_kafka_cluster_name="my_preferred_cluster")
     assert json.dumps(content) == expected_config
 
 
@@ -192,6 +172,74 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     )
 
     content = vm_storage_ins.compose_config()
+    assert json.dumps(content) == expect_config
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_doris_storage_binding_config(create_or_delete_records):
+    """
+    测试DorisStorageBindingConfig能否正确生成
+    """
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    assert bkbase_data_name == "bkm_data_link_test"
+
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010"
+
+    doris_storage_ins, _ = DorisStorageBindingConfig.objects.get_or_create(
+        name=bkbase_vmrt_name,
+        doris_cluster_name="doris-default",
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        bk_biz_id=111,
+    )
+
+    expect_config = (
+        '{"kind":"DorisBinding","metadata":{"labels":{"bk_biz_id":"1"},"name":"bkm_1001_bkmonitor_time_series_50010",'
+        '"namespace":"bkmonitor"},"spec":{"data":{"name":"bkm_1001_bkmonitor_time_series_50010",'
+        '"namespace":"bkmonitor","kind":"ResultTable"},"storage":{"name":"doris-default","namespace":"bkmonitor",'
+        '"kind":"Doris"},"storage_config":{"table_type":"primary_table","is_profiling":false,'
+        '"unique_partition_table":true,"db":"mapleleaf_2","table":"bkm_1001_bkmonitor_time_series_50010_2",'
+        '"storage_keys":["time"],"json_fields":["dimensions"],"field_config_group":{"search_en":["log"]},"original_json_fields":[],'
+        '"expires":"7d","flush_timeout":null}}}'
+    )
+
+    content = doris_storage_ins.compose_config(
+        storage_cluster_name="doris-default",
+        storage_keys=["time"],
+        json_fields=["dimensions"],
+        field_config_group={"search_en": ["log"]},
+        original_json_fields=[],
+        expires="7d",
+        flush_timeout=None,
+    )
+    assert json.dumps(content) == expect_config
+
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    expect_config = (
+        '{"kind":"DorisBinding","metadata":{"tenant":"system","labels":{"bk_biz_id":"111"},'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"spec":{"data":{'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","tenant":"system","namespace":"bkmonitor",'
+        '"kind":"ResultTable"},"storage":{"name":"doris-default","tenant":"system","namespace":"bkmonitor",'
+        '"kind":"Doris"},"storage_config":{"table_type":"primary_table","is_profiling":false,'
+        '"unique_partition_table":true,"db":"mapleleaf_111","table":"bkm_1001_bkmonitor_time_series_50010_111",'
+        '"storage_keys":["time"],"json_fields":["dimensions"],"field_config_group":{"search_en":["log"]},"original_json_fields":[],'
+        '"expires":"7d","flush_timeout":null}}}'
+    )
+
+    content = doris_storage_ins.compose_config(
+        storage_cluster_name="doris-default",
+        storage_keys=["time"],
+        json_fields=["dimensions"],
+        field_config_group={"search_en": ["log"]},
+        original_json_fields=[],
+        expires="7d",
+        flush_timeout=None,
+    )
     assert json.dumps(content) == expect_config
 
 

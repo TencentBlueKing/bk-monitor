@@ -988,6 +988,17 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
             return Q("ids", values=list(set(alert_ids)))
 
+        elif condition["origin_key"] == "action_id" and condition["key"] == "id":
+            # 处理记录ID查询：通过 action_id 获取关联的告警ID列表
+            alert_ids, _ = get_alert_ids_by_action_id(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("ids", values=alert_ids)
+
+        elif condition["key"] == "event.ipv6":
+            # IPv6 地址查询：将缩写的 IPv6 地址展开为完整格式
+            condition["value"] = [exploded_ip(v) for v in condition["value"]]
+
         elif condition["key"] == "query_string":
             con_q = None
             for query_string in condition["value"]:

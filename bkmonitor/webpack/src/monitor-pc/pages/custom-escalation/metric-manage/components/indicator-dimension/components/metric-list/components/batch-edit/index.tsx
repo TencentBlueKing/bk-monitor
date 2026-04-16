@@ -557,6 +557,7 @@ export default class BatchEdit extends tsc<IProps> {
         const height = window.innerHeight - 160;
         this.pagination.pageSize = Math.floor(height / this.cellHeight);
         this.initTableData();
+        this.handleGetCustomTsFields();
       });
     }
   }
@@ -569,7 +570,6 @@ export default class BatchEdit extends tsc<IProps> {
     this.originalTableData = [];
     this.showTableData = [];
     this.pagination.page = 1;
-    this.handleGetCustomTsFields();
   }
 
   /**
@@ -1386,7 +1386,6 @@ export default class BatchEdit extends tsc<IProps> {
                 return (
                   <bk-table-column
                     key={key}
-                    // fixed={config.fixed}
                     scopedSlots={{
                       default: props => {
                         if (config.renderFn) {

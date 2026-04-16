@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Inject, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AlarmTemplate from 'apm/pages/alarm-template/alarm-template';
@@ -73,6 +73,7 @@ import TextUnit from '../plugins/text-unit/text-unit';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 import LineEcharts from '../plugins/time-series/time-series';
+import ApmAlarmCenter from '../plugins/apm-alarm-center';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
@@ -180,6 +181,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get needWaterMask() {
     return !['log-retrieve', 'event-explore'].includes(this.panel?.type);
   }
+
   beforeCreate() {
     initLogRetrieveWindowsFields();
   }
@@ -627,6 +629,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return <apm-event-explore />;
       case 'alarm_template':
         return <AlarmTemplate />;
+      case 'alarm_center':
+        return <ApmAlarmCenter />
       // 不需要报错显示
       // case 'graph':
       default:

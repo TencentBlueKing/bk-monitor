@@ -30,6 +30,7 @@ logger = logging.getLogger("core.control")
 EXTRA_CONFIG_KEYS = [
     "grey_to_bkfara",  # 灰度开关：是否使用新的 BKFara 服务
     "service_name",  # 服务名称：用于指定特定服务
+    "enable_week_compare",  # 周同比开关：是否按 8 天历史依赖执行
     # 后续可在此添加更多控制参数
 ]
 

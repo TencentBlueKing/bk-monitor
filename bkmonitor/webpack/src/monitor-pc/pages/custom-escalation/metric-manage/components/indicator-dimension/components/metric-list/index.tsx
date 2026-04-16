@@ -152,9 +152,6 @@ export default class MetricList extends tsc<IProps, IEmits> {
 
   /** 别名编辑时的备份值，用于判断是否有修改 */
   copyAlias = '';
-  /** 是否显示确认关闭对话框 */
-  isShowDialog = false;
-
   /** 指标表格数据 */
   metricTable: IMetricItem[] = [];
 
@@ -725,13 +722,6 @@ export default class MetricList extends tsc<IProps, IEmits> {
       Object.values(this.selectedMetricMap).map(item => item.id)
     );
   }
-
-  /** 切换开关状态变化事件 */
-  @Emit('switcherChange')
-  switcherChange(v: boolean) {
-    this.isShowDialog = false;
-    return v;
-  }
   /**
    * 处理分页页码变化
    * @param v 新的页码
@@ -1203,16 +1193,6 @@ export default class MetricList extends tsc<IProps, IEmits> {
             />
           </div>
         </div>
-        <bk-dialog
-          ext-cls=''
-          v-model={this.isShowDialog}
-          headerPosition='left'
-          title={this.$t('确认关闭？')}
-          onCancel={() => {
-            this.isShowDialog = false;
-          }}
-          onConfirm={() => this.switcherChange(false)}
-        />
         <BatchEdit
           dimensionTable={this.dimensionTable}
           isShow={this.isShowMetricSlider}

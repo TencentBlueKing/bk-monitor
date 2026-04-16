@@ -24,7 +24,7 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
     def base_url(self):
         if settings.BK_INCIDENT_APIGW_URL:
             return settings.BK_INCIDENT_APIGW_URL
-        return f"{settings.BK_COMPONENT_API_URL}/api/incident-manger/prod/"
+        return f"{settings.BK_COMPONENT_API_URL}/api/incident-manager/prod/"
 
     def convert_bk_biz_id_to_scope_value(self, params):
         """
