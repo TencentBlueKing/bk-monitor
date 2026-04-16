@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, isRef, shallowRef } from 'vue';
+import { type Ref, shallowRef } from 'vue';
 
-import { get } from '@vueuse/core';
+import { get, set } from '@vueuse/core';
 
 import { IssuesBatchActionEnum, IssueStatusEnum } from '../../../constant';
 
@@ -46,7 +46,7 @@ export type UseIssuesDialogsReturnType = ReturnType<typeof useIssuesDialogs>;
  */
 export const useIssuesDialogs = (
   /** 原始数据 */
-  originalData: MaybeRef<IssueItem[]>
+  originalData: Ref<IssueItem[]>
 ) => {
   /** 是否显示 dialog */
   const issuesDialogShow = shallowRef(false);
@@ -79,61 +79,51 @@ export const useIssuesDialogs = (
   };
 
   /**
-   * @description 根据 dialog 操作成功事件，通过传入的操作数据对象原地更新对应 Issue 行
-   * @param {IssueItem[]} data - 当前操作的 Issue 数据对象数组
+   * @description 根据 dialog 操作成功事件，创建新对象替换对应 Issue 行，确保 TDesign Table 检测到 row 引用变化触发重新渲染
    * @param {Array<T>} succeeded - dialog 操作成功回调中的 succeeded 数组，每项必须包含 issue_id
    * @returns {void}
    */
-  const updateIssueItems = <T extends { issue_id: IssueItem['id'] }>(data: IssueItem[], succeeded: T[]) => {
+  const updateIssueItems = <T extends { issue_id: IssueItem['id'] }>(succeeded: T[]) => {
     if (!succeeded?.length) return;
     const updatesMap = new Map(succeeded.map(({ issue_id, ...rest }) => [issue_id, rest]));
-    for (const item of data) {
-      const updates = updatesMap.get(item.id);
-      if (updates) {
-        Object.assign(item, updates);
-      }
-    }
-    // originalData 为 shallowRef，原地修改元素属性不会自动触发响应式更新
-    if (isRef(originalData)) {
-      originalData.value = [...get(originalData)];
-    }
+    set(
+      originalData,
+      get(originalData).map(item => {
+        const updates = updatesMap.get(item.id);
+        return updates ? { ...item, ...updates } : item;
+      })
+    );
   };
 
   /**
    * @description 指派负责人
-   * @param {IssueItem[]} data 操作数据对象数组
    * @param {IssuesOperationDialogEvent} event dialog回调事件对象
    */
   const handleAssignDialogSuccessCallback = (
-    data: IssueItem[],
     event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>
   ) => {
-    updateIssueItems(data, event.succeeded);
+    updateIssueItems(event.succeeded);
   };
 
   /**
    * @description 标记已解决
-   * @param {IssueItem[]} data 操作数据对象数组
    * @param {IssuesOperationDialogEvent} event dialog回调事件对象
    */
   const handleResolvedDialogSuccessCallback = (
-    data: IssueItem[],
     event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>
   ) => {
     const list = event.succeeded.map(item => ({ ...item, is_resolved: item.status === IssueStatusEnum.RESOLVED }));
-    updateIssueItems(data, list);
+    updateIssueItems(list);
   };
 
   /**
    * @description 优先级变更
-   * @param {IssueItem[]} data 操作数据对象数组
    * @param {IssuesOperationDialogEvent} event dialog回调事件对象
    */
   const handlePriorityDialogSuccessCallback = (
-    data: IssueItem[],
     event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>
   ) => {
-    updateIssueItems(data, event.succeeded);
+    updateIssueItems(event.succeeded);
   };
 
   /**
@@ -203,27 +193,15 @@ export const useIssuesDialogs = (
     dialogType: U,
     event: IssuesOperationDialogEvent<U>
   ) => {
-    const operationalData = getOperationalDataByIds(get(issuesDialogIds));
-    if (!operationalData?.length) return;
-
     switch (dialogType) {
       case IssuesBatchActionEnum.ASSIGN:
-        handleAssignDialogSuccessCallback(
-          operationalData,
-          event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>
-        );
+        handleAssignDialogSuccessCallback(event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>);
         break;
       case IssuesBatchActionEnum.RESOLVE:
-        handleResolvedDialogSuccessCallback(
-          operationalData,
-          event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>
-        );
+        handleResolvedDialogSuccessCallback(event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>);
         break;
       case IssuesBatchActionEnum.PRIORITY:
-        handlePriorityDialogSuccessCallback(
-          operationalData,
-          event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>
-        );
+        handlePriorityDialogSuccessCallback(event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>);
         break;
       default:
         break;
