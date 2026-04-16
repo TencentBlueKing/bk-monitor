@@ -1686,3 +1686,7 @@ class IncidentDateHistogramResultResource(Resource):
             data = {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}
             return data
         return datas[0]
+
+class GetConfig(Resource):
+    def perform_request(self, validated_request_data):
+        return api.bk_incident.get_data_source(validated_request_data)
