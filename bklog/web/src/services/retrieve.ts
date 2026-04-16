@@ -491,21 +491,27 @@ const getSceneFieldStatisticsGraph = {
   method: 'post',
 };
 
-/** 场景化检索 - 同步下载（取样下载） */
+/** 场景化检索 - 导出历史 */
+const getSceneExportHistory = {
+  url: '/search/scene/export/history/',
+  method: 'get',
+};
+
+/** 场景化检索 - 取样下载 */
 const getSceneExport = {
-  url: '/search/scene/export/',
+  url: '/search/scene/export/sample/',
   method: 'post',
 };
 
-/** 场景化检索 - 异步全文下载 */
+/** 场景化检索 - 全文下载 */
 const getSceneAsyncExport = {
-  url: '/search/scene/async_export/',
+  url: '/search/scene/export/async/',
   method: 'post',
 };
 
 /** 场景化检索 - 快速下载 */
 const getSceneQuickExport = {
-  url: '/search/scene/quick_export/',
+  url: '/search/scene/export/quick/',
   method: 'post',
 };
 
@@ -575,4 +581,5 @@ export {
   getSceneExport,
   getSceneAsyncExport,
   getSceneQuickExport,
+  getSceneExportHistory,
 };

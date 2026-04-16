@@ -385,7 +385,7 @@
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         let downRequestUrl;
         if (this.isScene) {
-          downRequestUrl = '/search/scene/quick_export/';
+          downRequestUrl = '/search/scene/export/quick/';
         } else if (this.isUnionSearch) {
           downRequestUrl = `/search/index_set/union_async_export/`;
         } else {
@@ -442,7 +442,7 @@
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         let downRequestUrl;
         if (this.isScene) {
-          downRequestUrl = '/search/scene/export/';
+          downRequestUrl = '/search/scene/export/sample/';
         } else if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
           downRequestUrl = '/search/index_set/union_search/export/';

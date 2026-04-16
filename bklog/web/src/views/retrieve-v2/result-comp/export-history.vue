@@ -353,6 +353,7 @@
       ...mapGetters({
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
+        retrieveParams: 'retrieveParams',
       }),
       isScene() {
         return isSceneRetrieve(this.$store.state);
@@ -579,21 +580,33 @@
         isReset && (this.pagination.current = 1);
         !isPolling && (this.tableLoading = true);
         const { limit, current } = this.pagination;
-        const queryUrl = this.isUnionSearch ? 'unionSearch/unionExportHistory' : 'retrieve/getExportHistoryList';
+        let queryUrl;
+        let requestConfig;
+
         const params = {
-          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           bk_biz_id: this.bkBizId,
           page: current,
           pagesize: limit,
           show_all: this.isSearchAll,
         };
-        if (this.isUnionSearch) {
-          Object.assign(params, { index_set_ids: this.unionIndexList });
+
+        if (this.isScene) {
+          queryUrl = 'retrieve/getSceneExportHistory';
+          params.space_uid = this.retrieveParams?.space_uid;
+          params.table_id_conditions = this.retrieveParams?.table_id_conditions;
+        } else if (this.isUnionSearch) {
+          queryUrl = 'unionSearch/unionExportHistory';
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+          params.index_set_ids = this.unionIndexList;
+        } else {
+          queryUrl = 'retrieve/getExportHistoryList';
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
         }
+
+        requestConfig = { params };
+
         this.$http
-          .request(queryUrl, {
-            params,
-          })
+          .request(queryUrl, requestConfig)
           .then(res => {
             if (res.result) {
               this.pagination.count = res.data.total;
