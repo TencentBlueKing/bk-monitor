@@ -237,7 +237,6 @@ class ExternalPermission(OperateRecordModel):
             if all_resources - set(permission_obj.resources):
                 permission_obj.resources = list(all_resources)
                 update_fields.append("resources")
-            # expire_time 为空时不覆盖已有值，防止资源视角等未传过期时间的场景意外清空
             if expire_time and permission_obj.expire_time != expire_time:
                 permission_obj.expire_time = expire_time
                 update_fields.append("expire_time")
