@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const webpack = require('webpack');
 
+const { createTraceWebpackIfdefRule } = require('./scripts/monitor-alarm-center/trace-ifdef-webpack.js');
 const MonitorWebpackPlugin = require('./webpack/monitor-webpack-plugin');
 const { transformAppDir, transformDistDir } = require('./webpack/utils');
 
@@ -23,6 +24,10 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
 module.exports = async (baseConfig, { production, app }) => {
   const distUrl = path.resolve(`./${transformDistDir(app)}/`);
   const config = baseConfig;
+
+  if (app === 'trace') {
+    config.module.rules.unshift(createTraceWebpackIfdefRule(__dirname, production));
+  }
   if (!production) {
     // 自动配port
     const port = await require('portfinder').getPortPromise({
@@ -140,6 +145,7 @@ module.exports = async (baseConfig, { production, app }) => {
         '@api': path.resolve('./src/monitor-api/'),
         '@static': path.resolve('./src/monitor-static/'),
         '@common': path.resolve('./src/monitor-common/'),
+        // 'monitor-alarm-center': path.resolve(__dirname, './monitor-alarm-center/index.js'),
         ...vueAlias,
       },
     },

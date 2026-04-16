@@ -243,6 +243,7 @@ export default defineComponent({
         onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleConditionChange}
       >
+        {/* // #if !IS_APM_MONITOR */}
         {{
           default: () => (
             <>
@@ -311,6 +312,7 @@ export default defineComponent({
             </>
           ),
         }}
+        {/* // #endif */}
       </RetrievalFilter>
     );
   },

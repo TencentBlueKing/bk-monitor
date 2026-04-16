@@ -450,4 +450,5 @@ export default {
   自动匹配规则: 'Automatic matching rules',
   当前业务时区: 'Current business time zone',
   '输入 $ 可以插入变量': 'Input $ to insert variables',
+  '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies'
 };

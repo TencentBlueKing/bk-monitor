@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
@@ -34,12 +34,14 @@ import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 import { type DashboardColumnType, type IGridPos, type IPanelModel, type ZrClickEvent, PanelModel } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
-
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
+const ALARM_CENTER_DASHBOARD_ID = 'service-default-alarm_center';
 interface IDashboardPanelEvents {
   onLintToDetail: ITableItem<'link'>;
   onBackToOverview: () => void;
@@ -99,6 +101,9 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
   /* 点击了单个视图保存仪表盘 */
   isCollectSingle = false;
   @InjectReactive('readonly') readonly: boolean;
+  // 图表的数据时间间隔
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: TimeRangeType) => void;
   get singleChartPanel() {
     // return new PanelModel(this.panels[0]);
     const panels = this.panels.filter(item => (item.type === 'row' ? !!item.panels?.length : true));
@@ -126,6 +131,24 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
     this.handleInitPanelsGridPosition(this.localPanels);
     this.handleUpdateLayout();
     this.handleConnectEcharts();
+  }
+  @Watch('timeRange', { immediate: true })
+  handleGlobalTimeRangeChange(val: TimeRangeType) {
+    if (this.dashboardId === ALARM_CENTER_DASHBOARD_ID) {
+      return;
+    }
+    window.LOCAL_OLD_TIME_RANGE = val;
+  }
+  @Watch('dashboardId', { immediate: true })
+  handleDashboardIdChange() {
+    if (this.dashboardId === ALARM_CENTER_DASHBOARD_ID) {
+      this.handleTimeRangeChange(['now-7d', 'now']);
+    } else {
+      if (!window.LOCAL_OLD_TIME_RANGE) {
+        window.LOCAL_OLD_TIME_RANGE = DEFAULT_TIME_RANGE;
+      }
+      this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
+    }
   }
   mounted() {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
