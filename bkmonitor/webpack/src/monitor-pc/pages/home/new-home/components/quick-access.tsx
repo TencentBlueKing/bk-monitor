@@ -166,13 +166,13 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
             </div>
           )}
         </div>
-        {/* AI 小鲸 */}
-        {this.enableAiAssistant && (
+        {/* AI 小鲸 2025-11-11 去除该入口 */}
+        {/* {this.enableAiAssistant && (
           <AiWhaleInput
             categoriesHasTwoRows={this.categoriesHasTwoRows}
             onKeyDown={this.handleKeyDown}
           />
-        )}
+        )} */}
         {/* 快捷入口模态框 */}
         <HeaderSettingModal
           quickAccessList={this.quickAccessList}
