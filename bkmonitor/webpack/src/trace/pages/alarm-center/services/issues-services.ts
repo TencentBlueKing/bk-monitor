@@ -1,3 +1,4 @@
+import { issueSearch } from 'monitor-api/modules/issue';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,7 +32,6 @@ import {
   ISSUES_REGRESSION_MAP,
   ISSUES_STATUS_MAP,
 } from '../alarm-issues/constant';
-import { fetchMockIssues } from '../alarm-issues/issues-table/mock-data';
 import { type RequestOptions, AlarmService } from './base';
 
 import type { IssueItem } from '../alarm-issues/typing';
@@ -524,7 +524,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    const data = await fetchMockIssues(
+    const data = await issueSearch(
       {
         ...params,
         show_aggs: false,
@@ -545,7 +545,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     return data as FilterTableResponse<T>;
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
-    const data = await fetchMockIssues(
+    const data = await issueSearch(
       {
         ...params,
         page_size: 0, // 不返回告警列表数据

@@ -48,6 +48,7 @@ import IssuesHistory from './issues-history/issues-history';
 import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-filter';
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
+import useRequestAbort from '@/hooks/useRequestAbort';
 
 import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../../typing';
 import type { ImpactScopeResourceKeyType, IssueDetailTabType, IssuePriorityType } from '../../typing/constants';
@@ -165,7 +166,6 @@ export default defineComponent({
       latestResFn()
         .then(res => {
           latestAlertId.value = res?.data?.[0]?.id || '';
-          console.log(latestAlertId.value);
           alertCount.value = res?.total || 0;
         })
         .finally(() => {
@@ -180,11 +180,12 @@ export default defineComponent({
         });
     };
 
+    const { run, signal } = useRequestAbort<AnalysisTopNDataResponse<AnalysisListItem>>(alertTopN);
     /** 获取维度统计数据 */
     const getDimensionStatsData = async () => {
       if (!props.detail) return;
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
-      dimensionStatsData.value = await alertTopN({
+      const data = await run({
         ...commonParams.value,
         start_time: startTime,
         end_time: endTime,
@@ -228,6 +229,9 @@ export default defineComponent({
           doc_count: 0,
           fields: [],
         }));
+
+      if (signal?.aborted) return;
+      dimensionStatsData.value = data;
     };
 
     watchEffect(() => {

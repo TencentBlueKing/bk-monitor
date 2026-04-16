@@ -41,6 +41,7 @@ import {
 import { followUpIssues } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
 import ClampText from './clamp-text';
+import useRequestAbort from '@/hooks/useRequestAbort';
 
 import type { IssueActivityItem, IssueDetail } from '../../../typing';
 
@@ -77,14 +78,16 @@ export default defineComponent({
 
     const loading = shallowRef(false);
     const activeList = shallowRef<IssueActivityItem[]>([]);
-    const getActiveList = () => {
+
+    const { run, signal } = useRequestAbort<IssueActivityItem[]>(listIssueActivities);
+    const getActiveList = async () => {
       loading.value = true;
-      listIssueActivities({
+      const data = await run({
         bk_biz_id: props.detail?.bk_biz_id,
         issue_id: props.detail?.id,
-      }).then(data => {
-        activeList.value = data;
       });
+      if (signal?.aborted) return;
+      activeList.value = data;
       loading.value = false;
     };
     watch(
@@ -95,6 +98,8 @@ export default defineComponent({
         }
       }
     );
+
+    getActiveList();
 
     /** 处理评论输入框聚焦 */
     const handleCommentInputFocus = () => {

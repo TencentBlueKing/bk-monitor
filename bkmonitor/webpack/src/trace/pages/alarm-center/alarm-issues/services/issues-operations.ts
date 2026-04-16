@@ -29,11 +29,11 @@ import {
   addIssueFollowUp,
   archiveIssue,
   assignIssue,
+  reopenIssue,
   resolveIssue,
+  restoreIssue,
   updateIssuePriority,
 } from 'monitor-api/modules/issue';
-
-import { mockReopenIssues, mockRestoreIssues } from '../issues-table/mock-data';
 
 import type { RequestOptions } from '../../services/base';
 import type {
@@ -97,7 +97,7 @@ export const unResolveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
 ): Promise<IssuesOperationDialogEvent<'resolve'>> => {
-  const data = await mockReopenIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  const data = await reopenIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
@@ -125,7 +125,7 @@ export const unArchiveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
 ): Promise<IssuesOperationDialogEvent<'resolve'>> => {
-  const data = await mockRestoreIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  const data = await restoreIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
