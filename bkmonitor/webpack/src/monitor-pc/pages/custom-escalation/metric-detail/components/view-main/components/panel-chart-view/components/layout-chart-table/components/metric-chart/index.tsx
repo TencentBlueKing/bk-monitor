@@ -802,8 +802,13 @@ class NewMetricChart extends CommonSimpleChart {
             : config.functions,
         })),
       },
+      query_configs: item.query_configs.map(config => ({
+        ...config,
+        functions: isAddStrategy
+          ? config.functions?.filter(f => !['bottom', 'top'].includes(f.id))
+          : config.functions,
+      })),
     }));
-
     copyPanel = {
       ...copyPanel,
       ...{
