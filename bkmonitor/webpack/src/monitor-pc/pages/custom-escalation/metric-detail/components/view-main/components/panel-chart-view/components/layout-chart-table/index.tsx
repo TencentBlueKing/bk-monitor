@@ -105,6 +105,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Watch('panel', { immediate: true })
   handleFilterOptionChange(val) {
     if (val) {
+      if (this.loadRouterParams()) return;
       const { query_configs = [] } = val.targets[0];
       this.currentMethod = query_configs[0]?.metrics[0]?.method;
     }
@@ -298,6 +299,29 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       });
     });
     this.currentMethod = method;
+    this.updateRouterParams();
+  }
+  updateRouterParams() {
+    const viewPayload = JSON.parse(this.$route.query.viewPayload as string);
+    const targetMetric = viewPayload.metrics.find(item => item?.name === this.panel.targets[0]?.metric?.name);
+    if (targetMetric) {
+      targetMetric.method = this.currentMethod;
+    }
+    this.$router.replace({
+      query: {
+        ...this.$route.query,
+        key: `${Date.now()}`,
+        viewPayload: JSON.stringify(viewPayload),
+      },
+    });
+  }
+  loadRouterParams() {
+    const viewPayload = JSON.parse(this.$route.query.viewPayload as string);
+    const hasUrlMethod = viewPayload.metrics.find(item => item?.name === this.panel.targets[0]?.metric?.name)?.method;
+    if (!!hasUrlMethod) {
+      this.currentMethod = hasUrlMethod;
+    }
+    return !!hasUrlMethod;
   }
   /** 下载图片到本地 */
   handleDownImage(title: string, targetEl?: HTMLElement, customSave = false) {
