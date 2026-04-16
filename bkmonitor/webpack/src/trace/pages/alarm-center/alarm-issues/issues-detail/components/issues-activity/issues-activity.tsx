@@ -99,6 +99,8 @@ export default defineComponent({
       }
     );
 
+    getActiveList();
+
     /** 处理评论输入框聚焦 */
     const handleCommentInputFocus = () => {
       isCommentInputFocus.value = true;

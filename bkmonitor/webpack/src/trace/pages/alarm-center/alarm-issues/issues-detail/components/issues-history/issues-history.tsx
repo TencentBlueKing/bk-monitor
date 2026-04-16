@@ -88,6 +88,8 @@ export default defineComponent({
       }
     );
 
+    getIssuesHistoryList();
+
     return {
       historyList,
       loading,

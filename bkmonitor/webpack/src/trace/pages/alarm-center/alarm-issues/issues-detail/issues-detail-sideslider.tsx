@@ -121,6 +121,8 @@ export default defineComponent({
         if (props.show) {
           initTimeRange();
           getIssueDetailData();
+        } else {
+          detail.value = undefined;
         }
       },
       { immediate: true }
