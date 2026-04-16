@@ -125,7 +125,7 @@ export const useCollectList = () => {
     try {
       isTableLoading.value = true;
       const res = (await store.dispatch('getApplyData', paramData)) as IGetApplyDataResponse;
-      store.commit('updateAuthDialogData', res?.data);
+      store.commit('updateState', { authDialogData: res.data });
     } catch (err) {
       console.log(err);
     } finally {
@@ -193,6 +193,11 @@ export const useCollectList = () => {
       masking: 'collectMasking',
     };
 
+    // 自定义上报的清洗：与旧版一致，跳转到清洗列表的编辑清洗页面
+    if (operateType === 'clean' && typeKey === 'custom_report') {
+      routeMap.clean = 'clean-edit';
+    }
+
     const targetRoute = routeMap[operateType] ?? (operateType as RouteName);
 
     // 路由参数/查询参数统一在这里构建，最后一次性 push，方便维护
@@ -208,7 +213,10 @@ export const useCollectList = () => {
      * - 未完成（table_id 为空）时，详情页不可用，应回到编辑补齐
      */
     if (targetRoute === 'manage-collection' && !row.table_id) {
-      return operateHandler(row, 'edit', typeKey);
+      const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
+      if (!isBkDataOrEs) {
+        return operateHandler(row, 'edit', typeKey);
+      }
     }
 
     /**
@@ -216,9 +224,13 @@ export const useCollectList = () => {
      * - 这些页面都依赖 collectorId 获取/回显配置
      */
     if (
-      ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)
+      ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking', 'clean-edit'].includes(targetRoute)
     ) {
-      params.collectorId = String(row.collector_config_id ?? '');
+      // bkdata/es 类型没有 collector_config_id，使用 index_set_id
+      const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
+      params.collectorId = String(
+        isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')
+      );
     }
 
     /**
@@ -234,13 +246,17 @@ export const useCollectList = () => {
     }
 
     if (operateType === 'clean') {
-      // 清洗：复用编辑页，通过 step=2 定位到清洗配置步骤
-      query.step = String(2);
       params.collectorId = String(row.collector_config_id ?? '');
-      // ITSM 申请中：跳转字段配置（field）继续推进流程
-      if (row.itsm_ticket_status === 'applying') return operateHandler(row, 'field', typeKey);
-      // 回退路径：用于编辑页返回列表
-      backRoute = route.name;
+      if (typeKey === 'custom_report') {
+        // 自定义上报清洗：跳转到清洗列表的编辑清洗页面，与旧版一致
+        backRoute = route.name;
+      } else {
+        // 非自定义上报：复用编辑页，通过 step=2 定位到清洗配置步骤
+        query.step = String(2);
+        // ITSM 申请中：跳转字段配置（field）继续推进流程
+        if (row.itsm_ticket_status === 'applying') return operateHandler(row, 'field', typeKey);
+        backRoute = route.name;
+      }
     }
 
     if (operateType === 'storage') {
@@ -278,7 +294,15 @@ export const useCollectList = () => {
       spaceUid: String(store.state.spaceUid),
       backRoute: backRoute ?? undefined,
     };
-
+    // 新增还是仔当前页打开
+    if (operateType === 'add') {
+      router.push({
+        name: targetRoute,
+        params,
+        query: finalQuery,
+      });
+      return;
+    }
     // 操作在新标签页打开
     const resolved = router.resolve({
       name: targetRoute,
@@ -305,6 +329,12 @@ export const useCollectList = () => {
 
     // 1) 前置：不可点击直接返回（例如“未完成/运行中”限制等）
     if (!getOperatorCanClick(row, operateType)) return;
+    /**
+     * 是否为计算平台或者ES
+     */
+    const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
+    const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
+    const editId = isBkDataOrEs ? row.index_set_id : row.collector_config_id;
 
     // 2) 按操作类型做权限校验（表驱动），避免大量 if/else
     const guards: Array<{
@@ -312,35 +342,48 @@ export const useCollectList = () => {
       isAllowed: () => boolean;
       buildApplyData: () => IAuthApplyDataParams;
     }> = [
-      {
-        match: _t => _t === 'add',
-        isAllowed: () => Boolean(isAllowedCreate.value),
-        buildApplyData: () => buildSpaceCreateApplyData(),
-      },
-      {
-        match: _t => _t === 'view',
-        isAllowed: () => Boolean(row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]),
-        buildApplyData: () => buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id),
-      },
-      {
-        match: _t => _t === 'search',
-        isAllowed: () => Boolean(row.permission?.[authorityMap.SEARCH_LOG_AUTH]),
-        buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
-      },
-      {
-        // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
-        match: _t => !['add', 'view', 'search'].includes(String(_t)),
-        isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
-        buildApplyData: () => buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id),
-      },
-    ];
+        {
+          match: _t => _t === 'add',
+          isAllowed: () => Boolean(isAllowedCreate.value),
+          buildApplyData: () => buildSpaceCreateApplyData(),
+        },
+        {
+          match: _t => _t === 'view',
+          isAllowed: () => {
+            const viewKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.VIEW_COLLECTION_AUTH;
+            return Boolean(row.permission?.[viewKey]);
+          },
+          buildApplyData: () => {
+            if (isBkDataOrEs) {
+              return buildIndicesApplyData(authorityMap.MANAGE_INDICES_AUTH, row.index_set_id);
+            }
+            return buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id);
+          },
+        },
+        {
+          match: _t => _t === 'search',
+          isAllowed: () => Boolean(row.permission?.[authorityMap.SEARCH_LOG_AUTH]),
+          buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
+        },
+        {
+          match: _t => _t === 'edit',
+          isAllowed: () => Boolean(row.permission?.[editKey]),
+          buildApplyData: () =>
+            isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
+        },
+        {
+          // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
+          match: _t => !['add', 'view', 'search'].includes(String(_t)),
+          isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
+          buildApplyData: () => buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id),
+        },
+      ];
 
     for (const guard of guards) {
       if (!guard.match(operateType)) continue;
       if (!guard.isAllowed()) return getOptionApplyData(guard.buildApplyData());
       break;
     }
-
     // 3) 通过权限校验后，交由 leaveCurrentPage 统一处理跳转
     leaveCurrentPage(row, operateType, typeKey, indexSetId);
   };

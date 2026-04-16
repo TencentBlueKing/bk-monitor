@@ -126,7 +126,17 @@ export const useEcharts = (
       if (downSampleRangeComputed) {
         resultParams.down_sample_range = downSampleRangeComputed([resultParams.start_time, resultParams.end_time]);
       }
-
+      // #if IS_APM_MONITOR
+      if (target.apiFunc === 'alertDateHistogram') {
+        if (resultParams.query_string) {
+          // 语句模式
+          resultParams.query_string = `(${resultParams.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+        } else {
+          // ui 模式
+          resultParams.query_string = window.APM_QUERY_STRING || '';
+        }
+      }
+      // #endif
       return $api[target.apiModule]
         [target.apiFunc](resultParams, {
           cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),

@@ -38,9 +38,11 @@ import { useRouter } from 'vue-router';
 
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
 import {
+  type ActionTableItem,
   type AlertAllActionEnum,
   type AlertContentNameEditInfo,
   type AlertTableItem,
+  type ColumnResizeContext,
   type TableColumnItem,
   type TablePagination,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
@@ -117,8 +119,8 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    showAlertDetail: (item: string, _defaultTab?: string) => typeof item === 'string',
-    showActionDetail: (item: string) => typeof item === 'string',
+    showAlertDetail: (row: AlertTableItem, _defaultTab?: string) => row,
+    showActionDetail: (row: ActionTableItem) => row,
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,
     openAlertDialog: (
@@ -128,6 +130,8 @@ export default defineComponent({
     ) => type && ids,
     saveAlertContentName: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) =>
       saveInfo && savePromiseEvent,
+    /** 列宽拖拽变化回调 */
+    columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
     // const alarmStore = useAlarmCenterStore();
@@ -162,7 +166,7 @@ export default defineComponent({
       clickPopoverTools,
       selectedRowKeys: toRef(props, 'selectedRowKeys'),
       clearSelected: () => handleSelectionChange(),
-      showDetailEmit: (id, defaultTab) => emit('showAlertDetail', id, defaultTab),
+      showDetailEmit: (row, defaultTab) => emit('showAlertDetail', row, defaultTab),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),
       saveContentNameEmit: (saveInfo, savePromiseEvent) => emit('saveAlertContentName', saveInfo, savePromiseEvent),
     });
@@ -192,6 +196,7 @@ export default defineComponent({
     const settings = computed(() => ({
       ...props.tableSettings,
       hasCheckAll: true,
+      showRowSize: false,
     }));
 
     /**
@@ -299,6 +304,7 @@ export default defineComponent({
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
           tableSettings={this.settings}
+          onColumnResizeChange={context => this.$emit('columnResizeChange', context)}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}

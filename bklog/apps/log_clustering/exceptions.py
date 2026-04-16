@@ -136,3 +136,8 @@ class RegexTemplateReferencedException(BaseClusteringException):
 class ClusteringOwnersNotExistException(BaseClusteringException):
     ERROR_CODE = "025"
     MESSAGE = _("日志聚类-告警创建责任人不存在")
+
+
+class DorisStorageNotExistException(BaseClusteringException):
+    ERROR_CODE = "026"
+    MESSAGE = _("日志聚类-Doris 存储集群配置不存在: {index_set_id}")

@@ -91,20 +91,8 @@ export interface ICustomTimeSeriesList {
 }
 
 export interface ICustomTsFields {
-  dimensions: {
-    config: {
-      alias: string;
-      common: boolean;
-      hidden: boolean;
-    };
-    scope: {
-      id: number;
-      name: string;
-    };
-    name: string;
-    type: string;
-  }[];
-  metrics: {
+  total: number;
+  list: {
     config: {
       aggregate_method: string;
       alias: string;
@@ -120,10 +108,8 @@ export interface ICustomTsFields {
       interval: number;
       unit: string;
     };
-    scope: {
-      id: number;
-      name: string;
-    };
+    scope_id: number;
+    scope_name: string;
     create_time: number;
     dimensions: string[];
     field_scope: string;
@@ -137,14 +123,18 @@ export interface ICustomTsFields {
 
 export interface IGroupingRule {
   create_from: 'data' | 'user';
-  scope_id: number;
+  id: number;
   auto_rules: string[];
-  metric_list: {
-    field_id: number;
-    metric_name: string;
-  }[];
   metric_count: number;
   name: string;
+  dimension_config: {
+    name: string;
+    config: {
+      alias: string;
+      common: boolean;
+      hidden: boolean;
+    };
+  }[]
 }
 
 /** 获取自定义时序列表 rest/v2/custom_metric_report/custom_time_series/ */
@@ -170,6 +160,20 @@ export const getCustomTsFields = CustomReportApi.getCustomTsFields<
   {
     bk_biz_id?: number;
     time_series_group_id: number;
+    page: number;
+    page_size: number;
+    condition_connector?: 'and' | 'or';
+    mandatory_conditions?: {
+      key: string;
+      values: (string | number)[];
+      search_type: 'exact' | 'fuzzy' | 'regex' | 'case_sensitive' | 'fuzzy_case_sensitive' | 'exact_case_sensitive' | 'regex_case_sensitive';
+    }[];
+    conditions?: {
+      key: string;
+      values: (string | number)[];
+      search_type: 'exact' | 'fuzzy' | 'regex' | 'case_sensitive' | 'fuzzy_case_sensitive' | 'exact_case_sensitive' | 'regex_case_sensitive';
+    }[];
+    order_by?: string; // '-update_time' | 'name'
   },
   ICustomTsFields
 >;
@@ -238,10 +242,8 @@ export const modifyCustomTsFields = CustomReportApi.modifyCustomTsFields<
 export const createOrUpdateGroupingRule = CustomReportApi.createOrUpdateGroupingRule<
   {
     bk_biz_id?: number;
-    metric_list?: {
-      field_id: number;
-      metric_name: string;
-    }[];
+    remove_ids?: number[];
+    update_ids?: number[];
     auto_rules?: string[];
     name?: string;
     scope_id?: number;
@@ -367,6 +369,14 @@ export const proxyHostInfo = CustomReportApi.proxyHostInfo<
   }[]
 >;
 
+/** 指标字段名校验 rest/v2/custom_metric_report/validate_custom_ts_metric_field_name/ */
+export const validateCustomTsMetricFieldName = CustomReportApi.validateCustomTsMetricFieldName<
+  {
+    time_series_group_id?: number;
+    field_names: string[];
+  },
+  string[]
+>;
 export default {
   customTimeSeriesList,
   customTimeSeriesDetail,

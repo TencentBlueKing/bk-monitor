@@ -58,6 +58,7 @@ import {
   EListItemType,
 } from '../../typings/trace';
 import { downFile } from '../../utils';
+import { toUnixMilliseconds } from '../../utils/date';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
@@ -86,6 +87,7 @@ const guideInfoData: Record<string, IGuideInfo> = {
 };
 
 type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
+
 /** 不需要解码的属性名白名单 */
 const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port'];
 export default defineComponent({
@@ -1106,11 +1108,13 @@ export default defineComponent({
         case 'Log': {
           if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
           const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+          const startMs = toUnixMilliseconds(start_time);
+          const endMs = toUnixMilliseconds(end_time);
           let url = '';
           if (unionList) {
-            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time || ''}&end_time=${end_time || ''}&addition=${addition || ''}&unionList=${unionList}`;
+            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
           } else {
-            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time || ''}&end_time=${end_time || ''}&addition=${addition || ''}`;
+            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
           }
           window.open(url, '_blank');
           return;

@@ -148,28 +148,3 @@ def mock_get_uptimecheck_task(mocker):
     get_func = mocker.patch("bk_monitor_base.uptime_check.UptimeCheckTaskModel.objects.get")
     get_func.return_value = UptimeCheckTaskModel()
     return get_func
-
-
-# @pytest.mark.django_db
-# class TestTaskGraphAndMap(object):
-# 测试对给定数据的图像生成是否正常
-# def test_perform_request(self, mocker):
-#     get_node = mock_get_uptimecheck_node(mocker)
-#     get_task = mock_get_uptimecheck_task(mocker)
-#     task_detail_resource = mock_task_detail(mocker)
-#
-#     get_node.start()
-#     get_task.start()
-#     task_detail_resource.start()
-#
-#     expected_result = get_result()
-#     input_data = get_data()
-#     result = resource.uptime_check.task_graph_and_map(input_data)
-#     assert result == expected_result
-#     assert task_detail_resource.call_count == 2
-#     assert get_node.call_count == 2
-#     get_task.assert_called_once()
-#
-#     get_node.stop()
-#     get_task.stop()
-#     task_detail_resource.stop()

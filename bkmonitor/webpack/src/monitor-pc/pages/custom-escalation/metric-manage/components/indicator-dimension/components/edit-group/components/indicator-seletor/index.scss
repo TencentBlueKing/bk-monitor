@@ -2,8 +2,7 @@
   display: flex;
   height: calc(100vh - 276px);
   overflow: hidden;
-  font-family: MicrosoftYaHei;
-  border: 1px solid #dcdee5;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   border-bottom: none;
   border-radius: 2px;
 
@@ -12,6 +11,7 @@
     flex: 1;
     flex-direction: column;
     overflow: hidden;
+    border-left: 1px solid #dcdee5;
 
     .tab-main {
       display: flex;
@@ -24,11 +24,13 @@
         flex-direction: column;
         width: 96px;
         cursor: pointer;
+        border-top: 1px solid #dcdee5;
         border-right: 1px solid #dcdee5;
         border-bottom: 1px solid #dcdee5;
 
         &.is-active {
           background-color: #fff;
+          border-top-color: #3a84ff;
           border-bottom-color: #fff;
 
           .top-bar {
@@ -60,6 +62,7 @@
       .remain-block {
         flex: 1;
         height: 38px;
+        border-top: 1px solid #dcdee5;
         border-bottom: 1px solid #dcdee5;
       }
     }
@@ -77,8 +80,8 @@
     height: 100%;
     overflow: hidden;
     background-color: #f5f7fa;
-
-    // border-right: 1px solid #dcdee5;
+    border-top: 1px solid #dcdee5;
+    border-right: 1px solid #dcdee5;
     border-left: 1px solid #dcdee5;
   }
 }

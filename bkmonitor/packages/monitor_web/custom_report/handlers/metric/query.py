@@ -111,6 +111,42 @@ class ScopeQueryMetricResponseDTO:
         )
 
 
+@dataclass
+class MetricQueryResponseDTO:
+    """query_time_series_metric 接口返回的指标 DTO"""
+
+    id: int
+    name: str
+    field_scope: str
+    scope_id: int
+    scope_name: str
+    dimensions: list[str]
+    config: MetricConfigResponseDTO
+    create_time: float | None
+    update_time: float | None
+
+    @classmethod
+    def from_response_dict(cls, metric_dict: dict[str, Any]) -> "MetricQueryResponseDTO":
+        scope = metric_dict.get("scope") or {}
+        return cls(
+            id=metric_dict["field_id"],
+            name=metric_dict["name"],
+            field_scope=metric_dict.get("field_scope", ""),
+            scope_id=scope.get("id", 0),
+            scope_name=scope.get("name", ""),
+            dimensions=metric_dict.get("tag_list", []),
+            config=MetricConfigResponseDTO.from_response_dict(metric_dict.get("field_config", {})),
+            create_time=metric_dict.get("create_time"),
+            update_time=metric_dict.get("update_time"),
+        )
+
+
+@dataclass
+class MetricQueryPaginatedResponseDTO:
+    total: int
+    metrics: list[MetricQueryResponseDTO]
+
+
 DimensionName: TypeAlias = str
 
 
@@ -122,9 +158,14 @@ class ScopeQueryResponseDTO:
     auto_rules: list[str]
     metric_list: list[ScopeQueryMetricResponseDTO]
     create_from: str
+    metric_count: int = 0
 
     @classmethod
     def from_response_dict(cls, scope_dict: dict[str, Any]) -> Self:
+        metric_list = [
+            ScopeQueryMetricResponseDTO.from_response_dict(metric_dict)
+            for metric_dict in scope_dict.get("metric_list", [])
+        ]
         return cls(
             id=scope_dict["scope_id"],
             name=scope_dict["scope_name"],
@@ -133,11 +174,9 @@ class ScopeQueryResponseDTO:
                 for dimension_name, dimension_config_dict in scope_dict.get("dimension_config", {}).items()
             },
             auto_rules=scope_dict.get("auto_rules", []),
-            metric_list=[
-                ScopeQueryMetricResponseDTO.from_response_dict(metric_dict)
-                for metric_dict in scope_dict.get("metric_list", [])
-            ],
+            metric_list=metric_list,
             create_from=scope_dict["create_from"] or ScopeCreateFrom.USER,
+            metric_count=scope_dict.get("metric_count", len(metric_list)),
         )
 
 
@@ -212,7 +251,11 @@ class ScopeQueryConverter(BaseQueryConverter):
         return scope_objs
 
     def query_time_series_scope(
-        self, scope_ids: list[int] | None = None, scope_name: str | None = None, include_metrics: bool = True
+        self,
+        scope_ids: list[int] | None = None,
+        scope_name: str | None = None,
+        include_metrics: bool = True,
+        mandatory_conditions: list[dict[str, Any]] | None = None,
     ) -> list[ScopeQueryResponseDTO]:
         request_param: dict[str, Any] = {
             "group_id": self.time_series_group_id,
@@ -222,6 +265,8 @@ class ScopeQueryConverter(BaseQueryConverter):
             request_param["scope_ids"] = scope_ids
         if scope_name:
             request_param["scope_name"] = scope_name
+        if mandatory_conditions:
+            request_param["mandatory_conditions"] = mandatory_conditions
         scope_list = api.metadata.query_time_series_scope(**request_param)
         return [ScopeQueryResponseDTO.from_response_dict(scope_dict) for scope_dict in scope_list]
 
@@ -295,4 +340,32 @@ class MetricQueryConverter(BaseQueryConverter):
         if not metrics:
             return
         metric_list = [metric_obj.to_request_dict() for metric_obj in metrics]
-        api.metadata.create_or_update_time_series_metric(group_id=self.time_series_group_id, metrics=metric_list)
+        try:
+            api.metadata.create_or_update_time_series_metric(group_id=self.time_series_group_id, metrics=metric_list)
+        except Exception as e:
+            raise ValueError(e.data.get('message', '指标创建更新失败'))
+
+    def query_time_series_metric(
+        self,
+        conditions: list[dict[str, Any]] | None = None,
+        mandatory_conditions: list[dict[str, Any]] | None = None,
+        condition_connector: str = "and",
+        page: int = 1,
+        page_size: int = 20,
+        order_by: str = "-update_time",
+    ) -> MetricQueryPaginatedResponseDTO:
+        """调用 api.metadata.query_time_series_metric 进行分页查询"""
+        request_params: dict[str, Any] = {
+            "group_id": self.time_series_group_id,
+            "page": page,
+            "page_size": page_size,
+            "order_by": order_by,
+            "condition_connector": condition_connector,
+        }
+        if conditions:
+            request_params["conditions"] = conditions
+        if mandatory_conditions:
+            request_params["mandatory_conditions"] = mandatory_conditions
+        result = api.metadata.query_time_series_metric(**request_params)
+        metrics = [MetricQueryResponseDTO.from_response_dict(m) for m in result.get("metrics", [])]
+        return MetricQueryPaginatedResponseDTO(total=result.get("total", 0), metrics=metrics)

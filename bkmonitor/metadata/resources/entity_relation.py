@@ -21,6 +21,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
+from metadata.models.entity_relation import NAMESPACE_ALL
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -28,8 +29,6 @@ logger = logging.getLogger("metadata")
 ENTITY_REDIS_KEY_PREFIX = "bkmonitorv3:entity"
 ENTITY_REDIS_CHANNEL_SUFFIX = ":channel"
 REDIS_SYNC_KINDS = ("ResourceDefinition", "RelationDefinition")
-# 空 namespace 的映射值
-NAMESPACE_ALL = "__all__"
 
 
 class EntityHandler:
@@ -363,8 +362,9 @@ class ApplyEntityResource(Resource):
                 if not space_uid:
                     raise serializers.ValidationError(_("无效的业务ID: %s") % attrs["bk_biz_id"])
                 attrs["metadata"]["namespace"] = space_uid
-            elif "namespace" not in attrs["metadata"]:
-                raise serializers.ValidationError(_("metadata.namespace 字段不能为空"))
+            elif not attrs["metadata"].get("namespace"):
+                # namespace 未传或为空字符串时，默认设置为 __all__
+                attrs["metadata"]["namespace"] = NAMESPACE_ALL
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -428,14 +428,15 @@ class GetEntityResource(Resource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
         def validate(self, attrs):
-            # 如果 bk_biz_id 存在，则覆盖 namespace，否则 namespace 为必填
+            # 如果 bk_biz_id 存在，则覆盖 namespace
             if "bk_biz_id" in attrs and attrs["bk_biz_id"]:
                 space_uid = bk_biz_id_to_space_uid(attrs["bk_biz_id"])
                 if not space_uid:
                     raise serializers.ValidationError(_("无效的业务ID: %s") % attrs["bk_biz_id"])
                 attrs["namespace"] = space_uid
-            elif "namespace" not in attrs:
-                raise serializers.ValidationError(_("namespace 字段不能为空"))
+            elif not attrs.get("namespace"):
+                # namespace 未传或为空字符串时，默认设置为 __all__
+                attrs["namespace"] = NAMESPACE_ALL
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -560,8 +561,9 @@ class DeleteEntityResource(Resource):
                 if not space_uid:
                     raise serializers.ValidationError(_("无效的业务ID: %s") % attrs["bk_biz_id"])
                 attrs["namespace"] = space_uid
-            elif "namespace" not in attrs:
-                raise serializers.ValidationError(_("namespace 字段不能为空"))
+            elif not attrs.get("namespace"):
+                # namespace 未传或为空字符串时，默认设置为 __all__
+                attrs["namespace"] = NAMESPACE_ALL
             return attrs
 
     def perform_request(self, validated_request_data):

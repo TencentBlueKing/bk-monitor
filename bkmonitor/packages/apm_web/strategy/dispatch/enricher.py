@@ -44,7 +44,10 @@ class RPCSystemDiscoverer(BaseSystemDiscoverer):
     SYSTEM: str = StrategyTemplateSystem.RPC.value
 
     def _get_related_data(self, service_name: str) -> Any:
-        return self._entity_set.get_rpc_service_config_or_none(service_name)
+        system: dict[str, Any] = self._entity_set.get_system(service_name)
+        if not system.get("is_support_call_analysis"):
+            return None
+        return system
 
     def discover(self) -> list[str]:
         service_names: list[str] = []
@@ -314,8 +317,8 @@ class RPCEnricher(BaseEnricher):
             self.upsert_group_by(dispatch_config, self._UPSERT_TAGS)
             self.upsert_conditions(dispatch_config, Q(app_name=self.app_name) & Q(service_name=service_name))
 
-            rpc_service_config: dict[str, Any] | None = self._entity_set.get_rpc_service_config_or_none(service_name)
-            if rpc_service_config["temporality"] == apm_constants.MetricTemporality.DELTA:
+            system: dict[str, Any] = self._entity_set.get_system(service_name)
+            if system.get("temporality") == apm_constants.MetricTemporality.DELTA:
                 dispatch_config.context["FUNCTIONS"] = []
 
         self.upsert_message_template(dispatch_config)

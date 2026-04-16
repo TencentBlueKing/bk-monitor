@@ -26,6 +26,7 @@
 
 import { defineComponent } from 'vue';
 
+import { random } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import CommonHeader from '../../../components/common-header/common-header';
@@ -74,7 +75,7 @@ export default defineComponent({
     }
 
     function handleGotoOld() {
-      const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${appStore.bizId}#/event-center`;
+      const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${appStore.bizId}&key=${random(4)}/${location.hash.replace('#/trace/alarm-center', '#/event-center')}`;
       window.location.href = url;
     }
 

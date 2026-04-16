@@ -102,7 +102,7 @@ class SimpleProvisioning(BaseProvisioning):
             with open(path, "rb") as fh:
                 conf = fh.read()
                 expand_conf = os.path.expandvars(conf)
-                ds = yaml.load(expand_conf, Loader=yaml.FullLoader)
+                ds = yaml.safe_load(expand_conf)
                 _FILE_CACHE[f"{name}.{suffix}"].append(ds)
         return _FILE_CACHE[f"{name}.{suffix}"]
 

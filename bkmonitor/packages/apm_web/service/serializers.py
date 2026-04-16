@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -19,6 +21,7 @@ from apm_web.models import (
     EventServiceRelation,
     LogServiceRelation,
 )
+from apm_web.handlers.service_handler import ServiceHandler
 from core.drf_resource import api
 from monitor_web.data_explorer.event.constants import EventDomain, EventSource
 
@@ -72,17 +75,29 @@ class ServiceApdexConfigSerializer(serializers.Serializer):
 
 
 class ServiceConfigSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField()
-    app_name = serializers.CharField()
-    service_name = serializers.CharField()
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+    app_name = serializers.CharField(label=_("应用名"))
+    service_name = serializers.CharField(label=_("服务名"))
 
-    app_relation = AppServiceRelationSerializer(required=False, allow_null=True)
-    cmdb_relation = CMDBServiceRelationSerializer(required=False, allow_null=True)
-    log_relation_list = serializers.ListSerializer(required=False, default=[], child=LogServiceRelationSerializer())
-    apdex_relation = ServiceApdexConfigSerializer(required=False, allow_null=True)
-    uri_relation = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
-    event_relation = serializers.ListSerializer(required=False, default=[], child=EventServiceRelationSerializer())
+    app_relation = AppServiceRelationSerializer(allow_null=True, default=None)
+    cmdb_relation = CMDBServiceRelationSerializer(allow_null=True, default=None)
+    log_relation_list = serializers.ListSerializer(default=[], child=LogServiceRelationSerializer())
+    apdex_relation = ServiceApdexConfigSerializer(allow_null=True, default=None)
+    uri_relation = serializers.ListSerializer(default=[], child=serializers.CharField())
+    event_relation = serializers.ListSerializer(default=[], child=EventServiceRelationSerializer())
     labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        uri_relations: list[str] = attrs["uri_relation"]
+        if len(set(uri_relations)) != len(uri_relations):
+            raise serializers.ValidationError(_("uri 含有重复配置项"))
+
+        if attrs.get("apdex_relation"):
+            attrs["apdex_relation"]["apdex_key"] = ServiceHandler.get_service_apdex_key(
+                attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+            )
+
+        return super().validate(attrs)
 
 
 class LogServiceRelationOutputSerializer(serializers.ModelSerializer):

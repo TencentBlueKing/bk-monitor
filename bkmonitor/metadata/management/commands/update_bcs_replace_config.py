@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -45,7 +44,7 @@ class Command(BaseCommand):
             return
         # 否则从配置文件写入
         with open(file_path) as f:
-            data = yaml.load(f, Loader=yaml.FullLoader)
+            data = yaml.safe_load(f)
             replace_configs = data.get("replace_configs", None)
             if replace_configs is not None and isinstance(replace_configs, list):
                 ReplaceConfig.import_data(replace_configs)
