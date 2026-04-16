@@ -218,18 +218,6 @@ export default defineComponent({
       }
       return null;
     });
-    const { getRetrievalFilterValueData } = useAlarmFilter(() => {
-      const [start, end] = handleTransformToTimestamp(alarmStore.timeRange);
-      return {
-        alarmType: alarmStore.alarmType,
-        commonFilterParams: {
-          ...alarmStore.commonFilterParams,
-          start_time: start,
-          end_time: end,
-        },
-        filterMode: alarmStore.filterMode,
-      };
-    });
     const showResidentBtn = shallowRef(false);
 
     const isCollapsed = shallowRef(false);
@@ -286,6 +274,19 @@ export default defineComponent({
         );
       }
       return filterFields;
+    });
+    const { getRetrievalFilterValueData } = useAlarmFilter(() => {
+      const [start, end] = handleTransformToTimestamp(alarmStore.timeRange);
+      return {
+        alarmType: alarmStore.alarmType,
+        commonFilterParams: {
+          ...alarmStore.commonFilterParams,
+          start_time: start,
+          end_time: end,
+        },
+        filterMode: alarmStore.filterMode,
+        fields: retrievalFilterFields.value,
+      };
     });
     /**
      * @description 检索栏常驻设置唯一id
