@@ -150,7 +150,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'name',
     alias: window.i18n.t('Issue 名称'),
-    type: EFieldType.text,
+    type: EFieldType.keyword,
     methods: [
       {
         alias: '=',
@@ -237,7 +237,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'strategy_name',
     alias: window.i18n.t('策略名称'),
-    type: EFieldType.text,
+    type: EFieldType.keyword,
     methods: [
       {
         alias: '=',
