@@ -1822,7 +1822,7 @@ const store = new Vuex.Store({
       const startTime = Math.floor(getters.retrieveParams.start_time);
       const endTime = Math.ceil(getters.retrieveParams.end_time);
       const isScene = isSceneRetrieve(state);
-      const urlStr = isScene ? 'retrieve/getSceneTotal' : 'retrieve/fieldStatisticsTotal';
+      const urlStr = isScene ? 'retrieve/getSceneFieldStatisticsTotal' : 'retrieve/fieldStatisticsTotal';
 
       return http
         .request(
@@ -1831,7 +1831,7 @@ const store = new Vuex.Store({
             data: {
               ...getters.retrieveParams,
               bk_biz_id: state.bkBizId,
-              index_set_ids: state.indexItem.ids,
+              ...(isScene ? {} : { index_set_ids: state.indexItem.ids }),
               start_time: startTime,
               end_time: endTime,
               addition: formatAdditionalFields(state, [

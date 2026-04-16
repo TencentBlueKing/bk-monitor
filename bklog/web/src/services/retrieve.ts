@@ -461,9 +461,33 @@ const getSceneAggField = {
   method: 'post',
 };
 
-/** 场景化检索 - 匹配日志总数 */
-const getSceneTotal = {
-  url: '/search/scene/total/',
+/** 场景化检索 - 字段 TopK 计数 */
+const getSceneFieldFetchTopList = {
+  url: '/search/scene/field/fetch_topk_list/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段值列表（CSV 下载） */
+const getSceneFieldFetchValueList = {
+  url: '/search/scene/field/fetch_value_list/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段统计信息 */
+const getSceneFieldStatisticsInfo = {
+  url: '/search/scene/field/statistics/info/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段统计总条数 */
+const getSceneFieldStatisticsTotal = {
+  url: '/search/scene/field/statistics/total/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段统计图表 */
+const getSceneFieldStatisticsGraph = {
+  url: '/search/scene/field/statistics/graph/',
   method: 'post',
 };
 
@@ -543,7 +567,11 @@ export {
   getSceneFields,
   getSceneDateHistogram,
   getSceneAggField,
-  getSceneTotal,
+  getSceneFieldFetchTopList,
+  getSceneFieldFetchValueList,
+  getSceneFieldStatisticsInfo,
+  getSceneFieldStatisticsTotal,
+  getSceneFieldStatisticsGraph,
   getSceneExport,
   getSceneAsyncExport,
   getSceneQuickExport,
