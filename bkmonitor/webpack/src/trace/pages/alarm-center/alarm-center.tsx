@@ -28,20 +28,12 @@ import {
   type ShallowRef,
   computed,
   defineComponent,
-  // #if IS_APM_MONITOR
-  provide,
   inject,
-  onBeforeUnmount,
-  // #endif
   onBeforeMount,
   shallowRef,
   useTemplateRef,
   watch,
 } from 'vue';
-
-// #if IS_APM_MONITOR
-import { BRIDGE_EMIT_KEY, BRIDGE_PROPS_KEY } from './alarm-center-apm-entry';
-// #endif
 
 import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
 import FavoriteBox, {
@@ -96,7 +88,7 @@ import { useI18n } from 'vue-i18n';
 
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
-
+import { ALARM_CENTER_APM_HOOKS_KEY, type AlarmCenterApmHooks } from './alarm-center-apm';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -110,17 +102,7 @@ export default defineComponent({
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
 
-    // #if IS_APM_MONITOR
-    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
-    const bridgeEmit = inject(BRIDGE_EMIT_KEY, (() => {}) as (event: string, ...args: unknown[]) => void);
-    if (bridgeProps.queryString) {
-      window.APM_QUERY_STRING = bridgeProps.queryString;
-    }
-    const handleAlarmTrendChartZoomChange = (v: [number, number]) => {
-      bridgeEmit('alarmTrendChartZoomChange', v);
-    };
-    provide('handleAlarmTrendChartZoomChange', handleAlarmTrendChartZoomChange);
-    // #endif
+    const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
 
     const {
       handleGetUserConfig: handleGetResidentSettingUserConfig,
@@ -266,16 +248,6 @@ export default defineComponent({
       }
     );
 
-    // #if IS_APM_MONITOR
-    watch(bridgeProps, () => {
-      alarmStore.refreshImmediate = bridgeProps.refreshImmediate;
-      alarmStore.refreshInterval = Number(bridgeProps.refreshInterval);
-      alarmStore.timeRange = bridgeProps.timeRange;
-    }, {
-      immediate: true,
-      deep: true,
-    })
-    // #endif
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
@@ -319,24 +291,18 @@ export default defineComponent({
     const handleConditionChange = (condition: CommonCondition[]) => {
       handleCurrentPageChange(1);
       alarmStore.conditions = condition;
-      // #if IS_APM_MONITOR
-      bridgeEmit('conditionChange', condition);
-      // #endif
+      apmHooks?.onConditionChange?.(condition);
     };
     /** 查询语句变化 */
     const handleQueryStringChange = (queryString: string) => {
       alarmStore.queryString = queryString;
-      // #if IS_APM_MONITOR
-      bridgeEmit('queryStringChange', queryString);
-      // #endif
+      apmHooks?.onQueryStringChange?.(queryString);
     };
     /** 查询模式变化 */
     const handleFilterModeChange = (mode: EMode) => {
       handleCurrentPageChange(1);
       alarmStore.filterMode = mode;
-      // #if IS_APM_MONITOR
-      bridgeEmit('filterModeChange', mode);
-      // #endif
+      apmHooks?.onFilterModeChange?.(mode);
     };
     const handleResidentConditionChange = (condition: CommonCondition[]) => {
       alarmStore.residentCondition = condition;
@@ -758,12 +724,8 @@ export default defineComponent({
       getUrlParams();
       setUrlParams();
     });
-    // #if IS_APM_MONITOR
-    onBeforeUnmount(() => {
-      window.APM_QUERY_STRING = '';
-    });
-    // #endif
     return {
+      apmHooks,
       isFirstInit,
       quickFilterList,
       quickFilterLoading,
@@ -858,13 +820,13 @@ export default defineComponent({
           />
         </div>
         <div class='alarm-center'>
-          {/* // #if !IS_APM_MONITOR */}
-          <AlarmCenterHeader
-            class='alarm-center-header'
-            isShowFavorite={this.isShowFavorite}
-            onFavoriteShowChange={this.handleFavoriteShowChange}
-          />
-          {/* // #endif */}
+          {!this.apmHooks && (
+            <AlarmCenterHeader
+              class='alarm-center-header'
+              isShowFavorite={this.isShowFavorite}
+              onFavoriteShowChange={this.handleFavoriteShowChange}
+            />
+          )}
           <AlarmRetrievalFilter
             class='alarm-center-filters'
             bizIds={this.alarmStore.bizIds}
