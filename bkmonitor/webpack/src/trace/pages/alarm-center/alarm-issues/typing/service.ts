@@ -24,9 +24,27 @@
  * IN THE SOFTWARE.
  */
 
-export * from './common';
-export * from './constants';
-export * from './detail';
-export * from './dialog';
-export * from './service';
-export * from './table';
+import type { CommonFilterParams, QuickFilterItem } from '../../typings';
+import type { IssueItem } from './table';
+
+/** Issue 搜索请求参数 */
+export interface IssueSearchParams extends CommonFilterParams {
+  /** 是否展示聚合 */
+  show_aggs?: boolean;
+  /** 是否展示 DSL */
+  show_dsl?: boolean;
+  /** 告警趋势图结束时间（跟随 end_time） */
+  trend_end_time?: number;
+  /** 告警趋势图开始时间（trend_end_time 往前推 24 小时） */
+  trend_start_time?: number;
+}
+
+/** Issue 搜索响应结果 */
+export interface IssueSearchResponse {
+  /** 聚合数据 */
+  aggs: QuickFilterItem[];
+  /** Issue 列表 */
+  issues: IssueItem[];
+  /** 总数 */
+  total: number;
+}
