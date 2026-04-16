@@ -837,7 +837,7 @@ class NewMetricChart extends CommonSimpleChart {
       }
       case 'explore': {
         // 跳转数据检索
-        const copyPanel = this.getCopyPanel();
+        const copyPanel = this.getCopyPanel(true);
         this.handleExplore(copyPanel as any, {});
         break;
       }
