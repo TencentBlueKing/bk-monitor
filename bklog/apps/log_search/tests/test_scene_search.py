@@ -1,7 +1,7 @@
 """
 Unit tests for scene_search endpoints (SceneSearchViewSet).
 Covers: scenes / search / fields / chart / agg_field / total / dimension_values /
-        aggs/terms / aggs/date_histogram / field analysis
+        aggs/terms / aggs/date_histogram / field analysis / export
 """
 
 import json
@@ -512,6 +512,85 @@ class TestSceneSearchViewSetAggsDateHistogram(TestCase):
         mock_adh.assert_called_once_with(interval="5m", group_field="namespace")
 
 
+@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
+class TestSceneSearchViewSetExportSample(TestCase):
+    """POST /search/scene/export/sample/"""
+
+    @patch("apps.log_search.views.scene_search_views.AsyncTask")
+    @patch("apps.log_search.views.scene_search_views.create_download_response")
+    @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.search")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    @patch("apps.log_search.views.scene_search_views.get_request_external_username", return_value="")
+    @patch("apps.log_search.views.scene_search_views.get_request_username", return_value="admin")
+    def test_sample_export_success(
+        self, mock_view_user, mock_view_ext_user,
+        mock_local, mock_user, mock_ext_user,
+        mock_search, mock_download, mock_async_task,
+    ):
+        mock_search.return_value = {
+            "origin_log_list": [{"log": "test line 1"}, {"log": "test line 2"}],
+        }
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_download.return_value = mock_response
+
+        factory = APIRequestFactory()
+        request = _make_post_request(SEARCH_POST_BODY, factory)
+        vs = _get_viewset("scene_sample_export", request)
+        response = vs.scene_sample_export(request)
+
+        self.assertEqual(response.status_code, 200)
+        mock_search.assert_called_once_with(is_export=True)
+        mock_download.assert_called_once()
+        mock_async_task.objects.create.assert_called_once()
+
+
+@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
+class TestSceneSearchViewSetAsyncExport(TestCase):
+    """POST /search/scene/export/async/"""
+
+    @patch("apps.log_unifyquery.handler.scene_async_export.SceneAsyncExportHandler.async_export")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_async_export_success(self, mock_local, mock_user, mock_ext_user, mock_export):
+        mock_export.return_value = (42, 500)
+
+        data = {**SEARCH_POST_BODY, "export_fields": [], "file_type": "log"}
+        factory = APIRequestFactory()
+        request = _make_post_request(data, factory)
+        vs = _get_viewset("scene_async_export", request)
+        response = vs.scene_async_export(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["task_id"], 42)
+        mock_export.assert_called_once_with(is_quick_export=False)
+
+
+@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
+class TestSceneSearchViewSetQuickExport(TestCase):
+    """POST /search/scene/export/quick/"""
+
+    @patch("apps.log_unifyquery.handler.scene_async_export.SceneAsyncExportHandler.async_export")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_quick_export_success(self, mock_local, mock_user, mock_ext_user, mock_export):
+        mock_export.return_value = (99, 1000)
+
+        data = {**SEARCH_POST_BODY, "export_fields": [], "file_type": "log"}
+        factory = APIRequestFactory()
+        request = _make_post_request(data, factory)
+        vs = _get_viewset("scene_quick_export", request)
+        response = vs.scene_quick_export(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["task_id"], 99)
+        mock_export.assert_called_once_with(is_quick_export=True)
+
+
 # =========================================================================
 # 4. SceneUnifyQueryHandler unit tests
 # =========================================================================
@@ -554,6 +633,39 @@ class TestSceneUnifyQueryHandler(TestCase):
         handler = SceneUnifyQueryHandler(params)
         self.assertEqual(handler.start_time, "")
         self.assertEqual(handler.end_time, "")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_millisecond_timestamps_converted_to_seconds(self, mock_local, mock_user, mock_ext_user):
+        """Millisecond timestamps (13 digits) must be converted to seconds to avoid UQ overflow."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {
+            **BASE_POST_BODY,
+            "start_time": 1776246930000,
+            "end_time": 1776247830000,
+        }
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.start_time, 1776246930)
+        self.assertEqual(handler.end_time, 1776247830)
+        self.assertLessEqual(handler.start_time, 9999999999)
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_second_timestamps_unchanged(self, mock_local, mock_user, mock_ext_user):
+        """Second-level timestamps (10 digits) should pass through without conversion."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {
+            **BASE_POST_BODY,
+            "start_time": 1776246930,
+            "end_time": 1776247830,
+        }
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.start_time, 1776246930)
+        self.assertEqual(handler.end_time, 1776247830)
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")

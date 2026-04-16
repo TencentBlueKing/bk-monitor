@@ -5,29 +5,35 @@ BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
 """
 
 import csv
+import json
 import math
 from io import BytesIO, TextIOWrapper
 
 import arrow
 from django.http import StreamingHttpResponse
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.log_search.constants import (
     ExportFileType,
+    ExportStatus,
+    ExportType,
     FieldDataTypeEnum,
     MAX_RESULT_WINDOW,
     RESULT_WINDOW_COST_TIME,
 )
 from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.handlers.scene_search import AllConditionsBuilder
+from apps.log_search.models import AsyncTask
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
 from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
 from apps.utils.drf import list_route
+from apps.utils.local import get_request_external_username, get_request_username
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -580,21 +586,62 @@ class SceneSearchViewSet(APIViewSet):
     # Export endpoints
     # ------------------------------------------------------------------
 
-    @list_route(methods=["POST"], url_path="export")
-    def scene_export(self, request):
+    @list_route(methods=["POST"], url_path="export/sample")
+    def scene_sample_export(self, request):
         """
-        @api {post} /search/scene/export/ 场景化检索-异步导出
-        @apiName scene_export
+        @api {post} /search/scene/export/sample/ 场景化检索-取样下载
+        @apiName scene_sample_export
         @apiGroup 14_SceneSearch
+        @apiDescription 同步流式取样下载，对标 index_set/$id/export/。
+        """
+        request_user = get_request_external_username() or get_request_username()
+        data = self.params_valid(SceneExportSerializer)
+        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+
+        handler = SceneUnifyQueryHandler(data)
+        result = handler.search(is_export=True)
+        result_list = result.get("origin_log_list", [])
+
+        output = BytesIO()
+        for item in result_list:
+            json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
+            output.write(json_data + b"\n")
+
+        file_name = f"bklog_scene_{arrow.now().format('YYYYMMDD_HHmmss')}.log"
+        response = create_download_response(output, file_name)
+
+        AsyncTask.objects.create(
+            request_param=data,
+            scenario_id="scene",
+            index_set_id=0,
+            result=True,
+            completed_at=timezone.now(),
+            export_status=ExportStatus.SUCCESS,
+            start_time=data.get("start_time", ""),
+            end_time=data.get("end_time", ""),
+            export_type=ExportType.SYNC,
+            bk_biz_id=data.get("bk_biz_id", 0),
+            created_by=request_user,
+        )
+        return response
+
+    @list_route(methods=["POST"], url_path="export/async")
+    def scene_async_export(self, request):
+        """
+        @api {post} /search/scene/export/async/ 场景化检索-全文下载（异步导出）
+        @apiName scene_async_export
+        @apiGroup 14_SceneSearch
+        @apiDescription 异步后台全文导出，对标 index_set/$id/async_export/。
         """
         return self._scene_export(request, is_quick_export=False)
 
     @list_route(methods=["POST"], url_path="export/quick")
     def scene_quick_export(self, request):
         """
-        @api {post} /search/scene/export/quick/ 场景化检索-快速导出
+        @api {post} /search/scene/export/quick/ 场景化检索-快速下载
         @apiName scene_quick_export
         @apiGroup 14_SceneSearch
+        @apiDescription 异步分片并行快速导出，对标 index_set/$id/quick_export/。
         """
         return self._scene_export(request, is_quick_export=True)
 

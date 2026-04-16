@@ -69,7 +69,13 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         raw_start = params.get("start_time", "")
         raw_end = params.get("end_time", "")
         if raw_start and raw_end:
-            self.start_time, self.end_time = deal_time_format(raw_start, raw_end)
+            start_ts, end_ts = deal_time_format(raw_start, raw_end)
+            # deal_time_format returns milliseconds; UQ expects seconds
+            if isinstance(start_ts, int) and start_ts > 9999999999:
+                start_ts = start_ts // 1000
+            if isinstance(end_ts, int) and end_ts > 9999999999:
+                end_ts = end_ts // 1000
+            self.start_time, self.end_time = start_ts, end_ts
         else:
             self.start_time, self.end_time = "", ""
 
