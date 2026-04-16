@@ -25,7 +25,7 @@
  */
 import {
   type ComponentPublicInstance,
-  type ShallowRef,
+  type Ref,
   computed,
   defineComponent,
   onBeforeMount,
@@ -150,7 +150,7 @@ export default defineComponent({
       handleAlertDialogShow,
       handleAlertDialogHide,
       handleAlertDialogConfirm,
-    } = useAlertDialogs(data as ShallowRef<AlertTableItem[]>);
+    } = useAlertDialogs(data as Ref<AlertTableItem[]>);
 
     const {
       issuesDialogShow,
@@ -160,7 +160,7 @@ export default defineComponent({
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
-    } = useIssuesDialogs(data as ShallowRef<IssueItem[]>);
+    } = useIssuesDialogs(data as Ref<IssueItem[]>);
 
     /**
      * @description 直接调用优先级变更接口，无需打开弹窗，成功后原地更新对应 Issue 行数据

@@ -1,4 +1,3 @@
-import { issueSearch } from 'monitor-api/modules/issue';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,7 @@ import { issueSearch } from 'monitor-api/modules/issue';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { issueSearch } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -34,7 +34,7 @@ import {
 } from '../alarm-issues/constant';
 import { type RequestOptions, AlarmService } from './base';
 
-import type { IssueItem } from '../alarm-issues/typing';
+import type { IssueItem, IssueSearchParams, IssueSearchResponse } from '../alarm-issues/typing';
 import type {
   AnalysisFieldAggItem,
   AnalysisTopNDataResponse,
@@ -524,11 +524,17 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    const data = await issueSearch(
+    // 计算告警趋势图时间范围：trend_end_time 跟随 end_time，trend_start_time 为往前 24 小时
+    const trendEndTime = params.end_time;
+    const trendStartTime = trendEndTime ? trendEndTime - 24 * 60 * 60 : undefined;
+
+    const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
       {
         ...params,
         show_aggs: false,
         show_dsl: false,
+        trend_end_time: trendEndTime,
+        trend_start_time: trendStartTime,
       },
       options
     )
@@ -545,7 +551,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     return data as FilterTableResponse<T>;
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
-    const data = await issueSearch(
+    const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
       {
         ...params,
         page_size: 0, // 不返回告警列表数据

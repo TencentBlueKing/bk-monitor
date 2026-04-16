@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { ref as deepRef, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { commonPageSizeGet } from 'monitor-common/utils';
 
@@ -35,19 +35,19 @@ import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typi
 
 export function useAlarmTable() {
   const alarmStore = useAlarmCenterStore();
-  // 分页参数
+  /** 分页参数 */
   const pageSize = shallowRef(commonPageSizeGet() ?? 50);
-  // 当前页
+  /** 当前页 */
   const page = shallowRef(1);
-  // 总条数
+  /** 总条数 */
   const total = shallowRef(0);
-  // 数据
-  const data = shallowRef<(ActionTableItem | AlertTableItem | IncidentTableItem | IssueItem)[]>([]);
-  // 排序
+  /** 表格数据（深响应式，支持直接修改行对象属性后触发重新渲染） */
+  const data = deepRef<(ActionTableItem | AlertTableItem | IncidentTableItem | IssueItem)[]>([]);
+  /** 排序字段 */
   const ordering = shallowRef('');
-  // 是否加载中
+  /** 是否加载中 */
   const loading = shallowRef(false);
-  // 请求中止控制器
+  /** 请求中止控制器 */
   let abortController: AbortController | null = null;
 
   const effectFunc = async () => {
