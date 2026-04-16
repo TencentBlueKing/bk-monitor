@@ -16,6 +16,8 @@ import time
 from functools import reduce
 from typing import Any
 
+from django.utils.translation import gettext_lazy as _
+
 from elasticsearch_dsl import Q, Search
 from elasticsearch_dsl.response import Response
 
@@ -313,6 +315,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
         return aggs
 
     @classmethod
+    def handle_hit(cls, hit: Any) -> dict:
+        return cls.clean_document(hit)
+
+    @classmethod
     def clean_document(cls, doc: IssueDocument) -> dict:
         """数据清洗：从 ES Hit 中提取并格式化字段"""
         if isinstance(doc, dict):
@@ -350,14 +356,53 @@ class IssueQueryHandler(BaseBizQueryHandler):
         impact_scope = data.get("impact_scope") or {}
         cleaned["impact_scope"] = add_dimension_display_name(impact_scope)
 
-        # aggregate_config 直接透传
-        cleaned["aggregate_config"] = data.get("aggregate_config") or {}
+        # aggregate_config 添加display_name
+        cleaned["aggregate_config"] = cls.enrich_aggregate_dimensions(data.get("aggregate_config") or {})
 
         return cleaned
 
     @classmethod
-    def handle_hit(cls, hit: Any) -> dict:
-        return cls.clean_document(hit)
+    def enrich_aggregate_dimensions(cls, aggregate_config: dict) -> dict:
+        """
+        为 aggregate_config 中的 aggregate_dimensions 添加 display_name
+
+        返回更新后的 aggregate_config
+        """
+        if not aggregate_config or "aggregate_dimensions" not in aggregate_config:
+            return aggregate_config
+
+        dimension_name_mapping = {
+            "bk_agent_id": _("Agent ID"),
+            "bk_biz_id": _("业务ID"),
+            "bk_cloud_id": _("采集器云区域ID"),
+            "bk_host_id": _("采集主机ID"),
+            "bk_target_cloud_id": _("云区域ID"),
+            "bk_target_host_id": _("目标主机ID"),
+            "bk_target_ip": _("目标IP"),
+            "device_name": _("设备名"),
+            "device_type": _("设备类型"),
+            "hostname": _("主机名"),
+            "ip": _("采集器IP"),
+            "mount_point": _("挂载点"),
+        }
+
+        # 延迟导入避免循环引用
+        from fta_web.alert.handlers.alert import AlertQueryTransformer
+
+        for field in AlertQueryTransformer.query_fields:
+            dimension_name_mapping[field.field] = field.display
+
+        new_aggregate_dimensions = []
+
+        for dim in aggregate_config["aggregate_dimensions"]:
+            # 去除 tags. 前缀
+            dim = dim.replace("tags.", "", 1)
+            name = dimension_name_mapping.get(dim) or ImpactScopeDimension.get_display_name(dim)
+            new_aggregate_dimensions.append({"field": dim, "display_name": name})
+
+        aggregate_config["aggregate_dimensions"] = new_aggregate_dimensions
+
+        return aggregate_config
 
     def add_alert_trend(self, issues: list[dict]) -> None:
         """
