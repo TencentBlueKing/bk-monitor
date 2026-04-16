@@ -243,7 +243,7 @@ export default defineComponent({
       return {
         bcs_cluster_id: props.bcsClusterId,
         bk_biz_id: bkBizId.value,
-        namespaces: namespaces || [],
+        namespaces: namespaces.length === 1 && namespaces[0] === '*' ? [] : namespaces,
         label_selector: {
           match_expressions: matchExpressions,
         },
@@ -591,6 +591,9 @@ export default defineComponent({
       switch (scope) {
         case 'namespace':
           config.namespaces = [];
+          if (config.noQuestParams) {
+            config.noQuestParams.namespaceStr = '';
+          }
           break;
         case 'load':
           // 确保 container 对象存在后重置工作负载相关字段
@@ -602,12 +605,23 @@ export default defineComponent({
           break;
         case 'label':
           config.labelSelector = [];
+          config.label_selector = {
+            match_labels: [],
+            match_expressions: [],
+          };
           break;
         case 'annotation':
           config.annotationSelector = [];
+          config.annotation_selector = {
+            match_annotations: [],
+          };
           break;
         case 'containerName':
           config.containerNameList = [];
+          ensureContainerConfig(config);
+          if (config.container) {
+            config.container.container_name = '';
+          }
           break;
         default:
           break;
@@ -700,6 +714,11 @@ export default defineComponent({
               value={config.noQuestParams.namespacesExclude}
               on-change={val => {
                 config.noQuestParams.namespacesExclude = val;
+                // 从 = 切换到 != 时，如果当前选中"所有"(*)，需要移除
+                if (val === '!=' && config.namespaces?.length === 1 && config.namespaces[0] === '*') {
+                  config.namespaces = [];
+                  config.noQuestParams.namespaceStr = '';
+                }
                 emit('change', config);
               }}
             >
@@ -816,6 +835,7 @@ export default defineComponent({
                 if (config.container) {
                   config.container.container_name = val.join(',');
                 }
+                config.containerNameList = [...val];
                 emit('change', config);
               }}
             />

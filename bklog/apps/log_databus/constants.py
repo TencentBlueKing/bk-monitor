@@ -261,6 +261,29 @@ DEFAULT_COLLECTOR_LENGTH = 2
 # 解析失败字段名
 PARSE_FAILURE_FIELD = "__parse_failure"
 
+# V4清洗管道保留字段：管道内部节点名 + BKBase V4内置字段
+V4_RESERVED_FIELD_NAMES = {
+    # 管道内部节点名（output_id / input_id）
+    "json_data",
+    "items",
+    "iter_item",
+    "iter_string",
+    "bk_separator_object",
+    "bk_separator_object_path",
+    # BKBase V4 内置保留字段
+    "__time",
+    "dteventtimestamp",
+    "dteventtime",
+    "localtime",
+    "thedate",
+    "now",
+    "dt_year",
+    "dt_month",
+    "dt_day",
+    "dt_hour",
+}
+V4_RESERVED_MINUTE_PATTERN = "minute"
+
 
 class AsyncStatus:
     RUNNING = "RUNNING"
@@ -742,3 +765,96 @@ RETRIEVE_CHAIN = [
 BATCH_SYNC_CLUSTER_COUNT = 500
 
 MIN_FLATTENED_SUPPORT_VERSION = "7.3"
+
+# ---- 场景化检索 labels 常量 ----
+
+COLLECTOR_SCENARIO_TO_SCENE = {
+    "row": "host",
+    "section": "host",
+    "wineventlog": "host",
+    "custom": "host",
+    "redis_slowlog": "host",
+    "syslog": "host",
+    "kafka": "host",
+    "client": "client",
+}
+
+SCENE_SEARCH_DIMENSIONS = {
+    "k8s": [
+        {
+            "key": "cluster_id",
+            "name": _("BCS 集群"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne", "req", "nreq"],
+            "choices_type": "dynamic",
+        },
+        {
+            "key": "stream",
+            "name": _("日志流类型"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "static",
+            "choices": [
+                {"id": "stdout", "name": _("标准输出")},
+                {"id": "file", "name": _("容器文件")},
+            ],
+        },
+    ],
+    "host": [],
+    "bk_paas": [
+        {
+            "key": "app_code",
+            "name": _("应用 Code"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "dynamic",
+        },
+        {
+            "key": "module_name",
+            "name": _("模块名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "dynamic",
+        },
+        {
+            "key": "stream",
+            "name": _("日志流类型"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "static",
+            "choices": [
+                {"id": "stdout", "name": _("标准输出")},
+                {"id": "file", "name": _("容器文件")},
+            ],
+        },
+    ],
+    "apm": [
+        {
+            "key": "app_name",
+            "name": _("APM 应用"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "dynamic",
+        },
+    ],
+    "client": [],
+    "trpc": [],
+}
+
+
+def build_scene_labels(scene: str, **dynamic_tags) -> dict:
+    """
+    Build ResultTable.labels for scene-based search routing.
+    Returns a flat dict, e.g. {"scene": "k8s", "cluster_id": "BCS-K8S-00001"}
+    """
+    labels = {"scene": scene}
+    for key, value in dynamic_tags.items():
+        if value:
+            labels[key] = str(value)
+    return labels

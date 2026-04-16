@@ -48,12 +48,14 @@ from apps.log_clustering.constants import (
     OwnerConfigEnum,
     PatternEnum,
     RemarkConfigEnum,
+    StorageTypeEnum,
 )
 from apps.log_clustering.models import (
     AiopsSignatureAndPattern,
     ClusteringConfig,
     ClusteringRemark,
 )
+from apps.log_clustering.utils.pattern import parse_pattern_placeholders
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
@@ -216,6 +218,7 @@ class PatternHandler:
             result.append(
                 {
                     "pattern": signature_pattern,
+                    "placeholders": parse_pattern_placeholders(signature_pattern),
                     "origin_pattern": signature_origin_pattern,
                     "origin_log": signature_origin_log,
                     "remark": remark,
@@ -231,6 +234,8 @@ class PatternHandler:
                     "strategy_enabled": strategy_enabled,
                 }
             )
+        if self._show_new_pattern:
+            result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
 
@@ -269,7 +274,7 @@ class PatternHandler:
         new_class_signature_query_condition = {
             "field": self.pattern_aggs_field,
             "operator": "is one of",
-            "value": new_class_signature_list,
+            "value": list(set(new_class_signature_list)),
             "condition": "and",
         }
 
@@ -305,9 +310,11 @@ class PatternHandler:
 
     def _get_pattern_aggs_result(self, index_set_id, query):
         pattern_aggs_field = self.pattern_aggs_field
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, query.get("bk_biz_id")) and FeatureToggleObject.switch(
-            UNIFY_QUERY_SEARCH_CLUSTERING, query.get("bk_biz_id")
-        ):
+        use_unify_query = self._clustering_config.storage_type == StorageTypeEnum.DORIS.value or (
+            FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, query.get("bk_biz_id"))
+            and FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_CLUSTERING, query.get("bk_biz_id"))
+        )
+        if use_unify_query:
             query["index_set_ids"] = [index_set_id]
             query["agg_field"] = pattern_aggs_field
             return UnifyQueryPatternHandler(query).query_pattern()
@@ -434,7 +441,7 @@ class PatternHandler:
                 BkData(self._clustering_config.new_cls_pattern_rt)
                 .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
-                .time_range(int(start_time.timestamp(), int(end_time.timestamp())))
+                .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                 .query()
             )
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}

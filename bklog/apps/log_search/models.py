@@ -72,6 +72,7 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
     TimeZoneEnum,
     LogBuiltInFieldTypeEnum,
+    IndexSetDataType,
 )
 from apps.log_search.exceptions import (
     CouldNotFindTemplateException,
@@ -389,9 +390,11 @@ class LogIndexSet(SoftDeleteModel):
 
     # doris
     support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
-    doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
+    doris_table_id = models.TextField(_("doris表名"), null=True, default=None)
 
     query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
+
+    is_group = models.BooleanField(_("是否索引组"), default=False)
 
     def get_name(self):
         return self.index_set_name
@@ -453,6 +456,28 @@ class LogIndexSet(SoftDeleteModel):
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
 
+    def get_parent_index_set_ids(self) -> list[int]:
+        """
+        获取当前索引集的归属索引集ID列表
+        """
+        parent_ids = LogIndexSetData.objects.filter(
+            result_table_id=self.index_set_id,
+            type=IndexSetDataType.INDEX_SET.value,
+        ).values_list("index_set_id", flat=True)
+
+        return list(parent_ids)
+
+    def get_child_index_set_ids(self) -> list[int]:
+        """
+        获取当前索引集的子索引集ID列表
+        """
+        child_ids = LogIndexSetData.objects.filter(
+            index_set_id=self.index_set_id,
+            type=IndexSetDataType.INDEX_SET.value,
+        ).values_list("result_table_id", flat=True)
+
+        return [int(child_id) for child_id in child_ids]
+
     @staticmethod
     def no_data_check_time(index_set_id: str):
         result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + index_set_id)
@@ -461,21 +486,30 @@ class LogIndexSet(SoftDeleteModel):
             result = datetime_to_timestamp(temp)
         return timestamp_to_timeformat(result)
 
-    def get_indexes(self, has_applied=None, project_info=True):
+    def get_log_index_set_data(self):
+        if self.is_group:
+            child_index_set_ids = self.get_child_index_set_ids()
+            index_set_data = LogIndexSetData.objects.filter(index_set_id__in=child_index_set_ids)
+        else:
+            index_set_data = LogIndexSetData.objects.filter(
+                index_set_id=self.index_set_id, type=IndexSetDataType.RESULT_TABLE.value
+            )
+        return index_set_data
+
+    def get_indexes(self, has_applied=None):
         """
         返回当前索引集下的索引列表
         :return:
         """
-        index_set_data = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+        if self.is_group:
+            child_index_set_ids = self.get_child_index_set_ids()
+            index_set_data = LogIndexSetData.objects.filter(index_set_id__in=child_index_set_ids)
+        else:
+            index_set_data = LogIndexSetData.objects.filter(
+                index_set_id=self.index_set_id, type=IndexSetDataType.RESULT_TABLE.value
+            )
         if has_applied:
             index_set_data = index_set_data.filter(apply_status=LogIndexSetData.Status.NORMAL)
-        bizs = {}
-        if self.scenario_id == Scenario.BKDATA:
-            if project_info is True:
-                bizs = {
-                    space.bk_biz_id: space.space_name
-                    for space in Space.objects.filter(bk_biz_id__in=list({data.bk_biz_id for data in index_set_data}))
-                }
         source_name = self.source_name
 
         return [
@@ -483,7 +517,6 @@ class LogIndexSet(SoftDeleteModel):
                 "index_id": data.index_id,
                 "index_set_id": self.index_set_id,
                 "bk_biz_id": data.bk_biz_id,
-                "bk_biz_name": bizs.get(data.bk_biz_id, "") if project_info is False else None,
                 "source_id": self.source_id,
                 "source_name": source_name,
                 "result_table_id": data.result_table_id,
@@ -526,6 +559,7 @@ class LogIndexSet(SoftDeleteModel):
             "sort_fields",
             "support_doris",
             "doris_table_id",
+            "is_group",
         )
 
         # 获取接入场景
@@ -622,16 +656,16 @@ class LogIndexSet(SoftDeleteModel):
     @atomic
     def set_tag(cls, index_set_id, *names):
         index_set = cls.objects.select_for_update().get(index_set_id=index_set_id)
-        add_tag_ids = [str(IndexSetTag.get_tag_id(name)) for name in names]
+        add_tag_ids = [str(IndexSetTag.get_tag_id(name, tag_type=TAG_TYPE_INNER)) for name in names]
         tag_ids = set(index_set.tag_ids)
         for add_tag_id in add_tag_ids:
             tag_ids.add(add_tag_id)
         index_set.tag_ids = list(tag_ids)
-        index_set.save()
+        index_set.save(update_fields=["tag_ids"])
 
     @classmethod
     def delete_tag_by_name(cls, index_set_id, tag_name):
-        delete_tag_id = IndexSetTag.get_tag_id(tag_name)
+        delete_tag_id = IndexSetTag.get_tag_id(tag_name, tag_type=TAG_TYPE_INNER)
         cls.delete_tag(index_set_id, delete_tag_id)
 
     @classmethod
@@ -642,7 +676,7 @@ class LogIndexSet(SoftDeleteModel):
         delete_tag_ids = {str(tag_id) for tag_id in tag_ids}
         remain_tag_ids = original_tag_ids - delete_tag_ids
         index_set.tag_ids = list(remain_tag_ids)
-        index_set.save()
+        index_set.save(update_fields=["tag_ids"])
 
     def mark_favorite(self, username: str):
         IndexSetUserFavorite.mark(username, self.index_set_id)
@@ -688,12 +722,16 @@ class LogIndexSetData(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
     result_table_id = models.CharField(_("结果表"), max_length=255)
     result_table_name = models.CharField(_("结果表名称"), max_length=255, null=True, default=None, blank=True)
-    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=True, blank=True)
+    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=None, blank=True)
     apply_status = models.CharField(_("审核状态"), max_length=64, choices=Status.StatusChoices, default=Status.PENDING)
     scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
     storage_cluster_id = models.IntegerField(_("存储集群ID"), default=None, null=True, blank=True)
     time_field_type = models.CharField(_("时间字段类型"), max_length=32, default=None, null=True)
     time_field_unit = models.CharField(_("时间字段单位"), max_length=32, default=None, null=True)
+
+    type = models.CharField(
+        _("类型"), max_length=64, choices=IndexSetDataType.get_choices(), default=IndexSetDataType.RESULT_TABLE.value
+    )
 
     def list_operate(self):
         return format_html(_('<a href="../logindexset/?index_set_id=%s">索引集</a>&nbsp;&nbsp;') % self.index_set_id)
@@ -1080,31 +1118,97 @@ class IndexSetUserFavorite(models.Model):
         return cls.objects.filter(username=username).values_list("index_set_id", flat=True)
 
 
+TAG_TYPE_USER = "user"
+TAG_TYPE_INNER = "inner"
+TAG_TYPE_SCENE = "scene"
+TAG_TYPE_CHOICES = (
+    (TAG_TYPE_USER, _("用户自定义")),
+    (TAG_TYPE_INNER, _("系统内置")),
+    (TAG_TYPE_SCENE, _("场景维度")),
+)
+
+
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
-    name = models.CharField(_("标签名称"), max_length=255, unique=True)
+    name = models.CharField(_("标签名称"), max_length=255, db_index=True)
+    value = models.CharField(_("标签值"), max_length=255, default="", blank=True)
     color = models.CharField(_("配色"), max_length=255, choices=TagColor.get_choices(), default=TagColor.GREEN.value)
+    tag_type = models.CharField(
+        _("标签类型"), max_length=16, choices=TAG_TYPE_CHOICES, default=TAG_TYPE_USER, db_index=True,
+    )
 
     class Meta:
         verbose_name = _("标签表")
         verbose_name_plural = _("标签表")
+        unique_together = (("name", "value", "tag_type"),)
 
     @classmethod
-    def get_tag_id(cls, name: str) -> int:
-        tag, created = cls.objects.get_or_create(name=name)
+    def get_tag_id(cls, name: str, value: str = "", tag_type: str = TAG_TYPE_USER) -> int:
+        tag, _created = cls.objects.get_or_create(name=name, value=value, tag_type=tag_type)
         return tag.tag_id
 
     @classmethod
     def batch_get_tags(cls, tag_ids: set):
-        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "color", "tag_id")
+        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "value", "color", "tag_id", "tag_type")
         return {
             str(tag["tag_id"]): {
                 "name": InnerTag.get_choice_label(tag["name"]),
+                "value": tag["value"],
                 "color": tag["color"],
                 "tag_id": tag["tag_id"],
+                "tag_type": tag["tag_type"],
             }
             for tag in tags
         }
+
+    @classmethod
+    def get_dimension_values(cls, bk_biz_id: int, scene: str, dimension_key: str, filters: dict = None) -> list:
+        """
+        Query distinct dimension values for *dimension_key* across index sets
+        that belong to *bk_biz_id* and match *scene* + optional cascading *filters*.
+
+        Example: scene="k8s", dimension_key="cluster_id", filters={"stream": "stdout"}
+        returns all cluster_id values whose index sets also carry stream=stdout.
+        """
+        scene_tag_id = cls.get_tag_id(name="scene", value=scene, tag_type=TAG_TYPE_SCENE)
+        required_tag_ids = {scene_tag_id}
+
+        if filters:
+            for f_key, f_value in filters.items():
+                try:
+                    f_tag = cls.objects.get(name=f_key, value=f_value, tag_type=TAG_TYPE_SCENE)
+                    required_tag_ids.add(f_tag.tag_id)
+                except cls.DoesNotExist:
+                    return []
+
+        str_required = {str(tid) for tid in required_tag_ids}
+
+        index_sets = LogIndexSet.objects.filter(
+            space_uid__endswith=str(bk_biz_id),
+            is_active=True,
+        ).values_list("tag_ids", flat=True)
+
+        candidate_tag_ids = set()
+        for raw_tag_ids in index_sets:
+            if not raw_tag_ids:
+                continue
+            id_set = {str(t) for t in raw_tag_ids if t}
+            if str_required.issubset(id_set):
+                candidate_tag_ids.update(id_set)
+
+        if not candidate_tag_ids:
+            return []
+
+        return list(
+            cls.objects.filter(
+                tag_id__in=[int(i) for i in candidate_tag_ids],
+                name=dimension_key,
+                tag_type=TAG_TYPE_SCENE,
+            )
+            .exclude(value="")
+            .values_list("value", flat=True)
+            .distinct()
+        )
 
 
 class AsyncTask(OperateRecordModel):

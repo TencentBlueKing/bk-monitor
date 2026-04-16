@@ -41,6 +41,7 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const isShowLeft = ref(true);
+    const leftLoading = ref(true);
     const currentIndexSet = ref<IListItemData>({
       index_set_name: t('全部采集项'),
       index_count: 0,
@@ -54,14 +55,22 @@ export default defineComponent({
     const handleChoose = (item: IListItemData) => {
       currentIndexSet.value = item;
     };
+    /** 左侧列表加载状态变化 */
+    const handleLeftLoading = (val: boolean) => {
+      leftLoading.value = val;
+    };
 
     return () => (
       <div class='v2-log-collection-main'>
-        {isShowLeft.value && (
-          <div class='v2-log-collection-left'>
-            <LeftList on-choose={handleChoose} />
-          </div>
-        )}
+        <div
+          class='v2-log-collection-left'
+          v-show={isShowLeft.value}
+        >
+          <LeftList
+            on-choose={handleChoose}
+            on-loading={handleLeftLoading}
+          />
+        </div>
         <div class='v2-log-collection-right'>
           <button
             class='right-btn-box'
@@ -70,7 +79,10 @@ export default defineComponent({
           >
             <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`} />
           </button>
-          <TableList indexSet={currentIndexSet.value} />
+          <TableList
+            indexSet={currentIndexSet.value}
+            leftLoading={leftLoading.value}
+          />
         </div>
       </div>
     );

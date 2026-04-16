@@ -53,11 +53,7 @@ from metadata.models.vm.utils import (
     get_vm_cluster_id_name,
     report_metadata_data_link_status_info,
 )
-from metadata.service.sync_metadata import (
-    sync_es_metadata,
-    sync_kafka_metadata,
-    sync_vm_metadata,
-)
+from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
@@ -78,6 +74,13 @@ def refresh_custom_log_report_config(log_group_id=None):
     from metadata.task.custom_report import refresh_custom_log_config
 
     refresh_custom_log_config(log_group_id=log_group_id)
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def refresh_entity_definition_to_redis():
+    from metadata.task.entity_relation import refresh_entity_definition_to_redis as _refresh
+
+    _refresh()
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -976,19 +979,6 @@ def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
             )
             sync_kafka_metadata(bk_tenant_id=bk_tenant_id, kafka_info=kafka_info, ds=ds, bk_data_id=bk_data_id)
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
-
-    # 处理 ES 信息
-    es_info = bkbase_metadata_dict.get("es")
-    if es_info and "es" not in skip_types:
-        with transaction.atomic():  # 单独事务
-            logger.info(
-                "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
-            )
-            # TODO: 这里需要特别注意,新版协议中，es_info中的数据结构是 {key:[info1,info2]},这里的key对应计算平台侧的RT,在监控平台这边不可读
-            # TODO：考虑到目前日志链路中，不存在1个DataId关联多个ES结果表的场景，因此这里默认只选取第一条元素的value
-            es_info_value = next(iter(es_info.values()))
-            sync_es_metadata(bk_tenant_id=bk_tenant_id, es_info=es_info_value, table_id=table_id)
-            logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 VM 信息
     vm_info = bkbase_metadata_dict.get("vm")

@@ -190,6 +190,8 @@ const stateTpl = {
     isAiAssistantActive: false,
   },
   localSort: false,
+  dateTimeSort: false,
+  dateTimeSortList: [],
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
   aiMode: {
@@ -305,6 +307,9 @@ const store = new Vuex.Store({
         sort_list,
         format,
         timezone,
+        retrieve_type,
+        scene_active,
+        scene_filter_values,
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
@@ -322,6 +327,16 @@ const store = new Vuex.Store({
         searchParams.keyword = '*';
       }
 
+      let local_sort_list = [];
+
+      if (state.dateTimeSort) {
+        local_sort_list = state.dateTimeSortList;
+      } else if (state.localSort) {
+        local_sort_list = sort_list;
+      } else {
+        local_sort_list = getters.custom_sort_list;
+      }
+
       const baseParams = {
         start_time,
         end_time,
@@ -333,9 +348,12 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         search_mode: searchMode,
-        sort_list,
+        sort_list: local_sort_list,
         bk_biz_id: state.bkBizId,
         time_zone: timezone,
+        retrieve_type,
+        scene_active,
+        scene_filter_values,
         ...searchParams,
       };
 
@@ -882,9 +900,18 @@ const store = new Vuex.Store({
       
       // 性能优化：使用 Map 缓存字段查找，从 O(n*m) 降到 O(n+m)
       // 当字段数量很大（如1500个）时，能显著提升性能
+      // 注意：当存在别名冲突时（如 body 和 line 都有 field_alias='body'），
+      // updateIndexFieldInfo 会创建 is_virtual_alias_field=true 的虚拟别名字段并追加到末尾。
+      // 需要优先保留原始字段，避免虚拟别名字段覆盖原始字段。
+      // 因为 store.getters.visibleFields 会过滤掉 is_virtual_alias_field=true 的字段，
+      // 若虚拟字段进入 visibleFields，则对应字段将永远无法在界面中显示。
       const fieldsMap = new Map();
       state.indexFieldInfo.fields.forEach(field => {
-        fieldsMap.set(field.field_name, field);
+        const existing = fieldsMap.get(field.field_name);
+        // 非虚拟别名字段优先：不允许虚拟别名字段覆盖已存在的原始字段
+        if (!existing || !field.is_virtual_alias_field) {
+          fieldsMap.set(field.field_name, field);
+        }
       });
       
       const visibleFields = filterList
@@ -1262,7 +1289,7 @@ const store = new Vuex.Store({
         return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
-      const { size, format, ...otherPrams } = getters.retrieveParams;
+      const { size, format, ...otherParams } = getters.retrieveParams;
       const requestAddition = getters.requestAddition;
 
       // 如果是第一次请求
@@ -1310,11 +1337,11 @@ const store = new Vuex.Store({
       const baseData = {
         bk_biz_id: state.bkBizId,
         size,
-        ...otherPrams,
+        ...otherParams,
         start_time,
         end_time,
         addition: formatAdditionalFields(state, [...requestAddition, ...getCommonFilterAdditionWithValues(state)]),
-        sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
+        // sort_list: dateFieldSortList ?? otherParams.local_sort_list,
       };
 
       // 更新联合查询的begin

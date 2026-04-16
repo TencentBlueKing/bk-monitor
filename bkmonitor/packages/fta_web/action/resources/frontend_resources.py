@@ -641,6 +641,7 @@ class AssignAlertResource(Resource):
                 time=current_time,
                 create_time=current_time,
                 event_id=current_time,
+                operator=operator,
             )
         )
         alerts = AlertDocument.mget(alert_ids)

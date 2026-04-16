@@ -33,6 +33,7 @@ import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-ce
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertHost } from '../../../composables/use-alert-host';
 import { useSceneView } from '../../../composables/use-scene-view';
+import PanelEmpty from './components/panel-empty/panel-empty';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
 import type { IDataQuery } from '../../../../../plugins/typings';
@@ -48,7 +49,7 @@ export default defineComponent({
   },
   setup(props) {
     const { bizId, interval, timeRange } = storeToRefs(useAlarmCenterDetailStore());
-    const { currentTarget, targetList, loading } = useAlertHost(toRef(props, 'alertId'));
+    const { currentTarget, targetList, loading } = useAlertHost({ alertId: toRef(props, 'alertId'), bizId });
     const { dashboards: hostDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'host');
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);
@@ -180,71 +181,77 @@ export default defineComponent({
   render() {
     return (
       <div class={['alarm-center-detail-panel-host', this.loading ? 'is-loading' : '']}>
-        <div class='panel-host-white-bg-container'>
-          <div class='host-selector-wrap'>
-            <div class='host-selector-label'>{window.i18n.t('主机')}</div>
-            <div class='host-selector-row'>
-              <div class='host-selector-container'>
-                <PanelHostSelector
-                  currentTarget={this.currentTarget}
-                  targetList={this.targetList}
-                  onChange={target => {
-                    this.currentTarget = target;
+        {this.canLinkToPerformance || this.loading ? (
+          <>
+            <div class='panel-host-white-bg-container'>
+              <div class='host-selector-wrap'>
+                <div class='host-selector-label'>{window.i18n.t('主机')}</div>
+                <div class='host-selector-row'>
+                  <div class='host-selector-container'>
+                    <PanelHostSelector
+                      currentTarget={this.currentTarget}
+                      targetList={this.targetList}
+                      onChange={target => {
+                        this.currentTarget = target;
+                      }}
+                    />
+                    {this.createSkeletonDom()}
+                  </div>
+                  <div
+                    class={`host-explore-link-btn ${!this.canLinkToPerformance ? 'disabled' : ''}`}
+                    onClick={this.handleToPerformance}
+                  >
+                    <span class='link-text'>{window.i18n.t('主机监控')}</span>
+                    <i class='icon-monitor icon-mc-link' />
+                  </div>
+                </div>
+              </div>
+              {/* <div class='ai-hight-card-wrap'>
+                <AiHighlightCard
+                  v-slots={{
+                    content: () => (
+                      <div class='ai-content-wrap'>
+                        <span class='title'>{this.$t('AI 分析结论')}：</span>
+                        <ul class='list'>
+                          <li>
+                            <div class='list-item'>
+                              <span class='title'>磁盘：</span>
+                              <span class='desc'>(设备名: /dev/dba，挂载点: /data, 使用率 97%)</span>
+                              <div class='status'>
+                                <div class='dot' />
+                                <span class='text'>异常</span>
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+                    ),
                   }}
                 />
                 {this.createSkeletonDom()}
-              </div>
-              <div
-                class={`host-explore-link-btn ${!this.canLinkToPerformance ? 'disabled' : ''}`}
-                onClick={this.handleToPerformance}
-              >
-                <span class='link-text'>{window.i18n.t('主机监控')}</span>
-                <i class='icon-monitor icon-mc-link' />
-              </div>
+              </div> */}
             </div>
-          </div>
-          {/* <div class='ai-hight-card-wrap'>
-            <AiHighlightCard
-              v-slots={{
-                content: () => (
-                  <div class='ai-content-wrap'>
-                    <span class='title'>{this.$t('AI 分析结论')}：</span>
-                    <ul class='list'>
-                      <li>
-                        <div class='list-item'>
-                          <span class='title'>磁盘：</span>
-                          <span class='desc'>(设备名: /dev/dba，挂载点: /data, 使用率 97%)</span>
-                          <div class='status'>
-                            <div class='dot' />
-                            <span class='text'>异常</span>
-                          </div>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-                ),
-              }}
-            />
-            {this.createSkeletonDom()}
-          </div> */}
-        </div>
-        <div class='panel-host-chart-wrap'>
-          <AlarmDashboardGroup
-            customOptions={{
-              formatterData: this.formatterData,
-            }}
-            params={{
-              bk_biz_id: this.bizId,
-            }}
-            dashboards={this.hostDashboards}
-            loading={this.sceneViewLoading}
-            showRestore={!!this.dataZoomTimeRange}
-            timeRange={this.viewerTimeRange}
-            viewOptions={this.viewOptions}
-            onDataZoomChange={this.handleDataZoomTimeRangeChange}
-            onRestore={this.handleDataZoomTimeRangeChange}
-          />
-        </div>
+            <div class='panel-host-chart-wrap'>
+              <AlarmDashboardGroup
+                customOptions={{
+                  formatterData: this.formatterData,
+                }}
+                params={{
+                  bk_biz_id: this.bizId,
+                }}
+                dashboards={this.hostDashboards}
+                loading={this.sceneViewLoading}
+                showRestore={!!this.dataZoomTimeRange}
+                timeRange={this.viewerTimeRange}
+                viewOptions={this.viewOptions}
+                onDataZoomChange={this.handleDataZoomTimeRangeChange}
+                onRestore={this.handleDataZoomTimeRangeChange}
+              />
+            </div>
+          </>
+        ) : (
+          <PanelEmpty />
+        )}
       </div>
     );
   },

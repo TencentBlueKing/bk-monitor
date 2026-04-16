@@ -136,6 +136,7 @@ export default {
           filterSetting: [],
           filterAddition: [],
           sortList: [],
+          contextDisplayFields: [],
         },
         payload ?? {},
       );

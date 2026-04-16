@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -197,6 +197,11 @@ class ExplorerFilesTimeout(BaseExtractException):
 class ExplorerException(BaseExtractException):
     ErrorCode = "213"
     MESSAGE = _("文件预览异常")
+
+
+class ObjsNotHaveHost(BaseExtractException):
+    ERROR_CODE = "214"
+    MESSAGE = _("该批实例下没有可预览的服务器")
 
 
 class StrategyDoesNotExist(BaseExtractException):

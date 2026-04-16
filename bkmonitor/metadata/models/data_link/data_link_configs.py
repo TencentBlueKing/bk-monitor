@@ -486,7 +486,15 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
 
             ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
             if ts_group and ts_group.metric_group_dimensions:
-                metric_group_dimensions = [dim.get("key") for dim in ts_group.metric_group_dimensions if dim.get("key")]
+                metric_group_dimensions = []
+                for dim in ts_group.metric_group_dimensions:
+                    key = dim.get("key")
+                    if not key:
+                        continue
+                    if "default_value" in dim and dim["default_value"] is not None:
+                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
+                    else:
+                        metric_group_dimensions.append(key)
                 render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
                 render_params["dd_version"] = "v2"
 
@@ -1076,7 +1084,7 @@ class ClusterConfig(models.Model):
         return config
 
     @classmethod
-    def sync_cluster_config(cls, cluster: "ClusterInfo") -> None:
+    def sync_cluster_config(cls, cluster: "ClusterInfo", sync_namespaces: list[str] | None = None) -> None:
         """
         同步集群配置
 
@@ -1086,6 +1094,7 @@ class ClusterConfig(models.Model):
 
         Args:
             cluster: 集群信息
+            sync_namespaces: 指定同步的命名空间列表
         """
 
         # 根据集群类型获取kind和namespace
@@ -1094,6 +1103,10 @@ class ClusterConfig(models.Model):
 
         # 获取或创建bkbase集群配置记录
         for namespace in namespaces:
+            # 如果指定同步的命名空间列表不为空，则只同步指定的命名空间
+            if sync_namespaces and namespace not in sync_namespaces:
+                continue
+
             cluster_config, _ = ClusterConfig.objects.get_or_create(
                 bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
             )

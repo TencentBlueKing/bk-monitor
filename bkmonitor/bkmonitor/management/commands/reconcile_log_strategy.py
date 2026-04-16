@@ -301,7 +301,7 @@ def process_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
 
         normalized_record: dict[str, Any] = {"_result_": float(record["_result_"])}
-        normalized_record.update({k: str(v) for k, v in record.items() if k not in {"_result_", "a"}})
+        normalized_record.update({k: str(v) for k, v in record.items() if k not in {"_result_", "a", "A"}})
         processed_records.append(normalized_record)
 
     return processed_records
@@ -422,61 +422,63 @@ def run_reconciliation(
 
     stdout.write(f"找到 {len(strategy_models)} 个策略，开始对账...")
 
-    for strategy in Strategy.from_models(strategy_models):
-        bk_biz_id: int = strategy.bk_biz_id
-        bk_biz_name: str = biz_id_name_map.get(bk_biz_id, str(bk_biz_id))
+    # 分批处理策略，避免一次性加载过多数据到内存。
+    for chunk in [strategy_models[i : i + 100] for i in range(0, len(strategy_models), 100)]:
+        for strategy in Strategy.from_models(chunk):
+            bk_biz_id: int = strategy.bk_biz_id
+            bk_biz_name: str = biz_id_name_map.get(bk_biz_id, str(bk_biz_id))
 
-        try:
-            item: Item = strategy.items[0]
-            query_config_dict: dict[str, Any] = item.query_configs[0].to_dict()
+            try:
+                item: Item = strategy.items[0]
+                query_config_dict: dict[str, Any] = item.query_configs[0].to_dict()
 
-            # 构建查询参数（data_sources 在 execute_query 内按需构建，避免共享实例的状态污染）
-            query_params: dict[str, Any] = {
-                "bk_biz_id": bk_biz_id,
-                "strategy": strategy,
-                "expression": item.expression,
-                "functions": item.functions or [],
-                "start_time": start_time_ms,
-                "end_time": end_time_ms,
-            }
-
-            # 执行非灰度查询
-            ds_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=False))
-
-            # 执行灰度查询
-            uq_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=True))
-
-            # 指定 strategy_ids 时，输出查询结果到 stdout
-            if strategy_ids:
-                stdout.write(f"\n===== 策略 {strategy.id}（{strategy.name}）查询结果 =====")
-                stdout.write(f"ds_records ({len(ds_records)} 条):")
-                stdout.write(json.dumps(ds_records, ensure_ascii=False, indent=2))
-                stdout.write(f"uq_records ({len(uq_records)} 条):")
-                stdout.write(json.dumps(uq_records, ensure_ascii=False, indent=2))
-
-            # 比较结果
-            compare_result: dict[str, Any] = compare_query_records(uq_records, ds_records)
-
-            results.append(
-                {
+                # 构建查询参数（data_sources 在 execute_query 内按需构建，避免共享实例的状态污染）
+                query_params: dict[str, Any] = {
                     "bk_biz_id": bk_biz_id,
-                    "bk_biz_name": bk_biz_name,
-                    "strategy_id": strategy.id,
-                    "strategy_name": strategy.name,
-                    "strategy_url": f"{base_url}?bizId={bk_biz_id}#/strategy-config/detail/{strategy.id}",
-                    "data_type_label": query_config_dict.get("data_type_label") or "",
-                    "is_consistent": int(compare_result["is_consistent"]),
-                    "has_data": 1 if ds_records else 0,
-                    "uq_count": compare_result["uq_count"],
-                    "ds_count": compare_result["ds_count"],
-                    "diff_reason": compare_result["diff_reason"],
-                    "query_string": query_config_dict.get("query_string") or "",
-                    "agg_dimension": json.dumps(query_config_dict.get("agg_dimension") or [], ensure_ascii=False),
-                    "query_config": json.dumps(query_config_dict, ensure_ascii=False),
+                    "strategy": strategy,
+                    "expression": item.expression,
+                    "functions": item.functions or [],
+                    "start_time": start_time_ms,
+                    "end_time": end_time_ms,
                 }
-            )
-        except Exception as e:
-            stdout.write(style.ERROR(f"  处理策略 {strategy.id} 时出错：{e}"))
+
+                # 执行非灰度查询
+                ds_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=False))
+
+                # 执行灰度查询
+                uq_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=True))
+
+                # 指定 strategy_ids 时，输出查询结果到 stdout
+                if strategy_ids:
+                    stdout.write(f"\n===== 策略 {strategy.id}（{strategy.name}）查询结果 =====")
+                    stdout.write(f"ds_records ({len(ds_records)} 条):")
+                    stdout.write(json.dumps(ds_records, ensure_ascii=False, indent=2))
+                    stdout.write(f"uq_records ({len(uq_records)} 条):")
+                    stdout.write(json.dumps(uq_records, ensure_ascii=False, indent=2))
+
+                # 比较结果
+                compare_result: dict[str, Any] = compare_query_records(uq_records, ds_records)
+
+                results.append(
+                    {
+                        "bk_biz_id": bk_biz_id,
+                        "bk_biz_name": bk_biz_name,
+                        "strategy_id": strategy.id,
+                        "strategy_name": strategy.name,
+                        "strategy_url": f"{base_url}?bizId={bk_biz_id}#/strategy-config/detail/{strategy.id}",
+                        "data_type_label": query_config_dict.get("data_type_label") or "",
+                        "is_consistent": int(compare_result["is_consistent"]),
+                        "has_data": 1 if ds_records else 0,
+                        "uq_count": compare_result["uq_count"],
+                        "ds_count": compare_result["ds_count"],
+                        "diff_reason": compare_result["diff_reason"],
+                        "query_string": query_config_dict.get("query_string") or "",
+                        "agg_dimension": json.dumps(query_config_dict.get("agg_dimension") or [], ensure_ascii=False),
+                        "query_config": json.dumps(query_config_dict, ensure_ascii=False),
+                    }
+                )
+            except Exception as e:
+                stdout.write(style.ERROR(f"  处理策略 {strategy.id} 时出错：{e}"))
 
     # 写入 CSV 文件
     write_results_to_csv(output_csv_path, CSV_FIELDNAMES_RECONCILE, results)

@@ -836,7 +836,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -845,7 +845,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -854,7 +854,7 @@ DATABASES = {
         "PASSWORD": GRAFANA_MYSQL_PASSWORD or BACKEND_MYSQL_PASSWORD,
         "HOST": GRAFANA_MYSQL_HOST or BACKEND_MYSQL_HOST,
         "PORT": GRAFANA_MYSQL_PORT or BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
 }
 
@@ -869,7 +869,7 @@ else:
         "PASSWORD": BACKEND_ALERT_MYSQL_PASSWORD,
         "HOST": BACKEND_ALERT_MYSQL_HOST,
         "PORT": BACKEND_ALERT_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     }
 
 # ES7 config
@@ -1558,6 +1558,8 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
+# 是否让拨测默认接入独立 BKData 链路，默认开启
+ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
@@ -1587,8 +1589,6 @@ BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS = 600
 BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 # Redis默认锁名称
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
-# 是否启用同步历史ES集群记录能力
-ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE = False
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 

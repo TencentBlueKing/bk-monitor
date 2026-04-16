@@ -26,14 +26,14 @@
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { downFile, formatFileSize } from '@/common/util';
+import { formatFileSize } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
-import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
 import { useTableSetting } from '../hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
+import { useDownloadFile } from '../hooks/use-download-file';
 import { FileUploadStatus, UserReportItem } from './types';
 
 import './report-table.scss';
@@ -120,6 +120,9 @@ export default defineComponent({
 
     // 使用检索任务 Hook
     const { searchTask } = useSearchTask();
+
+    // 使用文件下载 Hook
+    const { downloadFile: download } = useDownloadFile();
 
     // 分页变化事件处理函数
     const handlePageChange = (current: number) => {
@@ -325,25 +328,8 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = async (downloadUrl: string) => {
-      if (props.isAllowedDownload) {
-        if (downloadUrl) {
-          const url = `${location.protocol}//${downloadUrl}`;
-          downFile(url);
-        }
-      } else {
-        const paramData = {
-          action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
-          resources: [
-            {
-              type: 'space',
-              id: store.state.spaceUid,
-            },
-          ],
-        };
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
-      }
+    const downloadFile = async (fileName: string) => {
+      download(fileName, props.isAllowedDownload);
     };
 
     // 排序变化事件处理函数
@@ -440,7 +426,7 @@ export default defineComponent({
               v-cursor={{
                 active: !props.isAllowedDownload,
               }}
-              on-click={() => downloadFile(row.download_url)}
+              on-click={() => downloadFile(row.file_name)}
             >
               {t('下载文件')}
             </bk-button>

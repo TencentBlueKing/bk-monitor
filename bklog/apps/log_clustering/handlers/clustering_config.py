@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
     RegexRuleTypeEnum,
+    StorageTypeEnum,
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
@@ -41,6 +42,7 @@ from apps.log_clustering.exceptions import (
     ClusteringDebugException,
     CollectorEsStorageNotExistException,
     CollectorStorageNotExistException,
+    DorisStorageNotExistException,
     RegexTemplateNotExistException,
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
@@ -52,8 +54,8 @@ from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import TimeEnum
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 from apps.models import model_to_dict
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
@@ -82,10 +84,17 @@ class ClusteringConfigHandler:
 
     @classmethod
     def list_all_configs(cls):
-        return [model_to_dict(config, exclude=CLUSTERING_CONFIG_EXCLUDE) for config in ClusteringConfig.objects.all()]
+        configs = []
+        for config in ClusteringConfig.objects.all():
+            data = model_to_dict(config, exclude=CLUSTERING_CONFIG_EXCLUDE)
+            data["placeholder_analysis_supported"] = config.placeholder_analysis_supported
+            configs.append(data)
+        return configs
 
     def retrieve(self):
-        return model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
+        data = model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
+        data["placeholder_analysis_supported"] = self.data.placeholder_analysis_supported
+        return data
 
     def online_start(self):
         from apps.log_clustering.handlers.pipline_service.aiops_service_online import (
@@ -129,6 +138,8 @@ class ClusteringConfigHandler:
         conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT)
         es_storage = ""
+        storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
+        doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
         collector_config_name_en = ""
 
         if collector_config_id:
@@ -159,6 +170,9 @@ class ClusteringConfigHandler:
         related_space_pre_bk_biz_id = space_uid_to_bk_biz_id(log_index_set.space_uid)
         bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
 
+        if storage_type == StorageTypeEnum.DORIS.value and not doris_storage:
+            raise DorisStorageNotExistException(DorisStorageNotExistException.MESSAGE.format(index_set_id=index_set_id))
+
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
         clustering_config, created = ClusteringConfig.objects.update_or_create(
@@ -168,6 +182,8 @@ class ClusteringConfigHandler:
                 collector_config_id=collector_config_id,
                 collector_config_name_en=collector_config_name_en,
                 es_storage=es_storage,
+                storage_type=storage_type,
+                doris_storage=doris_storage,
                 min_members=params.get(
                     "min_members", default_conf.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS)
                 ),
@@ -277,6 +293,24 @@ class ClusteringConfigHandler:
         pipeline_id = self.update(params)
         return [pipeline_id]
 
+    @staticmethod
+    def _get_access_check_time_range():
+        now = arrow.now()
+        return now.shift(minutes=-15).int_timestamp * 1000, now.int_timestamp * 1000
+
+    def _get_access_total_count(self, clustering_config, addition=None):
+        start_time, end_time = self._get_access_check_time_range()
+        params = {
+            "bk_biz_id": clustering_config.bk_biz_id,
+            "index_set_ids": [clustering_config.index_set_id],
+            "start_time": start_time,
+            "end_time": end_time,
+            "time_range": "customized",
+        }
+        if addition:
+            params["addition"] = addition
+        return UnifyQueryFieldHandler(params).get_total_count()
+
     def get_access_status(self, task_id=None, include_update=False):
         """
         接入状态检测
@@ -303,20 +337,14 @@ class ClusteringConfigHandler:
         access_finished = False
         if clustering_config.clustered_rt:
             # 此处简化流程，只检查模型预测 flow 的输出
-            query_params = {
-                "begin": 0,
-                "size": 1,
-                "original_search": True,
-                "is_desensitize": False,
-            }
             try:
-                origin_log_count = SearchHandler(self.index_set_id, query_params, only_for_agg=True).search()["total"]
+                origin_log_count = self._get_access_total_count(clustering_config)
                 if origin_log_count > 0:
                     # 如果原始数据有上报，需要判定聚类数据有没有上报，有上报才算接入完成
-                    query_params["addition"] = [{"field": "__dist_05", "operator": "exists"}]
-                    clustering_log_count = SearchHandler(self.index_set_id, query_params, only_for_agg=True).search()[
-                        "total"
-                    ]
+                    clustering_log_count = self._get_access_total_count(
+                        clustering_config,
+                        addition=[{"field": "__dist_05", "operator": "exists"}],
+                    )
                     if clustering_log_count > 0:
                         access_finished = True
                     else:

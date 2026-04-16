@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import yaml
 
 from bkmonitor.utils.rsa.signature import Verification
@@ -22,7 +22,7 @@ from utils import count_md5
 __all__ = ["load_plugin_signature_manager", "Signature"]
 
 
-class PluginSignatureManager(object):
+class PluginSignatureManager:
     def __init__(self, plugin_version):
         if not plugin_version.version:
             raise PluginVersionNotExist
@@ -53,7 +53,7 @@ class PluginSignatureManager(object):
         return result
 
     def default(self, os_type, protocol):
-        message_maker = getattr(self, "message_by_%s" % protocol, None)
+        message_maker = getattr(self, f"message_by_{protocol}", None)
         if message_maker is None:
             raise SignatureProtocolNotExist(plugin=self.version, protocol=protocol)
 
@@ -62,7 +62,7 @@ class PluginSignatureManager(object):
         yield Verification(protocol).gen_signature(message)
 
 
-class SignatureObj(object):
+class SignatureObj:
     def __init__(self, signature):
         """
         :param signature: loaded from meta.yaml (dict)
@@ -97,7 +97,7 @@ def load_plugin_signature_manager(plugin_version):
     return SignatureManagerFactory[plugin_type](plugin_version)
 
 
-class SignatureObjCollections(object):
+class SignatureObjCollections:
     """manage signature with multiple protocol"""
 
     signature_type_info = {
@@ -116,8 +116,8 @@ class SignatureObjCollections(object):
             signature_file = signature_file_or_path
         else:
             try:
-                signature_file = open(signature_file_or_path, "r")
-            except IOError:
+                signature_file = open(signature_file_or_path)
+            except OSError:
                 return self
 
         yaml_content = signature_file.read()
@@ -125,7 +125,7 @@ class SignatureObjCollections(object):
         return self
 
     def load_from_yaml(self, yaml_content):
-        signature_dict = yaml.load(yaml_content, Loader=yaml.FullLoader)
+        signature_dict = yaml.safe_load(yaml_content)
         self.load_from_python(signature_dict)
         return self
 
@@ -162,7 +162,7 @@ class SignatureObjCollections(object):
             yield protocol, self._signature_dict[protocol].verificate(plugin_version)
 
 
-class BasePluginSignatureProtocolMixin(object):
+class BasePluginSignatureProtocolMixin:
     def message_by_default(self, os_type, plugin_debugged=True):
         md5_list = [
             self.version.config.config_json,
@@ -187,77 +187,77 @@ class BasePluginSignatureProtocolMixin(object):
 class ExporterPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(ExporterPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message + count_md5(self.version.config.file_config[os_type]["md5"])
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(ExporterPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class DataDogPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(DataDogPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(DataDogPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class ScriptPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(ScriptPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message + count_md5(self.version.config.file_config[os_type])
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(ScriptPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class JMXPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(JMXPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message + count_md5({"config_yaml": self.version.config.collector_json["config_yaml"]})
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(JMXPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class PushgatewayPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(PushgatewayPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(PushgatewayPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class BuiltInPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(BuiltInPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(BuiltInPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class LogPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        return super(LogPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        return super().message_by_default(os_type, plugin_debugged)
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(LogPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class ProcessPluginSignatureManager(BuiltInPluginSignatureManager):
@@ -267,33 +267,33 @@ class ProcessPluginSignatureManager(BuiltInPluginSignatureManager):
 class SNMPTrapPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        return super(SNMPTrapPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        return super().message_by_default(os_type, plugin_debugged)
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(SNMPTrapPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class SNMPPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(SNMPPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message + count_md5(self.version.config.collector_json)
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(SNMPPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 class K8sPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
     def message_by_default(self, os_type, plugin_debugged=True):
         # 安全认证签名
-        default_message = super(K8sPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        default_message = super().message_by_default(os_type, plugin_debugged)
         return default_message + count_md5(self.version.config.collector_json)
 
     def message_by_strict(self, os_type):
         # 防篡改
-        return super(K8sPluginSignatureManager, self).message_by_strict(os_type)
+        return super().message_by_strict(os_type)
 
 
 SignatureManagerFactory = {

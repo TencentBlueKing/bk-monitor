@@ -83,6 +83,7 @@ export function useLogFilter() {
             fields: params?.fields,
             keyword: '*',
             size: (candidateItem?.count || 0) + params.limit,
+            bk_biz_id: commonParams.bk_biz_id,
           },
           {
             signal: axiosController.signal,

@@ -2097,24 +2097,41 @@ class GetKubernetesObjectCount(ApiAuthResource):
 
                 if dashboard_id:
                     search = None
-                    if dashboard_id == "node":
-                        if api.kubernetes.is_shared_cluster(bcs_cluster_id, bk_biz_id):
-                            # 共享集群不需要展示节点数量和链接
-                            continue
-                        if bcs_cluster_id:
-                            if resource_name == "master_node":
-                                search = [{"bcs_cluster_id": bcs_cluster_id}, {"roles": "control-plane"}]
-                            elif resource_name == "work_node":
-                                search = [{"bcs_cluster_id": bcs_cluster_id}, {"roles": ""}]
-                    else:
-                        if bcs_cluster_id:
-                            search = [{"bcs_cluster_id": bcs_cluster_id}]
+                    # 节点维度需要检查共享集群
+                    if dashboard_id == "node" and api.kubernetes.is_shared_cluster(bcs_cluster_id, bk_biz_id):
+                        # 共享集群不需要展示节点数量和链接
+                        continue
+                    if bcs_cluster_id:
+                        search = [{"bcs_cluster_id": bcs_cluster_id}]
 
-                    # 添加链接
-                    url = f"?bizId={bk_biz_id}#/k8s?dashboardId={dashboard_id}&sceneId=kubernetes&sceneType=overview"
+                    # 添加链接 (新版 k8s-new 页面格式)
+                    # 将旧版 selectorSearch 列表转换为 filterBy JSON，bcs_cluster_id 提取为 cluster 参数
+                    filter_by = {}
+                    cluster_id = ""
                     if search:
-                        query_data = json.dumps({"selectorSearch": search})
-                        url = f"{url}&queryData={query_data}"
+                        for item in search:
+                            for key, val in item.items():
+                                if key == "bcs_cluster_id":
+                                    cluster_id = val
+                                else:
+                                    filter_by[key] = [val]
+                    filter_by_str = json.dumps(filter_by)
+                    # groupBy: 将旧版 dashboard_id 映射为分组维度数组，namespace 为常驻维度需显式带上
+                    # scene: node→capacity, service/ingress→network, 其他→performance
+                    if dashboard_id == "node":
+                        scene = "capacity"
+                        group_by_str = json.dumps(["node"])
+                    elif dashboard_id in ("service", "ingress"):
+                        scene = "network"
+                        group_by_str = json.dumps(["namespace", dashboard_id])
+                    else:
+                        scene = "performance"
+                        group_by_str = json.dumps(["namespace", dashboard_id]) if dashboard_id else "[]"
+                    url = (
+                        f"?bizId={bk_biz_id}#/k8s-new?cluster={cluster_id}"
+                        f"&filterBy={filter_by_str}&groupBy={group_by_str}"
+                        f"&sceneId=kubernetes&scene={scene}&activeTab=list"
+                    )
                     item["link"] = {
                         "target": "blank",
                         "url": url,
@@ -2226,16 +2243,6 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
         failure_count = status_summary.get(BCSWorkload.STATE_FAILURE, 0)
 
         if success_count:
-            selector_search = []
-            if bcs_cluster_id:
-                selector_search.append({"bcs_cluster_id": bcs_cluster_id})
-            selector_search.extend([{"workload_type": name}, {"status": BCSWorkload.STATE_SUCCESS}])
-            query_data = json.dumps(
-                {
-                    "selectorSearch": selector_search,
-                }
-            )
-
             data.append(
                 {
                     "name": _("健康"),
@@ -2245,19 +2252,15 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
                     "link": {
                         "target": "blank",
                         "url": (
-                            f"?bizId={bk_biz_id}#/k8s?"
-                            f"sceneId=kubernetes&dashboardId=workload&sceneType=overview&queryData={query_data}"
+                            f"?bizId={bk_biz_id}#/k8s-new?"
+                            f'cluster={bcs_cluster_id or ""}&filterBy={{}}&groupBy=["namespace","workload"]'
+                            f"&sceneId=kubernetes&scene=performance&activeTab=list"
                         ),
                     },
                 }
             )
 
         if failure_count:
-            selector_search = []
-            if bcs_cluster_id:
-                selector_search.append({"bcs_cluster_id": bcs_cluster_id})
-            selector_search.extend([{"workload_type": name}, {"status": BCSWorkload.STATE_FAILURE}])
-            query_data = json.dumps({"selectorSearch": selector_search})
             data.append(
                 {
                     "name": _("异常"),
@@ -2267,8 +2270,9 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
                     "link": {
                         "target": "blank",
                         "url": (
-                            f"?bizId={bk_biz_id}#/k8s?"
-                            f"sceneId=kubernetes&dashboardId=workload&sceneType=overview&queryData={query_data}"
+                            f"?bizId={bk_biz_id}#/k8s-new?"
+                            f'cluster={bcs_cluster_id or ""}&filterBy={{}}&groupBy=["namespace","workload"]'
+                            f"&sceneId=kubernetes&scene=performance&activeTab=list"
                         ),
                     },
                 }
@@ -4253,14 +4257,17 @@ class GetKubernetesNodeUsageBase(GetKubernetesGrafanaMetricRecords):
 
     @staticmethod
     def get_more_data_url(params):
-        dashboard_id = "node"
-        scene_type = "overview"
+        """构建 Node 使用率图表"查看更多"的跳转链接（新版 k8s-new 页面格式）"""
         bk_biz_id = int(params["bk_biz_id"])
         bcs_cluster_id = params["bcs_cluster_id"]
-        url = f"?bizId={bk_biz_id}#/k8s?sceneId=kubernetes&dashboardId={dashboard_id}&sceneType={scene_type}"
-        search = [{"bcs_cluster_id": bcs_cluster_id}]
-        query_data = json.dumps({"selectorSearch": search})
-        url = f"{url}&queryData={query_data}"
+        filter_by_str = json.dumps({})
+        # scene: 只有容量场景 (capacity) 才有 node 维度
+        # 前端 sceneDimensionMap: capacity=[node]
+        url = (
+            f"?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+            f'&filterBy={filter_by_str}&groupBy=["node"]'
+            f"&sceneId=kubernetes&scene=capacity&activeTab=list"
+        )
         return url
 
     def to_graph(self, validated_request_data: dict, data: dict) -> dict:

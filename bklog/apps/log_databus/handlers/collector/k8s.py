@@ -299,6 +299,11 @@ class K8sCollectorHandler(CollectorHandler):
             logger.warning(f"collector config name duplicate => [{data['collector_config_name']}]")
             raise CollectorConfigNameDuplicateException()
 
+        # 更新归属索引集
+        index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+        if index_set:
+            IndexSetHandler(index_set.index_set_id).update_parent_index_sets(data.get("parent_index_set_ids", []))
+
         # collector_config_name更改后更新索引集名称
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
@@ -537,6 +542,11 @@ class K8sCollectorHandler(CollectorHandler):
             except IntegrityError:
                 logger.warning(f"collector config name duplicate => [{data['collector_config_name']}]")
                 raise CollectorConfigNameDuplicateException()
+
+            # 创建索引集，并添加到归属索引集中
+            index_set = self.data.create_index_set()
+            if data.get("parent_index_set_ids"):
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(data["parent_index_set_ids"])
 
             if self.data.yaml_config_enabled:
                 # yaml 模式，先反序列化解出来，再保存
@@ -1685,7 +1695,7 @@ class K8sCollectorHandler(CollectorHandler):
         解析容器日志yaml配置
         """
 
-        class PatchedFullLoader(yaml.FullLoader):
+        class PatchedSafeLoader(yaml.SafeLoader):
             """
             yaml里面如果有 = 字符串会导致解析失败：https://github.com/yaml/pyyaml/issues/89
             例如:
@@ -1697,12 +1707,12 @@ class K8sCollectorHandler(CollectorHandler):
             需要通过这个 loader 去 patch 掉
             """
 
-            yaml_implicit_resolvers = yaml.FullLoader.yaml_implicit_resolvers.copy()
+            yaml_implicit_resolvers = yaml.SafeLoader.yaml_implicit_resolvers.copy()
             yaml_implicit_resolvers.pop("=")
 
         try:
             # 验证是否为合法的 yaml 格式
-            configs = [conf for conf in yaml.load_all(yaml_config, Loader=PatchedFullLoader)]
+            configs = [conf for conf in yaml.load_all(yaml_config, Loader=PatchedSafeLoader)]
             # 兼容用户直接把整个yaml粘贴过来的情况，这个时候只取 spec 字段
             configs_to_check = [conf["spec"] if "spec" in conf else conf for conf in configs]
             slz = ContainerCollectorYamlSerializer(data=configs_to_check, many=True)
