@@ -37,7 +37,7 @@ import IssuesSliderWrapper from './components/issues-slider-wrapper';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import { mergeWhereList } from '@/components/retrieval-filter/utils';
 import TimeRange from '@/components/time-range/time-range';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useRequestAbort from '@/hooks/useRequestAbort';
 
 import type { CommonCondition } from '../../typings';
 import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../typing';
@@ -90,7 +90,6 @@ export default defineComponent({
     const impactScopeResource = shallowRef<ImpactScopeResource>(null);
     const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
     const impactScopeDrawerShow = shallowRef(false);
-
     /** 初始化默认查询时间范围 */
     const initTimeRange = () => {
       const firstAlarmTime = props.firstAlarmTime || 'now-1h';
@@ -98,25 +97,22 @@ export default defineComponent({
       timeRange.value = [Number.isNaN(time) ? firstAlarmTime : time * 1000, 'now'];
     };
 
+    const { run, signal } = useRequestAbort<IssueDetail>(issueDetail);
+
     /** 获取Issue详情数据 */
-    const getIssueDetailData = (hasLoading = true) => {
+    const getIssueDetailData = async (hasLoading = true) => {
       if (!props.show) return;
       if (hasLoading) {
         loading.value = true;
       }
-      const [start, end] = handleTransformToTimestamp(timeRange.value);
-      issueDetail({
+
+      const res = await run({
         bk_biz_id: props.issueBizId,
         id: props.issueId,
-        start_time: start,
-        end_time: end,
-      })
-        .then(res => {
-          detail.value = res;
-        })
-        .finally(() => {
-          loading.value = false;
-        });
+      });
+      if (signal?.aborted) return;
+      detail.value = res;
+      loading.value = false;
     };
 
     watch(
@@ -204,7 +200,7 @@ export default defineComponent({
     const handlePriorityChange = (priority: IssuePriorityType) => {
       detail.value = { ...detail.value, priority };
     };
-    /** 标记已解决 */
+    /** issues 基础信息状态操作 */
     const handleStatusAction = () => {
       getIssueDetailData(false);
     };

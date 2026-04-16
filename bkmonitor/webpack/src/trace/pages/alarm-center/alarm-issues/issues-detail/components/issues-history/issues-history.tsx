@@ -30,6 +30,7 @@ import { listIssueHistory } from 'monitor-api/modules/issue';
 
 import BasicCard from '../basic-card/basic-card';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import useRequestAbort from '@/hooks/useRequestAbort';
 
 import type { IssueDetail, IssueHistoryItem } from '../../../typing';
 
@@ -48,20 +49,22 @@ export default defineComponent({
     const historyList = shallowRef<IssueHistoryItem[]>([]);
     const loading = shallowRef(false);
 
+    const { run, signal } = useRequestAbort<IssueHistoryItem[]>(listIssueHistory);
+
     /** 获取 Issue 历史列表*/
     const getIssuesHistoryList = async () => {
       loading.value = true;
-      historyList.value = await listIssueHistory({
+      const res = await run({
         bk_biz_id: props.detail.bk_biz_id,
         issue_id: props.detail.id,
-      }).finally(() => {
-        loading.value = false;
       });
+      if (signal?.aborted) return;
+      historyList.value = res;
+      loading.value = false;
     };
 
     /** 新开页展示issues详情 */
     const handleClick = (item: IssueHistoryItem) => {
-      console.log('handleClick', item);
       const hash = `#/alarm-center/?alarmType=issues&detailId=${item.issue_id}&detailBizId=${item.bk_biz_id}&showDetail=true&issueFirstAlarmTime=${item.first_alert_time}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
