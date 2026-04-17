@@ -41,6 +41,7 @@ export default defineComponent({
   },
   emits: {
     showChange: (_v: boolean) => true,
+    success: (_info: any) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -66,11 +67,11 @@ export default defineComponent({
     watch(
       () => props.show,
       v => {
+        formRef.value?.clearValidate();
         if (!v) {
           formData.app_alias = '';
           formData.app_name = '';
           formData.description = '';
-          formRef.value?.clearValidate();
         }
       }
     );
@@ -90,6 +91,7 @@ export default defineComponent({
         client_type: formData.client_type,
       };
       console.log(params);
+      emit('success', params);
     };
 
     return {
