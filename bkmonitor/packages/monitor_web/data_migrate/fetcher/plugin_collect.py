@@ -44,29 +44,31 @@ def get_collector_plugin_fetcher(bk_biz_id: int | None) -> list[FetcherResultTyp
     """
     获取业务下的插件定义链。
 
-    业务采集配置可能引用全局插件（例如 ``bkprocessbeat``），因此不能只按
-    ``CollectorPluginMeta.bk_biz_id`` 过滤，否则会遗漏 ``DeploymentConfigVersion``
-    依赖的 ``PluginVersionHistory`` 记录，导致导入阶段出现外键错误。
+    业务采集配置可能引用全局插件（例如 ``bkprocessbeat``），因此导出业务包时
+    需要保留采集配置依赖的插件版本链，避免遗漏 ``DeploymentConfigVersion``
+    依赖的 ``PluginVersionHistory`` 记录。
+
+    但非全局业务导出时，不应把全局插件实体 ``CollectorPluginMeta`` 一并导出，
+    否则在目标环境导入时可能因为全局插件已存在而触发冲突。
     """
     if bk_biz_id is None:
-        plugin_filters = None
-        plugin_queryset = CollectorPluginMeta.objects.all()
+        plugin_meta_filters = None
+        version_plugin_id_filters = None
     else:
         collect_config_plugin_ids = _get_collect_config_queryset(bk_biz_id).values_list("plugin_id", flat=True)
         biz_plugin_ids = CollectorPluginMeta.objects.filter(bk_biz_id=bk_biz_id).values_list("plugin_id", flat=True)
-        plugin_id_list = sorted({*collect_config_plugin_ids, *biz_plugin_ids})
-        plugin_filters = {"plugin_id__in": plugin_id_list}
-        plugin_queryset = CollectorPluginMeta.objects.filter(**plugin_filters)
+        version_plugin_id_list = sorted({*collect_config_plugin_ids, *biz_plugin_ids})
+        plugin_meta_filters = {"bk_biz_id": bk_biz_id, "plugin_id__in": version_plugin_id_list}
+        version_plugin_id_filters = {"plugin_id__in": version_plugin_id_list}
 
-    plugin_ids = plugin_queryset.values_list("plugin_id", flat=True)
-    plugin_versions = PluginVersionHistory.objects.filter(plugin_id__in=plugin_ids)
+    plugin_versions = PluginVersionHistory.objects.filter(**(version_plugin_id_filters or {}))
 
     plugin_config_ids = plugin_versions.values_list("config_id", flat=True)
     plugin_info_ids = plugin_versions.values_list("info_id", flat=True)
 
     return [
-        (CollectorPluginMeta, plugin_filters, None),
+        (CollectorPluginMeta, plugin_meta_filters, None),
         (CollectorPluginConfig, {"id__in": plugin_config_ids}, None),
         (CollectorPluginInfo, {"id__in": plugin_info_ids}, None),
-        (PluginVersionHistory, {"plugin_id__in": plugin_ids}, None),
+        (PluginVersionHistory, version_plugin_id_filters, None),
     ]
