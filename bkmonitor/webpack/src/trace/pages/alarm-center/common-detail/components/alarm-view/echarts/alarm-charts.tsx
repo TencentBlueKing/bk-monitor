@@ -212,6 +212,31 @@ export default defineComponent({
     });
 
     /**
+     * @description 创建 markPoint 的 tooltip 配置（包含带箭头的样式）
+     * @param {string} content - tooltip 文本内容
+     * @returns {object} ECharts tooltip 配置对象
+     */
+    const createMarkPointTooltip = (content: string) => ({
+      trigger: 'item' as const,
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+      extraCssText: 'padding: 0;',
+      position: (point: number[], _params: any, _dom: any, _rect: any, size: any) => {
+        const [tooltipWidth, tooltipHeight] = size.contentSize;
+        const [pointX, pointY] = point;
+        // tooltip 显示在 markPoint 上方，水平居中
+        const left = pointX - tooltipWidth / 2;
+        const top = pointY - tooltipHeight - 12; // 向上偏移（箭头高度 6px + 间距 6px）
+        return [left, top];
+      },
+      formatter: () =>
+        `<div style="position: relative; background: rgba(54,58,67,.88); color: #fafbfd; font-size: 12px; padding: 6px 12px; border-radius: 4px;">
+          ${content}
+          <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid rgba(54,58,67,.88);"></div>
+        </div>`,
+    });
+
+    /**
      * @description 二分查找有序 datapoints 中第一个时间戳 >= target 的索引
      * @param points - 有序的 datapoints 数组
      * @param target - 目标时间戳
@@ -291,9 +316,10 @@ export default defineComponent({
           insertMissingPoint(Number(point), 0);
         }
 
-        // 设置标记点（异常点 + 致命告警图标）
+        // 设置标记点（异常点 + 告警级别图标）
         const mainSeries = series[0];
         mainSeries.markPoints = [
+          // 条件渲染：非事件/日志告警 且 非柱状图 时显示异常点
           ...(isEventOrLogAlarm.value && mainSeries?.type === 'bar'
             ? []
             : datapoints
@@ -305,7 +331,9 @@ export default defineComponent({
                   symbol: 'circle',
                   symbolSize: 5,
                   itemStyle: { color: ANOMALY_COLOR },
+                  tooltip: createMarkPointTooltip(t('异常检测点')),
                 }))),
+          // 告警级别标记
           {
             value: beginTime,
             xAxis: beginTimeStr,
@@ -314,12 +342,13 @@ export default defineComponent({
             symbolSize: 0,
             label: {
               show: true,
-              position: 'top',
+              position: 'top' as const,
               formatter: ALARM_ICON_CONFIG[props.detail.severity]?.unicode,
               color: ALARM_ICON_CONFIG[props.detail.severity]?.color,
               fontSize: 16,
               fontFamily: 'icon-monitor',
             },
+            tooltip: createMarkPointTooltip(ALARM_ICON_CONFIG[props.detail.severity]?.alias || ''),
           },
         ];
         mainSeries.markTimeRange = [
