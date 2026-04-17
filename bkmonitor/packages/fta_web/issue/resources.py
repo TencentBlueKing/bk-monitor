@@ -21,7 +21,10 @@ from constants.issue import IssuePriority, IssueStatus
 from core.drf_resource import Resource, api
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
-from fta_web.issue.handlers.issue import IssueQueryHandler
+from fta_web.issue.handlers.issue import (
+    IssueQueryHandler,
+)
+from fta_web.issue.handlers.translator import StatusTranslator, PriorityTranslator, ImpactDimensionsTranslator
 from fta_web.issue.serializers import IssueSearchSerializer
 
 
@@ -142,6 +145,94 @@ class IssueItemSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label="业务ID")
     issue_id = IssueIDField(label="Issue ID")
+
+
+class IssueTopNResource(Resource):
+    """Issue TopN 统计"""
+
+    class RequestSerializer(IssueSearchSerializer):
+        fields = serializers.ListField(label="查询字段列表", child=serializers.CharField(), default=[])
+        size = serializers.IntegerField(label="获取的桶数量", default=10)
+        need_time_partition = serializers.BooleanField(required=False, default=True, label="是否需要按时间分片")
+
+    def perform_request(self, validated_request_data):
+        # 解析业务权限
+        bk_biz_ids = validated_request_data.get("bk_biz_ids")
+        if bk_biz_ids is not None:
+            authorized_bizs, unauthorized_bizs = IssueQueryHandler.parse_biz_item(bk_biz_ids)
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
+        need_time_partition = validated_request_data.pop("need_time_partition")
+        fields = validated_request_data.pop("fields")
+        size = validated_request_data.pop("size")
+
+        # 构建 translators
+        translators = {
+            "status": StatusTranslator(),
+            "priority": PriorityTranslator(),
+            "impact_dimensions": ImpactDimensionsTranslator(),
+        }
+
+        if not need_time_partition:
+            handler = IssueQueryHandler(**validated_request_data)
+            return handler.top_n(fields=fields, size=size, translators=translators)
+
+        # 时间分片并行查询
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
+
+        results = []
+        for sliced_start_time, sliced_end_time in slice_times:
+            handler = IssueQueryHandler(
+                start_time=sliced_start_time,
+                end_time=sliced_end_time,
+                **validated_request_data,
+            )
+            results.append(handler.top_n(fields=fields, size=size, translators=translators))
+
+        return self._merge_results(results)
+
+    @staticmethod
+    def _merge_results(results: list) -> dict:
+        """合并多个时间分片的 TopN 结果"""
+        result = {"doc_count": 0, "fields": []}
+        field_buckets_map = {}
+
+        for sliced_result in results:
+            result["doc_count"] += sliced_result["doc_count"]
+
+            for field_info in sliced_result["fields"]:
+                field = field_info["field"]
+                if field not in field_buckets_map:
+                    field_buckets_map[field] = {
+                        "field": field,
+                        "is_char": field_info["is_char"],
+                        "bucket_count": 0,
+                        "buckets": {},
+                    }
+
+                # 合并 buckets
+                for bucket in field_info["buckets"]:
+                    key = bucket["id"]
+                    if key not in field_buckets_map[field]["buckets"]:
+                        field_buckets_map[field]["buckets"][key] = {
+                            "id": bucket["id"],
+                            "name": bucket["name"],
+                            "count": 0,
+                        }
+                    field_buckets_map[field]["buckets"][key]["count"] += bucket["count"]
+
+        # 转换为列表并按 count 排序
+        for field_data in field_buckets_map.values():
+            buckets_list = list(field_data["buckets"].values())
+            buckets_list.sort(key=lambda x: x["count"], reverse=True)
+            field_data["bucket_count"] = len(buckets_list)
+            field_data["buckets"] = buckets_list
+            result["fields"].append(field_data)
+
+        return result
 
 
 class SearchIssueResource(Resource):
