@@ -50,6 +50,8 @@ export default defineComponent({
 
     const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
 
+    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+
     const handleChange = (type: string) => {
       if (retrieveType.value === type) return;
 

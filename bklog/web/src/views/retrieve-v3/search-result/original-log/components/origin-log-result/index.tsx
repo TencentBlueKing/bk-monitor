@@ -30,6 +30,7 @@ import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } 
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { isSceneRetrieve } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import DOMPurify from 'dompurify';

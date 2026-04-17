@@ -32,6 +32,7 @@ import { debounce } from 'lodash-es';
 
 import { axiosInstance } from '@/api';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
+import { isSceneRetrieve } from '../../../store/helper';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 

@@ -37,6 +37,7 @@ import $http from '../../../api';
 import { formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
+import { isSceneRetrieve } from '../../../store/helper';
 import AggChart from './agg-chart';
 import { formatTimeStampZone } from '@/global/utils/time';
 

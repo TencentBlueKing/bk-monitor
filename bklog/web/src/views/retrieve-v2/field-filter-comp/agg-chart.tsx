@@ -36,6 +36,7 @@ import { escape as _escape } from 'lodash-es';
 import $http from '@/api';
 import store from '@/store';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
+import { isSceneRetrieve } from '../../../store/helper';
 
 import './agg-chart.scss';
 

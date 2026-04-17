@@ -33,6 +33,7 @@ import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
 import { handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
 import { BK_LOG_STORAGE } from '../../../../../../store/store.type';
+import { isSceneRetrieve } from '../../../../../../store/helper';
 
 import type { From } from 'bk-magic-vue';
 

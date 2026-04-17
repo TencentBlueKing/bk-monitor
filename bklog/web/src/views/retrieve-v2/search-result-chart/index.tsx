@@ -33,7 +33,7 @@ import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
-import { formatAdditionalFields, getCommonFilterAddition } from '@/store/helper';
+import { formatAdditionalFields, getCommonFilterAddition, isSceneRetrieve } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash-es';

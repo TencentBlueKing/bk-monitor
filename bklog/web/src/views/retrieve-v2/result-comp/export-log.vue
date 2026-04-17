@@ -193,6 +193,7 @@
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import { isSceneRetrieve } from '@/store/helper.ts';
 
   export default {
     components: {

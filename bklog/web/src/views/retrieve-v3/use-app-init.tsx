@@ -37,6 +37,8 @@ import { useRoute, useRouter } from 'vue-router/composables';
 
 import { getSceneFieldKeys } from './search-bar/scene-filter/scene-config';
 
+import { getSceneFieldKeys } from './search-bar/scene-filter/scene-config';
+
 import $http from '@/api';
 
 export default () => {
