@@ -30,6 +30,22 @@ from utils import count_md5
 logger = logging.getLogger("apm")
 
 
+def _log_relation_task_safe(
+    fn: Callable[..., list[dict[str, Any]]],
+) -> Callable[..., list[dict[str, Any]]]:
+    """为 log_relation_list 子任务兜底异常，避免单个分支失败影响整体结果。"""
+
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        try:
+            return fn(*args, **kwargs)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[log_relation_list] task=%s failed, args=%s kwargs=%s", fn.__name__, args, kwargs)
+            return []
+
+    return wrapper
+
+
 def overwrite_with_addition(info: dict[str, str], overwrite_key: str | None = None) -> list[dict]:
     res = []
     for k, v in info.items():
@@ -51,9 +67,11 @@ def _find_index_infos_from_cache(
     """从缓存的索引集列表中查找指定 index_set_ids 的索引信息。"""
     # 避免索引集 ID 类型不一致导致的匹配失败，统一转换为字符串进行比较。
     processed_index_set_ids: set[str] = {str(i) for i in index_set_ids}
-    return [i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) in processed_index_set_ids]
+    # 返回浅拷贝，避免原地修改缓存。
+    return [{**i} for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) in processed_index_set_ids]
 
 
+@_log_relation_task_safe
 def process_relation(
     bk_biz_id: int,
     app_name: str,
@@ -82,6 +100,7 @@ def process_relation(
     return result
 
 
+@_log_relation_task_safe
 def process_span_host(
     bk_biz_id: int,
     app_name: str,
@@ -111,6 +130,7 @@ def process_span_host(
     return result
 
 
+@_log_relation_task_safe
 def process_datasource(
     bk_biz_id: int,
     app_name: str,
@@ -148,6 +168,7 @@ def process_datasource(
     return result
 
 
+@_log_relation_task_safe
 def process_metric_relations(
     bk_biz_id: int,
     app_name: str,
@@ -157,7 +178,7 @@ def process_metric_relations(
     end_time: int,
     overwrite_method: Callable[..., list[dict]] | None = None,
 ):
-    """根据服务关联关系获取日志索引集信息。"""
+    """根据应用关联指标反查关联日志索引集。"""
     if not service_name:
         return []
 

@@ -313,7 +313,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 if not (service_name and span_id) and trace_id:
                     # Trace 详情视角下的日志页面
                     cls._walk_target_data(
-                        view_config, lambda data: data.pop("span_id", None) and data.pop("service_name", None)
+                        view_config, lambda data: [data.pop(k, None) for k in ("span_id", "service_name")]
                     )
                     view_config = cls._replace_variable(view_config, "${trace_id}", trace_id)
                 elif service_name and span_id:
@@ -321,6 +321,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     cls._walk_target_data(view_config, lambda data: data.pop("trace_id", None))
                     view_config = cls._replace_variable(view_config, "${span_id}", span_id)
                     view_config = cls._replace_variable(view_config, "${service_name}", service_name)
+                else:
+                    raise ValueError(_("缺少 TraceId 或 SpanId+ServiceName 参数"))
 
                 view_config = cls._replace_variable(view_config, "${app_name}", app_name)
             elif builtin_view == f"{cls.APM_TRACE_PREFIX}-container":
