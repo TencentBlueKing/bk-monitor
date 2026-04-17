@@ -32,7 +32,6 @@ import { debounce } from 'lodash-es';
 
 import { axiosInstance } from '@/api';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
-import { isSceneRetrieve } from '../../../store/helper';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 
@@ -63,7 +62,7 @@ export default class FieldItem extends tsc<object> {
   fieldIconCache: Record<string, { icon: string; color: string; textColor: string }> = {};
 
   get queryParams() {
-    const isScene = isSceneRetrieve(this.$store.state);
+    const isScene = this.$store.getters.isSceneMode;
     const baseParams = {
       ...this.retrieveParams,
       field_type: this.fieldItem.field_type,
@@ -257,7 +256,7 @@ export default class FieldItem extends tsc<object> {
   /** 下载 */
   downloadFieldStatistics() {
     this.btnLoading = true;
-    const isScene = isSceneRetrieve(this.$store.state);
+    const isScene = this.$store.getters.isSceneMode;
     const downRequestUrl = isScene
       ? '/search/scene/field/fetch_value_list/'
       : '/field/index_set/fetch_value_list/';

@@ -292,7 +292,6 @@
 <script>
   import { formatDate, blobDownload } from '@/common/util';
   import { mapGetters } from 'vuex';
-  import { isSceneRetrieve } from '@/store/helper.ts';
 
   import { axiosInstance } from '@/api';
 
@@ -356,7 +355,7 @@
         retrieveParams: 'retrieveParams',
       }),
       isScene() {
-        return isSceneRetrieve(this.$store.state);
+        return this.$store.getters.isSceneMode;
       },
     },
     watch: {

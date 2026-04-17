@@ -37,7 +37,6 @@ import $http from '../../../api';
 import { formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
-import { isSceneRetrieve } from '../../../store/helper';
 import AggChart from './agg-chart';
 import { formatTimeStampZone } from '@/global/utils/time';
 
@@ -216,7 +215,7 @@ export default class FieldAnalysis extends Vue {
       this.infoLoading = true;
       this.chartLoading = true;
 
-      const isScene = isSceneRetrieve(store.state);
+      const isScene = store.getters.isSceneMode;
       const urlStr = isScene
         ? 'retrieve/getSceneFieldStatisticsInfo'
         : 'retrieve/fieldStatisticsInfo';
@@ -246,7 +245,7 @@ export default class FieldAnalysis extends Vue {
         });
       }
 
-      const isScene = isSceneRetrieve(store.state);
+      const isScene = store.getters.isSceneMode;
       const urlStr = isScene
         ? 'retrieve/getSceneFieldStatisticsGraph'
         : 'retrieve/fieldStatisticsGraph';

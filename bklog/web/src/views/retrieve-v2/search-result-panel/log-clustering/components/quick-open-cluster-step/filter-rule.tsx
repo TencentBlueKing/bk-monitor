@@ -33,7 +33,6 @@ import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
 import { handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
 import { BK_LOG_STORAGE } from '../../../../../../store/store.type';
-import { isSceneRetrieve } from '../../../../../../store/helper';
 
 import type { From } from 'bk-magic-vue';
 
@@ -143,7 +142,7 @@ export default class FilterRule extends tsc<IProps> {
       return;
     }
     const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
-    const isScene = isSceneRetrieve(this.$store.state);
+    const isScene = this.$store.getters.isSceneMode;
     try {
       let requestConfig;
       if (isScene) {

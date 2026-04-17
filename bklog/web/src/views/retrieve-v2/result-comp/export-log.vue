@@ -193,7 +193,6 @@
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
   import { BK_LOG_STORAGE } from '@/store/store.type';
-  import { isSceneRetrieve } from '@/store/helper.ts';
 
   export default {
     components: {
@@ -318,7 +317,7 @@
         return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
       isScene() {
-        return isSceneRetrieve(this.$store.state);
+        return this.$store.getters.isSceneMode;
       },
     },
     watch: {

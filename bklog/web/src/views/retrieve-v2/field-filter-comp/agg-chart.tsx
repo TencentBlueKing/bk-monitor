@@ -36,7 +36,6 @@ import { escape as _escape } from 'lodash-es';
 import $http from '@/api';
 import store from '@/store';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
-import { isSceneRetrieve } from '../../../store/helper';
 
 import './agg-chart.scss';
 
@@ -314,7 +313,7 @@ export default class AggChart extends tsc<object> {
     this.listLoading = true;
     this.resetCache();
     try {
-      const isScene = isSceneRetrieve(store.state);
+      const isScene = store.getters.isSceneMode;
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
         : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];

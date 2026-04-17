@@ -72,7 +72,7 @@ export default class FieldFilterComp extends tsc<object> {
 
   isShowErrInfo = false;
   get errInfo() {
-    const isScene = this.$store.state.indexItem?.retrieve_type === 'scene';
+    const isScene = this.$store.getters.isSceneMode;
     const key = isScene ? 'retrieve/getSceneFields' : 'retrieve/getLogTableHead';
     return this.$store.state.apiErrorInfo[key] || '';
   }

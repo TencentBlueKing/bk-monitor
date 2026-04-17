@@ -233,6 +233,8 @@ const store = new Vuex.Store({
 
       return state.visibleFields.filter(field => !field.is_virtual_alias_field);
     },
+    /** 是否为场景化检索模式 */
+    isSceneMode: (state) => isSceneRetrieve(state),
     /** 是否是联合查询 */
     isUnionSearch: state => !!state.indexItem.isUnionIndex,
     /** 联合查询索引集ID数组 */

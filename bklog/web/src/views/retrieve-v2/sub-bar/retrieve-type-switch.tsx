@@ -45,7 +45,8 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
 
-    const retrieveType = computed(() => store.state.indexItem.retrieve_type ?? RetrieveType.Normal);
+    const isSceneMode = computed(() => store.getters.isSceneMode);
+    const retrieveType = computed(() => isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal);
 
     const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
 
