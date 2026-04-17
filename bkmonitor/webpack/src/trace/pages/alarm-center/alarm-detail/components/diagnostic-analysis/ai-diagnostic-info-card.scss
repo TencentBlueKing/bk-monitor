@@ -2,8 +2,9 @@
   --border-left-width: 1px;
   --left-special-border-width: 0px;
 
-  padding: 4px 16px 12px 12px;
-  margin-bottom: 8px;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 8px;
 
   .bold {
     font-weight: 700;
@@ -19,24 +20,42 @@
     }
   }
 
-  .ai-highlight-card-header-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #235dfa;
+  .ai-diagnostic-info-card-title {
+    display: flex;
+    flex-direction: column;
+    line-height: 20px;
+
+    .title-text {
+      font-size: 12px;
+      font-weight: 500;
+      color: #7b77f2;
+    }
+
+    .value {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 28px;
+      color: #000;
+    }
   }
 
   .ai-highlight-card-main {
     padding: 0;
+    margin-top: 10px;
   }
 
   .ai-diagnostic-info-content {
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 8px;
+
     .ai-diagnostic-info-item {
       display: flex;
 
       .info-item-label {
         font-size: 12px;
         line-height: 20px;
-        color: #757880;
+        color: #8f9fbd;
       }
 
       .info-item-content {

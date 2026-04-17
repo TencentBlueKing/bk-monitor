@@ -11,8 +11,9 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from functools import partial
-from typing import Any
+from typing import Any, cast
 
+from bk_monitor_base.uptime_check import list_nodes, list_tasks
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import gettext_lazy as _
@@ -43,7 +44,6 @@ from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
 from monitor_web.grafana.utils import get_cookies_filter, is_global_k8s_event
 from monitor_web.models import CollectConfigMeta
-from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from monitor_web.strategies.default_settings.k8s_event import DEFAULT_K8S_EVENT_NAME
 
@@ -823,7 +823,7 @@ class GetVariableValue(Resource):
         """
         对维度的返回字段进行组装，使得其支持多字段查询
         """
-        dimensions = set()
+        dimensions: set[str] | None = set()
 
         def assemble_dimensions_by_drf(total, level, now):
             if len(fields) == level:
@@ -868,15 +868,16 @@ class GetVariableValue(Resource):
         return query_params
 
     @staticmethod
-    def dimension_translate(bk_biz_id: int, params: dict, dimensions: list):
+    def dimension_translate(bk_biz_id: int, params: dict[str, Any], dimensions: list):
         """
         维度翻译
         """
+        bk_tenant_id = cast(str, get_request_tenant_id())
         result = None
         dimension_field = params["field"]
         if dimension_field == "bk_collect_config_id":
             configs = CollectConfigMeta.objects.filter(bk_biz_id=bk_biz_id, id__in=dimensions)
-            id_to_names = {str(config.id): config.name for config in configs}
+            id_to_names = {str(config.pk): config.name for config in configs}
             result = [{"label": id_to_names.get(str(v), v), "value": v} for v in dimensions]
         elif dimension_field == "bk_obj_id":
             topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
@@ -904,7 +905,7 @@ class GetVariableValue(Resource):
                 result.append({"label": id_to_names.get(str(v), value), "value": value})
         elif dimension_field == "bcs_cluster_id":
             # 显示集群名称
-            cluster_infos = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=get_request_tenant_id())
+            cluster_infos = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=bk_tenant_id)
             cluster_id_to_name = {cluster["bcs_cluster_id"]: cluster["name"] for cluster in cluster_infos}
             result = []
             for v in sorted(dimensions):
@@ -928,16 +929,19 @@ class GetVariableValue(Resource):
             "uptimecheck_"
         ):
             if dimension_field == "task_id":
-                uptime_check_tasks = UptimeCheckTask.objects.filter(id__in=dimensions).values("id", "name")
-                task_name_mapping = {str(task["id"]): task["name"] for task in uptime_check_tasks}
+                uptime_check_tasks = list_tasks(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    query={"task_ids": dimensions},
+                    fields=["id", "name"],
+                )
+                task_name_mapping = {str(task.id): task.name for task in uptime_check_tasks}
                 result = [
                     {"label": task_name_mapping.get(v, _("任务({})已删除").format(v)), "value": v} for v in dimensions
                 ]
             elif dimension_field == "node_id":
-                nodes = []
-                for dimension in dimensions:
-                    nodes.extend(UptimeCheckNode.adapt_new_node_id(bk_biz_id, dimension))
-                result = [{"label": node["name"], "value": str(node["id"])} for node in nodes]
+                nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": dimensions})
+                result = [{"label": node.name, "value": str(node.id)} for node in nodes]
 
         result = result or [{"label": v, "value": v} for v in dimensions]
 
@@ -948,14 +952,14 @@ class GetVariableValue(Resource):
         """
         查询采集配置
         """
-        collects = CollectConfigMeta.objects.filter(bk_biz_id=bk_biz_id).values("id", "name")
-        return [{"label": str(collect.id), "value": collect.name} for collect in collects]
+        collects = CollectConfigMeta.objects.filter(bk_biz_id=bk_biz_id).only("id", "name")
+        return [{"label": str(collect.pk), "value": collect.name} for collect in collects]
 
-    def perform_request(self, params):
-        scenario = params["scenario"]
-        scope_type = params["type"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        scenario = validated_request_data["scenario"]
+        scope_type = validated_request_data["type"]
         # 不支持promql的datasource,所以当"data_source_label": "prometheus" 直接返回空
-        if scope_type == "dimension" and params["params"].get("data_source_label") == "prometheus":
+        if scope_type == "dimension" and validated_request_data["params"].get("data_source_label") == "prometheus":
             return []
 
         query_processor = {}
@@ -984,7 +988,9 @@ class GetVariableValue(Resource):
         if scope_type not in query_processor:
             raise ValidationError(f"type({scope_type}) not exists")
 
-        result = query_processor[scope_type](bk_biz_id=params["bk_biz_id"], params=params["params"])
+        result = query_processor[scope_type](
+            bk_biz_id=validated_request_data["bk_biz_id"], params=validated_request_data["params"]
+        )
         return result
 
 
@@ -993,5 +999,5 @@ class Test(Resource):
     Grafana数据源测试接口
     """
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         return "OK"

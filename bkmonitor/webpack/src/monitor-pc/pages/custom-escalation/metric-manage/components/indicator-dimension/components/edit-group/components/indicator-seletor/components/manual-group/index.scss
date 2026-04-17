@@ -1,0 +1,115 @@
+.manual-group-main {
+  .search-input-main {
+    margin: 8px 0;
+
+    .bk-form-input {
+      border-color: #c4c6cc !important;
+      border-right: none;
+    }
+  }
+
+
+
+  .search-append-main {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    height: 30px;
+    padding-right: 8px;
+
+    .search-item-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+
+      &.is-active {
+        color: #3a84ff;
+        background: #e1ecff;
+        border-color: #a3c5fd;
+      }
+
+      &:hover {
+        color: #3a84ff;
+        background: #e1ecff;
+        border-color: #a3c5fd;
+      }
+    }
+  }
+
+  .common-table {
+    .hover-row {
+      .bk-tag-input {
+        background: #f5f7fa !important;
+      }
+    }
+
+    .bk-table-column-setting {
+      border-top: none !important;
+    }
+
+    .dimension-display {
+      width: 100%;
+      height: 32px;
+      overflow: hidden;
+      cursor: pointer;
+
+      .bk-tag-input {
+        cursor: pointer;
+        background: transparent;
+        border: none;
+
+        .tag-list {
+          overflow: hidden;
+          border: none;
+
+          li {
+            cursor: pointer;
+          }
+        }
+      }
+    }
+
+    .bk-table-pagination-wrapper {
+      .page-button {
+        color: #4d4f56;
+        background-color: #fff;
+        border: none;
+
+        .bk-icon {
+          color: #979ba5;
+        }
+      }
+
+      .disabled {
+        .bk-icon {
+          color: #dcdee5;
+        }
+      }
+
+      .cur-page {
+        .page-button {
+          color: #3a84ff;
+          background-color: #e1ecff;
+        }
+      }
+
+      .bk-select {
+        background-color: #f0f1f5;
+        border: none;
+      }
+    }
+  }
+}
+
+.bk-table-filter-panel-theme {
+  .panel-checkbox-group {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+}

@@ -35,6 +35,9 @@ const isFocused = ref(false);
 
 // 动态 placeholder 文本
 const placeholderText = computed(() => {
+  if (window.__IS_MONITOR_APM__ || window.__IS_MONITOR_TRACE__) {
+    return ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
+  }
   if (isFocused.value) {
     if (isAiAssistantActive.value) {
       return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
@@ -72,9 +75,8 @@ const setEditorContext = (val, from = 0, to = Infinity) => {
    * @param item
    */
 const formatModelValueItem = (item) => {
-  const val = item === '*' ? '' : item;
-  setEditorContext(val, 0, Infinity);
-  return val;
+  setEditorContext(item, 0, Infinity);
+  return item;
 };
 
 /**
@@ -145,7 +147,7 @@ const onEditorContextChange = (doc) => {
 };
 
 const isEmptySqlString = computed(() => {
-  return props.value === '*' || (/^\s*$/.test(modelValue.value) || !modelValue.value.length);
+  return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
 });
 
 const debounceRetrieve = debounce((value) => {
@@ -224,7 +226,7 @@ const handleEditorClick = (_e) => {
 
 const createEditorInstance = () => {
   editorInstance = CreateLuceneEditor({
-    value: /^\s*\*\s*$/.test(modelValue.value) ? '' : modelValue.value,
+    value: modelValue.value,
     target: refEditorParent.value,
     stopDefaultKeyboard: () => {
       return getTippyInstance()?.state?.isShown ?? false;

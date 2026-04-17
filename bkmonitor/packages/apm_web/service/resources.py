@@ -12,15 +12,14 @@ import datetime
 import functools
 import itertools
 import json
-import operator
 import re
-from multiprocessing.pool import ApplyResult
+
+from collections.abc import Callable
 from typing import Any
 from datetime import timedelta
 
 import arrow
-from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from django.db.models import Q
 from django.db.models.functions import Length
@@ -35,6 +34,7 @@ from apm_web.constants import (
 )
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
+from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.icon import get_icon
 from apm_web.models import (
     ApdexServiceRelation,
@@ -46,14 +46,10 @@ from apm_web.models import (
     LogServiceRelation,
     CodeRedefinedConfigRelation,
     UriServiceRelation,
+    ServiceBase,
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
-from apm_web.service.mock_data import (
-    API_PIPELINE_OVERVIEW_RESPONSE,
-    API_LIST_PIPELINE_RESPONSE,
-    API_CODE_REDEFINED_RULE_LIST_RESPONSE,
-)
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
@@ -88,107 +84,144 @@ class ApplicationListResource(Resource):
         return serializer.data
 
 
-class ServiceInfoResource(Resource):
+class ServiceListResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
-        service_name = serializers.CharField(label="服务")
-        start_time = serializers.IntegerField(required=False, default=None, label="数据开始时间")
-        end_time = serializers.IntegerField(required=False, default=None, label="数据结束时间")
+        service_names = serializers.ListField(
+            label="服务名列表", child=serializers.CharField(), required=False, default=[]
+        )
+
+    def perform_request(self, validated_request_data):
+        entity_set = EntitySet(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+            service_names=validated_request_data["service_names"] or None,
+        )
+        return [self._build_service_info(entity_set, name) for name in entity_set.service_names]
+
+    @staticmethod
+    def _build_service_info(entity_set: EntitySet, service_name: str) -> dict[str, Any]:
+        # 已按 `entity_set.service_names` 取值，不会出现 node 为 None 的情况。
+        node: dict[str, Any] = entity_set.get_node_or_none(service_name)
+        service_info: dict[str, Any] = {
+            "service_name": service_name,
+            "service_language": (node.get("extra_data") or {}).get("service_language", ""),
+            "system": entity_set.get_system(service_name),
+            "log_relations": entity_set.get_log_relations(service_name),
+        }
+
+        k8s_workloads: list[dict[str, Any]] = entity_set.get_workloads(service_name)
+        if k8s_workloads:
+            service_info["platform"] = {"name": "k8s", "relations": k8s_workloads}
+        return service_info
+
+
+class ServiceInfoResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        app_name = serializers.CharField(label=_("应用名称"))
+        service_name = serializers.CharField(label=_("服务"))
+        start_time = serializers.IntegerField(label=_("数据开始时间"), required=False)
+        end_time = serializers.IntegerField(label=_("数据结束时间"), required=False)
+
+        def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+            app: Application = Application.objects.filter(
+                bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]
+            ).first()
+            if not app:
+                raise serializers.ValidationError(_("应用 %(app_name)s 不存在") % {"app_name": attrs["app_name"]})
+
+            if "start_time" not in attrs and "end_time" not in attrs:
+                start_time, end_time = get_datetime_range(
+                    period="day",
+                    distance=app.es_retention,
+                    rounding=False,
+                )
+                attrs["start_time"] = int(start_time.timestamp())
+                attrs["end_time"] = int(end_time.timestamp())
+
+            return super().validate(attrs)
 
     @classmethod
-    def fill_operate_record(cls, service_info: dict[str, Any], relation_infos: list[dict[str, Any]]):
+    def fill_operate_record(cls, service_info: dict[str, Any], relation_infos: list[dict[str, Any]]) -> None:
         """获取操作记录"""
         default_username = "system"
 
-        def bigger_than_update(lft_info, rgt_info):
-            lft_time = lft_info.get("updated_at") or 0
-            rgt_time = rgt_info.get("updated_at") or 0
+        def bigger_than_update(lft_info: dict[str, Any], rgt_info: dict[str, Any]) -> None:
+            lft_time: int = lft_info.get("updated_at") or 0
+            rgt_time: int = rgt_info.get("updated_at") or 0
             if arrow.get(lft_time) > arrow.get(rgt_time):
-                rgt_info["updated_at"] = lft_info.get("updated_at")
+                rgt_info["updated_at"] = lft_time
                 rgt_info["updated_by"] = lft_info.get("updated_by") or default_username
 
         for relation_info in relation_infos:
             bigger_than_update(relation_info, service_info)
 
         # 如果没有，则设置默认值
-        service_info["created_at"] = service_info.get("created_at")
+        service_info.setdefault("created_at", None)
         service_info["created_by"] = service_info.get("created_by") or default_username
-        service_info["updated_at"] = service_info.get("updated_at")
+        service_info.setdefault("updated_at", None)
         service_info["updated_by"] = service_info.get("updated_by") or default_username
 
     @classmethod
-    def get_cmdb_relation_info(cls, bk_biz_id, app_name, service_name):
-        query = CMDBServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-        if not query.exists():
+    def get_cmdb_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, Any]:
+        relation_obj = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
+        if not relation_obj:
             return {}
 
-        instance = query.first()
-        bk_biz_id = instance.bk_biz_id
-        template_id = instance.template_id
-        template = {t["id"]: t for t in CMDBServiceTemplateResource.get_templates(bk_biz_id)}.get(template_id, {})
-
+        template = {t["id"]: t for t in CMDBServiceTemplateResource.get_templates(bk_biz_id)}.get(
+            relation_obj.template_id, {}
+        )
         return {
             "template_id": template.get("id"),
             "template_name": template.get("name"),
             "first_category": template.get("first_category"),
             "second_category": template.get("second_category"),
-            "updated_by": instance.updated_by,
-            "updated_at": instance.updated_at,
+            "updated_by": relation_obj.updated_by,
+            "updated_at": relation_obj.updated_at,
         }
 
     @classmethod
-    def get_log_relation_info(cls, bk_biz_id, app_name, service_name):
-        query = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-        if query.exists():
-            return LogServiceRelationOutputSerializer(instance=query.first()).data
-
-        return {}
-
-    @classmethod
-    def get_log_relation_info_list(cls, bk_biz_id, app_name, service_name):
-        relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-        return LogServiceRelationOutputSerializer(instance=relations, many=True).data
+    def get_log_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
+        return LogServiceRelationOutputSerializer(
+            instance=LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]),
+            many=True,
+        ).data
 
     @classmethod
-    def get_app_relation_info(cls, bk_biz_id, app_name, service_name):
-        query = AppServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-        if query.exists():
-            instance = query.first()
-            res = AppServiceRelationSerializer(instance=instance).data
-            relate_bk_biz_id = instance.relate_bk_biz_id
-            biz = {i.bk_biz_id: i for i in api.cmdb.get_business(bk_biz_ids=[relate_bk_biz_id])}.get(relate_bk_biz_id)
-            res["relate_bk_biz_name"] = biz.bk_biz_name if isinstance(biz, Business) else None
-            res["application_id"] = instance.relate_app_name
-            return res
+    def get_app_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, Any]:
+        relation_obj: AppServiceRelation = AppServiceRelation.get_relation_qs(
+            bk_biz_id, app_name, [service_name]
+        ).first()
+        if not relation_obj:
+            return {}
 
-        return {}
-
-    @classmethod
-    def get_uri_relation_info(cls, bk_biz_id, app_name, service_name):
-        query = UriServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-        if not query.exists():
-            return []
-
-        return list(query.order_by("rank").values("id", "uri", "rank", "updated_at", "updated_by"))
-
-    @classmethod
-    def get_event_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
-        return list(
-            EventServiceRelation.objects.filter(
-                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-            ).values("id", "table", "relations", "options", "updated_at", "updated_by")
+        res: dict[str, Any] = AppServiceRelationSerializer(instance=relation_obj).data
+        biz = {i.bk_biz_id: i for i in api.cmdb.get_business(bk_biz_ids=[relation_obj.relate_bk_biz_id])}.get(
+            relation_obj.relate_bk_biz_id
         )
+        res["relate_bk_biz_name"] = biz.bk_biz_name if isinstance(biz, Business) else None
+        res["application_id"] = relation_obj.relate_app_name
+        return res
 
     @classmethod
-    def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, topo_node):
+    def get_uri_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
+        return list(UriServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).order_by("rank").values())
+
+    @classmethod
+    def get_apdex_relation_info(
+        cls, bk_biz_id: int, app_name: str, service_name: str, topo_node: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         instance = ServiceHandler.get_apdex_relation_info(bk_biz_id, app_name, service_name, topo_node)
         if not instance:
             return {}
         return ServiceApdexConfigSerializer(instance=instance).data
 
     @classmethod
-    def get_profiling_info(cls, app, bk_biz_id, app_name, service_name, start_time, end_time):
+    def get_profiling_info(
+        cls, app: Application, bk_biz_id: int, app_name: str, service_name: str, start_time: int, end_time: int
+    ) -> dict[str, Any]:
         """获取服务的 profiling 状态"""
         res = {"application_id": app.application_id, "is_enabled_profiling": app.is_enabled_profiling}
         if app.is_enabled_profiling:
@@ -204,114 +237,104 @@ class ServiceInfoResource(Resource):
         return res
 
     @classmethod
-    def get_labels(cls, bk_biz_id, app_name, service_name):
+    def get_labels(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[Any]:
         config_instance = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, "labels")
         if config_instance:
             return json.loads(config_instance.config_value)
         return []
 
-    def perform_request(self, validate_data):
+    def perform_request(self, validate_data: dict[str, Any]) -> dict[str, Any]:
         # 获取请求数据
-        bk_biz_id = validate_data["bk_biz_id"]
-        app_name = validate_data["app_name"]
-        service_name = validate_data["service_name"]
-        app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        bk_biz_id: int = validate_data["bk_biz_id"]
+        app_name: str = validate_data["app_name"]
+        service_name: str = validate_data["service_name"]
+        app: Application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
 
-        if not validate_data["start_time"] and not validate_data["end_time"]:
-            start_time, end_time = get_datetime_range(
-                period="day",
-                distance=app.es_retention,
-                rounding=False,
-            )
-            validate_data["start_time"] = int(start_time.timestamp())
-            validate_data["end_time"] = int(end_time.timestamp())
-
-        query_instance_param = {
+        base_query_param: dict[str, Any] = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "service_name": service_name,
-            "start_time": validate_data["start_time"],
-            "end_time": validate_data["end_time"],
         }
         pool = ThreadPool()
-        topo_node_res = pool.apply_async(
-            ServiceHandler.list_nodes, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service_name}
+        topo_node_res = pool.apply_async(ServiceHandler.list_nodes, kwds=base_query_param)
+        instance_res = pool.apply_async(
+            RelationMetricHandler.list_instances,
+            kwds={
+                **base_query_param,
+                "start_time": validate_data["start_time"],
+                "end_time": validate_data["end_time"],
+            },
         )
-        instance_res = pool.apply_async(RelationMetricHandler.list_instances, kwds=query_instance_param)
-        app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
-        log_relation_list = pool.apply_async(self.get_log_relation_info_list, args=(bk_biz_id, app_name, service_name))
-        cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
-        event_relation = pool.apply_async(self.get_event_relation_info, args=(bk_biz_id, app_name, service_name))
-        uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
-        labels = pool.apply_async(self.get_labels, args=(bk_biz_id, app_name, service_name))
-
-        profiling_info = {}
-        if validate_data.get("start_time") and validate_data.get("end_time"):
-            profiling_info = pool.apply_async(
-                self.get_profiling_info,
-                args=(app, bk_biz_id, app_name, service_name, validate_data["start_time"], validate_data["end_time"]),
-            )
+        app_res = pool.apply_async(self.get_app_relation_info, kwds=base_query_param)
+        log_res = pool.apply_async(self.get_log_relation_infos, kwds=base_query_param)
+        cmdb_res = pool.apply_async(self.get_cmdb_relation_info, kwds=base_query_param)
+        event_res = pool.apply_async(EventServiceRelation.get_relations, kwds=base_query_param)
+        uri_res = pool.apply_async(self.get_uri_relation_infos, kwds=base_query_param)
+        label_res = pool.apply_async(self.get_labels, kwds=base_query_param)
+        profiling_res = pool.apply_async(
+            self.get_profiling_info,
+            kwds={
+                "app": app,
+                **base_query_param,
+                "start_time": validate_data["start_time"],
+                "end_time": validate_data["end_time"],
+            },
+        )
         pool.close()
         pool.join()
 
         # 获取服务信息
-        service_info = {"extra_data": {}, "topo_key": service_name}
-        resp = topo_node_res.get()
-        for service in resp:
+        service_info: dict[str, Any] = {"extra_data": {}, "topo_key": service_name}
+        topo_nodes: list[dict[str, Any]] = topo_node_res.get()
+        for service in topo_nodes:
             if service["topo_key"] == validate_data["service_name"]:
                 service_info.update(service)
 
-        app_relation_info = app_relation.get()
-        log_relation_info_list = log_relation_list.get()
-        cmdb_relation_info = cmdb_relation.get()
-        event_relation_info = event_relation.get()
-        uri_relation_info = uri_relation.get()
-        apdex_info = self.get_apdex_relation_info(bk_biz_id, app_name, service_name, resp)
+        app_relation_info: dict[str, Any] = app_res.get()
+        log_relation_infos: list[dict[str, Any]] = log_res.get()
+        cmdb_relation_info: dict[str, Any] = cmdb_res.get()
+        event_relation_infos: list[dict[str, Any]] = event_res.get()
+        uri_relation_infos: list[dict[str, Any]] = uri_res.get()
+        apdex_info: dict[str, Any] = self.get_apdex_relation_info(bk_biz_id, app_name, service_name, topo_nodes)
         self.fill_operate_record(
             service_info,
             [
                 apdex_info,
                 app_relation_info,
-                log_relation_info_list[0] if log_relation_info_list else {},
+                log_relation_infos[0] if log_relation_infos else {},
                 cmdb_relation_info,
-                *event_relation_info,
-                *uri_relation_info,
+                *event_relation_infos,
+                *uri_relation_infos,
             ],
         )
-        if isinstance(profiling_info, ApplyResult):
-            execute_res = profiling_info.get()
-            if isinstance(execute_res, dict):
-                service_info.update(execute_res)
+        profiling_info: dict[str, Any] = profiling_res.get()
+        service_info.update(profiling_info)
 
         service_info["relation"] = {
             "app_relation": app_relation_info,
-            "log_relation_list": log_relation_info_list,
+            "log_relation_list": log_relation_infos,
             "cmdb_relation": cmdb_relation_info,
-            "event_relation": event_relation_info,
-            "uri_relation": uri_relation_info,
+            "event_relation": event_relation_infos,
+            "uri_relation": uri_relation_infos,
             "apdex_relation": apdex_info,
         }
 
-        # 一级目录名称
-        category_key = service_info["extra_data"].get("category", "")
-        service_info["extra_data"]["category_name"] = CategoryEnum.get_label_by_key(category_key)
-        # HTTP 兼容
-        if service_info["extra_data"].get("category") == "http":
+        # 一级分类
+        first_category: str = service_info["extra_data"].get("category", "")
+        # 一级分类为 HTTP 时，设置二级分类为空
+        if first_category == "http":
             service_info["extra_data"]["predicate_value"] = ""
-        # 增加 icon 信息
-        service_info["extra_data"].update({"category_icon": "", "predicate_value_icon": ""})
-        first_category = service_info["extra_data"].get("category")
-        if first_category:
-            service_info["extra_data"]["category_icon"] = get_icon(first_category)
-        second_category = service_info["extra_data"].get("predicate_value")
-        if second_category:
-            service_info["extra_data"]["predicate_value_icon"] = get_icon(second_category)
+        # 二级分类，保留中间变量增加可读性
+        second_category: str = service_info["extra_data"].get("predicate_value", "")
+        service_info["extra_data"].update(
+            category_name=CategoryEnum.get_label_by_key(first_category),
+            category_icon=get_icon(first_category),
+            predicate_value_icon=get_icon(second_category),
+        )
         # 实例数
-        instances = instance_res.get()
-        service_info["instance_count"] = len(instances)
+        service_info["instance_count"] = len(instance_res.get())
         # 自定义标签
-        service_info["labels"] = labels.get()
-        # 响应
+        service_info["labels"] = label_res.get()
         return service_info
 
 
@@ -358,31 +381,31 @@ class ServiceRelationResource(Resource):
     serializer_class = None
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
-        service_name = serializers.CharField(label="服务")
-        req_type = serializers.ChoiceField(label="请求类型", choices=ServiceDetailReqTypeChoices.choices())
-        extras = serializers.JSONField(label="附加数据")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        app_name = serializers.CharField(label=_("应用名称"))
+        service_name = serializers.CharField(label=_("服务"))
+        req_type = serializers.ChoiceField(label=_("请求类型"), choices=ServiceDetailReqTypeChoices.choices())
+        extras = serializers.JSONField(label=_("附加数据"))
 
-    def get_instance(self, bk_biz_id, app_name, service_name, instance_id):
+    def get_instance(self, bk_biz_id: int, app_name: str, service_name: str, instance_id: int) -> Any:
         try:
             return self.queryset.get(id=instance_id, bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         except self.queryset.model.DoesNotExist:
-            raise ValueError(_lazy("资源不存在"))
+            raise ValueError(_("资源不存在"))
 
-    def build_instance_response_data(self, bk_biz_id: int, app_name: str, service_name: str, data: dict):
+    def build_instance_response_data(self, bk_biz_id: int, app_name: str, service_name: str, data: dict) -> dict:
         return data
 
-    def build_multi_response_data(self, bk_biz_id: int, app_name: str, service_name: str, data: list):
+    def build_multi_response_data(self, bk_biz_id: int, app_name: str, service_name: str, data: list) -> list:
         return data
 
-    def handle_delete(self, bk_biz_id: int, app_name: str, service_name: str, extras: dict):
+    def handle_delete(self, bk_biz_id: int, app_name: str, service_name: str, extras: dict) -> None:
         instance_id = extras.pop("id", None)
         instance = self.get_instance(bk_biz_id, app_name, service_name, instance_id)
         instance.delete()
         return
 
-    def handle_update(self, bk_biz_id: int, app_name: str, service_name: str, extras: dict):
+    def handle_update(self, bk_biz_id: int, app_name: str, service_name: str, extras: dict) -> dict[str, Any]:
         instance_id = extras.pop("id", None)
         # 新增
         if instance_id is None:
@@ -397,12 +420,12 @@ class ServiceRelationResource(Resource):
         serializer = self.serializer_class(instance)
         return self.build_instance_response_data(bk_biz_id, app_name, service_name, serializer.data)
 
-    def handle_list(self, bk_biz_id: int, app_name: str, service_name: str):
+    def handle_list(self, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
         queryset = self.queryset.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         serializer = self.serializer_class(queryset, many=True)
         return self.build_multi_response_data(bk_biz_id, app_name, service_name, serializer.data)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any] | None:
         # 处理数据
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
@@ -448,27 +471,89 @@ class LogServiceRelationBkLogIndexSet(Resource):
 class ServiceConfigResource(Resource):
     RequestSerializer = ServiceConfigSerializer
 
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        service_name = validated_request_data["service_name"]
+    RELATION_MODEL_MAP = {
+        "app_relation": AppServiceRelation,
+        "cmdb_relation": CMDBServiceRelation,
+        "log_relation_list": LogServiceRelation,
+        "apdex_relation": ApdexServiceRelation,
+        "uri_relation": UriServiceRelation,
+        "event_relation": EventServiceRelation,
+    }
 
-        update_relation = functools.partial(self.update, bk_biz_id, app_name, service_name)
+    @classmethod
+    def _prepare_default(cls, data: dict[str, Any] | list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        if data is None:
+            return []
+        return [data] if isinstance(data, dict) else data
 
-        update_relation(validated_request_data.get("cmdb_relation"), CMDBServiceRelation)
-        self.update_log_relations(bk_biz_id, app_name, service_name, validated_request_data.get("log_relation_list"))
-        update_relation(validated_request_data.get("app_relation"), AppServiceRelation)
+    @classmethod
+    def _prepare_uri_relation(cls, data: list[str]) -> list[dict[str, Any]]:
+        return [{"uri": uri, "rank": i} for i, uri in enumerate(data)]
 
-        if validated_request_data.get("apdex_relation"):
-            # 重新获取服务的类型 避免相同服务名类型更变导致统计出错
-            apdex_key = ServiceHandler.get_service_apdex_key(bk_biz_id, app_name, service_name)
-            validated_request_data["apdex_relation"]["apdex_key"] = apdex_key
-        update_relation(validated_request_data.get("apdex_relation"), ApdexServiceRelation)
+    @classmethod
+    def _prepare_log_relation_list(cls, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        unique_relations: dict[int, dict[str, Any]] = {}
+        for relation_dict in data:
+            related_bk_biz_id = relation_dict.get("related_bk_biz_id")
+            if related_bk_biz_id in unique_relations:
+                # 合并 value_list
+                existing_value_list: list[int] = unique_relations[related_bk_biz_id].get("value_list", [])
+                new_value_list: list[int] = relation_dict.get("value_list", [])
+                unique_relations[related_bk_biz_id]["value_list"] = existing_value_list + new_value_list
+            else:
+                if not relation_dict.get("value_list"):
+                    continue
+                unique_relations[related_bk_biz_id] = relation_dict
 
-        self.update_event_relations(bk_biz_id, app_name, service_name, validated_request_data["event_relation"])
-        self.update_uri(bk_biz_id, app_name, service_name, validated_request_data["uri_relation"])
-        if validated_request_data.get("labels"):
+        return list(unique_relations.values())
+
+    @classmethod
+    def update_relation(cls, bk_biz_id: int, app_name: str, service_name: str, relation_type: str, relation_data: Any):
+        if relation_type not in cls.RELATION_MODEL_MAP:
+            return
+
+        # 预处理数据
+        model_cls: type[ServiceBase] = cls.RELATION_MODEL_MAP[relation_type]
+        prepare_handler: Callable[[Any], list[dict[str, Any]]] = getattr(
+            cls, f"_prepare_{relation_type}", cls._prepare_default
+        )
+        prepare_datas: list[dict[str, Any]] = prepare_handler(relation_data)
+        # 构建模型记录数据
+        records: list[dict[str, Any]] = [
+            {"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service_name, "is_global": False, **data}
+            for data in prepare_datas
+        ]
+        # 执行同步
+        if relation_type == "event_relation":
+            model_cls.sync_relations(bk_biz_id, app_name, service_name, records, is_delete=False)
+        else:
+            model_cls.sync_relations(bk_biz_id, app_name, service_name, records)
+
+    @classmethod
+    def update_labels(cls, bk_biz_id: int, app_name: str, service_name: str, labels: list[str] | None) -> None:
+        ApmMetaConfig.service_config_setup(
+            bk_biz_id,
+            app_name,
+            service_name,
+            "labels",
+            json.dumps(labels),
+        )
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> None:
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+
+        # 对 labels 单独作处理
+        if "labels" in validated_request_data:
             self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
+
+        update_relation: Callable[[str, Any], None] = functools.partial(
+            self.update_relation, bk_biz_id, app_name, service_name
+        )
+        for relation_type, relation_data in validated_request_data.items():
+            if relation_type in self.RELATION_MODEL_MAP:
+                update_relation(relation_type, relation_data)
 
         # 下发修改后的配置
         application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
@@ -476,171 +561,6 @@ class ServiceConfigResource(Resource):
 
         update_application_config.delay(
             application.bk_biz_id, application.app_name, {"service_configs": application.get_service_transfer_config()}
-        )
-
-    def update_uri(self, bk_biz_id, app_name, service_name, uri_relations):
-        if len(set(uri_relations)) != len(uri_relations):
-            raise ValueError(_lazy("uri含有重复配置项"))
-
-        filter_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service_name}
-        relations = UriServiceRelation.objects.filter(**filter_params).order_by("rank")
-
-        delete_uris = {
-            k: [g.id for g in group] for k, group in itertools.groupby(relations, operator.attrgetter("uri"))
-        }
-
-        username = get_request_username()
-        update_at = arrow.now().datetime
-        for index, item in enumerate(uri_relations):
-            qs = relations.filter(uri=item)
-            if qs.exists():
-                qs.update(rank=index, updated_by=username, updated_at=update_at)
-                del delete_uris[item]
-            else:
-                UriServiceRelation.objects.create(uri=item, rank=index, **filter_params)
-
-        UriServiceRelation.objects.filter(id__in=itertools.chain(*[ids for _, ids in delete_uris.items()])).delete()
-
-    @classmethod
-    def update_log_relations(cls, bk_biz_id: int, app_name: str, service_name: str, log_relation_list: list):
-        if not log_relation_list:
-            LogServiceRelation.objects.filter(
-                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-            ).delete()
-            return
-
-        # 检查是否有重复的related_bk_biz_id，并合并value_list
-        unique_relations = {}
-        for request_relation in log_relation_list:
-            related_bk_biz_id = request_relation.get("related_bk_biz_id")
-            if related_bk_biz_id in unique_relations:
-                # 合并value_list
-                existing_value_list = unique_relations[related_bk_biz_id].get("value_list", [])
-                new_value_list = request_relation.get("value_list", [])
-                unique_relations[related_bk_biz_id]["value_list"] = existing_value_list + new_value_list
-            else:
-                unique_relations[related_bk_biz_id] = request_relation
-
-        # 将合并后的结果转换为列表
-        log_relation_list = list(unique_relations.values())
-
-        # 获取现有记录的主键映射
-        existing_relations = LogServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-        ).values_list("related_bk_biz_id", "id")
-
-        existing_id_map = {related_bk_biz_id: id for related_bk_biz_id, id in existing_relations}
-
-        to_update = []
-        to_create = []
-        to_delete = [id for _, id in existing_relations]
-        username = get_request_username()
-        update_time = arrow.now().datetime
-
-        for request_relation in log_relation_list:
-            related_bk_biz_id = request_relation.get("related_bk_biz_id")
-            if related_bk_biz_id in existing_id_map:
-                if request_relation.get("value_list"):
-                    # 否则更新记录
-                    instance = LogServiceRelation(
-                        id=existing_id_map[related_bk_biz_id],
-                        updated_by=username,
-                        updated_at=update_time,
-                        **request_relation,
-                    )
-                    to_update.append(instance)
-                    # 如果记录不需要更新或者 value_list 为空，则需要删除记录
-                    to_delete.remove(existing_id_map[related_bk_biz_id])
-            else:
-                # 创建记录
-                instance = LogServiceRelation(
-                    bk_biz_id=bk_biz_id,
-                    app_name=app_name,
-                    service_name=service_name,
-                    updated_by=username,
-                    created_by=username,
-                    **request_relation,
-                )
-                to_create.append(instance)
-
-        if to_update:
-            LogServiceRelation.objects.bulk_update(
-                to_update, fields=["updated_by", "updated_at", "value_list"], batch_size=100
-            )
-        if to_create:
-            LogServiceRelation.objects.bulk_create(to_create, batch_size=100)
-        if to_delete:
-            LogServiceRelation.objects.filter(id__in=to_delete).delete()
-
-    @classmethod
-    def update_event_relations(
-        cls, bk_biz_id: int, app_name: str, service_name: str, event_relations: list[dict[str, Any]]
-    ):
-        if not event_relations:
-            return
-
-        table_relation_map: dict[str, dict[str, Any]] = {
-            relation["table"]: relation
-            for relation in ServiceInfoResource.get_event_relation_info(bk_biz_id, app_name, service_name)
-        }
-
-        username: str = get_request_username()
-        to_be_created_relations: list[EventServiceRelation] = []
-        to_be_updated_relations: list[EventServiceRelation] = []
-        for relation in event_relations:
-            exists_relation: dict[str, Any] | None = table_relation_map.get(relation["table"])
-            if exists_relation:
-                to_be_updated_relations.append(
-                    EventServiceRelation(
-                        id=exists_relation["id"], updated_by=username, updated_at=arrow.now().datetime, **relation
-                    )
-                )
-            else:
-                to_be_created_relations.append(
-                    EventServiceRelation(
-                        bk_biz_id=bk_biz_id,
-                        app_name=app_name,
-                        service_name=service_name,
-                        updated_by=username,
-                        created_by=username,
-                        **relation,
-                    )
-                )
-
-        if to_be_created_relations:
-            EventServiceRelation.objects.bulk_create(to_be_created_relations, batch_size=100)
-        if to_be_updated_relations:
-            EventServiceRelation.objects.bulk_update(
-                to_be_updated_relations, batch_size=100, fields=["updated_at", "updated_by", "relations", "options"]
-            )
-
-    def update(self, bk_biz_id, app_name, service_name, relation, model):
-        if not relation:
-            # 删除原来的关联
-            model.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name).delete()
-        else:
-            qs = model.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-            username = get_request_username()
-
-            if qs.exists():
-                qs.update(updated_by=username, updated_at=arrow.now().datetime, **relation)
-            else:
-                model.objects.create(
-                    bk_biz_id=bk_biz_id,
-                    app_name=app_name,
-                    service_name=service_name,
-                    updated_by=username,
-                    created_by=username,
-                    **relation,
-                )
-
-    def update_labels(self, bk_biz_id, app_name, service_name, labels):
-        ApmMetaConfig.service_config_setup(
-            bk_biz_id,
-            app_name,
-            service_name,
-            "labels",
-            json.dumps(labels),
         )
 
 
@@ -707,8 +627,6 @@ class PipelineOverviewResource(Resource):
     RequestSerializer = PipelineOverviewRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
-        if validated_request_data["is_mock"]:
-            return API_PIPELINE_OVERVIEW_RESPONSE
 
         bk_biz_id = self._validate_bk_biz_id(validated_request_data["bk_biz_id"])
         business = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
@@ -783,8 +701,6 @@ class ListPipelineResource(Resource):
     RequestSerializer = ListPipelineRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        if validated_request_data.get("is_mock", False):
-            return API_LIST_PIPELINE_RESPONSE
 
         params = {
             "project_id": validated_request_data["project_id"],
@@ -815,8 +731,6 @@ class ListCodeRedefinedRuleResource(Resource):
     RequestSerializer = ListCodeRedefinedRuleRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock", False):
-            return API_CODE_REDEFINED_RULE_LIST_RESPONSE
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]

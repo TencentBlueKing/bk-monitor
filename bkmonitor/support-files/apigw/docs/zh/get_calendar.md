@@ -42,7 +42,7 @@
 | create_time | Int    | 创建时间                                      |
 | classify    | String | 日历分类（内置："default"，自定义："custom"） |
 | deep_color  | String | 日历深色底色                                  |
-| Light_color | String | 日历浅色底色                                  |
+| light_color | String | 日历浅色底色                                  |
 
 ### 响应参数示例
 

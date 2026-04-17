@@ -64,7 +64,7 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
   const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(defaultTimeRange) ?? DEFAULT_TIME_RANGE);
   /** 维度图表 panel 配置数据 */
   const panel = computed<PanelModel>(() => {
-    if (!get(alertId) || !get(graphPanel) || !get(groupBy)?.length) return null;
+    if (!get(alertId) || !get(graphPanel) || !get(groupBy)?.length) return new PanelModel({});
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { query_configs, expression } = get(graphPanel).targets?.[0]?.data ?? {};
@@ -146,34 +146,26 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
    */
   const formatterOptions = (options: any) => {
     options.color = COLOR_LIST;
-    options.grid.right = 20;
+    options.grid.top = 24;
+    options.grid.left = 16;
+    options.grid.right = 16;
 
     // 为x轴添加刻度线
     Object.assign(options.xAxis[0], {
       boundaryGap: false,
-      axisTick: { show: true, alignWithLabel: true },
-      axisLine: { show: true },
-      splitLine: { show: true },
-      axisLabel: { ...options.xAxis[0].axisLabel, align: 'center', showMinLabel: true, showMaxLabel: true },
+      axisTick: { show: true, alignWithLabel: true, lineStyle: { color: '#C1CDE6' } },
+      axisLine: { show: true, lineStyle: { color: '#C1CDE6' } },
+      splitLine: { show: false },
+      axisLabel: { ...options.xAxis[0].axisLabel, align: 'center' },
     });
     // 为y轴添加刻度线
     for (const item of options.yAxis) {
       Object.assign(item, {
-        axisTick: { show: true },
-        axisLine: { show: true },
+        axisTick: { show: false },
+        axisLine: { show: false },
         splitLine: { show: true },
       });
     }
-    // 添加右侧y轴边框线
-    options.yAxis.push({
-      show: true,
-      position: 'right',
-      axisTick: { show: false },
-      axisLine: { show: true },
-      axisLabel: { show: false },
-      splitLine: { show: false },
-      z: 3,
-    });
     return options;
   };
 

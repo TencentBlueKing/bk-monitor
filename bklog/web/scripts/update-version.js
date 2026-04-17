@@ -23,17 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import semver from 'semver';
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
+import semver from "semver";
 // 获取 执行参数 packageName
 const packageName = process.argv[2];
-const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), packageName, 'package.json'), 'utf-8'));
+const packageJson = JSON.parse(
+  fs.readFileSync(
+    path.join(process.cwd(), packageName, "package.json"),
+    "utf-8",
+  ),
+);
 
 const { name } = packageJson;
 const latestVersion = execSync(`npm view ${name} version`).toString().trim();
-const nextVersion = semver.inc(latestVersion, 'patch');
+const nextVersion = semver.inc(latestVersion, "patch");
 console.log(`${name} 的最新版本为 ${latestVersion}，更新为 ${nextVersion}`);
-packageJson.version = nextVersion + '';
-fs.writeFileSync(path.join(process.cwd(), packageName, 'package.json'), JSON.stringify(packageJson));
+packageJson.version = `${nextVersion}`;
+fs.writeFileSync(
+  path.join(process.cwd(), packageName, "package.json"),
+  JSON.stringify(packageJson),
+);

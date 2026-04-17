@@ -186,6 +186,7 @@ export default defineComponent({
     const pathRef = ref(); // 日志路径ref
     const excludeFilesRef = ref(); // 黑名单路径ref
     const logFilterRef = ref(); // 日志过滤器ref
+    const deviceMetadataRef = ref(); // 设备元数据ref
     /**
      * 集群列表
      */
@@ -218,8 +219,9 @@ export default defineComponent({
      */
     const isUpdate = computed(
       () =>
-        (route.name === 'collectEdit' && props.isEdit) ||
-        (route.name === 'collectAdd' && !!formData.value?.collector_config_id),
+        !isClone.value &&
+        ((route.name === 'collectEdit' && props.isEdit) ||
+          (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
     );
     /**
      * 是否为采集主机日志
@@ -250,7 +252,6 @@ export default defineComponent({
         target_object_type: 'HOST',
         data_encoding: 'UTF-8',
         parent_index_set_ids: [],
-        tail_files: true,
         params: {
           conditions: {
             type: 'none',
@@ -272,7 +273,7 @@ export default defineComponent({
       if (props.scenarioId === 'winevent') {
         formData.value = {
           ...formData.value,
-          collector_scenario_id: 'winevent',
+          collector_scenario_id: 'wineventlog',
           params: {
             ...formData.value.params,
             winlog_name: selectLogSpeciesList.value,
@@ -547,6 +548,7 @@ export default defineComponent({
       return {
         ...configItem,
         noQuestParams,
+        containerNameList,
         label_selector: {
           match_labels,
           match_expressions,
@@ -794,6 +796,7 @@ export default defineComponent({
      */
     const renderDeviceMetadata = () => (
       <DeviceMetadata
+        ref={deviceMetadataRef}
         metadata={formData.value.extra_labels}
         // metadata={formData.value.params.extra_labels}
         on-extra-labels-change={handleMetadataList}
@@ -1011,10 +1014,10 @@ export default defineComponent({
               <span class='label-title'>{t('采集范围')}</span>
               <bk-radio-group
                 class='form-box'
-                value={formData.value.tail_files}
+                value={formData.value.params.tail_files}
                 on-change={val => {
                   isConfigChange.value = true;
-                  formData.value.tail_files = val;
+                  formData.value.params.tail_files = val;
                 }}
               >
                 <bk-radio
@@ -1108,19 +1111,19 @@ export default defineComponent({
         key: 'sourceLogInfo',
         renderFn: renderSourceLogInfo,
         subTitle: () => {
-          if (!props.isEdit) {
-            return (
-              <span
-                class='config-import'
-                on-click={() => {
-                  isIndexConfigImport.value = true;
-                }}
-              >
-                {t('索引配置导入')}
-                <i class='bklog-icon bklog-import-daoru config-import-icon' />
-              </span>
-            );
-          }
+          // if (!props.isEdit) {
+          //   return (
+          //     <span
+          //       class='config-import'
+          //       on-click={() => {
+          //         isIndexConfigImport.value = true;
+          //       }}
+          //     >
+          //       {t('索引配置导入')}
+          //       <i class='bklog-icon bklog-import-daoru config-import-icon' />
+          //     </span>
+          //   );
+          // }
         },
       },
       {
@@ -1261,18 +1264,31 @@ export default defineComponent({
       const { params, ...rect } = requestData;
       // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
       const newConfig = (configs || []).map(item => {
-        const { data_encoding, container, params, collector_type, namespaces, label_selector, annotation_selector } =
-          item;
+        const { data_encoding, container, params, collector_type, namespaces, label_selector, annotation_selector,
+          noQuestParams, containerNameList } = item;
+
+        // 根据排除操作符决定使用 container_name 还是 container_name_exclude
+        const containerKey = noQuestParams?.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+        const containerNameValue = (containerNameList || []).join(',');
+
+        // 根据排除操作符决定使用 namespaces 还是 namespaces_exclude
+        const namespacesKey = noQuestParams?.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+        const namespacesValue = JSON.stringify(namespaces) === '["*"]' ? [] : (namespaces || []);
+
         return {
           data_encoding,
-          container,
+          container: {
+            workload_type: container?.workload_type || '',
+            workload_name: container?.workload_name || '',
+            [containerKey]: containerNameValue,
+          },
           params: {
             ...params,
             exclude_files: formatExcludeFiles(params.exclude_files),
             paths: extractPaths(params),
           },
           collector_type,
-          namespaces,
+          [namespacesKey]: namespacesValue,
           label_selector,
           annotation_selector,
         };
@@ -1418,6 +1434,13 @@ export default defineComponent({
         isConfigError = configurationItemListRef.value.validate();
       }
       /**
+       * 设备元数据校验
+       */
+      let isMetadataValid = true;
+      if (deviceMetadataRef.value) {
+        isMetadataValid = deviceMetadataRef.value.extraLabelsValidate();
+      }
+      /**
        * 是否为容器采集并且配置项校验通过
        */
       // console.log('formData.value', formData.value);
@@ -1435,7 +1458,7 @@ export default defineComponent({
             setCollection();
             return;
           }
-          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError) {
+          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError && isMetadataValid) {
             setCollection();
           }
         })

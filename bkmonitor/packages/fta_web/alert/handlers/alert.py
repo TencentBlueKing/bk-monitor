@@ -22,16 +22,16 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response.aggs import BucketData
-from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
+from luqum.tree import AndOperation, FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
 from bkmonitor.models.fta.action import ActionConfig
-from bkmonitor.strategy.new_strategy import get_metric_id
+from bk_monitor_base.strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import hms_string
-from constants.action import ConvergeStatus
+from constants.action import ActionPluginType, ConvergeStatus, NoticeWay
 from constants.alert import (
     EVENT_SEVERITY,
     EVENT_STATUS,
@@ -187,7 +187,14 @@ def _query_alert_ids_from_db(
 
 
 class AlertQueryTransformer(BaseQueryTransformer):
-    NESTED_KV_FIELDS = {"tags": "event.tags"}
+    NESTED_KV_FIELDS = {"tags": "event.tags", "assign_tags": "assign_tags"}
+
+    # 需要同时搜索 assign_tags 的字段映射：es_field → assign_tags 中对应的 key
+    ASSIGN_TAGS_FALLBACK_FIELDS = {
+        "event.ip": "ip",
+        "event.bk_cloud_id": "bk_cloud_id",
+    }
+
     VALUE_TRANSLATE_FIELDS = {
         "severity": EVENT_SEVERITY,
         "status": EVENT_STATUS,
@@ -266,7 +273,47 @@ class AlertQueryTransformer(BaseQueryTransformer):
                 if new_node is not None:
                     node, context = new_node, new_context
                     break
+
+            node = self._expand_assign_tags_fallback(node, context)
+
             yield from self.generic_visit(node, context)
+
+    def _expand_assign_tags_fallback(self, node, context):
+        """
+        对 ASSIGN_TAGS_FALLBACK_FIELDS 中的字段自动扩展 OR 查询。
+        将 event.ip:"127.0.0.1" 扩展为：
+          (event.ip:"127.0.0.1") OR nested(assign_tags, key="ip" AND value.raw="127.0.0.1")
+        这样传统主机告警（event.ip 有值）和 K8s 告警（assign_tags 中有 ip）都能被搜到。
+
+        注意：必须通过 context 中的 assign_tags_expanded 标记防止重入。
+        因为 generic_visit → clone_children → visit_iter 会递归遍历替换后节点的子节点，
+        其中包含原始的 SearchField("event.ip", ...) ，会再次触发 visit_search_field，
+        如果不加防护就会无限递归。
+        """
+        if context.get("assign_tags_expanded"):
+            return node
+
+        if not isinstance(node, SearchField):
+            return node
+
+        assign_tag_key = self.ASSIGN_TAGS_FALLBACK_FIELDS.get(node.name)
+        if not assign_tag_key:
+            return node
+
+        context["assign_tags_expanded"] = True
+        self.has_nested_field = True
+        # 构造 nested assign_tags 查询节点
+        nested_node = SearchField(
+            "assign_tags",
+            FieldGroup(
+                AndOperation(
+                    SearchField("key", Word(assign_tag_key)),
+                    SearchField("value.raw", node.expr),
+                )
+            ),
+        )
+        # 用 OR 组合原始条件和 nested 条件
+        return FieldGroup(OrOperation(node, nested_node))
 
     def visit_word(self, node: Word, context: dict):
         if context.get("ignore_word"):
@@ -883,6 +930,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     conditions.append(Q("term", is_blocked=True))
             # 对 key 为 stage 进行特殊处理
             return reduce(operator.or_, conditions)
+        elif condition["origin_key"] == "notice_way":
+            # 通知类型过滤：查询 ActionInstanceDocument 获取匹配的 alert_id
+            alert_ids = self._get_alert_ids_by_notice_way(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("terms", id=alert_ids)
         elif condition["key"].startswith("tags."):
             # 对 tags 开头的字段进行特殊处理
             return Q(
@@ -913,6 +966,39 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 alert_ids = [0]
 
             return Q("ids", values=alert_ids)
+
+        elif condition["origin_key"] == "converge_id" and condition["key"] == "id":
+            # 收敛记录ID查询：通过 converge_id 批量获取动作实例，找到被收敛的告警ID列表
+            alert_ids = []
+            try:
+                action_instances = ActionInstanceDocument.mget(
+                    condition["value"], ["converge_id", "is_converge_primary"]
+                )
+                converge_ids = [inst.converge_id for inst in action_instances if inst and inst.is_converge_primary]
+                if converge_ids:
+                    queryset = ConvergeRelation.objects.filter(
+                        converge_id__in=converge_ids, converge_status=ConvergeStatus.SKIPPED
+                    ).only("alerts")
+                    alert_ids = list(chain(*[converge.alerts for converge in queryset]))
+            except Exception:
+                pass
+
+            if not alert_ids:
+                alert_ids = [0]
+
+            return Q("ids", values=list(set(alert_ids)))
+
+        elif condition["origin_key"] == "action_id" and condition["key"] == "id":
+            # 处理记录ID查询：通过 action_id 获取关联的告警ID列表
+            alert_ids, _ = get_alert_ids_by_action_id(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("ids", values=alert_ids)
+
+        elif condition["key"] == "event.ipv6":
+            # IPv6 地址查询：将缩写的 IPv6 地址展开为完整格式
+            condition["value"] = [exploded_ip(v) for v in condition["value"]]
+
         elif condition["key"] == "query_string":
             con_q = None
             for query_string in condition["value"]:
@@ -1007,6 +1093,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         search_object.aggs.bucket("is_blocked", "filter", Q("term", is_blocked=True))
 
+        # 收集匹配告警的 id，供通知类型聚合使用
+        search_object.aggs.bucket("alert_ids", "terms", field="id", size=10000)
+
         return search_object
 
     @classmethod
@@ -1057,13 +1146,32 @@ class AlertQueryHandler(BaseBizQueryHandler):
             for alert in alerts:
                 alert["shield_operator"].add(shield_obj.create_user)
 
-    @classmethod
-    def handle_aggs(cls, search_result):
+    def handle_aggs(self, search_result):
+        """
+        处理搜索结果的聚合分析
+
+        参数:
+            search_result (dict): 包含原始搜索结果的数据字典
+
+        返回值:
+            list: 包含五个元素的聚合结果列表，依次为：
+                - 严重度分布聚合结果
+                - 阶段分布聚合结果
+                - 数据类型分布聚合结果
+                - 分类分布聚合结果
+                - 告警通知类型分布聚合结果
+        """
+        # 从聚合结果中提取所有匹配的 alert_id，供通知类型聚合使用
+        alert_ids = []
+        if search_result.aggs:
+            alert_ids = set(bucket.key for bucket in search_result.aggs.alert_ids.buckets)
+
         agg_result = [
-            cls.handle_aggs_severity(search_result),
-            cls.handle_aggs_stage(search_result),
-            cls.handle_aggs_data_type(search_result),
-            cls.handle_aggs_category(search_result),
+            self.handle_aggs_severity(search_result),
+            self.handle_aggs_notice_way(alert_ids),
+            self.handle_aggs_stage(search_result),
+            self.handle_aggs_data_type(search_result),
+            self.handle_aggs_category(search_result),
         ]
 
         return agg_result
@@ -1146,6 +1254,173 @@ class AlertQueryHandler(BaseBizQueryHandler):
             "children": [
                 {"id": data_type, "name": display, "count": data_type_dict.get(data_type, 0)}
                 for data_type, display in DATA_SOURCE_LABEL_CHOICE
+            ],
+        }
+
+    @staticmethod
+    def _parse_notice_ways_from_inputs(inputs: dict) -> set:
+        """从父任务的 inputs 中解析出有效的通知方式集合"""
+        notify_info = {
+            **inputs.get("notify_info", {}),
+            **inputs.get("follow_notify_info", {}),
+        }
+        exclude_notice_ways = set(inputs.get("exclude_notice_ways") or [])
+
+        notice_ways = set()
+        for way in notify_info:
+            if way == "wxbot_mention_users":
+                if NoticeWay.WX_BOT not in exclude_notice_ways:
+                    notice_ways.add(NoticeWay.WX_BOT)
+                continue
+            if way not in exclude_notice_ways:
+                notice_ways.add(way)
+        return notice_ways
+
+    def _query_alert_notice_ways(self, alert_ids: set | None = None) -> dict[str, set]:
+        """
+        查询通知父任务，返回每个 alert_id 对应的有效通知方式集合
+
+        参数:
+            alert_ids: 限定查询范围的告警 ID 集合，为 None 时不限定
+
+        返回:
+            {alert_id: {notice_way1, notice_way2, ...}, ...}
+        """
+        result = {}
+
+        action_search = ActionInstanceDocument.search(start_time=self.start_time, end_time=self.end_time)
+        action_search = action_search.filter("term", action_plugin_type=ActionPluginType.NOTICE)
+        action_search = action_search.filter("term", is_parent_action=True)
+
+        if alert_ids is not None:
+            action_search = action_search.filter("terms", alert_id=list(alert_ids))
+
+        if self.authorized_bizs is not None and self.bk_biz_ids:
+            action_search = action_search.filter("terms", bk_biz_id=self.authorized_bizs)
+
+        action_search = action_search.extra(size=0)
+
+        # 按 alert_id 分桶，每桶取 update_time 最新的父任务
+        agg_size = len(alert_ids) if alert_ids else 10000
+        action_search.aggs.bucket("per_alert", "terms", field="alert_id", size=agg_size).metric(
+            "latest_action",
+            "top_hits",
+            size=1,
+            sort=[{"update_time": {"order": "desc"}}],
+            _source=["inputs"],
+        )
+
+        search_result = action_search.execute()
+
+        for bucket in search_result.aggregations.per_alert.buckets:
+            if alert_ids is not None and bucket.key not in alert_ids:
+                continue
+
+            hits = bucket.latest_action.hits.hits
+            if not hits:
+                continue
+
+            source = hits[0].to_dict().get("_source", {})
+            inputs = source.get("inputs", {})
+            notice_ways = self._parse_notice_ways_from_inputs(inputs)
+            if notice_ways:
+                result[bucket.key] = notice_ways
+
+        return result
+
+    def _get_alert_ids_by_notice_way(self, notice_ways: list) -> list:
+        """根据通知类型过滤，返回匹配的 alert_id 列表"""
+        target_ways = set(notice_ways)
+        matched_alert_ids = []
+
+        try:
+            # 先获取当前查询条件匹配的 alert_ids，限定查询范围
+            alert_ids = self._collect_current_alert_ids()
+            if not alert_ids:
+                return []
+
+            alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+
+            for alert_id, ways in alert_notice_ways.items():
+                if ways & target_ways:
+                    matched_alert_ids.append(alert_id)
+
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"_get_alert_ids_by_notice_way error: {e}")
+
+        return matched_alert_ids
+
+    def _collect_current_alert_ids(self) -> set:
+        """通过当前查询条件（排除 notice_way）获取匹配的 alert_id 集合"""
+        search_object = self.get_search_object()
+
+        # 过滤掉 notice_way 条件，避免循环依赖
+        filtered_conditions = [c for c in (self.conditions or []) if c.get("origin_key") != "notice_way"]
+        original_conditions = self.conditions
+        self.conditions = filtered_conditions
+        try:
+            search_object = self.add_conditions(search_object)
+        finally:
+            self.conditions = original_conditions
+        search_object = self.add_query_string(search_object)
+        search_object = search_object[:0]
+        search_object.aggs.bucket("alert_ids", "terms", field="id", size=10000)
+        result = search_object.execute()
+
+        if result.aggs:
+            return set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+        return set()
+
+    def handle_aggs_notice_way(self, alert_ids):
+        """通过ES聚合统计告警通知类型分布"""
+        notice_way_mapping = {
+            NoticeWay.SMS: _lazy("短信"),
+            NoticeWay.MAIL: _lazy("邮件"),
+            NoticeWay.WEIXIN: _lazy("微信"),
+            NoticeWay.QY_WEIXIN: _lazy("企业微信"),
+            NoticeWay.WX_BOT: _lazy("企业微信机器人"),
+        }
+        notice_way_count = defaultdict(int)
+        alert_notice_ways = {}
+
+        try:
+            if not alert_ids:
+                return {
+                    "id": "notice_way",
+                    "name": _("通知类型"),
+                    "count": 0,
+                    "children": [
+                        {
+                            "id": way_key,
+                            "name": str(NoticeWay.NOTICE_WAY_MAPPING.get(way_key, way_key)),
+                            "count": 0,
+                        }
+                        for way_key in notice_way_mapping
+                    ],
+                }
+
+            # 调用公共方法获取每个告警的通知方式
+            alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+
+            # 统计每种通知方式的告警数量
+            for notice_ways in alert_notice_ways.values():
+                for way in notice_ways:
+                    notice_way_count[way] += 1
+
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"handle_aggs_notice_way error, error: {e}")
+
+        return {
+            "id": "notice_way",
+            "name": _("通知类型"),
+            "count": len(alert_notice_ways),
+            "children": [
+                {
+                    "id": way_key,
+                    "name": str(NoticeWay.NOTICE_WAY_MAPPING.get(way_key, way_key)),
+                    "count": notice_way_count.get(way_key, 0),
+                }
+                for way_key in notice_way_mapping
             ],
         }
 

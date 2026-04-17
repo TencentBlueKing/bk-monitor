@@ -756,40 +756,48 @@
        */
       handleViewMonitor(field) {
         const key = field.toLowerCase();
+        // 提取最后一段字段名，仅用于trace检索的嵌套字段匹配
+        const lastSegment = key.includes('.') ? key.split('.').pop() : key;
         const trace_id = String(this.data[field])
           .replace(/<mark>/g, '')
           .replace(/<\/mark>/g, '');
         let path = '';
-        switch (key) {
-          // trace检索
-          case 'trace_id':
-          case 'traceid':
-            if (this.apmRelation.is_active) {
-              const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
-              path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${trace_id}`;
-            } else {
-              this.$bkMessage({
-                theme: 'warning',
-                message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
-              });
-            }
-            break;
-          // 主机监控
-          case 'serverip':
-          case 'ip':
-          case 'bk_host_id':
-            {
-              const endStr = `${trace_id}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
-              path = `/?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
-            }
-            break;
-          // 容器
-          case 'container_id':
-          case '__ext.container_id':
-            path = `/?bizId=${this.bkBizId}#/k8s?dashboardId=pod`;
-            break;
-          default:
-            break;
+
+        // trace检索：支持嵌套字段如 attribute.trace_id
+        if (lastSegment === 'trace_id' || lastSegment === 'traceid') {
+          // 使用 tableRowDeepView 正确获取嵌套字段的值
+          const fieldValue = this.tableRowDeepView(this.data, field, this.getFieldType(field), false);
+          const traceIdValue = String(fieldValue ?? '')
+            .replace(/<mark>/g, '')
+            .replace(/<\/mark>/g, '');
+          if (this.apmRelation.is_active) {
+            const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
+            path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceIdValue}`;
+          } else {
+            this.$bkMessage({
+              theme: 'warning',
+              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+            });
+          }
+        } else {
+          switch (key) {
+            // 主机监控
+            case 'serverip':
+            case 'ip':
+            case 'bk_host_id':
+              {
+                const endStr = `${trace_id}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
+                path = `/?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
+              }
+              break;
+            // 容器
+            case 'container_id':
+            case '__ext.container_id':
+              path = `/?bizId=${this.bkBizId}#/k8s?dashboardId=pod`;
+              break;
+            default:
+              break;
+          }
         }
 
         if (path) {
@@ -806,11 +814,15 @@
         if (this.$store.state.isExternal) return false;
 
         const key = field.toLowerCase();
+        // 提取最后一段字段名，仅用于trace检索的嵌套字段匹配
+        const lastSegment = key.includes('.') ? key.split('.').pop() : key;
+
+        // trace检索：支持嵌套字段如 attribute.trace_id
+        if (lastSegment === 'trace_id' || lastSegment === 'traceid') {
+          return this.$t('trace检索');
+        }
+
         switch (key) {
-          // trace检索
-          case 'trace_id':
-          case 'traceid':
-            return this.$t('trace检索');
           // 主机监控
           case 'serverip':
           case 'ip':

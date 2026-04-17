@@ -205,7 +205,12 @@ export function toFixed(value: number, decimals?: DecimalCount): string {
   }
 
   const factor = decimals ? 10 ** Math.max(0, decimals) : 1;
-  const formatted = String(Math.round(value * factor) / factor);
+
+  /** 解决当值很小时,Math.round(value * factor) 会返回 0 的问题 */
+  const formatted =
+    Math.round(value * factor) === 0
+      ? String(Math.ceil(value * factor) / factor)
+      : String(Math.round(value * factor) / factor);
 
   // if exponent return directly
   if (formatted.indexOf('e') !== -1 || value === 0) {

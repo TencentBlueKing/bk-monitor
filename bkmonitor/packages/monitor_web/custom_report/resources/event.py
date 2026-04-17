@@ -30,7 +30,7 @@ from core.errors.custom_report import (
     CustomValidationNameError,
 )
 from monitor_web.constants import ETL_CONFIG, EVENT_TYPE
-from monitor_web.custom_report.serializers import (
+from monitor_web.custom_report.serializers.event import (
     CustomEventGroupDetailSerializer,
     CustomEventGroupSerializer,
     EventInfoSerializer,

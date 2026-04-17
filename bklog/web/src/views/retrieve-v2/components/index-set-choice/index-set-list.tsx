@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref, set } from 'vue';
+import { computed, defineComponent, type PropType, ref, set } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import * as authorityMap from '../../../../common/authority-map';
 import BklogPopover from '../../../../components/bklog-popover';
-import { IndexSetItem } from './use-choice';
+import type { IndexSetItem } from './use-choice';
 import useIndexSetList from './use-index-set-list';
 
 import './index-set-list.scss';
@@ -91,9 +91,10 @@ export default defineComponent({
 
     const formatList = computed(() => {
       const filterFn = (node) => {
+        const keyword = searchText.value.toLowerCase();
         return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
-          key => `${node[key]}`.indexOf(searchText.value) !== -1
-            || (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
+          key => `${node[key]}`.toLowerCase().indexOf(keyword) !== -1
+            || (node.indices ?? []).some(idc => `${idc.result_table_id}`.toLowerCase().indexOf(keyword) !== -1),
         );
       };
       // 检查节点是否应该显示
@@ -324,11 +325,23 @@ export default defineComponent({
 
     const handleDeleteCheckedItem = (e: MouseEvent, item) => {
       e.stopPropagation();
-      handleIndexSetItemCheck(item, false);
+
+      // 如果删除的是父节点，需要将子节点从 disableList 中移除，并作为 storeList 传入以保留子节点选中
+      const childIds: string[] = [];
+      for (const child of item.children ?? []) {
+        const index = disableList.value.indexOf(child.unique_id);
+        if (index >= 0) {
+          disableList.value.splice(index, 1);
+          childIds.push(child.unique_id);
+        }
+      }
+
+      handleIndexSetItemCheck(item, false, childIds);
     };
 
     const handleClearValues = (e: MouseEvent) => {
       e.stopPropagation();
+      disableList.value = [];
       clearAllValue();
     };
 

@@ -19,16 +19,27 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import math
 import os
+import shutil
+import uuid
 
 from django.utils.functional import cached_property
 
 from apps.api import TGPATaskApi
-from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.tgpa.constants import (
+    TGPA_BASE_DIR,
+    TGPATaskTypeEnum,
+    TASK_LIST_BATCH_SIZE,
+    TGPA_DOWNLOAD_DIR,
+    FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE,
+    FEATURE_TOGGLE_TGPA_TASK,
+    TGPA_FILE_DOWNLOAD_CHUNK_SIZE,
+    TGPA_REPORT_FILE_NAME_PREFIX,
+)
 from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
-from apps.utils.thread import MultiExecuteFunc
 
 
 class TGPATaskHandler:
@@ -44,6 +55,8 @@ class TGPATaskHandler:
         self.task_id = self.task_info["go_svr_task_id"]
         self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "temp")
         self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "output")
+        # 解密处理器实例
+        self.decrypt_handler = get_decrypt_handler(bk_biz_id)
 
     @cached_property
     def meta_fields(self):
@@ -69,7 +82,7 @@ class TGPATaskHandler:
         """
         request_params = {
             "cc_id": self.bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "task_id": inst_id,
         }
         return TGPATaskApi.query_single_user_log_task_v2(request_params)["results"][0]
@@ -104,6 +117,7 @@ class TGPATaskHandler:
                     "comment": task["comment"],
                     "created_by": task["created_by"],
                     "created_at": task["created_at"],
+                    "file_name": task["file_name"],
                 }
             )
         return result_list
@@ -115,7 +129,7 @@ class TGPATaskHandler:
         """
         params = {
             "cc_id": bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "offset": 0,
             "limit": 1,
         }
@@ -123,41 +137,35 @@ class TGPATaskHandler:
         return result["count"]
 
     @staticmethod
-    def get_task_list(params, need_format=False):
+    def iter_task_list(bk_biz_id, batch_size=TASK_LIST_BATCH_SIZE, **extra_params):
         """
-        获取任务列表
+        迭代获取任务列表，逐条返回任务数据
+        :param bk_biz_id: 业务ID
+        :param batch_size: 每批请求数据量，默认为TASK_LIST_BATCH_SIZE
+        :param extra_params: 额外的查询参数，如 task_id 等，会直接传递给 API
+        :return: 生成器，逐条yield任务数据
         """
-        # 支持v1和v2业务日志捞取任务
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
-        params["task_type"] = task_types
-        # 第一次请求只获取1条数据，用于获取总数
-        first_request_params = params.copy()
-        first_request_params.update({"offset": 0, "limit": 1})
-        result = TGPATaskApi.query_single_user_log_task_v2(first_request_params)
-        count = result["count"]
+        offset = 0
+        while True:
+            request_params = {
+                "cc_id": bk_biz_id,
+                "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
+                "offset": offset,
+                "limit": batch_size,
+                "ordering": "-id",
+                **extra_params,
+            }
+            result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+            task_list = result.get("results", [])
 
-        data = []
-        if count > 0:
-            total_requests = math.ceil(count / TASK_LIST_BATCH_SIZE)
-            multi_execute_func = MultiExecuteFunc()
+            if not task_list:
+                break
+            yield from task_list
 
-            for i in range(total_requests):
-                request_params = params.copy()
-                request_params.update({"offset": i * TASK_LIST_BATCH_SIZE, "limit": TASK_LIST_BATCH_SIZE})
-                multi_execute_func.append(
-                    result_key=f"request_{i}", func=TGPATaskApi.query_single_user_log_task_v2, params=request_params
-                )
+            if len(task_list) < batch_size:
+                break
 
-            results = multi_execute_func.run()
-            for i in range(total_requests):
-                if need_format:
-                    data.extend(TGPATaskHandler.format_task_list(results[f"request_{i}"]["results"]))
-                else:
-                    data.extend(results[f"request_{i}"]["results"])
-
-        return {"total": count, "list": data}
+            offset += batch_size
 
     @staticmethod
     def get_task_page(params):
@@ -165,12 +173,9 @@ class TGPATaskHandler:
         分页获取任务列表，用于前端
         """
         # 支持v1和v2业务日志捞取任务
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
         request_params = {
             "cc_id": params["bk_biz_id"],
-            "task_type": task_types,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "offset": (params["page"] - 1) * params["pagesize"],
             "limit": params["pagesize"],
         }
@@ -216,7 +221,7 @@ class TGPATaskHandler:
         """
         request_params = {
             "cc_id": bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "limit": 1,
         }
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
@@ -226,5 +231,57 @@ class TGPATaskHandler:
         """
         下载并处理文件
         """
-        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        file_handler = TGPAFileHandler(
+            temp_dir=self.temp_dir,
+            output_dir=self.output_dir,
+            meta_fields=self.meta_fields,
+            decrypt_handler=self.decrypt_handler,
+            bk_biz_id=self.bk_biz_id,
+        )
         file_handler.download_and_process_file(self.task_info["file_name"])
+
+    @staticmethod
+    def stream_download_file(bk_biz_id, file_name):
+        """
+        下载、解密、重新打包文件，并返回流式迭代器和文件信息
+        :param bk_biz_id: 业务ID
+        :param file_name: 文件名
+        :return: (file_iterator, file_name, file_size)
+        """
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        feature_config = feature_toggle.feature_config
+        max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
+        file_info = TGPAFileHandler.get_file_info(file_name, bk_biz_id=bk_biz_id)
+        decrypt_handler = get_decrypt_handler(bk_biz_id)
+        # 用户上报文件不需要解密，直接流式转发（先直接在这个接口兼容，后续有其他需求再拆分模块）
+        is_user_report_file = os.path.basename(file_name).startswith(TGPA_REPORT_FILE_NAME_PREFIX)
+        if file_info["content_length"] > max_size or not decrypt_handler or is_user_report_file:
+            # 文件大小超限或无需解密：直接从流式转发，不落盘，节省服务器磁盘和内存资源
+            return (
+                TGPAFileHandler.get_file_stream(file_name, bk_biz_id=bk_biz_id),
+                os.path.basename(file_name),
+                file_info["content_length"],
+            )
+
+        # 使用UUID作为临时目录标识，避免并发请求的目录冲突
+        unique_id = uuid.uuid4().hex
+        base_dir = os.path.join(TGPA_DOWNLOAD_DIR, str(bk_biz_id), unique_id)
+        temp_dir = os.path.join(base_dir, "temp")
+        output_dir = os.path.join(base_dir, "output")
+
+        file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler, bk_biz_id=bk_biz_id)
+        result_path = file_handler.download_and_repack_file(file_name)
+
+        result_file_name = os.path.basename(result_path)
+        file_size = os.path.getsize(result_path)
+
+        def file_iterator(chunk_size=TGPA_FILE_DOWNLOAD_CHUNK_SIZE):
+            """文件流式读取迭代器"""
+            try:
+                with open(result_path, "rb") as f:
+                    while chunk := f.read(chunk_size):
+                        yield chunk
+            finally:
+                shutil.rmtree(base_dir, ignore_errors=True)
+
+        return file_iterator(), result_file_name, file_size

@@ -73,7 +73,7 @@ class Command(BaseCommand):
         #    - dataid: 11000002
         #      name: bk-log-search-api
         with open(builtin_collect_file_path, encoding="utf-8") as f:
-            config = yaml.load(f.read(), Loader=yaml.FullLoader)
+            config = yaml.safe_load(f.read())
         config = config or {}
 
         for built_in_info in config.get("builtin_collect") or []:

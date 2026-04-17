@@ -12,20 +12,19 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from bk_monitor_base.strategy import update_strategy_query_config
 from django.conf import settings
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.item import Item
-from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.control.mixins.detect import EXTRA_CONFIG_KEYS
+from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.lock.service_lock import (
     check_lock_updated,
     refresh_service_lock,
 )
 from alarm_backends.service.preparation.base import BasePreparationProcess
 from bkmonitor.models import AlgorithmModel
-from bkmonitor.models.strategy import QueryConfigModel
-from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
     timestamp2datetime,
@@ -65,9 +64,11 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 # 历史依赖准备就绪才开始检测
                 if force or query_config["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                     self.refresh_strategy_depend_data(strategy, processed_dimensions, update_time)
-                    query_config = QueryConfig.from_models(QueryConfigModel.objects.filter(id=query_config["id"]))[0]
-                    query_config.intelligent_detect["status"] = SDKDetectStatus.READY
-                    query_config.save()
+                    query_config["intelligent_detect"]["status"] = SDKDetectStatus.READY
+                    update_strategy_query_config(
+                        strategy_id=strategy_id,
+                        config={"intelligent_detect": query_config["intelligent_detect"]},
+                    )
                     logger.info(
                         f"Finish to refresh depend data for strategy({strategy_id}),"
                         f"total dimensions: {len(processed_dimensions)}"
@@ -97,7 +98,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
             extra_config = {k: v for k, v in algorithm.get("config", {}).items() if k in EXTRA_CONFIG_KEYS}
             logger.info(f"Strategy({strategy.id}) extra_config: {extra_config}")
 
-            start_time, end_time = self.generate_depend_time_range(item)
+            start_time, end_time = self.generate_depend_time_range(item, extra_config)
 
             self.init_depend_data(
                 strategy, init_depend_api_func, start_time, end_time, processed_dimensions, update_time, extra_config
@@ -111,16 +112,26 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 self.init_depend_data(
                     strategy,
                     init_depend_api_func,
-                    latest_end_time,
                     end_time,
+                    latest_end_time,
                     processed_dimensions,
                     update_time,
                     extra_config,
                 )
 
-    def generate_depend_time_range(self, item: Item) -> tuple[int, int]:
+    def generate_depend_time_range(self, item: Item, extra_config: dict | None = None) -> tuple[int, int]:
         """根据配置生成历史依赖的开始时间和结束时间."""
+        extra_config = extra_config or {}
         ts_depend = item.algorithms[0].get("ts_depend", "50h")
+        if extra_config.get("enable_week_compare", False):
+            logger.info(
+                "Strategy(%s) enable_week_compare=true, override ts_depend from %s to 8d",
+                item.strategy.id,
+                ts_depend,
+            )
+            ts_depend = "8d"
+        # parse_time_compare_abbreviation("50h"/"8d") 返回的是负秒数，
+        # 因此这里使用 end_time + offset 的方式向前回溯历史依赖窗口。
         ts_depend_offset = parse_time_compare_abbreviation(ts_depend)
         end_time = int(time.time())
         start_time = end_time + ts_depend_offset
@@ -271,6 +282,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
                     serving_config = {
                         "grey_to_bkfara": extra_config.get("grey_to_bkfara", False),
                         "service_name": extra_config.get("service_name", "default"),
+                        "enable_week_compare": extra_config.get("enable_week_compare", False),
                     }
                     tasks.append(
                         executor.submit(init_depend_api_func, dependency_data=init_data, serving_config=serving_config)
@@ -284,6 +296,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 serving_config = {
                     "grey_to_bkfara": extra_config.get("grey_to_bkfara", False),
                     "service_name": extra_config.get("service_name", "default"),
+                    "enable_week_compare": extra_config.get("enable_week_compare", False),
                 }
                 tasks.append(
                     executor.submit(init_depend_api_func, dependency_data=init_data, serving_config=serving_config)

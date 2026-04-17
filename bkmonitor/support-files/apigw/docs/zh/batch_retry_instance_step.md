@@ -14,7 +14,7 @@
 
 ```json
 {
-  "bk_bix_id": 2,
+  "bk_biz_id": 2,
   "id": 100
 }
 ```
@@ -23,7 +23,7 @@
 
 | 字段      | 类型   | 描述     |
 |---------|------|--------|
-| resul   | bool | 请求是否成功 |
+| result  | bool | 请求是否成功 |
 | code    | int  | 返回的状态码 |
 | message | str  | 描述信息   |
 | data    | str  | 响应结果   |

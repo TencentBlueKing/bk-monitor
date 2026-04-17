@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
+import { Dialog, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { toBcsDetail, toCollectDetail, toPerformanceDetail } from 'fta-solutions/common/go-link';
+import { copyText, xssFilter } from 'monitor-common/utils';
 import { ETagsType } from 'monitor-common/utils/biz';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import VueJsonPretty from 'vue-json-pretty';
 
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
@@ -69,6 +72,11 @@ export default defineComponent({
       'tags.bk_collect_config_id', // 采集配置ID
       'bk_collect_config_id', // 采集配置ID
     ];
+
+    /** 关联信息弹窗 */
+    const relationDialogShow = shallowRef(false);
+    /** 关联信息值 */
+    const relationInfo = shallowRef(null);
 
     const handleStatusString = computed(() => {
       const total = props.alertActionOverview?.count;
@@ -225,7 +233,54 @@ export default defineComponent({
         { title: t('持续时间'), text: props.data?.duration },
         { title: t('关注人'), content: getFollowerInfo },
       ],
+      [{ title: t('关联信息'), content: getRelationInfo }],
     ]);
+
+    // 关联日志的渲染方式
+    const handleRelationInfoDialog = value => {
+      relationDialogShow.value = true;
+      relationInfo.value = value;
+    };
+
+    /** 展示关联信息 */
+    const getRelationInfo = () => {
+      const relationInfo = props.data?.relation_info;
+
+      if (!relationInfo?.trim()) return '--';
+
+      try {
+        const parsedInfo = JSON.parse(relationInfo);
+        return (
+          <span
+            class='relation-log-btn'
+            onClick={() => handleRelationInfoDialog(parsedInfo)}
+          >
+            <span class='icon-monitor icon-guanlian relation-log-icon' /> {t('关联日志')}
+          </span>
+        );
+      } catch {
+        return relationInfo;
+      }
+    };
+
+    /** 复制关联信息 */
+    const handleCopyRelationInfo = () => {
+      let success = true;
+      copyText(JSON.stringify(relationInfo.value, null, 4), msg => {
+        Message({
+          message: msg,
+          theme: 'error',
+        });
+        success = false;
+        return;
+      });
+      if (success) {
+        Message({
+          message: t('复制成功'),
+          theme: 'success',
+        });
+      }
+    };
 
     const handleAlarmStatusDetailShow = () => {
       emit('alarmStatusDetailShow');
@@ -238,9 +293,10 @@ export default defineComponent({
           <span class='total'>{handleStatusString.value}</span>
           {handleStatusString.value !== '--' && (
             <span
-              class='icon-monitor icon-xiangqing1'
+              class='operate-btn'
               onClick={handleAlarmStatusDetailShow}
             >
+              <i class='icon-monitor icon-xiangqing1' />
               {t('详情')}
             </span>
           )}
@@ -258,14 +314,20 @@ export default defineComponent({
               key='manual-process'
               onClick={() => emit('manualProcess')}
             >
-              <span class='icon-monitor icon-chuli'>{t('手动处理')}</span>
+              <span class='operate-btn'>
+                <i class='icon-monitor icon-chuli' />
+                {t('手动处理')}
+              </span>
             </span>,
             <span
               key='manual-dispatch'
               onClick={() => emit('alarmDispatch')}
             >
               <span class='alarm-dispatch'>
-                <span class='icon-monitor icon-fenpai'>{t('告警分派')}</span>
+                <span class='operate-btn'>
+                  <i class='icon-monitor icon-fenpai' />
+                  {t('告警分派')}
+                </span>
               </span>
             </span>,
           ]}
@@ -309,6 +371,9 @@ export default defineComponent({
       loading,
       renderDimensionsInfo,
       basicInfoForm,
+      relationDialogShow,
+      relationInfo,
+      handleCopyRelationInfo,
     };
   },
   render() {
@@ -318,7 +383,7 @@ export default defineComponent({
         <div class='dimension-info'>
           {this.loading ? <div class='skeleton-element' /> : this.renderDimensionsInfo()}
         </div>
-        <div class='block-title mt-18'>基础信息</div>
+        <div class='block-title'>基础信息</div>
         <div class='basic-info'>
           {this.basicInfoForm.map((item, index) => (
             <div
@@ -358,6 +423,49 @@ export default defineComponent({
             </div>
           ))}
         </div>
+
+        <Dialog
+          width='960'
+          class='event-relation-dialog'
+          v-model:isShow={this.relationDialogShow}
+          v-slots={{
+            default: () => (
+              <div class='json-view-content'>
+                <i
+                  class='icon-monitor icon-mc-copy'
+                  v-bk-tooltips={{ content: this.$t('复制') }}
+                  onClick={this.handleCopyRelationInfo}
+                />
+                <VueJsonPretty
+                  v-slots={{
+                    renderNodeValue: ({ node, defaultValue }) => {
+                      if (node.content?.startsWith?.('http')) {
+                        return (
+                          <a
+                            class='vjs-value vjs-value-string'
+                            href={xssFilter(node.content)}
+                            rel='noopener noreferrer'
+                            target='_blank'
+                          >
+                            "{xssFilter(node.content)}"
+                          </a>
+                        );
+                      }
+                      return defaultValue;
+                    },
+                  }}
+                  collapsedOnClickBrackets={false}
+                  data={this.relationInfo}
+                  deep={5}
+                  showIcon
+                />
+              </div>
+            ),
+          }}
+          cancelText={this.$t('关闭')}
+          footerAlign='right'
+          title={this.$t('关联日志')}
+        />
       </div>
     );
   },

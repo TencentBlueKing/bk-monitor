@@ -488,7 +488,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
               <div
                 class='goto-old-wrap'
                 v-bk-tooltips={{
-                  content: this.$t('返回新版'),
+                  content: this.$t('切换新版'),
                   placements: ['bottom-end'],
                   zIndex: 9999,
                 }}
@@ -497,7 +497,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
                 <div class='icon'>
                   <i class='icon-monitor icon-zhuanhuan' />
                 </div>
-                <span>{this.$t('返回新版')}</span>
+                <span>{this.$t('切换新版')}</span>
               </div>
             </div>
           )}

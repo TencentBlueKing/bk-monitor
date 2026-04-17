@@ -137,7 +137,7 @@ class SNMPPluginManager(PluginManager):
         if not config_yaml_path:
             raise PluginParseError({"msg": _("无法获取SNMP对应的配置文件")})
 
-        content = yaml.load(self._decode_file(self.plugin_configs[config_yaml_path]), Loader=yaml.FullLoader)
+        content = yaml.safe_load(self._decode_file(self.plugin_configs[config_yaml_path]))
         content["if_mib"].pop("auth")
         snmp_collector_json = {
             "snmp_version": content["if_mib"].pop("version"),
@@ -155,7 +155,7 @@ class SNMPPluginManager(PluginManager):
                 "table_desc": _("默认分类"),
             }
         ]
-        for group, item in yaml.load(config_yaml, Loader=yaml.FullLoader).items():
+        for group, item in yaml.safe_load(config_yaml).items():
             metrics_list = item["metrics"]
             dimension_set = []
             for metric in metrics_list:
@@ -193,7 +193,7 @@ class SNMPPluginManager(PluginManager):
         return super().create_version(data)
 
     def parse_snmp_yaml_to_metric(self, config_yaml):
-        config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+        config = yaml.safe_load(config_yaml)
         metric_json = []
         for item in config:
             metrics = config[item]["metrics"]

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from itertools import chain
 
+import arrow
 from django.core.paginator import Paginator
 from django.db.models import Q
 
@@ -12,7 +13,9 @@ from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, L
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
+from apps.utils.local import get_local_param
 from apps.utils.thread import MultiExecuteFunc
+from apps.utils.time_handler import format_user_time_zone
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -66,6 +69,7 @@ class LogCollectorHandler:
                     "collector_scenario_name": CollectorScenarioEnum.get_choice_label(collector_scenario_id),
                     "storage_cluster_id": item.get("storage_cluster_id", ""),
                     "storage_cluster_name": item.get("storage_cluster_name", ""),
+                    "storage_display_name": item.get("storage_display_name", ""),
                     "tags": item.get("tags", ""),
                     "category_id": item.get("category_id", ""),
                     "category_name": item.get("category_name", ""),
@@ -184,9 +188,10 @@ class LogCollectorHandler:
         collector_scenario_id_list: list = None,
         created_by_list: list = None,
         updated_by_list: list = None,
-        storage_cluster_name_list: list = None,
+        storage_display_name_list: list = None,
         status_list: list = None,
         log_access_type_list: list = None,
+        exclude_not_completed: bool = False,
     ) -> list[dict]:
         """
          获取采集项信息
@@ -198,18 +203,23 @@ class LogCollectorHandler:
         :param collector_scenario_id_list: 日志类型
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
-        :param storage_cluster_name_list: 集群名
+        :param storage_display_name_list: 集群名
         :param status_list: 采集状态
         :param log_access_type_list: 日志接入类型
+        :param exclude_not_completed: 是否排除未完成的采集项
         """
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
             return []
 
         qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
-
+        if exclude_not_completed:
+            qs = qs.filter(table_id__isnull=False)
         if keyword:
-            qs = qs.filter(Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword))
+            keyword_filter = Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword)
+            if keyword.isdigit():
+                keyword_filter |= Q(bk_data_id=int(keyword))
+            qs = qs.filter(keyword_filter)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
@@ -248,6 +258,12 @@ class LogCollectorHandler:
             qs = qs.filter(query)
 
         collector_configs = qs.values()
+        # Todo 时区处理逻辑太混乱，add_cluster_info 里面已经有时间处理逻辑，先在这里去掉时区
+        timezone = get_local_param("time_zone")
+        for item in collector_configs:
+            item["created_at"] = arrow.get(item["created_at"]).to(timezone).format("YYYY-MM-DD HH:mm:ss")
+            item["updated_at"] = arrow.get(item["updated_at"]).to(timezone).format("YYYY-MM-DD HH:mm:ss")
+
         collector_configs = CollectorHandler.add_cluster_info(collector_configs)
         self.fill_container_fields(collector_configs)
 
@@ -258,7 +274,7 @@ class LogCollectorHandler:
         tmp_result_list = []
         collector_id_list = []
         for collector_config in collector_configs:
-            if storage_cluster_name_list and collector_config["storage_cluster_name"] not in storage_cluster_name_list:
+            if storage_display_name_list and collector_config["storage_display_name"] not in storage_display_name_list:
                 continue
             tmp_result_list.append(collector_config)
             collector_id_list.append(collector_config["collector_config_id"])
@@ -288,7 +304,7 @@ class LogCollectorHandler:
         result_table_id_list: list = None,
         created_by_list: list = None,
         updated_by_list: list = None,
-        storage_cluster_name_list: list = None,
+        storage_display_name_list: list = None,
         log_access_type_list: list = None,
     ) -> list[dict]:
         """
@@ -300,7 +316,7 @@ class LogCollectorHandler:
         :param result_table_id_list: 结果表ID
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
-        :param storage_cluster_name_list: 集群名
+        :param storage_display_name_list: 集群名
         :param log_access_type_list: 日志接入类型
         """
         _scenario_id_list = []
@@ -372,6 +388,7 @@ class LogCollectorHandler:
         for item in access_source_config:
             access_source_config_mappings[item["source_id"]] = item["source_name"]
 
+        time_zone = get_local_param("time_zone")
         result_list = []
         for obj in log_index_sets:
             _index_set_id = obj.index_set_id
@@ -406,8 +423,10 @@ class LogCollectorHandler:
                     "index_set_name": obj.index_set_name,
                     "indexes": indexes,
                     "bk_data_name": ",".join(bk_data_name_list),
-                    "updated_at": obj.updated_at,
+                    "updated_at": format_user_time_zone(obj.updated_at, time_zone),
                     "updated_by": obj.updated_by,
+                    "created_at": format_user_time_zone(obj.created_at, time_zone),
+                    "created_by": obj.created_by,
                     "tag_ids": obj.tag_ids,
                     "category_id": obj.category_id,
                     "scenario_id": obj.scenario_id,
@@ -419,8 +438,10 @@ class LogCollectorHandler:
                 }
             )
         result_list = IndexSetHandler.post_list(result_list)
-        if storage_cluster_name_list:
-            result_list = list(filter(lambda x: x["storage_cluster_name"] in storage_cluster_name_list, result_list))
+        if storage_display_name_list:
+            result_list = list(
+                filter(lambda x: x.get("storage_display_name") in storage_display_name_list, result_list)
+            )
         return result_list
 
     def get_log_collectors(self, data):
@@ -431,10 +452,10 @@ class LogCollectorHandler:
         name_list = []
         bk_data_name_list = []
         collector_scenario_id_list = []
-        created_at_list = []
+        created_by_list = []
         updated_by_list = []
         status_list = []
-        storage_cluster_name_list = []
+        storage_display_name_list = []
         log_access_type_list = []
         for item in conditions:
             if item["key"] == "scenario_id":
@@ -445,14 +466,14 @@ class LogCollectorHandler:
                 bk_data_name_list = item["value"]
             elif item["key"] == "collector_scenario_id":
                 collector_scenario_id_list = item["value"]
-            elif item["key"] == "created_at":
-                created_at_list = item["value"]
+            elif item["key"] == "created_by":
+                created_by_list = item["value"]
             elif item["key"] == "updated_by":
                 updated_by_list = item["value"]
             elif item["key"] == "status":
                 status_list = item["value"]
-            elif item["key"] == "storage_cluster_name":
-                storage_cluster_name_list = item["value"]
+            elif item["key"] == "storage_display_name":
+                storage_display_name_list = item["value"]
             elif item["key"] == "log_access_type":
                 log_access_type_list = item["value"]
 
@@ -464,11 +485,12 @@ class LogCollectorHandler:
             collector_config_name_list=name_list,
             table_id_list=bk_data_name_list,
             collector_scenario_id_list=collector_scenario_id_list,
-            created_by_list=created_at_list,
+            created_by_list=created_by_list,
             updated_by_list=updated_by_list,
-            storage_cluster_name_list=storage_cluster_name_list,
+            storage_display_name_list=storage_display_name_list,
             status_list=status_list,
             log_access_type_list=log_access_type_list,
+            exclude_not_completed=data.get("exclude_not_completed", False),
         )
 
         lists_to_check = [
@@ -486,15 +508,16 @@ class LogCollectorHandler:
                 scenario_id_list=scenario_id_list,
                 index_set_name_list=name_list,
                 result_table_id_list=bk_data_name_list,
-                created_by_list=created_at_list,
+                created_by_list=created_by_list,
                 updated_by_list=updated_by_list,
-                storage_cluster_name_list=storage_cluster_name_list,
+                storage_display_name_list=storage_display_name_list,
                 log_access_type_list=log_access_type_list,
             )
 
         combined_data = collector_configs + log_index_sets
         self.fill_parent_index_sets_info(combined_data)
         combined_data = self.fetch_log_collector_data(combined_data)
+        combined_data.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         # 分页
         paginator = Paginator(combined_data, data["pagesize"])
         page_obj = paginator.get_page(data["page"])
@@ -555,8 +578,8 @@ class LogCollectorHandler:
                 cluster["cluster_config"].get("custom_option"),
                 cluster["cluster_config"]["registered_system"],
             ):
-                if cluster_name := cluster["cluster_config"].get("cluster_name"):
-                    metadata_cluster_names.add(cluster_name)
+                if display_name := cluster["cluster_config"].get("display_name"):
+                    metadata_cluster_names.add(display_name)
         return metadata_cluster_names
 
     def get_collector_field_enums(self):
@@ -597,7 +620,7 @@ class LogCollectorHandler:
         cluster_names = self.get_metadata_cluster_names() | self.get_bkdata_cluster_names()
         cluster_name_dict = [{"key": item, "value": item} for item in cluster_names if item]
 
-        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster_name": cluster_name_dict}
+        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_display_name": cluster_name_dict}
 
     @staticmethod
     def get_collector_status(collector_id_list):

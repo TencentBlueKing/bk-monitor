@@ -193,7 +193,6 @@ export default defineComponent({
     const handleSelected = async value => {
       const tempMealId = mealId.value;
       const tempCurMeal = curMeal.value;
-      console.log(curMeal.value);
       mealId.value = value;
       curMeal.value = mealList.value.find(item => item.id === value) as any;
       loading.value = true;

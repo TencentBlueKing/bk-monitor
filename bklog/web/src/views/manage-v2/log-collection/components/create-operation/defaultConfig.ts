@@ -33,6 +33,8 @@ export const HOST_COLLECTION_CONFIG = {
       //   { fieldindex: '', word: '', op: '=', logic_op: 'and' },
       // ],
     },
+    // 采集范围：true-仅采集下发后的日志，false-采集全量日志
+    tail_files: true,
   },
 };
 

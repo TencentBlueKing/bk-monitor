@@ -125,7 +125,9 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
   /** 添加、删除 */
   @Emit('change')
   handleAddGroups(data?) {
-    data && (this.localValue = data);
+    if (data) {
+      this.localValue = data;
+    }
     return [...this.localValue];
   }
 
@@ -140,6 +142,15 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
     this.handleAddGroups();
   }
 
+  handleSearchCreate(value: string) {
+    this.options.unshift({
+      id: value,
+      name: value,
+    });
+    this.localValue.push(value);
+    this.handleAddGroups();
+  }
+
   render() {
     return (
       <div class='group-select-wrap'>
@@ -147,7 +158,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
         <span class='group-select-main'>
           {this.localValue.map((item, index) => (
             <span
-              key={index}
+              key={item}
               class='group-item'
               v-bk-tooltips={{
                 content: item,
@@ -169,7 +180,9 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
             search-placeholder={this.$t('请输入 关键字')}
             value={this.localValue}
             multiple
+            search-empty-create
             onSelected={this.handleAddGroups}
+            on-search-create={this.handleSearchCreate}
           >
             {this.options.map(opt => (
               <bk-option

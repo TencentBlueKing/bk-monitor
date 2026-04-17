@@ -46,7 +46,6 @@ export function useLogFilter() {
   let commonParams: any = {};
 
   function getFieldsOptionValuesProxy(params: IGetValueFnParams) {
-    console.log(params);
     function getMapKey(params: IGetValueFnParams) {
       return `____${params.fields.join('')}____`;
     }
@@ -84,6 +83,7 @@ export function useLogFilter() {
             fields: params?.fields,
             keyword: '*',
             size: (candidateItem?.count || 0) + params.limit,
+            bk_biz_id: commonParams.bk_biz_id,
           },
           {
             signal: axiosController.signal,

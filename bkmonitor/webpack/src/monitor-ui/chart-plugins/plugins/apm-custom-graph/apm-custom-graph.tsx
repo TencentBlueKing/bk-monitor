@@ -42,7 +42,6 @@ import TimeSeries from '../time-series/time-series';
 import StatusTab from './status-tab';
 
 import type { IMenuItem, IPanelModel } from '../../typings';
-
 import './apm-custom-graph.scss';
 const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'INC'] as const;
 @Component

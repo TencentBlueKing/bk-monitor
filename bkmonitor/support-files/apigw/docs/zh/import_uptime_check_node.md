@@ -5,9 +5,10 @@
 
 ### 请求参数
 
-| 字段      | 类型 | 必选 | 描述     |
-| --------- | ---- | ---- | -------- |
-| conf_list | list | 是   | 节点列表 |
+| 字段      | 类型   | 必选 | 描述   |
+| --------- |------|----|------|
+| conf_list | list | 是  | 节点列表 |
+| bk_biz_id          | int  | 否  | 业务ID |
 
 #### 任务列表--conf_list
 
@@ -23,17 +24,15 @@
 | ip          | str  | 是   | IP       |
 | bk_cloud_id | int  | 是   | 云区域ID |
 | bk_biz_id   | int  | 是   | 业务id   |
-| bk_host_id   | int  | 否   | 主机id   |
 
 ##### 节点基本配置--node_conf
 
 | 字段            | 类型 | 必选 | 描述                                       |
 | --------------- | ---- | ---- | ------------------------------------------ |
 | is_common       | bool | 否   | 是否为通用节点，默认false                  |
-| ip_type       | bool | 否   | ip类型(0、4、6)，默认4                  |
 | name            | str  | 是   | 节点名称                                   |
 | location        | dict | 是   | 节点所在地区                               |
-| carrieroperator | str  | 是   | 运营商，最大长度50(内网、联通、移动、其他) |
+| carrieroperator | str  | 是   | 运营商，最大长度50(内网、联通、移动、电信、其他) |
 
 ###### 节点所在地区--node_conf.location
 
@@ -55,8 +54,7 @@
                 "city": "广东"
             },
             "name": "中国广东内网",
-            "is_common": false,
-            "ip_type": 4
+            "is_common": false
         },
         "target_conf": {
             "bk_biz_id": 2,
@@ -71,8 +69,7 @@
                 "city": "广东"
             },
             "name": "中国广东内网",
-            "is_common": false,
-            "ip_type": 4
+            "is_common": false
         },
         "target_conf": {
             "bk_biz_id": 2,
@@ -93,17 +90,17 @@
 
 #### data字段说明
 
-| 字段    | 类型   | 描述 |
-| ------- | ------ | ----------------------------------- |
-failed | dict | 导入失败相关信息 |
-success | dict | 导入成功相关信息 |
+| 字段       | 类型   | 描述 |
+|----------| ------ | ----------------------------------- |
+| failed   | dict | 导入失败相关信息 |
+|  success | dict | 导入成功相关信息 |
 
 ##### 导入失败相关信息--data.failed
 
-| 字段    | 类型   | 描述 |
-| ------- | ------ | ----------------------------------- |
-total | int | 导入失败数量 |
-detail | list | 导入失败详情 |
+| 字段      | 类型   | 描述 |
+|---------| ------ | ----------------------------------- |
+| total   | int | 导入失败数量 |
+|  detail | list | 导入失败详情 |
 
 ###### 导入失败详情--data.failed.detail
 
@@ -136,14 +133,16 @@ detail | list | 导入失败详情 |
         "failed": {
             "total": 1,
             "detail": [
-                "target_conf": {
-                    "bk_biz_id": 2,
-                    "ip": "x.x.x.x",
-                    "bk_cloud_id": 0
-                },
-            	"error_mes": "业务下不存在该主机"
+                {
+                    "target_conf": {
+                        "bk_biz_id": 2,
+                        "ip": "x.x.x.x",
+                        "bk_cloud_id": 0
+                    },
+                    "error_mes": "业务下不存在该主机"
+                }
             ]
-    	},
+        },
         "success": {
             "total": 2,
             "detail": [

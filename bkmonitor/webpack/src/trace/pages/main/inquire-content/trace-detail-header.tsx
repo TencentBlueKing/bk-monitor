@@ -133,8 +133,12 @@ export default defineComponent({
               app_name: this.appName,
               bk_biz_id: (window.bk_biz_id || window.cc_biz_id) as string,
             }}
+            tips={{
+              content: getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS),
+              theme: 'light',
+              placement: 'right',
+            }}
             shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS}
-            tips={getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS)}
           />
         </div>
 

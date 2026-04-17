@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 
 from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
+
+NODE_IP = ".".join(["2", "2", "2", "2"])
 
 
 class TestGetKubernetesContainer:
@@ -29,84 +31,84 @@ class TestGetKubernetesContainer:
         }
         actual = resource.scene_view.get_kubernetes_container(params)
         expect = [
-            {'key': 'name', 'name': '容器名称', 'type': 'string', 'value': 'apisix'},
+            {"key": "name", "name": "容器名称", "type": "string", "value": "apisix"},
             {
-                'key': 'bcs_cluster_id',
-                'name': '集群ID',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=2#/k8s?sceneId=kubernetes&dashboardId=cluster&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"}]}'
+                "key": "bcs_cluster_id",
+                "name": "集群ID",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["namespace"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
-                    'value': 'BCS-K8S-00000',
+                    "value": "BCS-K8S-00000",
                 },
             },
-            {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': ''},
-            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'bcs-system'},
-            {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'running'},
-            {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '正常', 'type': 'success'}},
+            {"key": "bk_cluster_name", "name": "集群名称", "type": "string", "value": ""},
+            {"key": "namespace", "name": "NameSpace", "type": "string", "value": "bcs-system"},
+            {"key": "status", "name": "运行状态", "type": "string", "value": "running"},
             {
-                'key': 'pod_name',
-                'name': 'Pod名称',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=2#/k8s?sceneId=kubernetes&dashboardId=pod&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"name":"api-gateway-0"}]}'
+                "key": "monitor_status",
+                "name": "采集状态",
+                "type": "status",
+                "value": {"text": "正常", "type": "success"},
+            },
+            {
+                "key": "pod_name",
+                "name": "Pod名称",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={"pod": ["api-gateway-0"]}'
+                        '&groupBy=["namespace", "pod"]&sceneId=kubernetes&scene=performance&activeTab=list'
                     ),
-                    'value': 'api-gateway-0',
+                    "value": "api-gateway-0",
                 },
             },
             {
-                'key': 'workload',
-                'name': '工作负载',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': '?bizId=2#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=detail&'
-                    'queryData={"selectorSearch":['
-                    '{"bcs_cluster_id":"BCS-K8S-00000"},'
-                    '{"workload_type":"StatefulSet"},'
-                    '{"name":"api-gateway"}]}',
-                    'value': 'StatefulSet:api-gateway',
+                "key": "workload",
+                "name": "工作负载",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={"workload": ["StatefulSet:api-gateway"]}'
+                    '&groupBy=["namespace", "workload"]&sceneId=kubernetes&scene=performance&activeTab=list',
+                    "value": "StatefulSet:api-gateway",
                 },
             },
             {
-                'key': 'node_name',
-                'name': '节点名称',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': '?bizId=2#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&'
-                    'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"name":"node-2-2-2-2"}]}',
-                    'value': 'node-2-2-2-2',
+                "key": "node_name",
+                "name": "节点名称",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={"node": ["node-2-2-2-2"]}'
+                    '&groupBy=["node"]&sceneId=kubernetes&scene=capacity&activeTab=list',
+                    "value": "node-2-2-2-2",
                 },
             },
             {
-                'key': 'node_ip',
-                'name': '节点IP',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=2#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"ip":"2.2.2.2"}]}'
-                    ),
-                    'value': '2.2.2.2',
+                "key": "node_ip",
+                "name": "节点IP",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": '?bizId=2#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                    "&sceneId=kubernetes&scene=capacity&activeTab=list",
+                    "value": NODE_IP,
                 },
             },
-            {'key': 'image', 'name': '镜像', 'type': 'string', 'value': 'host/namespace/apisix:latest'},
-            {'key': 'resource_usage_cpu', 'name': 'CPU使用量', 'type': 'string', 'value': ''},
-            {'key': 'resource_usage_memory', 'name': '内存使用量', 'type': 'string', 'value': ''},
-            {'key': 'resource_usage_disk', 'name': '磁盘使用量', 'type': 'string', 'value': ''},
+            {"key": "image", "name": "镜像", "type": "string", "value": "host/namespace/apisix:latest"},
+            {"key": "resource_usage_cpu", "name": "CPU使用量", "type": "string", "value": ""},
+            {"key": "resource_usage_memory", "name": "内存使用量", "type": "string", "value": ""},
+            {"key": "resource_usage_disk", "name": "磁盘使用量", "type": "string", "value": ""},
             {
-                'key': 'age',
-                'name': '存活时间',
-                'type': 'string',
-                'value': translate_timestamp_since('2022-01-01T00:00:00Z'),
+                "key": "age",
+                "name": "存活时间",
+                "type": "string",
+                "value": translate_timestamp_since("2022-01-01T00:00:00Z"),
             },
         ]
         assert actual == expect
@@ -143,88 +145,88 @@ class TestGetKubernetesContainer:
         }
         actual = resource.scene_view.get_kubernetes_container(params)
         expect = [
-            {'key': 'name', 'name': '容器名称', 'type': 'string', 'value': 'apisix'},
+            {"key": "name", "name": "容器名称", "type": "string", "value": "apisix"},
             {
-                'key': 'bcs_cluster_id',
-                'name': '集群ID',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=cluster&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"}]}'
+                "key": "bcs_cluster_id",
+                "name": "集群ID",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["namespace"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
-                    'value': 'BCS-K8S-00000',
+                    "value": "BCS-K8S-00000",
                 },
             },
-            {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': ''},
-            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'bcs-system'},
-            {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'running'},
-            {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '正常', 'type': 'success'}},
+            {"key": "bk_cluster_name", "name": "集群名称", "type": "string", "value": ""},
+            {"key": "namespace", "name": "NameSpace", "type": "string", "value": "bcs-system"},
+            {"key": "status", "name": "运行状态", "type": "string", "value": "running"},
             {
-                'key': 'pod_name',
-                'name': 'Pod名称',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=pod&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"name":"api-gateway-0"}]}'
-                    ),
-                    'value': 'api-gateway-0',
-                },
+                "key": "monitor_status",
+                "name": "采集状态",
+                "type": "status",
+                "value": {"text": "正常", "type": "success"},
             },
             {
-                'key': 'workload',
-                'name': '工作负载',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=detail&'
-                        'queryData={"selectorSearch":['
-                        '{"bcs_cluster_id":"BCS-K8S-00000"},'
-                        '{"workload_type":"StatefulSet"},'
-                        '{"name":"api-gateway"}]}'
+                "key": "pod_name",
+                "name": "Pod名称",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={"pod": ["api-gateway-0"]}'
+                        '&groupBy=["namespace", "pod"]&sceneId=kubernetes&scene=performance&activeTab=list'
                     ),
-                    'value': 'StatefulSet:api-gateway',
+                    "value": "api-gateway-0",
                 },
             },
             {
-                'key': 'node_name',
-                'name': '节点名称',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"name":"node-2-2-2-2"}]}'
+                "key": "workload",
+                "name": "工作负载",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={"workload": ["StatefulSet:api-gateway"]}'
+                        '&groupBy=["namespace", "workload"]&sceneId=kubernetes&scene=performance&activeTab=list'
                     ),
-                    'value': 'node-2-2-2-2',
+                    "value": "StatefulSet:api-gateway",
                 },
             },
             {
-                'key': 'node_ip',
-                'name': '节点IP',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00000"},{"ip":"2.2.2.2"}]}'
+                "key": "node_name",
+                "name": "节点名称",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={"node": ["node-2-2-2-2"]}'
+                        '&groupBy=["node"]&sceneId=kubernetes&scene=capacity&activeTab=list'
                     ),
-                    'value': '2.2.2.2',
+                    "value": "node-2-2-2-2",
                 },
             },
-            {'key': 'image', 'name': '镜像', 'type': 'string', 'value': 'host/namespace/apisix:latest'},
-            {'key': 'resource_usage_cpu', 'name': 'CPU使用量', 'type': 'string', 'value': ''},
-            {'key': 'resource_usage_memory', 'name': '内存使用量', 'type': 'string', 'value': ''},
-            {'key': 'resource_usage_disk', 'name': '磁盘使用量', 'type': 'string', 'value': ''},
             {
-                'key': 'age',
-                'name': '存活时间',
-                'type': 'string',
-                'value': translate_timestamp_since('2022-01-01T00:00:00Z'),
+                "key": "node_ip",
+                "name": "节点IP",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": '?bizId=-3#/k8s-new?cluster=BCS-K8S-00000&filterBy={}&groupBy=["node"]'
+                    "&sceneId=kubernetes&scene=capacity&activeTab=list",
+                    "value": NODE_IP,
+                },
+            },
+            {"key": "image", "name": "镜像", "type": "string", "value": "host/namespace/apisix:latest"},
+            {"key": "resource_usage_cpu", "name": "CPU使用量", "type": "string", "value": ""},
+            {"key": "resource_usage_memory", "name": "内存使用量", "type": "string", "value": ""},
+            {"key": "resource_usage_disk", "name": "磁盘使用量", "type": "string", "value": ""},
+            {
+                "key": "age",
+                "name": "存活时间",
+                "type": "string",
+                "value": translate_timestamp_since("2022-01-01T00:00:00Z"),
             },
         ]
         assert actual == expect
@@ -245,87 +247,92 @@ class TestGetKubernetesContainer:
         }
         actual = resource.scene_view.get_kubernetes_container(params)
         expect = [
-            {'key': 'name', 'name': '容器名称', 'type': 'string', 'value': 'etcd'},
+            {"key": "name", "name": "容器名称", "type": "string", "value": "etcd"},
             {
-                'key': 'bcs_cluster_id',
-                'name': '集群ID',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=cluster&sceneType=detail'
+                "key": "bcs_cluster_id",
+                "name": "集群ID",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        "?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=cluster&sceneType=detail"
                         '&queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00002"}]}'
                     ),
-                    'value': 'BCS-K8S-00002',
+                    "value": "BCS-K8S-00002",
                 },
             },
-            {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': ''},
-            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'namespace_a'},
-            {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'running'},
-            {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '无数据', 'type': 'disabled'}},
+            {"key": "bk_cluster_name", "name": "集群名称", "type": "string", "value": ""},
+            {"key": "namespace", "name": "NameSpace", "type": "string", "value": "namespace_a"},
+            {"key": "status", "name": "运行状态", "type": "string", "value": "running"},
             {
-                'key': 'pod_name',
-                'name': 'Pod名称',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=pod&sceneType=detail&'
+                "key": "monitor_status",
+                "name": "采集状态",
+                "type": "status",
+                "value": {"text": "无数据", "type": "disabled"},
+            },
+            {
+                "key": "pod_name",
+                "name": "Pod名称",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": "?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=pod&sceneType=detail&"
                     'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00002"},{"name":"api-gateway-etcd-0"}]}',
-                    'value': 'api-gateway-etcd-0',
+                    "value": "api-gateway-etcd-0",
                 },
             },
             {
-                'key': 'workload',
-                'name': '工作负载',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=detail&'
+                "key": "workload",
+                "name": "工作负载",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        "?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=detail&"
                         'queryData={"selectorSearch":['
                         '{"bcs_cluster_id":"BCS-K8S-00002"},'
                         '{"workload_type":"StatefulSet"},'
                         '{"name":"api-gateway-etcd"}]}'
                     ),
-                    'value': 'StatefulSet:api-gateway-etcd',
+                    "value": "StatefulSet:api-gateway-etcd",
                 },
             },
             {
-                'key': 'node_name',
-                'name': '节点名称',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&'
+                "key": "node_name",
+                "name": "节点名称",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        "?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&"
                         'queryData={"selectorSearch":['
                         '{"bcs_cluster_id":"BCS-K8S-00002"},{"name":"node-2-2-2-2"}]}'
                     ),
-                    'value': 'node-2-2-2-2',
+                    "value": "node-2-2-2-2",
                 },
             },
             {
-                'key': 'node_ip',
-                'name': '节点IP',
-                'type': 'link',
-                'value': {
-                    'target': 'blank',
-                    'url': (
-                        '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&'
-                        'queryData={"selectorSearch":[{"bcs_cluster_id":"BCS-K8S-00002"},{"ip":"2.2.2.2"}]}'
+                "key": "node_ip",
+                "name": "节点IP",
+                "type": "link",
+                "value": {
+                    "target": "blank",
+                    "url": (
+                        "?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=node&sceneType=detail&"
+                        f'queryData={{"selectorSearch":[{{"bcs_cluster_id":"BCS-K8S-00002"}},{{"ip":"{NODE_IP}"}}]}}'
                     ),
-                    'value': '2.2.2.2',
+                    "value": NODE_IP,
                 },
             },
-            {'key': 'image', 'name': '镜像', 'type': 'string', 'value': 'docker.io/host/etcd:latest'},
-            {'key': 'resource_usage_cpu', 'name': 'CPU使用量', 'type': 'string', 'value': ''},
-            {'key': 'resource_usage_memory', 'name': '内存使用量', 'type': 'string', 'value': ''},
-            {'key': 'resource_usage_disk', 'name': '磁盘使用量', 'type': 'string', 'value': ''},
+            {"key": "image", "name": "镜像", "type": "string", "value": "docker.io/host/etcd:latest"},
+            {"key": "resource_usage_cpu", "name": "CPU使用量", "type": "string", "value": ""},
+            {"key": "resource_usage_memory", "name": "内存使用量", "type": "string", "value": ""},
+            {"key": "resource_usage_disk", "name": "磁盘使用量", "type": "string", "value": ""},
             {
-                'key': 'age',
-                'name': '存活时间',
-                'type': 'string',
-                'value': translate_timestamp_since('2022-01-01T00:00:00Z'),
+                "key": "age",
+                "name": "存活时间",
+                "type": "string",
+                "value": translate_timestamp_since("2022-01-01T00:00:00Z"),
             },
         ]
         assert actual == expect

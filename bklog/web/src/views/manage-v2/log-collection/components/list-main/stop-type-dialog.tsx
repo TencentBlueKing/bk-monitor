@@ -40,8 +40,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 是否为自定义上报类型 */
+    isCustomReport: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['update', 'cancel'],
+  emits: ['update', 'cancel', 'confirm'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -62,7 +67,12 @@ export default defineComponent({
     ];
 
     const handleSave = () => {
-      emit('update', activeKey.value);
+      if (props.isCustomReport) {
+        // 自定义上报类型：直接触发 confirm 事件，不打开侧栏
+        emit('confirm', activeKey.value);
+      } else {
+        emit('update', activeKey.value);
+      }
       handleCancel();
     };
 
@@ -76,7 +86,7 @@ export default defineComponent({
         class='stop-type-dialog'
         header-position='left'
         mask-close={false}
-        ok-text={t('下一步')}
+        ok-text={props.isCustomReport ? t('确定') : t('下一步')}
         title={t('请确认停用类型')}
         value={props.showDialog}
         on-cancel={handleCancel}

@@ -47,7 +47,7 @@ export default defineComponent({
       default: '',
     },
     tips: {
-      type: String,
+      type: [String, Object],
       default: window.i18n.t('AI 小鲸'),
     },
     onGetFillBackFieldMap: {

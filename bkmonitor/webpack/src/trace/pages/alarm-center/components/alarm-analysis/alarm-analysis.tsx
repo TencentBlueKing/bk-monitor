@@ -164,11 +164,13 @@ export default defineComponent({
                 <div class='header-left'>
                   <span class='title'>{panel.name}</span>
                   <div class='count'>{panel.bucket_count}</div>
-                  <i
-                    class='icon-monitor icon-mc-copy'
-                    v-bk-tooltips={{ content: '批量复制' }}
-                    onClick={() => handleCopyNames(panel.buckets.slice(0, 5))}
-                  />
+                  {panel.buckets.length > 0 && (
+                    <i
+                      class='icon-monitor icon-mc-copy'
+                      v-bk-tooltips={{ content: '批量复制' }}
+                      onClick={() => handleCopyNames(panel.buckets.slice(0, 5))}
+                    />
+                  )}
                 </div>
                 {panel.bucket_count > 5 && (
                   <span

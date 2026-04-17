@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # !/usr/bin/python
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
@@ -9,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import hashlib
 import os
 import shutil
@@ -34,7 +34,7 @@ def execute_command(command):
 
     while True:
         output = process.stdout.readline().decode().strip()
-        if output == '' and process.poll() is not None:
+        if output == "" and process.poll() is not None:
             break
         if output:
             print(output, flush=True)
@@ -120,7 +120,7 @@ def main():
 
         # 复制init.yaml并修改projectPath
         with open(f"{os.path.expanduser('~')}/PreCI/projects/{project_hash}/init.yaml") as f:
-            preci_config = yaml.load(f.read(), Loader=yaml.FullLoader)
+            preci_config = yaml.safe_load(f.read())
         preci_config["projectPath"] = temp_dir
         with open(f"{temp_preci_path}/init.yaml", "w") as f:
             f.write(yaml.dump(preci_config))
@@ -136,7 +136,7 @@ def main():
         )
         while True:
             output = child.stdout.readline().decode().strip()
-            if output == '' and child.poll() is not None:
+            if output == "" and child.poll() is not None:
                 break
             if output:
                 print(output, flush=True)

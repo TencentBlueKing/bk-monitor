@@ -28,8 +28,8 @@ import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
 import { Tab } from 'bkui-vue';
 
 import AlarmRecords from './alarm-records';
-import ChartWrapper from './chart-wrapper';
 import DimensionAnalysis from './dimension-analysis';
+import AlarmCharts from './echarts/alarm-charts';
 import { ALARM_CENTER_VIEW_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
 import type { AlarmDetail } from '../../../typings/detail';
@@ -72,11 +72,13 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-view'>
-        <ChartWrapper
-          bizId={this.bizId}
-          defaultTimeRange={this.defaultTimeRange}
-          detail={this.detail}
-        />
+        <div class='alarm-view-chart-wrapper'>
+          <AlarmCharts
+            bizId={this.bizId}
+            defaultTimeRange={this.defaultTimeRange}
+            detail={this.detail}
+          />
+        </div>
         <div class='alarm-view-tab'>
           <Tab
             active={this.activeTab}

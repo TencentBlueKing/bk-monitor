@@ -97,6 +97,11 @@ export const COLLECTOR_SCENARIO_ENUM = [
 
 /** 表格需要展示的字段 */
 export const SETTING_FIELDS = [
+  // 数据ID
+  {
+    id: 'bk_data_id',
+    label: window.$t('数据ID'),
+  },
   // 采集配置名称
   {
     id: 'collector_config_name',
@@ -420,8 +425,8 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
       // 编辑 - 采集状态不为"停用"
       return !isTerminated;
     case 'clean':
-      // 清洗 - 采集状态不为"停用"
-      return !isTerminated;
+      // 清洗 - 采集项已完成且采集状态不为"停用"
+      return isCompleted && !isTerminated;
     case 'storage':
       // 存储设置 - 采集项已完成且采集状态不为"停用"
       return isCompleted && !isTerminated;
@@ -435,7 +440,10 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
       // 启用 - 采集状态为"停用"
       return isTerminated;
     case 'delete':
-      // 删除 - 采集状态为"停用"
+      // 只有采集项需要已停用才能删除，计算平台、第三方ES、自定义上报不需要限制
+      if (['bkdata', 'es', 'custom_report'].includes(row.log_access_type)) {
+        return true;
+      }
       return isTerminated;
     default:
       return true;

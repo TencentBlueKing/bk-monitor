@@ -47,7 +47,7 @@ class UptimecheckCacheManager(CacheManager):
 
     @classmethod
     def refresh_task(cls, task_id):
-        task = api.monitor.uptime_check_task_list(plain=True, id=task_id)
+        task = api.monitor.uptime_check_task_list(plain=True, id=task_id, bk_biz_id=0)
         if task:
             task = task[0]
             cls.cache.set(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=task_id), json.dumps(task), cls.CACHE_TIMEOUT)
@@ -58,7 +58,7 @@ class UptimecheckCacheManager(CacheManager):
     def refresh_nodes(cls):
         pipeline = cls.cache.pipeline()
 
-        nodes = api.monitor.uptime_check_node_list()
+        nodes = api.monitor.uptime_check_node_list(bk_biz_id=0)
         for node in nodes:
             pipeline.set(
                 cls.NODE_CACHE_KEY_TEMPLATE.format(node_id=f"{node['bk_cloud_id']}:{node['ip']}"),
@@ -73,7 +73,7 @@ class UptimecheckCacheManager(CacheManager):
     @classmethod
     def refresh_tasks(cls):
         pipeline = cls.cache.pipeline()
-        tasks = api.monitor.uptime_check_task_list(plain=True)
+        tasks = api.monitor.uptime_check_task_list(plain=True, bk_biz_id=0)
         count = len(tasks)
         for task in tasks:
             pipeline.set(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=task["id"]), json.dumps(task), cls.CACHE_TIMEOUT)

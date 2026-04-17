@@ -70,7 +70,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
   @Watch('metricFunctions', { immediate: true })
   handleFunctionListChange() {
     this.localValue = [];
-    let hasInvalid = false;
+    // let hasInvalid = false;
     this.value?.length &&
       this.metricFunctions.forEach(item => {
         this.value.forEach(vItem => {
@@ -89,12 +89,13 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
                   };
                 }) || [],
             });
-          } else {
-            hasInvalid = true;
           }
+          // else {
+          //   hasInvalid = true;
+          // }
         });
       });
-    hasInvalid && this.handleValueChange();
+    // hasInvalid && this.handleValueChange();
   }
   // 选择函数时触发 初始化函数列表
   handleFuncSelect(item: IFunctionItem) {

@@ -28,13 +28,12 @@ import { type PropType, defineComponent, onMounted, provide, shallowReactive, sh
 import { Sideslider } from 'bkui-vue';
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
-import { useRouter } from 'vue-router';
 
 import DetailCommon from '../common-detail/common-detail';
 import { AlarmType } from '../typings';
 import ActionDetailHead from './components/action-detail-head';
 import ActionDetail from './components/action-detail/action-detail';
-// import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
+import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
@@ -46,6 +45,10 @@ import './alarm-detail-sideslider.scss';
 export default defineComponent({
   name: 'AlarmCenterDetail',
   props: {
+    alarmBizId: {
+      type: Number,
+      default: +window.bk_biz_id,
+    },
     alarmId: {
       type: String,
       required: true,
@@ -70,16 +73,18 @@ export default defineComponent({
   },
   emits: ['update:show', 'previous', 'next'],
   setup(props, { emit }) {
-    const router = useRouter();
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, actionId, alarmType, defaultTab } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType, defaultTab, alarmDetail, actionDetail, bizId } =
+      storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
       auth: {},
       showDetail: authorityStore.getAuthorityDetail,
     });
+
+    const showAiAnalysis = shallowRef(false);
 
     provide('authority', authority);
 
@@ -104,6 +109,7 @@ export default defineComponent({
     watch(
       () => props.alarmId,
       newVal => {
+        bizId.value = props.alarmBizId;
         if (alarmType.value === AlarmType.ALERT && newVal && newVal !== alarmId.value) {
           alarmId.value = newVal;
           return;
@@ -114,6 +120,18 @@ export default defineComponent({
         }
       },
       { immediate: true }
+    );
+
+    watch(
+      () => props.show,
+      newVal => {
+        if (!newVal) {
+          alarmId.value = '';
+          actionId.value = '';
+          alarmDetail.value = null;
+          actionDetail.value = null;
+        }
+      }
     );
 
     const init = async () => {
@@ -137,17 +155,18 @@ export default defineComponent({
     };
 
     const handleBlank = () => {
-      router.push({
-        name: 'alarm-center-detail',
-        params: {
-          alarmId: props.alarmId,
-        },
-      });
+      const hash = `#/trace/alarm-center/detail/${props.alarmId}`;
+      const url = `${location.origin}${location.pathname}?bizId=${props.alarmBizId}${hash}`;
+      window.open(url, '_blank');
     };
 
     // 处理全屏切换事件
     const handleFullscreenChange = (value: boolean) => {
       isFullscreen.value = value;
+    };
+
+    const handleAiAnalysisShowChange = (show: boolean) => {
+      showAiAnalysis.value = show;
     };
 
     const renderHeader = () => {
@@ -157,6 +176,7 @@ export default defineComponent({
             <EventDetailHead
               isFullscreen={isFullscreen.value}
               showStepBtn={props.showStepBtn}
+              onAiAnalysisShowChange={() => handleAiAnalysisShowChange(!showAiAnalysis.value)}
               onBlank={handleBlank}
               onNext={handleNextDetail}
               onPrevious={handlePreviousDetail}
@@ -179,7 +199,7 @@ export default defineComponent({
           return (
             <div class='alarm-center-detail-wrapper'>
               <DetailCommon />
-              {/* <DiagnosticAnalysis /> */}
+              {showAiAnalysis.value && <DiagnosticAnalysis onClose={() => handleAiAnalysisShowChange(false)} />}
             </div>
           );
         case AlarmType.ACTION:

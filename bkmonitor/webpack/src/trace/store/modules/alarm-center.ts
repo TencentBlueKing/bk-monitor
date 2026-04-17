@@ -66,6 +66,11 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const residentCondition = deepRef<CommonCondition[]>([]);
   // 快速过滤条件
   const quickFilterValue = deepRef<CommonCondition[]>([]);
+  /** 最后一次操作快速过滤条件的分类 */
+  const lastQuickFilterOperationCategory = shallowRef('');
+  /** 最后一次操作的快速过滤条件分类数据 */
+  const lastQuickFilterOperationCategoryData = shallowRef(null);
+
   /** 维度tag列表 */
   const dimensionTags = shallowRef<Omit<QuickFilterItem, 'children'>[]>([]);
 
@@ -79,6 +84,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     AlarmType,
     {
       conditions?: CommonCondition[];
+      lastQuickFilterOperationCategory?: string;
+      lastQuickFilterOperationCategoryData?: QuickFilterItem;
       queryString?: string;
       quickFilterValue?: CommonCondition[];
     }
@@ -140,10 +147,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
       query_string: filterMode.value === EMode.queryString ? queryString.value : '',
       status: statusQuickFilter,
       ...timeRangeTimestamp.value,
-      [REFRESH_EFFECT_KEY]: refreshId.value,
     };
-    // 用于主动触发 依赖副作用 更新
-    delete params[REFRESH_EFFECT_KEY];
     return params;
   });
 
@@ -194,6 +198,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
         conditions: JSON.parse(JSON.stringify(conditions.value)),
         queryString: JSON.parse(JSON.stringify(queryString.value)),
         quickFilterValue: JSON.parse(JSON.stringify(quickFilterValue.value)),
+        lastQuickFilterOperationCategory: lastQuickFilterOperationCategory.value,
+        lastQuickFilterOperationCategoryData: JSON.parse(JSON.stringify(lastQuickFilterOperationCategoryData.value)),
       });
     }
     const cache = cacheMap.get(alarmType.value);
@@ -201,10 +207,14 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
       conditions.value = cache.conditions;
       queryString.value = cache.queryString;
       quickFilterValue.value = cache.quickFilterValue;
+      lastQuickFilterOperationCategory.value = cache.lastQuickFilterOperationCategory;
+      lastQuickFilterOperationCategoryData.value = cache.lastQuickFilterOperationCategoryData;
     } else {
       conditions.value = [];
       queryString.value = '';
       quickFilterValue.value = [];
+      lastQuickFilterOperationCategory.value = '';
+      lastQuickFilterOperationCategoryData.value = null;
     }
     initAlarmService();
   };
@@ -234,6 +244,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     refreshImmediate.value = '';
     quickFilterValue.value = [];
     favoriteList.value = [];
+    lastQuickFilterOperationCategory.value = '';
+    lastQuickFilterOperationCategoryData.value = null;
     cacheMap.clear();
   });
   return {
@@ -250,6 +262,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     timeRangeTimestamp,
     alarmService,
     quickFilterValue,
+    lastQuickFilterOperationCategory,
+    lastQuickFilterOperationCategoryData,
     filterMode,
     residentCondition,
     favoriteList,

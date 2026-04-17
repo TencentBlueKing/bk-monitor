@@ -836,7 +836,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -845,7 +845,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -854,7 +854,7 @@ DATABASES = {
         "PASSWORD": GRAFANA_MYSQL_PASSWORD or BACKEND_MYSQL_PASSWORD,
         "HOST": GRAFANA_MYSQL_HOST or BACKEND_MYSQL_HOST,
         "PORT": GRAFANA_MYSQL_PORT or BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
 }
 
@@ -869,7 +869,7 @@ else:
         "PASSWORD": BACKEND_ALERT_MYSQL_PASSWORD,
         "HOST": BACKEND_ALERT_MYSQL_HOST,
         "PORT": BACKEND_ALERT_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     }
 
 # ES7 config
@@ -1558,6 +1558,8 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
+# 是否让拨测默认接入独立 BKData 链路，默认开启
+ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
@@ -1587,8 +1589,6 @@ BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS = 600
 BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 # Redis默认锁名称
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
-# 是否启用同步历史ES集群记录能力
-ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE = False
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 
@@ -1702,7 +1702,14 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
-# 日志 UnifyQuery 查询业务白名单
+# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，优先级高于 DB 配置）
+_log_uq_white_biz_env = os.getenv("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", "")
+LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV = (
+    [int(biz_id.strip()) for biz_id in _log_uq_white_biz_env.split(",") if biz_id.strip()]
+    if _log_uq_white_biz_env
+    else []
+)
+# 日志 UnifyQuery 查询业务白名单（DB 动态配置）
 LOG_UNIFY_QUERY_WHITE_BIZ_LIST = []
 
 # APM 调用分析启用全局指标的应用列表
@@ -1713,6 +1720,12 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
+
+# 允许 APM 配置指标分组维度的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []
+
+# APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_CUSTOM_METRIC_V2_ENABLED_LIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
@@ -1753,6 +1766,8 @@ IS_GLOBAL_TENANT = True
 BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
+# 内置数据链路是按业务还是按租户申请，默认空。当为空时，按业务申请；当为 "tenant" 时，按租户申请
+SPACE_BUILTIN_DATA_LINK_MODE = os.getenv("SPACE_BUILTIN_DATA_LINK_MODE", "")
 
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []

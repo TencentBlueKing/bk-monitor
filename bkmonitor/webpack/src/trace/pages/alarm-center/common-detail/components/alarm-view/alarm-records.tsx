@@ -34,7 +34,7 @@ import {
   watch,
 } from 'vue';
 
-import { Checkbox } from 'bkui-vue';
+import { Select } from 'bkui-vue';
 import { listAlertLog } from 'monitor-api/modules/alert_v2';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
@@ -45,21 +45,56 @@ import type { AlarmDetail } from '../../../typings/detail';
 
 import './alarm-records.scss';
 
+const TypeEnum = {
+  CREATE: 'CREATE',
+  CONVERGE: 'CONVERGE',
+  RECOVER: 'RECOVER',
+  CLOSE: 'CLOSE',
+  RECOVERING: 'RECOVERING',
+  DELAY_RECOVER: 'DELAY_RECOVER',
+  ABORT_RECOVER: 'ABORT_RECOVER',
+  SYSTEM_RECOVER: 'SYSTEM_RECOVER',
+  SYSTEM_CLOSE: 'SYSTEM_CLOSE',
+  ACK: 'ACK',
+  SEVERITY_UP: 'SEVERITY_UP',
+  ACTION: 'ACTION',
+  ALERT_QOS: 'ALERT_QOS',
+  EVENT_DROP: 'EVENT_DROP',
+  USER_ACTION: 'USER_ACTION',
+} as const;
 const OperateMap = {
-  CREATE: `【${window.i18n.t('告警产生')}】`,
-  CONVERGE: `【${window.i18n.t('告警收敛')}】`,
-  RECOVER: `【${window.i18n.t('告警恢复')}】`,
-  CLOSE: `【${window.i18n.t('告警失效')}】`,
-  RECOVERING: `【${window.i18n.t('告警恢复中')}】`,
-  DELAY_RECOVER: `【${window.i18n.t('延迟恢复')}】`,
-  ABORT_RECOVER: `【${window.i18n.t('中断恢复')}】`,
-  SYSTEM_RECOVER: `【${window.i18n.t('告警恢复')}】`,
-  SYSTEM_CLOSE: `【${window.i18n.t('告警关闭')}】`,
-  ACK: `【${window.i18n.t('告警确认')}】`,
-  SEVERITY_UP: `【${window.i18n.t('告警级别调整')}】`,
-  ACTION: `【${window.i18n.t('告警处理')}】`,
-  ALERT_QOS: `【${window.i18n.t('告警流控')}】`,
-  EVENT_DROP: `【${window.i18n.t('事件忽略')}】`,
+  [TypeEnum.USER_ACTION]: `【${window.i18n.t('用户操作')}】`,
+  [TypeEnum.CREATE]: `【${window.i18n.t('告警产生')}】`,
+  [TypeEnum.CONVERGE]: `【${window.i18n.t('告警收敛')}】`,
+  [TypeEnum.RECOVER]: `【${window.i18n.t('告警恢复')}】`,
+  [TypeEnum.CLOSE]: `【${window.i18n.t('告警失效')}】`,
+  [TypeEnum.RECOVERING]: `【${window.i18n.t('告警恢复中')}】`,
+  [TypeEnum.DELAY_RECOVER]: `【${window.i18n.t('延迟恢复')}】`,
+  [TypeEnum.ABORT_RECOVER]: `【${window.i18n.t('中断恢复')}】`,
+  [TypeEnum.SYSTEM_RECOVER]: `【${window.i18n.t('系统恢复')}】`,
+  [TypeEnum.SYSTEM_CLOSE]: `【${window.i18n.t('系统关闭')}】`,
+  [TypeEnum.ACK]: `【${window.i18n.t('告警确认')}】`,
+  [TypeEnum.SEVERITY_UP]: `【${window.i18n.t('告警级别调整')}】`,
+  [TypeEnum.ACTION]: `【${window.i18n.t('处理动作')}】`,
+  [TypeEnum.ALERT_QOS]: `【${window.i18n.t('告警流控')}】`,
+  [TypeEnum.EVENT_DROP]: `【${window.i18n.t('事件忽略')}】`,
+};
+const iconMap = {
+  [TypeEnum.USER_ACTION]: '👤',
+  [TypeEnum.CREATE]: '🚨',
+  [TypeEnum.CONVERGE]: '🎯',
+  [TypeEnum.RECOVER]: '✅',
+  [TypeEnum.CLOSE]: '❌',
+  [TypeEnum.RECOVERING]: '🔄',
+  [TypeEnum.DELAY_RECOVER]: '⏰',
+  [TypeEnum.ABORT_RECOVER]: '🔌',
+  [TypeEnum.SYSTEM_RECOVER]: '✅',
+  [TypeEnum.SYSTEM_CLOSE]: '❌',
+  [TypeEnum.ACK]: '✔︎',
+  [TypeEnum.SEVERITY_UP]: '📉📈',
+  [TypeEnum.ACTION]: '🔧',
+  [TypeEnum.ALERT_QOS]: '🚦',
+  [TypeEnum.EVENT_DROP]: '🚫',
 };
 
 const getListEventLog = async params => {
@@ -118,67 +153,86 @@ export default defineComponent({
      */
     const circulationFilter = shallowRef([
       {
-        id: 'CREATE',
+        id: TypeEnum.USER_ACTION,
+        name: t('用户操作'),
+        icon: iconMap[TypeEnum.USER_ACTION],
+      },
+      {
+        id: TypeEnum.CREATE,
         name: t('告警产生'),
+        icon: iconMap[TypeEnum.CREATE],
       },
       {
-        id: 'CONVERGE',
+        id: TypeEnum.CONVERGE,
         name: t('告警收敛'),
+        icon: iconMap[TypeEnum.CONVERGE],
       },
       {
-        id: 'RECOVER',
+        id: TypeEnum.RECOVER,
         name: t('告警恢复'),
+        icon: iconMap[TypeEnum.RECOVER],
       },
       {
-        id: 'RECOVERING',
+        id: TypeEnum.RECOVERING,
         name: t('告警恢复中'),
+        icon: iconMap[TypeEnum.RECOVERING],
       },
       {
-        id: 'CLOSE',
+        id: TypeEnum.CLOSE,
         name: t('告警关闭'),
+        icon: iconMap[TypeEnum.CLOSE],
       },
       {
-        id: 'DELAY_RECOVER',
+        id: TypeEnum.DELAY_RECOVER,
         name: t('延迟恢复'),
+        icon: iconMap[TypeEnum.DELAY_RECOVER],
       },
       {
-        id: 'ABORT_RECOVER',
+        id: TypeEnum.ABORT_RECOVER,
         name: t('中断恢复'),
+        icon: iconMap[TypeEnum.ABORT_RECOVER],
       },
       {
-        id: 'SYSTEM_RECOVER',
+        id: TypeEnum.SYSTEM_RECOVER,
         name: t('系统恢复'),
+        icon: iconMap[TypeEnum.SYSTEM_RECOVER],
       },
       {
-        id: 'SYSTEM_CLOSE',
+        id: TypeEnum.SYSTEM_CLOSE,
         name: t('系统关闭'),
+        icon: iconMap[TypeEnum.SYSTEM_CLOSE],
       },
       {
-        id: 'ACK',
+        id: TypeEnum.ACK,
         name: t('告警确认'),
+        icon: iconMap[TypeEnum.ACK],
       },
       {
-        id: 'SEVERITY_UP',
+        id: TypeEnum.SEVERITY_UP,
         name: t('告警级别调整'),
+        icon: iconMap[TypeEnum.SEVERITY_UP],
       },
       {
-        id: 'ACTION',
+        id: TypeEnum.ACTION,
         name: t('处理动作'),
+        icon: iconMap[TypeEnum.ACTION],
       },
       {
-        id: 'ALERT_QOS',
+        id: TypeEnum.ALERT_QOS,
         name: t('告警流控'),
+        icon: iconMap[TypeEnum.ALERT_QOS],
       },
       {
-        id: 'EVENT_DROP',
+        id: TypeEnum.EVENT_DROP,
         name: t('事件忽略'),
+        icon: iconMap[TypeEnum.EVENT_DROP],
       },
     ]);
     /**
      * 告警类型筛选默认选中所有
      */
     const checked = shallowRef(circulationFilter.value.map(item => item.id));
-    const checkAll = shallowRef(true);
+    const oldChecked = shallowRef(circulationFilter.value.map(item => item.id));
 
     /**
      * @description 告警记录数据列表链接兼容处理
@@ -341,7 +395,6 @@ export default defineComponent({
      * @param actionId
      */
     const handleNoticeDetail = (actionId: string) => {
-      console.log(actionId, 'handleNoticeDetail');
       noticeStatusDialogState.show = true;
       noticeStatusDialogState.actionId = actionId;
     };
@@ -360,25 +413,14 @@ export default defineComponent({
       handleGetLogList();
     };
 
-    const handleCheck = (id: string, v: boolean) => {
-      let list = [];
+    const handleToggle = (v: boolean) => {
       if (v) {
-        list = Array.from(new Set([...checked.value, id]));
+        oldChecked.value = JSON.parse(JSON.stringify(checked.value));
       } else {
-        list = checked.value.filter(item => item !== id);
+        if (JSON.stringify(checked.value) !== JSON.stringify(oldChecked.value)) {
+          handleCheckedChange(checked.value);
+        }
       }
-      checkAll.value = list.length === circulationFilter.value.length;
-      handleCheckedChange(list);
-    };
-    const handleCheckAll = (v: boolean) => {
-      checkAll.value = v;
-      let list = [];
-      if (v) {
-        list = circulationFilter.value.map(item => item.id);
-      } else {
-        list = [];
-      }
-      handleCheckedChange(list);
     };
 
     const handleOperation = (type: string) => {
@@ -418,16 +460,14 @@ export default defineComponent({
       recordData,
       emptyType,
       noticeStatusDialogState,
-      checkAll,
       preListLen,
       handleGotoShieldStrategy,
       beforeCollapseChange,
       handleNoticeDetail,
       openLink,
       handleCheckedChange,
-      handleCheck,
-      handleCheckAll,
       handleOperation,
+      handleToggle,
       t,
     };
   },
@@ -436,7 +476,8 @@ export default defineComponent({
       return (
         <div class='item-title'>
           <span class='item-title-icon'>
-            <i class={['icon-monitor', item.logIcon]} />
+            {iconMap[item.operate]}
+            {/* <i class={['icon-monitor', item.logIcon]} /> */}
           </span>
           <span class='item-title-date'>{item.expand ? item.time : item.expandTime}</span>
         </div>
@@ -449,7 +490,9 @@ export default defineComponent({
           const showTip =
             i === item.index &&
             item.source_time &&
-            (item.operate === 'CREATE' || item.operate === 'CONVERGE' || item.operate === 'EVENT_DROP');
+            (item.operate === TypeEnum.CREATE ||
+              item.operate === TypeEnum.CONVERGE ||
+              item.operate === TypeEnum.EVENT_DROP);
           return (
             <span
               key={i}
@@ -483,7 +526,7 @@ export default defineComponent({
         dom = (
           <span>
             <span
-              class={{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }}
+              class={{ 'tip-dashed': item.operate === TypeEnum.CREATE || item.operate === TypeEnum.CONVERGE }}
               v-bk-tooltips={{
                 placement: 'top',
                 content: item.source_time ? `${this.$t('数据时间')}：${item.source_time}` : '',
@@ -499,7 +542,7 @@ export default defineComponent({
             {child}
           </span>
         );
-        if (item.operate === 'ACTION') {
+        if (item.operate === TypeEnum.ACTION) {
           const textList = item.contents[0].split('$');
           let link = null;
           if (item.action_plugin_type === 'notice') {
@@ -538,7 +581,7 @@ export default defineComponent({
         //   <span class="notice-status">{this.alertStatusMap[item.contents[3]]}</span>,
         //   <span class="can-click" on-click={() => this.handleNoticeDetail(item.offset)}> { this.$t('点击查看明细') } </span>
         // ]
-      } else if (item.operate === 'ACK') {
+      } else if (item.operate === TypeEnum.ACK || item.operate === TypeEnum.USER_ACTION) {
         dom = [
           item.contents[0],
           <span
@@ -550,11 +593,11 @@ export default defineComponent({
         ];
       } else if (
         item.contents.length > 1 &&
-        (item.operate === 'CREATE' || item.operate === 'CONVERGE' || item.operate === 'EVENT_DROP')
+        (item.operate === TypeEnum.CREATE || item.operate === TypeEnum.CONVERGE || item.operate === TypeEnum.EVENT_DROP)
       ) {
         dom = convergeDom();
       }
-      if (item.operate === 'EVENT_DROP') {
+      if (item.operate === TypeEnum.EVENT_DROP) {
         if (item.count > 1) {
           dom = (
             <span>
@@ -593,22 +636,49 @@ export default defineComponent({
         <div class='alarm-records-header'>
           <span class='header-title'>{this.t('节点过滤')}</span>
           <span class='header-options'>
-            <Checkbox
-              key='all'
-              modelValue={this.checkAll}
-              onChange={v => this.handleCheckAll(v)}
+            <Select
+              style={'width: 412px;'}
+              clearable={false}
+              filterable={true}
+              modelValue={this.checked}
+              multiple={true}
+              multiple-mode={'tag'}
+              selectedStyle={'checkbox'}
+              showSelectAll={true}
+              onToggle={v => {
+                this.handleToggle(v);
+              }}
+              onUpdate:modelValue={v => {
+                this.checked = v;
+              }}
             >
-              {this.t('全选')}
-            </Checkbox>
-            {this.circulationFilter.map(item => (
-              <Checkbox
-                key={item.id}
-                modelValue={this.checked.includes(item.id)}
-                onChange={v => this.handleCheck(item.id, v)}
-              >
-                {item.name}
-              </Checkbox>
-            ))}
+              {{
+                default: () =>
+                  this.circulationFilter.map(item => (
+                    <Select.Option
+                      id={item.id}
+                      key={item.id}
+                      name={`${item.icon} ${item.name}`}
+                    >
+                      {item.icon} {item.name}
+                    </Select.Option>
+                  )),
+                tag: ({ selected }) => {
+                  return this.checked.length === this.circulationFilter.length ? (
+                    this.$t('全部')
+                  ) : (
+                    <span
+                      style={'overflow: hidden; text-overflow: ellipsis;'}
+                      v-overflow-tips={{
+                        placement: 'top',
+                      }}
+                    >
+                      {selected.map(item => item.label).join(',')}
+                    </span>
+                  );
+                },
+              }}
+            </Select>
           </span>
         </div>
         {this.recordData.loading ? (
@@ -667,6 +737,7 @@ export default defineComponent({
         </div>
         <NoticeStatusDialog
           actionId={this.noticeStatusDialogState.actionId}
+          alarmBizId={this.detail.bk_biz_id}
           show={this.noticeStatusDialogState.show}
           onShowChange={show => {
             this.noticeStatusDialogState.show = show;

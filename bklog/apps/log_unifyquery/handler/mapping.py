@@ -194,24 +194,31 @@ class UnifyQueryMappingHandler:
                 return self.index_set.fields_snapshot.get("fields", [])
             return []
 
-        fields_list: list = [
-            {
-                "field_type": field["field_type"],
-                "field_name": field["field_name"],
-                "field_alias": field.get("field_alias", ""),
-                "query_alias": field.get("alias_name", ""),
-                "is_display": False,
-                "is_editable": True,
-                "tag": field.get("tag", ""),
-                "origin_field": field.get("origin_field", ""),
-                "es_doc_values": field.get("is_agg", False),
-                "is_analyzed": field.get("is_analyzed", False),
-                "field_operator": OPERATORS.get(field["field_type"], []),
-                "is_case_sensitive": field.get("is_case_sensitive", False),
-                "tokenize_on_chars": "".join(field.get("tokenize_on_chars", [])),
-            }
-            for field in fields_result
-        ]
+        fields_list: list = []
+        for field in fields_result:
+            tokenize_on_chars = field.get("tokenize_on_chars", [])
+            if isinstance(tokenize_on_chars, list | tuple):
+                tokenize_on_chars = "".join(tokenize_on_chars)
+            elif not isinstance(tokenize_on_chars, str):
+                tokenize_on_chars = ""
+
+            fields_list.append(
+                {
+                    "field_type": field["field_type"],
+                    "field_name": field["field_name"],
+                    "field_alias": field.get("field_alias", ""),
+                    "query_alias": field.get("alias_name", ""),
+                    "is_display": False,
+                    "is_editable": True,
+                    "tag": field.get("tag", ""),
+                    "origin_field": field.get("origin_field", ""),
+                    "es_doc_values": field.get("is_agg", False),
+                    "is_analyzed": field.get("is_analyzed", False),
+                    "field_operator": OPERATORS.get(field["field_type"], []),
+                    "is_case_sensitive": field.get("is_case_sensitive", False),
+                    "tokenize_on_chars": tokenize_on_chars,
+                }
+            )
         # doris需要映射字段类型，根据新的类型获取操作列表
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
         if is_doris:

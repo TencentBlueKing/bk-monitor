@@ -26,6 +26,7 @@
 
 import { type PropType, computed, defineComponent } from 'vue';
 
+import { spaceTypeTag, tipsContent } from 'trace/components/space-select/tips-content';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
@@ -130,6 +131,10 @@ export default defineComponent({
       }>,
       default: () => null,
     },
+    defaultShowResidentBtn: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     conditionChange: (_v: CommonCondition[]) => true,
@@ -139,6 +144,8 @@ export default defineComponent({
     query: () => true,
     bizIdsChange: (_v: (number | string)[]) => true,
     favoriteSave: (_isEdit: boolean) => true,
+    showResidentBtnChange: (_v: boolean) => true,
+    copyWhere: (_v: CommonCondition[]) => true,
   },
   setup(_props, { emit }) {
     const { t } = useI18n();
@@ -176,6 +183,12 @@ export default defineComponent({
     const handleFavoriteSave = val => {
       emit('favoriteSave', val);
     };
+    const handleShowResidentBtnChange = val => {
+      emit('showResidentBtnChange', val);
+    };
+    const handleCopyWhere = val => {
+      emit('copyWhere', val);
+    };
 
     return {
       showAlarmModule,
@@ -187,6 +200,8 @@ export default defineComponent({
       handleResidentConditionChange,
       handleBizIdsChange,
       handleFavoriteSave,
+      handleShowResidentBtnChange,
+      handleCopyWhere,
       ...useSpaceSelect(),
     };
   },
@@ -203,6 +218,7 @@ export default defineComponent({
           }));
         }}
         commonWhere={this.residentCondition}
+        defaultShowResidentBtn={this.defaultShowResidentBtn}
         favoriteList={this.favoriteList}
         fields={this.fields}
         filterMode={this.filterMode}
@@ -219,12 +235,15 @@ export default defineComponent({
         selectFavorite={this.selectFavorite}
         where={this.conditions}
         onCommonWhereChange={this.handleResidentConditionChange}
+        onCopyWhere={this.handleCopyWhere}
         onFavorite={this.handleFavoriteSave}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
         onSearch={this.handleQuery}
+        onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleConditionChange}
       >
+        {/* // #if !IS_APM_MONITOR */}
         {{
           default: () => (
             <>
@@ -245,18 +264,32 @@ export default defineComponent({
                   trigger: (options: ITriggerSlotOptions) => (
                     <SelectorTrigger
                       class='selector-trigger-space-select'
-                      tips={options.valueStrList
-                        .map(
-                          (item, index) =>
-                            `${index !== 0 ? `   , ${item.name}` : item.name}${item.id ? `(${item.id})` : ''}`
-                        )
-                        .join('')}
                       active={options.active}
                       hasRightSplit={true}
                       isError={options.error}
+                      tips={options.valueStrList.length ? tipsContent(options.valueStrList) : ''}
                     >
                       {{
-                        top: () => <span>{this.t('空间')}</span>,
+                        top: () => {
+                          if (
+                            options.valueStrList.length > 1 ||
+                            !options.valueStrList.length ||
+                            ['-1', '-2'].includes(String(options.valueStrList?.[0]?.id))
+                          ) {
+                            return <span>{this.t('空间')}</span>;
+                          }
+                          const tags = options.valueStrList[0]?.tags || [];
+                          return (
+                            <span>
+                              {tags.map(tag =>
+                                spaceTypeTag(tag.id, 'light', {
+                                  height: '20px',
+                                  marginRight: '4px',
+                                })
+                              )}
+                            </span>
+                          );
+                        },
                         bottom: () => (
                           <span class='selected-text'>
                             {options.valueStrList.map((item, index) => (
@@ -265,7 +298,7 @@ export default defineComponent({
                                 class='selected-text-item'
                               >
                                 {index !== 0 ? `   , ${item.name}` : item.name}
-                                {!!item.id && <span class='selected-text-id'>({item.id})</span>}
+                                {!!item.idDisplayName && <span class='selected-text-id'>({item.idDisplayName})</span>}
                               </span>
                             ))}
                           </span>
@@ -279,6 +312,7 @@ export default defineComponent({
             </>
           ),
         }}
+        {/* // #endif */}
       </RetrievalFilter>
     );
   },

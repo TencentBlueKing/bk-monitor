@@ -298,16 +298,17 @@ export const useExploreColumnConfig = ({
           fixed: 'left',
           suffixSlot: row =>
             (
-              <i
-                class='icon-monitor icon-Tracing'
-                v-bk-tooltips={{ content: t('查看关联 Trace'), delay: 400 }}
+              <span
+                class='trace-link-btn'
                 onClick={() => {
-                  // 记录“需要在 trace 侧滑中定位/高亮的 span”
+                  // 记录"需要在 trace 侧滑中定位/高亮的 span"
                   traceStore.setExternalLocateSpan(row.trace_id, row.span_id);
                   // 打开 trace 侧滑
                   handleSliderShowChange('trace', row.trace_id);
                 }}
-              />
+              >
+                {t('调用链')}
+              </span>
             ) as unknown as VNode,
           clickCallback: row => handleSliderShowChange('span', row.span_id),
         },
@@ -381,7 +382,7 @@ export const useExploreColumnConfig = ({
           title: t('所属 Trace'),
           width: 240,
           clickCallback: row => {
-            // 记录“需要在 trace 侧滑中定位/高亮的 span”
+            // 记录"需要在 trace 侧滑中定位/高亮的 span"
             traceStore.setExternalLocateSpan(row.trace_id, row.span_id);
             // 打开 trace 侧滑
             handleSliderShowChange('trace', row.trace_id);
