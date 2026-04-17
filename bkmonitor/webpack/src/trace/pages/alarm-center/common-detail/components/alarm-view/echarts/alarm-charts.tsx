@@ -140,6 +140,9 @@ export default defineComponent({
     const scatterClickEventData = shallowRef<AlertScatterClickEvent>({});
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
+    /** 缓存 markPoint 悬停前的 cursor 样式 */
+    let cachedCursor = '';
+
     const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(
       toRef(props, 'defaultTimeRange')
     );
@@ -707,6 +710,27 @@ export default defineComponent({
       }
     };
 
+    /**
+     * @description markPoint 鼠标移入时缓存并设置光标为默认样式
+     */
+    const handleChartMouseover = (params: Record<string, any>) => {
+      if (params.componentType !== 'markPoint') return;
+      const canvas = params.event?.event?.target as HTMLElement;
+      if (!canvas) return;
+      cachedCursor = canvas.style.cursor;
+      canvas.style.cursor = 'default';
+    };
+
+    /**
+     * @description markPoint 鼠标移出时恢复光标样式
+     */
+    const handleChartMouseout = (params: Record<string, any>) => {
+      if (params.componentType !== 'markPoint') return;
+      const canvas = params.event?.event?.target as HTMLElement;
+      if (!canvas) return;
+      canvas.style.cursor = cachedCursor;
+    };
+
     onMounted(() => document.addEventListener('mousedown', handleCloseEventDetailPopup));
     onUnmounted(() => document.removeEventListener('mousedown', handleCloseEventDetailPopup));
 
@@ -725,6 +749,8 @@ export default defineComponent({
       eventDetailPopupPosition,
       scatterClickEventData,
       handleMenuClick,
+      handleChartMouseover,
+      handleChartMouseout,
     };
   },
   render() {
@@ -748,6 +774,8 @@ export default defineComponent({
           onClick={this.handleScatterClick}
           onDataZoomChange={this.handleDataZoomChange}
           onMenuClick={this.handleMenuClick}
+          onMouseout={this.handleChartMouseout}
+          onMouseover={this.handleChartMouseover}
           onRestore={this.handleRestore}
         />
 
