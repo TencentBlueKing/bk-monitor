@@ -268,7 +268,7 @@ def log_relation_list(
     start_time: int | None = None,
     end_time: int | None = None,
 ) -> list[dict]:
-    """获取服务关联的日志索引集列表。
+    """获取应用/服务关联的日志索引集列表。
 
     :param bk_biz_id: 业务 ID。
     :param app_name: 应用名称。
