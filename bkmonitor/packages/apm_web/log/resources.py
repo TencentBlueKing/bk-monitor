@@ -40,7 +40,17 @@ def _log_relation_task_safe(
         try:
             return fn(*args, **kwargs)
         except Exception:  # pylint: disable=broad-except
-            logger.exception("[log_relation_list] task=%s failed, args=%s kwargs=%s", fn.__name__, args, kwargs)
+            # 仅打印关键参数，避免将 indexes_mapping 等大型参数干扰。
+            bk_biz_id = args[0] if len(args) > 0 else kwargs.get("bk_biz_id")
+            app_name = args[1] if len(args) > 1 else kwargs.get("app_name")
+            service_name = args[2] if len(args) > 2 else kwargs.get("service_name")
+            logger.exception(
+                "[log_relation_list] task=%s failed, bk_biz_id=%s, app_name=%s, service_name=%s",
+                fn.__name__,
+                bk_biz_id,
+                app_name,
+                service_name,
+            )
             return []
 
     return wrapper
