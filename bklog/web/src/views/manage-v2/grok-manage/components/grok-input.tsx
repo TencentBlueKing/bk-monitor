@@ -27,7 +27,6 @@ import { defineComponent, ref, onMounted, onUnmounted, watch, type PropType, nex
 
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
-import { bracketMatching } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { placeholder as cmPlaceholder, keymap, highlightSpecialChars } from '@codemirror/view';
 
@@ -152,8 +151,8 @@ export default defineComponent({
         highlightSpecialChars(),
         EditorView.lineWrapping,
 
-        // Grok 模式下启用括号匹配高亮、自动补全（括号自动闭合等）
-        ...(props.grokMode ? [bracketMatching(), closeBrackets()] : []),
+        // Grok 模式下启用自动补全（括号自动闭合等）
+        ...(props.grokMode ? [closeBrackets()] : []),
 
         // placeholder
         cmPlaceholder(props.placeholder),
