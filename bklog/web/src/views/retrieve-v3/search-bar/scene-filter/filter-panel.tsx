@@ -161,7 +161,6 @@ export default defineComponent({
     };
 
     const handleRemoveField = (fieldName: string) => {
-      if (editDisplayFields.value.length <= 1) return;
       editDisplayFields.value = editDisplayFields.value.filter(n => n !== fieldName);
     };
 
@@ -173,7 +172,8 @@ export default defineComponent({
     };
 
     const handleAddAllFields = () => {
-      editDisplayFields.value = allFieldsOfScene.value.map(f => f.key);
+      const toAdd = editRestFields.value.map(f => f.key);
+      editDisplayFields.value = [...editDisplayFields.value, ...toAdd];
     };
 
     const handleClearAllFields = () => {

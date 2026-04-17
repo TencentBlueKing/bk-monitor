@@ -30,6 +30,7 @@ import { getOs } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { isEqual } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -108,17 +109,42 @@ export default defineComponent({
     };
 
     // 每场景独立的显示字段配置
-    const sceneDisplayFields = ref<SceneDisplayFields>({});
+    const bkBizId = computed(() => store.state.bkBizId);
 
-    const currentDisplayFields = computed<string[] | null>(
-      () => sceneDisplayFields.value[activeScene.value] ?? null,
-    );
+    /** 从 localStorage 读取当前业务的场景显示字段配置 */
+    const getLocalSceneDisplayFields = (): SceneDisplayFields => {
+      const all = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
+      return all[bkBizId.value] ?? {};
+    };
+
+    /** 将当前业务的场景显示字段配置写入 localStorage */
+    const saveLocalSceneDisplayFields = (fields: SceneDisplayFields) => {
+      const all = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
+      all[bkBizId.value] = fields;
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS]: all,
+      });
+    };
+
+    const sceneDisplayFields = ref<SceneDisplayFields>(getLocalSceneDisplayFields());
+
+    const currentDisplayFields = computed<string[] | null>(() => {
+      const fields = sceneDisplayFields.value[activeScene.value];
+      if (!fields) return null;
+      // 从全部字段中过滤出缓存中也存在的字段，得到显示字段
+      const allFieldKeys = new Set(
+        (sceneConfigs.value.find((s: any) => s.type === activeScene.value)?.fields ?? []).map((f: any) => f.key),
+      );
+      const filtered = fields.filter(key => allFieldKeys.has(key));
+      return filtered.length > 0 ? filtered : null;
+    });
 
     const handleDisplayFieldsChange = (fields: string[] | null) => {
       sceneDisplayFields.value = {
         ...sceneDisplayFields.value,
         [activeScene.value]: fields,
       };
+      saveLocalSceneDisplayFields(sceneDisplayFields.value);
     };
 
     // ---- 条件变更提示条逻辑 ----
