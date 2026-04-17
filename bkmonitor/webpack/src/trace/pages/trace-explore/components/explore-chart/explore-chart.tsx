@@ -200,7 +200,7 @@ export default defineComponent({
       >
         {this.panel && this.showTitle && (
           <ChartTitle
-            class='draggable-handle'
+            class='trace-home-draggable-handle'
             dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             menuList={['more', 'explore', 'area', 'drill-down', 'relate-alert']}
