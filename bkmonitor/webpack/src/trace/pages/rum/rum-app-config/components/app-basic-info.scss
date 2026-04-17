@@ -197,3 +197,49 @@
     }
   }
 }
+
+.bk-popover.bk-pop2-content.rum-app-operation-popover {
+  padding: 16px;
+
+  .rum-app-operation-content {
+    .title {
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 24px;
+      color: #313238;
+    }
+
+    .app-name {
+      margin-top: 14px;
+      font-size: 12px;
+      line-height: 20px;
+
+      .label {
+        color: #4e5e7a;
+      }
+
+      .value {
+        color: #111214;
+      }
+    }
+
+    .tips {
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4e5e7a;
+    }
+
+    .btns {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: end;
+      margin-top: 16px;
+
+      .bk-button {
+        min-width: 72px;
+      }
+    }
+  }
+}

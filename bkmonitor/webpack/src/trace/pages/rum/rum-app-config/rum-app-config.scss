@@ -7,11 +7,13 @@
   background: #f2f6fc;
 
   .common-nav-bar {
+    flex-shrink: 0;
     border-bottom: 1px solid #e9edf5;
   }
 
   /* 头部区域：应用基本信息展示 */
   &__header {
+    flex-shrink: 0;
     padding: 17px 52px 21px;
     background: #fff;
     box-shadow: 0 2px 4px 0 #1919290d;
@@ -20,12 +22,31 @@
   /* 主体内容区域 */
   &__body {
     flex: 1;
-    padding: 24px;
-    margin: 0 12px 12px;
-    font-size: 14px;
-    color: #313238;
-    background: #fff;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
+    padding: 16px 52px;
+
+    .bk-tab.panel-tab {
+      .bk-tab-header-item {
+        font-size: 14px;
+        font-weight: 500;
+        color: #4e5e7a;
+        border-radius: 8px 8px 0 0;
+
+        /* stylelint-disable-next-line selector-class-pattern */
+        &.bk-tab-header--active {
+          color: #3a84ff;
+        }
+      }
+
+      .bk-tab-content {
+        display: none;
+      }
+    }
+
+    .panel-tab-body {
+      height: calc(100% - 40px);
+      padding: 24px;
+      overflow-y: auto;
+      background-color: #fff;
+    }
   }
 }

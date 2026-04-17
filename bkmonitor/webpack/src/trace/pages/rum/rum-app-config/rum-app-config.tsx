@@ -23,13 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, reactive } from 'vue';
+import { computed, defineComponent, KeepAlive, onMounted, shallowRef } from 'vue';
 
+import { Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
-import AppBasicInfo, { type IAppBasicInfo } from './components/app-basic-info';
+import { RUM_APP_CONFIG_TAB_ENUM, RUM_APP_CONFIG_TAB_MAP } from '../typings/constants';
+import AppBasicInfo from './components/app-basic-info';
+import BasicConfig from './components/basic-config';
+import { getRumAppConfigMock } from './mock';
 import NavBar from '@/components/nav-bar/nav-bar';
+
+import type { IRumAppConfig, RumAppConfigTabType } from '../typings/rum-app-config';
 
 import './rum-app-config.scss';
 
@@ -37,6 +43,7 @@ export default defineComponent({
   name: 'RumAppConfigPage',
   setup() {
     const { t } = useI18n();
+    const route = useRoute();
     const router = useRouter();
 
     /* 路由面包屑数据 */
@@ -54,18 +61,40 @@ export default defineComponent({
     /**
      * 应用基本信息数据
      */
-    const appBasicInfo = reactive<IAppBasicInfo>({
-      domain: 'www.example.com',
-      status: '启用中',
-      token: '**** 2323423',
-      alias: 'Web 端口官网',
-      desc: '这是蓝鲸作业平台的 RUM 应用',
+    const appInfo = shallowRef<IRumAppConfig>(undefined);
+
+    const currentPanel = shallowRef<RumAppConfigTabType>(RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG);
+
+    const handleCurrentPanelChange = (v: RumAppConfigTabType) => {
+      currentPanel.value = v;
+    };
+
+    const getRumAppConfig = async () => {
+      appInfo.value = await getRumAppConfigMock({ app_name: route.params.appName, is_get_detail: true });
+    };
+
+    onMounted(() => {
+      getRumAppConfig();
     });
+
+    const getPanelComponent = () => {
+      switch (currentPanel.value) {
+        case RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG:
+          return <BasicConfig detail={appInfo.value} />;
+        case RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS:
+          return undefined;
+        case RUM_APP_CONFIG_TAB_ENUM.DATA_STATUS:
+          return undefined;
+      }
+    };
 
     return {
       navList,
-      appBasicInfo,
+      appInfo,
+      currentPanel,
+      handleCurrentPanelChange,
       handleBackPage,
+      getPanelComponent,
     };
   },
 
@@ -80,7 +109,27 @@ export default defineComponent({
         />
         {/* 应用基本信息头部区域 */}
         <div class='rum-app-config-page__header'>
-          <AppBasicInfo data={this.appBasicInfo} />
+          <AppBasicInfo data={this.appInfo} />
+        </div>
+
+        <div class='rum-app-config-page__body'>
+          <Tab
+            class='panel-tab'
+            active={this.currentPanel}
+            type='card-grid'
+            onUpdate:active={this.handleCurrentPanelChange}
+          >
+            {RUM_APP_CONFIG_TAB_MAP?.map(item => (
+              <Tab.TabPanel
+                key={item.id}
+                label={item.name}
+                name={item.id}
+              />
+            ))}
+          </Tab>
+          <div class='panel-tab-body'>
+            <KeepAlive>{this.getPanelComponent()}</KeepAlive>
+          </div>
         </div>
       </div>
     );

@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,17 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
 
-export default [
-  {
-    path: '/rum',
-    name: 'rum',
-    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum'),
-  },
-  {
-    path: '/rum/app/:appName/config',
-    name: 'rumAppConfig',
-    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
-  },
-] as RouteRecordRaw[];
+export const RUM_APP_CONFIG_TAB_ENUM = {
+  BASIC_CONFIG: 'basicConfig',
+  STORAGE_STATUS: 'storageStatus',
+  DATA_STATUS: 'dataStatus',
+} as const;
+
+export const RUM_APP_CONFIG_TAB_MAP = [
+  { id: RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG, name: window.i18n.t('基本配置') },
+  { id: RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS, name: window.i18n.t('存储状态') },
+  { id: RUM_APP_CONFIG_TAB_ENUM.DATA_STATUS, name: window.i18n.t('数据状态') },
+];
