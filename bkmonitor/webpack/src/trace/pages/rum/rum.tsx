@@ -34,6 +34,7 @@ import CommonHeader from '../../components/common-header/common-header';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import CommonTable from '../alarm-center/components/alarm-table/components/common-table/common-table';
 import CreateApp from './components/create-app/create-app';
+import SDKReport from './components/sdk-report/sdk-report';
 import { type MetricTier, type RumAppRow, MOCK_TABLE_DATA } from './rum-mock';
 
 import type { TimeRangeType } from '../../components/time-range/utils';
@@ -142,6 +143,7 @@ export default defineComponent({
     /** 与 CommonTable 一致：disableDataPage 下需自行按页切片 data，total 须与当前列表条数一致 */
     const pageState = shallowRef({ currentPage: 1, pageSize: 10 });
     const showCreateApp = shallowRef(false);
+    const showSdkReport = shallowRef(false);
 
     const searchLabel = (k: RumCriteriaKey) => {
       const map: Record<RumCriteriaKey, string> = {
@@ -445,11 +447,18 @@ export default defineComponent({
 
     const handleCreateApp = () => {
       /** 接入创建应用流程（接口联调时补充） */
-      showCreateApp.value = true;
+      handleCreateAppShowChange(true);
     };
 
     const handleCreateAppShowChange = (show: boolean) => {
       showCreateApp.value = show;
+    };
+    const handleCreateAppSuccess = _params => {
+      handleCreateAppShowChange(false);
+      handleSdkReportShowChange(true);
+    };
+    const handleSdkReportShowChange = (show: boolean) => {
+      showSdkReport.value = show;
     };
 
     return () => (
@@ -519,6 +528,11 @@ export default defineComponent({
         <CreateApp
           show={showCreateApp.value}
           onShowChange={handleCreateAppShowChange}
+          onSuccess={handleCreateAppSuccess}
+        />
+        <SDKReport
+          show={showSdkReport.value}
+          onShowChange={handleSdkReportShowChange}
         />
       </div>
     );
