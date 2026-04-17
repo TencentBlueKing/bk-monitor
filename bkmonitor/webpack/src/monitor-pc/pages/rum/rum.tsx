@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
+import introduce from '../../common/introduce';
+import GuidePage from '../../components/guide-page/guide-page';
 import aiWhaleStore from '@/store/modules/ai-whale';
 import '@blueking/bk-weweb';
 
@@ -43,6 +45,10 @@ export default class Rum extends tsc<object> {
   @Ref('traceApp') traceApp: HTMLElement;
   @Prop() a: number;
   unmountCallback: () => void;
+  // 是否显示引导页（依赖 space_introduce 接口数据，未接入时通过本地兜底模板始终展示）
+  get showGuidePage() {
+    return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
+  }
   get traceHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -79,6 +85,10 @@ export default class Rum extends tsc<object> {
     }
   }
   async mounted() {
+    if (this.showGuidePage) {
+      this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+      return;
+    }
     await loadApp({
       url: this.traceUrl,
       id: traceAppId,
@@ -96,11 +106,15 @@ export default class Rum extends tsc<object> {
     }, 300);
   }
   beforeDestroy() {
+    if (this.showGuidePage) return;
     this.unmountCallback?.();
     unmount(traceAppId);
     this.unmountCallback = undefined;
   }
   render() {
+    if (this.showGuidePage) {
+      return <GuidePage guideData={introduce.data.rum.introduce} />;
+    }
     return (
       <div class='rum-wrap'>
         <div class='rum-wrap-iframe'>

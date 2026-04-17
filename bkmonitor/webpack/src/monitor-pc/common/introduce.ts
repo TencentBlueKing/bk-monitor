@@ -39,6 +39,7 @@ export enum IntroduceRouteKey {
   // 'k8s-old' = 'k8s-old',
   performance = 'performance',
   'plugin-manager' = 'plugin-manager',
+  rum = 'rum',
   'uptime-check' = 'uptime-check',
 }
 export type IntroduceStoreData = Record<
