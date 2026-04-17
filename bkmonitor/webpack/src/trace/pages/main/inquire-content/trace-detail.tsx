@@ -25,6 +25,7 @@
  */
 import {
   computed,
+  defineAsyncComponent,
   defineComponent,
   inject,
   nextTick,
@@ -52,7 +53,6 @@ import SearchBar from '../../../components/trace-view/search-bar';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
-import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph';
 import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import {
   DEFAULT_TRACE_DATA,
@@ -77,6 +77,14 @@ import TraceDetailHeader from './trace-detail-header';
 import type { Span } from '../../../components/trace-view/typings';
 
 import './trace-detail.scss';
+
+/**
+ * Vite 不再将 mermaid 打包/拆分，内部的 import 'fork-mermaid' 留给宿主 webpack 按自身策略解析
+ * 宿主 webpack 对 mermaid 的 bundling 方式与 trace 主站一致，不会出现 getBBox 问题
+ */
+const SequenceGraph = defineAsyncComponent(
+  () => import('../../../plugins/charts/sequence-graph/sequence-graph')
+);
 
 const { TabPanel } = Tab;
 
