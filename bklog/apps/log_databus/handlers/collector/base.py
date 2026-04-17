@@ -744,20 +744,24 @@ class CollectorHandler:
         """
         批量获取集群信息，单个失败不影响其他，将单个失败的 result_table 进行重试
         如果分片请求失败，则拆解为单个 result_table 重试
+        重试机制: 第一次用 elasticsearch，第二次用 doris，都失败则设置为默认值
         @param result_table_list:
         @return:
         """
 
-        def get_cluster_info(result_table_str: str):
+        def get_cluster_info(result_table_str: str, storage_type: str = "elasticsearch"):
             """
             获取集群信息（支持批量查询）
             """
             try:
                 return TransferApi.get_result_table_storage(
-                    params={"result_table_list": result_table_str, "storage_type": "elasticsearch"}
+                    params={"result_table_list": result_table_str, "storage_type": storage_type}
                 )
             except Exception as e:
-                logger.warning(f"获取集群信息失败(result_tables={result_table_str}): {e}", exc_info=True)
+                logger.warning(
+                    f"获取集群信息失败(result_tables={result_table_str}, storage_type={storage_type}): {e}",
+                    exc_info=True,
+                )
                 return {}
 
         cluster_infos = {}
@@ -767,7 +771,7 @@ class CollectorHandler:
 
         unique_tables = list(dict.fromkeys(result_table_list))
 
-        # 按分片批量获取
+        # 按分片批量获取（elasticsearch）
         chunk_multi_execute_func = MultiExecuteFunc()
         unique_table_chunks: list[list[str]] = array_chunk(unique_tables, BULK_CLUSTER_INFOS_LIMIT)
 
@@ -800,11 +804,11 @@ class CollectorHandler:
                 # 分片获取失败, 记录该分片中的所有 table_id 进行重试
                 retry_tables.extend(table_chunk)
 
-        # 对获取集群信息失败的 table_id 进行重试
+        # 第一次重试: 对 elasticsearch 查询失败的 table_id 逐个用 elasticsearch 重试
         if retry_tables:
             logger.warning(
                 f"The chunk query result is incomplete, "
-                f"querying {len(retry_tables)} result tables individually: {retry_tables}"
+                f"querying {len(retry_tables)} result tables individually with elasticsearch: {retry_tables}"
             )
 
             single_multi_execute_func = MultiExecuteFunc()
@@ -814,11 +818,34 @@ class CollectorHandler:
 
             single_response = single_multi_execute_func.run()
 
-            # 处理单独查询结果
+            # 处理单独查询结果, 记录仍然失败的 table_id 进行 doris 重试
+            doris_retry_tables = []
             for table_id, response in single_response.items():
                 if response and isinstance(response, dict) and response.get(table_id):
-                    # 单个重试成功
+                    # 单个 elasticsearch 重试成功
                     cluster_infos[table_id] = response[table_id]
+                else:
+                    # elasticsearch 重试失败, 记录进行 doris 重试
+                    doris_retry_tables.append(table_id)
+
+            # 第二次重试: 对 elasticsearch 重试失败的 table_id 逐个用 doris 重试
+            if doris_retry_tables:
+                doris_multi_execute_func = MultiExecuteFunc()
+
+                for table_id in doris_retry_tables:
+                    doris_multi_execute_func.append(
+                        table_id,
+                        lambda p: get_cluster_info(p["table_id"], p["storage_type"]),
+                        {"table_id": table_id, "storage_type": "doris"},
+                    )
+
+                doris_response = doris_multi_execute_func.run()
+
+                # 处理 doris 查询结果
+                for table_id, response in doris_response.items():
+                    if response and isinstance(response, dict) and response.get(table_id):
+                        # doris 重试成功
+                        cluster_infos[table_id] = response[table_id]
 
         # 确保所有 result_table 都有集群信息, 否则设置为默认值
         for table_id in result_table_list:
