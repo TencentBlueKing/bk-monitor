@@ -74,6 +74,7 @@ import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-fore
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 import LineEcharts from '../plugins/time-series/time-series';
 import ApmAlarmCenter from '../plugins/apm-alarm-center';
+import ApmTraceExplore from '../plugins/apm-trace-explore';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
@@ -630,7 +631,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'alarm_template':
         return <AlarmTemplate />;
       case 'alarm_center':
-        return <ApmAlarmCenter />
+        return <ApmTraceExplore />
+        // return <ApmAlarmCenter />
+      // case 'trace_explore':
+      //   return <ApmTraceExplore />
       // 不需要报错显示
       // case 'graph':
       default:

@@ -92,7 +92,7 @@
         height: 16px;
         font-size: 12px;
         line-height: 16px;
-        color: #ffffff;
+        color: #fff;
         text-align: center;
         background: #2f567d;
         border-radius: 50%;
@@ -267,8 +267,34 @@
   }
 }
 
-.bk-popover.statistics-dimension-popover-cls {
-  padding: 12px 16px;
+/*
+ * v-overflow-tips（维度名省略号）：与下方 statistics 弹层同理，双 theme token 提高特异性。
+ * APM 嵌入时 trace 主站的 global.scss 可能未进包，宿主全局 .tippy-* / [data-theme~='light'] 会污染默认气泡样式。
+ */
+.tippy-box[data-theme~='dark'][data-theme~='dimension-filter-name-overflow'] {
+  > .tippy-arrow {
+    margin-top: -7px;
+  }
+}
+
+
+/* 同时带 light 与自定义 token，特异性高于 global.scss 里单独的 [data-theme~='light']，避免阴影等被覆盖 */
+.tippy-box[data-theme~='light'][data-theme~='statistics-dimension-popover-cls'] {
+  box-sizing: border-box;
+  width: 405px;
+  min-width: 405px;
+  max-width: 405px;
   border: 1px solid #dcdee5;
-  box-shadow: 0 2px 12px 0 #00000033;
+  box-shadow: 0 2px 12px 0 #0003;
+
+  .tippy-content {
+    padding: 12px;
+  }
+
+  // #if IS_APM_MONITOR
+  > .tippy-arrow {
+    margin-top: -6px;
+  }
+
+  // #endif
 }

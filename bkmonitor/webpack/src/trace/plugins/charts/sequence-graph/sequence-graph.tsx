@@ -274,7 +274,33 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           await nextTick();
           const rest = transformData(data.diagram_data);
           graphDefinition.value = rest || '';
-          const { svg } = await mermaid.render(graphId, graphDefinition.value);
+          /**
+           * 通过原生 DOM API 创建一个挂载在 body 上的离屏容器，作为 mermaid.render 的第三个参数
+           * (svgContainingElement) 传入。
+           *
+           * 为什么不能直接 mermaid.render(id, text) （不传第三个参数）？
+           * 不传时，mermaid 内部会走 select("body").append("div") 的 d3 链路来创建临时 SVG。
+           * 在本库被 Vite lib mode 打包、再由宿主 Webpack 二次消费的场景下，
+           * d3 的 select("body") 或后续 select('[id="..."]') 会返回空 selection，
+           * 导致 draw() 里所有 SVG 操作都在空 selection 上链式执行，
+           * 最终 .node() 为 null → getBBox() 抛 TypeError。
+           *
+           * 传入 svgContainingElement 后，mermaid 内部改用 select(element)（直接包装 DOM 节点，
+           * 不经过 CSS 选择器），并且跳过 removeExistingElements 等全局 DOM 操作，
+           * 从而规避与APM宿主环境差异。
+           *
+           * 容器需要有实际尺寸（2000×2000）且挂在 DOM 树上，否则 SVG 的 getBBox / 布局计算
+           * 无法得到正确结果；visibility:hidden + 离屏定位保证用户不可见。
+           */
+          const renderContainer = document.createElement('div');
+          renderContainer.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:2000px;height:2000px;visibility:hidden';
+          document.body.appendChild(renderContainer);
+          let svg: string;
+          try {
+            ({ svg } = await mermaid.render(graphId, graphDefinition.value, renderContainer));
+          } finally {
+            renderContainer.remove();
+          }
           svgString.value = svg;
           mermaidRef.value!.innerHTML = svg.replace(/max-width/gim, 'width');
           setTimeout(() => {
@@ -608,7 +634,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       thumbnailViewRect,
       thumbnailRect,
       thumbnailSvgRect,
-      graphId,
       showThumbnail,
       showLegend,
       showException,
@@ -639,7 +664,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           ref='sequenceGraphRef'
           class='sequence-graph'
         >
-          <div id={this.graphId} />
           <div
             ref='mermaidRef'
             class='sequence-graph-ref'
