@@ -37,7 +37,7 @@ def _create_plugin_with_version(plugin_id: str, bk_biz_id: int) -> tuple[Collect
     return plugin, version
 
 
-def test_get_collector_plugin_fetcher_excludes_global_plugin_meta_for_biz_export():
+def test_get_collector_plugin_fetcher_excludes_global_plugin_definition_for_biz_export():
     biz_id = 2
     global_plugin, global_version = _create_plugin_with_version("global_plugin", bk_biz_id=0)
     biz_plugin, biz_version = _create_plugin_with_version("biz_plugin", bk_biz_id=biz_id)
@@ -81,7 +81,7 @@ def test_get_collector_plugin_fetcher_excludes_global_plugin_meta_for_biz_export
 
     assert (global_plugin.plugin_id, global_plugin.bk_biz_id) not in exported_plugin_meta_keys
     assert (biz_plugin.plugin_id, biz_plugin.bk_biz_id) in exported_plugin_meta_keys
-    assert global_version.plugin_id in exported_version_plugin_ids
+    assert global_version.plugin_id not in exported_version_plugin_ids
     assert biz_version.plugin_id in exported_version_plugin_ids
-    assert global_version.config_id in exported_plugin_config_ids
-    assert global_version.info_id in exported_plugin_info_ids
+    assert global_version.config_id not in exported_plugin_config_ids
+    assert global_version.info_id not in exported_plugin_info_ids

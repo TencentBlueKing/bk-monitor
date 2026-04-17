@@ -44,20 +44,16 @@ def get_collector_plugin_fetcher(bk_biz_id: int | None) -> list[FetcherResultTyp
     """
     获取业务下的插件定义链。
 
-    业务采集配置可能引用全局插件（例如 ``bkprocessbeat``），因此导出业务包时
-    需要保留采集配置依赖的插件版本链，避免遗漏 ``DeploymentConfigVersion``
-    依赖的 ``PluginVersionHistory`` 记录。
-
-    但非全局业务导出时，不应把全局插件实体 ``CollectorPluginMeta`` 一并导出，
-    否则在目标环境导入时可能因为全局插件已存在而触发冲突。
+    非全局业务导出时，这里只导出当前业务自己的插件定义链，
+    不再把全局插件的 ``CollectorPluginMeta`` / ``PluginVersionHistory``
+    以及对应的 config/info 一并带出。
     """
     if bk_biz_id is None:
         plugin_meta_filters = None
         version_plugin_id_filters = None
     else:
-        collect_config_plugin_ids = _get_collect_config_queryset(bk_biz_id).values_list("plugin_id", flat=True)
         biz_plugin_ids = CollectorPluginMeta.objects.filter(bk_biz_id=bk_biz_id).values_list("plugin_id", flat=True)
-        version_plugin_id_list = sorted({*collect_config_plugin_ids, *biz_plugin_ids})
+        version_plugin_id_list = sorted(set(biz_plugin_ids))
         plugin_meta_filters = {"bk_biz_id": bk_biz_id, "plugin_id__in": version_plugin_id_list}
         version_plugin_id_filters = {"plugin_id__in": version_plugin_id_list}
 
