@@ -23,29 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
 
-import { Button, Form, Input, Popover } from 'bkui-vue';
+import { $bkPopover, Button, Form, Input, Popover } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 
-import './app-basic-info.scss';
+import type { IRumAppConfig } from '../../typings/rum-app-config';
 
-/**
- * 应用基本信息数据接口
- */
-export interface IAppBasicInfo {
-  /** 应用别名 */
-  alias: string;
-  /** 应用描述 */
-  desc: string;
-  /** 应用域名 */
-  domain: string;
-  /** 应用状态 */
-  status: string;
-  /** 应用TOKEN */
-  token: string;
-}
+import './app-basic-info.scss';
 
 /**
  * 应用基本信息展示组件
@@ -57,8 +43,8 @@ export default defineComponent({
   props: {
     /** 应用基本信息数据 */
     data: {
-      type: Object as () => IAppBasicInfo,
-      required: true,
+      type: Object as PropType<IRumAppConfig>,
+      default: () => ({}),
     },
   },
   setup(props) {
@@ -69,6 +55,8 @@ export default defineComponent({
     /** 编辑表单引用 */
     const editDescFormRef = useTemplateRef<InstanceType<typeof Form>>('editDescForm');
 
+    const token = shallowRef('*******************');
+
     /** 表单校验规则 */
     const rules = {
       alias: [{ required: true, message: t('应用别名必填'), trigger: 'change' }],
@@ -76,12 +64,18 @@ export default defineComponent({
 
     /** 编辑表单数据模型 */
     const model = reactive({
-      alias: props.data.alias,
-      desc: props.data.desc,
+      alias: '',
+      desc: '',
     });
 
     /** 保存loading */
     const saveLoading = shallowRef(false);
+
+    /** 编辑弹窗打开 */
+    const handleEditPopoverShow = () => {
+      model.alias = props.data.app_alias;
+      model.desc = props.data.description;
+    };
 
     /**
      * 处理保存操作
@@ -96,11 +90,8 @@ export default defineComponent({
 
     /**
      * 处理取消操作
-     * 重置表单数据并关闭弹窗
      */
     const handleCancel = () => {
-      model.alias = props.data.alias;
-      model.desc = props.data.desc;
       editDescPopoverRef.value?.hide();
     };
 
@@ -114,15 +105,77 @@ export default defineComponent({
      */
     const handleResetToken = () => {};
 
-    const handleOperationApp = (type: 'delete' | 'start' | 'stop') => {
-      console.log(type);
+    const popoverInstance = shallowRef(null);
+    const handleOperationApp = (e: Event, type: 'delete' | 'start' | 'stop') => {
+      const operationMap = {
+        delete: {
+          title: t('确认删除该应用？'),
+          confirmText: t('删除'),
+          tips: t('删除后无法恢复，请谨慎操作！'),
+        },
+        start: {
+          title: t('确认启用该应用？'),
+          confirmText: t('启用'),
+          tips: t('启用后数据将重新上报至该应用，若无数据，请检查上报配置'),
+        },
+        stop: {
+          title: t('确认停用该应用？'),
+          confirmText: t('停用'),
+          tips: t('停用后将不会有数据上报，请谨慎操作'),
+        },
+      };
+
+      popoverInstance.value = $bkPopover({
+        target: e.target as HTMLDivElement,
+        trigger: 'click',
+        content: (
+          <div class='rum-app-operation-content'>
+            <div class='title'>{operationMap[type].title}</div>
+            <div class='app-name'>
+              <span class='label'>{t('应用名称')}：</span>
+              <span class='value'>{props.data.app_name}</span>
+            </div>
+            <div class='tips'>{operationMap[type].tips}</div>
+
+            <div class='btns'>
+              <Button
+                size='small'
+                theme='primary'
+                onClick={() => {
+                  popoverInstance.value?.hide();
+                }}
+              >
+                {operationMap[type].confirmText}
+              </Button>
+              <Button
+                size='small'
+                onClick={() => {
+                  popoverInstance.value?.hide();
+                }}
+              >
+                {t('取消')}
+              </Button>
+            </div>
+          </div>
+        ),
+        placement: 'left',
+        theme: 'light rum-app-operation-popover',
+        arrow: true,
+        interactive: true,
+      });
+
+      popoverInstance.value.install();
+      setTimeout(() => {
+        popoverInstance.value?.vm?.show();
+      }, 100);
     };
 
     return {
-      t,
+      token,
       model,
       rules,
       saveLoading,
+      handleEditPopoverShow,
       handleSave,
       handleCancel,
       handleCopyToken,
@@ -132,8 +185,6 @@ export default defineComponent({
   },
 
   render() {
-    const { data } = this;
-
     return (
       <div class='app-basic-info'>
         <div class='app-basic-info__left'>
@@ -142,11 +193,11 @@ export default defineComponent({
           </div>
           <div class='app-content'>
             <div class='content-row'>
-              <span class='app-domain'>{data.domain}</span>
-              <span class='app-status'>{data.status}</span>
+              <span class='app-domain'>{this.data.app_name}</span>
+              <span class='app-status'>{this.data.data_status}</span>
               <div class='app-token'>
                 <span class='token-label'>TOKEN：</span>
-                <span class='token-value'>{data.token}</span>
+                <span class='token-value'>{this.token}</span>
                 <span
                   class='token-action'
                   onClick={this.handleCopyToken}
@@ -164,10 +215,10 @@ export default defineComponent({
               </div>
             </div>
             <div class='content-row'>
-              <span class='app-alias'>{data.alias}</span>
+              <span class='app-alias'>{this.data.app_alias}</span>
               <div class='separator' />
               <div class='app-desc'>
-                <span class='desc-text'>{data.desc}</span>
+                <span class='desc-text'>{this.data.description}</span>
                 {/* 编辑弹窗 */}
                 <Popover
                   ref='editDescPopover'
@@ -224,6 +275,7 @@ export default defineComponent({
                   placement='bottom'
                   theme='light'
                   trigger='click'
+                  onAfterShow={this.handleEditPopoverShow}
                 >
                   <EditLine class='edit-icon' />
                 </Popover>
@@ -243,16 +295,16 @@ export default defineComponent({
                 <div class='more-menu'>
                   <div
                     class='more-menu-item'
-                    onClick={() => {
-                      this.handleOperationApp('stop');
+                    onClick={e => {
+                      this.handleOperationApp(e, 'stop');
                     }}
                   >
                     {this.$t('停用')}
                   </div>
                   <div
                     class='more-menu-item'
-                    onClick={() => {
-                      this.handleOperationApp('delete');
+                    onClick={e => {
+                      this.handleOperationApp(e, 'delete');
                     }}
                   >
                     {this.$t('删除')}
