@@ -15,16 +15,15 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import QueryConfigModel
-from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.time_tools import (
     get_datetime_range,
     parse_time_range,
     utc2localtime,
 )
-from kernel_api.resource.event import ListEventsResource, GetEventViewConfigResource, SearchEventLogResource
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.event import GetEventViewConfigResource, ListEventsResource, SearchEventLogResource
 
 
 class SearchEvent(Resource):
@@ -129,7 +128,7 @@ class SearchEvent(Resource):
             except Exception:
                 record["origin_alarm"] = {}
             try:
-                record["origin_config"] = Strategy.convert_v2_to_v1(alert_doc.strategy)
+                record["origin_config"] = alert_doc.strategy
                 if fields and "related_info" in fields:
                     record["related_info"] = get_alert_relation_info(alert_doc)
             except Exception:

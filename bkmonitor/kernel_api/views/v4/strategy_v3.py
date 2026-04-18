@@ -8,59 +8,51 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
+from bk_monitor_base.strategy import list_strategy
 from rest_framework import serializers
 
 from alarm_backends.management.commands.token import get_token_info
-from bkmonitor.models import StrategyModel
-from bkmonitor.strategy.new_strategy import Strategy
 from constants.data_source import DATA_CATEGORY
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_web.strategies.resources import GetStrategyListV2Resource, GetDevopsStrategyListResource
+from monitor_web.strategies.resources import GetDevopsStrategyListResource, GetStrategyListV2Resource
+from utils.strategy import fill_user_groups
 
 
 class SearchStrategyWithoutBizResource(GetStrategyListV2Resource):
     class RequestSerializer(GetStrategyListV2Resource.RequestSerializer):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
-    def perform_request(self, params):
-        strategies = StrategyModel.objects.all()
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        conditions: list[dict[str, Any]] = validated_request_data["conditions"]
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        scenario: str | None = validated_request_data.get("scenario")
+        page, page_size = validated_request_data.get("page"), validated_request_data.get("page_size")
 
+        conditions = self.add_scenario_condition(conditions, scenario)
         # 按条件过滤策略
-        strategies = self.filter_by_conditions(params["conditions"], strategies)
-
-        # 按当前选择的监控对象过滤
-        scenarios = set(params.get("scenario", []))
-        for condition in params["conditions"]:
-            if condition["key"] != "scenario":
-                continue
-            if not isinstance(condition["value"], list):
-                values = [condition["value"]]
-            else:
-                values = condition["value"]
-            scenarios.update(values)
-
-        if scenarios:
-            strategies = strategies.filter(scenario__in=scenarios)
-
-        # 排序
-        strategies = strategies.order_by("-update_time")
-
-        strategy_count = strategies.count()
+        strategy_ids = self.filter_by_conditions(bk_biz_id=bk_biz_id, conditions=conditions)
 
         # 分页
-        if params.get("page") and params.get("page_size"):
-            strategies = strategies[(params["page"] - 1) * params["page_size"] : params["page"] * params["page_size"]]
+        offset, limit = 0, None
+        if page and page_size:
+            offset = (page - 1) * page_size
+            limit = page * page_size
 
-        # 生成策略配置
-        strategy_objs = Strategy.from_models(strategies)
-        for strategy_obj in strategy_objs:
-            strategy_obj.restore()
-        strategy_configs = [s.to_dict() for s in strategy_objs]
+        strategies_result = list_strategy(
+            bk_biz_id=bk_biz_id,
+            conditions=[{"key": "id", "values": list(strategy_ids), "operator": "in"}],
+            offset=offset,
+            limit=limit,
+        )
+        strategy_configs = strategies_result["data"]
+        total = strategies_result["count"]
 
         # 补充告警组信息
-        if params["with_user_group"]:
-            Strategy.fill_user_groups(strategy_configs, params["with_user_group_detail"])
+        if validated_request_data["with_user_group"]:
+            fill_user_groups(strategy_configs, validated_request_data["with_user_group_detail"])
 
         # 补充策略所属数据源
         data_source_names = {
@@ -71,16 +63,16 @@ class SearchStrategyWithoutBizResource(GetStrategyListV2Resource):
             data_type_label = strategy_config["items"][0]["query_configs"][0]["data_type_label"]
             strategy_config["data_source_type"] = data_source_names.get((data_source_label, data_type_label), "")
 
-        return {"list": strategy_configs, "total": strategy_count}
+        return {"list": strategy_configs, "total": total}
 
 
 class QosCheckResource(Resource):
     class RequestSerializer(GetStrategyListV2Resource.RequestSerializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         messages = []
-        qos_ret = get_token_info(params["bk_biz_id"])
+        qos_ret = get_token_info(validated_request_data["bk_biz_id"])
         for strategy_id, info in qos_ret.items():
             messages.append((strategy_id, info["strategy_name"], info["table_id"]))
 
