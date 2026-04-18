@@ -55,7 +55,6 @@ from bkmonitor.models import (
     DutyRule,
     DutyRuleRelation,
     StrategyActionConfigRelation,
-    StrategyModel,
     UserGroup,
 )
 from bkmonitor.models.as_code import AsCodeImportTask
@@ -176,16 +175,17 @@ class ExportConfigResource(Resource):
         """
         导出策略配置
         """
-        # 如果rule_ids是None就查询全量数据，如果是空就不查询，否则按列表过滤
-        rules = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+        # 配置生成
+        # 所有的策略需要非告警状态采集内置策略才可以导出
+        filters: list[FilterCondition] = [{"key": "source", "operator": "neq", "values": [DATALINK_SOURCE]}]
         if rule_ids is not None:
+            # 如果rule_ids为空，则返回空
             if not rule_ids:
                 return
-            rules = rules.filter(id__in=rule_ids)
-
-        # 如果app不为None，则过滤app字段
+            filters.append({"key": "id", "operator": "eq", "values": rule_ids})
         if app is not None:
-            rules = rules.filter(app=app)
+            filters.append({"key": "app", "operator": "eq", "values": [app]})
+        strategy_configs = list_strategy(bk_biz_id=bk_biz_id, conditions=filters)["data"]
 
         # 查询关联拓扑信息
         topo_nodes = {}
@@ -220,15 +220,6 @@ class ExportConfigResource(Resource):
         all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
         for action in all_actions:
             action_ids[action.name] = action.pk
-
-        # 配置生成
-        # 所有的策略需要非告警状态采集内置策略才可以导出
-        filters: list[FilterCondition] = [{"key": "source", "operator": "neq", "values": [DATALINK_SOURCE]}]
-        if rule_ids is not None:
-            filters.append({"key": "id", "operator": "eq", "values": rule_ids})
-        if app is not None:
-            filters.append({"key": "app", "operator": "eq", "values": [app]})
-        strategy_configs = list_strategy(bk_biz_id=bk_biz_id, conditions=filters)["data"]
 
         # 转换为AsCode配置
         parser = StrategyConfigParser(

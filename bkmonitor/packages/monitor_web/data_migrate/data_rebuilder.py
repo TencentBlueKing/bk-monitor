@@ -789,6 +789,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in custom_metric_ids
+            if data_id in data_id_to_topic_name
         },
         "custom_event": {
             data_id: {
@@ -797,6 +798,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in custom_event_ids
+            if data_id in data_id_to_topic_name
         },
         "k8s": {
             data_id: {
@@ -805,6 +807,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in k8s_ids
+            if data_id in data_id_to_topic_name
         },
         "apm": {
             data_id: {
@@ -813,6 +816,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in apm_ids
+            if data_id in data_id_to_topic_name
         },
         "log": {
             data_id: {
@@ -821,6 +825,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in log_ids
+            if data_id in data_id_to_topic_name
         },
     }
 

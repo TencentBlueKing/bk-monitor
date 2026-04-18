@@ -1,0 +1,25 @@
+{
+  "name": "@blueking/monitor-alarm-center",
+  "version": "0.0.5",
+  "description": "蓝鲸监控告警中心抽取出来的独立库，主要提供给APM等宿主使用",
+  "scripts": {},
+  "files": [
+    "index.js"
+  ],
+  "main": "index.js",
+  "author": "bkfe",
+  "license": "MIT",
+  "keywords": [
+    "@blueking",
+    "@blueking/monitor-alarm-center"
+  ],
+  "dependencies": {
+    "@blueking/tdesign-ui": "^0.0.1-beta.92",
+    "@prometheus-io/lezer-promql": "0.305.0",
+    "bkui-vue": "^2.0.2-beta.63",
+    "dayjs": "^1.11.18",
+    "monaco-editor": "0.44.0",
+    "vue": "^3.5.15",
+    "vue-tippy": "^6.3.7"
+  }
+}
