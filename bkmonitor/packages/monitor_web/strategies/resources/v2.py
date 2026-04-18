@@ -2132,43 +2132,6 @@ class SaveStrategyV2Resource(Resource):
         if set(upgrade_config["user_groups"]) & set(notice_info.user_groups):
             raise ValidationError(detail=_("通知升级的用户组不能包含第一次接收告警的用户组"))
 
-    @classmethod
-    def validate_issue_config(cls, strategy: Strategy):
-        """校验 issue_config 的跨模型约束 + 字段级合法性。
-
-        - alert_levels 必须为 [1,2,3] 的非空子集（与 StrategyIssueConfig.clean() 保持一致）
-        - aggregate_dimensions 必须是策略 public_dimensions 的子集
-        - conditions.key 必须属于生效维度集合
-
-        直接从 strategy.public_dimensions 计算，不依赖 strategy.id 或缓存，
-        新建策略（id=0）也能正确校验。
-        """
-        from bkmonitor.models.issue import StrategyIssueConfigService
-
-        ic = strategy.issue_config
-
-        # alert_levels：非空且只含 1/2/3
-        if not ic.alert_levels or not set(ic.alert_levels).issubset({1, 2, 3}):
-            raise ValidationError(detail=_("alert_levels 必须为 [1,2,3] 的非空子集"))
-
-        public_dims = set(strategy.public_dimensions)
-
-        if ic.aggregate_dimensions:
-            invalid = set(ic.aggregate_dimensions) - public_dims
-            if invalid:
-                raise ValidationError(
-                    detail=_(
-                        "aggregate_dimensions 包含策略公共维度之外的字段: {invalid}，"
-                        "当前策略 public_dimensions 为: {public_dims}"
-                    ).format(invalid=invalid, public_dims=public_dims)
-                )
-
-        effective_dims = set(ic.aggregate_dimensions) if ic.aggregate_dimensions else public_dims
-        try:
-            StrategyIssueConfigService.validate_conditions(ic.conditions, effective_dims)
-        except ValueError as e:
-            raise ValidationError(detail=str(e))
-
     def perform_request(self, params):
         strategy = Strategy(**params)
         strategy.convert()
@@ -2176,13 +2139,10 @@ class SaveStrategyV2Resource(Resource):
         self.validate_cmdb_level(strategy)
         self.validate_upgrade_user_groups(strategy)
 
-        # issue_config 处理：依赖 params key 存在性区分字段缺失（不操作）vs 显式 null（删除）
-        if "issue_config" in params:
-            strategy._issue_config_in_request = True
-            # strategy.issue_config 已由 Strategy(**params) 经 Serializer 反序列化设置
-            if strategy.issue_config:
-                self.validate_issue_config(strategy)
-
+        # issue_config 的生命周期（字段缺失 / 显式 null / dict upsert）与校验均由 Strategy 内部处理：
+        # - Strategy.__init__ 通过 ISSUE_CONFIG_EMPTY sentinel 区分"字段未传"与"显式 null"，
+        #   自动设置 _issue_config_in_request 与 self.issue_config
+        # - strategy.save() → save_issue_config() 在落库前调用 IssueConfig.validate(self)
         strategy.save()
 
         # 编辑后需要重置AsCode相关配置
