@@ -16,7 +16,9 @@ import pytest
 
 from metadata.models.data_link.component_reuse import (
     ALL_DATA_LINK_COMPONENT_KINDS,
+    REUSE_ENABLED_STRATEGIES,
     ExistingComponentContext,
+    is_reuse_enabled_for,
 )
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
@@ -174,3 +176,43 @@ class TestExistingComponentContextFromDatalink:
             ESStorageBindingConfig,
         ):
             assert ctx._components_by_kind[kind] == []
+
+
+class TestIsReuseEnabledFor:
+    """:func:`is_reuse_enabled_for` 的灰度 ∩ 白名单闸门语义。
+
+    关键回归：settings 里误配"未接入"的 strategy 时，必须返回 False 并输出 warning，
+    而不是误判为 True 让 compose 分支收到它未声明的 ``existing_context`` 关键字。
+    """
+
+    def test_returns_true_when_both_settings_and_allowlist_match(self, settings, caplog):
+        assert REUSE_ENABLED_STRATEGIES, "REUSE_ENABLED_STRATEGIES 不应为空，否则测试前提不成立"
+        sample = next(iter(REUSE_ENABLED_STRATEGIES))
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = {sample}
+
+        with caplog.at_level("WARNING", logger="metadata"):
+            assert is_reuse_enabled_for(sample) is True
+        assert caplog.records == []
+
+    def test_returns_false_when_not_in_settings(self, settings):
+        sample = next(iter(REUSE_ENABLED_STRATEGIES))
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
+        assert is_reuse_enabled_for(sample) is False
+
+    def test_returns_false_and_warns_when_strategy_not_implemented(self, settings, caplog):
+        """settings 里配了"尚未接入"的 strategy -> 回退 + warning。"""
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = {"__not_implemented_strategy__"}
+
+        with caplog.at_level("WARNING", logger="metadata"):
+            assert is_reuse_enabled_for("__not_implemented_strategy__") is False
+
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert warnings, "应输出一条提示'配了灰度但代码未接入'的 warning"
+        assert "not been migrated yet" in warnings[0].getMessage()
+
+    def test_returns_false_when_setting_missing(self, settings):
+        """当 settings 完全没声明该开关时，也应安全回退 False。"""
+        if hasattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES"):
+            del settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
+        sample = next(iter(REUSE_ENABLED_STRATEGIES))
+        assert is_reuse_enabled_for(sample) is False

@@ -14,6 +14,8 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal, TypeVar
 
+from django.conf import settings
+
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
@@ -38,6 +40,50 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
     ConditionalSinkConfig,
     DataBusConfig,
 ]
+
+
+# 已在代码中真正接入 existing_context 参数的 data_link_strategy 白名单。
+#
+# 复用机制遵循两个闸门的"交集"语义：
+#
+# - settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES：运维/灰度侧的开关，决定本次
+#   部署里哪些 strategy 允许尝试复用；
+# - REUSE_ENABLED_STRATEGIES：代码侧的实现声明，列出 compose_*_configs 已经改造
+#   完成、可以安全接收 existing_context 参数的 strategy。
+#
+# 只有两者都命中，才会为当前 datalink 构造 ExistingComponentContext 并把它下传到
+# compose 分支。这样当运维在 settings 里误配了一个尚未接入复用的 strategy 时，
+# compose 层不会因为多出一个不认识的关键字参数而直接 ``TypeError``，而是带一条
+# warning 日志回退到原有新建路径，保证"只会影响复用能力，不会把链路 apply 打挂"。
+#
+# 接入新 strategy 的 checklist：
+#   1. 在对应 ``compose_*_configs`` 上加上 ``existing_context`` 形参；
+#   2. 把该 strategy 对应的字符串常量加入下面的集合；
+#   3. 补充 DataLink.REUSE_LEFTOVER_POLICY 中相关 (strategy, kind) 条目。
+REUSE_ENABLED_STRATEGIES: set[str] = {
+    "bk_exporter_time_series",
+    "bk_standard_time_series",
+}
+
+
+def is_reuse_enabled_for(strategy: str) -> bool:
+    """判断某 strategy 当前是否应当启用组件复用（灰度开关 ∩ 代码白名单）。
+
+    当 settings 中配置了该 strategy 但 :data:`REUSE_ENABLED_STRATEGIES` 未包含它时，
+    打印一条 warning 提示"配了灰度但代码还没接入"，并返回 ``False`` 走老路径。
+    """
+    if strategy not in getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set()):
+        return False
+    if strategy not in REUSE_ENABLED_STRATEGIES:
+        logger.warning(
+            "component reuse: strategy=%s is configured in DATA_LINK_COMPONENT_REUSE_STRATEGIES "
+            "but its compose pipeline has not been migrated yet "
+            "(REUSE_ENABLED_STRATEGIES=%s); falling back to the legacy create path.",
+            strategy,
+            sorted(REUSE_ENABLED_STRATEGIES),
+        )
+        return False
+    return True
 
 
 LeftoverPolicy = Literal["strict", "keep"]

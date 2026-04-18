@@ -32,6 +32,7 @@ from metadata.models.data_link.constants import (
 from metadata.models.data_link.component_reuse import (
     ComponentReuseError,
     ExistingComponentContext,
+    is_reuse_enabled_for,
 )
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
@@ -221,9 +222,17 @@ class DataLink(models.Model):
         """
         生成对应套餐的链路完整配置
 
-        existing_context 只会被透传给"已在 settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
-        中启用灰度、且 compose 分支自身也接受该参数"的 strategy。未接入复用机制的 compose
-        分支签名保持不变，避免一次性大范围修改。
+        ``existing_context`` 只会被透传给同时满足以下两个条件的 strategy：
+
+        1. 在 ``settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES`` 中显式开启灰度；
+        2. 对应的 compose 分支已在
+           ``metadata.models.data_link.component_reuse.REUSE_ENABLED_STRATEGIES``
+           里登记为"已接入 existing_context"。
+
+        当运维把尚未接入的 strategy 配进了灰度集合时，:func:`is_reuse_enabled_for`
+        会打一条 warning 并返回 False，这里直接走原有不带 ``existing_context`` 的
+        调用路径，避免让 ``method(existing_context=...)`` 抛
+        ``TypeError: unexpected keyword argument``，把链路 apply 直接打挂。
         """
 
         # 类似switch的形式，选择对应的组装方式
@@ -245,7 +254,7 @@ class DataLink(models.Model):
             DataLink.BK_STANDARD_V2_EVENT: self.compose_custom_event_configs,
         }
         method = switcher[self.data_link_strategy]
-        if self.data_link_strategy in getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set()):
+        if is_reuse_enabled_for(self.data_link_strategy):
             return method(*args, existing_context=existing_context, **kwargs)
         return method(*args, **kwargs)
 
@@ -1209,7 +1218,13 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
+                # bkbase_result_table_name 必须与最终实际引用的 RT 保持一致：
+                # 下发给 BKBase 的 payload 里 spec.data.name 是 vm_table_id_ins.name，
+                # 本地 ORM 里这个字段也是 metadata/models/data_link/relation.py 用来按
+                # name 回查 ResultTableConfig 的指针。复用场景下 RT 被 claim 成
+                # legacy_rt 而 binding 被 claim 成 legacy_binding 时，如果继续写成
+                # bkbase_vmrt_name（生成名），本地关系就会指向一张不存在的 RT。
+                defaults={"table_id": table_id, "bkbase_result_table_name": vm_table_id_ins.name},
             )
             sink_item = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
@@ -1240,7 +1255,10 @@ class DataLink(models.Model):
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(whitelist=whitelist),
+            # 显式透传 RT 的 name，避免 compose_bk_plugin 场景下开启复用后
+            # RT / Binding name 被独立 claim 成不同值时，binding payload 的
+            # spec.data.name 仍然指向 "binding.name" 这个并不存在的 RT。
+            vm_storage_ins.compose_config(whitelist=whitelist, rt_name=vm_table_id_ins.name),
             data_bus_ins.compose_config(sinks=sinks, transform_format=transform_format),
         ]
         return configs
@@ -1272,10 +1290,12 @@ class DataLink(models.Model):
             )
             raise e
 
-        # 组件复用灰度：仅对 settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES 中声明的
-        # strategy 构造 existing_context；未开启灰度时 ctx=None，compose 分支走原有
-        # 新建语义，保持与上线前行为一致。
-        enable_reuse = self.data_link_strategy in getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set())
+        # 组件复用灰度：仅当 strategy 同时出现在 settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
+        # 与 component_reuse.REUSE_ENABLED_STRATEGIES（代码侧已接入白名单）中时，才会
+        # 构造 existing_context 并把它交给 compose 分支。未命中时 ctx=None，compose 分支
+        # 走原有新建语义，保持与上线前行为一致；这样也能避免运维把尚未接入的 strategy
+        # 配进灰度集合时，compose 分支直接因 unexpected keyword argument 崩溃。
+        enable_reuse = is_reuse_enabled_for(self.data_link_strategy)
         existing_context: ExistingComponentContext | None = (
             ExistingComponentContext.from_datalink(self) if enable_reuse else None
         )

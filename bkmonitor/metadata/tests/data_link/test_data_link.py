@@ -2683,6 +2683,10 @@ def test_bk_exporter_reuse_three_legacy_components(create_or_delete_records, bk_
     assert databus_cfg.name == "legacy_databus"
     # sink_names 必须联动 legacy binding name，不能回退到 bkbase_vmrt_name
     assert databus_cfg.sink_names == [f"{DataLinkKind.VMSTORAGEBINDING.value}:legacy_binding"]
+    # P1 续：binding.bkbase_result_table_name 是 relation.py 用来按 name 回查 RT 的指针，
+    # 复用场景下必须同步为实际引用的 RT name（"legacy_rt"），哪怕 legacy fixture 里写的
+    # 是老的 bkbase_vmrt_name -- 如果不同步，本地元数据关系会指向一张不存在的 RT。
+    assert binding_cfg.bkbase_result_table_name == "legacy_rt"
 
     # leftover 为空 -- 三条全部 claim 完毕
     assert ctx.leftover() == {}
@@ -2692,6 +2696,10 @@ def test_bk_exporter_reuse_three_legacy_components(create_or_delete_records, bk_
     assert configs[1]["metadata"]["name"] == "legacy_binding"
     assert configs[2]["metadata"]["name"] == "legacy_databus"
     assert configs[2]["spec"]["sinks"][0]["name"] == "legacy_binding"
+    # P1 回归：binding.spec.data.name 必须指向真正存在的 RT（"legacy_rt"），
+    # 不能回退到 binding 自己的 name（"legacy_binding"），否则 BKBase 会收到
+    # 指向一张并不存在的 ResultTable 的引用。
+    assert configs[1]["spec"]["data"]["name"] == "legacy_rt"
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -2860,3 +2868,39 @@ def test_bk_exporter_guard_field_change_raises_integrity_error(
             storage_cluster_name="vm-plat",
             existing_context=ctx,
         )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_configs_falls_back_when_strategy_not_implemented(mocker):
+    """P2 回归：灰度开关被配成未接入复用的 strategy 时，不应把 existing_context 透传过去。
+
+    历史问题：compose_configs 在判断灰度时只看 settings，未校验 compose 分支是否已经
+    接受 ``existing_context`` 形参。任何只在 settings 里"误配"的 strategy 都会在
+    ``method(existing_context=...)`` 这一步抛 ``TypeError: unexpected keyword argument``，
+    把当前 apply 直接打挂。
+
+    这里把 ``compose_standard_time_series_configs`` 替换成 MagicMock 观察调用形态，
+    断言即使 ``BK_STANDARD_V2_TIME_SERIES`` 被塞进灰度 settings，switcher 也会走
+    "不带 existing_context"的旧调用路径。
+    """
+    datalink = DataLink(
+        data_link_name="dummy",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    original_settings = set(getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set()))
+    # 故意把一个"尚未在 REUSE_ENABLED_STRATEGIES 里登记"的 strategy 开进灰度
+    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = original_settings | {DataLink.BK_STANDARD_V2_TIME_SERIES}
+    try:
+        mocked_compose = mocker.patch.object(DataLink, "compose_standard_time_series_configs", return_value=[])
+        sentinel_ctx = object()
+        datalink.compose_configs(bk_biz_id=1, existing_context=sentinel_ctx)
+
+        mocked_compose.assert_called_once_with(bk_biz_id=1)
+        # 关键断言：尽管上游传了 existing_context，switcher 发现当前 strategy 未接入
+        # (不在 REUSE_ENABLED_STRATEGIES 里)，必须把它丢弃，不能透传给 compose 分支。
+        assert "existing_context" not in mocked_compose.call_args.kwargs
+    finally:
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = original_settings
