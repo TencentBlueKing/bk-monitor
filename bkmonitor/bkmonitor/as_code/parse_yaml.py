@@ -693,16 +693,22 @@ class StrategyConfigParser(BaseConfigParser):
 
     @staticmethod
     def update_issue_config(config: dict[str, Any], code_config: dict[str, Any]):
+        # issue_config 为 None（含 DB 未配置）时完全不输出 issue_config 字段
         issue_config = config.get("issue_config")
-        if not issue_config:
+        if issue_config is None:
             return
 
-        code_issue_config: dict[str, Any] = {
-            "enabled": issue_config.get("is_enabled", True),
-            "levels": [
-                LEVEL_ID_TO_NAME[level] for level in issue_config.get("alert_levels", []) if level in LEVEL_ID_TO_NAME
-            ],
-        }
+        code_issue_config: dict[str, Any] = {}
+
+        # is_enabled 默认 True，仅在显式关闭时才写出 enabled，保持 YAML 简洁
+        if not issue_config.get("is_enabled", True):
+            code_issue_config["enabled"] = False
+
+        levels = [
+            LEVEL_ID_TO_NAME[level] for level in issue_config.get("alert_levels", []) if level in LEVEL_ID_TO_NAME
+        ]
+        if levels:
+            code_issue_config["levels"] = levels
 
         if issue_config.get("aggregate_dimensions"):
             code_issue_config["dimensions"] = issue_config["aggregate_dimensions"]

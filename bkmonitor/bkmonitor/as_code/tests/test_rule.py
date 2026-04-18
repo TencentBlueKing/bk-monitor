@@ -140,12 +140,24 @@ def test_strategy_unparse_issue_config_round_trip():
 
     unparsed = parser.unparse(strategy.to_dict())
 
+    # is_enabled=True 为默认值，不应出现在导出的 YAML 中
     assert unparsed["issue_config"] == {
-        "enabled": True,
         "dimensions": ["bk_target_ip"],
         "levels": ["fatal", "warning"],
         "conditions": 'bk_target_ip="127.0.0.1" and bk_target_cloud_id!="0"',
     }
+
+
+def test_strategy_unparse_issue_config_disabled_emits_enabled_false():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+    code_config = deepcopy(load_rule_config("issue_config.yaml"))
+    code_config["issue_config"]["enabled"] = False
+
+    parsed = parser.parse(parser.check(code_config))
+    strategy = Strategy(**parsed)
+    unparsed = parser.unparse(strategy.to_dict())
+
+    assert unparsed["issue_config"]["enabled"] is False
 
 
 def test_strategy_unparse_without_issue_config():
