@@ -37,6 +37,14 @@
 - **leftover 收尾**：整个 datalink 是否"健康"由 leftover 检查在 compose 完成后一次性判定，而不是在 compose 之前预先估算"理论组件数量"。
 - **policy 仅两态**：`REUSE_LEFTOVER_POLICY[(strategy, kind)]` 只有 `strict`（默认，leftover 非空报错）与 `keep`（允许保留）两种取值；本次唯一需要声明 `keep` 的是 `BK_LOG` 的 `ESStorageBindingConfig` / `DorisStorageBindingConfig`（开关变化时允许旧 binding 保留）。
 - **本地与下发一致**：复用的 `name` 必须先进入本地 `update_or_create`，再由 ORM 实例渲染下发 payload；不允许在 payload 阶段对 `metadata.name` 做补丁式重写。
+- **下游元数据按实名回填**：`apply_data_link` 成功后，`sync_metadata` / `create_bkbase_data_link` / `_refresh_data_link_status` 不再靠 `compose_bkdata_table_id` 推测 RT/Binding/DataBus 的名称，而是直接按 `data_link_name` 查本次已落库的 `ResultTableConfig` / `DataBusConfig` 拿到实名；`BkBaseResultTable.bkbase_table_id` 的业务 id 前缀跟随 `ResultTableConfig.datalink_biz_ids.data_biz_id`，不再锚死在全局 `settings.DEFAULT_BKDATA_BIZ_ID`，保证多租户部署下也能正确拼接。
+
+## 复用后元数据回填
+
+- **`DataLink.sync_metadata`**：按 `(bk_tenant_id, namespace, data_link_name, table_id)` 查 `ResultTableConfig`，按 `(bk_tenant_id, namespace, data_link_name)` 查 `DataBusConfig`，将 `bkbase_rt_name = rt.name`、`bkbase_data_name = databus.data_id_name`、`bkbase_table_id = f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"` 写入 `BkBaseResultTable`；configs 表 miss 时 warning + skip，不再靠 `compose_bkdata_*` 推测。
+- **`AccessVMRecord.vm_result_table_id`**：`create_bkbase_data_link` / `create_fed_bkbase_data_link` 直接读 `BkBaseResultTable.bkbase_table_id`，与 `sync_metadata` 共享同一份真相；读取失败才退化用 `get_tenant_datalink_biz_id(bk_tenant_id, bk_biz_id).data_biz_id` 兜底并 error log。
+- **`_refresh_data_link_status`**：组件状态刷新改为按 `(bk_tenant_id, namespace, data_link_name)` 遍历各 kind 的所有实例（不再要求三者同名），日志中打印实际 `component_ins.name`；`DataIdConfig` 按 `bkbase_data_name` 命中不到时 fallback 到 `DataLink.bk_data_id` 再查一次，兜住历史脏数据。
+- **API 清理**：`BkBaseResultTable.component_id` property（仅 1 个测试引用，无生产调用方，且语义把 `bkbase_rt_name` 错当作 DataBus name）在本次一并删除。
 
 ## 非目标
 
@@ -47,9 +55,13 @@
 
 ## 影响范围
 
-- `metadata/models/data_link/data_link.py`
+- `metadata/models/data_link/data_link.py`（复用框架 + `sync_metadata` 按实名回填）
+- `metadata/models/vm/utils.py`（`create_bkbase_data_link` / `create_fed_bkbase_data_link` 透传 `bk_biz_id`，`AccessVMRecord.vm_result_table_id` 改读 `BkBaseResultTable.bkbase_table_id`）
+- `metadata/task/tasks.py`（`_refresh_data_link_status` 按 `data_link_name` 遍历组件，`DataIdConfig` 按 `bk_data_id` fallback）
+- `metadata/models/bkdata/result_table.py` 与 `bk-monitor-base` 镜像（删除 `BkBaseResultTable.component_id`）
 - 相关 `compose_*_configs` 分支（按 strategy 逐个接入）
-- `metadata/tests/data_link/` 下的链路创建与重复 apply 测试
+- `metadata/tests/data_link/` 下的链路创建与重复 apply 测试（追加 `BkBaseResultTable` / `AccessVMRecord` 断言与 tenant biz id 断言）
+- `metadata/tests/task/test_refresh_data_link.py`（新增 `data_link_name` 遍历 / `bk_data_id` fallback 用例）
 - `settings` 中新增 `DATA_LINK_COMPONENT_REUSE_STRATEGIES` 灰度开关
 
 ## 预期收益

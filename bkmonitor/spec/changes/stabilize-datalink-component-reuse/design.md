@@ -267,6 +267,46 @@ predicate 必须只依赖 ORM 字段，不得依赖 queryset 顺序、pk、`upda
     - `DATA_LINK_COMPONENT_REUSE_STRATEGIES` 不包含该 strategy；
     - apply 行为与改造前完全一致；ctx 不被构造，leftover 检查不执行。
 
+## 复用后元数据回填
+
+复用能力只解决 "apply 过程中选对 name" 一半的问题；剩下一半是 apply 成功之后，下游元数据（`BkBaseResultTable` / `AccessVMRecord` / 状态刷新任务）必须按实名回填，否则依旧会按旧生成名错查一通。相关修改集中在四处：
+
+```
+apply_data_link (reuse ok)
+   └─► compose 已经把 RT/Binding/DataBus 的实名（可能是 legacy 名）落入 *Config 表
+       │
+       ├─► sync_metadata
+       │     ├─ ResultTableConfig.objects.get(data_link_name, table_id)   → bkbase_rt_name
+       │     ├─ DataBusConfig.objects.get(data_link_name)                 → bkbase_data_name
+       │     └─ bkbase_table_id = f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"
+       │        ↓
+       │     BkBaseResultTable(data_link_name=...)
+       │        ↓
+       ├─► create_bkbase_data_link
+       │     └─ AccessVMRecord.vm_result_table_id = BkBaseResultTable.bkbase_table_id
+       │
+       └─► _refresh_data_link_status（周期任务）
+             ├─ DataIdConfig: 先按 bkbase_data_name；miss 则 fallback 到 DataLink.bk_data_id
+             └─ 各 kind 组件: 按 (bk_tenant_id, namespace, data_link_name) 过滤后逐个刷新
+```
+
+不变式：
+
+- `BkBaseResultTable.bkbase_rt_name == ResultTableConfig.name`（本次 apply 真正使用的 RT 名，可能是 legacy）。
+- `BkBaseResultTable.bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"`；业务 id 与 compose 中 `monitor_biz_id` 同源，多租户下跟随 tenant。
+- `BkBaseResultTable.bkbase_data_name == DataBusConfig.data_id_name`（若链路未来演进出多 databus 会立刻 `MultipleObjectsReturned`，比静默写错名好）。
+- `AccessVMRecord.vm_result_table_id == BkBaseResultTable.bkbase_table_id`；读取失败才 fallback 用 `get_tenant_datalink_biz_id(bk_tenant_id, bk_biz_id).data_biz_id` 兜底。
+- `_refresh_data_link_status` 不再要求 RT/Binding/DataBus 三者同名。
+
+兼容性处理：
+
+- `sync_metadata` 查不到 `ResultTableConfig` / `DataBusConfig` 时 warning + skip，不再猜名写入；已命中 `MultipleObjectsReturned` 走 error + skip。
+- `_refresh_data_link_status` 中 `DataIdConfig` 按 `bkbase_data_name` 查不到时 fallback 按 `DataLink.bk_data_id` 再查一次，兜住历史脏数据；两个 key 都 miss 时只跳过数据源状态刷新，不影响组件循环。
+
+顺带清理：
+
+- `BkBaseResultTable.component_id` property（把 `bkbase_rt_name` 错当作 DataBus name 使用，仅 1 个单测引用）本次一并删除。
+
 ## 非本次处理
 
 - 清理历史重复组件 / 孤儿组件回收；

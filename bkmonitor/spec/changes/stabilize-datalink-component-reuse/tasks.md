@@ -37,7 +37,21 @@
 - [ ] 历史 strategy 创建的组件被全局加载并触发 leftover 检查
 - [ ] 灰度开关关闭时回退到老路径，行为与改造前一致
 
-## 4. 文档与清理
+## 4. 复用后元数据回填
+
+- [x] 改造 `DataLink.sync_metadata`：按 `(bk_tenant_id, namespace, data_link_name, table_id)` 查 `ResultTableConfig`、按 `(bk_tenant_id, namespace, data_link_name)` 查 `DataBusConfig`，读实名回填 `BkBaseResultTable.bkbase_rt_name` / `bkbase_data_name`；`bkbase_table_id` 前缀用 `rt.datalink_biz_ids.data_biz_id`，不再使用全局 `settings.DEFAULT_BKDATA_BIZ_ID`；配置表 miss 时 warning + skip，不再走 `compose_bkdata_*` 推测
+- [x] 改造 `create_bkbase_data_link` / `create_fed_bkbase_data_link`：`AccessVMRecord.vm_result_table_id` 改为读 `BkBaseResultTable.bkbase_table_id`，读取失败时 fallback 到 `get_tenant_datalink_biz_id(bk_tenant_id, bk_biz_id).data_biz_id` 拼接并 error log
+- [x] 改造 `_refresh_data_link_status`：
+  - [x] `DataIdConfig` 按 `bkbase_data_name` 查不到时 fallback 到 `DataLink.bk_data_id`；两个都 miss 时打 warning 且跳过数据源状态刷新，不影响后续组件循环
+  - [x] 组件循环按 `(bk_tenant_id, namespace, data_link_name)` 过滤每个 kind 的实例，逐条刷新状态；日志中打印实际 `component_ins.name`
+- [x] 删除 `BkBaseResultTable.component_id` property（以及 `bk-monitor-base` 镜像文件）和对应单元测试 `test_component_id`
+- [x] 新增测试：
+  - [x] `test_bk_exporter_reuse_three_legacy_components` / `test_bk_standard_v2_reuse_three_legacy_components` 追加 `BkBaseResultTable.bkbase_rt_name` / `bkbase_table_id` / `bkbase_data_name` 断言
+  - [x] `test_bk_standard_v2_sync_metadata_respects_tenant_biz_id`：patch `get_tenant_datalink_biz_id` 返回非默认值，验证 `bkbase_table_id` 前缀跟随 tenant
+  - [x] `test_refresh_data_link_status_matches_by_data_link_name`：三者名字互不相同时所有组件都被按 `data_link_name` 刷新
+  - [x] `test_refresh_data_link_status_falls_back_to_bk_data_id`：`bkbase_data_name` 与 `DataIdConfig.name` 不一致但 `DataLink.bk_data_id` 命中时走 fallback 路径
+
+## 5. 文档与清理
 
 - [ ] 在相关模块 docstring / 内部文档中说明 `ExistingComponentContext` 的使用方式与 `REUSE_LEFTOVER_POLICY` 的声明位置
 - [ ] 全部 strategy 接入完毕、灰度稳定后，评估是否清理 `STRATEGY_RELATED_COMPONENTS` 中已被 `ALL_DATA_LINK_COMPONENT_KINDS` 覆盖的部分（仅作记录，不在本次范围内强制完成）

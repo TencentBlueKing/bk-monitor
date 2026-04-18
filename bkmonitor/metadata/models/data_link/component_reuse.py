@@ -63,6 +63,7 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
 REUSE_ENABLED_STRATEGIES: set[str] = {
     "bk_exporter_time_series",
     "bk_standard_time_series",
+    "bk_standard_v2_time_series",
 }
 
 

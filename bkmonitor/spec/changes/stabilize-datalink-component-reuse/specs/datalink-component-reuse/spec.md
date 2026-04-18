@@ -126,3 +126,60 @@
 - When compose 调用 `claim(kind, predicate)`，但该 `kind` 不在该全局列表中
 - Then `claim` 必须直接抛错，而不是返回 `None`
 - Because 这种情况意味着 compose 代码引用了未注册的组件 kind，应当作为编程错误尽早暴露
+
+### Requirement: sync_metadata 必须按实名回填 BkBaseResultTable
+
+`DataLink.sync_metadata` 在 `apply_data_link` 成功后同步本地元数据时，必须从本次已落库的 `ResultTableConfig` / `DataBusConfig` 读取实名回填 `BkBaseResultTable`，而不是靠 `compose_bkdata_table_id` / `compose_bkdata_data_id_name` 推测；`bkbase_table_id` 的业务 id 前缀必须跟随 `ResultTableConfig.datalink_biz_ids.data_biz_id`，而不是全局 `settings.DEFAULT_BKDATA_BIZ_ID`。
+
+不变式：
+
+- `BkBaseResultTable.bkbase_rt_name == ResultTableConfig.name`
+- `BkBaseResultTable.bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"`
+- `BkBaseResultTable.bkbase_data_name == DataBusConfig.data_id_name`
+
+#### Scenario: 复用场景下 BkBaseResultTable 按 legacy 实名回填
+
+- Given 本次 `apply_data_link` 通过 `claim` 复用了 legacy 的 `ResultTableConfig.name` / `DataBusConfig.data_id_name`
+- When 调用 `sync_metadata`
+- Then `BkBaseResultTable.bkbase_rt_name` 必须等于 `ResultTableConfig.name`（legacy 名）
+- And `BkBaseResultTable.bkbase_table_id` 前缀必须来自 `rt.datalink_biz_ids.data_biz_id`（与 compose 中 `monitor_biz_id` 同源）
+- And `BkBaseResultTable.bkbase_data_name` 必须等于 `DataBusConfig.data_id_name`
+
+#### Scenario: ResultTableConfig / DataBusConfig 缺失时 warning + skip
+
+- Given 调用 `sync_metadata` 时 `ResultTableConfig` 或 `DataBusConfig` 查不到
+- When 进入回填逻辑
+- Then 必须打印 warning 日志并直接返回，不猜名写入 `BkBaseResultTable`
+- And 不得让整个调用方异常中断
+
+### Requirement: AccessVMRecord.vm_result_table_id 必须来自 BkBaseResultTable
+
+`create_bkbase_data_link` / `create_fed_bkbase_data_link` 写入 `AccessVMRecord.vm_result_table_id` 时，必须读取 `sync_metadata` 刚写入的 `BkBaseResultTable.bkbase_table_id`，而不是再自行拼装 `f"{biz}_{compose_bkdata_table_id(...)}"`。
+
+#### Scenario: AccessVMRecord 与 BkBaseResultTable.bkbase_table_id 一致
+
+- Given `sync_metadata` 已成功写入 `BkBaseResultTable`
+- When `create_bkbase_data_link` 写 `AccessVMRecord`
+- Then `AccessVMRecord.vm_result_table_id` 必须等于 `BkBaseResultTable.bkbase_table_id`
+- And 读取失败时必须 fallback 到 `get_tenant_datalink_biz_id(bk_tenant_id, bk_biz_id).data_biz_id` 前缀拼接，并 error log
+
+### Requirement: _refresh_data_link_status 必须按 data_link_name 遍历组件
+
+`_refresh_data_link_status` 不得再按 `bkbase_rt_name` 作为 RT/Binding/DataBus 的共用查询键；它必须按 `(bk_tenant_id, namespace, data_link_name)` 过滤每个 kind 的所有实例，逐条刷新状态。`DataIdConfig` 按 `bkbase_data_name` 查不到时必须 fallback 到 `DataLink.bk_data_id` 再查一次。
+
+#### Scenario: 复用后三者名字互不相同时所有组件都被刷新
+
+- Given 本次链路下 RT / Binding / DataBus 三者名字互不相同（各自复用了 legacy 名）
+- When 定时任务调用 `_refresh_data_link_status`
+- Then 每个 kind 的对应实例都必须按 `data_link_name` 过滤并刷新状态
+- And `BkBaseResultTable` 的汇总状态必须根据全部组件的状态计算
+- And 日志中必须打印 `component_ins.name`（各组件的真实名），而不是 `bkbase_rt_name`
+
+#### Scenario: bkbase_data_name 命中不到时按 bk_data_id fallback
+
+- Given `BkBaseResultTable.bkbase_data_name` 与当前 `DataIdConfig.name` 不一致（历史脏数据 / 复用前的生成名）
+- And `DataLink.bk_data_id` 与 `DataIdConfig.bk_data_id` 相同
+- When 执行 `_refresh_data_link_status`
+- Then 必须 fallback 到按 `DataLink.bk_data_id` 查询 `DataIdConfig`
+- And fallback 命中后必须正常刷新 `DataIdConfig.status`
+- And 两种查询都 miss 时必须打 warning 并跳过数据源状态刷新，不得影响后续组件循环

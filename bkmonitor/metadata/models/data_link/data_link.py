@@ -1062,13 +1062,30 @@ class DataLink(models.Model):
         return config_list
 
     def compose_standard_time_series_configs(
-        self, bk_biz_id: int, data_source: "DataSource", table_id: str, storage_cluster_name: str
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+        storage_cluster_name: str,
+        existing_context: "ExistingComponentContext | None" = None,
     ) -> list[dict[str, Any]]:
         """
-        生成标准单指标单表时序数据链路配置
+        生成标准单指标单表时序数据链路配置 -- bk_standard_v2
+
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID（Metadata中的）
         @param storage_cluster_name: VM集群名称
+        @param existing_context: 已有组件复用上下文；由灰度开关控制，仅当当前
+            strategy 同时出现在 ``settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES``
+            与 ``component_reuse.REUSE_ENABLED_STRATEGIES`` 时由上层注入。非 None 时
+            compose 会尝试按 ``table_id`` / ``data_id_name`` 从已有组件池中认领名称，
+            避免迁移/改名场景下重复创建组件。未认领到时回退到 ``bkbase_vmrt_name``
+            新建语义。
+
+        注意：``update_or_create`` 中除 ``name`` 以外的查询字段（例如 ``vm_cluster_name``、
+        ``data_id_name``）是有意保留的"守卫字段"——一旦这些字段被改动，
+        ``update_or_create`` 会无法命中既有记录并走创建路径，从而触发
+        ``unique_together`` 约束报 :class:`IntegrityError`，让上层感知到非预期变更。
         """
         logger.info(
             "compose_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s] "
@@ -1087,10 +1104,38 @@ class DataLink(models.Model):
             bkbase_data_name,
             bkbase_vmrt_name,
         )
+
+        # 解析 compose 所需的 name：优先复用既有组件的 name（若 claim 命中），否则回退到
+        # 新生成的 bkbase_vmrt_name 作为新建名称。三个 claim 的 predicate 与
+        # compose_bk_plugin_time_series_config 语义保持一致：
+        #   - ResultTableConfig / VMStorageBindingConfig 按 table_id 匹配；
+        #   - DataBusConfig 按 data_id_name 匹配（bkbase_data_name 是由 data_source
+        #     与 strategy 共同决定的稳定值）。
+        existing_rt = (
+            existing_context.claim(ResultTableConfig, lambda c: c.table_id == table_id)
+            if existing_context is not None
+            else None
+        )
+        rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
+
+        existing_binding = (
+            existing_context.claim(VMStorageBindingConfig, lambda c: c.table_id == table_id)
+            if existing_context is not None
+            else None
+        )
+        binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
+
+        existing_databus = (
+            existing_context.claim(DataBusConfig, lambda c: c.data_id_name == bkbase_data_name)
+            if existing_context is not None
+            else None
+        )
+        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
+
         with transaction.atomic():
             # 渲染所需的资源配置
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+                name=rt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
@@ -1098,26 +1143,32 @@ class DataLink(models.Model):
                 defaults={"table_id": table_id},
             )
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+                name=binding_name,
                 vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
+                # bkbase_result_table_name 必须与最终实际引用的 RT 保持一致：
+                # 下发给 BKBase 的 payload 里 spec.data.name 是 vm_table_id_ins.name，
+                # 本地 ORM 里这个字段也是 relation.py 用来按 name 回查 ResultTableConfig
+                # 的指针。复用时 RT 被 claim 成一个与 binding 不同的 name 时，如果继续
+                # 写成 bkbase_vmrt_name（生成名），本地关系会指向不存在的 RT。
+                defaults={"table_id": table_id, "bkbase_result_table_name": vm_table_id_ins.name},
             )
-            sinks = [
-                {
-                    "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                    "name": bkbase_vmrt_name,
-                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                }
-            ]
+            sink_item = {
+                "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                # sink 必须指向实际存在的 VMStorageBinding，这里联动 binding_name
+                # 而非 bkbase_vmrt_name，以便复用 legacy binding 时 databus 能正确引用。
+                "name": binding_name,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            }
             if settings.ENABLE_MULTI_TENANT_MODE:
-                sinks[0]["tenant"] = self.bk_tenant_id
+                sink_item["tenant"] = self.bk_tenant_id
+            sinks = [sink_item]
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+                name=databus_name,
                 data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
@@ -1125,13 +1176,15 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.VMSTORAGEBINDING.value}:{bkbase_vmrt_name}"],
+                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },
             )
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(bk_data_id=data_source.bk_data_id),
+            # 显式透传 RT 的 name，避免复用后 RT/Binding 被独立 claim 成不同 name 时
+            # binding payload 的 spec.data.name 仍然指向 binding 自己的 name（不存在的 RT）。
+            vm_storage_ins.compose_config(bk_data_id=data_source.bk_data_id, rt_name=vm_table_id_ins.name),
             data_bus_ins.compose_config(sinks),
         ]
         return configs
@@ -1300,16 +1353,36 @@ class DataLink(models.Model):
             ExistingComponentContext.from_datalink(self) if enable_reuse else None
         )
 
+        # 把 compose（含内部 update_or_create）和 leftover 校验放进同一个外层事务：
+        #
+        # compose_*_configs 内部各自有 ``with transaction.atomic()`` 包住三类组件的
+        # update_or_create，所以在没有外层事务时，这几条写入会在 compose 返回时就
+        # 被提交。随后如果 _check_leftover_or_raise 发现有孤儿组件、抛
+        # ComponentReuseError，本次新建/更新的 RT/Binding/DataBus 已经持久化到本地库，
+        # 失败的 apply 会留下"compose 已落库但 apply 被拒"的脏状态；反复重试还会持续
+        # 积累本地脏数据，与"发现多余组件就直接报错、避免继续制造不可控状态"的设计初衷相反。
+        #
+        # 解决方式：把两者都裹在最外层 atomic() 里，compose 内部的 atomic() 会降级为
+        # savepoint，外层异常触发时连带一起回滚，保证 "apply 不通过 -> 本地无副作用"。
         try:
-            configs: list[dict[str, Any]] = self.compose_configs(*args, existing_context=existing_context, **kwargs)
+            with transaction.atomic():
+                configs: list[dict[str, Any]] = self.compose_configs(*args, existing_context=existing_context, **kwargs)
+                if existing_context is not None:
+                    # compose 已跑完，本次 apply 的所有既有组件认领都已完成；
+                    # 此时 pool 中剩下的就是"未被 compose 消费的既有组件"，按策略决定是否放行。
+                    # 一旦 strict 策略不通过会抛 ComponentReuseError，连带上面的 compose
+                    # 写入一起回滚，避免失败的 apply 留下持久化副作用。
+                    self._check_leftover_or_raise(existing_context)
+        except ComponentReuseError:
+            logger.error(
+                "apply_data_link: data_link_name->[%s] leftover check failed, "
+                "rollback compose-side DB writes in this attempt",
+                self.data_link_name,
+            )
+            raise
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
-
-        if existing_context is not None:
-            # compose 已跑完，本次 apply 的所有既有组件认领都已完成；
-            # 此时 pool 中剩下的就是"未被 compose 消费的既有组件"，按策略决定是否放行。
-            self._check_leftover_or_raise(existing_context)
 
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
@@ -1378,19 +1451,17 @@ class DataLink(models.Model):
             )
             raise e
 
-    def sync_metadata(self, data_source, table_id, storage_cluster_name):
+    def sync_metadata(self, table_id, storage_cluster_name):
         """
-        同步元数据
-        同步此前的计算平台链路记录，设置状态为OK
+        从本次 apply 落库的 ResultTableConfig / DataBusConfig 读实名回填 BkBaseResultTable。
+
+        不变式：
+        - ``bkbase_rt_name == ResultTableConfig.name``
+        - ``bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"``
+        - ``bkbase_data_name == DataBusConfig.data_id_name``
         """
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
-
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
-
-        # 现阶段默认都为VM存储类型
-        storage_type = ClusterInfo.TYPE_VM
 
         try:
             storage_cluster_id = ClusterInfo.objects.get(
@@ -1401,22 +1472,59 @@ class DataLink(models.Model):
             return
 
         try:
+            rt = ResultTableConfig.objects.get(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                table_id=table_id,
+            )
+        except ResultTableConfig.DoesNotExist:
+            logger.warning(
+                "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, skip",
+                self.data_link_name,
+                table_id,
+            )
+            return
+        except ResultTableConfig.MultipleObjectsReturned:
+            logger.error(
+                "sync_metadata: data_link_name->[%s] table_id->[%s] got multiple ResultTableConfig, skip",
+                self.data_link_name,
+                table_id,
+            )
+            return
+
+        try:
+            databus = DataBusConfig.objects.get(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+            )
+        except DataBusConfig.DoesNotExist:
+            logger.warning("sync_metadata: data_link_name->[%s] DataBusConfig not found, skip", self.data_link_name)
+            return
+        except DataBusConfig.MultipleObjectsReturned:
+            logger.error("sync_metadata: data_link_name->[%s] got multiple DataBusConfig, skip", self.data_link_name)
+            return
+
+        bkbase_rt_name = rt.name
+        bkbase_table_id = f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}"
+        bkbase_data_name = databus.data_id_name
+
+        try:
             with transaction.atomic():
                 BkBaseResultTable.objects.update_or_create(
                     data_link_name=self.data_link_name,
                     defaults={
                         "monitor_table_id": table_id,
-                        "bkbase_rt_name": bkbase_vmrt_name,
+                        "bkbase_rt_name": bkbase_rt_name,
                         "bkbase_data_name": bkbase_data_name,
-                        "bkbase_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
-                        "storage_type": storage_type,
+                        "bkbase_table_id": bkbase_table_id,
+                        "storage_type": ClusterInfo.TYPE_VM,
                         "storage_cluster_id": storage_cluster_id,
                     },
                 )
         except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", self.data_link_name, e
-            )
+            logger.error("sync_metadata: data_link_name->[%s],sync_metadata failed,error->[%s]", self.data_link_name, e)
 
     def sync_basereport_metadata(self, bk_biz_id, storage_cluster_name, source, datasource):
         """
