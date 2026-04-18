@@ -1737,7 +1737,7 @@ class QueryTimeSeriesMetricResource(TimeSeriesMetricConditionQueryMixin, Resourc
             paginated_query_set = query_set
 
         # 批量获取scope信息
-        scope_ids = paginated_query_set.values_list("scope_id", flat=True)
+        scope_ids = list(paginated_query_set.values_list("scope_id", flat=True))
         scopes = models.TimeSeriesScope.objects.filter(id__in=scope_ids, group_id=group_id).values("id", "scope_name")
         scope_map = {scope["id"]: {"id": scope["id"], "name": scope["scope_name"]} for scope in scopes}
 

@@ -28,7 +28,7 @@ import { computed, shallowRef, watchEffect } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 
-import { type RequestOptions } from '../services/base';
+import type { RequestOptions } from '../services/base';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { AnalysisListItem, AnalysisTopNDataResponse } from '../typings';
