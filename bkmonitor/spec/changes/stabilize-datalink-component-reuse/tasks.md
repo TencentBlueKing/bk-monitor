@@ -1,36 +1,43 @@
 # Tasks
 
-## 1. 编排层
+## 1. 基础设施
 
-- [ ] 为各 `data_link_strategy` 定义本次 apply 的理论组件槽位与数量推导规则
-- [ ] 在 `DataLink.apply_data_link` 增加“查询当前 datalink 关联组件”的预处理步骤
-- [ ] 在复用前增加组件基数校验，默认发现多余组件立即报错
-- [ ] 提供通用校验辅助函数，统一收集理论槽位、现有组件和错误上下文
-- [ ] 提供 datalink 级别的自定义校验入口，让各类链路自行决定最终校验逻辑
-- [ ] 按策略相关组件类型加载既有候选，并构建统一的复用上下文
-- [ ] 实现稳定的 `component_name_plan` / resolver
+- [ ] 新增 `ALL_DATA_LINK_COMPONENT_KINDS` 常量，集中维护"全部 DataLink 组件模型"列表
+- [ ] 实现 `ExistingComponentContext`，仅暴露 `from_datalink` / `claim(kind, predicate)` / `leftover()` 三个方法
+- [ ] `claim` 在传入未注册 kind 时直接 raise；命中 ≥2 条时返回 `None` 且不修改 pool
+- [ ] 在 `DataLink` 上新增 `REUSE_LEFTOVER_POLICY` 集中表与 `_leftover_policy(kind)` 访问器，默认 `strict`
+- [ ] 新增 `ComponentReuseError`，错误信息包含 `data_link_name / strategy / kind / leftover 标识`
+- [ ] 在 `settings` 中新增 `DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str]` 灰度开关，默认空集合
+- [ ] 改造 `DataLink.apply_data_link` 入口：按开关分支构造 `ctx`、调用 compose、做 leftover 检查；leftover 检查必须在 `apply_data_link_with_retry` 之前
 
-## 2. compose 分支接入
+## 2. compose 分支按 strategy 接入（一项一 PR，独立灰度）
 
-- [ ] 为各 `compose_*_configs` 分支接入统一 name resolver
-- [ ] 确保 `update_or_create` 使用 resolved name，而不是仅使用 generated name
-- [ ] 保证本地 ORM 记录与最终下发 BKBase 配置使用同一 name
+每项需完成：函数签名加 `existing_context` 参数 → 每个 `update_or_create` 前插入 `claim` → 用 `claim` 返回的 `name` 替换固定 name → 把 strategy 加入 `DATA_LINK_COMPONENT_REUSE_STRATEGIES` → 配套测试。
 
-## 3. 稳定性与安全性
+- [ ] `BK_STANDARD_V2_TIME_SERIES`（`compose_standard_time_series_configs`）
+- [ ] `BK_EXPORTER_TIME_SERIES` / `BK_STANDARD_TIME_SERIES`（`compose_bk_plugin_time_series_config`）
+- [ ] `BCS_FEDERAL_PROXY_TIME_SERIES`（`compose_bcs_federal_proxy_time_series_configs`）
+- [ ] `BCS_FEDERAL_SUBSET_TIME_SERIES`（`compose_bcs_federal_subset_time_series_configs`）
+- [ ] `BASE_EVENT_V1`（`compose_base_event_configs`）
+- [ ] `SYSTEM_PROC_PERF` / `SYSTEM_PROC_PORT`（`compose_system_proc_configs`）
+- [ ] `BK_STANDARD_V2_EVENT`（`compose_custom_event_configs`）
+- [ ] `BK_LOG`（`compose_log_configs`）：同时在 `REUSE_LEFTOVER_POLICY` 中声明 `ESStorageBindingConfig` / `DorisStorageBindingConfig` 为 `keep`
+- [ ] `BASEREPORT_TIME_SERIES_V1`（`compose_basereport_time_series_configs`）：多 slot 复杂度最高，建议放在最后
 
-- [ ] 为多组件场景引入基于 `table_id` 等语义键的稳定匹配
-- [ ] 对大多数组件类型要求“现有数量不得超过理论槽位数量”
-- [ ] 对允许保留历史组件的类型，确保超出部分只保留、不参与当前 compose 复用
-- [ ] 对歧义匹配增加保守回退策略，禁止随机复用
-- [ ] 确认重复执行 `apply_data_link` 不会导致 name 来回切换
+## 3. 测试
 
-## 4. 测试
+- [ ] 迁移后 name 不一致但可复用（单实例链路）
+- [ ] basereport 多组件稳定复用（连续两次 apply，claim 结果一致）
+- [ ] 部分命中 + 部分新建
+- [ ] 歧义放弃复用：predicate 命中 ≥2 条时走新建，多余 existing 进入 leftover
+- [ ] strict leftover 触发报错（不调用 BKBase 下发接口）
+- [ ] 多 strict 违规一次聚合上报
+- [ ] `BK_LOG` 关闭某个 binding 开关后旧 binding 被保留
+- [ ] `claim` 调用未注册 kind 时直接 raise
+- [ ] 历史 strategy 创建的组件被全局加载并触发 leftover 检查
+- [ ] 灰度开关关闭时回退到老路径，行为与改造前一致
 
-- [ ] 增加“单实例链路已有多余组件时直接失败”测试
-- [ ] 增加“日志链路关闭某个 binding 开关后允许保留旧组件”测试
-- [ ] 增加“特殊链路中的严格组件超出理论数量时直接失败”测试
-- [ ] 增加迁移后 name 不一致但可复用的单链路测试
-- [ ] 增加 basereport 多组件稳定复用测试
-- [ ] 增加部分复用 + 部分新建测试
-- [ ] 增加歧义不复用测试
-- [ ] 增加日志链路双 sink 复用测试
+## 4. 文档与清理
+
+- [ ] 在相关模块 docstring / 内部文档中说明 `ExistingComponentContext` 的使用方式与 `REUSE_LEFTOVER_POLICY` 的声明位置
+- [ ] 全部 strategy 接入完毕、灰度稳定后，评估是否清理 `STRATEGY_RELATED_COMPONENTS` 中已被 `ALL_DATA_LINK_COMPONENT_KINDS` 覆盖的部分（仅作记录，不在本次范围内强制完成）

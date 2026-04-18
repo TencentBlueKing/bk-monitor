@@ -29,6 +29,10 @@ from metadata.models.data_link.constants import (
     DataLinkKind,
     DataLinkResourceStatus,
 )
+from metadata.models.data_link.component_reuse import (
+    ComponentReuseError,
+    ExistingComponentContext,
+)
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
@@ -181,6 +185,13 @@ class DataLink(models.Model):
         BK_STANDARD_TIME_SERIES: BK_STANDARD_TRANSFORMER_FORMAT,
     }
 
+    # DataLink 组件复用 - leftover 策略表
+    # key   : (data_link_strategy, component kind)
+    # value : "strict" 表示 compose 完成后该 kind 的未消费组件视为脏数据，直接报错；
+    #         "keep"   表示允许既有组件残留（既不报错也不删除，也不参与本次下发）。
+    # 未声明的 (strategy, kind) 默认按 "strict" 处理。
+    REUSE_LEFTOVER_POLICY: dict[tuple[str, type["DataLinkResourceConfigBase"]], Literal["strict", "keep"]] = {}
+
     bk_data_id = models.IntegerField(verbose_name="关联数据源ID", default=0)
     table_ids = models.JSONField(verbose_name="关联结果表ID列表", default=list)
 
@@ -206,9 +217,13 @@ class DataLink(models.Model):
                 component.delete_config()
         self.delete()
 
-    def compose_configs(self, *args, **kwargs):
+    def compose_configs(self, *args, existing_context: "ExistingComponentContext | None" = None, **kwargs):
         """
         生成对应套餐的链路完整配置
+
+        existing_context 只会被透传给"已在 settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
+        中启用灰度、且 compose 分支自身也接受该参数"的 strategy。未接入复用机制的 compose
+        分支签名保持不变，避免一次性大范围修改。
         """
 
         # 类似switch的形式，选择对应的组装方式
@@ -229,7 +244,10 @@ class DataLink(models.Model):
             DataLink.BK_LOG: self.compose_log_configs,
             DataLink.BK_STANDARD_V2_EVENT: self.compose_custom_event_configs,
         }
-        return switcher[self.data_link_strategy](*args, **kwargs)
+        method = switcher[self.data_link_strategy]
+        if self.data_link_strategy in getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set()):
+            return method(*args, existing_context=existing_context, **kwargs)
+        return method(*args, **kwargs)
 
     def compose_custom_event_configs(
         self,
@@ -1110,10 +1128,24 @@ class DataLink(models.Model):
         return configs
 
     def compose_bk_plugin_time_series_config(
-        self, bk_biz_id: int, data_source: "DataSource", table_id: str, storage_cluster_name: str
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+        storage_cluster_name: str,
+        existing_context: "ExistingComponentContext | None" = None,
     ) -> list[dict[str, Any]]:
         """
         生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
+
+        当 ``existing_context`` 非 None 时（由灰度开关控制），会尝试基于
+        ``table_id`` / ``data_id_name`` 从已有组件池中认领名称，用于复用历史组件避免
+        重复创建。未认领到时回退到 ``bkbase_vmrt_name`` 新建语义。
+
+        注意：``update_or_create`` 中除 ``name`` 以外的查询字段（例如 ``vm_cluster_name``、
+        ``data_id_name``）是有意保留的"守卫字段"——一旦这些字段被改动，``update_or_create``
+        会无法命中既有记录并走创建路径，从而触发 ``unique_together`` 约束报
+        :class:`IntegrityError`，让上层感知到非预期变更。
         """
         from metadata.models import ResultTableField, ResultTableOption
 
@@ -1137,10 +1169,33 @@ class DataLink(models.Model):
                     tags.append(field.field_name)
             whitelist = {"metrics": metrics, "tags": tags}
 
+        # 解析 compose 所需的 name：优先复用既有组件的 name（若 claim 命中），否则回退到
+        # 新生成的 bkbase_vmrt_name 作为新建名称。
+        existing_rt = (
+            existing_context.claim(ResultTableConfig, lambda c: c.table_id == table_id)
+            if existing_context is not None
+            else None
+        )
+        rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
+
+        existing_binding = (
+            existing_context.claim(VMStorageBindingConfig, lambda c: c.table_id == table_id)
+            if existing_context is not None
+            else None
+        )
+        binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
+
+        existing_databus = (
+            existing_context.claim(DataBusConfig, lambda c: c.data_id_name == bkbase_data_name)
+            if existing_context is not None
+            else None
+        )
+        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
+
         with transaction.atomic():
             # 渲染所需的资源配置
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+                name=rt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
@@ -1148,7 +1203,7 @@ class DataLink(models.Model):
                 defaults={"table_id": table_id},
             )
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+                name=binding_name,
                 vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
@@ -1158,7 +1213,9 @@ class DataLink(models.Model):
             )
             sink_item = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                "name": bkbase_vmrt_name,
+                # sink 必须指向实际存在的 VMStorageBinding，因此这里联动 binding_name
+                # 而非 bkbase_vmrt_name，以便在复用 legacy binding 时 databus 能正确引用。
+                "name": binding_name,
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
             }
             if settings.ENABLE_MULTI_TENANT_MODE:
@@ -1167,7 +1224,7 @@ class DataLink(models.Model):
             sinks = [sink_item]
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+                name=databus_name,
                 data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
@@ -1215,11 +1272,25 @@ class DataLink(models.Model):
             )
             raise e
 
+        # 组件复用灰度：仅对 settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES 中声明的
+        # strategy 构造 existing_context；未开启灰度时 ctx=None，compose 分支走原有
+        # 新建语义，保持与上线前行为一致。
+        enable_reuse = self.data_link_strategy in getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set())
+        existing_context: ExistingComponentContext | None = (
+            ExistingComponentContext.from_datalink(self) if enable_reuse else None
+        )
+
         try:
-            configs: list[dict[str, Any]] = self.compose_configs(*args, **kwargs)
+            configs: list[dict[str, Any]] = self.compose_configs(*args, existing_context=existing_context, **kwargs)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
+
+        if existing_context is not None:
+            # compose 已跑完，本次 apply 的所有既有组件认领都已完成；
+            # 此时 pool 中剩下的就是"未被 compose 消费的既有组件"，按策略决定是否放行。
+            self._check_leftover_or_raise(existing_context)
+
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
             self.data_link_name,
@@ -1241,6 +1312,36 @@ class DataLink(models.Model):
             self.data_link_name,
             self.data_link_strategy,
             response,
+        )
+
+    def _leftover_policy(self, kind: type["DataLinkResourceConfigBase"]) -> Literal["strict", "keep"]:
+        """按 (strategy, kind) 查找 leftover 策略，未声明时默认 ``strict``。"""
+        return self.REUSE_LEFTOVER_POLICY.get((self.data_link_strategy, kind), "strict")
+
+    def _check_leftover_or_raise(self, ctx: "ExistingComponentContext") -> None:
+        """基于 leftover 策略判定是否抛出 :class:`ComponentReuseError`。
+
+        只把 ``strict`` 策略对应 kind 的残留视作违规；``keep`` 策略的残留会被忽略
+        （既不删除、也不本次复用），用于兼容短期脏数据场景。
+        """
+        leftover_map = ctx.leftover()
+        if not leftover_map:
+            return
+
+        violations = {kind: items for kind, items in leftover_map.items() if self._leftover_policy(kind) == "strict"}
+        if not violations:
+            logger.info(
+                "apply_data_link: data_link_name->[%s] strategy->[%s] leftover ignored by policy: %s",
+                self.data_link_name,
+                self.data_link_strategy,
+                {kind.__name__: [c.name for c in items] for kind, items in leftover_map.items()},
+            )
+            return
+
+        raise ComponentReuseError(
+            data_link_name=self.data_link_name,
+            strategy=self.data_link_strategy,
+            violations=violations,
         )
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))

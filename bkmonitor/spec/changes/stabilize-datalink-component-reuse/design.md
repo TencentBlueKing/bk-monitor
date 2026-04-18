@@ -2,329 +2,275 @@
 
 ## 现状
 
-`DataLink.apply_data_link` 当前流程是：
+`DataLink.apply_data_link` 当前流程：
 
-1. 创建/获取 `BkBaseResultTable`
-2. 调用 `compose_configs`
-3. `compose_*_configs` 内部按固定 name 执行 `update_or_create`
-4. 生成配置并调用 `apply_data_link_with_retry`
+1. 创建/获取 `BkBaseResultTable`；
+2. 调 `compose_configs` 派发到对应 strategy 的 `compose_*_configs`；
+3. compose 内部按固定 name 直接执行 `update_or_create` 写本地表，并渲染下发 payload；
+4. 调 `apply_data_link_with_retry` 下发 BKBase。
 
-核心问题不在 BKBase API，而在 compose 阶段已经把“固定 name”固化到了本地 ORM 和下发配置里。
+核心问题不在 BKBase API，而在 compose 阶段已经把"固定 name"固化进了本地 ORM 与下发配置。
 
-如果只在 compose 完成后再重写配置里的 `metadata.name`，会留下两个问题：
+如果只在 compose 完成后再重写 payload 里的 `metadata.name`，会留下两个问题：
 
-- 本地组件表中已经提前创建了新 name 记录；
+- 本地组件表中已经提前创建了"新 name"记录；
 - 本地记录与 BKBase 实际配置 name 不一致，后续状态刷新、删除、排障都会偏移。
 
-因此，复用决策必须先于 `update_or_create` 生效，而不是在最终 payload 上做补丁。
+因此，复用决策必须在 `update_or_create` 之前生效，而不是在最终 payload 上做补丁。
 
-## 设计目标
+## 总体思路
 
-- 复用前先做组件基数校验，但外层只提供通用辅助能力；
-- 最终校验逻辑由各类 datalink 自行决定，而不是固化为一张全局策略表；
-- 默认发现多余组件立即失败，少量显式放宽的场景由对应 datalink 自己负责定义；
-- 复用决策发生在 `apply_data_link` 编排层；
-- compose 分支在写库前就拿到 resolved name；
-- 复用规则可解释、可测试、可重复；
-- 对歧义场景宁可不复用，也不做不稳定的猜测性覆盖。
+只在 `apply_data_link` 入口与收尾两端做最小框架性改动，所有匹配规则下沉到 compose：
 
-## 新的执行顺序
+```
+apply_data_link
+├── ExistingComponentContext.from_datalink(self)        # 一次性加载现有组件
+├── compose_configs(..., existing_context=ctx)          # compose 内通过 ctx.claim 复用
+├── leftover 检查 (compose 之后, BKBase 下发之前)        # 按 REUSE_LEFTOVER_POLICY 决定
+└── apply_data_link_with_retry(configs)
+```
 
-`apply_data_link` 后续应按如下顺序组织：
+这样做的好处：
 
-1. 预计算本次理论组件槽位
-2. 查询当前 datalink 现有组件
-3. 做组件基数校验
-4. 校验通过后再生成 name 复用计划
-5. 执行 compose + `update_or_create`
-6. 调用 BKBase apply
-
-这里“基数校验”必须前置于复用和写库，否则在已有脏数据的情况下继续 apply，仍可能制造更多重复组件。
-但“校验是否失败”不能是全局一刀切，而应由当前 datalink 自己决定。
-
-## 数据来源
-
-复用候选来自 Metadata 本地库中当前 DataLink 已关联组件：
-
-- 查询条件：`bk_tenant_id + namespace + data_link_name`
-- 查询范围：`DataLink.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]`
-
-原因：
-
-- 这是“当前 datalink 关联的所有组件配置”的直接来源；
-- 迁移导入后，组件间的归属关系已经通过 `data_link_name` 固化；
-- 本地记录已经包含 `table_id`、`bkbase_result_table_name`、`sink_names` 等可用于稳定匹配的语义字段。
+- 外层不需要预先知道每个 strategy 会生成几个 slot、按什么键匹配；
+- compose 在生成 slot 的循环里就能用最自然的语义键写 predicate；
+- "整个 datalink 是否健康"在 compose 之后用 leftover 一次性判定，不需要 cardinality 多态枚举；
+- 每个 strategy 接入是独立的，可按 strategy 灰度上线/回滚。
 
 ## 核心抽象
 
-### 1. 组件逻辑槽位
+### 1. 全局组件 kind 列表
 
-在 compose 阶段不要只关心“生成什么 name”，还要显式表达“这是哪一个逻辑组件”。
-
-建议抽象出逻辑槽位，至少包含：
-
-- `kind`
-- `generated_name`
-- `logical_key`
-- `table_id`
-- `related_result_table_key`
-- `data_id_name`
-
-其中 `logical_key` 用来描述“该组件在链路中的稳定身份”，而不是最终 name。
-
-这些逻辑槽位也会作为“理论组件数量”的直接来源。
-
-### 2. 复用计划
-
-`apply_data_link` 在 compose 前生成一个 `component_name_plan`，形式可为：
+新增一份"DataLink 组件模型全集"的常量：
 
 ```python
-{
-    (kind, logical_key): resolved_name,
-}
+ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
+    ResultTableConfig,
+    VMStorageBindingConfig,
+    ESStorageBindingConfig,
+    DorisStorageBindingConfig,
+    ConditionalSinkConfig,
+    DataBusConfig,
+]
 ```
 
-compose 分支通过统一 helper 获取最终 name：
+`ExistingComponentContext.from_datalink` 只依赖这个全局列表，不再使用 `STRATEGY_RELATED_COMPONENTS[strategy]` 划分加载范围。
+
+`STRATEGY_RELATED_COMPONENTS` 仍可保留供 `delete_data_link` 等其他逻辑使用；但本次复用机制不引用它。
+
+### 2. ExistingComponentContext
 
 ```python
-resolved_name = self.resolve_component_name(kind=..., logical_key=..., generated_name=...)
+class ExistingComponentContext:
+    @classmethod
+    def from_datalink(cls, datalink: "DataLink") -> "ExistingComponentContext":
+        """
+        遍历 ALL_DATA_LINK_COMPONENT_KINDS，按
+        bk_tenant_id + namespace + data_link_name 加载该 datalink 下所有现有组件。
+        """
+
+    def claim(
+        self,
+        kind: type[DataLinkResourceConfigBase],
+        predicate: Callable[[DataLinkResourceConfigBase], bool],
+    ) -> DataLinkResourceConfigBase | None:
+        """
+        在 kind 对应的 pool 中执行 predicate：
+        - 恰好 1 条匹配 → 从 pool 中移除并返回；
+        - 0 条 → 返回 None；
+        - ≥2 条 → 返回 None，且不修改 pool（歧义放弃复用）。
+        kind 必须属于 ALL_DATA_LINK_COMPONENT_KINDS，否则直接 raise。
+        """
+
+    def leftover(self) -> dict[type, list[DataLinkResourceConfigBase]]:
+        """
+        返回所有未被 claim 的 existing；只包含非空 kind。
+        """
 ```
 
-### 3. 组件基数校验
+约束：
 
-在生成复用计划前，需要先比对：
+- `claim` 的 kind 参数必填，避免 predicate 跨 kind 误匹配；
+- `from_datalink` 是构造 ctx 的唯一入口，外层不需要也不允许手动 `load(kind, ...)`；
+- `leftover()` 只返回非空 kind，外层判空即可，不需要再 filter。
 
-- `expected_slots_by_kind`
-- `existing_components_by_kind`
+### 3. REUSE_LEFTOVER_POLICY
 
-外层辅助层负责：
-
-- 统一收集理论槽位；
-- 统一查询现有组件；
-- 提供按 kind 分组、计数、筛选候选、构造错误信息等通用 helper；
-- 将整理好的上下文交给当前 datalink 的校验方法。
-
-当前 datalink 的校验方法负责：
-
-- 决定哪些 kind 必须严格等于理论数量；
-- 决定哪些 kind 允许“现有大于理论数量但保留旧组件”；
-- 决定哪些超出组件可以忽略、哪些必须报错；
-- 决定通过校验后哪些组件允许参与当前复用映射。
-
-建议的默认语义仍然是：
-
-- `exact_match`
-  现有数量不能超过理论数量；适用于大多数固定组件。
-- `allow_partial`
-  现有数量可小于理论数量，允许后续补建；这是默认补齐行为的一部分，不是豁免超量。
-- `allow_existing_superset`
-  允许现有数量大于本次理论数量，但超出的既有组件仅保留、不参与本次 compose 复用，也不在本次 apply 中删除。
-
-其中 `allow_existing_superset` 只应用于少量明确声明的场景，不能作为默认兜底。
-
-例如：
-
-- 标准时序链路：`ResultTable=1`、`StorageBinding=1`、`DataBus=1`
-- 基础采集链路：数量虽多，但可由 `BASEREPORT_USAGES` 稳定推导
-- 日志链路：ES/Doris Binding 数量由当前存储配置推导，但在一次 apply 中仍然是确定值
-- 日志链路中的 `ESStorageBinding` / `DorisStorageBinding` 可采用 `allow_existing_superset`
-  - 若本次 compose 因开关关闭不再生成某类 binding，允许旧 binding 继续留在当前 datalink 下
-  - 这些旧 binding 不应在本次 apply 中被删除
-  - 这些旧 binding 也不应强行参与本次生成配置的复用映射
-
-### 4. datalink 自定义校验入口
-
-建议不要把最终规则固化在全局注册表里，而是提供 datalink 级别的自定义校验入口。
-
-例如：
+挂在 `DataLink` 类上的集中表：
 
 ```python
-def validate_existing_components(self, validation_context) -> ValidationDecision:
-    ...
+class DataLink:
+    REUSE_LEFTOVER_POLICY: dict[tuple[str, type], Literal["strict", "keep"]] = {
+        (BK_LOG, ESStorageBindingConfig):   "keep",
+        (BK_LOG, DorisStorageBindingConfig): "keep",
+    }
+
+    def _leftover_policy(self, kind) -> Literal["strict", "keep"]:
+        return self.REUSE_LEFTOVER_POLICY.get(
+            (self.data_link_strategy, kind), "strict"
+        )
 ```
 
-其中外层负责准备 `validation_context`，而 `ValidationDecision` 至少应包含：
+语义：
 
-- 是否允许继续执行；
-- 哪些 kind/组件应参与本次复用映射；
-- 哪些现有组件需要被视为“保留但不参与本次复用”；
-- 失败时的错误信息。
+- `strict`（默认）：该 kind 的 leftover 必须为空，否则 apply 直接报错；
+- `keep`：允许 leftover 存在，既不报错也不删除，也不参与本次下发，本地 ORM 记录保持不变。
 
-这样做的好处是：
+无论 policy 取值如何，leftover 都不会被本次 apply 改名/改字段/删除。
 
-- 规则与具体 datalink 语义更贴近；
-- 后续新增特殊场景时不必修改全局表；
-- 日志链路这类“数量变化是预期行为”的场景可以就地表达；
-- 外层仍保留统一的辅助能力与错误格式。
+本次唯一需要声明 `keep` 的就是 `BK_LOG` 的 ES/Doris binding：当对应开关被关闭时本次 compose 不会生成它们，旧 binding 允许留在原地。
 
-## 匹配规则
+### 4. 灰度开关
 
-### 优先级
+```python
+# settings
+DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = set()
+```
 
-对每个逻辑槽位，按以下顺序匹配既有组件：
+`apply_data_link` 入口：
 
-1. 精确同名命中：`generated_name == existing.name`
-2. 语义键精确匹配
-3. 单候选回退复用
-4. 否则新建
+```python
+if self.data_link_strategy in settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES:
+    # 新路径：from_datalink → compose(ctx=…) → leftover 检查 → BKBase 下发
+else:
+    # 老路径：原 compose → BKBase 下发
+```
 
-前提是：该 kind 已通过当前 datalink 的校验逻辑，并被允许参与本次复用。
+每个 strategy 独立加入开关，独立灰度、独立回滚。
 
-### 语义键建议
+## 执行流程
 
-不同组件类型使用不同的稳定键：
+```python
+def apply_data_link(self, *args, **kwargs):
+    self._ensure_bkbase_result_table(...)
 
-- `ResultTableConfig`
-  - 首选：`table_id`
-  - 次选：`generated_name`
-- `VMStorageBindingConfig` / `ESStorageBindingConfig` / `DorisStorageBindingConfig`
-  - 首选：`table_id`
-  - 次选：`bkbase_result_table_name`
-  - 再次选：`generated_name`
-- `DataBusConfig`
-  - 首选：`data_id_name + sink kind 集合`
-  - 次选：当当前 datalink 下该类型仅存在一个候选且本次仅生成一个槽位时，直接复用
-- `ConditionalSinkConfig`
-  - 首选：当当前 datalink 下该类型仅存在一个候选且本次仅生成一个槽位时，直接复用
-  - 次选：`generated_name`
+    if self.data_link_strategy in settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES:
+        ctx = ExistingComponentContext.from_datalink(self)
+        configs = self.compose_configs(*args, existing_context=ctx, **kwargs)
+        self._check_leftover_or_raise(ctx)
+    else:
+        configs = self.compose_configs(*args, **kwargs)
 
-### 歧义处理
+    return self.apply_data_link_with_retry(configs)
 
-若某个语义键对应多个候选，必须视为歧义，不可随机选取。
 
-处理原则：
+def _check_leftover_or_raise(self, ctx: ExistingComponentContext) -> None:
+    leftover_map = ctx.leftover()
+    violations = {
+        kind: items
+        for kind, items in leftover_map.items()
+        if self._leftover_policy(kind) == "strict"
+    }
+    if violations:
+        raise ComponentReuseError(self, violations)
+```
 
-- 不做模糊匹配；
-- 不按数据库自然顺序选第一个；
-- 不按临时排序结果“赌”一个；
-- 直接放弃复用该槽位，回退为新建。
+要点：
 
-这样虽然可能保守，但不会引入重复 apply 抖动。
+- leftover 检查必须在 `apply_data_link_with_retry(configs)` **之前**完成，避免本地检查失败但云端已被部分下发；
+- 多 kind 的 strict 违规一次性聚合到一个错误中抛出，错误信息包含 `data_link_name / strategy / kind / leftover 标识`；
+- compose 自身抛异常时 leftover 检查不会执行，这没问题，apply 本身已失败。
 
-若歧义本身来自“现有组件数量已经超过理论数量”，则是否允许继续执行取决于当前 datalink 的校验逻辑：
+## compose 分支接入
 
-- 对默认严格策略，直接报错退出；
-- 对 `allow_existing_superset`，超出部分仅保留，不进入当前逻辑槽位匹配。
+每个接入新模式的 `compose_*_configs` 需要：
 
-## 稳定性约束
+1. 函数签名增加 `existing_context: ExistingComponentContext | None = None` 参数；
+2. 在每个 `update_or_create` 之前插入：
 
-即使在多组件场景下，映射也必须可重复。
+   ```python
+   existing = existing_context and existing_context.claim(
+       ResultTableConfig,
+       lambda c: c.table_id == usage_monitor_table_id,
+   )
+   name = existing.name if existing else usage_vmrt_name
+   ```
 
-为此需要满足两点：
+3. 用 `name` 替换原本的固定 `name=usage_vmrt_name` 走 `update_or_create`；
+4. 后续 `compose_config(...)` 等渲染逻辑保持不变 —— 它们已经通过 ORM 实例的 `name` 字段来生成 payload。
 
-1. 候选集合排序稳定
-2. 匹配键稳定
+predicate 选择建议（不作为框架约束，仅供 review/编写时参考）：
 
-建议所有候选在参与匹配前统一按以下字段排序：
+| kind | 推荐稳定语义键 |
+| --- | --- |
+| `ResultTableConfig` | `table_id` |
+| `VMStorageBindingConfig` | `table_id` |
+| `ESStorageBindingConfig` | `table_id` |
+| `DorisStorageBindingConfig` | `table_id` |
+| `ConditionalSinkConfig` | `name == self.data_link_name`（单实例） |
+| `DataBusConfig` | `data_id_name`（单实例时也可直接 `name == self.data_link_name`） |
 
-`table_id`, `bkbase_result_table_name`, `data_id_name`, `name`, `pk`
+predicate 必须只依赖 ORM 字段，不得依赖 queryset 顺序、pk、`update_at` 等不稳定来源，确保重复 apply 给出一致结果。
 
-但排序只用于“确定遍历顺序”，不能代替语义匹配本身。
+## 涉及的 compose 分支
 
-对于基础采集等多组件场景，真正的稳定性应来自 `table_id` 这类语义键，而不是 BASEREPORT usage 的循环顺序或 queryset 顺序。
+按现状，以下分支需要按 strategy 接入新模式：
 
-但在进入稳定映射之前，仍必须先满足“当前 kind 已通过当前 datalink 校验并被允许参与复用”的前置条件。
-
-## 对 compose 分支的改造要求
-
-### 原则
-
-compose 分支不能再把“固定 name”写死进 `update_or_create` 的查询条件。
-
-应改为：
-
-1. 先计算每个逻辑槽位的 `generated_name`
-2. 再通过 resolver 得到 `resolved_name`
-3. 最后以 `resolved_name` 执行 `update_or_create`
-
-### 影响
-
-以下分支都要接入统一 resolver：
-
-- `compose_standard_time_series_configs`
-- `compose_bk_plugin_time_series_config`
+- `compose_standard_time_series_configs` (`BK_STANDARD_V2_TIME_SERIES`)
+- `compose_bk_plugin_time_series_config` (`BK_EXPORTER_TIME_SERIES` / `BK_STANDARD_TIME_SERIES`)
 - `compose_bcs_federal_proxy_time_series_configs`
 - `compose_bcs_federal_subset_time_series_configs`
 - `compose_basereport_time_series_configs`
 - `compose_base_event_configs`
 - `compose_system_proc_configs`
-- `compose_log_configs`
+- `compose_log_configs`（同时声明 `BK_LOG` 的 ES/Doris binding 为 `keep`）
 - `compose_custom_event_configs`
 
-## 推荐落地方式
+接入顺序建议从单实例链路（`BK_STANDARD_V2_TIME_SERIES`）做起，最后再做 `BASEREPORT_TIME_SERIES_V1` 这类多 slot 链路。
 
-### 方案 A：在 `apply_data_link` 生成 name plan，并传入 compose
+## 与 delete_data_link 的关系
 
-优点：
-
-- 入口集中；
-- 符合“在 apply_data_link 时做查询和规划”的需求；
-- 易于单测。
-
-建议新增 helper：
-
-- `_plan_expected_components(...)`
-- `_list_existing_components()`
-- `_build_validation_context(...)`
-- `_raise_component_validation_error(...)`
-- `_validate_component_cardinality(...)`
-- `_build_component_name_plan(...)`
-- `_resolve_component_name(...)`
-
-### 方案 B：先生成“组件草稿”，再统一落库
-
-优点：
-
-- 模型更干净，compose 与写库彻底分离。
-
-缺点：
-
-- 重构量更大；
-- 不适合作为第一步改造。
-
-本次建议优先采用方案 A。
+`delete_data_link` 仍按现有逻辑全量删除当前 `data_link_name` 关联的组件，与本次复用机制独立。被 `keep` 策略保留下来的历史 binding，会在 `delete_data_link` 时一起被清理，符合预期。
 
 ## 测试策略
 
-至少补充以下测试：
+至少补充以下测试（按已开启灰度的 strategy 分别覆盖）：
 
-1. 单实例链路的多余组件场景
-   - 当前 datalink 下某 kind 理论上只应有 1 个组件，但实际已有 2 个及以上
-   - `apply_data_link` 应直接失败，不进入覆盖或补建
+1. **迁移后 name 不一致但可复用**
+   - 单实例链路（如 `BK_STANDARD_V2_TIME_SERIES`），既有组件 name 与当前规则不同；
+   - 重复 apply 不应新增第二套组件；下发 payload 中 name 与本地一致。
 
-2. 单 RT 单 Binding 单 DataBus 的迁移复用场景
-   - 当前 datalink 已有关联组件，但 name 与当前 compose 规则不同
-   - 且现有数量未超限
-   - `apply_data_link` 后应更新既有记录，不新增第二套组件
+2. **多组件稳定复用**
+   - `BASEREPORT_TIME_SERIES_V1`：既有组件按 `table_id` 与本次 slot 对齐；
+   - 连续两次 apply，claim 结果完全一致。
 
-3. basereport 多 RT/多 Binding 的稳定复用场景
-   - 既有组件通过 `table_id` 与新生成槽位对齐
-   - 重复执行两次 `apply_data_link`，name 映射结果不变化
+3. **部分命中 + 部分新建**
+   - 部分 slot 的 existing 已存在并能命中，部分缺失；
+   - 命中 slot 复用既有 name，缺失 slot 按 generated name 新建。
 
-4. 允许保留历史组件的场景
-   - 如日志链路中，某类 binding 因开关关闭，本次 compose 数量少于历史已有数量
-   - 历史 binding 应允许保留
-   - 本次 apply 不应删除这些旧组件
-   - 本次 apply 也不应把这些旧组件强行纳入当前复用映射
+4. **歧义放弃复用**
+   - 同一 predicate 命中多条 existing；
+   - 该 slot 走新建，多余 existing 保留进入 leftover。
 
-5. 特殊链路中的严格组件超限场景
-   - 即使在日志等特殊链路中，若某个 kind 仍被声明为严格校验
-   - 一旦现有数量超过理论槽位数，仍应直接失败
+5. **strict leftover 触发报错**
+   - 单实例 kind 在 datalink 下出现 ≥2 条 existing；
+   - apply 在下发前直接 raise，包含 kind 与 existing 标识；
+   - 不调用 BKBase 下发接口（mock 验证）。
 
-6. 部分命中场景
-   - 已有 1 个组件可复用，另 1 个不存在
-   - 应只复用命中部分，缺失部分新建
+6. **多 strict 违规一次性聚合**
+   - 多个 kind 同时违规；
+   - 单次 raise 中包含全部 kind 的违规信息。
 
-7. 歧义场景
-   - 同类型候选无法唯一匹配
-   - 应放弃复用该槽位，避免错误覆盖
+7. **`BK_LOG` keep 策略生效**
+   - 关闭 Doris 开关后 apply，旧 Doris binding 保留在 ORM；
+   - 不报错、不进入下发 payload、不被删除或修改。
 
-8. 日志链路双 sink 场景
-   - ES 与 Doris 绑定分别按各自 kind 独立匹配
+8. **claim 误用保护**
+   - compose 调 `claim` 传入未注册 kind；
+   - ctx 直接 raise，确保编程错误尽早暴露。
+
+9. **历史 strategy 创建的组件被纳入 ctx**
+   - 构造一条属于 `ALL_DATA_LINK_COMPONENT_KINDS` 但不属于当前 strategy 默认 kind 的 existing；
+   - 当前 strategy 不会 claim 它，最终进入 leftover；按默认 `strict` 报错。
+
+10. **灰度开关关闭时回退到老路径**
+    - `DATA_LINK_COMPONENT_REUSE_STRATEGIES` 不包含该 strategy；
+    - apply 行为与改造前完全一致；ctx 不被构造，leftover 检查不执行。
 
 ## 非本次处理
 
-- 清理历史重复组件
-- 自动修复跨 datalink 误关联
-- DataId 侧的迁移命名兼容
-- 直接对 BKBase 现网组件做全量扫描比对
+- 清理历史重复组件 / 孤儿组件回收；
+- 跨 datalink 误关联自动修复；
+- DataId 侧的迁移命名兼容；
+- 直接对 BKBase 现网组件做全量扫描比对；
+- 多进程/多节点并发执行 `apply_data_link` 的并发安全性。

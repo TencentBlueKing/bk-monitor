@@ -28,6 +28,10 @@ from metadata.models.constants import (
     SYSTEM_PROC_DATA_LINK_CONFIGS,
 )
 from metadata.models.data_link import DataLink, utils
+from metadata.models.data_link.component_reuse import (
+    ComponentReuseError,
+    ExistingComponentContext,
+)
 from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
@@ -2572,3 +2576,287 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert data_link_ins.bk_tenant_id == bk_tenant_id
     assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PORT
     assert data_link_ins.namespace == "bkmonitor"
+
+
+# ============================================================
+# DataLink 组件复用机制集成测试 -- bk_plugin (bk_exporter / bk_standard)
+# ============================================================
+
+
+@pytest.fixture
+def bk_exporter_reuse_enabled():
+    """临时把 BK_EXPORTER_TIME_SERIES 纳入复用灰度，用完复原。"""
+    original = set(getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set()))
+    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = original | {DataLink.BK_EXPORTER_TIME_SERIES}
+    try:
+        yield
+    finally:
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = original
+
+
+@pytest.fixture
+def bk_exporter_leftover_policy_keep():
+    """把 BK_EXPORTER_TIME_SERIES 三类组件的 leftover 策略改为 keep。"""
+    original = dict(DataLink.REUSE_LEFTOVER_POLICY)
+    DataLink.REUSE_LEFTOVER_POLICY = {
+        **original,
+        (DataLink.BK_EXPORTER_TIME_SERIES, ResultTableConfig): "keep",
+        (DataLink.BK_EXPORTER_TIME_SERIES, VMStorageBindingConfig): "keep",
+        (DataLink.BK_EXPORTER_TIME_SERIES, DataBusConfig): "keep",
+    }
+    try:
+        yield
+    finally:
+        DataLink.REUSE_LEFTOVER_POLICY = original
+
+
+def _prepare_bk_exporter_datalink(bk_biz_id: int = 1001):
+    """准备 bk_exporter 场景下的 DataLink 实例以及对应 DataSource / ResultTable。"""
+    ds = models.DataSource.objects.get(bk_data_id=50011)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50011.__default__")
+    data_link_name = utils.compose_bkdata_data_id_name(ds.data_name, DataLink.BK_EXPORTER_TIME_SERIES)
+    datalink = DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.BK_EXPORTER_TIME_SERIES,
+    )
+    return datalink, ds, rt
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_reuse_three_legacy_components(create_or_delete_records, bk_exporter_reuse_enabled, mocker):
+    """三个组件都命中 legacy 时，compose 应复用 name，不新增记录。"""
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_EXPORTER_TIME_SERIES)
+
+    ResultTableConfig.objects.create(
+        name="legacy_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+    VMStorageBindingConfig.objects.create(
+        name="legacy_binding",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+        vm_cluster_name="vm-plat",
+        bkbase_result_table_name=bkbase_vmrt_name,
+    )
+    DataBusConfig.objects.create(
+        name="legacy_databus",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        data_id_name=datalink.data_link_name,
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    ctx = ExistingComponentContext.from_datalink(datalink)
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        existing_context=ctx,
+    )
+
+    # 没有新增：每个 kind 在 DB 里依旧只保留 legacy 记录
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert DataBusConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+
+    rt_cfg = ResultTableConfig.objects.get(data_link_name=datalink.data_link_name)
+    binding_cfg = VMStorageBindingConfig.objects.get(data_link_name=datalink.data_link_name)
+    databus_cfg = DataBusConfig.objects.get(data_link_name=datalink.data_link_name)
+    assert rt_cfg.name == "legacy_rt"
+    assert binding_cfg.name == "legacy_binding"
+    assert databus_cfg.name == "legacy_databus"
+    # sink_names 必须联动 legacy binding name，不能回退到 bkbase_vmrt_name
+    assert databus_cfg.sink_names == [f"{DataLinkKind.VMSTORAGEBINDING.value}:legacy_binding"]
+
+    # leftover 为空 -- 三条全部 claim 完毕
+    assert ctx.leftover() == {}
+
+    # 返回的 spec metadata.name 以及 databus sink name 也应联动 legacy
+    assert configs[0]["metadata"]["name"] == "legacy_rt"
+    assert configs[1]["metadata"]["name"] == "legacy_binding"
+    assert configs[2]["metadata"]["name"] == "legacy_databus"
+    assert configs[2]["spec"]["sinks"][0]["name"] == "legacy_binding"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_partial_reuse_only_rt(create_or_delete_records, bk_exporter_reuse_enabled, mocker):
+    """只有 ResultTableConfig 有 legacy；binding / databus 走新建。"""
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_EXPORTER_TIME_SERIES)
+
+    ResultTableConfig.objects.create(
+        name="legacy_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    ctx = ExistingComponentContext.from_datalink(datalink)
+    datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        existing_context=ctx,
+    )
+
+    assert ResultTableConfig.objects.get(data_link_name=datalink.data_link_name).name == "legacy_rt"
+    binding_cfg = VMStorageBindingConfig.objects.get(data_link_name=datalink.data_link_name)
+    databus_cfg = DataBusConfig.objects.get(data_link_name=datalink.data_link_name)
+    assert binding_cfg.name == bkbase_vmrt_name
+    assert databus_cfg.name == bkbase_vmrt_name
+    assert ctx.leftover() == {}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_reuse_off_uses_default_name(create_or_delete_records, mocker):
+    """灰度未开启时：即便 DB 里已有 legacy 记录，compose 仍然按 bkbase_vmrt_name 新建。"""
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_EXPORTER_TIME_SERIES)
+
+    ResultTableConfig.objects.create(
+        name="legacy_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    # 显式把灰度清空，避免前序测试污染
+    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
+
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}):
+        datalink.apply_data_link(
+            bk_biz_id=1001,
+            data_source=ds,
+            table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+        )
+
+    names = set(ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).values_list("name", flat=True))
+    # 未开启灰度 -> 新建 bkbase_vmrt_name 记录；legacy 原样保留
+    assert names == {"legacy_rt", bkbase_vmrt_name}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_strict_leftover_raises_on_apply(create_or_delete_records, bk_exporter_reuse_enabled, mocker):
+    """strict 策略下：claim 未命中的既有组件在 apply 收尾时抛 ComponentReuseError。"""
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+
+    # 造 table_id 不匹配的 ResultTableConfig -> claim 不会命中 -> leftover 非空
+    ResultTableConfig.objects.create(
+        name="orphan_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id="some_other_table",
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}):
+        with pytest.raises(ComponentReuseError) as exc_info:
+            datalink.apply_data_link(
+                bk_biz_id=1001,
+                data_source=ds,
+                table_id=rt.table_id,
+                storage_cluster_name="vm-plat",
+            )
+
+    assert ResultTableConfig in exc_info.value.violations
+    assert exc_info.value.violations[ResultTableConfig][0].name == "orphan_rt"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_keep_leftover_allows_apply(
+    create_or_delete_records,
+    bk_exporter_reuse_enabled,
+    bk_exporter_leftover_policy_keep,
+    mocker,
+):
+    """keep 策略下：未被 claim 的既有组件不会阻塞 apply。"""
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_EXPORTER_TIME_SERIES)
+
+    ResultTableConfig.objects.create(
+        name="orphan_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id="some_other_table",
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mocked_apply:
+        datalink.apply_data_link(
+            bk_biz_id=1001,
+            data_source=ds,
+            table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+        )
+    mocked_apply.assert_called_once()
+
+    assert ResultTableConfig.objects.filter(name="orphan_rt", data_link_name=datalink.data_link_name).exists()
+    assert ResultTableConfig.objects.filter(name=bkbase_vmrt_name, data_link_name=datalink.data_link_name).exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_exporter_guard_field_change_raises_integrity_error(
+    create_or_delete_records, bk_exporter_reuse_enabled, mocker
+):
+    """guard 字段（vm_cluster_name）变化时，update_or_create 会触发 IntegrityError。"""
+    datalink, ds, rt = _prepare_bk_exporter_datalink()
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_EXPORTER_TIME_SERIES)
+
+    # legacy binding 的 vm_cluster_name 与本次传入的 storage_cluster_name 不一致
+    VMStorageBindingConfig.objects.create(
+        name="legacy_binding",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+        vm_cluster_name="vm-old",
+        bkbase_result_table_name=bkbase_vmrt_name,
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    ctx = ExistingComponentContext.from_datalink(datalink)
+    # claim 基于 table_id 命中 legacy_binding -> binding_name = "legacy_binding"；
+    # 但 update_or_create 保留 vm_cluster_name="vm-plat" 作为查询条件（guard），
+    # 找不到既有记录 -> 尝试 create -> 与 legacy_binding 撞 unique_together -> IntegrityError。
+    with pytest.raises(IntegrityError):
+        datalink.compose_configs(
+            bk_biz_id=1001,
+            data_source=ds,
+            table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+            existing_context=ctx,
+        )
