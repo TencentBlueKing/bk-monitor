@@ -2737,8 +2737,14 @@ def test_bk_exporter_partial_reuse_only_rt(create_or_delete_records, bk_exporter
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_bk_exporter_reuse_off_uses_default_name(create_or_delete_records, mocker):
-    """灰度未开启时：即便 DB 里已有 legacy 记录，compose 仍然按 bkbase_vmrt_name 新建。"""
+def test_bk_exporter_reuse_off_uses_default_name(create_or_delete_records, mocker, settings):
+    """灰度未开启时：即便 DB 里已有 legacy 记录，compose 仍然按 bkbase_vmrt_name 新建。
+
+    使用 pytest-django 注入的 ``settings`` fixture（而不是直接改 ``django.conf.settings``
+    全局对象）：用例结束时 fixture 会自动把该属性还原为测试开始前的值，避免污染后续
+    用例 —— 如果忘记复原，后续依赖 ``DATA_LINK_COMPONENT_REUSE_STRATEGIES`` 的用例在
+    不同执行顺序下会出现串扰式的随机失败。
+    """
     datalink, ds, rt = _prepare_bk_exporter_datalink()
     bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_EXPORTER_TIME_SERIES)
 
@@ -2753,7 +2759,6 @@ def test_bk_exporter_reuse_off_uses_default_name(create_or_delete_records, mocke
 
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
 
-    # 显式把灰度清空，避免前序测试污染
     settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
 
     with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}):
@@ -2871,7 +2876,7 @@ def test_bk_exporter_guard_field_change_raises_integrity_error(
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_compose_configs_falls_back_when_strategy_not_implemented(mocker):
+def test_compose_configs_falls_back_when_strategy_not_implemented(mocker, settings):
     """P2 回归：灰度开关被配成未接入复用的 strategy 时，不应把 existing_context 透传过去。
 
     历史问题：compose_configs 在判断灰度时只看 settings，未校验 compose 分支是否已经
@@ -2881,7 +2886,8 @@ def test_compose_configs_falls_back_when_strategy_not_implemented(mocker):
 
     这里把 ``compose_standard_time_series_configs`` 替换成 MagicMock 观察调用形态，
     断言即使 ``BK_STANDARD_V2_TIME_SERIES`` 被塞进灰度 settings，switcher 也会走
-    "不带 existing_context"的旧调用路径。
+    "不带 existing_context"的旧调用路径。依赖 pytest-django 的 ``settings`` fixture
+    在用例退出时自动还原 ``DATA_LINK_COMPONENT_REUSE_STRATEGIES``，避免跨用例串扰。
     """
     datalink = DataLink(
         data_link_name="dummy",
@@ -2890,17 +2896,18 @@ def test_compose_configs_falls_back_when_strategy_not_implemented(mocker):
         data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
     )
 
-    original_settings = set(getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set()))
     # 故意把一个"尚未在 REUSE_ENABLED_STRATEGIES 里登记"的 strategy 开进灰度
-    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = original_settings | {DataLink.BK_STANDARD_V2_TIME_SERIES}
-    try:
-        mocked_compose = mocker.patch.object(DataLink, "compose_standard_time_series_configs", return_value=[])
-        sentinel_ctx = object()
-        datalink.compose_configs(bk_biz_id=1, existing_context=sentinel_ctx)
+    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set(
+        getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set())
+    ) | {DataLink.BK_STANDARD_V2_TIME_SERIES}
 
-        mocked_compose.assert_called_once_with(bk_biz_id=1)
-        # 关键断言：尽管上游传了 existing_context，switcher 发现当前 strategy 未接入
-        # (不在 REUSE_ENABLED_STRATEGIES 里)，必须把它丢弃，不能透传给 compose 分支。
-        assert "existing_context" not in mocked_compose.call_args.kwargs
-    finally:
-        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = original_settings
+    mocked_compose = mocker.patch.object(DataLink, "compose_standard_time_series_configs", return_value=[])
+    # 故意传一个非 None 的 sentinel 来观察 switcher 是否透传；switcher 不应把它交给
+    # compose_standard_time_series_configs（该 strategy 尚未登记进 REUSE_ENABLED_STRATEGIES）。
+    sentinel_ctx = object()
+    datalink.compose_configs(bk_biz_id=1, existing_context=sentinel_ctx)  # type: ignore[arg-type]
+
+    mocked_compose.assert_called_once_with(bk_biz_id=1)
+    # 关键断言：尽管上游传了 existing_context，switcher 发现当前 strategy 未接入
+    # (不在 REUSE_ENABLED_STRATEGIES 里)，必须把它丢弃，不能透传给 compose 分支。
+    assert "existing_context" not in mocked_compose.call_args.kwargs
