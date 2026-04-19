@@ -153,6 +153,8 @@ class SearchIssueResource(Resource):
         page_size = serializers.IntegerField(label="每页大小", min_value=0, max_value=500, default=10)
         show_aggs = serializers.BooleanField(label="展示聚合统计信息", default=True)
         show_dsl = serializers.BooleanField(label="返回ES DSL查询语句", default=False)
+        trend_start_time = serializers.IntegerField(label="趋势图起始时间", required=False)
+        trend_end_time = serializers.IntegerField(label="趋势图结束时间", required=False)
 
     def perform_request(self, validated_request_data):
         show_aggs = validated_request_data.pop("show_aggs")
