@@ -97,11 +97,11 @@ def _normalize_string_list(value: Any, field_name: str) -> list[str]:
 
 
 def _normalize_scene_name(value: Any) -> str:
-    raw_scenes = _normalize_string_list(value, "scenes")
+    raw_scenes = _normalize_string_list(value, "scene")
     if not raw_scenes:
-        raise CustomException(message="scenes 为必填项")
+        raise CustomException(message="scene 为必填项")
     if len(raw_scenes) != 1:
-        raise CustomException(message="scenes 目前只支持传入单个场景")
+        raise CustomException(message="scene 目前只支持传入单个场景")
 
     scene_name = raw_scenes[0].lower()
     normalized_scene = SCENE_ALIASES.get(scene_name)
@@ -622,14 +622,22 @@ def _collect_uptimecheck_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, A
     "biz_scene_related_info",
     summary="按业务查询场景关联的数据链路信息",
     description=(
-        "基于 bk_biz_id 查询单个场景关联的基础数据链路信息。当前支持 bcs、apm、插件采集、自定义指标、自定义事件、拨测。"
+        "基于 bk_biz_id 查询单个场景关联的基础数据链路信息。"
+        "推荐使用 scene 参数，当前可选值为 bcs、apm、plugin、custom_metric、custom_event、uptimecheck。"
+        "同时兼容常见别名，例如 k8s -> bcs、plugins -> plugin、custom_metrics -> custom_metric、"
+        "event -> custom_event、uptime_check -> uptimecheck。"
     ),
     params_schema={
         "bk_biz_id": "必填，业务 ID",
         "bk_tenant_id": "可选，租户 ID；未传时优先从请求上下文获取，否则回退默认租户",
-        "scene": "必填，单个场景名，当前只支持传入一个场景",
+        "scene": (
+            "必填，单个场景名。推荐值：bcs、apm、plugin、custom_metric、custom_event、uptimecheck。"
+            "兼容别名：k8s、plugins、collector_plugin、custom_metrics、time_series、event、"
+            "custom_events、uptime_check、uptime-check。"
+        ),
+        "scenes": "兼容旧参数，等价于 scene；如果同时传入，优先使用 scene。",
     },
-    example_params={"bk_biz_id": 2, "scenes": "bcs"},
+    example_params={"bk_biz_id": 2, "scene": "bcs"},
 )
 def get_biz_scene_related_info(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = _get_bk_tenant_id(params)
@@ -637,7 +645,7 @@ def get_biz_scene_related_info(params: dict[str, Any]) -> dict[str, Any]:
     if raw_bk_biz_id is None:
         raise CustomException(message="bk_biz_id 为必填项")
     bk_biz_id = _normalize_bk_biz_id(raw_bk_biz_id)
-    scene = _normalize_scene_name(params.get("scenes"))
+    scene = _normalize_scene_name(params.get("scene") or params.get("scenes"))
 
     scene_collectors = {
         "bcs": _collect_bcs_scene,

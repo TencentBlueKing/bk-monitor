@@ -272,6 +272,24 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
     access_vm_record_queryset = models.AccessVMRecord.objects.filter(
         bk_tenant_id=bk_tenant_id, result_table_id__in=related_table_ids
     )
+    result_table_data_label_map = dict(result_table_queryset.values_list("table_id", "data_label"))
+    time_series_group_items = _values(
+        time_series_group_queryset,
+        [
+            "time_series_group_id",
+            "time_series_group_name",
+            "bk_data_id",
+            "bk_biz_id",
+            "bk_tenant_id",
+            "table_id",
+            "label",
+            "is_enable",
+            "is_split_measurement",
+        ],
+        ["time_series_group_id"],
+    )
+    for item in time_series_group_items:
+        item["data_label"] = _serialize_value(result_table_data_label_map.get(item["table_id"]) or "")
 
     es_storage_items = [
         {
@@ -353,22 +371,7 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
             ],
             ["table_id"],
         ),
-        "time_series_groups": _values(
-            time_series_group_queryset,
-            [
-                "time_series_group_id",
-                "time_series_group_name",
-                "bk_data_id",
-                "bk_biz_id",
-                "bk_tenant_id",
-                "table_id",
-                "label",
-                "data_label",
-                "is_enable",
-                "is_split_measurement",
-            ],
-            ["time_series_group_id"],
-        ),
+        "time_series_groups": time_series_group_items,
         "event_groups": _values(
             event_group_queryset,
             [

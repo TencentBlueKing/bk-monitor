@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models.space.utils import reformat_table_id
@@ -61,6 +62,8 @@ def infer_bk_tenant_id(params: dict[str, Any]) -> str | None:
 
 def _collect_identifier_values(params: dict[str, Any]) -> dict[str, list[Any]]:
     return {
+        "bk_biz_id": _normalize_int_list(params.get("bk_biz_id")),
+        "bk_biz_ids": _normalize_int_list(params.get("bk_biz_ids")),
         "bk_data_id": _normalize_int_list(params.get("bk_data_id")),
         "bk_data_ids": _normalize_int_list(params.get("bk_data_ids")),
         "table_id": _normalize_table_id_list(params.get("table_id")),
@@ -71,6 +74,15 @@ def _collect_identifier_values(params: dict[str, Any]) -> dict[str, list[Any]]:
 
 
 def _query_tenant_ids(field_name: str, values: list[Any]) -> set[str]:
+    if field_name in {"bk_biz_id", "bk_biz_ids"}:
+        tenant_ids: set[str] = set()
+        for value in values:
+            try:
+                tenant_ids.add(bk_biz_id_to_bk_tenant_id(int(value)))
+            except (TypeError, ValueError) as error:
+                raise CustomException(message=f"无法根据 {field_name}={value} 反查 bk_tenant_id: {error}") from error
+        return tenant_ids
+
     if field_name in {"bk_data_id", "bk_data_ids"}:
         return set(
             models.DataSource.objects.filter(bk_data_id__in=values).values_list("bk_tenant_id", flat=True).distinct()
