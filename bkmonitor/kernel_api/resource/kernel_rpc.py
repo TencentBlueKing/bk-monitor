@@ -15,6 +15,7 @@ from rest_framework import serializers
 from core.drf_resource import Resource
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
+from kernel_api.rpc.tenant import inject_bk_tenant_id
 
 
 class KernelRPCResource(Resource):
@@ -32,6 +33,8 @@ class KernelRPCResource(Resource):
     普通调用：
     1. func_name = "<函数名>"
     2. params 为对应函数的入参字典
+    3. 若未显式传入 bk_tenant_id，则会优先尝试基于 table_id / bk_data_id /
+       time_series_group_id 等标识反查唯一租户；若无法唯一确定，则由具体函数自行处理默认逻辑
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -53,6 +56,8 @@ class KernelRPCResource(Resource):
                 "protocol": "meta",
                 "result": self._handle_meta_protocol(params),
             }
+
+        params = inject_bk_tenant_id(params)
 
         return {
             "func_name": func_name,
