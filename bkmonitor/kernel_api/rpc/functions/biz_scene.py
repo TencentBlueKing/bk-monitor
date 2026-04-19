@@ -635,7 +635,6 @@ def _collect_uptimecheck_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, A
             "兼容别名：k8s、plugins、collector_plugin、custom_metrics、time_series、event、"
             "custom_events、uptime_check、uptime-check。"
         ),
-        "scenes": "兼容旧参数，等价于 scene；如果同时传入，优先使用 scene。",
     },
     example_params={"bk_biz_id": 2, "scene": "bcs"},
 )
@@ -645,7 +644,7 @@ def get_biz_scene_related_info(params: dict[str, Any]) -> dict[str, Any]:
     if raw_bk_biz_id is None:
         raise CustomException(message="bk_biz_id 为必填项")
     bk_biz_id = _normalize_bk_biz_id(raw_bk_biz_id)
-    scene = _normalize_scene_name(params.get("scene") or params.get("scenes"))
+    scene = _normalize_scene_name(params.get("scene"))
 
     scene_collectors = {
         "bcs": _collect_bcs_scene,
