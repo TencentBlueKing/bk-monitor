@@ -1658,12 +1658,25 @@ class Item(AbstractConfig):
         return records
 
 
+class _Empty:
+    """用于区分"字段未传"与"显式传 None"的 sentinel 对象。"""
+
+
+ISSUE_CONFIG_EMPTY = _Empty()
+
+
 class IssueConfig:
     """Issues 聚合配置，挂在 Strategy 对象上，与 ActionRelation 并列。
 
     生命周期完全由 Strategy.save() / Strategy.delete() 驱动，
     不应通过 StrategyIssueConfigService.save() 对外操作。
+
+    校验逻辑（跨模型约束 + 字段级合法性）内聚在 validate() 方法中，
+    由 Strategy.save_issue_config() 在保存前统一调用，
+    可平替 SaveStrategyV2Resource.validate_issue_config。
     """
+
+    VALID_CONDITION_METHODS = {"eq", "neq", "include", "exclude", "reg", "nreg"}
 
     class Serializer(serializers.Serializer):
         is_enabled = serializers.BooleanField(default=True)
@@ -1697,6 +1710,59 @@ class IssueConfig:
             "conditions": self.conditions,
             "alert_levels": self.alert_levels,
         }
+
+    def validate(self, strategy: "Strategy") -> None:
+        """校验 issue_config 的跨模型约束 + 字段级合法性。
+
+        - alert_levels 必须为 [1,2,3] 的非空子集
+        - aggregate_dimensions 必须是策略 public_dimensions 的子集
+        - conditions.key 必须属于生效维度集合；method 必须合法；必填字段完整
+
+        直接从 strategy.public_dimensions 计算，不依赖 strategy.id 或缓存，
+        新建策略（id=0）也能正确校验。
+        """
+        if not self.alert_levels or not set(self.alert_levels).issubset({1, 2, 3}):
+            raise ValidationError(detail=_("alert_levels 必须为 [1,2,3] 的非空子集"))
+
+        public_dims = set(strategy.public_dimensions)
+
+        if self.aggregate_dimensions:
+            invalid = set(self.aggregate_dimensions) - public_dims
+            if invalid:
+                raise ValidationError(
+                    detail=_(
+                        "aggregate_dimensions 包含策略公共维度之外的字段: {invalid}，"
+                        "当前策略 public_dimensions 为: {public_dims}"
+                    ).format(invalid=invalid, public_dims=public_dims)
+                )
+
+        effective_dims = set(self.aggregate_dimensions) if self.aggregate_dimensions else public_dims
+        for cond in self.conditions:
+            self._validate_condition_item(cond, effective_dims)
+
+    @classmethod
+    def _validate_condition_item(cls, cond, effective_dimensions: set) -> None:
+        """校验单条 condition 的结构与字段合法性。"""
+        if not isinstance(cond, dict):
+            raise ValidationError(detail=f"conditions 条目必须为 dict，当前为 {type(cond)}")
+
+        required_keys = {"key", "method", "value"}
+        missing = required_keys - set(cond.keys())
+        if missing:
+            raise ValidationError(detail=f"conditions 条目缺少字段: {sorted(missing)}")
+
+        key = cond.get("key")
+        method = cond.get("method")
+        value = cond.get("value")
+
+        if not isinstance(key, str) or not key:
+            raise ValidationError(detail="conditions.key 必须为非空字符串")
+        if method not in cls.VALID_CONDITION_METHODS:
+            raise ValidationError(detail=f"不支持的 method: {method}")
+        if value is None:
+            raise ValidationError(detail="conditions.value 不能为空")
+        if key not in effective_dimensions:
+            raise ValidationError(detail=f"conditions.key={key} 不在可用维度集合中")
 
     def save(self, strategy_id: int, bk_biz_id: int):
         """创建或更新 StrategyIssueConfig，由 Strategy.save_issue_config() 调用。"""
@@ -1804,7 +1870,7 @@ class Strategy(AbstractConfig):
         priority_group_key: str = None,
         metric_type: str = "",
         instance: StrategyModel = None,
-        issue_config: dict | None = None,
+        issue_config: dict | None | _Empty = ISSUE_CONFIG_EMPTY,
         **kwargs,
     ):
         """
@@ -1836,10 +1902,11 @@ class Strategy(AbstractConfig):
         self.priority = priority
         self.priority_group_key = priority_group_key or ""
         self.instance = instance
-        # issue_config 由 from_models() 或 perform_request() 通过 _issue_config_in_request 标志写入；
-        # __init__ 阶段仅做结构初始化，不触发 save。
-        self.issue_config: IssueConfig | None = IssueConfig(**issue_config) if issue_config else None
-        self._issue_config_in_request: bool = False
+        # ISSUE_CONFIG_EMPTY（sentinel）= 字段未传，不操作已有配置
+        # None = 显式传 null，删除已有配置
+        # dict = 显式传值，upsert 配置
+        self._issue_config_in_request: bool = not isinstance(issue_config, _Empty)
+        self.issue_config: IssueConfig | None = IssueConfig(**issue_config) if isinstance(issue_config, dict) else None
 
         if isinstance(self.update_time, int | str):
             self.update_time = arrow.get(update_time).datetime
@@ -2056,7 +2123,7 @@ class Strategy(AbstractConfig):
 
         anomaly_template = None
         recovery_template = None
-        for template in notice.config.get("template"):
+        for template in notice.config.get("template", []):
             if template["signal"] == ActionSignal.ABNORMAL:
                 anomaly_template = template
             elif template["signal"] == ActionSignal.RECOVERED:
@@ -2400,10 +2467,11 @@ class Strategy(AbstractConfig):
     def save_issue_config(self):
         """持久化 issue_config。仅当 _issue_config_in_request=True 时调用。
 
-        - issue_config 非 None：upsert StrategyIssueConfig
+        - issue_config 非 None：validate + upsert StrategyIssueConfig
         - issue_config 为 None（显式传 null）：删除已有 StrategyIssueConfig（关闭 Issues 功能）
         """
         if self.issue_config is not None:
+            self.issue_config.validate(self)
             self.issue_config.save(self.id, self.bk_biz_id)
         else:
             IssueConfig.delete(self.id)

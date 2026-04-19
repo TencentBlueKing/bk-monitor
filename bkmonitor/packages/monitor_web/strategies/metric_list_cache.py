@@ -1525,6 +1525,92 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             bk_tenant_id=self.bk_tenant_id,
         ).exclude(result_table_id="")
 
+    @staticmethod
+    def get_plugin_db_name(plugin: CollectorPluginMeta) -> str:
+        """获取插件对应的 TimeSeriesGroup 名称。"""
+        return f"{plugin.plugin_type}_{plugin.plugin_id}".lower()
+
+    @staticmethod
+    def merge_plugin_time_series_groups(
+        group_list: list[dict[str, Any]], target_bk_biz_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        """将 TimeSeriesGroup 返回的单指标表结构合并为 __default__ 结果表。
+
+        `query_time_series_group` 返回的数据中，每个元素通常只携带一个指标，但这些指标属于同一个
+        `time_series_group_id`。指标缓存侧仍然需要按一个 `xxx.__default__` 结果表来消费，因此这里按
+        group 维度进行合并，并把所有指标合并到同一条记录的 `metric_info_list` 中。
+
+        Args:
+            group_list: metadata 查询返回的原始列表。
+            target_bk_biz_id: 需要回填的业务 ID。
+
+        Returns:
+            归一化后的 TimeSeriesGroup 列表。
+        """
+        merged_group_map: dict[tuple[str, str, str], dict[str, Any]] = {}
+        metric_name_map: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+
+        for group in group_list:
+            group_name = group.get("time_series_group_name", "")
+            group_id = str(group.get("time_series_group_id") or "")
+            bk_data_id = str(group.get("bk_data_id") or "")
+            group_key = (group_id, group_name, bk_data_id)
+
+            merged_group = merged_group_map.get(group_key)
+            if merged_group is None:
+                merged_group = copy.deepcopy(group)
+                merged_group["table_id"] = f"{group_name}.__default__"
+                merged_group["metric_info_list"] = []
+                if target_bk_biz_id is not None:
+                    merged_group["bk_biz_id"] = target_bk_biz_id
+                merged_group_map[group_key] = merged_group
+
+            for metric_info in group.get("metric_info_list") or []:
+                metric_name = metric_info.get("field_name", "")
+                if metric_name in metric_name_map[group_key]:
+                    continue
+
+                normalized_metric_info = copy.deepcopy(metric_info)
+                normalized_metric_info["table_id"] = merged_group["table_id"]
+                merged_group["metric_info_list"].append(normalized_metric_info)
+                metric_name_map[group_key].add(metric_name)
+
+        return list(merged_group_map.values())
+
+    def get_plugin_time_series_groups(self, plugin: CollectorPluginMeta) -> list[dict[str, Any]]:
+        """查询插件对应的 TimeSeriesGroup 信息。
+
+        自动发现模式下，指标和维度都以 TimeSeriesGroup 中的最新数据为准。
+
+        Args:
+            plugin: 插件模型。
+
+        Returns:
+            去重并补齐业务 ID 后的 TimeSeriesGroup 列表。
+        """
+        db_name = self.get_plugin_db_name(plugin)
+        target_bk_biz_id = self.bk_biz_id if self.bk_biz_id is not None else plugin.bk_biz_id
+        biz_ids = [0]
+        if target_bk_biz_id not in biz_ids:
+            biz_ids.append(target_bk_biz_id)
+
+        group_list: list[dict[str, Any]] = []
+        for biz_id in biz_ids:
+            group_list.extend(
+                api.metadata.query_time_series_group.request.refresh(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=biz_id,
+                    time_series_group_name=db_name,
+                )
+            )
+
+        deduplicated_groups = self.merge_plugin_time_series_groups(group_list, target_bk_biz_id=target_bk_biz_id)
+
+        if deduplicated_groups and db_name not in self.ts_db_name:
+            self.ts_db_name.append(db_name)
+
+        return deduplicated_groups
+
     def get_tables(self):
         """
         获取所有需要处理的表数据
@@ -1855,9 +1941,16 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
         # 插件采集
         plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id).exclude(
-            plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE
+            plugin_type__in=set(CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE) - {PluginType.K8S}
         )
         for plugin in plugins:
+            if plugin.current_version.info.enable_field_blacklist:
+                group_list = self.get_plugin_time_series_groups(plugin)
+                if group_list:
+                    for group in group_list:
+                        yield from self.get_plugin_ts_metric(group)
+                    continue
+
             # 刷新插件的metric_json
             plugin.refresh_metric_json()
             for table in plugin.current_version.info.metric_json:

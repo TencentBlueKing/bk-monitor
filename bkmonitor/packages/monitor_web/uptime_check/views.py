@@ -737,8 +737,9 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             task_name=cast(str, validated_data["name"]),
         )
 
-        # 4) 独立数据源字段兼容：多租户强制开启，否则沿用请求值（默认 False）
-        if settings.ENABLE_MULTI_TENANT_MODE:
+        # 4) 独立数据源字段兼容：开启多租户模式或 ENABLE_UPTIMECHECK_BKDATA 时，
+        #    均强制 independent_dataid=True；否则沿用请求值（默认 False）
+        if settings.ENABLE_MULTI_TENANT_MODE or settings.ENABLE_UPTIMECHECK_BKDATA:
             independent_dataid = True
         else:
             independent_dataid = bool(validated_data.get("indepentent_dataid", False))

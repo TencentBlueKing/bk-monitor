@@ -1707,7 +1707,9 @@ class QueryTimeSeriesMetricResource(TimeSeriesMetricConditionQueryMixin, Resourc
             raise ValueError(_("自定义时序分组不存在，请确认后重试"))
 
         # 构建查询集
-        query_set = models.TimeSeriesMetric.objects.filter(group_id=group_id)
+        query_set = models.TimeSeriesMetric.objects.filter(group_id=group_id).exclude(
+            scope_id=models.TimeSeriesMetric.DISABLE_SCOPE_ID
+        )
 
         # 应用搜索条件
         query_set = self._apply_search_filters(query_set, validated_request_data)
@@ -1735,7 +1737,7 @@ class QueryTimeSeriesMetricResource(TimeSeriesMetricConditionQueryMixin, Resourc
             paginated_query_set = query_set
 
         # 批量获取scope信息
-        scope_ids = paginated_query_set.values_list("scope_id", flat=True)
+        scope_ids = list(paginated_query_set.values_list("scope_id", flat=True))
         scopes = models.TimeSeriesScope.objects.filter(id__in=scope_ids, group_id=group_id).values("id", "scope_name")
         scope_map = {scope["id"]: {"id": scope["id"], "name": scope["scope_name"]} for scope in scopes}
 
