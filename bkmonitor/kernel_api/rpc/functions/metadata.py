@@ -290,6 +290,23 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
     )
     for item in time_series_group_items:
         item["data_label"] = _serialize_value(result_table_data_label_map.get(item["table_id"]) or "")
+    event_group_items = _values(
+        event_group_queryset,
+        [
+            "event_group_id",
+            "event_group_name",
+            "bk_data_id",
+            "bk_biz_id",
+            "bk_tenant_id",
+            "table_id",
+            "label",
+            "is_enable",
+            "status",
+        ],
+        ["event_group_id"],
+    )
+    for item in event_group_items:
+        item["data_label"] = _serialize_value(result_table_data_label_map.get(item["table_id"]) or "")
 
     es_storage_items = [
         {
@@ -372,22 +389,7 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
             ["table_id"],
         ),
         "time_series_groups": time_series_group_items,
-        "event_groups": _values(
-            event_group_queryset,
-            [
-                "event_group_id",
-                "event_group_name",
-                "bk_data_id",
-                "bk_biz_id",
-                "bk_tenant_id",
-                "table_id",
-                "label",
-                "data_label",
-                "is_enable",
-                "status",
-            ],
-            ["event_group_id"],
-        ),
+        "event_groups": event_group_items,
         "log_groups": _values(
             log_group_queryset,
             [
