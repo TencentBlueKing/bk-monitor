@@ -398,10 +398,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE",
-            slz.BooleanField(label="是否启用同步历史ES集群记录能力", default=False),
-        ),
-        (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
             slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
         ),
@@ -435,6 +431,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
+        ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
     ]
 )
 
@@ -679,6 +676,16 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
         # 企业微信模块化（layouts）消息通知灰度业务列表
         ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
+        # metric_group_dimensions 分组配置白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        (
+            "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",
+            slz.ListField(label=_("允许 APM 配置指标分组维度的应用白名单"), default=[]),
+        ),
+        # APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        (
+            "APM_CUSTOM_METRIC_V2_ENABLED_LIST",
+            slz.ListField(label=_("APM 自定义指标 V2 开启的应用白名单"), default=[]),
+        ),
     ]
 )
 

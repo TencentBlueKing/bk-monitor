@@ -14,7 +14,6 @@ from functools import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
-
 from constants.apm import CachedEnum
 
 
@@ -165,7 +164,7 @@ DEFAULT_DEDUPE_FIELDS = ["alert_name", "strategy_id", "target_type", "target", "
 CLUSTER_PATTERN = r"{[^}]+}"
 
 
-OLD_DEFAULT_TEMPLATE: str = (
+DEFAULT_TEMPLATE: str = (
     "{{content.level}}\n"
     "{{content.begin_time}}\n"
     "{{content.time}}\n"
@@ -182,16 +181,13 @@ OLD_DEFAULT_TEMPLATE: str = (
     "{{content.related_info}}\n"
 )
 
-DEFAULT_TEMPLATE: str = OLD_DEFAULT_TEMPLATE + "{{content.recommended_metrics}}\n{{content.anomaly_dimensions}}\n"
-
 DEFAULT_TITLE_TEMPLATE: str = "{{business.bk_biz_name}} - {{alarm.name}} {{alarm.display_type}}"
 
 
-# TODO(crayon) 灰度验证无误后再进行调整
 DEFAULT_NOTICE_MESSAGE_TEMPLATE: list[dict[str, str]] = [
-    {"signal": "abnormal", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
-    {"signal": "recovered", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
-    {"signal": "closed", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
+    {"signal": "abnormal", "message_tmpl": DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
+    {"signal": "recovered", "message_tmpl": DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
+    {"signal": "closed", "message_tmpl": DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
 ]
 
 

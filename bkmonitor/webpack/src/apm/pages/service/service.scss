@@ -1,67 +1,133 @@
 .service {
   display: flex;
   height: 100%;
+
+  // ========================================
+  // APM 接口列表 - 调用链入口 hover 显示交互
+  // 说明：将调用链入口从操作列移到接口名称后，hover 行时显示
+  // ========================================
+  .apm-service-page {
+    .common-select-table {
+      .list-wrapper {
+        .select-table {
+          .bk-table-body-wrapper {
+            tr {
+              /* stylelint-disable-next-line selector-class-pattern */
+              .table-column_endpoint_name {
+                .cell {
+                  padding-top: 4px;
+                  padding-bottom: 4px;
+                }
+
+                .suffix-icon-col {
+                  .suffix-icon-btn {
+                    justify-content: center;
+                    width: 52px;
+                    height: 20px;
+                    background-image: linear-gradient(90deg, #f5f8ff 0%, #fff 100%);
+                    border: 1px solid #fff;
+                    border-radius: 6px;
+                    box-shadow: 0 1px 4px 0 #0000001a;
+
+                    /* stylelint-disable-next-line max-nesting-depth */
+                    &:hover {
+                      color: #3a84ff;
+                      box-shadow: 0 1px 4px 0 #0003;
+                    }
+                  }
+                }
+              }
+
+              // hover 行时显示调用链入口
+              &.hover-row {
+                /* stylelint-disable-next-line selector-class-pattern */
+                .table-column_endpoint_name {
+                  .suffix-icon-col {
+                    .suffix-icon-btn {
+                      display: inline-flex;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   .add-service-btn {
     display: flex;
+
     .add-service-icon {
       font-size: 24px;
     }
   }
+
   .bk-tab-header {
+    float: left;
     display: flex;
     flex-direction: row-reverse;
-    float: left;
+
     .bk-tab-header-setting {
       float: left;
     }
   }
+
   .service-content {
     display: flex;
     justify-content: space-between;
+
     .service-item {
-      margin-top: 6px;
       min-width: 84px;
       height: 24px;
-      line-height: 24px;
+      margin-top: 6px;
       margin-right: 12px;
-      border-radius: 2px;
-      background: #f0f1f5;
+      line-height: 24px;
       text-align: center;
       cursor: pointer;
+      background: #f0f1f5;
+      border-radius: 2px;
+
       div {
         padding: 0 6px;
       }
     }
+
     .icon-monitor {
       margin-left: 4px;
     }
+
     .service-active {
       :hover {
         color: #3a84ff;
       }
     }
+
     .service-close {
       :hover {
         background: #dcdee5;
       }
     }
-
   }
+
   .tools-wrap {
     .service-tools {
       display: flex;
+
       .icon-mc-more-tool {
-        justify-content: center;
-        margin-left: 0px;
-        overflow: hidden;
-        width: 26px;
-        height: 26px;
         display: flex;
         align-items: center;
-        background: #F5F7FA;
-        border-radius: 2px;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        margin-left: 0;
+        overflow: hidden;
         font-size: 16px;
         cursor: pointer;
+        background: #f5f7fa;
+        border-radius: 2px;
+
         &:hover {
           color: #3a84ff;
           background-color: #eaf3ff;
@@ -70,7 +136,8 @@
     }
   }
 }
+
 .goto-association-content .goto-association {
-  color: #3a84ff; 
+  color: #3a84ff;
   cursor: pointer;
 }

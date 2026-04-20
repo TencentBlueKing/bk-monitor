@@ -49,12 +49,10 @@ export const handleToAlertList = (
   // const queryStringUrl = `queryString="${encodeURI(queryString(type, detailInfo.id))}"`;
   const curUnix = dayjs.tz().unix() * 1000;
   const oneDay = 60 * 24 * 60 * 1000;
-  const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).format('YYYY-MM-DD HH:mm:ssZZ');
+  const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).valueOf();
   const endTime = detailInfo.end_time
-    ? dayjs
-        .tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay)
-        .format('YYYY-MM-DD HH:mm:ssZZ')
-    : dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ');
+    ? dayjs.tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay).valueOf()
+    : dayjs.tz().valueOf();
   window.open(
     `${location.origin}${location.pathname}?bizId=${bizId}/#/event-center?queryString=${queryString(
       type,

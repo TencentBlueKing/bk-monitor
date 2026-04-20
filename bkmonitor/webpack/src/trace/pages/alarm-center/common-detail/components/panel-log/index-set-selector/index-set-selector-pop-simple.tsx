@@ -27,6 +27,7 @@
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Input } from 'bkui-vue';
+import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
 
 import type { IIndexSet } from './typing';
 
@@ -76,11 +77,18 @@ export default defineComponent({
       emit('select', indexSetId);
     };
 
+    const handleOperation = (type: EmptyStatusOperationType) => {
+      if (type === 'clear-filter') {
+        handleSearchValueChange('');
+      }
+    };
+
     return {
       filterList,
       searchValue,
       handleSearchValueChange,
       handleSelect,
+      handleOperation,
     };
   },
 
@@ -106,15 +114,22 @@ export default defineComponent({
           </Input>
         </div>
         <div class='list-wrap'>
-          {this.filterList.map(item => (
-            <div
-              key={item.index_set_id}
-              class={['list-item', { active: item.index_set_id === this.id }]}
-              onClick={() => this.handleSelect(item.index_set_id)}
-            >
-              {item.index_set_name}
-            </div>
-          ))}
+          {this.filterList.length ? (
+            this.filterList.map(item => (
+              <div
+                key={item.index_set_id}
+                class={['list-item', { active: item.index_set_id === this.id }]}
+                onClick={() => this.handleSelect(item.index_set_id)}
+              >
+                {item.index_set_name}
+              </div>
+            ))
+          ) : (
+            <EmptyStatus
+              type={this.searchValue ? 'search-empty' : 'empty'}
+              onOperation={this.handleOperation}
+            />
+          )}
         </div>
       </div>
     );

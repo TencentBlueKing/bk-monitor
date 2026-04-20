@@ -34,7 +34,6 @@ import type { RouteConfig } from 'vue-router';
 export enum IntroduceRouteKey {
   'apm-home' = 'apm-home',
   'collect-config' = 'collect-config',
-  'custom-scenes' = 'custom-scenes',
   k8s = 'k8s',
   'k8s-new' = 'k8s-new',
   // 'k8s-old' = 'k8s-old',

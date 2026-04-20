@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -18,7 +17,7 @@ from bkmonitor.dataflow.node.base import Node
 
 class StorageNode(Node, ABC):
     def __init__(self, source_rt_id, storage_expires, *args, **kwargs):
-        super(StorageNode, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_rt_id = source_rt_id
         self.bk_biz_id, _, self.process_rt_id = source_rt_id.partition("_")
         self.bk_biz_id = int(self.bk_biz_id)
@@ -44,7 +43,7 @@ class StorageNode(Node, ABC):
 
     @property
     def name(self):
-        return "{}({})".format(self.get_node_type(), self.source_rt_id)
+        return f"{self.get_node_type()}({self.source_rt_id})"
 
     @property
     def output_table_name(self):
@@ -100,7 +99,7 @@ class HDFSStorageNode(StorageNode):
     NODE_TYPE = "hdfs_storage"
 
     def __init__(self, source_rt_id, storage_expires, *args, **kwargs):
-        super(HDFSStorageNode, self).__init__(source_rt_id, storage_expires, *args, **kwargs)
+        super().__init__(source_rt_id, storage_expires, *args, **kwargs)
         self.storage_expires = storage_expires
 
     @property
@@ -123,7 +122,7 @@ class DorisStorageNode(StorageNode):
     NODE_TYPE = "doris"
 
     def __init__(self, cluster, *args, **kwargs):
-        super(DorisStorageNode, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cluster = cluster
 
     @property
@@ -170,7 +169,7 @@ class ElasticsearchStorageNode(StorageNode):
         *args,
         **kwargs,
     ):
-        super(ElasticsearchStorageNode, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.has_replica = has_replica
         self.storage_keys = storage_keys or []
         self.analyzed_fields = analyzed_fields or []
@@ -181,12 +180,28 @@ class ElasticsearchStorageNode(StorageNode):
         self.has_unique_key = has_unique_key
         self.physical_table_name = physical_table_name
 
+    def __eq__(self, other):
+        if isinstance(other, dict):
+            config = self.config
+            if (
+                config.get("from_result_table_ids") == other.get("from_result_table_ids")
+                and config.get("result_table_id") == other.get("result_table_id")
+                and config.get("bk_biz_id") == other.get("bk_biz_id")
+            ):
+                return True
+        elif isinstance(other, self.__class__):
+            return self == other.config
+        return False
+
     @property
     def config(self):
         params = {
+            # 基础配置（配置不一样，则需要重建节点）
             "bk_biz_id": self.bk_biz_id,
+            "from_result_table_ids": [self.source_rt_id],
             "result_table_id": self.source_rt_id,
             "name": self.name,
+            # 存储节点配置（配置不一样则需要更新节点）
             "cluster": self.cluster,
             "date_fields": self.date_fields,
             "expires": self.storage_expires,
@@ -196,7 +211,6 @@ class ElasticsearchStorageNode(StorageNode):
             "analyzed_fields": self.analyzed_fields,
             "doc_values_fields": self.doc_values_fields,
             "json_fields": self.json_fields,
-            "from_result_table_ids": [self.source_rt_id],
         }
         if self.physical_table_name:
             # 如果开启了自托管 需要额外处理表名

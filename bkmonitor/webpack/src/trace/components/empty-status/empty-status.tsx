@@ -68,7 +68,9 @@ export default defineComponent({
       500: t('数据获取异常'),
       403: t('无业务权限'),
     };
-    const typeText = computed(() => (props.textMap || defaultTextMap)[props.type]);
+    const typeText = computed(() => {
+      return { ...defaultTextMap, ...(props.textMap || {}) }[props.type];
+    });
 
     const handleOperation = (type: EmptyStatusOperationType) => {
       emit('operation', type);

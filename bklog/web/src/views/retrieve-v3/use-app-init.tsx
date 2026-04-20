@@ -30,7 +30,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import { getDefaultRetrieveParams, updateURLArgs as updateUrlArgs } from '@/store/default-values';
-import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
+import { BK_LOG_STORAGE, type RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -88,7 +88,9 @@ export default () => {
 
     store.commit('updateIndexItem', routeParams);
     store.commit('updateSpace', routeParams.spaceUid);
-    store.commit('updateState', { indexId: routeParams.index_id });
+    if (routeParams.index_id !== undefined) {
+      store.commit('updateState', { indexId: routeParams.index_id });
+    }
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
     });
@@ -96,19 +98,19 @@ export default () => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  const handleSearchBarHeightChange = (height) => {
+  const handleSearchBarHeightChange = height => {
     searchBarHeight.value = height;
   };
 
-  const handleFavoriteWidthChange = (width) => {
+  const handleFavoriteWidthChange = width => {
     favoriteWidth.value = width;
   };
 
-  const hanldeFavoriteShown = (isShown) => {
+  const hanldeFavoriteShown = isShown => {
     isFavoriteShown.value = isShown;
   };
 
-  const handleGraphHeightChange = (height) => {
+  const handleGraphHeightChange = height => {
     trendGraphHeight.value = height;
   };
 
@@ -151,45 +153,52 @@ export default () => {
     return { width: '100%' };
   });
 
+  const resolveAdditionKeyword = (): Promise<void> => {
+    const { search_mode: searchMode, addition, keyword } = route.query;
+
+    if (!searchMode && addition?.length > 4 && keyword?.length > 0) {
+      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+
+      const resolver = new RouteUrlResolver({
+        route,
+        resolveFieldList: ['addition'],
+      });
+      const target = resolver.convertQueryToStore<RouteParams>();
+
+      if (target.addition?.length) {
+        return $http
+          .request('retrieve/generateQueryString', {
+            data: { addition: target.addition },
+          })
+          .then(res => {
+            if (res.result) {
+              const newKeyword = `${keyword} AND ${res.data?.querystring}`;
+              store.commit('updateIndexItemParams', { keyword: newKeyword });
+            }
+          })
+          .catch(err => {
+            console.error(err);
+          });
+      }
+    }
+
+    return Promise.resolve();
+  };
+
   const setSearchMode = () => {
     const { search_mode: searchMode, addition, keyword } = route.query;
 
-    // 此时说明来自旧版URL，同时带有 addition 和 keyword
-    // 这种情况下需要将 addition 转换为 keyword 进行查询合并
-    // 同时设置 search_mode 为 sql
     if (!searchMode) {
       if (addition?.length > 4 && keyword?.length > 0) {
-        // 这里不好做同步请求，所以直接设置 search_mode 为 sql
+        const mergedKeyword = store.state.indexItem.keyword;
         router.push({
-          query: { ...route.query, search_mode: 'sql', addition: '[]' },
+          query: {
+            ...route.query,
+            search_mode: 'sql',
+            keyword: mergedKeyword,
+            addition: '[]',
+          },
         });
-        const resolver = new RouteUrlResolver({
-          route,
-          resolveFieldList: ['addition'],
-        });
-        const target = resolver.convertQueryToStore<RouteParams>();
-
-        if (target.addition?.length) {
-          $http
-            .request('retrieve/generateQueryString', {
-              data: {
-                addition: target.addition,
-              },
-            })
-            .then((res) => {
-              if (res.result) {
-                const newKeyword = `${keyword} AND ${res.data?.querystring}`;
-                router.replace({
-                  query: { ...route.query, keyword: newKeyword, addition: [] },
-                });
-                store.commit('updateIndexItemParams', { keyword: newKeyword });
-              }
-            })
-            .catch((err) => {
-              console.error(err);
-            });
-        }
-
         return;
       }
 
@@ -260,7 +269,7 @@ export default () => {
               targetItem = flatIndexSetList.value.find(item => `${item.index_set_id}` === `${cur}`);
             }
 
-            if (targetItem?.unique_id) {
+            if (targetItem.unique_id) {
               // 从 unique_id 中提取 pid（作为备选方案）
               const parts = targetItem.unique_id.split('_');
               const extractedPid = parts.length > 1 ? parts[0] : '#';
@@ -355,7 +364,7 @@ export default () => {
         const indexSetIds = [];
 
         if (indexSetIdList.value.length) {
-          indexSetIdList.value.forEach((id) => {
+          indexSetIdList.value.forEach(id => {
             const item = flatIndexSetList.value.find(item => filterFn(id, item));
             if (!item) {
               emptyIndexSetList.push(id);
@@ -379,9 +388,10 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem =            flatIndexSetList.value.find(
-            item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
-          ) ?? flatIndexSetList.value[0];
+          const defIndexItem =
+            flatIndexSetList.value.find(
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
+            ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
 
           if (defaultId) {
@@ -391,10 +401,12 @@ export default () => {
           }
         }
 
-        const indexId =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
-          ? store.state.indexItem.ids[0]
-          : undefined;
-        const unionList =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+        const indexId =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+            ? store.state.indexItem.ids[0]
+            : undefined;
+        const unionList =
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
         // 修复：当 URL 中的 indexId 无效时，已经在上面选择了默认索引
         // 这里应该判断当前是否有有效的索引ID，而不是判断 emptyIndexSetList
@@ -422,42 +434,56 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store
-            .dispatch('requestIndexSetFieldInfo')
-            .then((resp) => {
-              RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-              RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
+          resolveAdditionKeyword().then(() => {
+            store
+              .dispatch('requestIndexSetFieldInfo')
+              .then(resp => {
+                RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+                RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
-              if (
-                route.query.tab === 'origin'
-                || route.query.tab === undefined
-                || route.query.tab === null
-                || route.query.tab === ''
-              ) {
-                if (resp?.data?.fields?.length) {
-                  store.dispatch('requestIndexSetQuery').then(() => {
+                if (
+                  route.query.tab === 'origin' ||
+                  route.query.tab === undefined ||
+                  route.query.tab === null ||
+                  route.query.tab === ''
+                ) {
+                  if (resp?.data?.fields?.length) {
+                    store.dispatch('requestIndexSetQuery').then(() => {
+                      RetrieveHelper.setSearchingValue(false);
+                    });
+                  }
+
+                  if (!resp?.data?.fields?.length) {
+                    store.commit('updateIndexSetQueryResult', {
+                      is_error: true,
+                      exception_msg: 'index-set-field-not-found',
+                    });
                     RetrieveHelper.setSearchingValue(false);
-                  });
-                }
-
-                if (!resp?.data?.fields?.length) {
-                  store.commit('updateIndexSetQueryResult', {
-                    is_error: true,
-                    exception_msg: 'index-set-field-not-found',
-                  });
+                  }
+                } else {
                   RetrieveHelper.setSearchingValue(false);
                 }
 
-                return;
-              }
-
-              RetrieveHelper.setSearchingValue(false);
-            })
-            .catch((err) => {
-              // 请求失败时也要关闭 loading 状态，避免页面一直处于加载中
-              console.error('requestIndexSetFieldInfo failed:', err);
-              RetrieveHelper.setSearchingValue(false);
-            });
+                setSearchMode();
+                setDefaultRouteUrl();
+                if (indexId) {
+                  router.replace({
+                    params: { ...route.params, indexId },
+                    query: {
+                      ...route.query,
+                      ...queryTab,
+                      unionList: unionList ? JSON.stringify(unionList) : undefined,
+                    },
+                  });
+                }
+              })
+              .catch(err => {
+                console.error('requestIndexSetFieldInfo failed:', err);
+                RetrieveHelper.setSearchingValue(false);
+                setSearchMode();
+                setDefaultRouteUrl();
+              });
+          });
         }
 
         if (!indexSetIdList.value.length) {
@@ -479,16 +505,6 @@ export default () => {
           store.getters.isUnionSearch,
         );
 
-        if (indexId) {
-          router.replace({
-            params: { ...route.params, indexId },
-            query: {
-              ...route.query,
-              ...queryTab,
-              unionList: unionList ? JSON.stringify(unionList) : undefined,
-            },
-          });
-        }
       });
   };
 
@@ -508,9 +524,7 @@ export default () => {
   };
 
   getIndexSetList(() => {
-    setSearchMode();
     reoverRouteParams();
-    setDefaultRouteUrl();
   });
 
   const handleSpaceIdChange = () => {
@@ -564,7 +578,7 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  addEvent(RetrieveEvent.GLOBAL_SCROLL, (event) => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
@@ -574,7 +588,7 @@ export default () => {
 
   useResizeObserve(
     RetrieveHelper.getScrollSelector(),
-    (entry) => {
+    entry => {
       scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
     },
     0,

@@ -1,6 +1,10 @@
 .log-realtime-dialog-main {
   .bk-dialog-body {
     padding: 0;
+
+    .bk-resize-layout-aside-content {
+      overflow: visible !important;
+    }
   }
 
   .bk-resize-collapse {

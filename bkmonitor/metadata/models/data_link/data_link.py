@@ -278,7 +278,7 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 es_cluster_name=es_storage.storage_cluster.cluster_name,
                 timezone=es_storage.time_zone,  # 时区,默认0时区
-                defaults={"table_id": table_id},
+                defaults={"table_id": table_id, "bkbase_result_table_name": self.data_link_name},
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
@@ -295,7 +295,10 @@ class DataLink(models.Model):
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
                 data_id_name=bkbase_data_name,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
+                },
             )
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
@@ -305,14 +308,19 @@ class DataLink(models.Model):
                 unique_field_list=unique_field_list,
                 json_field_list=["event", "dimension"],
             )
+
+            sinks = [
+                {
+                    "kind": DataLinkKind.ESSTORAGEBINDING.value,
+                    "name": es_storage_ins.name,
+                    "namespace": self.namespace,
+                }
+            ]
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                sinks[0]["tenant"] = self.bk_tenant_id
+
             databus_config = databus_ins.compose_log_config(
-                sinks=[
-                    {
-                        "kind": DataLinkKind.ESSTORAGEBINDING.value,
-                        "name": es_storage_ins.name,
-                        "namespace": self.namespace,
-                    }
-                ],
+                sinks=sinks,
                 rules=CUSTOM_EVENT_CLEAN_RULES,
             )
 
@@ -390,6 +398,7 @@ class DataLink(models.Model):
                         "es_cluster_name": es_storage.storage_cluster.cluster_name,
                         "timezone": es_storage.time_zone,
                         "table_id": table_id,
+                        "bkbase_result_table_name": self.data_link_name,
                     },
                 )
 
@@ -422,7 +431,11 @@ class DataLink(models.Model):
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
                     name=self.data_link_name,
-                    defaults={"table_id": table_id},
+                    defaults={
+                        "table_id": table_id,
+                        "bkbase_result_table_name": self.data_link_name,
+                        "doris_cluster_name": doris_storage.storage_cluster.cluster_name,
+                    },
                 )
                 bingding_configs.append(
                     binding.compose_config(
@@ -430,6 +443,7 @@ class DataLink(models.Model):
                         storage_keys=storage_option.storage_keys,
                         json_fields=storage_option.json_fields,
                         field_config_group=storage_option.field_config_group,
+                        original_json_fields=storage_option.original_json_fields,
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
                     )
@@ -441,6 +455,11 @@ class DataLink(models.Model):
                         "namespace": self.namespace,
                     }
                 )
+
+            # 补充租户ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                for sink in databus_sinks:
+                    sink["tenant"] = self.bk_tenant_id
 
             # 如果没有任何存储绑定配置，则抛出异常
             if not bingding_configs:
@@ -454,7 +473,10 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 name=self.data_link_name,
                 data_id_name=bkbase_data_name,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{sink['kind']}:{sink['name']}" for sink in databus_sinks],
+                },
             )
 
             # 组装配置
@@ -522,7 +544,7 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id},
+                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
             )
 
             sink_item = {
@@ -540,7 +562,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+                },
             )
 
         return [
@@ -626,7 +651,7 @@ class DataLink(models.Model):
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": usage_monitor_table_id},
+                    defaults={"table_id": usage_monitor_table_id, "bkbase_result_table_name": usage_vmrt_name},
                 )
                 vm_storage_ins_cmdb, _ = VMStorageBindingConfig.objects.update_or_create(
                     name=usage_cmdb_level_vmrt_name,
@@ -635,7 +660,10 @@ class DataLink(models.Model):
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": usage_monitor_cmdb_table_id},
+                    defaults={
+                        "table_id": usage_monitor_cmdb_table_id,
+                        "bkbase_result_table_name": usage_cmdb_level_vmrt_name,
+                    },
                 )
 
                 # 添加配置到列表
@@ -697,7 +725,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{self.data_link_name}"],
+                },
             )
 
         logger.info(
@@ -781,7 +812,7 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 es_cluster_name=storage_cluster_name,
                 timezone=timezone,  # 时区,默认0时区
-                defaults={"table_id": table_id},
+                defaults={"table_id": table_id, "bkbase_result_table_name": component_name},
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
@@ -798,7 +829,10 @@ class DataLink(models.Model):
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
                 data_id_name=component_name,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{component_name}"],
+                },
             )
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
@@ -864,7 +898,7 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id},
+                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
             )
 
         configs = [
@@ -963,21 +997,26 @@ class DataLink(models.Model):
         )
 
         with transaction.atomic():
-            vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(
+            vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                data_link_name=self.data_link_name,
                 namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "data_link_name": self.data_link_name,
+                    "bk_biz_id": bk_biz_id,
+                },
             )
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                data_id_name=bkbase_raw_data_name,
-                data_link_name=self.data_link_name,
                 namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "data_id_name": bkbase_raw_data_name,
+                    "data_link_name": self.data_link_name,
+                    "bk_biz_id": bk_biz_id,
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{bkbase_vmrt_name}"],
+                },
             )
 
         vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
@@ -1038,7 +1077,7 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id},
+                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
             )
             sinks = [
                 {
@@ -1057,12 +1096,15 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.VMSTORAGEBINDING.value}:{bkbase_vmrt_name}"],
+                },
             )
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(),
+            vm_storage_ins.compose_config(bk_data_id=data_source.bk_data_id),
             data_bus_ins.compose_config(sinks),
         ]
         return configs
@@ -1112,7 +1154,7 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id},
+                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
             )
             sink_item = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
@@ -1124,7 +1166,6 @@ class DataLink(models.Model):
 
             sinks = [sink_item]
 
-            # TODO: 非自动发现情况下,需要传递指标/维度白名单至VMStorageBinding中
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_id_name=bkbase_data_name,
@@ -1132,7 +1173,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+                },
             )
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
@@ -1239,9 +1283,8 @@ class DataLink(models.Model):
             with transaction.atomic():
                 BkBaseResultTable.objects.update_or_create(
                     data_link_name=self.data_link_name,
-                    monitor_table_id=table_id,
-                    storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
                     defaults={
+                        "monitor_table_id": table_id,
                         "bkbase_rt_name": bkbase_vmrt_name,
                         "bkbase_data_name": bkbase_data_name,
                         "bkbase_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",

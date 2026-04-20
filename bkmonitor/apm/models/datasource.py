@@ -251,6 +251,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
             "data_label": DEFAULT_DATA_LABEL,
             "is_split_measurement": True,
         }
+
         datalink = DataLink.get_data_link(self.bk_biz_id)
         if datalink and datalink.influxdb_cluster_name:
             params["default_storage_config"] = {"proxy_cluster_name": datalink.influxdb_cluster_name}

@@ -20,6 +20,7 @@ from operator import itemgetter
 from typing import Any
 
 import arrow
+from bk_monitor_base.strategy import list_strategy, parse_metric_id
 from django.conf import settings
 
 from alarm_backends.constants import CONST_ONE_DAY
@@ -37,7 +38,6 @@ from bkmonitor.models import (
     StrategyHistoryModel,
     StrategyModel,
 )
-from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -45,10 +45,10 @@ from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
     AGG_METHOD_REAL_TIME,
-    AdvanceConditionMethod,
-    TargetFieldType,
     OS_RESTART_METRIC_ID,
     SYSTEM_PROC_PORT_METRIC_ID,
+    AdvanceConditionMethod,
+    TargetFieldType,
 )
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -359,11 +359,16 @@ class StrategyCacheManager(CacheManager):
                     del value["bk_cloud_id"]
 
     @classmethod
-    def get_strategies_map(cls, filter_dict: dict | None = None) -> dict:
+    def get_strategies_map(cls, bk_biz_ids: set[int] | list[int] | None = None) -> dict:
         """
         获取全部策略配置, 返回字典格式
         """
-        filter_dict: dict = filter_dict or {}
+        list_kwargs: dict[str, Any] = {
+            "apply_converters": False,
+            "is_enabled": True,
+        }
+        if bk_biz_ids:
+            list_kwargs["bk_biz_ids"] = sorted(set(bk_biz_ids))
         # 初始化策略失效检测信息
         invalid_strategy_dict = {
             # 已检测的指标id缓存
@@ -386,9 +391,8 @@ class StrategyCacheManager(CacheManager):
 
         # 根据给定的过滤条件，从数据库中筛选出所有启用的策略模型，并将它们转换为字典形式
         # 这个映射的键是策略的唯一标识符，值是策略的内容，便于进一步处理和使用
-        strategy_configs_map = {
-            strategy.id: strategy.to_dict()
-            for strategy in Strategy.from_models(StrategyModel.objects.filter(is_enabled=True).filter(**filter_dict))
+        strategy_configs_map: dict[int, dict[str, Any]] = {
+            strategy_config["id"]: strategy_config for strategy_config in list_strategy(**list_kwargs)["data"]
         }
 
         result_map = {}
@@ -429,12 +433,12 @@ class StrategyCacheManager(CacheManager):
         return result_map
 
     @classmethod
-    def get_strategies(cls, filter_dict: dict | None = None) -> list[dict]:
+    def get_strategies(cls, bk_biz_ids: set[int] | list[int] | None = None) -> list[dict]:
         """
         获取全部策略配置
         """
         # 获取字典格式的全部策略配置
-        result_map = cls.get_strategies_map(filter_dict)
+        result_map = cls.get_strategies_map(bk_biz_ids)
 
         # 提取所有的策略配置重新组成一个列表
         result = []
@@ -596,7 +600,7 @@ class StrategyCacheManager(CacheManager):
         strategies = []
         for sub_keys in chunks(keys, 1000):
             strategies.extend(cls.cache.mget(sub_keys))
-        return [Strategy.convert_v1_to_v2(json.loads(strategy)) for strategy in strategies if strategy]
+        return [json.loads(strategy) for strategy in strategies if strategy]
 
     @classmethod
     def get_strategy_by_id(cls, strategy_id: int) -> dict:
@@ -604,8 +608,6 @@ class StrategyCacheManager(CacheManager):
         从缓存中获取策略详情
         """
         strategy = json.loads(cls.cache.get(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id)) or "null")
-        # 兼容旧版策略
-        strategy = Strategy.convert_v1_to_v2(strategy)
         return strategy
 
     @classmethod
@@ -1106,9 +1108,7 @@ class StrategyCacheManager(CacheManager):
                 for strategy_id, _ in to_be_deleted_strategy_ids:
                     strategies_map.pop(strategy_id, None)
             try:
-                changed_strategies_map = (
-                    cls.get_strategies_map({"bk_biz_id__in": target_biz_set}) if target_biz_set else {}
-                )
+                changed_strategies_map = cls.get_strategies_map(target_biz_set) if target_biz_set else {}
                 strategies_map.update(changed_strategies_map)
             except Exception as e:
                 logger.exception(f"[refresh_strategy_cache]: get data of changed_strategies_map failed: {e}")
@@ -1231,7 +1231,7 @@ class StrategyCacheManager(CacheManager):
 
         # 尝试获取目标业务的策略
         try:
-            strategies = cls.get_strategies({"bk_biz_id__in": target_biz_set})
+            strategies = cls.get_strategies(target_biz_set)
         except Exception as e:  # noqa
             # 若获取策略失败，则记录日志并跳过
             logger.info(f"[smart_strategy_cache]: get target strategies error: {e}")

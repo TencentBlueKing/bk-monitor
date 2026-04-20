@@ -52,7 +52,7 @@ export default defineComponent({
       default: 210,
     },
     tips: {
-      type: String,
+      type: [String, Object],
       default: '',
     },
     isError: {

@@ -60,19 +60,20 @@ export default (props, { emit }) => {
    *
    */
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   const handleIndexSetItemCheck = (item, isChecked, storeList = []) => {
-    const targetValue: any[] = [];
+    const targetValue = new Set<string>();
+    const storeSet = new Set<string>(storeList);
 
     // 如果是选中
     if (isChecked) {
       for (const v of props.value) {
-        if (!storeList.includes(v)) {
-          targetValue.push(v.unique_id);
+        const uniqueId = v?.unique_id ?? v;
+        if (!storeSet.has(uniqueId)) {
+          targetValue.add(uniqueId);
         }
       }
-      targetValue.push(item.unique_id);
-      emit('value-change', targetValue);
+      targetValue.add(item.unique_id);
+      emit('value-change', [...targetValue]);
       return;
     }
 
@@ -80,17 +81,15 @@ export default (props, { emit }) => {
     for (const v of props.value) {
       const uniqueId = v?.unique_id ?? v;
       if (uniqueId !== item.unique_id) {
-        targetValue.push(v);
+        targetValue.add(uniqueId);
       }
     }
 
-    for (const v of storeList ?? []) {
-      if (!targetValue.includes(v)) {
-        targetValue.push(v);
-      }
+    for (const v of storeSet) {
+      targetValue.add(v);
     }
 
-    emit('value-change', targetValue);
+    emit('value-change', [...targetValue]);
   };
 
   return {

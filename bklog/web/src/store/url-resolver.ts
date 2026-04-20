@@ -38,14 +38,17 @@ import type { Route } from 'vue-router';
 class RouteUrlResolver {
   private route;
   private resolver: Map<string, (_str: string) => unknown>;
+  private paramSanitizers: Map<string, (val: unknown) => unknown>;
   private resolveFieldList: string[];
 
   constructor({ route, resolveFieldList }: { route: Route; resolveFieldList?: string[] }) {
     this.route = route;
     // eslint-disable-next-line
     this.resolver = new Map<string, (_str: string) => unknown>();
+    this.paramSanitizers = new Map<string, (val: unknown) => unknown>();
     this.resolveFieldList = resolveFieldList ?? this.getDefaultResolveFieldList();
     this.setDefaultResolver();
+    this.setDefaultSanitizers();
   }
 
   get query() {
@@ -69,7 +72,21 @@ class RouteUrlResolver {
    */
   public convertQueryToStore<T>(): T {
     return this.resolveFieldList.reduce((output, key) => {
-      const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
+      let value;
+      try {
+        value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
+      } catch (error) {
+        console.warn('route url resolver convertQueryToStore error', key, error);
+        value = undefined;
+      }
+
+      if (value !== undefined) {
+        const sanitizer = this.paramSanitizers.get(key);
+        if (sanitizer) {
+          value = sanitizer(value);
+        }
+      }
+
       if (value !== undefined) {
         output[key] = value;
       }
@@ -127,21 +144,67 @@ class RouteUrlResolver {
    */
   private commonResolver(str, next?) {
     if (str !== undefined && str !== null) {
-      // Vue Router 已自动解码，直接使用原值
-      return next?.(str) ?? str;
+      // vue-router query 可能是 string | string[]
+      const raw = Array.isArray(str) ? str[str.length - 1] : str;
+
+      // 非字符串直接透传（尽量不因类型异常导致白屏）
+      if (typeof raw !== 'string') {
+        return next?.(raw) ?? raw;
+      }
+
+      let val = raw;
+      try {
+        val = decodeURIComponent(raw);
+      } catch (error) {
+        // URL 被截断或包含非法 % 序列时，decodeURIComponent 会抛 URIError
+        // 这里兜底，保证不白屏：能解析多少算多少
+        console.warn('route url resolver decodeURIComponent error', error);
+        val = raw;
+      }
+      return next?.(val) ?? val;
     }
 
     return;
   }
 
   /**
-   * 对象解析器 - 将 JSON 字符串解析为对象
-   * Vue Router 已自动解码，无需再次 decodeURIComponent
+   * 用于 URL query 中 JSON 参数解析（对象/数组/对象数组等）。
+   * 关键点：优先直接 JSON.parse（避免对值里的 %xx 进行误解码），失败后再按需 decode 后重试。
    */
+  private parseJsonParam<T>(raw: string, fallback: T, maxDepth = 3): T {
+    let current = raw;
+
+    for (let i = 0; i <= maxDepth; i++) {
+      try {
+        return JSON.parse(current) as T;
+      } catch (e) {
+        // parse 失败再尝试 decode；decode 失败直接返回 fallback
+      }
+
+      let decoded: string;
+      try {
+        decoded = decodeURIComponent(current);
+      } catch (e) {
+        return fallback;
+      }
+
+      if (decoded === current) {
+        return fallback;
+      }
+
+      current = decoded;
+    }
+
+    return fallback;
+  }
+
   private objectResolver(str) {
     return this.commonResolver(str, (val) => {
       try {
-        return JSON.parse(val ?? '');
+        if (typeof val !== 'string') {
+          return val;
+        }
+        return this.parseJsonParam(val ?? '', val);
       } catch (error) {
         console.warn('route url resolver objectResolver error', error);
         return val;
@@ -167,9 +230,18 @@ class RouteUrlResolver {
    * 注意：Vue Router 已自动解码，无需再次 decodeURIComponent
    */
   private dateTimeRangeResolver(timeRange: string[]) {
-    const parsedValue = timeRange.map((t) => intTimestampStr(t));
+    const decodeValue = timeRange.map((t) => {
+      let r = t;
+      try {
+        r = decodeURIComponent(t);
+      } catch (error) {
+        console.warn('route url resolver dateTimeRangeResolver decode error', error);
+        r = t;
+      }
+      return intTimestampStr(r);
+    });
 
-    const result: number[] = handleTransformToTimestamp(parsedValue as any, this.timeFormatResolver(this.query.format));
+    const result: number[] = handleTransformToTimestamp(decodeValue as any, this.timeFormatResolver(this.query.format));
     return { start_time: result[0], end_time: result[1] };
   }
 
@@ -183,10 +255,19 @@ class RouteUrlResolver {
         return [];
       }
 
-      return (JSON.parse(value) ?? []).map((val) => {
-        const instance = new ConditionOperator(val);
-        return instance.formatApiOperatorToFront(true);
-      });
+      try {
+        if (typeof value !== 'string') {
+          return [];
+        }
+        const parsed = this.parseJsonParam<any[]>(value, []);
+        return (parsed ?? []).map((val) => {
+          const instance = new ConditionOperator(val);
+          return instance.formatApiOperatorToFront(true);
+        });
+      } catch (e) {
+        console.warn('additionResolver parse error:', e);
+        return [];
+      }
     });
   }
 
@@ -207,7 +288,12 @@ class RouteUrlResolver {
     }
 
     try {
-      return JSON.parse(str);
+      const raw = Array.isArray(str) ? str[str.length - 1] : str;
+      if (typeof raw !== 'string') {
+        return [];
+      }
+      const parsed = this.parseJsonParam<any[]>(raw, []);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error(e);
       return [];
@@ -269,6 +355,64 @@ class RouteUrlResolver {
       });
     });
   }
+
+  private stripQuoteArtifacts(val: string): string {
+    return val.replace(/^["']+|["']+$/g, '').trim();
+  }
+
+  /**
+   * 参数清洗器：对 resolver 解析后的值做格式校验，自动修正或丢弃不合法的值。
+   * 主要用于防御外部系统构造的 URL 中混入 HTML 实体残留（如 &quot; → "）等脏数据。
+   */
+  private setDefaultSanitizers() {
+    // timezone: IANA 时区格式 Region/City 或缩写如 UTC
+    const timezonePattern = /^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z][A-Za-z0-9_+-]*)*$/;
+    this.paramSanitizers.set('timezone', (val) => {
+      if (typeof val !== 'string') return undefined;
+      if (timezonePattern.test(val)) return val;
+      const cleaned = this.stripQuoteArtifacts(val);
+      return timezonePattern.test(cleaned) ? cleaned : undefined;
+    });
+
+    // bizId: 数字，支持负数
+    this.paramSanitizers.set('bizId', (val) => {
+      if (typeof val !== 'string') return val;
+      if (/^-?\d+$/.test(val)) return val;
+      const cleaned = this.stripQuoteArtifacts(val);
+      return /^-?\d+$/.test(cleaned) ? cleaned : undefined;
+    });
+
+    // spaceUid: 字母、数字、下划线、连字符
+    this.paramSanitizers.set('spaceUid', (val) => {
+      if (typeof val !== 'string') return val;
+      if (/^[a-zA-Z0-9_-]+$/.test(val)) return val;
+      const cleaned = this.stripQuoteArtifacts(val);
+      return /^[a-zA-Z0-9_-]+$/.test(cleaned) ? cleaned : undefined;
+    });
+
+    // search_mode: 白名单
+    this.paramSanitizers.set('search_mode', (val) => {
+      if (typeof val !== 'string') return undefined;
+      return ['sql', 'ui'].includes(val) ? val : undefined;
+    });
+
+    // format: 日期格式仅允许合法字符集
+    const formatPattern = /^[YMDHhmsS\-/:. ]+$/;
+    this.paramSanitizers.set('format', (val) => {
+      if (typeof val !== 'string') return val;
+      if (formatPattern.test(val)) return val;
+      const cleaned = this.stripQuoteArtifacts(val);
+      return formatPattern.test(cleaned) ? cleaned : undefined;
+    });
+
+    // index_id: 纯数字或数字字符串
+    this.paramSanitizers.set('index_id', (val) => {
+      if (typeof val !== 'string') return val;
+      if (/^\d+$/.test(val)) return val;
+      const cleaned = val.replace(/[^\d]/g, '');
+      return cleaned.length ? cleaned : undefined;
+    });
+  }
 }
 
 /**
@@ -311,6 +455,8 @@ class RetrieveUrlResolver {
 
         return isEmpty ? undefined : getJsonString(val);
       },
+      // 注意：不要在这里 encodeURIComponent，vue-router 在生成 href / replace 时会自动编码
+      // 这里提前编码会导致 URL 出现 %25... 的重复编码
       start_time: () => this.routeQueryParams.datePickerValue[0],
       end_time: () => this.routeQueryParams.datePickerValue[1],
       keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),

@@ -281,8 +281,8 @@ export default defineComponent({
             >
               {row.is_analyzed ? (
                 <div class='analyzed-box'>
-                  {row.tokenize_on_chars ? row.tokenize_on_chars : t('自然语言分词')}
-                  {t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}
+                  <div>{row.tokenize_on_chars ? row.tokenize_on_chars : t('自然语言分词')}</div>
+                  <div>{t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}</div>
                 </div>
               ) : (
                 <span>{t('不分词')}</span>

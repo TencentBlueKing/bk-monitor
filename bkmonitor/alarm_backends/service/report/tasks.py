@@ -87,6 +87,29 @@ def operation_data_custom_report_v2():
     logger.info("[operation_data_custom_report_v2] success, dataid: %d, data_len: %d", bk_data_id, len(all_data))
 
 
+def _parse_run_time_str(time_str: str) -> datetime.datetime:
+    """
+    解析 run_time 字符串，兼容以下格式：
+    - 无时区：'YYYY-MM-DD HH:MM:SS'
+    - 带冒号时区偏移：'YYYY-MM-DD HH:MM:SS+HH:MM'（含 Z）
+    - 无冒号时区偏移：'YYYY-MM-DD HH:MM:SS+HHMM'
+
+    优先保留时区信息，解析失败则逐级回退，均失败时抛出 ValueError。
+    """
+    # fromisoformat 覆盖无时区及 ±HH:MM / Z 格式（Python 3.7+）
+    try:
+        return datetime.datetime.fromisoformat(time_str)
+    except ValueError:
+        pass
+    # 兼容无冒号偏移，如 +0800（strptime %z 在 Python 3.2+ 支持）
+    try:
+        return datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S%z")
+    except ValueError:
+        pass
+    # 最终回退：纯无时区格式
+    return datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+
+
 def report_mail_detect():
     """
     检测是否有邮件需要发送
@@ -143,7 +166,13 @@ def report_mail_detect():
         else:
             run_time_strings = [f"{datetime.datetime.today().strftime('%Y-%m-%d')} {item.frequency['run_time']}"]
         for time_str in run_time_strings:
-            run_time = TimeMatch.convert_datetime_to_arrow(datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S"))
+            try:
+                run_time = TimeMatch.convert_datetime_to_arrow(_parse_run_time_str(time_str))
+            except ValueError:
+                logger.warning(
+                    "[mail_report] report_item(%s) invalid run_time format, skip: %s", item.id, time_str
+                )
+                continue
             if time_check.is_match(run_time):
                 # 更新发送时间
                 item.last_send_time = datetime.datetime.now()

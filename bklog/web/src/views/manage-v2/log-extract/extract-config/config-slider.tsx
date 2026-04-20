@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, ref, nextTick } from 'vue';
+import { uniqueId } from 'lodash-es';
 
 import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
@@ -35,6 +36,12 @@ import ValidateInput from './validate-input.tsx';
 import http from '@/api';
 
 import './config-slider.scss';
+
+// 列表项类型定义
+interface ListItem {
+  id: string;
+  value: string;
+}
 
 export default defineComponent({
   name: 'ConfigSlider',
@@ -80,24 +87,36 @@ export default defineComponent({
     const showSelectDialog = ref(false); // 是否显示选择对话框
     const manageStrategyData = ref(structuredClone(props.strategyData)); // 管理策略数据
 
+    // 将字符串数组转换为带 id 的对象数组
+    const toListItems = (arr: string[], prefix: string): ListItem[] => {
+      return arr.map(value => ({ id: uniqueId(prefix), value }));
+    };
+
     // 初始化数据，避免后台造的数据为空数组
     if (!manageStrategyData.value.visible_dir?.length) {
-      manageStrategyData.value.visible_dir = [''];
+      manageStrategyData.value.visible_dir = [{ id: uniqueId('dir_'), value: '' }];
+    } else {
+      manageStrategyData.value.visible_dir = toListItems(manageStrategyData.value.visible_dir, 'dir_');
     }
     if (!manageStrategyData.value.file_type?.length) {
-      manageStrategyData.value.file_type = [''];
+      manageStrategyData.value.file_type = [{ id: uniqueId('type_'), value: '' }];
+    } else {
+      manageStrategyData.value.file_type = toListItems(manageStrategyData.value.file_type, 'type_');
     }
 
-    // 是否验证通过
-    const isValidated = ref(false);
+    // 是否为编辑模式（通过 strategy_name 是否有值判断）
+    const isEditMode = Boolean(props.strategyData.strategy_name);
+
+    // 是否验证通过（编辑模式下默认启用）
+    const isValidated = ref(isEditMode);
+
     const isValidatedComputed = () => {
       isValidated.value =        manageStrategyData.value.strategy_name
         && manageStrategyData.value.user_list.length
-        && manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item)))
-        && manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item)))
+        && manageStrategyData.value.visible_dir.every((item: ListItem) => Boolean(validateVisibleDir(item.value)))
+        && manageStrategyData.value.file_type.every((item: ListItem) => Boolean(validateFileExtension(item.value)))
         && manageStrategyData.value.modules.length
         && manageStrategyData.value?.operator;
-      console.log('isValidated = ', manageStrategyData.value);
     };
 
     // 校验授权目录
@@ -116,7 +135,8 @@ export default defineComponent({
 
     // 添加授权目录
     const handleAddVisibleDir = () => {
-      manageStrategyData.value.visible_dir.push('');
+      manageStrategyData.value.visible_dir.push({ id: uniqueId('dir_'), value: '' });
+      isValidatedComputed();
       nextTick(() => {
         const inputList = document.querySelectorAll('.visible-dir input');
         if (inputList.length > 0) {
@@ -128,7 +148,8 @@ export default defineComponent({
 
     // 添加文件类型
     const handleAddFileType = () => {
-      manageStrategyData.value.file_type.push('');
+      manageStrategyData.value.file_type.push({ id: uniqueId('type_'), value: '' });
+      isValidatedComputed();
       nextTick(() => {
         const inputList = document.querySelectorAll('.file-type input');
         if (inputList.length > 0) {
@@ -182,22 +203,28 @@ export default defineComponent({
 
     // 处理确认
     const handleConfirm = () => {
-      emit('handleUpdatedTable', manageStrategyData.value);
+      // 将对象数组转换回字符串数组
+      const submitData = {
+        ...manageStrategyData.value,
+        visible_dir: manageStrategyData.value.visible_dir.map((item: ListItem) => item.value),
+        file_type: manageStrategyData.value.file_type.map((item: ListItem) => item.value),
+      };
+      emit('handleUpdatedTable', submitData);
     };
 
     // 渲染授权目录列表
     const renderVisibleDirList = () => {
-      return manageStrategyData.value.visible_dir.map((item: string, index: number) => (
+      return manageStrategyData.value.visible_dir.map((item: ListItem, index: number) => (
         <div
-          key={`${index}-${item}`}
+          key={item.id}
           class='add-minus-component visible-dir flex-box'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
             validator={validateVisibleDir}
-            value={item}
+            value={item.value}
             on-change={(val: string) => {
-              manageStrategyData.value.visible_dir[index] = val;
+              manageStrategyData.value.visible_dir[index].value = val;
               isValidatedComputed();
             }}
           />
@@ -208,7 +235,10 @@ export default defineComponent({
           <span
             style={{ display: manageStrategyData.value.visible_dir.length > 1 ? 'inline' : 'none' }}
             class='bk-icon icon-minus-circle'
-            onClick={() => manageStrategyData.value.visible_dir.splice(index, 1)}
+            onClick={() => {
+              manageStrategyData.value.visible_dir.splice(index, 1);
+              isValidatedComputed();
+            }}
           />
         </div>
       ));
@@ -216,17 +246,17 @@ export default defineComponent({
 
     // 渲染文件后缀列表
     const renderFileTypeList = () => {
-      return manageStrategyData.value.file_type.map((item: string, index: number) => (
+      return manageStrategyData.value.file_type.map((item: ListItem, index: number) => (
         <div
-          key={`${index}-${item}`}
+          key={item.id}
           class='add-minus-component file-type flex-box'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
             validator={validateFileExtension}
-            value={item}
-            onChange={(val: string) => {
-              manageStrategyData.value.file_type[index] = val;
+            value={item.value}
+            on-change={(val: string) => {
+              manageStrategyData.value.file_type[index].value = val;
               isValidatedComputed();
             }}
           />
@@ -237,7 +267,10 @@ export default defineComponent({
           <span
             style={{ display: manageStrategyData.value.file_type.length > 1 ? 'inline' : 'none' }}
             class='bk-icon icon-minus-circle'
-            onClick={() => manageStrategyData.value.file_type.splice(index, 1)}
+            onClick={() => {
+              manageStrategyData.value.file_type.splice(index, 1);
+              isValidatedComputed();
+            }}
           />
         </div>
       ));

@@ -501,7 +501,8 @@
             case 'end_time':
             case 'time_range':
               if (dict[key] !== '') {
-                queryParamsStr[key] = encodeURIComponent(dict[key]);
+                // 不在这里编码，下面 reduce 中会统一编码，避免双重编码
+                queryParamsStr[key] = dict[key];
               }
               break;
             case 'ip_chooser':
@@ -518,7 +519,8 @@
             return output;
           }, [])
           .join('&');
-        const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
+        const siteUrl = window.__IS_MONITOR_COMPONENT__ ? window.site_url : window.SITE_URL;
+        const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
         window.open(jumpUrl, '_blank');
       },
       /**

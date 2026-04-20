@@ -215,6 +215,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
                 '"data_label":"bkbase_rt_meta_metric",'
+                '"labels":{},'
                 '"fields":["metric_a","metric_b"]}'
             }
 

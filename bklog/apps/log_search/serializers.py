@@ -1141,6 +1141,7 @@ class AlertRecordSerializer(StrategyRecordSerializer):
 
 class LogRelatedInfoSerializer(serializers.Serializer):
     alert_id = serializers.IntegerField(label=_("告警ID"))
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
 
 
 class LogGrepQuerySerializer(serializers.Serializer):

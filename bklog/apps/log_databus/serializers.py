@@ -563,7 +563,7 @@ class BatchSubscriptionStatusSerializer(serializers.Serializer):
 
 
 class TaskStatusSerializer(serializers.Serializer):
-    task_id_list = serializers.CharField(label=_("部署任务ID"), allow_blank=True)
+    task_id_list = serializers.CharField(label=_("部署任务ID"), allow_blank=True, default="")
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -836,6 +836,10 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("元数据字段配置"),
         required=False,
     )
+
+
+class CollectorStopSerializer(serializers.Serializer):
+    is_stop_index_set = serializers.BooleanField(label=_("是否停止索引集"), required=False, default=True)
 
 
 class CollectorEtlSerializer(serializers.Serializer):
@@ -1820,6 +1824,7 @@ class LogCollectorSerializer(serializers.Serializer):
     pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
     conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_blank=True, allow_null=True)
+    exclude_not_completed = serializers.BooleanField(label=_("排除未完成的采集项"), default=False)
 
 
 class GetCollectorFieldEnumsSerializer(serializers.Serializer):

@@ -1,0 +1,24 @@
+{
+    "id": "alarm_center",
+    "type": "overview",
+    "mode": "custom",
+    "name": "告警",
+    "variables": [],
+    "panels": [],
+    "overview_panels": [
+        {
+            "id": 1,
+            "title": "",
+            "type": "alarm_center",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 24,
+                "h": 24
+            },
+            "targets": []
+        }
+    ],
+    "order": [],
+    "options": {}
+}

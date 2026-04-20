@@ -85,7 +85,7 @@ def get_alert_relation_info(alert: AlertDocument, length_limit=True):
             content = get_alert_info_for_log_clustering_new_class(alert, label.split("/")[-1])
             break
         # 日志聚类数量告警具有特定标签，格式 "LogClustering/Count/{index_set_id}"
-        # 根据前缀可识别出来
+        # 根据前缀可识别出来UnifyQueryDataSources
         elif label.startswith("LogClustering/Count/"):
             content = get_alert_info_for_log_clustering_count(alert, label.split("/")[-1])
             break
@@ -114,7 +114,8 @@ def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: 
     query_config = alert.strategy["items"][0]["query_configs"][0]
     interval = query_config.get("agg_interval", 60)
     start_time = alert.begin_time - 60 * 60
-    end_time = max(alert.begin_time + interval, alert.latest_time) + 60 * 60
+    # 不额外延伸 1 小时，避免日志示例时间远落后于告警时间；降序查询时可取到最近一次异常时刻的日志
+    end_time = max(alert.begin_time + interval, alert.latest_time)
     group_by = query_config.get("agg_dimension", [])
 
     try:
@@ -160,8 +161,10 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
         dimensions = {}
 
     if not signatures:
-        signatures = data_source.query_dimensions(
-            dimension_field="signature", start_time=start_time * 1000, end_time=end_time * 1000
+        uq: UnifyQuery = UnifyQuery(bk_biz_id=alert.event.bk_biz_id, data_sources=[data_source], expression="")
+        # limit 用于占位，最终会被 pop 掉。
+        signatures = uq.query_dimensions(
+            dimension_field="signature", start_time=start_time * 1000, end_time=end_time * 1000, limit=1
         )
     return get_clustering_log(alert, index_set_id, start_time, end_time, sensitivity, signatures, group_by, dimensions)
 
@@ -196,8 +199,7 @@ def get_clustering_log(
     record = {}
     log_signature = None
     try:
-        log_data_source_class = load_data_source(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)
-        log_data_source = log_data_source_class.init_by_query_config(
+        log_data_source = load_data_source(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG).init_by_query_config(
             {
                 "index_set_id": index_set_id,
                 "result_table_id": "",
@@ -210,7 +212,10 @@ def get_clustering_log(
             },
             bk_biz_id=alert.event.bk_biz_id,
         )
-        logs, log_total = log_data_source.query_log(start_time=start_time * 1000, end_time=end_time * 1000, limit=1)
+        # 显式指定降序，确保 limit=1 取到最接近告警时间的最新日志
+        log_data_source.order_by = [f"{log_data_source.time_field} desc"]
+        uq: UnifyQuery = UnifyQuery(bk_biz_id=alert.event.bk_biz_id, data_sources=[log_data_source], expression="")
+        logs, __ = uq.query_log(start_time * 1000, end_time * 1000, limit=1, order_by=["-time"])
         if logs:
             record = logs[0]
             for key in record.copy():
@@ -303,7 +308,11 @@ def get_data_source_log(
     data_source_key: tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
     data_source: DataSource = load_data_source(*data_source_key).init_by_query_config(query_config, bk_biz_id=bk_biz_id)
     data_source.filter_dict.update(
-        {key: value for key, value in dimensions.items() if key in query_config.get("agg_dimension", [])}
+        {
+            key: value
+            for key, value in dimensions.items()
+            if key in query_config.get("agg_dimension", []) and value not in ("", None)
+        }
     )
 
     # 查询时间为事件开始到5个周期后
@@ -328,7 +337,7 @@ def get_data_source_log(
         addition = [
             {"field": dimension_field, "operator": "=", "value": dimension_value}
             for dimension_field, dimension_value in dimensions.items()
-            if dimension_field in query_config.get("agg_dimension", [])
+            if dimension_field in query_config.get("agg_dimension", []) and dimension_value not in ("", None)
         ]
         params = {
             "bizId": bk_biz_id,

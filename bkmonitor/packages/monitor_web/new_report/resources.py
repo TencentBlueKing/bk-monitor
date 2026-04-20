@@ -356,7 +356,14 @@ class CreateOrUpdateReportResource(Resource):
         is_manager_created = serializers.BooleanField(required=False, default=False)
         is_enabled = serializers.BooleanField(required=False, default=True)
 
-    def create_approval_ticket(self, params):
+    def get_bk_biz_maintainer(self, bk_biz_id):
+        """
+        获取业务运维人员列表
+        """
+        business = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
+        return getattr(business[0], "bk_biz_maintainer", []) if business else []
+
+    def create_approval_ticket(self, params, bk_biz_maintainer):
         """
         创建ITSM审批单据并创建审批记录
         """
@@ -372,6 +379,7 @@ class CreateOrUpdateReportResource(Resource):
                 {"key": "title", "value": "邮件订阅创建审批"},
                 {"key": "report_name", "value": params["name"]},
                 {"key": "scenario", "value": params["scenario"]},
+                {"key": "approver", "value": ",".join(bk_biz_maintainer)},
             ],
             "service_id": settings.REPORT_APPROVAL_SERVICE_ID,
             "fast_approval": False,
@@ -383,10 +391,8 @@ class CreateOrUpdateReportResource(Resource):
             logger.error(f"审批创建异常: {e}")
             raise e
 
-    def create_apply_reocrd(self, report, approval_data):
+    def create_apply_reocrd(self, report, approval_data, bk_biz_maintainer):
         current_step = [{"tag": "DEFAULT", "name": "提交审批"}]
-        business = api.cmdb.get_business(bk_biz_ids=[report.bk_biz_id])
-        bk_biz_maintainer = getattr(business[0], "bk_biz_maintainer", [])
         record = ReportApplyRecord(
             report_id=report.id,
             bk_biz_id=report.bk_biz_id,
@@ -417,17 +423,19 @@ class CreateOrUpdateReportResource(Resource):
             # 判断是否需要审批
             need_apply = False
             approval_data = None
+            bk_biz_maintainer = []
             if params["subscriber_type"] == "others" and not params["is_manager_created"]:
                 # 创建订阅itsm审批单据
                 need_apply = True
-                approval_data = self.create_approval_ticket(validated_request_data)
+                bk_biz_maintainer = self.get_bk_biz_maintainer(params["bk_biz_id"])
+                approval_data = self.create_approval_ticket(validated_request_data, bk_biz_maintainer)
             if need_apply:
                 params["is_deleted"] = True
             report = Report(**params)
             report.save()
             # 创建审批记录
             if approval_data:
-                self.create_apply_reocrd(report, approval_data)
+                self.create_apply_reocrd(report, approval_data, bk_biz_maintainer)
         with transaction.atomic():
             # 更新订阅渠道
             ReportChannel.objects.filter(report_id=report.id).delete()

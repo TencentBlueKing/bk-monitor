@@ -52,7 +52,7 @@ class DataLinkResourceConfigBase(models.Model):
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     status = models.CharField(verbose_name="状态", max_length=64)
-    data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
+    data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64, blank=True)
     bk_biz_id = models.BigIntegerField(verbose_name="业务ID")
     bk_tenant_id: str = models.CharField("租户ID", max_length=256, null=True, default="system")  # pyright: ignore[reportAssignmentType]
 
@@ -241,7 +241,8 @@ class ResultTableConfig(DataLinkResourceConfigBase):
     kind = DataLinkKind.RESULTTABLE.value
     name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True)
     data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="metric")
-    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
+    bkbase_table_id = models.CharField(verbose_name="BKBase结果表ID", max_length=255, default="", blank=True)
 
     class Meta:
         verbose_name = "结果表配置"
@@ -306,7 +307,8 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
     kind = DataLinkKind.ESSTORAGEBINDING.value
     name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True)
     es_cluster_name = models.CharField(verbose_name="ES集群名称", max_length=64)
-    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
+    bkbase_result_table_name = models.CharField(verbose_name="BKBase结果表名称", max_length=255, default="")
     timezone = models.IntegerField("时区设置", default=0)
 
     class Meta:
@@ -398,14 +400,17 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     kind = DataLinkKind.VMSTORAGEBINDING.value
     name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True)
     vm_cluster_name = models.CharField(verbose_name="VM集群名称", max_length=64)
-    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
+    bkbase_result_table_name = models.CharField(verbose_name="BKBase结果表名称", max_length=255, default="")
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
 
     class Meta:
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None) -> dict[str, Any]:
+    def compose_config(
+        self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None, bk_data_id: int | str | None = None
+    ) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
         """
@@ -441,6 +446,12 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         {% endif %}
                         "namespace": "{{namespace}}"
                     }
+                    {% if metric_group_dimensions %},
+                    "metricGroupDimensions": {{metric_group_dimensions}}
+                    {% endif %}
+                    {% if dd_version %},
+                    "ddVersion": "{{dd_version}}"
+                    {% endif %}
                 }
             }
             """
@@ -469,6 +480,24 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "whitelist_config": whitelist_config,
         }
 
+        if bk_data_id:
+            # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
+            from metadata.models.custom_report.time_series import TimeSeriesGroup
+
+            ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
+            if ts_group and ts_group.metric_group_dimensions:
+                metric_group_dimensions = []
+                for dim in ts_group.metric_group_dimensions:
+                    key = dim.get("key")
+                    if not key:
+                        continue
+                    if "default_value" in dim and dim["default_value"] is not None:
+                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
+                    else:
+                        metric_group_dimensions.append(key)
+                render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
+                render_params["dd_version"] = "v2"
+
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
             render_params["tenant"] = self.bk_tenant_id
@@ -489,6 +518,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True)
     data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
     bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
+    sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -768,7 +798,9 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
 
     kind = DataLinkKind.DORISBINDING.value
     name = models.CharField(verbose_name="Doris存储绑定配置名称", max_length=64, db_index=True)
-    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
+    bkbase_result_table_name = models.CharField(verbose_name="BKBase结果表名称", max_length=255, default="")
+    doris_cluster_name = models.CharField(verbose_name="Doris集群名称", max_length=255, default="")
 
     class Meta:
         verbose_name: ClassVar[str] = "Doris存储绑定配置"
@@ -781,6 +813,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         storage_keys: list[str],
         json_fields: list[str],
         field_config_group: dict[str, Any],
+        original_json_fields: list[str],
         expires: str,
         flush_timeout: int | None,
     ) -> dict[str, Any]:
@@ -791,18 +824,27 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         {
             "kind": "DorisBinding",
             "metadata": {
-                "labels": {"bk_biz_id": "{{monitor_biz_id}}"}},
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "labels": {"bk_biz_id": "{{monitor_biz_id}}"},
                 "name": "{{name}}",
                 "namespace": "{{namespace}}"
             },
             "spec": {
                 "data": {
                     "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "kind": "ResultTable"
                 },
                 "storage": {
                     "name": "{{storage_cluster_name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "kind": "Doris"
                 },
@@ -814,6 +856,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "table": "{{name}}_{{bk_biz_id}}",
                     "storage_keys": {{storage_keys}},
                     "json_fields": {{json_fields}},
+                    "original_json_fields": {{original_json_fields}},
                     "field_config_group": {{field_config_group}},
                     "expires": "{{expires}}",
                     "flush_timeout": {{flush_timeout}}
@@ -831,9 +874,15 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             "storage_keys": json.dumps(storage_keys),
             "json_fields": json.dumps(json_fields),
             "field_config_group": json.dumps(field_config_group),
+            "original_json_fields": json.dumps(original_json_fields),
             "expires": expires,
             "flush_timeout": json.dumps(flush_timeout),
         }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
             render_params=render_params,
@@ -1052,7 +1101,7 @@ class ClusterConfig(models.Model):
         return config
 
     @classmethod
-    def sync_cluster_config(cls, cluster: "ClusterInfo") -> None:
+    def sync_cluster_config(cls, cluster: "ClusterInfo", sync_namespaces: list[str] | None = None) -> None:
         """
         同步集群配置
 
@@ -1062,6 +1111,7 @@ class ClusterConfig(models.Model):
 
         Args:
             cluster: 集群信息
+            sync_namespaces: 指定同步的命名空间列表
         """
 
         # 根据集群类型获取kind和namespace
@@ -1070,6 +1120,10 @@ class ClusterConfig(models.Model):
 
         # 获取或创建bkbase集群配置记录
         for namespace in namespaces:
+            # 如果指定同步的命名空间列表不为空，则只同步指定的命名空间
+            if sync_namespaces and namespace not in sync_namespaces:
+                continue
+
             cluster_config, _ = ClusterConfig.objects.get_or_create(
                 bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
             )
@@ -1131,3 +1185,15 @@ class LogResultTableConfig(DataLinkResourceConfigBase):
         verbose_name = "日志结果表配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+
+# 组件类映射
+COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
+    DataLinkKind.DATAID.value: DataIdConfig,
+    DataLinkKind.RESULTTABLE.value: ResultTableConfig,
+    DataLinkKind.VMSTORAGEBINDING.value: VMStorageBindingConfig,
+    DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
+    DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
+    DataLinkKind.DATABUS.value: DataBusConfig,
+    DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
+}

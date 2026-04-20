@@ -84,6 +84,11 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
             auth.login(request, user)
             request.token = token
             request.skip_check = True
+        elif record.type.lower() == "user":
+            # 用户权限模式：替换请求用户为令牌创建者
+            username = record.create_user
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            auth.login(request, user)
         else:
             # 观测场景、告警事件场景权限模式：保留原用户信息,判定action是否符合token鉴权场景
             request.token = token
@@ -101,7 +106,9 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
             if settings.ENABLE_MULTI_TENANT_MODE and hasattr(request.user, "tenant_id"):
                 db_user = get_user_model().objects.get(username=request.user.username)
                 if db_user.tenant_id != request.user.tenant_id:
-                    logger.error(f"user tenant_id is {db_user.tenant_id} not match {request.user.tenant_id}")
+                    logger.error(
+                        f"user({db_user.username}) tenant_id is {db_user.tenant_id} not match {request.user.tenant_id}"
+                    )
                     db_user.tenant_id = request.user.tenant_id
                     db_user.save()
 

@@ -109,7 +109,7 @@ from apps.log_search.models import (
     Space,
 )
 from apps.models import model_to_dict
-from apps.utils.cache import caches_one_hour
+from apps.utils.cache import caches_ten_minute
 from apps.utils.custom_report import BK_CUSTOM_REPORT, CONFIG_OTLP_FIELD
 from apps.utils.db import array_chunk
 from apps.utils.function import map_if
@@ -445,7 +445,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @transaction.atomic
-    def stop(self, **kwargs):
+    def stop(self, is_stop_index_set=True, **kwargs):
         """
         停止采集配置
         :return: task_id
@@ -453,10 +453,11 @@ class CollectorHandler:
         self.data.is_active = False
         self.data.save()
 
-        # 停止采集项
+        # 停止索引集
         if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.stop()
+            if is_stop_index_set:
+                index_set_handler = IndexSetHandler(self.data.index_set_id)
+                index_set_handler.stop()
 
         self._pre_stop()
 
@@ -735,7 +736,7 @@ class CollectorHandler:
         return [node["bk_inst_id"] for node in nodes if node["bk_obj_id"] == node_type]
 
     @staticmethod
-    @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
+    @caches_ten_minute(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
         批量获取集群信息，单个失败不影响其他，将单个失败的 result_table 进行重试
@@ -840,9 +841,20 @@ class CollectorHandler:
             cluster_infos = {}
 
         time_zone = get_local_param("time_zone")
-        index_set_id_set = set(
-            LogIndexSetData.objects.exclude(apply_status="normal").values_list("index_set_id", flat=True)
+
+        index_set_ids = list(set([item.get("index_set_id") for item in data if item.get("index_set_id", None)]))
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+        index_set_obj_dict = {obj.index_set_id: obj for obj in index_set_objs}
+
+        abnormal_index_set_ids = set(
+            LogIndexSetData.objects.filter(
+                index_set_id__in=index_set_ids,
+            )
+            .exclude(apply_status="normal")
+            .values_list("index_set_id", flat=True)
+            .distinct()
         )
+
         for _data in data:
             cluster_info = cluster_infos.get(
                 _data["table_id"],
@@ -850,7 +862,9 @@ class CollectorHandler:
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
             _data["storage_cluster_name"] = cluster_info["cluster_config"].get("cluster_name", "")
-            _data["storage_display_name"] = cluster_info["cluster_config"].get("display_name", "")
+            _data["storage_display_name"] = (
+                cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
+            )
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):
@@ -876,8 +890,13 @@ class CollectorHandler:
             )
 
             # 是否可以检索
-            if _data["is_active"] and _data["index_set_id"]:
-                _data["is_search"] = _data["index_set_id"] not in index_set_id_set
+            if _data.get("index_set_id"):
+                index_set_obj = index_set_obj_dict.get(_data["index_set_id"])
+
+                if index_set_obj and index_set_obj.is_active:
+                    _data["is_search"] = _data["index_set_id"] not in abnormal_index_set_ids
+                else:
+                    _data["is_search"] = False
             else:
                 _data["is_search"] = False
 
@@ -1571,7 +1590,7 @@ class CollectorHandler:
             return data_link_id
         # 业务可见的私有链路ID
         data_link_obj = (
-            DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id())
+            DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id(), is_active=True)
             .order_by("data_link_id")
             .first()
         )
@@ -1579,7 +1598,7 @@ class CollectorHandler:
             return data_link_obj.data_link_id
         # 公共链路ID
         data_link_obj = (
-            DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id())
+            DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id(), is_active=True)
             .order_by("data_link_id")
             .first()
         )

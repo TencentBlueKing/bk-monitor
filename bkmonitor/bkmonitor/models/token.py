@@ -42,6 +42,7 @@ class AuthType:
     API = "api"
     Incident = "incident"
     Entity = "entity"
+    User = "user"
 
 
 class ApiAuthToken(AbstractRecordModel):
@@ -65,6 +66,7 @@ class ApiAuthToken(AbstractRecordModel):
         (AuthType.Apm, "Apm"),
         (AuthType.Incident, "Incident"),
         (AuthType.Entity, "Entity"),
+        (AuthType.User, "User"),
     )
 
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)

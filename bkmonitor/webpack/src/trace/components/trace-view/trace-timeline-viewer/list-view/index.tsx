@@ -580,7 +580,7 @@ export default defineComponent({
               // 滚动定位至高亮span所在行
               setTimeout(() => tryScrollToSpan(spanInfo.span_id, 0, rowIndex), 0);
               // 打开span详情侧滑
-              emit('itemClick', data.span, true);
+              emit('itemClick', data.span, true, true);
             }
           }
         }

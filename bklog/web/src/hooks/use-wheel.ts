@@ -27,7 +27,7 @@ import { onMounted, onBeforeUnmount } from 'vue';
 
 import { getTargetElement } from './hooks-helper';
 
-export default ({ target, callback, options = { passive: true } as EventListenerOptions }) => {
+export default ({ target, callback, options = { passive: true } }: { target: any; callback: (e: WheelEvent) => void; options?: AddEventListenerOptions }) => {
   const throttleCallback = (e: WheelEvent) => {
     callback?.(e);
   };

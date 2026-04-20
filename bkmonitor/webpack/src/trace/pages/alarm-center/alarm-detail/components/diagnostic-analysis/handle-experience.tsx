@@ -89,7 +89,6 @@ export default defineComponent({
     const uiValue = shallowRef([]);
 
     const handleUiValueChange = (value: any) => {
-      console.log(value);
       uiValue.value = value;
     };
 

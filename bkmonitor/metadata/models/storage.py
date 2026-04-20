@@ -18,7 +18,7 @@ import re
 import string
 import time
 import traceback
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import arrow
 import curator
@@ -30,6 +30,7 @@ import requests
 from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.conf import settings
 from django.db import models, transaction
+from django.db.models import Q
 from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic, on_commit
 from django.utils import timezone as django_timezone
@@ -2749,6 +2750,85 @@ class ESStorage(models.Model, StorageResultTable):
 
         return True
 
+    @classmethod
+    def move_last_day_write_alias(cls, es_storage: Self, force_move: bool = False, dry_run: bool = False):
+        """移动前一天的写别名到当前最新的索引
+
+        Notes:
+            由于数据决定使用哪个写别名是基于UTC时间的, 而索引创建是基于东八区时间的, 因此存在索引轮转后, 数据不写向新索引的情况。
+            而且还可能存在数据堆积处理延迟的情况, kafka中也可能存在几个小时前的数据未被消费的情况。
+            在正常情况下，这不会有什么问题，但是一旦遇到故障切换或扩容等场景，实际上我们希望数据不要写向旧索引，而是写向新索引。
+            因此需要将前一天的写别名指向最新的索引，同时删除旧索引的写别名，这样就可以保证数据写向新索引，同时需要将前一天的读别名指向最新的索引。
+
+        执行步骤:
+            1. 确定最新的索引名称
+            2. 确定前一天的读写别名名称
+            3. 确定前一天写别名指向的索引列表
+            4. 如果写别名已经指向最新的索引，则不需要进行写别名的移动
+            5. 检查索引状态, 如果索引状态为red, 则强制进行写别名的移动
+            6. 如果确定需要移动写别名，则执行创建新的写别名指向最新的索引，
+               同时添加对应日期的读别名，并删除旧的写别名指向的索引
+
+        Args:
+            es_storage: ESStorage对象
+            force_move: 默认仅处理上一个写别名指向的索引为read的情况。如果想要在任何情况下都移动写别名, 则需要将force_move设置为True
+            dry_run: 是否只进行模拟，不实际执行操作
+        """
+        # 确定最新的索引名称
+        latest_index_name = sorted(es_storage.get_index_names())[-1]
+
+        # 确定前一天的读写别名
+        last_datetime_object = es_storage.now - datetime.timedelta(minutes=1440)
+        last_date_str = last_datetime_object.strftime(es_storage.date_format)
+        last_write_alias_name = f"write_{last_date_str}_{es_storage.index_name}"
+        last_read_alias_name = f"{es_storage.index_name}_{last_date_str}_read"
+
+        # 确定上一个写别名指向的索引
+        last_indexes = list(es_storage.es_client.indices.get_alias(name=last_write_alias_name).keys())
+        if not last_indexes:
+            print("上一个索引没有进行配置，因此也不需要进行写别名的移动")
+            return
+
+        # 如果写别名已经指向最新的索引，则不需要进行写别名的移动
+        if latest_index_name in last_indexes:
+            print(f"最新的索引->[{latest_index_name}]已经在写别名指向的索引列表中，因此不需要进行写别名的移动")
+            return
+
+        # 如果写别名指向了多个索引，配置存在问题，后续需要检查为什么会出现这种情况？
+        if len(last_indexes) > 1:
+            print(f"Warning: 写别名指向了多个索引！索引列表->[{last_indexes}]")
+
+        # 检查索引状态，如果索引状态为red，则强制进行写别名的移动
+        if not force_move:
+            for index in last_indexes:
+                index_info = es_storage.get_index_info(index)
+                if index_info["status"] == "red":
+                    print(f"索引->[{index}]状态为red，因此要强制进行写别名的移动")
+                    force_move = True
+                    break
+
+        if force_move:
+            # 创建新的写别名指向最新的索引，同时添加对应日期的读别名
+            actions = [
+                {"add": {"index": latest_index_name, "alias": last_write_alias_name}},
+                {"add": {"index": latest_index_name, "alias": last_read_alias_name}},
+            ]
+
+            print(f"将写别名->[{last_write_alias_name}]指向索引->[{latest_index_name}]")
+            print(f"将读别名->[{last_read_alias_name}]指向索引->[{latest_index_name}]")
+
+            # 删除旧的写别名指向的索引
+            for index in last_indexes:
+                actions.append({"remove": {"index": index, "alias": last_write_alias_name}})
+                print(f"删除写别名->[{last_write_alias_name}]指向索引->[{index}]")
+
+            if not dry_run:
+                es_storage._update_aliases_with_retry(actions=actions, new_index_name=latest_index_name)
+            else:
+                print(
+                    f"模拟执行, _update_aliases_with_retry, actions->[{actions}], new_index_name->[{latest_index_name}]"
+                )
+
     def create_or_update_aliases(self, ahead_time=1440, force_rotate: bool = False, is_moving_cluster: bool = False):
         """
         更新alias，如果有已存在的alias，则将其指向最新的index，并根据ahead_time前向预留一定的alias
@@ -4252,8 +4332,14 @@ class ESStorage(models.Model, StorageResultTable):
         return self.have_snapshot_conf and self.is_index_enable()
 
     @property
+    def running_snapshot_query(self):
+        """启用中快照配置查询条件"""
+        return Q(table_id=self.table_id, status=EsSnapshot.ES_RUNNING_STATUS, bk_tenant_id=self.bk_tenant_id)
+
+    @property
     def have_snapshot_conf(self):
-        return EsSnapshot.objects.filter(table_id=self.table_id).exists()
+        # 存在启用中的快照配置，才做快照管理
+        return EsSnapshot.objects.filter(self.running_snapshot_query).exists()
 
     @property
     def is_snapshot_stopped(self):
@@ -4265,15 +4351,20 @@ class ESStorage(models.Model, StorageResultTable):
 
     @property
     def can_delete_snapshot(self):
-        es_snapshot: EsSnapshot = EsSnapshot.objects.filter(table_id=self.table_id).first()
-        # 永久或者状态是停用的状态，则不允许删除快照数据
+        # table_id存在多份快照配置，这里只管理启用中的快照配置
+        es_snapshot: EsSnapshot = EsSnapshot.objects.filter(self.running_snapshot_query).first()
+
+        # 永久的状态，则不允许删除快照数据
         if es_snapshot:
-            return not (es_snapshot.is_permanent() or es_snapshot.status == EsSnapshot.ES_STOPPED_STATUS)
+            return not es_snapshot.is_permanent()
         return False
 
     @cached_property
     def snapshot_obj(self):
-        return EsSnapshot.objects.get(table_id=self.table_id)
+        snapshot = EsSnapshot.objects.filter(self.running_snapshot_query).first()
+        if not snapshot:
+            raise EsSnapshot.DoesNotExist(f"No running snapshot found for table_id: {self.table_id}")
+        return snapshot
 
     @property
     def snapshot_complete_state(self):
@@ -4397,11 +4488,8 @@ class ESStorage(models.Model, StorageResultTable):
         }
 
     def create_snapshot(self):
+        # 存在启用的快照配置，且结果表处于启用中，才进行快照创建
         if not self.can_snapshot:
-            return
-
-        # 如果是停用状态，则不能新建快照
-        if self.is_snapshot_stopped:
             return
 
         current_snapshot_info = self.current_snapshot_info()
@@ -4415,6 +4503,7 @@ class ESStorage(models.Model, StorageResultTable):
                 table_id=self.table_id,
                 snapshot_name=current_snapshot_name,
                 bk_tenant_id=self.bk_tenant_id,
+                repository_name=self.snapshot_obj.target_snapshot_repository_name,
             ).exists()
             es_snapshot_exists = current_snapshot_info["datetime"].day == now.day
             current_snapshot_is_success = current_snapshot_info["is_success"]
@@ -4513,12 +4602,13 @@ class ESStorage(models.Model, StorageResultTable):
             .get("_source")
         )
 
-    def expired_date_timestamp(self, snapshot):
+    def expired_date_timestamp(self, snapshot, snapshot_days):
         snapshot_re = self.snapshot_re
         re_result = snapshot_re.match(snapshot)
         snapshot_datetime_str = re_result.group("datetime")
         snapshot_datetime = datetime_str_to_datetime(snapshot_datetime_str, self.snapshot_date_format, self.time_zone)
-        expired_datetime_point = snapshot_datetime + datetime.timedelta(days=self.snapshot_obj.snapshot_days)
+        # 所有归档配置的过期时间都能获取到
+        expired_datetime_point = snapshot_datetime + datetime.timedelta(days=snapshot_days)
         return expired_datetime_point.timestamp()
 
     def match_expired_snapshot(self, snapshots: list, expired_datetime_point, snapshot_name_key="snapshot") -> list:
@@ -4539,6 +4629,7 @@ class ESStorage(models.Model, StorageResultTable):
         return expired_snapshots
 
     def get_expired_snapshot(self, expired_days: int):
+        # 只会获取启用中归档配置的过期快照
         logger.info("table_id -> [%s] filter expired snapshot before %s days", self.table_id, expired_days)
         expired_datetime_point = self.now - datetime.timedelta(days=expired_days)
 
@@ -4553,9 +4644,11 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 获取本地残留的过期快照
         all_snapshots = list(
-            EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).values(
-                "snapshot_name"
-            )
+            EsSnapshotIndice.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                repository_name=self.snapshot_obj.target_snapshot_repository_name,
+            ).values("snapshot_name")
         )
         local_expired_snapshots = self.match_expired_snapshot(
             all_snapshots, expired_datetime_point, snapshot_name_key="snapshot_name"
@@ -4576,6 +4669,7 @@ class ESStorage(models.Model, StorageResultTable):
                 table_id=self.table_id,
                 snapshot_name__in=residual_expired_snapshots,
                 bk_tenant_id=self.bk_tenant_id,
+                repository_name=self.snapshot_obj.target_snapshot_repository_name,
             ).delete()
             logger.info("table_id->[%s] has clean residual snapshot %s", self.table_id, residual_expired_snapshots)
 
@@ -4590,7 +4684,10 @@ class ESStorage(models.Model, StorageResultTable):
     @atomic(config.DATABASE_CONNECTION_NAME)
     def delete_snapshot(self, snapshot_name, target_snapshot_repository_name):
         EsSnapshotIndice.objects.filter(
-            table_id=self.table_id, snapshot_name=snapshot_name, bk_tenant_id=self.bk_tenant_id
+            table_id=self.table_id,
+            snapshot_name=snapshot_name,
+            bk_tenant_id=self.bk_tenant_id,
+            repository_name=target_snapshot_repository_name,
         ).delete()
         self.es_client.snapshot.delete(target_snapshot_repository_name, snapshot_name)
         logger.info("table_id -> [%s] has delete snapshot -> [%s]", self.table_id, snapshot_name)
@@ -4618,7 +4715,9 @@ class ESStorage(models.Model, StorageResultTable):
             raise ValueError(_("delete all snapshot has failed %s") % delete_exception_snapshots)
 
         # 删除残留的快照物理索引记录
-        EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
+        EsSnapshotIndice.objects.filter(
+            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, repository_name=target_snapshot_repository_name
+        ).delete()
         logger.info("table_id -> [%s] has delete all snapshot", self.table_id)
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -4626,14 +4725,10 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.can_snapshot:
             return
 
-        # 如果是停用状态，则不能重试快照
-        if self.is_snapshot_stopped:
-            return
-
         # 检查快照是否可重试
         try:
             snapshots = self.es_client.snapshot.get(
-                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
+                target_snapshot_repository_name, self.search_snapshot
             ).get("snapshots", [])
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
             snapshots = []

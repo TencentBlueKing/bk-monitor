@@ -80,7 +80,6 @@ class GrafanaViewSet(ResourceViewSet):
         ),
         ResourceRoute("GET", resource.commons.get_label, endpoint="get_label"),
         ResourceRoute("GET", resource.commons.get_topo_tree, endpoint="topo_tree"),
-        ResourceRoute("GET", resource.strategies.get_dimension_values, endpoint="get_dimension_values"),
         ResourceRoute(
             "POST", resource.strategies.get_metric_list_v2, endpoint="get_metric_list", content_encoding="gzip"
         ),

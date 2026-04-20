@@ -10,7 +10,6 @@ export const bkLogSearchGetVariableField = request('GET', 'rest/v2/grafana/bk_lo
 export const bkLogSearchGetVariableValue = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/');
 export const getLabel = request('GET', 'rest/v2/grafana/get_label/');
 export const getTopoTree = request('GET', 'rest/v2/grafana/topo_tree/');
-export const getDimensionValues = request('GET', 'rest/v2/grafana/get_dimension_values/');
 export const getMetricListV2 = request('POST', 'rest/v2/grafana/get_metric_list/');
 export const getDataSourceConfig = request('GET', 'rest/v2/grafana/get_data_source_config/');
 export const getVariableValue = request('POST', 'query-api/rest/v2/grafana/get_variable_value/');
@@ -75,7 +74,6 @@ export default {
   bkLogSearchGetVariableValue,
   getLabel,
   getTopoTree,
-  getDimensionValues,
   getMetricListV2,
   getDataSourceConfig,
   getVariableValue,

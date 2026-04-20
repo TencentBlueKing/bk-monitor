@@ -1,0 +1,21 @@
+.alarm-center-detail-panel-process {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  background: #f5f7fa;
+
+  .panel-process-chart-wrap {
+    flex: 1;
+    padding: 12px 24px;
+  }
+
+  .panel-process-skeleton {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+
+    .panel-process-skeleton-item {
+      min-height: 200px;
+    }
+  }
+}

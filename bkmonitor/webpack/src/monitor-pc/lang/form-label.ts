@@ -1297,7 +1297,7 @@ export default {
   环境依赖: 'Environment',
   主机字段: 'Host Field',
   环境变量: 'Environment Variables',
-  默认分组: 'Default Group',
+  默认分组: 'Default',
   新建插件: 'New Plugin',
   微软雅黑: 'Microsoft YaHei',
   运行状态: 'Run Status',
@@ -2004,4 +2004,8 @@ export default {
   告警模块: 'Alarm module',
   事件内容: 'Event content',
   更多事件: 'More events',
+
+  数据后保留小数位: 'Data decimal places',
+  '{0} 位': '{0} decimal places',
+  Y轴最小值自适应: 'Y-axis minimum value adaptive',
 };

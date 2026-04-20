@@ -25,7 +25,7 @@
  */
 
 import { isEn } from '@/i18n/i18n';
-
+import _ from 'lodash';
 import { alertTopN, editDataMeaning, searchAlert } from 'monitor-api/modules/alert_v2';
 import { getMethodIdForLowerCase } from 'monitor-pc/pages/query-template/components/utils/utils';
 import { MetricDetailV2, QueryConfig } from 'monitor-pc/pages/query-template/typings';
@@ -40,6 +40,7 @@ import {
   type QuickFilterItem,
   type TableColumnItem,
   AlarmLevelIconMap,
+  AlarmNoticeWayIconMap,
   AlarmStatusIconMap,
 } from '../typings';
 import { type RequestOptions, AlarmService } from './base';
@@ -50,62 +51,69 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('告警名称'),
     is_default: true,
     is_locked: true,
-    minWidth: 160,
+    width: 160,
     fixed: 'left',
     sorter: false,
   },
   {
-    colKey: 'bk_biz_name',
-    title: window.i18n.t('空间名'),
+    colKey: 'create_time',
+    title: window.i18n.t('创建时间'),
     is_default: true,
     is_locked: false,
-    minWidth: 100,
-    fixed: 'left',
-    sorter: false,
+    width: 150,
+    sorter: true,
   },
+  {
+    colKey: 'description',
+    title: window.i18n.t('告警内容'),
+    is_default: true,
+    is_locked: false,
+    width: 300,
+  },
+  {
+    colKey: 'target_key',
+    title: window.i18n.t('监控目标'),
+    is_default: true,
+    is_locked: false,
+    width: 300,
+  },
+
   {
     colKey: 'plugin_display_name',
     title: window.i18n.t('告警来源'),
     is_default: false,
     is_locked: false,
-    minWidth: 110,
+    width: 110,
   },
   {
     colKey: 'category_display',
     title: window.i18n.t('分类'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
-    minWidth: 160,
+    width: 160,
   },
   {
     colKey: 'metric',
     title: window.i18n.t('告警指标'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
-    minWidth: 240,
+    width: 240,
     sorter: true,
   },
   {
     colKey: 'event_count',
     title: window.i18n.t('关联事件'),
-    is_default: true,
-    is_locked: false,
-    minWidth: 140,
-  },
-  {
-    colKey: 'create_time',
-    title: window.i18n.t('创建时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
-    sorter: true,
+    width: 140,
   },
+
   {
     colKey: 'begin_time',
     title: window.i18n.t('开始时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -113,7 +121,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('结束时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -121,7 +129,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('最新事件时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -129,7 +137,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('首次异常时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -138,68 +146,65 @@ const ALERT_TABLE_COLUMNS = [
     is_default: false,
     is_locked: false,
     sorter: true,
-  },
-  {
-    colKey: 'description',
-    title: window.i18n.t('告警内容'),
-    is_default: true,
-    is_locked: false,
-    minWidth: 300,
-  },
-  {
-    colKey: 'target_key',
-    title: window.i18n.t('监控目标'),
-    is_default: true,
-    is_locked: false,
-    minWidth: 300,
+    width: 120,
   },
   {
     colKey: 'tags',
     title: window.i18n.t('维度'),
     is_default: false,
     is_locked: false,
-    minWidth: 240,
+    width: 240,
   },
   {
     colKey: 'extend_info',
     title: window.i18n.t('关联信息'),
     is_default: false,
-    is_locked: true,
-    minWidth: 250,
+    is_locked: false,
+    width: 250,
   },
   {
     colKey: 'appointee',
     title: window.i18n.t('负责人'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
-    minWidth: 200,
+    width: 200,
   },
   {
     colKey: 'assignee',
     title: window.i18n.t('通知人'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
-    minWidth: 200,
+    width: 200,
   },
   {
     colKey: 'follower',
     title: window.i18n.t('关注人'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
-    minWidth: 200,
+    width: 200,
   },
   {
     colKey: 'strategy_name',
     title: window.i18n.t('策略名称'),
     is_default: false,
     is_locked: false,
+    width: 160,
   },
   {
     colKey: 'labels',
     title: window.i18n.t('策略标签'),
     is_default: false,
     is_locked: false,
-    minWidth: 240,
+    width: 240,
+  },
+  {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    is_locked: true,
+    width: 100,
+    sorter: false,
+    fixed: 'right',
   },
   {
     colKey: 'stage_display',
@@ -207,7 +212,7 @@ const ALERT_TABLE_COLUMNS = [
     is_default: true,
     is_locked: false,
     fixed: 'right',
-    minWidth: 110,
+    width: 110,
   },
   {
     colKey: 'status',
@@ -215,7 +220,7 @@ const ALERT_TABLE_COLUMNS = [
     is_default: true,
     is_locked: true,
     fixed: 'right',
-    minWidth: isEn ? 120 : 80,
+    width: isEn ? 120 : 80,
     sorter: true,
   },
 ] as const;
@@ -797,12 +802,26 @@ export class AlertService extends AlarmService {
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,
-    isAll = false
+    isAll = false,
+    options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
-    const data = await alertTopN({
-      ...params,
-      size: isAll ? 100 : 10,
-    }).catch(() => ({
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
+    const data = await alertTopN(
+      {
+        ...paramsClone,
+        size: isAll ? 100 : 10,
+      },
+      options
+    ).catch(() => ({
       doc_count: 0,
       fields: [],
     }));
@@ -812,9 +831,19 @@ export class AlertService extends AlarmService {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await searchAlert(
       {
-        ...params,
+        ...paramsClone,
         show_overview: false, // 是否展示概览
         show_aggs: false, // 是否展示聚合
       },
@@ -861,17 +890,29 @@ export class AlertService extends AlarmService {
         total: 0,
         data: [],
       }));
-    console.info('AlertService getFilterTableList', data, '==========');
     return data;
   }
 
-  async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
-    const data = await searchAlert({
-      ...params,
-      page_size: 0, // 不返回告警列表数据
-      show_overview: true, // 是否展示概览
-      show_aggs: true, // 是否展示聚合
-    })
+  async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
+    const data = await searchAlert(
+      {
+        ...paramsClone,
+        page_size: 0, // 不返回告警列表数据
+        show_overview: true, // 是否展示概览
+        show_aggs: true, // 是否展示聚合
+      },
+      options
+    )
       .then(({ aggs, overview }) => {
         const myAlarmList = [];
         const alarmStatusList = [];
@@ -924,18 +965,36 @@ export class AlertService extends AlarmService {
                 })),
               };
             }
+            if (item.id === 'notice_way') {
+              return {
+                ...item,
+                children: item.children.map(child => ({
+                  ...child,
+                  ...AlarmNoticeWayIconMap[child.id],
+                })),
+              };
+            }
             return item;
           }),
         ];
       })
       .catch(() => []);
-    console.info('AlertService getQuickFilterList', data, '==========');
     return data;
   }
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await alertTopN(
       {
-        ...params,
+        ...paramsClone,
       },
       config
     ).catch(() => ({

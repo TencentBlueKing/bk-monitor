@@ -494,6 +494,7 @@ export default defineComponent({
                 getValueFn={this.getValueFn}
                 limit={this.limit}
                 loadDelay={this.loadDelay}
+                noValueOfMethods={this.noValueOfMethods}
                 placeholder={this.placeholder}
                 value={this.uiValue}
                 zIndex={this.zIndex}
@@ -570,6 +571,7 @@ export default defineComponent({
                   <span class='icon-monitor icon-configuration' />
                 </div>
               )}
+              {/* // #if !IS_APM_MONITOR */}
               {this.isShowFavorite && (
                 <Popover
                   extCls='retrieval-filter-favorite-btn-popover'
@@ -619,6 +621,7 @@ export default defineComponent({
                   }}
                 </Popover>
               )}
+              {/* // #endif */}
               {this.$slots?.customRightBtns?.()}
             </div>
 

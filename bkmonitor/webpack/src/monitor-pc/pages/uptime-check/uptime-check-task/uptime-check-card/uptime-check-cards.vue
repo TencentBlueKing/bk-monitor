@@ -170,7 +170,7 @@ export default {
       this.$refs.taskCards?.refreshItemWidth();
     },
     handleGroupDelete(id) {
-      destroyUptimeCheckGroup(id, {}, { needRes: true })
+      destroyUptimeCheckGroup(id, { bk_biz_id: window.bk_biz_id }, { needRes: true })
         .then(res => {
           this.$bkMessage({
             message: res.result ? this.$t('解散任务组成功') : this.$t('解散任务组失败'),

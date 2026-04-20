@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
-import { docCookies } from 'monitor-common/utils/utils';
+// import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+// import { docCookies } from 'monitor-common/utils/utils';
 
 import {
   type IGetValueFnParams,
@@ -44,7 +44,7 @@ type ICandidateValueMap = Map<
   }
 >;
 
-const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+// const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 export const commonAlertFieldMap = {
   status: [
     {
@@ -198,9 +198,9 @@ export function useAlarmFilter(
       return str;
     }
     return new Promise(resolve => {
-      // if (params?.isInit__) {
-      //   candidateValueMap = new Map();
-      // }
+      if (params?.isInit__) {
+        candidateValueMap = new Map();
+      }
       const searchValue = String(params.where?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
@@ -209,8 +209,8 @@ export function useAlarmFilter(
       const paramsField = params?.fields?.[0];
       const listTranslate = (list: { id: number | string; name: string; zhId: string }[]) => {
         return list.map(item => ({
-          id: isEn || options().filterMode === EMode.ui ? item.id : item.zhId,
-          name: item.zhId,
+          id: item.id,
+          name: item.name,
         }));
       };
       if (options().alarmType === AlarmType.ALERT && ['status', 'severity', 'stage'].includes(paramsField)) {
@@ -253,7 +253,9 @@ export function useAlarmFilter(
           .getRetrievalFilterValues(
             {
               ...options().commonFilterParams,
-              conditions: [],
+              conditions: searchValue
+                ? [{ key: paramsField, method: 'include', value: [searchValue], options: { is_wildcard: true } }]
+                : [],
               fields: params.fields,
               size: params.limit,
             },

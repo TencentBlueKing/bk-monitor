@@ -1,19 +1,14 @@
-
-
 ### 功能描述
 
-创建一个结果表CMDB拆分任务
-根据给定的数据源ID，返回这个结果表的具体信息
-
+创建结果表的维度拆分配置
 
 ### 请求参数
 
-| 字段           | 类型   | 必选 | 描述        |
-| -------------- | ------ | ---- | ----------- |
-| table_id  | string | 是   | 结果表ID |
-| cmdb_level | string | 是 | CMDB拆分层级名 |
-| operator | string | 是 | 操作者 |
-
+| 字段         | 类型     | 必选 | 描述        |
+|------------|--------|----|-----------|
+| table_id   | string | 是  | 结果表ID     |
+| cmdb_level | string | 是  | CMDB拆分层级名 |
+| operator   | string | 是  | 操作者       |
 
 ### 请求参数示例
 
@@ -27,21 +22,19 @@
 
 ### 响应参数
 
-| 字段       | 类型   | 描述         |
-| ---------- | ------ | ------------ |
-| result     | bool   | 请求是否成功 |
-| code       | int    | 返回的状态码 |
-| message    | string | 描述信息     |
-| data       | dict   | 数据         |
-| request_id | string | 请求ID       |
+| 字段      | 类型     | 描述     |
+|---------|--------|--------|
+| result  | bool   | 请求是否成功 |
+| code    | int    | 返回的状态码 |
+| message | string | 描述信息   |
+| data    | dict   | 数据     |
 
 #### data字段说明
 
-| 字段                | 类型   | 描述     |
-| ------------------- | ------ | -------- |
-| bk_data_id | int | 新创建的数据源ID  |
-| table_id | string | 新创建的结果表ID | 
-
+| 字段         | 类型     | 描述        |
+|------------|--------|-----------|
+| bk_data_id | int    | 新创建的数据源ID |
+| table_id   | string | 新创建的结果表ID | 
 
 ### 响应参数示例
 
@@ -53,7 +46,6 @@
     	"bk_data_id": 1001,
     	"table_id": "system.cpu_summary_cmdb_level"
     },
-    "result": true,
-    "request_id": "408233306947415bb1772a86b9536867"
+    "result": true
 }
 ```

@@ -77,20 +77,33 @@ export default defineComponent({
     });
 
     const renderAlertTips = () => {
-      if (status.value === 'CLOSED') return <div class='alarm-tips'>{t('在恢复检测周期内无数据上报，告警已失效')}</div>;
+      if (status.value === 'CLOSED')
+        return (
+          <span class='alarm-tips'>
+            <div class='separator' />
+            {t('在恢复检测周期内无数据上报，告警已失效')}
+          </span>
+        );
       if (status.value === 'SHIELDED_ABNORMAL')
         return (
-          <div class='alarm-tips'>
-            <span class='shielded-text'>{t('屏蔽时间剩余')}:</span>
+          <span class='alarm-tips'>
+            <div class='separator' />
+            <i class='icon-monitor icon-mc-time' />
+            <span class='shielded-text'>{t('屏蔽时间剩余')}：</span>
             <span class='shielded-duration'>{props.data?.shield_left_time}</span>
-          </div>
+          </span>
         );
-      return (
-        <div class='alarm-tips'>
-          <span class='duration-text'>{t('持续时间')}:</span>
-          <span class='duration-value'>{props.data?.duration}</span>
-        </div>
-      );
+      if (status.value === 'ABNORMAL') {
+        return (
+          <span class='alarm-tips'>
+            <div class='separator' />
+            <i class='icon-monitor icon-mc-time' />
+            <span class='duration-text'>{t('持续时间')}：</span>
+            <span class='duration-value'>{props.data?.duration}</span>
+          </span>
+        );
+      }
+      return undefined;
     };
 
     /** 告警确认 */
@@ -137,36 +150,27 @@ export default defineComponent({
       <div class={['alarm-center-detail-alarm-alert', this.status]}>
         <span class='status-icon'>
           <i class={['icon-monitor', this.statusIcon.icon]} />
-          <span class='status-text'>{this.statusIcon.name}</span>
         </span>
-        <div class='separator' />
-        <div class='alert-content'>
-          <div class='alarm-content'>
-            {/* <Popover
-              width={480}
-              extCls='alarm-alert-monitor-data-popover'
-              v-slots={{
-                default: () => <span class='alarm-title'>{this.data?.description},</span>,
-                content: () => (
-                  <div class='alarm-alert-monitor-data-popover-content'>
-                    <AlertMetricsConfig alertContentDetail={this.monitorDataDetail} />
-                  </div>
-                ),
-              }}
-              placement='bottom'
-              theme='light'
-              trigger='click'
-            /> */}
-
-            {/* <span class='alarm-value'>{'65% < 80%,'}</span> */}
-            <span class='alarm-title'>{this.data?.description},</span>
+        <div class='alert-content-wrap'>
+          <div class='alert-status-text'>
+            <div class='alert-status-title'>{this.statusIcon.name}</div>
+            {this.data && this.renderAlertTips()}
           </div>
-          {this.renderAlertTips()}
+          {this.data && (
+            <div
+              class='alarm-content'
+              v-overflow-tips
+            >
+              {this.data?.description}
+            </div>
+          )}
         </div>
+
         <div class='tools'>
           {this.status === 'ABNORMAL' && [
             <Button
               key='shield'
+              class='shield-btn'
               theme='primary'
               text
               onClick={this.handleQuickShield}
@@ -177,6 +181,7 @@ export default defineComponent({
             !this.data?.is_ack && (
               <Button
                 key='confirm'
+                class='confirm-btn'
                 size='small'
                 theme='primary'
                 onClick={this.handleAlarmConfirm}
