@@ -89,11 +89,6 @@ export default defineComponent({
           required: true,
           trigger: 'blur',
         },
-        {
-          validator: (val: string) => /^[A-Z_]+$/.test(val),
-          message: t('仅支持大写字母、下划线'),
-          trigger: 'blur',
-        },
       ],
       pattern: [
         {
@@ -166,10 +161,7 @@ export default defineComponent({
       () => {
         // 如果已调试成功，检测内容是否变更
         if (debugStatus.value === DebugStatus.SUCCESS) {
-          if (
-            formData.pattern !== lastDebuggedPattern.value
-            || formData.sample !== lastDebuggedSample.value
-          ) {
+          if (formData.pattern !== lastDebuggedPattern.value || formData.sample !== lastDebuggedSample.value) {
             debugStatus.value = DebugStatus.CHANGED;
           }
         }
@@ -360,7 +352,7 @@ export default defineComponent({
                 <bk-input
                   disabled={props.isEdit}
                   value={formData.name}
-                  placeholder={t('仅支持大写字母、下划线')}
+                  placeholder={t('请输入名称')}
                   on-change={(val: string) => (formData.name = val)}
                 />
               </bk-form-item>
@@ -384,7 +376,7 @@ export default defineComponent({
                   value={formData.pattern}
                   type='textarea'
                   rows={4}
-                  placeholder={t('例如  %{IPORHOST: client} %{HTTPVERB:verb} %{URIPATHPARAM:path}')}
+                  placeholder={`${t('例如')} \\[%{IP:client_ip}\\] (?<http_method>[A-Z]+) %{URIPATH:path}`}
                   maxlength={100}
                   show-word-limit
                   on-change={(val: string) => (formData.pattern = val)}
