@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, provide, shallowRef } from 'vue';
+import { defineComponent, provide, shallowRef, inject } from 'vue';
 import { computed } from 'vue';
 
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -49,6 +49,10 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const store = useAlarmCenterStore();
+
+    // #if IS_APM_MONITOR
+    const handleAlarmTrendChartZoomChange = inject('handleAlarmTrendChartZoomChange', (_: [number, number]) => {});
+    // #endif
 
     /** 告警类型对应的直方图接口 */
     const apiMap = {
@@ -172,6 +176,9 @@ export default defineComponent({
 
     /** 图表框选 */
     const handleDataZoomChange = dataZoom => {
+      // #if IS_APM_MONITOR
+      handleAlarmTrendChartZoomChange(dataZoom);
+      // #endif
       store.timeRange = dataZoom;
     };
 
@@ -214,7 +221,7 @@ export default defineComponent({
             headerCustom: () => (
               <div class='header-custom'>
                 <i18n-t
-                  class='title-desc'
+                  class='title-description'
                   keypath='（找到 {0} 条结果，用时 {1} 毫秒）'
                   tag='div'
                 >

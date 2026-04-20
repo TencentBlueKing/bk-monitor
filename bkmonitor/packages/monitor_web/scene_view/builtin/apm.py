@@ -150,6 +150,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     filenames = [
         # ⬇️ APM观测场景视图
+        "apm_application-alarm_center",
         "apm_application-alarm_template",
         "apm_application-endpoint",
         "apm_application-error",
@@ -176,6 +177,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-db",
         "apm_service-service-default-custom_metric",
         "apm_service-service-default-custom_metric_v2",
+        "apm_service-service-default-alarm_center",
         "apm_service-remote_service-http-overview",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
@@ -771,7 +773,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error", "alarm_template"]},
+                defaults={
+                    "config": [
+                        "overview", "topo", "service", "endpoint", "db", "error", "alarm_template", "alarm_center"
+                    ]
+                },
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(
@@ -793,6 +799,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "event",
                         "profiling",
                         "custom_metric",
+                        "alarm_center",
                     ]
                 },
             )

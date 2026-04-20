@@ -1,0 +1,19 @@
+paths:
+  /app/kernel_rpc/call/:
+    post:
+      operationId: kernel_rpc_call
+      description: Kernel 类 RPC 通用入口
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/kernel_rpc/call/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: kernel rpc call

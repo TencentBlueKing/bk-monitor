@@ -67,7 +67,7 @@ export default defineComponent({
           return (
             <div
               key={index}
-              class='common-legend-item'
+              class={['common-legend-item', legend.disabled ? 'is-disabled' : '']}
               onClick={e => this.handleLegendEvent(e, 'click', legend)}
             >
               {legend.icon ? (

@@ -28,6 +28,7 @@ import {
   type ShallowRef,
   computed,
   defineComponent,
+  inject,
   onBeforeMount,
   shallowRef,
   useTemplateRef,
@@ -74,6 +75,7 @@ import {
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
+import type { ColumnResizeContext } from './typings/table';
 import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
@@ -86,7 +88,7 @@ import { useI18n } from 'vue-i18n';
 
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
-
+import { ALARM_CENTER_APM_HOOKS_KEY, type AlarmCenterApmHooks } from './alarm-center-apm';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -99,6 +101,9 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
+
+    const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
+
     const {
       handleGetUserConfig: handleGetResidentSettingUserConfig,
       handleSetUserConfig: handleSetResidentSettingUserConfig,
@@ -118,6 +123,7 @@ export default defineComponent({
       storageColumns,
       allTableFields,
       lockedTableFields,
+      fieldsWidthConfig,
     } = useAlarmTableColumns();
 
     const {
@@ -245,6 +251,7 @@ export default defineComponent({
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
+
     /** 快捷筛选 */
     const handleFilterValueChange = (filterValue: CommonCondition[], category: string) => {
       handleCurrentPageChange(1);
@@ -284,15 +291,18 @@ export default defineComponent({
     const handleConditionChange = (condition: CommonCondition[]) => {
       handleCurrentPageChange(1);
       alarmStore.conditions = condition;
+      apmHooks?.onConditionChange?.(condition);
     };
     /** 查询语句变化 */
     const handleQueryStringChange = (queryString: string) => {
       alarmStore.queryString = queryString;
+      apmHooks?.onQueryStringChange?.(queryString);
     };
     /** 查询模式变化 */
     const handleFilterModeChange = (mode: EMode) => {
       handleCurrentPageChange(1);
       alarmStore.filterMode = mode;
+      apmHooks?.onFilterModeChange?.(mode);
     };
     const handleResidentConditionChange = (condition: CommonCondition[]) => {
       alarmStore.residentCondition = condition;
@@ -714,8 +724,8 @@ export default defineComponent({
       getUrlParams();
       setUrlParams();
     });
-
     return {
+      apmHooks,
       isFirstInit,
       quickFilterList,
       quickFilterLoading,
@@ -772,6 +782,7 @@ export default defineComponent({
       handleCurrentPageChange,
       handlePageSizeChange,
       handleSortChange,
+      fieldsWidthConfig,
       handleGetResidentSettingUserConfig,
       handleSetResidentSettingUserConfig,
       handleShowAlertDetail,
@@ -809,11 +820,13 @@ export default defineComponent({
           />
         </div>
         <div class='alarm-center'>
-          <AlarmCenterHeader
-            class='alarm-center-header'
-            isShowFavorite={this.isShowFavorite}
-            onFavoriteShowChange={this.handleFavoriteShowChange}
-          />
+          {!this.apmHooks && (
+            <AlarmCenterHeader
+              class='alarm-center-header'
+              isShowFavorite={this.isShowFavorite}
+              onFavoriteShowChange={this.handleFavoriteShowChange}
+            />
+          )}
           <AlarmRetrievalFilter
             class='alarm-center-filters'
             bizIds={this.alarmStore.bizIds}
@@ -900,6 +913,10 @@ export default defineComponent({
                           selectedRowKeys={this.selectedRowKeys}
                           sort={this.ordering}
                           timeRange={this.alarmStore.timeRange}
+                          onColumnResizeChange={(ctx: ColumnResizeContext) => {
+                            if (ctx?.columnsWidth)
+                              this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
+                          }}
                           onCurrentPageChange={this.handleCurrentPageChange}
                           onDisplayColFieldsChange={displayColFields => {
                             this.storageColumns = displayColFields;
