@@ -44,6 +44,7 @@ import FavoriteBox, {
 import VueJsonPretty from 'vue-json-pretty';
 import { useRoute, useRouter } from 'vue-router';
 
+import DataAccess from '../../components/data-access';
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
@@ -76,6 +77,8 @@ import {
   CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
   getDefaultAlarmCenterBizIds,
+  MY_ALARM_BIZ_ID,
+  MY_AUTH_BIZ_ID,
 } from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
@@ -86,6 +89,8 @@ const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import difference from 'lodash/difference';
+import intersection from 'lodash/intersection';
 import { traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
@@ -140,7 +145,7 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering, greyedSpaces, wxCsLink } = useAlarmTable();
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -148,6 +153,63 @@ export default defineComponent({
       pageSize: pageSize.value,
       total: total.value,
     }));
+
+    /** 是否展示 DataAccess（数据未接入引导组件），仅 incident 场景 + 单业务 + 无灰度空间 + 表格无数据 + 非加载中时判断 */
+    const showDataAccess = computed(() => {
+      if (alarmStore.alarmType !== AlarmType.INCIDENT || data.value.length || loading.value) return false;
+      const bizIds = alarmStore.bizIds;
+      if (!bizIds?.length || bizIds.length > 1) return false;
+      const greyedSpacesVal = greyedSpaces.value;
+      if ([MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(bizIds[0])) {
+        return !greyedSpacesVal?.length;
+      }
+      const diffBizIds = difference(bizIds, greyedSpacesVal);
+      return !!diffBizIds?.length;
+    });
+
+    /** 故障模式下的空状态信息（主文案 + 附加文案同时展示） */
+    const incidentEmptyInfo = computed(() => {
+      const bizIds = alarmStore.bizIds;
+      const greyedSpacesVal = greyedSpaces.value;
+      const isMyAuthOrAlarm = bizIds?.some(id => [MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(id));
+      if (isMyAuthOrAlarm) {
+        return {
+          type: 'incidentEmpty' as const,
+          textMap: { incidentEmpty: t('当前空间下暂无故障') },
+          noDataString: greyedSpacesVal?.length
+            ? t('你当前有 {0} 个空间权限，暂无您负责的故障', [window.space_list?.length ?? 0])
+            : '',
+          incidentEmptyData: {
+            path: '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}',
+            text: String(window.space_list?.length ?? 0),
+          },
+        };
+      }
+      const diffBizIds = difference(bizIds, greyedSpacesVal);
+      if (diffBizIds?.length) {
+        const intersectionBizIds = intersection(bizIds, greyedSpacesVal);
+        const spaces = appStore.bizList
+          .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
+          .map(({ space_name, space_id }) => `${space_name} (#${space_id})`);
+        return {
+          type: intersectionBizIds.length === 0 ? ('incidentNotEnabled' as const) : ('incidentEmpty' as const),
+          textMap: { incidentNotEnabled: '', incidentEmpty: t('当前空间下暂无故障') },
+          noDataString: 'incidentRenderAssistant' as const,
+          incidentEmptyData: {
+            path: '{count} 空间未开启故障分析功能，请联系 {link}',
+            text: spaces.join(','),
+          },
+        };
+      }
+      return null;
+    });
+
+    /** 是否展示故障模式空状态，仅 incident 场景 + 表格无数据 + 非加载中 + 非DataAccess时判断 */
+    const showIncidentEmpty = computed(() => {
+      if (alarmStore.alarmType !== AlarmType.INCIDENT || data.value.length || loading.value) return false;
+      if (showDataAccess.value) return false;
+      return !!incidentEmptyInfo.value;
+    });
     const {
       tableColumns: tableSourceColumns,
       storageColumns,
@@ -961,6 +1023,11 @@ export default defineComponent({
       page,
       pageSize,
       ordering,
+      showDataAccess,
+      showIncidentEmpty,
+      incidentEmptyInfo,
+      greyedSpaces,
+      wxCsLink,
       tableSourceColumns,
       selectedRowKeys,
       defaultActiveRowKeys,
@@ -1218,6 +1285,39 @@ export default defineComponent({
                               onSortChange={sort => this.handleSortChange(sort as string)}
                             />
                           </IssuesToolbar>
+                        ) : this.showDataAccess ? (
+                          <DataAccess
+                            class='data-access-wrapper'
+                            bkBizId={this.alarmStore.bizIds[0]}
+                          />
+                        ) : this.showIncidentEmpty ? (
+                          <EmptyStatus
+                            class='incident-empty-status'
+                            textMap={this.incidentEmptyInfo.textMap}
+                            type={this.incidentEmptyInfo.type}
+                          >
+                            {this.incidentEmptyInfo.noDataString === 'incidentRenderAssistant' ? (
+                              <i18n-t
+                                keypath={this.incidentEmptyInfo.incidentEmptyData.path}
+                                tag='span'
+                              >
+                                {{
+                                  count: () => <span>{this.incidentEmptyInfo.incidentEmptyData.text}</span>,
+                                  link: () => (
+                                    <span
+                                      style='color: #3a84ff; cursor: pointer;'
+                                      class='bk-assistant-link'
+                                      onClick={() => this.wxCsLink && window.open(this.wxCsLink, '__blank')}
+                                    >
+                                      {this.$t('BK助手')}
+                                    </span>
+                                  ),
+                                }}
+                              </i18n-t>
+                            ) : (
+                              this.incidentEmptyInfo.noDataString
+                            )}
+                          </EmptyStatus>
                         ) : (
                           <AlarmTable
                             tableSettings={{

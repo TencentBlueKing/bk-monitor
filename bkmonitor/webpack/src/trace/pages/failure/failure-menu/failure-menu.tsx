@@ -83,6 +83,7 @@ export default defineComponent({
         <ul class='detail-tab-content'>
           {this.tabList.map(item => (
             <li
+              key={item.name}
               class={{ active: this.activeName === item.name }}
               onClick={this.handleActive.bind(this, item.name)}
             >

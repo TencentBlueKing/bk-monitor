@@ -71,6 +71,17 @@
           flex-grow: 1;
           flex-basis: auto;
           width: 100%;
+
+          .data-access-wrapper {
+            padding: 8px 0;
+          }
+
+          .incident-empty-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+          }
         }
       }
     }
