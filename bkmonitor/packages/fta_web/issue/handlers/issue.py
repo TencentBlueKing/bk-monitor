@@ -146,6 +146,33 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         return search_object
 
+    def parse_condition_item(self, condition: dict) -> Q:
+        """处理 impact_scope 相关的查询条件
+
+        支持两种过滤方式：
+        1. 维度级过滤（impact_dimensions）→ exists 查询
+        2. 实例 ID 级过滤（impact_scope.{维度}.{ID字段}）→ terms 查询
+        """
+        key = condition["key"]
+
+        if key == "impact_dimensions":
+            # 维度级过滤：判断是否包含某个维度
+            should_clauses = [Q("exists", field=f"impact_scope.{dim}") for dim in condition["value"]]
+            return Q("bool", should=should_clauses, minimum_should_match=1)
+
+        if key.startswith("impact_scope."):
+            # 实例 ID 级过滤：按具体实例 ID 精确匹配
+            # key: "impact_scope.host.bk_host_id" → ES field: "impact_scope.host.instance_list.bk_host_id"
+            parts = key.split(".", 2)  # ["impact_scope", "host", "bk_host_id"]
+            if len(parts) == 3:
+                dimension, id_field = parts[1], parts[2]
+                es_field = f"impact_scope.{dimension}.instance_list.{id_field}"
+                # Flattened 类型所有值为 keyword，统一转字符串
+                values = [str(v) for v in condition["value"]]
+                return Q("terms", **{es_field: values})
+
+        return super().parse_condition_item(condition)
+
     def add_biz_condition(self, search_object):
         """业务权限过滤"""
         queries = []
