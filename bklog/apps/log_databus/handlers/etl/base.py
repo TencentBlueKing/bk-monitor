@@ -261,6 +261,7 @@ class EtlHandler:
     @staticmethod
     def etl_preview(etl_config, etl_params, data, bk_biz_id=None):
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
+        etl_params["bk_biz_id"] = bk_biz_id
         if FeatureToggleObject.switch("log_v4_data_link", bk_biz_id):
             fields = etl_storage.etl_preview_v4(data, etl_params)
         else:

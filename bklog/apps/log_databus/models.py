@@ -819,3 +819,21 @@ class FieldDateFormat(OperateRecordModel):
             }
             for obj in objs
         ]
+
+
+class GrokInfo(OperateRecordModel):
+    """
+    Grok模式信息
+    """
+
+    bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
+    name = models.CharField(_("规则名称"), max_length=128, db_index=True)
+    pattern = models.TextField(_("表达式"))
+    is_builtin = models.BooleanField(_("是否内置"), default=False)
+    sample = models.TextField(_("样例"), null=True, blank=True)
+    description = models.TextField(_("描述"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("Grok规则")
+        verbose_name_plural = _("Grok规则")
+        unique_together = ("name", "bk_biz_id")
