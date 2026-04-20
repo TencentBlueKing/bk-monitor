@@ -473,11 +473,8 @@ export default defineComponent({
       }
       if (cleaningMode.value === 'bk_log_regexp') {
         data.etl_params.separator_regexp = etl_params.separator_regexp;
-        // 当 enable_v4 为 true 时，添加 is_grok 字段
-        if (props.configData.enable_v4) {
-          data.etl_params.is_grok = grokModeEnabled.value;
-          data.bk_biz_id = bkBizId.value;
-        }
+        data.etl_params.is_grok = grokModeEnabled.value;
+        data.bk_biz_id = bkBizId.value;
       }
       let requestUrl = 'clean/getEtlPreview';
       const urlParams = {};
@@ -616,36 +613,23 @@ export default defineComponent({
                   )} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
                 }}
               />
-              {props.configData.enable_v4 && (
-                <GrokModeSwitch
-                  value={grokModeEnabled.value}
-                  on-change={(val: boolean) => {
-                    grokModeEnabled.value = val;
-                  }}
-                />
-              )}
+              <GrokModeSwitch
+                value={grokModeEnabled.value}
+                on-change={(val: boolean) => {
+                  grokModeEnabled.value = val;
+                }}
+              />
             </div>
-            {props.configData.enable_v4 ? (
-              <GrokInput
-                grokMode={grokModeEnabled.value}
-                popoverPosition='cursor'
-                placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
-                type='textarea'
-                value={formData.value.etl_params.separator_regexp}
-                on-change={(val: string) => {
-                  formData.value.etl_params.separator_regexp = val;
-                }}
-              />
-            ) : (
-              <bk-input
-                placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
-                type='textarea'
-                value={formData.value.etl_params.separator_regexp}
-                on-change={(val: string) => {
-                  formData.value.etl_params.separator_regexp = val;
-                }}
-              />
-            )}
+            <GrokInput
+              grokMode={grokModeEnabled.value}
+              popoverPosition='cursor'
+              placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
+              type='textarea'
+              value={formData.value.etl_params.separator_regexp}
+              on-change={(val: string) => {
+                formData.value.etl_params.separator_regexp = val;
+              }}
+            />
             <bk-button
               class='clean-btn'
               disabled={!(logOriginal.value && separatorRegexp.value)}
@@ -1405,8 +1389,7 @@ export default defineComponent({
           bk_biz_id: bkBizId.value,
           etl_params: {
             ...etl_params,
-            // 当 enable_v4 为 true 且为正则模式时，添加 is_grok 字段
-            ...(props.configData.enable_v4 && cleaningMode.value === 'bk_log_regexp'
+            ...(cleaningMode.value === 'bk_log_regexp'
               ? { is_grok: grokModeEnabled.value }
               : {}),
           },
