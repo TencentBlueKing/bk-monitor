@@ -1297,17 +1297,23 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         }
       }
     } else if (this.searchType === 'incident') {
-      const { fields, doc_count } = await incidentTopN({ ...topNParams }, { needCancel: true }).catch(() => ({
-        doc_count: 0,
-        fields: [],
-      }));
+      const { fields, doc_count } = await incidentTopN(
+        {
+          ...topNParams,
+          fields: !isDetail ? [...allFieldList] : [this.detailField],
+        },
+        { needCancel: true }
+      ).catch(() => ({ doc_count: 0, fields: [] }));
       fieldList = fields;
       count = doc_count;
     } else {
-      const { fields, doc_count } = await actionTopN({ ...topNParams }, { needCancel: true }).catch(() => ({
-        doc_count: 0,
-        fields: [],
-      }));
+      const { fields, doc_count } = await actionTopN(
+        {
+          ...topNParams,
+          fields: !isDetail ? [...allFieldList] : [this.detailField],
+        },
+        { needCancel: true }
+      ).catch(() => ({ doc_count: 0, fields: [] }));
       fieldList = fields;
       count = doc_count;
     }
