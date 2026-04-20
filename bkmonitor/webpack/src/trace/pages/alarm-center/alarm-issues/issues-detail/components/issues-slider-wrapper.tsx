@@ -38,7 +38,7 @@ import {
 } from 'trace/pages/alarm-center/typings';
 import { useI18n } from 'vue-i18n';
 
-import { DIMENSION_NAME_MAP, DIMENSION_WHITE_LIST_FIELD, IssueDetailTabEnum } from '../../constant';
+import { IssueDetailTabEnum } from '../../constant';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
@@ -132,6 +132,15 @@ export default defineComponent({
       doc_count: 0,
       fields: [],
     });
+    /** 维度名称映射 */
+    const dimensionNameMap = computed(() => {
+      return (
+        props.detail?.aggregate_config?.aggregate_dimensions?.reduce((pre, cur) => {
+          pre[cur.field] = cur.display_name;
+          return pre;
+        }, {}) || {}
+      );
+    });
 
     const getAllAlertId = async () => {
       if (!props.detail?.id) {
@@ -189,9 +198,7 @@ export default defineComponent({
         ...commonParams.value,
         start_time: startTime,
         end_time: endTime,
-        fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item =>
-          DIMENSION_WHITE_LIST_FIELD.includes(item) ? item : `tags.${item}`
-        ),
+        fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item => item.field),
         size: 5,
       })
         .then((data: AnalysisTopNDataResponse<AnalysisFieldAggItem>) => {
@@ -219,7 +226,7 @@ export default defineComponent({
 
               return {
                 ...item,
-                name: DIMENSION_NAME_MAP[item.field] || item.field,
+                name: dimensionNameMap.value[item.field] || item.field,
                 buckets,
               };
             }),
