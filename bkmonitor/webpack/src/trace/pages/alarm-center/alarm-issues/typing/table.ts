@@ -29,7 +29,7 @@ import type { ImpactScopeResourceKeyType, IssuePriorityType, IssueStatusType } f
 /** 聚合配置 */
 export interface AggregateConfig {
   /** 聚合维度 */
-  aggregate_dimensions: string[];
+  aggregate_dimensions: { display_name: string; field: string }[];
   /** 告警级别 */
   alert_levels: number[];
   /** 条件 */
