@@ -111,7 +111,7 @@ def modify_result_table_before(params):
     @return:
     """
     params = add_esb_info_before_request(params)
-    params.update({"external_storage": {"elasticsearch": params["default_storage_config"]}})
+    params.update({"external_storage": {params["default_storage"]: params["default_storage_config"]}})
     del params["default_storage_config"]
     return params
 
