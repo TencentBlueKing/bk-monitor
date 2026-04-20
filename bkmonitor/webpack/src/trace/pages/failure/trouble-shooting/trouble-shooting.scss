@@ -130,7 +130,7 @@
         position: absolute;
         top: 19px;
         right: 16px;
-        color: #3A84FF;
+        color: #3a84ff;
         cursor: pointer;
         display: none;
       }
@@ -140,7 +140,6 @@
           display: inline-block;
         }
       }
-
     }
 
     .failure-item-wrapper {
@@ -154,7 +153,7 @@
       .slider-icon {
         position: absolute;
         right: 16px;
-        color: #3A84FF;
+        color: #3a84ff;
         cursor: pointer;
         display: none;
       }
@@ -188,7 +187,6 @@
         }
       }
 
-
       .failure-item-content {
         color: #4d4f56;
         font-size: 12px;
@@ -203,7 +201,7 @@
           .bk-collapse-header {
             height: 32px;
             line-height: 32px;
-            background: #E1E4EB;
+            background: #e1e4eb;
             border-radius: 2px;
             padding: 0;
 
@@ -227,7 +225,7 @@
           .bk-collapse-content {
             padding: 0;
             margin-left: 10px;
-            border-left: 1px solid #E1E4EB;
+            border-left: 1px solid #e1e4eb;
           }
         }
 
@@ -244,7 +242,7 @@
             justify-content: center;
 
             &:nth-child(2n) {
-              background: #FAFBFD;
+              background: #fafbfd;
             }
 
             .item-label {
@@ -261,10 +259,14 @@
               color: #313238;
               width: calc(100% - 130px);
               word-break: break-word;
+              display: -webkit-box;
+              -webkit-line-clamp: 3;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
             }
 
             .item-value-link {
-              color: #3A84FF;
+              color: #3a84ff;
               cursor: pointer;
             }
           }
@@ -276,7 +278,7 @@
           margin-left: 10px;
 
           .bk-collapse-item {
-            border: 1px solid #EBEEF5 !important;
+            border: 1px solid #ebeef5 !important;
             margin-bottom: 8px !important;
 
             &:last-child {
@@ -286,7 +288,7 @@
             .bk-collapse-header {
               height: 26px !important;
               line-height: 26px !important;
-              background: #EBEEF5 !important;
+              background: #ebeef5 !important;
 
               .bk-collapse-icon {
                 top: 6px !important;
@@ -321,7 +323,7 @@
         }
 
         .dimensional-footer {
-          border-top: 1px solid #EAEBF0;
+          border-top: 1px solid #eaebf0;
           padding: 4px 20px;
 
           &-item {
@@ -387,7 +389,7 @@
               }
             }
 
-            .log-tips__default {
+            .overflow-popover-trigger {
               font-family: Menlo, Monaco, Consolas, Courier, monospace;
               color: #313238;
               overflow: hidden;
@@ -397,7 +399,6 @@
               -webkit-box-orient: vertical;
               word-break: break-word;
               white-space: normal;
-
             }
 
             &:first-child {
@@ -406,7 +407,7 @@
 
             &:last-child {
               padding-top: 8px;
-              border-top: 1px solid #EBEEF5;
+              border-top: 1px solid #ebeef5;
             }
           }
         }
@@ -424,7 +425,7 @@
             padding: 8px 8px 8px 20px;
           }
 
-          .log-tips__default {
+          .overflow-popover-trigger {
             margin: 0 8px 8px 20px;
           }
 
@@ -433,7 +434,7 @@
             padding-right: 8px;
 
             &:nth-child(n) {
-              background: #FAFBFD;
+              background: #fafbfd;
             }
 
             &:nth-child(2n) {
@@ -446,7 +447,7 @@
       .right-icon {
         position: absolute;
         right: 8px;
-        color: #3A84FF;
+        color: #3a84ff;
         font-size: 12px;
         cursor: pointer;
       }
@@ -483,11 +484,12 @@
     }
 
     .toastui-editor-contents {
-      font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
+      font-family:
+        -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
 
       code {
-        color: #6D6E8F;
-        background-color: #F2F4FA;
+        color: #6d6e8f;
+        background-color: #f2f4fa;
       }
     }
   }
@@ -501,40 +503,52 @@
   }
 }
 
-.log-content-tips_popover {
+.overflow-popover {
   padding: 0 !important;
-  border: 1px solid #DCDEE5;
+  border: 1px solid #dcdee5;
   box-shadow: 0 2px 6px 0 #0000001a !important;
   max-height: 80vh;
 
   .bk-pop2-arrow {
-    border-left: 1px solid #DCDEE5;
-    border-bottom: 1px solid #DCDEE5;
+    border-left: 1px solid #dcdee5;
+    border-bottom: 1px solid #dcdee5;
   }
 
-  .log-popover-content {
+  .overflow-popover-content {
     margin: 8px;
 
     .copy-icon {
-      color: #4D4F56;
+      color: #4d4f56;
       cursor: pointer;
     }
 
-    .log-pattern {
+    // 公共内容区样式：可滚动文本区域
+    .overflow-popover-scrollable {
       max-height: calc(80vh - 42px);
       overflow: auto;
       margin-top: 8px;
+    }
+
+    // Pattern 类型（等宽字体 + 可滚动 + 文本颜色）
+    .overflow-popover-pattern {
+      @extend .overflow-popover-scrollable;
       color: #313238;
       line-height: 20px;
       font-family: Menlo, Monaco, Consolas, Courier, monospace;
     }
 
-    &_json {
-      max-height: calc(80vh - 42px);
-      overflow: auto;
-      margin-top: 8px;
+    // Trace 字段类型（可滚动 + 文本颜色，非等宽字体）
+    &__trace-field {
+      @extend .overflow-popover-scrollable;
+      color: #313238;
+      line-height: 20px;
+      word-break: break-all;
     }
 
+    // JSON 类型（可滚动）
+    &_json {
+      @extend .overflow-popover-scrollable;
+    }
 
     &_item {
       display: flex;
@@ -542,12 +556,12 @@
       margin-bottom: 4px;
 
       .item-label {
-        color: #9D694C;
+        color: #9d694c;
         margin-right: 2px;
       }
 
       .item-value {
-        color: #1F6D89;
+        color: #1f6d89;
         word-break: auto-phrase;
 
         .item-label {

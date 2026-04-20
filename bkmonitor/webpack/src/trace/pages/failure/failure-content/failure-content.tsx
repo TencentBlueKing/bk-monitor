@@ -149,13 +149,8 @@ export default defineComponent({
     const inputStatus = ref<string>('success');
 
     const showTabList = computed(() => {
-      return tabList.filter(item => incidentResults.value[item.key]?.enabled);
+      return tabList.filter(item => incidentResults.value[item.key]?.enabled || item.key === 'incident_topology');
     });
-
-    const isShowTab = () => {
-      const tab = tabList.find(item => item.name === active.value);
-      return tab ? incidentResults.value[tab.key]?.enabled : true;
-    };
 
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
@@ -185,13 +180,13 @@ export default defineComponent({
     watch(
       () => currentNodeData.value,
       () => {
-        incidentResults.value.incident_topology?.enabled && handleChangeActive(FailureContentTabView.FAILURE_TOPO);
+        handleChangeActive(FailureContentTabView.FAILURE_TOPO);
       }
     );
     watch(
       () => showTabList.value,
       list => {
-        active.value = list[0]?.name || FailureContentTabView.FAILURE_VIEW;
+        active.value = list[0]?.name || FailureContentTabView.FAILURE_TOPO;
       }
     );
     watch(
@@ -253,7 +248,6 @@ export default defineComponent({
       inputStatus,
       searchValidate,
       showTabList,
-      isShowTab,
       handleCloseCollapse,
     };
   },
@@ -267,7 +261,7 @@ export default defineComponent({
           onChange={this.handleChangeActive}
         />
         <KeepAlive>
-          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_TOPO && (
+          {this.active === FailureContentTabView.FAILURE_TOPO && (
             <FailureTopo
               ref='failureTopo'
               isCollapsed={this.$props.isCollapsed}
@@ -289,7 +283,7 @@ export default defineComponent({
               onRefresh={this.refresh}
             />
           )} */}
-          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_VIEW && (
+          {this.active === FailureContentTabView.FAILURE_VIEW && (
             <div class='failure-view-content'>
               <div class='content-head'>
                 <div class='head-tab'>
