@@ -36,7 +36,6 @@ import {
   ref,
   toRefs,
   watch,
-  defineAsyncComponent,
 } from 'vue';
 
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab } from 'bkui-vue';
