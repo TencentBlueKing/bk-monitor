@@ -265,7 +265,7 @@ export default class ToolsMixin extends Vue {
    * @description: 查看大图
    * @param {PanelModel} panel 图表配置信息
    */
-  handleFullScreen(panel: PanelModel, compareValue?: any) {
+  handleFullScreen(panel: PanelModel, compareValue?: PanelModel) {
     this.$emit('fullScreen', panel, compareValue);
   }
 

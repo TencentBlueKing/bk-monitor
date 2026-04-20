@@ -910,7 +910,11 @@ class DetailEventResource(EventPermissionResource, EventDimensionMixin):
         ) in EventGraphQueryResource.AvailableDataLabel:
             for query_config in item["query_configs"]:
                 dimensions = event.origin_alarm.get("data", {}).get("dimensions", {})
-                dimensions = {key: value for key, value in dimensions.items() if key in query_config["agg_dimension"]}
+                dimensions = {
+                    key: value
+                    for key, value in dimensions.items()
+                    if key in query_config["agg_dimension"] and value != ""
+                }
                 filter_dict = {}
 
                 if (query_config["data_source_label"], query_config["data_type_label"]) == (

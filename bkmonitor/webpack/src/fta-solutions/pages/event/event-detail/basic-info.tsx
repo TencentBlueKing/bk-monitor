@@ -81,7 +81,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
 
     // 遍历 children 数组，更新对应状态的计数
     const children = this.basicInfo.overview?.children || [];
-    children.map(item => {
+    children.forEach(item => {
       if (statusKeys.includes(item.id)) {
         statusCounts[item.id] = item.count;
       }
@@ -306,7 +306,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           scopedSlots: {
             nodeValue: ({ node, defaultValue }) => {
               // value是url时 增加跳转功能
-              if (node.content?.startsWith('http')) {
+              if (node.content?.startsWith?.('http')) {
                 return (
                   <a
                     class='vjs-value vjs-value-string'

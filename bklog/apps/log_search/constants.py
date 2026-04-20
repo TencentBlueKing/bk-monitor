@@ -929,8 +929,8 @@ class FieldDataTypeEnum(ChoicesEnum):
         return {
             "ip": "string",
             "keyword": "string",
-            "integer": "float",
-            "long": "float",
+            "integer": "int",
+            "long": "long",
             "float": "float",
             "double": "float",
             "object": "object",
@@ -1366,6 +1366,23 @@ RT_RESERVED_WORD_EXAC = [
     ETL_DELIMITER_IGNORE,
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
+    # V4清洗管道内部节点名
+    # "json_data",
+    # "iter_item",
+    # "iter_string",
+    # "bk_separator_object",
+    # "bk_separator_object_path",
+    # BKBase V4内置保留字段
+    # "__time",
+    # "dteventtimestamp",
+    # "dteventtime",
+    # "localtime",
+    # "thedate",
+    # "now",
+    # "dt_year",
+    # "dt_month",
+    # "dt_day",
+    # "dt_hour",
 ]
 
 
@@ -1926,7 +1943,7 @@ class LogBuiltInFieldTypeEnum:
 
     @classmethod
     def get_choices_list_dict(cls):
-        return [{"id": key, "name": key} for key in LOG_BUILT_IN_FIELD_LIST if key]
+        return [{"id": key, "name": key} for key in LOG_BUILT_IN_FIELD_LIST if key]        
 
 
 class LogAccessTypeEnum(ChoicesEnum):

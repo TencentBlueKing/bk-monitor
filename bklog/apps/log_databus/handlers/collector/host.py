@@ -107,8 +107,8 @@ class HostCollectorHandler(CollectorHandler):
             )
 
     @transaction.atomic
-    def stop(self, **kwargs):
-        super().stop()
+    def stop(self, is_stop_index_set=True, **kwargs):
+        super().stop(is_stop_index_set=is_stop_index_set)
         if self.data.subscription_id:
             return self._run_subscription_task("STOP")
         return True

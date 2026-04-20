@@ -24,7 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, getCurrentInstance, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  getCurrentInstance,
+  shallowRef,
+  toRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import VueEcharts from 'vue-echarts';
 
@@ -75,6 +84,10 @@ export default defineComponent({
       type: Array as PropType<ChartTitleMenuType[]>,
       default: () => [],
     },
+    downSampleRange: {
+      type: String,
+      default: 'auto',
+    },
     showRestore: {
       type: Boolean,
       default: false,
@@ -83,21 +96,48 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /** 所有联动图表中存在有一个图表触发 hover 是否展示所有联动图表的 tooltip(默认 false) */
+    hoverAllTooltips: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick', 'zrClick'],
   setup(props, { emit }) {
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<HTMLElement>('chart');
+    const echartContainerRef = useTemplateRef<HTMLElement>('echartContainer');
     const panel = computed(() => props.panel);
     const params = computed(() => props.params);
+    const mouseIn = shallowRef(false);
+
+    /* 降采样计算 */
+    const downSampleRangeComputed = (timeRange: number[]) => {
+      if (props.downSampleRange === 'auto') {
+        let width = 1;
+        if (echartContainerRef.value) {
+          width = echartContainerRef.value.clientWidth;
+        } else {
+          width = chartRef.value?.clientWidth - (panel.value?.options?.legend?.placement === 'right' ? 320 : 0);
+        }
+        const size = (timeRange[1] - timeRange[0]) / width;
+        return size > 0 ? `${Math.ceil(size)}s` : undefined;
+      }
+      return props.downSampleRange;
+    };
 
     const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api,
       params,
-      props.customOptions
+      props.customOptions,
+      {
+        isMouseOver: mouseIn,
+        hoverAllTooltips: toRef(props, 'hoverAllTooltips'),
+      },
+      downSampleRangeComputed
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
@@ -113,6 +153,8 @@ export default defineComponent({
       chartInstance.value.dispatchAction({
         type: 'restore',
       });
+
+      if (!mouseIn.value) return;
       let { startValue, endValue } = event.batch[0];
       startValue = Math.max(0, startValue);
       endValue = Math.min(endValue, xAxisData.length - 1);
@@ -168,6 +210,10 @@ export default defineComponent({
       handleMenuClick(item);
     };
 
+    const handleMouseInChange = (v: boolean) => {
+      mouseIn.value = v;
+    };
+
     watch(
       () => duration.value,
       val => {
@@ -208,6 +254,7 @@ export default defineComponent({
       handleDataZoom,
       handleClick,
       handleZrClick,
+      handleMouseInChange,
     };
   },
   render() {
@@ -243,7 +290,12 @@ export default defineComponent({
           <ChartSkeleton />
         ) : this.options ? (
           <>
-            <div class='echart-container'>
+            <div
+              ref='echartContainer'
+              class='echart-container'
+              onMouseout={() => this.handleMouseInChange(false)}
+              onMouseover={() => this.handleMouseInChange(true)}
+            >
               <VueEcharts
                 ref='echart'
                 group={this.panel?.dashboardId}

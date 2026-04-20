@@ -47,6 +47,7 @@ class UptimeCheckTaskListResource(MonitorAPIGWResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", default=0)
         plain = serializers.BooleanField(label="是否返回简单数据", default=True)
         id = serializers.CharField(label="任务ID", required=False)
 
@@ -58,6 +59,9 @@ class UptimeCheckNodeListResource(MonitorAPIGWResource):
 
     action = "/app/uptime_check/node/list/"
     method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", default=0)
 
 
 class GetStatisticsByJsonResource(MonitorAPIGWResource):
@@ -138,6 +142,15 @@ class GetActionParamsBackendResource(MonitorAPIGWResource):
     """
 
     action = "/app/action/get_action_params_by_config/"
+    method = "POST"
+
+
+class GetDemoActionContextBackendResource(MonitorAPIGWResource):
+    """
+    基于真实告警预览套餐变量渲染
+    """
+
+    action = "/app/action/get_demo_action_context/"
     method = "POST"
 
 

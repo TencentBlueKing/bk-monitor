@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, onActivated, shallowRef } from 'vue';
+import { type PropType, defineComponent, onActivated, shallowRef, watch } from 'vue';
 import { reactive } from 'vue';
 
 import { Input, Pagination } from 'bkui-vue';
@@ -67,6 +67,17 @@ export default defineComponent({
     });
     const isLoading = shallowRef(false);
     const tableSort = shallowRef<string[]>([]);
+
+    watch(
+      () => props.detail,
+      val => {
+        if (val) {
+          pagination.current = 1;
+          getData();
+        }
+      }
+    );
+
     /**
      * @description: 获取列表数据
      * @param {string} sort
@@ -160,16 +171,15 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-center-detail-panel-convergent-alarm'>
-        <div class='search-input'>
-          <Input
-            v-model={this.queryString}
-            placeholder={this.$t('请输入关键字')}
-            type='search'
-            clearable
-            onBlur={this.handleQueryStringChange}
-            onClear={this.handleQueryStringChange}
-          />
-        </div>
+        <Input
+          class='search-input'
+          v-model={this.queryString}
+          placeholder={this.$t('搜索 告警关键词')}
+          type='search'
+          clearable
+          onBlur={this.handleQueryStringChange}
+          onClear={this.handleQueryStringChange}
+        />
 
         <PanelAlarmTable
           v-slots={{

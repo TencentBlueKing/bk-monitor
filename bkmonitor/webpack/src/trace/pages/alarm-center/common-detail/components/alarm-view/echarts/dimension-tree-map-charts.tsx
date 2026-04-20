@@ -106,7 +106,6 @@ export default defineComponent({
     watch(
       () => props.chartData,
       () => {
-        console.log(props.chartData, 'chartData');
         options.value = {
           ...commonOptions,
           series: [

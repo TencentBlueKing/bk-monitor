@@ -43,7 +43,7 @@ export default defineComponent({
     /** Ai 高亮提示块组件图标大小 */
     faviconSize: {
       type: Number,
-      default: 20,
+      default: 36,
     },
   },
   setup(props) {

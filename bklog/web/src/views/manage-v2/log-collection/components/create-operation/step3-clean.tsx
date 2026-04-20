@@ -117,6 +117,7 @@ export default defineComponent({
      */
     const pathExample = ref();
     const isDebugLoading = ref(false);
+    const isPathDebugLoading = ref(false);
     /**
      * 日志样例
      */
@@ -197,7 +198,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const isUpdate = computed(() => ['collectEdit', 'collectField'].includes(String(route.name ?? '')) && props.isEdit);
     const isEditTemp = computed(() => route.name === 'clean-template-edit');
 
     const formData = ref({
@@ -361,14 +362,18 @@ export default defineComponent({
           const timeField = etl_fields?.find(item => item.is_time);
           const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
           const fieldName = timeField?.field_name || '';
+          const timeFormat = timeField?.option?.time_format || '';
+          const timeZoneVal = timeField?.option?.time_zone || '';
           cleaningMode.value = clean_type;
-          enableMetaData.value = etl_params.path_regexp;
+          enableMetaData.value = !!etl_params.path_regexp;
           visibleBkBiz.value = visible_bk_biz_id;
           formData.value = {
             ...formData.value,
             ...res.data,
             log_reporting_time: logReportingTime,
             field_name: fieldName,
+            time_format: timeFormat,
+            time_zone: timeZoneVal,
           };
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
@@ -406,8 +411,12 @@ export default defineComponent({
         })
         .then(async res => {
           if (res.data) {
-            store.commit('collect/setCurCollect', res.data);
-            builtInFieldsList.value = curCollect.value.fields.filter(item => item.is_built_in);
+            // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
+            if (!props.isClone) {
+              store.commit('collect/setCurCollect', res.data);
+            }
+            const fieldsSource = props.isClone ? res.data.fields : curCollect.value.fields;
+            builtInFieldsList.value = (fieldsSource || []).filter(item => item.is_built_in);
             if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
@@ -430,7 +439,7 @@ export default defineComponent({
         data: pathExample.value,
       };
       const urlParams = {};
-      isDebugLoading.value = true;
+      isPathDebugLoading.value = true;
       urlParams.collector_config_id = curCollect.value.collector_config_id;
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
@@ -445,7 +454,7 @@ export default defineComponent({
           console.log(err);
         })
         .finally(() => {
-          isDebugLoading.value = false;
+          isPathDebugLoading.value = false;
         });
     };
 
@@ -486,8 +495,6 @@ export default defineComponent({
       if (!isRefresh) {
         formData.value.etl_fields = [];
       }
-      // 先置空防止接口失败显示旧数据
-      formData.value.etl_params.metadata_fields = [];
       if (props.isTempField) {
         requestUrl = 'clean/getEtlPreview';
       } else {
@@ -507,8 +514,13 @@ export default defineComponent({
             item.verdict = judgeNumber(item);
           }
           const fields = formData.value.etl_fields;
-          const list = dataFields.reduce((arr, item) => {
-            const field = { ...structuredClone(rowTemplate.value), ...item };
+          const list = dataFields.reduce((arr, item, index) => {
+            const field = { 
+              ...structuredClone(rowTemplate.value),
+              ...item,
+              // 如果接口未返回 field_index，则使用数组索引作为唯一标识
+              field_index: item.field_index ?? index + 1,
+            };
             arr.push(field);
             return arr;
           }, []);
@@ -626,8 +638,11 @@ export default defineComponent({
               placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
               type='textarea'
               value={formData.value.etl_params.separator_regexp}
-              on-change={(val: string) => {
-                formData.value.etl_params.separator_regexp = val;
+              on-input={(val: string) => {
+                formData.value.etl_params = {
+                  ...formData.value.etl_params,
+                  separator_regexp: val,
+                };
               }}
             />
             <bk-button
@@ -1218,12 +1233,15 @@ export default defineComponent({
                   placeholder={defaultRegex}
                   value={formData.value.etl_params.path_regexp}
                   on-input={val => {
-                    formData.value.etl_params.path_regexp = val;
+                    formData.value.etl_params = {
+                      ...formData.value.etl_params,
+                      path_regexp: val,
+                    };
                   }}
                 />
                 <bk-button
                   class='debug-btn'
-                  disabled={!showDebugPathRegexBtn.value || isDebugLoading.value}
+                  disabled={!showDebugPathRegexBtn.value || isPathDebugLoading.value}
                   on-click={debuggerPathRegex}
                 >
                   {t('调试')}
@@ -1356,11 +1374,28 @@ export default defineComponent({
           loading.value = false;
           return;
         }
-        const list = formData.value.etl_fields.map(item => ({
-          ...item,
-          is_time: item.field_name === formData.value.field_name,
-        }));
+        const list = formData.value.etl_fields.map(item => {
+          const isTime = item.field_name === formData.value.field_name;
+          return {
+            ...item,
+            is_time: isTime,
+            option: {
+              time_zone: isTime ? formData.value.time_zone : '',
+              time_format: isTime ? formData.value.time_format : '',
+            },
+          };
+        });
         formData.value.etl_fields = list;
+      } else {
+        // 日志上报时间：清除所有字段的 is_time 和 option 中的时间信息
+        formData.value.etl_fields = formData.value.etl_fields.map(item => ({
+          ...item,
+          is_time: false,
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+        }));
       }
       const { etl_fields } = formData.value;
 
@@ -1377,8 +1412,25 @@ export default defineComponent({
     const handleSubmit = async () => {
       handleSubmitValidate(() => {
         const { etl_params, etl_fields } = formData.value;
-        const { storage_cluster_id, allocation_min_days, storage_replies, es_shards, table_id, retention } =
-          curCollect.value;
+        // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
+        etl_params.metadata_fields =
+          etl_params?.metadata_fields?.map(item => {
+            item.metadata_type = 'path';
+            return item;
+          }) ?? [];
+        // 关闭路径元数据开关时，path_regexp 传 null
+        if (!enableMetaData.value) {
+          etl_params.path_regexp = null;
+        }
+        const {
+          storage_cluster_id,
+          allocation_min_days,
+          storage_replies,
+          es_shards,
+          table_id,
+          retention,
+          storage_shards_nums,
+        } = curCollect.value;
         /**
          * 编辑/创建清洗
          * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
@@ -1402,7 +1454,7 @@ export default defineComponent({
             storage_cluster_id,
             allocation_min_days,
             storage_replies,
-            es_shards,
+            es_shards: es_shards ?? storage_shards_nums,
             table_id,
             retention,
             etl_config: cleaningMode.value,
@@ -1487,7 +1539,7 @@ export default defineComponent({
                 formData.value = deepClone(cacheTemplateData.value);
                 cleaningMode.value = cacheTemplateData.value.etl_config;
                 visibleBkBiz.value = cacheTemplateData.value.visible_bk_biz_id;
-                enableMetaData.value = cacheTemplateData.value.etl_params.path_regexp;
+                enableMetaData.value = !!cacheTemplateData.value.etl_params.path_regexp;
               }}
             >
               {t('重置')}

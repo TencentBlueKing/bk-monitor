@@ -3,325 +3,467 @@
 保存告警策略(迁移)
 
 ### 请求参数
+| 字段                | 类型      | 必选  | 描述                                      |
+|:------------------|---------|-----|----------------------------------------|
+| bk_biz_id         | int     | 是   | 业务ID                                   |
+| name              | string  | 是   | 策略名称                                   |
+| scenario          | string  | 是   | 监控对象                                   |
+| items             | list    | 是   | 监控项列表(Item)                            |
+| detects           | list    | 是   | 检测配置列表(Detect)                        |
+| notice            | object  | 是   | 通知套餐(NoticeRelation)                  |
+| actions           | list    | 否   | 处理套餐列表(ActionRelation)，允许为空列表         |
+| id                | int     | 否   | 策略ID（更新时必填，创建时不填）                     |
+| type              | string  | 否   | 策略类型，默认为monitor                       |
+| source            | string  | 否   | 监控源，默认为当前应用code                       |
+| is_enabled        | boolean | 否   | 是否启用，默认为true                          |
+| is_invalid        | boolean | 否   | 是否失效，默认为false                         |
+| invalid_type      | string  | 否   | 失效类型，默认为空字符串                          |
+| labels            | list    | 否   | 策略标签列表，默认为空列表                         |
+| app               | string  | 否   | 应用名称，默认为空字符串                          |
+| path              | string  | 否   | 路径，默认为空字符串                            |
+| priority          | int     | 否   | 优先级（0-10000），默认为null                  |
+| priority_group_key| string  | 否   | 优先级分组key，最大长度60，默认为空字符串              |
+| metric_type       | string  | 否   | 指标类型，默认为空字符串                          |
 
-| 字段名                | 类型           | 是否必选 | 描述               |
-|--------------------|--------------|------|------------------|
-| bk_biz_id          | int          | 是    | 业务ID             |
-| id                 | int          | 否    | 策略ID             |
-| name               | str          | 是    | 策略名称             |
-| type               | str          | 否    | 策略类型，默认"monitor" |
-| source             | str          | 否    | 来源应用，默认当前应用      |
-| scenario           | str          | 是    | 监控场景             |
-| is_enabled         | bool         | 否    | 是否启用，默认true      |
-| is_invalid         | bool         | 否    | 是否失效，默认false     |
-| invalid_type       | str          | 否    | 失效类型             |
-| items              | list[object] | 是    | 监控项配置列表          |
-| detects            | list[object] | 是    | 检测算法配置列表         |
-| actions            | list[object] | 否    | 动作配置列表           |
-| notice             | object       | 是    | 通知配置             |
-| labels             | list[str]    | 否    | 标签列表             |
-| app                | str          | 否    | 应用标识             |
-| path               | str          | 否    | 路径标识             |
-| priority           | int          | 否    | 优先级（0-10000）     |
-| priority_group_key | str          | 否    | 优先级分组键           |
-| metric_type        | str          | 否    | 指标类型             |
+#### ActionRelation
 
-#### items 监控项参数
+| 字段                        | 类型     | 必选  | 描述                                                    |
+|---------------------------|--------|-----|-------------------------------------------------------|
+| config_id                 | int    | 否   | 套餐ID                                                  |
+| user_groups               | list   | 否   | 通知组ID列表                                               |
+| signal                    | list   | 是   | 处理信号，允许为空，ACTION_SIGNAL多选                             |
+| options                   | object | 是   | 处理套餐配置                                                |
+| options.converge_config   | object | 是   | 收敛配置(ConvergeConfig)                                  |
+| options.skip_delay        | int    | 否   | 跳过延迟时间（秒），默认为0                                        |
 
-| 字段名            | 类型                 | 是否必选 | 描述     |
-|----------------|--------------------|------|--------|
-| id             | int                | 否    | 监控项ID  |
-| name           | str                | 是    | 监控项名称  |
-| expression     | str                | 否    | 表达式    |
-| functions      | list[object]       | 否    | 函数配置列表 |
-| origin_sql     | str                | 否    | 原始SQL  |
-| target         | list[list[object]] | 否    | 监控目标配置 |
-| no_data_config | object             | 是    | 无数据配置  |
-| query_configs  | list[object]       | 是    | 查询配置列表 |
-| algorithms     | list[object]       | 是    | 算法配置列表 |
-| metric_type    | string             | 否    | 指标类型   |
 
-#### items.functions
+#### NoticeRelation
 
-| 字段名    | 类型         | 是否必选 | 描述     |
-|--------|------------|------|--------|
-| id     | str        | 是    | 函数配置ID |
-| params | list[dict] | 否    | 函数配置参数 |
+| 字段                                  | 类型      | 必选  | 描述                                      |
+|-------------------------------------|---------|-----|------------------------------------------|
+| config_id                           | int     | 否   | 套餐ID                                    |
+| user_groups                         | list    | 否   | 通知组ID列表                                 |
+| signal                              | list    | 是   | 处理信号，允许为空，NOTICE_SIGNAL多选               |
+| options                             | object  | 是   | 通知套餐配置                                  |
+| options.converge_config             | object  | 是   | 收敛配置(ConvergeConfig)                    |
+| options.noise_reduce_config         | object  | 否   | 降噪配置(NoiseReduceConfig)，默认为空对象，不开启     |
+| options.assign_mode                 | list    | 否   | 分派模式，默认为["only_notice", "by_rule"]    |
+| options.upgrade_config              | object  | 否   | 升级配置(UpgradeConfig)，默认为空对象，不开启         |
+| options.exclude_notice_ways         | object  | 否   | 排除的通知方式，默认为空对象                         |
+| options.start_time                  | string  | 否   | 生效开始时间（格式：00:00:00），默认为"00:00:00"     |
+| options.end_time                    | string  | 否   | 生效结束时间（格式：23:59:59），默认为"23:59:59"     |
+| options.chart_image_enabled         | boolean | 否   | 是否附带图片，默认为true                          |
+| config                              | object  | 是   | 通知配置                                    |
+| config.need_poll                    | boolean | 否   | 是否需要轮询，默认为true                          |
+| config.notify_interval              | int     | 否   | 通知间隔（秒），默认为3600，最小值60                   |
+| config.interval_notify_mode         | string  | 否   | 间隔通知模式，默认为standard                      |
+| config.voice_notice                 | string  | 否   | 语音通知模式，可选值：parallel(并行，默认值)、serial(串行) |
+| config.template                     | list    | 是   | 通知模板配置(Template)                        |
+| config.template.signal              | string  | 是   | 触发信号，NOTICE_SIGNAL单选                    |
+| config.template.message_tmpl        | string  | 否   | 通知信息模板，默认为空字符串                          |
+| config.template.title_tmpl          | string  | 否   | 通知标题模板，默认为空字符串                          |
 
-#### items.functions.params
+#### ConvergeConfig
 
-| 字段名   | 类型  | 是否必选 | 描述     |
-|-------|-----|------|--------|
-| id    | str | 是    | 函数参数ID |
-| value | str | 是    | 函数参数值  |
+| 字段                  | 类型      | 必选  | 描述                                                  |
+|---------------------|---------|-----|-----------------------------------------------------|
+| is_enabled          | boolean | 否   | 是否启用防御，默认为true                                     |
+| converge_func       | string  | 否   | 收敛函数，默认为skip_when_exceed，可选值见CONVERGE_FUNCTION    |
+| timedelta           | int     | 否   | 收敛时间窗口（秒），默认为60，最小值0                              |
+| count               | int     | 否   | 收敛数量，默认为1，最小值1                                     |
+| condition           | list    | 否   | 收敛条件，默认为[{"dimension": "strategy_id", "value": ["self"]}] |
+| need_biz_converge   | boolean | 否   | 是否需要业务汇总（仅用于NoticeRelation），默认为true               |
+| sub_converge_config | object  | 否   | 二级收敛配置（仅用于NoticeRelation），结构同ConvergeConfig，优先级高于一级收敛 |
 
-#### items.target
+#### NoiseReduceConfig
 
-| 字段     | 类型         | 必选 | 描述                         |
-|--------|------------|----|----------------------------|
-| field  | str        | 是  | 监控目标类型                     |
-| value  | list[dict] | 是  | 监控目标数据项,具体字段结构取决于field字段的值 |
-| method | str        | 是  | 监控目标方法                     |
+| 字段         | 类型      | 必选  | 描述                                  |
+|------------|---------|-----|-------------------------------------|
+| is_enabled | boolean | 否   | 是否开启降噪，默认为false                    |
+| count      | int     | 否   | 降噪阈值，开启之后必填                         |
+| dimensions | list    | 否   | 降噪的对比维度，开启之后必填                      |
+| unit       | string  | 否   | 单位，默认为percent                       |
+| timedelta  | int     | 否   | 降噪时间窗口（分钟），默认为settings.NOISE_REDUCE_TIMEDELTA |
 
-**value字段的具体结构（根据不同的field类型）：**
 
-##### 1. field为"ip"（主机IP目标）
+#### UpgradeConfig
+
+| 字段              | 类型      | 必选  | 描述                      |
+|-----------------|---------|-----|-------------------------|
+| is_enabled      | boolean | 否   | 是否开启，默认为false          |
+| upgrade_interval| int     | 否   | 升级间隔（分钟），默认为1440（24小时），开启之后必填 |
+| user_groups     | list    | 否   | 升级通知组ID列表，开启之后必填       |
+
+#### 相关选项
+##### NOTICE_SIGNAL
+| 字段              | 标签      |
+|-----------------|----------|
+| MANUAL          | 手动       |
+| ABNORMAL        | 告警触发时    |
+| RECOVERED       | 告警恢复时    |
+| CLOSED          | 告警关闭时    |
+| ACK             | 确认       |
+| NO_DATA         | 无数据时     |
+| EXECUTE         | 执行动作时    |
+| EXECUTE_SUCCESS | 执行成功时    |
+| EXECUTE_FAILED  | 执行失败时    |
+| INCIDENT        | 故障       |
+
+##### ACTION_SIGNAL
+| 字段              | 标签      |
+|-----------------|----------|
+| ABNORMAL        | 告警触发时    |
+| RECOVERED       | 告警恢复时    |
+| CLOSED          | 告警关闭时    |
+| ACK             | 确认       |
+| NO_DATA         | 无数据时     |
+| EXECUTE         | 执行动作时    |
+| EXECUTE_SUCCESS | 执行成功时    |
+| EXECUTE_FAILED  | 执行失败时    |
+| INCIDENT        | 故障       |
+
+##### CONVERGE_FUNCTION
+| 字段                 | 标签      |
+|--------------------|----------|
+| SKIP_WHEN_SUCCESS  | 成功后跳过    |
+| SKIP_WHEN_PROCEED  | 执行中跳过    |
+| WAIT_WHEN_PROCEED  | 执行中等待    |
+| SKIP_WHEN_EXCEED   | 超出后忽略    |
+| DEFENSE            | 异常防御审批   |
+| COLLECT            | 超出后汇总    |
+| COLLECT_ALARM      | 汇总通知     |
+
+
+#### Detect
+
+| 字段                                      | 类型     | 必选  | 描述                                                    |
+|-----------------------------------------|--------|-----|-------------------------------------------------------|
+| level                                   | int    | 是   | 告警级别                                                  |
+| trigger_config                          | object | 是   | 触发条件配置                                                |
+| trigger_config.count                    | int    | 是   | 触发次数                                                  |
+| trigger_config.check_window             | int    | 是   | 触发周期                                                  |
+| trigger_config.uptime                   | object | 否   | 生效时间配置                                                |
+| trigger_config.uptime.time_ranges       | list   | 否   | 生效时间范围列表，默认为空列表                                       |
+| trigger_config.uptime.calendars         | list   | 否   | 不生效日历ID列表，默认为空列表                                      |
+| trigger_config.uptime.active_calendars  | list   | 否   | 生效日历ID列表，默认为空列表                                       |
+| recovery_config                         | object | 是   | 恢复条件配置                                                |
+| recovery_config.check_window            | int    | 是   | 恢复周期                                                  |
+| recovery_config.status_setter           | string | 否   | 告警恢复目标状态，可选值：recovery/close/recovery-nodata，默认为recovery |
+| id                                      | int    | 否   | 检测id（更新时使用）                                           |
+| expression                              | string | 否   | 计算公式，默认为空字符串                                          |
+| connector                               | string | 否   | 同级别算法连接符，默认为and                                       |
+
+#### Item
+
+| 字段                        | 类型     | 必选  | 描述                                    |
+|---------------------------|--------|-----|---------------------------------------|
+| name                      | string | 是   | 监控项名称                                 |
+| query_configs             | list   | 是   | 指标查询配置列表(QueryConfig)                 |
+| algorithms                | list   | 是   | 算法配置列表(Algorithm)                     |
+| no_data_config            | object | 是   | 无数据配置                                 |
+| no_data_config.is_enabled | bool   | 是   | 是否开启无数据告警                             |
+| no_data_config.continuous | int    | 否   | 无数据告警检测周期数                            |
+| target                    | list   | 否   | 监控目标，默认为空列表                           |
+| id                        | int    | 否   | 监控项配置id（更新时使用），默认为0                   |
+| expression                | string | 否   | 计算公式，默认为空字符串                          |
+| functions                 | list   | 否   | 函数列表，默认为空列表                           |
+| origin_sql                | string | 否   | 源sql，默认为空字符串                          |
+| metric_type               | string | 否   | 指标类型，默认为空字符串（不填时自动从query_configs推断） |
+
+#### Target
+
+| 字段     | 类型     | 必选  | 描述      |
+|--------|--------|-----|---------|
+| field  | string | 是   | 监控目标类型  |
+| value  | dict   | 是   | 监控目标数据项 |
+| method | string | 是   | 监控目标方法  |
+
+field - 根据目标节点类型和目标对象类型组合
+host_target_ip
+host_ip
+host_topo
+service_topo
+service_service_template
+service_set_template
+host_service_template
+host_set_template
 
 ```json
 {
-  "ip": "127.0.0.1",
-  "bk_cloud_id": 0,
-  "bk_host_id": 1
-}
-```
-
-##### 2. field为"host_topo_node"（拓扑节点目标）
-
-```json
-{
-  "bk_obj_id": "module",
-  "bk_inst_id": 123
-}
-```
-
-##### 3. field为"host_set_template"（集群模板目标）
-
-```json
-{
-  "bk_obj_id": "SET_TEMPLATE",
-  "bk_inst_id": 456
-}
-```
-
-##### 4. field为"host_service_template"服务模板目标）
-
-```json
-{
-  "bk_obj_id": "SERVICE_TEMPLATE",
-  "bk_inst_id": 789
-}
-```
-
-##### 5. field为"dynamic_group"（动态分组目标）
-
-```json
-{
-  "dynamic_group_id": 999
-}
-```
-
-**完整示例：**
-
-```json
-{
-  "field": "host_ip",
-  "method": "eq",
-  "value": [
-    {
-      "ip": "127.0.0.1",
-      "bk_cloud_id": 0,
-      "bk_host_id": 1
-    },
-    {
-      "ip": "127.0.0.2",
-      "bk_cloud_id": 0,
-      "bk_host_id": 2
-    }
+  "target": [
+    [
+      {
+        "field": "host_topo_node",
+        "method": "eq",
+        "value": [
+          {
+            "bk_inst_id": 7,
+            "bk_obj_id": "biz"
+          }
+        ]
+      }
+    ]
   ]
 }
 ```
 
-#### items.query_configs
+#### QueryConfig
 
-| 字段                | 类型           | 必选 | 描述     |
-|-------------------|--------------|----|--------|
-| alias             | str          | 是  | 别名     |
-| data_source_label | str          | 是  | 数据源标签  |
-| data_type_label   | str          | 是  | 数据类型标签 |
-| metric_field      | str          | 否  | 监控指标别名 |
-| unit              | str          | 否  | 单位     |
-| agg_dimension     | list[str]    | 否  | 聚合维度   |
-| result_table_id   | str          | 否  | 表名     |
-| agg_method        | str          | 否  | 聚合算法   |
-| agg_interval      | int          | 否  | 聚合周期   |
-| agg_condition     | list[object] | 否  | 聚合条件   |
+| 字段                | 类型     | 必选  | 描述     |
+|-------------------|--------|-----|--------|
+| alias             | string | 是   | 别名     |
+| data_source_label | string | 是   | 数据源标签  |
+| data_type_label   | string | 是   | 数据类型标签 |
 
-**agg_condition聚合条件字段结构：**
+##### BkMonitorTimeSeries类型
 
-| 字段名            | 类型        | 必选 | 描述              |
-|----------------|-----------|----|-----------------|
-| key            | str       | 是  | 条件字段名           |
-| method         | str       | 是  | 条件方法            |
-| value          | list[str] | 是  | 条件值列表           |
-| condition      | str       | 是  | 条件类型(and 或者 or) |
-| dimension_name | str       | 是  | 维度名称            |
+```json
+{
+  "data_source_label": "bk_monitor",
+  "data_type_label": "time_series"
+}
+```
 
-**agg_condition示例：**
+| 字段              | 类型     | 必选  | 描述    |
+|-----------------|--------|-----|-------|
+| metric_field    | string | 是   | 指标    |
+| unit            | string | 是   | 单位    |
+| agg_condition   | list   | 是   | 查询条件  |
+| agg_dimension   | list   | 是   | 聚合维度  |
+| agg_method      | string | 是   | 聚合方法  |
+| agg_interval    | int    | 是   | 聚合周期  |
+| result_table_id | string | 是   | 结果表ID |
+
+##### BkMonitorLog类型
+
+```json
+{
+  "data_source_label": "bk_monitor",
+  "data_type_label": "log"
+}
+```
+
+| 字段              | 类型     | 必选  | 描述   |
+|-----------------|--------|-----|------|
+| agg_method      | string | 是   | 聚合方法 |
+| agg_condition   | list   | 是   | 查询条件 |
+| result_table_id | string | 是   | 结果表  |
+| agg_interval    | int    | 是   | 聚合周期 |
+
+##### BkMonitorEvent类型
+
+```json
+{
+  "data_source_label": "bk_monitor",
+  "data_type_label": "event"
+}
+```
+
+| 字段              | 类型     | 必选  | 描述   |
+|-----------------|--------|-----|------|
+| metric_field    | string | 是   | 指标   |
+| agg_condition   | list   | 是   | 查询条件 |
+| result_table_id | string | 是   | 结果表  |
+
+##### BkLogSearchTimeSeries类型
+
+```json
+{
+  "data_source_label": "bk_log_search",
+  "data_type_label": "time_series"
+}
+```
+
+| 字段              | 类型     | 必选  | 描述    |
+|-----------------|--------|-----|-------|
+| metric_field    | string | 是   | 指标    |
+| index_set_id    | int    | 是   | 索引集ID |
+| agg_condition   | list   | 是   | 查询条件  |
+| agg_dimension   | list   | 是   | 聚合维度  |
+| agg_method      | string | 是   | 聚合方法  |
+| result_table_id | string | 是   | 索引    |
+| agg_interval    | int    | 是   | 聚合周期  |
+| time_field      | string | 是   | 时间字段  |
+| unit            | string | 是   | 单位    |
+
+##### BkLogSearchLog类型
+
+```json
+{
+  "data_source_label": "bk_log_search",
+  "data_type_label": "log"
+}
+```
+
+| 字段              | 类型     | 必选  | 描述    |
+|-----------------|--------|-----|-------|
+| index_set_id    | int    | 是   | 索引集ID |
+| agg_condition   | list   | 是   | 查询条件  |
+| query_string    | int    | 是   | 查询语句  |
+| agg_dimension   | list   | 是   | 聚合维度  |
+| result_table_id | string | 是   | 索引    |
+| agg_interval    | int    | 是   | 聚合周期  |
+| time_field      | string | 是   | 时间字段  |
+
+##### CustomEvent类型
+
+```json
+{
+  "data_source_label": "custom",
+  "data_type_label": "event"
+}
+```
+
+| 字段                | 类型     | 必选  | 描述      |
+|-------------------|--------|-----|---------|
+| custom_event_name | string | 是   | 自定义事件名称 |
+| agg_condition     | list   | 是   | 查询条件    |
+| agg_interval      | int    | 是   | 聚合周期    |
+| agg_dimension     | list   | 是   | 查询维度    |
+| agg_method        | string | 是   | 聚合方法    |
+| result_table_id   | string | 是   | 结果表ID   |
+
+##### CustomTimeSeries类型
+
+```json
+{
+  "data_source_label": "custom",
+  "data_type_label": "time_series"
+}
+```
+ | 字段              | 类型     | 必选  | 描述    |
+|-----------------|--------|-----|-------|
+| metric_field    | string | 是   | 指标    |
+| unit            | string | 是   | 单位    |
+| agg_condition   | list   | 是   | 查询条件  |
+| agg_dimension   | list   | 是   | 聚合维度  |
+| agg_method      | string | 是   | 聚合方法  |
+| agg_interval    | int    | 是   | 聚合周期  |
+| result_table_id | string | 是   | 结果表ID |
+
+##### BkDataTimeSeries类型
+
+```json
+{
+  "data_source_label": "bk_data",
+  "data_type_label": "time_series"
+}
+```
+
+| 字段              | 类型     | 必选  | 描述   |
+|-----------------|--------|-----|------|
+| metric_field    | string | 是   | 指标   |
+| unit            | string | 是   | 单位   |
+| agg_condition   | list   | 是   | 查询条件 |
+| agg_dimension   | list   | 是   | 聚合维度 |
+| agg_method      | string | 是   | 聚合方法 |
+| agg_interval    | int    | 是   | 聚合周期 |
+| result_table_id | string | 是   | 结果表  |
+| time_field      | string | 是   | 时间字段 |
+
+
+
+#### Algorithm
+
+| 字段          | 类型     | 必选  | 描述                     |
+|-------------|--------|-----|------------------------|
+| type        | string | 是   | 算法类型                   |
+| level       | int    | 是   | 告警级别                   |
+| config      | list   | 是   | 算法配置列表（具体格式见下方算法配置说明） |
+| id          | int    | 否   | 算法id（更新时使用），默认为0      |
+| unit_prefix | string | 否   | 算法单位前缀，默认为空字符串         |
+
+#### 算法配置config
+
+##### 静态阈值Threshold
 
 ```json
 [
   {
-    "key": "ip",
-    "method": "eq", 
-    "value": ["127.0.0.1", "127.0.0.2"],
-    "condition": "and",
-    "dimension_name": "目标IP"
+    "method": "gt", // gt,gte,lt,lte,eq,neq
+    "threshold": "1"
   }
 ]
 ```
 
-#### items.algorithms
+##### 简单环比SimpleRingRatio
 
-| 字段名         | 类型     | 是否必选 | 描述     |
-|-------------|--------|------|--------|
-| id          | int    | 否    | 算法ID   |
-| type        | str    | 是    | 检测算法类型 |
-| level       | int    | 是    | 告警级别   |
-| unit_prefix | str    | 否    | 单位前缀   |
-| config      | object | 是    | 算法配置详情 |
+```json
+{
+  "floor": "1",
+  "ceil": "1"
+}
+```
 
-#### detects 检测算法参数
+##### 简单同比SimpleYearRound
 
-| 字段名             | 类型     | 是否必选 | 描述     |
-|-----------------|--------|------|--------|
-| id              | int    | 否    | 检测算法ID |
-| level           | int    | 是    | 告警级别   |
-| expression      | str    | 否    | 表达式    |
-| trigger_config  | object | 是    | 触发配置   |
-| recovery_config | object | 是    | 恢复配置   |
-| connector       | str    | 否    | 连接符    |
+```json
+{
+  "floor": "1",
+  "ceil": "1"
+}
+```
 
-#### detects.trigger_config 触发配置参数
+##### 高级环比AdvancedRingRatio
 
-| 字段名          | 类型     | 是否必选 | 描述       |
-|--------------|--------|------|----------|
-| count        | int    | 是    | 触发次数     |
-| check_window | int    | 是    | 检测周期（分钟） |
-| uptime       | object | 否    | 生效时间配置   |
+```json
+{
+  "floor": "1",
+  "ceil": "1",
+  "floor_interval": 1,
+  "ceil_interval": 1
+}
+```
 
-#### detects.trigger_config.uptime 生效时间配置参数
+##### 高级同比AdvancedYearRound
 
-| 字段名              | 类型           | 是否必选 | 描述       |
-|------------------|--------------|------|----------|
-| time_ranges      | list[object] | 否    | 生效时间范围列表 |
-| calendars        | list[int]    | 否    | 不生效日历列表  |
-| active_calendars | list[int]    | 否    | 生效日历列表   |
+与高级环比检测算法配置格式一致
 
-#### detects.trigger_config.uptime.time_ranges 生效时间范围参数
+##### 智能异常检测IntelligentDetect
 
-| 字段名   | 类型  | 是否必选 | 描述   |
-|-------|-----|------|------|
-| start | str | 是    | 开始时间 |
-| end   | str | 是    | 结束时间 |
+```json
+{
+  "sensitivity_value": 1 // 0-100
+  "anomaly_detect_direct": "ceil" // "ceil", "floor", "all"(default)
+}
+```
 
-#### detects.recovery_config 恢复配置参数
+##### 同比振幅YearRoundAmplitude
 
-| 字段名           | 类型  | 是否必选 | 描述                                                             |
-|---------------|-----|------|----------------------------------------------------------------|
-| check_window  | int | 是    | 检测周期（分钟）                                                       |
-| status_setter | str | 否    | 告警恢复目标状态，可选值："recovery"、"close"、"recovery-nodata"，默认"recovery" |
+```json
+{
+  "ratio": 1,
+  "shock": 1,
+  "days": 1,
+  "method": "gte" // gt,gte,lt,lte,eq,neq
+}
+```
 
-#### actions 动作配置参数
+##### 同比区间YearRoundRange
 
-| 字段名         | 类型        | 是否必选 | 描述      |
-|-------------|-----------|------|---------|
-| config_id   | int       | 否    | 套餐ID    |
-| user_groups | list[int] | 否    | 通知组ID列表 |
-| signal      | list[str] | 是    | 触发信号列表  |
-| options     | object    | 是    | 动作选项配置  |
+与同比振幅配置格式一致
 
-**signal 触发信号可选值：**
+##### 环比振幅RingRatioAmplitude
 
-- abnormal: 异常信号
-- recovered: 恢复信号
-- closed: 关闭信号
-- ack: 确认信号
-- no_data: 无数据信号
-- execute: 执行信号
-- execute_success: 执行成功信号
-- execute_failed: 执行失败信号
-- incident: 事件信号
-
-#### actions.options 动作选项配置参数
-
-| 字段名             | 类型     | 是否必选 | 描述        |
-|-----------------|--------|------|-----------|
-| converge_config | object | 否    | 收敛配置      |
-| skip_delay      | int    | 否    | 跳过延迟时间（秒） |
-
-#### actions.options.converge_config 收敛配置参数
-
-| 字段名           | 类型   | 是否必选 | 描述         |
-|---------------|------|------|------------|
-| is_enabled    | bool | 否    | 是否启用防御     |
-| converge_func | str  | 否    | 收敛函数       |
-| timedelta     | int  | 否    | 收敛时间窗口（分钟） |
-| count         | int  | 否    | 收敛数量       |
-
-#### notice 通知配置参数
-
-| 字段名         | 类型        | 是否必选 | 描述      |
-|-------------|-----------|------|---------|
-| config_id   | int       | 否    | 套餐ID    |
-| user_groups | list[int] | 否    | 通知组ID列表 |
-| signal      | list[str] | 是    | 触发信号列表  |
-| config      | object    | 是    | 通知配置详情  |
-| options     | object    | 是    | 通知选项配置  |
-
-**signal 触发信号可选值：**
-
-- abnormal: 异常信号
-- recovered: 恢复信号
-- closed: 关闭信号
-- ack: 确认信号
-- no_data: 无数据信号
-- execute: 执行信号
-- execute_success: 执行成功信号
-- execute_failed: 执行失败信号
-- incident: 事件信号
-
-#### notice.options 通知选项配置参数
-
-| 字段名                 | 类型        | 是否必选 | 描述                  |
-|---------------------|-----------|------|---------------------|
-| converge_config     | object    | 否    | 收敛配置                |
-| noise_reduce_config | object    | 否    | 降噪配置                |
-| assign_mode         | list[str] | 否    | 分派模式列表              |
-| upgrade_config      | object    | 否    | 升级配置                |
-| exclude_notice_ways | object    | 否    | 排除的通知方式             |
-| start_time          | str       | 否    | 生效开始时间，默认"00:00:00" |
-| end_time            | str       | 否    | 生效结束时间，默认"23:59:59" |
-| chart_image_enabled | bool      | 否    | 是否附带图片，默认true       |
-
-#### notice.config 通知配置详情参数
-
-| 字段名                  | 类型     | 是否必选 | 描述     |
-|----------------------|--------|------|--------|
-| voice_notice         | string | 否    | 语音通知模式，可选值：parallel(并行，默认值)、serial(串行) |
-| template             | object | 否    | 通知模板配置 |
-| need_poll            | bool   | 否    | 是否需要轮询 |
-| notify_interval      | int    | 否    | 通知间隔   |
-| interval_notify_mode | str    | 否    | 间隔通知模式 |
-
-#### notice.config.template 通知模板配置
-
-| 字段名          | 类型  | 是否必选 | 描述   |
-|--------------|-----|------|------|
-| signal       | str | 是    | 触发信号 |
-| message_tmpl | str | 否    | 消息模板 |
-| title_tmpl   | str | 否    | 标题模板 |
+```json
+{
+  "ratio": 1,
+  "shock": 1,
+  "days": 1,
+  "threshold": 1
+}
+```
 
 ### 请求参数示例
 
 ```json
 {
-    "type": "monitor",
-    "bk_biz_id": 2,
-    "scenario": "os",
-    "name": "test4",
+    "id": 36,
+    "bk_biz_id": 7,
+    "scenario": "host_process",
+    "name": "进程端口",
     "labels": [],
     "is_enabled": true,
-    "priority": null,
     "items": [
         {
             "name": "AVG(CPU使用率)",
@@ -334,23 +476,8 @@
                 ],
                 "level": 2
             },
-            "target": [
-                [
-                    {
-                        "field": "ip",
-                        "method": "eq",
-                        "value": [
-                            {
-                                "ip": "127.0.0.1",
-                                "bk_cloud_id": 0,
-                                "bk_host_id": 580
-                            }
-                        ]
-                    }
-                ]
-            ],
+            "target": [],
             "expression": "a",
-            "functions": [],
             "origin_sql": "",
             "query_configs": [
                 {
@@ -370,546 +497,291 @@
                     "metric_id": "bk_monitor.system.cpu_summary.usage",
                     "index_set_id": "",
                     "query_string": "*",
-                    "custom_event_name": "",
+                    "custom_event_name": "usage",
                     "functions": [],
-                    "time_field": "dtEventTimeStamp",
+                    "time_field": "time",
                     "bkmonitor_strategy_id": "usage",
                     "alert_name": "usage"
                 }
             ],
             "algorithms": [
                 {
-                    "level": 3,
-                    "type": "IntelligentDetect",
-                    "config": {
-                        "plan_id": 11,
-                        "args": {
-                            "$alert_down": "1",
-                            "$alert_slight_shake": "0",
-                            "$alert_upward": "1",
-                            "$sensitivity": 5
-                        }
-                    },
+                    "level": 1,
+                    "type": "Threshold",
+                    "config": [
+                        [
+                            {
+                                "method": "gte",
+                                "threshold": "80"
+                            }
+                        ]
+                    ],
                     "unit_prefix": "%"
                 }
             ]
         }
     ],
     "detects": [
-        {
-            "level": 3,
-            "expression": "",
-            "trigger_config": {
-                "count": 2,
-                "check_window": 5,
-                "uptime": {
-                    "calendars": [],
-                    "active_calendars": [],
-                    "time_ranges": [
-                        {
-                            "start": "00:00",
-                            "end": "23:59"
-                        }
-                    ]
-                }
-            },
-            "recovery_config": {
-                "check_window": 5,
-                "status_setter": "recovery"
-            },
-            "connector": "and"
-        }
+    {
+          "level": 2,
+          "expression": "",
+          "trigger_config": {
+            "count": 1,
+            "check_window": 5
+          },
+          "recovery_config": {
+            "check_window": 5
+          },
+          "connector": "and"
+    }
     ],
-    "actions": [
-        {
-            "config_id": 64018,
-            "signal": [
-                "abnormal"
-            ],
-            "user_groups": [],
-            "options": {
-                "converge_config": {
-                    "is_enabled": true,
-                    "converge_func": "skip_when_success",
-                    "timedelta": 60,
-                    "count": 1
-                },
-                "skip_delay": 0
-            }
-        }
-    ],
-    "notice": {
-        "config_id": 0,
-        "user_groups": [
-            602
+    "notice": {    // 通知设置
+        "config_id":0,   // 套餐ID，如果不选套餐请置为0
+        "user_groups":[  // 告警组ID
+            1,
+            2
         ],
-        "signal": [
-            "abnormal"
-        ],
+        "signal":["abnormal", "recovered"],   // 触发信号，abnormal-异常，recovered-恢复，closed-关闭，execute-执行动作时, execute_success-执行成功, execute_failed-执行失败
         "options": {
             "converge_config": {
-                "need_biz_converge": true
+                "need_biz_converge": true    // 告警风暴开关
             },
-            "exclude_notice_ways": {
-                "recovered": [],
-                "closed": [],
-                "ack": []
+          "noise_reduce_config": {
+              "is_enabled": true,    // 降噪开关
+              "count": 10, //降噪百分比
+              "dimensions": ["ip"] //降噪维度
             },
-            "noise_reduce_config": {
-                "is_enabled": false,
-                "count": 10,
-                "dimensions": []
-            },
-            "upgrade_config": {
-                "is_enabled": false,
-                "user_groups": []
-            },
-            "assign_mode": [
-                "by_rule",
-                "only_notice"
-            ],
-            "chart_image_enabled": true
+            "start_time": "00:00:00",
+            "end_time": "23:59:59"
         },
         "config": {
-            "interval_notify_mode": "standard",
-            "notify_interval": 7200,
-            "voice_notice": "parallel",
-            "template": [
+            "interval_notify_mode": "standard",    // 间隔模式
+            "notify_interval": 7200,    // 通知间隔
+            "voice_notice": "parallel",  //语音通知模式，可选值：parallel(并行，默认值)、serial(串行，合并通知组用户后通知一次)  |
+            "template": [   // 通知模板配置
                 {
-                    "signal": "abnormal",
-                    "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}",
-                    "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+                    "signal": "abnormal",   // 触发信号：abnormal-告警触发时，recovered-告警恢复时，closed-告警关闭时
+                    "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.related_info}}",
+                    "title_tmpl": "【{{level_name}}】{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
                 },
                 {
                     "signal": "recovered",
-                    "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}",
-                    "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+                    "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.related_info}}",
+                    "title_tmpl": "【{{level_name}}】{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
                 },
                 {
                     "signal": "closed",
-                    "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}",
-                    "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+                    "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.related_info}}",
+                    "title_tmpl": "【{{level_name}}】{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
                 }
             ]
         }
     },
-    "metric_type": "time_series",
-    "priority_group_key": ""
+    "actions":[   // 如果用户没有选处理动作，请置为空列表
+        {
+           "config_id":333,   // 套餐ID
+           "user_groups":[    // 告警组ID，提交时请与通知中设置的告警组保持一致
+               1,
+               2
+           ],
+           "options": {
+               "converge_config": {
+                   "converge_func": "skip_when_success",    // 防御动作
+                   "timedelta": 60,     // 防御窗口大小（秒），默认设置为 60
+                   "count": 1           // 执行次数，默认设置为 1
+               }
+           }
+        }
+    ]
 }
 ```
 
 ### 响应参数
 
-| 字段名     | 类型   | 描述     |
-|---------|------|--------|
-| result  | bool | 请求是否成功 |
-| code    | int  | 返回的状态码 |
-| message | str  | 描述信息   |
-| data    | dict | 数据     |
+| 字段      | 类型     | 描述     |
+| ------- |--------|--------|
+| result  | bool   | 请求是否成功 |
+| code    | int    | 返回的状态码 |
+| message | string | 描述信息   |
+| data    | dict   | 策略信息   |
 
-#### data 字段结构
+#### data返回保存后的完整策略结构，包含以下字段：
 
-| 字段名                | 类型           | 描述                  |
-|--------------------|--------------|---------------------|
-| id                 | int          | 策略ID                |
-| version            | str          | 策略版本                |
-| bk_biz_id          | int          | 业务ID                |
-| name               | str          | 策略名称                |
-| source             | str          | 来源应用                |
-| scenario           | str          | 监控场景                |
-| type               | str          | 策略类型                |
-| is_enabled         | bool         | 是否启用                |
-| is_invalid         | bool         | 是否失效                |
-| invalid_type       | str          | 失效类型                |
-| create_time        | str          | 创建时间                |
-| update_time        | str          | 更新时间                |
-| create_user        | str          | 创建用户                |
-| update_user        | str          | 更新用户                |
-| items              | list[object] | 监控项配置列表             |
-| detects            | list[object] | 检测算法配置列表            |
-| actions            | list[object] | 动作配置列表              |
-| notice             | object       | 通知配置                |
-| labels             | list[str]    | 标签列表                |
-| app                | str          | 应用标识                |
-| path               | str          | 路径标识                |
-| priority           | int          | 优先级（0-10000）        |
-| priority_group_key | str          | 优先级分组键              |
-| edit_allowed       | bool         | 是否允许编辑              |
-| metric_type        | str          | 指标类型，如"time_series" |
-
-##### data.items
-
-| 字段名            | 类型                 | 描述     |
-|----------------|--------------------|--------|
-| id             | int                | 监控项ID  |
-| name           | str                | 监控项名称  |
-| no_data_config | object             | 无数据配置  |
-| target         | list[list[object]] | 监控目标配置 |
-| expression     | str                | 表达式    |
-| functions      | list[object]       | 函数配置列表 |
-| origin_sql     | str                | 原始SQL  |
-| query_configs  | list[object]       | 查询配置列表 |
-| algorithms     | list[object]       | 算法配置列表 |
-| metric_type    | string             | 指标类型   |
-| time_delay     | int                | 时间延迟   |
-
-##### data.detects
-
-| 字段名             | 类型     | 描述     |
-|-----------------|--------|--------|
-| id              | int    | 检测算法ID |
-| level           | int    | 告警级别   |
-| expression      | str    | 表达式    |
-| trigger_config  | object | 触发配置   |
-| recovery_config | object | 恢复配置   |
-| connector       | str    | 连接符    |
-
-##### data.actions
-
-| 字段名         | 类型        | 描述      |
-|-------------|-----------|---------|
-| id          | int       | 动作ID    |
-| config_id   | int       | 套餐ID    |
-| user_groups | list[int] | 用户组ID列表 |
-| user_type   | str       | 用户类型    |
-| signal      | list[str] | 触发信号列表  |
-| options     | object    | 动作选项配置  |
-| relate_type | str       | 关联类型    |
-| config      | object    | 配置详情    |
-
-##### data.notice
-
-| 字段名         | 类型        | 描述      |
-|-------------|-----------|---------|
-| id          | int       | 通知ID    |
-| config_id   | int       | 配置ID    |
-| user_groups | list[int] | 用户组ID列表 |
-| user_type   | str       | 用户类型    |
-| signal      | list[str] | 触发信号列表  |
-| options     | object    | 通知选项配置  |
-| relate_type | str       | 关联类型    |
-| config      | object    | 通知配置详情  |
+| 字段                | 类型      | 描述                                      |
+|-------------------|---------|------------------------------------------|
+| id                | int     | 策略ID                                    |
+| bk_biz_id         | int     | 业务ID                                    |
+| name              | string  | 策略名称                                    |
+| type              | string  | 策略类型                                    |
+| source            | string  | 监控源                                     |
+| scenario          | string  | 监控对象                                    |
+| is_enabled        | boolean | 是否启用                                    |
+| is_invalid        | boolean | 是否失效                                    |
+| invalid_type      | string  | 失效类型                                    |
+| items             | list    | 监控项列表，结构同请求参数                           |
+| detects           | list    | 检测配置列表，结构同请求参数                          |
+| actions           | list    | 处理套餐列表，结构同请求参数                          |
+| notice            | object  | 通知套餐，结构同请求参数                            |
+| labels            | list    | 策略标签列表                                  |
+| app               | string  | 应用名称                                    |
+| path              | string  | 路径                                      |
+| priority          | int     | 优先级                                     |
+| priority_group_key| string  | 优先级分组key                                |
+| metric_type       | string  | 指标类型                                    |
+| create_time       | string  | 创建时间                                    |
+| update_time       | string  | 更新时间                                    |
+| create_user       | string  | 创建者                                     |
+| update_user       | string  | 更新者                                     |
 
 ### 响应参数示例
 
 ```json
 {
-    "result": true,
-    "code": 200,
-    "message": "OK",
-    "data": {
-        "id": 65140,
-        "version": "v2",
-        "bk_biz_id": 2,
-        "name": "test4",
-        "source": "bk_monitorv3",
-        "scenario": "os",
-        "type": "monitor",
-        "items": [
-            {
-                "id": 65138,
-                "name": "AVG(CPU使用率)",
-                "no_data_config": {
-                    "continuous": 10,
-                    "is_enabled": false,
-                    "agg_dimension": [
-                        "bk_target_ip",
-                        "bk_target_cloud_id"
-                    ],
-                    "level": 2
-                },
-                "target": [
-                    [
-                        {
-                            "field": "ip",
-                            "value": [
-                                {
-                                    "ip": "127.0.0.1",
-                                    "bk_cloud_id": 0,
-                                    "bk_host_id": 580
-                                }
-                            ],
-                            "method": "eq"
-                        }
-                    ]
-                ],
-                "expression": "a",
-                "functions": [],
-                "origin_sql": "",
-                "query_configs": [
-                    {
-                        "data_source_label": "bk_monitor",
-                        "data_type_label": "time_series",
-                        "alias": "a",
-                        "metric_id": "bk_monitor.system.cpu_summary.usage",
-                        "id": 65471,
-                        "functions": [],
-                        "intelligent_detect": {
-                            "status": "pending",
-                            "retries": 0,
-                            "message": "",
-                            "task_id": "829ab22e-b0a1-4aa1-b7ec-57cfa7d567f6"
-                        },
-                        "result_table_id": "system.cpu_summary",
-                        "agg_method": "AVG",
-                        "agg_interval": 60,
-                        "agg_dimension": [
-                            "bk_target_cloud_id",
-                            "bk_target_ip"
-                        ],
-                        "agg_condition": [],
-                        "metric_field": "usage",
-                        "unit": "percent"
-                    }
-                ],
-                "algorithms": [
-                    {
-                        "id": 77855,
-                        "type": "IntelligentDetect",
-                        "level": 3,
-                        "config": {
-                            "args": {
-                                "$alert_down": "1",
-                                "$alert_slight_shake": "0",
-                                "$alert_upward": "1",
-                                "$sensitivity": 5
-                            },
-                            "plan_id": 11,
-                            "visual_type": "none",
-                            "service_name": "default"
-                        },
-                        "unit_prefix": "%"
-                    }
-                ],
-                "metric_type": "time_series",
-                "time_delay": 0
-            }
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": {
+    "id": 36,
+    "bk_biz_id": 7,
+    "name": "进程端口",
+    "type": "monitor",
+    "source": "bk_monitor",
+    "scenario": "host_process",
+    "is_enabled": true,
+    "is_invalid": false,
+    "invalid_type": "",
+    "labels": [],
+    "app": "",
+    "path": "",
+    "priority": null,
+    "priority_group_key": "",
+    "metric_type": "time_series",
+    "items": [
+      {
+        "id": 1,
+        "name": "AVG(CPU使用率)",
+        "expression": "a",
+        "origin_sql": "",
+        "functions": [],
+        "query_configs": [
+          {
+            "alias": "a",
+            "data_source_label": "bk_monitor",
+            "data_type_label": "time_series",
+            "result_table_id": "system.cpu_summary",
+            "agg_method": "AVG",
+            "agg_interval": 60,
+            "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
+            "agg_condition": [],
+            "metric_field": "usage",
+            "unit": "percent"
+          }
         ],
-        "detects": [
-            {
-                "id": 77845,
-                "level": 3,
-                "expression": "",
-                "trigger_config": {
-                    "count": 2,
-                    "check_window": 5,
-                    "uptime": {
-                        "time_ranges": [
-                            {
-                                "start": "00:00",
-                                "end": "23:59"
-                            }
-                        ],
-                        "calendars": [],
-                        "active_calendars": []
-                    }
-                },
-                "recovery_config": {
-                    "check_window": 5,
-                    "status_setter": "recovery"
-                },
-                "connector": "and"
-            }
+        "algorithms": [
+          {
+            "id": 1,
+            "type": "Threshold",
+            "level": 1,
+            "config": [[{"method": "gte", "threshold": "80"}]],
+            "unit_prefix": "%"
+          }
         ],
-        "actions": [
-            {
-                "id": 65186,
-                "config_id": 64018,
-                "user_groups": [
-                    602
-                ],
-                "user_type": "main",
-                "signal": [
-                    "abnormal"
-                ],
-                "options": {
-                    "converge_config": {
-                        "is_enabled": true,
-                        "converge_func": "skip_when_success",
-                        "timedelta": 60,
-                        "count": 1,
-                        "condition": [
-                            {
-                                "dimension": "action_info",
-                                "value": [
-                                    "self"
-                                ]
-                            }
-                        ],
-                        "need_biz_converge": true
-                    },
-                    "skip_delay": 0,
-                    "start_time": "00:00:00",
-                    "end_time": "23:59:59"
-                },
-                "relate_type": "ACTION",
-                "config": {}
-            }
-        ],
-        "notice": {
-            "id": 65187,
-            "config_id": 66281,
-            "user_groups": [
-                602
-            ],
-            "user_type": "main",
-            "signal": [
-                "abnormal",
-                "no_data"
-            ],
-            "options": {
-                "converge_config": {
-                    "is_enabled": true,
-                    "converge_func": "collect",
-                    "timedelta": 60,
-                    "count": 1,
-                    "condition": [
-                        {
-                            "dimension": "strategy_id",
-                            "value": [
-                                "self"
-                            ]
-                        },
-                        {
-                            "dimension": "dimensions",
-                            "value": [
-                                "self"
-                            ]
-                        },
-                        {
-                            "dimension": "alert_level",
-                            "value": [
-                                "self"
-                            ]
-                        },
-                        {
-                            "dimension": "signal",
-                            "value": [
-                                "self"
-                            ]
-                        },
-                        {
-                            "dimension": "bk_biz_id",
-                            "value": [
-                                "self"
-                            ]
-                        },
-                        {
-                            "dimension": "notice_receiver",
-                            "value": [
-                                "self"
-                            ]
-                        },
-                        {
-                            "dimension": "notice_way",
-                            "value": [
-                                "self"
-                            ]
-                        }
-                    ],
-                    "need_biz_converge": true,
-                    "sub_converge_config": {
-                        "timedelta": 60,
-                        "count": 2,
-                        "condition": [
-                            {
-                                "dimension": "bk_biz_id",
-                                "value": [
-                                    "self"
-                                ]
-                            },
-                            {
-                                "dimension": "notice_receiver",
-                                "value": [
-                                    "self"
-                                ]
-                            },
-                            {
-                                "dimension": "notice_way",
-                                "value": [
-                                    "self"
-                                ]
-                            },
-                            {
-                                "dimension": "alert_level",
-                                "value": [
-                                    "self"
-                                ]
-                            },
-                            {
-                                "dimension": "signal",
-                                "value": [
-                                    "self"
-                                ]
-                            }
-                        ],
-                        "converge_func": "collect_alarm"
-                    }
-                },
-                "noise_reduce_config": {
-                    "is_enabled": false,
-                    "dimensions": [],
-                    "count": 10,
-                    "unit": "percent",
-                    "timedelta": 5
-                },
-                "assign_mode": [
-                    "by_rule",
-                    "only_notice"
-                ],
-                "upgrade_config": {
-                    "is_enabled": false,
-                    "upgrade_interval": 1440,
-                    "user_groups": []
-                },
-                "exclude_notice_ways": {
-                    "recovered": [],
-                    "closed": [],
-                    "ack": []
-                },
-                "start_time": "00:00:00",
-                "end_time": "23:59:59",
-                "chart_image_enabled": true
-            },
-            "relate_type": "NOTICE",
-            "config": {
-                "need_poll": true,
-                "notify_interval": 7200,
-                "interval_notify_mode": "standard",
-                "voice_notice": "parallel",
-                "template": [
-                    {
-                        "signal": "abnormal",
-                        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}",
-                        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
-                    },
-                    {
-                        "signal": "recovered",
-                        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}",
-                        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
-                    },
-                    {
-                        "signal": "closed",
-                        "message_tmpl": "{{content.level}}\n{{content.begin_time}}\n{{content.time}}\n{{content.duration}}\n{{content.target_type}}\n{{content.data_source}}\n{{content.content}}\n{{content.current_value}}\n{{content.biz}}\n{{content.target}}\n{{content.dimension}}\n{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}",
-                        "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
-                    }
-                ]
-            }
+        "no_data_config": {
+          "is_enabled": false,
+          "continuous": 10
         },
-        "is_enabled": true,
-        "is_invalid": false,
-        "invalid_type": "",
-        "update_time": "2025-11-25 16:58:55+0800",
-        "update_user": "",
-        "create_time": "2025-11-25 16:58:55+0800",
-        "create_user": "",
-        "labels": [],
-        "app": "",
-        "path": "",
-        "priority": null,
-        "priority_group_key": "",
-        "edit_allowed": true,
-        "metric_type": "time_series"
-    }
+        "target": []
+      }
+    ],
+    "detects": [
+      {
+        "id": 1,
+        "level": 2,
+        "expression": "",
+        "connector": "and",
+        "trigger_config": {
+          "count": 1,
+          "check_window": 5,
+          "uptime": {
+            "time_ranges": [],
+            "calendars": [],
+            "active_calendars": []
+          }
+        },
+        "recovery_config": {
+          "check_window": 5,
+          "status_setter": "recovery"
+        }
+      }
+    ],
+    "notice": {
+      "config_id": 0,
+      "user_groups": [1, 2],
+      "signal": ["abnormal", "recovered"],
+      "options": {
+        "converge_config": {
+          "is_enabled": true,
+          "converge_func": "skip_when_exceed",
+          "timedelta": 60,
+          "count": 1,
+          "condition": [{"dimension": "strategy_id", "value": ["self"]}],
+          "need_biz_converge": true
+        },
+        "noise_reduce_config": {
+          "is_enabled": true,
+          "count": 10,
+          "dimensions": ["ip"],
+          "unit": "percent"
+        },
+        "assign_mode": ["only_notice", "by_rule"],
+        "upgrade_config": {
+          "is_enabled": false
+        },
+        "exclude_notice_ways": {},
+        "start_time": "00:00:00",
+        "end_time": "23:59:59",
+        "chart_image_enabled": true
+      },
+      "config": {
+        "need_poll": true,
+        "notify_interval": 7200,
+        "interval_notify_mode": "standard",
+        "voice_notice": "parallel",
+        "template": [
+          {
+            "signal": "abnormal",
+            "message_tmpl": "{{content.level}}\n{{content.begin_time}}",
+            "title_tmpl": "【{{level_name}}】{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+          },
+          {
+            "signal": "recovered",
+            "message_tmpl": "{{content.level}}\n{{content.begin_time}}",
+            "title_tmpl": "【{{level_name}}】{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+          }
+        ]
+      }
+    },
+    "actions": [
+      {
+        "config_id": 333,
+        "user_groups": [1, 2],
+        "signal": ["abnormal"],
+        "options": {
+          "converge_config": {
+            "is_enabled": true,
+            "converge_func": "skip_when_success",
+            "timedelta": 60,
+            "count": 1,
+            "condition": [{"dimension": "strategy_id", "value": ["self"]}]
+          },
+          "skip_delay": 0
+        }
+      }
+    ],
+    "create_time": "2024-01-01 12:00:00",
+    "update_time": "2024-01-01 12:00:00",
+    "create_user": "admin",
+    "update_user": "admin"
+  }
 }
 ```

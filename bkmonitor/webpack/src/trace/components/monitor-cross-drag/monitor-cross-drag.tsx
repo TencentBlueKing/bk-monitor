@@ -91,7 +91,7 @@ export default defineComponent({
           resultHeight = props.minHeight;
         }
         if (shouldCompare && props.maxHeight) {
-          resultHeight = Math.max(props.maxHeight, resultHeight);
+          resultHeight = Math.min(props.maxHeight, resultHeight);
         }
         emit('move', resultHeight, handleMouseUp);
         lastPosition = event.clientY;

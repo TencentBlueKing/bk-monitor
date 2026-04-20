@@ -30,6 +30,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import SetMealAddModule from '../../../../../../store/modules/set-meal-add';
 import AutoInput from '../auto-input/auto-input';
+import VariableInput from '../variable-input/variable-input';
 
 import './dynamic-form.scss';
 
@@ -37,6 +38,7 @@ interface IDynamicForm {
   formList: any;
   formModel: any;
   formRules?: any;
+  hasVariableInput?: boolean; // 是否包含变量输入组件
   labelWidth?: number;
   noAutoInput?: boolean; // 无需提示输入
 }
@@ -48,6 +50,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
   @Prop({ default: () => [], type: Array }) formList;
   @Prop({ default: false, type: Boolean }) noAutoInput;
   @Prop({ default: 150, type: Number }) labelWidth: number;
+  @Prop({ default: false, type: Boolean }) hasVariableInput: boolean;
 
   get getMessageTemplateList() {
     return this.noAutoInput ? [] : SetMealAddModule.getMessageTemplateList.filter(item => item.group !== 'CONTENT_VAR');
@@ -76,6 +79,14 @@ export default class DynamicForm extends tsc<IDynamicForm> {
   protected render() {
     return (
       <div class='dynamic-form-wrap'>
+        {this.hasVariableInput ? (
+          <bk-alert
+            style='margin-bottom: 16px;'
+            title={this.$t('输入 $ 可以插入变量')}
+            type='info'
+            closable
+          />
+        ) : undefined}
         <bk-form
           ref='createForm'
           class='form-wrap'
@@ -152,7 +163,14 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                         />
                       );
                     }
-                    return (
+                    return this.hasVariableInput ? (
+                      <VariableInput
+                        v-model={this.formModel[item.formItemProps.property]}
+                        placeholder={item.formChildProps.placeholder}
+                        tipsList={this.getMessageTemplateList}
+                        onChange={this.emitModel}
+                      />
+                    ) : (
                       <AutoInput
                         v-model={this.formModel[item.formItemProps.property]}
                         placeholder={item.formChildProps.placeholder}

@@ -22,6 +22,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext as _
 
+from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.documents import AlertLog
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel, ModelManager
@@ -244,7 +245,9 @@ class ActionPlugin(AbstractRecordModel):
         if url_schema.get("resource_class"):
             try:
                 url_info = self.perform_resource_request("plugin_url", **kwargs)
-            except BKAPIError as error:
+            except (NoRelatedResourceError, BKAPIError) as error:
+                # NoRelatedResourceError：研发空间场景下可能无关联业务，部分周边系统的插件 URL 依赖业务 ID，该场景下跳过 URL 获取，
+                # 避免影响主流程。
                 logger.warning(f"failed to get_plugin_template_create_url: {error}")
                 url_info = None
             url_info = url_info[0] if url_info else {}

@@ -101,6 +101,8 @@ export default defineComponent({
     const size = 50;
     let total = 0;
 
+    const isMonitorApm = window.__IS_MONITOR_APM__;
+
     watch(
       () => props.logIndex,
       () => {
@@ -474,7 +476,7 @@ export default defineComponent({
           <div class='split-line'></div>
           <div class='desc'>{t('可切换原始日志，查看该日志的上下文')}</div>
         </div>
-        <div class='search-main'>
+        <div class={['search-main', { 'is-monitor-apm': isMonitorApm }]}>
           <SearchBar
             ref={searchBarRef}
             showClear={false}
@@ -513,8 +515,14 @@ export default defineComponent({
                       <div class='index-column'>
                         <span>{index + 1}</span>
                         <div class='choosed-bgd'>
-                          <div class='check-icon-main'>
-                            <span class='bk-icon bklog-icon bklog-correct'></span>
+                          <div class={['check-icon-main', { 'is-monitor-apm-icon':isMonitorApm }]}>
+                            {
+                              isMonitorApm ? (
+                                <span class='bk-icon icon-check-1'></span>
+                              ) : (
+                                <span class='bk-icon bklog-icon bklog-correct'></span>
+                              )
+                            }
                           </div>
                         </div>
                       </div>

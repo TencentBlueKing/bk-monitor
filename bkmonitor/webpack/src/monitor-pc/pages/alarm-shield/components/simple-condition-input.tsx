@@ -28,7 +28,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getVariableValue } from 'monitor-api/modules/grafana';
 
-import { CONDITION, NEW_NUMBER_CONDITION_METHOD_LIST, NEW_STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
+import {
+  CONDITION,
+  NEW_NUMBER_CONDITION_METHOD_LIST,
+  NEW_STRING_CONDITION_METHOD_LIST,
+} from '../../../constant/constant';
 import SelectMenu from '../../strategy-config/strategy-config-set-new/components/select-menu';
 import SimpleSelectInput from './simple-select-input';
 
@@ -329,11 +333,15 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
 
   /* 获取当前条件的可选值 */
   getValueOptions(item) {
-    return this.dimensionsValueMap[item.key]
+    const options = this.dimensionsValueMap[item.key]
       ? (this.isHasNullOption ? [nullOptions] : []).concat(this.dimensionsValueMap[item.key])
       : this.isHasNullOption
         ? [nullOptions]
         : [];
+    return options?.map(item => ({
+      ...item,
+      name: item?.name?.toString() || '',
+    }));
   }
 
   getValueOptionsLoading(item) {

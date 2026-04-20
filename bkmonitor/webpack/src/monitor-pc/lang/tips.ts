@@ -407,6 +407,9 @@ export default {
   '仪表盘 Panel 级别的定位，需要一定的时间同步，如有需要请点击':
     'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
 
+  // 告警中心
+  'PromQL 策略暂时不支持维度分析': 'PromQL strategies do not support dimension analysis',
+
   // APM-告警模板
   查看各服务告警情况: 'View alarm situation of each service',
   查看全部关联服务: 'View all related services',
@@ -440,5 +443,12 @@ export default {
     'After disabling the automatic issuance feature, new services will not automatically configure this strategy',
   '并行：组间同时拨打，组内顺序依次拨打；<br>串行：多个用户组人员顺序合并后依次拨打，<br>重复人员以前置组优先':
     'Parallel: Calls are made simultaneously between groups, and sequentially within each group.<br>Serial: The personnel from multiple user groups are merged in sequence and called one by one, <br>with repeated personnel given priority based on their earlier group.',
+  上报数据后方可配置策略: 'The strategy can only be configured after reporting the data',
+  '手动选择或筛选后的结果作为分组对象。':
+    'The results of manual selection or filtering are used as the grouping object',
+  请先选择指标: 'Please select the metric first',
+  自动匹配规则: 'Automatic matching rules',
   当前业务时区: 'Current business time zone',
+  '输入 $ 可以插入变量': 'Input $ to insert variables',
+  '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies'
 };

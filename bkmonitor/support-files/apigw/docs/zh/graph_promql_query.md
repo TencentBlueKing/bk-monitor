@@ -11,10 +11,11 @@
 | promql           | str | 否  | PromQL语句 |
 | start_time       | int | 是  | 开始时间     |
 | end_time         | int | 是  | 结束时间     |
-| step             | str | 否  | 采样步长     |
-| format           | str | 否  | 输出格式     |
-| type             | str | 否  | 查询类型     |
-| down_sample_range | str | 否  | 降采样周期    |
+| step             | str | 否  | 采样步长，默认为`1m`     |
+| format           | str | 否  | 输出格式，可选值为`time_series`(默认)、`heatmap`、`table`     |
+| type             | str | 否  | 查询类型，可选值为`instant`、`range`(默认)     |
+| down_sample_range | str | 否  | 降采样周期，默认为空    |
+| time_alignment   | bool | 否  | 是否保留最后一个数据点，默认为`true`    |
 
 ### 请求参数示例
 

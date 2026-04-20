@@ -28,9 +28,24 @@ import { computed, shallowRef, watchEffect } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 
+import type { RequestOptions } from '../services/base';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { AnalysisListItem, AnalysisTopNDataResponse } from '../typings';
+
+// 需与后端 AlertTopNResource.MAX_NESTED_TOP_N_FIELDS 保持同步
+const TAG_FIELD_BATCH_SIZE = 20;
+
+const chunkFields = <T>(fields: T[], size: number): T[][] => {
+  if (fields.length === 0) {
+    return [];
+  }
+  const chunks: T[][] = [];
+  for (let index = 0; index < fields.length; index += size) {
+    chunks.push(fields.slice(index, index + size));
+  }
+  return chunks;
+};
 
 export function useAlarmAnalysis() {
   const alarmStore = useAlarmCenterStore();
@@ -60,38 +75,51 @@ export function useAlarmAnalysis() {
     ...alarmStore.alarmService.analysisDefaultSettingsFields,
   ]);
 
+  let fieldAbortController: AbortController | null = null;
+  let dimensionAbortController: AbortController | null = null;
+
   const effectFunc = () => {
     analysisFieldTopNLoading.value = true;
-    getAnalysisDimensionFields();
+    getAnalysisDimensionData(dimensionTags.value.map(item => item.id));
     getAnalysisFieldData(analysisFields.value);
   };
 
   /** 获取分析字段TopN数据 */
   const getAnalysisFieldData = async (fields: string[], isAll = false) => {
-    getAnalysisDataByFields(fields, isAll)
-      .then(analysisTopN => {
-        analysisFieldTopNData.value = {
-          doc_count: analysisTopN.doc_count,
-          fields: analysisTopN.fields.map(item => ({
-            ...item,
-            name: analysisFieldsMap.value[item.field] || item.field,
-          })),
-        };
-      })
-      .finally(() => {
-        analysisFieldTopNLoading.value = false;
-      });
-  };
+    // 中止上一次未完成的请求
+    if (fieldAbortController) {
+      fieldAbortController.abort();
+    }
+    // 创建新的中止控制器
+    fieldAbortController = new AbortController();
+    const { signal } = fieldAbortController;
 
-  /** 获取告警分析维度Tag列表 */
-  const getAnalysisDimensionFields = () => {
-    getAnalysisDimensionData(dimensionTags.value.map(item => item.id));
+    const analysisTopN = await getAnalysisDataByFields(fields, isAll, { signal });
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
+    analysisFieldTopNData.value = {
+      doc_count: analysisTopN.doc_count,
+      fields: analysisTopN.fields.map(item => ({
+        ...item,
+        name: analysisFieldsMap.value[item.field] || item.field,
+      })),
+    };
+    analysisFieldTopNLoading.value = false;
   };
 
   /** 获取分析 dimension Tag列表对应的TopN数据 */
   const getAnalysisDimensionData = async (fields: string[], isAll = false) => {
+    // 中止上一次未完成的请求
+    if (dimensionAbortController) {
+      dimensionAbortController.abort();
+    }
+    // 创建新的中止控制器
+    dimensionAbortController = new AbortController();
+    const { signal } = dimensionAbortController;
     analysisDimensionLoading.value = true;
-    const data = await getAnalysisDataByFields(fields, isAll);
+    const data = await getAnalysisDataByFields(fields, isAll, { signal });
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
     analysisDimensionTopNData.value = {
       doc_count: data.doc_count,
       fields: data.fields.map(item => ({
@@ -109,15 +137,49 @@ export function useAlarmAnalysis() {
    */
   const getAnalysisDataByFields = async (
     fields: string[],
-    isAll = false
+    isAll = false,
+    options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<Omit<AnalysisListItem, 'name'>>> => {
-    const data = await alarmStore.alarmService.getAnalysisTopNData(
-      {
-        ...alarmStore.commonFilterParams,
-        fields: fields,
-      },
-      isAll
+    const normalFields = fields.filter(field => !field.startsWith('tags.'));
+    const tagFieldChunks = chunkFields(
+      fields.filter(field => field.startsWith('tags.')),
+      TAG_FIELD_BATCH_SIZE
     );
+    const requestFieldGroups = [
+      ...(normalFields.length ? [normalFields] : []),
+      ...tagFieldChunks,
+    ];
+
+    if (!requestFieldGroups.length) {
+      return {
+        doc_count: 0,
+        fields: [],
+      };
+    }
+
+    // 批次请求不传 signal：避免 watchEffect 二次触发时 abort() 在 HTTP 连接建立前
+    // 就取消后续批次，导致只有第一批数据返回。结果是否使用由调用方的 signal.aborted 决定。
+    const responses = await Promise.all(
+      requestFieldGroups.map(requestFields =>
+        alarmStore.alarmService.getAnalysisTopNData(
+          {
+            ...alarmStore.commonFilterParams,
+            fields: requestFields,
+          },
+          isAll
+        )
+      )
+    );
+
+    if (options?.signal?.aborted) {
+      return { doc_count: 0, fields: [] };
+    }
+
+    const data = {
+      // doc_count 只受查询条件影响，拆分聚合字段不会改变总文档数，取首个响应即可。
+      doc_count: responses[0]?.doc_count ?? 0,
+      fields: responses.flatMap(item => item.fields),
+    };
 
     return {
       doc_count: data.doc_count,

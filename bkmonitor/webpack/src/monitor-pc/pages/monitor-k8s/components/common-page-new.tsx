@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
@@ -150,6 +150,7 @@ export type ShowModeType = 'dashboard' | 'default' | 'list';
 export const Event_EXPORT_QUERY_KEYS = ['targets', 'filterMode', 'commonWhere', 'showResidentBtn', 'prop', 'order'];
 /** 告警模板查询条件 */
 const ALARM_TEMPLATE_QUERY_KEYS = ['quickStatus', 'searchKeyword', 'sort'];
+const CUSTOM_GRAPH_V2_QUERY_KEYS = ['viewPayload', 'viewColumn', 'showStatisticalValue'];
 const customRouterQueryKeys = [
   'sliceStartTime',
   'sliceEndTime',
@@ -159,6 +160,7 @@ const customRouterQueryKeys = [
   ...APM_LOG_ROUTER_QUERY_KEYS,
   ...Event_EXPORT_QUERY_KEYS,
   ...ALARM_TEMPLATE_QUERY_KEYS,
+  ...CUSTOM_GRAPH_V2_QUERY_KEYS,
 ];
 @Component({
   components: {
@@ -507,7 +509,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /* 当前单图模式下dashboard-panel是否需要padding */
   /* 当前单图模式下dashboard-panel是否需要padding */
   get isSingleChartNoPadding() {
-    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee', 'log-retrieve'];
+    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee', 'log-retrieve', 'custom_metric_v2', 'alarm_center'];
     return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
     // return (
     //   this.isSingleChart &&
@@ -611,6 +613,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       ...customRouteQuery,
     };
     this.handleResetRouteQuery();
+  }
+  @Provide('handleTimeRangeChange')
+  handleTimeRangeChange(v: TimeRangeType) {
+    this.timeRange = v;
+    this.handleResetRouteQuery();
+    this.$emit('timeRangeChange', v);
   }
   mounted() {
     this.timezone = getDefaultTimezone();
@@ -1515,11 +1523,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleRefreshChange(v: number) {
     this.refreshInterval = v;
     this.handleResetRouteQuery();
-  }
-  handleTimeRangeChange(v: TimeRangeType) {
-    this.timeRange = v;
-    this.handleResetRouteQuery();
-    this.$emit('timeRangeChange', v);
   }
   /** 时区变更 */
   handleTimezoneChange(timezone: string) {

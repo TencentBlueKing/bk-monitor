@@ -38,6 +38,19 @@ import { type ICondtionItem, CONDITIONS } from './index';
 export const NOTICE_USERS_KEY = 'notice_users';
 /* 策略标签 */
 const STRATEGY_LABELS = 'labels';
+/* 需与后端 AlertTopNResource.MAX_NESTED_TOP_N_FIELDS 保持同步 */
+const TAG_FIELD_BATCH_SIZE = 20;
+
+const chunkFields = <T>(fields: T[], size: number): T[][] => {
+  if (fields.length === 0) {
+    return [];
+  }
+  const chunks: T[][] = [];
+  for (let index = 0; index < fields.length; index += size) {
+    chunks.push(fields.slice(index, index + size));
+  }
+  return chunks;
+};
 
 export interface IConditionProps {
   groupKey: string[];
@@ -386,18 +399,22 @@ export async function allKVOptions(
   setData('groupKeys', 'dimensions', tags);
   // topN数据
   const tagsFieldsParams = tags.map(t => t.id) as string[];
-  const topNData = await alertTopN({
-    bk_biz_ids: bkBizIds,
-    conditions: [],
-    query_string: '',
-    status: [],
-    fields: tagsFieldsParams.slice(0, 50),
-    size: 10,
-    start_time: startTime,
-    end_time: endTime,
-  })
-    .then(data => data?.fields || [])
-    .catch(() => []);
+  const topNData = await Promise.all(
+    chunkFields(tagsFieldsParams, TAG_FIELD_BATCH_SIZE).map(fields =>
+      alertTopN({
+        bk_biz_ids: bkBizIds,
+        conditions: [],
+        query_string: '',
+        status: [],
+        fields,
+        size: 10,
+        start_time: startTime,
+        end_time: endTime,
+      })
+        .then(data => data?.fields || [])
+        .catch(() => [])
+    )
+  ).then(data => data.flat());
   topNData.forEach(t => {
     const isChar = t.is_char;
     setData(

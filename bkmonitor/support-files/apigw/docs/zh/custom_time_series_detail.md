@@ -2,15 +2,16 @@
 
 自定义时序详情
 
-
 ### 请求参数
 
-| 字段                   | 类型   | 必选 | 描述                              |
-|----------------------|------|----|---------------------------------|
-| bk_biz_id            | int  | 是  | 业务ID                            |
-| time_series_group_id | int  | 是  | 时序分组ID                          |
-| model_only           | bool | 否  | 直接获取CustomTSTable表中的数据，默认值False |
-| with_target          | bool | 否  | 是否查询target维度数据                  |
+| 字段                   | 类型   | 必选 | 描述                           |
+|----------------------|------|----|------------------------------|
+| bk_biz_id            | int  | 是  | 业务ID                         |
+| time_series_group_id | int  | 是  | 时序分组ID                       |
+| model_only           | bool | 否  | 是否只查询自定义时序表信息，默认值False       |
+| with_target          | bool | 否  | 是否查询target维度数据，默认值False      |
+| with_metrics         | bool | 否  | 是否查询指标信息，默认值True             |
+| empty_if_not_found   | bool | 否  | 如果自定义时序表不存在，是否返回空数据，默认值False |
 
 ### 请求参数示例
 

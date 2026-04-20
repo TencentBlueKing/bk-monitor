@@ -21,10 +21,11 @@ from elasticsearch_dsl.response import Response
 from elasticsearch_dsl.response.aggs import BucketData
 from elasticsearch_dsl.utils import AttrList
 
+from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.incident import IncidentDocument
 from bkmonitor.utils.time_tools import hms_string
-from constants.incident import IncidentLevel, IncidentStatus,incident_status_map
+from constants.incident import IncidentLevel, IncidentStatus, incident_status_map
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.base import (
     BaseBizQueryHandler,
@@ -33,6 +34,7 @@ from fta_web.alert.handlers.base import (
 )
 from fta_web.alert.handlers.translator import BizTranslator
 from fta_web.alert.utils import search_time_init
+
 
 class IncidentQueryTransformer(BaseQueryTransformer):
     NESTED_KV_FIELDS = {"tags": "tags"}
@@ -207,6 +209,9 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     @classmethod
     def handle_hit(cls, hit) -> dict:
         incident = super().handle_hit(hit)
+        incident["incident_name"] = IncidentOperationManager.get_display_incident_name(
+            incident.get("incident_name"), incident.get("status")
+        )
         incident["status_alias"] = IncidentStatus(incident["status"].lower()).alias
         incident["level_alias"] = IncidentLevel(incident["level"]).alias
         if incident["end_time"]:
@@ -238,9 +243,9 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             dimension_tuple: tuple = tuple(dimensions.items())
             result[dimension_tuple] = aggregation
 
-    def _create_date_histogram_aggregation(self, search_object, agg_name, time_field,time_filter,
-                                           agg_status_name,status_list,
-                                           histogram_field,interval):
+    def _create_date_histogram_aggregation(
+        self, search_object, agg_name, time_field, time_filter, agg_status_name, status_list, histogram_field, interval
+    ):
         """
         创建日期直方图聚合的公共方法
 
@@ -254,41 +259,27 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         :param interval: 时间间隔
         :return: 聚合对象
         """
-        return search_object.aggs.bucket(
-            agg_name, "filter", {"range": {time_field: {"lte":time_filter}}}
-        ).bucket(agg_status_name, "filter", {"terms": {"status": status_list}}
-                 ).bucket("time", "date_histogram", field=histogram_field, fixed_interval=f"{interval}s"
-                          ).bucket("status", "terms", field="status")
+        return (
+            search_object.aggs.bucket(agg_name, "filter", {"range": {time_field: {"lte": time_filter}}})
+            .bucket(agg_status_name, "filter", {"terms": {"status": status_list}})
+            .bucket("time", "date_histogram", field=histogram_field, fixed_interval=f"{interval}s")
+            .bucket("status", "terms", field="status")
+        )
 
-    def date_histogram(self, interval: str = "auto")->dict:
-        '''
+    def date_histogram(self, interval: str = "auto") -> dict:
+        """
         :param interval: 时间间隔
         :return: 状态日期直方图
-        '''
+        """
         new_interval: int = self.calculate_agg_interval(self.start_time, self.end_time, interval)
         # 查询时间对齐
-        start_time,end_time,now_time=search_time_init(new_interval=new_interval, start_time=self.start_time, end_time=self.end_time)
+        start_time, end_time, now_time = search_time_init(
+            new_interval=new_interval, start_time=self.start_time, end_time=self.end_time
+        )
         search_object = self.get_search_object(start_time=start_time, end_time=end_time)
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
-        end_time_status_list = [IncidentStatus.RECOVERED.value, IncidentStatus.CLOSED.value,
-                                    IncidentStatus.MERGED.value]
-        # 按照开始日期进行统计的状态
-        begin_time_status_list = [IncidentStatus.RECOVERING.value, IncidentStatus.ABNORMAL.value]
-        # 已经恢复、关闭、合并的故障、已观察结束，按end_time聚合
-        # 结束时间聚合
-        ended_object = self._create_date_histogram_aggregation(
-            search_object, agg_name="end_time", time_field="end_time",
-            agg_status_name='end_incident',time_filter=end_time, status_list=end_time_status_list,
-            histogram_field="end_time", interval=new_interval
-        )
 
-        # 开始时间聚合 观察中，未恢复按照begin_time聚合
-        begin_object = self._create_date_histogram_aggregation(
-            search_object, agg_name="begin_time", time_field="begin_time",
-            agg_status_name='begin_incident',time_filter=end_time, status_list=begin_time_status_list,
-            histogram_field="begin_time", interval=new_interval
-        )
         # 查询
         search_result = search_object[:0].execute()
         # 各状态的初始值 {status: {timestamp: 0,....}}

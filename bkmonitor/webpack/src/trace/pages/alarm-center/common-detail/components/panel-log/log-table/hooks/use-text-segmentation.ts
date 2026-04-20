@@ -61,11 +61,10 @@ export default class UseTextSegmentation {
 
   convertVirtaulObjToArray() {
     const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(this.options.content);
-
     const convertObjToArray = (root: object, isValue = false) => {
       const result: Record<string, any>[] = [];
 
-      if (typeof root === 'object') {
+      if (typeof root === 'object' && root !== null) {
         if (Array.isArray(root)) {
           result.push({
             text: '[',

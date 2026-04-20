@@ -63,6 +63,8 @@ interface IMealContentNewEvent {
 }
 
 interface IMealContentNewProps {
+  /** 外链（如 BKFara）跳转时带入的模板名称，用于预选「流程名称」下拉项 */
+  initialTemplateName?: string;
   mealData?: IMealData;
   mealTypeList?: IMealTypeList[];
   name?: string; // 套餐名
@@ -81,6 +83,7 @@ const mealType = {
   name: 'MealContentNew',
 })
 export default class MealContentNew extends tsc<IMealContentNewProps, IMealContentNewEvent> {
+  @Prop({ type: String, default: '' }) initialTemplateName: string;
   @Prop({ type: Object, default: () => ({}) }) mealData: IMealData;
   @Prop({ type: Array, default: () => [] }) mealTypeList: IMealTypeList[];
   @Prop({ type: String, default: '' }) name: string;
@@ -304,7 +307,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       const obj = {
         key: item.key,
         value: '',
-        lable: item.formItemProps.label,
+        label: item.formItemProps.label,
         placeholder: vPlaceholder || item?.formChildProps?.placeholder || '',
         subTitle: '',
         required: !!item?.formItemProps?.required,
@@ -413,12 +416,15 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                   <PeripheralSystem
                     id={this.data.id}
                     ref='peripheralSystemRef'
+                    initialTemplateName={this.initialTemplateName}
                     isInit={this.isInit}
                     peripheralData={this.data.peripheral}
                     type={this.type}
                     onChange={data => this.handlePeripheralChange(data)}
                     onDebug={() => this.handleDebug('peripheral')}
-                    onInit={(v: boolean) => (this.isInit = v)}
+                    onInit={(v: boolean) => {
+                      this.isInit = v;
+                    }}
                   />
                 );
               }
@@ -431,10 +437,16 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           mealName={this.name}
           pluginId={this.data.id}
           show={this.isShowDebug}
-          onDebugPeripheralDataChange={v => (this.debugPeripheralForm = v)}
-          onDebugPeripheralStop={() => (this.debugData.peripheral = deepClone(this.data.peripheral))}
+          onDebugPeripheralDataChange={v => {
+            this.debugPeripheralForm = v;
+          }}
+          onDebugPeripheralStop={() => {
+            this.debugData.peripheral = deepClone(this.data.peripheral);
+          }}
           onDebugWebhookDataChange={v => this.handleDebugWebhookDataChange(v)}
-          onShowChange={v => (this.isShowDebug = v)}
+          onShowChange={v => {
+            this.isShowDebug = v;
+          }}
         />
       </div>
     );

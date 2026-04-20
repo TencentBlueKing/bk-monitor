@@ -24,17 +24,10 @@
  * IN THE SOFTWARE.
  */
 import ApmRoutes from './apm';
-import CustomScenes from './custom-scenes';
 import k8sRoutes from './k8s';
 import performanceRoutes from './performance';
 import uptimeCheckRoutes from './uptime-check';
 
 import type { RouteConfig } from 'vue-router';
 
-export default [
-  ...ApmRoutes,
-  ...performanceRoutes,
-  ...uptimeCheckRoutes,
-  ...k8sRoutes,
-  ...CustomScenes,
-] as RouteConfig[];
+export default [...ApmRoutes, ...performanceRoutes, ...uptimeCheckRoutes, ...k8sRoutes] as RouteConfig[];

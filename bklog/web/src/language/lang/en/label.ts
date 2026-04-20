@@ -823,7 +823,7 @@ export default {
   临时分享: 'Temporary Share',
   分享: 'Share',
   综合时间排序: 'Comprehensive Time Sorting',
-  日志时间排序: 'Log Time Sorting',
+  日志排序: 'Log Sorting',
   '已选择{0}个动态组': 'Selected {0} dynamic groups',
   收藏排序: 'Favorite Sort',
   解散: 'Dissolve',
@@ -953,5 +953,6 @@ export default {
   英文名称: 'English name',
   '搜索名称、英文名称、地址、创建人': 'Search by name, English name, address, or creator',
   集群英文名称: 'Cluster English Name',
+  '最大自定义天数为{n}': 'Maximum custom days is {n}',
   输入样例: 'Input example',
 };

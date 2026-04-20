@@ -325,25 +325,24 @@ class ApmApplicationSearchItem(SearchItem):
         if cls.RE_APP_NAME.match(query):
             query_filter |= Q(app_name__icontains=query)
 
-        # 业务过滤
-        applications = Application.objects.filter(bk_tenant_id=bk_tenant_id).filter(query_filter)
+        applications = list(Application.objects.filter(bk_tenant_id=bk_tenant_id).filter(query_filter))
         if not applications:
             return
 
-        items = []
-        for application in applications:
-            items.append(
-                {
-                    "bk_biz_id": application.bk_biz_id,
-                    "bk_biz_name": cls._get_biz_name(application.bk_biz_id),
-                    "name": application.app_alias or application.app_name,
-                    "app_name": application.app_name,
-                    "app_alias": application.app_alias,
-                    "application_id": application.application_id,
-                }
-            )
+        # 先构建不含业务名的基础数据，避免在权限过滤之前对每条记录发起 SpaceApi 调用（N+1）。
+        items = [
+            {
+                "bk_biz_id": application.bk_biz_id,
+                "bk_biz_name": "",
+                "name": application.app_alias or application.app_name,
+                "app_name": application.app_name,
+                "app_alias": application.app_alias,
+                "application_id": application.application_id,
+            }
+            for application in applications
+        ]
 
-        # 过滤无权限的应用
+        # 过滤无权限的应用，并裁剪至目标数量
         items = filter_data_by_permission(
             bk_tenant_id=bk_tenant_id,
             data=items,
@@ -357,6 +356,10 @@ class ApmApplicationSearchItem(SearchItem):
 
         if not items:
             return
+
+        # 只对最终展示的条目（至多 limit 条）补充业务名，彻底消除 N+1
+        for item in items:
+            item["bk_biz_name"] = cls._get_biz_name(item["bk_biz_id"])
 
         return [{"type": "apm_application", "name": _("APM应用"), "items": items}]
 
@@ -517,7 +520,7 @@ class Searcher:
         self.bk_tenant_id = bk_tenant_id
         self.username = username
 
-    def search(self, query: str, timeout: int = 30) -> Generator[dict[str, Any], None, None]:
+    def search(self, query: str, timeout: int = 30, limit: int = 5) -> Generator[dict[str, Any], None, None]:
         """
         Search the query in the search items.
         """
@@ -525,7 +528,7 @@ class Searcher:
 
         with ThreadPool() as pool:
             results: IMapIterator = pool.imap_unordered(
-                lambda item: item.search(self.bk_tenant_id, self.username, query, limit=5), search_items
+                lambda item: item.search(self.bk_tenant_id, self.username, query, limit=limit), search_items
             )
 
             start_time = time.time()

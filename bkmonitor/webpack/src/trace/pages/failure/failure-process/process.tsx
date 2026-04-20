@@ -33,6 +33,7 @@ import { LEVEL_LIST, STATUS_LIST } from '../constant';
 export const typeTextMap = {
   incident_create: '生成故障，包含{alert_count}个告警，故障负责人：{assignees}',
   incident_observe: '故障观察中，剩余观察时间{last_minutes}分钟',
+  incident_observe_default: '故障观察中',
   incident_recover: '故障已恢复',
   incident_reopen: '故障在观察期间重新打开',
   incident_notice: '故障通知已发送（接收人：{receivers}）',
@@ -199,10 +200,15 @@ export const renderMap = reactive({
     );
   },
   incident_observe: ({ extra_info }) => {
+    const { t } = useI18n();
+    const lastMinutes = extra_info?.last_minutes;
+    if (lastMinutes === undefined || lastMinutes === null || lastMinutes === '') {
+      return <span>{t(typeTextMap.incident_observe_default)}</span>;
+    }
     return (
       <i18n-t
         v-slots={{
-          last_minutes: <span class='count'>{extra_info?.last_minutes || 0}</span>,
+          last_minutes: <span class='count'>{lastMinutes}</span>,
         }}
         keypath={typeTextMap.incident_observe}
       />

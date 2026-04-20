@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from bkmonitor.documents import AlertDocument
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
@@ -160,3 +161,42 @@ def merge_dimensions_into_conditions(
             filter_conditions.append(condition)
 
     return filter_conditions
+
+
+def clean_where_conditions(where: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """清洗 where 过滤条件列表。
+
+    过滤掉 value 为 None、空列表或仅包含 None 的无效条件，
+    同时移除有效条件列表中混杂的 None 值。
+
+    :param where: where 过滤条件列表
+    :return: 清洗后的过滤条件列表
+    """
+    cleaned: list[dict[str, Any]] = []
+    for condition in where:
+        value = condition.get("value")
+        if value is None:
+            continue
+        if isinstance(value, list):
+            filtered_value = [v for v in value if v is not None]
+            if not filtered_value:
+                continue
+            condition["value"] = filtered_value
+        cleaned.append(condition)
+    return cleaned
+
+
+def normalize_histogram_quantile_group_by(query_config: dict[str, Any]) -> None:
+    """规范 histogram_quantile 函数 group_by 条件。
+
+    注：histogram_quantile 统计函数依赖 le 维度进行分位数插值计算，但维度下钻、告警图表等场景会覆盖 group_by 导致 le 丢失
+    """
+    data_source: tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
+    if data_source != (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES):
+        return
+    if not any(f.get("id") == "histogram_quantile" for f in query_config.get("functions", [])):
+        return
+    group_by: list[str] = query_config.get("group_by") or []
+    if "le" not in group_by:
+        group_by.append("le")
+        query_config["group_by"] = group_by

@@ -50,6 +50,8 @@ class UnifyQuery:
     统一查询模块
     """
 
+    RE_DIMENSION_SUFFIX = re.compile(r"_table\d+$")
+
     def __init__(
         self,
         bk_biz_id: int | None,
@@ -146,22 +148,11 @@ class UnifyQuery:
         """
         处理统一查询模块返回值
         """
-        re_dimension = re.compile(r"_table\d+$")
-
         records = []
 
         rows = data.get("series") or []
         for row in rows:
-            dimensions = {}
-            if not row["group_keys"]:
-                row["group_keys"] = []
-            for index, group_key in enumerate(row["group_keys"]):
-                end_string = re_dimension.findall(group_key)
-                if end_string:
-                    end_string = end_string[0]
-                    group_key = group_key[: -len(end_string)]
-
-                dimensions[group_key] = row["group_values"][index]
+            dimensions = cls.extract_unify_query_series_dimensions(row)
 
             for value in row["values"]:
                 record = {**dimensions}
@@ -187,6 +178,49 @@ class UnifyQuery:
                 records.append(record)
         return records
 
+    @classmethod
+    def extract_unify_query_series_dimensions(cls, row: dict[str, Any]) -> dict[str, Any]:
+        dimensions = {}
+        group_values = row.get("group_values") or []
+        for index, group_key in enumerate(row.get("group_keys") or []):
+            end_string = cls.RE_DIMENSION_SUFFIX.findall(group_key)
+            if end_string:
+                end_string = end_string[0]
+                group_key = group_key[: -len(end_string)]
+            dimensions[group_key] = group_values[index] if index < len(group_values) else None
+        return dimensions
+
+    @classmethod
+    def get_unify_query_series_dimensions(cls, row: dict[str, Any]) -> tuple[tuple[str, Any], ...]:
+        dimensions = cls.extract_unify_query_series_dimensions(row)
+        return tuple(sorted(dimensions.items()))
+
+    @classmethod
+    def get_unify_query_series_metric_field(cls, row: dict[str, Any], params: dict[str, Any]) -> str:
+        reference_names = {
+            query["reference_name"] for query in params.get("query_list") or [] if query.get("reference_name")
+        }
+        columns = [column for column in row.get("columns") or [] if column != "_time"]
+        if columns:
+            column = columns[0]
+            if column in ["_result", "_value"] or column in reference_names:
+                return "_result_"
+            return column
+
+        if params.get("query_list"):
+            return params["query_list"][0]["reference_name"]
+
+        return "_result_"
+
+    @classmethod
+    def process_unify_query_series_stat(cls, params: dict[str, Any], data: dict[str, Any]) -> dict:
+        series_stat = {}
+        for row in data.get("series") or []:
+            stat = row.get("stat") or {}
+            key = (cls.get_unify_query_series_dimensions(row), cls.get_unify_query_series_metric_field(row, params))
+            series_stat[key] = stat
+        return series_stat
+
     def process_data_by_datasource(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         first_ds: DataSource = self.data_sources[0]
         if (first_ds.data_source_label, first_ds.data_type_label) in [
@@ -202,6 +236,7 @@ class UnifyQuery:
             (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
             (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
         ]:
             records = first_ds.process_unify_query_log(records)
         return records
@@ -214,7 +249,8 @@ class UnifyQuery:
                 meta_field: record.pop(meta_field, "")
                 for meta_field in ["__data_label", "__doc_id", "__index", "__result_table", "__parse_failure"]
             }
-            record["_meta"]["_time_"] = int(record.pop("_time", 0))
+            # 可能是字符串或事件戳（各种时间单位都有可能），这里仅将内置时间字段移动到 _meta 下，无需统一时间格式。
+            record["_meta"]["_time_"] = record.pop("_time", 0)
             records.append(record)
         return records
 
@@ -359,14 +395,14 @@ class UnifyQuery:
         time_alignment: bool = True,
         instant: bool = None,
         not_time_align: bool = False,
-    ) -> tuple[list[dict], bool]:
+    ) -> tuple[list[dict], bool, dict]:
         """
         使用统一查询模块进行查询
         """
         is_partial = False
         params = self.get_unify_query_params(start_time, end_time, time_alignment, not_time_align=not_time_align)
         if not params["query_list"]:
-            return [], is_partial
+            return [], is_partial, {}
 
         params.update(dict(down_sample_range=down_sample_range, timezone=timezone.get_current_timezone_name()))
 
@@ -382,9 +418,10 @@ class UnifyQuery:
             span.set_attribute("bk.unify_query.statement", json.dumps(params))
             data = api.unify_query.query_data(**params)
             is_partial = data.get("is_partial", False)
+            series_stat = self.process_unify_query_series_stat(params, data)
             records: list[dict[str, Any]] = self.process_unify_query_data(params, data, end_time=end_time)
             records = self.process_data_by_datasource(records)
-        return records, is_partial
+        return records, is_partial, series_stat
 
     def _query_reference_using_unify_query(
         self,
@@ -430,7 +467,7 @@ class UnifyQuery:
         end_time: int,
         limit: int | None = None,
         offset: int | None = None,
-        order_by: str | None = None,
+        order_by: list[str] | None = None,
         time_alignment: bool = True,
     ) -> list[dict]:
         params: dict[str, Any] = self.get_unify_query_params(start_time, end_time, time_alignment, order_by)
@@ -463,17 +500,26 @@ class UnifyQuery:
         limit: int | None = None,
         slimit: int | None = None,
         offset: int | None = None,
+        with_series_stat: bool = False,
         **kwargs,
-    ) -> list[dict]:
+    ) -> tuple[list[dict], dict]:
         """
         使用原始数据源进行查询
         """
 
         all_data = []
+        # 多数据源场景下，相同 key 的 stat 会被后者覆盖；当前业务中单次查询通常只有一个数据源
+        all_series_stat: dict = {}
         for datasource in self.data_sources:
-            data = datasource.query_data(
-                start_time=start_time, end_time=end_time, limit=limit, slimit=slimit, offset=offset, **kwargs
-            )
+            if with_series_stat and hasattr(datasource, "query_data_with_stat"):
+                data, stat = datasource.query_data_with_stat(
+                    start_time=start_time, end_time=end_time, limit=limit, slimit=slimit, offset=offset, **kwargs
+                )
+                all_series_stat.update(stat)
+            else:
+                data = datasource.query_data(
+                    start_time=start_time, end_time=end_time, limit=limit, slimit=slimit, offset=offset, **kwargs
+                )
             if len(self.data_sources) == 1:
                 # 如果只有一个指标，就直接将 result 字段当前指标，否则不设置
                 for record in data:
@@ -483,7 +529,7 @@ class UnifyQuery:
                     record["_result_"] = record[metric_field]
             all_data.extend(data)
 
-        return all_data
+        return all_data, all_series_stat
 
     def _query_log_using_datasource(
         self,
@@ -510,7 +556,7 @@ class UnifyQuery:
 
         return data, total
 
-    def query_data(
+    def _query_data_internal(
         self,
         start_time: int = None,
         end_time: int = None,
@@ -520,17 +566,19 @@ class UnifyQuery:
         down_sample_range: str | None = "",
         not_time_align: bool = False,
         *args,
+        with_series_stat: bool = False,
         **kwargs,
-    ) -> list[dict]:
+    ) -> tuple[list[dict], dict]:
         self.is_partial = False
         if not self.data_sources:
-            return []
+            return [], {}
 
         self.process_data_sources(self.data_sources)
 
         exc = None
         labels: dict[str, str] = self.get_observe_labels()
         start_time, end_time = self.process_time_range(start_time, end_time)
+        series_stat = {}
 
         # 使用统一查询模块或原始数据源进行查询
         if self.use_unify_query():
@@ -540,7 +588,7 @@ class UnifyQuery:
                 if not_time_align:
                     time_alignment = False
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data, is_partial = self._query_unify_query(
+                    data, is_partial, series_stat = self._query_unify_query(
                         start_time=start_time,
                         end_time=end_time,
                         limit=limit,
@@ -557,8 +605,14 @@ class UnifyQuery:
             try:
                 labels["api"] = "query_api"
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data = self._query_data_using_datasource(
-                        start_time=start_time, end_time=end_time, limit=limit, slimit=slimit, offset=offset, **kwargs
+                    data, series_stat = self._query_data_using_datasource(
+                        start_time=start_time,
+                        end_time=end_time,
+                        limit=limit,
+                        slimit=slimit,
+                        offset=offset,
+                        with_series_stat=with_series_stat,
+                        **kwargs,
                     )
             except Exception as e:
                 exc = e
@@ -569,7 +623,58 @@ class UnifyQuery:
         if exc:
             raise exc
 
+        return data, (series_stat if with_series_stat else {})
+
+    def query_data(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int | None = settings.SQL_MAX_LIMIT,
+        slimit: int | None = settings.SQL_MAX_LIMIT,
+        offset: int | None = None,
+        down_sample_range: str | None = "",
+        not_time_align: bool = False,
+        *args,
+        **kwargs,
+    ) -> list[dict]:
+        data, _ = self._query_data_internal(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            slimit=slimit,
+            offset=offset,
+            down_sample_range=down_sample_range,
+            not_time_align=not_time_align,
+            *args,
+            **kwargs,
+        )
         return data
+
+    def query_data_with_stat(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int | None = settings.SQL_MAX_LIMIT,
+        slimit: int | None = settings.SQL_MAX_LIMIT,
+        offset: int | None = None,
+        down_sample_range: str | None = "",
+        not_time_align: bool = False,
+        *args,
+        **kwargs,
+    ) -> dict[str, Any]:
+        data, series_stat = self._query_data_internal(
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            slimit=slimit,
+            offset=offset,
+            down_sample_range=down_sample_range,
+            not_time_align=not_time_align,
+            with_series_stat=True,
+            *args,
+            **kwargs,
+        )
+        return {"series": data, "series_stat": series_stat}
 
     def query_reference(
         self,
@@ -609,7 +714,7 @@ class UnifyQuery:
             try:
                 labels["api"] = "query_api"
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data = self._query_data_using_datasource(
+                    data, _ = self._query_data_using_datasource(
                         start_time=start_time, end_time=end_time, limit=limit, offset=offset, **kwargs
                     )
             except Exception as e:
@@ -629,7 +734,7 @@ class UnifyQuery:
         end_time: int = None,
         limit: int = None,
         offset: int = None,
-        order_by: str | None = None,
+        order_by: list[str] | None = None,
         *args,
         **kwargs,
     ) -> tuple[list[dict[str, Any]], int]:

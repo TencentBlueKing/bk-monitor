@@ -408,7 +408,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None) -> dict[str, Any]:
+    def compose_config(
+        self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None, bk_data_id: int | str | None = None
+    ) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
         """
@@ -444,6 +446,12 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         {% endif %}
                         "namespace": "{{namespace}}"
                     }
+                    {% if metric_group_dimensions %},
+                    "metricGroupDimensions": {{metric_group_dimensions}}
+                    {% endif %}
+                    {% if dd_version %},
+                    "ddVersion": "{{dd_version}}"
+                    {% endif %}
                 }
             }
             """
@@ -471,6 +479,24 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "maintainers": json.dumps(maintainer),
             "whitelist_config": whitelist_config,
         }
+
+        if bk_data_id:
+            # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
+            from metadata.models.custom_report.time_series import TimeSeriesGroup
+
+            ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
+            if ts_group and ts_group.metric_group_dimensions:
+                metric_group_dimensions = []
+                for dim in ts_group.metric_group_dimensions:
+                    key = dim.get("key")
+                    if not key:
+                        continue
+                    if "default_value" in dim and dim["default_value"] is not None:
+                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
+                    else:
+                        metric_group_dimensions.append(key)
+                render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
+                render_params["dd_version"] = "v2"
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -787,6 +813,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         storage_keys: list[str],
         json_fields: list[str],
         field_config_group: dict[str, Any],
+        original_json_fields: list[str],
         expires: str,
         flush_timeout: int | None,
     ) -> dict[str, Any]:
@@ -797,18 +824,27 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         {
             "kind": "DorisBinding",
             "metadata": {
-                "labels": {"bk_biz_id": "{{monitor_biz_id}}"}},
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "labels": {"bk_biz_id": "{{monitor_biz_id}}"},
                 "name": "{{name}}",
                 "namespace": "{{namespace}}"
             },
             "spec": {
                 "data": {
                     "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "kind": "ResultTable"
                 },
                 "storage": {
                     "name": "{{storage_cluster_name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "kind": "Doris"
                 },
@@ -820,6 +856,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "table": "{{name}}_{{bk_biz_id}}",
                     "storage_keys": {{storage_keys}},
                     "json_fields": {{json_fields}},
+                    "original_json_fields": {{original_json_fields}},
                     "field_config_group": {{field_config_group}},
                     "expires": "{{expires}}",
                     "flush_timeout": {{flush_timeout}}
@@ -837,9 +874,15 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             "storage_keys": json.dumps(storage_keys),
             "json_fields": json.dumps(json_fields),
             "field_config_group": json.dumps(field_config_group),
+            "original_json_fields": json.dumps(original_json_fields),
             "expires": expires,
             "flush_timeout": json.dumps(flush_timeout),
         }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
             render_params=render_params,
@@ -1058,7 +1101,7 @@ class ClusterConfig(models.Model):
         return config
 
     @classmethod
-    def sync_cluster_config(cls, cluster: "ClusterInfo") -> None:
+    def sync_cluster_config(cls, cluster: "ClusterInfo", sync_namespaces: list[str] | None = None) -> None:
         """
         同步集群配置
 
@@ -1068,6 +1111,7 @@ class ClusterConfig(models.Model):
 
         Args:
             cluster: 集群信息
+            sync_namespaces: 指定同步的命名空间列表
         """
 
         # 根据集群类型获取kind和namespace
@@ -1076,6 +1120,10 @@ class ClusterConfig(models.Model):
 
         # 获取或创建bkbase集群配置记录
         for namespace in namespaces:
+            # 如果指定同步的命名空间列表不为空，则只同步指定的命名空间
+            if sync_namespaces and namespace not in sync_namespaces:
+                continue
+
             cluster_config, _ = ClusterConfig.objects.get_or_create(
                 bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
             )

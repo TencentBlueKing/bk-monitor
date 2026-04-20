@@ -10,7 +10,7 @@ from bkmonitor.utils.db import JsonField
 from metadata.models.common import BaseModel
 
 from .constants import SPACE_UID_HYPHEN, SYSTEM_USERNAME, SpaceStatus, SpaceTypes
-from .managers import SpaceManager, SpaceResourceManager, SpaceTypeManager
+from .managers import SpaceManager, SpaceTypeManager
 
 logger = logging.getLogger("metadata")
 
@@ -161,8 +161,6 @@ class SpaceResource(BaseModel):
         help_text="关键维度值，格式如[{'project_id': 'testproject', 'cluster_id': 'BCS-K8S-1000', 'namespace': 'test'}]",
         default=[],
     )
-
-    objects = SpaceResourceManager()
 
     class Meta:
         unique_together = ("space_type_id", "space_id", "resource_type", "resource_id")

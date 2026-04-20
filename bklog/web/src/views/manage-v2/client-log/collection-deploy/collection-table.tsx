@@ -26,18 +26,17 @@
 
 import { computed, defineComponent, ref } from 'vue';
 
-import { clearTableFilter, downFile } from '@/common/util';
+import { clearTableFilter } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
+
 import { t } from '@/hooks/use-locale';
-import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
-import { BK_LOG_STORAGE } from '@/store/store.type';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
 import { TaskStatus, TaskScene } from './types';
 import { useTableSetting } from '@/views/manage-v2/hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
-import http from '@/api';
+import { useDownloadFile } from '../hooks/use-download-file';
 
 import './collection-table.scss';
 
@@ -130,9 +129,10 @@ export default defineComponent({
     });
 
     // 使用检索任务 Hook
-    const { searchTask } = useSearchTask({
-      indexSetId: props.indexSetId,
-    });
+    const { searchTask } = useSearchTask();
+
+    // 使用文件下载 Hook
+    const { downloadFile: download } = useDownloadFile();
 
     // 任务状态选项
     const taskStatuses = [
@@ -201,39 +201,11 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = async (id: number, status: number) => {
+    const downloadFile = async (fileName: string, status: number) => {
       if (status !== TaskStatus.COMPLETED) {
         return;
       }
-      if (props.isAllowedDownload) {
-        try {
-          const params = {
-            query: {
-              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-              id,
-            },
-          };
-          const response = await http.request('collect/getDownloadLink', params);
-          const downloadUrl = response.data.url;
-          if (downloadUrl) {
-            downFile(downloadUrl);
-          }
-        } catch (error) {
-          console.warn('获取下载链接失败:', error);
-        }
-      } else {
-        const paramData = {
-          action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
-          resources: [
-            {
-              type: 'space',
-              id: store.state.spaceUid,
-            },
-          ],
-        };
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
-      }
+      download(fileName, props.isAllowedDownload);
     };
 
     // 检索任务 - 直接传入查询条件
@@ -245,7 +217,7 @@ export default defineComponent({
           value: row.task_id,
         },
       ];
-      searchTask(conditions, [row.processed_at, 'now']);
+      searchTask(props.indexSetId, conditions, [row.processed_at, 'now']);
     };
 
     // 任务名称插槽
@@ -394,7 +366,7 @@ export default defineComponent({
               v-cursor={{
                 active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload,
               }}
-              on-click={() => downloadFile(row.id, row.status)}
+              on-click={() => downloadFile(row.file_name, row.status)}
             >
               {t('下载文件')}
             </bk-button>

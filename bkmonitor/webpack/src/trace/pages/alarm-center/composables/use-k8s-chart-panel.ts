@@ -28,7 +28,8 @@ import { type MaybeRef, computed, shallowRef, watch } from 'vue';
 import { get } from '@vueuse/core';
 import { K8sChartTargetsCreateTool } from 'monitor-pc/pages/monitor-k8s/components/k8s-charts/tools/targets-create/k8s-chart-targets-create-tool';
 
-import { getAlertK8sScenarioMetricList } from '../services/alarm-detail';
+import { type TimeRangeType, handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { fetchWorkloadPodList, getAlertK8sScenarioMetricList } from '../services/alarm-detail';
 import {
   type AlertK8SMetricItem,
   type AlertK8sTargetItem,
@@ -37,6 +38,7 @@ import {
   K8sTableColumnKeysEnum,
 } from '../typings';
 
+import type { DateValue } from '@blueking/date-picker';
 import type { K8sBasePromqlGeneratorContext } from 'monitor-pc/pages/monitor-k8s/components/k8s-charts/typing';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 export interface UseK8sChartPanelOptions {
@@ -48,6 +50,8 @@ export interface UseK8sChartPanelOptions {
   groupBy?: MaybeRef<K8sTableColumnKeysEnum>;
   /** 容器监控-场景 */
   scene?: MaybeRef<SceneEnum>;
+  /** 时间范围 */
+  timeRange?: MaybeRef<DateValue>;
 }
 
 /**
@@ -56,7 +60,7 @@ export interface UseK8sChartPanelOptions {
  * @param options 容器监控图表面板 panel hook选项
  */
 export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
-  const { scene, groupBy, currentTarget, bizId } = options;
+  const { scene, groupBy, currentTarget, bizId, timeRange } = options;
   /** 容器监控图表面板创建工具 */
   const k8sChartTargetsCreateTool = new K8sChartTargetsCreateTool();
   /** 容器监控-显示数量 */
@@ -67,6 +71,8 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
   let resourceMap: Map<K8sTableColumnKeysEnum, string> = new Map();
   /** 容器监控-资源列表 */
   let resourceList: Set<Partial<Record<K8sTableColumnKeysEnum, string>>> = new Set();
+  /** 用于取消上一次请求，防止竞态 */
+  let abortController: AbortController | null = null;
 
   /** 容器监控图表面板数组 */
   const dashboards = shallowRef<IPanelModel[]>([]);
@@ -95,9 +101,42 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
   });
 
   /**
-   * @description 获取资源列表并转化为Map结构
+   * @description 根据 groupBy 类型获取资源数据
+   * @param isWorkloadGroupBy - 是否为 workload 聚合维度
+   * @param signal - 用于取消请求的 AbortSignal
+   * @returns 资源数据列表
    */
-  const getResourceList = async () => {
+  const fetchResourceData = async (
+    isWorkloadGroupBy: boolean,
+    signal: AbortSignal
+  ): Promise<Array<Partial<Record<K8sTableColumnKeysEnum, string>>>> => {
+    if (get(groupBy) === K8sTableColumnKeysEnum.CLUSTER) {
+      return [{ [K8sTableColumnKeysEnum.CLUSTER]: get(clusterId) }];
+    }
+    if (isWorkloadGroupBy) {
+      const formatTimeRange = handleTransformToTimestamp(get(timeRange) as TimeRangeType);
+      return fetchWorkloadPodList(
+        {
+          bk_biz_id: get(bizId),
+          bcs_cluster_id: get(clusterId),
+          scenario: get(scene),
+          filter_dict: get(filterBy),
+          start_time: formatTimeRange[0],
+          end_time: formatTimeRange[1],
+          page_size: limit,
+        },
+        { signal }
+      );
+    }
+    return get(resourceListData);
+  };
+
+  /**
+   * @description 获取资源列表并转化为Map结构
+   * @param isWorkloadGroupBy - 是否为 workload 聚合维度
+   * @param signal - 用于取消请求的 AbortSignal
+   */
+  const getResourceList = async (isWorkloadGroupBy: boolean, signal: AbortSignal) => {
     const map = new Map<K8sTableColumnKeysEnum, string>([
       [K8sTableColumnKeysEnum.CLUSTER, get(clusterId)],
       [K8sTableColumnKeysEnum.CONTAINER, ''],
@@ -109,47 +148,38 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
       [K8sTableColumnKeysEnum.WORKLOAD, ''],
       [K8sTableColumnKeysEnum.WORKLOAD_KIND, ''],
     ]);
-    let data: Array<Partial<Record<K8sTableColumnKeysEnum, string>>> = [];
-    if (get(groupBy) === K8sTableColumnKeysEnum.CLUSTER) {
-      data = [
-        {
-          [K8sTableColumnKeysEnum.CLUSTER]: get(clusterId),
-        },
-      ];
-    } else {
-      data = get(resourceListData);
-      if (data.length) {
-        const container = new Set<string>();
-        const pod = new Set<string>();
-        const workload = new Set<string>();
-        const workloadKind = new Set<string>();
-        const namespace = new Set<string>();
-        const ingress = new Set<string>();
-        const service = new Set<string>();
-        const node = new Set<string>();
-        const list = data.slice(0, limit);
-        for (const item of list) {
-          item.container && container.add(item.container);
-          item.pod && pod.add(item.pod);
-          if (item.workload) {
-            const [workloadType, workloadName] = item.workload.split(':');
-            workload.add(workloadName);
-            workloadKind.add(workloadType);
-          }
-          item.namespace && namespace.add(item.namespace);
-          item.ingress && ingress.add(item.ingress);
-          item.service && service.add(item.service);
-          item.node && node.add(item.node);
+    const data = await fetchResourceData(isWorkloadGroupBy, signal);
+    if (data.length && get(groupBy) !== K8sTableColumnKeysEnum.CLUSTER) {
+      const container = new Set<string>();
+      const pod = new Set<string>();
+      const workload = new Set<string>();
+      const workloadKind = new Set<string>();
+      const namespace = new Set<string>();
+      const ingress = new Set<string>();
+      const service = new Set<string>();
+      const node = new Set<string>();
+      const list = data.slice(0, limit);
+      for (const item of list) {
+        item.container && container.add(item.container);
+        item.pod && pod.add(item.pod);
+        if (item.workload) {
+          const [workloadType, workloadName] = item.workload.split(':');
+          workload.add(workloadName);
+          workloadKind.add(workloadType);
         }
-        map.set(K8sTableColumnKeysEnum.CONTAINER, Array.from(container).filter(Boolean).join('|'));
-        map.set(K8sTableColumnKeysEnum.POD, Array.from(pod).filter(Boolean).join('|'));
-        map.set(K8sTableColumnKeysEnum.WORKLOAD, Array.from(workload).filter(Boolean).join('|'));
-        map.set(K8sTableColumnKeysEnum.NAMESPACE, Array.from(namespace).filter(Boolean).join('|'));
-        map.set(K8sTableColumnKeysEnum.WORKLOAD_KIND, Array.from(workloadKind).filter(Boolean).join('|'));
-        map.set(K8sTableColumnKeysEnum.INGRESS, Array.from(ingress).filter(Boolean).join('|'));
-        map.set(K8sTableColumnKeysEnum.SERVICE, Array.from(service).filter(Boolean).join('|'));
-        map.set(K8sTableColumnKeysEnum.NODE, Array.from(node).filter(Boolean).join('|'));
+        item.namespace && namespace.add(item.namespace);
+        item.ingress && ingress.add(item.ingress);
+        item.service && service.add(item.service);
+        item.node && node.add(item.node);
       }
+      map.set(K8sTableColumnKeysEnum.CONTAINER, Array.from(container).filter(Boolean).join('|'));
+      map.set(K8sTableColumnKeysEnum.POD, Array.from(pod).filter(Boolean).join('|'));
+      map.set(K8sTableColumnKeysEnum.WORKLOAD, Array.from(workload).filter(Boolean).join('|'));
+      map.set(K8sTableColumnKeysEnum.NAMESPACE, Array.from(namespace).filter(Boolean).join('|'));
+      map.set(K8sTableColumnKeysEnum.WORKLOAD_KIND, Array.from(workloadKind).filter(Boolean).join('|'));
+      map.set(K8sTableColumnKeysEnum.INGRESS, Array.from(ingress).filter(Boolean).join('|'));
+      map.set(K8sTableColumnKeysEnum.SERVICE, Array.from(service).filter(Boolean).join('|'));
+      map.set(K8sTableColumnKeysEnum.NODE, Array.from(node).filter(Boolean).join('|'));
     }
     resourceList = new Set(data);
     resourceMap = map;
@@ -157,16 +187,19 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
 
   /**
    * @description 创建面板列表
+   * @param signal - 用于取消请求的 AbortSignal
    */
-  const createPanelList = async () => {
+  const createPanelList = async (signal: AbortSignal) => {
     if (!get(metricList)?.length) return;
-    await getResourceList();
+    const isWorkloadGroupBy = get(groupBy) === K8sTableColumnKeysEnum.WORKLOAD;
+    await getResourceList(isWorkloadGroupBy, signal);
+    if (signal.aborted) return;
     const panelList = [];
     const needAuxiliaryLine = resourceList.size === 1;
     const targetCreateContext: K8sBasePromqlGeneratorContext = {
       resourceMap: get(resourceMap),
       bcs_cluster_id: get(clusterId),
-      groupByField: get(groupBy),
+      groupByField: isWorkloadGroupBy ? K8sTableColumnKeysEnum.POD : get(groupBy),
       // @ts-expect-error
       filter_dict: get(filterBy),
     };
@@ -198,21 +231,29 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
 
   /**
    * @description 获取场景指标列表
+   * @param signal - 用于取消请求的 AbortSignal
    */
-  const getScenarioMetricList = async () => {
+  const getScenarioMetricList = async (signal: AbortSignal) => {
     if (!get(scene) || get(bizId) == null) {
       return;
     }
-    metricList.value = await getAlertK8sScenarioMetricList({ bizId: get(bizId), scenario: get(scene) });
+    const list = await getAlertK8sScenarioMetricList({ bizId: get(bizId), scenario: get(scene) }, { signal });
+    if (signal.aborted) return;
+    metricList.value = list;
   };
   watch(
     [() => get(scene), () => get(currentTarget)],
     async (newVal, oldVal) => {
+      abortController?.abort?.();
+      abortController = new AbortController();
+      const { signal } = abortController;
       loading.value = true;
-      if (newVal[0] !== oldVal[0]) {
-        await getScenarioMetricList();
+      if (newVal[0] !== oldVal?.[0]) {
+        await getScenarioMetricList(signal);
+        if (signal.aborted) return;
       }
-      await createPanelList();
+      await createPanelList(signal);
+      if (signal.aborted) return;
       loading.value = false;
     },
     { immediate: true }

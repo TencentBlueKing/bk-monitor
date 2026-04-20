@@ -11,8 +11,8 @@
 
   .create-step {
     position: fixed;
-    height: 50px;
-    top: 50px;
+    height: 48px;
+    top: 52px;
     right: 10px;
     z-index: 10;
   }
@@ -24,6 +24,8 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
+    background-color: #fff;
+    padding: 0 10px;
 
     .custom-icon {
       .bk-step-indicator {

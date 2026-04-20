@@ -6,27 +6,30 @@
 
 ### 请求参数
 
-| 字段       | 类型   | 描述     |
-| ---------- | ------ | -------- |
-| search_key | string | 查询字段 |
-| search_type | string | 插件类型 |
-| labels | string | 分类 |
-| order | string | 排序字段 |
-| status | string | 插件状态 |
-| bk_biz_id  | int    | 业务ID   |
-| page       | int    | 页数     |
-| page_size  | int    | 每页数量 |
+| 字段         | 类型   | 必填 | 描述                                                                 |
+|--------------|--------|------|----------------------------------------------------------------------|
+| bk_biz_id    | int    | 是   | 业务ID，为0时查询全业务插件（需要管理公共插件权限）                 |
+| page         | int    | 否   | 页数，-1表示不分页                                                   |
+| page_size    | int    | 否   | 每页数量                                                             |
+| search_key   | string | 否   | 查询关键字，支持搜索插件ID、创建人、更新人、插件展示名               |
+| plugin_type  | string | 否   | 插件类型过滤，如：Exporter、Script、JMX、DataDog、Pushgateway等      |
+| labels       | string | 否   | 标签过滤，多个标签用英文逗号分隔                                     |
+| order        | string | 否   | 排序字段，支持：plugin_id、create_user、update_user、status等，降序在字段前加"-" |
+| status       | string | 否   | 插件状态过滤，可选值：release（正式版）、debug（调试版）             |
+| with_virtual | string | 否   | 是否包含虚拟插件，可选值："true"、"false"                          |
 
 ### 请求参数示例
 ```json
 {
     "bk_biz_id": 1,
     "search_key": "xxxexporter",
-    "search_type": "Script",
-    "labels": "",
-    "order": "-status",
+    "plugin_type": "Script",
+    "labels": "os,application",
+    "order": "-update_time",
+    "status": "release",
     "page": 1,
-    "page_size": 10
+    "page_size": 10,
+    "with_virtual": "false"
 }
 ```
 

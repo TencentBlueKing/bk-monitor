@@ -464,6 +464,7 @@ export type IncidentTableItem = {
 export type QuickFilterItem = {
   children?: QuickFilterItem[];
   count?: number;
+  extCls?: string;
   icon?: string;
   iconColor?: string;
   id: string;

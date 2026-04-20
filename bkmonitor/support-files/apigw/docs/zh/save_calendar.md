@@ -9,7 +9,7 @@
 | ----------- | ------ | ---- | ------------ |
 | name        | String | 是   | 日历名称     |
 | deep_color  | String | 是   | 日历深色底色 |
-| Light_color | String | 是   | 日历浅色底色 |
+| light_color | String | 是   | 日历浅色底色 |
 
 ### 请求参数示例
 
@@ -29,6 +29,12 @@
 | code    | int    | 返回的状态码 |
 | message | string | 描述信息     |
 | data    | dict   | 日历的id     |
+
+#### data
+
+| 字段    | 类型  | 描述   |
+| ------- |-----|------|
+| id  | int | 日历id |
 
 ### 响应参数示例
 

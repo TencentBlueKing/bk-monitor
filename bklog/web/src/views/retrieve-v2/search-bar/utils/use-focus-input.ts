@@ -78,7 +78,6 @@ export default (
     if (popInstanceUtil?.isShown()) {
       return;
     }
-
     popInstanceUtil?.show(target);
   };
 

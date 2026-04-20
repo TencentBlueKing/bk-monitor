@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 
 from core.drf_resource import resource
@@ -23,35 +23,35 @@ class TestGetKubernetesWorkloadStatus:
         params = {"type": "Deployment", "bk_biz_id": 2}
         actual = resource.scene_view.get_kubernetes_workload_status(params)
         expect = {
-            'data': [
+            "data": [
                 {
-                    'borderColor': '#2dcb56',
-                    'color': '#2dcb56',
-                    'link': {
-                        'target': 'blank',
-                        'url': (
-                            '?bizId=2#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=overview'
-                            '&queryData={"selectorSearch":[{"workload_type":"Deployment"},{"status":"success"}]}'
+                    "borderColor": "#2dcb56",
+                    "color": "#2dcb56",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=2#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
                         ),
                     },
-                    'name': '健康',
-                    'value': 1,
+                    "name": "健康",
+                    "value": 1,
                 },
                 {
-                    'borderColor': '#ea3636',
-                    'color': '#ea3636',
-                    'link': {
-                        'target': 'blank',
-                        'url': (
-                            '?bizId=2#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=overview'
-                            '&queryData={"selectorSearch":[{"workload_type":"Deployment"},{"status":"failed"}]}'
+                    "borderColor": "#ea3636",
+                    "color": "#ea3636",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=2#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
                         ),
                     },
-                    'name': '异常',
-                    'value': 1,
+                    "name": "异常",
+                    "value": 1,
                 },
             ],
-            'name': 'Deployment',
+            "name": "Deployment",
         }
         assert actual == expect
 
@@ -66,34 +66,34 @@ class TestGetKubernetesWorkloadStatus:
         params = {"type": "Deployment", "bk_biz_id": -3}
         actual = resource.scene_view.get_kubernetes_workload_status(params)
         expect = {
-            'data': [
+            "data": [
                 {
-                    'borderColor': '#2dcb56',
-                    'color': '#2dcb56',
-                    'link': {
-                        'target': 'blank',
-                        'url': (
-                            '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=overview'
-                            '&queryData={"selectorSearch":[{"workload_type":"Deployment"},{"status":"success"}]}'
+                    "borderColor": "#2dcb56",
+                    "color": "#2dcb56",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=-3#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
                         ),
                     },
-                    'name': '健康',
-                    'value': 1,
+                    "name": "健康",
+                    "value": 1,
                 },
                 {
-                    'borderColor': '#ea3636',
-                    'color': '#ea3636',
-                    'link': {
-                        'target': 'blank',
-                        'url': (
-                            '?bizId=-3#/k8s?sceneId=kubernetes&dashboardId=workload&sceneType=overview'
-                            '&queryData={"selectorSearch":[{"workload_type":"Deployment"},{"status":"failed"}]}'
+                    "borderColor": "#ea3636",
+                    "color": "#ea3636",
+                    "link": {
+                        "target": "blank",
+                        "url": (
+                            '?bizId=-3#/k8s-new?cluster=&filterBy={}&groupBy=["namespace","workload"]'
+                            "&sceneId=kubernetes&scene=performance&activeTab=list"
                         ),
                     },
-                    'name': '异常',
-                    'value': 1,
+                    "name": "异常",
+                    "value": 1,
                 },
             ],
-            'name': 'Deployment',
+            "name": "Deployment",
         }
         assert actual == expect
