@@ -477,9 +477,12 @@ class Command(BaseCommand):
             raise CommandError("add-migrate-data-id-routes 动作必须提供 --data-id-infos")
 
         raw_payload = raw_data_id_infos
-        file_path = Path(raw_data_id_infos)
-        if file_path.exists():
-            raw_payload = file_path.read_text(encoding="utf-8")
+        try:
+            file_path = Path(raw_data_id_infos)
+            if file_path.exists():
+                raw_payload = file_path.read_text(encoding="utf-8")
+        except OSError:
+            pass
 
         try:
             loaded_payload = json.loads(raw_payload)

@@ -2616,7 +2616,7 @@ import fieldTable from './field-table';
       },
       /** 获取fields */
       async requestFields(indexSetId) {
-        if (!indexSetId) {
+        if (!indexSetId || this.curCollect.storage_cluster_id === -1 || this.curCollect.storage_cluster_id === null) {
           return;
         }
         const typeConversion = {

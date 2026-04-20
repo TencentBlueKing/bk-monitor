@@ -445,7 +445,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @transaction.atomic
-    def stop(self, **kwargs):
+    def stop(self, is_stop_index_set=True, **kwargs):
         """
         停止采集配置
         :return: task_id
@@ -453,10 +453,11 @@ class CollectorHandler:
         self.data.is_active = False
         self.data.save()
 
-        # 停止采集项
+        # 停止索引集
         if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.stop()
+            if is_stop_index_set:
+                index_set_handler = IndexSetHandler(self.data.index_set_id)
+                index_set_handler.stop()
 
         self._pre_stop()
 
@@ -496,6 +497,8 @@ class CollectorHandler:
             collector_config.update(
                 {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
             )
+            parent_index_set_ids = log_index_set_obj.get_parent_index_set_ids()
+            collector_config.update({"parent_index_set_ids": parent_index_set_ids})
         return collector_config
 
     def custom_update(
@@ -514,6 +517,7 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
+        parent_index_set_ids=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -545,6 +549,9 @@ class CollectorHandler:
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
+
+        # 更新归属索引集
+        IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         custom_config = get_custom(self.data.custom_type)
         if etl_params and fields:
@@ -834,6 +841,20 @@ class CollectorHandler:
             cluster_infos = {}
 
         time_zone = get_local_param("time_zone")
+
+        index_set_ids = list(set([item.get("index_set_id") for item in data if item.get("index_set_id", None)]))
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+        index_set_obj_dict = {obj.index_set_id: obj for obj in index_set_objs}
+
+        abnormal_index_set_ids = set(
+            LogIndexSetData.objects.filter(
+                index_set_id__in=index_set_ids,
+            )
+            .exclude(apply_status="normal")
+            .values_list("index_set_id", flat=True)
+            .distinct()
+        )
+
         for _data in data:
             cluster_info = cluster_infos.get(
                 _data["table_id"],
@@ -841,7 +862,9 @@ class CollectorHandler:
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
             _data["storage_cluster_name"] = cluster_info["cluster_config"].get("cluster_name", "")
-            _data["storage_display_name"] = cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
+            _data["storage_display_name"] = (
+                cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
+            )
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):
@@ -867,12 +890,13 @@ class CollectorHandler:
             )
 
             # 是否可以检索
-            if _data["is_active"] and _data["index_set_id"]:
-                _data["is_search"] = (
-                    not LogIndexSetData.objects.filter(index_set_id=_data["index_set_id"])
-                    .exclude(apply_status="normal")
-                    .exists()
-                )
+            if _data.get("index_set_id"):
+                index_set_obj = index_set_obj_dict.get(_data["index_set_id"])
+
+                if index_set_obj and index_set_obj.is_active:
+                    _data["is_search"] = _data["index_set_id"] not in abnormal_index_set_ids
+                else:
+                    _data["is_search"] = False
             else:
                 _data["is_search"] = False
 
@@ -1313,6 +1337,7 @@ class CollectorHandler:
         sort_fields=None,
         target_fields=None,
         collector_scenario_id=CollectorScenarioEnum.CUSTOM.value,
+        parent_index_set_ids=None,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -1371,6 +1396,11 @@ class CollectorHandler:
                 bk_biz_id=bkdata_biz_id,
             )
             self.data.save()
+
+            # 创建索引集，并添加到归属索引集中
+            index_set = self.data.create_index_set()
+            if parent_index_set_ids:
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
 
         # add user_operation_record
         operation_record = {

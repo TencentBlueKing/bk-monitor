@@ -486,7 +486,15 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
 
             ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
             if ts_group and ts_group.metric_group_dimensions:
-                metric_group_dimensions = [dim.get("key") for dim in ts_group.metric_group_dimensions if dim.get("key")]
+                metric_group_dimensions = []
+                for dim in ts_group.metric_group_dimensions:
+                    key = dim.get("key")
+                    if not key:
+                        continue
+                    if "default_value" in dim and dim["default_value"] is not None:
+                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
+                    else:
+                        metric_group_dimensions.append(key)
                 render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
                 render_params["dd_version"] = "v2"
 

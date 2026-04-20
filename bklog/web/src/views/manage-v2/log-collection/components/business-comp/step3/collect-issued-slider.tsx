@@ -84,6 +84,40 @@ interface IRetryResponse {
 }
 
 /**
+ * 容器配置项数据接口
+ */
+interface IContainerConfigItem {
+  /** 容器采集配置ID */
+  container_collector_config_id: string | number;
+  /** 名称 */
+  name: string;
+  /** 状态 */
+  status: HostStatus;
+  /** 详情信息 */
+  message?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 容器渲染项数据接口
+ */
+interface IContainerRenderItem {
+  /** 采集配置名称 */
+  collector_config_name: string;
+  /** 是否展开表格 */
+  isShowTable: boolean;
+  /** 全部列表 */
+  all: IContainerConfigItem[];
+  /** 成功列表 */
+  success: IContainerConfigItem[];
+  /** 失败列表 */
+  failed: IContainerConfigItem[];
+  /** 执行中列表 */
+  running: IContainerConfigItem[];
+  [key: string]: unknown;
+}
+
+/**
  * @description: 采集下发侧边栏组件
  * 用于展示采集下发状态，支持单条和批量重试功能
  */
@@ -104,11 +138,19 @@ export default defineComponent({
     },
     config: {
       type: Object,
-      default: () => {},
+      default: () => { },
     },
     collectorConfigId: {
       type: Number,
       default: undefined,
+    },
+    stopTypeKey: {
+      type: Boolean,
+      default: true,
+    },
+    isContainer: {
+      type: Boolean,
+      default: false,
     },
   },
 
@@ -160,6 +202,32 @@ export default defineComponent({
     ]);
     const isHandle = ref(false);
 
+    /** ========== 容器采集状态相关 ========== */
+    /** 容器状态导航当前激活项 */
+    const containerNavActive = ref<string>('all');
+    /** 容器渲染列表 */
+    const containerRenderList = ref<IContainerRenderItem[]>([]);
+    /** 容器状态轮询定时器 */
+    const containerTimer = ref<ReturnType<typeof setInterval> | null>(null);
+    /** 容器状态下所有失败的config_id列表 */
+    const containerAllFailedIDList = ref<(string | number)[]>([]);
+    /** 容器状态导航按钮列表 */
+    const containerNavBtnList = ref([
+      { id: 'all', listNum: 0 },
+      { id: 'success', listNum: 0 },
+      { id: 'failed', listNum: 0 },
+      { id: 'running', listNum: 0 },
+    ]);
+    /** 容器状态名称映射 */
+    const containerStatusNameMap = computed(() => ({
+      all: t('全部'),
+      success: t('正常'),
+      failed: t('失败'),
+      running: t('执行中'),
+    }));
+    /** 容器是否还有执行中的状态 */
+    const containerHasRunning = computed(() => containerNavBtnList.value[3].listNum > 0);
+
     const collectionName = computed(() => props.config.name);
     const isRunning = computed(() => tabList.value.find(item => item.key === 'running').count > 0);
 
@@ -207,6 +275,116 @@ export default defineComponent({
       }, 3000);
     };
 
+    /** ========== 容器采集状态方法 ========== */
+
+    /**
+     * 容器日志list，与轮询共用
+     */
+    const getContainerList = (isPolling = false) => {
+      if (!isPolling) {
+        loading.value = true;
+      }
+      const params = { collector_config_id: props.collectorConfigId };
+      $http
+        .request('collect/getIssuedClusterList', {
+          params,
+          query: { task_id_list: curTaskIdList.value.join(',') },
+        })
+        .then(res => {
+          const data = structuredClone(res.data.contents) || [];
+          containerAllFailedIDList.value = [];
+          containerNavBtnList.value.forEach(item => (item.listNum = 0));
+          containerRenderList.value = data.reduce((pre: IContainerRenderItem[], cur: any) => {
+            cur.isShowTable = true;
+            containerNavBtnList.value.forEach(item => (cur[item.id] = []));
+            if (cur.child.length) {
+              cur.all = cur.child;
+              for (const childItem of cur.child) {
+                childItem.status = childItem.status === 'PENDING' ? 'running' : childItem.status.toLowerCase();
+                if (childItem.status === 'failed') {
+                  containerAllFailedIDList.value.push(childItem.container_collector_config_id);
+                }
+                cur[childItem.status].push(childItem);
+              }
+              delete cur.child;
+            }
+            containerNavBtnList.value.forEach(item => (item.listNum += cur[item.id].length));
+            pre.push(cur);
+            return pre;
+          }, []);
+        })
+        .catch(err => {
+          console.warn(err);
+        })
+        .finally(() => {
+          loading.value = false;
+          if (isPolling && !containerHasRunning.value) {
+            stopContainerPolling();
+          }
+        });
+    };
+
+    /**
+     * 容器状态轮询
+     */
+    const startContainerPolling = () => {
+      stopContainerPolling();
+      containerTimer.value = setInterval(() => {
+        getContainerList(true);
+      }, 5000);
+    };
+
+    const stopContainerPolling = () => {
+      if (containerTimer.value) {
+        clearInterval(containerTimer.value);
+        containerTimer.value = null;
+      }
+    };
+
+    /**
+     * 容器重试
+     */
+    const containerRetry = (alone = '', renderItem?: IContainerRenderItem, row?: IContainerConfigItem) => {
+      const retrySubmitList = alone ? [row!.container_collector_config_id] : containerAllFailedIDList.value;
+      // ID列表为空或者全局失败数为0时不请求
+      if (!retrySubmitList.length || !containerNavBtnList.value[2].listNum) return;
+      if (row && renderItem) {
+        row.status = 'running';
+        renderItem.running.push(row);
+        const renderIndex = renderItem.failed.findIndex(item => item.name === row.name);
+        renderItem.failed.splice(renderIndex, 1);
+        containerNavBtnList.value[3].listNum += 1;
+        containerNavBtnList.value[2].listNum -= 1;
+      } else {
+        // 批量重试：清空失败，将所有的失败添加到执行中
+        containerRenderList.value.forEach(tableItem => {
+          tableItem.all.forEach(item => {
+            if (item.status === 'failed') item.status = 'running';
+          });
+          tableItem.failed.forEach(item => (item.status = 'running'));
+          tableItem.running.push(...tableItem.failed);
+          tableItem.failed = [];
+        });
+        containerNavBtnList.value[3].listNum += containerNavBtnList.value[2].listNum;
+        containerNavBtnList.value[2].listNum = 0;
+      }
+      $http
+        .request('source/retryList', {
+          params: {
+            collector_config_id: props.collectorConfigId,
+          },
+          data: {
+            instance_id_list: retrySubmitList,
+          },
+        })
+        .then(() => {
+          startContainerPolling();
+        })
+        .catch(e => {
+          console.warn(e);
+        });
+    };
+
     /**
      *  集群list，与轮询共用
      */
@@ -223,7 +401,7 @@ export default defineComponent({
       try {
         const res = await $http.request('collect/getIssuedClusterList', {
           params,
-          query: { task_id_list: curTaskIdList.value },
+          query: { task_id_list: curTaskIdList.value.join(',') },
         });
 
         const data = res.data.contents || [];
@@ -279,6 +457,9 @@ export default defineComponent({
           params: {
             collector_config_id: props.collectorConfigId,
           },
+          data: {
+            is_stop_index_set: props.stopTypeKey,
+          },
         })
         .then(res => {
           if (res.result) {
@@ -297,13 +478,18 @@ export default defineComponent({
       () => props.isShow,
       (val: boolean) => {
         if (val) {
-          for (const id of props.config?.task_id_list ?? []) {
-            curTaskIdList.value.push(id);
+          curTaskIdList.value = [...new Set([...(props.config?.task_id_list ?? [])])];
+          if (props.isContainer) {
+            // 容器环境：使用容器状态逻辑
+            getContainerList();
+            startContainerPolling();
+          } else {
+            requestIssuedClusterList();
           }
-          requestIssuedClusterList();
         } else {
           // 侧边栏关闭时停止轮询
           stopStatusPolling();
+          stopContainerPolling();
         }
       },
       {
@@ -395,10 +581,8 @@ export default defineComponent({
         })
         .then((res: IRetryResponse) => {
           if (res.data?.length) {
-            // 将返回的任务ID添加到任务列表
-            res.data.forEach((taskId: string | number) => {
-              curTaskIdList.value.push(taskId);
-            });
+            // 将返回的任务ID添加到任务列表（去重）
+            curTaskIdList.value = [...new Set([...curTaskIdList.value, ...res.data])];
             // 启动状态轮询，监控重试结果
             startStatusPolling();
           }
@@ -451,9 +635,112 @@ export default defineComponent({
       </div>
     );
 
+    /**
+     * 渲染容器采集状态内容
+     */
+    const renderContainerStatus = () => (
+      <div class='container-status-content'>
+        <div class='container-nav-section'>
+          <span class='container-tab'>
+            {containerNavBtnList.value.map(item => (
+              <span
+                class={{
+                  'container-tab-item': true,
+                  active: item.id === containerNavActive.value,
+                  disabled: item.listNum === 0 && item.id !== 'all',
+                }}
+                key={item.id}
+                on-click={() => {
+                  if (item.listNum !== 0 || item.id === 'all') {
+                    containerNavActive.value = item.id;
+                  }
+                }}
+              >
+                {['success', 'failed'].includes(item.id) && <span class={`item-circle ${item.id}`} />}
+                {item.id === 'running' && <i class='running' />}
+                {containerStatusNameMap.value[item.id]}（{item.listNum}）
+              </span>
+            ))}
+          </span>
+          <bk-button on-click={() => containerRetry()}>
+            {t('失败批量重试')}
+          </bk-button>
+        </div>
+        <div class='container-table-section'>
+          {containerRenderList.value.map((renderItem, renderIndex) => (
+            <div class='container-table-item' key={renderIndex}>
+              <div
+                class={`container-table-title ${renderItem.isShowTable ? '' : 'close-table'}`}
+                on-click={() => {
+                  renderItem.isShowTable = !renderItem.isShowTable;
+                }}
+              >
+                <span class='bk-icon icon-down-shape' />
+                <span>{renderItem.collector_config_name}</span>
+              </div>
+              <div class={['container-table-main', renderItem.isShowTable ? 'show' : 'hidden']}>
+                <bk-table
+                  data={renderItem[containerNavActive.value] as IContainerConfigItem[]}
+                  size='small'
+                >
+                  <bk-table-column
+                    width={80}
+                    label='id'
+                    prop='container_collector_config_id'
+                  />
+                  <bk-table-column
+                    label={t('名称')}
+                    prop='name'
+                  />
+                  <bk-table-column
+                    label={t('状态')}
+                    scopedSlots={{
+                      default: ({ row }: { row: IContainerConfigItem }) => (
+                        <div class='container-status-cell'>
+                          {row.status === 'running' ? (
+                            <i class='running' />
+                          ) : (
+                            <span class={`item-circle ${row.status}`} />
+                          )}
+                          <span>{containerStatusNameMap.value[row.status]}</span>
+                        </div>
+                      ),
+                    }}
+                  />
+                  <bk-table-column
+                    label={t('详情')}
+                    prop='message'
+                  />
+                  <bk-table-column
+                    width={80}
+                    scopedSlots={{
+                      default: ({ row }: { row: IContainerConfigItem }) => (
+                        row.status === 'failed' ? (
+                          <a
+                            class='container-retry-link'
+                            href='javascript: ;'
+                            on-click={(e: Event) => {
+                              e.stopPropagation();
+                              containerRetry('alone', renderItem, row);
+                            }}
+                          >
+                            {t('重试')}
+                          </a>
+                        ) : null
+                      ),
+                    }}
+                  />
+                </bk-table>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
     const renderContent = () => (
       <div class='collect-issued-slider-content'>
-        {errorNum.value > 0 && (
+        {!props.isContainer && errorNum.value > 0 && (
           <div class='collect-issued-slider-alert'>
             <i class='bklog-icon bklog-alert alert-icon' />
             {t('采集下发存在失败，请点击')}
@@ -470,20 +757,24 @@ export default defineComponent({
           class='content-host'
           style={{ height: props.isStopCollection ? 'calc(100% - 90px)' : 'calc(100% - 44px)' }}
         >
-          <HostDetail
-            list={tableListAll.value as IClusterItem[]}
-            loading={loading.value}
-            tabList={tabList.value}
-            collectorConfigId={props.collectorConfigId}
-            on-retry={(row: IHostItem, item: IClusterItem) => handleRestart(row, item)}
-          />
+          {props.isContainer ? (
+            renderContainerStatus()
+          ) : (
+            <HostDetail
+              list={tableListAll.value as IClusterItem[]}
+              loading={loading.value}
+              tabList={tabList.value}
+              collectorConfigId={props.collectorConfigId}
+              on-retry={(row: IHostItem, item: IClusterItem) => handleRestart(row, item)}
+            />
+          )}
         </div>
         {props.isStopCollection && !loading.value && (
           <div class='content-footer'>
             <bk-button
               theme='primary'
               class='mr-12'
-              disabled={isRunning.value}
+              disabled={props.isContainer ? containerHasRunning.value : isRunning.value}
               on-click={handleStop}
               loading={isHandle.value}
             >

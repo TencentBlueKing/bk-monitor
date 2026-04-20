@@ -116,6 +116,42 @@ export const introduceTemplateData = {
       ],
     },
   },
+  // RUM 真实用户监控
+  rum: {
+    is_no_data: true,
+    is_no_source: true,
+    data: {
+      title: 'RUM',
+      subTitle:
+        'RUM 即真实用户监控，通过采集用户在浏览器、移动端等真实访问过程中的性能、错误和行为数据，帮助定位页面加载慢、接口异常、白屏崩溃以及用户体验问题，尤其适用于前端应用和终端场景下的问题发现与分析。',
+      introduce: [
+        '通过页面性能指标，了解首屏加载、资源加载、接口耗时等用户访问体验',
+        '通过 JS 报错、接口异常等数据，快速发现并定位前端稳定性问题',
+        '通过用户行为与会话回放，还原用户操作，辅助分析问题影响与根因',
+        '结合告警能力，对性能劣化和异常问题进行及时发现与响应',
+      ],
+      buttons: [
+        {
+          name: '新建应用',
+          url: '#/trace/rum',
+        },
+        {
+          name: 'DEMO',
+          url: '',
+        },
+      ],
+      links: [
+        {
+          name: '产品白皮书',
+          url: '产品白皮书/scene-rum/rum_monitor_overview.md',
+        },
+        {
+          name: '接入指引',
+          url: '产品白皮书/scene-rum/rum_access_guide.md',
+        },
+      ],
+    },
+  },
   // 应用监控
   'apm-home': {
     is_no_data: true,

@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,31 +23,47 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { defineComponent } from 'vue';
 
-import { Button } from 'bkui-vue';
-import { useRoute, useRouter } from 'vue-router';
+// import useLocale from '@/hooks/use-locale';
+import { useRoute, useRouter } from 'vue-router/composables';
+import useStore from '@/hooks/use-store';
+import StepClean from '../log-collection/components/create-operation/step3-clean';
 
-import './rum-app-config.scss';
+import './create-clean.scss';
 
 export default defineComponent({
-  name: 'RumAppConfigPage',
+  name: 'CreateClean',
+
   setup() {
+    // const { t } = useLocale();
     const route = useRoute();
     const router = useRouter();
-    return () => (
-      <div class='rum-app-config-page'>
-        <div class='rum-app-config-page__bar'>
-          <Button
-            theme='primary'
-            text
-            onClick={() => router.push({ name: 'rum' })}
-          >
-            返回应用列表
-          </Button>
+    const store = useStore();
+
+    const goList = () => {
+      const { backRoute, ...reset } = route.query;
+      const routeName = 'log-clean-list';
+      router.push({
+        name: routeName,
+        query: {
+          ...reset,
+          spaceUid: store.state.spaceUid,
+        },
+      });
+    };
+
+    return () => {
+      return (
+        <div class='v2-create-clean-main'>
+          <StepClean
+            isCleanField={true}
+            on-change-submit={goList}
+            on-cancel={goList}
+          />
         </div>
-        <div class='rum-app-config-page__body'>应用配置（占位） · appId = {String(route.params.appId)}</div>
-      </div>
-    );
+      );
+    };
   },
 });
