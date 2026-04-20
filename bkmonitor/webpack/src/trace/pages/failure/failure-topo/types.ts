@@ -133,6 +133,11 @@ export interface IncidentDetailData {
   incident_id: string;
 }
 
+export interface IncidentResults {
+  [key: string]: any;
+  incident_topology: { enabled: boolean; status: string };
+}
+
 export interface IPosition {
   left: number;
   top: number;
