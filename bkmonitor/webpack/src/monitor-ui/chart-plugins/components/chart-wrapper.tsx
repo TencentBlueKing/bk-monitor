@@ -631,8 +631,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'alarm_template':
         return <AlarmTemplate />;
       case 'alarm_center':
-        return <ApmTraceExplore />
-        // return <ApmAlarmCenter />
+        // return <ApmTraceExplore />
+        return <ApmAlarmCenter />
       // case 'trace_explore':
       //   return <ApmTraceExplore />
       // 不需要报错显示

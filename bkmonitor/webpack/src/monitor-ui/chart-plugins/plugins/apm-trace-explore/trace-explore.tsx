@@ -42,9 +42,9 @@ export default class TraceExploreContainer extends tsc<TraceExploreContainerProp
 
     const savedI18n = window.i18n;
     // 本地测试使用
-    const { mount } = await import('monitor-trace-explore');
+    // const { mount } = await import('monitor-trace-explore');
     // 线上使用
-    // const { mount } = await import('@blueking/monitor-trace-explore');
+    const { mount } = await import('@blueking/monitor-trace-explore');
     window.i18n = savedI18n;
 
     if (this.isUnmounted) return;
