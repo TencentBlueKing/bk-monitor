@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 // import { getPluginDetail } from './mock'
 import { getEventPluginInstance } from 'monitor-api/modules/event_plugin';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { random } from 'monitor-common/utils/utils';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
@@ -281,8 +282,9 @@ export default class EventSourceDetail extends tsc<IDetail> {
     this.emitShowChange(v);
   }
   viewEvent() {
-    const url = location.href.replace(location.hash, '#/event-center');
-    window.open(`${url}?queryString=${i18n.t('告警来源')} : "${this.baseInfo.pluginId}"`, '_blank');
+    openAlarmCenter({
+      queryString: `${i18n.t('告警来源')} : "${this.baseInfo.pluginId}"`,
+    });
   }
 
   @Emit('install')

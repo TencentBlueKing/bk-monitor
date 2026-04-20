@@ -66,6 +66,10 @@
 
 <script>
 import dayjs from 'dayjs';
+import {
+  getAlarmCenterDetailRouteLocation,
+  getAlarmCenterRouteLocation,
+} from 'monitor-common/utils/alarm-center-router';
 
 import { gotoPageMixin } from '../../../common/mixins';
 import SvgIcon from '../../../components/svg-icon/svg-icon';
@@ -89,22 +93,16 @@ export default {
       return dayjs(dayjs(t * 1000).format('YYYYMMDDHHmmss'), 'YYYYMMDDHHmmss').fromNow();
     },
     gotoPageHandle() {
-      this.$router.push({
-        name: 'event-center',
-        query: {
+      this.$router.push(
+        getAlarmCenterRouteLocation({
           activeFilterId: 'NOT_SHIELDED_ABNORMAL',
           from: 'now-7d',
           to: 'now',
-        },
-      });
+        })
+      );
     },
     gotoDetailHandle(id) {
-      this.$router.push({
-        name: 'event-center-detail',
-        params: {
-          id,
-        },
-      });
+      this.$router.push(getAlarmCenterDetailRouteLocation(id));
     },
   },
 };

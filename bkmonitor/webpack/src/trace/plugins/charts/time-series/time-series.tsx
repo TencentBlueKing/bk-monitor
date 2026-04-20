@@ -41,6 +41,7 @@ import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/cancel';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
@@ -475,14 +476,11 @@ export default defineComponent({
           window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
           break;
         case 2:
-          window.open(
-            location.href.replace(
-              location.hash,
-              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${
-                timeRange?.value[0]
-              }&to=${timeRange?.value[1]}`
-            )
-          );
+          openAlarmCenter({
+            queryString: metricIds.map(item => `metric : "${item}"`).join(' AND '),
+            from: timeRange?.value[0],
+            to: timeRange?.value[1],
+          });
           break;
       }
     }

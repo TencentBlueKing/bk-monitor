@@ -771,9 +771,10 @@ export class PanelModel implements IPanelModel {
     }
     let promqlString = '';
     for (const promql of promqlSet) {
-      promqlString = `promql=${promql}`;
+      promqlString = promql;
     }
-    return promqlString || `queryString=${queryString}`;
+    if (!promqlString && !queryString) return undefined;
+    return promqlString ? { promql: promqlString } : { queryString };
   }
   public toStrategy() {
     const queries = this.targets

@@ -29,6 +29,7 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/cancel';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -1212,14 +1213,15 @@ export class LineChart
       case 2:
         {
           const eventTargetStr = alarmStatus.targetStr;
-          window.open(
-            location.href.replace(
-              location.hash,
-              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
-                eventTargetStr ? ` AND ${eventTargetStr}` : ''
-              }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-            )
-          );
+          const queryString = `${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+            eventTargetStr ? ` AND ${eventTargetStr}` : ''
+          }`;
+          openAlarmCenter({
+            queryString,
+            activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+            from: this.timeRange[0],
+            to: this.timeRange[1],
+          });
         }
         break;
     }
