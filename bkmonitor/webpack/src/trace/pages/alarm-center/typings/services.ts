@@ -302,7 +302,10 @@ export type CommonFilterParams = {
 
 export type FilterTableResponse<T> = {
   data: T[];
+  enabled_spaces?: number[];
+  greyed_spaces?: number[];
   total: number;
+  wx_cs_link?: string;
 };
 
 /**
