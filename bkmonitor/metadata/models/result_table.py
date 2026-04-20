@@ -2834,8 +2834,9 @@ class LogV4DataLinkOption(pydantic.BaseModel):
 
         storage_keys: list[str] = pydantic.Field(description="存储键")
         json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
+        original_json_fields: list[str] = pydantic.Field(description="原始JSON字段列表", default_factory=list)
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
-        flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒")
+        flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
 
     class CleanRule(pydantic.BaseModel):
         """清洗规则"""
@@ -2845,8 +2846,8 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         operator: dict[str, Any] = pydantic.Field(description="操作符")
 
     clean_rules: list[CleanRule] = pydantic.Field(min_length=1, description="清洗规则")
-    es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置")
-    doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置")
+    es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置", default=None)
+    doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置", default=None)
 
     @pydantic.model_validator(mode="after")
     def validate_config(self) -> Self:

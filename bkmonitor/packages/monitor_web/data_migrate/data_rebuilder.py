@@ -32,7 +32,6 @@ from metadata.models import (
     TimeSeriesGroup,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.data_link import DataIdConfig
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.models.space.constants import EtlConfigs
@@ -83,11 +82,6 @@ def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
 
 def _register_data_source(bk_biz_id: int, data_source: DataSource, need_register_to_bkbase: bool = True):
     """注册数据源到gse和bkbase"""
-
-    # 如果已经创建过DataIdConfig，则跳过注册
-    if DataIdConfig.objects.filter(bk_tenant_id=data_source.bk_tenant_id, bk_data_id=data_source.bk_data_id).exists():
-        print(f"data_source {data_source.bk_data_id} already registered to bkbase, skip")
-        return
 
     # 查询当前存量的路由
     query_params = {
@@ -379,10 +373,7 @@ def rebuild_time_series_group(
     table_ids = list(time_series_groups.values_list("table_id", flat=True))
 
     # 排除已经创建过DataIdConfig的数据源
-    data_id_configs = DataIdConfig.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids)
-    data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids).exclude(
-        bk_data_id__in=data_id_configs.values_list("bk_data_id", flat=True)
-    )
+    data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids)
     data_sources.update(mq_cluster_id=kafka_cluster.cluster_id)
 
     for data_source in data_sources:

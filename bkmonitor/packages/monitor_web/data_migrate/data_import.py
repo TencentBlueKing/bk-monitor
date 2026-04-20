@@ -62,6 +62,7 @@ def _cleanup_biz_related_configs(bk_biz_ids: Sequence[int]) -> None:
         SceneViewModel.objects.filter(bk_biz_id=bk_biz_id).delete()
         DefaultStrategyBizAccessModel.objects.filter(bk_biz_id=bk_biz_id).delete()
         ApplicationConfig.objects.filter(cc_biz_id=bk_biz_id).delete()
+        DefaultStrategyBizAccessModel.objects.filter(bk_biz_id=bk_biz_id).delete()
 
 
 def _sync_close_records_to_application_config(
