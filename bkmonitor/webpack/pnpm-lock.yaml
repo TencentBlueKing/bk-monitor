@@ -163,6 +163,9 @@ importers:
       '@blueking/monitor-alarm-center':
         specifier: 0.0.5
         version: 0.0.5(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)
+      '@blueking/monitor-trace-explore':
+        specifier: 0.0.1
+        version: 0.0.1(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -1672,6 +1675,9 @@ packages:
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
+
+  '@blueking/monitor-trace-explore@0.0.1':
+    resolution: {integrity: sha512-tmnLH2yk/jJU9ZiS3gVryvmq6fDBGnLwi6rWLW/c7Elin6cLhW+SqsS37Sj6CPwy1mLMFuGxqIdezsl7D311Ug==}
 
   '@blueking/monitor-trace-log@2.0.9':
     resolution: {integrity: sha512-C9bsj0lhVnmf1ezGtrVh7l5dq6IjEsHXXRxNVmR7WLXRe/7e9kXdnARuMs1gVQTRwDHcxJ5xwUJqdPc8GTQeaQ==}
@@ -10524,6 +10530,17 @@ snapshots:
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
+
+  '@blueking/monitor-trace-explore@0.0.1(highlight.js@11.11.1)(typescript@5.9.3)':
+    dependencies:
+      '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
+      bkui-vue: 2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))
+      dayjs: 1.11.18
+      vue: 3.5.29(typescript@5.9.3)
+      vue-tippy: 6.7.1(vue@3.5.29(typescript@5.9.3))
+    transitivePeerDependencies:
+      - highlight.js
+      - typescript
 
   '@blueking/monitor-trace-log@2.0.9': {}
 
