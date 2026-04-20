@@ -176,8 +176,11 @@ class GrokHandler:
         """
         更新 Grok 模式
         """
-        self.validate_references_exist(params["pattern"])
         grok_info = GrokInfo.objects.filter(id=params["id"]).first()
+        if not grok_info or grok_info.is_builtin:
+            return
+
+        self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(grok_info.name, params["pattern"])
 
         update_fields = ["pattern", "sample", "description"]

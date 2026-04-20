@@ -22,8 +22,10 @@ the project delivered to anyone in the future.
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
-from apps.iam.handlers.drf import ViewBusinessPermission
+from apps.iam import ActionEnum
+from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
 from apps.log_databus.handlers.grok.handler import GrokHandler
+from apps.log_databus.models import GrokInfo
 from apps.log_databus.serializers import (
     GrokCreateSerializer,
     GrokDebugSerializer,
@@ -32,6 +34,7 @@ from apps.log_databus.serializers import (
     GrokUpdatedByListSerializer,
 )
 from apps.utils.drf import list_route
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class GrokViewSet(APIViewSet):
@@ -42,6 +45,10 @@ class GrokViewSet(APIViewSet):
     lookup_field = "grok_info_id"
 
     def get_permissions(self):
+        if self.action in ["update", "destroy"]:
+            instance = GrokInfo.objects.get(id=self.kwargs["grok_info_id"])
+            space_uid = bk_biz_id_to_space_uid(instance.bk_biz_id)
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS], space_uid=space_uid)]
         return [ViewBusinessPermission()]
 
     def list(self, request, *args, **kwargs):
