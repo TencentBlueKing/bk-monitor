@@ -157,6 +157,7 @@ class UpdatePriorityResource(Resource):
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
+            "status": issue.status,
             "priority": issue.priority,
             "update_time": issue.update_time,
         }
@@ -183,6 +184,7 @@ class AddFollowUpResource(Resource):
             "bk_biz_id": issue.bk_biz_id,
             "activity_id": activity.id,
             "issue_id": issue.id,
+            "status": issue.status,
             "activity_type": IssueActivityType.COMMENT,
             "content": content,
             "operator": operator,
