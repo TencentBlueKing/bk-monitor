@@ -23,7 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IRumAppConfig } from '../typings/rum-app-config';
+import { request } from 'monitor-api/base';
+
+import type { IIndicesInfo, IRumAppConfig, IStorageField, IStorageInfo } from '../typings/rum-app-config';
+
+/** 获取存储信息 */
+export const storageInfo = request('post', 'rum/meta/application/storage_info/');
+
+/** 获取索引信息 */
+export const indicesInfo = request('post', 'rum/meta/application/indices_info/');
+
+/** 获取存储字段 */
+export const storageField = request('post', 'rum/meta/application/storage_field/');
+
+/**
+ * ============================================
+ * 索引信息相关接口 Mock
+ * ============================================
+ */
+
+/**
+ * 索引信息 Mock 数据
+ */
+export const INDICES_INFO_MOCK: IIndicesInfo = {
+  docs_count: 1250000,
+  docs_deleted: 500,
+  health: 'green',
+  index: 'rum_span_2025.01.15',
+  pri: 5,
+  pri_store_size: 1073741824,
+  rep: 1,
+  status: 'open',
+  store_size: 2147483648,
+  uuid: 'a1b2c3d4e5f6',
+};
+
+/**
+ * ============================================
+ * RUM 应用配置相关接口 Mock
+ * ============================================
+ */
 
 /**
  * RUM 应用配置 Mock 数据
@@ -67,6 +106,90 @@ export const RUM_APP_CONFIG_MOCK: IRumAppConfig = {
 };
 
 /**
+ * ============================================
+ * 存储字段相关接口 Mock
+ * ============================================
+ */
+
+/**
+ * 存储字段 Mock 数据列表
+ */
+export const STORAGE_FIELD_LIST_MOCK: IStorageField[] = [
+  {
+    analysis_field: false,
+    ch_field_name: 'Span ID',
+    field_name: 'span_id',
+    field_type: 'keyword',
+    time_field: false,
+  },
+  {
+    analysis_field: false,
+    ch_field_name: 'Trace ID',
+    field_name: 'trace_id',
+    field_type: 'keyword',
+    time_field: false,
+  },
+  {
+    analysis_field: false,
+    ch_field_name: '时间戳',
+    field_name: 'timestamp',
+    field_type: 'date',
+    time_field: true,
+  },
+  {
+    analysis_field: true,
+    ch_field_name: '服务名',
+    field_name: 'service_name',
+    field_type: 'text',
+    time_field: false,
+  },
+  {
+    analysis_field: true,
+    ch_field_name: '操作名',
+    field_name: 'operation_name',
+    field_type: 'text',
+    time_field: false,
+  },
+];
+
+/**
+ * ============================================
+ * 存储信息相关接口 Mock
+ * ============================================
+ */
+
+/**
+ * 存储信息 Mock 数据
+ */
+export const STORAGE_INFO_MOCK: IStorageInfo = {
+  es_number_of_replicas: 1,
+  es_retention: 7,
+  es_shards: 3,
+  es_slice_size: 100,
+  es_storage_cluster: 'es-cluster-01',
+};
+
+/**
+ * ============================================
+ * Mock 函数
+ * ============================================
+ */
+
+/**
+ * 获取索引信息
+ * @param params 请求参数 { app_name: string; bk_biz_id: number }
+ * @returns Promise<IIndicesInfo>
+ */
+export function getIndicesInfoMock(params: { app_name: string; bk_biz_id: number }): Promise<IIndicesInfo> {
+  console.log('getIndicesInfoMock params:', params);
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({ ...INDICES_INFO_MOCK });
+    }, 300);
+  });
+}
+
+/**
  * 获取 RUM 应用配置
  * @returns Promise<IRumAppConfig>
  */
@@ -83,35 +206,29 @@ export function getRumAppConfigMock(params: { app_name: string; is_get_detail: b
 }
 
 /**
- * 切换应用总开关
- * @param applicationId 应用 ID
- * @param isEnabled 是否启用
- * @returns Promise<{ success: boolean }>
+ * 获取存储字段列表
+ * @param params 请求参数 { bk_biz_id: number }
+ * @returns Promise<IStorageField[]>
  */
-export function toggleRumAppStatus(applicationId: number, isEnabled: boolean): Promise<{ success: boolean }> {
+export function getStorageFieldMock(params: { bk_biz_id: number }): Promise<IStorageField[]> {
+  console.log('getStorageFieldMock params:', params);
   return new Promise(resolve => {
     setTimeout(() => {
-      console.log(`应用 ${applicationId} 状态切换为: ${isEnabled}`);
-      resolve({ success: true });
-    }, 200);
+      resolve([...STORAGE_FIELD_LIST_MOCK]);
+    }, 300);
   });
 }
 
 /**
- * 更新 RUM 应用配置
- * @param applicationId 应用 ID
- * @param config 应用配置
- * @returns Promise<IRumAppConfig>
+ * 获取存储信息
+ * @param params 请求参数 { bk_biz_id: number; app_name: string }
+ * @returns Promise<IStorageInfo>
  */
-export function updateRumAppConfig(applicationId: number, config: Partial<IRumAppConfig>): Promise<IRumAppConfig> {
+export function getStorageInfoMock(params: { app_name: string; bk_biz_id: number }): Promise<IStorageInfo> {
+  console.log('getStorageInfoMock params:', params);
   return new Promise(resolve => {
     setTimeout(() => {
-      resolve({
-        ...RUM_APP_CONFIG_MOCK,
-        application_id: applicationId,
-        ...config,
-        update_time: new Date().toISOString(),
-      });
+      resolve({ ...STORAGE_INFO_MOCK });
     }, 300);
   });
 }

@@ -26,12 +26,14 @@
 import { computed, defineComponent, KeepAlive, onMounted, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
+import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { RUM_APP_CONFIG_TAB_ENUM, RUM_APP_CONFIG_TAB_MAP } from '../constants';
 import AppBasicInfo from './components/app-basic-info';
 import BasicConfig from './components/basic-config';
+import StorageStatus from './components/storage-status';
 import { getRumAppConfigMock } from './mock';
 import NavBar from '@/components/nav-bar/nav-bar';
 
@@ -65,6 +67,8 @@ export default defineComponent({
 
     const currentPanel = shallowRef<RumAppConfigTabType>(RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG);
 
+    const clusterList = shallowRef([]);
+
     const handleCurrentPanelChange = (v: RumAppConfigTabType) => {
       currentPanel.value = v;
     };
@@ -73,8 +77,16 @@ export default defineComponent({
       appInfo.value = await getRumAppConfigMock({ app_name: route.params.appName as string, is_get_detail: true });
     };
 
+    /**
+     * @desc 获取es集群列表
+     */
+    const getEsCluster = async () => {
+      clusterList.value = await listEsClusterGroups().catch(() => []);
+    };
+
     onMounted(() => {
       getRumAppConfig();
+      getEsCluster();
     });
 
     const getPanelComponent = () => {
@@ -82,7 +94,12 @@ export default defineComponent({
         case RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG:
           return <BasicConfig detail={appInfo.value} />;
         case RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS:
-          return undefined;
+          return (
+            <StorageStatus
+              clusterList={clusterList.value}
+              detail={appInfo.value}
+            />
+          );
         case RUM_APP_CONFIG_TAB_ENUM.DATA_STATUS:
           return undefined;
       }

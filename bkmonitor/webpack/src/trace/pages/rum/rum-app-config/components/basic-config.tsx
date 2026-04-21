@@ -207,7 +207,7 @@ export default defineComponent({
                   <div class='form-row'>
                     <Form.FormItem
                       label='QPS'
-                      property='QPS'
+                      property='qps'
                       required={this.isEdit}
                     >
                       {this.isEdit ? (
