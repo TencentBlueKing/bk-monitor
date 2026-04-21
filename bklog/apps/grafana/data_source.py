@@ -38,7 +38,7 @@ from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
 from apps.log_esquery.esquery.client.QueryClientLog import QueryClientLog
 from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.log_search.models import LogIndexSet, Scenario
-from apps.log_search.utils import normalize_date_histogram_interval
+from apps.log_search.utils import adapt_date_histogram_params
 from apps.utils.thread import MultiExecuteFunc
 from bk_dataview.grafana.provisioning import Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -161,14 +161,12 @@ class ESBodyAdapter:
     @staticmethod
     def adapt_interval(body: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        兼容旧 interval 写法，统一转换成 ES8 支持的字段名。
+        按配置兼容 ES7 / ES8 的 date_histogram 参数格式。
         """
         new_dict = {}
         for k, v in body.items():
             if k == "date_histogram" and isinstance(v, dict):
-                interval = v.pop("interval", None)
-                if interval is not None and "fixed_interval" not in v and "calendar_interval" not in v:
-                    v.update(normalize_date_histogram_interval(interval))
+                v = adapt_date_histogram_params(v)
             if isinstance(v, dict):
                 new_dict[k] = ESBodyAdapter.adapt_interval(v)
             elif isinstance(v, list):

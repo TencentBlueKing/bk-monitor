@@ -26,6 +26,7 @@ import operator
 from io import BytesIO
 from typing import Any
 
+from django.conf import settings
 from django.http import FileResponse
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
@@ -259,8 +260,11 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
 
 def normalize_date_histogram_interval(interval: Any) -> dict[str, Any]:
     """
-    将旧版 interval 参数转换成 ES8 支持的字段名。
+    按配置将 interval 转换为 ES7/ES8 对应的字段名。
     """
+    if getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", "es8").lower() == "es7":
+        return {"interval": interval}
+
     if not isinstance(interval, str):
         return {"interval": interval}
 
@@ -274,6 +278,28 @@ def normalize_date_histogram_interval(interval: Any) -> dict[str, Any]:
     if unit in CALENDAR_INTERVAL_UNITS:
         return {"calendar_interval": interval}
     return {"interval": interval}
+
+
+def adapt_date_histogram_params(date_histogram: dict[str, Any]) -> dict[str, Any]:
+    """
+    按配置适配 date_histogram 参数格式。
+    """
+    date_histogram = dict(date_histogram)
+    target_version = getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", "es8").lower()
+
+    if target_version == "es7":
+        if "interval" in date_histogram:
+            return date_histogram
+        if "fixed_interval" in date_histogram:
+            date_histogram["interval"] = date_histogram.pop("fixed_interval")
+        elif "calendar_interval" in date_histogram:
+            date_histogram["interval"] = date_histogram.pop("calendar_interval")
+        return date_histogram
+
+    interval = date_histogram.pop("interval", None)
+    if interval is not None and "fixed_interval" not in date_histogram and "calendar_interval" not in date_histogram:
+        date_histogram.update(normalize_date_histogram_interval(interval))
+    return date_histogram
 
 
 def handle_es_query_error(exc: Exception) -> Exception:
