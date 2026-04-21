@@ -38,7 +38,6 @@ from apps.utils.local import get_request_external_username, get_request_username
 DATE_HISTOGRAM_INTERVAL_RE = re.compile(r"^(?P<count>\d+)(?P<unit>[smhdMqy])$")
 FIXED_INTERVAL_UNITS = {"s", "m", "h", "d"}
 CALENDAR_INTERVAL_UNITS = {"M", "q", "y"}
-DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION = Version("7.0.0")
 ES8_DATE_HISTOGRAM_PARAM_VERSION = Version("8.0.0")
 
 
@@ -263,7 +262,7 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
 
 def parse_es_date_histogram_param_version(value: Any) -> Version:
     """
-    解析 date_histogram 参数版本配置，非法值统一回退到 ES7 默认版本。
+    解析 date_histogram 参数版本配置，非法值统一回退到 settings 中的配置值。
     """
     if isinstance(value, Version):
         return value
@@ -271,7 +270,7 @@ def parse_es_date_histogram_param_version(value: Any) -> Version:
     try:
         return Version(str(value))
     except (InvalidVersion, TypeError):
-        return DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION
+        return settings.ES_DATE_HISTOGRAM_PARAM_VERSION
 
 
 def is_es8_date_histogram_params(version: Version) -> bool:
@@ -285,9 +284,7 @@ def normalize_date_histogram_interval(interval: Any) -> dict[str, Any]:
     """
     按配置将 interval 转换为不同 ES 版本对应的字段名。
     """
-    version = parse_es_date_histogram_param_version(
-        getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION)
-    )
+    version = parse_es_date_histogram_param_version(settings.ES_DATE_HISTOGRAM_PARAM_VERSION)
     if not is_es8_date_histogram_params(version):
         return {"interval": interval}
 
@@ -311,9 +308,7 @@ def adapt_date_histogram_params(date_histogram: dict[str, Any]) -> dict[str, Any
     按配置适配 date_histogram 参数格式。
     """
     date_histogram = dict(date_histogram)
-    target_version = parse_es_date_histogram_param_version(
-        getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION)
-    )
+    target_version = parse_es_date_histogram_param_version(settings.ES_DATE_HISTOGRAM_PARAM_VERSION)
 
     if not is_es8_date_histogram_params(target_version):
         if "interval" in date_histogram:

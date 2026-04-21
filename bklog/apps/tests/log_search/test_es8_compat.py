@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from packaging.version import Version
 
@@ -5,7 +6,6 @@ from apps.grafana.data_source import ESBodyAdapter
 from apps.grafana.handlers.query import GrafanaQueryHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.utils import (
-    DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION,
     adapt_date_histogram_params,
     normalize_date_histogram_interval,
     parse_es_date_histogram_param_version,
@@ -17,7 +17,7 @@ class TestES8Compat(SimpleTestCase):
         self.assertEqual(parse_es_date_histogram_param_version("7.0.0"), Version("7.0.0"))
         self.assertEqual(parse_es_date_histogram_param_version("7.17.9"), Version("7.17.9"))
         self.assertEqual(parse_es_date_histogram_param_version("8.0.0"), Version("8.0.0"))
-        self.assertEqual(parse_es_date_histogram_param_version("invalid"), DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION)
+        self.assertEqual(parse_es_date_histogram_param_version("invalid"), settings.ES_DATE_HISTOGRAM_PARAM_VERSION)
 
     @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("8.0.0"))
     def test_normalize_date_histogram_interval(self):
