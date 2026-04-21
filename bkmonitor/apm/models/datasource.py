@@ -18,7 +18,7 @@ from typing import Any, ClassVar, Optional
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -47,10 +47,137 @@ from constants.apm import (
     TraceDataSourceConfig,
     DEFAULT_DATA_LABEL,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from metadata import models as metadata_models
+
+
+class BaseSharedDataSource(models.Model):
+    """共享数据源池基类。
+
+    管理共享数据源的容量、用量及元数据，按 data_type 扩展子类。
+    """
+
+    DEFAULT_QUOTA = 100
+
+    quota = models.IntegerField("容量上限", default=DEFAULT_QUOTA)
+    usage_count = models.IntegerField("当前用量", default=0)
+    is_enabled = models.BooleanField("是否启用", default=False, db_index=True)
+    bk_data_id = models.IntegerField("数据 ID", default=-1)
+    result_table_id = models.CharField("结果表 ID", max_length=128, default="")
+
+    class Meta:
+        abstract = True
+
+    @property
+    def data_name(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def table_id(self) -> str:
+        raise NotImplementedError
+
+    def to_shared_info(self) -> dict[str, Any]:
+        """导出共享链路元数据字典。
+
+        子类覆写以追加扩展字段。
+        """
+        return {
+            "bk_data_id": self.bk_data_id,
+            "result_table_id": self.result_table_id,
+        }
+
+    @classmethod
+    def allocate(cls) -> dict[str, Any] | None:
+        """从池中选取可用共享源并占用一个槽位。
+
+        使用乐观锁的方式保证并发安全
+
+        :return: 共享链路信息字典，无可用时返回 None。
+        """
+        candidate = cls.objects.filter(is_enabled=True, usage_count__lt=F("quota")).order_by("usage_count").first()
+        if not candidate:
+            return None
+
+        # 乐观锁：仅当 usage_count 未变时才占用槽位，计数 +1
+        updated = cls.objects.filter(
+            pk=candidate.pk,
+            usage_count=candidate.usage_count,
+        ).update(usage_count=F("usage_count") + 1)
+
+        if not updated:
+            # 若被并发抢占，则重试一次
+            return cls.allocate()
+
+        return {**candidate.to_shared_info(), "shared_datasource_id": candidate.pk}
+
+    @classmethod
+    def reserve(cls) -> "BaseSharedDataSource":
+        """创建草稿实例（is_enabled=False）。
+
+        主键即序列号，用于 data_name 和 table_id 的命名构建。
+        """
+        return cls.objects.create(is_enabled=False, usage_count=0)
+
+    def activate(self, link_info: dict[str, Any]) -> None:
+        """填充链路元数据并启用。
+
+        :param link_info: 来自 ApmDataSourceConfigBase.to_link_info() 的字典。
+        子类可覆写以处理扩展字段，需先调用 super().activate()。
+        """
+        self.bk_data_id = link_info["bk_data_id"]
+        self.result_table_id = link_info["result_table_id"]
+        self.usage_count = 1
+        self.is_enabled = True
+        self.save()
+
+    def release(self) -> None:
+        """释放占用，usage_count 减 1。"""
+        type(self).objects.filter(pk=self.pk).update(usage_count=F("usage_count") - 1)
+
+
+class SharedTraceDataSource(BaseSharedDataSource):
+    """Trace 共享数据源。
+
+    扩展 BaseSharedDataSource，增加 Trace 数据类型的索引集字段。
+    """
+
+    DATA_NAME_PREFIX = "bkapm"
+    DATASOURCE_TYPE = "trace"
+
+    index_set_id = models.IntegerField("索引集 ID", null=True)
+    index_set_name = models.CharField("索引集名称", max_length=512, null=True)
+
+    class Meta:
+        verbose_name = "Trace 共享数据源"
+
+    @property
+    def data_name(self) -> str:
+        return f"{self.DATA_NAME_PREFIX}_shared_{self.DATASOURCE_TYPE}_{self.pk:04d}"
+
+    @property
+    def table_id(self) -> str:
+        return f"apm_global.shared_{self.DATASOURCE_TYPE}_{self.pk:04d}"
+
+    def to_shared_info(self) -> dict[str, Any]:
+        info = super().to_shared_info()
+        info["index_set_id"] = self.index_set_id
+        info["index_set_name"] = self.index_set_name
+        return info
+
+    def activate(self, link_info: dict[str, Any]) -> None:
+        """填充链路元数据并启用（含 Trace 特有字段）。"""
+        self.index_set_id = link_info.get("index_set_id")
+        self.index_set_name = link_info.get("index_set_name")
+        super().activate(link_info)
+
+
+# data_type -> SharedDataSource 子类映射表，后续扩展其他共享数据源类型
+SHARED_DS_REGISTRY: dict[str, type[BaseSharedDataSource]] = {
+    "trace": SharedTraceDataSource,
+}
 
 
 class ApmDataSourceConfigBase(models.Model):
@@ -85,6 +212,7 @@ class ApmDataSourceConfigBase(models.Model):
     app_name = models.CharField("所属应用", max_length=255)
     bk_data_id = models.IntegerField("数据id", default=-1)
     result_table_id = models.CharField("结果表id", max_length=128, default="")
+    shared_datasource_id = models.IntegerField("共享数据源 ID", null=True, default=None)
 
     class Meta:
         abstract = True
@@ -111,14 +239,28 @@ class ApmDataSourceConfigBase(models.Model):
 
     @classmethod
     def start(cls, bk_biz_id, app_name):
-        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        if instance:
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not instance:
+            return
+
+        if instance.is_shared:
+            # 共享数据源：仅占用一个槽位，不启用结果表
+            shared_cls = SHARED_DS_REGISTRY[cls.DATASOURCE_TYPE]
+            shared_cls.objects.filter(pk=instance.shared_datasource_id).update(usage_count=F("usage_count") + 1)
+        else:
             instance.switch_result_table(True)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if instance:
+        if not instance:
+            return
+
+        if instance.is_shared:
+            # 共享数据源：仅需释放占用，不停用结果表（结果表由共享源统一管理）
+            shared_cls = SHARED_DS_REGISTRY[cls.DATASOURCE_TYPE]
+            shared_cls.objects.get(pk=instance.shared_datasource_id).release()
+        else:
             instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
@@ -132,15 +274,27 @@ class ApmDataSourceConfigBase(models.Model):
             }
         )
 
-    def create_data_id(self):
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+    def create_data_id(self, global_mode: bool = False, data_name: str | None = None) -> int:
+        """创建 DataID。
+
+        :param global_mode: 全局模式，使用特权业务 ID 和 DEFAULT_TENANT_ID，在全局公共空间注册共享数据源。
+        :param data_name: 可指定 data_name，若不指定则使用 self.data_name。
+        """
+        if global_mode:
+            bk_biz_id = settings.APM_SHARED_DATASOURCE_BK_BIZ_ID
+            bk_tenant_id = DEFAULT_TENANT_ID
+        else:
+            bk_biz_id = self.bk_biz_id
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        actual_data_name = data_name or self.data_name
+
         if self.bk_data_id != -1:
             return self.bk_data_id
         try:
-            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
+            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=actual_data_name)
         except metadata_models.DataSource.DoesNotExist:
             # 临时支持数据链路
-            data_link = DataLink.get_data_link(self.bk_biz_id)
+            data_link = DataLink.get_data_link(bk_biz_id)
             data_link_param = {}
             if data_link and data_link.kafka_cluster_id:
                 data_link_param["mq_cluster"] = data_link.kafka_cluster_id
@@ -153,10 +307,10 @@ class ApmDataSourceConfigBase(models.Model):
             data_id_info = resource.metadata.create_data_id(
                 {
                     "bk_tenant_id": bk_tenant_id,
-                    "bk_biz_id": self.bk_biz_id,
-                    "data_name": self.data_name,
+                    "bk_biz_id": bk_biz_id,
+                    "data_name": actual_data_name,
                     "operator": get_global_user(bk_tenant_id=bk_tenant_id),
-                    "data_description": self.data_name,
+                    "data_description": actual_data_name,
                     **self.DATA_ID_PARAM,
                     **data_link_param,
                 }
@@ -169,24 +323,102 @@ class ApmDataSourceConfigBase(models.Model):
     def create_or_update_result_table(self, **option):
         pass
 
+    @property
+    def is_shared(self) -> bool:
+        """判断是否为共享数据源"""
+        return self.shared_datasource_id is not None
+
+    def to_link_info(self) -> dict[str, Any]:
+        """导出链路元数据字典。
+
+        子类可覆写以追加特有字段
+        """
+        return {
+            "bk_data_id": self.bk_data_id,
+            "result_table_id": self.result_table_id,
+        }
+
+    def set_from_shared(self, shared_info: dict[str, Any]) -> None:
+        """从共享链路信息字典提取字段并赋值。
+
+        子类可覆写以处理扩展字段
+        """
+        self.bk_data_id = shared_info["bk_data_id"]
+        self.result_table_id = shared_info["result_table_id"]
+        self.shared_datasource_id = shared_info["shared_datasource_id"]
+
     def to_json(self):
         return {"bk_data_id": self.bk_data_id, "result_table_id": self.result_table_id}
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def apply_datasource(cls, bk_biz_id, app_name, **options):
+    def apply_datasource(cls, bk_biz_id: int, app_name: str, **options) -> None:
+        """创建/更新应用的数据源（支持独占和共享两种模式）"""
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
-        # 创建data_id
-        obj.create_data_id()
-        # 创建结果表
-        obj.create_or_update_result_table(**options)
+
+        is_shared: bool = options.get("is_shared", False)
+        if is_shared:
+            obj._apply_shared_datasource(**options)
+        else:
+            obj._apply_exclusive_datasource(**options)
 
         option = options["option"]
         if not option:
             # 关闭
             obj.stop(bk_biz_id, app_name)
+
+    def _apply_exclusive_datasource(self, **options) -> None:
+        """独占模式"""
+        # 创建data_id
+        self.create_data_id()
+        # 创建结果表
+        self.create_or_update_result_table(**options)
+
+    def _apply_shared_datasource(self, **options) -> None:
+        """共享模式。
+
+        流程：allocate(分配) → [reserve → create → activate] → set_from_shared
+        """
+        # 幂等保护：已完成共享分配的数据源，重复调用直接返回，防止 allocate 被重复触发导致 usage_count 重复计数
+        if self.is_shared:
+            return
+
+        shared_cls = SHARED_DS_REGISTRY.get(self.DATASOURCE_TYPE)
+        if not shared_cls:
+            # 该数据类型不支持共享，降级为独占
+            self._apply_exclusive_datasource(**options)
+            return
+
+        # 尝试从池中分配
+        shared_info = shared_cls.allocate()
+        if not shared_info:
+            # 无可用共享源，创建新的
+            shared_info = self._create_shared_datasource(shared_cls, **options)
+
+        # 将共享链路信息写回到当前数据源
+        self.set_from_shared(shared_info)
+        self.save()
+
+    def _create_shared_datasource(self, shared_cls: type[BaseSharedDataSource], **options) -> dict[str, Any]:
+        """创建新的共享数据源。
+
+        流程：reserve(草稿) → create_data_id → create_or_update_result_table → activate(激活)
+        """
+        reserved = shared_cls.reserve()
+
+        try:
+            self.create_data_id(global_mode=True, data_name=reserved.data_name)
+            self.create_or_update_result_table(global_mode=True, table_id=reserved.table_id, **options)
+        except Exception:
+            reserved.delete()
+            raise
+
+        link_info = self.to_link_info()
+        reserved.activate(link_info)
+
+        return {**reserved.to_shared_info(), "shared_datasource_id": reserved.pk}
 
 
 class MetricDataSource(ApmDataSourceConfigBase):
@@ -553,6 +785,19 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def to_json(self):
         return {**super().to_json(), "index_set_id": self.index_set_id}
 
+    def to_link_info(self) -> dict[str, Any]:
+        """导出链路元数据字典（含 Trace 特有字段）。"""
+        info = super().to_link_info()
+        info["index_set_id"] = self.index_set_id
+        info["index_set_name"] = self.index_set_name
+        return info
+
+    def set_from_shared(self, shared_info: dict[str, Any]) -> None:
+        """从共享链路信息字典提取字段并赋值（含 Trace 特有字段）。"""
+        super().set_from_shared(shared_info)
+        self.index_set_id = shared_info.get("index_set_id")
+        self.index_set_name = shared_info.get("index_set_name")
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
@@ -564,12 +809,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
         else:
             return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
-    def create_or_update_result_table(self, **option):
-        table_id = self.table_id
-        if self.result_table_id:
-            table_id = self.result_table_id
+    def create_or_update_result_table(self, global_mode: bool = False, table_id: str | None = None, **option) -> None:
+        """创建或更新结果表。
 
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        :param global_mode: 全局模式，使用 GLOBAL_CONFIG_BK_BIZ_ID 和 DEFAULT_TENANT_ID。
+        :param table_id: 指定 table_id，用于共享模式传入 SharedTraceDataSource.table_id。
+        """
+        table_id = table_id or self.result_table_id or self.table_id
+
+        if global_mode:
+            bk_biz_id = GLOBAL_CONFIG_BK_BIZ_ID
+            bk_tenant_id = DEFAULT_TENANT_ID
+        else:
+            bk_biz_id = self.bk_biz_id
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
@@ -585,7 +839,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 "cluster_id": option["es_storage_cluster"],
                 "storage_cluster_id": option["es_storage_cluster"],
                 # 指定 UnifyQuery 查询索引。
-                "index_set": self.table_id.replace(".", "_"),
+                "index_set": table_id.replace(".", "_"),
                 "slice_size": option.get("es_slice_size", settings.APM_APP_DEFAULT_ES_SLICE_LIMIT),
                 "retention": option.get("es_retention", settings.APM_APP_DEFAULT_ES_RETENTION),
                 # 默认1天区分一个index
@@ -599,7 +853,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             },
             "field_list": TraceDataSourceConfig.TRACE_FIELD_LIST,
             "is_time_field_only": True,
-            "bk_biz_id": self.bk_biz_id,
+            "bk_biz_id": bk_biz_id,
             "label": "application_check",
             "option": TRACE_RESULT_TABLE_OPTION,
             "time_option": {
@@ -609,6 +863,10 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 "time_zone": 0,
             },
         }
+
+        # 全局模式下添加 bk_biz_id_alias 以支持 UnifyQuery 实现业务级别的数据隔离查询
+        if global_mode:
+            params["bk_biz_id_alias"] = "bk_biz_id"
 
         # 获取集群信息
         try:
@@ -649,7 +907,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 }
             )
 
-        index_set_id, index_set_name = self.update_or_create_index_set(option["es_storage_cluster"], self.index_set_id)
+        # 全局模式：暂不创建索引集
+        if global_mode:
+            index_set_id, index_set_name = None, None
+        else:
+            index_set_id, index_set_name = self.update_or_create_index_set(
+                option["es_storage_cluster"], self.index_set_id
+            )
 
         if self.result_table_id != "":
             # 更新存储
@@ -663,7 +927,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         params["is_sync_db"] = False
         resource.metadata.create_result_table(params)
 
-        self.result_table_id = self.table_id
+        self.result_table_id = table_id
         self.index_set_name = index_set_name
         self.index_set_id = index_set_id
         self.save()
@@ -1077,10 +1341,19 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        super().stop(bk_biz_id, app_name)
-        # 删除关联的索引集
+        """停用 Trace 数据源。
+
+        共享模式由父类统一处理释放；独占模式额外删除关联的索引集。
+        """
         ins = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if ins:
+        if not ins:
+            return
+
+        # 共享模式：父类已处理释放逻辑，无需额外操作
+        super().stop(bk_biz_id, app_name)
+
+        # 独占模式：额外删除关联的索引集
+        if not ins.is_shared:
             try:
                 api.log_search.delete_index_set(index_set_id=ins.index_set_id)
                 logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")

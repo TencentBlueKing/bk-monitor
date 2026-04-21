@@ -78,7 +78,7 @@ from apm.serializers import (
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkm_space.api import SpaceApi
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space, space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
@@ -130,6 +130,12 @@ class CreateApplicationResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
+        # 共享数据源类型
+        shared_datasource_types = serializers.ListField(
+            label="共享数据源类型列表",
+            child=serializers.CharField(),
+            required=False,
+        )
 
     def perform_request(self, validated_data):
         datasource_options = validated_data.get("es_storage_config")
@@ -141,6 +147,15 @@ class CreateApplicationResource(Resource):
         bk_tenant_id = validated_data.get("bk_tenant_id")
         if not bk_tenant_id:
             bk_tenant_id = get_request_tenant_id()
+
+        shared_datasource_types = validated_data.get("shared_datasource_types")
+        # 当未指定共享数据类型时，bkapp 的空间类型默认使用 trace 共享数据源
+        if shared_datasource_types is None and is_bk_saas_space(bk_biz_id_to_space_uid(validated_data["bk_biz_id"])):
+            shared_datasource_types = [ApmDataSourceConfigBase.TRACE_DATASOURCE]
+
+        # 临时测试逻辑
+        if validated_data["app_name"].startswith("apm_shared"):
+            shared_datasource_types = [ApmDataSourceConfigBase.TRACE_DATASOURCE]
 
         return ApmApplication.create_application(
             bk_tenant_id=bk_tenant_id,
@@ -154,6 +169,7 @@ class CreateApplicationResource(Resource):
                 "is_enabled_trace": validated_data.get("enabled_trace", False),
                 "is_enabled_metric": validated_data.get("enabled_metric", False),
                 "is_enabled_log": validated_data.get("enabled_log", False),
+                "shared_datasource_types": shared_datasource_types,
             },
         )
 
