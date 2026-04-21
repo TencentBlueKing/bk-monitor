@@ -38,7 +38,7 @@ import {
   watch,
 } from 'vue';
 
-import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab } from 'bkui-vue';
+import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab, Button } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
@@ -56,6 +56,8 @@ import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
 import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
+import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
+import { toUnixMilliseconds } from '../../../utils/date';
 const MonitorTraceLog = defineAsyncComponent(
   () =>
     import(/* webpackChunkName: "monitor-trace-log" */ '../../../plugins/charts/monitor-trace-log/monitor-trace-log')
@@ -88,9 +90,7 @@ import './trace-detail.scss';
  * Vite 不再将 mermaid 打包/拆分，内部的 import 'fork-mermaid' 留给宿主 webpack 按自身策略解析
  * 宿主 webpack 对 mermaid 的 bundling 方式与 trace 主站一致，不会出现 getBBox 问题
  */
-const SequenceGraph = defineAsyncComponent(
-  () => import('../../../plugins/charts/sequence-graph/sequence-graph')
-);
+const SequenceGraph = defineAsyncComponent(() => import('../../../plugins/charts/sequence-graph/sequence-graph'));
 
 const { TabPanel } = Tab;
 
@@ -145,6 +145,7 @@ export default defineComponent({
     let searchCancelFn = () => {};
     const { t } = useI18n();
     const store = useTraceStore();
+    const spanDetailQueryStore = useSpanDetailQueryStore();
     /** 缓存不同tab下的过滤选项 */
     const cacheFilterToolsValues = {
       waterFallAndTopo: ['duration'],
@@ -252,6 +253,13 @@ export default defineComponent({
     /** 是否展示 span list */
     const showSpanList = computed(() => ['sequence', 'topo'].includes(state.activePanel));
     const currentTraceId = computed(() => props.traceID || traceData.value.trace_id);
+    // 快捷跳转文案
+    const exploreButtonName = computed(() => {
+      if (state.activePanel === 'log') {
+        return t('日志检索');
+      }
+      return '';
+    });
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
     provide('traceId', currentTraceId);
@@ -262,19 +270,20 @@ export default defineComponent({
      * spanEnd 在最近 1 小时内时取 now，否则取 spanEnd + 1h。
      */
     const customTimeProvider = computed(() => {
-      const traceStartTime = traceData.value.trace_info.trace_start_time;
-      const traceEndTime = traceData.value.trace_info.trace_end_time;
+      const traceStartTime = Math.floor(traceData.value.trace_info.trace_start_time / 1000);
+      const traceEndTime = Math.floor(traceData.value.trace_info.trace_end_time / 1000);
       const diff = dayjs(traceEndTime).diff(dayjs(traceStartTime), 'millisecond');
 
       /** end_time - start_time 没超过 2 小时 */
       if (Math.abs(diff) <= 2 * 60 * 60 * 1000) {
         const diff2 = dayjs().diff(dayjs(traceEndTime), 'millisecond');
         // span 的 end_time 在当前一小时内
-        if (Math.abs(diff2) <= 60 * 60 * 1000)
+        if (Math.abs(diff2) <= 60 * 60 * 1000) {
           return [
             dayjs(traceStartTime).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
             dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
           ];
+        }
         return [
           dayjs(traceStartTime).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
           dayjs(traceEndTime).add(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
@@ -844,6 +853,21 @@ export default defineComponent({
       data && (await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId }));
       contentLoading.value = false;
     }
+
+    // 快捷跳转
+    const handleQuickJump = () => {
+      if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
+      const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+      const startMs = toUnixMilliseconds(start_time);
+      const endMs = toUnixMilliseconds(end_time);
+      let url = '';
+      if (unionList) {
+        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+      } else {
+        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+      }
+      window.open(url, '_blank');
+    };
     return {
       ...toRefs(state),
       isLoading,
@@ -855,6 +879,7 @@ export default defineComponent({
       traceMainElem,
       statisticsElem,
       searchBarElem,
+      exploreButtonName,
       handleSelectFilters,
       handleTabChange,
       trackFilter,
@@ -899,6 +924,7 @@ export default defineComponent({
       handleServiceTopoClickItem,
       handleChangeEnableTimeALignment,
       disabledSpanKindById,
+      handleQuickJump,
       t,
     };
   },
@@ -1039,63 +1065,79 @@ export default defineComponent({
           <MonitorTab
             class='trace-main-tab'
             v-slots={{
-              setting: () =>
+              setting: () => {
                 // 时序图暂不支持
-                ['timeline', 'topo', 'statistics', 'flame'].includes(this.activePanel) ? (
-                  <div class='tab-setting'>
-                    {this.showCompareSelect ? (
-                      <CompareSelect
-                        ref='compareSelect'
-                        appName={this.appName}
-                        targetTraceID={this.compareTraceID}
-                        onCancel={this.handleCancelCompare}
-                        onCompare={this.handleCompare}
+                if (['timeline', 'topo', 'statistics', 'flame'].includes(this.activePanel)) {
+                  return (
+                    <div class='tab-setting'>
+                      {this.showCompareSelect ? (
+                        <CompareSelect
+                          ref='compareSelect'
+                          appName={this.appName}
+                          targetTraceID={this.compareTraceID}
+                          onCancel={this.handleCancelCompare}
+                          onCompare={this.handleCompare}
+                        />
+                      ) : (
+                        ''
+                      )}
+                      <SearchBar
+                        ref='searchBarElem'
+                        clearSearch={this.clearSearch}
+                        limitClassify={!!Object.keys(this.selectClassifyFilters).length}
+                        nextResult={this.nextResult}
+                        prevResult={this.prevResult}
+                        resultCount={this.matchedSpanIds}
+                        showResultCount={this.activePanel !== 'statistics'}
+                        trackFilter={val => this.trackFilter(val)}
                       />
-                    ) : (
-                      ''
-                    )}
-                    <SearchBar
-                      ref='searchBarElem'
-                      clearSearch={this.clearSearch}
-                      limitClassify={!!Object.keys(this.selectClassifyFilters).length}
-                      nextResult={this.nextResult}
-                      prevResult={this.prevResult}
-                      resultCount={this.matchedSpanIds}
-                      showResultCount={this.activePanel !== 'statistics'}
-                      trackFilter={val => this.trackFilter(val)}
-                    />
-                    {['timeline', 'flame'].includes(this.activePanel) ? (
-                      <div class='ellipsis-direction'>
-                        <Popover
-                          content={'Head first'}
-                          popoverDelay={[500, 0]}
-                        >
-                          <div
-                            class={`item ${this.ellipsisDirection === 'ltr' ? 'active' : ''}`}
-                            onClick={() => this.updateEllipsisDirection('ltr')}
+                      {['timeline', 'flame'].includes(this.activePanel) ? (
+                        <div class='ellipsis-direction'>
+                          <Popover
+                            content={'Head first'}
+                            popoverDelay={[500, 0]}
                           >
-                            <i class='icon-monitor icon-AB' />
-                          </div>
-                        </Popover>
-                        <Popover
-                          content={'Tail first'}
-                          popoverDelay={[500, 0]}
-                        >
-                          <div
-                            class={`item ${this.ellipsisDirection === 'rtl' ? 'active' : ''}`}
-                            onClick={() => this.updateEllipsisDirection('rtl')}
+                            <div
+                              class={`item ${this.ellipsisDirection === 'ltr' ? 'active' : ''}`}
+                              onClick={() => this.updateEllipsisDirection('ltr')}
+                            >
+                              <i class='icon-monitor icon-AB' />
+                            </div>
+                          </Popover>
+                          <Popover
+                            content={'Tail first'}
+                            popoverDelay={[500, 0]}
                           >
-                            <i class='icon-monitor icon-YZ' />
-                          </div>
-                        </Popover>
-                      </div>
-                    ) : (
-                      ''
-                    )}
-                  </div>
-                ) : (
-                  ''
-                ),
+                            <div
+                              class={`item ${this.ellipsisDirection === 'rtl' ? 'active' : ''}`}
+                              onClick={() => this.updateEllipsisDirection('rtl')}
+                            >
+                              <i class='icon-monitor icon-YZ' />
+                            </div>
+                          </Popover>
+                        </div>
+                      ) : (
+                        ''
+                      )}
+                    </div>
+                  );
+                }
+                if (this.exploreButtonName) {
+                  return (
+                    <Button
+                      class='quick-jump'
+                      size='small'
+                      theme='primary'
+                      outline
+                      onClick={this.handleQuickJump}
+                    >
+                      {this.exploreButtonName}
+                      <i class='icon-monitor icon-fenxiang' />
+                    </Button>
+                  );
+                }
+                return '';
+              },
             }}
             active={this.activePanel}
             onTabChange={this.handleTabChange}
