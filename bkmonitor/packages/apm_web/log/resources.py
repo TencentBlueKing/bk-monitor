@@ -228,7 +228,8 @@ def _generate_cache_key(
         key_parts.append(service_name)
 
     key_parts.append(count_md5(extra_info))
-    if start_time and end_time:
+    if start_time and end_time and service_name:
+        # 应用关联日志无需按时间范围缓存。
         key_parts.append(str((start_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS))
         key_parts.append(str((end_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS))
 
