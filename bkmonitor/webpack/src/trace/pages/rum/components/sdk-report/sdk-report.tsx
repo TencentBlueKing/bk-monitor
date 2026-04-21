@@ -23,14 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
-import { Alert, Button, Sideslider } from 'bkui-vue';
+import { Alert, Button, Message, Sideslider } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import { PROTOCOLS } from './sdk-protocols';
 
+import type { IRumAppConfig } from '../../typings/rum-app-config';
+
 import './sdk-report.scss';
+
+const operateTypeMap = {
+  init: 'init',
+  success: 'success',
+  fail: 'fail',
+} as const;
+type EOperateType = (typeof operateTypeMap)[keyof typeof operateTypeMap];
 
 export default defineComponent({
   name: 'SDKReport',
@@ -39,6 +49,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    appInfo: {
+      type: Object as PropType<Partial<IRumAppConfig>>,
+      default: () => null,
+    },
   },
   emits: {
     showChange: (_v: boolean) => true,
@@ -46,6 +60,8 @@ export default defineComponent({
   setup(_props, { emit }) {
     const { t } = useI18n();
     const protocol = shallowRef(PROTOCOLS[0].id);
+    const operateType = shallowRef<EOperateType>(operateTypeMap.init);
+    const submitLoading = shallowRef(false);
     const handleShowChange = (show: boolean) => {
       emit('showChange', show);
     };
@@ -55,12 +71,47 @@ export default defineComponent({
     const handleSkip = () => {
       handleShowChange(false);
     };
+    const handleCopyToken = () => {
+      copyText('token', (msg: string) => {
+        Message({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      Message({
+        message: t('复制成功'),
+        theme: 'success',
+      });
+    };
+    const handleResetToken = () => {
+      console.log('reset token');
+    };
+    const handleSubmit = async () => {
+      if (submitLoading.value) {
+        return;
+      }
+      submitLoading.value = true;
+      const type = await (() =>
+        new Promise(resolve => {
+          setTimeout(() => {
+            resolve(Date.now() % 2 === 1 ? operateTypeMap.success : operateTypeMap.fail);
+          }, 2000);
+        }))();
+      operateType.value = type as EOperateType;
+      submitLoading.value = false;
+    };
     return {
       protocol,
+      operateType,
+      submitLoading,
+      handleSubmit,
       t,
       handleShowChange,
       handleProtocolChange,
       handleSkip,
+      handleCopyToken,
+      handleResetToken,
     };
   },
   render() {
@@ -167,17 +218,23 @@ export default defineComponent({
                   <i class='icon-monitor icon-mc-global' />
                 </div>
                 <div class='right-wrap'>
-                  <div class='right-wrap-top'>www.example.com</div>
+                  <div class='right-wrap-top'>{this.appInfo?.app_name || '--'}</div>
                   <div class='right-wrap-bottom'>
-                    <span class='desc-text'>Web 端官网</span>
+                    <span class='desc-text'>{this.appInfo?.app_alias || '--'}</span>
                     <span class='split-line' />
                     <span class='token-title'>TOKEN:</span>
-                    <span class='token-text'>rum_a1asldfasdlf34rwer34asd</span>
-                    <span class='copy-btn'>
+                    <span class='token-text'>{'todo'}</span>
+                    <span
+                      class='copy-btn'
+                      onClick={() => this.handleCopyToken()}
+                    >
                       <span class='icon-monitor icon-mc-copy' />
                       <span>{this.t('复制')}</span>
                     </span>
-                    <span class='reset-btn'>
+                    <span
+                      class='reset-btn'
+                      onClick={() => this.handleResetToken()}
+                    >
                       <span class='icon-monitor icon-zhongzhi1' />
                       <span>{this.t('重置')}</span>
                     </span>
@@ -190,41 +247,53 @@ export default defineComponent({
           footer: () => (
             <div class='bottom-submit-wrap'>
               <div class='tips-wrap'>
-                <Alert
-                  class='mt-8'
-                  theme='success'
-                  title='已检测到数据上报，接入成功，可前往查看数据！'
-                >
-                  {{
-                    icon: () => (
-                      <span
-                        style='color: #2CAF5E;margin-right: 8px;'
-                        class='icon-monitor icon-duihao'
-                      />
-                    ),
-                  }}
-                </Alert>
-                <Alert
-                  class='mt-8'
-                  theme='warning'
-                  title='尚未检测到数据上报，请稍后重试，也可以跳过。'
-                />
+                {this.operateType === operateTypeMap.success ? (
+                  <Alert
+                    class='mt-8'
+                    theme='success'
+                    title='已检测到数据上报，接入成功，可前往查看数据！'
+                  >
+                    {{
+                      icon: () => (
+                        <span
+                          style='color: #2CAF5E;margin-right: 8px;'
+                          class='icon-monitor icon-duihao'
+                        />
+                      ),
+                    }}
+                  </Alert>
+                ) : undefined}
+                {this.operateType === operateTypeMap.fail ? (
+                  <Alert
+                    class='mt-8'
+                    theme='warning'
+                    title='尚未检测到数据上报，请稍后重试，也可以跳过。'
+                  />
+                ) : undefined}
               </div>
               <div class='btns-wrap'>
                 <Button
                   class='mr-8'
+                  loading={this.submitLoading}
                   theme='primary'
                   outline
+                  onClick={this.handleSubmit}
                 >
-                  {this.t('检测数据上报')}
+                  {this.operateType === operateTypeMap.fail ? this.t('重新检测上报') : this.t('检测数据上报')}
                 </Button>
                 <Button
                   class='mr-8'
+                  disabled={this.operateType !== operateTypeMap.success}
                   theme='primary'
                 >
                   {this.t('查看数据')}
                 </Button>
-                <Button onClick={this.handleSkip}>{this.t('跳过，稍后接入')}</Button>
+                <Button
+                  disabled={this.operateType === operateTypeMap.success}
+                  onClick={this.handleSkip}
+                >
+                  {this.t('跳过，稍后接入')}
+                </Button>
               </div>
             </div>
           ),
