@@ -763,7 +763,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         : `action_id : ${defaultData.actionId}`;
       const time = +defaultData.actionId.toString().slice(0, 10) * 1000;
       defaultData.timeRange = [
-        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(time).add(-7, 'd').format('YYYY-MM-DD HH:mm:ssZZ'),
         dayjs.tz(time).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
     }
@@ -772,8 +772,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       defaultData.queryString = defaultData.queryString
         ? `${defaultData.queryString} AND action_id : ${defaultData.collectId}`
         : `action_id : ${defaultData.collectId}`;
-      /* 带collectId是事件范围设为近15天 */
-      defaultData.timeRange = ['now-30d', 'now'];
+      defaultData.timeRange = ['now-7d', 'now'];
     }
 
     /** 新版首页带alertId跳转事件中心 */

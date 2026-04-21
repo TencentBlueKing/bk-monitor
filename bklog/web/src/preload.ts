@@ -213,7 +213,8 @@ export default ({
    */
   const spaceRequest = getSpaceByIndexId().then(() => {
     return getDefaultSpaceList().then((resp) => {
-      const spaceList = resp.data;
+      // 兜底 resp 为 null (catch 分支) 或 resp.data 为 undefined 的情况，避免抛 TypeError
+      const spaceList = Array.isArray(resp?.data) ? resp.data : [];
       for (const item of spaceList) {
         item.bk_biz_id = `${item.bk_biz_id}`;
         item.space_uid = `${item.space_uid}`;

@@ -1606,6 +1606,13 @@ BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
 # 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
 BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
 
+# BKCC 业务同步任务的起始业务 ID（严格大于，不包含该 ID 本身）。
+# 取值示例: "1000" 表示仅接管 bk_biz_id > 1000 的 CMDB 业务的新增、删除及 V4 内置链路检查；
+# 阈值以下（含阈值）的业务不会被本任务新增，也不会因 CMDB 缺失而被删除，且不会触发 V4 内置链路检查，
+# 交由其它任务/链路管理，但冲突空间软禁用等保护性逻辑仍对全量业务生效。
+# 留空表示禁用阈值过滤，全部业务均由本任务接管（保持历史行为）。
+SYNC_BKCC_SPACE_START_BIZ_ID = os.getenv("SYNC_BKCC_SPACE_START_BIZ_ID", "")
+
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []
 # ES索引轮转间隔等待数值
