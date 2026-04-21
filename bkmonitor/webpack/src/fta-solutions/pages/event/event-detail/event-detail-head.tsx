@@ -211,7 +211,7 @@ export default class EventDetailHead extends tsc<EventDetailHeadProps, IEvent> {
               />
             ) : (
               <TemporaryShare
-                customData={{ eventId: this.eventId }}
+                customData={{ eventId: this.eventId, bizId: this.bizId }}
                 navMode={'share'}
                 pageInfo={{ alertName: alert_name }}
               />

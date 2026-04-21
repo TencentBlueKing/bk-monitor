@@ -70,7 +70,9 @@ export default class SharePage extends tsc<object> {
     let url = '';
     // 事件中心：分享类型沿用旧名 event-center，新版告警中心承接跳转
     if (data.name === 'event-center') {
-      url = getAlarmCenterDetailUrl(data.eventId, undefined, this.$store.getters.bizId);
+      const bizId =
+        data?.bizId || (data.query?.bizIds?.[0] > 0 ? data.query?.bizIds?.[0] : undefined) || this.$store.getters.bizId;
+      url = getAlarmCenterDetailUrl(data.eventId, undefined, bizId);
     } else if (/^apm_/.test(String(data.query?.sceneId))) {
       // apm 处理
       const route = this.$router.resolve({
