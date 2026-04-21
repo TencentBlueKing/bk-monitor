@@ -291,7 +291,11 @@ class HostCollectorHandler(CollectorHandler):
                     self.data = CollectorConfig.objects.create(**model_fields)
                     is_create = True
                     # 创建索引集，并添加到归属索引集中
-                    index_set = self.data.create_index_set()
+                    index_set = self.data.create_index_set(
+                        is_platform_index=params.get("is_platform_index"),
+                        platform_index_visibility=params.get("platform_index_visibility"),
+                        platform_index_filter=params.get("platform_index_filter"),
+                    )
                     if params.get("parent_index_set_ids"):
                         IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(params["parent_index_set_ids"])
                 else:
@@ -314,9 +318,17 @@ class HostCollectorHandler(CollectorHandler):
                         setattr(self.data, key, value)
                     self.data.save()
 
-                    # 更新归属索引集
+                    # 更新索引集
                     index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
                     if index_set:
+                        # 更新平台级索引集有关字段
+                        index_set.update_platform_index(
+                            is_platform_index=params.get("is_platform_index"),
+                            platform_index_visibility=params.get("platform_index_visibility"),
+                            platform_index_filter=params.get("platform_index_filter"),
+                        )
+
+                        # 更新归属索引集
                         IndexSetHandler(index_set.index_set_id).update_parent_index_sets(
                             params.get("parent_index_set_ids", [])
                         )

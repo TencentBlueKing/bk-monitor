@@ -396,6 +396,11 @@ class LogIndexSet(SoftDeleteModel):
 
     is_group = models.BooleanField(_("是否索引组"), default=False)
 
+    # 平台级索引集
+    is_platform_index = models.BooleanField(_("是否为平台级索引集"), default=False)
+    platform_index_visibility = models.JSONField(_("平台级可见范围"), null=True, blank=True, default=None)
+    platform_index_filter = models.JSONField(_("平台级数据隔离维度"), null=True, blank=True, default=None)
+
     def get_name(self):
         return self.index_set_name
 
@@ -692,6 +697,21 @@ class LogIndexSet(SoftDeleteModel):
         """
         fields["usable_reason"] = str(fields.get("usable_reason", ""))
         return fields
+
+    def update_platform_index(
+        self,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
+    ):
+        """
+        更新平台级索引集字段
+        """
+        if is_platform_index is not None:
+            self.is_platform_index = is_platform_index
+            self.platform_index_visibility = platform_index_visibility if is_platform_index else None
+            self.platform_index_filter = platform_index_filter if is_platform_index else None
+            self.save()
 
     class Meta:
         ordering = ("-orders", "-index_set_id")

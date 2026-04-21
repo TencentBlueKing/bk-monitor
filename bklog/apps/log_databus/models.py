@@ -391,7 +391,12 @@ class CollectorConfig(CollectorBase):
         """
         return self.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value
 
-    def create_index_set(self):
+    def create_index_set(
+        self,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
+    ):
         """
         创建相应的索引集，is_active先设置为False，如果已存在则直接返回
         """
@@ -403,6 +408,9 @@ class CollectorConfig(CollectorBase):
                 "space_uid": bk_biz_id_to_space_uid(self.bk_biz_id),
                 "scenario_id": Scenario.LOG,
                 "is_active": False,
+                "is_platform_index": True if is_platform_index else False,
+                "platform_index_visibility": platform_index_visibility if is_platform_index else None,
+                "platform_index_filter": platform_index_filter if is_platform_index else None,
             },
         )
         if created:
