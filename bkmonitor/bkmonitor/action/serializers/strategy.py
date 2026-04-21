@@ -101,10 +101,8 @@ class TimezoneAwareDateTimeField(serializers.CharField):
                         # 无时区信息 → 视为 Django 当前时区的本地时间
                         parsed_time = parsed_time.replace(tzinfo=ZoneInfo(str(django_tz)))
                     else:
-                        # 有时区信息 → 若与 Django 时区偏移不同，转换为 Django 时区
-                        django_tz_offset = arrow.utcnow().astimezone(django_tz).utcoffset()
-                        if django_tz_offset != parsed_time.utcoffset():
-                            parsed_time = arrow.get(parsed_time.astimezone(django_tz))
+                        # 有时区信息 → 直接转换为 Django 当前时区
+                        parsed_time = arrow.get(parsed_time.astimezone(django_tz))
 
                 return parsed_time.format("YYYY-MM-DD HH:mm:ss")
             except (arrow.parser.ParserError, ValueError):
