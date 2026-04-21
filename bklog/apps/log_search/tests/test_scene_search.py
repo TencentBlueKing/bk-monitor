@@ -637,8 +637,8 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_millisecond_timestamps_converted_to_seconds(self, mock_local, mock_user, mock_ext_user):
-        """Millisecond timestamps (13 digits) must be converted to seconds to avoid UQ overflow."""
+    def test_millisecond_int_timestamps_kept_as_ms(self, mock_local, mock_user, mock_ext_user):
+        """Int millisecond timestamps are kept as-is (UQ expects milliseconds)."""
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         params = {
@@ -647,9 +647,9 @@ class TestSceneUnifyQueryHandler(TestCase):
             "end_time": 1776247830000,
         }
         handler = SceneUnifyQueryHandler(params)
-        self.assertEqual(handler.start_time, 1776246930)
-        self.assertEqual(handler.end_time, 1776247830)
-        self.assertLessEqual(handler.start_time, 9999999999)
+        self.assertEqual(handler.start_time, 1776246930000)
+        self.assertEqual(handler.end_time, 1776247830000)
+        self.assertEqual(handler.base_dict["start_time"], "1776246930000")
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
@@ -666,6 +666,22 @@ class TestSceneUnifyQueryHandler(TestCase):
         handler = SceneUnifyQueryHandler(params)
         self.assertEqual(handler.start_time, 1776246930)
         self.assertEqual(handler.end_time, 1776247830)
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_string_numeric_timestamps_parsed_as_int(self, mock_local, mock_user, mock_ext_user):
+        """String numeric timestamps (from HTTP) must be converted to int before deal_time_format."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {
+            **BASE_POST_BODY,
+            "start_time": "1776246930000",
+            "end_time": "1776247830000",
+        }
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.start_time, 1776246930000)
+        self.assertEqual(handler.end_time, 1776247830000)
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")

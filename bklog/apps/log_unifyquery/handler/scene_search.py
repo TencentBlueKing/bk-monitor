@@ -69,13 +69,14 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         raw_start = params.get("start_time", "")
         raw_end = params.get("end_time", "")
         if raw_start and raw_end:
-            start_ts, end_ts = deal_time_format(raw_start, raw_end)
-            # deal_time_format returns milliseconds; UQ expects seconds
-            if isinstance(start_ts, int) and start_ts > 9999999999:
-                start_ts = start_ts // 1000
-            if isinstance(end_ts, int) and end_ts > 9999999999:
-                end_ts = end_ts // 1000
-            self.start_time, self.end_time = start_ts, end_ts
+            # HTTP params may arrive as numeric strings; convert so deal_time_format
+            # takes the fast int path instead of falling into dateutil.parser.parse
+            # which overflows on 13-digit millisecond strings.
+            if isinstance(raw_start, str) and raw_start.isdigit():
+                raw_start = int(raw_start)
+            if isinstance(raw_end, str) and raw_end.isdigit():
+                raw_end = int(raw_end)
+            self.start_time, self.end_time = deal_time_format(raw_start, raw_end)
         else:
             self.start_time, self.end_time = "", ""
 
@@ -245,6 +246,38 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
     def _save_history(self, result, search_type):
         pass
+
+    # ------------------------------------------------------------------
+    # Override search — skip pre_search to avoid arrow.get() overflow
+    # with millisecond timestamps (parent pre_search calls
+    # arrow.get(self.start_time) which interprets ms as seconds → year 58000+).
+    # ------------------------------------------------------------------
+
+    def search(self, search_type="default", is_export=False):
+        search_dict = copy.deepcopy(self.base_dict)
+        if self.search_params["size"] > MAX_RESULT_WINDOW:
+            self.search_params["size"] = MAX_RESULT_WINDOW
+
+        once_size = min(self.search_params["size"], MAX_RESULT_WINDOW)
+
+        if is_export:
+            once_size = MAX_RESULT_WINDOW
+            self.search_params["size"] = MAX_RESULT_WINDOW
+
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = once_size
+        search_dict["highlight"] = {"enable": self.highlight}
+
+        result = self.query_ts_raw(search_dict)
+        result = self._deal_query_result(result)
+
+        if self.search_params.get("original_search"):
+            return result
+
+        field_dict = self._analyze_field_length(result.get("list"))
+        result.update({"fields": field_dict})
+
+        return result
 
     # ------------------------------------------------------------------
     # Scene-specific query methods
