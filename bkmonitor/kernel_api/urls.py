@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import os
 
 import six
@@ -19,7 +17,6 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import include, path, re_path
 from rest_framework.documentation import include_docs_urls
-from six.moves import map
 
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkmonitor.utils.common_utils import package_contents
@@ -68,12 +65,12 @@ def register_v2():
 
 def register_v3():
     ROOT_MODULE_V3 = ROOT_MODULE + ".v3"
-    apis = {m: "{}.{}".format(ROOT_MODULE_V3, m) for m in package_contents(ROOT_MODULE_V3) if m in INSTALLED_APIS}
+    apis = {m: f"{ROOT_MODULE_V3}.{m}" for m in package_contents(ROOT_MODULE_V3) if m in INSTALLED_APIS}
     if settings.ALLOW_EXTEND_API and extend_views:
         apis["extend"] = extend_views
 
     for name, sub_module in list(apis.items()):
-        urlpattern = register_url(r"^api/v3/%s/" % name, sub_module, namespace="{}.v3.{}".format(API_NAMESPACE, name))
+        urlpattern = register_url(rf"^api/v3/{name}/", sub_module, namespace=f"{API_NAMESPACE}.v3.{name}")
         urlpatterns.append(urlpattern)
 
 
@@ -111,6 +108,7 @@ urlpatterns = [
     re_path(r"^o/bk_monitorv3/query-api/rest/v2/", include(router.urls)),
     re_path(r"^query-api/o/bk_monitorv3/rest/v2/", include(router.urls)),
     re_path(r"^apm_api/v1/", include("apm.urls")),
+    re_path(r"^rum_api/v1/", include("rum.urls")),
 ]
 
 

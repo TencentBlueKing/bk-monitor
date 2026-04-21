@@ -20,7 +20,7 @@ from bkmonitor.utils.local import local
 
 logger = logging.getLogger(__name__)
 
-backend_db_apps = ["monitor_api", "metadata", "bkmonitor", "apm", "calendars"]
+backend_db_apps = ["monitor_api", "metadata", "bkmonitor", "apm", "rum", "calendars"]
 
 backend_alert_models = ["ActionInstance", "ConvergeInstance", "ConvergeRelation"]
 

@@ -56,6 +56,7 @@ INSTALLED_APPS += (  # noqa: F405,F821
     "alarm_backends",
     "apm",
     "apm_ebpf",
+    "rum",
     "core.drf_resource",
     "ai_whale",
 )

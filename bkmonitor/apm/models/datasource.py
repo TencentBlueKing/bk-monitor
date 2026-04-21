@@ -61,13 +61,6 @@ class ApmDataSourceConfigBase(models.Model):
 
     TABLE_SPACE_PREFIX = "space"
 
-    DATASOURCE_CHOICE = (
-        (TRACE_DATASOURCE, "Log"),
-        (TRACE_DATASOURCE, "Trace"),
-        (METRIC_DATASOURCE, "Metric"),
-        (PROFILE_DATASOURCE, "Profile"),
-    )
-
     DATA_NAME_PREFIX = "bkapm"
 
     DATASOURCE_TYPE_MAP = {

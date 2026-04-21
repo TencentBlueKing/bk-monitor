@@ -430,6 +430,13 @@ ADVANCED_OPTIONS = OrderedDict(
         # RUM 配置
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
+        ("RUM_KAFKA_CLUSTER_ID", slz.IntegerField(label="RUM默认Kafka集群ID", default=None, allow_null=True)),
+        ("RUM_ELASTICSEARCH_CLUSTER_ID", slz.IntegerField(label="RUM默认ES集群ID", default=None, allow_null=True)),
+        ("RUM_APP_DEFAULT_ES_STORAGE_CLUSTER", slz.IntegerField(label="RUM应用默认集群ID", default=-1)),
+        ("RUM_APP_DEFAULT_ES_RETENTION", slz.IntegerField(label="RUM应用默认过期时间", default=7)),
+        ("RUM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="RUM应用ES索引集默认切分大小", default=100)),
+        ("RUM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="RUM应用默认副本数", default=0)),
+        ("RUM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="RUM应用默认索引分片数", default=3)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
     ]

@@ -8,69 +8,92 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import time
-import uuid
+import json
 
+from django.conf import settings
+from django.db.transaction import atomic
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from core.drf_resource import Resource
-
-
-def _mock_application(bk_biz_id, app_name, app_alias="", application_id=None, **kwargs):
-    """构造一条 mock 应用数据"""
-    now = time.strftime("%Y-%m-%d %H:%M:%S+0800")
-    aid = application_id or abs(hash(f"{bk_biz_id}_{app_name}")) % 100000
-    return {
-        "application_id": aid,
-        "bk_biz_id": bk_biz_id,
-        "app_name": app_name,
-        "app_alias": app_alias or app_name,
-        "description": kwargs.get("description", ""),
-        "client_type": kwargs.get("client_type", "web"),
-        "is_enabled": True,
-        "application_apdex_config": {"apdex_default": 200, "LCP": 2000, "INP": 2000},
-        "application_qps_config": 500,
-        "span_datasource_config": {
-            "es_storage_cluster": 16,
-            "es_retention": 7,
-            "es_number_of_replicas": 0,
-            "es_shards": 3,
-            "es_slice_size": 500,
-        },
-        "span_result_table_id": f"{bk_biz_id}_bkrum_span_{app_name}",
-        "metric_result_table_id": f"{bk_biz_id}_bkrum_metric_{app_name}.__default__",
-        "time_series_group_id": 142,
-        "data_status": "normal",
-        "no_data_period": 10,
-        "is_create_finished": True,
-        "bk_tenant_id": "system",
-        "create_user": "admin",
-        "create_time": now,
-        "update_user": "admin",
-        "update_time": now,
-        "permission": {
-            "manage_rum_application": True,
-            "view_rum_application": True,
-        },
-    }
+from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.user import get_global_user
+from common.log import logger
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
+from constants.common import DEFAULT_TENANT_ID
+from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
+from core.drf_resource import Resource, api, resource
+from monitor.models import ApplicationConfig
+from monitor_web.constants import AlgorithmType
+from monitor_web.scene_view.resources.base import PageListResource
+from monitor_web.scene_view.table_format import StringTableFormat
+from monitor_web.strategies.user_groups import get_or_create_ops_notice_group
+from rum_web.constants import (
+    ASYNC_COLUMN_CHOICES,
+    BizConfigKey,
+    DEFAULT_NO_DATA_PERIOD,
+    DefaultSetupConfig,
+    NODATA_ERROR_STRATEGY_CONFIG_KEY,
+    DataStatus,
+    RUM_WEB_CLIENT_CHOICES,
+)
+from rum_web.handlers.backend_handler import telemetry_handler_registry
+from rum_web.models.application import Application, RumAppConfig
 
 
 class CreateApplicationResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        class DatasourceOptionSerializer(serializers.Serializer):
+            es_storage_cluster = serializers.IntegerField(label="es存储集群")
+            es_retention = serializers.IntegerField(label="es存储周期", min_value=1)
+            es_number_of_replicas = serializers.IntegerField(label="es副本数量", min_value=0)
+            es_shards = serializers.IntegerField(label="es索引分片数量", min_value=1)
+            es_slice_size = serializers.IntegerField(label="es索引切分大小", default=500)
+
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_.-]+$")
-        app_alias = serializers.CharField(label="应用别名", max_length=255)
+        app_alias = serializers.CharField(label="应用别名", max_length=255, required=False, default="")
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         client_type = serializers.CharField(label="前端类型", required=False, default="web")
+        datasource_option = DatasourceOptionSerializer(label="数据源配置", required=False, allow_null=True)
+
+    class ResponseSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Application
+            fields = "__all__"
 
     def perform_request(self, validated_request_data):
-        return _mock_application(
+        if Application.origin_objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+        ).exists():
+            raise ValueError(_("应用名称: {}已被创建").format(validated_request_data["app_name"]))
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            from bkmonitor.utils.request import get_request_tenant_id
+
+            bk_tenant_id = get_request_tenant_id()
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        # app_alias 未提供时默认使用 app_name，对齐 APM 行为
+        app_alias = validated_request_data.get("app_alias") or validated_request_data["app_name"]
+
+        app = Application.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
-            app_alias=validated_request_data["app_alias"],
-            description=validated_request_data.get("description", ""),
-            client_type=validated_request_data.get("client_type", "web"),
+            app_alias=app_alias,
+            description=validated_request_data["description"],
+            storage_options=validated_request_data.get("datasource_option"),
         )
+
+        from rum_web.tasks import RUMEvent, report_rum_application_event
+
+        report_rum_application_event.delay(
+            validated_request_data["bk_biz_id"],
+            app.application_id,
+            rum_event=RUMEvent.APP_CREATE,
+        )
+        return app
 
 
 class CheckDuplicateAppNameResource(Resource):
@@ -78,7 +101,14 @@ class CheckDuplicateAppNameResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称", max_length=50)
 
+    class ResponseSerializer(serializers.Serializer):
+        exists = serializers.BooleanField(label="是否存在")
+
     def perform_request(self, validated_request_data):
+        if Application.origin_objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+        ).exists():
+            return {"exists": True}
         return {"exists": False}
 
 
@@ -87,8 +117,16 @@ class DeleteApplicationResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
 
-    def perform_request(self, validated_request_data):
-        return {"result": True}
+    @atomic
+    def perform_request(self, data):
+        app = Application.objects.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]).first()
+        if not app:
+            raise ValueError(_("应用{}不存在").format(data["app_name"]))
+
+        RumAppConfig.delete_application_config(app.application_id)
+        api.rum_api.delete_application(application_id=app.application_id)
+        app.delete()
+        return True
 
 
 class StartDataSourceResource(Resource):
@@ -96,8 +134,31 @@ class StartDataSourceResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
 
+    @classmethod
+    def translate_data_status_when_start(cls, data_status):
+        return DataStatus.NO_DATA if data_status == DataStatus.DISABLED else data_status
+
+    @atomic
     def perform_request(self, validated_request_data):
-        return {"result": True}
+        app = Application.objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+        ).first()
+        if not app:
+            raise ValueError(_("应用不存在"))
+
+        app.data_status = self.translate_data_status_when_start(app.data_status)
+        res = api.rum_api.start_application(application_id=app.application_id)
+        app.is_enabled = True
+        app.save()
+
+        from rum_web.tasks import RUMEvent, report_rum_application_event
+
+        report_rum_application_event.delay(
+            app.bk_biz_id,
+            app.application_id,
+            rum_event=RUMEvent.APP_UPDATE,
+        )
+        return res
 
 
 class StopDataSourceResource(Resource):
@@ -105,37 +166,95 @@ class StopDataSourceResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
 
+    @atomic
     def perform_request(self, validated_request_data):
-        return {"result": True}
+        app = Application.objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+        ).first()
+        if not app:
+            raise ValueError(_("应用不存在"))
+
+        app.data_status = DataStatus.DISABLED
+        res = api.rum_api.stop_application(application_id=app.application_id)
+        app.is_enabled = False
+        app.save()
+
+        from rum_web.tasks import RUMEvent, report_rum_application_event
+
+        report_rum_application_event.delay(
+            app.bk_biz_id,
+            app.application_id,
+            rum_event=RUMEvent.APP_UPDATE,
+        )
+        return res
 
 
-class GetApplicationInfoByAppNameResource(Resource):
+class GetApplicationInfoByAppNameResource(ApiAuthResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
-        is_get_detail = serializers.BooleanField(label="是否获取详情", required=False, default=True)
+
+    class ResponseSerializer(serializers.ModelSerializer):
+        class Meta:
+            ref_name = "rum_application_info"
+            model = Application
+            fields = "__all__"
+
+        def handle_apdex_config(self, instance, data):
+            if Application.APDEX_CONFIG_KEY not in data:
+                instance.set_init_apdex_config()
+                data[Application.APDEX_CONFIG_KEY] = instance.get_config_by_key(
+                    Application.APDEX_CONFIG_KEY
+                ).config_value
+
+        def handle_qps_config(self, instance, data):
+            if Application.QPS_CONFIG_KEY not in data:
+                instance.set_init_qps_config()
+                data[Application.QPS_CONFIG_KEY] = instance.get_config_by_key(Application.QPS_CONFIG_KEY).config_value
+
+        def handle_datasource_config(self, instance, data):
+            if Application.APPLICATION_DATASOURCE_CONFIG_KEY not in data:
+                instance.set_init_datasource_config()
+                data[Application.APPLICATION_DATASOURCE_CONFIG_KEY] = instance.get_config_by_key(
+                    Application.APPLICATION_DATASOURCE_CONFIG_KEY
+                ).config_value
+
+        def to_representation(self, instance):
+            data = super().to_representation(instance)
+            data["is_create_finished"] = bool(instance.span_result_table_id and instance.metric_result_table_id)
+            # 将所有配置写入响应
+            for config in instance.get_all_config():
+                data[config.config_key] = config.config_value
+
+            # 各配置项独立处理
+            self.handle_apdex_config(instance, data)
+            self.handle_qps_config(instance, data)
+            self.handle_datasource_config(instance, data)
+
+            # TODO: 接入 IAM 权限判断后删除硬编码
+            data["permission"] = {
+                "manage_rum_application": True,
+                "view_rum_application": True,
+            }
+            return data
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        is_get_detail = validated_request_data.get("is_get_detail", True)
+        try:
+            application = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
 
-        full = _mock_application(bk_biz_id, app_name, app_alias=app_name)
+        return self.ResponseSerializer(application).data
 
-        if not is_get_detail:
-            # 精简模式：只返回基础定位字段，不返回配置/存储/状态等详情
-            return {
-                "application_id": full["application_id"],
-                "bk_biz_id": full["bk_biz_id"],
-                "app_name": full["app_name"],
-                "app_alias": full["app_alias"],
-                "description": full["description"],
-                "client_type": full["client_type"],
-                "is_enabled": full["is_enabled"],
-                "data_status": full["data_status"],
-            }
 
-        return full
+class QueryRumTokenInfoResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用ID")
+
+    def perform_request(self, validated_request_data):
+        return api.rum_api.query_bk_data_token_info(validated_request_data)
 
 
 class SetupApplicationResource(Resource):
@@ -153,56 +272,303 @@ class SetupApplicationResource(Resource):
         description = serializers.CharField(label="描述", required=False, allow_blank=True)
         span_datasource_config = SpanDatasourceConfigSerializer(required=False)
         application_apdex_config = serializers.DictField(label="Apdex配置", required=False)
+        application_qps_config = serializers.IntegerField(label="QPS限制", required=False)
+
+    class ResponseSerializer(serializers.ModelSerializer):
+        class Meta:
+            ref_name = "rum_setup_application"
+            model = Application
+            fields = "__all__"
+
+    class SetupProcessor:
+        update_key = []
+        group_key = None
+
+        def __init__(self, application):
+            self._application = application
+            self._params = {}
+
+        def set_params(self, key, value):
+            self._params[key] = value
+
+        def set_group_params(self, value):
+            for k, v in value.items():
+                self.set_params(k, v)
+
+        def setup(self):
+            pass
+
+        def get_transfer_config(self):
+            return {}
+
+    class ApplicationSetupProcessor(SetupProcessor):
+        update_key = ["app_alias", "description"]
+
+        def setup(self):
+            Application.objects.filter(application_id=self._application.application_id).update(**self._params)
+
+    class DatasourceSetupProcessor(SetupProcessor):
+        group_key = "span_datasource_config"
+
+        def setup(self):
+            if not self._params:
+                return
+            api.rum_api.apply_datasource(
+                application_id=self._application.application_id,
+                rum_datasource_option=self._params,
+            )
+            RumAppConfig.application_config_setup(
+                self._application.application_id,
+                Application.APPLICATION_DATASOURCE_CONFIG_KEY,
+                self._params,
+            )
+
+    class ApdexSetupProcessor(SetupProcessor):
+        group_key = "application_apdex_config"
+
+        def setup(self):
+            if not self._params:
+                return
+            configs = [{"config_type": f"apdex:{k}", "config_value": v} for k, v in self._params.items()]
+            if configs:
+                api.rum_api.release_app_config(
+                    bk_biz_id=self._application.bk_biz_id,
+                    app_name=self._application.app_name,
+                    configs=configs,
+                )
+            RumAppConfig.application_config_setup(
+                self._application.application_id,
+                Application.APDEX_CONFIG_KEY,
+                self._params,
+            )
+
+    class QPSSetupProcessor(SetupProcessor):
+        update_key = ["application_qps_config"]
+
+        def setup(self):
+            if "application_qps_config" not in self._params:
+                return
+            qps = self._params["application_qps_config"]
+            api.rum_api.release_app_config(
+                bk_biz_id=self._application.bk_biz_id,
+                app_name=self._application.app_name,
+                configs=[{"config_type": "qps:default", "config_value": qps}],
+            )
+            RumAppConfig.application_config_setup(
+                self._application.application_id,
+                Application.QPS_CONFIG_KEY,
+                qps,
+            )
+
+    @atomic
+    def perform_request(self, validated_request_data):
+        try:
+            app = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+
+        processors = [
+            processor_cls(app)
+            for processor_cls in [
+                self.ApplicationSetupProcessor,
+                self.DatasourceSetupProcessor,
+                self.ApdexSetupProcessor,
+                self.QPSSetupProcessor,
+            ]
+        ]
+        need_handle_processors = []
+        for key, value in validated_request_data.items():
+            if key in ("bk_biz_id", "app_name"):
+                continue
+            for processor in processors:
+                if processor.group_key and key == processor.group_key:
+                    processor.set_group_params(value)
+                    need_handle_processors.append(processor)
+                if key in processor.update_key:
+                    processor.set_params(key, value)
+                    need_handle_processors.append(processor)
+
+        for processor in need_handle_processors:
+            processor.setup()
+        Application.objects.filter(application_id=app.application_id).update(update_user=get_global_user())
+
+        from rum_web.tasks import RUMEvent, report_rum_application_event
+
+        report_rum_application_event.delay(
+            app.bk_biz_id,
+            app.application_id,
+            rum_event=RUMEvent.APP_UPDATE,
+        )
+        return Application.objects.get(application_id=app.application_id)
+
+
+class ListApplicationResource(PageListResource):
+    """RUM 应用列表接口"""
+
+    def get_columns(self, column_type=None):
+        return [
+            StringTableFormat(id="app_name", name=_("应用名称"), checked=True, disabled=True, min_width=200),
+            StringTableFormat(id="app_alias", name=_("应用别名"), checked=True, min_width=120),
+            StringTableFormat(id="description", name=_("描述"), checked=True, min_width=120),
+            StringTableFormat(id="lcp_p75", name="LCP P75", checked=True, asyncable=True, sortable=True, width=130),
+            StringTableFormat(
+                id="js_error_rate", name=_("JS 错误率"), checked=True, asyncable=True, sortable=True, width=130
+            ),
+            StringTableFormat(
+                id="api_fail_rate", name=_("API 失败率"), checked=True, asyncable=True, sortable=True, width=130
+            ),
+        ]
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
+        filter_dict = serializers.JSONField(required=False, label="筛选字典")
+        sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
+
+    class ApplicationSerializer(serializers.ModelSerializer):
+        is_create_finished = serializers.SerializerMethodField()
+
+        def get_is_create_finished(self, instance):
+            return bool(instance.span_result_table_id and instance.metric_result_table_id)
+
+        class Meta:
+            model = Application
+            fields = [
+                "application_id",
+                "bk_biz_id",
+                "app_name",
+                "app_alias",
+                "description",
+                "client_type",
+                "is_enabled",
+                "data_status",
+                "span_result_table_id",
+                "metric_result_table_id",
+                "is_create_finished",
+            ]
+
+    def get_filter_fields(self):
+        return ["app_name", "app_alias", "description"]
+
+    def perform_request(self, validate_data):
+        applications = Application.objects.filter(bk_biz_id=validate_data["bk_biz_id"])
+
+        def sort_rule(app):
+            """排序：有数据的优先，其次按名称"""
+            first = 0 if app.get("data_status") == DataStatus.NORMAL else 1
+            return first, app.get("app_name", "")
+
+        data = sorted(self.ApplicationSerializer(applications, many=True).data, key=sort_rule)
+
+        # TODO: 接入 IAM 权限判断
+        for item in data:
+            item["permission"] = {"manage_rum_application": True, "view_rum_application": True}
+
+        # 不分页
+        validate_data["page_size"] = len(data)
+        return self.get_pagination_data(data, validate_data)
+
+
+class ListApplicationAsyncResource(Resource):
+    """
+    应用列表异步指标查询接口。
+    TODO: 待 RUM metric 字段定义完成后实现真实查询。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        column = serializers.ChoiceField(label="列名", choices=ASYNC_COLUMN_CHOICES)
+        application_ids = serializers.ListField(label="应用ID列表", child=serializers.CharField())
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+
+    many_response_data = True
 
     def perform_request(self, validated_request_data):
-        # 配置页聚合保存入口，不返回数据
-        return None
+        # TODO: 待 RUM metric 数据源定义 lcp_p75/js_error_rate/api_fail_rate 字段后，
+        #  通过 resource.grafana.graph_unify_query 查询真实指标数据
+        return []
 
 
 class GetMetaConfigInfoResource(Resource):
+    """RUM 元信息配置"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
+    def get_setup_config_value(self, key: str, bk_biz_id, default=None):
+        """从 ApplicationConfig 表查询业务级配置"""
+        obj = ApplicationConfig.objects.filter(cc_biz_id=bk_biz_id, key=key).first()
+        if obj:
+            return json.loads(obj.value)["_data"]
+        return default
+
+    def setup(self, bk_biz_id):
+        return {
+            "guide_url": {
+                "access_url": settings.RUM_ACCESS_URL,
+                "best_practice": settings.RUM_BEST_PRACTICE_URL,
+                "metric_description": settings.RUM_METRIC_DESCRIPTION_URL,
+            },
+            "index_prefix_name": f"{bk_biz_id}_bkrum_",  # 需要按实际确认
+            "es_retention_days": {
+                "default": DefaultSetupConfig.DEFAULT_ES_RETENTION_DAYS,
+                "default_es_max": self.get_setup_config_value(
+                    BizConfigKey.DEFAULT_ES_RETENTION_DAYS_MAX,
+                    bk_biz_id,
+                    DefaultSetupConfig.DEFAULT_ES_RETENTION_DAYS_MAX,
+                ),
+                "private_es_max": self.get_setup_config_value(
+                    BizConfigKey.PRIVATE_ES_RETENTION_DAYS_MAX,
+                    bk_biz_id,
+                    DefaultSetupConfig.PRIVATE_ES_RETENTION_DAYS_MAX,
+                ),
+            },
+            "es_number_of_replicas": {
+                "default": DefaultSetupConfig.DEFAULT_ES_NUMBER_OF_REPLICAS,
+                "default_es_max": self.get_setup_config_value(
+                    BizConfigKey.DEFAULT_ES_NUMBER_OF_REPLICAS_MAX,
+                    bk_biz_id,
+                    DefaultSetupConfig.DEFAULT_ES_NUMBER_OF_REPLICAS_MAX,
+                ),
+                "private_es_max": self.get_setup_config_value(
+                    BizConfigKey.PRIVATE_ES_NUMBER_OF_REPLICAS_MAX,
+                    bk_biz_id,
+                    DefaultSetupConfig.PRIVATE_ES_NUMBER_OF_REPLICAS_MAX,
+                ),
+            },
+        }
+
     def perform_request(self, validated_request_data):
         return {
-            "client_type_options": ["web"],
-            "setup": {
-                "guide_url": {
-                    "access_url": "www.example.com",
-                    "best_practice": "",
-                    "metric_description": "",
-                },
-                "index_prefix_name": f"{validated_request_data['bk_biz_id']}_bkrum_",
-                "es_retention_days": {
-                    "default": 7,
-                    "default_es_max": 7,
-                    "private_es_max": 30,
-                },
-                "es_number_of_replicas": {
-                    "default": 1,
-                    "default_es_max": 3,
-                    "private_es_max": 10,
-                },
-            },
+            "client_type_options": RUM_WEB_CLIENT_CHOICES,
+            "setup": self.setup(validated_request_data["bk_biz_id"]),
         }
 
 
 class GetStorageInfoResource(Resource):
+    """查询存储配置信息"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
 
     def perform_request(self, validated_request_data):
-        return {
-            "es_number_of_replicas": 0,
-            "es_retention": 7,
-            "es_shards": 3,
-            "es_slice_size": 30,
-            "es_storage_cluster": 16,
-        }
+        try:
+            app = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+
+        return telemetry_handler_registry("rum", app=app).storage_info()
 
 
 class GetIndicesInfoResource(Resource):
+    """查询 ES 索引信息"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -210,38 +576,19 @@ class GetIndicesInfoResource(Resource):
     many_response_data = True
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        table_name = app_name.replace("-", "_")
-        return [
-            {
-                "health": "green",
-                "status": "open",
-                "index": f"v2_{bk_biz_id}_bkrum_span_{table_name}",
-                "uuid": uuid.uuid4().hex[:16],
-                "pri": 3,
-                "rep": 0,
-                "docs_count": 49982610,
-                "docs_deleted": 1162,
-                "store_size": 19516475812,
-                "pri_store_size": 19516475812,
-            },
-            {
-                "health": "green",
-                "status": "open",
-                "index": f"v2_{bk_biz_id}_bkrum_span_{table_name}",
-                "uuid": uuid.uuid4().hex[:16],
-                "pri": 3,
-                "rep": 0,
-                "docs_count": 365476235,
-                "docs_deleted": 0,
-                "store_size": 138787848810,
-                "pri_store_size": 138787848810,
-            },
-        ]
+        try:
+            app = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+
+        return telemetry_handler_registry("rum", app=app).indices_info()
 
 
 class GetDataSamplingResource(Resource):
+    """查询采样数据"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -250,452 +597,209 @@ class GetDataSamplingResource(Resource):
     many_response_data = True
 
     def perform_request(self, validated_request_data):
-        now = time.strftime("%Y-%m-%dT%H:%M:%S+08:00")
-        return [
-            {
-                "raw_log": {
-                    "trace_id": uuid.uuid4().hex,
-                    "span_id": uuid.uuid4().hex[:16],
-                    "span_name": "/api/v1/page/load",
-                    "kind": 1,
-                    "elapsed_time": 1250000,
-                    "resource.service.name": validated_request_data["app_name"],
-                    "status.code": 0,
-                },
-                "sampling_time": now,
-            }
-            for _ in range(min(validated_request_data.get("size", 10), 3))
-        ]
-
-
-class GetNoDataStrategyInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        strategy_id = abs(hash(f"{bk_biz_id}_{app_name}_nodata")) % 100000
-        return {
-            "id": strategy_id,
-            "name": f"BKRUM-无数据告警-{app_name}-metric",
-            "alert_status": 1,
-            "alert_count": 0,
-            "alert_graph": {
-                "id": 1,
-                "title": "告警数量",
-                "type": "apdex-chart",
-                "targets": [
-                    {
-                        "dataType": "event",
-                        "datasource": "time_series",
-                        "api": "rum_metric.alertQuery",
-                        "data": {
-                            "bk_biz_id": bk_biz_id,
-                            "app_name": app_name,
-                            "strategy_id": strategy_id,
-                        },
-                    }
-                ],
-            },
-            "is_enabled": False,
-            "notice_group": [{"id": 451, "name": "运维"}],
-        }
-
-
-class GetDataViewConfigResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
-
-    many_response_data = True
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        table_name = app_name.replace("-", "_")
-        metric_table = f"{bk_biz_id}_bkrum_metric_{table_name}.__default__"
-        return [
-            {
-                "id": 1,
-                "title": "分钟数据量",
-                "type": "graph",
-                "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6},
-                "targets": [
-                    {
-                        "data_type": "time_series",
-                        "datasource": "time_series",
-                        "api": "grafana.graphUnifyQuery",
-                        "data": {
-                            "expression": "A",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": metric_table,
-                                    "metrics": [
-                                        {
-                                            "field": "bk_rum_count",
-                                            "method": "SUM",
-                                            "alias": "A",
-                                        }
-                                    ],
-                                    "group_by": [],
-                                    "display": True,
-                                    "where": [],
-                                    "interval": 60,
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [],
-                                }
-                            ],
-                            "table_name": metric_table,
-                            "metric_field": "bk_rum_count",
-                            "method_method": "SUM",
-                        },
-                    }
-                ],
-                "options": {
-                    "time_series": {},
-                    "collect_interval_display": "1m",
-                },
-            },
-        ]
-
-
-class GetDataHistogramResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
-        data_view_config = serializers.DictField(label="查询模板配置", required=False, default=dict)
-
-    def perform_request(self, validated_request_data):
-        start_time = validated_request_data["start_time"]
-        end_time = validated_request_data["end_time"]
-        # 生成模拟的直方图数据点（每分钟一个点）
-        interval = 60
-        datapoints = []
-        ts = start_time
-        while ts <= end_time:
-            datapoints.append([abs(hash(str(ts))) % 1000, ts * 1000])
-            ts += interval
-        return {
-            "metrics": [],
-            "series": [
-                {
-                    "target": "bk_rum_count",
-                    "metric_field": "bk_rum_count",
-                    "alias": "A",
-                    "type": "bar",
-                    "unit": "",
-                    "dimensions": {},
-                    "datapoints": datapoints,
-                }
-            ],
-        }
-
-
-class ListApplicationResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-
-        mock_apps = [
-            {
-                "application_id": 101,
-                "bk_biz_id": bk_biz_id,
-                "app_name": "www.example.com",
-                "app_alias": "示例官网",
-                "description": "示例官网前端监控",
-                "client_type": "web",
-                "is_enabled": True,
-                "span_data_status": "normal",
-                "metric_data_status": "normal",
-                "span_result_table_id": f"{bk_biz_id}_bkrum_span_www_example_com",
-                "metric_result_table_id": f"{bk_biz_id}_bkrum_metric_www_example_com.__default__",
-                "is_create_finished": True,
-                "permission": {
-                    "manage_rum_application": True,
-                    "view_rum_application": True,
-                },
-            },
-            {
-                "application_id": 102,
-                "bk_biz_id": bk_biz_id,
-                "app_name": "www.bk-console.com",
-                "app_alias": "蓝鲸管理台",
-                "description": "蓝鲸管理台前端性能监控",
-                "client_type": "web",
-                "is_enabled": True,
-                "span_data_status": "normal",
-                "metric_data_status": "no_data",
-                "span_result_table_id": f"{bk_biz_id}_bkrum_span",
-                "metric_result_table_id": f"{bk_biz_id}_bkrum_metric.__default__",
-                "is_create_finished": True,
-                "permission": {
-                    "manage_rum_application": True,
-                    "view_rum_application": True,
-                },
-            },
-        ]
-
-        columns = [
-            {
-                "id": "app_name",
-                "name": "应用名称",
-                "disabled": True,
-                "checked": True,
-                "sortable": False,
-                "type": "link",
-                "width": None,
-                "min_width": 200,
-                "max_width": None,
-                "filterable": False,
-                "filter_list": [],
-                "actionId": "view_rum_application",
-                "asyncable": False,
-                "props": {},
-                "showOverflowTooltip": True,
-            },
-            {
-                "id": "app_alias",
-                "name": "应用别名",
-                "disabled": False,
-                "checked": True,
-                "sortable": False,
-                "type": "string",
-                "width": None,
-                "min_width": 120,
-                "max_width": None,
-                "filterable": False,
-                "filter_list": [],
-                "actionId": None,
-                "asyncable": False,
-                "props": {},
-                "showOverflowTooltip": True,
-            },
-            {
-                "id": "description",
-                "name": "描述",
-                "disabled": False,
-                "checked": True,
-                "sortable": False,
-                "type": "string",
-                "width": None,
-                "min_width": 120,
-                "max_width": None,
-                "filterable": False,
-                "filter_list": [],
-                "actionId": None,
-                "asyncable": False,
-                "props": {},
-                "showOverflowTooltip": True,
-            },
-            {
-                "id": "lcp_p75",
-                "name": "LCP P75",
-                "disabled": False,
-                "checked": True,
-                "sortable": "custom",
-                "type": "string",
-                "width": 130,
-                "min_width": None,
-                "max_width": None,
-                "filterable": False,
-                "filter_list": [],
-                "actionId": None,
-                "asyncable": True,
-                "props": {},
-                "showOverflowTooltip": False,
-            },
-            {
-                "id": "js_error_rate",
-                "name": "JS 错误率",
-                "disabled": False,
-                "checked": True,
-                "sortable": "custom",
-                "type": "string",
-                "width": 130,
-                "min_width": None,
-                "max_width": None,
-                "filterable": False,
-                "filter_list": [],
-                "actionId": None,
-                "asyncable": True,
-                "props": {},
-                "showOverflowTooltip": False,
-            },
-            {
-                "id": "api_fail_rate",
-                "name": "API 失败率",
-                "disabled": False,
-                "checked": True,
-                "sortable": "custom",
-                "type": "string",
-                "width": 130,
-                "min_width": None,
-                "max_width": None,
-                "filterable": False,
-                "filter_list": [],
-                "actionId": None,
-                "asyncable": True,
-                "props": {},
-                "showOverflowTooltip": False,
-            },
-        ]
-
-        return {
-            "columns": columns,
-            "total": len(mock_apps),
-            "data": mock_apps,
-        }
-
-
-class ListApplicationAsyncResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        column = serializers.ChoiceField(label="列名", choices=["lcp_p75", "js_error_rate", "api_fail_rate"])
-        application_ids = serializers.ListField(label="应用ID列表", child=serializers.CharField())
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
-
-    many_response_data = True
-
-    # 各列 mock 值的定义
-    _COLUMN_MOCK_MAP = {
-        "lcp_p75": {"id": "lcp_p75", "name": "LCP P75", "unit": "ms"},
-        "js_error_rate": {"id": "js_error_rate", "name": "JS 错误率", "unit": "%"},
-        "api_fail_rate": {"id": "api_fail_rate", "name": "API 失败率", "unit": "%"},
-    }
-
-    _MOCK_APPS = {
-        "101": "www.example.com",
-        "102": "www.bk-console.com",
-    }
-
-    def perform_request(self, validated_request_data):
-        column = validated_request_data["column"]
-        application_ids = validated_request_data["application_ids"]
-        column_def = self._COLUMN_MOCK_MAP[column]
-
-        # 根据 column 生成不同量级的 mock 值
-        mock_values = {
-            "lcp_p75": lambda aid: abs(hash(f"lcp_{aid}")) % 3000 + 500,
-            "js_error_rate": lambda aid: round((abs(hash(f"js_{aid}")) % 500) / 100, 2),
-            "api_fail_rate": lambda aid: round((abs(hash(f"api_{aid}")) % 300) / 100, 2),
-        }
-
-        result = []
-        for aid in application_ids:
-            app_name = self._MOCK_APPS.get(str(aid), f"app_{aid}")
-            value = mock_values[column](aid)
-            result.append(
-                {
-                    "application_id": int(aid) if str(aid).isdigit() else aid,
-                    "app_name": app_name,
-                    column: {
-                        "id": column_def["id"],
-                        "name": column_def["name"],
-                        "value": value,
-                        "unit": column_def["unit"],
-                    },
-                }
+        try:
+            app = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
             )
-        return result
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
 
-
-class QueryRumTokenInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用ID")
-
-    def perform_request(self, validated_request_data):
-        return {
-            "token": f"mock_rum_token_{uuid.uuid4().hex[:12]}",
-        }
+        return telemetry_handler_registry("rum", app=app).data_sampling(size=validated_request_data["size"])
 
 
 class StorageFieldInfoResource(Resource):
+    """查询存储字段信息"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
 
     many_response_data = True
 
     def perform_request(self, validated_request_data):
-        return [
-            {
-                "field_name": "__parse_failure",
-                "ch_field_name": "",
-                "analysis_field": False,
-                "field_type": "boolean",
-                "time_field": False,
+        try:
+            app = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+
+        return telemetry_handler_registry("rum", app=app).storage_field_info()
+
+
+class GetDataViewConfigResource(Resource):
+    """获取数据视图查询配置"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+
+    many_response_data = True
+
+    def perform_request(self, validated_request_data):
+        try:
+            app = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+
+        return telemetry_handler_registry("rum", app=app).get_data_view_config()
+
+
+class GetNoDataStrategyInfoResource(Resource):
+    """
+    RUM 无数据告警策略查询，对齐 apm_web.meta.resources.NoDataStrategyInfoResource。
+    查不到策略时自动创建。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+
+    def _get_strategy(self, app):
+        """获取已存储的策略，不存在则创建"""
+        strategy_config, _ = RumAppConfig.objects.get_or_create(
+            config_level=RumAppConfig.APPLICATION_LEVEL,
+            level_key=app.application_id,
+            config_key=NODATA_ERROR_STRATEGY_CONFIG_KEY,
+            defaults={"config_value": {"id": -1, "notice_group_id": -1}},
+        )
+        strategy_id = strategy_config.config_value.get("id", -1)
+
+        # 已有有效策略则查询返回
+        if strategy_id > 0:
+            try:
+                strategies = resource.strategies.get_strategy_list_v2(
+                    bk_biz_id=app.bk_biz_id,
+                    conditions=[{"key": "id", "value": [strategy_id]}],
+                    page=0,
+                    page_size=0,
+                ).get("strategy_config_list", [])
+                if strategies:
+                    return strategies[0]
+            except Exception as e:
+                logger.warning(f"[GetNoDataStrategyInfo] query strategy({strategy_id}) failed: {e}")
+
+        # 不存在则创建
+        return self._registry_strategy(app, strategy_config)
+
+    @classmethod
+    def _get_notice_group(cls, bk_biz_id, strategy_config):
+        """获取告警组ID"""
+        group_id = get_or_create_ops_notice_group(bk_biz_id)
+        strategy_config.config_value["notice_group_id"] = group_id
+        strategy_config.save()
+        return group_id
+
+    @classmethod
+    def _registry_strategy(cls, app, strategy_config):
+        """创建无数据告警策略"""
+        group_id = cls._get_notice_group(app.bk_biz_id, strategy_config)
+        if not group_id:
+            return None
+
+        if not app.metric_result_table_id:
+            return None
+
+        # TODO: promql 中 bk_rum_count 指标名待对齐 RUM metric 数据源的实际字段定义
+        promql = f'sum(sum_over_time({{__name__="custom:{app.metric_result_table_id}:bk_rum_count"}}[1m])) or vector(0)'
+        strategy_name = f"BKRUM-{_('无数据告警')}-{app.app_name}"
+
+        config = {
+            "bk_biz_id": app.bk_biz_id,
+            "is_enabled": False,
+            "name": strategy_name,
+            "labels": ["BKRUM"],
+            "scenario": ApplicationsResultTableLabel.application_check,
+            "detects": [
+                {
+                    "expression": "",
+                    "connector": "and",
+                    "level": EventSeverity.WARNING,
+                    "trigger_config": {"count": 1, "check_window": 5},
+                    "recovery_config": {"check_window": 5},
+                }
+            ],
+            "items": [
+                {
+                    "name": strategy_name,
+                    "no_data_config": {
+                        "is_enabled": False,
+                        "continuous": DEFAULT_NO_DATA_PERIOD,
+                        "level": EventSeverity.WARNING,
+                    },
+                    "algorithms": [
+                        {
+                            "level": EventSeverity.WARNING,
+                            "config": [[{"method": "eq", "threshold": "0"}]],
+                            "type": AlgorithmType.Threshold,
+                            "unit_prefix": "",
+                        }
+                    ],
+                    "query_configs": [
+                        {
+                            "data_source_label": DataSourceLabel.PROMETHEUS,
+                            "data_type_label": DataTypeLabel.TIME_SERIES,
+                            "promql": promql,
+                            "agg_interval": 60,
+                            "alias": "a",
+                        }
+                    ],
+                    "target": [],
+                }
+            ],
+            "notice": {
+                "user_groups": [group_id],
+                "signal": [],
+                "options": {
+                    "converge_config": {"need_biz_converge": True},
+                    "start_time": "00:00:00",
+                    "end_time": "23:59:59",
+                },
+                "config": {
+                    "interval_notify_mode": "standard",
+                    "notify_interval": 2 * 60 * 60,
+                    "template": DEFAULT_NOTICE_MESSAGE_TEMPLATE,
+                },
             },
-            {
-                "field_name": "attributes.apdex_type",
-                "ch_field_name": "",
-                "analysis_field": False,
-                "field_type": "keyword",
-                "time_field": False,
-            },
-            {
-                "field_name": "attributes.enduser.id",
-                "ch_field_name": "",
-                "analysis_field": False,
-                "field_type": "keyword",
-                "time_field": False,
-            },
-            {
-                "field_name": "span_name",
-                "ch_field_name": "Span名称",
-                "analysis_field": False,
-                "field_type": "keyword",
-                "time_field": False,
-            },
-            {
-                "field_name": "trace_id",
-                "ch_field_name": "Trace ID",
-                "analysis_field": False,
-                "field_type": "keyword",
-                "time_field": False,
-            },
-            {
-                "field_name": "span_id",
-                "ch_field_name": "Span ID",
-                "analysis_field": False,
-                "field_type": "keyword",
-                "time_field": False,
-            },
-            {
-                "field_name": "elapsed_time",
-                "ch_field_name": "耗时",
-                "analysis_field": False,
-                "field_type": "long",
-                "time_field": False,
-            },
-            {
-                "field_name": "sampling_time",
-                "ch_field_name": "采样时间",
-                "analysis_field": False,
-                "field_type": "date",
-                "time_field": True,
-            },
-            {
-                "field_name": "resource.service.name",
-                "ch_field_name": "服务名称",
-                "analysis_field": False,
-                "field_type": "keyword",
-                "time_field": False,
-            },
-            {
-                "field_name": "status.code",
-                "ch_field_name": "状态码",
-                "analysis_field": False,
-                "field_type": "integer",
-                "time_field": False,
-            },
-        ]
+            "actions": [],
+        }
+
+        try:
+            resp = resource.strategies.save_strategy_v2(**config)
+            strategy_config.config_value = {"id": resp["id"], "notice_group_id": group_id}
+            strategy_config.save()
+            return resp
+        except Exception as e:
+            logger.exception(f"[GetNoDataStrategyInfo] create strategy failed: {e}")
+            return None
+
+    def perform_request(self, validated_request_data):
+        try:
+            app = Application.objects.get(
+                bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+
+        strategy = self._get_strategy(app)
+        if not strategy:
+            return {}
+
+        alert_graph = {
+            "id": 1,
+            "title": _("告警数量"),
+            "type": "apdex-chart",
+            "gridPos": {"x": 0, "y": 0, "w": 24, "h": 6},
+            "targets": [],
+            "options": {},
+        }
+
+        return {
+            "id": strategy.get("id"),
+            "name": strategy.get("name"),
+            "is_enabled": strategy.get("is_enabled", False),
+            "alert_graph": alert_graph,
+            "strategy_id": strategy.get("id"),
+        }
