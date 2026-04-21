@@ -364,13 +364,16 @@ class IssueQueryHandler(BaseBizQueryHandler):
     @classmethod
     def enrich_aggregate_dimensions(cls, aggregate_config: dict) -> dict:
         """
-        为 aggregate_config 中的 aggregate_dimensions 添加 display_name
+        为 aggregate_config 中的 aggregate_dimensions 补充 display_name 和正确的字段前缀
 
-        返回更新后的 aggregate_config
+        参数:
+            aggregate_config: 聚合配置字典，需包含 "aggregate_dimensions" 列表，
+                列表中每个元素为字符串形式的维度字段名（如 "bk_biz_id" 或 "tags.xxx"）
         """
         if not aggregate_config or "aggregate_dimensions" not in aggregate_config:
             return aggregate_config
 
+        # 硬编码的维度字段到中文名映射（ES Document 顶层字段）
         dimension_name_mapping = {
             "bk_agent_id": _("Agent ID"),
             "bk_biz_id": _("业务ID"),
@@ -386,19 +389,36 @@ class IssueQueryHandler(BaseBizQueryHandler):
             "mount_point": _("挂载点"),
         }
 
+        # 独立维护 AlertQueryTransformer 动态字段的映射，用于后续判断是否为已知顶层字段
+        transformer_field_mapping = {}
+
         # 延迟导入避免循环引用
         from fta_web.alert.handlers.alert import AlertQueryTransformer
 
         for field in AlertQueryTransformer.query_fields:
-            dimension_name_mapping[field.field] = field.display
+            transformer_field_mapping[field.field] = field.display
+
+        # 合并映射表：用于统一查找维度的中文名
+        dimension_name_mapping.update(transformer_field_mapping)
 
         new_aggregate_dimensions = []
 
         for dim in aggregate_config["aggregate_dimensions"]:
-            # 去除 tags. 前缀
-            dim = dim.replace("tags.", "", 1)
+            # 保留原始字段名，后续可能需要补 tags. 前缀
+            field = dim
+            # 去除 tags. 前缀，用于在映射表中查找中文名
+            if dim.startswith("tags."):
+                dim = dim.removeprefix("tags.")
+
+            # 前缀修正逻辑：
+            # - 原始字段不带 tags. 前缀，且不属于 AlertQueryTransformer 的已知顶层字段
+            # - 说明该维度是标签字段，需要补 tags. 前缀以匹配 ES 中的实际存储路径
+            if not field.startswith("tags.") and dim not in transformer_field_mapping:
+                field = f"tags.{field}"
+
+            # 优先从映射表获取中文名，否则通过 ImpactScopeDimension 兜底获取
             name = dimension_name_mapping.get(dim) or ImpactScopeDimension.get_display_name(dim)
-            new_aggregate_dimensions.append({"field": dim, "display_name": name})
+            new_aggregate_dimensions.append({"field": field, "display_name": name})
 
         aggregate_config["aggregate_dimensions"] = new_aggregate_dimensions
 
