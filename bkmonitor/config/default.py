@@ -1600,6 +1600,11 @@ SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
 
 # BCS集群自动发现任务周期
 BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
+# BCS集群自动发现任务的起始集群ID（严格大于，不包含该ID本身）。
+# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的新增与删除；
+# 阈值以下（含阈值）的集群不会被本任务新增，也不会被标记为删除，但已存在集群的状态/业务/项目仍会正常更新。
+# 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
+BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
 
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []
