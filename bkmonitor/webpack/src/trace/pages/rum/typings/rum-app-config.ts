@@ -24,9 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import type { RUM_APP_CONFIG_TAB_ENUM } from './constants';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
-
 // TODO 等待后端确认这些子类型具体的值
 
 /**
@@ -96,5 +93,3 @@ export interface IRumAppConfig {
  * Span 存储配置
  */
 export type ISpanDatasourceConfig = Record<string, unknown>;
-
-export type RumAppConfigTabType = GetEnumTypeTool<typeof RUM_APP_CONFIG_TAB_ENUM>;
