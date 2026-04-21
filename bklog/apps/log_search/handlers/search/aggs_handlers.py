@@ -33,6 +33,7 @@ from apps.log_search.exceptions import DateHistogramException
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
+from apps.log_search.utils import normalize_date_histogram_interval
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -69,6 +70,10 @@ class AggsHandlers(AggsBase):
 
     def __init__(self):
         pass
+
+    @staticmethod
+    def _get_date_histogram_interval_kwargs(interval: str) -> dict:
+        return normalize_date_histogram_interval(interval)
 
     @classmethod
     def terms(cls, index_set_id, query_data: dict):
@@ -191,7 +196,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                interval=interval,
+                **cls._get_date_histogram_interval_kwargs(interval),
                 format=time_format,
                 time_zone=time_zone,
                 min_doc_count=cls.MIN_DOC_COUNT,
@@ -208,7 +213,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                interval=interval,
+                **cls._get_date_histogram_interval_kwargs(interval),
                 min_doc_count=cls.MIN_DOC_COUNT,
                 extended_bounds={"min": min_value, "max": max_value},
             )

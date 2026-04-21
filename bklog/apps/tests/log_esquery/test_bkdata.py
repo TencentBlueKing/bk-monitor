@@ -19,15 +19,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from unittest.mock import patch
+
 from django.test import TestCase
 
+from apps.exceptions import ApiResultError
+from apps.log_esquery.exceptions import EsClientSearchException
 from apps.log_search.models import Scenario
 from apps.log_esquery.esquery.client.QueryClient import QueryClient
+from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 
 
 INDICES = ["1_Foo"]
 
 INDICES_MAPPING = {"1_foo_2020010100": {}, "1_foo_bar_2020010100": {}}
+
+
+class MissingMessageApiResultError(ApiResultError):
+    def __getattribute__(self, item):
+        if item == "message":
+            raise AttributeError("message missing")
+        return super().__getattribute__(item)
+
+    def __str__(self):
+        return "missing message"
 
 
 class TestBkdata(TestCase):
@@ -37,3 +52,13 @@ class TestBkdata(TestCase):
         self.assertIn("1_foo_2020010100", result)
         self.assertNotIn("1_foo_bar_2020010100", result)
         return True
+
+    @patch("apps.api.BkDataQueryApi.query")
+    def test_query_uses_fallback_error_message(self, mock_query):
+        mock_query.side_effect = MissingMessageApiResultError("bkdata failed", code="123")
+
+        with self.assertRaises(EsClientSearchException) as ctx:
+            QueryClientBkData().query(index="1_foo", body={})
+
+        self.assertEqual(ctx.exception.code, "123")
+        self.assertEqual(ctx.exception.message, "missing message")

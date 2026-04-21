@@ -46,6 +46,7 @@ from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.utils import normalize_date_histogram_interval
 from apps.log_unifyquery.handler.agg import UnifyQueryAggHandler
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
@@ -93,7 +94,10 @@ class GrafanaQueryHandler:
         # datetime aggregation
         aggragations = {
             time_field: {
-                "date_histogram": {"field": time_field, "interval": self._parse_interval(interval)},
+                "date_histogram": {
+                    "field": time_field,
+                    **normalize_date_histogram_interval(self._parse_interval(interval)),
+                },
                 "aggregations": {metric_field: {agg_method: {"field": metric_field}}},
             },
         }

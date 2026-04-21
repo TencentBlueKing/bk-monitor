@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import re
 import functools
 import json
 import operator
@@ -26,11 +27,15 @@ from io import BytesIO
 from typing import Any
 
 from django.http import FileResponse
-import re
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
 from apps.log_search.exceptions import LogSearchException
 from apps.utils.local import get_request_external_username, get_request_username
+
+
+DATE_HISTOGRAM_INTERVAL_RE = re.compile(r"^(?P<count>\d+)(?P<unit>[smhdMqy])$")
+FIXED_INTERVAL_UNITS = {"s", "m", "h", "d"}
+CALENDAR_INTERVAL_UNITS = {"M", "q", "y"}
 
 
 def sort_func(data: list[dict[str, Any]], sort_list: list[list[str]], key_func=lambda x: x) -> list[dict[str, Any]]:
@@ -250,6 +255,25 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
     )
 
     return response
+
+
+def normalize_date_histogram_interval(interval: Any) -> dict[str, Any]:
+    """
+    将旧版 interval 参数转换成 ES8 支持的字段名。
+    """
+    if not isinstance(interval, str):
+        return {"interval": interval}
+
+    match = DATE_HISTOGRAM_INTERVAL_RE.fullmatch(interval)
+    if not match:
+        return {"interval": interval}
+
+    unit = match.group("unit")
+    if unit in FIXED_INTERVAL_UNITS:
+        return {"fixed_interval": interval}
+    if unit in CALENDAR_INTERVAL_UNITS:
+        return {"calendar_interval": interval}
+    return {"interval": interval}
 
 
 def handle_es_query_error(exc: Exception) -> Exception:

@@ -38,6 +38,7 @@ from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
 from apps.log_esquery.esquery.client.QueryClientLog import QueryClientLog
 from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.utils import normalize_date_histogram_interval
 from apps.utils.thread import MultiExecuteFunc
 from bk_dataview.grafana.provisioning import Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -160,14 +161,18 @@ class ESBodyAdapter:
     @staticmethod
     def adapt_interval(body: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        data_histogram的时间间隔字段名为fixed_interval, 但是我们的接口是interval
+        兼容旧 interval 写法，统一转换成 ES8 支持的字段名。
         """
         new_dict = {}
         for k, v in body.items():
-            if k == "date_histogram" and "fixed_interval" in v:
-                v["interval"] = v.pop("fixed_interval")
+            if k == "date_histogram" and isinstance(v, dict):
+                interval = v.pop("interval", None)
+                if interval is not None and "fixed_interval" not in v and "calendar_interval" not in v:
+                    v.update(normalize_date_histogram_interval(interval))
             if isinstance(v, dict):
                 new_dict[k] = ESBodyAdapter.adapt_interval(v)
+            elif isinstance(v, list):
+                new_dict[k] = [ESBodyAdapter.adapt_interval(item) if isinstance(item, dict) else item for item in v]
             else:
                 new_dict[k] = v
         return new_dict

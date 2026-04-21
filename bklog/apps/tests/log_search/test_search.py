@@ -555,6 +555,13 @@ class TestSearchHandler(TestCase):
         dot_logs = dot_result["list"]
         self.assertEqual(dot_logs, DOT_RESULT)
 
+    def test_deal_query_result_without_hits_list(self):
+        result = self.search_handler._deal_query_result(result_dict={"hits": {"total": 1}, "took": 12})
+        self.assertEqual(result["list"], [])
+        self.assertEqual(result["origin_log_list"], [])
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["took"], 12)
+
     @patch(
         "apps.log_clustering.models.ClusteringConfig.get_by_index_set_id",
         lambda index_set_id, raise_exception: Mock(clustered_rt=CLUSTERED_RT),
