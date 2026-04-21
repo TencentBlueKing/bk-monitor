@@ -41,6 +41,45 @@ export const getFieldNameByField = (field, store) => {
 };
 
 export default ({ store }) => {
+  const getStoreFieldNameIndex = (): Record<string, FieldInfoItem> =>
+    store.state.indexFieldInfo.fieldNameIndex ?? {};
+
+  const getStoreQueryAliasIndex = (): Record<string, FieldInfoItem> =>
+    store.state.indexFieldInfo.queryAliasIndex ?? {};
+
+  const buildFieldNameIndex = (list: FieldInfoItem[]): Record<string, FieldInfoItem> => {
+    const map: Record<string, FieldInfoItem> = {};
+    for (const f of list) {
+      map[f.field_name] = f;
+    }
+    return map;
+  };
+
+  const buildQueryAliasIndex = (list: FieldInfoItem[]): Record<string, FieldInfoItem> => {
+    const map: Record<string, FieldInfoItem> = {};
+    for (const f of list) {
+      if (f.query_alias) {
+        map[f.query_alias] = f;
+      }
+    }
+    return map;
+  };
+
+  const lookupByFieldName = (
+    fieldName: string,
+    list?: FieldInfoItem[],
+    withAliasFieldMap = false,
+  ): FieldInfoItem | undefined => {
+    if (list) {
+      return list.find(item => item.field_name === fieldName);
+    }
+    const field = getStoreFieldNameIndex()[fieldName];
+    if (!withAliasFieldMap && field?.is_virtual_alias_field) {
+      return undefined;
+    }
+    return field;
+  };
+
   /**
    * 根据字段名返回别名
    * @param name  字段名field_name
@@ -48,8 +87,8 @@ export default ({ store }) => {
    */
   const getFieldName = (name: string) => {
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
-      const field = store.state.indexFieldInfo.fields.filter(item => item.field_name === name);
-      return field[0]?.query_alias || name;
+      const field = getStoreFieldNameIndex()[name];
+      return field?.query_alias || name;
     }
     return name;
   };
@@ -107,8 +146,15 @@ export default ({ store }) => {
    * @returns 返回字段名，如果没有字段名则返回别名
    */
   const changeFieldName = (name: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
-    const field = (list || getFieldList(withAliasFieldMap)).filter(item => item.query_alias === name);
-    return field[0]?.field_name || name;
+    if (list) {
+      const index = buildQueryAliasIndex(list);
+      return index[name]?.field_name || name;
+    }
+    const field = getStoreQueryAliasIndex()[name];
+    if (!withAliasFieldMap && field?.is_virtual_alias_field) {
+      return name;
+    }
+    return field?.field_name || name;
   };
   /**
    * 根据字段名返回拼接字段名
@@ -116,16 +162,16 @@ export default ({ store }) => {
    * @returns 返回拼接字段名
    */
   const getQualifiedFieldName = (fieldName: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
-    const field = (list || getFieldList(withAliasFieldMap)).filter(item => item.field_name === fieldName);
-    if (field[0]?.query_alias) {
-      return `${field[0].query_alias}(${fieldName})`;
+    const field = lookupByFieldName(fieldName, list, withAliasFieldMap);
+    if (field?.query_alias) {
+      return `${field.query_alias}(${fieldName})`;
     }
     return fieldName;
   };
 
   /**
-   * 根据字段名返回拼接字段名
-   * @param field_name
+   * 根据字段名返回拼接字段名及附加属性
+   * @param fieldName
    * @param list
    * @param withAliasFieldMap
    * @param attrs
@@ -137,10 +183,10 @@ export default ({ store }) => {
     withAliasFieldMap = false,
     attrs: string[] = [],
   ) => {
-    const field = (list || getFieldList(withAliasFieldMap)).find(item => item.field_name === fieldName);
+    const field = lookupByFieldName(fieldName, list, withAliasFieldMap);
     const reduceFn = (acc, attr) => {
       if (attr !== 'field_name') {
-        acc[attr] = field[attr];
+        acc[attr] = field?.[attr];
       }
       return acc;
     };
@@ -159,5 +205,6 @@ export default ({ store }) => {
     getFieldNameByField: mGetFieldNameByField,
     getQualifiedFieldName,
     getQualifiedFieldAttrs,
+    buildFieldNameIndex,
   };
 };

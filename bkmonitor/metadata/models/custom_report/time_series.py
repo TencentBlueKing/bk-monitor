@@ -106,6 +106,12 @@ class TimeSeriesGroup(CustomGroupBase):
 
     FIELD_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
 
+    def is_enabled_data_scope(self) -> bool:
+        """
+        是否开启，指标按指定维度字段自动分组
+        """
+        return bool(self.metric_group_dimensions)
+
     @classmethod
     def get_scope_name_from_group_key(cls, group_key: str, metric_group_dimensions: list | None = None) -> str:
         """
@@ -151,7 +157,7 @@ class TimeSeriesGroup(CustomGroupBase):
             return True, default_name
 
         # 基于维度配置计算
-        if self.metric_group_dimensions:
+        if self.is_enabled_data_scope():
             # 获取最后一级的默认值
             last_default_value = self.metric_group_dimensions[-1].get("default_value", default_name)
 
@@ -505,9 +511,7 @@ class TimeSeriesGroup(CustomGroupBase):
         # 刷新 tsScope
         new_metric_info_list = TimeSeriesScope.bulk_refresh_ts_scopes(group, metric_info)
         # 刷新 ts 中指标和维度
-        is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(
-            group_id, group.table_id, new_metric_info_list, group.is_auto_discovery()
-        )
+        is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(group, new_metric_info_list)
         # 刷新 rt 表中的指标和维度
         self.bulk_refresh_rt_fields(group.table_id, metric_info)
         return is_updated
@@ -550,7 +554,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "values": BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
         }
         # 如果是 APM 场景，使用 v2 版本的 API
-        if self.metric_group_dimensions:
+        if self.is_enabled_data_scope():
             params["version"] = "v2"
 
         data = api.bkdata.query_metric_and_dimension(**params) or []
@@ -567,7 +571,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 logger.warning("invalid metric name: %s", md["name"])
                 continue
 
-            if self.metric_group_dimensions:
+            if self.is_enabled_data_scope():
                 latest_update_time = 0
                 for group_key, group_info in md["group_dimensions"].items():
                     # 获取最新的更新时间
@@ -1803,6 +1807,9 @@ class TimeSeriesMetric(models.Model):
         unique_together = ("group_id", "field_scope", "field_name")
         verbose_name = "自定义时序描述记录"
         verbose_name_plural = "自定义时序描述记录表"
+        indexes = [
+            models.Index(fields=["group_id", "scope_id", "field_name"]),
+        ]
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
         if str(bk_biz_id) != "0":
@@ -1998,18 +2005,50 @@ class TimeSeriesMetric(models.Model):
         return need_push_router
 
     @classmethod
+    def _disable_default_scope_metrics(cls, group_id, new_records, old_records, old_metric_to_ids):
+        """
+        禁用 default 分组的指标
+        场景：如果开启了数据分组，且该指标已经被移入到其他数据分组下，则需要禁用原本在 default 分组下的指标
+        """
+        # 1. 找到在数据中已归属其他数据分组，且不在 default 分组的指标
+        new_field_names = {field_name for field_name, _ in new_records}
+        new_default_field_names = {
+            field_name for field_name, scope in new_records if scope == cls.DEFAULT_DATA_SCOPE_NAME
+        }
+        non_default_field_names = new_field_names - new_default_field_names
+
+        if not non_default_field_names:
+            return
+
+        # 2. 找出旧记录中属于 default 分组的指标，且在第 1 步中移出的指标，求出交集后，则该部分指标需要禁用
+        old_default_to_disable = {
+            (fn, scope)
+            for fn, scope in old_records
+            if scope == cls.DEFAULT_DATA_SCOPE_NAME and fn in non_default_field_names
+        }
+        disable_field_ids = [old_metric_to_ids[k] for k in old_default_to_disable if k in old_metric_to_ids]
+        for i in range(0, len(disable_field_ids), BULK_UPDATE_BATCH_SIZE):
+            cls.objects.filter(
+                group_id=group_id,
+                field_id__in=disable_field_ids[i : i + BULK_UPDATE_BATCH_SIZE],
+                scope_id__gt=cls.DISABLE_SCOPE_ID,  # 仅处理未禁用的
+            ).update(scope_id=cls.DISABLE_SCOPE_ID)
+        logger.info(
+            "bulk_refresh_ts_metrics: disable default scope metrics for group_id->[%s], metrics->[%s]",
+            group_id,
+            old_default_to_disable,
+        )
+
+    @classmethod
     def bulk_refresh_ts_metrics(
         cls,
-        group_id: int,
-        table_id: str,
+        group: TimeSeriesGroup,
         metric_info_list: list,
-        is_auto_discovery: bool,
     ) -> bool:
         """
             更新或创建时序指标数据
 
-            :param group_id: 自定义分组ID
-            :param table_id: 结果表
+            :param group: 自定义分组
             :param metric_info_list: 具体自定义时序内容信息，[{
                 "field_name": "core_file",
                 "tag_value_list": {"endpoint": {'last_update_time': 1701438084,
@@ -2020,7 +2059,6 @@ class TimeSeriesMetric(models.Model):
                 "tag_list": {"module": {"values": ["foo",]}, "set": {"values": ["foo",]}, "partition": {}}
                 "last_modify_time": 1464567890123,
             }]
-            :param is_auto_discovery: 指标是否自动发现
             :return: True or raise
         """
         _metrics_dict = {
@@ -2029,6 +2067,7 @@ class TimeSeriesMetric(models.Model):
             if m.get("field_name")
         }
 
+        group_id = group.time_series_group_id
         old_metric_to_ids = {
             (m[1], m[2]): m[0]
             for m in cls.objects.filter(group_id=group_id).values_list("field_id", "field_name", "field_scope")
@@ -2039,7 +2078,11 @@ class TimeSeriesMetric(models.Model):
         # 计算需要创建和更新的记录
         need_create_metrics = new_records - old_records
         need_update_metrics = new_records & old_records
+        if group.is_enabled_data_scope():
+            cls._disable_default_scope_metrics(group_id, new_records, old_records, old_metric_to_ids)
 
+        table_id = group.table_id
+        is_auto_discovery = group.is_auto_discovery()
         # NOTE: 针对创建或者时间变动时，推送路由数据
         need_push_router = False
         # 如果存在，则批量创建
@@ -2420,7 +2463,7 @@ class TimeSeriesMetric(models.Model):
     @classmethod
     def _batch_create_metrics(cls, metrics_to_create, group_id, table_id, scopes_dict):
         # 检查字段名称冲突
-        cls._validate_field_name_conflicts(metrics_to_create)
+        cls._validate_field_name_conflicts(metrics_to_create, group_id, scopes_dict)
 
         # 准备批量创建的数据
         records_to_create = []
@@ -2464,6 +2507,7 @@ class TimeSeriesMetric(models.Model):
         updatable_fields = ["field_config", "label", "tag_list", "scope_id", "last_modify_time"]
         records_to_update = []
         scope_moves = defaultdict(list)
+        moving_metrics_by_scope = defaultdict(list)
 
         for metric, validated_request_data in metrics_to_update:
             # 保存原始的 tag_list 和 scope_id，用于检测变化
@@ -2499,11 +2543,19 @@ class TimeSeriesMetric(models.Model):
             if scope_changed and source_scope.create_from == TimeSeriesScope.CREATE_FROM_DATA:
                 raise ValueError(f"数据自动创建的指标分组不允许修改，请确认后重试。分组ID: {original_scope_id}")
 
+            # 收集发生 scope 移动的指标，用于后续冲突检查
+            if scope_changed:
+                moving_metrics_by_scope[new_scope.id].append(metric)
+
             tag_list_changed = set(original_tag_list) != set(metric.tag_list or [])
 
             # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
             if scope_changed or tag_list_changed:
                 scope_moves[(source_scope, new_scope)].append(metric)
+
+        # 检查移动到目标 scope 后是否存在 field_name 冲突
+        if moving_metrics_by_scope:
+            cls._validate_scope_move_conflicts(moving_metrics_by_scope)
 
         # 批量更新所有指标的字段
         if records_to_update:
@@ -2512,7 +2564,41 @@ class TimeSeriesMetric(models.Model):
         TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves)
 
     @classmethod
-    def _validate_field_name_conflicts(cls, metrics_to_create):
+    def _validate_scope_move_conflicts(cls, moving_metrics_by_scope: dict):
+        """检查指标移动到目标 scope 后是否存在 field_name 冲突
+
+        :param moving_metrics_by_scope: {target_scope_id: [metric, ...]}
+        """
+        for target_scope_id, metrics in moving_metrics_by_scope.items():
+            moving_field_names = [m.field_name for m in metrics]
+
+            # 1. 检查移动批次内部是否有重复的 field_name
+            if len(moving_field_names) != len(set(moving_field_names)):
+                seen = set()
+                duplicates = []
+                for name in moving_field_names:
+                    if name in seen and name not in duplicates:
+                        duplicates.append(name)
+                    seen.add(name)
+                raise ValueError(f"同一批次中存在重复的指标名称[{', '.join(duplicates)}]，不允许移动到同一分组")
+
+            # 2. 检查目标 scope 中是否已有同名指标（排除正在移动的指标自身）
+            moving_field_ids = {m.field_id for m in metrics}
+            existing_conflicts = (
+                cls.objects.filter(
+                    scope_id=target_scope_id,
+                    field_name__in=moving_field_names,
+                )
+                .exclude(field_id__in=moving_field_ids)
+                .values_list("field_name", flat=True)
+            )
+
+            if existing_conflicts:
+                conflicting_names = list(existing_conflicts)
+                raise ValueError(f"目标分组中已存在同名指标[{', '.join(conflicting_names)}]")
+
+    @classmethod
+    def _validate_field_name_conflicts(cls, metrics_to_create, group_id, scopes_dict):
         """检查字段名称冲突"""
         # 收集所有字段名
         field_names = []
@@ -2534,7 +2620,30 @@ class TimeSeriesMetric(models.Model):
                 seen.add(name)
             raise ValueError(f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]重复，请使用其他名称")
 
-        # todo 检查跨批次的字段名冲突, 现在直接依赖数据库的唯一索引来保证
+        # 检查跨批次的字段名冲突：数据库中是否已存在同名指标
+        scope_ids = [m.get("scope_id") for m in metrics_to_create if m.get("scope_id") is not None]
+        existing_metrics = cls.objects.filter(
+            group_id=group_id,
+            field_name__in=field_names,
+            scope_id__in=scope_ids,
+        ).values_list("field_name", "scope_id")
+
+        if existing_metrics:
+            # 构建 scope_id -> scope_name 的映射
+            scope_id_to_name = {sid: scope.scope_name for sid, scope in scopes_dict.items()}
+
+            # 按分组聚合冲突的指标名
+            conflicts_by_scope = defaultdict(list)
+            for field_name, scope_id in existing_metrics:
+                scope_name = scope_id_to_name.get(scope_id, str(scope_id))
+                conflicts_by_scope[scope_name].append(field_name)
+
+            # 构建错误信息：xxx分组存在同名指标冲突: yyy
+            conflict_details = "；".join(
+                f"{scope_name}分组存在同名指标冲突: {', '.join(names)}"
+                for scope_name, names in conflicts_by_scope.items()
+            )
+            raise ValueError(conflict_details)
 
 
 class TimeSeriesTagManager(models.Manager):

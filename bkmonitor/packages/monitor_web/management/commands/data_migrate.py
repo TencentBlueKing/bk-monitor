@@ -315,6 +315,9 @@ class Command(BaseCommand):
 
     def _handle_add_migrate_data_id_routes(self, options) -> None:
         data_id_infos = self._load_data_id_infos(options.get("data_id_infos"))
+        if not data_id_infos:
+            self.stdout.write(self.style.WARNING("未找到可用的数据 ID 信息，已跳过添加迁移双写路由"))
+            return
         add_new_migrate_data_id_routes(data_id_infos=data_id_infos)
         self.stdout.write(self.style.SUCCESS(f"add migrate data id routes completed: {len(data_id_infos)}"))
 
@@ -477,19 +480,19 @@ class Command(BaseCommand):
             raise CommandError("add-migrate-data-id-routes 动作必须提供 --data-id-infos")
 
         raw_payload = raw_data_id_infos
-        file_path = Path(raw_data_id_infos)
-        if file_path.exists():
-            raw_payload = file_path.read_text(encoding="utf-8")
+        try:
+            file_path = Path(raw_data_id_infos)
+            if file_path.exists():
+                raw_payload = file_path.read_text(encoding="utf-8")
+        except OSError:
+            pass
 
         try:
             loaded_payload = json.loads(raw_payload)
         except json.JSONDecodeError as error:
             raise CommandError(f"--data-id-infos 不是合法 JSON: {error}") from error
 
-        normalized_data_id_infos = self._normalize_data_id_infos_payload(loaded_payload)
-        if not normalized_data_id_infos:
-            raise CommandError("--data-id-infos 中没有可用的数据 ID 信息")
-        return normalized_data_id_infos
+        return self._normalize_data_id_infos_payload(loaded_payload)
 
     def _normalize_data_id_infos_payload(self, payload: Any) -> dict[int, dict[str, Any]]:
         """兼容完整查询结果或单分类结果，统一转成 ``data_id -> info`` 结构。"""

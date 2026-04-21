@@ -102,7 +102,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick', 'zrClick'],
+  emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick', 'zrClick', 'mouseover', 'mouseout'],
   setup(props, { emit }) {
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
@@ -184,6 +184,20 @@ export default defineComponent({
     };
 
     /**
+     * @description 处理鼠标移入事件
+     */
+    const handleMouseover = (params: Record<string, any>) => {
+      emit('mouseover', params);
+    };
+
+    /**
+     * @description 处理鼠标移出事件
+     */
+    const handleMouseout = (params: Record<string, any>) => {
+      emit('mouseout', params);
+    };
+
+    /**
      * @description 处理空白处点击事件(zr:click)
      */
     const handleZrClick = params => {
@@ -255,6 +269,8 @@ export default defineComponent({
       handleClick,
       handleZrClick,
       handleMouseInChange,
+      handleMouseover,
+      handleMouseout,
     };
   },
   render() {
@@ -303,6 +319,8 @@ export default defineComponent({
                 autoresize
                 onClick={this.handleClick}
                 onDatazoom={e => this.handleDataZoom(e, this.options)}
+                onMouseout={this.handleMouseout}
+                onMouseover={this.handleMouseover}
                 onZr:click={this.handleZrClick}
               />
 

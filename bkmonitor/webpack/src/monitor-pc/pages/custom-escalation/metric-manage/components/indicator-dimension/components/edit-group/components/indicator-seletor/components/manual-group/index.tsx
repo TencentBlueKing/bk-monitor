@@ -1,18 +1,50 @@
-import { Component, Ref, Prop, Watch, InjectReactive } from 'vue-property-decorator';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import TableSkeleton from '../../../../../../../../../../../components/skeleton/table-skeleton';
-import EmptyStatus from '../../../../../../../../../../../components/empty-status/empty-status';
-import CommonTable from '../../../../../../../../../../../pages/monitor-k8s/components/common-table';
-import type { EmptyStatusType } from '../../../../../../../../../../../components/empty-status/types';
-import type { IListItem } from '../result-preview';
 import { Debounce } from 'monitor-common/utils';
-import type { IGroupingRule, ICustomTsFields } from '../../../../../../../../../service';
-import { NULL_LABEL, type RequestHandlerMap } from '../../../../../../../../type';
+
+import EmptyStatus from '../../../../../../../../../../../components/empty-status/empty-status';
+import TableSkeleton from '../../../../../../../../../../../components/skeleton/table-skeleton';
+import CommonTable from '../../../../../../../../../../../pages/monitor-k8s/components/common-table';
+import type { RequestHandlerMap } from '../../../../../../../../type';
+
+import type { EmptyStatusType } from '../../../../../../../../../../../components/empty-status/types';
+import type { ICustomTsFields, IGroupingRule } from '../../../../../../../../../service';
+import type { IListItem } from '../result-preview';
 
 import './index.scss';
 
-export type ITableRowData = ICustomTsFields['metrics'][number];
+/** 指标表格行数据类型 */
+export type ITableRowData = ICustomTsFields['list'][number];
 
+/**
+ * 手动分组组件
+ * 以表格形式展示所有指标，支持搜索、分页、多选，用于手动选择指标加入分组
+ */
 @Component({
   name: 'ManualGroup',
 })
@@ -23,6 +55,8 @@ export default class ManualGroup extends tsc<any> {
   @Prop() groupInfo: IGroupingRule;
   /** 已手动选择的指标列表 */
   @Prop({ default: () => [] }) manualList: IListItem[];
+  /** 默认分组信息 */
+  @Prop({ default: () => {} }) defaultGroupInfo: { id: number; name: string };
 
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('isAPM') readonly isAPM: boolean;
@@ -33,14 +67,24 @@ export default class ManualGroup extends tsc<any> {
   /** 表格组件引用 */
   @Ref('tableRef') readonly tableRef!: InstanceType<typeof CommonTable>;
 
+  /** 指标筛选条件对象 */
+  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = [
+    {
+      key: 'name',
+      values: [],
+      search_type: 'fuzzy',
+    },
+    {
+      key: 'field_config_alias',
+      values: [],
+      search_type: 'fuzzy',
+    },
+  ];
+
   /** 空状态类型 */
   emptyType: EmptyStatusType = 'empty';
-  /** 搜索类型：'fuzzy' 模糊搜索 | 'regex' 正则匹配 */
-  searchType = 'fuzzy';
   /** 搜索关键词 */
   searchValue = '';
-  /** 所有指标数据（已过滤后的完整列表） */
-  totalMetrics: ITableRowData[] = [];
   /** 过滤条件对象，key 为列名，value 为选中的过滤值数组 */
   filtersObj: Record<string, string[]> = {};
   /** 是否区分大小写搜索 */
@@ -49,11 +93,6 @@ export default class ManualGroup extends tsc<any> {
   isExactSearch = false;
   /** 是否正则搜索 */
   isRegexSearch = false;
-  /** 搜索类型选项列表 */
-  searchTypeList = [
-    { id: 'fuzzy', name: this.$t('模糊搜索') },
-    { id: 'regex', name: this.$t('正则匹配') },
-  ];
   /** 标识是否正在执行分页操作，用于避免分页时的选择变化触发事件 */
   isPageChange = false;
   /** 标识是否正在执行搜索操作 */
@@ -73,11 +112,11 @@ export default class ManualGroup extends tsc<any> {
         id: 'dimensions',
         name: this.$t('关联维度'),
         type: 'scoped_slots',
-        filterable: true,
         filter_list: [],
         showOverflowTooltip: false,
         props: {
           minWidth: 200,
+          filterSearchable: true,
         },
       },
     ],
@@ -90,131 +129,69 @@ export default class ManualGroup extends tsc<any> {
     loading: false,
     data: [] as ITableRowData[],
   };
+  isUpdateResults = true;
+
+  get manualListIdSet() {
+    return new Set(this.manualList.map(item => item.id));
+  }
+
+  get currentTablePageDataIdSet() {
+    return new Set(this.tableData.data.map(item => item.id));
+  }
 
   /**
    * @description: 处理手动列表变化，同步已选中的行状态
    * @return {*}
    */
-  @Watch('totalMetrics', { immediate: true })
   @Watch('manualList', { immediate: true })
   handleManualListChange() {
-    if (this.manualList.length && this.totalMetrics.length) {
+    if (this.manualList.length) {
       // 延迟执行，更新已选中的行
+      this.isUpdateResults = false;
       setTimeout(() => {
         const manualListId = this.manualList.map(item => item.id);
-        const needSelectRows = this.totalMetrics.filter(item => manualListId.includes(item.id));
+        const needSelectRows = this.tableData.data.filter(item => manualListId.includes(item.id));
         for (const row of needSelectRows) {
           this.toggleRowSelection(row, true);
         }
+        this.isUpdateResults = true;
       });
     }
   }
 
-  /**
-   * @description: 更新表格数据，根据搜索条件和过滤条件筛选数据并分页
-   * @return {*}
-   */
-  updateTableData() {
-    const { dimensions } = this.filtersObj;
-    const filteredMetrics = this.totalMetrics.filter(metric => {
-      // 维度过滤
-      const dimensionMatch = dimensions?.length
-        ? dimensions.some(dimension => metric.dimensions.includes(dimension))
-        : true;
-
-      // 搜索匹配
-      let searchMatch = true;
-      if (this.searchValue) {
-        const name = metric.name || '';
-        const alias = metric.config?.alias || '';
-
-        if (this.isRegexSearch) {
-          // 使用正则表达式匹配
-          searchMatch =
-            this.safeRegexMatch(this.searchValue, name, this.isCaseSensitiveSearch) ||
-            this.safeRegexMatch(this.searchValue, alias, this.isCaseSensitiveSearch);
+  @Watch('isCaseSensitiveSearch')
+  @Watch('isExactSearch')
+  @Watch('isRegexSearch')
+  handleSearchTypeChange() {
+    this.$nextTick(() => {
+      if (this.isCaseSensitiveSearch && !this.isExactSearch && !this.isRegexSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'fuzzy_case_sensitive';
         }
-
-        if (this.isCaseSensitiveSearch || (!this.isCaseSensitiveSearch && !this.isExactSearch && !this.isRegexSearch)) {
-          // 使用模糊搜索（包含匹配）
-          searchMatch =
-            this.fuzzyMatch(this.searchValue, name, this.isCaseSensitiveSearch) ||
-            this.fuzzyMatch(this.searchValue, alias, this.isCaseSensitiveSearch);
+      } else if (this.isExactSearch && !this.isCaseSensitiveSearch && !this.isRegexSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'exact';
         }
-
-        if (this.isExactSearch) {
-          // 使用精确匹配
-          searchMatch =
-            this.exactMatch(this.searchValue, name, this.isCaseSensitiveSearch) ||
-            this.exactMatch(this.searchValue, alias, this.isCaseSensitiveSearch);
+      } else if (this.isRegexSearch && !this.isCaseSensitiveSearch && !this.isExactSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'regex';
+        }
+      } else if (this.isCaseSensitiveSearch && this.isExactSearch && !this.isRegexSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'exact_case_sensitive';
+        }
+      } else if (this.isCaseSensitiveSearch && this.isRegexSearch && !this.isExactSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'regex_case_sensitive';
+        }
+      } else {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'fuzzy';
         }
       }
-
-      return dimensionMatch && searchMatch;
-    });
-    this.tableData.data = filteredMetrics.slice(
-      (this.tableData.pagination.current - 1) * this.tableData.pagination.limit,
-      this.tableData.pagination.current * this.tableData.pagination.limit
-    );
-    this.tableData.pagination.count = filteredMetrics.length;
-    this.$nextTick(() => {
-      this.handleManualListChange();
-      // 搜索或者切换每页条数后首次选择失效问题
-      this.isSearchChange = false;
-      this.isPageChange = false;
     });
   }
 
-  /**
-   * @description: 安全的正则表达式匹配函数
-   * @param {string} pattern - 用户输入的正则表达式字符串
-   * @param {string} target - 目标字符串
-   * @param {boolean} caseSensitive - 是否区分大小写，默认不区分
-   * @return {boolean} 匹配结果，如果正则表达式无效则返回 false
-   */
-  safeRegexMatch(pattern: string, target: string, caseSensitive = false): boolean {
-    if (!pattern || !target) return false;
-    try {
-      const flags = caseSensitive ? '' : 'i';
-      const regex = new RegExp(pattern, flags);
-      return regex.test(target);
-    } catch (error) {
-      // 正则表达式无效时，返回 false 或可以回退到模糊搜索
-      console.warn('Invalid regex pattern:', pattern, error);
-      return false;
-    }
-  }
-
-  /**
-   * @description: 精确匹配函数
-   * @param {string} searchValue - 搜索关键词
-   * @param {string} target - 目标字符串
-   * @param {boolean} caseSensitive - 是否区分大小写，默认不区分
-   * @return {boolean} 匹配结果
-   */
-  exactMatch(searchValue: string, target: string, caseSensitive = false): boolean {
-    if (!searchValue || !target) return false;
-    if (caseSensitive) {
-      return searchValue === target;
-    }
-    return searchValue.toLowerCase() === target.toLowerCase();
-  }
-
-  /**
-   * @description: 模糊搜索匹配函数（包含匹配）
-   * @param {string} searchValue - 搜索关键词
-   * @param {string} target - 目标字符串
-   * @param {boolean} caseSensitive - 是否区分大小写，默认不区分
-   * @return {boolean} 匹配结果
-   */
-  fuzzyMatch(searchValue: string, target: string, caseSensitive = false): boolean {
-    if (!searchValue || !target) return false;
-    // 转义特殊字符，避免被当作正则表达式
-    const escapedValue = searchValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const flags = caseSensitive ? '' : 'i';
-    const searchRegex = new RegExp(escapedValue, flags);
-    return searchRegex.test(target);
-  }
 
   /**
    * @description: 处理分页变化
@@ -224,7 +201,8 @@ export default class ManualGroup extends tsc<any> {
   handlePageChange(page: number) {
     this.isPageChange = true;
     this.tableData.pagination.current = page;
-    this.updateTableData();
+    this.isUpdateResults = false;
+    this.fetchTableData();
   }
 
   /**
@@ -237,18 +215,34 @@ export default class ManualGroup extends tsc<any> {
     if (size !== this.tableData.pagination.limit) {
       this.tableData.pagination.limit = size;
       this.tableData.pagination.current = 1;
-      this.updateTableData();
+      this.isUpdateResults = false;
+      this.fetchTableData();
     }
   }
 
   /**
-   * @description: 初始化表格数据，从接口获取指标数据并设置过滤选项
+   * @description: 获取指标表格数据
    * @return {*}
    */
-  initTableData() {
+  fetchTableData() {
     this.tableData.loading = true;
+    const scopeIds = [this.defaultGroupInfo.id];
+    if (this.groupInfo.id) {
+      scopeIds.push(this.groupInfo.id);
+    }
     const params = {
       time_series_group_id: this.timeSeriesGroupId,
+      page: this.tableData.pagination.current,
+      page_size: this.tableData.pagination.limit,
+      mandatory_conditions: [
+        {
+          key: 'scope_id',
+          values: scopeIds,
+          search_type: 'exact' as const,
+        },
+      ],
+      conditions: this.metricSearchObj,
+      condition_connector: 'or' as const,
     };
     if (this.isAPM) {
       delete params.time_series_group_id;
@@ -260,23 +254,15 @@ export default class ManualGroup extends tsc<any> {
     this.requestHandlerMap
       .getCustomTsFields(params)
       .then(res => {
-        const filteredMetrics = res.metrics.filter(
-          item => item.scope.name === NULL_LABEL || item.scope.id === this.groupInfo.scope_id
-        );
-        const dimensionFilterList = filteredMetrics.reduce<Set<string>>((dataSet, item) => {
-          for (const dimension of item.dimensions) {
-            dataSet.add(dimension);
-          }
-          return dataSet;
-        }, new Set());
-        this.tableData.columns[3].filter_list = Array.from(dimensionFilterList).map(dimension => ({
-          text: dimension,
-          value: dimension,
-        }));
-        this.totalMetrics = filteredMetrics;
-        this.tableData.pagination.count = this.totalMetrics.length;
-        this.$emit('totalMetricsChange', this.totalMetrics);
-        this.updateTableData();
+        this.tableData.pagination.count = res.total;
+        this.tableData.data = res.list;
+        this.$emit('metricListChange', res.list);
+        this.$nextTick(() => {
+          this.handleManualListChange();
+          // 搜索或者切换每页条数后首次选择失效问题
+          this.isSearchChange = false;
+          this.isPageChange = false;
+        });
       })
       .finally(() => {
         this.tableData.loading = false;
@@ -290,8 +276,11 @@ export default class ManualGroup extends tsc<any> {
   @Debounce(500)
   handleSearchInput() {
     this.isSearchChange = true;
+    for (const item of this.metricSearchObj) {
+      item.values = this.searchValue ? [this.searchValue] : [];
+    }
     this.tableData.pagination.current = 1;
-    this.updateTableData();
+    this.fetchTableData();
   }
 
   /**
@@ -300,13 +289,31 @@ export default class ManualGroup extends tsc<any> {
    * @return {*}
    */
   handleSelectChange(selectList: ITableRowData[]) {
+    if (!this.isUpdateResults) {
+      return;
+    }
+
     if (this.isPageChange || this.isSearchChange) {
       this.isPageChange = false;
       this.isSearchChange = false;
       return;
     }
 
-    this.$emit('selectChange', selectList);
+    const selectListIdSet = new Set(selectList.map(item => item.id));
+    const deleteIdSet = new Set();
+    const addList = [];
+    for (const item of selectList) {
+      if (!this.manualListIdSet.has(item.id)) {
+        addList.push(item);
+      }
+    }
+    for (const item of this.tableData.data) {
+      if (!selectListIdSet.has(item.id)) {
+        deleteIdSet.add(item.id);
+      }
+    }
+    const finalList = [...addList, ...this.manualList].filter(item => !deleteIdSet.has(item.id));
+    this.$emit('selectChange', finalList);
   }
 
   /**
@@ -317,7 +324,7 @@ export default class ManualGroup extends tsc<any> {
   handleFilterChange(filters: Record<string, string[]>) {
     this.filtersObj = filters;
     this.tableData.pagination.current = 1;
-    this.updateTableData();
+    this.fetchTableData();
   }
 
   /**
@@ -338,20 +345,21 @@ export default class ManualGroup extends tsc<any> {
     this.tableRef?.$refs.table.toggleRowSelection(row, checked);
   }
 
+  // /** 组件创建时获取初始表格数据 */
   created() {
-    this.initTableData();
+    this.fetchTableData();
   }
 
   render() {
     return (
       <div class='manual-group-main'>
         <bk-alert
-          type='info'
           title={
             this.isEdit
               ? this.$t('手动选择或筛选后的结果作为分组对象。')
               : this.$t('手动选择指标作为分组对象，仅支持未分组指标。')
           }
+          type='info'
         />
         <bk-input
           class='search-input-main'
@@ -361,35 +369,35 @@ export default class ManualGroup extends tsc<any> {
           onInput={this.handleSearchInput}
         >
           <div
-            slot='append'
             class='search-append-main'
+            slot='append'
           >
             <div
-              v-bk-tooltips={this.$t('大小写敏感')}
               class={['search-item-main', { 'is-active': this.isCaseSensitiveSearch }]}
+              v-bk-tooltips={this.$t('大小写敏感')}
               onClick={() => {
                 this.isCaseSensitiveSearch = !this.isCaseSensitiveSearch;
-                this.updateTableData();
+                this.fetchTableData();
               }}
             >
               <i class='icon-monitor icon-daxiaoxie' />
             </div>
             <div
-              v-bk-tooltips={this.$t('精确搜索')}
               class={['search-item-main', { 'is-active': this.isExactSearch }]}
+              v-bk-tooltips={this.$t('精确搜索')}
               onClick={() => {
                 this.isExactSearch = !this.isExactSearch;
-                this.updateTableData();
+                this.fetchTableData();
               }}
             >
               <i class='icon-monitor icon-ab' />
             </div>
             <div
-              v-bk-tooltips={this.$t('正则匹配')}
               class={['search-item-main', { 'is-active': this.isRegexSearch }]}
+              v-bk-tooltips={this.$t('正则匹配')}
               onClick={() => {
                 this.isRegexSearch = !this.isRegexSearch;
-                this.updateTableData();
+                this.fetchTableData();
               }}
             >
               <i class='icon-monitor icon-tongpeifu' />
@@ -412,17 +420,17 @@ export default class ManualGroup extends tsc<any> {
                 <bk-tag-input
                   class='dimension-display'
                   v-model={row.dimensions}
+                  allow-create
                   collapse-tags
                   disabled
-                  allow-create
                 />
               ),
               // row.dimensions.map(dimension => <bk-tag key={dimension}>{dimension}</bk-tag>),
             }}
+            onFilterChange={this.handleFilterChange}
             onLimitChange={this.handlePageLimitChange}
             onPageChange={this.handlePageChange}
             onSelectChange={this.handleSelectChange}
-            onFilterChange={this.handleFilterChange}
           >
             <div slot='empty'>
               <EmptyStatus type={this.emptyType} />

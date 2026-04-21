@@ -71,7 +71,6 @@ def _collect_custom_report_data(bk_biz_id: int, table_ids: set[str], data_ids: s
 
 def _collect_normal_plugin_data(bk_biz_id: int, table_ids: set[str], data_ids: set[int]) -> None:
     virtual_plugin_types = [
-        PluginType.K8S,
         PluginType.PROCESS,
         PluginType.LOG,
         PluginType.SNMP_TRAP,

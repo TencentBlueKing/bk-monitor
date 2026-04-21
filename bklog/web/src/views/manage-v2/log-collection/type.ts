@@ -116,6 +116,7 @@ export interface ICollectionParams {
   winlog_name?: string[];
   winlog_level?: string[];
   winlog_event_id?: string[];
+  tail_files?: boolean;
 }
 
 export interface IValueItem {

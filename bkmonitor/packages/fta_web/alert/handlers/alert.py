@@ -966,6 +966,39 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 alert_ids = [0]
 
             return Q("ids", values=alert_ids)
+
+        elif condition["origin_key"] == "converge_id" and condition["key"] == "id":
+            # 收敛记录ID查询：通过 converge_id 批量获取动作实例，找到被收敛的告警ID列表
+            alert_ids = []
+            try:
+                action_instances = ActionInstanceDocument.mget(
+                    condition["value"], ["converge_id", "is_converge_primary"]
+                )
+                converge_ids = [inst.converge_id for inst in action_instances if inst and inst.is_converge_primary]
+                if converge_ids:
+                    queryset = ConvergeRelation.objects.filter(
+                        converge_id__in=converge_ids, converge_status=ConvergeStatus.SKIPPED
+                    ).only("alerts")
+                    alert_ids = list(chain(*[converge.alerts for converge in queryset]))
+            except Exception:
+                pass
+
+            if not alert_ids:
+                alert_ids = [0]
+
+            return Q("ids", values=list(set(alert_ids)))
+
+        elif condition["origin_key"] == "action_id" and condition["key"] == "id":
+            # 处理记录ID查询：通过 action_id 获取关联的告警ID列表
+            alert_ids, _ = get_alert_ids_by_action_id(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("ids", values=alert_ids)
+
+        elif condition["key"] == "event.ipv6":
+            # IPv6 地址查询：将缩写的 IPv6 地址展开为完整格式
+            condition["value"] = [exploded_ip(v) for v in condition["value"]]
+
         elif condition["key"] == "query_string":
             con_q = None
             for query_string in condition["value"]:
@@ -1345,6 +1378,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             NoticeWay.MAIL: _lazy("邮件"),
             NoticeWay.WEIXIN: _lazy("微信"),
             NoticeWay.QY_WEIXIN: _lazy("企业微信"),
+            NoticeWay.VOICE: _lazy("语音通知"),
             NoticeWay.WX_BOT: _lazy("企业微信机器人"),
         }
         notice_way_count = defaultdict(int)

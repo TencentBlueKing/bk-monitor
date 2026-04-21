@@ -28,6 +28,7 @@ import {
   type Ref,
   computed,
   defineComponent,
+  inject,
   onBeforeMount,
   shallowRef,
   useTemplateRef,
@@ -85,6 +86,7 @@ import { traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
+import { type AlarmCenterApmHooks, ALARM_CENTER_APM_HOOKS_KEY } from './alarm-center-apm';
 import { useIssuesImpactScopeDrawer } from './alarm-issues/components/issues-impact-scope-drawer/hooks/use-issues-impact-scope-drawer';
 import IssuesImpactScopeDrawer from './alarm-issues/components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
@@ -112,6 +114,9 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
+
+    const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
+
     const {
       handleGetUserConfig: handleGetResidentSettingUserConfig,
       handleSetUserConfig: handleSetResidentSettingUserConfig,
@@ -139,6 +144,7 @@ export default defineComponent({
       storageColumns,
       allTableFields,
       lockedTableFields,
+      fieldsWidthConfig,
     } = useAlarmTableColumns();
 
     const {
@@ -316,6 +322,7 @@ export default defineComponent({
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
+
     /** 快捷筛选 */
     const handleFilterValueChange = (filterValue: CommonCondition[], category: string) => {
       handleCurrentPageChange(1);
@@ -356,16 +363,19 @@ export default defineComponent({
     const handleConditionChange = (condition: CommonCondition[]) => {
       handleCurrentPageChange(1);
       alarmStore.conditions = condition;
+      apmHooks?.onConditionChange?.(condition);
     };
     /** 查询语句变化 */
     const handleQueryStringChange = (queryString: string) => {
       handleCurrentPageChange(1);
       alarmStore.queryString = queryString;
+      apmHooks?.onQueryStringChange?.(queryString);
     };
     /** 查询模式变化 */
     const handleFilterModeChange = (mode: EMode) => {
       handleCurrentPageChange(1);
       alarmStore.filterMode = mode;
+      apmHooks?.onFilterModeChange?.(mode);
     };
     const handleResidentConditionChange = (condition: CommonCondition[]) => {
       alarmStore.residentCondition = condition;
@@ -834,8 +844,8 @@ export default defineComponent({
       getUrlParams();
       setUrlParams();
     });
-
     return {
+      apmHooks,
       isFirstInit,
       quickFilterList,
       quickFilterLoading,
@@ -898,6 +908,7 @@ export default defineComponent({
       handleCurrentPageChange,
       handlePageSizeChange,
       handleSortChange,
+      fieldsWidthConfig,
       handleGetResidentSettingUserConfig,
       handleSetResidentSettingUserConfig,
       handleShowAlertDetail,
@@ -971,12 +982,14 @@ export default defineComponent({
           </FavoriteBox>
         </div>
         <div class='alarm-center'>
-          <AlarmCenterHeader
-            class='alarm-center-header'
-            isShowFavorite={this.isShowFavorite}
-            onAlarmTypeChange={this.handleAlarmTypeChange}
-            onFavoriteShowChange={this.handleFavoriteShowChange}
-          />
+          {!this.apmHooks && (
+            <AlarmCenterHeader
+              class='alarm-center-header'
+              isShowFavorite={this.isShowFavorite}
+              onAlarmTypeChange={this.handleAlarmTypeChange}
+              onFavoriteShowChange={this.handleFavoriteShowChange}
+            />
+          )}
           <AlarmRetrievalFilter
             class='alarm-center-filters'
             bizIds={this.alarmStore.bizIds}

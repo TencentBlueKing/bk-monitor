@@ -34,6 +34,12 @@ export type AlertRowOperationAction = Exclude<AlertAllActionEnum, AlertAllAction
 /** 告警场景表格 批量操作栏 可操作按钮项枚举类型 */
 export type AlertSelectBatchAction = Exclude<AlertAllActionEnum, AlertAllActionEnum.MANUAL_HANDLING>;
 
+/** 列宽变化事件上下文 */
+export interface ColumnResizeContext {
+  /** 列宽映射，key 为 colKey，value 为像素宽度 */
+  columnsWidth: Record<string, number>;
+}
+
 // 表格列字段
 export type TableColumnItem<T = any> = {
   /** 是否为默认列 */

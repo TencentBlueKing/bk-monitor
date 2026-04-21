@@ -197,6 +197,8 @@
             spaceUid: this.$store.state.spaceUid,
             backRoute: 'manage-collection',
             type: 'dataStorage',
+            step: '3',
+            typeKey: this.collectorData.collector_scenario_id,
           },
         });
       },

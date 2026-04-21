@@ -41,6 +41,7 @@ import type {
   AlertAllActionEnum,
   AlertContentNameEditInfo,
   AlertTableItem,
+  ColumnResizeContext,
   TableColumnItem,
   TablePagination,
 } from '../../typings';
@@ -131,6 +132,8 @@ export default defineComponent({
     ) => type && ids,
     saveAlertContentName: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) =>
       saveInfo && savePromiseEvent,
+    /** 列宽拖拽变化回调 */
+    columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
     // const alarmStore = useAlarmCenterStore();
@@ -254,6 +257,7 @@ export default defineComponent({
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
           tableSettings={this.settings}
+          onColumnResizeChange={context => this.$emit('columnResizeChange', context)}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}

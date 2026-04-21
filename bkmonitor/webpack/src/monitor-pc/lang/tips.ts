@@ -407,6 +407,10 @@ export default {
   '仪表盘 Panel 级别的定位，需要一定的时间同步，如有需要请点击':
     'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
 
+  // 告警中心
+  'PromQL 策略暂时不支持维度分析': 'PromQL strategies do not support dimension analysis',
+  异常检测点: 'Abnormal detection point',
+
   // APM-告警模板
   查看各服务告警情况: 'View alarm situation of each service',
   查看全部关联服务: 'View all related services',
@@ -465,4 +469,5 @@ export default {
   告警事件数: 'Alarm Event Count',
   标记为已解决成功: 'Mark as resolved successfully',
   已配置issue聚合: 'Issue aggregation already configured',
+  '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies',
 };
