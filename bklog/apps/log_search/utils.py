@@ -19,15 +19,16 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import re
 import functools
 import json
 import operator
+import re
 from io import BytesIO
 from typing import Any
 
 from django.conf import settings
 from django.http import FileResponse
+from packaging.version import InvalidVersion, Version
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
 from apps.log_search.exceptions import LogSearchException
@@ -37,6 +38,8 @@ from apps.utils.local import get_request_external_username, get_request_username
 DATE_HISTOGRAM_INTERVAL_RE = re.compile(r"^(?P<count>\d+)(?P<unit>[smhdMqy])$")
 FIXED_INTERVAL_UNITS = {"s", "m", "h", "d"}
 CALENDAR_INTERVAL_UNITS = {"M", "q", "y"}
+DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION = Version("7.0.0")
+ES8_DATE_HISTOGRAM_PARAM_VERSION = Version("8.0.0")
 
 
 def sort_func(data: list[dict[str, Any]], sort_list: list[list[str]], key_func=lambda x: x) -> list[dict[str, Any]]:
@@ -258,11 +261,34 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
     return response
 
 
+def parse_es_date_histogram_param_version(value: Any) -> Version:
+    """
+    解析 date_histogram 参数版本配置，非法值统一回退到 ES7 默认版本。
+    """
+    if isinstance(value, Version):
+        return value
+
+    try:
+        return Version(str(value))
+    except (InvalidVersion, TypeError):
+        return DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION
+
+
+def is_es8_date_histogram_params(version: Version) -> bool:
+    """
+    ES 8.0.0 及以上使用 fixed_interval / calendar_interval。
+    """
+    return version >= ES8_DATE_HISTOGRAM_PARAM_VERSION
+
+
 def normalize_date_histogram_interval(interval: Any) -> dict[str, Any]:
     """
-    按配置将 interval 转换为 ES7/ES8 对应的字段名。
+    按配置将 interval 转换为不同 ES 版本对应的字段名。
     """
-    if getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", "es8").lower() == "es7":
+    version = parse_es_date_histogram_param_version(
+        getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION)
+    )
+    if not is_es8_date_histogram_params(version):
         return {"interval": interval}
 
     if not isinstance(interval, str):
@@ -285,9 +311,11 @@ def adapt_date_histogram_params(date_histogram: dict[str, Any]) -> dict[str, Any
     按配置适配 date_histogram 参数格式。
     """
     date_histogram = dict(date_histogram)
-    target_version = getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", "es8").lower()
+    target_version = parse_es_date_histogram_param_version(
+        getattr(settings, "ES_DATE_HISTOGRAM_PARAM_VERSION", DEFAULT_ES_DATE_HISTOGRAM_PARAM_VERSION)
+    )
 
-    if target_version == "es7":
+    if not is_es8_date_histogram_params(target_version):
         if "interval" in date_histogram:
             return date_histogram
         if "fixed_interval" in date_histogram:
