@@ -1685,6 +1685,7 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformI
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         if attrs["collector_scenario_id"] == "section":
             for field in ["multiline_pattern", "multiline_max_lines", "multiline_timeout"]:
                 if field not in attrs["params"]:
