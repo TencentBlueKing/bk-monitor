@@ -191,8 +191,6 @@ export default defineComponent({
         ? {
             app_name: appName.value,
             trace_id: traceId.value,
-            start_time: startTime,
-            end_time: endTime,
           }
         : {
             app_name: appName.value,
