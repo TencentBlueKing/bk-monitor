@@ -551,7 +551,8 @@ class CollectorHandler:
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
         # 更新归属索引集
-        IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
+        if self.data.index_set_id:
+            IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         custom_config = get_custom(self.data.custom_type)
         if etl_params and fields:
