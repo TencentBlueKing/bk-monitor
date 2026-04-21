@@ -574,7 +574,7 @@ class BkDataDorisV4Provider:
 
     def _maintainers_list(self) -> list:
         """将逗号分隔的 maintainer 字符串转换为列表"""
-        return [m for m in self.maintainer.split(",") if m]
+        return [m.strip() for m in self.maintainer.split(",") if m.strip()]
 
     def _metadata_labels(self) -> dict:
         """V4 资源的 metadata.labels，与指标链路保持一致"""
