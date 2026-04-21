@@ -29,13 +29,13 @@ import { Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { RUM_APP_CONFIG_TAB_ENUM, RUM_APP_CONFIG_TAB_MAP } from '../typings/constants';
+import { RUM_APP_CONFIG_TAB_ENUM, RUM_APP_CONFIG_TAB_MAP } from '../constants';
 import AppBasicInfo from './components/app-basic-info';
 import BasicConfig from './components/basic-config';
 import { getRumAppConfigMock } from './mock';
 import NavBar from '@/components/nav-bar/nav-bar';
 
-import type { IRumAppConfig, RumAppConfigTabType } from '../typings/rum-app-config';
+import type { IRumAppConfig, RumAppConfigTabType } from '../typings';
 
 import './rum-app-config.scss';
 
@@ -70,7 +70,7 @@ export default defineComponent({
     };
 
     const getRumAppConfig = async () => {
-      appInfo.value = await getRumAppConfigMock({ app_name: route.params.appName, is_get_detail: true });
+      appInfo.value = await getRumAppConfigMock({ app_name: route.params.appName as string, is_get_detail: true });
     };
 
     onMounted(() => {

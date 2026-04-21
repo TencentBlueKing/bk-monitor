@@ -24,7 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import type { RUM_APP_CONFIG_TAB_ENUM } from '../constants';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
+/** 应用配置 tab 枚举 */
+export const RUM_APP_CONFIG_TAB_ENUM = {
+  BASIC_CONFIG: 'basicConfig',
+  STORAGE_STATUS: 'storageStatus',
+  DATA_STATUS: 'dataStatus',
+} as const;
 
-export type RumAppConfigTabType = GetEnumTypeTool<typeof RUM_APP_CONFIG_TAB_ENUM>;
+/** 应用配置 tab 配置 */
+export const RUM_APP_CONFIG_TAB_MAP = [
+  { id: RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG, name: window.i18n.t('基本配置') },
+  { id: RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS, name: window.i18n.t('存储状态') },
+  { id: RUM_APP_CONFIG_TAB_ENUM.DATA_STATUS, name: window.i18n.t('数据状态') },
+];
