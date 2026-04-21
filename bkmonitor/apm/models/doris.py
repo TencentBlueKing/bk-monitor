@@ -562,9 +562,12 @@ class BkDataDorisV4Provider:
     # ── 内部工具 ──────────────────────────────
 
     def _resource_name(self) -> str:
-        """DataId / ResultTable / DorisBinding 的资源名称"""
-        return compose_profile_resource_name(self.app_name)
+        """DataId / ResultTable / DorisBinding 的资源名称。
 
+        将 ``bk_biz_id`` 作为后缀纳入资源名生成，避免不同业务下同名应用在同一
+        namespace 中发生资源名冲突。
+        """
+        return compose_profile_resource_name(f"{self.app_name}-{self.bk_biz_id}")
     def _databus_name(self) -> str:
         """Databus 资源名称，格式：doris_{resource_name}"""
         return f"doris_{self._resource_name()}"
