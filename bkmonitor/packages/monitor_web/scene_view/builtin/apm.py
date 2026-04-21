@@ -775,7 +775,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 type="",
                 defaults={
                     "config": [
-                        "overview", "topo", "service", "endpoint", "db", "error", "alarm_template", "alarm_center"
+                        "overview",
+                        "topo",
+                        "service",
+                        "endpoint",
+                        "db",
+                        "error",
+                        "alarm_template",
+                        "alarm_center",
                     ]
                 },
             )
@@ -799,6 +806,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "event",
                         "profiling",
                         "custom_metric",
+                        "custom_metric_v2",
                         "alarm_center",
                     ]
                 },
