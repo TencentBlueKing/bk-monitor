@@ -1096,6 +1096,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional["ProfileDataSource"] = None
 
+    is_v4 = models.BooleanField("是否使用V4声明式链路创建", default=False)
     profile_bk_biz_id = models.IntegerField(
         "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
         null=True,
@@ -1161,6 +1162,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             obj.bk_data_id = essentials["bk_data_id"]
             obj.result_table_id = essentials["result_table_id"]
             obj.retention = essentials["retention"]
+            obj.is_v4 = use_v4
             obj.save()
 
         return
@@ -1187,40 +1189,35 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def start(cls, bk_biz_id, app_name):
-        profile_bk_biz_id = bk_biz_id if bk_biz_id >= 0 else settings.BK_DATA_BK_BIZ_ID
-        if profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST:
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        if instance.is_v4:
             # V4 声明式链路：没有启停接口，通过 apply 重新声明资源（等价于启动）
             from apm.models.doris import BkDataDorisV4Provider
 
-            instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
                 instance, bk_tenant_id=bk_tenant_id, maintainer="", operator=""
             )
             provider.apply()
             return
-        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
         api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        profile_bk_biz_id = bk_biz_id if bk_biz_id >= 0 else settings.BK_DATA_BK_BIZ_ID
-        if profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST:
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not instance:
+            return
+        if instance.is_v4:
             # V4 声明式链路：没有启停接口，通过 delete 删除资源（等价于停止）
             from apm.models.doris import BkDataDorisV4Provider
 
-            instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-            if not instance:
-                return
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
                 instance, bk_tenant_id=bk_tenant_id, maintainer="", operator=""
             )
             provider.delete()
             return
-        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if instance:
-            api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
+        api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 
 class DataLink(models.Model):
