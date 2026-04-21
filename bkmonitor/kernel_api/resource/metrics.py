@@ -13,10 +13,11 @@ from django.db import models
 from rest_framework import serializers
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkm_space.utils import bk_biz_id_to_space_uid
+from core.drf_resource import api, resource
 from core.drf_resource.base import Resource, logger
-from metadata.models import DataSource, TimeSeriesGroup
-from core.drf_resource import resource
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
+from metadata.models import DataSource, TimeSeriesGroup
 
 
 class TimeSeriesGroupListResource(Resource):
@@ -102,3 +103,60 @@ class ExecuteRangeQueryResource(Resource):
 
     def perform_request(self, validated_request_data):
         return resource.grafana.graph_promql_query(**validated_request_data)
+
+
+class ExecuteSQLQueryResource(Resource):
+    """执行 BkBase SQL 查询接口 (用于 AI MCP 请求)"""
+
+    class RequestSerializer(TimeSpanValidationPassThroughSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务 ID")
+        table_id = serializers.CharField(required=True, allow_blank=False, label="BkBase 结果表 ID")
+        sql = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True, label="SQL 查询语句")
+        start_time = serializers.CharField(required=True, allow_blank=False, label="开始时间")
+        end_time = serializers.CharField(required=True, allow_blank=False, label="结束时间")
+        step = serializers.CharField(required=False, default="5m", allow_blank=False, label="查询步长")
+        limit = serializers.IntegerField(required=False, default=10, min_value=1, label="返回条数")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        table_id = validated_request_data["table_id"]
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        if not space_uid:
+            raise serializers.ValidationError({"bk_biz_id": "Unable to resolve space_uid from bk_biz_id."})
+
+        query_params = {
+            "query_list": [
+                {
+                    "data_source": "bkdata",
+                    "table_id": table_id,
+                    "is_regexp": False,
+                    "function": [],
+                    "time_aggregation": {},
+                    "is_dom_sampled": False,
+                    "reference_name": "a",
+                    "conditions": {},
+                    "query_string": "*",
+                    "sql": validated_request_data["sql"],
+                    "is_prefix": False,
+                }
+            ],
+            "metric_merge": "a",
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+            "step": validated_request_data["step"],
+            "timezone": "UTC",
+            "instant": False,
+            "limit": validated_request_data["limit"],
+            "space_uid": space_uid,
+        }
+
+        logger.info(
+            "ExecuteSQLQueryResource: try to execute sql query, "
+            "bk_biz_id->[%s], table_id->[%s], space_uid->[%s], limit->[%s]",
+            bk_biz_id,
+            table_id,
+            space_uid,
+            query_params["limit"],
+        )
+
+        return api.unify_query.query_raw(**query_params)
