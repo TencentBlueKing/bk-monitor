@@ -812,13 +812,34 @@ class BkDataDorisV4Provider:
             )
             phase = response.get("status", {}).get("phase")
             if phase == DataLinkResourceStatus.OK.value:
-                data_id = int(response.get("metadata", {}).get("annotations", {}).get("dataId", 0))
-                logger.info(
-                    "[ProfileDatasource] DataId ready, name=%s, data_id=%d",
-                    name,
-                    data_id,
-                )
-                return data_id
+                raw_data_id = response.get("metadata", {}).get("annotations", {}).get("dataId")
+                try:
+                    data_id = int(raw_data_id)
+                except (TypeError, ValueError):
+                    logger.warning(
+                        "[ProfileDatasource] DataId phase is Ok but dataId is invalid, "
+                        "name=%s, raw_data_id=%r, attempt=%d/%d",
+                        name,
+                        raw_data_id,
+                        attempt,
+                        _V4_POLL_MAX_ATTEMPTS,
+                    )
+                else:
+                    if data_id > 0:
+                        logger.info(
+                            "[ProfileDatasource] DataId ready, name=%s, data_id=%d",
+                            name,
+                            data_id,
+                        )
+                        return data_id
+                    logger.warning(
+                        "[ProfileDatasource] DataId phase is Ok but dataId is non-positive, "
+                        "name=%s, data_id=%d, attempt=%d/%d",
+                        name,
+                        data_id,
+                        attempt,
+                        _V4_POLL_MAX_ATTEMPTS,
+                    )
             logger.info(
                 "[ProfileDatasource] DataId not ready yet, name=%s, phase=%s, waiting %ds",
                 name,
