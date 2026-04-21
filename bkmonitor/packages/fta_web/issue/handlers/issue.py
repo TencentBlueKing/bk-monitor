@@ -16,6 +16,8 @@ import time
 from functools import reduce
 from typing import Any
 
+from django.utils.translation import gettext_lazy as _
+
 from elasticsearch_dsl import Q, Search
 from elasticsearch_dsl.response import Response
 
@@ -345,6 +347,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
         return aggs
 
     @classmethod
+    def handle_hit(cls, hit: Any) -> dict:
+        return cls.clean_document(hit)
+
+    @classmethod
     def clean_document(cls, doc: IssueDocument) -> dict:
         """数据清洗：从 ES Hit 中提取并格式化字段"""
         if isinstance(doc, dict):
@@ -382,14 +388,73 @@ class IssueQueryHandler(BaseBizQueryHandler):
         impact_scope = data.get("impact_scope") or {}
         cleaned["impact_scope"] = add_dimension_display_name(impact_scope)
 
-        # aggregate_config 直接透传
-        cleaned["aggregate_config"] = data.get("aggregate_config") or {}
+        # aggregate_config 添加display_name
+        cleaned["aggregate_config"] = cls.enrich_aggregate_dimensions(data.get("aggregate_config") or {})
 
         return cleaned
 
     @classmethod
-    def handle_hit(cls, hit: Any) -> dict:
-        return cls.clean_document(hit)
+    def enrich_aggregate_dimensions(cls, aggregate_config: dict) -> dict:
+        """
+        为 aggregate_config 中的 aggregate_dimensions 补充 display_name 和正确的字段前缀
+
+        参数:
+            aggregate_config: 聚合配置字典，需包含 "aggregate_dimensions" 列表，
+                列表中每个元素为字符串形式的维度字段名（如 "bk_biz_id" 或 "tags.xxx"）
+        """
+        if not aggregate_config or "aggregate_dimensions" not in aggregate_config:
+            return aggregate_config
+
+        # 硬编码的维度字段到中文名映射（ES Document 顶层字段）
+        dimension_name_mapping = {
+            "bk_agent_id": _("Agent ID"),
+            "bk_biz_id": _("业务ID"),
+            "bk_cloud_id": _("采集器云区域ID"),
+            "bk_host_id": _("采集主机ID"),
+            "bk_target_cloud_id": _("云区域ID"),
+            "bk_target_host_id": _("目标主机ID"),
+            "bk_target_ip": _("目标IP"),
+            "device_name": _("设备名"),
+            "device_type": _("设备类型"),
+            "hostname": _("主机名"),
+            "ip": _("采集器IP"),
+            "mount_point": _("挂载点"),
+        }
+
+        # 独立维护 AlertQueryTransformer 动态字段的映射，用于后续判断是否为已知顶层字段
+        transformer_field_mapping = {}
+
+        # 延迟导入避免循环引用
+        from fta_web.alert.handlers.alert import AlertQueryTransformer
+
+        for field in AlertQueryTransformer.query_fields:
+            transformer_field_mapping[field.field] = field.display
+
+        # 合并映射表：用于统一查找维度的中文名
+        dimension_name_mapping.update(transformer_field_mapping)
+
+        new_aggregate_dimensions = []
+
+        for dim in aggregate_config["aggregate_dimensions"]:
+            # 保留原始字段名，后续可能需要补 tags. 前缀
+            field = dim
+            # 去除 tags. 前缀，用于在映射表中查找中文名
+            if dim.startswith("tags."):
+                dim = dim.removeprefix("tags.")
+
+            # 前缀修正逻辑：
+            # - 原始字段不带 tags. 前缀，且不属于 AlertQueryTransformer 的已知顶层字段
+            # - 说明该维度是标签字段，需要补 tags. 前缀以匹配 ES 中的实际存储路径
+            if not field.startswith("tags.") and dim not in transformer_field_mapping:
+                field = f"tags.{field}"
+
+            # 优先从映射表获取中文名，否则通过 ImpactScopeDimension 兜底获取
+            name = dimension_name_mapping.get(dim) or ImpactScopeDimension.get_display_name(dim)
+            new_aggregate_dimensions.append({"field": field, "display_name": name})
+
+        aggregate_config["aggregate_dimensions"] = new_aggregate_dimensions
+
+        return aggregate_config
 
     def add_alert_trend(self, issues: list[dict]) -> None:
         """
