@@ -100,7 +100,7 @@ export default ({
    * @returns
    */
   const getSpaceByIndexId = () => {
-    if (urlArgs.index_id && !urlArgs.spaceUid) {
+    if (urlArgs.index_id && !urlArgs.spaceUid && !urlArgs.bizId) {
       return http
         .request(
           'indexSet/getSpaceByIndexId',

@@ -433,6 +433,10 @@ WXWORK_BOT_WEBHOOK_URL = ""
 WXWORK_BOT_NAME = ""
 WXWORK_BOT_SEND_IMAGE = True
 
+# 是否启用 CMSI 专用 send_rtx 接口（通过 ENABLE_CMSI_SEND_RTX 环境变量开启）
+# 开启后，Sender.send_rtx 在走 rtx 通道时会调用 api.cmsi.send_rtx，而不再走通用 send_msg 接口
+ENABLE_CMSI_SEND_RTX = os.getenv("ENABLE_CMSI_SEND_RTX", "false").lower() == "true"
+
 # 执行流控的 APP 白名单
 THROTTLE_APP_WHITE_LIST = []
 
@@ -1466,6 +1470,14 @@ AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "bkm-mcp-client")
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# OpenClaw 自愈分析 MCP 配置
+OPENCLAW_RECOVERING_BK_BIZ_ID = 0
+OPENCLAW_RECOVERING_APM_APP_NAME = ""
+OPENCLAW_RECOVERING_TRACE_OWNER_FIELD = "attributes.agent.session.executor"
+OPENCLAW_RECOVERING_LOG_OWNER_FIELD = "__ext.owner"
+OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP = {}
+OPENCLAW_RECOVERING_ADMIN_USERS = []
+OPENCLAW_RECOVERING_MCP_SERVER_NAME = ""
 # 是否开启AI RENAME
 ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单

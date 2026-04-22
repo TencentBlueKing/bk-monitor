@@ -1373,14 +1373,15 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def handle_aggs_notice_way(self, alert_ids):
         """通过ES聚合统计告警通知类型分布"""
-        notice_way_mapping = {
-            NoticeWay.SMS: _lazy("短信"),
-            NoticeWay.MAIL: _lazy("邮件"),
-            NoticeWay.WEIXIN: _lazy("微信"),
-            NoticeWay.QY_WEIXIN: _lazy("企业微信"),
-            NoticeWay.VOICE: _lazy("语音通知"),
-            NoticeWay.WX_BOT: _lazy("企业微信机器人"),
-        }
+        # 需要聚合的通知方式
+        notice_ways = [
+            NoticeWay.SMS,  # 短信
+            NoticeWay.MAIL,  # 邮件
+            NoticeWay.WEIXIN,  # 微信
+            NoticeWay.QY_WEIXIN,  # 企微
+            NoticeWay.VOICE,  # 语音
+            NoticeWay.WX_BOT,  # 企业微信机器人
+        ]
         notice_way_count = defaultdict(int)
         alert_notice_ways = {}
 
@@ -1396,7 +1397,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                             "name": str(NoticeWay.NOTICE_WAY_MAPPING.get(way_key, way_key)),
                             "count": 0,
                         }
-                        for way_key in notice_way_mapping
+                        for way_key in notice_ways
                     ],
                 }
 
@@ -1421,7 +1422,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "name": str(NoticeWay.NOTICE_WAY_MAPPING.get(way_key, way_key)),
                     "count": notice_way_count.get(way_key, 0),
                 }
-                for way_key in notice_way_mapping
+                for way_key in notice_ways
             ],
         }
 
