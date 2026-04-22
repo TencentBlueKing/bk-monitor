@@ -767,9 +767,9 @@ class Sender(BaseSender):
             if sender:
                 notice_way = "wecom_robot"
 
-        # 开启 ENABLE_CMSI_SEND_RTX 后，rtx 通道改走 CMSI 专用 send_rtx 接口
+        # 开启 ENABLE_CMSI_SEND_RTX 后，仅 rtx 通道改走 CMSI 专用 send_rtx 接口
         # wecom_robot 通道仍走 send_default，不受影响
-        if settings.ENABLE_CMSI_SEND_RTX:
+        if settings.ENABLE_CMSI_SEND_RTX and (notice_way == "rtx" or sender is None):
             return self._send_via_cmsi_rtx(notice_receivers)
 
         return self.send_default(notice_way, notice_receivers, sender)
