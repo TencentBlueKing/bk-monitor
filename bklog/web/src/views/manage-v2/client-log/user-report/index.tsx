@@ -383,8 +383,6 @@ export default defineComponent({
     };
 
     const handleViewSDKDoc = () => {
-      const sdkDocUrl = 'https://iwiki.woa.com/p/4013039938';
-      window.open(sdkDocUrl, '_blank');
     };
 
     // 批量上传按钮点击事件
