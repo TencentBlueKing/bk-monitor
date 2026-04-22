@@ -117,6 +117,37 @@ export const useIssuesDialogs = (
   };
 
   /**
+   * @description 重新打开
+   * @param {IssuesOperationDialogEvent} event dialog回调事件对象
+   */
+  const handleUnresolveDialogSuccessCallback = (
+    event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.UNRESOLVE>
+  ) => {
+    const list = event.succeeded.map(item => ({ ...item, is_resolved: item.status === IssueStatusEnum.RESOLVED }));
+    updateIssueItems(list);
+  };
+
+  /**
+   * @description 归档
+   * @param {IssuesOperationDialogEvent} event dialog回调事件对象
+   */
+  const handleArchiveDialogSuccessCallback = (
+    event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ARCHIVE>
+  ) => {
+    updateIssueItems(event.succeeded);
+  };
+
+  /**
+   * @description 恢复归档
+   * @param {IssuesOperationDialogEvent} event dialog回调事件对象
+   */
+  const handleUnarchiveDialogSuccessCallback = (
+    event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.UNARCHIVE>
+  ) => {
+    updateIssueItems(event.succeeded);
+  };
+
+  /**
    * @description 优先级变更
    * @param {IssuesOperationDialogEvent} event dialog回调事件对象
    */
@@ -199,6 +230,19 @@ export const useIssuesDialogs = (
         break;
       case IssuesBatchActionEnum.RESOLVE:
         handleResolvedDialogSuccessCallback(event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>);
+        break;
+      case IssuesBatchActionEnum.UNRESOLVE:
+        handleUnresolveDialogSuccessCallback(
+          event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.UNRESOLVE>
+        );
+        break;
+      case IssuesBatchActionEnum.ARCHIVE:
+        handleArchiveDialogSuccessCallback(event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ARCHIVE>);
+        break;
+      case IssuesBatchActionEnum.UNARCHIVE:
+        handleUnarchiveDialogSuccessCallback(
+          event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.UNARCHIVE>
+        );
         break;
       case IssuesBatchActionEnum.PRIORITY:
         handlePriorityDialogSuccessCallback(event as IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>);

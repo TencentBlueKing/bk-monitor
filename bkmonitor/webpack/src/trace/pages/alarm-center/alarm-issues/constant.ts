@@ -104,6 +104,12 @@ export const IssuesBatchActionEnum = {
   PRIORITY: 'priority',
   /** 标记为已解决 */
   RESOLVE: 'resolve',
+  /** 重新打开 */
+  UNRESOLVE: 'unresolve',
+  /** 归档 */
+  ARCHIVE: 'archive',
+  /** 恢复归档 */
+  UNARCHIVE: 'unarchive',
 } as const;
 
 /** Issues 负责人枚举 */

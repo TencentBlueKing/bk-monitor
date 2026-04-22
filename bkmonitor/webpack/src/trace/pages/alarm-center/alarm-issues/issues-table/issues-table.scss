@@ -230,8 +230,13 @@
 
   // ===================== 操作列 =====================
   .issues-operation-col {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+
     .operation-btn {
       font-size: 12px;
+      white-space: nowrap;
 
       @extend %btn-hover;
 

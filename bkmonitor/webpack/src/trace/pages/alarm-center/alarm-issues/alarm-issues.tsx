@@ -41,7 +41,7 @@ import IssuesTable from './issues-table/issues-table';
 import IssuesToolbar from './issues-toolbar/issues-toolbar';
 
 import type { CommonFilterParams } from '../typings/services';
-import type { IssueItem } from './typing';
+import type { IssueItem, IssuesBatchActionType } from './typing';
 
 import './alarm-issues.scss';
 
@@ -149,10 +149,10 @@ export default defineComponent({
             scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
             selectedRowKeys={selectedRowKeys.value}
             sort={ordering.value}
+            onAction={(type: IssuesBatchActionType, id: string) => handleIssuesDialogShow(type, id)}
             onAssignClick={handleAssignClick}
             onCurrentPageChange={handleCurrentPageChange}
             onImpactScopeClick={handleImpactScopeClick}
-            onMarkResolved={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)}
             onPageSizeChange={handlePageSizeChange}
             onPriorityChange={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)}
             onSelectionChange={handleSelectionChange}

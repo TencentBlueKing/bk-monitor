@@ -100,7 +100,7 @@ import { showOperationResult, updateIssuesPriority } from './alarm-issues/servic
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
-import type { IssueItem, IssuePriorityType } from './alarm-issues/typing';
+import type { IssueItem, IssuePriorityType, IssuesBatchActionType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -1090,6 +1090,9 @@ export default defineComponent({
                               scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                               selectedRowKeys={this.selectedRowKeys}
                               sort={this.ordering}
+                              onAction={(type: IssuesBatchActionType, id: string) =>
+                                this.handleIssuesDialogShow(type, id)
+                              }
                               onAssignClick={(id, data) =>
                                 this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
                               }
@@ -1103,9 +1106,6 @@ export default defineComponent({
                               }}
                               onCurrentPageChange={this.handleCurrentPageChange}
                               onImpactScopeClick={this.handleImpactScopeClick}
-                              onMarkResolved={(id: string) =>
-                                this.handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)
-                              }
                               onPageSizeChange={this.handlePageSizeChange}
                               onPriorityChange={(id: string, priority: IssuePriorityType) =>
                                 this.handleIssuesPriorityChange(id, priority)
