@@ -553,3 +553,26 @@ class SendWecomAPP(CheckCMSIResource):
         def validate(self, attrs):
             attrs[attrs["type"]] = {"content": attrs["content"]}
             return attrs
+
+
+class SendRtx(CheckCMSIResource):
+    """
+    发送RTX消息
+    """
+
+    action = "send_rtx"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        receiver = serializers.ListField(
+            required=False,
+            child=serializers.CharField(),
+            help_text="企业微信接收者，包含企业微信用户 ID。若同时传入 receiver 和 receiver__username，以 receiver 为准",
+        )
+        receiver__username = serializers.ListField(
+            required=False,
+            child=serializers.CharField(),
+            help_text="企业微信接收者，包含蓝鲸用户唯一标识 bk_username，用户需在蓝鲸平台注册",
+        )
+        title = serializers.CharField(required=True, help_text="消息标题")
+        content = serializers.CharField(required=True, help_text="消息内容")
