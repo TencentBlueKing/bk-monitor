@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
@@ -136,10 +136,48 @@ class PreDateMode(ChoicesEnum):
     MONTH = "1m"
     ALL = "all"
     CUSTOM = "custom"
-    _choices_labels = ((DAY, _("近一天")), (WEEK, _("近一周")), (MONTH, _("近一月")), (ALL, _("所有")), (CUSTOM, _("自定义")))
+    _choices_labels = (
+        (DAY, _("近一天")),
+        (WEEK, _("近一周")),
+        (MONTH, _("近一月")),
+        (ALL, _("所有")),
+        (CUSTOM, _("自定义")),
+    )
 
 
-class ScheduleStatus(object):
+class LogExtractTargetNodeTypeEnum(ChoicesEnum):
+    """日志提取目标节点类型枚举"""
+
+    INSTANCE = "INSTANCE"
+    TOPO = "TOPO"
+    SERVICE_TEMPLATE = "SERVICE_TEMPLATE"
+
+    _choices_labels = (
+        (INSTANCE, _("主机实例")),
+        (TOPO, _("拓扑")),
+        (SERVICE_TEMPLATE, _("服务模板")),
+    )
+
+
+class LogExtractNodeInstanceType(ChoicesEnum):
+    """日志提取节点对象枚举"""
+
+    BUSINESS = "biz"
+    SET = "set"
+    MODULE = "module"
+    HOST = "host"
+    SERVICE_TEMPLATE = "SERVICE_TEMPLATE"
+
+    _choices_labels = (
+        (BUSINESS, _("业务")),
+        (SET, _("集群")),
+        (MODULE, _("模块")),
+        (HOST, _("主机")),
+        (SERVICE_TEMPLATE, _("服务模板")),
+    )
+
+
+class ScheduleStatus:
     SUCCESS = "success"
     EXECUTING = "executing"
 
