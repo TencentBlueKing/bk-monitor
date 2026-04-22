@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, reactive, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Button, Loading, Message, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -106,6 +106,16 @@ export default defineComponent({
     /** 负责人列表 */
     const userList = shallowRef<string[]>([]);
 
+    watch(
+      () => props.detail,
+      val => {
+        userList.value = val?.assignee || [];
+      },
+      {
+        immediate: true,
+      }
+    );
+
     const loadings = reactive({
       priority: false,
       assignee: false,
@@ -149,7 +159,7 @@ export default defineComponent({
         ],
         priority: id,
       })
-        .then(({ succeeded }) => {
+        .then(({ succeeded, failed }) => {
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
             priorityPopover.value?.hide();
@@ -157,7 +167,7 @@ export default defineComponent({
           }
           Message({
             theme: activeItem ? 'success' : 'error',
-            message: activeItem ? t('操作成功') : t('操作失败'),
+            message: activeItem ? t('操作成功') : failed[0]?.message,
           });
         })
         .finally(() => {
@@ -180,7 +190,7 @@ export default defineComponent({
     };
 
     const handleResponsiblePersonBlur = () => {
-      if (!userList.value.length) return;
+      if (!userList.value.length || JSON.stringify(props.detail.assignee) === JSON.stringify(userList.value)) return;
       loadings.assignee = true;
       assignIssues({
         issues: [
@@ -191,14 +201,14 @@ export default defineComponent({
         ],
         assignee: userList.value,
       })
-        .then(({ succeeded }) => {
+        .then(({ succeeded, failed }) => {
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
             emit('assigneeChange', userList.value);
           }
           Message({
             theme: activeItem ? 'success' : 'error',
-            message: activeItem ? t('操作成功') : t('操作失败'),
+            message: activeItem ? t('操作成功') : failed[0]?.message,
           });
         })
         .finally(() => {
@@ -228,7 +238,7 @@ export default defineComponent({
           },
         ],
       })
-        .then(({ succeeded }) => {
+        .then(({ succeeded, failed }) => {
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
             handleDialogChange(false);
@@ -236,7 +246,7 @@ export default defineComponent({
           }
           Message({
             theme: activeItem ? 'success' : 'error',
-            message: activeItem ? t('操作成功') : t('操作失败'),
+            message: activeItem ? t('操作成功') : failed[0]?.message,
           });
         })
         .finally(() => {

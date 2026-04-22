@@ -42,6 +42,10 @@
       }
 
       &.user {
+        .bk-user-selector {
+          height: auto;
+        }
+
         .tags-container-collapsed {
           padding-left: 8px;
           cursor: pointer;
@@ -53,6 +57,10 @@
 
           .bk-tag-close {
             display: none !important;
+          }
+
+          .search-input {
+            min-width: 0;
           }
 
           &:hover {
@@ -120,7 +128,7 @@
   }
 }
 
-.bk-popover.priority-select-popover {
+.bk-popover.bk-pop2-content.priority-select-popover {
   padding: 0;
 
   .priority-select-wrap {

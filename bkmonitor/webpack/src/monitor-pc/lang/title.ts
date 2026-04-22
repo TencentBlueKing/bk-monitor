@@ -260,7 +260,7 @@ export default {
   'Issue 合并': 'Issue merge',
 
   // Issues 详情组件
-  问题活动: 'Issue Activity',
+  活动: 'Activity',
   输入评论: 'Input comment',
   '历史 Issue': 'History Issue',
   优先级变更: 'Priority change',
