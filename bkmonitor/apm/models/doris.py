@@ -1009,7 +1009,8 @@ class BkDataDorisV4Provider:
         DataId 和 ResultTable 在 delete 时不会被删除，启动时只需重新 apply DorisBinding 和 Databus。
         使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
-        if not self._obj or not self._doris_binding_name(0):
+        v4_names = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
+        if not self._obj or not v4_names.get("doris_binding_name"):
             raise ValueError("[ProfileDatasource] cannot apply V4 data link without stored resource names")
         bk_data_id = self._obj.bk_data_id
         # 只提交 DorisBinding 和 Databus
@@ -1039,8 +1040,9 @@ class BkDataDorisV4Provider:
         按创建的逆序删除：Databus → DorisBinding（DataId 和 ResultTable 不删）。
         使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
-        databus_name = self._databus_name(0)
-        doris_binding_name = self._doris_binding_name(0)
+        v4_names = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
+        databus_name = v4_names.get("databus_name")
+        doris_binding_name = v4_names.get("doris_binding_name")
         if not databus_name and not doris_binding_name:
             return
         # 删除顺序：Databus → DorisBinding（DataId / ResultTable 为基础资源，不删）
