@@ -42,7 +42,7 @@ import {
 import CommonItem from '../components/common-form-item';
 import { type IIssueConfig, LEVEL_LIST } from '../type';
 
-import type { ICommonItem, IDetectionConfig, MetricDetail } from '../typings/index';
+import type { ICommonItem, MetricDetail } from '../typings/index';
 
 import './issue-agg.scss';
 
@@ -51,7 +51,7 @@ interface IEvents {
 }
 
 interface IProps {
-  detectionConfig?: IDetectionConfig;
+  dimensions?: ICommonItem[];
   metricData?: MetricDetail[];
   readonly?: boolean;
   value?: IIssueConfig;
@@ -61,10 +61,10 @@ interface IProps {
   name: 'IssueAgg',
 })
 export default class IssueAgg extends tsc<IProps, IEvents> {
-  @Prop({ type: Object, default: () => ({}) }) detectionConfig: IDetectionConfig;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
   @Prop({ type: Object, default: () => null }) value: IIssueConfig;
+  @Prop({ type: Array, default: () => [] }) dimensions: ICommonItem[];
 
   /** 根据 detectionConfig.data 中的 level 计算默认告警级别 */
   // get defaultLevels(): number[] {
@@ -81,35 +81,6 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
 
   /** 维度值缓存 */
   dimensionValueCache: Record<string, { id: string; name: string }[]> = {};
-
-  get dimensions(): ICommonItem[] {
-    // 过滤出有聚合维度的指标
-    const metricsWithAggDim = this.metricData.filter(m => m.agg_dimension?.length > 0);
-
-    // 如果没有指标有维度，返回空数组
-    if (metricsWithAggDim.length === 0) return [];
-
-    // 如果只有一个指标有维度，返回那个指标的已选维度列表
-    if (metricsWithAggDim.length === 1) {
-      const metric = metricsWithAggDim[0];
-      return metric.dimensions?.filter(d => metric.agg_dimension.includes(d.id as string)) || [];
-    }
-
-    // 多指标情况，取交集
-    // 获取所有指标的 agg_dimension 的交集
-    const firstAggDim = metricsWithAggDim[0].agg_dimension;
-    const intersectionIds = metricsWithAggDim.reduce(
-      (acc, metric) => {
-        const ids = new Set(metric.agg_dimension);
-        return acc.filter(id => ids.has(id));
-      },
-      [...firstAggDim]
-    );
-
-    // 根据交集 ID 返回对应的维度信息（使用第一个指标的 dimensions 获取维度详情）
-    const firstMetric = metricsWithAggDim[0];
-    return firstMetric.dimensions?.filter(d => intersectionIds.includes(d.id as string)) || [];
-  }
 
   /** 获取维度字段列表（用于条件选择器） */
   get filterFields(): IFilterField[] {

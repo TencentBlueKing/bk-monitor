@@ -64,7 +64,7 @@ import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
-import AlarmHandlingList from './alarm-handling/alarm-handling-list';
+import AlarmHandlingList from './alarm-handling/alarm-handling-list-new';
 import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
 import DetectionRules from './detection-rules/detection-rules';
@@ -301,6 +301,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 告警处理(新)
   actionsData: IAlarmItem[] = [];
   actionIndex = -1;
+  alarmHandlingListRefreshKey = random(8);
 
   // 判断条件生效时间段（当isNeedJudgingCondition为false显示）
   // judgeTimeRange: ITimeRangeMultipleProps['value'] = [['00:00', '23:59']];
@@ -1428,6 +1429,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.metricSelector.type = metric_type || MetricType.TimeSeries;
     // issue聚合数据回显
     this.issueConfig = issueConfig;
+    this.alarmHandlingListRefreshKey = random(8);
   }
   // 检测算法回显空数据转换
   displayDetectionRulesConfig(item) {
@@ -2854,6 +2856,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               title={this.$t('告警处理')}
             >
               <AlarmHandlingList
+                key={this.alarmHandlingListRefreshKey}
                 ref='alarmHandlingList'
                 allAction={actionConfigGroupList(this.actionConfigList)}
                 allDefense={this.defenseList}

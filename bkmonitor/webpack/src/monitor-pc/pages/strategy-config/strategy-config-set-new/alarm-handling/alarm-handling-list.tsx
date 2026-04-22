@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -26,57 +26,39 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import CommonItem from '../components/common-form-item';
 import AlarmHandling, { type IValue as IAlarmItem, type IAllDefense } from './alarm-handling';
-import IssueAgg from './issue-agg';
 import SimpleSelect from './simple-select';
-import { type ActionTypeEnum, ACTION_TYPE_OPTIONS, actionType } from './typing';
 
 import type { IGroupItem } from '../components/group-select';
-import type { IIssueConfig } from '../type';
-import type { IDetectionConfig, MetricDetail } from '../typings/index';
 
 import './alarm-handling-list.scss';
 
 interface IEvents {
   onAddMeal?: number;
   onChange?: IAlarmItem[];
-  onIssueConfigChange?: IIssueConfig;
 }
 
 interface IProps {
   allAction?: IGroupItem[]; // 套餐列表
   allDefense?: IAllDefense[]; // 防御动作列表
-  detectionConfig?: IDetectionConfig;
   isSimple?: boolean; // 简易模式（无预览, 无回填）
-  issueConfig?: IIssueConfig;
-  metricData?: MetricDetail[];
   readonly?: boolean;
   strategyId?: number | string;
   value?: IAlarmItem[];
 }
 
-const signalOptionType = {
-  abnormal: 'abnormal',
-  recovered: 'recovered',
-  closed: 'closed',
-  no_data: 'no_data',
-  incident: 'incident',
-} as const;
 export const signalNames = {
-  [signalOptionType.abnormal]: window.i18n.tc('告警触发时'),
-  [signalOptionType.recovered]: window.i18n.tc('告警恢复时'),
-  [signalOptionType.closed]: window.i18n.tc('告警关闭时'),
-  [signalOptionType.no_data]: window.i18n.tc('无数据时'),
-  [signalOptionType.incident]: window.i18n.tc('故障生成时'),
+  abnormal: window.i18n.tc('告警触发时'),
+  recovered: window.i18n.tc('告警恢复时'),
+  closed: window.i18n.tc('告警关闭时'),
+  no_data: window.i18n.tc('无数据时'),
 };
 
 const signalOptions: { id: string; name: string }[] = [
-  { id: signalOptionType.abnormal, name: signalNames.abnormal },
-  { id: signalOptionType.recovered, name: signalNames.recovered },
-  { id: signalOptionType.closed, name: signalNames.closed },
-  { id: signalOptionType.no_data, name: signalNames.no_data },
-  { id: signalOptionType.incident, name: signalNames.incident },
+  { id: 'abnormal', name: signalNames.abnormal },
+  { id: 'recovered', name: signalNames.recovered },
+  { id: 'closed', name: signalNames.closed },
+  { id: 'no_data', name: signalNames.no_data },
 ];
 
 @Component
@@ -84,30 +66,14 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
   @Prop({ default: () => [], type: Array }) value: IAlarmItem[];
   @Prop({ type: Array, default: () => [] }) allAction: IGroupItem[];
   @Prop({ type: Array, default: () => [] }) allDefense: IAllDefense[];
-  @Prop({ type: Object, default: () => ({}) }) detectionConfig: IDetectionConfig;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: false, type: Boolean }) isSimple: boolean;
-  @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
-  @Prop({ type: Object, default: () => null }) issueConfig: IIssueConfig;
 
   data: IAlarmItem[] = [];
   addValue = [];
-  /** 当前选中的tab: action(处理套餐) | issueAgg(Issue聚合) */
-  activeTab: ActionTypeEnum = actionType.action;
 
   errMsg = '';
-
-  get needIssueConfigIndex() {
-    return this.data.findIndex(item => {
-      return item.signal.length === 1 && item.signal[0] === signalOptionType.abnormal;
-    });
-  }
-
-  /** 切换tab */
-  handleTabChange(tab: ActionTypeEnum) {
-    this.activeTab = tab;
-  }
 
   @Watch('value', { immediate: true, deep: true })
   handleValue(v) {
@@ -138,7 +104,6 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
             timedelta: 1,
             count: 1,
           },
-          skip_delay: 0,
         },
       });
       this.addValue = [];
@@ -160,10 +125,6 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
    * @return {*}
    */
   handleSignalChange(v: string[], index: number) {
-    if (index === this.needIssueConfigIndex && (v.length !== 1 || v[0] !== signalOptionType.abnormal)) {
-      this.handleIssueConfigChange(null);
-      this.activeTab = actionType.action;
-    }
     this.data[index].signal = v;
     this.handleChange();
   }
@@ -174,10 +135,6 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
    * @return {*}
    */
   handleDelete(index: number) {
-    if (index === this.needIssueConfigIndex) {
-      this.handleIssueConfigChange(null);
-      this.activeTab = actionType.action;
-    }
     this.data.splice(index, 1);
     this.handleChange();
   }
@@ -200,15 +157,11 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
     return new Promise((resolve, reject) => {
       const validate = this.data.some(item => !item.signal?.length);
       const configValidate = this.data.every(item => !!item.config_id);
-      const skipDelayValidate = this.data.some(item => item.options.skip_delay === -1);
       if (validate) {
         this.errMsg = window.i18n.tc('输入告警场景');
         reject();
       } else if (!configValidate) {
         this.errMsg = window.i18n.tc('选择处理套餐');
-      } else if (skipDelayValidate) {
-        // 后端只存储延迟时间，不记录开关状态。 -1：switch状态开但时间设置不正确
-        reject();
       } else {
         resolve(true);
       }
@@ -222,107 +175,6 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
   @Emit('addMeal')
   handleAddMeal(index: number) {
     return index;
-  }
-
-  @Emit('issueConfigChange')
-  handleIssueConfigChange(config: IIssueConfig) {
-    return config;
-  }
-
-  /**
-   * @description 告警策略，可配置issue聚合的条件：
-    1. 仅且只有“告警触发时”，可以配置issue聚合
-    2. 多个“告警触发时”，只能配置一个issue聚合，其他“issue聚合”tab禁用样式，tips：已配置issue聚合
-   * @param item 
-   * @param index 
-   * @returns 
-   */
-  actionTabRender(item: IAlarmItem, index: number) {
-    if (item.signal.length === 1 && item.signal[0] === signalOptionType.abnormal) {
-      return [
-        <CommonItem
-          key={`${index}_tab`}
-          class='action-tab-form-item'
-          title={this.$t('动作')}
-          show-semicolon
-        >
-          <div class='bk-button-group'>
-            {ACTION_TYPE_OPTIONS.map(action => (
-              <span
-                key={action.id}
-                style={'display: inline-block'}
-                v-bk-tooltips={{
-                  content: this.$t('已配置issue聚合'),
-                  placements: ['top'],
-                  disabled: index === this.needIssueConfigIndex || action.id === actionType.action,
-                }}
-              >
-                <bk-button
-                  key={action.id}
-                  class={
-                    (
-                      index === this.needIssueConfigIndex
-                        ? this.activeTab === action.id
-                        : action.id === actionType.action
-                    )
-                      ? 'is-selected'
-                      : ''
-                  }
-                  disabled={index !== this.needIssueConfigIndex && action.id === actionType.issueAgg}
-                  size='small'
-                  onClick={() => {
-                    if (index === this.needIssueConfigIndex) {
-                      this.handleTabChange(action.id);
-                    }
-                  }}
-                >
-                  {action.name}
-                </bk-button>
-              </span>
-            ))}
-          </div>
-        </CommonItem>,
-        this.activeTab === actionType.issueAgg && this.needIssueConfigIndex === index ? (
-          <IssueAgg
-            key={`${index}_IssueAgg`}
-            class='alarm-handling-item'
-            detectionConfig={this.detectionConfig}
-            metricData={this.metricData}
-            readonly={this.readonly}
-            value={this.issueConfig}
-            onChange={this.handleIssueConfigChange}
-          />
-        ) : (
-          <AlarmHandling
-            key={`${index}_AlarmHandling`}
-            extCls={'alarm-handling-item'}
-            allAction={this.allAction}
-            allDefense={this.allDefense}
-            isSimple={this.isSimple}
-            list={signalOptions}
-            readonly={this.readonly}
-            strategyId={this.strategyId}
-            value={item}
-            onAddMeal={() => this.handleAddMeal(index)}
-            onChange={v => this.handleAlarmChange(v, index)}
-          />
-        ),
-      ];
-    }
-    return (
-      <AlarmHandling
-        extCls={'alarm-handling-item'}
-        allAction={this.allAction}
-        allDefense={this.allDefense}
-        isSimple={this.isSimple}
-        list={signalOptions}
-        readonly={this.readonly}
-        strategyId={this.strategyId}
-        value={item}
-        onAddMeal={() => this.handleAddMeal(index)}
-        onChange={v => this.handleAlarmChange(v, index)}
-      />
-    );
   }
 
   render() {
@@ -350,14 +202,24 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
               >
                 <span class='signal-select-wrap'>
                   {item.signal?.length ? (
-                    <span class='signal-name'>{item.signal.map(key => signalNames[key] || key).join(',')}</span>
+                    <span class='signal-name'>{item.signal.map(key => signalNames[key]).join(',')}</span>
                   ) : (
                     <span class='add-placeholder'>{this.$t('选择添加告警场景')}</span>
                   )}
                   <span class='icon-monitor icon-arrow-down' />
                 </span>
               </SimpleSelect>
-              {this.actionTabRender(item, index)}
+              <AlarmHandling
+                extCls={'alarm-handling-item'}
+                allAction={this.allAction}
+                allDefense={this.allDefense}
+                isSimple={this.isSimple}
+                readonly={this.readonly}
+                strategyId={this.strategyId}
+                value={item}
+                onAddMeal={() => this.handleAddMeal(index)}
+                onChange={v => this.handleAlarmChange(v, index)}
+              />
             </div>
           ))}
         </div>
