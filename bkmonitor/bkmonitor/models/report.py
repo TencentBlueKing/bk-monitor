@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 
 import arrow
 from django.db import models
+from django.utils import timezone
 
 from bkmonitor.utils.itsm import ApprovalStatusEnum
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
@@ -24,6 +25,13 @@ from constants.new_report import (
     SendStatusEnum,
     SubscriberTypeEnum,
 )
+
+
+def get_render_image_upload_path(instance, filename: str) -> str:
+    base_filename = filename.rsplit("/", 1)[-1]
+    base_time = instance.create_time or timezone.now()
+    hour_path = arrow.get(base_time).format("YYYYMMDDHH")
+    return f"render/image/{instance.type}/{hour_path}/{base_filename}"
 
 
 class ReportChannel(Model):
@@ -152,7 +160,7 @@ class RenderImageTask(Model):
     create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
     start_time = models.DateTimeField(verbose_name="开始时间", null=True)
     finish_time = models.DateTimeField(verbose_name="完成时间", null=True)
-    image = models.ImageField(verbose_name="图片", null=True, upload_to="render/image/")
+    image = models.ImageField(verbose_name="图片", null=True, upload_to=get_render_image_upload_path)
     options = models.JSONField(verbose_name="图片渲染参数", default=dict)
     type = models.CharField(verbose_name="类型", max_length=128, choices=TYPE)
     status = models.CharField(verbose_name="状态", max_length=128, choices=STATUS)
