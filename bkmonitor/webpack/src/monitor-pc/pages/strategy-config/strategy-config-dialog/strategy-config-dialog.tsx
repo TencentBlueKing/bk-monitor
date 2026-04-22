@@ -44,7 +44,7 @@ import {
   type IAllDefense,
   actionConfigGroupList,
 } from '../strategy-config-set-new/alarm-handling/alarm-handling';
-import AlarmHandlingList from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
+import AlarmHandlingList from '../strategy-config-set-new/alarm-handling/alarm-handling-list-new';
 import AlarmGroup from '../strategy-config-set-new/components/alarm-group';
 import CommonItem from '../strategy-config-set-new/components/common-form-item';
 import VerifyItem from '../strategy-config-set-new/components/verify-item';
@@ -863,6 +863,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             isSimple={true}
             issueConfig={this.data.issueConfig}
             metricData={this.selectMetricData}
+            showIssueConfig={false}
             value={this.data.alarmItems}
             onAddMeal={() => this.handleHideDialog(false)}
             onChange={v => {

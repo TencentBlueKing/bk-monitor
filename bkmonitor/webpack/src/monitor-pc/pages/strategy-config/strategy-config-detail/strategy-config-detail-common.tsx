@@ -48,7 +48,6 @@ import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-d
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
-import { type ActionTypeEnum, ACTION_TYPE_OPTIONS, actionType } from '../strategy-config-set-new/alarm-handling/typing';
 import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
 import {
@@ -74,6 +73,7 @@ import { transformLogMetricId } from './utils';
 
 import type { ISpaceItem } from '../../../types';
 import type { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/alarm-handling';
+import type { ActionTypeEnum } from '../strategy-config-set-new/alarm-handling/typing';
 import type { ChartType } from '../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import type { IModelData } from '../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
 import type { IFunctionsValue } from '../strategy-config-set-new/monitor-data/function-select';
@@ -450,12 +450,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     return this.metricData?.[0]?.data_type_label !== 'alert';
   }
 
-  get needIssueConfigIndex() {
-    return this.actionsData.findIndex(item => {
-      return item.signal.length === 1 && item.signal[0] === 'abnormal';
-    });
-  }
-
   created() {
     this.loading = true;
     const promiseList = [];
@@ -783,7 +777,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     this.getAnalyzingData(data);
     this.getActionsData(data);
     this.getNoticeConfigData(data);
-    this.issueConfig = data?.issue_config || null;
   }
 
   /**
@@ -866,7 +859,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     const { actions } = data;
     this.actionsData = actions.map(item => ({
       ...item,
-      activeTab: actionType.action,
       options: {
         converge_config: {
           ...item.options.converge_config,
@@ -875,6 +867,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         skip_delay: item.options?.skip_delay ? item.options?.skip_delay / 60 : 0,
       },
     }));
+    this.issueConfig = data?.issue_config || null;
   }
 
   // 获取通知设置数据
@@ -1359,7 +1352,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                   key={this.actionsKey}
                   class='actions-list'
                 >
-                  {this.actionsData.length ? (
+                  {this.actionsData.length || this.issueConfig ? (
                     this.actionsData.map((item, index) => (
                       <div
                         key={index}
@@ -1367,134 +1360,134 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       >
                         <div class='item-head'>{item.signal.map(key => signalNames[key]).join(',')}</div>
                         <div class='item-content'>
-                          {this.needIssueConfigIndex === index && this.issueConfig
-                            ? [
-                                <span
-                                  key={'tab-01'}
-                                  class='title'
-                                >
-                                  {this.$t('动作')}:
-                                </span>,
-                                <span
-                                  key={'tab-02'}
-                                  class='content'
-                                >
-                                  <div
-                                    style='position: relative;top: -4px;'
-                                    class='bk-button-group'
-                                  >
-                                    {ACTION_TYPE_OPTIONS.map(action => (
-                                      <bk-button
-                                        key={action.id}
-                                        class={item.activeTab === action.id ? 'is-selected' : ''}
-                                        size='small'
-                                        onClick={() => this.handleActionsDataTabChange(index, action.id)}
-                                      >
-                                        {action.name}
-                                      </bk-button>
-                                    ))}
-                                  </div>
-                                </span>,
-                              ]
-                            : undefined}
+                          <span
+                            key={'tab-01'}
+                            class='title'
+                          >
+                            {this.$t('动作')}:
+                          </span>
+
+                          <span
+                            key={'tab-02'}
+                            class='content'
+                          >
+                            {this.$t('处理套餐')}
+                          </span>
                         </div>
-                        {item.activeTab === actionType.action
-                          ? [
-                              <div
-                                key='action-01'
-                                class='item-content'
-                              >
-                                <span class='title'>{this.$t('处理套餐')}:</span>
-                                <span class='content'>
-                                  {this.actionConfigMap[item.config_id]?.name || ''}
-                                  {this.actionConfigMap[item.config_id] ? (
-                                    <span class='grey'>{`（${this.actionConfigMap[item.config_id].plugin_name}）`}</span>
-                                  ) : undefined}
+                        <div
+                          key='action-01'
+                          class='item-content'
+                        >
+                          <span class='title'>{this.$t('处理套餐')}:</span>
+                          <span class='content'>
+                            {this.actionConfigMap[item.config_id]?.name || ''}
+                            {this.actionConfigMap[item.config_id] ? (
+                              <span class='grey'>{`（${this.actionConfigMap[item.config_id].plugin_name}）`}</span>
+                            ) : undefined}
+                          </span>
+                        </div>
+                        <div
+                          key='action-02'
+                          class='item-content'
+                        >
+                          <span class='title'>{this.$t('防御规则')}:</span>
+                          {item.options.converge_config.is_enabled ? (
+                            <span class='content'>
+                              <i18n path='当{0}分钟内执行{1}次时，防御动作{2}'>
+                                <span class='bold-span'>{item.options.converge_config.timedelta}</span>
+                                <span class='bold-span'>{item.options.converge_config.count}</span>
+                                <span class='bold-span'>
+                                  {this.defenseMap[item.options.converge_config.converge_func]?.name || ''}
                                 </span>
-                              </div>,
-                              <div
-                                key='action-02'
-                                class='item-content'
-                              >
-                                <span class='title'>{this.$t('防御规则')}:</span>
-                                {item.options.converge_config.is_enabled ? (
-                                  <span class='content'>
-                                    <i18n path='当{0}分钟内执行{1}次时，防御动作{2}'>
-                                      <span class='bold-span'>{item.options.converge_config.timedelta}</span>
-                                      <span class='bold-span'>{item.options.converge_config.count}</span>
-                                      <span class='bold-span'>
-                                        {this.defenseMap[item.options.converge_config.converge_func]?.name || ''}
-                                      </span>
-                                    </i18n>
-                                    {item.options?.skip_delay > 0 ? (
-                                      <i18n
-                                        class='bold-span enable-delay'
-                                        path='当首次异常时间超过{0}分钟时不执行该套餐'
-                                      >
-                                        {item.options.skip_delay}
-                                      </i18n>
-                                    ) : undefined}
-                                  </span>
-                                ) : (
-                                  window.i18n.t('关闭')
-                                )}
-                              </div>,
-                            ]
-                          : [
-                              <div
-                                key='action-01'
-                                class='item-content'
-                              >
-                                <span class='title'>{this.$t('聚合维度')}:</span>
-                                <span class='content'>
-                                  {this.issueConfig?.aggregate_dimensions?.join(', ') || '--'}
-                                </span>
-                              </div>,
-                              <div
-                                key='action-02'
-                                class='item-content'
-                              >
-                                <span class='title'>{this.$t('过滤条件')}:</span>
-                                <span class='content'>
-                                  {this.issueConfig?.conditions?.map((item, cIndex) => (
-                                    <span
-                                      key={`${cIndex}_conditions`}
-                                      class='conditions-item'
-                                    >
-                                      {cIndex > 0 && <span class='where-condition'>{` ${item.condition} `}</span>}
-                                      <span>{` ${item.key} `}</span>
-                                      <span class='where-method'>{` ${item.method} `}</span>
-                                      <span class='where-content'>{` ${item.value.join(',')} `}</span>
-                                    </span>
-                                  ))}
-                                </span>
-                              </div>,
-                              <div
-                                key='action-03'
-                                class='item-content'
-                              >
-                                <span class='title'>{this.$t('生效告警级别')}:</span>
-                                <span class='content'>
-                                  {this.issueConfig?.alert_levels.map(a => {
-                                    const levelItem = LEVEL_LIST.find(l => a === l.id);
-                                    return (
-                                      <span
-                                        key={a}
-                                        class='level-item'
-                                      >
-                                        <i class={`icon-monitor ${levelItem.icon}`} />
-                                        {levelItem.name}
-                                      </span>
-                                    );
-                                  })}
-                                </span>
-                              </div>,
-                            ]}
+                              </i18n>
+                              {item.options?.skip_delay > 0 ? (
+                                <i18n
+                                  class='bold-span enable-delay'
+                                  path='当首次异常时间超过{0}分钟时不执行该套餐'
+                                >
+                                  {item.options.skip_delay}
+                                </i18n>
+                              ) : undefined}
+                            </span>
+                          ) : (
+                            window.i18n.t('关闭')
+                          )}
+                        </div>
                       </div>
                     ))
                   ) : (
                     <span>{this.$t('空')}</span>
                   )}
+                  {this.issueConfig ? (
+                    <div
+                      key={'issueConfig'}
+                      class='action-item'
+                    >
+                      <div class='item-head'>{['abnormal'].map(key => signalNames[key]).join(',')}</div>
+                      <div class='item-content'>
+                        <span
+                          key={'tab-01'}
+                          class='title'
+                        >
+                          {this.$t('动作')}:
+                        </span>
+
+                        <span
+                          key={'tab-02'}
+                          class='content'
+                        >
+                          {this.$t('Issue聚合')}
+                        </span>
+                      </div>
+
+                      <div
+                        key='action-01'
+                        class='item-content'
+                      >
+                        <span class='title'>{this.$t('聚合维度')}:</span>
+                        <span class='content'>{this.issueConfig?.aggregate_dimensions?.join(', ') || '--'}</span>
+                      </div>
+                      <div
+                        key='action-02'
+                        class='item-content'
+                      >
+                        <span class='title'>{this.$t('过滤条件')}:</span>
+                        <span class='content'>
+                          {this.issueConfig?.conditions?.map((item, cIndex) => (
+                            <span
+                              key={`${cIndex}_conditions`}
+                              class='conditions-item'
+                            >
+                              {cIndex > 0 && <span class='where-condition'>{` ${item.condition} `}</span>}
+                              <span>{` ${item.key} `}</span>
+                              <span class='where-method'>{` ${item.method} `}</span>
+                              <span class='where-content'>{` ${item.value.join(',')} `}</span>
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                      <div
+                        key='action-03'
+                        class='item-content'
+                      >
+                        <span class='title'>{this.$t('生效告警级别')}:</span>
+                        <span class='content'>
+                          {this.issueConfig?.alert_levels.map(a => {
+                            const levelItem = LEVEL_LIST.find(l => a === l.id);
+                            return (
+                              <span
+                                key={a}
+                                class='level-item'
+                              >
+                                <i class={`icon-monitor ${levelItem.icon}`} />
+                                {levelItem.name}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  ) : undefined}
                 </div>
               )}
               {panelItem(
