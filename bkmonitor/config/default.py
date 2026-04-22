@@ -433,7 +433,7 @@ WXWORK_BOT_WEBHOOK_URL = ""
 WXWORK_BOT_NAME = ""
 WXWORK_BOT_SEND_IMAGE = True
 
-# 是否启用 CMSI 专用 send_rtx 接口（通过 BKAPP_ENABLE_CMSI_SEND_RTX 环境变量开启）
+# 是否启用 CMSI 专用 send_rtx 接口（通过 ENABLE_CMSI_SEND_RTX 环境变量开启）
 # 开启后，Sender.send_rtx 在走 rtx 通道时会调用 api.cmsi.send_rtx，而不再走通用 send_msg 接口
 ENABLE_CMSI_SEND_RTX = os.getenv("ENABLE_CMSI_SEND_RTX", "false").lower() == "true"
 
