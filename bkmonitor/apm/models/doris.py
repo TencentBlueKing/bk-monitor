@@ -9,9 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
-import hashlib
 import logging
+import random
 import re
+import string
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Optional
@@ -122,34 +123,81 @@ PROFILING_DORIS_CLEAN_RULES = [
 ]
 
 
-def compose_profile_resource_name(app_name: str) -> str:
+def _sanitize_name(raw: str) -> str:
+    """清洗名称：中文原地转拼音、剔除特殊字符、去空格、减号转下划线、合并连续下划线"""
+    parts = []
+    for char in raw:
+        if "\u4e00" <= char <= "\u9fff":
+            parts.append(lazy_pinyin(char)[0])
+        elif not re.match(MATCH_DATA_NAME_PATTERN, char):
+            parts.append(char)
+    refine = "".join(parts)
+    refine = refine.replace(" ", "").replace("-", "_")
+    return re.sub(r"_+", "_", refine)
+
+
+def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
     """
-    组装 Profile V4 链路资源名称，规则与 compose_bkdata_data_id_name 相同，但使用 profile_ 前缀
-    @param app_name: 应用名称（原始值，函数内部处理所有清洗逻辑）
-    @return: 资源名称
+    组装 DataId 资源名称：profile_{bk_biz_id}_{app_name}
+    超过 MAX_LENGTH(50) 时截断 app_name 并在末尾补充 5 位随机字符。
+
+    正常格式：profile_{bk_biz_id}_{sanitized_app_name}
+    截断格式：profile_{bk_biz_id}_{truncated_app_name}_{random}
+
+    @param bk_biz_id: 业务 ID
+    @param app_name: 应用名称
+    @return: DataId 资源名称，长度 ≤ 50
     """
-    # 先按正则剔除特殊字符（包括中文）
-    refine_name = re.sub(MATCH_DATA_NAME_PATTERN, "", app_name)
+    _PREFIX = "profile_"
+    _MAX_LENGTH = 50
+    _RANDOM_LENGTH = 5
 
-    # 针对中文字符进行拼音转换
-    chinese_characters = "".join(char for char in app_name if "\u4e00" <= char <= "\u9fff")
-    if chinese_characters:
-        chinese_pinyin = "".join(lazy_pinyin(chinese_characters))
-        refine_name += chinese_pinyin
+    sanitized = _sanitize_name(app_name)
+    # profile_{bk_biz_id}_{sanitized}
+    name = f"{_PREFIX}{bk_biz_id}_{sanitized}"
 
-    # 去除空格，将减号替换为下划线
-    refine_name = refine_name.replace(" ", "").replace("-", "_")
+    if len(name) <= _MAX_LENGTH:
+        return name
 
-    # 替换连续的下划线为单个下划线
-    resource_name = f"profile_{re.sub(r'_+', '_', refine_name)}"
+    # 截断：profile_{bk_biz_id}_{truncated}_{random}
+    # 固定部分 = 前缀 + bk_biz_id + 2个下划线 + random下划线 + random
+    fixed_len = len(_PREFIX) + len(str(bk_biz_id)) + 2 + 1 + _RANDOM_LENGTH
+    truncated_max = _MAX_LENGTH - fixed_len
+    if truncated_max < 1:
+        truncated_max = 1
+    truncated = sanitized[:truncated_max].rstrip("_")
+    random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=_RANDOM_LENGTH))
+    return f"{_PREFIX}{bk_biz_id}_{truncated}_{random_suffix}"
 
-    # 控制长度
-    if len(refine_name) > 45:
-        truncated_name = refine_name[-39:].lower().strip("_")
-        hash_suffix = hashlib.md5(refine_name.encode()).hexdigest()[:5]
-        resource_name = f"profile_{truncated_name}_{hash_suffix}"
 
-    return resource_name
+def compose_profile_resource_name(app_name: str, bk_data_id: int) -> str:
+    """
+    组装 ResultTable / DorisBinding / Databus 资源名称：profile_{app_name}_{bk_data_id}
+    超过 MAX_LENGTH(50) 时截断中间的 app_name。
+
+    @param app_name: 应用名称
+    @param bk_data_id: BkBase 数据 ID
+    @return: 资源名称，长度 ≤ 50
+    """
+    _PREFIX = "profile_"
+    _MAX_LENGTH = 50
+
+    sanitized = _sanitize_name(app_name)
+    data_id_str = str(bk_data_id)
+    # profile_{sanitized}_{data_id}
+    name = f"{_PREFIX}{sanitized}_{data_id_str}"
+
+    if len(name) <= _MAX_LENGTH:
+        return name
+
+    # 截断 app_name：profile_{truncated}_{data_id}
+    # 固定部分 = 前缀 + 下划线 + data_id = len(prefix) + 1 + len(data_id_str)
+    fixed_len = len(_PREFIX) + 1 + len(data_id_str)
+    truncated_max = _MAX_LENGTH - fixed_len - 1  # -1 for underscore between truncated and data_id
+    if truncated_max < 1:
+        truncated_max = 1
+    truncated = sanitized[:truncated_max].rstrip("_")
+    return f"{_PREFIX}{truncated}_{data_id_str}"
 
 
 @dataclass
@@ -528,18 +576,24 @@ _V4_POLL_MAX_ATTEMPTS = 30  # 最多等待 5 分钟
 class BkDataDorisV4Provider:
     """
     使用 BkBase V4 声明式 API 接入 Profile Doris 数据源。
-    提交顺序：DataId → ResultTable → DorisBinding → Databus（一次性提交）
-    轮询 DataId 直至 phase == "Ok" 后返回数据源信息。
+    分两步提交：
+      1. 提交 DataId，轮询直至就绪，获取 bk_data_id
+      2. 用 bk_data_id 构建 ResultTable / DorisBinding / Databus 并提交
     """
 
-    bk_biz_id: int
+    bk_biz_id: int  # profile_bk_biz_id，仅用于传入 get_tenant_datalink_biz_id 计算空间ID
     app_name: str
     bk_tenant_id: str
     maintainer: str
     operator: str
+    data_biz_id: int = 0  # BkBase bizId（数据存储业务ID，通过 get_tenant_datalink_biz_id 获取）
+    label_biz_id: int = 0  # labels.bk_biz_id（数据归属业务ID）
 
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
     _obj: Optional["ApmDataSourceConfigBase"] = None
+    # 已存储的资源名称（从 v4_resource_names 读取，用于 apply/delete）
+    _stored_data_id_name: str | None = None
+    _stored_resource_name: str | None = None
 
     @classmethod
     def from_datasource_instance(
@@ -548,26 +602,50 @@ class BkDataDorisV4Provider:
         bk_tenant_id: str,
         maintainer: str,
         operator: str,
+        skip_datalink_biz_lookup: bool = False,
     ) -> "BkDataDorisV4Provider":
         """从 ProfileDataSource 实例构造 V4 Provider"""
+        stored = obj.v4_resource_names or {}
+
+        if skip_datalink_biz_lookup:
+            data_biz_id = 0
+            label_biz_id = 0
+        else:
+            from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
+
+            datalink_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id, obj.profile_bk_biz_id)
+            data_biz_id = datalink_biz_ids.data_biz_id
+            label_biz_id = datalink_biz_ids.label_biz_id
+
         return cls(
             bk_biz_id=obj.profile_bk_biz_id,
             app_name=obj.app_name,
             bk_tenant_id=bk_tenant_id,
             maintainer=maintainer,
             operator=operator,
+            data_biz_id=data_biz_id,
+            label_biz_id=label_biz_id,
             _obj=obj,
+            _stored_data_id_name=stored.get("data_id_name"),
+            _stored_resource_name=stored.get("resource_name"),
         )
 
-    # ── 内部工具 ──────────────────────────────
+    # ── 命名 ────────────────────────────────
 
-    def _resource_name(self) -> str:
-        """DataId / ResultTable / DorisBinding 的资源名称"""
-        return compose_profile_resource_name(self.app_name)
+    def _data_id_name(self) -> str:
+        """DataId 资源名称，优先使用已存储的名称"""
+        return self._stored_data_id_name or compose_profile_data_id_name(self.data_biz_id, self.app_name)
 
-    def _databus_name(self) -> str:
-        """Databus 资源名称，格式：doris_{resource_name}"""
-        return f"doris_{self._resource_name()}"
+    def _resource_name(self, bk_data_id: int) -> str:
+        """ResultTable / DorisBinding / Databus 资源名称，优先使用已存储的名称"""
+        return self._stored_resource_name or compose_profile_resource_name(self.app_name, bk_data_id)
+
+    def get_resource_names(self, bk_data_id: int = 0) -> dict:
+        """获取当前资源名称，用于持久化到 v4_resource_names"""
+        return {
+            "data_id_name": self._data_id_name(),
+            "resource_name": self._resource_name(bk_data_id),
+        }
 
     def _maintainers_list(self) -> list:
         """将逗号分隔的 maintainer 字符串转换为列表"""
@@ -575,11 +653,12 @@ class BkDataDorisV4Provider:
 
     def _metadata_labels(self) -> dict:
         """V4 资源的 metadata.labels，与指标链路保持一致"""
-        return {"bk_biz_id": str(self.bk_biz_id)}
+        return {"bk_biz_id": str(self.label_biz_id)}
 
     # ── 资源配置构建 ──────────────────────────
 
-    def _build_data_id_config(self, name: str) -> dict:
+    def _build_data_id_config(self) -> dict:
+        name = self._data_id_name()
         return {
             "kind": "DataId",
             "metadata": {
@@ -591,13 +670,14 @@ class BkDataDorisV4Provider:
             "spec": {
                 "description": f"App<{self.app_name}> profiling data id",
                 "alias": name,
-                "bizId": self.bk_biz_id,
+                "bizId": self.data_biz_id,
                 "maintainers": self._maintainers_list(),
                 "eventType": "log",
             },
         }
 
-    def _build_result_table_config(self, name: str) -> dict:
+    def _build_result_table_config(self, bk_data_id: int) -> dict:
+        name = self._resource_name(bk_data_id)
         return {
             "kind": "ResultTable",
             "metadata": {
@@ -608,7 +688,7 @@ class BkDataDorisV4Provider:
             },
             "spec": {
                 "description": f"App<{self.app_name}> profiling result table",
-                "bizId": self.bk_biz_id,
+                "bizId": self.data_biz_id,
                 "alias": name,
                 "maintainers": self._maintainers_list(),
                 "dataType": "log",
@@ -708,7 +788,8 @@ class BkDataDorisV4Provider:
             },
         }
 
-    def _build_doris_binding_config(self, name: str, rt_name: str) -> dict:
+    def _build_doris_binding_config(self, bk_data_id: int) -> dict:
+        name = self._resource_name(bk_data_id)
         if not settings.APM_PROFILE_V4_DORIS_BINDING_CLUSTER:
             raise ValueError(
                 "[ProfileDatasource] APM_PROFILE_V4_DORIS_BINDING_CLUSTER is required for V4 data link, "
@@ -724,39 +805,41 @@ class BkDataDorisV4Provider:
                 "namespace": _V4_NAMESPACE,
             },
             "spec": {
-                "data": {"name": rt_name, "namespace": _V4_NAMESPACE, "kind": "ResultTable"},
+                "data": {"name": name, "namespace": _V4_NAMESPACE, "kind": "ResultTable"},
                 "storage": {"name": storage_cluster, "namespace": _V4_NAMESPACE, "kind": "Doris"},
                 "storage_config": {
                     "table_type": "duplicate_table",
                     "is_profiling": True,
                     "unique_partition_table": False,
-                    "db": f"mapleleaf_{self.bk_biz_id}",
+                    "db": f"mapleleaf_{self.data_biz_id}",
                     "table": name,
                     "storage_keys": [],
                     "json_fields": [],
                     "original_json_fields": [],
                     "field_config_group": {},
                     "expires": self.config.expires,
-                    "sample_table_name": f"{rt_name}_sample_{self.bk_biz_id}",
-                    "label_table_name": f"{rt_name}_label_{self.bk_biz_id}",
+                    "sample_table_name": f"{name}_sample_{self.data_biz_id}",
+                    "label_table_name": f"{name}_label_{self.data_biz_id}",
                     "flush_timeout": 300,
                 },
             },
         }
 
-    def _build_databus_config(self, databus_name: str, data_id_name: str, doris_binding_name: str) -> dict:
+    def _build_databus_config(self, bk_data_id: int) -> dict:
+        name = self._resource_name(bk_data_id)
+        data_id_name = self._data_id_name()
         config = {
             "kind": "Databus",
             "metadata": {
                 "namespace": _V4_NAMESPACE,
-                "name": databus_name,
+                "name": name,
                 "labels": self._metadata_labels(),
                 "annotations": {},
             },
             "spec": {
                 "maintainers": self._maintainers_list(),
                 "sources": [{"kind": "DataId", "name": data_id_name, "namespace": _V4_NAMESPACE}],
-                "sinks": [{"kind": "DorisBinding", "name": doris_binding_name, "namespace": _V4_NAMESPACE}],
+                "sinks": [{"kind": "DorisBinding", "name": name, "namespace": _V4_NAMESPACE}],
                 "transforms": [
                     {
                         "kind": "Clean",
@@ -775,29 +858,31 @@ class BkDataDorisV4Provider:
             }
         return config
 
-    def _build_configs(self) -> list:
-        """构建 V4 链路的全部资源配置（提交顺序：DataId → ResultTable → DorisBinding → Databus）"""
-        name = self._resource_name()
-        databus_name = self._databus_name()
+    def _build_step1_configs(self) -> list:
+        """第一步：仅提交 DataId"""
+        return [self._build_data_id_config()]
+
+    def _build_step2_configs(self, bk_data_id: int) -> list:
+        """第二步：提交 ResultTable / DorisBinding / Databus"""
         return [
-            self._build_data_id_config(name),
-            self._build_result_table_config(name),
-            self._build_doris_binding_config(name, name),
-            self._build_databus_config(databus_name, name, name),
+            self._build_result_table_config(bk_data_id),
+            self._build_doris_binding_config(bk_data_id),
+            self._build_databus_config(bk_data_id),
         ]
 
     # ── 轮询 DataId ───────────────────────────
 
-    def _wait_for_data_id(self, name: str) -> int:
+    def _wait_for_data_id(self) -> int:
         """
         轮询 BkBase V4 DataId 资源，直至 phase == "Ok"，返回 dataId 整数值。
         每 10 秒轮询一次，最多 30 次（约 5 分钟），超时后抛出 TimeoutError。
         """
+        data_id_name = self._data_id_name()
         kind = DataLinkKind.get_choice_value(DataLinkKind.DATAID.value)  # → "dataids"
         for attempt in range(1, _V4_POLL_MAX_ATTEMPTS + 1):
             logger.info(
                 "[ProfileDatasource] polling DataId, name=%s, attempt=%d/%d",
-                name,
+                data_id_name,
                 attempt,
                 _V4_POLL_MAX_ATTEMPTS,
             )
@@ -805,7 +890,7 @@ class BkDataDorisV4Provider:
                 bk_tenant_id=self.bk_tenant_id,
                 kind=kind,
                 namespace=_V4_NAMESPACE,
-                name=name,
+                name=data_id_name,
             )
             phase = response.get("status", {}).get("phase")
             if phase == DataLinkResourceStatus.OK.value:
@@ -816,7 +901,7 @@ class BkDataDorisV4Provider:
                     logger.warning(
                         "[ProfileDatasource] DataId phase is Ok but dataId is invalid, "
                         "name=%s, raw_data_id=%r, attempt=%d/%d",
-                        name,
+                        data_id_name,
                         raw_data_id,
                         attempt,
                         _V4_POLL_MAX_ATTEMPTS,
@@ -825,28 +910,29 @@ class BkDataDorisV4Provider:
                     if data_id > 0:
                         logger.info(
                             "[ProfileDatasource] DataId ready, name=%s, data_id=%d",
-                            name,
+                            data_id_name,
                             data_id,
                         )
                         return data_id
                     logger.warning(
                         "[ProfileDatasource] DataId phase is Ok but dataId is non-positive, "
                         "name=%s, data_id=%d, attempt=%d/%d",
-                        name,
+                        data_id_name,
                         data_id,
                         attempt,
                         _V4_POLL_MAX_ATTEMPTS,
                     )
             logger.info(
                 "[ProfileDatasource] DataId not ready yet, name=%s, phase=%s, waiting %ds",
-                name,
+                data_id_name,
                 phase,
                 _V4_POLL_INTERVAL,
             )
             time.sleep(_V4_POLL_INTERVAL)
 
         raise TimeoutError(
-            f"[ProfileDatasource] DataId {name!r} did not reach Ok after {_V4_POLL_MAX_ATTEMPTS * _V4_POLL_INTERVAL}s"
+            f"[ProfileDatasource] DataId {data_id_name!r} did not reach Ok after "
+            f"{_V4_POLL_MAX_ATTEMPTS * _V4_POLL_INTERVAL}s"
         )
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
@@ -856,8 +942,8 @@ class BkDataDorisV4Provider:
             return api.bkdata.apply_data_link(config=configs, bk_tenant_id=self.bk_tenant_id)
         except Exception as e:
             logger.error(
-                "[ProfileDatasource] apply V4 data link error, name=%s, error=%s",
-                self._resource_name(),
+                "[ProfileDatasource] apply V4 data link error, data_id_name=%s, error=%s",
+                self._data_id_name(),
                 e,
             )
             raise
@@ -865,21 +951,47 @@ class BkDataDorisV4Provider:
     def provider(self) -> dict:
         """
         向 BkBase V4 提交 Profile Doris 链路配置，轮询 DataId 就绪后返回数据源信息。
+        分两步提交：第一步提交 DataId，第二步提交其余资源。
         返回格式与 V3 BkDataDorisProvider.provider() 保持一致。
         """
-        name = self._resource_name()
-        configs = self._build_configs()
-        logger.info("[ProfileDatasource] apply V4 data link, name=%s, config_count=%d", name, len(configs))
+        # 第一步：提交 DataId
+        step1_configs = self._build_step1_configs()
+        logger.info(
+            "[ProfileDatasource] apply V4 data link step 1 (DataId), name=%s, config_count=%d",
+            self._data_id_name(),
+            len(step1_configs),
+        )
         try:
-            self._apply_data_link_with_retry(configs)
+            self._apply_data_link_with_retry(step1_configs)
         except RetryError as e:
-            logger.error("[ProfileDatasource] apply V4 data link retry exhausted, name=%s", name)
+            logger.error(
+                "[ProfileDatasource] apply V4 data link step 1 retry exhausted, name=%s",
+                self._data_id_name(),
+            )
             raise e.__cause__ if e.__cause__ else e
 
-        bk_data_id = self._wait_for_data_id(name)
+        # 轮询 DataId 就绪，获取 bk_data_id
+        bk_data_id = self._wait_for_data_id()
 
-        # result_table_id 格式与 V3 保持一致：{profile_bk_biz_id}_{rt_name}
-        result_table_id = f"{self.bk_biz_id}_{name}"
+        # 第二步：用 bk_data_id 构建并提交其余资源
+        step2_configs = self._build_step2_configs(bk_data_id)
+        logger.info(
+            "[ProfileDatasource] apply V4 data link step 2, bk_data_id=%d, config_count=%d",
+            bk_data_id,
+            len(step2_configs),
+        )
+        try:
+            self._apply_data_link_with_retry(step2_configs)
+        except RetryError as e:
+            logger.error(
+                "[ProfileDatasource] apply V4 data link step 2 retry exhausted, bk_data_id=%d",
+                bk_data_id,
+            )
+            raise e.__cause__ if e.__cause__ else e
+
+        # result_table_id 格式：{data_biz_id}_{rt_name}
+        rt_name = self._resource_name(bk_data_id)
+        result_table_id = f"{self.data_biz_id}_{rt_name}"
 
         # 过期天数：从 config.expires 中提取（格式如 "3d"）
         retention = int(self.config.expires.rstrip("d"))
@@ -893,38 +1005,56 @@ class BkDataDorisV4Provider:
     # ── 启停（V4：apply=启动，delete=停止）─────────
 
     def apply(self):
-        """重新声明 V4 链路资源，等价于启动（apply_data_link 是声明式，幂等）"""
-        name = self._resource_name()
-        configs = self._build_configs()
-        logger.info("[ProfileDatasource] apply V4 data link (start), name=%s, config_count=%d", name, len(configs))
+        """
+        DataId 和 ResultTable 在 delete 时不会被删除，启动时只需重新 apply DorisBinding 和 Databus。
+        使用 v4_resource_names 中存储的资源名称。
+        """
+        if not self._stored_resource_name:
+            raise ValueError("[ProfileDatasource] cannot apply V4 data link without stored resource names")
+        bk_data_id = self._obj.bk_data_id if self._obj else 0
+        # 只提交 DorisBinding 和 Databus
+        configs = [
+            self._build_doris_binding_config(bk_data_id),
+            self._build_databus_config(bk_data_id),
+        ]
+        logger.info(
+            "[ProfileDatasource] apply V4 data link (start), resource_name=%s, bk_data_id=%d",
+            self._stored_resource_name,
+            bk_data_id,
+        )
         try:
             self._apply_data_link_with_retry(configs)
         except RetryError as e:
-            logger.error("[ProfileDatasource] apply V4 data link (start) retry exhausted, name=%s", name)
+            logger.error(
+                "[ProfileDatasource] apply V4 data link (start) retry exhausted, resource_name=%s",
+                self._stored_resource_name,
+            )
             raise e.__cause__ if e.__cause__ else e
 
     def delete(self):
         """
         删除 V4 链路资源，等价于停止。
         按创建的逆序删除：Databus → DorisBinding（DataId 和 ResultTable 不删）。
+        使用 v4_resource_names 中存储的资源名称。
         """
-        name = self._resource_name()
-        databus_name = self._databus_name()
+        resource_name = self._stored_resource_name
+        if not resource_name:
+            return
         # 删除顺序：Databus → DorisBinding（DataId / ResultTable 为基础资源，不删）
         delete_items = [
-            (DataLinkKind.DATABUS, databus_name),
-            (DataLinkKind.DORISBINDING, name),
+            (DataLinkKind.DATABUS, resource_name),
+            (DataLinkKind.DORISBINDING, resource_name),
         ]
-        for kind_enum, resource_name in delete_items:
+        for kind_enum, name in delete_items:
             kind_value = DataLinkKind.get_choice_value(kind_enum.value)
             logger.info(
                 "[ProfileDatasource] delete V4 resource, kind=%s, name=%s",
                 kind_value,
-                resource_name,
+                name,
             )
             api.bkdata.delete_data_link(
                 bk_tenant_id=self.bk_tenant_id,
                 kind=kind_value,
                 namespace=_V4_NAMESPACE,
-                name=resource_name,
+                name=name,
             )
