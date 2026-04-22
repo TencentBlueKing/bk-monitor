@@ -1,0 +1,92 @@
+.grok-slider {
+  .grok-slider-content {
+    padding: 24px 40px;
+  }
+
+  .bk-form {
+    .bk-form-item {
+      margin-bottom: 24px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  // 调试区域
+  .debug-section {
+    margin-top: 32px;
+
+    .debug-section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #313238;
+      margin-bottom: 16px;
+    }
+
+    .debug-action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    // 调试状态
+    .debug-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+
+      &.debug-status-success {
+        color: #2CAF5E;
+      }
+
+      &.debug-status-warning {
+        color: #F59500;
+      }
+
+      &.debug-status-error {
+        color: #ea3636;
+      }
+
+      .bk-icon {
+        font-size: 14px;
+      }
+    }
+
+    // 调试结果
+    .debug-result {
+      background-color: #f5f7fa;
+      border-radius: 2px;
+      padding: 9px;
+
+      .debug-result-label {
+        font-size: 12px;
+        color: #979ba5;
+        margin-bottom: 8px;
+      }
+
+      .debug-result-content {
+        font-size: 12px;
+        color: #313238;
+        word-break: break-all;
+        line-height: 20px;
+      }
+    }
+  }
+
+  // 底部按钮
+  .slider-footer {
+    margin-top: 24px;
+
+    .bk-form-content {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bk-button {
+      min-width: 88px;
+    }
+  }
+}

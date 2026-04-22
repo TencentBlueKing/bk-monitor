@@ -39,6 +39,7 @@ import * as extract from './extract';
 import * as extractManage from './extract-manage';
 import * as favorite from './favorite';
 import * as graphAnalysis from './graph-analysis';
+import * as grok from './grok';
 import * as indexSet from './indexSet';
 import * as ipChooser from './ip-chooser';
 import * as linkConfiguration from './link-configuration';
@@ -110,6 +111,7 @@ export default {
   unionSearch,
   newReport,
   graphAnalysis,
+  grok,
   alertStrategy,
-  dashboard
+  dashboard,
 };

@@ -1,0 +1,53 @@
+.grok-table {
+  .bk-table-header-wrapper {
+    .filter-column {
+      .cell {
+        display: flex;
+      }
+    }
+  }
+
+  .overflow-hidden-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
+  .origin-tag-wrapper {
+    display: flex;
+    align-items: center;
+
+    .origin-tag {
+      display: inline-block;
+      padding: 0 8px;
+      font-size: 12px;
+      line-height: 22px;
+      cursor: default;
+      border-radius: 2px;
+    }
+
+    .origin-builtin {
+      color: #717C8F;
+      background: #F0F2F7;
+    }
+
+    .origin-custom {
+      color: #3A84FF;
+      background: #F0F5FF;
+    }
+  }
+
+  .grok-table-operate {
+    display: flex;
+    align-items: center;
+
+    .king-button {
+      margin-right: 16px;
+
+      &:last-child {
+        margin-right: 0;
+      }
+    }
+  }
+}
