@@ -1345,20 +1345,22 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         共享模式由父类统一处理释放；独占模式额外删除关联的索引集。
         """
-        ins = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not ins:
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not instance:
             return
 
-        # 共享模式：父类已处理释放逻辑，无需额外操作
+        # 共享模式：由父类执行释放逻辑，子类无需做额外操作
         super().stop(bk_biz_id, app_name)
 
         # 独占模式：额外删除关联的索引集
-        if not ins.is_shared:
+        if not instance.is_shared:
             try:
-                api.log_search.delete_index_set(index_set_id=ins.index_set_id)
-                logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
+                api.log_search.delete_index_set(index_set_id=instance.index_set_id)
+                logger.info(
+                    f"[StopTraceDatasource] delete index_set_id: {instance.index_set_id} of ({bk_biz_id}){app_name}"
+                )
             except BKAPIError as e:
-                logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
+                logger.error(f"[StopTraceDatasource] delete index_set_id: {instance.index_set_id} failed, error: {e}")
 
 
 class ProfileDataSource(ApmDataSourceConfigBase):

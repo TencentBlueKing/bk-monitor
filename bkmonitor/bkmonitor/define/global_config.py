@@ -690,6 +690,14 @@ STANDARD_CONFIGS = OrderedDict(
             "APM_CUSTOM_METRIC_V2_ENABLED_LIST",
             slz.ListField(label=_("APM 自定义指标 V2 开启的应用白名单"), default=[]),
         ),
+        # APM 共享数据源匹配规则配置，每条规则格式：{"type": 规则类型, "values": [匹配值, ...]}
+        (
+            "APM_SHARED_DATASOURCE_RULES",
+            slz.ListField(
+                label=_("APM 共享数据源规则配置"),
+                default=[{"type": "SPACE_TYPE", "values": ["bksaas"]}, {"type": "APP_NAME_PREFIX", "values": []}],
+            ),
+        ),
     ]
 )
 

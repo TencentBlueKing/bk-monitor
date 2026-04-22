@@ -33,7 +33,7 @@ from apm.constants import (
 )
 from apm.core.discover.instance import InstanceDiscover
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
-from apm.core.handlers.application_hepler import ApplicationHelper
+from apm.core.handlers.application_hepler import ApplicationHelper, SharedDatasourceRuleFactory
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.query.base import FilterOperator
@@ -78,7 +78,7 @@ from apm.serializers import (
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkm_space.api import SpaceApi
-from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space, space_uid_to_bk_biz_id
+from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
@@ -148,14 +148,11 @@ class CreateApplicationResource(Resource):
         if not bk_tenant_id:
             bk_tenant_id = get_request_tenant_id()
 
-        shared_datasource_types = validated_data.get("shared_datasource_types")
-        # 当未指定共享数据类型时，bkapp 的空间类型默认使用 trace 共享数据源
-        if shared_datasource_types is None and is_bk_saas_space(bk_biz_id_to_space_uid(validated_data["bk_biz_id"])):
-            shared_datasource_types = [ApmDataSourceConfigBase.TRACE_DATASOURCE]
-
-        # 临时测试逻辑
-        if validated_data["app_name"].startswith("apm_shared"):
-            shared_datasource_types = [ApmDataSourceConfigBase.TRACE_DATASOURCE]
+        # 共享数据源类型：若请求未显式指定，则按 settings.APM_SHARED_DATASOURCE_RULES 配置的规则工厂进行匹配
+        shared_datasource_types = validated_data.get(
+            "shared_datasource_types",
+            SharedDatasourceRuleFactory.resolve(validated_data["bk_biz_id"], validated_data["app_name"]),
+        )
 
         return ApmApplication.create_application(
             bk_tenant_id=bk_tenant_id,
