@@ -594,16 +594,21 @@
           queryUrl = 'retrieve/getSceneExportHistory';
           params.space_uid = this.retrieveParams?.space_uid;
           params.table_id_conditions = this.retrieveParams?.table_id_conditions;
+          requestConfig = { data: params };
         } else if (this.isUnionSearch) {
           queryUrl = 'unionSearch/unionExportHistory';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__
+          ? this.$route.query.indexId : this.$route.params.indexId;
           params.index_set_ids = this.unionIndexList;
         } else {
           queryUrl = 'retrieve/getExportHistoryList';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__
+          ? this.$route.query.indexId : this.$route.params.indexId;
         }
 
-        requestConfig = { params };
+        if (!this.isScene) {
+          requestConfig = { params };
+        }
 
         this.$http
           .request(queryUrl, requestConfig)

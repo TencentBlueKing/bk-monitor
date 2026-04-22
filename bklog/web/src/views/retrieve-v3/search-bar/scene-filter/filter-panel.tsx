@@ -201,16 +201,24 @@ export default defineComponent({
       emit('scene-change', type);
     };
 
-    const handleFieldChange = (fieldName: string, value: any) => {
-      emit('filter-change', { ...props.filterValues, [fieldName]: value });
+    const buildLabels = (ids: (string | number)[], opts: Array<{ id: string; name: string }>) => {
+      const result: Record<string, string> = {};
+      for (const id of ids) {
+        const opt = opts.find(o => o.id === id);
+        if (opt) result[id as string] = opt.name;
+      }
+      return Object.keys(result).length ? result : undefined;
+    };
+
+    const handleFieldChange = (fieldName: string, value: any, fieldLabels?: Record<string, string>) => {
+      emit('filter-change', {
+        values: { ...props.filterValues, [fieldName]: value },
+        labels: fieldLabels ? { fieldName, labels: fieldLabels } : undefined,
+      });
     };
 
     const handleClear = () => {
       emit('clear');
-    };
-
-    const getFieldValue = (fieldName: string) => {
-      return props.filterValues[fieldName] ?? '';
     };
 
     const getApiFieldState = (fieldName: string) => {
@@ -283,13 +291,17 @@ export default defineComponent({
             <span class='field-label' v-bk-overflow-tips>{field.name}</span>
             <div class='field-input'>
               <bk-select
-                value={getFieldValue(field.key)}
+                value={props.filterValues[field.key] ?? (field.multiple ? [] : '')}
                 placeholder={field.placeholder || t('请选择')}
-                searchable={field.searchable ?? field.choicesType === 'dynamic'}
-                multiple={field.multiple ?? false}
+                multiple={field.multiple}
                 clearable={true}
                 loading={loading}
-                on-change={(val: any) => handleFieldChange(field.key, val)}
+                display-tag
+                auto-height={false}
+                on-change={(val: any) => {
+                  const selectedIds = Array.isArray(val) ? val : (val !== null && val !== '' ? [val] : []);
+                  handleFieldChange(field.key, val, buildLabels(selectedIds, options));
+                }}
                 on-toggle={(open: boolean) => {
                   if (open && field.choicesType === 'dynamic') {
                     fetchDynamicOptions(field);

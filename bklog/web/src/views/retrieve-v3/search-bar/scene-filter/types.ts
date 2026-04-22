@@ -25,6 +25,7 @@
  */
 
 /** 场景类型枚举（值对应接口返回的 id） */
+/* eslint-disable no-unused-vars */
 export enum SceneType {
   Container = 'k8s',
   Host = 'host',
@@ -46,6 +47,8 @@ export interface SceneDimensionItem {
   required: boolean;
   /** 字段数据类型 */
   type: 'string' | 'integer';
+  /** 是否支持多选 */
+  multiple?: boolean;
   /** 支持的操作符列表 */
   ops: string[];
   /** 选项类型：static 前端直接渲染 choices，dynamic 调用 dimension_values 拉取 */

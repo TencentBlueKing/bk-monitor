@@ -74,6 +74,9 @@ export default defineComponent({
       },
     });
 
+    /** id→name 映射表：用于 tags 显示选中值的名称 */
+    const filterLabels = ref<Record<string, Record<string, string>>>({});
+
     const syncUrlParams = () => {
       const { scene_active, scene_filter_values } = store.state.indexItem;
       const resolver = new RetrieveUrlResolver({
@@ -95,16 +98,23 @@ export default defineComponent({
     const handleSceneChange = (type: string) => {
       activeScene.value = type;
       filterValues.value = {};
+      filterLabels.value = {};
       syncUrlParams();
     };
 
-    const handleFilterChange = (values: FilterValues) => {
-      filterValues.value = values;
+    const handleFilterChange = (
+      payload: { values: FilterValues; labels?: { fieldName: string; labels: Record<string, string> } }
+    ) => {
+      filterValues.value = payload.values;
+      if (payload.labels) {
+        filterLabels.value = { ...filterLabels.value, [payload.labels.fieldName]: payload.labels.labels };
+      }
       syncUrlParams();
     };
 
     const handleClear = () => {
       filterValues.value = {};
+      filterLabels.value = {};
       syncUrlParams();
     };
 
@@ -191,10 +201,49 @@ export default defineComponent({
 
     const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
 
-    const hintText = () => t('检索条件有变更，请点击{icon}按钮重新查询{shortcut}', {
+    const hintText = () => t('检索条件有变更，请点击{icon}按钮{shortcut}', {
       icon: '🔍',
       shortcut: `(${shortcutKey})`,
     });
+
+    // ---- 场景化检索禁用判断 ----
+    /** 当前是否正在检索中 */
+    const isSearching = computed(() => store.state.indexSetQueryResult.is_loading);
+
+    /** 场景过滤条件是否为空 */
+    const isSceneFilterEmpty = computed(() => {
+      const values = filterValues.value;
+      if (!values || typeof values !== 'object') return true;
+      return Object.values(values).every((val) => {
+        if (val === undefined || val === null || val === '') return true;
+        if (Array.isArray(val) && val.length === 0) return true;
+        return false;
+      });
+    });
+
+    // ---- 快捷键搜索逻辑 ----
+    const handleShortcutKeySearch = (event: KeyboardEvent) => {
+      // 仅在场景化检索模式下响应快捷键
+      if (!store.getters.isSceneMode) return;
+
+      const isMac = getOs() === 'macos';
+      const isCtrlShiftEnter = !isMac && event.ctrlKey && event.shiftKey && event.key === 'Enter';
+      const isCmdShiftEnter = isMac && event.metaKey && event.shiftKey && event.key === 'Enter';
+
+      if (isCtrlShiftEnter || isCmdShiftEnter) {
+        // 阻止默认行为
+        event.preventDefault();
+        event.stopPropagation();
+
+        // 场景化检索模式下，未选择过滤条件时不允许查询
+        if (isSceneFilterEmpty.value) return;
+        // 正在检索中时不允许再次触发检索
+        if (isSearching.value) return;
+
+        store.dispatch('requestIndexSetQuery');
+        RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+      }
+    };
 
     // 监听场景筛选面板高度变化并上报
     let panelObserver: ResizeObserver | undefined;
@@ -212,6 +261,9 @@ export default defineComponent({
         }
       });
       panelObserver.observe(el);
+
+      // 注册全局快捷键监听
+      document.addEventListener('keydown', handleShortcutKeySearch);
     });
 
     onUnmounted(() => {
@@ -221,6 +273,9 @@ export default defineComponent({
       }
       // 组件卸载时重置高度为 0
       RetrieveHelper.setSceneFilterPanelHeight(0);
+
+      // 移除全局快捷键监听
+      document.removeEventListener('keydown', handleShortcutKeySearch);
     });
 
     return () => (
@@ -237,10 +292,10 @@ export default defineComponent({
           />
         </div>
         <div class='scene-search-sticky'>
-          {props.isSticky && <SceneFilterTags />}
+          {props.isSticky && <SceneFilterTags filterLabels={filterLabels.value} />}
           <V3Searchbar />
           <transition name='slide-hint'>
-            {showQueryHint.value && (
+            {showQueryHint.value && !isSceneFilterEmpty.value && (
               <div class='query-hint-bar'>
                 <i class='bklog-icon bklog-circle-alert-filled query-hint-icon' />
                 <span class='query-hint-text'>{hintText()}</span>
@@ -248,6 +303,7 @@ export default defineComponent({
             )}
           </transition>
         </div>
+        <div class='scene-search-sticky-spacer' />
       </div>
     );
   },
