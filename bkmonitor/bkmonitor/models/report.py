@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 
 import arrow
 from django.db import models
-from django.utils import timezone
 
 from bkmonitor.utils.itsm import ApprovalStatusEnum
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
@@ -28,9 +27,18 @@ from constants.new_report import (
 
 
 def get_render_image_upload_path(instance, filename: str) -> str:
+    """
+    生成渲染图片的上传路径：``render/image/<type>/<YYYYMMDDHH(UTC)>/<filename>``。
+
+    注意：目录名必须使用文件"实际写入时刻"而不是 ``instance.create_time``。
+    ``RenderImageTask`` 从创建（``create_time``）到 celery 实际执行完成并保存图片，
+    中间可能因排队、重试或渲染耗时产生较长延迟。如果目录名按 ``create_time`` 命名，
+    后续按目录名整目录清理过期小时目录时，可能把刚写入这个"旧小时目录"的新文件误删。
+    这里改用 ``arrow.utcnow()``，与清理端
+    :func:`monitor_web.tasks._clean_bkrepo_expired_time_dirs` 的判断基准一致。
+    """
     base_filename = filename.rsplit("/", 1)[-1]
-    base_time = instance.create_time or timezone.now()
-    hour_path = arrow.get(base_time).format("YYYYMMDDHH")
+    hour_path = arrow.utcnow().format("YYYYMMDDHH")
     return f"render/image/{instance.type}/{hour_path}/{base_filename}"
 
 

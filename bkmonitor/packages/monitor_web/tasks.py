@@ -1418,11 +1418,19 @@ _DEFAULT_BKREPO_CLEAN_EXPIRE_HOURS = 24
 #     从而避免对每个文件调用元数据接口，适用于按时间组织存储的场景，
 #     例如 :func:`bkmonitor.models.report.get_render_image_upload_path`
 #     生成的 ``render/image/<type>/<YYYYMMDDHH>/<filename>`` 路径。
+#   - time_dir_unit: 时间目录名对应的时间粒度，用于计算目录代表时段的结束时刻,
+#     取值为 ``arrow.Arrow.shift`` 支持的关键字（``hours``/``days``/``minutes`` 等），
+#     缺省为 ``hours``。仅在配置了 ``time_dir_format`` 时生效。
 _BKREPO_CLEAN_CONFIGS: list[dict[str, Any]] = [
     {"path": "as_code/export/", "expire_hours": 24},
     {"path": "as_code/", "expire_hours": 24},
     # render/image/<type>/<YYYYMMDDHH>/<filename>
-    {"path": "render/image/dashboard/", "expire_hours": 24, "time_dir_format": "YYYYMMDDHH"},
+    {
+        "path": "render/image/dashboard/",
+        "expire_hours": 1,
+        "time_dir_format": "YYYYMMDDHH",
+        "time_dir_unit": "hours",
+    },
 ]
 
 
@@ -1492,6 +1500,7 @@ def _clean_bkrepo_expired_time_dirs(
     subdirs: list[str],
     expire_hours: int,
     time_dir_format: str,
+    time_dir_unit: str = "hours",
 ) -> None:
     """
     清理 ``path`` 下以时间命名的过期子目录（一级）。
@@ -1500,11 +1509,19 @@ def _clean_bkrepo_expired_time_dirs(
     则视为时间目录：按目录名判断是否过期，过期则通过 :func:`_delete_bkrepo_node`
     一次性删除整个子目录（含其中所有文件）；目录名无法解析或未过期的子目录会被跳过。
 
+    过期判定：目录名（如 ``YYYYMMDDHH``）代表的只是时段的"起点"，目录里的文件
+    可能一直写到该时段"结束时刻"，因此只有当 ``目录结束时刻 <= 当前时间 -
+    expire_hours`` 时才能安全整目录删除。``time_dir_unit`` 指明该目录代表的时间粒度
+    （如 ``hours``），用于计算结束时刻。由于按目录粒度对齐，文件实际保留时间会位于
+    ``[expire_hours, expire_hours + 1 个目录粒度)`` 区间内。
+
     :param client: bkrepo 客户端实例。
     :param path: 子目录所属的父目录，必须以 ``/`` 结尾。
     :param subdirs: ``path`` 下的一级子目录名列表。
     :param expire_hours: 时间目录过期时长（小时）。
     :param time_dir_format: 时间目录名对应的 arrow 格式字符串。
+    :param time_dir_unit: 时间目录代表的时间粒度，arrow ``shift`` 关键字，
+        如 ``hours``/``days``/``minutes``。
     """
     expire_threshold = arrow.utcnow().shift(hours=-expire_hours)
     for subdir in subdirs:
@@ -1517,10 +1534,23 @@ def _clean_bkrepo_expired_time_dirs(
         except (ParserError, ValueError):
             continue
 
-        if dir_time >= expire_threshold:
+        try:
+            dir_end_time = dir_time.shift(**{time_dir_unit: 1})
+        except (TypeError, ValueError):
+            logger.error("invalid time_dir_unit: %s, path: %s", time_dir_unit, subdir_path)
             continue
 
-        logger.info("cleaning bkrepo expired time dir, path: %s, dir_time: %s", subdir_path, dir_time)
+        # 只有目录代表时段的结束时刻已早于过期阈值，才删除，
+        # 避免把仍处于当前时段、刚写入的文件误删。
+        if dir_end_time > expire_threshold:
+            continue
+
+        logger.info(
+            "cleaning bkrepo expired time dir, path: %s, dir_range: [%s, %s)",
+            subdir_path,
+            dir_time,
+            dir_end_time,
+        )
         try:
             _delete_bkrepo_node(client, subdir_path)
         except (RequestError, RuntimeError):
@@ -1532,6 +1562,7 @@ def _clean_bkrepo_path(
     path: str,
     expire_hours: int,
     time_dir_format: str | None,
+    time_dir_unit: str = "hours",
 ) -> None:
     """
     清理单个 bkrepo 目录：列一次目录，目录和文件分别走各自的清理逻辑。
@@ -1543,6 +1574,8 @@ def _clean_bkrepo_path(
     :param path: 待清理的目录，必须以 ``/`` 结尾。
     :param expire_hours: 过期时长（小时）。
     :param time_dir_format: 时间目录名对应的 arrow 格式字符串；为空则不处理子目录。
+    :param time_dir_unit: 时间目录代表的时间粒度（arrow ``shift`` 关键字），
+        仅在配置了 ``time_dir_format`` 时生效。
     """
     try:
         subdirs, filenames = client.list_dir(path)
@@ -1561,7 +1594,7 @@ def _clean_bkrepo_path(
     _clean_bkrepo_expired_files(client, path, filenames, expire_hours * 3600)
 
     if time_dir_format:
-        _clean_bkrepo_expired_time_dirs(client, path, subdirs, expire_hours, time_dir_format)
+        _clean_bkrepo_expired_time_dirs(client, path, subdirs, expire_hours, time_dir_format, time_dir_unit)
 
 
 @shared_task(ignore_result=True, queue="celery_resource")
@@ -1596,8 +1629,9 @@ def clean_bkrepo_temp_file():
         path: str = cfg["path"]
         expire_hours: int = int(cfg.get("expire_hours", _DEFAULT_BKREPO_CLEAN_EXPIRE_HOURS))
         time_dir_format: str | None = cfg.get("time_dir_format")
+        time_dir_unit: str = cfg.get("time_dir_unit", "hours")
         try:
-            _clean_bkrepo_path(client, path, expire_hours, time_dir_format)
+            _clean_bkrepo_path(client, path, expire_hours, time_dir_format, time_dir_unit)
         except Exception:  # noqa: BLE001
             # 单个目录清理失败不影响其他目录
             logger.exception("failed to clean bkrepo path: %s", path)
