@@ -27,6 +27,9 @@ class AssignResource(Resource):
         issue_id = IssueIDField(label="Issue ID")
         assignee = serializers.ListField(label="负责人列表", child=serializers.CharField(min_length=1), min_length=1)
         operator = serializers.CharField(label="操作人")
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
@@ -34,10 +37,11 @@ class AssignResource(Resource):
         )
         assignee = validated_request_data["assignee"]
         operator = validated_request_data["operator"]
+        refresh = validated_request_data["refresh"]
         if issue.status == IssueStatus.PENDING_REVIEW:
-            issue.assign(assignees=assignee, operator=operator)
+            issue.assign(assignees=assignee, operator=operator, refresh=refresh)
         elif issue.status == IssueStatus.UNRESOLVED:
-            issue.reassign(assignees=assignee, operator=operator)
+            issue.reassign(assignees=assignee, operator=operator, refresh=refresh)
         else:
             raise ValueError(
                 f"Issue {issue.id} 当前状态 {issue.status} 不允许指派，"
@@ -59,12 +63,15 @@ class ResolveResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         issue_id = IssueIDField(label="Issue ID")
         operator = serializers.CharField(label="操作人")
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.resolve(operator=validated_request_data["operator"])
+        issue.resolve(operator=validated_request_data["operator"], refresh=validated_request_data["refresh"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
@@ -81,12 +88,15 @@ class ArchiveResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         issue_id = IssueIDField(label="Issue ID")
         operator = serializers.CharField(label="操作人")
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.archive(operator=validated_request_data["operator"])
+        issue.archive(operator=validated_request_data["operator"], refresh=validated_request_data["refresh"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
@@ -102,12 +112,15 @@ class ReopenResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         issue_id = IssueIDField(label="Issue ID")
         operator = serializers.CharField(label="操作人")
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.reopen(operator=validated_request_data["operator"])
+        issue.reopen(operator=validated_request_data["operator"], refresh=validated_request_data["refresh"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
@@ -123,12 +136,15 @@ class RestoreResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         issue_id = IssueIDField(label="Issue ID")
         operator = serializers.CharField(label="操作人")
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.restore(operator=validated_request_data["operator"])
+        issue.restore(operator=validated_request_data["operator"], refresh=validated_request_data["refresh"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
@@ -148,12 +164,19 @@ class UpdatePriorityResource(Resource):
             choices=[IssuePriority.P0, IssuePriority.P1, IssuePriority.P2],
         )
         operator = serializers.CharField(label="操作人")
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.update_priority(priority=validated_request_data["priority"], operator=validated_request_data["operator"])
+        issue.update_priority(
+            priority=validated_request_data["priority"],
+            operator=validated_request_data["operator"],
+            refresh=validated_request_data["refresh"],
+        )
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
@@ -171,6 +194,9 @@ class AddFollowUpResource(Resource):
         issue_id = IssueIDField(label="Issue ID")
         content = serializers.CharField(label="跟进内容", min_length=1)
         operator = serializers.CharField(label="操作人")
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
@@ -179,7 +205,9 @@ class AddFollowUpResource(Resource):
         content = validated_request_data["content"]
         operator = validated_request_data["operator"]
         now = int(time.time())
-        activity = issue.add_comment(content=content, operator=operator, now=now)
+        activity = issue.add_comment(
+            content=content, operator=operator, now=now, refresh=validated_request_data["refresh"]
+        )
         return {
             "bk_biz_id": issue.bk_biz_id,
             "activity_id": activity.id,

@@ -125,7 +125,7 @@ class IssueDocument(BaseDocument):
 
     # ── 状态机方法 ──
 
-    def assign(self, assignees: list[str], operator: str) -> None:
+    def assign(self, assignees: list[str], operator: str, refresh: bool = False) -> None:
         """首次指派负责人：PENDING_REVIEW → UNRESOLVED"""
         if self.status != IssueStatus.PENDING_REVIEW:
             raise ValueError(f"Cannot assign: current status={self.status}, expected={IssueStatus.PENDING_REVIEW}")
@@ -138,10 +138,11 @@ class IssueDocument(BaseDocument):
             [
                 (IssueActivityType.ASSIGNEE_CHANGE, None, ",".join(assignees), operator),
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator),
-            ]
+            ],
+            refresh=refresh,
         )
 
-    def reassign(self, assignees: list[str], operator: str) -> None:
+    def reassign(self, assignees: list[str], operator: str, refresh: bool = False) -> None:
         """改派负责人：UNRESOLVED 下改派，不触发状态流转"""
         if self.status != IssueStatus.UNRESOLVED:
             raise ValueError(f"Cannot reassign: current status={self.status}, expected={IssueStatus.UNRESOLVED}")
@@ -152,10 +153,11 @@ class IssueDocument(BaseDocument):
         self._write_activities(
             [
                 (IssueActivityType.ASSIGNEE_CHANGE, ",".join(old_assignees), ",".join(assignees), operator),
-            ]
+            ],
+            refresh=refresh,
         )
 
-    def resolve(self, operator: str) -> None:
+    def resolve(self, operator: str, refresh: bool = False) -> None:
         """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED"""
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(
@@ -169,10 +171,11 @@ class IssueDocument(BaseDocument):
         self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.RESOLVED, operator),
-            ]
+            ],
+            refresh=refresh,
         )
 
-    def archive(self, operator: str) -> None:
+    def archive(self, operator: str, refresh: bool = False) -> None:
         """归档（实例级）：PENDING_REVIEW → ARCHIVED or UNRESOLVED → ARCHIVED"""
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(
@@ -185,10 +188,11 @@ class IssueDocument(BaseDocument):
         self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.ARCHIVED, operator),
-            ]
+            ],
+            refresh=refresh,
         )
 
-    def reopen(self, operator: str) -> None:
+    def reopen(self, operator: str, refresh: bool = False) -> None:
         """重新打开：RESOLVED → UNRESOLVED"""
         if self.status != IssueStatus.RESOLVED:
             raise ValueError(f"Cannot reopen: current status={self.status}, expected={IssueStatus.RESOLVED}")
@@ -199,10 +203,11 @@ class IssueDocument(BaseDocument):
         self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator),
-            ]
+            ],
+            refresh=refresh,
         )
 
-    def restore(self, operator: str) -> None:
+    def restore(self, operator: str, refresh: bool = False) -> None:
         """恢复归档：ARCHIVED → 归档前状态（从活动日志推断），无记录时回退到 PENDING_REVIEW"""
         if self.status != IssueStatus.ARCHIVED:
             raise ValueError(f"Cannot restore: current status={self.status}, expected={IssueStatus.ARCHIVED}")
@@ -215,10 +220,13 @@ class IssueDocument(BaseDocument):
         self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, target_status, operator),
-            ]
+            ],
+            refresh=refresh,
         )
 
-    def add_comment(self, content: str, operator: str, now: int | None = None) -> "IssueActivityDocument":
+    def add_comment(
+        self, content: str, operator: str, now: int | None = None, refresh: bool = False
+    ) -> "IssueActivityDocument":
         """
         添加跟进评论
 
@@ -226,6 +234,7 @@ class IssueDocument(BaseDocument):
             content: 评论内容。
             operator: 操作人。
             now: 操作时间戳（秒），默认取当前时间。
+            refresh: 写入后是否强制刷新 ES，默认 False。
 
         Returns:
             写入成功的 IssueActivityDocument 实例。
@@ -259,10 +268,10 @@ class IssueDocument(BaseDocument):
             time=now,
             create_time=now,
         )
-        IssueActivityDocument.bulk_create([activity, *extra_activities])
+        IssueActivityDocument.bulk_create([activity, *extra_activities], refresh=refresh)
         return activity
 
-    def update_priority(self, priority: str, operator: str) -> None:
+    def update_priority(self, priority: str, operator: str, refresh: bool = False) -> None:
         """修改优先级（任意活跃状态均可）"""
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(f"Cannot update priority: current status={self.status} is not active")
@@ -282,7 +291,7 @@ class IssueDocument(BaseDocument):
             activits.append((IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator))
         self.update_time = int(time.time())
         self._persist_and_cache(active=True)
-        self._write_activities(activits)
+        self._write_activities(activits, refresh=refresh)
 
     def _get_pre_archive_status(self) -> str:
         """
@@ -343,7 +352,7 @@ class IssueDocument(BaseDocument):
         cache_key = ISSUE_ACTIVE_CONTENT_KEY.get_key(strategy_id=self.strategy_id)
         ISSUE_ACTIVE_CONTENT_KEY.client.delete(cache_key)
 
-    def _write_activities(self, activity_tuples: list) -> None:
+    def _write_activities(self, activity_tuples: list, refresh: bool = False) -> None:
         """批量写 IssueActivityDocument"""
         now = int(time.time())
         activities = [
@@ -360,7 +369,7 @@ class IssueDocument(BaseDocument):
             for atype, from_v, to_v, operator in activity_tuples
         ]
         try:
-            IssueActivityDocument.bulk_create(activities)
+            IssueActivityDocument.bulk_create(activities, refresh=refresh)
         except Exception:
             logger.exception("IssueActivityDocument bulk_create failed, issue_id=%s", self.id)
 

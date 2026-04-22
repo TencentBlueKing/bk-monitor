@@ -336,6 +336,9 @@ class AssignIssueResource(Resource):
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
         assignee = serializers.ListField(label="负责人列表", child=serializers.CharField(min_length=1), min_length=1)
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         assignee = validated_request_data["assignee"]
@@ -361,6 +364,7 @@ class AssignIssueResource(Resource):
                 issue_id=issue_id,
                 assignee=assignee,
                 operator=operator,
+                refresh=validated_request_data["refresh"],
             )
 
         return _run_batch(validated_request_data["issues"], _action)
@@ -371,6 +375,9 @@ class ResolveIssueResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         operator = get_request_username()
@@ -390,6 +397,7 @@ class ResolveIssueResource(Resource):
                 bk_biz_id=bk_biz_id,
                 issue_id=issue_id,
                 operator=operator,
+                refresh=validated_request_data["refresh"],
             )
 
         return _run_batch(validated_request_data["issues"], _action)
@@ -400,6 +408,9 @@ class ArchiveIssueResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         operator = get_request_username()
@@ -409,6 +420,7 @@ class ArchiveIssueResource(Resource):
                 bk_biz_id=bk_biz_id,
                 issue_id=issue_id,
                 operator=operator,
+                refresh=validated_request_data["refresh"],
             )
 
         return _run_batch(validated_request_data["issues"], _action)
@@ -419,6 +431,9 @@ class ReopenIssueResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         operator = get_request_username()
@@ -428,6 +443,7 @@ class ReopenIssueResource(Resource):
                 bk_biz_id=bk_biz_id,
                 issue_id=issue_id,
                 operator=operator,
+                refresh=validated_request_data["refresh"],
             )
 
         return _run_batch(validated_request_data["issues"], _action)
@@ -438,6 +454,9 @@ class RestoreIssueResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         operator = get_request_username()
@@ -447,6 +466,7 @@ class RestoreIssueResource(Resource):
                 bk_biz_id=bk_biz_id,
                 issue_id=issue_id,
                 operator=operator,
+                refresh=validated_request_data["refresh"],
             )
 
         return _run_batch(validated_request_data["issues"], _action)
@@ -461,6 +481,9 @@ class UpdateIssuePriorityResource(Resource):
             label="优先级",
             choices=[IssuePriority.P0, IssuePriority.P1, IssuePriority.P2],
         )
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         priority = validated_request_data["priority"]
@@ -472,6 +495,7 @@ class UpdateIssuePriorityResource(Resource):
                 issue_id=issue_id,
                 priority=priority,
                 operator=operator,
+                refresh=validated_request_data["refresh"],
             )
 
         return _run_batch(validated_request_data["issues"], _action)
@@ -483,6 +507,9 @@ class AddIssueFollowUpResource(Resource):
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
         content = serializers.CharField(label="跟进内容", min_length=1)
+        refresh = serializers.BooleanField(
+            label="写入变更记录后是否立即刷新ES（仅作用于变更记录，不影响Issue主体）", default=False
+        )
 
     def perform_request(self, validated_request_data):
         content = validated_request_data["content"]
@@ -494,6 +521,7 @@ class AddIssueFollowUpResource(Resource):
                 issue_id=issue_id,
                 content=content,
                 operator=operator,
+                refresh=validated_request_data["refresh"],
             )
 
         return _run_batch(validated_request_data["issues"], _action)
