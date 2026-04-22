@@ -168,12 +168,12 @@ class SharedDatasourceRuleFactory:
     DEFAULT_SHARED_DATASOURCE_TYPES: list[str] = [ApmDataSourceConfigBase.TRACE_DATASOURCE]
 
     @classmethod
-    def resolve(cls, bk_biz_id: int, app_name: str) -> list[str] | None:
+    def resolve(cls, bk_biz_id: int, app_name: str) -> list[str]:
         """解析应用应使用的共享数据源类型列表
 
         :param bk_biz_id: 业务 ID
         :param app_name: 应用名
-        :return: 命中任一规则时返回默认共享数据源类型列表；全部未命中时返回 None
+        :return: 命中任一规则时返回默认共享数据源类型列表；全部未命中时返回空列表
         """
         for rule_config in settings.APM_SHARED_DATASOURCE_RULES:
             rule_cls = cls.builder_register.get(rule_config.get("type"))
@@ -182,4 +182,4 @@ class SharedDatasourceRuleFactory:
             rule = rule_cls(values=rule_config.get("values", []))
             if rule.match(bk_biz_id, app_name):
                 return cls.DEFAULT_SHARED_DATASOURCE_TYPES
-        return None
+        return []
