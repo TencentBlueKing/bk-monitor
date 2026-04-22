@@ -95,7 +95,8 @@ import { IssuesBatchActionEnum } from './alarm-issues/constant';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
-import { exportIssues, showOperationResult, updateIssuesPriority } from './alarm-issues/services/issues-operations';
+/* import { exportIssues } from './alarm-issues/services/issues-operations'; */
+import { showOperationResult, updateIssuesPriority } from './alarm-issues/services/issues-operations';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -317,6 +318,7 @@ export default defineComponent({
     const handleAlarmTypeChange = (value: AlarmType) => {
       alarmStore.handleAlarmTypeChange(value);
       isFirstInit.value = true;
+      ordering.value = ''; // 清理排序
     };
 
     const updateIsCollapsed = (v: boolean) => {
@@ -1063,16 +1065,22 @@ export default defineComponent({
                           <IssuesToolbar
                             batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
                             issuesIds={this.selectedRowKeys}
-                            onExport={async () => {
+                            /* onExport={async () => {
                               const selectedIds = new Set(this.selectedRowKeys);
                               const issues = (this.data as IssueItem[])
                                 .filter(item => selectedIds.has(item.id))
                                 .map(item => ({ bk_biz_id: item.bk_biz_id, issue_id: item.id }));
                               await exportIssues(issues);
                               Message({ theme: 'success', message: 'TODO 导出待联调' });
-                            }}
+                            }} */
                           >
                             <IssuesTable
+                              showEmptyOperation={
+                                this.alarmStore.filterMode === EMode.ui
+                                  ? this.alarmStore.conditions.length > 0 ||
+                                    this.alarmStore.residentCondition.length > 0
+                                  : this.alarmStore.queryString !== ''
+                              }
                               columns={this.tableSourceColumns}
                               data={this.data as IssueItem[]}
                               headerAffixedTop={tableAffixed}
@@ -1088,6 +1096,7 @@ export default defineComponent({
                               onClearFilter={() => {
                                 if (this.alarmStore.filterMode === EMode.ui) {
                                   this.handleConditionChange([]);
+                                  this.handleResidentConditionChange([]);
                                   return;
                                 }
                                 this.handleQueryStringChange('');

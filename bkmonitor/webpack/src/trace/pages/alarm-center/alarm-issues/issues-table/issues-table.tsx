@@ -84,6 +84,11 @@ export default defineComponent({
     horizontalScrollAffixedBottom: {
       type: Object as PropType<{ container: string }>,
     },
+    /** 空状态下是否显示"清空筛选项"操作 */
+    showEmptyOperation: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     /** 页码变化 */
@@ -172,7 +177,7 @@ export default defineComponent({
           empty={() =>
             (
               <ExploreTableEmpty
-                showOperation={true}
+                showOperation={this.showEmptyOperation}
                 onClearFilter={() => this.$emit('clearFilter')}
               />
             ) as unknown as SlotReturnValue
