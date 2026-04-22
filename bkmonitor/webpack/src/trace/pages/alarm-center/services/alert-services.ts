@@ -25,6 +25,7 @@
  */
 
 import { isEn } from '@/i18n/i18n';
+
 import _ from 'lodash';
 import { alertTopN, editDataMeaning, searchAlert } from 'monitor-api/modules/alert_v2';
 import { getMethodIdForLowerCase } from 'monitor-pc/pages/query-template/components/utils/utils';
@@ -615,22 +616,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
       },
     ],
   },
-  {
-    name: 'tags',
-    alias: '维度',
-    type: EFieldType.keyword,
-    isEnableOptions: true,
-    methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
-    ],
-  },
+
   // tags 维度查询示例：
   // {
   //	"key": "tags.auto_instance_id_0",
@@ -737,6 +723,22 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'action_id',
     alias: '处理记录ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'tags',
+    alias: '维度',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [

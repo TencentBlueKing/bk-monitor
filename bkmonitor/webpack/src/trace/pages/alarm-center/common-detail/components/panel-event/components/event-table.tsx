@@ -141,17 +141,19 @@ export default defineComponent({
           return (
             <span class='source-item'>
               {SourceIconMap[SourceTypeEnum.BCS] ? (
-                window.source_app !== 'apm'
-                  ? <span class={`source-icon icon-monitor ${SourceIconMap[value]}`} />
-                  : <span 
-                      class={`source-icon icon-monitor ${SourceIconMap[value]}`}
-                      style={{ 
-                          backgroundImage: SourceIconSvgMap[item.value]
-                          ? `url('${SourceIconSvgMap[item.value]}')`
-                          : undefined
-                      }}
-                    />
-                ) : undefined }
+                window.source_app !== 'apm' ? (
+                  <span class={`source-icon icon-monitor ${SourceIconMap[value]}`} />
+                ) : (
+                  <span
+                    style={{
+                      backgroundImage: SourceIconSvgMap[item.value]
+                        ? `url('${SourceIconSvgMap[item.value]}')`
+                        : undefined,
+                    }}
+                    class={`source-icon icon-monitor ${SourceIconMap[value]}`}
+                  />
+                )
+              ) : undefined}
               <span
                 class='common-table-ellipsis'
                 v-overflow-tips={{
@@ -290,8 +292,13 @@ export default defineComponent({
       return <EventTableExpandContent data={row} />;
     });
     const sort = shallowRef<SortInfo>(null);
-    const isAllSourceType = shallowRef(false);
-    const sourceType = shallowRef([]);
+    const isAllSourceType = shallowRef(true);
+    const sourceType = shallowRef([
+      SourceTypeEnum.BCS,
+      SourceTypeEnum.BKCI,
+      SourceTypeEnum.HOST,
+      SourceTypeEnum.DEFAULT,
+    ]);
     const sourceTypeOptions = shallowRef([
       {
         label: window.i18n.t('全部'),
@@ -486,19 +493,20 @@ export default defineComponent({
                       label={item.value}
                     >
                       <span class='source-item'>
-                        { item.icon
-                          ? window.source_app !== 'apm'
-                            ? <span class={`source-icon icon-monitor ${item.icon}`} />
-                            : <span 
-                                class={`source-icon icon-monitor ${item.icon}`}
-                                style={{ 
-                                    backgroundImage: SourceIconSvgMap[item.value]
-                                    ? `url('${SourceIconSvgMap[item.value]}')`
-                                    : undefined
-                                }}
-                              />
-                          : undefined
-                        }
+                        {item.icon ? (
+                          window.source_app !== 'apm' ? (
+                            <span class={`source-icon icon-monitor ${item.icon}`} />
+                          ) : (
+                            <span
+                              style={{
+                                backgroundImage: SourceIconSvgMap[item.value]
+                                  ? `url('${SourceIconSvgMap[item.value]}')`
+                                  : undefined,
+                              }}
+                              class={`source-icon icon-monitor ${item.icon}`}
+                            />
+                          )
+                        ) : undefined}
                         {/* { window.source_app !== 'apm' 
                           ? item.icon ? <span class={`source-icon icon-monitor ${item.icon}`} /> : undefined 
                           : item.icon ? (

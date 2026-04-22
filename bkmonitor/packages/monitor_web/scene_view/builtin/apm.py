@@ -306,14 +306,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                 return cls._get_non_host_view_config(builtin_view, params)
             elif builtin_view == f"{cls.APM_TRACE_PREFIX}-log":
-                service_name = params.get("service_name")
                 span_id = params.get("span_id")
-                if not service_name or not span_id:
-                    raise ValueError(_("缺少ServiceName或者spanId参数"))
+                trace_id = params.get("trace_id")
+                service_name = params.get("service_name")
+
+                if not (service_name and span_id) and trace_id:
+                    # Trace 详情视角下的日志页面
+                    cls._walk_target_data(
+                        view_config, lambda data: [data.pop(k, None) for k in ("span_id", "service_name")]
+                    )
+                    view_config = cls._replace_variable(view_config, "${trace_id}", trace_id)
+                elif service_name and span_id:
+                    # Span 详情视角下的日志页面
+                    cls._walk_target_data(view_config, lambda data: data.pop("trace_id", None))
+                    view_config = cls._replace_variable(view_config, "${span_id}", span_id)
+                    view_config = cls._replace_variable(view_config, "${service_name}", service_name)
+                else:
+                    raise ValueError(_("缺少 TraceId 或 SpanId+ServiceName 参数"))
 
                 view_config = cls._replace_variable(view_config, "${app_name}", app_name)
-                view_config = cls._replace_variable(view_config, "${service_name}", service_name)
-                view_config = cls._replace_variable(view_config, "${span_id}", span_id)
             elif builtin_view == f"{cls.APM_TRACE_PREFIX}-container":
                 return cls.get_container_view(
                     params,
@@ -775,7 +786,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 type="",
                 defaults={
                     "config": [
-                        "overview", "topo", "service", "endpoint", "db", "error", "alarm_template", "alarm_center"
+                        "overview",
+                        "topo",
+                        "service",
+                        "endpoint",
+                        "db",
+                        "error",
+                        "alarm_template",
+                        "alarm_center",
                     ]
                 },
             )
@@ -799,6 +817,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "event",
                         "profiling",
                         "custom_metric",
+                        "custom_metric_v2",
                         "alarm_center",
                     ]
                 },
@@ -916,11 +935,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             2. apm_service_name
         APM Trace检索页面处:
             1. apm_span_id
+            2. apm_trace_id
         """
 
         if scene_id.startswith(cls.APM_TRACE_PREFIX):
             return {
                 "span_id": params.get("apm_span_id"),
+                "trace_id": params.get("apm_trace_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
                 "only_simple_info": params.get("only_simple_info") or False,

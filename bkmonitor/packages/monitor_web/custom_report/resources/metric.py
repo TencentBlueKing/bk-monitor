@@ -746,6 +746,7 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
                     "fuzzy_case_sensitive",
                     "exact",
                     "exact_case_sensitive",
+                    "startswith",
                 ],
                 required=False,
                 default="fuzzy",

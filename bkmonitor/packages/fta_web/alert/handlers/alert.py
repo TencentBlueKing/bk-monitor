@@ -1378,6 +1378,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             NoticeWay.MAIL: _lazy("邮件"),
             NoticeWay.WEIXIN: _lazy("微信"),
             NoticeWay.QY_WEIXIN: _lazy("企业微信"),
+            NoticeWay.VOICE: _lazy("语音通知"),
             NoticeWay.WX_BOT: _lazy("企业微信机器人"),
         }
         notice_way_count = defaultdict(int)

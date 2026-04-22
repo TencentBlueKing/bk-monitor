@@ -26,8 +26,8 @@ from monitor_web.custom_report.resources.metric import (
 # 排除 APM 内置指标的条件：匹配以 apm_ 或 bk_apm_ 开头的指标名，然后取反
 APM_BUILTIN_METRIC_EXCLUDE_CONDITION = {
     "key": "name",
-    "values": ["^apm_", "^bk_apm_"],
-    "search_type": "regex",
+    "values": ["apm_", "bk_apm_"],
+    "search_type": "startswith",
     "negate": True,
 }
 
