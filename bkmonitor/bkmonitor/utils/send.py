@@ -767,9 +767,9 @@ class Sender(BaseSender):
             if sender:
                 notice_way = "wecom_robot"
 
-        # 开启 BKAPP_ENABLE_CMSI_SEND_RTX 后，rtx 通道改走 CMSI 专用 send_rtx 接口
+        # 开启 ENABLE_CMSI_SEND_RTX 后，rtx 通道改走 CMSI 专用 send_rtx 接口
         # wecom_robot 通道仍走 send_default，不受影响
-        if settings.BKAPP_ENABLE_CMSI_SEND_RTX:
+        if settings.ENABLE_CMSI_SEND_RTX:
             return self._send_via_cmsi_rtx(notice_receivers)
 
         return self.send_default(notice_way, notice_receivers, sender)
@@ -778,7 +778,7 @@ class Sender(BaseSender):
         """
         调用 CMSI 专用 send_rtx 接口发送消息。
 
-        仅在 settings.ENABLE_CMSI_SEND_RTX（由 BKAPP_ENABLE_CMSI_SEND_RTX 控制）开启时使用。
+        仅在 settings.ENABLE_CMSI_SEND_RTX 开启时使用。
         相比通用 send_msg，该接口的 receiver__username 为列表而非逗号分隔字符串，且不携带 msg_type。
         """
         notice_way = "rtx"
