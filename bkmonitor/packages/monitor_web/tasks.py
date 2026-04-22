@@ -1530,7 +1530,8 @@ def _clean_bkrepo_expired_time_dirs(
             continue
         subdir_path = f"{path}{dir_name}/"
         try:
-            dir_time = arrow.get(dir_name, time_dir_format)
+            # 目录名由 UTC 时间格式化生成，解析时需显式指定 UTC，避免按本地时区解释。
+            dir_time = arrow.get(dir_name, time_dir_format, tzinfo="UTC")
         except (ParserError, ValueError):
             continue
 
