@@ -581,19 +581,15 @@ class BkDataDorisV4Provider:
       2. 用 bk_data_id 构建 ResultTable / DorisBinding / Databus 并提交
     """
 
-    bk_biz_id: int  # profile_bk_biz_id，仅用于传入 get_tenant_datalink_biz_id 计算空间ID
+    bk_biz_id: int  # profile_bk_biz_id，用于 BkBase API 请求中的 bizId / labels / db 命名
     app_name: str
     bk_tenant_id: str
     maintainer: str
     operator: str
-    data_biz_id: int = 0  # BkBase bizId（数据存储业务ID，通过 get_tenant_datalink_biz_id 获取）
-    label_biz_id: int = 0  # labels.bk_biz_id（数据归属业务ID）
+    data_biz_id: int = 0  # 仅用于 DataId 命名（通过 get_tenant_datalink_biz_id 获取）
 
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
     _obj: Optional["ApmDataSourceConfigBase"] = None
-    # 已存储的资源名称（从 bkdata_datalink_config.v4_resource_names 读取，用于 apply/delete）
-    _stored_data_id_name: str | None = None
-    _stored_resource_name: str | None = None
 
     @classmethod
     def from_datasource_instance(
@@ -602,20 +598,11 @@ class BkDataDorisV4Provider:
         bk_tenant_id: str,
         maintainer: str,
         operator: str,
-        skip_datalink_biz_lookup: bool = False,
     ) -> "BkDataDorisV4Provider":
         """从 ProfileDataSource 实例构造 V4 Provider"""
-        stored = (obj.bkdata_datalink_config or {}).get("v4_resource_names", {})
+        from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 
-        if skip_datalink_biz_lookup:
-            data_biz_id = 0
-            label_biz_id = 0
-        else:
-            from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
-
-            datalink_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id, obj.profile_bk_biz_id)
-            data_biz_id = datalink_biz_ids.data_biz_id
-            label_biz_id = datalink_biz_ids.label_biz_id
+        datalink_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id, obj.profile_bk_biz_id)
 
         return cls(
             bk_biz_id=obj.profile_bk_biz_id,
@@ -623,22 +610,21 @@ class BkDataDorisV4Provider:
             bk_tenant_id=bk_tenant_id,
             maintainer=maintainer,
             operator=operator,
-            data_biz_id=data_biz_id,
-            label_biz_id=label_biz_id,
+            data_biz_id=datalink_biz_ids.data_biz_id,
             _obj=obj,
-            _stored_data_id_name=stored.get("data_id_name"),
-            _stored_resource_name=stored.get("resource_name"),
         )
 
     # ── 命名 ────────────────────────────────
 
     def _data_id_name(self) -> str:
         """DataId 资源名称，优先使用已存储的名称"""
-        return self._stored_data_id_name or compose_profile_data_id_name(self.data_biz_id, self.app_name)
+        stored = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
+        return stored.get("data_id_name") or compose_profile_data_id_name(self.data_biz_id, self.app_name)
 
     def _resource_name(self, bk_data_id: int) -> str:
         """ResultTable / DorisBinding / Databus 资源名称，优先使用已存储的名称"""
-        return self._stored_resource_name or compose_profile_resource_name(self.app_name, bk_data_id)
+        stored = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
+        return stored.get("resource_name") or compose_profile_resource_name(self.app_name, bk_data_id)
 
     def get_resource_names(self, bk_data_id: int = 0) -> dict:
         """获取当前资源名称，用于持久化到 bkdata_datalink_config.v4_resource_names"""
@@ -653,7 +639,7 @@ class BkDataDorisV4Provider:
 
     def _metadata_labels(self) -> dict:
         """V4 资源的 metadata.labels，与指标链路保持一致"""
-        return {"bk_biz_id": str(self.label_biz_id)}
+        return {"bk_biz_id": str(self.bk_biz_id)}
 
     # ── 资源配置构建 ──────────────────────────
 
@@ -670,7 +656,7 @@ class BkDataDorisV4Provider:
             "spec": {
                 "description": f"App<{self.app_name}> profiling data id",
                 "alias": name,
-                "bizId": self.data_biz_id,
+                "bizId": self.bk_biz_id,
                 "maintainers": self._maintainers_list(),
                 "eventType": "log",
             },
@@ -688,7 +674,7 @@ class BkDataDorisV4Provider:
             },
             "spec": {
                 "description": f"App<{self.app_name}> profiling result table",
-                "bizId": self.data_biz_id,
+                "bizId": self.bk_biz_id,
                 "alias": name,
                 "maintainers": self._maintainers_list(),
                 "dataType": "log",
@@ -811,15 +797,15 @@ class BkDataDorisV4Provider:
                     "table_type": "duplicate_table",
                     "is_profiling": True,
                     "unique_partition_table": False,
-                    "db": f"mapleleaf_{self.data_biz_id}",
+                    "db": f"mapleleaf_{self.bk_biz_id}",
                     "table": name,
                     "storage_keys": [],
                     "json_fields": [],
                     "original_json_fields": [],
                     "field_config_group": {},
                     "expires": self.config.expires,
-                    "sample_table_name": f"{name}_sample_{self.data_biz_id}",
-                    "label_table_name": f"{name}_label_{self.data_biz_id}",
+                    "sample_table_name": f"{name}_sample_{self.bk_biz_id}",
+                    "label_table_name": f"{name}_label_{self.bk_biz_id}",
                     "flush_timeout": 300,
                 },
             },
@@ -989,9 +975,9 @@ class BkDataDorisV4Provider:
             )
             raise e.__cause__ if e.__cause__ else e
 
-        # result_table_id 格式：{data_biz_id}_{rt_name}
+        # result_table_id 格式：{bk_biz_id}_{rt_name}
         rt_name = self._resource_name(bk_data_id)
-        result_table_id = f"{self.data_biz_id}_{rt_name}"
+        result_table_id = f"{self.bk_biz_id}_{rt_name}"
 
         # 过期天数：从 config.expires 中提取（格式如 "3d"）
         retention = int(self.config.expires.rstrip("d"))
@@ -1009,9 +995,9 @@ class BkDataDorisV4Provider:
         DataId 和 ResultTable 在 delete 时不会被删除，启动时只需重新 apply DorisBinding 和 Databus。
         使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
-        if not self._stored_resource_name:
+        if not self._obj or not self._resource_name(0):
             raise ValueError("[ProfileDatasource] cannot apply V4 data link without stored resource names")
-        bk_data_id = self._obj.bk_data_id if self._obj else 0
+        bk_data_id = self._obj.bk_data_id
         # 只提交 DorisBinding 和 Databus
         configs = [
             self._build_doris_binding_config(bk_data_id),
@@ -1019,7 +1005,7 @@ class BkDataDorisV4Provider:
         ]
         logger.info(
             "[ProfileDatasource] apply V4 data link (start), resource_name=%s, bk_data_id=%d",
-            self._stored_resource_name,
+            self._resource_name(bk_data_id),
             bk_data_id,
         )
         try:
@@ -1027,7 +1013,7 @@ class BkDataDorisV4Provider:
         except RetryError as e:
             logger.error(
                 "[ProfileDatasource] apply V4 data link (start) retry exhausted, resource_name=%s",
-                self._stored_resource_name,
+                self._resource_name(bk_data_id),
             )
             raise e.__cause__ if e.__cause__ else e
 
@@ -1037,7 +1023,7 @@ class BkDataDorisV4Provider:
         按创建的逆序删除：Databus → DorisBinding（DataId 和 ResultTable 不删）。
         使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
-        resource_name = self._stored_resource_name
+        resource_name = self._resource_name(0)
         if not resource_name:
             return
         # 删除顺序：Databus → DorisBinding（DataId / ResultTable 为基础资源，不删）

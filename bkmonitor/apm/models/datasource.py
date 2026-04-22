@@ -1160,8 +1160,6 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                     },
                 }
                 obj.save(using=DATABASE_CONNECTION_NAME)
-                # 同步更新 provider 实例，确保后续 provider() 使用已持久化的名称
-                provider._stored_data_id_name = data_id_name
             essentials = provider.provider()
             # provider() 成功后，补全 resource_name
             resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
@@ -1244,7 +1242,6 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 bk_tenant_id=bk_tenant_id,
                 maintainer="",
                 operator="",
-                skip_datalink_biz_lookup=True,
             )
             provider.delete()
             return
