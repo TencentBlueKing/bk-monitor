@@ -108,7 +108,7 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
   {
     colKey: 'operation',
     title: window.i18n.t('操作'),
-    width: 120,
+    width: 150,
     fixed: 'right',
     is_default: true,
     is_locked: true,

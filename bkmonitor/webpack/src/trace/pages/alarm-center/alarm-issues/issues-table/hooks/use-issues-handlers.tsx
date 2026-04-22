@@ -24,21 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { IssueStatusEnum } from '../../constant';
+import { IssuesBatchActionEnum, IssueStatusEnum } from '../../constant';
 import PriorityMenu from '../components/priority-menu/priority-menu';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
-import type { ImpactScopeEvent, IssueItem, IssuePriorityType } from '../../typing';
+import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType } from '../../typing';
 
 export interface UseIssuesHandlersOptions {
   /** click popover 工具（基础设施依赖） */
   clickPopoverTools: IUsePopoverTools;
+  /** 状态变更回调（标记已解决/重新打开/归档/恢复归档） */
+  actionEmit: (type: IssuesBatchActionType, id: IssueItem['id']) => void;
   /** 点击指派按钮回调 */
   assignClickEmit: (id: IssueItem['id'], row: IssueItem) => void;
   /** 影响范围资源类型点击回调 */
   impactScopeClickEmit: (event: ImpactScopeEvent) => void;
-  /** 标记已解决回调 */
-  markResolvedEmit: (id: string) => void;
   /** 优先级变更回调 */
   priorityChangeEmit: (id: string, priority: IssuePriorityType) => void;
   /** 显示 Issue 详情回调 */
@@ -56,7 +56,7 @@ export const useIssuesHandlers = ({
   clickPopoverTools,
   showDetailEmit,
   assignClickEmit,
-  markResolvedEmit,
+  actionEmit,
   priorityChangeEmit,
   impactScopeClickEmit,
 }: UseIssuesHandlersOptions) => {
@@ -77,13 +77,23 @@ export const useIssuesHandlers = ({
   };
 
   /**
-   * @description 标记 Issue 已解决（已解决 / 已归档状态下禁止操作）
+   * @description 状态变更操作（根据当前状态派发到对应操作类型）
+   * - 非归档 + 已解决 → 重新打开（UNRESOLVE）
+   * - 非归档 + 未解决 → 标记为已解决（RESOLVE）
+   * - 非已解决 + 已归档 → 恢复（UNARCHIVE）
+   * - 非已解决 + 未归档 → 归档（ARCHIVE）
    * @param {IssueItem} row - 当前 Issue 行数据
+   * @param {'archive' | 'resolve'} group - 操作组别
    */
-  const handleMarkResolved = (row: IssueItem) => {
-    // 如果 Issue 已解决或已归档，不触发
-    if (row.is_resolved || row.status === IssueStatusEnum.ARCHIVED) return;
-    markResolvedEmit(row.id);
+  const handleAction = (row: IssueItem, group: 'archive' | 'resolve') => {
+    const isResolved = row.status === IssueStatusEnum.RESOLVED;
+    const isArchived = row.status === IssueStatusEnum.ARCHIVED;
+
+    if (group === 'resolve') {
+      actionEmit(isResolved ? IssuesBatchActionEnum.UNRESOLVE : IssuesBatchActionEnum.RESOLVE, row.id);
+    } else {
+      actionEmit(isArchived ? IssuesBatchActionEnum.UNARCHIVE : IssuesBatchActionEnum.ARCHIVE, row.id);
+    }
   };
 
   /**
@@ -116,7 +126,7 @@ export const useIssuesHandlers = ({
   return {
     handleShowDetail,
     handleAssignClick,
-    handleMarkResolved,
+    handleAction,
     handlePriorityClick,
     handleImpactScopeClick,
   } as const;

@@ -38,10 +38,13 @@ export interface AssignIssuesParams {
 }
 
 export interface DialogEventByActionMap {
+  [IssuesBatchActionEnum.ARCHIVE]: IssuesResolveDialogEvent;
   [IssuesBatchActionEnum.ASSIGN]: IssuesAssigneeDialogEvent;
   [IssuesBatchActionEnum.FOLLOW_UP]: IssuesFollowUpDialogEvent;
   [IssuesBatchActionEnum.PRIORITY]: IssuesPriorityDialogEvent;
   [IssuesBatchActionEnum.RESOLVE]: IssuesResolveDialogEvent;
+  [IssuesBatchActionEnum.UNARCHIVE]: IssuesResolveDialogEvent;
+  [IssuesBatchActionEnum.UNRESOLVE]: IssuesResolveDialogEvent;
 }
 
 /** 添加跟进信息请求参数 */

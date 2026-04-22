@@ -35,7 +35,7 @@ import { useIssuesHandlers } from './hooks/use-issues-handlers';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { TableColumnItem, TablePagination } from '../../typings';
-import type { ImpactScopeEvent, IssueItem, IssuePriorityType } from '../typing';
+import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType } from '../typing';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
 import './issues-table.scss';
@@ -104,8 +104,8 @@ export default defineComponent({
     showDetail: (item: IssueItem) => !!item,
     /** 分配负责人点击 */
     assignClick: (id: IssueItem['id'], data: IssueItem) => typeof id === 'string' && !!data,
-    /** 标记已解决点击 */
-    markResolved: (id: string) => typeof id === 'string',
+    /** 状态变更操作（标记已解决/重新打开/归档/恢复归档） */
+    action: (type: IssuesBatchActionType, id: string) => typeof type === 'string' && typeof id === 'string',
     /** 优先级变化 */
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
     /** 影响范围点击 */
@@ -130,12 +130,12 @@ export default defineComponent({
       },
     });
 
-    const { handleShowDetail, handleAssignClick, handleMarkResolved, handlePriorityClick, handleImpactScopeClick } =
+    const { handleShowDetail, handleAssignClick, handleAction, handlePriorityClick, handleImpactScopeClick } =
       useIssuesHandlers({
         clickPopoverTools,
         showDetailEmit: item => emit('showDetail', item),
         assignClickEmit: (id, data) => emit('assignClick', id, data),
-        markResolvedEmit: id => emit('markResolved', id),
+        actionEmit: (type, id) => emit('action', type, id),
         priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
         impactScopeClickEmit: event => emit('impactScopeClick', event),
       });
@@ -147,7 +147,7 @@ export default defineComponent({
       hoverPopoverTools,
       handleShowDetail,
       handleAssignClick,
-      handleMarkResolved,
+      handleAction,
       handlePriorityClick,
       handleImpactScopeClick,
     });
