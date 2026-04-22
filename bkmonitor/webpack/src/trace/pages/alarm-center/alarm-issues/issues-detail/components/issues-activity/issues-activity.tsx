@@ -40,15 +40,11 @@ import {
 } from '../../../constant';
 import { followUpIssues } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
-import ClampText from './clamp-text';
 import useRequestAbort from '@/hooks/useRequestAbort';
 
 import type { IssueActivityItem, IssueDetail } from '../../../typing';
 
 import './issues-activity.scss';
-
-/** 评论内容最大显示行数 */
-const MAX_COMMENT_LINES = 3;
 
 export default defineComponent({
   name: 'IssuesActivity',
@@ -148,14 +144,13 @@ export default defineComponent({
 
     /** 确认富文本编辑 */
     const handleConfirmMarkdown = () => {
-      if (isEditMarkdown.value) {
-        commentContent.value = markdownContent.value;
-      }
+      commentContent.value = markdownContent.value;
       isMarkdownDialogShow.value = false;
     };
 
     /** 发送评论 */
     const handleSendComment = () => {
+      if (!commentContent.value) return;
       commentLoading.value = true;
       followUpIssues({
         issues: [
@@ -243,6 +238,7 @@ export default defineComponent({
             )}
           </div>
         ),
+        showLine: activeList.value.length > 0,
       });
     };
 
@@ -280,12 +276,14 @@ export default defineComponent({
             ),
             footer: () => (
               <div class='dialog-footer'>
-                <Button
-                  theme='primary'
-                  onClick={handleConfirmMarkdown}
-                >
-                  {t('确定')}
-                </Button>
+                {isEditMarkdown.value && (
+                  <Button
+                    theme='primary'
+                    onClick={handleConfirmMarkdown}
+                  >
+                    {t('确定')}
+                  </Button>
+                )}
                 <Button onClick={handleCloseMarkdownDialog}>{t('取消')}</Button>
               </div>
             ),
@@ -299,12 +297,13 @@ export default defineComponent({
      */
     const renderActivityItem = (config: {
       content?: JSX.Element | string;
+      extCls?: string;
       icon: JSX.Element;
       showLine?: boolean;
       title: JSX.Element | string;
     }) => {
       return (
-        <div class='activity-item'>
+        <div class={['activity-item', config.extCls]}>
           <div class='activity-item-line'>
             <div class='line-icon'>{config.icon}</div>
             {config.showLine !== false && <div class='line' />}
@@ -317,112 +316,130 @@ export default defineComponent({
       );
     };
 
+    const renderActivityItemTime = (time: number) => {
+      const timeObj = dayjs(time * 1000);
+      return (
+        <span
+          class='time'
+          v-bk-tooltips={{ content: `${timeObj.format('YYYY-MM-DD HH:mm:ss')}${timeObj.format('Z')}` }}
+        >
+          <span class='time-text'>{timeObj.fromNow()}</span>
+        </span>
+      );
+    };
+
     /**
      * 渲染 Issue 拆分（二期功能）
      */
-    const renderSplitActivity = (item: IssueActivityItem) => {
-      const splitNode = activeNodeMap[IssueActiveNodeTypeEnum.SPLIT];
-      return renderActivityItem({
-        icon: (
-          <img
-            class='activity-icon'
-            alt=''
-            src={splitNode.icon}
-          />
-        ),
-        title: (
-          <div class='title-row'>
-            <span class='action'>{splitNode.alias}</span>
-            <span
-              class='time'
-              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
-            >
-              {dayjs(item.time).fromNow()}
-            </span>
-          </div>
-        ),
-        content: (
-          <div class='split-content'>
-            <div class='desc'>{t('拆分为 {0} 个 Issue:', [2])}</div>
-            <ul class='issue-list'>
-              <li class='issue-item'>
-                <span class='link'>异常登录日志告警</span>
-              </li>
-              <li class='issue-item'>
-                <span class='link'>异常登录日志告警2222</span>
-              </li>
-            </ul>
-          </div>
-        ),
-      });
-    };
+    // const renderSplitActivity = (item: IssueActivityItem) => {
+    //   const splitNode = activeNodeMap[IssueActiveNodeTypeEnum.SPLIT];
+    //   return renderActivityItem({
+    //     icon: (
+    //       <img
+    //         class='activity-icon'
+    //         alt=''
+    //         src={splitNode.icon}
+    //       />
+    //     ),
+    //     title: (
+    //       <div class='title-row'>
+    //         <span
+    //           class='action'
+    //           v-overflow-tips={{
+    //             placement: 'top',
+    //           }}
+    //         >
+    //           {splitNode.alias}
+    //         </span>
+    //         {renderActivityItemTime(item.time)}
+    //       </div>
+    //     ),
+    //     content: (
+    //       <div class='split-content'>
+    //         <div class='desc'>{t('拆分为 {0} 个 Issue:', [2])}</div>
+    //         <ul class='issue-list'>
+    //           <li class='issue-item'>
+    //             <span class='link'>异常登录日志告警</span>
+    //           </li>
+    //           <li class='issue-item'>
+    //             <span class='link'>异常登录日志告警2222</span>
+    //           </li>
+    //         </ul>
+    //       </div>
+    //     ),
+    //   });
+    // };
 
     /**
      * 渲染 Issue 合并（二期功能）
      */
-    const renderMergeActivity = (item: IssueActivityItem) => {
-      const mergeNode = activeNodeMap[IssueActiveNodeTypeEnum.MERGE];
-      return renderActivityItem({
-        icon: (
-          <img
-            class='activity-icon'
-            alt=''
-            src={mergeNode.icon}
-          />
-        ),
-        title: (
-          <div class='title-row'>
-            <span class='action'>{mergeNode.alias}</span>
-            <span
-              class='time'
-              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
-            >
-              {dayjs(item.time).fromNow()}
-            </span>
-          </div>
-        ),
-        content: (
-          <div class='merge-content'>
-            <span class='desc'>{t('合并进 Issue:')}</span>
-            <span class='link'>异常登录日志告警</span>
-          </div>
-        ),
-      });
-    };
+    // const renderMergeActivity = (item: IssueActivityItem) => {
+    //   const mergeNode = activeNodeMap[IssueActiveNodeTypeEnum.MERGE];
+    //   return renderActivityItem({
+    //     icon: (
+    //       <img
+    //         class='activity-icon'
+    //         alt=''
+    //         src={mergeNode.icon}
+    //       />
+    //     ),
+    //     title: (
+    //       <div class='title-row'>
+    //         <span
+    //           class='action'
+    //           v-overflow-tips={{
+    //             placement: 'top',
+    //           }}
+    //         >
+    //           {mergeNode.alias}
+    //         </span>
+    //         {renderActivityItemTime(item.time)}
+    //       </div>
+    //     ),
+    //     content: (
+    //       <div class='merge-content'>
+    //         <span class='desc'>{t('合并进 Issue:')}</span>
+    //         <span class='link'>异常登录日志告警</span>
+    //       </div>
+    //     ),
+    //   });
+    // };
 
     /**
      * 渲染评论
      */
-    const renderCommentActivity = (item: IssueActivityItem) => {
+    const renderCommentActivity = (item: IssueActivityItem, showLine = true) => {
       return renderActivityItem({
+        extCls: 'comment-activity-item',
         icon: <i class='icon-monitor icon-a-useryonghu' />,
         title: (
           <div class='title-row'>
             <span class='user'>{item.operator}</span>
-            <span
-              class='time'
-              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
-            >
-              {dayjs(item.time * 1000).fromNow()}
-            </span>
+            {renderActivityItemTime(item.time)}
           </div>
         ),
         content: (
           <div class='comment-content'>
-            <ClampText
-              content={item.content}
-              maxLines={MAX_COMMENT_LINES}
-              onExpand={handleViewComment}
+            <MarkdownViewer
+              class='comment-view-markdown'
+              value={item.content}
+            />
+            <i
+              class='icon-monitor icon-xiangqing1 detail-icon'
+              onClick={() => {
+                handleViewComment(item.content);
+              }}
             />
           </div>
         ),
+        showLine,
       });
     };
 
     /**
      * 渲染状态流转
      */
-    const renderStatusActivity = (item: IssueActivityItem) => {
+    const renderStatusActivity = (item: IssueActivityItem, showLine = true) => {
       const statusNode = activeNodeMap[IssueActiveNodeTypeEnum.STATUS_CHANGE];
       return renderActivityItem({
         icon: (
@@ -434,24 +451,25 @@ export default defineComponent({
         ),
         title: (
           <div class='title-row'>
-            <span class='action'>
+            <span
+              class='action'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
+            >
               {statusNode.alias}：{ISSUES_STATUS_MAP[item.to_value]?.alias}
             </span>
-            <span
-              class='time'
-              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
-            >
-              {dayjs(item.time * 1000).fromNow()}
-            </span>
+            {renderActivityItemTime(item.time)}
           </div>
         ),
+        showLine,
       });
     };
 
     /**
      * 渲染指派负责人
      */
-    const renderDispatchActivity = (item: IssueActivityItem) => {
+    const renderDispatchActivity = (item: IssueActivityItem, showLine = true) => {
       const dispatchNode = activeNodeMap[IssueActiveNodeTypeEnum.ASSIGNEE_CHANGE];
       return renderActivityItem({
         icon: (
@@ -463,24 +481,25 @@ export default defineComponent({
         ),
         title: (
           <div class='title-row'>
-            <span class='action'>
+            <span
+              class='action'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
+            >
               {dispatchNode.alias}：{item.to_value}
             </span>
-            <span
-              class='time'
-              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
-            >
-              {dayjs(item.time * 1000).fromNow()}
-            </span>
+            {renderActivityItemTime(item.time)}
           </div>
         ),
+        showLine,
       });
     };
 
     /**
      * 渲染优先级变更
      */
-    const renderPriorityActivity = (item: IssueActivityItem) => {
+    const renderPriorityActivity = (item: IssueActivityItem, showLine = true) => {
       const priorityNode = activeNodeMap[IssueActiveNodeTypeEnum.PRIORITY_CHANGE];
       return renderActivityItem({
         icon: (
@@ -492,24 +511,25 @@ export default defineComponent({
         ),
         title: (
           <div class='title-row'>
-            <span class='action'>
+            <span
+              class='action'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
+            >
               {priorityNode.alias}：{ISSUES_PRIORITY_MAP[item.to_value]?.alias}
             </span>
-            <span
-              class='time'
-              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
-            >
-              {dayjs(item.time * 1000).fromNow()}
-            </span>
+            {renderActivityItemTime(item.time)}
           </div>
         ),
+        showLine,
       });
     };
 
     /**
      * 渲染首次出现
      */
-    const renderFirstActivity = (item: IssueActivityItem) => {
+    const renderFirstActivity = (item: IssueActivityItem, showLine = true) => {
       const firstNode = activeNodeMap[IssueActiveNodeTypeEnum.CREATE];
       return renderActivityItem({
         icon: (
@@ -521,39 +541,41 @@ export default defineComponent({
         ),
         title: (
           <div class='title-row'>
-            <span class='action'>{firstNode.alias}</span>
             <span
-              class='time'
-              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
+              class='action'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
             >
-              {dayjs(item.time * 1000).fromNow()}
+              {firstNode.alias}
             </span>
+            {renderActivityItemTime(item.time)}
           </div>
         ),
-        showLine: false,
+        showLine,
       });
     };
 
     /**
      * 根据不同的活动类型渲染不同的内容
      */
-    const renderActivityContent = (item: IssueActivityItem) => {
+    const renderActivityContent = (item: IssueActivityItem, showLine = true) => {
       switch (item.activity_type) {
         case IssueActiveNodeTypeEnum.COMMENT:
-          return renderCommentActivity(item);
+          return renderCommentActivity(item, showLine);
         case IssueActiveNodeTypeEnum.STATUS_CHANGE:
-          return renderStatusActivity(item);
+          return renderStatusActivity(item, showLine);
         case IssueActiveNodeTypeEnum.ASSIGNEE_CHANGE:
-          return renderDispatchActivity(item);
+          return renderDispatchActivity(item, showLine);
         case IssueActiveNodeTypeEnum.PRIORITY_CHANGE:
-          return renderPriorityActivity(item);
+          return renderPriorityActivity(item, showLine);
         case IssueActiveNodeTypeEnum.CREATE:
-          return renderFirstActivity(item);
-        // TODO: 合并和拆分是二期功能
-        case IssueActiveNodeTypeEnum.SPLIT:
-          return renderSplitActivity(item);
-        case IssueActiveNodeTypeEnum.MERGE:
-          return renderMergeActivity(item);
+          return renderFirstActivity(item, showLine);
+        // // TODO: 合并和拆分是二期功能
+        // case IssueActiveNodeTypeEnum.SPLIT:
+        //   return renderSplitActivity(item);
+        // case IssueActiveNodeTypeEnum.MERGE:
+        //   return renderMergeActivity(item);
         default:
           return null;
       }
@@ -585,11 +607,15 @@ export default defineComponent({
     return (
       <BasicCard
         class='issues-activity'
-        title={this.$t('问题活动')}
+        title={this.$t('活动')}
       >
         {this.renderCommentInput()}
         <div class='activity-list'>
-          {this.loading ? this.renderSkeleton() : this.activeList.map(item => this.renderActivityContent(item))}
+          {this.loading
+            ? this.renderSkeleton()
+            : this.activeList.map((item, index) =>
+                this.renderActivityContent(item, index !== this.activeList.length - 1)
+              )}
         </div>
         {this.renderMarkdownDialog()}
       </BasicCard>
