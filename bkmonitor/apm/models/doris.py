@@ -621,16 +621,28 @@ class BkDataDorisV4Provider:
         stored = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
         return stored.get("data_id_name") or compose_profile_data_id_name(self.data_biz_id, self.app_name)
 
-    def _resource_name(self, bk_data_id: int) -> str:
-        """ResultTable / DorisBinding / Databus 资源名称，优先使用已存储的名称"""
+    def _result_table_name(self, bk_data_id: int) -> str:
+        """ResultTable 资源名称，优先使用已存储的名称"""
         stored = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
-        return stored.get("resource_name") or compose_profile_resource_name(self.app_name, bk_data_id)
+        return stored.get("result_table_name") or compose_profile_resource_name(self.app_name, bk_data_id)
+
+    def _doris_binding_name(self, bk_data_id: int) -> str:
+        """DorisBinding 资源名称，优先使用已存储的名称"""
+        stored = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
+        return stored.get("doris_binding_name") or compose_profile_resource_name(self.app_name, bk_data_id)
+
+    def _databus_name(self, bk_data_id: int) -> str:
+        """Databus 资源名称，优先使用已存储的名称"""
+        stored = (self._obj.bkdata_datalink_config or {}).get("v4_resource_names", {}) if self._obj else {}
+        return stored.get("databus_name") or compose_profile_resource_name(self.app_name, bk_data_id)
 
     def get_resource_names(self, bk_data_id: int = 0) -> dict:
         """获取当前资源名称，用于持久化到 bkdata_datalink_config.v4_resource_names"""
         return {
             "data_id_name": self._data_id_name(),
-            "resource_name": self._resource_name(bk_data_id),
+            "result_table_name": self._result_table_name(bk_data_id),
+            "doris_binding_name": self._doris_binding_name(bk_data_id),
+            "databus_name": self._databus_name(bk_data_id),
         }
 
     def _maintainers_list(self) -> list:
@@ -663,19 +675,19 @@ class BkDataDorisV4Provider:
         }
 
     def _build_result_table_config(self, bk_data_id: int) -> dict:
-        name = self._resource_name(bk_data_id)
+        rt_name = self._result_table_name(bk_data_id)
         return {
             "kind": "ResultTable",
             "metadata": {
                 "namespace": _V4_NAMESPACE,
-                "name": name,
+                "name": rt_name,
                 "labels": self._metadata_labels(),
                 "annotations": {},
             },
             "spec": {
                 "description": f"App<{self.app_name}> profiling result table",
                 "bizId": self.bk_biz_id,
-                "alias": name,
+                "alias": rt_name,
                 "maintainers": self._maintainers_list(),
                 "dataType": "log",
                 "fields": [
@@ -775,7 +787,8 @@ class BkDataDorisV4Provider:
         }
 
     def _build_doris_binding_config(self, bk_data_id: int) -> dict:
-        name = self._resource_name(bk_data_id)
+        dorisbinding_name = self._doris_binding_name(bk_data_id)
+        rt_name = self._result_table_name(bk_data_id)
         if not settings.APM_PROFILE_V4_DORIS_BINDING_CLUSTER:
             raise ValueError(
                 "[ProfileDatasource] APM_PROFILE_V4_DORIS_BINDING_CLUSTER is required for V4 data link, "
@@ -787,45 +800,46 @@ class BkDataDorisV4Provider:
             "metadata": {
                 "annotations": {},
                 "labels": self._metadata_labels(),
-                "name": name,
+                "name": dorisbinding_name,
                 "namespace": _V4_NAMESPACE,
             },
             "spec": {
-                "data": {"name": name, "namespace": _V4_NAMESPACE, "kind": "ResultTable"},
+                "data": {"name": rt_name, "namespace": _V4_NAMESPACE, "kind": "ResultTable"},
                 "storage": {"name": storage_cluster, "namespace": _V4_NAMESPACE, "kind": "Doris"},
                 "storage_config": {
                     "table_type": "duplicate_table",
                     "is_profiling": True,
                     "unique_partition_table": False,
                     "db": f"mapleleaf_{self.bk_biz_id}",
-                    "table": name,
+                    "table": dorisbinding_name,
                     "storage_keys": [],
                     "json_fields": [],
                     "original_json_fields": [],
                     "field_config_group": {},
                     "expires": self.config.expires,
-                    "sample_table_name": f"{name}_sample_{self.bk_biz_id}",
-                    "label_table_name": f"{name}_label_{self.bk_biz_id}",
+                    "sample_table_name": f"{rt_name}_sample_{self.bk_biz_id}",
+                    "label_table_name": f"{rt_name}_label_{self.bk_biz_id}",
                     "flush_timeout": 300,
                 },
             },
         }
 
     def _build_databus_config(self, bk_data_id: int) -> dict:
-        name = self._resource_name(bk_data_id)
+        bus_name = self._databus_name(bk_data_id)
         data_id_name = self._data_id_name()
+        dorisbinding_name = self._doris_binding_name(bk_data_id)
         config = {
             "kind": "Databus",
             "metadata": {
                 "namespace": _V4_NAMESPACE,
-                "name": name,
+                "name": bus_name,
                 "labels": self._metadata_labels(),
                 "annotations": {},
             },
             "spec": {
                 "maintainers": self._maintainers_list(),
                 "sources": [{"kind": "DataId", "name": data_id_name, "namespace": _V4_NAMESPACE}],
-                "sinks": [{"kind": "DorisBinding", "name": name, "namespace": _V4_NAMESPACE}],
+                "sinks": [{"kind": "DorisBinding", "name": dorisbinding_name, "namespace": _V4_NAMESPACE}],
                 "transforms": [
                     {
                         "kind": "Clean",
@@ -976,7 +990,7 @@ class BkDataDorisV4Provider:
             raise e.__cause__ if e.__cause__ else e
 
         # result_table_id 格式：{bk_biz_id}_{rt_name}
-        rt_name = self._resource_name(bk_data_id)
+        rt_name = self._result_table_name(bk_data_id)
         result_table_id = f"{self.bk_biz_id}_{rt_name}"
 
         # 过期天数：从 config.expires 中提取（格式如 "3d"）
@@ -995,7 +1009,7 @@ class BkDataDorisV4Provider:
         DataId 和 ResultTable 在 delete 时不会被删除，启动时只需重新 apply DorisBinding 和 Databus。
         使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
-        if not self._obj or not self._resource_name(0):
+        if not self._obj or not self._doris_binding_name(0):
             raise ValueError("[ProfileDatasource] cannot apply V4 data link without stored resource names")
         bk_data_id = self._obj.bk_data_id
         # 只提交 DorisBinding 和 Databus
@@ -1004,16 +1018,18 @@ class BkDataDorisV4Provider:
             self._build_databus_config(bk_data_id),
         ]
         logger.info(
-            "[ProfileDatasource] apply V4 data link (start), resource_name=%s, bk_data_id=%d",
-            self._resource_name(bk_data_id),
+            "[ProfileDatasource] apply V4 data link (start), doris_binding_name=%s, databus_name=%s, bk_data_id=%d",
+            self._doris_binding_name(bk_data_id),
+            self._databus_name(bk_data_id),
             bk_data_id,
         )
         try:
             self._apply_data_link_with_retry(configs)
         except RetryError as e:
             logger.error(
-                "[ProfileDatasource] apply V4 data link (start) retry exhausted, resource_name=%s",
-                self._resource_name(bk_data_id),
+                "[ProfileDatasource] apply V4 data link (start) retry exhausted, doris_binding_name=%s, databus_name=%s",
+                self._doris_binding_name(bk_data_id),
+                self._databus_name(bk_data_id),
             )
             raise e.__cause__ if e.__cause__ else e
 
@@ -1023,14 +1039,16 @@ class BkDataDorisV4Provider:
         按创建的逆序删除：Databus → DorisBinding（DataId 和 ResultTable 不删）。
         使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
-        resource_name = self._resource_name(0)
-        if not resource_name:
+        databus_name = self._databus_name(0)
+        doris_binding_name = self._doris_binding_name(0)
+        if not databus_name and not doris_binding_name:
             return
         # 删除顺序：Databus → DorisBinding（DataId / ResultTable 为基础资源，不删）
-        delete_items = [
-            (DataLinkKind.DATABUS, resource_name),
-            (DataLinkKind.DORISBINDING, resource_name),
-        ]
+        delete_items = []
+        if databus_name:
+            delete_items.append((DataLinkKind.DATABUS, databus_name))
+        if doris_binding_name:
+            delete_items.append((DataLinkKind.DORISBINDING, doris_binding_name))
         for kind_enum, name in delete_items:
             kind_value = DataLinkKind.get_choice_value(kind_enum.value)
             logger.info(

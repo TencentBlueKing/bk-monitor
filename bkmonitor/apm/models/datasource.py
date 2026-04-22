@@ -1156,7 +1156,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                     "version": 4,
                     "v4_resource_names": {
                         "data_id_name": data_id_name,
-                        "resource_name": None,
+                        "result_table_name": None,
+                        "doris_binding_name": None,
+                        "databus_name": None,
                     },
                 }
                 obj.save(using=DATABASE_CONNECTION_NAME)
@@ -1167,7 +1169,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 "version": 4,
                 "v4_resource_names": {
                     "data_id_name": resource_names["data_id_name"],
-                    "resource_name": resource_names["resource_name"],
+                    "result_table_name": resource_names["result_table_name"],
+                    "doris_binding_name": resource_names["doris_binding_name"],
+                    "databus_name": resource_names["databus_name"],
                 },
             }
         else:
