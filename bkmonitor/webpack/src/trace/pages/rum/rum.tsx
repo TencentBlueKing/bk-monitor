@@ -39,6 +39,7 @@ import { type MetricTier, type RumAppRow, MOCK_TABLE_DATA } from './rum-mock';
 
 import type { TimeRangeType } from '../../components/time-range/utils';
 import type { BaseTableColumn } from '../trace-explore/components/trace-explore-table/typing';
+import type { IRumAppConfig } from './typings/rum-app-config';
 import type { FilterValue } from '@blueking/tdesign-ui';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 import type { GetMenuListFunc, ICommonItem, ISearchValue } from 'bkui-vue/lib/search-select/utils';
@@ -144,6 +145,7 @@ export default defineComponent({
     const pageState = shallowRef({ currentPage: 1, pageSize: 10 });
     const showCreateApp = shallowRef(false);
     const showSdkReport = shallowRef(false);
+    const sdkReportAppInfo = shallowRef<Partial<IRumAppConfig>>(null);
 
     const searchLabel = (k: RumCriteriaKey) => {
       const map: Record<RumCriteriaKey, string> = {
@@ -453,7 +455,8 @@ export default defineComponent({
     const handleCreateAppShowChange = (show: boolean) => {
       showCreateApp.value = show;
     };
-    const handleCreateAppSuccess = _params => {
+    const handleCreateAppSuccess = params => {
+      sdkReportAppInfo.value = params;
       handleCreateAppShowChange(false);
       handleSdkReportShowChange(true);
     };
@@ -531,6 +534,7 @@ export default defineComponent({
           onSuccess={handleCreateAppSuccess}
         />
         <SDKReport
+          appInfo={sdkReportAppInfo.value}
           show={showSdkReport.value}
           onShowChange={handleSdkReportShowChange}
         />

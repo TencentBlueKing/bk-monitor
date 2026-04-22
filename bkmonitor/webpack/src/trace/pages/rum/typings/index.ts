@@ -24,7 +24,5 @@
  * IN THE SOFTWARE.
  */
 
-import type { RUM_APP_CONFIG_TAB_ENUM } from '../constants';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
-
-export type RumAppConfigTabType = GetEnumTypeTool<typeof RUM_APP_CONFIG_TAB_ENUM>;
+export * from './constants';
+export * from './rum-app-config';

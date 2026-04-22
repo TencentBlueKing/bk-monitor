@@ -54,6 +54,7 @@ export default defineComponent({
       client_type: 'web',
     });
 
+    const appNameErr = shallowRef('');
     const rules = shallowRef({
       app_name: [
         {
@@ -61,8 +62,13 @@ export default defineComponent({
           message: t('不能输入emoji表情'),
           trigger: 'change',
         },
+        {
+          validator: () => !appNameErr.value,
+          message: () => appNameErr.value,
+        },
       ],
     });
+    const submitLoading = shallowRef(false);
 
     watch(
       () => props.show,
@@ -79,25 +85,51 @@ export default defineComponent({
     const handleShowChange = (show: boolean) => {
       emit('showChange', show);
     };
+    function checkDuplicateAppName(val) {
+      return new Promise((resolve, _reject) => {
+        setTimeout(() => {
+          if (val === 'a') {
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        }, 1000);
+      });
+    }
     const handleSubmit = async () => {
-      console.log(formRef.value);
-      const valid = await formRef.value?.validate();
-      if (!valid) return;
+      submitLoading.value = true;
+      const isDuplicate = await checkDuplicateAppName(formData.app_name);
+      if (isDuplicate) {
+        appNameErr.value = t('应用名称已存在');
+      } else {
+        appNameErr.value = '';
+      }
+      const valid = await formRef.value?.validate().catch(() => false);
+      if (valid) {
+        const params = {
+          app_name: formData.app_name,
+          app_alias: formData.app_alias,
+          description: formData.description,
+          client_type: formData.client_type,
+        };
+        await (() =>
+          new Promise(resolve => {
+            setTimeout(() => {
+              resolve(true);
+            }, 2000);
+          }))();
 
-      const params = {
-        app_name: formData.app_name,
-        app_alias: formData.app_alias,
-        description: formData.description,
-        client_type: formData.client_type,
-      };
-      console.log(params);
-      emit('success', params);
+        emit('success', params);
+      }
+      submitLoading.value = false;
     };
 
     return {
       formRef,
       formData,
       rules,
+      appNameErr,
+      submitLoading,
       t,
       handleShowChange,
       handleSubmit,
@@ -132,6 +164,9 @@ export default defineComponent({
               <Input
                 v-model={this.formData.app_name}
                 placeholder={`www.example.com（${this.t('作为唯一标识，创建后不可修改')}）`}
+                onFocus={() => {
+                  this.appNameErr = '';
+                }}
               />
             </Form.FormItem>
             <Form.FormItem
@@ -193,6 +228,7 @@ export default defineComponent({
           <div>
             <Button
               class='mr-8'
+              loading={this.submitLoading}
               theme={'primary'}
               onClick={this.handleSubmit}
             >

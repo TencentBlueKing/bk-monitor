@@ -1,0 +1,38 @@
+.storage-status {
+  &-title {
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #313238;
+  }
+
+  &-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &-row {
+    display: flex;
+    gap: 80px;
+    line-height: 32px;
+  }
+
+  &-item {
+    display: flex;
+    min-width: 400px;
+
+    .item-label {
+      display: inline-block;
+      width: 80px;
+      margin-right: 8px;
+      font-size: 12px;
+      color: #63656e;
+      text-align: right;
+    }
+
+    .item-value {
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+}

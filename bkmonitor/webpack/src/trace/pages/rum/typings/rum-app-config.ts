@@ -24,15 +24,38 @@
  * IN THE SOFTWARE.
  */
 
-import type { RUM_APP_CONFIG_TAB_ENUM } from './constants';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
-
 // TODO 等待后端确认这些子类型具体的值
 
 /**
  * Apdex 配置
  */
 export type IApdexConfig = Record<string, number>;
+
+/**
+ * 索引信息接口返回数据
+ */
+export interface IIndicesInfo {
+  /** 删除文档数 */
+  docs_count: number;
+  /** 文档数 */
+  docs_deleted: number;
+  /** 索引健康状态 */
+  health: string;
+  /** 索引名 */
+  index: string;
+  /** 主分片存储体积，字节 */
+  pri: number;
+  /** 主分片数 */
+  pri_store_size: number;
+  /** 副本数 */
+  rep: number;
+  /** 存储体积，字节 */
+  status: string;
+  /** 索引状态 */
+  store_size: number;
+  /** 索引 UUID */
+  uuid: string;
+}
 
 /**
  * 权限信息
@@ -93,8 +116,58 @@ export interface IRumAppConfig {
 }
 
 /**
+ * ============================================
+ * 存储信息相关类型
+ * ============================================
+ */
+
+/**
  * Span 存储配置
  */
 export type ISpanDatasourceConfig = Record<string, unknown>;
+
+/**
+ * ============================================
+ * 索引信息相关类型
+ * ============================================
+ */
+
+/**
+ * 存储字段接口返回数据
+ */
+export interface IStorageField {
+  /** 是否分词 */
+  analysis_field: boolean;
+  /** 别名 */
+  ch_field_name: string;
+  /** 字段名 */
+  field_name: string;
+  /** 数据类型 */
+  field_type: string;
+  /** 是否时间字段 */
+  time_field: boolean;
+}
+
+/**
+ * ============================================
+ * 存储字段相关类型
+ * ============================================
+ */
+
+/**
+ * 存储信息接口返回数据
+ */
+export interface IStorageInfo {
+  /** 副本数 */
+  es_number_of_replicas: number;
+  /** 保留天数 */
+  es_retention: number;
+  /** 分片数 */
+  es_shards: number;
+  /** 切分大小 */
+  es_slice_size: number;
+  /** 存储集群 ID */
+  es_storage_cluster: number | string;
+}
 
 export type RumAppConfigTabType = GetEnumTypeTool<typeof RUM_APP_CONFIG_TAB_ENUM>;
