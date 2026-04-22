@@ -189,7 +189,11 @@ class BaseDocument(Document):
         actions = []
         for doc in documents:
             actions.append(doc.prepare_action(action))
-        params = dict(actions=actions, request_timeout=cls.ES_REQUEST_TIMEOUT, **kwargs)
+        # refresh 必须放入 params 字典才能被 ES bulk API 识别，
+        # 直接作为顶层 kwarg 传入会被 client.bulk() 忽略
+        refresh = kwargs.pop("refresh", False)
+        es_params = {"refresh": "true"} if refresh else {}
+        params = dict(actions=actions, request_timeout=cls.ES_REQUEST_TIMEOUT, params=es_params, **kwargs)
         if parallel:
             return cls().parallel_bulk(**params)
         return cls().bulk(max_retries=cls.ES_BULK_MAX_RETRIES, **params)
