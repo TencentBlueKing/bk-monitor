@@ -55,7 +55,6 @@ from apm_web.constants import (
     nodata_error_strategy_config_mapping,
 )
 from apm_web.db.db_utils import build_filter_params, get_service_from_params
-from apm_web.handlers import metric_group
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
@@ -2444,6 +2443,10 @@ class QueryEndpointStatisticsResource(PageListResource):
         no_match_res = []
         for summary, items in summary_mappings.items():
             request_count = sum(i.get("doc_count", 0) for i in items)
+            if request_count <= 0:
+                # 不展示请求量为 0 的记录。
+                continue
+
             sum_duration = sum(i["sum_duration"]["value"] for i in items)
 
             (no_match_res, match_res)[summary[-1]].append(
@@ -2495,7 +2498,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                 )
                 is_component = True
             else:
-                uri_queryset.filter(service_name=service_name)
+                uri_queryset = uri_queryset.filter(service_name=service_name)
                 if ServiceHandler.is_remote_service_by_node(node):
                     filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
@@ -3196,5 +3199,3 @@ class SimpleServiceList(Resource):
             }
             for service in services
         ]
-
-

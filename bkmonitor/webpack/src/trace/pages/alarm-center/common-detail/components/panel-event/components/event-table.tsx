@@ -44,6 +44,22 @@ import { useI18n } from 'vue-i18n';
 import EventTableExpandContent from './event-table-expand-content';
 import { DimensionsTypeEnum, eventChartMap, SourceTypeEnum } from './typing';
 
+// #if IS_APM_MONITOR
+import hostSvgUrl from '../../../../../../../monitor-common/svg/svg/host.svg?url';
+import bcsSvgUrl from '../../../../../../../monitor-common/svg/svg/bcs.svg?url';
+import landunSvgUrl from '../../../../../../../monitor-common/svg/svg/landun.svg?url';
+import defaultSvgUrl from '../../../../../../../monitor-common/svg/svg/default.svg?url';
+
+const escapeForSingleQuotedString = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+const SourceIconSvgMap = {
+  [SourceTypeEnum.BCS]: escapeForSingleQuotedString(bcsSvgUrl),
+  [SourceTypeEnum.BKCI]: escapeForSingleQuotedString(landunSvgUrl),
+  [SourceTypeEnum.HOST]: escapeForSingleQuotedString(hostSvgUrl),
+  [SourceTypeEnum.DEFAULT]: escapeForSingleQuotedString(defaultSvgUrl),
+};
+// #endif
+
 import './event-table.scss';
 
 export const tableColumnKey = {
@@ -125,7 +141,18 @@ export default defineComponent({
           return (
             <span class='source-item'>
               {SourceIconMap[SourceTypeEnum.BCS] ? (
-                <span class={`source-icon icon-monitor ${SourceIconMap[value]}`} />
+                window.source_app !== 'apm' ? (
+                  <span class={`source-icon icon-monitor ${SourceIconMap[value]}`} />
+                ) : (
+                  <span
+                    style={{
+                      backgroundImage: SourceIconSvgMap[item.value]
+                        ? `url('${SourceIconSvgMap[item.value]}')`
+                        : undefined,
+                    }}
+                    class={`source-icon icon-monitor ${SourceIconMap[value]}`}
+                  />
+                )
               ) : undefined}
               <span
                 class='common-table-ellipsis'
@@ -265,8 +292,13 @@ export default defineComponent({
       return <EventTableExpandContent data={row} />;
     });
     const sort = shallowRef<SortInfo>(null);
-    const isAllSourceType = shallowRef(false);
-    const sourceType = shallowRef([]);
+    const isAllSourceType = shallowRef(true);
+    const sourceType = shallowRef([
+      SourceTypeEnum.BCS,
+      SourceTypeEnum.BKCI,
+      SourceTypeEnum.HOST,
+      SourceTypeEnum.DEFAULT,
+    ]);
     const sourceTypeOptions = shallowRef([
       {
         label: window.i18n.t('全部'),
@@ -461,7 +493,33 @@ export default defineComponent({
                       label={item.value}
                     >
                       <span class='source-item'>
-                        {item.icon ? <span class={`source-icon icon-monitor ${item.icon}`} /> : undefined}
+                        {item.icon ? (
+                          window.source_app !== 'apm' ? (
+                            <span class={`source-icon icon-monitor ${item.icon}`} />
+                          ) : (
+                            <span
+                              style={{
+                                backgroundImage: SourceIconSvgMap[item.value]
+                                  ? `url('${SourceIconSvgMap[item.value]}')`
+                                  : undefined,
+                              }}
+                              class={`source-icon icon-monitor ${item.icon}`}
+                            />
+                          )
+                        ) : undefined}
+                        {/* { window.source_app !== 'apm' 
+                          ? item.icon ? <span class={`source-icon icon-monitor ${item.icon}`} /> : undefined 
+                          : item.icon ? (
+                              <span 
+                                class={`source-icon icon-monitor ${item.icon}`}
+                                style={{ 
+                                    backgroundImage: SourceIconSvgMap[item.value]
+                                    ? `url('${SourceIconSvgMap[item.value]}')`
+                                    : undefined
+                                }}
+                              />
+                            ) : undefined
+                        } */}
                         <span>{item.label}</span>
                         <span>&nbsp;({item.count})</span>
                       </span>

@@ -67,6 +67,20 @@ DEFAULT_KAFKA_CLUSTER_NAMES = {
 DEFAULT_ES_CLUSTER_NAMES = {"log": "log-es-public-1", "event": "event-es-public-1"}
 
 
+def _get_plugin_data_label(plugin: CollectorPluginMeta) -> str | None:
+    qcloud_exporter_plugin_id = getattr(settings, "TENCENT_CLOUD_METRIC_PLUGIN_ID", "")
+    if not qcloud_exporter_plugin_id:
+        return None
+
+    if plugin.plugin_type != CollectorPluginMeta.PluginType.K8S:
+        return None
+
+    if plugin.plugin_id in [qcloud_exporter_plugin_id, f"{qcloud_exporter_plugin_id}_{plugin.bk_biz_id}"]:
+        return qcloud_exporter_plugin_id
+
+    return None
+
+
 def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
     """重建内置系统数据
 
@@ -282,7 +296,9 @@ def rebuild_collect_plugins(
                 result_table = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=dsrts.get().table_id)
                 result_table.modify(operator="system", is_enable=True)
             else:
-                accessor = PluginDataAccessor(plugin.current_version, operator="system")
+                accessor = PluginDataAccessor(
+                    plugin.current_version, operator="system", data_label=_get_plugin_data_label(plugin)
+                )
                 accessor.access()
 
     # 启用采集配置

@@ -5,7 +5,9 @@
       align-items: center;
       height: 100%;
 
-      .title-desc {
+      .title-description {
+        color: #63656e; /// apm下此处样式受到污染，此处手动设置颜色覆盖
+
         .count {
           color: #E71818;
         }

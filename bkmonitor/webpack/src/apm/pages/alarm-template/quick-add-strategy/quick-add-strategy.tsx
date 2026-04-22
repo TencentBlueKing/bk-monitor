@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Ref, Watch, InjectReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -46,6 +46,7 @@ import type {
   UserGroupItem,
 } from '../components/template-form/typing';
 import type { IAlarmGroupList, ITempLateItem } from './typing';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './quick-add-strategy.scss';
@@ -65,6 +66,9 @@ class QuickAddStrategy extends Mixins(
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
   @Ref('templateForm') templateFormRef: TemplateForm;
+
+  // 图表特殊参数
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
   loading = false;
   templateList: ITempLateItem[] = [];
@@ -381,7 +385,7 @@ class QuickAddStrategy extends Mixins(
    */
   async getTemplateList() {
     this.templateListLoading = true;
-    const data = await searchStrategyTemplate({
+    const params = {
       app_name: this.params?.app_name,
       conditions: [
         {
@@ -390,7 +394,13 @@ class QuickAddStrategy extends Mixins(
         },
       ],
       simple: true,
-    }).catch(() => ({ list: [] }));
+    };
+    if (window.APM_QUERY_STRING && this.$route.query.dashboardId === 'service-default-alarm_center') {
+      Object.assign(params, {
+        service_name: this.viewOptions.filters?.service_name,
+      });
+    }
+    const data = await searchStrategyTemplate(params).catch(() => ({ list: [] }));
     const templateList = await this.checkTemplateList(
       (data?.list || []).map(item => {
         const system = item.system;
