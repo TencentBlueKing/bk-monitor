@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="profiledatasource",
-            name="v4_resource_names",
-            field=models.JSONField(default=None, null=True, verbose_name="V4链路资源名称"),
+            name="bkdata_datalink_config",
+            field=models.JSONField(default=None, null=True, verbose_name="BkData链路配置"),
         ),
     ]

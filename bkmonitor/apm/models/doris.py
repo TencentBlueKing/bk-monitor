@@ -591,7 +591,7 @@ class BkDataDorisV4Provider:
 
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
     _obj: Optional["ApmDataSourceConfigBase"] = None
-    # 已存储的资源名称（从 v4_resource_names 读取，用于 apply/delete）
+    # 已存储的资源名称（从 bkdata_datalink_config.v4_resource_names 读取，用于 apply/delete）
     _stored_data_id_name: str | None = None
     _stored_resource_name: str | None = None
 
@@ -605,7 +605,7 @@ class BkDataDorisV4Provider:
         skip_datalink_biz_lookup: bool = False,
     ) -> "BkDataDorisV4Provider":
         """从 ProfileDataSource 实例构造 V4 Provider"""
-        stored = obj.v4_resource_names or {}
+        stored = (obj.bkdata_datalink_config or {}).get("v4_resource_names", {})
 
         if skip_datalink_biz_lookup:
             data_biz_id = 0
@@ -641,7 +641,7 @@ class BkDataDorisV4Provider:
         return self._stored_resource_name or compose_profile_resource_name(self.app_name, bk_data_id)
 
     def get_resource_names(self, bk_data_id: int = 0) -> dict:
-        """获取当前资源名称，用于持久化到 v4_resource_names"""
+        """获取当前资源名称，用于持久化到 bkdata_datalink_config.v4_resource_names"""
         return {
             "data_id_name": self._data_id_name(),
             "resource_name": self._resource_name(bk_data_id),
@@ -1007,7 +1007,7 @@ class BkDataDorisV4Provider:
     def apply(self):
         """
         DataId 和 ResultTable 在 delete 时不会被删除，启动时只需重新 apply DorisBinding 和 Databus。
-        使用 v4_resource_names 中存储的资源名称。
+        使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
         if not self._stored_resource_name:
             raise ValueError("[ProfileDatasource] cannot apply V4 data link without stored resource names")
@@ -1035,7 +1035,7 @@ class BkDataDorisV4Provider:
         """
         删除 V4 链路资源，等价于停止。
         按创建的逆序删除：Databus → DorisBinding（DataId 和 ResultTable 不删）。
-        使用 v4_resource_names 中存储的资源名称。
+        使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
         """
         resource_name = self._stored_resource_name
         if not resource_name:
