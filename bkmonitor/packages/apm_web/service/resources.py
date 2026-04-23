@@ -26,10 +26,12 @@ from api.cmdb.define import Business
 
 from apm_web.constants import (
     SyncScope,
+    APM_CODE_REMARK_CONFIG_KEY,
     CategoryEnum,
     CMDBCategoryIconMap,
     ServiceDetailReqTypeChoices,
     ServiceRelationLogTypeChoices,
+    TRPC_DEFAULT_CODE_REMARK,
 )
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
@@ -917,54 +919,114 @@ class GetCodeRemarksResource(Resource):
     """
     获取返回码备注
 
-    维度：业务 + 应用 + 服务 + 调用类型(kind)
-    存储：ApmMetaConfig ，config_key 随 kind 变化
+    存储：ApmMetaConfig 应用级配置，统一使用 APM_CODE_REMARK_CONFIG_KEY
+    行为：
+      - 不传 service_name（应用配置场景）：直接返回备注列表
+      - 传 service_name（服务配置场景）：按 kind + service_name 过滤全局/服务级备注，返回 code → remark 字典
     """
 
-    RequestSerializer = BaseCodeRedefinedRequestSerializer
+    class RequestSerializer(BaseCodeRedefinedRequestSerializer):
+        service_name = serializers.CharField(label=_("本服务"), allow_null=True, default=None)
+        kind = serializers.ChoiceField(
+            label=_("角色"), choices=[("caller", "caller"), ("callee", "callee")], required=False
+        )
 
-    CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
-
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
-        service_name: str = validated_request_data["service_name"]
-        kind: str = validated_request_data["kind"]
+        service_name: str | None = validated_request_data["service_name"]
+        kind: str | None = validated_request_data.get("kind")
 
-        config_key = self.CONFIG_KEY_MAP.get(kind)
-        if not config_key:
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise serializers.ValidationError(_("应用不存在"))
+
+        config_obj = ApmMetaConfig.get_application_config_value(app.application_id, APM_CODE_REMARK_CONFIG_KEY)
+        if not config_obj:
             return {}
 
-        instance = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, config_key)
-        return instance.config_value if instance else {}
+        # 应用配置场景直接返回用户显式配置的备注
+        remark_configs: list[dict[str, Any]] = config_obj.get("remarks", [])
+        if not service_name:
+            return remark_configs
+
+        global_remark_configs: list[dict[str, Any]] = []
+        service_remark_configs: list[dict[str, Any]] = []
+        for remark_dict in remark_configs:
+            if remark_dict.get("is_global"):
+                global_remark_configs.append(remark_dict)
+            else:
+                service_remark_configs.append(remark_dict)
+
+        # 服务配置场景依旧返回字典数据结构
+        service_config: dict[str, str] = {**TRPC_DEFAULT_CODE_REMARK}
+        for remark_dict in global_remark_configs:
+            if remark_dict.get("kind") != kind:
+                continue
+            service_config[remark_dict.get("code", "")] = remark_dict.get("remark", "")
+        for remark_dict in service_remark_configs:
+            if remark_dict.get("kind") != kind or service_name not in remark_dict.get("service_names", []):
+                continue
+            service_config[remark_dict.get("code", "")] = remark_dict.get("remark", "")
+
+        return service_config
 
 
 class SetCodeRemarkResource(Resource):
     RequestSerializer = SetCodeRemarkRequestSerializer
 
-    CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
+    @classmethod
+    def merge_remark_configs(cls, remark_configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """合并状态码备注配置
+
+        以 (is_global, kind, code, remark) 四元组作为唯一键，将键相同的多条配置项的
+        service_names 合并为一个集合以实现去重，最终再转回 list 以保证序列化输出类型一致。
+
+        单条配置项示例：
+            {
+                "kind": "caller",           # 调用方向：caller / callee
+                "code": "12",               # 状态码
+                "remark": "下游服务无对应接口实现",  # 状态码备注
+                "is_global": True,          # 是否为全局配置
+                "service_names": [],        # 生效的服务名列表
+            }
+
+        :param remark_configs: 待合并的状态码备注配置列表
+        :return: 按四元组去重合并后的配置列表
+        """
+
+        merged: dict[tuple[bool, str, str, str], dict[str, Any]] = {}
+        for item in remark_configs:
+            key = (item["is_global"], item["kind"], item["code"], item["remark"])
+            if key in merged:
+                merged[key]["service_names"].update(item["service_names"])
+            else:
+                merged[key] = {**item, "service_names": set(item["service_names"])}
+        # 将 service_names 转回 list，保证序列化输出类型一致
+        return [{**item, "service_names": list(item["service_names"])} for item in merged.values()]
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
-        service_name: str = validated_request_data["service_name"]
-        kind: str = validated_request_data["kind"]
-        code: str = str(validated_request_data["code"]).strip()
+        service_name: str | None = validated_request_data["service_name"]
+        kind: str | None = validated_request_data.get("kind")
+        code: str = str(validated_request_data.get("code", "")).strip()
         remark: str = str(validated_request_data.get("remark", "")).strip()
 
-        config_key = self.CONFIG_KEY_MAP.get(kind)
-        if not config_key:
-            return {}
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise serializers.ValidationError(_("应用不存在"))
 
-        exists = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, config_key)
-        data = (exists.config_value if exists else {}) or {}
-
-        # 设置/覆盖/删除（空串即删除该码的备注）
-        if remark:
-            data[code] = remark
+        if service_name:
+            config_obj = ApmMetaConfig.get_application_config_value(app.application_id, APM_CODE_REMARK_CONFIG_KEY)
+            remark_configs: list[dict[str, Any]] = config_obj.config_value.get("remarks", []) if config_obj else []
+            remark_configs.append(
+                {"kind": kind, "code": code, "remark": remark, "is_global": True, "service_names": [service_name]}
+            )
         else:
-            if code in data:
-                del data[code]
-
-        ApmMetaConfig.service_config_setup(bk_biz_id, app_name, service_name, config_key, data)
+            remark_configs: list[dict[str, Any]] = validated_request_data["remarks"]
+        remark_configs = self.merge_remark_configs(remark_configs)
+        ApmMetaConfig.application_config_setup(
+            app.application_id, APM_CODE_REMARK_CONFIG_KEY, {"remarks": remark_configs}
+        )
         return {}
