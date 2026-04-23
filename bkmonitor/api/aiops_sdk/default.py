@@ -166,3 +166,14 @@ class AcdGroupPredictResource(AcdSdkResource, SdkGroupPredictResource):
     """离群检测SDK执行分组预测."""
 
     pass
+
+
+class AlertDenoiseSdkResource(SdkResource):
+    # 告警降噪远程访问地址
+    base_url = "http://bk-aiops-serving-alertdenoise:8000"
+
+
+class AlertDenoisePredictResource(AlertDenoiseSdkResource, SdkPredictResource):
+    """告警降噪SDK执行时序预测逻辑."""
+
+    pass

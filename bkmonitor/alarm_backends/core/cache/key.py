@@ -502,6 +502,16 @@ SERVICE_LOCK_PREPARATION = register_key_with_config(
     }
 )
 
+SERVICE_LOCK_INCIDENT_ALERT = register_key_with_config(
+    {
+        "label": "[incident]拉取待处理告警",
+        "key_type": "string",
+        "key_tpl": "incident.lock.alert",
+        "ttl": CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
 ACCESS_END_TIME_KEY = register_key_with_config(
     {
         "label": "[access]数据拉取的结束时间",
@@ -914,6 +924,26 @@ NOISE_REDUCE_OPERATE_LOCK_KEY = register_key_with_config(
         "key_type": "string",
         "key_tpl": "access.noise_reduce.operate.lock.{strategy_id}.{noise_dimension_hash}",
         "ttl": settings.NOISE_REDUCE_TIMEDELTA * CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
+ALERT_DENOISE_BIZ_QUEUE = register_key_with_config(
+    {
+        "label": "[action]业务{bk_biz_id}降噪告警列表",
+        "key_type": "list",
+        "key_tpl": "action.denoise.alerts.{bk_biz_id}",
+        "ttl": CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
+ALERT_DENOISE_BIZ_LOCK_KEY = register_key_with_config(
+    {
+        "label": "[action]业务{bk_biz_id}降噪执行锁",
+        "key_type": "string",
+        "key_tpl": "action.denoise.lock.{bk_biz_id}",
+        "ttl": CONST_MINUTES * 10,
         "backend": "service",
     }
 )
