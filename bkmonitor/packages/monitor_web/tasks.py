@@ -1419,7 +1419,7 @@ _DEFAULT_BKREPO_CLEAN_EXPIRE_HOURS = 24
 #     例如 :func:`bkmonitor.models.report.get_render_image_upload_path`
 #     生成的 ``render/image/<type>/<YYYYMMDDHH>/<filename>`` 路径。
 #   - time_dir_unit: 时间目录名对应的时间粒度，用于计算目录代表时段的结束时刻,
-#     取值为 ``arrow.Arrow.shift`` 支持的关键字（``hours``/``days``/``minutes`` 等），
+#     取值为 ``datetime.timedelta`` 支持的关键字（``hours``/``days``/``minutes`` 等），
 #     缺省为 ``hours``。仅在配置了 ``time_dir_format`` 时生效。
 _BKREPO_CLEAN_CONFIGS: list[dict[str, Any]] = [
     {"path": "as_code/export/", "expire_hours": 24},
@@ -1471,6 +1471,9 @@ def _clean_bkrepo_expired_files(client, path: str, filenames: set[str], expire_s
     :param filenames: 目录下的文件名集合。
     :param expire_seconds: 过期时长（秒），超过该时长的文件将被删除。
     """
+    # 统计各类结果，便于在任务结束时汇总打印，快速判断清理是否生效。
+    stats = {"deleted": 0, "not_expired": 0, "no_last_modified": 0, "parse_failed": 0, "request_failed": 0}
+
     for filename in filenames:
         filepath = f"{path}{filename}"
         last_modified = None
@@ -1478,20 +1481,46 @@ def _clean_bkrepo_expired_files(client, path: str, filenames: set[str], expire_s
             meta = client.get_file_metadata(filepath)
             last_modified = meta.get("Last-Modified")
             if not last_modified:
+                stats["no_last_modified"] += 1
+                logger.debug("skip bkrepo file without Last-Modified: %s", filepath)
                 continue
             last_modified = last_modified.split(",")[-1].strip()
             last_modified = arrow.get(last_modified, "DD MMM YYYY HH:mm:ss")
-            if (arrow.now() - last_modified).total_seconds() < expire_seconds:
+            age_seconds = (arrow.now() - last_modified).total_seconds()
+            if age_seconds < expire_seconds:
+                stats["not_expired"] += 1
+                logger.debug(
+                    "skip bkrepo not-yet-expired file: %s, last_modified: %s, age: %.0fs, remaining to expire: %.0fs",
+                    filepath,
+                    last_modified,
+                    age_seconds,
+                    expire_seconds - age_seconds,
+                )
                 continue
             client.delete_file(filepath)
+            stats["deleted"] += 1
+            logger.info(
+                "deleted bkrepo expired file: %s, last_modified: %s, age: %.0fs",
+                filepath,
+                last_modified,
+                age_seconds,
+            )
         except ParserError:
+            stats["parse_failed"] += 1
             logger.error(
                 "Failed to parse last modified time, filepath: %s, last_modified: %s",
                 filepath,
                 last_modified,
             )
         except RequestError:
-            pass
+            stats["request_failed"] += 1
+
+    logger.info(
+        "finished cleaning bkrepo files, path: %s, total: %s, stats: %s",
+        path,
+        len(filenames),
+        stats,
+    )
 
 
 def _clean_bkrepo_expired_time_dirs(
@@ -1520,10 +1549,27 @@ def _clean_bkrepo_expired_time_dirs(
     :param subdirs: ``path`` 下的一级子目录名列表。
     :param expire_hours: 时间目录过期时长（小时）。
     :param time_dir_format: 时间目录名对应的 arrow 格式字符串。
-    :param time_dir_unit: 时间目录代表的时间粒度，arrow ``shift`` 关键字，
+    :param time_dir_unit: 时间目录代表的时间粒度，``datetime.timedelta`` 支持的关键字，
         如 ``hours``/``days``/``minutes``。
     """
-    expire_threshold = arrow.utcnow().shift(hours=-expire_hours)
+    # 使用 ``datetime.timedelta`` 做偏移而非 ``arrow.Arrow.shift``：
+    # 后者在 arrow < 0.7 中不存在（当前 uv.lock 锁定的是 arrow 0.6.0），
+    # 而 ``arrow.Arrow`` 原生支持与 ``timedelta`` 的加减运算，跨版本表现一致。
+    now = arrow.utcnow()
+    expire_threshold = now - datetime.timedelta(hours=expire_hours)
+    logger.info(
+        "checking bkrepo time dirs, path: %s, subdir count: %s, expire_hours: %s, "
+        "time_dir_format: %s, time_dir_unit: %s, now: %s, expire_threshold: %s",
+        path,
+        len(subdirs),
+        expire_hours,
+        time_dir_format,
+        time_dir_unit,
+        now,
+        expire_threshold,
+    )
+
+    stats = {"deleted": 0, "not_expired": 0, "unparseable": 0, "invalid_unit": 0, "delete_failed": 0}
     for subdir in subdirs:
         dir_name = subdir.strip("/")
         if not dir_name:
@@ -1533,29 +1579,58 @@ def _clean_bkrepo_expired_time_dirs(
             # 目录名由 UTC 时间格式化生成，解析时需显式指定 UTC，避免按本地时区解释。
             dir_time = arrow.get(dir_name, time_dir_format, tzinfo="UTC")
         except (ParserError, ValueError):
+            stats["unparseable"] += 1
+            # 非时间目录（按 time_dir_format 解析失败）数量可能较多，
+            # 仅在 debug 级别逐个打印，避免刷屏；结束时通过 stats 汇总数量。
+            logger.debug(
+                "skip bkrepo non-time dir: %s (cannot parse as %s)",
+                subdir_path,
+                time_dir_format,
+            )
             continue
 
         try:
-            dir_end_time = dir_time.shift(**{time_dir_unit: 1})
+            dir_end_time = dir_time + datetime.timedelta(**{time_dir_unit: 1})
         except (TypeError, ValueError):
+            stats["invalid_unit"] += 1
             logger.error("invalid time_dir_unit: %s, path: %s", time_dir_unit, subdir_path)
             continue
 
         # 只有目录代表时段的结束时刻已早于过期阈值，才删除，
         # 避免把仍处于当前时段、刚写入的文件误删。
         if dir_end_time > expire_threshold:
+            stats["not_expired"] += 1
+            # 还差多久能过期：目录结束时刻与过期阈值的差值。
+            remaining = dir_end_time - expire_threshold
+            logger.info(
+                "skip bkrepo not-yet-expired time dir: %s, dir_range: [%s, %s), "
+                "expire_threshold: %s, remaining to expire: %s",
+                subdir_path,
+                dir_time,
+                dir_end_time,
+                expire_threshold,
+                remaining,
+            )
             continue
 
+        # 已过期：打印已超出过期阈值多久，便于核对是否符合预期。
+        overdue = expire_threshold - dir_end_time
         logger.info(
-            "cleaning bkrepo expired time dir, path: %s, dir_range: [%s, %s)",
+            "cleaning bkrepo expired time dir, path: %s, dir_range: [%s, %s), expire_threshold: %s, overdue: %s",
             subdir_path,
             dir_time,
             dir_end_time,
+            expire_threshold,
+            overdue,
         )
         try:
             _delete_bkrepo_node(client, subdir_path)
+            stats["deleted"] += 1
         except (RequestError, RuntimeError):
+            stats["delete_failed"] += 1
             logger.exception("failed to delete bkrepo expired time dir: %s", subdir_path)
+
+    logger.info("finished cleaning bkrepo time dirs, path: %s, stats: %s", path, stats)
 
 
 def _clean_bkrepo_path(
@@ -1575,7 +1650,7 @@ def _clean_bkrepo_path(
     :param path: 待清理的目录，必须以 ``/`` 结尾。
     :param expire_hours: 过期时长（小时）。
     :param time_dir_format: 时间目录名对应的 arrow 格式字符串；为空则不处理子目录。
-    :param time_dir_unit: 时间目录代表的时间粒度（arrow ``shift`` 关键字），
+    :param time_dir_unit: 时间目录代表的时间粒度（``datetime.timedelta`` 关键字），
         仅在配置了 ``time_dir_format`` 时生效。
     """
     try:
