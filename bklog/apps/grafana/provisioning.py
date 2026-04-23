@@ -116,6 +116,7 @@ class CustomESDataSourceProvisioning(BaseProvisioning):
         - org_name: 项目project_id
         - org_id: grafana org对应的Id
         """
+        # 延迟导入：避免与 apps.log_search.utils 形成循环依赖
         from apps.grafana.data_source import CustomIndexSetESDataSource
 
         bk_biz_id = int(org_name)

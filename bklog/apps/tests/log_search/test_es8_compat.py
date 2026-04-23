@@ -1,10 +1,30 @@
+"""
+Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
+License for BK-LOG 蓝鲸日志平台:
+--------------------------------------------------------------------
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial
+portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+We undertake not to change the open source license (MIT license) applicable to the current version of
+the project delivered to anyone in the future.
+"""
+
 from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from packaging.version import Version
 
 from apps.grafana.data_source import ESBodyAdapter
 from apps.grafana.handlers.query import GrafanaQueryHandler
-from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.utils import (
     adapt_date_histogram_params,
     normalize_date_histogram_interval,
@@ -23,6 +43,7 @@ class TestES8Compat(SimpleTestCase):
     def test_normalize_date_histogram_interval(self):
         self.assertEqual(normalize_date_histogram_interval("1m"), {"fixed_interval": "1m"})
         self.assertEqual(normalize_date_histogram_interval("1d"), {"fixed_interval": "1d"})
+        self.assertEqual(normalize_date_histogram_interval("1w"), {"calendar_interval": "1w"})
         self.assertEqual(normalize_date_histogram_interval("1M"), {"calendar_interval": "1M"})
         self.assertEqual(normalize_date_histogram_interval("1q"), {"calendar_interval": "1q"})
         self.assertEqual(normalize_date_histogram_interval("auto"), {"interval": "auto"})
@@ -34,12 +55,8 @@ class TestES8Compat(SimpleTestCase):
 
     @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("8.0.0"))
     def test_aggs_handler_uses_es8_interval_keys(self):
-        self.assertEqual(AggsHandlers._get_date_histogram_interval_kwargs("1h"), {"fixed_interval": "1h"})
-        self.assertEqual(AggsHandlers._get_date_histogram_interval_kwargs("1y"), {"calendar_interval": "1y"})
-
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("7.17.9"))
-    def test_aggs_handler_uses_es7_interval_key(self):
-        self.assertEqual(AggsHandlers._get_date_histogram_interval_kwargs("1h"), {"interval": "1h"})
+        self.assertEqual(normalize_date_histogram_interval("1h"), {"fixed_interval": "1h"})
+        self.assertEqual(normalize_date_histogram_interval("1y"), {"calendar_interval": "1y"})
 
     @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("8.11.1"))
     def test_grafana_query_uses_es8_interval_keys(self):

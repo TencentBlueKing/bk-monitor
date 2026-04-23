@@ -71,10 +71,6 @@ class AggsHandlers(AggsBase):
     def __init__(self):
         pass
 
-    @staticmethod
-    def _get_date_histogram_interval_kwargs(interval: str) -> dict:
-        return normalize_date_histogram_interval(interval)
-
     @classmethod
     def terms(cls, index_set_id, query_data: dict):
         """
@@ -196,7 +192,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                **cls._get_date_histogram_interval_kwargs(interval),
+                **normalize_date_histogram_interval(interval),
                 format=time_format,
                 time_zone=time_zone,
                 min_doc_count=cls.MIN_DOC_COUNT,
@@ -213,7 +209,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                **cls._get_date_histogram_interval_kwargs(interval),
+                **normalize_date_histogram_interval(interval),
                 min_doc_count=cls.MIN_DOC_COUNT,
                 extended_bounds={"min": min_value, "max": max_value},
             )

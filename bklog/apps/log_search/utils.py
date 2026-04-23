@@ -35,9 +35,9 @@ from apps.log_search.exceptions import LogSearchException
 from apps.utils.local import get_request_external_username, get_request_username
 
 
-DATE_HISTOGRAM_INTERVAL_RE = re.compile(r"^(?P<count>\d+)(?P<unit>[smhdMqy])$")
+DATE_HISTOGRAM_INTERVAL_RE = re.compile(r"^(?P<count>\d+)(?P<unit>[smhdwMqy])$")
 FIXED_INTERVAL_UNITS = {"s", "m", "h", "d"}
-CALENDAR_INTERVAL_UNITS = {"M", "q", "y"}
+CALENDAR_INTERVAL_UNITS = {"w", "M", "q", "y"}
 ES8_DATE_HISTOGRAM_PARAM_VERSION = Version("8.0.0")
 
 
