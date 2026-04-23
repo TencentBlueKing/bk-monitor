@@ -179,6 +179,7 @@ COLLECTORS_LIST = {
                 "tags": [],
                 "is_nanos": False,
                 "enable_v4": False,
+                "storage_cluster_type": "elasticsearch",
             }
         ],
     },
