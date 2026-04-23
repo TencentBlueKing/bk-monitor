@@ -942,11 +942,9 @@ class GetCodeRemarksResource(Resource):
             raise serializers.ValidationError(_("应用不存在"))
 
         config_obj = ApmMetaConfig.get_application_config_value(app.application_id, APM_CODE_REMARK_CONFIG_KEY)
-        if not config_obj:
-            return {}
 
         # 应用配置场景直接返回用户显式配置的备注
-        remark_configs: list[dict[str, Any]] = config_obj.get("remarks", [])
+        remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
         if not service_name:
             return remark_configs
 
@@ -979,37 +977,58 @@ class SetCodeRemarkResource(Resource):
     def merge_remark_configs(cls, remark_configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """合并状态码备注配置
 
-        以 (is_global, kind, code, remark) 四元组作为唯一键，将键相同的多条配置项的
-        service_names 合并为一个集合以实现去重，最终再转回 list 以保证序列化输出类型一致。
-
-        单条配置项示例：
-            {
-                "kind": "caller",           # 调用方向：caller / callee
-                "code": "12",               # 状态码
-                "remark": "下游服务无对应接口实现",  # 状态码备注
-                "is_global": True,          # 是否为全局配置
-                "service_names": [],        # 生效的服务名列表
-            }
+        合并流程分为两步：
+            1. 先以 (service_name, kind, code) 三元组作为唯一键构建 remark_map，对同一服务、
+               同一 kind/code 的重复配置进行去重，后出现的 remark 会覆盖先出现的 remark；
+               其中全局配置（is_global=True）以空字符串作为 service_name 参与去重。
+            2. 再以 (is_global, kind, code, remark) 四元组作为唯一键构建 merged_map，将键
+               相同的多条配置项的 service_names 合并为一个集合以实现去重，最终再转回 list
+               以保证序列化输出类型一致；全局配置的 service_names 保持为空列表。
 
         :param remark_configs: 待合并的状态码备注配置列表
-        :return: 按四元组去重合并后的配置列表
+        :return: 先按 (service_name, kind, code) 去重覆盖、再按 (is_global, kind, code, remark)
+                 聚合 service_names 后的配置列表，单项结构为：
+                     {
+                         "kind": str,                # 调用方向：caller / callee
+                         "code": str,                # 状态码
+                         "remark": str,              # 状态码备注
+                         "is_global": bool,          # 是否为全局配置
+                         "service_names": list[str], # 生效的服务名列表；is_global=True 时为 []
+                     }
         """
+        remark_map: dict[tuple[str, str, str], str] = {}
+        for remark_dict in remark_configs:
+            service_names: list[str] = [""] if remark_dict.get("is_global") else remark_dict.get("service_names", [])
+            kind: str = remark_dict.get("kind", "")
+            code: str = remark_dict.get("code", "")
+            remark: str = remark_dict.get("remark", "")
+            for service_name in service_names:
+                remark_map[(service_name, kind, code)] = remark
 
-        merged: dict[tuple[bool, str, str, str], dict[str, Any]] = {}
-        for item in remark_configs:
-            key = (item["is_global"], item["kind"], item["code"], item["remark"])
-            if key in merged:
-                merged[key]["service_names"].update(item["service_names"])
+        merged_map: dict[tuple[bool, str, str, str], dict[str, Any]] = {}
+        for (service_name, kind, code), remark in remark_map.items():
+            # 传空备注会被过滤掉
+            if not (kind and code and remark):
+                continue
+            is_global: bool = service_name == ""
+            merged_key = (is_global, kind, code, remark)
+            if merged_key in merged_map:
+                merged_map[merged_key]["service_names"].add(service_name)
             else:
-                merged[key] = {**item, "service_names": set(item["service_names"])}
+                merged_map[merged_key] = {
+                    "kind": kind,
+                    "code": code,
+                    "remark": remark,
+                    "is_global": is_global,
+                    "service_names": set() if is_global else {service_name},
+                }
         # 将 service_names 转回 list，保证序列化输出类型一致
-        return [{**item, "service_names": list(item["service_names"])} for item in merged.values()]
+        return [{**item, "service_names": list(item["service_names"])} for item in merged_map.values()]
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str | None = validated_request_data["service_name"]
-        kind: str | None = validated_request_data.get("kind")
         code: str = str(validated_request_data.get("code", "")).strip()
         remark: str = str(validated_request_data.get("remark", "")).strip()
 
@@ -1019,9 +1038,15 @@ class SetCodeRemarkResource(Resource):
 
         if service_name:
             config_obj = ApmMetaConfig.get_application_config_value(app.application_id, APM_CODE_REMARK_CONFIG_KEY)
-            remark_configs: list[dict[str, Any]] = config_obj.config_value.get("remarks", []) if config_obj else []
+            remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
             remark_configs.append(
-                {"kind": kind, "code": code, "remark": remark, "is_global": True, "service_names": [service_name]}
+                {
+                    "kind": validated_request_data["kind"],
+                    "code": code,
+                    "remark": remark,
+                    "is_global": validated_request_data["is_global"],
+                    "service_names": [service_name],
+                }
             )
         else:
             remark_configs: list[dict[str, Any]] = validated_request_data["remarks"]

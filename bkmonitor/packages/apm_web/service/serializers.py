@@ -291,6 +291,7 @@ class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
     )
     code = serializers.CharField(label=_("返回码"), allow_blank=False, required=False)
     remark = serializers.CharField(label=_("备注"), required=False, allow_blank=True, default="")
+    is_global = serializers.BooleanField(label=_("是否全局生效"), default=False)
     remarks = serializers.ListField(label=_("备注列表"), child=CodeRemarkItemSerializer(), default=[])
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
