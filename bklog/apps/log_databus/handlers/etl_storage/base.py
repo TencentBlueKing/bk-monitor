@@ -38,7 +38,6 @@ from apps.log_databus.constants import (
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
     V4_RESERVED_FIELD_NAMES,
-    V4_RESERVED_MINUTE_PATTERN,
     EtlConfig,
     MetadataTypeEnum,
     MIN_FLATTENED_SUPPORT_VERSION,
@@ -135,15 +134,7 @@ class EtlStorage:
 
     @staticmethod
     def _is_v4_reserved_field(field_name: str) -> bool:
-        lower_name = field_name.lower()
-        if lower_name in V4_RESERVED_FIELD_NAMES:
-            return True
-        if (
-            lower_name.startswith(V4_RESERVED_MINUTE_PATTERN)
-            and lower_name[len(V4_RESERVED_MINUTE_PATTERN) :].isdigit()
-        ):
-            return True
-        return False
+        return field_name.lower() in V4_RESERVED_FIELD_NAMES
 
     @classmethod
     def _validate_v4_reserved_fields(cls, fields: list):
@@ -193,16 +184,18 @@ class EtlStorage:
 
         pattern = re.compile(path_regexp)
         for field_name in pattern.groupindex.keys():
-            rules.append({
-                "input_id": "bk_separator_object_path",
-                "output_id": field_name,
-                "operator": {
-                    "type": "assign",
-                    "key_index": field_name,
-                    "alias": field_name,
-                    "output_type": "string",
-                },
-            })
+            rules.append(
+                {
+                    "input_id": "bk_separator_object_path",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": field_name,
+                        "alias": field_name,
+                        "output_type": "string",
+                    },
+                }
+            )
         return rules
 
     @staticmethod
