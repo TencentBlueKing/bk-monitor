@@ -24,6 +24,29 @@
  * IN THE SOFTWARE.
  */
 
-export * from './constants';
-export * from './data-state';
-export * from './rum-app-config';
+.run-config-data-state {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  // 告警信息卡片
+  // 卡片样式由 AlertInfoCard 组件内部管理
+
+  // 数据量趋势图区域
+  &-chart {
+    min-height: 200px;
+    padding: 16px;
+    background-color: #fff;
+    border: 1px solid #eaebf0;
+    border-radius: 2px;
+  }
+
+  // 数据表区域
+  &-table {
+    min-height: 200px;
+    padding: 16px;
+    background-color: #fff;
+    border: 1px solid #eaebf0;
+    border-radius: 2px;
+  }
+}

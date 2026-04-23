@@ -33,6 +33,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { RUM_APP_CONFIG_TAB_ENUM, RUM_APP_CONFIG_TAB_MAP } from '../constants';
 import AppBasicInfo from './components/app-basic-info';
 import BasicConfig from './components/basic-config';
+import DataState from './components/data-state/data-state';
 import StorageStatus from './components/storage-status';
 import { getRumAppConfigMock } from './mock';
 import NavBar from '@/components/nav-bar/nav-bar';
@@ -101,7 +102,7 @@ export default defineComponent({
             />
           );
         case RUM_APP_CONFIG_TAB_ENUM.DATA_STATUS:
-          return undefined;
+          return <DataState detail={appInfo.value} />;
       }
     };
 

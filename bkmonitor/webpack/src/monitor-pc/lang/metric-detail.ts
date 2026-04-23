@@ -76,6 +76,7 @@ export default {
   勾选项: 'Check Option',
   自定义指标管理: 'Custom Metric Management',
   '确认关闭？': 'Confirm Closure?',
+  '确认开启？': 'Confirm Enable?',
   自动发现新增指标: 'Auto-Discover New Metrics',
   关联维度: 'Associated Dimensions',
   上报周期: 'Reporting Cycle',
