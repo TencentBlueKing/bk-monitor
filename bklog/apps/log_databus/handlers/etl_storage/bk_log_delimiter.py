@@ -240,9 +240,8 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             }
         ])
 
-        # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
-        iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
-        rules.extend(iteration_index_rules)
+        # 4.1. 提取 flat_field=True 的内置字段（从iter_item提取）
+        rules.extend(self._build_flat_built_in_fields_v4(built_in_config))
 
         # 5. 分隔符切分
         rules.append({

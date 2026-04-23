@@ -32,24 +32,104 @@ import { type TableColumnItem, AlarmType, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { BkUiSettings } from '@blueking/tdesign-ui';
+
 /** 业务名称/空间名称 字段 */
 const BK_BIZ_NAME_FIELD = 'bk_biz_name';
+
+/** 表格列配置存储版本号 */
+const TABLE_STORAGE_VERSION = '1.0.0';
+
+/** 表格列配置存储结构 */
+export interface AlarmTableStorageConfig {
+  /** 显示列字段列表 */
+  displayFields: string[];
+  /** 列宽映射，key 为 colKey，value 为像素宽度 */
+  fieldsWidth: Record<string, number>;
+  /** 配置版本号，用于清除过期缓存 */
+  version?: string;
+}
+
 export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
-  const defaultTableFields = shallowRef<string[]>([]);
   const storageKey = shallowRef<string>('');
+
+  /** 默认列配置（响应式），随 alarmService 变化动态更新 */
+  const defaultTableStorageConfig = shallowRef<AlarmTableStorageConfig>({
+    displayFields: [],
+    fieldsWidth: {},
+    version: TABLE_STORAGE_VERSION,
+  });
+
+  /** 当前有效的列 colKey 集合，随 alarmService 变化更新 */
+  let validColumnKeys = new Set<string>();
+
   watch(
     () => alarmStore.alarmService.storageKey,
     val => {
       storageKey.value = val;
-      defaultTableFields.value = alarmStore.alarmService.allTableColumns
-        .filter(item => item.is_default)
-        .map(item => item.colKey);
+      validColumnKeys = new Set(alarmStore.alarmService.allTableColumns.map(col => col.colKey));
+      defaultTableStorageConfig.value = {
+        displayFields: alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey),
+        fieldsWidth: {},
+        version: TABLE_STORAGE_VERSION,
+      };
     },
     { immediate: true }
   );
 
-  const storageColumns = useStorage<string[]>(storageKey, defaultTableFields);
+  /** 缓存配置对象（原始值，可能为旧版 string[] 或新版 AlarmTableStorageConfig） */
+  const rawStorageConfig = useStorage<Partial<AlarmTableStorageConfig>>(storageKey, defaultTableStorageConfig);
+
+  /** 规范化后的缓存配置（始终为 AlarmTableStorageConfig，兼容旧版 string[] 格式） */
+  const tableStorageConfig = computed<AlarmTableStorageConfig>({
+    get: () => {
+      const raw = rawStorageConfig.value;
+      const defaultFields = defaultTableStorageConfig.value.displayFields;
+      // 旧版格式：string[]（纯数组）→ 自动迁移为新版结构
+      if (Array.isArray(raw)) {
+        return { displayFields: raw, fieldsWidth: {}, version: TABLE_STORAGE_VERSION };
+      }
+      // 统一返回逻辑：版本不匹配时清空列宽缓存
+      const isVersionValid = raw?.version === TABLE_STORAGE_VERSION;
+      return {
+        displayFields: Array.isArray(raw?.displayFields) ? raw.displayFields : defaultFields,
+        fieldsWidth: isVersionValid ? (raw.fieldsWidth ?? {}) : {},
+        version: TABLE_STORAGE_VERSION,
+      };
+    },
+    set: (val: AlarmTableStorageConfig) => {
+      rawStorageConfig.value = val;
+    },
+  });
+
+  /** 显示列列表（从统一存储结构中读取 displayFields） */
+  const storageColumns = computed<string[]>({
+    get: () => {
+      const stored = tableStorageConfig.value?.displayFields;
+      const defaults = defaultTableStorageConfig.value.displayFields;
+      return stored?.length ? stored : defaults;
+    },
+    set: (val: string[]) => {
+      tableStorageConfig.value = {
+        ...tableStorageConfig.value,
+        displayFields: val,
+      };
+    },
+  });
+
+  /** 列宽配置（从统一存储结构中读取 fieldsWidth，过滤已不存在的列） */
+  const fieldsWidthConfig = computed<Record<string, number>>({
+    get: () => {
+      const stored = tableStorageConfig.value?.fieldsWidth ?? {};
+      return Object.fromEntries(Object.entries(stored).filter(([key]) => validColumnKeys.has(key)));
+    },
+    set: (val: Record<string, number>) => {
+      tableStorageConfig.value = {
+        ...tableStorageConfig.value,
+        fieldsWidth: { ...fieldsWidthConfig.value, ...val },
+      };
+    },
+  });
 
   /** 必须显示且不可编辑隐藏列 */
   const lockedTableFields = computed(() => {
@@ -60,6 +140,7 @@ export function useAlarmTableColumns() {
     return locked;
   });
   const tableColumns = computed<TableColumnItem[]>(() => {
+    const widths = fieldsWidthConfig.value;
     return allTableFields.value
       .map(({ field }) => {
         if (
@@ -70,8 +151,11 @@ export function useAlarmTableColumns() {
           return undefined;
         }
         const column = alarmStore.alarmService.allTableColumns.find(col => col.colKey === field);
+        if (!column) return undefined;
+        const cachedWidth = widths[field];
         return {
           ...column,
+          ...(cachedWidth ? { width: cachedWidth } : {}),
         };
       })
       .filter(Boolean);
@@ -90,6 +174,7 @@ export function useAlarmTableColumns() {
   });
   return {
     storageColumns,
+    fieldsWidthConfig,
     tableColumns,
     allTableFields,
     lockedTableFields,

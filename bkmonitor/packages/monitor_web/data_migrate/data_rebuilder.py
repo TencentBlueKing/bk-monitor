@@ -32,7 +32,6 @@ from metadata.models import (
     TimeSeriesGroup,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.data_link import DataIdConfig
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.models.space.constants import EtlConfigs
@@ -68,6 +67,20 @@ DEFAULT_KAFKA_CLUSTER_NAMES = {
 DEFAULT_ES_CLUSTER_NAMES = {"log": "log-es-public-1", "event": "event-es-public-1"}
 
 
+def _get_plugin_data_label(plugin: CollectorPluginMeta) -> str | None:
+    qcloud_exporter_plugin_id = getattr(settings, "TENCENT_CLOUD_METRIC_PLUGIN_ID", "")
+    if not qcloud_exporter_plugin_id:
+        return None
+
+    if plugin.plugin_type != CollectorPluginMeta.PluginType.K8S:
+        return None
+
+    if plugin.plugin_id in [qcloud_exporter_plugin_id, f"{qcloud_exporter_plugin_id}_{plugin.bk_biz_id}"]:
+        return qcloud_exporter_plugin_id
+
+    return None
+
+
 def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
     """重建内置系统数据
 
@@ -83,11 +96,6 @@ def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
 
 def _register_data_source(bk_biz_id: int, data_source: DataSource, need_register_to_bkbase: bool = True):
     """注册数据源到gse和bkbase"""
-
-    # 如果已经创建过DataIdConfig，则跳过注册
-    if DataIdConfig.objects.filter(bk_tenant_id=data_source.bk_tenant_id, bk_data_id=data_source.bk_data_id).exists():
-        print(f"data_source {data_source.bk_data_id} already registered to bkbase, skip")
-        return
 
     # 查询当前存量的路由
     query_params = {
@@ -288,7 +296,9 @@ def rebuild_collect_plugins(
                 result_table = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=dsrts.get().table_id)
                 result_table.modify(operator="system", is_enable=True)
             else:
-                accessor = PluginDataAccessor(plugin.current_version, operator="system")
+                accessor = PluginDataAccessor(
+                    plugin.current_version, operator="system", data_label=_get_plugin_data_label(plugin)
+                )
                 accessor.access()
 
     # 启用采集配置
@@ -379,10 +389,7 @@ def rebuild_time_series_group(
     table_ids = list(time_series_groups.values_list("table_id", flat=True))
 
     # 排除已经创建过DataIdConfig的数据源
-    data_id_configs = DataIdConfig.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids)
-    data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids).exclude(
-        bk_data_id__in=data_id_configs.values_list("bk_data_id", flat=True)
-    )
+    data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids)
     data_sources.update(mq_cluster_id=kafka_cluster.cluster_id)
 
     for data_source in data_sources:
@@ -798,6 +805,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in custom_metric_ids
+            if data_id in data_id_to_topic_name
         },
         "custom_event": {
             data_id: {
@@ -806,6 +814,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in custom_event_ids
+            if data_id in data_id_to_topic_name
         },
         "k8s": {
             data_id: {
@@ -814,6 +823,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in k8s_ids
+            if data_id in data_id_to_topic_name
         },
         "apm": {
             data_id: {
@@ -822,6 +832,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in apm_ids
+            if data_id in data_id_to_topic_name
         },
         "log": {
             data_id: {
@@ -830,6 +841,7 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
                 "kafka_cluster_name": data_id_to_kafka_cluster_name[data_id],
             }
             for data_id in log_ids
+            if data_id in data_id_to_topic_name
         },
     }
 

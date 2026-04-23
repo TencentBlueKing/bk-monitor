@@ -154,6 +154,9 @@ class AIServiceControlMixin(serializers.Serializer):
     grey_to_bkfara = serializers.BooleanField(
         label="是否迁移到bkfara", required=False, default=False, help_text="是否使用新的bkfara服务，用于灰度发布控制"
     )
+    enable_week_compare = serializers.BooleanField(
+        label="是否开启周同比", required=False, default=False, help_text="是否开启周同比能力，开启后会要求 8 天历史依赖"
+    )
 
 
 class IntelligentDetectSerializer(AIServiceControlMixin, serializers.Serializer):

@@ -576,7 +576,8 @@ class PluginDataAccessor:
                     {
                         "time_series_group_id": group_list[0]["time_series_group_id"],
                         "enable_field_black_list": self.enable_field_blacklist,
-                        "options": {"enable_plugin_v4_data_link": True},
+                        # 更新插件不要开启插件V4链路，只有创建新插件才开启
+                        # "options": {"enable_plugin_v4_data_link": True},
                     }
                 )
 

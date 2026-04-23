@@ -230,6 +230,7 @@ class GetSceneViewResource(ApiAuthResource):
             label="服务类型具体值(APM场景变量)", required=False, allow_null=True
         )
         apm_span_id = serializers.CharField(label="SpanId(APM场景变量)", required=False, allow_null=True)
+        apm_trace_id = serializers.CharField(label="TraceId(APM场景变量)", required=False, allow_null=True)
         # ---
         # 主机信息场景变量
         bk_host_innerip = serializers.CharField(label="主机内网IP", required=False, allow_null=True)

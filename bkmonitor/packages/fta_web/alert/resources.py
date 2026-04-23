@@ -673,7 +673,10 @@ class AlertDetailResource(Resource):
         return result
 
     @staticmethod
-    def clean_graph_panel_where(graph_panel: dict) -> None:
+    def clean_graph_panel_where(graph_panel: dict | None) -> None:
+        if not graph_panel:
+            return
+
         for target in graph_panel.get("targets", []):
             for query_config in target.get("data", {}).get("query_configs", []):
                 query_config["where"] = clean_where_conditions(query_config.get("where", []))
@@ -2378,11 +2381,11 @@ class StrategySnapshotResource(Resource):
         changed_status = self.ConfigChangedStatus.UNCHANGED
         current_strategy = None
         try:
-            current_strategy = get_strategy(bk_biz_id=alert.bk_biz_id, strategy_id=strategy_config["id"])
+            current_strategy = get_strategy(bk_biz_id=alert.event.bk_biz_id, strategy_id=strategy_config["id"])
             is_enabled = current_strategy["is_enabled"]
             current_update_time = arrow.get(current_strategy["update_time"])
             strategy_update_time = arrow.get(strategy_config["update_time"])
-            if current_update_time.int_timestamp != strategy_update_time.int_timestamp:
+            if current_update_time.timestamp != strategy_update_time.timestamp:
                 changed_status = self.ConfigChangedStatus.UPDATED
         except StrategyNotExistError:
             changed_status = self.ConfigChangedStatus.DELETED

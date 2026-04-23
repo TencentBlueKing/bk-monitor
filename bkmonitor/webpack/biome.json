@@ -74,7 +74,10 @@
           "fix": "none",
           "level": "error"
         },
-        "noUnusedImports": "error",
+        "noUnusedImports": {
+          "level": "error",
+          "fix": "none"
+        },
         "noUnusedFunctionParameters": {
           "fix": "none",
           "level": "error"
