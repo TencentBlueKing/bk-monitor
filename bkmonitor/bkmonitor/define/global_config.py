@@ -234,6 +234,26 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
+        # APM 共享数据源匹配规则配置
+        # 按数据源类型（trace/log/…）分组，每个类型下 list 内的 group 为 OR 关系，单 group 内 rules 可通过 connector（AND/OR）组合
+        (
+            "APM_SHARED_DATASOURCE_RULES",
+            slz.DictField(
+                label="APM 共享数据源规则配置",
+                default={
+                    "trace": {
+                        "list": [
+                            {
+                                "connector": "OR",
+                                "rules": [
+                                    {"type": "SPACE_TYPE", "params": {"space_types": ["bksaas"]}},
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ),
+        ),
         # 表映射关系，用于在 UnifyQuery 数据检索时，路由到灰度表验证功能（比如 Doris 切换）。
         ("UNIFY_QUERY_TABLE_MAPPING_CONFIG", slz.DictField(label="UnifyQuery查询表映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
@@ -689,14 +709,6 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "APM_CUSTOM_METRIC_V2_ENABLED_LIST",
             slz.ListField(label=_("APM 自定义指标 V2 开启的应用白名单"), default=[]),
-        ),
-        # APM 共享数据源匹配规则配置，每条规则格式：{"type": 规则类型, "values": [匹配值, ...]}
-        (
-            "APM_SHARED_DATASOURCE_RULES",
-            slz.ListField(
-                label=_("APM 共享数据源规则配置"),
-                default=[{"type": "SPACE_TYPE", "values": ["bksaas"]}, {"type": "APP_NAME_PREFIX", "values": []}],
-            ),
         ),
     ]
 )

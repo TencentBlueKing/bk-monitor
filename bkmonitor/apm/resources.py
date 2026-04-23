@@ -151,7 +151,9 @@ class CreateApplicationResource(Resource):
         # 共享数据源类型：若请求未显式指定，则按 settings.APM_SHARED_DATASOURCE_RULES 配置的规则工厂进行匹配
         shared_datasource_types = validated_data.get(
             "shared_datasource_types",
-            SharedDatasourceRuleFactory.resolve(validated_data["bk_biz_id"], validated_data["app_name"]),
+            SharedDatasourceRuleFactory.list_shared_datasource_types(
+                validated_data["bk_biz_id"], validated_data["app_name"]
+            ),
         )
 
         return ApmApplication.create_application(
