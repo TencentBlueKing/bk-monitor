@@ -671,7 +671,7 @@ class NoticeWay:
         MAIL: _lazy("邮件"),
         WEIXIN: _lazy("微信"),
         QY_WEIXIN: _lazy("企业微信"),
-        VOICE: _lazy("电话"),
+        VOICE: _lazy("语音"),
         WX_BOT: _lazy("企业微信机器人"),
         BK_CHAT: _lazy("蓝鲸信息流"),
         "bkchat|wxwork-bot": _lazy("蓝鲸信息流(企业微信机器人)"),
