@@ -27,8 +27,6 @@ from blueapps.conf.default_settings import *  # noqa
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from packaging.version import InvalidVersion, Version
-
 from config.log import get_logging_config_dict
 
 # 使用k8s部署模式
@@ -903,12 +901,6 @@ ES_STORAGE_CAPACITY = os.environ.get("BKAPP_ES_STORAGE_CAPACITY", 0)
 
 # ES兼容：默认关闭，可以通过环境变量调整
 ES_COMPATIBILITY = int(os.environ.get("BKAPP_ES_COMPATIBILITY", 0))
-
-# date_histogram 参数格式版本，默认按 ES7 语义输出 interval
-try:
-    ES_DATE_HISTOGRAM_PARAM_VERSION = Version(os.getenv("BKAPP_ES_DATE_HISTOGRAM_PARAM_VERSION", "7.0.0"))
-except InvalidVersion:
-    ES_DATE_HISTOGRAM_PARAM_VERSION = Version("7.0.0")
 
 # scroll滚动查询：默认关闭，通过环境变量控制
 FEATURE_EXPORT_SCROLL = os.environ.get("BKAPP_FEATURE_EXPORT_SCROLL", False)

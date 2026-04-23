@@ -19,14 +19,16 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.conf import settings
-from django.test import SimpleTestCase, override_settings
+from unittest.mock import patch
+
+from django.test import SimpleTestCase
 from packaging.version import Version
 
 from apps.grafana.data_source import ESBodyAdapter
 from apps.grafana.handlers.query import GrafanaQueryHandler
 from apps.log_search.utils import (
     adapt_date_histogram_params,
+    get_es_date_histogram_param_version,
     normalize_date_histogram_interval,
     parse_es_date_histogram_param_version,
 )
@@ -37,54 +39,61 @@ class TestES8Compat(SimpleTestCase):
         self.assertEqual(parse_es_date_histogram_param_version("7.0.0"), Version("7.0.0"))
         self.assertEqual(parse_es_date_histogram_param_version("7.17.9"), Version("7.17.9"))
         self.assertEqual(parse_es_date_histogram_param_version("8.0.0"), Version("8.0.0"))
-        self.assertEqual(parse_es_date_histogram_param_version("invalid"), settings.ES_DATE_HISTOGRAM_PARAM_VERSION)
+        self.assertIsNone(parse_es_date_histogram_param_version("invalid"))
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("8.0.0"))
+    @patch("apps.log_esquery.esquery.client.QueryClientEs.QueryClientEs._connect_info")
+    def test_get_es_date_histogram_param_version(self, mock_connect_info):
+        mock_connect_info.return_value = ("127.0.0.1", 9200, "user", "password", "8.11.1", "http")
+        self.assertEqual(get_es_date_histogram_param_version(2), Version("8.11.1"))
+        self.assertIsNone(get_es_date_histogram_param_version(None))
+
     def test_normalize_date_histogram_interval(self):
-        self.assertEqual(normalize_date_histogram_interval("1m"), {"fixed_interval": "1m"})
-        self.assertEqual(normalize_date_histogram_interval("1d"), {"fixed_interval": "1d"})
-        self.assertEqual(normalize_date_histogram_interval("1w"), {"calendar_interval": "1w"})
-        self.assertEqual(normalize_date_histogram_interval("1M"), {"calendar_interval": "1M"})
-        self.assertEqual(normalize_date_histogram_interval("1q"), {"calendar_interval": "1q"})
-        self.assertEqual(normalize_date_histogram_interval("auto"), {"interval": "auto"})
+        es_version = Version("8.0.0")
+        self.assertEqual(normalize_date_histogram_interval("1m", es_version=es_version), {"fixed_interval": "1m"})
+        self.assertEqual(normalize_date_histogram_interval("1d", es_version=es_version), {"fixed_interval": "1d"})
+        self.assertEqual(normalize_date_histogram_interval("1w", es_version=es_version), {"calendar_interval": "1w"})
+        self.assertEqual(normalize_date_histogram_interval("1M", es_version=es_version), {"calendar_interval": "1M"})
+        self.assertEqual(normalize_date_histogram_interval("1q", es_version=es_version), {"calendar_interval": "1q"})
+        self.assertEqual(normalize_date_histogram_interval("auto", es_version=es_version), {"interval": "auto"})
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("7.17.9"))
     def test_normalize_date_histogram_interval_es7(self):
-        self.assertEqual(normalize_date_histogram_interval("1m"), {"interval": "1m"})
-        self.assertEqual(normalize_date_histogram_interval("1M"), {"interval": "1M"})
+        es_version = Version("7.17.9")
+        self.assertEqual(normalize_date_histogram_interval("1m", es_version=es_version), {"interval": "1m"})
+        self.assertEqual(normalize_date_histogram_interval("1M", es_version=es_version), {"interval": "1M"})
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("8.0.0"))
     def test_aggs_handler_uses_es8_interval_keys(self):
-        self.assertEqual(normalize_date_histogram_interval("1h"), {"fixed_interval": "1h"})
-        self.assertEqual(normalize_date_histogram_interval("1y"), {"calendar_interval": "1y"})
+        es_version = Version("8.0.0")
+        self.assertEqual(normalize_date_histogram_interval("1h", es_version=es_version), {"fixed_interval": "1h"})
+        self.assertEqual(normalize_date_histogram_interval("1y", es_version=es_version), {"calendar_interval": "1y"})
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("8.11.1"))
-    def test_grafana_query_uses_es8_interval_keys(self):
+    @patch("apps.grafana.handlers.query.get_es_date_histogram_param_version", return_value=Version("8.11.1"))
+    def test_grafana_query_uses_es8_interval_keys(self, _mock_version):
         aggregations = GrafanaQueryHandler(bk_biz_id=2)._get_aggregations(
             metric_field="bytes",
             agg_method="sum",
             dimensions=[],
             time_field="dtEventTimeStamp",
             interval=60,
+            storage_cluster_id=2,
         )
         date_histogram = aggregations["dtEventTimeStamp"]["date_histogram"]
         self.assertEqual(date_histogram["fixed_interval"], "1m")
         self.assertNotIn("interval", date_histogram)
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("7.17.9"))
-    def test_grafana_query_uses_es7_interval_key(self):
+    @patch("apps.grafana.handlers.query.get_es_date_histogram_param_version", return_value=Version("7.17.9"))
+    def test_grafana_query_uses_es7_interval_key(self, _mock_version):
         aggregations = GrafanaQueryHandler(bk_biz_id=2)._get_aggregations(
             metric_field="bytes",
             agg_method="sum",
             dimensions=[],
             time_field="dtEventTimeStamp",
             interval=60,
+            storage_cluster_id=2,
         )
         date_histogram = aggregations["dtEventTimeStamp"]["date_histogram"]
         self.assertEqual(date_histogram["interval"], "1m")
         self.assertNotIn("fixed_interval", date_histogram)
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("8.0.0"))
     def test_es_body_adapter_normalizes_legacy_interval(self):
         body = {
             "aggs": {
@@ -97,20 +106,20 @@ class TestES8Compat(SimpleTestCase):
             }
         }
 
-        adapted = ESBodyAdapter(body=body).adapt()
+        adapted = ESBodyAdapter(body=body, es_version=Version("8.0.0")).adapt()
 
         histogram = adapted["aggs"]["group_by_histogram"]["date_histogram"]
         self.assertEqual(histogram["fixed_interval"], "1d")
         self.assertNotIn("interval", histogram)
         self.assertEqual(adapted["aggs"]["by_month"]["date_histogram"]["calendar_interval"], "1M")
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("7.17.9"))
     def test_adapt_date_histogram_params_to_es7(self):
-        adapted = adapt_date_histogram_params({"field": "dtEventTimeStamp", "fixed_interval": "1d"})
+        adapted = adapt_date_histogram_params(
+            {"field": "dtEventTimeStamp", "fixed_interval": "1d"}, es_version=Version("7.17.9")
+        )
         self.assertEqual(adapted["interval"], "1d")
         self.assertNotIn("fixed_interval", adapted)
 
-    @override_settings(ES_DATE_HISTOGRAM_PARAM_VERSION=Version("7.17.9"))
     def test_es_body_adapter_normalizes_to_es7_interval(self):
         body = {
             "aggs": {
@@ -120,7 +129,7 @@ class TestES8Compat(SimpleTestCase):
             }
         }
 
-        adapted = ESBodyAdapter(body=body).adapt()
+        adapted = ESBodyAdapter(body=body, es_version=Version("7.17.9")).adapt()
 
         histogram = adapted["aggs"]["group_by_histogram"]["date_histogram"]
         self.assertEqual(histogram["interval"], "1d")
