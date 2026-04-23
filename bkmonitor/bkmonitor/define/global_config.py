@@ -405,6 +405,28 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
+        ("OPENCLAW_RECOVERING_BK_BIZ_ID", slz.IntegerField(label="OpenClaw自愈分析业务ID", default=0)),
+        ("OPENCLAW_RECOVERING_APM_APP_NAME", slz.CharField(label="OpenClaw自愈分析APM应用名", default="")),
+        (
+            "OPENCLAW_RECOVERING_TRACE_OWNER_FIELD",
+            slz.CharField(label="OpenClaw自愈分析Trace归属字段", default="attributes.agent.session.executor"),
+        ),
+        (
+            "OPENCLAW_RECOVERING_LOG_OWNER_FIELD",
+            slz.CharField(label="OpenClaw自愈分析日志归属字段", default="__ext.owner"),
+        ),
+        (
+            "OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP",
+            slz.JSONField(
+                label="OpenClaw自愈分析日志流索引集映射",
+                default={},
+            ),
+        ),
+        ("OPENCLAW_RECOVERING_ADMIN_USERS", slz.ListField(label="OpenClaw自愈分析管理员列表", default=[])),
+        (
+            "OPENCLAW_RECOVERING_MCP_SERVER_NAME",
+            slz.CharField(label="OpenClaw自愈分析MCP服务名", default=""),
+        ),
         ("AIDEV_AGENT_MCP_REQUEST_AGENT_CODE", slz.CharField(label="AIAgent请求Agent的代码", default="bkmonitor-mcp")),
         ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=False)),
         ("ENABLE_AI_RENAME", slz.BooleanField(label="是否开启AI RENAME", default=False)),

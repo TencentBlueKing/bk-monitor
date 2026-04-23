@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, defineComponent, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { VALUE_TAG_INPUT_EMITS, VALUE_TAG_INPUT_PROPS } from './typing';
 import { getCharLength, NULL_VALUE_ID, NULL_VALUE_NAME } from './utils';
@@ -38,7 +38,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const inputRef = useTemplateRef<HTMLInputElement>('input');
 
-    const localValue = shallowRef('');
+    const localValue = shallowRef<number | string>('');
     const isEdit = shallowRef(false);
 
     watch(
@@ -50,6 +50,17 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    const getValueSpan = computed(() => {
+      if (localValue.value === NULL_VALUE_ID) {
+        return NULL_VALUE_NAME;
+      }
+      const name = props.valueMap.get(String(localValue.value));
+      if (['number', 'string'].includes(typeof name) && String(name) !== String(localValue.value)) {
+        return `${name} (${localValue.value})`;
+      }
+      return localValue.value;
+    });
 
     /**
      * 处理点击事件
@@ -121,10 +132,11 @@ export default defineComponent({
         isEdit.value = false;
         handleChangeEmit();
       }
+      emit('blur');
     }
     function handleChangeEmit() {
       if (props.value !== localValue.value) {
-        emit('change', localValue.value);
+        emit('change', localValue.value as string);
       }
     }
     function handleComponentClick(event) {
@@ -133,10 +145,14 @@ export default defineComponent({
     function handleDelete(e) {
       emit('delete', e);
     }
+    function handleFocus() {
+      emit('focus');
+    }
 
     return {
       isEdit,
       localValue,
+      getValueSpan,
       handleComponentClick,
       handleClick,
       handleBlur,
@@ -144,6 +160,7 @@ export default defineComponent({
       handleKeyDown,
       handleKeyUp,
       handleDelete,
+      handleFocus,
     };
   },
   render() {
@@ -161,7 +178,8 @@ export default defineComponent({
           class={'value-span'}
           onClick={() => this.handleClick()}
         >
-          {this.localValue === NULL_VALUE_ID ? NULL_VALUE_NAME : this.localValue}
+          {/* {this.localValue === NULL_VALUE_ID ? NULL_VALUE_NAME : this.localValue} */}
+          {this.getValueSpan}
         </span>
         {this.isEdit ? (
           <textarea
@@ -170,6 +188,7 @@ export default defineComponent({
             v-model={this.localValue}
             spellcheck={false}
             onBlur={this.handleBlur}
+            onFocus={this.handleFocus}
             onInput={this.handleInput}
             onKeydown={this.handleKeyDown}
             onKeyup={this.handleKeyUp}

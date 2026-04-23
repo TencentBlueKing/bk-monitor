@@ -26,7 +26,7 @@
 import { type PropType, computed, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
-import { Button, Message } from 'bkui-vue';
+import { Button, Exception, Message } from 'bkui-vue';
 import { request } from 'monitor-api/base';
 import { copyText, random } from 'monitor-common/utils';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
@@ -51,6 +51,7 @@ export const updateUserFiledTableConfig = request(
 import { alertLogRelationList } from 'monitor-api/modules/alert_v2';
 
 import { useLogFilter } from './log-table/hooks/use-log-filter';
+import LogException from './log-table/log-exception';
 import TableFieldSetting from './log-table/table-field-setting';
 import { type TClickMenuOpt, EClickMenuType } from './log-table/typing';
 import { formatHierarchy } from './log-table/utils/fields';
@@ -523,6 +524,18 @@ export default defineComponent({
                   onConfirm={this.handleDisplayColumnFieldsChange}
                 />
               );
+            },
+            empty: () => {
+              if (!this.indexSetList.length) {
+                return (
+                  <Exception type='building'>
+                    <span style='margin: 0 24px 16px 24px;font-size: 14px;color: rgb(151, 155, 165);display: inline-block;'>
+                      {this.t('暂无关联日志')}
+                    </span>
+                  </Exception>
+                );
+              }
+              return <LogException />;
             },
           }}
         </LogTableNew>

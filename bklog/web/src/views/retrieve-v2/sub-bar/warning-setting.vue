@@ -508,6 +508,7 @@
         },
         query: {
           alert_id: row.id,
+          bk_biz_id: store.state.bkBizId,
         },
       })
       .then(resp => {

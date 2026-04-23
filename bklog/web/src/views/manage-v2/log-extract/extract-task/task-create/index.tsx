@@ -59,7 +59,9 @@ export default defineComponent({
     const route = useRoute();
 
     const showSelectDialog = ref(false);
-    const ipList = ref<any[]>([]); // 下载目标
+    const ipList = ref<any[]>([]); // 下载目标（ip 列表，TOPO/SERVICE_TEMPLATE 时从 strategies 响应获取）
+    const targetNodeType = ref<string>('INSTANCE'); // INSTANCE | TOPO | SERVICE_TEMPLATE
+    const targetNodes = ref<any[]>([]); // TOPO/SERVICE_TEMPLATE 选中的节点
     const fileOrPath = ref(''); // 目录
     const availablePaths = ref<string[]>([]); // 目录可选列表
     const downloadFiles = ref<any[]>([]); // 下载的文件
@@ -74,16 +76,28 @@ export default defineComponent({
     const textFilterRef = ref<any>(null);
     const previewRef = ref<any>(null);
 
+    const selectedCount = computed(() => {
+      return targetNodeType.value === 'INSTANCE'
+        ? ipList.value.length
+        : targetNodes.value.length;
+    });
+
     const canSubmit = computed(() => {
-      return !(ipList.value.length && downloadFiles.value.length) && link_id.value != null;
+      return !(selectedCount.value > 0 && downloadFiles.value.length) && link_id.value != null;
     });
 
     const isClone = computed(() => {
       return route.name === 'extract-clone' && !!sessionStorage.getItem('cloneData');
     });
 
-    // ip选择器选中节点
+    // ip选择器选中节点，根据 targetNodeType 返回不同结构
     const selectorNodes = computed(() => {
+      if (targetNodeType.value === 'TOPO') {
+        return { node_list: toSelectorNode(targetNodes.value, 'TOPO') };
+      }
+      if (targetNodeType.value === 'SERVICE_TEMPLATE') {
+        return { service_template_list: toSelectorNode(targetNodes.value, 'SERVICE_TEMPLATE') };
+      }
       return { host_list: toSelectorNode(ipList.value, 'INSTANCE') };
     });
 
@@ -95,7 +109,22 @@ export default defineComponent({
       if (isClone.value) {
         const cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
         sessionStorage.removeItem('cloneData');
-        ipList.value = cloneData.ip_list; // 克隆下载目标
+
+        const cloneNodeType = cloneData.target_node_type || 'INSTANCE';
+        targetNodeType.value = cloneNodeType;
+        ipList.value = cloneData.ip_list ?? [];
+
+        if (cloneData.target_nodes?.length) {
+          targetNodes.value = cloneData.target_nodes;
+        } else if (cloneNodeType === 'INSTANCE' && ipList.value.length) {
+          targetNodes.value = ipList.value.map(item => ({
+            bk_obj_id: 'host',
+            bk_inst_id: item.bk_host_id,
+          }));
+        } else {
+          targetNodes.value = [];
+        }
+
         fileOrPath.value = cloneData.preview_directory; // 克隆目录
         textFilterRef.value?.handleClone(cloneData); // 克隆文本过滤
         remark.value = cloneData.remark; // 克隆备注
@@ -104,7 +133,16 @@ export default defineComponent({
         handleCloneAvailablePaths(cloneData);
         await nextTick();
         previewRef.value?.handleClone(cloneData);
-        ipSelectorOriginalValue.value = { host_list: toSelectorNode(ipList.value, 'INSTANCE') };
+
+        if (cloneNodeType === 'TOPO') {
+          ipSelectorOriginalValue.value = { node_list: toSelectorNode(targetNodes.value, 'TOPO') };
+        } else if (cloneNodeType === 'SERVICE_TEMPLATE') {
+          ipSelectorOriginalValue.value = {
+            service_template_list: toSelectorNode(targetNodes.value, 'SERVICE_TEMPLATE'),
+          };
+        } else {
+          ipSelectorOriginalValue.value = { host_list: toSelectorNode(ipList.value, 'INSTANCE') };
+        }
       }
     };
 
@@ -156,15 +194,25 @@ export default defineComponent({
 
     // 处理克隆模式的可用路径
     const handleCloneAvailablePaths = (cloneData: any) => {
+      const cloneNodeType = cloneData.target_node_type || 'INSTANCE';
+      const requestData: any = {
+        bk_biz_id: store.state.bkBizId,
+        target_node_type: cloneNodeType,
+      };
+      if (cloneData.target_nodes?.length) {
+        requestData.target_nodes = cloneData.target_nodes;
+      } else {
+        requestData.ip_list = cloneData.ip_list;
+      }
       http
         .request('extract/getAvailableExplorerPath', {
-          data: {
-            bk_biz_id: store.state.bkBizId,
-            ip_list: cloneData.ip_list,
-          },
+          data: requestData,
         })
         .then(res => {
-          availablePaths.value = res.data.map((item: any) => item.file_path);
+          availablePaths.value = (res.data.strategies ?? []).map((item: any) => item.file_path);
+          if (cloneNodeType !== 'INSTANCE' && res.data.ip_list?.length) {
+            ipList.value = res.data.ip_list;
+          }
         })
         .catch(e => {
           console.warn(e);
@@ -181,22 +229,86 @@ export default defineComponent({
       previewRef.value?.getExplorerList({ path: newFileOrPath });
     };
 
-    // 处理IP选择器确认选择
-    const handleConfirm = async (value: any) => {
-      const { host_list: hostList } = value;
-      initSelectNewNameList(hostList);
-      const newIpList = toTransformNode(hostList, 'INSTANCE', true);
-      // 选择服务器后，获取可预览的路径
-      try {
-        const strategies = await http.request('extract/getAvailableExplorerPath', {
-          data: {
-            bk_biz_id: store.state.bkBizId,
-            ip_list: newIpList,
-          },
+    // 根据 strategies 接口返回的 ip_list 请求 displayName 并设置预览地址列表
+    const initDisplayNameFromIpList = (responseIpList: any[]) => {
+      const requestIpList = responseIpList.map(item => {
+        if (item?.bk_host_id) {
+          return { host_id: item.bk_host_id };
+        }
+        return {
+          ip: item.ip ?? '',
+          cloud_id: item.bk_cloud_id ?? '',
+        };
+      });
+      http
+        .request('extract/getIpListDisplayName', {
+          data: { host_list: requestIpList },
+          params: { bk_biz_id: store.state.bkBizId },
+        })
+        .then(res => {
+          initSelectNewNameList(res.data, true);
+        })
+        .catch(err => {
+          console.warn(err);
+          ipSelectNewNameList.value = [];
         });
-        const newAvailablePaths = strategies.data.map((item: any) => item.file_path);
-        ipList.value = newIpList;
-        availablePaths.value = newAvailablePaths;
+    };
+
+    // 处理IP选择器确认选择，支持 INSTANCE / TOPO / SERVICE_TEMPLATE
+    const handleConfirm = async (value: any) => {
+      const { host_list: hostList, node_list: nodeList, service_template_list: serviceTemplateList } = value;
+
+      let nodeType: string = 'INSTANCE';
+      let rawNodes: any[] = [];
+      if (nodeList?.length) {
+        nodeType = 'TOPO';
+        rawNodes = nodeList;
+      } else if (serviceTemplateList?.length) {
+        nodeType = 'SERVICE_TEMPLATE';
+        rawNodes = serviceTemplateList;
+      } else if (hostList?.length) {
+        nodeType = 'INSTANCE';
+        rawNodes = hostList;
+      }
+
+      targetNodeType.value = nodeType;
+
+      try {
+        if (nodeType === 'INSTANCE') {
+          initSelectNewNameList(rawNodes);
+          const newIpList = toTransformNode(rawNodes, 'INSTANCE', true);
+          const newTargetNodes = newIpList.map(item => ({
+            bk_obj_id: 'host',
+            bk_inst_id: item.bk_host_id,
+          }));
+          const strategies = await http.request('extract/getAvailableExplorerPath', {
+            data: {
+              bk_biz_id: store.state.bkBizId,
+              ip_list: newIpList,
+              target_nodes: newTargetNodes,
+              target_node_type: 'INSTANCE',
+            },
+          });
+          ipList.value = strategies.data.ip_list ?? newIpList;
+          targetNodes.value = ipList.value.map(item => ({
+            bk_obj_id: 'host',
+            bk_inst_id: item.bk_host_id,
+          }));
+          availablePaths.value = (strategies.data.strategies ?? []).map((item: any) => item.file_path);
+        } else {
+          const newTargetNodes = toTransformNode(rawNodes, nodeType as any);
+          const strategies = await http.request('extract/getAvailableExplorerPath', {
+            data: {
+              bk_biz_id: store.state.bkBizId,
+              target_nodes: newTargetNodes,
+              target_node_type: nodeType,
+            },
+          });
+          targetNodes.value = newTargetNodes;
+          ipList.value = strategies.data.ip_list ?? [];
+          availablePaths.value = (strategies.data.strategies ?? []).map((item: any) => item.file_path);
+          initDisplayNameFromIpList(ipList.value);
+        }
       } catch (error) {
         console.warn(error);
       }
@@ -230,20 +342,21 @@ export default defineComponent({
     const handleSubmit = () => {
       emit('loading', true);
       isSubmitLoading.value = true;
-      // 根据预览地址选择的文件提交下载任务
-      const requestData = {
+      const requestData: any = {
         bk_biz_id: store.state.bkBizId,
-        ip_list: ipList.value, // 下载目标
-        preview_directory: fileOrPath.value, // 目录
-        preview_ip_list: previewRef.value?.getFindIpList(), // 预览地址
-        preview_time_range: previewRef.value?.timeRange, // 文件日期
-        preview_start_time: previewRef.value?.timeStringValue[0], // 文件日期
-        preview_end_time: previewRef.value?.timeStringValue[1], // 文件日期
-        preview_is_search_child: previewRef.value?.isSearchChild, // 是否搜索子目录
-        file_path: downloadFiles.value, // 下载文件
-        filter_type: textFilterRef.value.filterType, // 过滤类型
-        filter_content: textFilterRef.value.filterContent, // 过滤内容
-        remark: remark.value, // 备注
+        ip_list: ipList.value,
+        target_node_type: targetNodeType.value,
+        target_nodes: targetNodes.value,
+        preview_directory: fileOrPath.value,
+        preview_ip_list: previewRef.value?.getFindIpList(),
+        preview_time_range: previewRef.value?.timeRange,
+        preview_start_time: previewRef.value?.timeStringValue[0],
+        preview_end_time: previewRef.value?.timeStringValue[1],
+        preview_is_search_child: previewRef.value?.isSearchChild,
+        file_path: downloadFiles.value,
+        filter_type: textFilterRef.value.filterType,
+        filter_content: textFilterRef.value.filterContent,
+        remark: remark.value,
         link_id: link_id.value,
       };
       http
@@ -301,7 +414,7 @@ export default defineComponent({
               </bk-button>
               <div class='select-text'>
                 <i18n path='已选择{0}个节点'>
-                  <span class={ipList.value.length ? 'primary' : 'error'}>{ipList.value.length}</span>
+                  <span class={selectedCount.value ? 'primary' : 'error'}>{selectedCount.value}</span>
                 </i18n>
               </div>
             </div>
@@ -309,7 +422,7 @@ export default defineComponent({
               height={670}
               mode='dialog'
               original-value={ipSelectorOriginalValue.value}
-              panel-list={['staticTopo']}
+              panel-list={['staticTopo', 'dynamicTopo']}
               show-dialog={showSelectDialog.value}
               show-view-diff={isClone.value}
               value={selectorNodes.value}

@@ -159,6 +159,9 @@ class EtlHandler:
         etl_params=None,
         fields=None,
         username="",
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
@@ -222,7 +225,15 @@ class EtlHandler:
             view_roles = []
 
         # 2. 创建索引集
-        index_set = self._update_or_create_index_set(etl_config, storage_cluster_id, view_roles, username=username)
+        index_set = self._update_or_create_index_set(
+            etl_config,
+            storage_cluster_id,
+            view_roles,
+            username=username,
+            is_platform_index=is_platform_index,
+            platform_index_visibility=platform_index_visibility,
+            platform_index_filter=platform_index_filter,
+        )
 
         # add user_operation_record
         operation_record = {
@@ -311,6 +322,9 @@ class EtlHandler:
         username="",
         sort_fields=None,
         target_fields=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         """
         创建索引集
@@ -341,6 +355,9 @@ class EtlHandler:
                 sort_fields=sort_fields,
                 target_fields=target_fields,
                 bcs_cluster_id=self.data.bcs_cluster_id,
+                is_platform_index=is_platform_index,
+                platform_index_visibility=platform_index_visibility,
+                platform_index_filter=platform_index_filter,
             )
         else:
             if not view_roles:
@@ -358,6 +375,9 @@ class EtlHandler:
                 sort_fields=sort_fields,
                 target_fields=target_fields,
                 bcs_cluster_id=self.data.bcs_cluster_id,
+                is_platform_index=is_platform_index,
+                platform_index_visibility=platform_index_visibility,
+                platform_index_filter=platform_index_filter,
             )
             self.data.index_set_id = index_set.index_set_id
         self.data.etl_config = etl_config

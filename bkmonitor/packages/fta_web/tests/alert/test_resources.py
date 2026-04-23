@@ -1,7 +1,10 @@
+from types import SimpleNamespace
+
 import pytest
 from rest_framework.exceptions import ValidationError
 
-from fta_web.alert.resources import AlertTopNResource
+from fta_web.alert import resources as alert_resources
+from fta_web.alert.resources import AlertDetailResource, AlertTopNResource
 
 
 class TestAlertTopNResource:
@@ -52,3 +55,38 @@ class TestAlertTopNResource:
 
         with pytest.raises(ValidationError):
             serializer.is_valid(raise_exception=True)
+
+
+class TestAlertDetailResource:
+    def test_perform_request_allows_empty_graph_panel(self, monkeypatch):
+        alert_id = "17742505258462064"
+        fake_alert = SimpleNamespace(event=SimpleNamespace(bk_biz_id=8))
+
+        monkeypatch.setattr(alert_resources.AlertDocument, "get", lambda _alert_id: fake_alert)
+        monkeypatch.setattr(alert_resources.AIOPSManager, "get_graph_panel", lambda _alert: None)
+        monkeypatch.setattr(AlertDetailResource, "get_relation_info", lambda self, alert, length_limit=True: "recent")
+        monkeypatch.setattr(
+            alert_resources.AlertQueryHandler,
+            "clean_document",
+            lambda alert: {"plugin_id": "test_plugin", "dimensions": []},
+        )
+        monkeypatch.setattr(
+            alert_resources.PluginTranslator,
+            "translate",
+            lambda self, plugin_ids: {"test_plugin": "Test Plugin"},
+        )
+        monkeypatch.setattr(
+            alert_resources,
+            "resource",
+            SimpleNamespace(
+                alert=SimpleNamespace(
+                    alert_related_info=lambda ids=None, alerts=None: {alert_id: {"topo_info": "topo"}}
+                )
+            ),
+        )
+
+        result = AlertDetailResource().perform_request({"id": alert_id, "bk_biz_id": 8})
+
+        assert result["graph_panel"] is None
+        assert result["plugin_display_name"] == "Test Plugin"
+        assert result["relation_info"] == "topo recent"
