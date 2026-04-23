@@ -35,6 +35,7 @@ from apps.log_databus.handlers.collector_scenario.utils import build_es_option_t
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
@@ -69,10 +70,13 @@ class TransferEtlHandler(EtlHandler):
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
-        cluster_type = cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
-        if storage_cluster_type != cluster_type:
-            storage_cluster_type = cluster_type
+
+        if not storage_cluster_type:
+            storage_cluster_type = cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
+
+        # es 集群获取 es 版本, doris 集群将 es 版本设置为空
         es_version = cluster_info["cluster_config"]["version"] if storage_cluster_type == STORAGE_CLUSTER_TYPE else ""
+
         self.check_es_storage_capacity(cluster_info, storage_cluster_id)
         is_add = False if self.data.table_id else True
 
@@ -180,6 +184,12 @@ class TransferEtlHandler(EtlHandler):
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
         LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})
+
+        # 4. 保存存储集群类型
+        if self.collector_config_id:
+            CollectorConfig.objects.filter(collector_config_id=self.collector_config_id).update(
+                storage_cluster_type=storage_cluster_type
+            )
 
         # add user_operation_record
         operation_record = {
