@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -21,8 +22,8 @@ the project delivered to anyone in the future.
 
 from django.test import TestCase
 
-from apps.log_esquery.esquery.client.QueryClient import QueryClient
 from apps.log_search.models import Scenario
+from apps.log_esquery.esquery.client.QueryClient import QueryClient
 
 
 INDICES = ["1_Foo"]
