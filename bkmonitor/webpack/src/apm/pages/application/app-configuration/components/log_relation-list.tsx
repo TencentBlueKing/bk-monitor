@@ -33,7 +33,6 @@ import { random } from 'monitor-common/utils';
 import './log_relation-list.scss';
 
 export interface ILogRelation {
-  is_global?: boolean;
   related_bk_biz_id: number | string;
   value_list: string[];
 }
@@ -61,10 +60,6 @@ export default class LogRelationList extends tsc<IProp> {
   @Prop({ default: () => new Map(), type: Map }) indexSetListMap: Map<number | string, { id: string; name: string }[]>;
 
   logRelationList: ILogRelationList[] = [];
-
-  get serviceLogRelationList() {
-    return this.logRelationList.filter(item => !item.is_global);
-  }
 
   @Watch('value', { immediate: true })
   async handleWatchValue() {
@@ -98,16 +93,6 @@ export default class LogRelationList extends tsc<IProp> {
           });
         }
       }
-      // 没有
-      if (logRelationList.every(item => item.is_global)) {
-        logRelationList.push({
-          value_list: [],
-          related_bk_biz_id: '',
-          indexSetList: [],
-          key: random(8),
-          is_global: false,
-        });
-      }
       this.logRelationList = logRelationList;
     } else {
       this.logRelationList = [
@@ -116,7 +101,6 @@ export default class LogRelationList extends tsc<IProp> {
           related_bk_biz_id: '',
           indexSetList: [],
           key: random(8),
-          is_global: false,
         },
       ];
     }
@@ -150,7 +134,6 @@ export default class LogRelationList extends tsc<IProp> {
       related_bk_biz_id: '',
       indexSetList: [],
       key: random(8),
-      is_global: false,
     });
     this.handleChange();
   }
@@ -228,7 +211,6 @@ export default class LogRelationList extends tsc<IProp> {
       this.logRelationList.map(item => ({
         related_bk_biz_id: item.related_bk_biz_id,
         value_list: item.value_list,
-        is_global: item.is_global,
       }))
     );
   }
@@ -247,7 +229,7 @@ export default class LogRelationList extends tsc<IProp> {
 
   render() {
     return (
-      <div class='service-config-log-relation-list-edit'>
+      <div class='app-config-log-relation-list-edit'>
         {this.logRelationList.map((item, index) => (
           <div
             key={item.key}
@@ -257,7 +239,6 @@ export default class LogRelationList extends tsc<IProp> {
               <bk-form-item>
                 <bk-select
                   vModel={item.related_bk_biz_id}
-                  disabled={item.is_global}
                   display-key='name'
                   id-Key='id'
                   list={this.bizSelectList}
@@ -272,7 +253,6 @@ export default class LogRelationList extends tsc<IProp> {
                   style='width:290px'
                   vModel={item.value_list}
                   auto-height={false}
-                  disabled={item.is_global}
                   multiple={true}
                   search-placeholder={this.$t('请输入 关键字')}
                   display-tag
@@ -288,20 +268,17 @@ export default class LogRelationList extends tsc<IProp> {
                   ))}
                 </bk-select>
               </bk-form-item>
-              {!item.is_global && (
-                <span
-                  class='icon-monitor icon-mc-plus-fill'
-                  onClick={() => this.handleAdd(index)}
-                />
-              )}
-              {this.serviceLogRelationList.length > 1 && !item.is_global && (
+              <span
+                class='icon-monitor icon-mc-plus-fill'
+                onClick={() => this.handleAdd(index)}
+              />
+              {this.logRelationList.length > 1 && (
                 <span
                   class='icon-monitor icon-mc-minus-plus'
                   onClick={() => this.handleDel(index)}
                 />
               )}
             </div>
-            {this.$scopedSlots?.itemExtra?.({ item, index })}
           </div>
         ))}
       </div>

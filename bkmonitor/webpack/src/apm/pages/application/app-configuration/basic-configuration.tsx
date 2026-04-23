@@ -38,6 +38,7 @@ import {
   start,
   stop,
 } from 'monitor-api/modules/apm_meta';
+import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_trace';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone, typeTools } from 'monitor-common/utils/utils';
@@ -58,6 +59,7 @@ import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strateg
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
+import LogRelationList, { type ILogRelation } from './components/log_relation-list';
 import CustomService from './custom-service';
 import {
   type IApdexConfig,
@@ -129,6 +131,7 @@ export default class BasicInfo extends tsc<IProps> {
   @Ref() editInfoForm: any;
   @Ref() editApdexForm: any;
   @Ref() editSamplerForm: any;
+  @Ref('logRelationListRef') logRelationListRef: any;
 
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -327,6 +330,10 @@ export default class BasicInfo extends tsc<IProps> {
   curConditionIndex = -1;
   curConditionProp = '';
 
+  // 关联日志列表
+  localLogRelationList: ILogRelation[] = [];
+  indexSetListMap = new Map();
+
   /** 样例展示 */
   get sampleStr() {
     if (!this.localInstanceList.length) return '--';
@@ -337,6 +344,13 @@ export default class BasicInfo extends tsc<IProps> {
     // TODO：等到后端开发好后再解开注释
     return this.appInfo.plugin_id === 'log_trace';
     // return true;
+  }
+
+  get bizSelectList() {
+    return this.$store.getters.bizList.map(el => ({
+      id: el.id,
+      name: el.text,
+    }));
   }
 
   @Watch('recordData', { immediate: true })
@@ -472,7 +486,7 @@ export default class BasicInfo extends tsc<IProps> {
       });
     });
   }
-  handleEditClick(show: boolean, isSubmit = false) {
+  async handleEditClick(show: boolean, isSubmit = false) {
     this.isEditing = show;
     this.showInstanceSelector = !show;
     if (show) {
@@ -481,6 +495,7 @@ export default class BasicInfo extends tsc<IProps> {
         app_alias: appAlias,
         description,
         plugin_config,
+        application_log_relation_configs: logRelationList = [],
         application_sampler_config,
         is_enabled_tail_sampling,
       } = this.appInfo;
@@ -493,6 +508,21 @@ export default class BasicInfo extends tsc<IProps> {
         });
       }
 
+      // 关联日志
+      const tempLogRelationList = [];
+      if (logRelationList.length) {
+        for (const item of logRelationList) {
+          if (item.log_type === 'bk_log') {
+            tempLogRelationList.push({
+              related_bk_biz_id: item.related_bk_biz_id,
+              value_list: item.value_list.map(v => v.value),
+            });
+          }
+        }
+        await this.getIndexSetList(tempLogRelationList.map(item => item.related_bk_biz_id));
+      }
+      this.localLogRelationList = tempLogRelationList;
+
       Object.assign(this.formData, apdexConfig, samplerConfig, {
         app_alias: appAlias,
         description,
@@ -502,6 +532,22 @@ export default class BasicInfo extends tsc<IProps> {
     if (!isSubmit) {
       this.localInstanceList = [...(this.appInfo.application_instance_name_config?.instance_name_composition || [])];
     }
+  }
+  async getIndexSetList(bkBizIds: (number | string)[]) {
+    const promiseList = [];
+    for (const id of bkBizIds) {
+      if (this.indexSetListMap.has(id)) {
+        continue;
+      }
+      promiseList.push(
+        logServiceRelationBkLogIndexSet({
+          bk_biz_id: id,
+        }).then(data => {
+          this.indexSetListMap.set(id, data);
+        })
+      );
+    }
+    await Promise.all(promiseList);
   }
   /**
    * @description: 拖拽开始
@@ -589,6 +635,19 @@ export default class BasicInfo extends tsc<IProps> {
     } = this.formData;
     Object.keys(apdexConfig).map(val => (apdexConfig[val] = Number(apdexConfig[val])));
     const instanceList = this.localInstanceList.map(item => item.name);
+    const logRelationListParams = this.localLogRelationList.reduce<(typeof this.localLogRelationList)[number][]>(
+      (acc, item) => {
+        if (item.related_bk_biz_id && item.value_list.length) {
+          acc.push({
+            log_type: 'bk_log',
+            value_list: item.value_list,
+            related_bk_biz_id: item.related_bk_biz_id,
+          });
+        }
+        return acc;
+      },
+      []
+    );
     const params: Record<string, any> = {
       application_id: this.appInfo.application_id,
       is_enabled: this.appInfo.is_enabled,
@@ -603,6 +662,7 @@ export default class BasicInfo extends tsc<IProps> {
       },
       application_db_config: this.appInfo.application_db_config,
       application_db_system: this.appInfo.application_db_system,
+      application_log_relation_configs: logRelationListParams,
     };
 
     // 处理采样配置
@@ -641,7 +701,7 @@ export default class BasicInfo extends tsc<IProps> {
       cardFormListValidationPromise.push((this.$refs[s] as any).validate());
     });
 
-    const promiseList = ['editInfoForm', 'editApdexForm', 'editSamplerForm'].map(item => this[item]?.validate());
+    const promiseList = ['editInfoForm', 'editApdexForm', 'editSamplerForm', 'logRelationListRef'].map(item => this[item]?.validate());
     await Promise.all(promiseList.concat(cardFormListValidationPromise))
       .then(async () => {
         if (!this.localInstanceList.length) {
@@ -1005,6 +1065,12 @@ export default class BasicInfo extends tsc<IProps> {
   handleAddCustomService() {
     (this.$refs.customService as InstanceType<typeof CustomService>)?.handleAddService();
   }
+
+  /** 关联日志列表改变 */
+  handleChangeLogRelation(val: ILogRelation[]) {
+    this.localLogRelationList = val;
+  }
+
   /** 数据上报 */
   renderDataReporting() {
     return (
@@ -1127,6 +1193,67 @@ export default class BasicInfo extends tsc<IProps> {
       </div>
     );
   }
+  /** 数据关联 */
+  renderDataRelation() {
+    return (
+      <div class={['data-relation-container', {'data-relation-edit': this.isEditing}]}>
+        <div class='log-relation-container'>
+          <span class='relation-sub'>此处关联日志会应用到所有服务，如需单独修改某些服务的关联日志，请前往对应的服务配置修改</span>
+          <div class='form-content log-relation-form'>
+            <div class='log-relation-label'>关联日志</div>
+            {this.isEditing ? (
+              <bk-form>
+                <LogRelationList 
+                  ref='logRelationListRef'
+                  bizSelectList={this.bizSelectList}
+                  indexSetListMap={this.indexSetListMap}
+                  value={this.localLogRelationList}
+                  onChange={v => this.handleChangeLogRelation(v)}
+                  onSetIndexSetListMap={obj => {
+                    this.indexSetListMap.set(obj.related_bk_biz_id, obj.indexSetList);
+                  }}
+                />
+              </bk-form>
+            ) : (
+              <div
+                class='log-relation-content'
+              >
+                {/* s */}
+                  <div class='log-relation-info'>
+                  {this.appInfo?.application_log_relation_configs?.length
+                      ? this.appInfo?.application_log_relation_configs.map((item, index) => (
+                          <div
+                            class='info-log-row'
+                            key={index}
+                          >
+                            {item?.log_type === 'bk_log' ? (
+                              <section>
+                                <bk-tag class='relation-info-tag'>
+                                  <span>{`${item.log_type_alias} : ${item.related_bk_biz_name}`}</span>
+                                </bk-tag>
+                                <bk-tag class='relation-info-tag'>
+                                  <span>{`${this.$t('索引集')}:${item.value_list.map(v => v.value_alias).join(',')}`}</span>
+                                </bk-tag>
+                              </section>
+                            ) : (
+                              <bk-tag class='relation-info-tag'>
+                                <span>{`${item.log_type_alias} : ${item.value_alias}`}</span>
+                              </bk-tag>
+                            )} 
+                          </div>
+                        ))
+                      : '--'
+                    }
+                  </div>
+                {/* e */}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   /** 渲染基础信息 */
   renderBaseInfo() {
     return (
@@ -1339,6 +1466,7 @@ export default class BasicInfo extends tsc<IProps> {
       <div class='conf-content base-info-wrap'>
         <PanelItem title={this.$t('基础信息')}>{this.renderBaseInfo()}</PanelItem>
         <PanelItem title={this.$t('数据上报')}>{this.renderDataReporting()}</PanelItem>
+        <PanelItem class='tips-panel-item' title={this.$t('数据关联')}>{this.renderDataRelation()}</PanelItem>
         {this.isShowLog2TracesFormItem && (
           <PanelItem
             flexDirection='column'
