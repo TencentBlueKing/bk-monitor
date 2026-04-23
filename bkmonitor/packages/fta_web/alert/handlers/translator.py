@@ -16,6 +16,7 @@ from functools import reduce
 from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.models import EventPluginV2, MetricListCache, StrategyModel
 from bk_monitor_base.strategy import get_metric_id, parse_metric_id
@@ -240,13 +241,13 @@ class TopoNodeTranslator(AbstractTranslator):
     """拓扑节点翻译器，将 bk_topo_node 的值翻译为中文名称"""
 
     TYPE_LABEL_MAP = {
-        "biz": _("业务"),
-        "set": _("集群"),
-        "module": _("模块"),
+        "biz": _lazy("业务"),
+        "set": _lazy("集群"),
+        "module": _lazy("模块"),
     }
 
-    def __init__(self, bk_biz_id: int, *args, **kwargs):
-        self.bk_biz_id = bk_biz_id
+    def __init__(self, bk_biz_ids: list[int], *args, **kwargs):
+        self.bk_biz_ids = bk_biz_ids
         super().__init__(*args, **kwargs)
 
     def translate(self, values: list[str]) -> dict:
@@ -281,7 +282,7 @@ class TopoNodeTranslator(AbstractTranslator):
         if "set" in grouped:
             set_ids = grouped["set"]
             try:
-                sets = api.cmdb.get_set(bk_biz_id=self.bk_biz_id, bk_set_ids=set_ids)
+                sets = api.cmdb.get_set(bk_biz_ids=self.bk_biz_ids, bk_set_ids=set_ids)
                 for s in sets:
                     label = self.TYPE_LABEL_MAP.get("set", "set")
                     name_map[f"set|{s.bk_set_id}"] = f"{label}|{s.bk_set_name}"
@@ -291,10 +292,12 @@ class TopoNodeTranslator(AbstractTranslator):
         if "module" in grouped:
             module_ids = grouped["module"]
             try:
-                modules = api.cmdb.get_module(bk_biz_id=self.bk_biz_id, bk_module_ids=module_ids)
-                for m in modules:
-                    label = self.TYPE_LABEL_MAP.get("module", "module")
-                    name_map[f"module|{m.bk_module_id}"] = f"{label}|{m.bk_module_name}"
+                params=[{ "bk_biz_id": biz_id, "bk_module_ids": module_ids} for biz_id in self.bk_biz_ids  ]
+                modules_list = api.cmdb.get_module.bulk_request(params)
+                for modules in  modules_list:
+                    for m in modules:
+                        label = self.TYPE_LABEL_MAP.get("module", "module")
+                        name_map[f"module|{m.bk_module_id}"] = f"{label}|{m.bk_module_name}"
             except Exception:
                 logger.exception("TopoNodeTranslator: failed to translate module nodes")
 
