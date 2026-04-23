@@ -63,6 +63,11 @@ export default defineComponent({
       type: Array as PropType<number[]>,
       default: () => [],
     },
+    /** Issue ID */
+    issueId: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     conditionChange: (_v: CommonCondition[]) => true,
@@ -91,6 +96,7 @@ export default defineComponent({
           conditions: props.conditions,
         },
         filterMode: props.filterMode,
+        preConditions: [{ key: 'issue_id', value: [props.issueId], method: 'eq' }],
       };
     });
 

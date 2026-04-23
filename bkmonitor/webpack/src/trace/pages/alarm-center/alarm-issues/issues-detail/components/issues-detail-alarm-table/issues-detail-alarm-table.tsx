@@ -156,10 +156,6 @@ export default defineComponent({
       // 创建新的中止控制器
       abortController = new AbortController();
       const { signal } = abortController;
-
-      loading.value = true;
-      data.value = [];
-
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
 
       const params = {
@@ -176,6 +172,8 @@ export default defineComponent({
         page: page.value,
         ordering: ordering.value ? [ordering.value] : [],
       };
+      loading.value = true;
+      data.value = [];
 
       try {
         const res = await alarmService.value.getFilterTableList(params, { signal });

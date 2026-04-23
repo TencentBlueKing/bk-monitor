@@ -396,6 +396,7 @@ export default defineComponent({
           <IssuesRetrievalFilter
             conditions={this.conditions}
             filterMode={this.filterMode}
+            issueId={this.detail.id}
             queryString={this.queryString}
             timeRange={this.timeRange}
             onConditionChange={this.handleConditionChange}
