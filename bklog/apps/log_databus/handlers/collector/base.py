@@ -52,7 +52,6 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
-    DORIS_CLUSTER_TYPE,
     META_DATA_ENCODING,
     ArchiveInstanceType,
     CollectStatus,
@@ -767,34 +766,14 @@ class CollectorHandler:
         def _get_table_id_to_cluster_type_map(result_table_list: list):
             """
             获取结果表 -> 存储集群类型映射字典
+            从 CollectorConfig.storage_cluster_type 字段读取，未命中的结果表默认走 ES
             """
-            table_id_to_index_set_id = {
-                obj.table_id: obj.index_set_id
-                for obj in CollectorConfig.objects.filter(table_id__in=result_table_list)
-                if obj.index_set_id
-            }
-
-            index_set_id_to_cluster_id = dict(
-                LogIndexSet.objects.filter(index_set_id__in=table_id_to_index_set_id.values())
-                .exclude(storage_cluster_id__isnull=True)
-                .values_list("index_set_id", "storage_cluster_id")
+            table_id_to_cluster_type = dict(
+                CollectorConfig.objects.filter(table_id__in=result_table_list).values_list(
+                    "table_id", "storage_cluster_type"
+                )
             )
-
-            multi_execute_func = MultiExecuteFunc()
-
-            for cluster_type in (STORAGE_CLUSTER_TYPE, DORIS_CLUSTER_TYPE):
-                multi_execute_func.append(cluster_type, TransferApi.get_cluster_info, {"cluster_type": cluster_type})
-
-            cluster_id_to_cluster_type = {
-                info["cluster_config"]["cluster_id"]: info["cluster_type"]
-                for cluster_info_list in multi_execute_func.run().values()
-                for info in cluster_info_list
-            }
-
-            return {
-                t_id: cluster_id_to_cluster_type.get(index_set_id_to_cluster_id.get(index_set_id), STORAGE_CLUSTER_TYPE)
-                for t_id, index_set_id in table_id_to_index_set_id.items()
-            }
+            return {t_id: table_id_to_cluster_type.get(t_id) or STORAGE_CLUSTER_TYPE for t_id in result_table_list}
 
         cluster_infos = {}
 
@@ -812,12 +791,13 @@ class CollectorHandler:
                 t_id
             )
 
-        # 按分片批量获取
         chunk_multi_execute_func = MultiExecuteFunc()
         # 记录每个 chunk_str 对应的 table_chunk
         table_chunk_dict: dict[str, list[str]] = {}
 
+        # 不同存储集群类型分开查询
         for storage_cluster_type, current_tables in storage_cluster_type_to_table_ids_map.items():
+            # 按分片批量查询
             current_table_chunks: list[list[str]] = array_chunk(current_tables, BULK_CLUSTER_INFOS_LIMIT)
 
             for table_chunk in current_table_chunks:
