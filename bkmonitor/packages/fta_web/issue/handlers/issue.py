@@ -241,17 +241,35 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 )
                 continue
 
-            # 普通字段（含 id）：标准 terms 聚合结果解析
-            bucket_count = None
-            if bucket_count_suffix:
-                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+            # bk_biz_id：需要补充授权业务中数量为0的桶
+            elif actual_field == "bk_biz_id" and hasattr(self, "authorized_bizs"):
+                buckets = [
+                    {"id": bucket.key, "name": bucket.key, "count": bucket.doc_count}
+                    for bucket in getattr(search_result.aggs, field).buckets
+                ]
+                exist_bizs = {int(bucket["id"]) for bucket in buckets}
+                for bk_biz_id in self.authorized_bizs:
+                    if len(buckets) >= size:
+                        break
+                    if int(bk_biz_id) in exist_bizs:
+                        continue
+                    buckets.append({"id": bk_biz_id, "name": bk_biz_id, "count": 0})
 
-            buckets = []
-            for bucket in getattr(search_result.aggs, field).buckets:
-                if bucket_count_suffix and not bucket.key:
-                    bucket_count -= 1
-                else:
-                    buckets.append({"id": bucket.key, "name": bucket.key, "count": bucket.doc_count})
+                if bucket_count_suffix:
+                    bucket_count = len(set(self.authorized_bizs) | exist_bizs)
+
+            # 普通字段（含 id）：标准 terms 聚合结果解析
+            else:
+                bucket_count = None
+                if bucket_count_suffix:
+                    bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+
+                buckets = []
+                for bucket in getattr(search_result.aggs, field).buckets:
+                    if bucket_count_suffix and not bucket.key:
+                        bucket_count -= 1
+                    else:
+                        buckets.append({"id": bucket.key, "name": bucket.key, "count": bucket.doc_count})
 
             if actual_field in translators:
                 translators[actual_field].translate_from_dict(buckets, "id", "name")
