@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import re
 
@@ -220,9 +220,8 @@ class BkLogRegexpEtlStorage(EtlStorage):
             }
         ])
 
-        # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
-        iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
-        rules.extend(iteration_index_rules)
+        # 4.1. 提取 flat_field=True 的内置字段（从iter_item提取）
+        rules.extend(self._build_flat_built_in_fields_v4(built_in_config))
 
         # 5. 正则解析
         rules.append({

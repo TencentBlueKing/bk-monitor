@@ -91,6 +91,13 @@ class QuerySchema(Schema):
 
 UserSchema = Regex(r"^(user#|group#)?[a-zA-Z0-9-_]+$")
 
+IssueConfigSchema = {
+    Optional("enabled", default=True): bool,
+    Optional("dimensions", default=lambda: []): [str],
+    Optional("levels", default=lambda: []): [Or("fatal", "warning", "remind")],
+    Optional("conditions", default=""): str,
+}
+
 StrategySchema = Schema(
     {
         "name": And(str, lambda p: 128 >= len(p) > 0),
@@ -201,6 +208,7 @@ StrategySchema = Schema(
                 },
             }
         ],
+        Optional("issue_config", default=None): Or(None, IssueConfigSchema),
     },
     ignore_extra_keys=True,
 )

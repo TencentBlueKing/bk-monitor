@@ -51,6 +51,7 @@ export default defineComponent({
     const inputValue = shallowRef('');
     const isFocus = shallowRef(false);
     const isChecked = shallowRef(false);
+    const optionsMap = shallowRef<Map<string, string>>(new Map());
 
     const isTypeInteger = computed(() => [EFieldType.integer, EFieldType.long].includes(props.fieldInfo?.type));
 
@@ -99,9 +100,7 @@ export default defineComponent({
         }, 100);
       }
     }
-    function handleSelectorBlur() {
-      emit('selectorBlur');
-    }
+
     /**
      * 处理选中值的回调函数
      * @param {IValue} item - 选中的值对象
@@ -244,6 +243,24 @@ export default defineComponent({
     function handleSelectorFocus() {
       emit('selectorFocus');
     }
+    function handleSelectorBlur() {
+      emit('selectorBlur');
+    }
+
+    function handleGetOptions(options: IValue[]) {
+      const oldMap = optionsMap.value;
+      for (const option of options) {
+        oldMap.set(String(option.id), option.name);
+      }
+      optionsMap.value = new Map(oldMap);
+    }
+
+    function handleValueTagInputBlur() {
+      handleSelectorBlur();
+    }
+    function handleValueTagInputFocus() {
+      handleSelectorFocus();
+    }
 
     return {
       localValue,
@@ -252,6 +269,7 @@ export default defineComponent({
       isShowDropDown,
       inputValue,
       isTypeInteger,
+      optionsMap,
       handleBackspaceNull,
       handleClick,
       handleBlur,
@@ -261,6 +279,9 @@ export default defineComponent({
       handleDelete,
       handleIsChecked,
       handleCheck,
+      handleGetOptions,
+      handleValueTagInputBlur,
+      handleValueTagInputFocus,
       t,
     };
   },
@@ -296,8 +317,11 @@ export default defineComponent({
                     key={item.id}
                     class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
                     value={item.id}
+                    valueMap={this.optionsMap}
+                    onBlur={this.handleValueTagInputBlur}
                     onChange={v => this.handleTagUpdate(v, index)}
                     onDelete={() => this.handleDelete(index)}
+                    onFocus={this.handleValueTagInputFocus}
                   />,
                   this.activeIndex === index && inputRender(`${item.id}_input`),
                 ]),
@@ -315,6 +339,7 @@ export default defineComponent({
             noDataSimple={true}
             search={this.inputValue}
             selected={this.localValue.map(item => item.id)}
+            onGetOptions={this.handleGetOptions}
             onIsChecked={this.handleIsChecked}
             onSelect={this.handleCheck}
           />

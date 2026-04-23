@@ -433,4 +433,22 @@ export default {
   企业微信: 'WeChat Work',
   邮件: 'Email',
   个人中心: 'Personal center',
+  全文: 'Full text',
+  请输入搜索内容: 'Please enter search content',
+  检索无数据: 'No search results',
+  您可按照以下顺序调整检索方式: 'You can adjust the search method in the following order',
+  查询范围: 'Query scope',
+  使用通配符: 'Use wildcards',
+  精准匹配: 'Exact match',
+  检查是否为分词问题: 'Check if it is a tokenization issue',
+  '当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。':
+    'When you hover over the log content, the log words will be displayed in blue.',
+  '若目标内容为整段蓝色，或中间存在字符粘连的情况。':
+    'If the target content is entirely blue, or there is character adhesion between words.',
+  可能是因为分词导致的问题: 'It may be caused by tokenization issues.',
+  '将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。':
+    'Add the adhered characters to custom tokenization, wait 3-5 minutes, and newly uploaded logs will take effect.',
+  一键反馈: 'One-click feedback',
+  '若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。':
+    'If you still cannot identify the cause, please click the feedback button below to contact us. We will respond as soon as possible.',
 };
