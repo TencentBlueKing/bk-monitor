@@ -34,7 +34,7 @@ from django.utils.translation import gettext as _
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.exceptions import CreateOrUpdateLogRouterException, ValidationError
+from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
@@ -436,10 +436,6 @@ class IndexSetHandler(APIModel):
         platform_index_visibility=None,
         platform_index_filter=None,
     ):
-        if is_platform_index:
-            if not storage_cluster_id:
-                raise ValidationError(_("is_platform_index = True 时必须指定 storage_cluster_id"))
-
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
         view_roles = []
@@ -522,15 +518,6 @@ class IndexSetHandler(APIModel):
         platform_index_visibility=None,
         platform_index_filter=None,
     ):
-        if is_platform_index:
-            current_storage_cluster_id = None
-            check_index_set_obj = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
-            if check_index_set_obj and check_index_set_obj.storage_cluster_id:
-                current_storage_cluster_id = check_index_set_obj.storage_cluster_id
-            is_have_storage_cluster_id = storage_cluster_id or current_storage_cluster_id
-            if not is_have_storage_cluster_id:
-                raise ValidationError(_("is_platform_index = True 时必须指定 storage_cluster_id"))
-
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
         index_set = index_set_handler(

@@ -417,7 +417,7 @@ class PlatformIndexFilterSerializer(serializers.Serializer):
 class PlatformIndexFieldsSerializer(serializers.Serializer):
     """在各 Serializer 中声明平台级索引集字段时复用"""
 
-    is_platform_index = serializers.BooleanField(required=False, allow_null=True, default=None)
+    is_platform_index = serializers.BooleanField(required=False, allow_null=True)
     platform_index_visibility = PlatformIndexVisibilitySerializer(required=False, allow_null=True, default=None)
     platform_index_filter = PlatformIndexFilterSerializer(required=False, allow_null=True, default=None)
 
@@ -1030,11 +1030,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformI
             attrs["fields"] = fields
         else:
             attrs["fields"] = []
-
-        # 平台级索引集校验
-        if attrs.get("is_platform_index") and not attrs.get("storage_cluster_id"):
-            raise serializers.ValidationError(_("is_platform_index = True 时必须指定 storage_cluster_id"))
-
         return attrs
 
 
@@ -1599,10 +1594,6 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsS
             attrs["bk_biz_id"] = space_uid_to_bk_biz_id(attrs["space_uid"])
         elif not attrs.get("bk_biz_id", ""):
             raise ValueError("bk_biz_id or space_uid not found")
-
-        # 平台级索引集校验
-        if attrs.get("is_platform_index") and not attrs.get("storage_cluster_id"):
-            raise serializers.ValidationError(_("is_platform_index = True 时必须指定 storage_cluster_id"))
 
         return attrs
 
