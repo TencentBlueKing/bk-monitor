@@ -144,6 +144,20 @@ export default defineComponent({
       pageSize: pageSize.value,
     }));
 
+    const commonParams = computed<Record<string, unknown>>(oldValue => {
+      const newValue = {
+        conditions: [
+          { key: 'issue_id', value: [props.detail.id], method: 'eq' },
+          ...(props.filterMode === EMode.ui ? props.conditions : []),
+        ],
+        query_string: props.filterMode === EMode.queryString ? props.queryString : '',
+      };
+      if (JSON.stringify(oldValue) === JSON.stringify(newValue)) {
+        return oldValue;
+      }
+      return newValue;
+    });
+
     // 获取数据
     const fetchData = async () => {
       if (!props.detail?.id) {
@@ -161,11 +175,7 @@ export default defineComponent({
       const params = {
         bk_biz_id: props.detail.bk_biz_id,
         bk_biz_ids: [props.detail.bk_biz_id],
-        conditions: [
-          { key: 'issue_id', value: [props.detail.id], method: 'eq' },
-          ...(props.filterMode === EMode.ui ? props.conditions : []),
-        ],
-        query_string: props.filterMode === EMode.queryString ? props.queryString : '',
+        ...commonParams.value,
         start_time: startTime,
         end_time: endTime,
         page_size: pageSize.value,

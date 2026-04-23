@@ -119,13 +119,17 @@ export default defineComponent({
     /** 告警事件数量 */
     const alertCount = shallowRef(0);
     /** 公共参数 */
-    const commonParams = computed(() => {
+    const commonParams = computed<Record<string, unknown>>(oldValue => {
       const issueIdCondition = { key: 'issue_id', value: [props.detail.id], method: 'eq' };
-      return {
+      const newValue = {
         bk_biz_ids: [props.detail.bk_biz_id],
         query_string: props.filterMode === EMode.ui ? '' : props.queryString,
         conditions: [issueIdCondition, ...(props.filterMode === EMode.ui ? props.conditions : [])],
       };
+      if (JSON.stringify(oldValue) === JSON.stringify(newValue)) {
+        return oldValue;
+      }
+      return newValue;
     });
     /** 维度统计数据 */
     const dimensionStatsData = shallowRef<AnalysisTopNDataResponse<AnalysisListItem>>({
