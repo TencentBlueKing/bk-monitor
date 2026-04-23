@@ -115,6 +115,9 @@ CREATE_SUCCESS = {
         "max_async_count": 0,
         "doris_table_id": None,
         "support_doris": False,
+        "is_platform_index": False,
+        "platform_index_filter": None,
+        "platform_index_visibility": None,
     },
     "code": 0,
     "message": "",
@@ -193,6 +196,9 @@ UPDATE_INDEX_SET = {
     "max_async_count": 0,
     "doris_table_id": None,
     "support_doris": False,
+    "is_platform_index": False,
+    "platform_index_filter": None,
+    "platform_index_visibility": None,
 }
 
 NOT_EDITABLE_RETURN = {
@@ -286,6 +292,9 @@ INDEX_SET_LISTS = {
             "max_async_count": 0,
             "doris_table_id": None,
             "support_doris": False,
+            "is_platform_index": False,
+            "platform_index_filter": None,
+            "platform_index_visibility": None,
         }
     ],
 }
@@ -428,6 +437,9 @@ RETRIEVE_LIST = {
     "max_async_count": 0,
     "doris_table_id": None,
     "support_doris": False,
+    "is_platform_index": False,
+    "platform_index_filter": None,
+    "platform_index_visibility": None,
 }
 MULTI_RESULT = {}
 FIELDS_LIST = [
