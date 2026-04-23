@@ -213,6 +213,7 @@ export function useAlarmFilter(
     commonFilterParams: Record<string, any>;
     fields: IFilterField[];
     filterMode: EMode;
+    preConditions?: any[];
   }
 ) {
   let axiosController = new AbortController();
@@ -315,9 +316,12 @@ export function useAlarmFilter(
           .getRetrievalFilterValues(
             {
               ...options().commonFilterParams,
-              conditions: searchValue
-                ? [{ key: paramsField, method: 'include', value: [searchValue], options: { is_wildcard: true } }]
-                : [],
+              conditions: [
+                ...(options()?.preConditions || []),
+                ...(searchValue
+                  ? [{ key: paramsField, method: 'include', value: [searchValue], options: { is_wildcard: true } }]
+                  : []),
+              ],
               fields: params.fields,
               size: params.limit,
             },
