@@ -138,7 +138,10 @@ class EtlStorage:
         lower_name = field_name.lower()
         if lower_name in V4_RESERVED_FIELD_NAMES:
             return True
-        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
+        if (
+            lower_name.startswith(V4_RESERVED_MINUTE_PATTERN)
+            and lower_name[len(V4_RESERVED_MINUTE_PATTERN) :].isdigit()
+        ):
             return True
         return False
 
@@ -224,6 +227,8 @@ class EtlStorage:
             "object": "dict",
             "bool": "boolean",
             "boolean": "boolean",
+            "keyword": "string",
+            "text": "string",
         }
         return type_mapping.get(field_type, "string")
 
@@ -325,8 +330,8 @@ class EtlStorage:
             # 优先使用es_type确定output_type
             field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
-            # 跳过log、iterationIndex字段，它会在后面单独处理
-            if field_name in ["log", "iterationIndex"]:
+            # 跳过 flat_field=True 的字段和 log 字段，会在后面单独处理
+            if field.get("flat_field", False) or field_name in ["log"]:
                 continue
 
             rules.append(
@@ -442,45 +447,43 @@ class EtlStorage:
 
         return rules
 
-    def _build_iteration_index_field_v4(self, built_in_config: dict) -> list:
+    def _build_flat_built_in_fields_v4(self, built_in_config: dict) -> list:
         """
-        构建V4版本的iterationIndex字段规则（从iter_item提取）
+        构建V4版本的 flat_field=True 内置字段规则（从 iter_item 提取）
         :param built_in_config: 内置配置，包含fields
-        :return: iterationIndex字段规则列表
+        :return: flat_field 字段规则列表
         """
         rules = []
         built_in_fields = built_in_config.get("fields", [])
 
-        # 查找iterationIndex字段（flat_field为True的字段）
         for field in built_in_fields:
-            if field.get("field_name") == "iterationIndex" and field.get("flat_field", False):
-                alias_name = field.get("alias_name", "iterationindex")
+            if not field.get("flat_field", False):
+                continue
 
-                # 优先使用es_type确定output_type
-                # iterationIndex的field_type可能是float，但es_type是integer，需映射为long
-                field_type = field.get("option", {}).get("es_type") or field.get("field_type")
-                output_type = self._get_output_type(field_type)
+            field_name = field["field_name"]
+            alias_name = field.get("alias_name", field_name)
+            # 优先使用es_type确定output_type
+            field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
-                rules.append(
-                    {
-                        "input_id": "iter_item",
-                        "output_id": "iterationIndex",
-                        "operator": {
-                            "type": "assign",
-                            "key_index": alias_name,
-                            "alias": "iterationIndex",
-                            "desc": field.get("description"),
-                            "input_type": None,
-                            "output_type": output_type,
-                            "fixed_value": None,
-                            "is_time_field": None,
-                            "time_format": None,
-                            "in_place_time_parsing": None,
-                            "default_value": None,
-                        },
-                    }
-                )
-                break
+            rules.append(
+                {
+                    "input_id": "iter_item",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": alias_name,
+                        "alias": field_name,
+                        "desc": field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(field_type),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                }
+            )
 
         return rules
 
