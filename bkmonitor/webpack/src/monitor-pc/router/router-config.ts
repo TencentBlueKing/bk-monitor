@@ -158,7 +158,7 @@ export const getRouteConfig = () => {
     {
       id: 'event',
       name: '告警事件',
-      route: 'event-center',
+      route: 'alarm-center',
       canStore: true,
     },
     {
@@ -482,17 +482,20 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
           {
             ...item,
             id: 'event-center',
-            path: '/event-center',
+            path: '/trace/alarm-center',
+            href: '#/trace/alarm-center',
+            usePath: true,
             icon: 'icon-monitor icon-gaojing3',
             name: '所有告警',
           },
           {
             id: 'event-action',
-            path: '/event-center',
+            path: '/trace/alarm-center',
+            href: '#/trace/alarm-center',
+            usePath: true,
             icon: 'icon-monitor icon-chulijilu',
             query: {
-              searchType: 'action',
-              activeFilterId: 'action',
+              alarmType: 'action',
             },
             name: '处理记录',
           },

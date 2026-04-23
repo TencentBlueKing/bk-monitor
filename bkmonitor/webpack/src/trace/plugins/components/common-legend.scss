@@ -1,21 +1,21 @@
 .common-legend {
   &-item {
     float: left;
-    white-space: nowrap;
-    margin-left: 10px;
     display: flex;
     align-items: center;
-    line-height: 16px;
+    margin-left: 10px;
     font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
 
     .legend-icon {
       width: 12px;
       height: 4px;
-      background-color: violet;
       margin-right: 6px;
+      background-color: violet;
     }
 
-    &:hover {
+    &:not(.is-disabled):hover {
       color: #999;
       cursor: pointer;
     }

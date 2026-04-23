@@ -68,11 +68,6 @@ export const tipsContent = (list: IValueStrListItem[]) => {
             style={{ marginRight: '4px' }}
           >
             <span>{`${item.name}${item.idDisplayName ? `(${item.idDisplayName})` : ''}`}</span>
-            {item.tags?.map?.(tag =>
-              spaceTypeTag(tag.id, 'dark', {
-                marginLeft: '4px',
-              })
-            )}
             {index !== list.length - 1 && ','}
           </span>
         );

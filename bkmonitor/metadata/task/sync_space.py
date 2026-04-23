@@ -60,6 +60,26 @@ from metadata.utils.redis_tools import RedisTools
 logger = logging.getLogger("metadata")
 
 
+def is_sync_bkcc_space_managed_biz(bk_biz_id: str, start_biz_id: int | None) -> bool:
+    """
+    判断当前业务是否由 sync_bkcc_space 接管新增、删除及 V4 内置链路检查。
+
+    规则：
+    - 未配置 ``SYNC_BKCC_SPACE_START_BIZ_ID``（``start_biz_id`` 为 ``None``）：全部接管，保持历史行为；
+    - 已配置：仅当 ``bk_biz_id`` **严格大于**阈值时才接管，阈值以下（含阈值）的业务交由其它任务/链路管理；
+    - ``bk_biz_id`` 无法解析为整数：保守地视为不接管，避免异常数据被误纳入删除链。
+
+    注意：冲突空间软禁用等保护性逻辑不受该阈值影响，仍对全量业务生效。
+    """
+    if start_biz_id is None:
+        return True
+
+    try:
+        return int(bk_biz_id) > start_biz_id
+    except (TypeError, ValueError):
+        return False
+
+
 def _disable_related_bkci_spaces(bkcc_space_ids: list[str]):
     """禁用关联的 BKCI 空间有效性"""
     if not bkcc_space_ids:
@@ -141,10 +161,29 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
         return
 
     biz_id_name_dict = {str(b.bk_biz_id): b for b in biz_list}
+
+    # 只有业务 ID 大于阈值的业务才会被接管新增、删除及 V4 内置链路检查；阈值以下业务交由其它任务/链路管理
+    start_biz_id = settings.SYNC_BKCC_SPACE_START_BIZ_ID
+    if start_biz_id in ("", None):
+        start_biz_id = None
+    else:
+        try:
+            start_biz_id = int(start_biz_id)
+        except (TypeError, ValueError):
+            logger.warning(
+                "sync_bkcc_space: invalid SYNC_BKCC_SPACE_START_BIZ_ID(%s), disable threshold filter", start_biz_id
+            )
+            start_biz_id = None
+
+    managed_biz_ids = {biz_id for biz_id in biz_id_name_dict if is_sync_bkcc_space_managed_biz(biz_id, start_biz_id)}
     # 过滤已经创建空间的业务
     space_id_list = Space.objects.filter(space_type_id=bkcc_type_id).values_list("space_id", flat=True)
-    diff = set(biz_id_name_dict.keys()) - set(space_id_list)
-    diff_delete = set(space_id_list) - set(biz_id_name_dict.keys())
+    diff = managed_biz_ids - set(space_id_list)
+    diff_delete = {
+        space_id
+        for space_id in set(space_id_list) - set(biz_id_name_dict.keys())
+        if is_sync_bkcc_space_managed_biz(space_id, start_biz_id)
+    }
 
     # 针对删除的业务
     # 当业务在 cmdb 删除业务，并且允许删除为 True 时，才进行删除；避免因为接口返回不正确，误删除的场景
@@ -192,9 +231,14 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
 
-    # 检查V4链路配置，需要排除新增的业务
+    # 检查V4链路配置：仅覆盖受本任务接管（阈值以上）且本轮未新增的业务；
+    # 本轮新增业务在 create_bkcc_spaces 内部处理；阈值以下业务由其它任务/链路管理。
     check_bkcc_space_builtin_datalink(
-        biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list if str(b.bk_biz_id) not in diff]
+        biz_list=[
+            (b.bk_tenant_id, b.bk_biz_id)
+            for b in biz_list
+            if str(b.bk_biz_id) in managed_biz_ids and str(b.bk_biz_id) not in diff
+        ]
     )
 
     cost_time = time.time() - start_time

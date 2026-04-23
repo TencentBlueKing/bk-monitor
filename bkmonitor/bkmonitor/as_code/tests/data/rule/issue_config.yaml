@@ -1,0 +1,33 @@
+name: CPU单核使用率-issue
+
+query:
+  data_source: bk_monitor
+  data_type: time_series
+  query_configs:
+  - metric: system.cpu_detail.usage
+    method: avg
+    interval: 60
+    group_by:
+    - bk_target_ip
+    - bk_target_cloud_id
+
+detect:
+  algorithm:
+    fatal:
+    - type: Threshold
+      config: ">1 and <2"
+
+  trigger: 1/5/5
+
+notice:
+  user_groups:
+  - ops.yaml
+
+issue_config:
+  enabled: true
+  dimensions:
+  - bk_target_ip
+  levels:
+  - fatal
+  - warning
+  conditions: bk_target_ip="127.0.0.1" and bk_target_cloud_id!="0"

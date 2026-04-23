@@ -25,7 +25,7 @@
  */
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { ALARM_CENTER_PANEL_TAB_MAP, AlarmCenterPanelTabList } from '../utils/constant';
+import { ALARM_CENTER_PANEL_TAB_MAP, AlarmCenterPanelTabList, HIDDEN_TABS_MAP } from '../utils/constant';
 
 /** 聚合条件 */
 export interface IAggCondition {
@@ -277,10 +277,15 @@ export interface IGraphTarget {
 
 /** 图表目标数据 */
 export interface IGraphTargetData {
+  /** 查询表达式（如 'a'） */
   expression: string;
+  /** 函数列表 */
   functions: any[];
+  /** 查询配置列表 */
   query_configs: IGraphQueryConfig[];
-  function: {
+  /** 时间对比配置 */
+  function?: {
+    /** 时间对比偏移量列表（如 ['1d', '1w']） */
     time_compare: string[];
   };
 }
@@ -551,6 +556,12 @@ export class AlarmDetail {
 
   get alarmTabList() {
     return AlarmCenterPanelTabList.filter(item => {
+      /* 根据 data_type 隐藏特定 Tab */
+      const hiddenTabKeys = HIDDEN_TABS_MAP[this.data_type] || [];
+      if (hiddenTabKeys.includes(item.name)) {
+        return false;
+      }
+
       /* 主机和日志 */
       // if (item.name === ALARM_CENTER_PANEL_TAB_MAP.HOST || item.name === ALARM_CENTER_PANEL_TAB_MAP.LOG) {
       //   return this.dimensions?.some(item => ['bk_target_ip', 'ip'].includes(item.key));

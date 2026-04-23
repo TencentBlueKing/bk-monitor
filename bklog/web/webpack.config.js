@@ -83,6 +83,7 @@ const logPluginConfig = {
       window.BK_PAAS_API_HOST = '\${BK_PAAS_API_HOST}'
       window.BK_USER_URL = '\${BK_USER_URL}'
       window.BK_IAM_URL = '\${BK_IAM_URL}'
+      window.TGPA_SDK_DOC_URL = '\${TGPA_SDK_DOC_URL}'
     </script>`,
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
