@@ -299,17 +299,9 @@ class K8sCollectorHandler(CollectorHandler):
             logger.warning(f"collector config name duplicate => [{data['collector_config_name']}]")
             raise CollectorConfigNameDuplicateException()
 
-        # 更新索引集
+        # 更新归属索引集
         index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if index_set:
-            # 更新平台级索引集有关字段
-            index_set.update_platform_index(
-                is_platform_index=data.get("is_platform_index"),
-                platform_index_visibility=data.get("platform_index_visibility"),
-                platform_index_filter=data.get("platform_index_filter"),
-            )
-
-            # 更新归属索引集
             IndexSetHandler(index_set.index_set_id).update_parent_index_sets(data.get("parent_index_set_ids", []))
 
         # collector_config_name更改后更新索引集名称
@@ -552,11 +544,7 @@ class K8sCollectorHandler(CollectorHandler):
                 raise CollectorConfigNameDuplicateException()
 
             # 创建索引集，并添加到归属索引集中
-            index_set = self.data.create_index_set(
-                is_platform_index=data.get("is_platform_index"),
-                platform_index_visibility=data.get("platform_index_visibility"),
-                platform_index_filter=data.get("platform_index_filter"),
-            )
+            index_set = self.data.create_index_set()
             if data.get("parent_index_set_ids"):
                 IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(data["parent_index_set_ids"])
 

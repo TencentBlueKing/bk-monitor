@@ -698,21 +698,6 @@ class LogIndexSet(SoftDeleteModel):
         fields["usable_reason"] = str(fields.get("usable_reason", ""))
         return fields
 
-    def update_platform_index(
-        self,
-        is_platform_index=None,
-        platform_index_visibility=None,
-        platform_index_filter=None,
-    ):
-        """
-        更新平台级索引集字段
-        """
-        if is_platform_index is not None:
-            self.is_platform_index = is_platform_index
-            self.platform_index_visibility = platform_index_visibility if is_platform_index else None
-            self.platform_index_filter = platform_index_filter if is_platform_index else None
-            self.save()
-
     class Meta:
         ordering = ("-orders", "-index_set_id")
         verbose_name = _("索引集配置")

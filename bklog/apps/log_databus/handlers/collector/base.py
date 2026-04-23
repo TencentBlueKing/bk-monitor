@@ -34,7 +34,7 @@ from apps.api import BkDataAccessApi, NodeApi, TransferApi
 from apps.api.modules.bk_node import BKNodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.exceptions import ApiError
+from apps.exceptions import ApiError, ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import (
     FEATURE_COLLECTOR_ITSM,
@@ -522,6 +522,16 @@ class CollectorHandler:
         platform_index_visibility=None,
         platform_index_filter=None,
     ):
+        if is_platform_index:
+            current_storage_cluster_id = None
+            if self.data.index_set_id:
+                check_index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+                if check_index_set_obj and check_index_set_obj.storage_cluster_id:
+                    current_storage_cluster_id = check_index_set_obj.storage_cluster_id
+            is_have_storage_cluster_id = storage_cluster_id or current_storage_cluster_id
+            if not is_have_storage_cluster_id:
+                raise ValidationError(_("is_platform_index = True 时必须指定 storage_cluster_id"))
+
         collector_config_update = {
             "collector_config_name": collector_config_name,
             "category_id": category_id,
@@ -553,14 +563,6 @@ class CollectorHandler:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
-        index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
-        if index_set:
-            # 更新平台级索引集有关字段
-            index_set.update_platform_index(
-                is_platform_index=is_platform_index,
-                platform_index_visibility=platform_index_visibility,
-                platform_index_filter=platform_index_filter,
-            )
         # 更新归属索引集
         if self.data.index_set_id:
             IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
@@ -1427,11 +1429,7 @@ class CollectorHandler:
             self.data.save()
 
             # 创建索引集，并添加到归属索引集中
-            index_set = self.data.create_index_set(
-                is_platform_index=is_platform_index,
-                platform_index_visibility=platform_index_visibility,
-                platform_index_filter=platform_index_filter,
-            )
+            index_set = self.data.create_index_set()
             if parent_index_set_ids:
                 IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
 
