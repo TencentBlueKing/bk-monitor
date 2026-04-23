@@ -748,17 +748,32 @@ class CollectorHandler:
         @return:
         """
 
-        def get_cluster_info(result_table_str: str):
+        def get_cluster_info(result_table_str: str, storage_type: str = "elasticsearch"):
             """
             获取集群信息（支持批量查询）
             """
             try:
                 return TransferApi.get_result_table_storage(
-                    params={"result_table_list": result_table_str, "storage_type": "elasticsearch"}
+                    params={"result_table_list": result_table_str, "storage_type": storage_type}
                 )
             except Exception as e:
-                logger.warning(f"获取集群信息失败(result_tables={result_table_str}): {e}", exc_info=True)
+                logger.warning(
+                    f"获取集群信息失败(result_tables={result_table_str}, storage_type={storage_type}): {e}",
+                    exc_info=True,
+                )
                 return {}
+
+        def _get_table_id_to_cluster_type_map(result_table_list: list):
+            """
+            获取结果表 -> 存储集群类型映射字典
+            从 CollectorConfig.storage_cluster_type 字段读取，未命中的结果表默认走 ES
+            """
+            table_id_to_cluster_type = dict(
+                CollectorConfig.objects.filter(table_id__in=result_table_list).values_list(
+                    "table_id", "storage_cluster_type"
+                )
+            )
+            return {t_id: table_id_to_cluster_type.get(t_id) or STORAGE_CLUSTER_TYPE for t_id in result_table_list}
 
         cluster_infos = {}
 
@@ -767,17 +782,33 @@ class CollectorHandler:
 
         unique_tables = list(dict.fromkeys(result_table_list))
 
-        # 按分片批量获取
-        chunk_multi_execute_func = MultiExecuteFunc()
-        unique_table_chunks: list[list[str]] = array_chunk(unique_tables, BULK_CLUSTER_INFOS_LIMIT)
+        table_id_to_cluster_type_map = _get_table_id_to_cluster_type_map(unique_tables)
 
+        storage_cluster_type_to_table_ids_map = defaultdict(list)
+
+        for t_id in unique_tables:
+            storage_cluster_type_to_table_ids_map[table_id_to_cluster_type_map.get(t_id, STORAGE_CLUSTER_TYPE)].append(
+                t_id
+            )
+
+        chunk_multi_execute_func = MultiExecuteFunc()
         # 记录每个 chunk_str 对应的 table_chunk
         table_chunk_dict: dict[str, list[str]] = {}
 
-        for table_chunk in unique_table_chunks:
-            chunk_str = ",".join(table_chunk)
-            table_chunk_dict[chunk_str] = table_chunk
-            chunk_multi_execute_func.append(chunk_str, get_cluster_info, chunk_str)
+        # 不同存储集群类型分开查询
+        for storage_cluster_type, current_tables in storage_cluster_type_to_table_ids_map.items():
+            # 按分片批量查询
+            current_table_chunks: list[list[str]] = array_chunk(current_tables, BULK_CLUSTER_INFOS_LIMIT)
+
+            for table_chunk in current_table_chunks:
+                chunk_str = ",".join(table_chunk)
+                table_chunk_dict[chunk_str] = table_chunk
+                chunk_multi_execute_func.append(
+                    chunk_str,
+                    get_cluster_info,
+                    {"result_table_str": chunk_str, "storage_type": storage_cluster_type},
+                    multi_func_params=True,
+                )
 
         chunk_response = chunk_multi_execute_func.run()
 
@@ -808,9 +839,16 @@ class CollectorHandler:
             )
 
             single_multi_execute_func = MultiExecuteFunc()
-
             for table_id in retry_tables:
-                single_multi_execute_func.append(table_id, get_cluster_info, table_id)
+                single_multi_execute_func.append(
+                    table_id,
+                    get_cluster_info,
+                    {
+                        "result_table_str": table_id,
+                        "storage_type": table_id_to_cluster_type_map.get(table_id, STORAGE_CLUSTER_TYPE),
+                    },
+                    multi_func_params=True,
+                )
 
             single_response = single_multi_execute_func.run()
 

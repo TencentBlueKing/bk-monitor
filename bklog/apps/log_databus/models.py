@@ -49,7 +49,7 @@ from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-i
 )
 
 from apps.api import CmsiApi, TransferApi  # noqa
-from apps.log_databus.constants import CollectItsmStatus  # noqa
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, CollectItsmStatus  # noqa
 from apps.log_databus.constants import EtlConfig  # noqa
 from apps.log_databus.constants import TargetNodeTypeEnum  # noqa
 from apps.log_databus.constants import TargetObjectTypeEnum  # noqa
@@ -192,6 +192,7 @@ class CollectorConfig(CollectorBase):
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
     is_nanos = models.BooleanField(_("采集项是否为纳秒采集"), default=False)
     enable_v4 = models.BooleanField(_("采集项是否为v4链路"), default=False)
+    storage_cluster_type = models.CharField(_("存储集群类型"), max_length=32, default=STORAGE_CLUSTER_TYPE)
 
     def get_name(self):
         return self.collector_config_name
