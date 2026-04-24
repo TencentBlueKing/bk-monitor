@@ -89,6 +89,16 @@ ORDERING_FIELDS = {
 }
 INCLUDE_VALUES = {"options", "spaces", "result_tables", "data_id_config"}
 DEFAULT_DETAIL_INCLUDE = {"spaces", "result_tables"}
+KAFKA_CLUSTER_FIELDS = [
+    "cluster_id",
+    "cluster_name",
+    "display_name",
+    "cluster_type",
+    "is_default_cluster",
+    "registered_system",
+    "label",
+]
+KAFKA_TOPIC_FIELDS = ["id", "bk_data_id", "topic", "partition", "batch_size", "flush_interval", "consume_rate"]
 
 
 def _normalize_bk_data_id(value: Any) -> int:
@@ -145,6 +155,25 @@ def _serialize_data_id_config(data_id_config: models.DataIdConfig | None) -> dic
     if data_id_config is None:
         return None
     return serialize_model(data_id_config, ["bk_tenant_id", "namespace", "name", "kind", "bk_data_id"])
+
+
+def _serialize_kafka_cluster(cluster: models.ClusterInfo | None) -> dict[str, Any] | None:
+    if cluster is None:
+        return None
+    return serialize_model(cluster, KAFKA_CLUSTER_FIELDS)
+
+
+def _serialize_kafka_topic(topic: models.KafkaTopicInfo | None) -> dict[str, Any] | None:
+    if topic is None:
+        return None
+    return serialize_model(topic, KAFKA_TOPIC_FIELDS)
+
+
+def _get_kafka_topic(datasource: models.DataSource) -> models.KafkaTopicInfo | None:
+    topic = models.KafkaTopicInfo.objects.filter(id=datasource.mq_config_id).first()
+    if topic is not None:
+        return topic
+    return models.KafkaTopicInfo.objects.filter(bk_data_id=datasource.bk_data_id).first()
 
 
 def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str):
@@ -215,6 +244,15 @@ def list_datasources(params: dict[str, Any]) -> dict[str, Any]:
             "bk_data_id", flat=True
         )
     )
+    mq_cluster_ids = [datasource.mq_cluster_id for datasource in datasources]
+    kafka_cluster_map = {
+        cluster.cluster_id: cluster
+        for cluster in models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_id__in=mq_cluster_ids,
+            cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        )
+    }
 
     items = []
     for datasource in datasources:
@@ -225,6 +263,7 @@ def list_datasources(params: dict[str, Any]) -> dict[str, Any]:
                 "space_count": space_count_map.get(datasource.bk_data_id, 0),
                 "option_count": option_count_map.get(datasource.bk_data_id, 0),
                 "has_data_id_config": datasource.bk_data_id in data_id_config_ids,
+                "kafka_cluster": _serialize_kafka_cluster(kafka_cluster_map.get(datasource.mq_cluster_id)),
             }
         )
         items.append(item)
@@ -258,7 +297,18 @@ def get_datasource_detail(params: dict[str, Any]) -> dict[str, Any]:
     except models.DataSource.DoesNotExist as error:
         raise CustomException(message=f"未找到 DataSource: bk_data_id={bk_data_id}") from error
 
-    data: dict[str, Any] = {"datasource": _serialize_datasource_detail(datasource)}
+    kafka_cluster = models.ClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        cluster_id=datasource.mq_cluster_id,
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+    ).first()
+    kafka_topic = _get_kafka_topic(datasource)
+
+    data: dict[str, Any] = {
+        "datasource": _serialize_datasource_detail(datasource),
+        "kafka_cluster": _serialize_kafka_cluster(kafka_cluster),
+        "kafka_topic_config": _serialize_kafka_topic(kafka_topic),
+    }
 
     if "options" in includes:
         data["options"] = [
