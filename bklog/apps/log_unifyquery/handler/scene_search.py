@@ -283,6 +283,40 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # Scene-specific query methods
     # ------------------------------------------------------------------
 
+    def _resolve_table_id_from_conditions(self) -> str:
+        """Fallback: resolve table_id_conditions → first matching index_set data_label.
+
+        Used when UnifyQuery's field_map endpoint does not yet support
+        table_id_conditions routing.
+        """
+        from apps.log_search.models import IndexSetTag, LogIndexSet, TAG_TYPE_SCENE
+
+        for and_group in self.table_id_conditions:
+            tag_ids = set()
+            all_found = True
+            for cond in and_group:
+                values = cond.get("value", [])
+                if not values:
+                    all_found = False
+                    break
+                try:
+                    tag = IndexSetTag.objects.get(
+                        name=cond["field_name"], value=values[0], tag_type=TAG_TYPE_SCENE,
+                    )
+                    tag_ids.add(str(tag.tag_id))
+                except IndexSetTag.DoesNotExist:
+                    all_found = False
+                    break
+            if not all_found or not tag_ids:
+                continue
+            for idx_set in LogIndexSet.objects.filter(
+                space_uid=self.space_uid, is_active=True,
+            ).values("index_set_id", "tag_ids"):
+                idx_tag_ids = {str(t) for t in idx_set["tag_ids"] if t}
+                if tag_ids.issubset(idx_tag_ids):
+                    return f"bklog_index_set_{idx_set['index_set_id']}"
+        return ""
+
     def fields(self, scope="default") -> dict:
         query_body = {
             "space_uid": self.space_uid,
@@ -296,7 +330,17 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             query_body["bk_biz_id"] = self.bk_biz_id
 
         logger.info("[scene_fields] space_uid=%s, conditions=%s", self.space_uid, json.dumps(self.table_id_conditions))
-        field_data = UnifyQueryApi.query_field_map(query_body)
+        try:
+            field_data = UnifyQueryApi.query_field_map(query_body)
+        except Exception:
+            fallback_table_id = self._resolve_table_id_from_conditions()
+            if fallback_table_id:
+                logger.info("[scene_fields] fallback to table_id=%s", fallback_table_id)
+                query_body.pop("table_id_conditions", None)
+                query_body["table_id"] = fallback_table_id
+                field_data = UnifyQueryApi.query_field_map(query_body)
+            else:
+                raise
 
         field_list = []
         for field_name, field_info in field_data.get("fields", {}).items():

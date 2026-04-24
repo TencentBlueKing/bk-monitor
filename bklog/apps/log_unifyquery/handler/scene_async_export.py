@@ -132,7 +132,7 @@ class SceneAsyncExportHandler:
         request = get_request()
         return f"{request.scheme}://{request.get_host()}{settings.SITE_URL}#/retrieve/scene"
 
-    def get_export_history(self, request, view, show_all=False):
+    def get_export_history(self, request, view, show_all=False, table_id_conditions=None):
         source_app_code = get_request_app_code()
         external_username = get_request_external_username()
         query_set = AsyncTask.objects.filter(
@@ -140,6 +140,10 @@ class SceneAsyncExportHandler:
             source_app_code=source_app_code,
             scenario_id="scene",
         )
+        if table_id_conditions:
+            query_set = query_set.filter(
+                request_param__table_id_conditions=table_id_conditions,
+            )
         if external_username:
             query_set = query_set.filter(created_by=external_username)
         if not show_all:
