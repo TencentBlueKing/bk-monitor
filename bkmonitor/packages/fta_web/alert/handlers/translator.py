@@ -282,10 +282,12 @@ class TopoNodeTranslator(AbstractTranslator):
         if "set" in grouped:
             set_ids = grouped["set"]
             try:
-                sets = api.cmdb.get_set(bk_biz_ids=self.bk_biz_ids, bk_set_ids=set_ids)
-                for s in sets:
-                    label = self.TYPE_LABEL_MAP.get("set", "set")
-                    name_map[f"set|{s.bk_set_id}"] = f"{label}|{s.bk_set_name}"
+                params=[{ "bk_biz_id": biz_id, "bk_set_ids": set_ids} for biz_id in self.bk_biz_ids  ]
+                sets_list = api.cmdb.get_set.bulk_request(params)
+                for sets in  sets_list:
+                    for s in sets:
+                        label = self.TYPE_LABEL_MAP.get("set", "set")
+                        name_map[f"set|{s.bk_set_id}"] = f"{label}|{s.bk_set_name}"
             except Exception:
                 logger.exception("TopoNodeTranslator: failed to translate set nodes")
 
