@@ -194,11 +194,17 @@ class ServiceLogHandler:
         return []
 
     @classmethod
-    def get_log_relations(cls, bk_biz_id: int, app_name: str, service_names: list[str]) -> list[LogServiceRelation]:
+    def get_log_relations(
+        cls, bk_biz_id: int, app_name: str, service_names: list[str] | None, include_global: bool = True
+    ) -> list[LogServiceRelation]:
         """获取服务关联的日志"""
         return list(
             LogServiceRelation.get_relation_qs(
-                bk_biz_id, app_name, service_names, log_type=ServiceRelationLogTypeChoices.BK_LOG
+                bk_biz_id,
+                app_name,
+                service_names,
+                include_global=include_global,
+                log_type=ServiceRelationLogTypeChoices.BK_LOG
             )
         )
 
@@ -207,6 +213,9 @@ class ServiceLogHandler:
         """
         通过关联查询获取服务的 dataId 关联并拼接默认查询
         """
+        if not service_name:
+            return []
+
         if not start_time or not end_time:
             end_time = int(time.time())
             start_time = end_time - cls.ONE_HOUR_SECONDS

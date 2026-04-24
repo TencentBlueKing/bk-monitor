@@ -12,9 +12,10 @@ import mock
 from django.test import TestCase
 from bkmonitor.action.serializers.strategy import *  # noqa
 from bkmonitor.models import UserGroup, DutyArrange, StrategyModel
+from bkmonitor.models.issue import StrategyIssueConfig
 from bkmonitor.strategy.new_strategy import Strategy
 from core.drf_resource.exceptions import CustomException
-from monitor_web.strategies.resources.v2 import SaveStrategyV2Resource
+from monitor_web.strategies.resources.v2 import CloneStrategyV2Resource, SaveStrategyV2Resource
 
 mock.patch(
     "core.drf_resource.api.bk_login.get_all_user",
@@ -202,3 +203,27 @@ class TestDutyArrangeSlzResource(TestCase):
         strategy = get_strategy_dict(noise_reduce_config)
         save_request = SaveStrategyV2Resource()
         save_request.validate_request_data(strategy)
+
+    def test_clone_strategy_with_issue_config(self):
+        strategy = get_strategy_dict()
+        strategy["issue_config"] = {
+            "is_enabled": True,
+            "aggregate_dimensions": ["bk_target_ip"],
+            "conditions": [{"key": "bk_target_ip", "method": "eq", "value": ["127.0.0.1"]}],
+            "alert_levels": [1, 2],
+        }
+
+        save_request = SaveStrategyV2Resource()
+        validated_strategy = save_request.validate_request_data(strategy)
+        save_request.perform_request(validated_strategy)
+
+        source_strategy = StrategyModel.objects.get()
+        clone_request = CloneStrategyV2Resource()
+        cloned_ids = clone_request.perform_request({"bk_biz_id": 2, "ids": [source_strategy.id]})
+
+        assert len(cloned_ids) == 1
+        cloned_config = StrategyIssueConfig.objects.get(strategy_id=cloned_ids[0])
+        assert cloned_config.bk_biz_id == 2
+        assert cloned_config.aggregate_dimensions == ["bk_target_ip"]
+        assert cloned_config.conditions == [{"key": "bk_target_ip", "method": "eq", "value": ["127.0.0.1"]}]
+        assert cloned_config.alert_levels == [1, 2]

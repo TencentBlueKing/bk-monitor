@@ -254,15 +254,19 @@ export default defineComponent({
           onCollapseChange={this.handleCollapse}
         >
           {{
-            headerCustom: () => (
-              <div
-                class='settings'
-                onClick={this.handleSettingsClick}
-              >
-                <i class='icon-monitor icon-shezhi1' />
-                <span>{this.t('设置')}</span>
-              </div>
-            ),
+            headerCustom: () => {
+              if (this.expand)
+                return (
+                  <div
+                    class='settings'
+                    onClick={this.handleSettingsClick}
+                  >
+                    <i class='icon-monitor icon-shezhi1' />
+                    <span>{this.t('设置')}</span>
+                  </div>
+                );
+              return null;
+            },
             default: this.renderCollapseContent,
           }}
         </ChartCollapse>
