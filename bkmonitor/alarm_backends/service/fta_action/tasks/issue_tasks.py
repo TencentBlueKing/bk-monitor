@@ -281,7 +281,14 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
             )
 
             # ── CMDB Set 统计 ────────────────────────────────────────────────
-            bk_biz_id = hit_dict.get("bk_biz_id")
+            # AlertDocument 顶层未声明 bk_biz_id 字段，业务 ID 实际存放在 event.bk_biz_id 中，
+            # 与 Alert.bk_biz_id 的读取逻辑（top_event.get("bk_biz_id")）以及
+            # alert/manager/tasks.py 中的取法保持一致。
+            bk_biz_id = hit_dict.get("bk_biz_id") or (hit_dict.get("event") or {}).get("bk_biz_id")
+            try:
+                bk_biz_id = int(bk_biz_id) if bk_biz_id else None
+            except (TypeError, ValueError):
+                bk_biz_id = None
             if target_type in ("HOST", "SERVICE"):
                 topo_nodes = hit_dict.get("bk_topo_node") or hit_dict.get("event", {}).get("bk_topo_node") or []
                 if isinstance(topo_nodes, str):
