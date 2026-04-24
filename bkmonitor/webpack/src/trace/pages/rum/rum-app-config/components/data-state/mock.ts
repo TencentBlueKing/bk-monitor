@@ -25,6 +25,7 @@
  */
 
 import type { IStrategyData } from '../../../typings';
+import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 // ===================== 类型定义 =====================
 
@@ -222,6 +223,101 @@ export const MOCK_STRATEGY_INFO_NO_GRAPH: IStrategyData = {
   ],
 };
 
+// ===================== 1.17 GetDataViewConfigResource Mock =====================
+
+/** 数据量趋势图 — Mock 面板配置（分钟数据量） */
+const MOCK_PANEL_MINUTE_VOLUME: IPanelModel = {
+  id: 'minute_volume',
+  title: '分钟数据量',
+  type: 'graph',
+  gridPos: { x: 0, y: 0, w: 12, h: 6 },
+  targets: [
+    {
+      dataType: 'time_series',
+      datasource: 'time_series',
+      api: 'grafana.graphUnifyQuery',
+      data: {
+        expression: 'A',
+        query_configs: [
+          {
+            data_source_label: 'custom',
+            data_type_label: 'time_series',
+            table: 'bkrum_metric',
+            metrics: [
+              {
+                field: 'bk_rum_count',
+                method: 'SUM',
+                alias: 'A',
+              },
+            ],
+            group_by: [],
+            display: true,
+            where: [],
+            interval: 60,
+            interval_unit: 's',
+            time_field: 'time',
+            filter_dict: {},
+            functions: [],
+          },
+        ],
+      },
+    },
+  ],
+  options: {
+    time_series: {},
+    collect_interval_display: '1m',
+  },
+};
+
+/** 数据量趋势图 — Mock 面板配置（日数据量） */
+const MOCK_PANEL_DAILY_VOLUME: IPanelModel = {
+  id: 'daily_volume',
+  title: '日数据量',
+  type: 'graph',
+  gridPos: { x: 12, y: 0, w: 12, h: 6 },
+  targets: [
+    {
+      dataType: 'time_series',
+      datasource: 'time_series',
+      api: 'grafana.graphUnifyQuery',
+      data: {
+        expression: 'A',
+        query_configs: [
+          {
+            data_source_label: 'custom',
+            data_type_label: 'time_series',
+            table: 'bkrum_metric',
+            metrics: [
+              {
+                field: 'bk_rum_count',
+                method: 'SUM',
+                alias: 'A',
+              },
+            ],
+            group_by: ['date'],
+            display: true,
+            where: [],
+            interval: 86400,
+            interval_unit: 's',
+            time_field: 'time',
+            filter_dict: {},
+            functions: [],
+          },
+        ],
+      },
+    },
+  ],
+  options: {
+    time_series: {
+      type: 'bar',
+    },
+    collect_interval_display: '1d',
+  },
+};
+
+/** 1.17 GetDataViewConfigResource — 数据视图配置 Mock 数据 */
+export const MOCK_DATA_VIEW_CONFIG: IPanelModel[] = [MOCK_PANEL_MINUTE_VOLUME, MOCK_PANEL_DAILY_VOLUME];
+
 // ===================== Mock 请求函数 =====================
 
 /** 模拟延迟 */
@@ -230,9 +326,13 @@ const delay = (ms = 300) => new Promise<void>(resolve => setTimeout(resolve, ms)
 /**
  * @description Mock 1.14 GetDataStatusResource — 获取数据状态
  * @param {Record<string, unknown>} _params - 请求参数（bk_biz_id, app_name, start_time, end_time）
+ * @param {Record<string, unknown>} [_requestConfig] - 请求配置（signal 等）
  * @returns {Promise<IDataStatusResponse>} 数据状态
  */
-export const fetchMockDataStatus = async (_params: Record<string, unknown>): Promise<IDataStatusResponse> => {
+export const fetchMockDataStatus = async (
+  _params: Record<string, unknown>,
+  _requestConfig?: Record<string, unknown>
+): Promise<IDataStatusResponse> => {
   await delay();
   return { ...MOCK_DATA_STATUS_NORMAL };
 };
@@ -240,9 +340,13 @@ export const fetchMockDataStatus = async (_params: Record<string, unknown>): Pro
 /**
  * @description Mock 1.15 GetDataSamplingResource — 获取数据采样
  * @param {Record<string, unknown>} _params - 请求参数（bk_biz_id, app_name, size?）
+ * @param {Record<string, unknown>} [_requestConfig] - 请求配置（signal 等）
  * @returns {Promise<IDataSamplingResponse>} 采样数据列表
  */
-export const fetchMockDataSampling = async (_params: Record<string, unknown>): Promise<IDataSamplingResponse> => {
+export const fetchMockDataSampling = async (
+  _params: Record<string, unknown>,
+  _requestConfig?: Record<string, unknown>
+): Promise<IDataSamplingResponse> => {
   await delay(500);
   return [...MOCK_DATA_SAMPLING];
 };
@@ -250,12 +354,30 @@ export const fetchMockDataSampling = async (_params: Record<string, unknown>): P
 /**
  * @description Mock 1.16 GetNoDataStrategyInfoResource — 获取无数据策略信息
  * @param {Record<string, unknown>} _params - 请求参数（bk_biz_id, app_name）
+ * @param {Record<string, unknown>} [_requestConfig] - 请求配置（signal 等）
  * @returns {Promise<IStrategyData>} 策略数据
  */
-export const fetchMockStrategyInfo = async (_params: Record<string, unknown>): Promise<IStrategyData> => {
+export const fetchMockStrategyInfo = async (
+  _params: Record<string, unknown>,
+  _requestConfig?: Record<string, unknown>
+): Promise<IStrategyData> => {
   await delay(400);
   return {
     ...MOCK_STRATEGY_INFO,
     alert_graph: MOCK_STRATEGY_INFO.alert_graph ? { ...MOCK_STRATEGY_INFO.alert_graph } : null,
   };
+};
+
+/**
+ * @description Mock 1.17 GetDataViewConfigResource — 获取数据视图配置
+ * @param {Record<string, unknown>} _params - 请求参数（bk_biz_id, app_name）
+ * @param {Record<string, unknown>} [_requestConfig] - 请求配置（signal 等）
+ * @returns {Promise<IPanelModel[]>} 面板配置列表
+ */
+export const fetchMockDataViewConfig = async (
+  _params: Record<string, unknown>,
+  _requestConfig?: Record<string, unknown>
+): Promise<IPanelModel[]> => {
+  await delay(300);
+  return [...MOCK_DATA_VIEW_CONFIG];
 };

@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted, reactive } from 'vue';
+import { type PropType, defineComponent, toRef } from 'vue';
 
+import { useDataVolumeTrend } from '../../hooks/use-data-volume-trend';
+import { useNoDataStrategy } from '../../hooks/use-no-data-strategy';
 import AlertInfoCard from './components/alert-info-card/alert-info-card';
-import { fetchMockStrategyInfo } from './mock';
+import DataVolumeTrend from './components/data-volume-trend/data-volume-trend';
 
-import type { AsyncDialogConfirmEvent, IRumAppConfig, IStrategyData } from '../../../typings';
+import type { IRumAppConfig, IStrategyData } from '../../../typings';
 
 import './data-state.scss';
 
@@ -42,56 +44,52 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  setup(_props) {
-    const { detail } = _props;
-
-    /** 告警策略信息 */
-    const strategyInfo = reactive<IStrategyData>({
-      id: 0,
-      name: '',
-      alert_status: 0,
-      alert_count: 0,
-      alert_graph: null,
-      is_enabled: false,
-      notice_group: [],
+  setup(props) {
+    /** 无数据告警策略状态与处理 */
+    const {
+      strategyInfo,
+      handleEnabledChange,
+      loading: strategyLoading,
+    } = useNoDataStrategy({
+      bizId: toRef(props.detail.bk_biz_id),
+      appName: toRef(props.detail.app_name),
     });
 
-    /**
-     * @description 处理无数据告警开关变化，通过 AsyncDialogConfirmEvent 的 resolve/reject 控制 Switcher 状态
-     * @param {AsyncDialogConfirmEvent<{ is_enabled: boolean }>} event - 异步确认事件
-     * @returns {void}
-     */
-    const handleEnabledChange = (event: AsyncDialogConfirmEvent<{ is_enabled: boolean }>) => {
-      // TODO: 替换为真实接口调用
-      // 真实场景示例：
-      //   updateStrategyEnabled(strategyInfo.id, event.payload.is_enabled)
-      //     .then(() => {
-      //       strategyInfo.is_enabled = event.payload.is_enabled;
-      //       event.resolve();
-      //     })
-      //     .catch(() => event.reject());
-      strategyInfo.is_enabled = event.payload.is_enabled;
-      event.resolve();
+    /** 数据量趋势图表数据与加载状态 */
+    const { dashboardPanels, loading: dashboardLoading } = useDataVolumeTrend({
+      bizId: toRef(props.detail.bk_biz_id),
+      appName: toRef(props.detail.app_name),
+    });
+
+    return {
+      dashboardPanels,
+      handleEnabledChange,
+      dashboardLoading,
+      strategyInfo,
+      strategyLoading,
     };
-
-    // TODO: 替换为真实接口调用（GetNoDataStrategyInfoResource）
-    onMounted(async () => {
-      const data = await fetchMockStrategyInfo({ bk_biz_id: detail.bk_biz_id, app_name: detail.app_name });
-      Object.assign(strategyInfo, data);
-    });
-
-    return () => {
-      return (
-        <div class='run-config-data-state'>
-          <AlertInfoCard
-            class='run-config-data-state-card'
-            strategyInfo={strategyInfo}
-            onEnabledChange={handleEnabledChange}
-          />
-          <div class='run-config-data-state-chart'>数据量趋势图区域</div>
-          <div class='run-config-data-state-table'>数据表区域</div>
+  },
+  render() {
+    return (
+      <div class='run-config-data-state'>
+        <AlertInfoCard
+          class='run-config-data-state-card'
+          loading={this.strategyLoading}
+          strategyInfo={this.strategyInfo as IStrategyData}
+          onEnabledChange={this.handleEnabledChange}
+        />
+        <div class='run-config-data-state-chart-container'>
+          <div class='run-config-data-state-chart-title'>数据量趋势</div>
+          <div class='run-config-data-state-chart-content'>
+            <DataVolumeTrend
+              class='run-config-data-state-chart'
+              dashboardPanels={this.dashboardPanels}
+              loading={this.dashboardLoading}
+            />
+          </div>
         </div>
-      );
-    };
+        <div class='run-config-data-state-table'>数据表区域</div>
+      </div>
+    );
   },
 });

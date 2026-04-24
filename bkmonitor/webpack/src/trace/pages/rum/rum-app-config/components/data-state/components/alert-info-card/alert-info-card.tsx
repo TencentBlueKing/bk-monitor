@@ -114,7 +114,7 @@ export default defineComponent({
         popoverAnchor,
         (
           <ConfirmActionBar
-            title={props.strategyInfo.is_enabled ? t('确认关闭？') : t('确认开启？')}
+            title={props.strategyInfo?.is_enabled ? t('确认关闭？') : t('确认开启？')}
             onClose={() => {
               promiseReject();
             }}
@@ -127,7 +127,12 @@ export default defineComponent({
               })
             }
           />
-        ) as unknown as Element
+        ) as unknown as Element,
+        {
+          onHidden: () => {
+            promiseReject();
+          },
+        }
       );
 
       return promise;
@@ -139,7 +144,7 @@ export default defineComponent({
      * @returns {void}
      */
     const handlePageJump = (type: 'edit' | 'event') => {
-      const { id } = props.strategyInfo;
+      const { id } = props.strategyInfo ?? {};
       const hash = JUMP_HASH_MAP[type](id);
       const url = `${location.origin}${location.pathname}${location.search}${hash}`;
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -155,55 +160,61 @@ export default defineComponent({
   render() {
     return (
       <div class='alert-info-card'>
-        {/* 左侧：无数据告警开关 */}
-        <div class='alert-info-card-left'>
-          <span
-            class='alert-label'
-            v-bk-tooltips={{
-              content: this.t('当没有收到任何数据可以进行告警通知。'),
-              allowHTML: false,
-            }}
-          >
-            {this.t('无数据告警')}
-          </span>
-          <div
-            ref='switchRef'
-            class='switch-wrapper'
-          >
-            <Switcher
-              beforeChange={this.handleSwitchBeforeChange}
-              modelValue={this.strategyInfo.is_enabled}
-              size='small'
-              theme='primary'
-            />
-          </div>
-        </div>
+        {this.loading ? (
+          <div class='skeleton-element alert-info-card-skeleton' />
+        ) : (
+          <div class='alert-info-card-main'>
+            {/* 左侧：无数据告警开关 */}
+            <div class='alert-info-card-left'>
+              <span
+                class='alert-label'
+                v-bk-tooltips={{
+                  content: this.t('当没有收到任何数据可以进行告警通知。'),
+                  allowHTML: false,
+                }}
+              >
+                {this.t('无数据告警')}
+              </span>
+              <div
+                ref='switchRef'
+                class='switch-wrapper'
+              >
+                <Switcher
+                  beforeChange={this.handleSwitchBeforeChange}
+                  modelValue={this.strategyInfo?.is_enabled}
+                  size='small'
+                  theme='primary'
+                />
+              </div>
+            </div>
 
-        {/* 右侧：告警历史与操作链接 */}
-        <div class='alert-info-card-right'>
-          <div class='alert-history'>
-            <span class='history-label'>{this.t('告警历史')} ：</span>
-            <AlertTrendMiniChart alertGraph={this.strategyInfo.alert_graph} />
+            {/* 右侧：告警历史与操作链接 */}
+            <div class='alert-info-card-right'>
+              <div class='alert-history'>
+                <span class='history-label'>{this.t('告警历史')} ：</span>
+                <AlertTrendMiniChart alertGraph={this.strategyInfo?.alert_graph} />
+              </div>
+              <Button
+                class='action-link'
+                theme='primary'
+                text
+                onClick={() => this.handlePageJump('event')}
+              >
+                {this.t('更多')}
+                <i class='icon-monitor icon-fenxiang link-icon' />
+              </Button>
+              <Button
+                class='action-link action-link-edit'
+                theme='primary'
+                text
+                onClick={() => this.handlePageJump('edit')}
+              >
+                {this.t('编辑告警策略')}
+                <i class='icon-monitor icon-fenxiang link-icon' />
+              </Button>
+            </div>
           </div>
-          <Button
-            class='action-link'
-            theme='primary'
-            text
-            onClick={() => this.handlePageJump('event')}
-          >
-            {this.t('更多')}
-            <i class='icon-monitor icon-fenxiang link-icon' />
-          </Button>
-          <Button
-            class='action-link action-link-edit'
-            theme='primary'
-            text
-            onClick={() => this.handlePageJump('edit')}
-          >
-            {this.t('编辑告警策略')}
-            <i class='icon-monitor icon-fenxiang link-icon' />
-          </Button>
-        </div>
+        )}
       </div>
     );
   },

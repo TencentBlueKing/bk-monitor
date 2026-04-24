@@ -24,36 +24,53 @@
  * IN THE SOFTWARE.
  */
 
-.run-config-data-state {
-  display: flex;
-  flex-direction: column;
-  margin-top: 6px;
+.data-volume-trend {
+  width: 100%;
 
-  // 数据量趋势容器
-  .run-config-data-state-chart-container {
-    // 数据量趋势标题
-    .run-config-data-state-chart-title {
-      padding: 14px 0;
-      font-size: 14px;
-      font-weight: 600;
-      line-height: 22px;
-      color: #63656e;
-    }
+  %data-volume-trend-chart-item {
+    height: 296px;
+    border: 1px solid #0000;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
 
-    // 数据量趋势内容
-    .run-config-data-state-chart-content {
-      padding: 24px;
+  .data-volume-trend-skeleton {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+
+    .data-volume-trend-skeleton-item {
       background: #f5f7fa;
-      border-radius: 2px;
+      border-color: #eaebf0;
+
+      @extend %data-volume-trend-chart-item;
     }
   }
 
-  // 数据表区域
-  .run-config-data-state-table {
-    min-height: 200px;
-    padding: 16px;
-    background-color: #fff;
-    border: 1px solid #eaebf0;
-    border-radius: 2px;
+  .data-volume-trend-content {
+    .data-volume-trend-dashboard {
+      .alarm-metrics-chart-container {
+        gap: 30px;
+        padding-top: 0;
+
+        .alarm-lazy-chart {
+          .base-chart {
+            @extend %data-volume-trend-chart-item;
+
+            .title-wrapper {
+              .chart-title {
+                padding: 10px 34px 8px 16px;
+
+                .main-title {
+                  & > div:last-child {
+                    margin-bottom: 0;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

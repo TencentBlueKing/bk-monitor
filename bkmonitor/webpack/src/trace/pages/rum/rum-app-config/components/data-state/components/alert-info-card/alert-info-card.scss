@@ -26,14 +26,24 @@
 
 .alert-info-card {
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   width: 100%;
   height: 56px;
-  padding: 0 14px 0 24px;
   background-color: #f5f7fa;
   border-radius: 2px;
+
+  .alert-info-card-skeleton {
+    width: 100%;
+    height: 100%;
+  }
+
+  .alert-info-card-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%;
+    padding: 0 14px 0 24px;
+  }
 
   // 左侧区域：无数据告警开关
   .alert-info-card-left {

@@ -78,6 +78,14 @@ export interface INoticeGroupItem {
   name: string;
 }
 
+/** RUM 应用基础请求参数 */
+export interface IRumAppBaseParams {
+  /** 应用名称 */
+  app_name: string;
+  /** 业务 ID */
+  bk_biz_id: number;
+}
+
 /** 告警策略数据 */
 export interface IStrategyData {
   /** 告警数量 */
