@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 
 from django.conf import settings
@@ -129,7 +129,9 @@ class TasksViewSet(ModelViewSet):
         @apiGroup 18_extract
         @apiDescription 点击开始下载后创建下载任务
         @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {String} target_node_type 目标节点类型
         @apiParam {List[Dict]} ip_list 目标文件所在的业务机器IP
+        @apiParam {List[Dict]} target_nodes 节点列表
         @apiParam {List} files 目标文件路径
         @apiParam {String} remark 备注
         @apiParam {String} preview_directory 预览目录
@@ -212,7 +214,7 @@ class TasksViewSet(ModelViewSet):
         return Response(
             TasksHandler().create(
                 bk_biz_id=data.get("bk_biz_id"),
-                ip_list=data.get("ip_list"),
+                ip_list=data.get("ip_list") or [],
                 request_file_list=data.get("file_path"),
                 filter_type=data.get("filter_type"),
                 filter_content=data.get("filter_content"),
@@ -224,6 +226,8 @@ class TasksViewSet(ModelViewSet):
                 preview_start_time=data.get("preview_start_time"),
                 preview_end_time=data.get("preview_end_time"),
                 link_id=data.get("link_id"),
+                target_node_type=data.get("target_node_type"),
+                target_nodes=data.get("target_nodes") or [],
             )
         )
 
@@ -467,5 +471,5 @@ class TasksViewSet(ModelViewSet):
             content = f.read()
         response = HttpResponse(content=content)
         response["Content-Type"] = "application/octet-stream"
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(target_file)
+        response["Content-Disposition"] = f'attachment;filename="{target_file}"'
         return response

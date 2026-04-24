@@ -169,9 +169,7 @@ def report_mail_detect():
             try:
                 run_time = TimeMatch.convert_datetime_to_arrow(_parse_run_time_str(time_str))
             except ValueError:
-                logger.warning(
-                    "[mail_report] report_item(%s) invalid run_time format, skip: %s", item.id, time_str
-                )
+                logger.warning("[mail_report] report_item(%s) invalid run_time format, skip: %s", item.id, time_str)
                 continue
             if time_check.is_match(run_time):
                 # 更新发送时间
@@ -358,6 +356,6 @@ def render_image_task(task: RenderImageTask):
         task.status = RenderImageTask.Status.FAILED
     else:
         task.status = RenderImageTask.Status.SUCCESS
-        task.image = ContentFile(image, name=f"{task.type}/{str(task.task_id)}.{config.image_format}")
+        task.image = ContentFile(image, name=f"{str(task.task_id)}.{config.image_format}")
 
     task.save()

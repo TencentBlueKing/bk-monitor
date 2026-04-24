@@ -433,6 +433,10 @@ WXWORK_BOT_WEBHOOK_URL = ""
 WXWORK_BOT_NAME = ""
 WXWORK_BOT_SEND_IMAGE = True
 
+# 是否启用 CMSI 专用 send_rtx 接口（通过 ENABLE_CMSI_SEND_RTX 环境变量开启）
+# 开启后，Sender.send_rtx 在走 rtx 通道时会调用 api.cmsi.send_rtx，而不再走通用 send_msg 接口
+ENABLE_CMSI_SEND_RTX = os.getenv("ENABLE_CMSI_SEND_RTX", "false").lower() == "true"
+
 # 执行流控的 APP 白名单
 THROTTLE_APP_WHITE_LIST = []
 
@@ -1466,6 +1470,14 @@ AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "bkm-mcp-client")
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# OpenClaw 自愈分析 MCP 配置
+OPENCLAW_RECOVERING_BK_BIZ_ID = 0
+OPENCLAW_RECOVERING_APM_APP_NAME = ""
+OPENCLAW_RECOVERING_TRACE_OWNER_FIELD = "attributes.agent.session.executor"
+OPENCLAW_RECOVERING_LOG_OWNER_FIELD = "__ext.owner"
+OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP = {}
+OPENCLAW_RECOVERING_ADMIN_USERS = []
+OPENCLAW_RECOVERING_MCP_SERVER_NAME = ""
 # 是否开启AI RENAME
 ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
@@ -1600,6 +1612,18 @@ SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
 
 # BCS集群自动发现任务周期
 BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
+# BCS集群自动发现任务的起始集群ID（严格大于，不包含该ID本身）。
+# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的新增与删除；
+# 阈值以下（含阈值）的集群不会被本任务新增，也不会被标记为删除，但已存在集群的状态/业务/项目仍会正常更新。
+# 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
+BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
+
+# BKCC 业务同步任务的起始业务 ID（严格大于，不包含该 ID 本身）。
+# 取值示例: "1000" 表示仅接管 bk_biz_id > 1000 的 CMDB 业务的新增、删除及 V4 内置链路检查；
+# 阈值以下（含阈值）的业务不会被本任务新增，也不会因 CMDB 缺失而被删除，且不会触发 V4 内置链路检查，
+# 交由其它任务/链路管理，但冲突空间软禁用等保护性逻辑仍对全量业务生效。
+# 留空表示禁用阈值过滤，全部业务均由本任务接管（保持历史行为）。
+SYNC_BKCC_SPACE_START_BIZ_ID = os.getenv("SYNC_BKCC_SPACE_START_BIZ_ID", "")
 
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []

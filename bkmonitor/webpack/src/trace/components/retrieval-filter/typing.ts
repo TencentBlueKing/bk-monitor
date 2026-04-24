@@ -624,11 +624,17 @@ export const VALUE_TAG_INPUT_PROPS = {
     type: Boolean,
     default: false,
   },
+  valueMap: {
+    type: Object as PropType<Map<string, string>>,
+    default: () => new Map(),
+  },
 };
 export const VALUE_TAG_INPUT_EMITS = {
   input: (_v: string) => true,
   change: (_v: string) => true,
   delete: (_e?: MouseEvent) => true,
+  focus: () => true,
+  blur: () => true,
 } as const;
 export const VALUE_OPTIONS_PROPS = {
   selected: {
@@ -685,6 +691,7 @@ export const VALUE_OPTIONS_PROPS = {
 export const VALUE_OPTIONS_EMITS = {
   isChecked: (_v: boolean) => true,
   select: (_v: IValue) => true,
+  getOptions: (_v: IValue[]) => true,
 } as const;
 export const QS_SELECTOR_PROPS = {
   fields: {

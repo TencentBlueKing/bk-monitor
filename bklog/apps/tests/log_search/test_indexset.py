@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 
 import copy
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import arrow
 from blueapps.account.models import User
@@ -115,6 +115,9 @@ CREATE_SUCCESS = {
         "max_async_count": 0,
         "doris_table_id": None,
         "support_doris": False,
+        "is_platform_index": False,
+        "platform_index_filter": None,
+        "platform_index_visibility": None,
     },
     "code": 0,
     "message": "",
@@ -193,6 +196,9 @@ UPDATE_INDEX_SET = {
     "max_async_count": 0,
     "doris_table_id": None,
     "support_doris": False,
+    "is_platform_index": False,
+    "platform_index_filter": None,
+    "platform_index_visibility": None,
 }
 
 NOT_EDITABLE_RETURN = {
@@ -286,6 +292,9 @@ INDEX_SET_LISTS = {
             "max_async_count": 0,
             "doris_table_id": None,
             "support_doris": False,
+            "is_platform_index": False,
+            "platform_index_filter": None,
+            "platform_index_visibility": None,
         }
     ],
 }
@@ -428,6 +437,9 @@ RETRIEVE_LIST = {
     "max_async_count": 0,
     "doris_table_id": None,
     "support_doris": False,
+    "is_platform_index": False,
+    "platform_index_filter": None,
+    "platform_index_visibility": None,
 }
 MULTI_RESULT = {}
 FIELDS_LIST = [
@@ -867,3 +879,442 @@ class IndexGroupViewSetTestCase(TestCase):
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         # 验证数据库
         self.assertFalse(LogIndexSet.objects.filter(index_set_id=self.index_group.index_set_id).exists())
+
+
+class TestPlatformIndexSerializer(TestCase):
+    """
+    测试平台级索引集有关序列化器的校验行为
+    """
+
+    def test_is_platform_index_true_but_visibility_and_filter_empty(self):
+        """
+        is_platform_index=True 但 visibility/filter 为空 → 拒绝
+        """
+        from apps.log_databus.serializers import PlatformIndexFieldsSerializer
+
+        ser = PlatformIndexFieldsSerializer(data={"is_platform_index": True})
+        self.assertFalse(ser.is_valid())
+
+        ser = PlatformIndexFieldsSerializer(
+            data={
+                "is_platform_index": True,
+                "platform_index_visibility": {"type": "multi_biz", "bk_biz_ids": [1, 2]},
+                # 缺 platform_index_filter
+            }
+        )
+        self.assertFalse(ser.is_valid())
+
+        ser = PlatformIndexFieldsSerializer(
+            data={
+                "is_platform_index": True,
+                # 缺 platform_index_visibility
+                "platform_index_filter": {"field": "bk_biz_id", "value_ref": "bk_biz_id"},
+            }
+        )
+        self.assertFalse(ser.is_valid())
+
+    def test_is_platform_index_true_with_full_fields(self):
+        """
+        is_platform_index=True 且 visibility/filter 完整 → 通过
+        """
+        from apps.log_databus.serializers import PlatformIndexFieldsSerializer
+
+        ser = PlatformIndexFieldsSerializer(
+            data={
+                "is_platform_index": True,
+                "platform_index_visibility": {"type": "multi_biz", "bk_biz_ids": [1, 2]},
+                "platform_index_filter": {"field": "bk_biz_id", "value_ref": "bk_biz_id"},
+            }
+        )
+        self.assertTrue(ser.is_valid(), msg=ser.errors)
+
+    def test_is_platform_index_false_or_missing_does_not_require_others(self):
+        """
+        is_platform_index=False/未传 → 即使 visibility/filter 缺失也通过
+        """
+        from apps.log_databus.serializers import PlatformIndexFieldsSerializer
+
+        ser = PlatformIndexFieldsSerializer(data={"is_platform_index": False})
+        self.assertTrue(ser.is_valid(), msg=ser.errors)
+
+        ser = PlatformIndexFieldsSerializer(data={})
+        self.assertTrue(ser.is_valid(), msg=ser.errors)
+
+    def test_visibility_multi_biz_without_bk_biz_ids(self):
+        """
+        multi_biz 模式下 bk_biz_ids 为空 → 拒绝
+        """
+        from apps.log_databus.serializers import PlatformIndexVisibilitySerializer
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "multi_biz"})
+        self.assertFalse(ser.is_valid())
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "multi_biz", "bk_biz_ids": []})
+        self.assertFalse(ser.is_valid())
+
+    def test_visibility_biz_attr_without_bk_biz_labels(self):
+        """
+        biz_attr 模式下 bk_biz_labels 为空 → 拒绝
+        """
+        from apps.log_databus.serializers import PlatformIndexVisibilitySerializer
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr"})
+        self.assertFalse(ser.is_valid())
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {}})
+        self.assertFalse(ser.is_valid())
+
+    def test_visibility_valid_cases(self):
+        """
+        visibility 正确填充 → 通过
+        """
+        from apps.log_databus.serializers import PlatformIndexVisibilitySerializer
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "multi_biz", "bk_biz_ids": [1, 2, 3]})
+        self.assertTrue(ser.is_valid(), msg=ser.errors)
+
+        ser = PlatformIndexVisibilitySerializer(data={"type": "biz_attr", "bk_biz_labels": {"env": "prod"}})
+        self.assertTrue(ser.is_valid(), msg=ser.errors)
+
+
+PLATFORM_VISIBILITY = {"type": "multi_biz", "bk_biz_ids": [1, 2]}
+PLATFORM_FILTER = {"field": "bk_biz_id", "value_ref": "bk_biz_id"}
+
+
+@patch("apps.iam.handlers.drf.BusinessActionPermission.has_permission", return_value=True)
+@patch("apps.log_search.tasks.mapping.sync_single_index_set_mapping_snapshot.delay", return_value=None)
+@patch("apps.log_databus.tasks.bkdata.async_create_bkdata_data_id", return_value=None)
+@patch("apps.iam.handlers.drf.InstanceActionPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.drf.ViewBusinessPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.permission.Permission.batch_is_allowed", return_value=Dummy())
+@patch("apps.decorators.user_operation_record.delay", return_value=None)
+class TestPlatformIndexHandler(TestCase):
+    """
+    通过 HTTP 接口走 IndexSetHandler.create / update，
+    端到端验证 is_platform_index / platform_index_visibility / platform_index_filter
+    三个字段的落库行为
+    """
+
+    def setUp(self) -> None:
+        if not User.objects.filter(username="admin").exists():
+            User.objects.create_superuser(username="admin")
+
+    @staticmethod
+    def _build_create_payload(**overrides):
+        data = {
+            "index_set_name": "平台日志",
+            "space_uid": SPACE_UID,
+            "storage_cluster_id": STORAGE_CLUSTER_ID,
+            "category_id": "other_rt",
+            "scenario_id": SCENARIO_ID_ES,
+            "view_roles": [],
+            "indexes": [
+                {
+                    "bk_biz_id": BK_BIZ_ID,
+                    "result_table_id": "591_xx",
+                    "time_field": "timestamp",
+                    "scenario_id": "log",
+                    "storage_cluster_id": 6,
+                },
+                {
+                    "bk_biz_id": None,
+                    "result_table_id": "log_xxx",
+                    "time_field": "timestamp",
+                    "scenario_id": "es",
+                    "storage_cluster_id": 3,
+                },
+            ],
+            "is_trace_log": "0",
+            "time_field": "abc",
+            "time_field_type": "date",
+            "time_field_unit": "millisecond",
+        }
+        data.update(overrides)
+        return data
+
+    @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=LogIndexSetData.objects.none())
+    @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
+    @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_create_with_platform_fields(self, *args, **kwargs):
+        """
+        IndexSetHandler.create + 平台字段 → LogIndexSet 正确写入 3 个字段
+        """
+        payload = self._build_create_payload(
+            is_platform_index=True,
+            platform_index_visibility=PLATFORM_VISIBILITY,
+            platform_index_filter=PLATFORM_FILTER,
+        )
+        response = self.client.post(
+            path="/api/v1/index_set/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set = LogIndexSet.objects.all().order_by("-index_set_id").first()
+        self.assertTrue(index_set.is_platform_index)
+        self.assertEqual(index_set.platform_index_visibility, PLATFORM_VISIBILITY)
+        self.assertEqual(index_set.platform_index_filter, PLATFORM_FILTER)
+
+    @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=LogIndexSetData.objects.none())
+    @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
+    @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_update_switch_off_platform_index_clears_related_fields(self, *args, **kwargs):
+        """
+        IndexSetHandler.update 从 is_platform_index=True 切回 False → visibility/filter 被清空
+        """
+        # 先创建一个开启平台级的索引集
+        create_payload = self._build_create_payload(
+            is_platform_index=True,
+            platform_index_visibility=PLATFORM_VISIBILITY,
+            platform_index_filter=PLATFORM_FILTER,
+        )
+        response = self.client.post(
+            path="/api/v1/index_set/",
+            data=json.dumps(create_payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set = LogIndexSet.objects.all().order_by("-index_set_id").first()
+        index_set_id = index_set.index_set_id
+        # 确认初始状态
+        self.assertTrue(index_set.is_platform_index)
+        self.assertEqual(index_set.platform_index_visibility, PLATFORM_VISIBILITY)
+        self.assertEqual(index_set.platform_index_filter, PLATFORM_FILTER)
+
+        # 切回 False
+        update_payload = {
+            "space_uid": index_set.space_uid,
+            "scenario_id": index_set.scenario_id,
+            "index_set_name": index_set.index_set_name,
+            "view_roles": [],
+            "storage_cluster_id": index_set.storage_cluster_id,
+            "category_id": "host",
+            "indexes": [
+                {"bk_biz_id": BK_BIZ_ID, "result_table_id": "591_xx", "time_field": "timestamp"},
+                {"bk_biz_id": None, "result_table_id": "log_xxx", "time_field": "timestamp"},
+            ],
+            "time_field": "abc",
+            "time_field_type": "date",
+            "time_field_unit": "millisecond",
+            "is_platform_index": False,
+            # visibility 与 filter 即使还传着，切回 False 后也应被清空
+            "platform_index_visibility": PLATFORM_VISIBILITY,
+            "platform_index_filter": PLATFORM_FILTER,
+        }
+        response = self.client.patch(
+            path=f"/api/v1/index_set/{index_set_id}/",
+            data=json.dumps(update_payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set.refresh_from_db()
+        self.assertFalse(index_set.is_platform_index)
+        self.assertIsNone(index_set.platform_index_visibility)
+        self.assertIsNone(index_set.platform_index_filter)
+
+    @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=LogIndexSetData.objects.none())
+    @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
+    @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_update_without_is_platform_index_keeps_existing_fields(self, *args, **kwargs):
+        """
+        IndexSetHandler.update 不传 is_platform_index (None) → 保留现有 visibility/filter 不被清空
+        """
+        # 先创建一个开启平台级的索引集
+        create_payload = self._build_create_payload(
+            is_platform_index=True,
+            platform_index_visibility=PLATFORM_VISIBILITY,
+            platform_index_filter=PLATFORM_FILTER,
+        )
+        response = self.client.post(
+            path="/api/v1/index_set/",
+            data=json.dumps(create_payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set = LogIndexSet.objects.all().order_by("-index_set_id").first()
+        index_set_id = index_set.index_set_id
+
+        # 更新时不传 is_platform_index（走 None 分支），仅改其他字段
+        update_payload = {
+            "space_uid": index_set.space_uid,
+            "scenario_id": index_set.scenario_id,
+            "index_set_name": "平台日志-改名",
+            "view_roles": [],
+            "storage_cluster_id": index_set.storage_cluster_id,
+            "category_id": "host",
+            "indexes": [
+                {"bk_biz_id": BK_BIZ_ID, "result_table_id": "591_xx", "time_field": "timestamp"},
+                {"bk_biz_id": None, "result_table_id": "log_xxx", "time_field": "timestamp"},
+            ],
+            "time_field": "abc",
+            "time_field_type": "date",
+            "time_field_unit": "millisecond",
+        }
+        response = self.client.patch(
+            path=f"/api/v1/index_set/{index_set_id}/",
+            data=json.dumps(update_payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set.refresh_from_db()
+        # 未传 is_platform_index 时，三个字段应保持原有值
+        self.assertEqual(index_set.index_set_name, "平台日志-改名")
+        self.assertTrue(index_set.is_platform_index)
+        self.assertEqual(index_set.platform_index_visibility, PLATFORM_VISIBILITY)
+        self.assertEqual(index_set.platform_index_filter, PLATFORM_FILTER)
+
+    @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=LogIndexSetData.objects.none())
+    @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
+    @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_update_only_visibility_without_touching_is_platform_index(self, *args, **kwargs):
+        """
+        IndexSetHandler.update 仅改 visibility（is_platform_index 保持原值）
+        → visibility 更新成功
+        """
+        # 先创建一个开启平台级的索引集（初始 visibility = multi_biz）
+        create_payload = self._build_create_payload(
+            is_platform_index=True,
+            platform_index_visibility=PLATFORM_VISIBILITY,
+            platform_index_filter=PLATFORM_FILTER,
+        )
+        response = self.client.post(
+            path="/api/v1/index_set/",
+            data=json.dumps(create_payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set = LogIndexSet.objects.all().order_by("-index_set_id").first()
+        index_set_id = index_set.index_set_id
+        original_storage_cluster_id = index_set.storage_cluster_id
+
+        new_visibility = {"type": "biz_attr", "bk_biz_labels": {"env": "prod"}}
+        update_payload = {
+            "space_uid": index_set.space_uid,
+            "scenario_id": index_set.scenario_id,
+            "index_set_name": index_set.index_set_name,
+            "view_roles": [],
+            "storage_cluster_id": original_storage_cluster_id,
+            "category_id": "host",
+            "indexes": [
+                {"bk_biz_id": BK_BIZ_ID, "result_table_id": "591_xx", "time_field": "timestamp"},
+                {"bk_biz_id": None, "result_table_id": "log_xxx", "time_field": "timestamp"},
+            ],
+            "time_field": "abc",
+            "time_field_type": "date",
+            "time_field_unit": "millisecond",
+            "is_platform_index": True,
+            # 仅仅改动 visibility
+            "platform_index_visibility": new_visibility,
+            "platform_index_filter": PLATFORM_FILTER,
+        }
+        response = self.client.patch(
+            path=f"/api/v1/index_set/{index_set_id}/",
+            data=json.dumps(update_payload),
+            content_type="application/json",
+        )
+        # 不报错
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        index_set.refresh_from_db()
+        # storage 保持不变
+        self.assertEqual(index_set.storage_cluster_id, original_storage_cluster_id)
+        self.assertTrue(index_set.is_platform_index)
+        # 验证更新
+        self.assertEqual(index_set.platform_index_visibility, new_visibility)
+        self.assertEqual(index_set.platform_index_filter, PLATFORM_FILTER)
+
+
+class TestCustomCreateIdempotent(TestCase):
+    """
+    验证 CollectorHandler.custom_create 在命中已存在 EN 名时的两条分支：
+    - ignore_exists=True  → 返回已有记录信息且 created=False
+    - ignore_exists=False → 抛 CollectorConfigNameENDuplicateException
+    """
+
+    def _build_params(self, **overrides):
+        params = {
+            "bk_biz_id": 2,
+            "collector_config_name": "自定义采集",
+            "collector_config_name_en": "custom_collector_en",
+            "custom_type": "log",
+            "category_id": "other_rt",
+            "description": "desc",
+            "etl_config": "",
+            "etl_params": {},
+            "fields": [],
+        }
+        params.update(overrides)
+        return params
+
+    @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler._pre_check_collector_config_en",
+        return_value=True,
+    )
+    @patch("apps.log_databus.handlers.collector.base.CollectorConfig.objects.get")
+    def test_custom_create_ignore_exists_true_returns_existing(self, mock_get, mock_pre_check):
+        """
+        ignore_exists=True 命中已存在 → 返回 created=False 且 ids 正确
+        """
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        existing = MagicMock()
+        existing.collector_config_id = 100
+        existing.index_set_id = 200
+        existing.bk_data_id = 300
+        mock_get.return_value = existing
+
+        result = CollectorHandler().custom_create(ignore_exists=True, **self._build_params())
+
+        self.assertEqual(
+            result,
+            {
+                "collector_config_id": 100,
+                "index_set_id": 200,
+                "bk_data_id": 300,
+                "created": False,
+            },
+        )
+        # 确认短路：没有进入实际创建流程
+        mock_pre_check.assert_called_once()
+        mock_get.assert_called_once()
+
+    @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler._pre_check_collector_config_en",
+        return_value=True,
+    )
+    def test_custom_create_ignore_exists_false_raises(self, mock_pre_check):
+        """
+        ignore_exists=False 命中已存在 → 抛 CollectorConfigNameENDuplicateException
+        """
+        from apps.log_databus.exceptions import CollectorConfigNameENDuplicateException
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        with self.assertRaises(CollectorConfigNameENDuplicateException):
+            CollectorHandler().custom_create(ignore_exists=False, **self._build_params())
+
+        mock_pre_check.assert_called_once()

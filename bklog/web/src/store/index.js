@@ -744,6 +744,17 @@ const store = new Vuex.Store({
           }
           return 0;
         });
+
+        const fieldNameIndex = {};
+        const queryAliasIndex = {};
+        state.indexFieldInfo.fields.forEach((f) => {
+          fieldNameIndex[f.field_name] = f;
+          if (f.query_alias) {
+            queryAliasIndex[f.query_alias] = f;
+          }
+        });
+        set(state.indexFieldInfo, 'fieldNameIndex', fieldNameIndex);
+        set(state.indexFieldInfo, 'queryAliasIndex', queryAliasIndex);
       }
     },
     updateIndexFieldEggsItems(state, payload) {

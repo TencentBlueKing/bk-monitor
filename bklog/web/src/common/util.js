@@ -561,31 +561,209 @@ export function formatFileSize(size, dropFractionIfInteger = false) {
 }
 
 /**
- * 读取Blob格式返回数据
- * @param {*} response
+ * Bidi 控制字符单次扫描清洗：
+ * - 覆盖范围：U+202A~U+202E（LRE/RLE/PDF/LRO/RLO）、U+2066~U+2069（LRI/RLI/FSI/PDI）
+ * - 未命中走零分配路径，命中时才创建新字符串
+ * @param {string} str
+ * @returns {string}
  */
-export function readBlobResponse(response) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(reader.error);
-    };
-
-    reader.readAsText(response);
-  });
+export function sanitizeBidi(str) {
+  if (!str) return str;
+  let result = null;
+  let lastIndex = 0;
+  const len = str.length;
+  for (let i = 0; i < len; i++) {
+    const code = str.charCodeAt(i);
+    if ((code >= 0x202A && code <= 0x202E) || (code >= 0x2066 && code <= 0x2069)) {
+      if (result === null) result = '';
+      result += str.slice(lastIndex, i);
+      lastIndex = i + 1;
+    }
+  }
+  return result === null ? str : result + str.slice(lastIndex);
 }
 
 /**
- * 读取Blob格式返回Json数据
- * @param {*} resp
+ * 流式 Sanitize Transform：
+ * - 处理跨 chunk 边界：保留尾部 2 个字符到下一个 chunk 再处理，避免控制字符被拆分
+ */
+export function createSanitizeTransform() {
+  let carry = '';
+  return new TransformStream({
+    transform(chunk, controller) {
+      const str = carry + chunk;
+      const safeLen = Math.max(0, str.length - 2);
+      carry = str.slice(safeLen);
+      controller.enqueue(sanitizeBidi(str.slice(0, safeLen)));
+    },
+    flush(controller) {
+      if (carry) {
+        controller.enqueue(sanitizeBidi(carry));
+        carry = '';
+      }
+    },
+  });
+}
+
+function supportsStreamPipeline() {
+  return typeof TextDecoderStream !== 'undefined'
+    && typeof TransformStream !== 'undefined'
+    && typeof ReadableStream !== 'undefined';
+}
+
+function readBlobByFileReader(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
+async function collectStringStream(stream) {
+  const reader = stream.getReader();
+  let out = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      out += value;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return out;
+}
+
+/**
+ * 读取 Blob 为字符串（已清洗 Bidi 控制字符）
+ * - 优先走 Blob.stream() → TextDecoderStream → Sanitize 流式管道，避免一次性分配完整字符串
+ * - 老环境回退到 FileReader.readAsText 后整串清洗
+ * @param {Blob} response
+ * @returns {Promise<string>}
+ */
+export function readBlobResponse(response) {
+  const canStream = supportsStreamPipeline()
+    && response
+    && typeof response.stream === 'function';
+
+  if (!canStream) {
+    return readBlobByFileReader(response).then(sanitizeBidi);
+  }
+
+  try {
+    const stream = response.stream()
+      .pipeThrough(new TextDecoderStream())
+      .pipeThrough(createSanitizeTransform());
+    return collectStringStream(stream);
+  } catch (e) {
+    return readBlobByFileReader(response).then(sanitizeBidi);
+  }
+}
+
+/**
+ * 读取 Blob 为 JSON（Bidi 清洗 + 长整型精度保留）
+ * @param {Blob} resp
  */
 export function readBlobRespToJson(resp) {
-  return readBlobResponse(resp).then(resText => Promise.resolve(JSONBigNumber.parse(resText)));
+  return readBlobResponse(resp).then(resText => JSONBigNumber.parse(resText));
 }
+
+/**
+ * 流式解析顶层 JSON 数组：
+ * - 输入：字符串 ReadableStream（建议经过 TextDecoderStream + createSanitizeTransform）
+ * - 输出：逐个 yield 数组内的对象，避免一次性 JSON.parse 大字符串
+ * @param {ReadableStream<string>} stream
+ */
+export async function* parseJSONArrayStream(stream) {
+  const reader = stream.getReader();
+  let buffer = '';
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += value;
+
+      for (let i = 0; i < buffer.length; i++) {
+        const ch = buffer[i];
+        if (inString) {
+          if (escape) escape = false;
+          else if (ch === '\\') escape = true;
+          else if (ch === '"') inString = false;
+          continue;
+        }
+        if (ch === '"') {
+          inString = true;
+        } else if (ch === '{') {
+          if (depth === 0) start = i;
+          depth++;
+        } else if (ch === '}') {
+          depth--;
+          if (depth === 0 && start >= 0) {
+            yield JSONBigNumber.parse(buffer.slice(start, i + 1));
+            start = -1;
+          }
+        }
+      }
+
+      if (depth > 0 && start >= 0) {
+        buffer = buffer.slice(start);
+        start = 0;
+      } else {
+        buffer = '';
+        start = -1;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * 大 JSON 流水线消费：流式读取 → 文本解码 → Bidi 清洗 → 逐对象 parse
+ * - 不落地完整字符串，可支撑 100MB+ 数据
+ * - 每 256 条主动让出主线程一次，降低 UI 卡顿
+ * @param {Blob} response
+ * @param {(item: any) => void} onItem
+ */
+export async function processHugeJSON(response, onItem) {
+  const canStream = supportsStreamPipeline()
+    && response
+    && typeof response.stream === 'function';
+
+  if (!canStream) {
+    const text = await readBlobByFileReader(response).then(sanitizeBidi);
+    const list = JSONBigNumber.parse(text);
+    if (Array.isArray(list)) {
+      for (let i = 0; i < list.length; i++) {
+        onItem(list[i]);
+        if ((i & 0xff) === 0xff) {
+          await new Promise(r => setTimeout(r));
+        }
+      }
+    }
+    return;
+  }
+
+  const stream = response.stream()
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(createSanitizeTransform());
+
+  let count = 0;
+  for await (const obj of parseJSONArrayStream(stream)) {
+    onItem(obj);
+    count += 1;
+    if ((count & 0xff) === 0) {
+      await new Promise(r => setTimeout(r));
+    }
+  }
+}
+
 export function bigNumberToString(value) {
   return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
 }

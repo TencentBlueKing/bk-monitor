@@ -518,7 +518,7 @@ class PluginDataAccessor:
             option={"is_split_measurement": True},
         )
 
-    def access(self):
+    def access(self, force_split_measurement: bool = False):
         """
         接入数据链路
         :return: 创建的 data id
@@ -529,6 +529,10 @@ class PluginDataAccessor:
 
         # 开启自动发现，一定是单指标单表
         is_split_measurement = self.enable_field_blacklist
+
+        # 强制开启单指标单表
+        if force_split_measurement:
+            is_split_measurement = True
 
         # 如果data_id不存在，则创建data_id，否则修改data_id
         if not self.data_id:
@@ -576,7 +580,8 @@ class PluginDataAccessor:
                     {
                         "time_series_group_id": group_list[0]["time_series_group_id"],
                         "enable_field_black_list": self.enable_field_blacklist,
-                        "options": {"enable_plugin_v4_data_link": True},
+                        # 更新插件不要开启插件V4链路，只有创建新插件才开启
+                        # "options": {"enable_plugin_v4_data_link": True},
                     }
                 )
 

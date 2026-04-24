@@ -1526,28 +1526,32 @@ class TimeSeriesMetricConditionQueryMixin:
     def _build_name_query(value: str, search_type: str) -> Q:
         if search_type == "regex_case_sensitive":
             return Q(field_name__regex=value)
-        if search_type == "regex":
+        elif search_type == "regex":
             return Q(field_name__iregex=value)
-        if search_type == "fuzzy_case_sensitive":
+        elif search_type == "fuzzy_case_sensitive":
             return Q(field_name__contains=value)
-        if search_type == "fuzzy":
+        elif search_type == "fuzzy":
             return Q(field_name__iregex=re.escape(value))
-        if search_type == "exact_case_sensitive":
+        elif search_type == "exact_case_sensitive":
             return Q(field_name=value)
+        elif search_type == "startswith":
+            return Q(field_name__startswith=value)
         return Q(field_name__iregex=rf"^{re.escape(value)}$")
 
     @staticmethod
     def _build_alias_query(value: str, search_type: str) -> Q:
         if search_type == "regex_case_sensitive":
             return Q(field_config__alias__regex=value)
-        if search_type == "regex":
+        elif search_type == "regex":
             return Q(field_config__alias__iregex=value)
-        if search_type == "fuzzy_case_sensitive":
+        elif search_type == "fuzzy_case_sensitive":
             return Q(field_config__alias__regex=re.escape(value))
-        if search_type == "fuzzy":
+        elif search_type == "fuzzy":
             return Q(field_config__alias__icontains=value)
-        if search_type == "exact_case_sensitive":
+        elif search_type == "exact_case_sensitive":
             return Q(field_config__alias=value)
+        elif search_type == "startswith":
+            return Q(field_config__alias__startswith=value)
         return Q(field_config__alias__iexact=value)
 
     @staticmethod
@@ -1644,6 +1648,7 @@ class QueryTimeSeriesMetricResource(TimeSeriesMetricConditionQueryMixin, Resourc
                     "fuzzy_case_sensitive",
                     "exact",
                     "exact_case_sensitive",
+                    "startswith",
                 ],
                 required=False,
                 default="fuzzy",
@@ -1852,6 +1857,7 @@ class QueryTimeSeriesScopeResource(TimeSeriesMetricConditionQueryMixin, Resource
                     "fuzzy_case_sensitive",
                     "exact",
                     "exact_case_sensitive",
+                    "startswith",
                 ],
                 required=False,
                 default="fuzzy",

@@ -1944,60 +1944,10 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             plugin_type__in=set(CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE) - {PluginType.K8S}
         )
         for plugin in plugins:
-            if plugin.current_version.info.enable_field_blacklist:
-                group_list = self.get_plugin_time_series_groups(plugin)
-                if group_list:
-                    for group in group_list:
-                        yield from self.get_plugin_ts_metric(group)
-                    continue
-
-            # 刷新插件的metric_json
-            plugin.refresh_metric_json()
-            for table in plugin.current_version.info.metric_json:
-                metric_infos: list[dict[str, Any]] = []
-                dimension_infos: list[dict[str, Any]] = []
-                for field in table["fields"]:
-                    # 字段分类
-                    if field["monitor_type"] == "metric":
-                        # 跳过非活跃字段
-                        if field["is_active"]:
-                            metric_infos.append(field)
-                    else:
-                        dimension_infos.append(field)
-
-                # 维度列表
-                dimensions = [
-                    {"id": dimension_info["name"], "name": dimension_info["description"] or dimension_info["name"]}
-                    for dimension_info in dimension_infos
-                ]
-
-                # 判断目标类型
-                data_target = DataTargetMapping.get_data_target(
-                    result_table_label=plugin.label,
-                    data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-                    data_type_label=DataTypeLabel.TIME_SERIES,
-                )
-
-                for metric_info in metric_infos:
-                    yield {
-                        "bk_biz_id": self.bk_biz_id,
-                        "result_table_id": PluginVersionHistory.get_result_table_id(
-                            plugin, table["table_name"]
-                        ).lower(),
-                        "result_table_name": table["table_desc"],
-                        "metric_field": metric_info["name"],
-                        "metric_field_name": metric_info["description"] or metric_info["name"],
-                        "unit": metric_info["unit"],
-                        "dimensions": dimensions,
-                        "default_dimensions": [],
-                        "default_condition": [],
-                        "result_table_label": plugin.label,
-                        "result_table_label_name": self.get_label_name(plugin.label),
-                        "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
-                        "data_type_label": DataTypeLabel.TIME_SERIES,
-                        "data_target": data_target,
-                        "data_label": f"{plugin.plugin_type}_{plugin.plugin_id}".lower(),
-                    }
+            group_list = self.get_plugin_time_series_groups(plugin)
+            if group_list:
+                for group in group_list:
+                    yield from self.get_plugin_ts_metric(group)
 
     def get_metrics_by_table(self, table):
         """
