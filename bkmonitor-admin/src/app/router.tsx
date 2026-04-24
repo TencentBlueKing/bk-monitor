@@ -1,0 +1,248 @@
+import {
+  Link,
+  Navigate,
+  Outlet,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  useSearch
+} from '@tanstack/react-router';
+import { Database, Settings2, Table2 } from 'lucide-react';
+import { useEffect } from 'react';
+
+import { EnvironmentGuard } from '../features/environments/EnvironmentGuard';
+import { EnvironmentSettingsPage } from '../features/environments/EnvironmentSettingsPage';
+import { EnvironmentSwitcher } from '../features/environments/EnvironmentSwitcher';
+import { TenantSwitcher } from '../features/environments/TenantSwitcher';
+import { useEnvironmentConfig } from '../features/environments/hooks';
+import {
+  createEnvironmentSearch,
+  getSearchEnvironmentId,
+  getSearchTenantId,
+  updateBrowserEnvironmentSearch
+} from '../features/environments/search';
+import { DataSourceDetailPage } from '../features/datasource/DataSourceDetailPage';
+import { DataSourceListPage } from '../features/datasource/DataSourceListPage';
+import { ResultTableDetailPage } from '../features/result-table/ResultTableDetailPage';
+import { ResultTableListPage } from '../features/result-table/ResultTableListPage';
+import { BrandLogo } from '../shared/components/BrandLogo';
+
+function RootLayout() {
+  const { defaultEnvironmentId } = useEnvironmentConfig();
+
+  return (
+    <>
+      <Outlet />
+      <div className="sr-only" data-testid="default-environment">
+        {defaultEnvironmentId}
+      </div>
+    </>
+  );
+}
+
+function HomeRedirect() {
+  const { currentTenantId, defaultEnvironmentId, environments, loading } = useEnvironmentConfig();
+
+  if (loading) {
+    return <div className="setup-shell">正在加载环境配置...</div>;
+  }
+
+  if (environments.length === 0 || !defaultEnvironmentId) {
+    return <Navigate to="/settings/environments" />;
+  }
+
+  return (
+    <Navigate
+      to="/datasources"
+      search={createEnvironmentSearch(defaultEnvironmentId, currentTenantId)}
+    />
+  );
+}
+
+function AppLayout() {
+  const search = useSearch({ strict: false });
+  const {
+    currentEnvironment,
+    currentTenantId,
+    defaultEnvironmentId,
+    environments,
+    findEnvironment,
+    loading,
+    setCurrentEnvironmentId,
+    setCurrentTenantId
+  } = useEnvironmentConfig();
+  const searchEnvironmentId = getSearchEnvironmentId(search);
+  const searchTenantId = getSearchTenantId(search);
+  const searchEnvironment = searchEnvironmentId ? findEnvironment(searchEnvironmentId) : null;
+  const environment = searchEnvironment ?? currentEnvironment;
+  const activeEnvironmentId = searchEnvironmentId ?? environment?.id ?? defaultEnvironmentId;
+  const activeTenantId = searchTenantId ?? currentTenantId;
+
+  useEffect(() => {
+    if (searchEnvironment) {
+      setCurrentEnvironmentId(searchEnvironment.id);
+    }
+  }, [searchEnvironment, setCurrentEnvironmentId]);
+
+  useEffect(() => {
+    if (searchTenantId && searchTenantId !== currentTenantId) {
+      setCurrentTenantId(searchTenantId);
+    }
+  }, [currentTenantId, searchTenantId, setCurrentTenantId]);
+
+  useEffect(() => {
+    if (!activeEnvironmentId || searchTenantId) {
+      return;
+    }
+
+    updateBrowserEnvironmentSearch(activeEnvironmentId, currentTenantId, { replace: true });
+  }, [activeEnvironmentId, currentTenantId, searchTenantId]);
+
+  if (loading) {
+    return <div className="setup-shell">正在加载环境配置...</div>;
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar" aria-label="资源导航">
+        <BrandLogo />
+        <div className="sidebar-selectors">
+          {environments.length > 0 ? <EnvironmentSwitcher /> : null}
+          {environment ? <TenantSwitcher /> : null}
+        </div>
+        <nav className="nav-list">
+          <div className="nav-section">
+            <div className="nav-section-title">资源管理</div>
+            <div className="nav-section-items">
+              <Link
+                to="/datasources"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Database aria-hidden="true" size={18} />
+                DataSource
+              </Link>
+              <Link
+                to="/result-tables"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Table2 aria-hidden="true" size={18} />
+                ResultTable
+              </Link>
+            </div>
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-title">系统设置</div>
+            <div className="nav-section-items">
+              <Link
+                to="/settings/environments"
+                search={
+                  activeEnvironmentId
+                    ? createEnvironmentSearch(activeEnvironmentId, activeTenantId)
+                    : {}
+                }
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Settings2 aria-hidden="true" size={18} />
+                环境配置
+              </Link>
+            </div>
+          </div>
+        </nav>
+      </aside>
+      <main className="content-shell">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+function GuardedDataSourceListPage() {
+  return <EnvironmentGuard>{() => <DataSourceListPage />}</EnvironmentGuard>;
+}
+
+function GuardedDataSourceDetailPage() {
+  return <EnvironmentGuard>{() => <DataSourceDetailPage />}</EnvironmentGuard>;
+}
+
+function GuardedResultTableListPage() {
+  return <EnvironmentGuard>{() => <ResultTableListPage />}</EnvironmentGuard>;
+}
+
+function GuardedResultTableDetailPage() {
+  return <EnvironmentGuard>{() => <ResultTableDetailPage />}</EnvironmentGuard>;
+}
+
+const rootRoute = createRootRoute({
+  component: RootLayout
+});
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: HomeRedirect
+});
+
+const appRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'app',
+  component: AppLayout
+});
+
+const settingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'settings'
+});
+
+const standaloneEnvironmentSettingsRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: 'environments',
+  component: EnvironmentSettingsPage
+});
+
+const datasourceListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'datasources',
+  component: GuardedDataSourceListPage
+});
+
+const datasourceDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'datasources/$bkDataId',
+  component: GuardedDataSourceDetailPage
+});
+
+const resultTableListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'result-tables',
+  component: GuardedResultTableListPage
+});
+
+const resultTableDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'result-tables/$tableId',
+  component: GuardedResultTableDetailPage
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  appRoute.addChildren([
+    settingsRoute.addChildren([standaloneEnvironmentSettingsRoute]),
+    datasourceListRoute,
+    datasourceDetailRoute,
+    resultTableListRoute,
+    resultTableDetailRoute
+  ])
+]);
+
+export const router = createRouter({ routeTree });
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router;
+  }
+}
