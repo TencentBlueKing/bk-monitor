@@ -90,7 +90,7 @@ class TGPASearchHandler:
             "sdk_version": task_detail.get("sdk_version", ""),
             "model": task_detail.get("model", ""),
             "xid": task.get("xid", ""),
-            "report_time": task.get("processed_at", ""),
+            "report_time": task.get("processed_at", ""),  # 用 processed_at 更接近上报时间
             "process_status": task.get("process_status", ""),
             "processed_at": task.get("processed_at", ""),
         }
@@ -180,7 +180,7 @@ class TGPASearchHandler:
         report_result = results.get("report_result", {"total": 0, "list": []})
         report_items = [cls._format_report_item(report) for report in report_result.get("list", [])]
 
-        merged = heapq.merge(task_items, report_items, key=lambda x: x.get("created_at") or "", reverse=True)
+        merged = heapq.merge(task_items, report_items, key=lambda x: x.get("report_time") or "", reverse=True)
         start_idx = (page - 1) * pagesize
         paged_list = list(itertools.islice(merged, start_idx, start_idx + pagesize))
 

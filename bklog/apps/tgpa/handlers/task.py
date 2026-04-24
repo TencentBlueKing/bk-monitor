@@ -170,7 +170,22 @@ class TGPATaskHandler:
             offset += batch_size
 
     @staticmethod
-    def get_task_page(params, need_format=True):
+    def add_task_process_info(task_list):
+        """
+        为任务列表补充处理时间和处理状态
+        """
+        # 获取任务处理时间和处理状态
+        task_ids = [task["task_id"] for task in task_list]
+        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values("task_id", "processed_at", "process_status")
+        task_info_map = {str(item["task_id"]): item for item in tgpa_tasks}
+        for task in task_list:
+            task_info = task_info_map.get(task["task_id"], {})
+            task["processed_at"] = task_info.get("processed_at", None)
+            task["process_status"] = task_info.get("process_status", None)
+        return task_list
+
+    @staticmethod
+    def get_task_page(params, need_format=True, add_process_info=True):
         """
         分页获取任务列表
         """
@@ -212,23 +227,11 @@ class TGPATaskHandler:
             request_params["time_range"] = f"{start_str},{end_str}"
 
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
-
-        # 默认格式化任务列表并附加处理信息，调用方可通过 need_format=False 获取原始数据
+        task_list = result.get("results", [])
         if need_format:
             task_list = TGPATaskHandler.format_task_list(result["results"])
-
-            # 获取任务处理时间和处理状态
-            task_ids = [task["task_id"] for task in task_list]
-            tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values(
-                "task_id", "processed_at", "process_status"
-            )
-            task_info_map = {str(item["task_id"]): item for item in tgpa_tasks}
-            for task in task_list:
-                task_info = task_info_map.get(task["task_id"], {})
-                task["processed_at"] = task_info.get("processed_at", None)
-                task["process_status"] = task_info.get("process_status", None)
-        else:
-            task_list = result.get("results", [])
+        if add_process_info:
+            task_list = TGPATaskHandler.add_task_process_info(task_list)
 
         return {
             "total": result["count"],

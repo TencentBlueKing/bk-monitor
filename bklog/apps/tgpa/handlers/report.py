@@ -87,9 +87,7 @@ class TGPAReportHandler:
         return cls._get_feature_config().get("tgpa_report_result_table_id")
 
     @classmethod
-    def _build_es_query(
-        cls, bk_biz_id, keyword=None, file_name_list=None, openid=None, start_time=None, end_time=None
-    ):
+    def _build_es_query(cls, bk_biz_id, keyword=None, file_name_list=None, openid=None, start_time=None, end_time=None):
         """
         构建ES DSL查询条件
 
@@ -245,10 +243,12 @@ class TGPAReportHandler:
 
         # 补充下载地址和处理状态
         file_name_list = [item["file_name"] for item in items]
-        status_map = cls.get_file_status_map(file_name_list=file_name_list)
+        process_info_map = cls.get_file_process_info_map(file_name_list=file_name_list)
         for item in items:
+            process_info = process_info_map.get(item["file_name"], {})
             item["download_url"] = f"{download_url_prefix}{item.get('file_name', '')}"
-            item["status"] = status_map.get(item["file_name"], TGPAReportSyncStatusEnum.PENDING.value)
+            item["status"] = process_info.get("status", TGPAReportSyncStatusEnum.PENDING.value)
+            item["processed_at"] = process_info.get("processed_at")
 
         return {"total": total, "list": items}
 
@@ -339,23 +339,31 @@ class TGPAReportHandler:
         return [hit["_source"]["openid"] for hit in raw_hits if hit.get("_source", {}).get("openid")]
 
     @classmethod
-    def get_file_status_map(cls, file_name_list) -> dict:
-        reports = TGPAReport.objects.filter(file_name__in=file_name_list)
-        status_map = {}
+    def get_file_process_info_map(cls, file_name_list) -> dict:
+        reports = TGPAReport.objects.filter(file_name__in=file_name_list).values(
+            "file_name", "process_status", "processed_at"
+        )
+        process_info_map = {}
         for report in reports:
-            if report.file_name not in status_map:
-                status_map[report.file_name] = report.process_status
+            if report["file_name"] not in process_info_map:
+                process_info_map[report["file_name"]] = {
+                    "status": report["process_status"],
+                    "processed_at": report["processed_at"],
+                }
 
-        return status_map
+        return process_info_map
 
     @classmethod
     def get_file_status(cls, file_name_list):
         """
         获取文件处理状态
         """
-        status_map = cls.get_file_status_map(file_name_list)
+        process_info_map = cls.get_file_process_info_map(file_name_list)
         return [
-            {"file_name": file_name, "status": status_map.get(file_name, TGPAReportSyncStatusEnum.PENDING.value)}
+            {
+                "file_name": file_name,
+                "status": process_info_map.get(file_name, {}).get("status", TGPAReportSyncStatusEnum.PENDING.value),
+            }
             for file_name in file_name_list
         ]
 
