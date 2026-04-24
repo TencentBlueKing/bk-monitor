@@ -189,7 +189,7 @@ export enum SceneEnum {
   /** 成本 */
   Cost = 'cost',
   /** GPU */
-  GPU = 'gpu',
+  GPU = 'tke_gpu',
 }
 
 export interface GroupListItem<T = string> {
