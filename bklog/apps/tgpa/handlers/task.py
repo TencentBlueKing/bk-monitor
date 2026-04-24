@@ -175,9 +175,9 @@ class TGPATaskHandler:
         为任务列表补充处理时间和处理状态
         """
         # 获取任务处理时间和处理状态
-        task_ids = [task["task_id"] for task in task_list]
-        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values("task_id", "processed_at", "process_status")
-        task_info_map = {str(item["task_id"]): item for item in tgpa_tasks}
+        task_ids = [task["id"] for task in task_list]
+        tgpa_tasks = TGPATask.objects.filter(id__in=task_ids).values("id", "processed_at", "process_status")
+        task_info_map = {str(item["id"]): item for item in tgpa_tasks}
         for task in task_list:
             task_info = task_info_map.get(task["task_id"], {})
             task["processed_at"] = task_info.get("processed_at", None)
