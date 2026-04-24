@@ -48,6 +48,24 @@ def _values(queryset, fields: list[str], order_by: list[str]) -> list[dict[str, 
     ]
 
 
+def _build_space_datasource_map(bk_tenant_id: str, bk_data_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    if not bk_data_ids:
+        return {}
+
+    space_datasource_map: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    queryset = models.SpaceDataSource.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        bk_data_id__in=bk_data_ids,
+    ).order_by("bk_data_id", "space_type_id", "space_id")
+
+    for item in queryset.values("bk_data_id", "bk_tenant_id", "space_type_id", "space_id", "from_authorization"):
+        serialized_item = {key: _serialize_value(value) for key, value in item.items()}
+        serialized_item["space_uid"] = f"{item['space_type_id']}__{item['space_id']}"
+        space_datasource_map[item["bk_data_id"]].append(serialized_item)
+
+    return space_datasource_map
+
+
 def _get_bk_tenant_id(params: dict[str, Any]) -> str:
     return params.get("bk_tenant_id") or get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
 
@@ -259,6 +277,7 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
     datasource_queryset = models.DataSource.objects.filter(
         bk_tenant_id=bk_tenant_id, bk_data_id__in=related_bk_data_ids
     )
+    space_datasource_map = _build_space_datasource_map(bk_tenant_id, sorted(related_bk_data_ids))
     result_table_queryset = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=related_table_ids)
     time_series_group_queryset = models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id).filter(
         Q(bk_data_id__in=related_bk_data_ids) | Q(table_id__in=related_table_ids)
@@ -346,25 +365,31 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
             "bk_data_ids": sorted(related_bk_data_ids),
             "table_ids": sorted(related_table_ids),
         },
-        "datasources": _values(
-            datasource_queryset,
-            [
-                "bk_data_id",
-                "bk_tenant_id",
-                "data_name",
-                "etl_config",
-                "source_label",
-                "type_label",
-                "source_system",
-                "is_enable",
-                "is_platform_data_id",
-                "space_type_id",
-                "space_uid",
-                "created_from",
-                "transfer_cluster_id",
-            ],
-            ["bk_data_id"],
-        ),
+        "datasources": [
+            {
+                **item,
+                "space_datasources": space_datasource_map.get(item["bk_data_id"], []),
+            }
+            for item in _values(
+                datasource_queryset,
+                [
+                    "bk_data_id",
+                    "bk_tenant_id",
+                    "data_name",
+                    "etl_config",
+                    "source_label",
+                    "type_label",
+                    "source_system",
+                    "is_enable",
+                    "is_platform_data_id",
+                    "space_type_id",
+                    "space_uid",
+                    "created_from",
+                    "transfer_cluster_id",
+                ],
+                ["bk_data_id"],
+            )
+        ],
         "data_source_result_tables": _values(
             dsrt_queryset,
             ["bk_data_id", "table_id", "bk_tenant_id", "creator", "create_time"],
@@ -1596,4 +1621,364 @@ def metadata_custom_metric_check(params: dict[str, Any]) -> dict[str, Any]:
             "data_label_routes": data_label_route_items,
             "space_route": space_route,
         },
+    }
+
+
+def _normalize_bcs_cluster_id(bcs_cluster_id: Any) -> str:
+    if bcs_cluster_id is None:
+        raise CustomException(message="bcs_cluster_id 不能为空")
+    if not isinstance(bcs_cluster_id, str):
+        bcs_cluster_id = str(bcs_cluster_id)
+    normalized = bcs_cluster_id.strip()
+    if not normalized:
+        raise CustomException(message="bcs_cluster_id 不能为空")
+    return normalized
+
+
+# 按默认 data_id 字段的展示顺序统一命名，便于前端/下游以稳定顺序消费
+_BCS_BUILTIN_DATA_ID_FIELDS: tuple[tuple[str, str], ...] = (
+    ("K8sMetricDataID", "k8s_metric"),
+    ("CustomMetricDataID", "custom_metric"),
+    ("K8sEventDataID", "k8s_event"),
+)
+
+
+def _collect_bcs_builtin_data_ids(cluster: models.BCSClusterInfo) -> tuple[list[dict[str, Any]], set[int]]:
+    """
+    汇总 BCSClusterInfo 上记录的内置 data_id。
+
+    通过 register_cluster 流程通常只会注册 k8s_metric/custom_metric/k8s_event 三个，其他字段默认为 0；
+    这里统一把字段值暴露出来（为 0 则 registered=False，方便巡检是否缺失）。
+    """
+    builtin_items: list[dict[str, Any]] = []
+    builtin_data_ids: set[int] = set()
+    for field_name, usage in _BCS_BUILTIN_DATA_ID_FIELDS:
+        bk_data_id = getattr(cluster, field_name, 0) or 0
+        builtin_items.append(
+            {
+                "field": field_name,
+                "usage": usage,
+                "bk_data_id": bk_data_id,
+                "registered": bk_data_id > 0,
+            }
+        )
+        if bk_data_id > 0:
+            builtin_data_ids.add(bk_data_id)
+    return builtin_items, builtin_data_ids
+
+
+def _serialize_bkci_project(space: models.Space | None, project_id: str) -> dict[str, Any]:
+    if space is None:
+        return {
+            "project_id": project_id,
+            "exists": False,
+        }
+    return {
+        "project_id": project_id,
+        "exists": True,
+        "space_type_id": space.space_type_id,
+        "space_id": space.space_id,
+        "space_name": space.space_name,
+        "space_code": space.space_code,
+        "bk_tenant_id": space.bk_tenant_id,
+        "status": space.status,
+        "is_bcs_valid": space.is_bcs_valid,
+    }
+
+
+def _serialize_bkcc_biz(space: models.Space | None, bk_biz_id: int) -> dict[str, Any]:
+    if space is None:
+        return {
+            "bk_biz_id": bk_biz_id,
+            "exists": False,
+        }
+    return {
+        "bk_biz_id": bk_biz_id,
+        "exists": True,
+        "space_type_id": space.space_type_id,
+        "space_id": space.space_id,
+        "space_name": space.space_name,
+        "bk_tenant_id": space.bk_tenant_id,
+        "status": space.status,
+    }
+
+
+def _serialize_federal_info(
+    cluster_id: str,
+    fed_by_host: list[models.BcsFederalClusterInfo],
+    fed_by_sub: list[models.BcsFederalClusterInfo],
+    fed_by_fed: list[models.BcsFederalClusterInfo],
+) -> dict[str, Any]:
+    """
+    根据集群在联邦关系中的不同位置（host / sub / fed 入口），汇总联邦拓扑信息。
+
+    - fed_by_host: 当前集群作为 HOST 集群时，管理的 fed 入口-子集群映射
+    - fed_by_sub:  当前集群作为子集群时，所属的 fed 入口与 HOST
+    - fed_by_fed:  当前集群作为联邦入口（fed_cluster_id）时，下辖的 HOST + sub
+    """
+
+    def _to_item(record: models.BcsFederalClusterInfo) -> dict[str, Any]:
+        return {
+            "fed_cluster_id": record.fed_cluster_id,
+            "host_cluster_id": record.host_cluster_id,
+            "sub_cluster_id": record.sub_cluster_id,
+            "is_deleted": record.is_deleted,
+            "fed_namespaces": record.fed_namespaces or [],
+            "fed_builtin_metric_table_id": record.fed_builtin_metric_table_id or "",
+            "fed_builtin_event_table_id": record.fed_builtin_event_table_id or "",
+        }
+
+    roles: list[str] = []
+    if fed_by_fed:
+        roles.append("fed_entry")
+    if fed_by_host:
+        roles.append("host")
+    if fed_by_sub:
+        roles.append("sub")
+
+    return {
+        "cluster_id": cluster_id,
+        "is_federal": bool(roles),
+        "roles": roles,
+        "as_fed_entry": [_to_item(record) for record in fed_by_fed],
+        "as_host": [_to_item(record) for record in fed_by_host],
+        "as_sub": [_to_item(record) for record in fed_by_sub],
+    }
+
+
+@KernelRPCRegistry.register(
+    "metadata_bcs_cluster_related_info",
+    summary="基于 bcs_cluster_id 查询关联元数据",
+    description=(
+        "基于 BCS 集群 ID 查询关联的 bkcc 业务、bkci 项目、内置/业务 data_id、结果表、"
+        "VM 接入记录以及联邦集群拓扑信息。"
+        "\n"
+        "- BCSClusterInfo 直接持有 bk_biz_id(bkcc)、project_id(bkci) 以及 k8s_metric/custom_metric/k8s_event 等内置 data_id；"
+        "\n"
+        "- bkci 项目信息通过 Space(space_type_id=bkci, space_code=project_id) 关联；"
+        "\n"
+        "- bkcc 业务名通过 Space(space_type_id=bkcc, space_id=str(bk_biz_id)) 关联；"
+        "\n"
+        "- 业务 data_id 通过 data_name 前缀 bcs_{cluster_id}_ 以及 AccessVMRecord.bcs_cluster_id 进一步补齐，"
+        "并汇总对应的 result_table_id/vm_result_table_id 等信息。"
+    ),
+    params_schema={
+        "bcs_cluster_id": "必填，BCS 集群 ID（BCSClusterInfo.cluster_id 或 bcs_api_cluster_id），如 BCS-K8S-00000",
+        "bk_tenant_id": "可选，租户 ID；未传时优先从请求上下文获取，否则回退默认租户。cluster_id 全局唯一时可忽略",
+    },
+    example_params={"bcs_cluster_id": "BCS-K8S-00000"},
+)
+def metadata_bcs_cluster_related_info(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = _get_bk_tenant_id(params)
+    bcs_cluster_id = _normalize_bcs_cluster_id(params.get("bcs_cluster_id"))
+
+    cluster = (
+        models.BCSClusterInfo.objects.filter(Q(cluster_id=bcs_cluster_id) | Q(bcs_api_cluster_id=bcs_cluster_id))
+        .order_by("-last_modify_time")
+        .first()
+    )
+    if cluster is None:
+        raise CustomException(message=f"未查询到匹配的 BCSClusterInfo，bcs_cluster_id={bcs_cluster_id}")
+
+    effective_tenant_id = cluster.bk_tenant_id or bk_tenant_id
+
+    builtin_data_id_items, builtin_data_ids = _collect_bcs_builtin_data_ids(cluster)
+
+    # bkcc 业务空间（space_type_id=bkcc, space_id=str(bk_biz_id)）
+    bkcc_space = (
+        models.Space.objects.filter(
+            space_type_id=SpaceTypes.BKCC.value,
+            space_id=str(cluster.bk_biz_id),
+            bk_tenant_id=effective_tenant_id,
+        ).first()
+        if cluster.bk_biz_id is not None
+        else None
+    )
+
+    # bkci 项目空间：Space.space_code == BCSClusterInfo.project_id
+    bkci_space = (
+        models.Space.objects.filter(
+            space_type_id=SpaceTypes.BKCI.value,
+            space_code=cluster.project_id,
+            bk_tenant_id=effective_tenant_id,
+        ).first()
+        if cluster.project_id
+        else None
+    )
+
+    # bkci → bkcc 资源绑定（SpaceResource）
+    bkci_to_bkcc_resource = None
+    if bkci_space is not None:
+        resource = models.SpaceResource.objects.filter(
+            space_type_id=SpaceTypes.BKCI.value,
+            space_id=bkci_space.space_id,
+            resource_type=SpaceTypes.BKCC.value,
+            bk_tenant_id=effective_tenant_id,
+        ).first()
+        if resource is not None:
+            bkci_to_bkcc_resource = {
+                "space_type_id": resource.space_type_id,
+                "space_id": resource.space_id,
+                "resource_type": resource.resource_type,
+                "resource_id": resource.resource_id,
+                "bk_tenant_id": resource.bk_tenant_id,
+                "dimension_values": resource.dimension_values or [],
+            }
+
+    # 汇总 data_id：内置 + data_name 以 bcs_{cluster_id}_ 前缀的业务数据源 + AccessVMRecord 关联的 bk_data_id
+    bcs_datasource_queryset = models.DataSource.objects.filter(data_name__startswith=f"bcs_{cluster.cluster_id}_")
+    if effective_tenant_id:
+        bcs_datasource_queryset = bcs_datasource_queryset.filter(bk_tenant_id=effective_tenant_id)
+
+    access_vm_queryset = models.AccessVMRecord.objects.filter(bcs_cluster_id=cluster.cluster_id)
+    if effective_tenant_id:
+        access_vm_queryset = access_vm_queryset.filter(bk_tenant_id=effective_tenant_id)
+    access_vm_records = list(
+        access_vm_queryset.values(
+            "result_table_id",
+            "data_type",
+            "bcs_cluster_id",
+            "storage_cluster_id",
+            "vm_cluster_id",
+            "bk_base_data_id",
+            "bk_base_data_name",
+            "vm_result_table_id",
+            "remark",
+            "bk_tenant_id",
+        )
+    )
+
+    related_data_ids: set[int] = set(builtin_data_ids)
+    related_data_ids.update(bcs_datasource_queryset.values_list("bk_data_id", flat=True))
+
+    # 通过 VM 记录对应的 result_table 反查 data_id，补齐那些非 bcs_ 前缀但确实由该集群产生的数据源
+    vm_related_table_ids = {record["result_table_id"] for record in access_vm_records if record.get("result_table_id")}
+    if vm_related_table_ids:
+        related_data_ids.update(
+            models.DataSourceResultTable.objects.filter(
+                bk_tenant_id=effective_tenant_id, table_id__in=vm_related_table_ids
+            ).values_list("bk_data_id", flat=True)
+        )
+
+    datasource_queryset = models.DataSource.objects.filter(bk_data_id__in=related_data_ids)
+    if effective_tenant_id:
+        datasource_queryset = datasource_queryset.filter(bk_tenant_id=effective_tenant_id)
+
+    dsrt_queryset = models.DataSourceResultTable.objects.filter(bk_data_id__in=related_data_ids)
+    if effective_tenant_id:
+        dsrt_queryset = dsrt_queryset.filter(bk_tenant_id=effective_tenant_id)
+
+    related_table_ids = set(dsrt_queryset.values_list("table_id", flat=True)) | vm_related_table_ids
+    result_table_queryset = models.ResultTable.objects.filter(table_id__in=related_table_ids)
+    if effective_tenant_id:
+        result_table_queryset = result_table_queryset.filter(bk_tenant_id=effective_tenant_id)
+
+    # 标记内置 data_id 对应的用途（metric/event/...），便于下游消费
+    builtin_data_id_usage_map = {
+        item["bk_data_id"]: item["usage"] for item in builtin_data_id_items if item["bk_data_id"]
+    }
+
+    datasource_items = _values(
+        datasource_queryset,
+        [
+            "bk_data_id",
+            "bk_tenant_id",
+            "data_name",
+            "etl_config",
+            "source_label",
+            "type_label",
+            "source_system",
+            "is_enable",
+            "is_platform_data_id",
+            "space_type_id",
+            "space_uid",
+            "created_from",
+            "transfer_cluster_id",
+        ],
+        ["bk_data_id"],
+    )
+    for item in datasource_items:
+        item["builtin_usage"] = builtin_data_id_usage_map.get(item["bk_data_id"], "")
+
+    # 联邦集群拓扑
+    fed_by_host = list(
+        models.BcsFederalClusterInfo.objects.filter(host_cluster_id=cluster.cluster_id).order_by(
+            "fed_cluster_id", "sub_cluster_id"
+        )
+    )
+    fed_by_sub = list(
+        models.BcsFederalClusterInfo.objects.filter(sub_cluster_id=cluster.cluster_id).order_by(
+            "fed_cluster_id", "host_cluster_id"
+        )
+    )
+    fed_by_fed = list(
+        models.BcsFederalClusterInfo.objects.filter(fed_cluster_id=cluster.cluster_id).order_by(
+            "host_cluster_id", "sub_cluster_id"
+        )
+    )
+
+    cluster_info = {
+        "cluster_id": cluster.cluster_id,
+        "bcs_api_cluster_id": cluster.bcs_api_cluster_id,
+        "bk_biz_id": cluster.bk_biz_id,
+        "bk_tenant_id": cluster.bk_tenant_id,
+        "bk_cloud_id": cluster.bk_cloud_id,
+        "project_id": cluster.project_id,
+        "status": cluster.status,
+        "domain_name": cluster.domain_name,
+        "port": cluster.port,
+        "server_address_path": cluster.server_address_path,
+        "bk_env": cluster.bk_env or "",
+        "operator_ns": cluster.operator_ns,
+        "is_skip_ssl_verify": cluster.is_skip_ssl_verify,
+        "is_deleted_allow_view": cluster.is_deleted_allow_view,
+        "creator": cluster.creator,
+        "create_time": _serialize_value(cluster.create_time),
+        "last_modify_user": cluster.last_modify_user,
+        "last_modify_time": _serialize_value(cluster.last_modify_time),
+    }
+
+    return {
+        "query": {
+            "bcs_cluster_id": bcs_cluster_id,
+            "bk_tenant_id": bk_tenant_id,
+            "effective_tenant_id": effective_tenant_id,
+        },
+        "cluster": cluster_info,
+        "bkcc_biz": _serialize_bkcc_biz(bkcc_space, cluster.bk_biz_id),
+        "bkci_project": _serialize_bkci_project(bkci_space, cluster.project_id),
+        "bkci_to_bkcc_resource": bkci_to_bkcc_resource,
+        "federal": _serialize_federal_info(cluster.cluster_id, fed_by_host, fed_by_sub, fed_by_fed),
+        "builtin_data_ids": builtin_data_id_items,
+        "resolved": {
+            "bk_data_ids": sorted(related_data_ids),
+            "table_ids": sorted(related_table_ids),
+        },
+        "data_sources": datasource_items,
+        "data_source_result_tables": _values(
+            dsrt_queryset,
+            ["bk_data_id", "table_id", "bk_tenant_id", "creator", "create_time"],
+            ["bk_data_id", "table_id"],
+        ),
+        "result_tables": _values(
+            result_table_queryset,
+            [
+                "table_id",
+                "bk_tenant_id",
+                "table_name_zh",
+                "default_storage",
+                "schema_type",
+                "bk_biz_id",
+                "is_enable",
+                "is_deleted",
+                "label",
+                "data_label",
+                "is_custom_table",
+            ],
+            ["table_id"],
+        ),
+        "access_vm_records": sorted(
+            access_vm_records,
+            key=lambda item: (item.get("result_table_id") or "", item.get("vm_result_table_id") or ""),
+        ),
     }

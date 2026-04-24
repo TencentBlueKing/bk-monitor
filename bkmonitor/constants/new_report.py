@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from bkmonitor.utils.enum import ChoicesEnum
 
 
@@ -28,7 +28,7 @@ class ChannelEnum(ChoicesEnum):
     WXBOT = "wxbot"
     USER = "user"
 
-    _choices_labels = ((EMAIL, "外部邮件"), (WXBOT, "企业微信机器人"), (USER, "内部用户"))
+    _choices_labels = ((EMAIL, "外部邮件"), (WXBOT, "群机器人"), (USER, "内部用户"))
 
 
 class ScenarioEnum(ChoicesEnum):
