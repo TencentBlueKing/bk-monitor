@@ -37,6 +37,7 @@ from apps.iam.handlers.drf import (
 )
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import DEFAULT_CATEGORY_ID
+from apps.log_databus.serializers import PlatformIndexFieldsSerializer
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
@@ -68,7 +69,13 @@ class IndexSetViewSet(ModelViewSet):
     model = LogIndexSet
     search_fields = ("index_set_name",)
     lookup_value_regex = "[^/]+"
-    filter_fields_exclude = ["target_fields", "sort_fields", "query_alias_settings"]
+    filter_fields_exclude = [
+        "target_fields",
+        "sort_fields",
+        "query_alias_settings",
+        "platform_index_visibility",
+        "platform_index_filter",
+    ]
 
     def get_permissions(self):
         try:
@@ -129,7 +136,7 @@ class IndexSetViewSet(ModelViewSet):
                     return value
                 raise IndexSetNotEmptyException
 
-        class CreateSerializer(CustomSerializer):
+        class CreateSerializer(CustomSerializer, PlatformIndexFieldsSerializer):
             index_set_name = serializers.CharField(required=True)
             result_table_id = serializers.CharField(required=False)
             storage_cluster_id = serializers.IntegerField(required=False)
@@ -148,7 +155,7 @@ class IndexSetViewSet(ModelViewSet):
                     raise ValidationError(_("集群ID不能为空"))
                 return attrs
 
-        class UpdateSerializer(CustomSerializer):
+        class UpdateSerializer(CustomSerializer, PlatformIndexFieldsSerializer):
             index_set_name = serializers.CharField(required=True)
             storage_cluster_id = serializers.IntegerField(required=False, default=None)
             scenario_id = serializers.CharField(required=True)
@@ -635,6 +642,9 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
             parent_index_set_ids=data.get("parent_index_set_ids", []),
+            is_platform_index=data.get("is_platform_index"),
+            platform_index_visibility=data.get("platform_index_visibility"),
+            platform_index_filter=data.get("platform_index_filter"),
         )
 
         return Response(self.get_serializer_class()(instance=index_set).data)
@@ -705,6 +715,9 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
             parent_index_set_ids=data.get("parent_index_set_ids", []),
+            is_platform_index=data.get("is_platform_index"),
+            platform_index_visibility=data.get("platform_index_visibility"),
+            platform_index_filter=data.get("platform_index_filter"),
         )
 
         return Response(self.get_serializer_class()(instance=index_set).data)

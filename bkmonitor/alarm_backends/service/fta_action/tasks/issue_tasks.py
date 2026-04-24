@@ -232,8 +232,10 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
     """
     sets: dict[str, dict] = {}
     pending_set_names: dict[str, int] = {}
-    all_hosts: dict[str, str] = {}
-    all_sids: dict[str, str] = {}
+    # 升级为 {key: {"display_name": str, "bk_biz_id": int|None}}，
+    # 以便每条实例携带归属业务，统一拼装 ?bizId={bk_biz_id}#/... 跳转链接
+    all_hosts: dict[str, dict] = {}
+    all_sids: dict[str, dict] = {}
     k8s_clusters: dict[str, dict] = {}
     apm_apps: dict[str, dict] = {}
 
@@ -309,27 +311,54 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                 entry = sets[set_node]
                 if host_key:
                     entry["hosts"].add(host_key)
-                    all_hosts[host_key] = (
-                        dim_map.get("ip") or hit_dict.get("ip") or hit_dict.get("event", {}).get("ip") or host_key
+                    all_hosts.setdefault(
+                        host_key,
+                        {
+                            "display_name": (
+                                dim_map.get("ip")
+                                or hit_dict.get("ip")
+                                or hit_dict.get("event", {}).get("ip")
+                                or host_key
+                            ),
+                            "bk_biz_id": bk_biz_id,
+                        },
                     )
                 if target_type == "SERVICE" and sid:
                     entry["service_instances"].add(sid)
-                    all_sids.setdefault(sid, _build_si_display_name(hit_dict, dim_map, sid))
+                    all_sids.setdefault(
+                        sid,
+                        {
+                            "display_name": _build_si_display_name(hit_dict, dim_map, sid),
+                            "bk_biz_id": bk_biz_id,
+                        },
+                    )
 
             if target_type in ("HOST", "SERVICE") and host_key and host_key not in all_hosts:
-                all_hosts[host_key] = (
-                    dim_map.get("ip") or hit_dict.get("ip") or hit_dict.get("event", {}).get("ip") or host_key
-                )
+                all_hosts[host_key] = {
+                    "display_name": (
+                        dim_map.get("ip") or hit_dict.get("ip") or hit_dict.get("event", {}).get("ip") or host_key
+                    ),
+                    "bk_biz_id": bk_biz_id,
+                }
 
             # ── K8S Cluster 统计（与 CMDB Set 并行，不互斥）────────────────
             if target_type and target_type.startswith("K8S"):
                 cluster_id = dim_map.get("bcs_cluster_id")
                 if cluster_id:
                     entry = k8s_clusters.setdefault(
-                        cluster_id, {"display_name": "", "nodes": {}, "services": {}, "pods": {}}
+                        cluster_id,
+                        {
+                            "display_name": "",
+                            "bk_biz_id": bk_biz_id,
+                            "nodes": {},
+                            "services": {},
+                            "pods": {},
+                        },
                     )
                     if dim_cluster_display and not entry["display_name"]:
                         entry["display_name"] = dim_cluster_display
+                    if not entry.get("bk_biz_id") and bk_biz_id:
+                        entry["bk_biz_id"] = bk_biz_id
 
                     if target_type == "K8S-NODE" and target:
                         entry["nodes"][target] = f"{cluster_id}/{target}"
@@ -392,15 +421,23 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
     if all_hosts:
         result["host"] = {
             "count": len(all_hosts),
-            "instance_list": [{"bk_host_id": int(hid), "display_name": dn} for hid, dn in all_hosts.items()][:50],
-            "link_tpl": "/performance/detail/{bk_host_id}",
+            "instance_list": [
+                {"bk_host_id": int(hid), "bk_biz_id": data.get("bk_biz_id"), "display_name": data["display_name"]}
+                for hid, data in all_hosts.items()
+            ][:50],
+            "link_tpl": "?bizId={bk_biz_id}#/performance/detail/{bk_host_id}",
         }
 
     if all_sids:
         result["service_instances"] = {
             "count": len(all_sids),
             "instance_list": [
-                {"bk_service_instance_id": int(si_id), "display_name": dn} for si_id, dn in all_sids.items()
+                {
+                    "bk_service_instance_id": int(si_id),
+                    "bk_biz_id": data.get("bk_biz_id"),
+                    "display_name": data["display_name"],
+                }
+                for si_id, data in all_sids.items()
             ][:50],
             "link_tpl": None,
         }
@@ -410,20 +447,26 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
             result["cluster"] = {
                 "count": len(k8s_clusters),
                 "instance_list": [
-                    {"bcs_cluster_id": cid, "display_name": d["display_name"]} for cid, d in k8s_clusters.items()
+                    {"bcs_cluster_id": cid, "bk_biz_id": d.get("bk_biz_id"), "display_name": d["display_name"]}
+                    for cid, d in k8s_clusters.items()
                 ][:50],
-                "link_tpl": "/k8s-new?cluster={bcs_cluster_id}&sceneId=kubernetes&scene=performance&activeTab=list",
+                "link_tpl": (
+                    "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+                    "&sceneId=kubernetes&scene=performance&activeTab=list"
+                ),
             }
         else:
             cid, cdata = next(iter(k8s_clusters.items()))
+            cluster_biz_id = cdata.get("bk_biz_id")
             if cdata["nodes"]:
                 result["node"] = {
                     "count": len(cdata["nodes"]),
                     "instance_list": [
-                        {"bcs_cluster_id": cid, "node": n, "display_name": dn} for n, dn in cdata["nodes"].items()
+                        {"bcs_cluster_id": cid, "bk_biz_id": cluster_biz_id, "node": n, "display_name": dn}
+                        for n, dn in cdata["nodes"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s-new?cluster={bcs_cluster_id}"
+                        "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
                         '&filterBy={{"node":["{node}"]}}&groupBy=["node"]'
                         "&sceneId=kubernetes&scene=capacity&activeTab=list"
                     ),
@@ -432,10 +475,11 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                 result["service"] = {
                     "count": len(cdata["services"]),
                     "instance_list": [
-                        {"bcs_cluster_id": cid, "service": s, "display_name": dn} for s, dn in cdata["services"].items()
+                        {"bcs_cluster_id": cid, "bk_biz_id": cluster_biz_id, "service": s, "display_name": dn}
+                        for s, dn in cdata["services"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s-new?cluster={bcs_cluster_id}"
+                        "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
                         '&filterBy={{"namespace":[],"service":["{service}"]}}&groupBy=["namespace","service"]'
                         "&sceneId=kubernetes&scene=network&activeTab=list"
                     ),
@@ -444,10 +488,11 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                 result["pod"] = {
                     "count": len(cdata["pods"]),
                     "instance_list": [
-                        {"bcs_cluster_id": cid, "pod": p, "display_name": dn} for p, dn in cdata["pods"].items()
+                        {"bcs_cluster_id": cid, "bk_biz_id": cluster_biz_id, "pod": p, "display_name": dn}
+                        for p, dn in cdata["pods"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s-new?cluster={bcs_cluster_id}"
+                        "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
                         '&filterBy={{"namespace":[],"pod":["{pod}"]}}&groupBy=["namespace","pod"]'
                         "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
