@@ -1302,6 +1302,6 @@ export default {
   场景过滤: 'Scene Filter',
   筛选字段不能为空: 'The filter field cannot be empty',
   请先通过过滤缩小范围: 'Please narrow down the scope using filters first',
-  '检索条件有变更，请点击{icon}按钮重新查询{shortcut}':
-    'Search conditions have changed, please click the {icon} button to re-query {shortcut}',
+  '检索条件有变更，请点击{icon}按钮{shortcut}':
+    'The search criteria have changed. Please click the {icon} button {shortcut}',
 };

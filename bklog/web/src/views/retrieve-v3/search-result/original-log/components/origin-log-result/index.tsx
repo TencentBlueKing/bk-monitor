@@ -117,7 +117,7 @@ export default defineComponent({
     const requestLogList = (isManualSearch = true) => {
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-      const searchUrl = isSceneRetrieve(store.state)
+      const searchUrl = store.getters.isSceneMode
         ? '/search/scene/search/'
         : `/search/index_set/${props.indexSetId}/search/`;
       // size = props.logIndex > 50 ? props.logIndex + 20 : 50;

@@ -59,7 +59,7 @@ export default defineComponent({
     } = useAppInit();
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-    const isSceneMode = computed(() => store.state.indexItem.retrieve_type === 'scene');
+    const isSceneMode = computed(() => store.getters.isSceneMode);
 
     /**
      * AI 助手关闭

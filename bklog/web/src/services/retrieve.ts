@@ -500,7 +500,7 @@ const getSceneFieldStatisticsGraph = {
 /** 场景化检索 - 导出历史 */
 const getSceneExportHistory = {
   url: '/search/scene/export/history/',
-  method: 'get',
+  method: 'post',
 };
 
 /** 场景化检索 - 取样下载 */

@@ -264,7 +264,7 @@ export default defineComponent({
         const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         const urlStr = isUnionSearch.value
           ? 'unionSearch/unionDateHistogram'
-          : isSceneRetrieve(store.state)
+          : store.getters.isSceneMode
             ? 'retrieve/getSceneDateHistogram'
             : 'retrieve/getLogChartList';
         const queryData = {
@@ -344,7 +344,7 @@ export default defineComponent({
       logChartCancel = () => controller.abort();
 
       const requestConfig: any = { data: queryData };
-      if (!isSceneRetrieve(store.state)) {
+      if (!store.getters.isSceneMode) {
         requestConfig.params = { index_set_id: indexId };
       }
 

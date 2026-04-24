@@ -49,6 +49,7 @@ import Vuex from 'vuex';
 import collect from './collect.js';
 import { ConditionOperator } from './condition-operator.ts';
 
+import axios from 'axios';
 import http, { axiosInstance } from '@/api';
 import {
   BkLogGlobalStorageKey,
@@ -233,6 +234,8 @@ const store = new Vuex.Store({
 
       return state.visibleFields.filter(field => !field.is_virtual_alias_field);
     },
+    /** 是否为场景化检索模式 */
+    isSceneMode: (state) => isSceneRetrieve(state),
     /** 是否是联合查询 */
     isUnionSearch: state => !!state.indexItem.isUnionIndex,
     /** 联合查询索引集ID数组 */
@@ -307,9 +310,6 @@ const store = new Vuex.Store({
         sort_list,
         format,
         timezone,
-        retrieve_type,
-        scene_active,
-        scene_filter_values,
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
@@ -351,9 +351,6 @@ const store = new Vuex.Store({
         sort_list: local_sort_list,
         bk_biz_id: state.bkBizId,
         time_zone: timezone,
-        retrieve_type,
-        scene_active,
-        scene_filter_values,
         ...searchParams,
       };
 
@@ -1181,6 +1178,10 @@ const store = new Vuex.Store({
       commit('updateIndexSetFieldConfig', {});
       commit('updateVisibleFields', []);
 
+      const cancelTokenKey = 'requestIndexSetFieldInfoCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+
       if (!ids.length) {
         return;
       }
@@ -1217,7 +1218,8 @@ const store = new Vuex.Store({
             query: (!isScene && !isUnionIndex) ? queryData : undefined,
             data: (isScene || isUnionIndex) ? queryData : undefined,
           },
-          isUnionIndex ? {} : { catchIsShowMessage: false },
+          isUnionIndex
+            ? { cancelToken: requestCancelToken } : { catchIsShowMessage: false, cancelToken: requestCancelToken },
         )
         .then((res) => {
           const { default_sort_list: defaultSortListData = [], sort_list: sortListData = [] } = res.data ?? {};
@@ -1250,6 +1252,7 @@ const store = new Vuex.Store({
           return res;
         })
         .catch((err) => {
+          if (axios.isCancel(err)) return;
           !isUnionIndex && commit('updateApiError', { apiName: urlStr, errorMessage: err });
           commit('updateIndexFieldInfo', { is_loading: false });
         })
@@ -1861,6 +1864,10 @@ const store = new Vuex.Store({
       const isScene = isSceneRetrieve(state);
       const urlStr = isScene ? 'retrieve/getSceneFieldStatisticsTotal' : 'retrieve/fieldStatisticsTotal';
 
+      const cancelTokenKey = 'requestSearchTotalCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+
       return http
         .request(
           urlStr,
@@ -1879,6 +1886,7 @@ const store = new Vuex.Store({
           },
           {
             catchIsShowMessage: false,
+            cancelToken: requestCancelToken,
           },
         )
         .then((res) => {
@@ -1887,6 +1895,7 @@ const store = new Vuex.Store({
           return res;
         })
         .catch((err) => {
+          if (axios.isCancel(err)) return;
           console.error(err);
           return Promise.reject(err);
         });

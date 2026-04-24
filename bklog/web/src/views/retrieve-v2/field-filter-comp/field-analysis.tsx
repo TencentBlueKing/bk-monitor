@@ -216,7 +216,7 @@ export default class FieldAnalysis extends Vue {
       this.infoLoading = true;
       this.chartLoading = true;
 
-      const isScene = isSceneRetrieve(store.state);
+      const isScene = store.getters.isSceneMode;
       const urlStr = isScene
         ? 'retrieve/getSceneFieldStatisticsInfo'
         : 'retrieve/fieldStatisticsInfo';
@@ -246,7 +246,7 @@ export default class FieldAnalysis extends Vue {
         });
       }
 
-      const isScene = isSceneRetrieve(store.state);
+      const isScene = store.getters.isSceneMode;
       const urlStr = isScene
         ? 'retrieve/getSceneFieldStatisticsGraph'
         : 'retrieve/fieldStatisticsGraph';

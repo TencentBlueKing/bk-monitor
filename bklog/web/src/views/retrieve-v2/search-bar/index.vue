@@ -158,7 +158,7 @@ const btnIconName = computed(() => {
 const isShowQueryText = computed(() => isLogPlatform.value && btnIconName.value === ' bklog-icon bklog-shoudongchaxun');
 
 // 场景化检索模式下，未选择任何过滤条件时禁用查询按钮
-const isSceneMode = computed(() => store.state.indexItem.retrieve_type === 'scene');
+const isSceneMode = computed(() => store.getters.isSceneMode);
 const isSceneFilterEmpty = computed(() => {
   if (!isSceneMode.value) return false;
   const filterValues = store.state.indexItem.scene_filter_values;

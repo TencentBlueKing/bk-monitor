@@ -136,6 +136,10 @@
       .field-input {
         width: 100%;
         min-width: 0;
+
+        .bk-select, .bk-form-input {
+          border: 1px solid #C1CDE5;
+        }
       }
     }
   }
@@ -150,6 +154,7 @@
       gap: 0;
       border: 1px solid #dcdee5;
       border-radius: 2px;
+      min-height: 300px;
       max-height: 360px;
     }
 
@@ -195,6 +200,7 @@
       align-items: center;
       justify-content: center;
       width: 1px;
+      position: relative;
       background-color: #dcdee5;
 
       .bklog-double-arrow {
@@ -218,7 +224,7 @@
       padding: 8px;
       overflow-y: auto;
       flex: 1;
-      height: 255px;
+      min-height: 255px;
 
       .bk-exception {
         justify-content: center;
