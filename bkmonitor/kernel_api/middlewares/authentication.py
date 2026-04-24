@@ -38,6 +38,12 @@ APP_CODE_TOKENS: dict[str, list[str]] = {}
 APP_CODE_UPDATE_TIME = None
 APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
 
+OPENCLAW_RECOVERING_MCP_TOOLS = {
+    "search_openclaw_spans",
+    "get_openclaw_trace_detail",
+    "search_openclaw_logs",
+}
+
 
 def is_match_api_token(request, bk_tenant_id: str, app_code: str) -> bool:
     """
@@ -300,6 +306,29 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 提取工具名称，检查是否在豁免白名单中
         tool_name = self.extract_tool_name_from_path(request.path)
+
+        openclaw_mcp_server_name = getattr(settings, "OPENCLAW_RECOVERING_MCP_SERVER_NAME", "")
+        if openclaw_mcp_server_name and mcp_server_name == openclaw_mcp_server_name:
+            if not username:
+                return HttpResponseForbidden("Missing username in request")
+
+            if tool_name not in OPENCLAW_RECOVERING_MCP_TOOLS:
+                return HttpResponseForbidden("Invalid OpenClaw MCP tool")
+
+            # OpenClaw 数据统一上报到一个业务，入口只固定业务上下文；
+            # 用户级数据边界由 OpenClaw Resource 基于 username 继续收敛。
+            request.biz_id = int(getattr(settings, "OPENCLAW_RECOVERING_BK_BIZ_ID", 0) or 0)
+            request.skip_check = True
+            request.openclaw_identity_scoped = True
+            self._report_mcp_metric(
+                tool_name=tool_name,
+                bk_biz_id=request.biz_id,
+                username=username,
+                status="accessed",
+                permission_action="identity_scoped",
+                mcp_server_name=mcp_server_name,
+            )
+            return None
 
         # 获取权限动作ID
         # 优先从 MCP Server Name 映射中获取，如果没有则从旧的请求头中获取

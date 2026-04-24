@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 /**
  * 告警中心容器（Vue 2 宿主）
  *
@@ -14,15 +39,15 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+interface AlarmCenterContainerEvents {
+  /** Vue 3 子应用向外抛出的事件 */
+  onV3Event?: (event: string, ...args: unknown[]) => void;
+}
+
 /** 父级传给 Vue 3 告警中心子应用的透传属性（由子应用自行消费） */
 interface AlarmCenterContainerProps {
   /** 传递给 Vue 3 子应用的属性 */
   v3Props?: Record<string, unknown>;
-}
-
-interface AlarmCenterContainerEvents {
-  /** Vue 3 子应用向外抛出的事件 */
-  onV3Event?: (event: string, ...args: unknown[]) => void;
 }
 
 @Component
@@ -100,6 +125,11 @@ export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps,
 
   /** 仅提供挂载根节点；实际内容由 Vue 3 子应用渲染到该节点内 */
   render() {
-    return <div ref='root' />;
+    return (
+      <div
+        ref='root'
+        style='height: 100%'
+      />
+    );
   }
 }

@@ -291,7 +291,7 @@
 
           return state.retrieve.trendDataCount;
         },
-        queueStatus: state => !state.retrieve.isTrendDataLoading,
+        queueStatus: state => state.retrieve.isTotalCountLoaded,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],

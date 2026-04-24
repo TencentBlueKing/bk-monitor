@@ -81,6 +81,58 @@ def make_no_iteration_index_config():
     return config
 
 
+def make_no_flat_fields_config():
+    """构造所有 flat_field=False 的 built_in_config"""
+    config = get_fresh_config()
+    for field in config["fields"]:
+        field["flat_field"] = False
+    return config
+
+
+def make_multi_flat_fields_config():
+    """构造包含多个 flat_field=True 字段的 built_in_config"""
+    config = get_fresh_config()
+    config["fields"].extend([
+        {
+            "field_name": "syslogSource",
+            "field_type": "object",
+            "tag": "dimension",
+            "alias_name": "log",
+            "description": "syslog source",
+            "option": {"es_type": "object"},
+            "flat_field": True,
+        },
+        {
+            "field_name": "syslogLabel",
+            "field_type": "object",
+            "tag": "dimension",
+            "alias_name": "syslog",
+            "description": "syslog label",
+            "option": {"es_type": "object"},
+            "flat_field": True,
+        },
+        {
+            "field_name": "winEventProviderName",
+            "field_type": "string",
+            "tag": "dimension",
+            "alias_name": "provider_name",
+            "description": "来源名称",
+            "option": {"es_type": "keyword"},
+            "flat_field": True,
+        },
+        {
+            "field_name": "winEventRecordId",
+            "field_type": "string",
+            "tag": "dimension",
+            "alias_name": "record_id",
+            "description": "记录ID",
+            "option": {"es_type": "keyword"},
+            "flat_field": True,
+        },
+    ])
+    return config
+
+
 def make_no_time_field_config():
     """构造无 time_field 的 built_in_config"""
     config = get_fresh_config()

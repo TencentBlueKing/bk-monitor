@@ -508,6 +508,11 @@ export class DataQuery implements IDataQuery {
       if (value === undefined && isExist) {
         isExist = false;
       }
+      // 兼容endpoint_name 数组结构 特殊处理 apm 接口 和 DB tab 特殊结构
+      if (itemKey === 'endpoint_name' && Array.isArray(value) && value[0]?.value) {
+        total[itemKey] = value[0]?.value;
+        return total;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)

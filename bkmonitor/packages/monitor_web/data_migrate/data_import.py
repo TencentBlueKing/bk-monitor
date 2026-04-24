@@ -7,7 +7,7 @@ from bk_dataview.models import Org
 from bkmonitor.models import DefaultStrategyBizAccessModel
 from django.db.models import Model
 from monitor.models import ApplicationConfig
-from monitor_web.models.scene_view import SceneViewModel
+from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 
 from monitor_web.data_migrate.constants import DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY, DEFAULT_ENCODING
 from monitor_web.data_migrate.handler.runner import get_close_records_by_biz_from_directory
@@ -60,6 +60,7 @@ def _cleanup_biz_related_configs(bk_biz_ids: Sequence[int]) -> None:
             org.save()
 
         SceneViewModel.objects.filter(bk_biz_id=bk_biz_id).delete()
+        SceneViewOrderModel.objects.filter(bk_biz_id=bk_biz_id).delete()
         DefaultStrategyBizAccessModel.objects.filter(bk_biz_id=bk_biz_id).delete()
         ApplicationConfig.objects.filter(cc_biz_id=bk_biz_id).delete()
         DefaultStrategyBizAccessModel.objects.filter(bk_biz_id=bk_biz_id).delete()

@@ -143,6 +143,97 @@ def test_sync_bkcc_space_soft_disable_conflict_orphan(create_and_delete_record, 
     assert bkci_space.is_bcs_valid is False
 
 
+def test_sync_bkcc_space_skip_create_below_start_biz_id(create_and_delete_record, mocker, settings):
+    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "10"
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=10, bk_biz_name="threshold", time_zone="Asia/Shanghai")],
+    )
+    create_bkcc_spaces = mocker.patch("metadata.task.sync_space.create_bkcc_spaces")
+    mocker.patch("metadata.task.sync_space.check_bkcc_space_builtin_datalink")
+
+    sync_bkcc_space()
+
+    create_bkcc_spaces.assert_not_called()
+    assert not Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id="10").exists()
+
+
+def test_sync_bkcc_space_skip_delete_below_start_biz_id(create_and_delete_record, mocker, settings):
+    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "10"
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCC.value,
+        space_id="10",
+        space_name="threshold",
+        bk_tenant_id="system",
+    )
+    mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=11, bk_biz_name="new-biz", time_zone="Asia/Shanghai")],
+    )
+    create_bkcc_spaces = mocker.patch("metadata.task.sync_space.create_bkcc_spaces")
+    mocker.patch("metadata.task.sync_space.check_bkcc_space_builtin_datalink")
+
+    sync_bkcc_space(allow_deleted=True)
+
+    create_bkcc_spaces.assert_called_once()
+    assert Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id="10").exists()
+
+
+def test_sync_bkcc_space_skip_builtin_datalink_for_unmanaged_biz(create_and_delete_record, mocker, settings):
+    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "10"
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[
+            Business(bk_biz_id=10, bk_biz_name="threshold", time_zone="Asia/Shanghai"),
+            Business(bk_biz_id=11, bk_biz_name="managed", time_zone="Asia/Shanghai"),
+        ],
+    )
+    Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCC.value,
+        space_id="11",
+        space_name="managed",
+        bk_tenant_id="system",
+    )
+    mocker.patch("metadata.task.sync_space.create_bkcc_spaces")
+    check_bkcc_space_builtin_datalink = mocker.patch("metadata.task.sync_space.check_bkcc_space_builtin_datalink")
+
+    sync_bkcc_space()
+
+    check_bkcc_space_builtin_datalink.assert_called_once_with(biz_list=[("system", 11)])
+
+
+def test_sync_bkcc_space_invalid_start_biz_id_warn_once(create_and_delete_record, mocker, settings):
+    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "abc"
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[
+            Business(bk_biz_id=10, bk_biz_name="biz-10", time_zone="Asia/Shanghai"),
+            Business(bk_biz_id=11, bk_biz_name="biz-11", time_zone="Asia/Shanghai"),
+        ],
+    )
+    mocker.patch("metadata.task.sync_space.create_bkcc_spaces")
+    mocker.patch("metadata.task.sync_space.check_bkcc_space_builtin_datalink")
+    warning = mocker.patch("metadata.task.sync_space.logger.warning")
+
+    sync_bkcc_space()
+
+    warning.assert_called_once_with(
+        "sync_bkcc_space: invalid SYNC_BKCC_SPACE_START_BIZ_ID(%s), disable threshold filter", "abc"
+    )
+
+
 def test_sync_bcs_space(create_and_delete_record, table_id, mocker):
     fake_project_id = "projectid"
     fake_project_name = "projectname"

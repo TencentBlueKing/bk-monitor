@@ -409,6 +409,7 @@ export default {
 
   // 告警中心
   'PromQL 策略暂时不支持维度分析': 'PromQL strategies do not support dimension analysis',
+  异常检测点: 'Abnormal detection point',
 
   // APM-告警模板
   查看各服务告警情况: 'View alarm situation of each service',
@@ -450,5 +451,5 @@ export default {
   自动匹配规则: 'Automatic matching rules',
   当前业务时区: 'Current business time zone',
   '输入 $ 可以插入变量': 'Input $ to insert variables',
-  '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies'
+  '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies',
 };
