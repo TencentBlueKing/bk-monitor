@@ -217,7 +217,9 @@ class TGPATaskHandler:
         }
 
     @staticmethod
-    def get_task_page_by_time(bk_biz_id, page=1, pagesize=10, openid=None, task_id=None, start_time=None, end_time=None):
+    def get_task_page_by_time(
+        bk_biz_id, page=1, pagesize=10, openid=None, task_id=None, start_time=None, end_time=None
+    ):
         """
         按创建时间倒序分页查询任务列表
         :param bk_biz_id: 业务ID
@@ -282,7 +284,7 @@ class TGPATaskHandler:
                 openid_set.add(openid)
                 if len(openid_set) >= limit:
                     break
-        return openid_set
+        return list(openid_set)
 
     @staticmethod
     def get_username_list(bk_biz_id):

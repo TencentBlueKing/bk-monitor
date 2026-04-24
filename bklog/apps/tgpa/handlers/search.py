@@ -196,14 +196,11 @@ class TGPASearchHandler:
         start_time = params.get("start_time")
         end_time = params.get("end_time")
 
-        # report 累计统计使用近30天作为时间范围
         now_ms = int(arrow.now().timestamp() * 1000)
         report_total_start_time = int(arrow.now().shift(days=-TGPA_CLIENT_INFO_REPORT_DAYS).timestamp() * 1000)
-
-        # 并行查询：task 累计数量、report 累计数量（30天）、task 时间范围数量、report 时间范围数量
         multi_execute = MultiExecuteFunc()
 
-        # 1. task 累计数量（openid 精确匹配，不限时间）
+        # task 累计数量（openid 精确匹配，不限时间）
         multi_execute.append(
             "total_task",
             TGPATaskHandler.get_task_page_by_time,
@@ -215,7 +212,6 @@ class TGPASearchHandler:
             },
             multi_func_params=True,
         )
-
         # 2. report 累计数量（近30天）
         multi_execute.append(
             "total_report",
@@ -228,12 +224,11 @@ class TGPASearchHandler:
             },
             multi_func_params=True,
         )
-
-        # 3. 时间范围内 task 数量
+        # 3. 如果传了时间范围，查询时间范围内的数量
         if start_time or end_time:
             multi_execute.append(
-                "range_task",
-                TGPATaskHandler.get_task_page_by_time,
+                result_key="range_task",
+                func=TGPATaskHandler.get_task_page_by_time,
                 params={
                     "bk_biz_id": bk_biz_id,
                     "page": 1,
@@ -244,11 +239,9 @@ class TGPASearchHandler:
                 },
                 multi_func_params=True,
             )
-
-            # 4. 时间范围内 report 数量
             multi_execute.append(
-                "range_report",
-                TGPAReportHandler.get_report_count,
+                result_key="range_report",
+                func=TGPAReportHandler.get_report_count,
                 params={
                     "bk_biz_id": bk_biz_id,
                     "openid": openid,
@@ -259,23 +252,12 @@ class TGPASearchHandler:
             )
 
         results = multi_execute.run()
-
         total_task_count = results.get("total_task", {}).get("total", 0)
         total_report_count = results.get("total_report", 0)
-
-        # 如果没有传时间范围，时间范围内的数量等于累计数量
-        if start_time or end_time:
-            range_task_count = results.get("range_task", {}).get("total", 0)
-            range_report_count = results.get("range_report", 0)
-        else:
-            range_task_count = total_task_count
-            range_report_count = total_report_count
+        range_task_count = results.get("range_task", {}).get("total", 0)
+        range_report_count = results.get("range_report", 0)
 
         return {
-            "total_task_count": total_task_count,
-            "total_report_count": total_report_count,
             "total_count": total_task_count + total_report_count,
-            "range_task_count": range_task_count,
-            "range_report_count": range_report_count,
             "range_count": range_task_count + range_report_count,
         }
