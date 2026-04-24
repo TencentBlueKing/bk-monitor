@@ -672,9 +672,9 @@ class NoticeWay:
         WEIXIN: _lazy("微信"),
         QY_WEIXIN: _lazy("企业微信"),
         VOICE: _lazy("语音"),
-        WX_BOT: _lazy("企业微信机器人"),
+        WX_BOT: _lazy("群机器人"),
         BK_CHAT: _lazy("蓝鲸信息流"),
-        "bkchat|wxwork-bot": _lazy("蓝鲸信息流(企业微信机器人)"),
+        "bkchat|wxwork-bot": _lazy("蓝鲸信息流(群机器人)"),
         "bkchat|WEWORK": _lazy("蓝鲸信息流(企业微信服务号)"),
         "bkchat|SLACK": _lazy("蓝鲸信息流(SLACK机器人)"),
         "bkchat|SLACK_WEBHOOK": _lazy("蓝鲸信息流(SLACK)"),
@@ -691,7 +691,7 @@ class NoticeChannel:
     WX_BOT = "wxwork-bot"
     BK_CHAT = "bkchat"
 
-    NOTICE_CHANNEL_MAPPING = {USER: _lazy("内部用户"), WX_BOT: _lazy("企业微信机器人"), BK_CHAT: _lazy("蓝鲸信息流")}
+    NOTICE_CHANNEL_MAPPING = {USER: _lazy("内部用户"), WX_BOT: _lazy("群机器人"), BK_CHAT: _lazy("蓝鲸信息流")}
 
     NOTICE_CHANNEL_CHOICE = [(key, value) for key, value in NOTICE_CHANNEL_MAPPING.items()]
 

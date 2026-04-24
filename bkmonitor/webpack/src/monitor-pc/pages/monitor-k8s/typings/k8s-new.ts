@@ -140,6 +140,30 @@ export enum K8sTableColumnKeysEnum {
    * @description: container_network_transmit_bytes_total - 网络出带宽
    */
   NETWORK_TRANSMIT_BYTES = 'container_network_transmit_bytes_total',
+  /**
+   * @description: container_gpu_utilization - GPU算力使用率
+   */
+  GPU_UTILIZATION = 'container_gpu_utilization',
+  /**
+   * @description: container_gpu_memory_total - GPU显存使用量
+   */
+  GPU_MEMORY_TOTAL = 'container_gpu_memory_total',
+  /**
+   * @description: container_core_utilization_percentage - GPU算力申请使用率
+   */
+  GPU_CORE_UTILIZATION_PCT = 'container_core_utilization_percentage',
+  /**
+   * @description: container_mem_utilization_percentage - GPU显存申请使用率
+   */
+  GPU_MEM_UTILIZATION_PCT = 'container_mem_utilization_percentage',
+  /**
+   * @description: container_request_gpu_memory - GPU显存申请量
+   */
+  GPU_REQUEST_MEMORY = 'container_request_gpu_memory',
+  /**
+   * @description: container_request_gpu_utilization - GPU算力申请量
+   */
+  GPU_REQUEST_UTILIZATION = 'container_request_gpu_utilization',
 }
 export const K8SToEventWhereKeyMap = {
   [K8sTableColumnKeysEnum.CLUSTER]: '"bcs_cluster_id"',
@@ -164,6 +188,8 @@ export enum SceneEnum {
   Storage = 'storage',
   /** 成本 */
   Cost = 'cost',
+  /** GPU */
+  GPU = 'gpu',
 }
 
 export interface GroupListItem<T = string> {
