@@ -1,7 +1,6 @@
 """
 Unit tests for scene_search endpoints (SceneSearchViewSet).
-Covers: scenes / search / fields / chart / agg_field / total / dimension_values /
-        aggs/terms / aggs/date_histogram / field analysis / export
+Covers: scenes / search / fields / date_histogram / agg_field / total / dimension_values
 """
 
 import json
@@ -14,11 +13,8 @@ from apps.log_search.views.scene_search_views import (
     AllConditionsBuilder,
     ConditionFieldSerializer,
     SceneAggFieldSerializer,
-    SceneAggsDateHistogramSerializer,
-    SceneAggsTermsSerializer,
     SceneDateHistogramSerializer,
     SceneDimensionValuesSerializer,
-    SceneFieldBaseSerializer,
     SceneFieldsSerializer,
     SceneSearchSerializer,
     SceneSearchViewSet,
@@ -202,50 +198,6 @@ class TestSceneTotalSerializer(TestCase):
         self.assertTrue(s.is_valid(), s.errors)
 
 
-class TestSceneFieldBaseSerializer(TestCase):
-
-    def test_agg_field_optional(self):
-        data = {**SEARCH_POST_BODY, "interval": "auto"}
-        s = SceneFieldBaseSerializer(data=data)
-        self.assertTrue(s.is_valid(), s.errors)
-        self.assertNotIn("agg_field", s.validated_data)
-
-    def test_filter_field_accepted(self):
-        data = {**SEARCH_POST_BODY, "filter": [{"key": "x"}]}
-        s = SceneFieldBaseSerializer(data=data)
-        self.assertTrue(s.is_valid(), s.errors)
-        self.assertEqual(s.validated_data["filter"], [{"key": "x"}])
-
-
-class TestSceneAggsTermsSerializer(TestCase):
-
-    def test_valid_with_fields(self):
-        data = {**SEARCH_POST_BODY, "fields": ["namespace", "pod"]}
-        s = SceneAggsTermsSerializer(data=data)
-        self.assertTrue(s.is_valid(), s.errors)
-        self.assertEqual(s.validated_data["fields"], ["namespace", "pod"])
-
-    def test_missing_fields_fails(self):
-        s = SceneAggsTermsSerializer(data=SEARCH_POST_BODY)
-        self.assertFalse(s.is_valid())
-        self.assertIn("fields", s.errors)
-
-
-class TestSceneAggsDateHistogramSerializer(TestCase):
-
-    def test_valid_with_group_field(self):
-        data = {**SEARCH_POST_BODY, "group_field": "namespace"}
-        s = SceneAggsDateHistogramSerializer(data=data)
-        self.assertTrue(s.is_valid(), s.errors)
-        self.assertEqual(s.validated_data["group_field"], "namespace")
-
-    def test_defaults(self):
-        s = SceneAggsDateHistogramSerializer(data=SEARCH_POST_BODY)
-        self.assertTrue(s.is_valid(), s.errors)
-        self.assertEqual(s.validated_data["interval"], "auto")
-        self.assertIsNone(s.validated_data["group_field"])
-
-
 # =========================================================================
 # 3. ViewSet endpoint tests
 # =========================================================================
@@ -271,6 +223,20 @@ def _get_viewset(action_name, request, initkwargs=None):
 class TestSceneSearchViewSetScenes(TestCase):
     """GET /search/scene/scenes/"""
 
+    MOCK_DIMENSIONS = {
+        "k8s": [
+            {"key": "cluster_id", "name": "BCS 集群", "choices_type": "dynamic"},
+            {"key": "stream", "name": "日志流类型", "choices_type": "static",
+             "choices": [{"id": "stdout", "name": "标准输出"}]},
+            {"key": "__ext.io_kubernetes_pod_namespace", "name": "命名空间", "choices_type": "free_input"},
+            {"key": "__ext.io_kubernetes_pod", "name": "Pod名称", "choices_type": "free_input"},
+        ],
+        "host": [
+            {"key": "ip", "name": "IP地址", "choices_type": "free_input"},
+            {"key": "path", "name": "日志路径", "choices_type": "free_input"},
+        ],
+    }
+
     def test_scenes_via_view(self):
         factory = APIRequestFactory()
         request = factory.get("/api/v1/search/scene/scenes/")
@@ -280,7 +246,7 @@ class TestSceneSearchViewSetScenes(TestCase):
             return_value=(("k8s", "容器场景"), ("host", "主机场景")),
         ), patch(
             "apps.log_databus.constants.SCENE_SEARCH_DIMENSIONS",
-            {"k8s": [{"key": "cluster_id"}], "host": []},
+            self.MOCK_DIMENSIONS,
         ):
             vs = _get_viewset("scenes", request)
             response = vs.scenes(request)
@@ -290,9 +256,35 @@ class TestSceneSearchViewSetScenes(TestCase):
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0]["id"], "k8s")
         self.assertEqual(data[0]["name"], "容器场景")
-        self.assertEqual(data[0]["dimensions"], [{"key": "cluster_id"}])
+        self.assertEqual(len(data[0]["dimensions"]), 4)
         self.assertEqual(data[1]["id"], "host")
-        self.assertEqual(data[1]["dimensions"], [])
+        self.assertEqual(len(data[1]["dimensions"]), 2)
+
+    def test_scenes_choices_types(self):
+        """Verify all three choices_type values are returned correctly."""
+        factory = APIRequestFactory()
+        request = factory.get("/api/v1/search/scene/scenes/")
+
+        with patch(
+            "apps.log_search.constants.SceneLabelEnum.get_choices",
+            return_value=(("k8s", "容器场景"), ("host", "主机场景")),
+        ), patch(
+            "apps.log_databus.constants.SCENE_SEARCH_DIMENSIONS",
+            self.MOCK_DIMENSIONS,
+        ):
+            vs = _get_viewset("scenes", request)
+            response = vs.scenes(request)
+
+        k8s_dims = response.data[0]["dimensions"]
+        choices_types = {d["key"]: d["choices_type"] for d in k8s_dims}
+        self.assertEqual(choices_types["cluster_id"], "dynamic")
+        self.assertEqual(choices_types["stream"], "static")
+        self.assertEqual(choices_types["__ext.io_kubernetes_pod_namespace"], "free_input")
+        self.assertEqual(choices_types["__ext.io_kubernetes_pod"], "free_input")
+
+        host_dims = response.data[1]["dimensions"]
+        for dim in host_dims:
+            self.assertEqual(dim["choices_type"], "free_input")
 
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
@@ -375,20 +367,20 @@ class TestSceneSearchViewSetFields(TestCase):
 
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
-class TestSceneSearchViewSetChart(TestCase):
-    """POST /search/scene/chart/"""
+class TestSceneSearchViewSetDateHistogram(TestCase):
+    """POST /search/scene/date_histogram/"""
 
     @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.date_histogram")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_chart_success(self, mock_local, mock_user, mock_ext_user, mock_dh):
+    def test_date_histogram_success(self, mock_local, mock_user, mock_ext_user, mock_dh):
         mock_dh.return_value = {"series": [{"values": [1, 2, 3]}]}
 
         factory = APIRequestFactory()
         request = _make_post_request(SEARCH_POST_BODY, factory)
-        vs = _get_viewset("chart", request)
-        response = vs.chart(request)
+        vs = _get_viewset("date_histogram", request)
+        response = vs.date_histogram(request)
 
         self.assertEqual(response.status_code, 200)
         mock_dh.assert_called_once_with(interval="auto")
@@ -397,14 +389,14 @@ class TestSceneSearchViewSetChart(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_chart_with_interval(self, mock_local, mock_user, mock_ext_user, mock_dh):
+    def test_date_histogram_with_interval(self, mock_local, mock_user, mock_ext_user, mock_dh):
         mock_dh.return_value = {"series": []}
 
         data = {**SEARCH_POST_BODY, "interval": "5m"}
         factory = APIRequestFactory()
         request = _make_post_request(data, factory)
-        vs = _get_viewset("chart", request)
-        response = vs.chart(request)
+        vs = _get_viewset("date_histogram", request)
+        response = vs.date_histogram(request)
 
         mock_dh.assert_called_once_with(interval="5m")
 
@@ -448,147 +440,6 @@ class TestSceneSearchViewSetTotal(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {"total": 42})
-
-
-@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
-class TestSceneSearchViewSetAggsTerms(TestCase):
-    """POST /search/scene/aggs/terms/"""
-
-    @patch("apps.log_unifyquery.handler.scene_terms_aggs.SceneTermsAggsHandler.terms")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_aggs_terms_success(self, mock_local, mock_user, mock_ext_user, mock_terms):
-        mock_terms.return_value = {
-            "aggs": {"namespace": {"buckets": [{"key": "default", "doc_count": 100}]}},
-            "aggs_items": {"namespace": ["default"]},
-        }
-
-        data = {**SEARCH_POST_BODY, "fields": ["namespace"]}
-        factory = APIRequestFactory()
-        request = _make_post_request(data, factory)
-        vs = _get_viewset("aggs_terms", request)
-        response = vs.aggs_terms(request)
-
-        self.assertEqual(response.status_code, 200)
-        mock_terms.assert_called_once()
-        self.assertIn("aggs", response.data)
-        self.assertIn("aggs_items", response.data)
-
-
-@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
-class TestSceneSearchViewSetAggsDateHistogram(TestCase):
-    """POST /search/scene/aggs/date_histogram/"""
-
-    @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.aggs_date_histogram")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_aggs_date_histogram_success(self, mock_local, mock_user, mock_ext_user, mock_adh):
-        mock_adh.return_value = {"aggs": {"group_by_histogram": {"buckets": []}}}
-
-        factory = APIRequestFactory()
-        request = _make_post_request(SEARCH_POST_BODY, factory)
-        vs = _get_viewset("aggs_date_histogram", request)
-        response = vs.aggs_date_histogram(request)
-
-        self.assertEqual(response.status_code, 200)
-        mock_adh.assert_called_once_with(interval="auto", group_field=None)
-
-    @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.aggs_date_histogram")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_aggs_date_histogram_with_group_field(self, mock_local, mock_user, mock_ext_user, mock_adh):
-        mock_adh.return_value = {"aggs": {"group_by_histogram": {"buckets": []}}}
-
-        data = {**SEARCH_POST_BODY, "interval": "5m", "group_field": "namespace"}
-        factory = APIRequestFactory()
-        request = _make_post_request(data, factory)
-        vs = _get_viewset("aggs_date_histogram", request)
-        response = vs.aggs_date_histogram(request)
-
-        self.assertEqual(response.status_code, 200)
-        mock_adh.assert_called_once_with(interval="5m", group_field="namespace")
-
-
-@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
-class TestSceneSearchViewSetExportSample(TestCase):
-    """POST /search/scene/export/sample/"""
-
-    @patch("apps.log_search.views.scene_search_views.AsyncTask")
-    @patch("apps.log_search.views.scene_search_views.create_download_response")
-    @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.search")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    @patch("apps.log_search.views.scene_search_views.get_request_external_username", return_value="")
-    @patch("apps.log_search.views.scene_search_views.get_request_username", return_value="admin")
-    def test_sample_export_success(
-        self, mock_view_user, mock_view_ext_user,
-        mock_local, mock_user, mock_ext_user,
-        mock_search, mock_download, mock_async_task,
-    ):
-        mock_search.return_value = {
-            "origin_log_list": [{"log": "test line 1"}, {"log": "test line 2"}],
-        }
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_download.return_value = mock_response
-
-        factory = APIRequestFactory()
-        request = _make_post_request(SEARCH_POST_BODY, factory)
-        vs = _get_viewset("scene_sample_export", request)
-        response = vs.scene_sample_export(request)
-
-        self.assertEqual(response.status_code, 200)
-        mock_search.assert_called_once_with(is_export=True)
-        mock_download.assert_called_once()
-        mock_async_task.objects.create.assert_called_once()
-
-
-@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
-class TestSceneSearchViewSetAsyncExport(TestCase):
-    """POST /search/scene/export/async/"""
-
-    @patch("apps.log_unifyquery.handler.scene_async_export.SceneAsyncExportHandler.async_export")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_async_export_success(self, mock_local, mock_user, mock_ext_user, mock_export):
-        mock_export.return_value = (42, 500)
-
-        data = {**SEARCH_POST_BODY, "export_fields": [], "file_type": "log"}
-        factory = APIRequestFactory()
-        request = _make_post_request(data, factory)
-        vs = _get_viewset("scene_async_export", request)
-        response = vs.scene_async_export(request)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["task_id"], 42)
-        mock_export.assert_called_once_with(is_quick_export=False)
-
-
-@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
-class TestSceneSearchViewSetQuickExport(TestCase):
-    """POST /search/scene/export/quick/"""
-
-    @patch("apps.log_unifyquery.handler.scene_async_export.SceneAsyncExportHandler.async_export")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_quick_export_success(self, mock_local, mock_user, mock_ext_user, mock_export):
-        mock_export.return_value = (99, 1000)
-
-        data = {**SEARCH_POST_BODY, "export_fields": [], "file_type": "log"}
-        factory = APIRequestFactory()
-        request = _make_post_request(data, factory)
-        vs = _get_viewset("scene_quick_export", request)
-        response = vs.scene_quick_export(request)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["task_id"], 99)
-        mock_export.assert_called_once_with(is_quick_export=True)
 
 
 # =========================================================================
@@ -637,8 +488,8 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_millisecond_timestamps_converted_to_seconds(self, mock_local, mock_user, mock_ext_user):
-        """Millisecond timestamps (13 digits) must be converted to seconds to avoid UQ overflow."""
+    def test_millisecond_int_timestamps_kept_as_ms(self, mock_local, mock_user, mock_ext_user):
+        """Int millisecond timestamps are kept as-is (UQ expects milliseconds)."""
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         params = {
@@ -647,9 +498,9 @@ class TestSceneUnifyQueryHandler(TestCase):
             "end_time": 1776247830000,
         }
         handler = SceneUnifyQueryHandler(params)
-        self.assertEqual(handler.start_time, 1776246930)
-        self.assertEqual(handler.end_time, 1776247830)
-        self.assertLessEqual(handler.start_time, 9999999999)
+        self.assertEqual(handler.start_time, 1776246930000)
+        self.assertEqual(handler.end_time, 1776247830000)
+        self.assertEqual(handler.base_dict["start_time"], "1776246930000")
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
@@ -666,6 +517,22 @@ class TestSceneUnifyQueryHandler(TestCase):
         handler = SceneUnifyQueryHandler(params)
         self.assertEqual(handler.start_time, 1776246930)
         self.assertEqual(handler.end_time, 1776247830)
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_string_numeric_timestamps_parsed_as_int(self, mock_local, mock_user, mock_ext_user):
+        """String numeric timestamps (from HTTP) must be converted to int before deal_time_format."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {
+            **BASE_POST_BODY,
+            "start_time": "1776246930000",
+            "end_time": "1776247830000",
+        }
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.start_time, 1776246930000)
+        self.assertEqual(handler.end_time, 1776247830000)
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
@@ -764,48 +631,6 @@ class TestSceneUnifyQueryHandler(TestCase):
         call_args = mock_api.call_args[0][0]
         self.assertEqual(call_args["limit"], 1)
         self.assertEqual(call_args["highlight"]["enable"], False)
-
-
-# =========================================================================
-# 4b. SceneTermsAggsHandler unit tests
-# =========================================================================
-
-@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
-class TestSceneTermsAggsHandler(TestCase):
-    """Test SceneTermsAggsHandler initialization and multi-field query construction."""
-
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_init_sets_agg_fields(self, mock_local, mock_user, mock_ext_user):
-        from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
-
-        handler = SceneTermsAggsHandler(["namespace", "pod"], SEARCH_POST_BODY)
-        self.assertEqual(handler.agg_fields, ["namespace", "pod"])
-
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_init_scene_base_dict_uses_first_field(self, mock_local, mock_user, mock_ext_user):
-        from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
-
-        handler = SceneTermsAggsHandler(["namespace", "pod"], SEARCH_POST_BODY)
-        field_name = handler.base_dict["query_list"][0]["field_name"]
-        self.assertEqual(field_name, "namespace")
-
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
-    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
-    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_result_merge_multi_field(self, mock_local, mock_user, mock_ext_user):
-        from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
-
-        handler = SceneTermsAggsHandler(["namespace", "pod"], SEARCH_POST_BODY)
-        rmd = handler.result_merge_base_dict
-        self.assertEqual(len(rmd["query_list"]), 2)
-        self.assertEqual(rmd["metric_merge"], "a or b")
-        self.assertEqual(rmd["query_list"][0]["field_name"], "namespace")
-        self.assertEqual(rmd["query_list"][1]["field_name"], "pod")
-        self.assertEqual(rmd["query_list"][1]["reference_name"], "b")
 
 
 # =========================================================================

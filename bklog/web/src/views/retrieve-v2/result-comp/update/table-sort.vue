@@ -131,7 +131,7 @@
   const fieldList = computed(() => store.state.indexFieldInfo.fields);
 
   const selectList = computed(() => {
-    const filterFn = field => field.field_type !== '__virtual__' && field.field_type !== 'flattened';
+    const filterFn = field => field.es_doc_values && field.field_type !== '__virtual__' && field.field_type !== 'flattened';
     return fieldList.value.filter(filterFn).map(field => {
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });

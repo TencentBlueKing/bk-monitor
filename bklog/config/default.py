@@ -688,12 +688,6 @@ MENUS = [
                         "icon": "client-log",
                     },
                     {
-                        "id": "tgpa_task",
-                        "name": _("客户端日志"),
-                        "feature": FEATURE_TOGGLE["tgpa_task"],
-                        "icon": "client-log",
-                    },
-                    {
                         "id": "bk_data_collection",
                         "name": _("计算平台"),
                         "feature": FEATURE_TOGGLE["scenario_bkdata"],
@@ -1316,6 +1310,7 @@ except ValueError:
 # TGPA
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
 TGPA_TRANSCEIVER_TOOL_URL = os.getenv("BKAPP_TGPA_TRANSCEIVER_TOOL_URL", "")
+TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
 
 """
 以下为框架代码 请勿修改

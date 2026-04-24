@@ -140,11 +140,12 @@ export const useAuthorityStore = defineStore('authority', {
       return res;
     },
     showAuthorityDetail(res: any) {
+      if (!Array.isArray(res) && !res?.data && !res?.permission) return;
       this.setDialogLoading(true);
       this.setShowAuthortyDialog(true);
       const data = transformDataKey(res);
-      this.setApplyUrl(data.data.applyUrl);
-      this.setAuthorityDetail(data.permission);
+      this.setApplyUrl(data.data?.applyUrl ?? '');
+      this.setAuthorityDetail(data.permission ?? {});
       this.setDialogLoading(false);
     },
     // 通过actionIds获取对应权限是否放行
