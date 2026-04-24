@@ -60,7 +60,6 @@ from apm_web.service.serializers import (
     SetCodeRedefinedRuleRequestSerializer,
     SetCodeRemarkRequestSerializer,
     BaseCodeRedefinedRequestSerializer,
-    DeleteCodeRedefinedRuleRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkm_space.errors import NoRelatedResourceError
@@ -932,44 +931,6 @@ class SetCodeRedefinedRuleResource(Resource):
             code_relabel.append({"metrics": metrics, "source": service_name, "services": services})
 
         return code_relabel
-
-
-class DeleteCodeRedefinedRuleResource(Resource):
-    RequestSerializer = DeleteCodeRedefinedRuleRequestSerializer
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id: int = validated_request_data["bk_biz_id"]
-        app_name: str = validated_request_data["app_name"]
-        service_name: str = validated_request_data["service_name"]
-        kind: str = validated_request_data["kind"]
-
-        # 构建精确匹配条件
-        filters = {
-            "bk_biz_id": bk_biz_id,
-            "app_name": app_name,
-            "service_name": service_name,
-            "kind": kind,
-        }
-
-        # 添加可选的被调字段进行精确匹配
-        if "callee_server" in validated_request_data:
-            filters["callee_server"] = validated_request_data["callee_server"]
-        if "callee_service" in validated_request_data:
-            filters["callee_service"] = validated_request_data["callee_service"]
-        if "callee_method" in validated_request_data:
-            filters["callee_method"] = validated_request_data["callee_method"]
-
-        try:
-            instance = CodeRedefinedConfigRelation.objects.get(**filters)
-        except CodeRedefinedConfigRelation.DoesNotExist:
-            # 按需求可以视为已删除
-            return
-
-        instance.delete()
-
-        # 同步下发删除后的配置
-        SetCodeRedefinedRuleResource.publish_code_relabel_to_apm(bk_biz_id, app_name)
-        return
 
 
 class GetCodeRemarksResource(Resource):

@@ -29,7 +29,6 @@ from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
-from api.cmdb.define import Business
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
@@ -89,8 +88,6 @@ from apm_web.models import (
     Application,
     ApplicationCustomService,
     ApplicationRelationInfo,
-    AppServiceRelation,
-    CMDBServiceRelation,
     LogServiceRelation,
     UriServiceRelation,
 )
@@ -101,9 +98,7 @@ from apm_web.serializers import (
     AsyncSerializer,
     CustomServiceConfigSerializer,
 )
-from apm_web.service.resources import CMDBServiceTemplateResource
 from apm_web.service.serializers import (
-    AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
@@ -1246,9 +1241,6 @@ class ServiceDetailResource(Resource):
                 }.items()
             ]
 
-        # 暂时用不上，并需注意方法体逻辑已过时
-        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
-
         return [
             {
                 "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
@@ -1263,49 +1255,6 @@ class ServiceDetailResource(Resource):
             }.items()
             if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
         ]
-
-    def add_service_relation(self, bk_biz_id, app_name, service):
-        service_name: str = service["topo_key"]
-        # -- 添加cmdb关联信息
-        cmdb_obj: CMDBServiceRelation = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
-        if cmdb_obj:
-            template_id = cmdb_obj.template_id
-            template = {t["id"]: t for t in CMDBServiceTemplateResource.get_templates(bk_biz_id)}.get(template_id, {})
-            service.update(
-                {
-                    "cmdb_template_name": template.get("name"),
-                    "cmdb_first_category": template.get("first_category", {}).get("name"),
-                    "cmdb_second_category": template.get("second_category", {}).get("name"),
-                }
-            )
-
-        # -- 添加日志关联
-        log_obj: LogServiceRelation = LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
-        if log_obj:
-            log_data: dict[str, Any] = LogServiceRelationOutputSerializer(instance=log_obj).data
-            if log_data["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
-                service.update(
-                    {
-                        "log_type": log_data["log_type_alias"],
-                        "log_related_bk_biz_name": log_data["related_bk_biz_name"],
-                        "log_value_alias": log_data["value_alias"],
-                    }
-                )
-            else:
-                service.update({"log_type": log_data["log_type_alias"], "log_value": log_data["value"]})
-
-        # -- 添加app关联
-        app_obj: AppServiceRelation = AppServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
-        if app_obj:
-            res: dict[str, Any] = AppServiceRelationSerializer(instance=app_obj).data
-            relate_bk_biz_id = app_obj.relate_bk_biz_id
-            biz = {i.bk_biz_id: i for i in api.cmdb.get_business(bk_biz_ids=[relate_bk_biz_id])}.get(relate_bk_biz_id)
-            service.update(
-                {
-                    "app_related_bk_biz_name": biz.bk_biz_name if isinstance(biz, Business) else None,
-                    "app_related_app_name": res["relate_app_name"],
-                }
-            )
 
 
 class EndpointDetailResource(Resource):
