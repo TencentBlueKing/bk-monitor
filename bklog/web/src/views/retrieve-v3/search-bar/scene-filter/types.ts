@@ -25,6 +25,7 @@
  */
 
 /** 场景类型枚举（值对应接口返回的 id） */
+/* eslint-disable no-unused-vars */
 export enum SceneType {
   Container = 'k8s',
   Host = 'host',
@@ -46,10 +47,12 @@ export interface SceneDimensionItem {
   required: boolean;
   /** 字段数据类型 */
   type: 'string' | 'integer';
+  /** 是否支持多选 */
+  multiple?: boolean;
   /** 支持的操作符列表 */
   ops: string[];
-  /** 选项类型：static 前端直接渲染 choices，dynamic 调用 dimension_values 拉取 */
-  choices_type?: 'static' | 'dynamic';
+  /** 选项类型：static 前端直接渲染 choices，dynamic 调用 dimension_values 拉取，free_input 自由输入 */
+  choices_type?: 'static' | 'dynamic' | 'free_input';
   /** 静态候选值列表（仅 choices_type=static 时存在） */
   choices?: Array<{ id: string; name: string }>;
 }
@@ -96,8 +99,8 @@ export interface FilterFieldConfig {
   key: string;
   /** 字段数据类型 */
   fieldType: 'string' | 'integer';
-  /** 选项类型：static 前端直接渲染 choices，dynamic 调用 dimension_values 拉取 */
-  choicesType?: 'static' | 'dynamic';
+  /** 选项类型：static 前端直接渲染 choices，dynamic 调用 dimension_values 拉取，free_input 自由输入 */
+  choicesType?: 'static' | 'dynamic' | 'free_input';
   /** 静态候选值列表（仅 choicesType=static 时有效） */
   choices?: Array<{ id: string; name: string }>;
   /** 是否必填 */

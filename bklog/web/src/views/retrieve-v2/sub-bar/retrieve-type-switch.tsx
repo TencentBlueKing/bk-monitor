@@ -28,6 +28,8 @@ import { computed, defineComponent } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
+import RequestPool from '@/store/request-pool';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getAllSceneFieldKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
 import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
 import './retrieve-type-switch.scss';
@@ -45,12 +47,31 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
 
-    const retrieveType = computed(() => store.state.indexItem.retrieve_type ?? RetrieveType.Normal);
+    const isSceneMode = computed(() => store.getters.isSceneMode);
+    const retrieveType = computed(() => (isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal));
 
     const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
 
+    /** 清空检索相关的数据 */
+    const resetRetrieveData = () => {
+      // 清空字段信息
+      store.commit('resetIndexFieldInfo');
+      // 清空日志检索结果
+      store.commit('resetIndexSetQueryResult');
+    };
+
+    /** 取消所有进行中的请求 */
+    const cancelPendingRequests = () => {
+      RequestPool.execCanceToken('requestIndexSetFieldInfoCancelToken');
+      RequestPool.execCanceToken('requestIndexSetQueryCancelToken');
+      RequestPool.execCanceToken('requestSearchTotalCancelToken');
+    };
+
     const handleChange = (type: string) => {
       if (retrieveType.value === type) return;
+
+      // 先取消所有进行中的请求，防止旧请求返回覆盖新数据
+      cancelPendingRequests();
 
       // 切换到常规检索时，清空场景化检索条件
       if (type === RetrieveType.Normal) {
@@ -58,6 +79,23 @@ export default defineComponent({
           retrieve_type: type,
           scene_active: '',
           scene_filter_values: {},
+        });
+
+        // 清空检索数据后重新请求
+        resetRetrieveData();
+        store.dispatch('requestIndexSetFieldInfo').then((resp) => {
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+
+          if (resp?.data?.fields?.length) {
+            store.dispatch('requestIndexSetQuery');
+          }
+
+          if (!resp?.data?.fields?.length) {
+            store.commit('updateIndexSetQueryResult', {
+              is_error: true,
+              exception_msg: 'index-set-field-not-found',
+            });
+          }
         });
 
         // 从 URL 中清除场景相关参数
@@ -72,6 +110,11 @@ export default defineComponent({
           retrieve_type: type,
           scene_active: SceneType.Container,
         });
+
+        // 清空检索数据
+        resetRetrieveData();
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+
         router.replace({
           query: {
             ...route.query,

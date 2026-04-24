@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
 import draggable from 'vuedraggable';
 
@@ -68,7 +68,7 @@ export default defineComponent({
     /** 按需翻译：skipI18n 为 true 时跳过翻译，直接返回原文 */
     const translateLabel = (label: string, skipI18n?: boolean) => (skipI18n ? label : t(label));
 
-    const apiOptions = reactive<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
+    const apiOptions = ref<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
 
     const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
       .find(scene => scene.type === props.activeScene),
@@ -100,7 +100,6 @@ export default defineComponent({
         });
 
         const data = (res.data ?? res) as SceneDimensionValuesResponse;
-        console.log('fetchDynamicOptions data:', data);
         const values = data.values ?? [];
         fieldState.options = values.map(v => ({ id: v, name: v }));
       } catch (err) {
@@ -161,7 +160,6 @@ export default defineComponent({
     };
 
     const handleRemoveField = (fieldName: string) => {
-      if (editDisplayFields.value.length <= 1) return;
       editDisplayFields.value = editDisplayFields.value.filter(n => n !== fieldName);
     };
 
@@ -173,7 +171,8 @@ export default defineComponent({
     };
 
     const handleAddAllFields = () => {
-      editDisplayFields.value = allFieldsOfScene.value.map(f => f.key);
+      const toAdd = editRestFields.value.map(f => f.key);
+      editDisplayFields.value = [...editDisplayFields.value, ...toAdd];
     };
 
     const handleClearAllFields = () => {
@@ -201,23 +200,31 @@ export default defineComponent({
       emit('scene-change', type);
     };
 
-    const handleFieldChange = (fieldName: string, value: any) => {
-      emit('filter-change', { ...props.filterValues, [fieldName]: value });
+    const buildLabels = (ids: (string | number)[], opts: Array<{ id: string; name: string }>) => {
+      const result: Record<string, string> = {};
+      for (const id of ids) {
+        const opt = opts.find(o => o.id === id);
+        if (opt) result[id as string] = opt.name;
+      }
+      return Object.keys(result).length ? result : undefined;
+    };
+
+    const handleFieldChange = (fieldName: string, value: any, fieldLabels?: Record<string, string>) => {
+      emit('filter-change', {
+        values: { ...props.filterValues, [fieldName]: value },
+        labels: fieldLabels ? { fieldName, labels: fieldLabels } : undefined,
+      });
     };
 
     const handleClear = () => {
       emit('clear');
     };
 
-    const getFieldValue = (fieldName: string) => {
-      return props.filterValues[fieldName] ?? '';
-    };
-
     const getApiFieldState = (fieldName: string) => {
-      if (!apiOptions[fieldName]) {
-        apiOptions[fieldName] = { loading: false, options: [] };
+      if (!apiOptions.value[fieldName]) {
+        apiOptions.value = { ...apiOptions.value, [fieldName]: { loading: false, options: [] } };
       }
-      return apiOptions[fieldName];
+      return apiOptions.value[fieldName];
     };
 
     // 输入框本地缓存
@@ -283,13 +290,16 @@ export default defineComponent({
             <span class='field-label' v-bk-overflow-tips>{field.name}</span>
             <div class='field-input'>
               <bk-select
-                value={getFieldValue(field.key)}
+                value={props.filterValues[field.key] ?? (field.multiple ? [] : '')}
                 placeholder={field.placeholder || t('请选择')}
-                searchable={field.searchable ?? field.choicesType === 'dynamic'}
-                multiple={field.multiple ?? false}
+                multiple={field.multiple}
                 clearable={true}
                 loading={loading}
-                on-change={(val: any) => handleFieldChange(field.key, val)}
+                display-tag
+                on-change={(val: any) => {
+                  const selectedIds = Array.isArray(val) ? val : (val !== null && val !== '' ? [val] : []);
+                  handleFieldChange(field.key, val, buildLabels(selectedIds, options));
+                }}
                 on-toggle={(open: boolean) => {
                   if (open && field.choicesType === 'dynamic') {
                     fetchDynamicOptions(field);

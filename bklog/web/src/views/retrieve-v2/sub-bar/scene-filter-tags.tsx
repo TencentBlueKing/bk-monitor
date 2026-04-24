@@ -42,7 +42,13 @@ const TAG_GAP = 8;
 
 export default defineComponent({
   name: 'SceneFilterTags',
-  setup() {
+  props: {
+    filterLabels: {
+      type: Object as () => Record<string, Record<string, string>>,
+      default: () => ({}),
+    },
+  },
+  setup(props) {
     const store = useStore();
 
     const containerRef = ref<HTMLDivElement>();
@@ -53,7 +59,6 @@ export default defineComponent({
     const visibleTags = ref<TagItem[]>([]);
     const hiddenCount = ref(0);
     const resizeObserver = ref<ResizeObserver>();
-    const rightOptionWidth = ref(0);
 
     let tippyInstance: Instance | null = null;
 
@@ -81,7 +86,10 @@ export default defineComponent({
         if (val === undefined || val === null || val === '') continue;
         if (Array.isArray(val) && val.length === 0) continue;
 
-        const displayValue = Array.isArray(val) ? val.join(', ') : String(val);
+        const fieldLabels = props.filterLabels[field.key] ?? {};
+        const ids = Array.isArray(val) ? val : [val];
+        const displayNames = ids.map(id => fieldLabels[id] ?? String(id));
+        const displayValue = displayNames.join(', ');
 
         result.push({
           key: field.key,
@@ -127,11 +135,6 @@ export default defineComponent({
       return measureSpans.indicator.value.offsetWidth;
     };
 
-    // const getRightOptionWidth = (): number => {
-    //   const el = document.querySelector('.subbar-container .box-right-option') as HTMLElement;
-    //   return el ? el.offsetWidth : 0;
-    // };
-
     const calculateVisibleTags = () => {
       if (!containerRef.value || tags.value.length === 0) {
         visibleTags.value = tags.value;
@@ -144,9 +147,6 @@ export default defineComponent({
       if (containerRef.value.offsetWidth === 0 && containerRef.value.offsetHeight === 0) {
         return;
       }
-
-      // const currentRightWidth = getRightOptionWidth();
-      // rightOptionWidth.value = currentRightWidth;
 
       // 可用宽度 = 容器 offsetWidth - 额外间距
       const availableWidth = containerRef.value.offsetWidth - 8 * 2;

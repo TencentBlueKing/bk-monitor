@@ -58,6 +58,7 @@ export const transformSceneConfigItem = (item: SceneConfigItem): SceneConfig => 
     choices: dim.choices,
     required: dim.required,
     ops: dim.ops,
+    multiple: dim.multiple ?? true,
   }));
 
   return {

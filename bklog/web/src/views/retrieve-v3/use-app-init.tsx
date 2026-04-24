@@ -37,6 +37,8 @@ import { useRoute, useRouter } from 'vue-router/composables';
 
 import { getSceneFieldKeys } from './search-bar/scene-filter/scene-config';
 
+import { getSceneFieldKeys } from './search-bar/scene-filter/scene-config';
+
 import $http from '@/api';
 
 export default () => {
@@ -639,7 +641,7 @@ export default () => {
   // 场景模式下记录原始滚动距离，用于与字段面板高度比较判断吸顶
   const sceneScrollTop = ref(0);
 
-  const isSceneMode = computed(() => store.state.indexItem.retrieve_type === 'scene');
+  const isSceneMode = computed(() => store.getters.isSceneMode);
 
   // 判断场景模式下是否存在筛选标签（吸顶时标签栏占 34px）
   const hasSceneFilterTags = computed(() => {
