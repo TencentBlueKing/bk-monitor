@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
 
 import { Input, Select } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
@@ -82,6 +82,7 @@ export default defineComponent({
     const editValue = shallowRef<number | string>('');
 
     const errorMsg = shallowRef('');
+    const inputRef = useTemplateRef<InstanceType<typeof Input>>('input');
 
     // 计算展示文本
     const displayText = computed(() => {
@@ -98,6 +99,9 @@ export default defineComponent({
       editValue.value = props.value;
       isEditing.value = true;
       errorMsg.value = '';
+      nextTick(() => {
+        inputRef.value?.focus();
+      });
     };
 
     // 确认修改
