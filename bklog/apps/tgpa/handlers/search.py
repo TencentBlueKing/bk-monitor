@@ -24,7 +24,11 @@ import itertools
 
 import arrow
 
-from apps.tgpa.constants import TGPA_OPENID_SUGGEST_LIMIT, TGPA_MERGED_LIST_MAX_RESULT_WINDOW, TGPA_CLIENT_INFO_REPORT_DAYS
+from apps.tgpa.constants import (
+    TGPA_OPENID_SUGGEST_LIMIT,
+    TGPA_MERGED_LIST_MAX_RESULT_WINDOW,
+    TGPA_CLIENT_INFO_REPORT_DAYS,
+)
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.utils.thread import MultiExecuteFunc
