@@ -23,6 +23,7 @@ import os
 import shutil
 import uuid
 
+import arrow
 from django.utils.functional import cached_property
 
 from apps.api import TGPATaskApi
@@ -36,6 +37,7 @@ from apps.tgpa.constants import (
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_FILE_DOWNLOAD_CHUNK_SIZE,
     TGPA_REPORT_FILE_NAME_PREFIX,
+    TGPA_OPENID_SUGGEST_LIMIT,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
@@ -213,6 +215,74 @@ class TGPATaskHandler:
             "total": result["count"],
             "list": task_list,
         }
+
+    @staticmethod
+    def get_task_page_by_time(bk_biz_id, page=1, pagesize=10, openid=None, task_id=None, start_time=None, end_time=None):
+        """
+        按创建时间倒序分页查询任务列表
+        :param bk_biz_id: 业务ID
+        :param page: 页码
+        :param pagesize: 每页数量
+        :param openid: openid 精确匹配
+        :param task_id: 任务ID 精确匹配
+        :param start_time: 开始时间（毫秒时间戳）
+        :param end_time: 结束时间（毫秒时间戳）
+        :return: {"total": count, "list": [原始任务数据]}
+        """
+        request_params = {
+            "cc_id": bk_biz_id,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
+            "offset": (page - 1) * pagesize,
+            "limit": pagesize,
+            "ordering": "-created_at",
+        }
+
+        condition_list = []
+        if openid:
+            condition_list.append(f"openid={openid}")
+        if task_id:
+            request_params["task_id"] = task_id
+        if condition_list:
+            request_params["search"] = ";".join(condition_list)
+
+        # 构建 time_range 参数，格式: "2026-01-01 00:00:00,2026-01-08 23:59:59"
+        if start_time or end_time:
+            start_str = arrow.get(start_time / 1000).strftime("%Y-%m-%d %H:%M:%S") if start_time else ""
+            end_str = arrow.get(end_time / 1000).strftime("%Y-%m-%d %H:%M:%S") if end_time else ""
+            request_params["time_range"] = f"{start_str},{end_str}"
+
+        result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+        return {"total": result["count"], "list": result.get("results", [])}
+
+    @staticmethod
+    def get_openid_list(bk_biz_id, keyword=None, limit=TGPA_OPENID_SUGGEST_LIMIT):
+        """
+        获取 openid 列表（从 task 数据源中查询）
+        查询有限数量的任务并从中提取去重的 openid，用于联想场景，无需全量扫描。
+        :param bk_biz_id: 业务ID
+        :param keyword: 搜索关键字，用于过滤 openid
+        :param limit: 最多返回的 openid 数量
+        :return: 去重后的 openid 列表
+        """
+        request_params = {
+            "cc_id": bk_biz_id,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
+            "offset": 0,
+            "limit": limit * 5,  # 多取一些以应对同一 openid 的多条任务，提高去重后命中 limit 的概率
+            "ordering": "-created_at",
+        }
+        if keyword:
+            request_params["search"] = f"openid:{keyword}"
+
+        result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+        openid_set = set()
+        for task in result.get("results", []):
+            openid = task.get("openid")
+            if openid:
+                openid_set.add(openid)
+                if len(openid_set) >= limit:
+                    break
+        return openid_set
 
     @staticmethod
     def get_username_list(bk_biz_id):

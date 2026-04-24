@@ -30,6 +30,7 @@ from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermissi
 from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.base import TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
+from apps.tgpa.handlers.search import TGPASearchHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.models import TGPAReportSyncRecord
 from apps.tgpa.serializers import (
@@ -44,6 +45,9 @@ from apps.tgpa.serializers import (
     GetCountInfoSerializer,
     GetUsernameListSerializer,
     DownloadFileSerializer,
+    GetOpenidListSerializer,
+    GetMergedTaskListSerializer,
+    GetClientInfoSerializer,
 )
 from apps.tgpa.tasks import fetch_and_process_tgpa_reports
 from bkm_search_module.constants import list_route
@@ -64,6 +68,30 @@ class TGPAViewSet(APIViewSet):
                 "report": TGPAReportHandler.get_report_count(params["bk_biz_id"]),
             }
         )
+
+    @list_route(methods=["GET"], url_path="openid_list")
+    def get_openid_list(self, request, *args, **kwargs):
+        """
+        关键字查询 openid 列表（从 task 和 report 中合并去重）
+        """
+        params = self.params_valid(GetOpenidListSerializer)
+        return Response(TGPASearchHandler.get_openid_list(params))
+
+    @list_route(methods=["GET"], url_path="task_list")
+    def get_merged_task_list(self, request, *args, **kwargs):
+        """
+        检索页面合并任务列表（日志捞取任务 + 用户上报）
+        """
+        params = self.params_valid(GetMergedTaskListSerializer)
+        return Response(TGPASearchHandler.get_merged_task_list(params))
+
+    @list_route(methods=["GET"], url_path="client_info")
+    def get_client_info(self, request, *args, **kwargs):
+        """
+        获取客户端信息
+        """
+        params = self.params_valid(GetClientInfoSerializer)
+        return Response(TGPASearchHandler.get_client_info(params))
 
 
 class TGPATaskViewSet(APIViewSet):

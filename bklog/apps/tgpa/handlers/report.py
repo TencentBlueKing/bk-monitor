@@ -34,6 +34,7 @@ from apps.tgpa.constants import (
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_BASE_DIR,
     TGPA_REPORT_LIST_BATCH_SIZE,
+    TGPA_OPENID_SUGGEST_LIMIT,
     TGPAReportSyncStatusEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
@@ -86,13 +87,16 @@ class TGPAReportHandler:
         return cls._get_feature_config().get("tgpa_report_result_table_id")
 
     @classmethod
-    def _build_es_query(cls, bk_biz_id, keyword=None, file_name_list=None, start_time=None, end_time=None):
+    def _build_es_query(
+        cls, bk_biz_id, keyword=None, file_name_list=None, openid=None, start_time=None, end_time=None
+    ):
         """
         构建ES DSL查询条件
 
         :param bk_biz_id: 业务ID
         :param keyword: 搜索关键词
         :param file_name_list: 文件名列表，精确匹配
+        :param openid: openid，精确匹配
         :param start_time: 开始时间，默认为七天前
         :param end_time: 结束时间，默认为当前时间
         """
@@ -105,6 +109,8 @@ class TGPAReportHandler:
             must_conditions.append({"bool": {"should": should_conditions, "minimum_should_match": 1}})
         if file_name_list:
             must_conditions.append({"terms": {"file_name": file_name_list}})
+        if openid:
+            must_conditions.append({"term": {"openid": openid}})
 
         # 默认时间范围：当前时间到七天前
         if not start_time:
@@ -157,12 +163,12 @@ class TGPAReportHandler:
         return total, items
 
     @classmethod
-    def get_report_count(cls, bk_biz_id, start_time=None, end_time=None):
+    def get_report_count(cls, bk_biz_id, openid=None, start_time=None, end_time=None):
         """
         获取客户端日志上报文件数量
         """
         result_table_id = cls._get_result_table_id()
-        es_query = cls._build_es_query(bk_biz_id, start_time=start_time, end_time=end_time)
+        es_query = cls._build_es_query(bk_biz_id, openid=openid, start_time=start_time, end_time=end_time)
         body = {"query": es_query, "size": 0}
         index = cls._get_optimized_index(result_table_id, start_time=start_time, end_time=end_time)
         client = QueryClientBkData()
@@ -187,6 +193,7 @@ class TGPAReportHandler:
         es_query = cls._build_es_query(
             bk_biz_id=params["bk_biz_id"],
             keyword=params.get("keyword"),
+            openid=params.get("openid"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),
         )
@@ -290,6 +297,46 @@ class TGPAReportHandler:
 
             # 使用最后一条记录的sort值作为下一页的search_after
             search_after = raw_hits[-1]["sort"]
+
+    @classmethod
+    def get_openid_list(cls, bk_biz_id, keyword=None, start_time=None, end_time=None):
+        """
+        获取 openid 列表（从 report 数据源中查询）
+        使用 ES collapse（字段折叠）按 openid 去重，避免高基数字段聚合带来的性能开销
+        :param bk_biz_id: 业务ID
+        :param keyword: 搜索关键字，使用前缀匹配
+        :return: 去重后的 openid 列表
+        """
+        result_table_id = cls._get_result_table_id()
+
+        # 构建基础查询条件（业务ID + 时间范围）
+        must_conditions = [{"term": {"cc_id": bk_biz_id}}]
+        if keyword:
+            must_conditions.append({"prefix": {"openid": keyword}})
+
+        if not start_time:
+            start_time = int(arrow.now().shift(days=-1).timestamp() * 1000)
+        if not end_time:
+            end_time = int(arrow.now().timestamp() * 1000)
+        must_conditions.append({"range": {"dtEventTimeStamp": {"gte": start_time, "lt": end_time}}})
+
+        body = {
+            "query": {"bool": {"must": must_conditions}},
+            "collapse": {"field": "openid"},
+            "sort": [{"dtEventTimeStamp": {"order": "desc"}}],
+            "size": TGPA_OPENID_SUGGEST_LIMIT,
+            "_source": ["openid"],
+        }
+
+        index = cls._get_optimized_index(result_table_id, start_time=start_time, end_time=end_time)
+        client = QueryClientBkData()
+        es_response = client.query(index=index, body=body)
+
+        if not es_response or not isinstance(es_response, dict):
+            return []
+
+        raw_hits = es_response.get("hits", {}).get("hits", [])
+        return [hit["_source"]["openid"] for hit in raw_hits if hit.get("_source", {}).get("openid")]
 
     @classmethod
     def get_file_status_map(cls, file_name_list) -> dict:
