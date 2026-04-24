@@ -1380,7 +1380,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             NoticeWay.WEIXIN,  # 微信
             NoticeWay.QY_WEIXIN,  # 企微
             NoticeWay.VOICE,  # 语音
-            NoticeWay.WX_BOT,  # 企业微信机器人
+            NoticeWay.WX_BOT,  # 群机器人
         ]
         notice_way_count = defaultdict(int)
         alert_notice_ways = {}
@@ -1405,8 +1405,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
             alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
 
             # 统计每种通知方式的告警数量
-            for notice_ways in alert_notice_ways.values():
-                for way in notice_ways:
+            for ways in alert_notice_ways.values():
+                for way in ways:
                     notice_way_count[way] += 1
 
         except Exception as e:  # noqa: BLE001
