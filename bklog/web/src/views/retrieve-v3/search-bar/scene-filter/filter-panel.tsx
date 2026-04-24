@@ -100,9 +100,7 @@ export default defineComponent({
         });
 
         const data = (res.data ?? res) as SceneDimensionValuesResponse;
-        console.log('fetchDynamicOptions data:', data);
         const values = data.values ?? [];
-        console.log('fetchDynamicOptions values:', values);
         fieldState.options = values.map(v => ({ id: v, name: v }));
       } catch (err) {
         console.error('fetchDynamicOptions error:', err);
@@ -303,7 +301,6 @@ export default defineComponent({
                   handleFieldChange(field.key, val, buildLabels(selectedIds, options));
                 }}
                 on-toggle={(open: boolean) => {
-                  console.log('onToggle', open);
                   if (open && field.choicesType === 'dynamic') {
                     fetchDynamicOptions(field);
                   }
