@@ -170,16 +170,17 @@ class TGPATaskHandler:
             offset += batch_size
 
     @staticmethod
-    def get_task_page(params):
+    def get_task_page(params, need_format=True):
         """
-        分页获取任务列表，用于前端
+        分页获取任务列表
         """
-        # 支持v1和v2业务日志捞取任务
+        page = params.get("page", 1)
+        pagesize = params.get("pagesize", 10)
         request_params = {
             "cc_id": params["bk_biz_id"],
             "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
-            "offset": (params["page"] - 1) * params["pagesize"],
-            "limit": params["pagesize"],
+            "offset": (page - 1) * pagesize,
+            "limit": pagesize,
         }
 
         if params.get("ordering"):
@@ -195,66 +196,44 @@ class TGPATaskHandler:
             condition_list.append(f"scene={params['scene']}")
         if params.get("created_by"):
             condition_list.append(f"created_by={params['created_by']}")
+        if params.get("openid"):
+            condition_list.append(f"openid={params['openid']}")
+        if params.get("task_id"):
+            request_params["task_id"] = params["task_id"]
 
         if condition_list:
             request_params["search"] = ";".join(condition_list)
 
-        result = TGPATaskApi.query_single_user_log_task_v2(request_params)
-        task_list = TGPATaskHandler.format_task_list(result["results"])
-
-        # 获取任务处理时间和处理状态
-        task_ids = [task["task_id"] for task in task_list]
-        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values("task_id", "processed_at", "process_status")
-        task_info_map = {str(item["task_id"]): item for item in tgpa_tasks}
-        for task in task_list:
-            task_info = task_info_map.get(task["task_id"], {})
-            task["processed_at"] = task_info.get("processed_at", None)
-            task["process_status"] = task_info.get("process_status", None)
-
-        return {
-            "total": result["count"],
-            "list": task_list,
-        }
-
-    @staticmethod
-    def get_task_page_by_time(
-        bk_biz_id, page=1, pagesize=10, openid=None, task_id=None, start_time=None, end_time=None
-    ):
-        """
-        按创建时间倒序分页查询任务列表
-        :param bk_biz_id: 业务ID
-        :param page: 页码
-        :param pagesize: 每页数量
-        :param openid: openid 精确匹配
-        :param task_id: 任务ID 精确匹配
-        :param start_time: 开始时间（毫秒时间戳）
-        :param end_time: 结束时间（毫秒时间戳）
-        :return: {"total": count, "list": [原始任务数据]}
-        """
-        request_params = {
-            "cc_id": bk_biz_id,
-            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
-            "offset": (page - 1) * pagesize,
-            "limit": pagesize,
-            "ordering": "-created_at",
-        }
-
-        condition_list = []
-        if openid:
-            condition_list.append(f"openid={openid}")
-        if task_id:
-            request_params["task_id"] = task_id
-        if condition_list:
-            request_params["search"] = ";".join(condition_list)
-
-        # 构建 time_range 参数，格式: "2026-01-01 00:00:00,2026-01-08 23:59:59"
+        start_time = params.get("start_time")
+        end_time = params.get("end_time")
         if start_time or end_time:
             start_str = arrow.get(start_time / 1000).strftime("%Y-%m-%d %H:%M:%S") if start_time else ""
             end_str = arrow.get(end_time / 1000).strftime("%Y-%m-%d %H:%M:%S") if end_time else ""
             request_params["time_range"] = f"{start_str},{end_str}"
 
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
-        return {"total": result["count"], "list": result.get("results", [])}
+
+        # 默认格式化任务列表并附加处理信息，调用方可通过 need_format=False 获取原始数据
+        if need_format:
+            task_list = TGPATaskHandler.format_task_list(result["results"])
+
+            # 获取任务处理时间和处理状态
+            task_ids = [task["task_id"] for task in task_list]
+            tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values(
+                "task_id", "processed_at", "process_status"
+            )
+            task_info_map = {str(item["task_id"]): item for item in tgpa_tasks}
+            for task in task_list:
+                task_info = task_info_map.get(task["task_id"], {})
+                task["processed_at"] = task_info.get("processed_at", None)
+                task["process_status"] = task_info.get("process_status", None)
+        else:
+            task_list = result.get("results", [])
+
+        return {
+            "total": result["count"],
+            "list": task_list,
+        }
 
     @staticmethod
     def get_openid_list(bk_biz_id, keyword=None, limit=TGPA_OPENID_SUGGEST_LIMIT):

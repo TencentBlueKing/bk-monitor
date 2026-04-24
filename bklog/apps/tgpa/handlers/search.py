@@ -78,16 +78,21 @@ class TGPASearchHandler:
     @staticmethod
     def _format_task_item(task):
         """将原始 task 数据格式化为统一的合并列表项"""
+        task_detail = {item["key"]: item["value"] for item in task["task_info"]}
         return {
             "source": "task",
             "id": task["id"],
             "task_id": task["go_svr_task_id"],
             "openid": task.get("openid", ""),
             "file_name": task.get("file_name", ""),
-            "status": task.get("status"),
-            "status_name": task.get("statusText", ""),
-            "created_at": task.get("created_at", ""),
-            "raw": task,
+            "os_type": task_detail.get("os_type", ""),
+            "os_version": task_detail.get("os_version", ""),
+            "sdk_version": task_detail.get("sdk_version", ""),
+            "model": task_detail.get("model", ""),
+            "xid": task.get("xid", ""),
+            "report_time": task.get("processed_at", ""),
+            "process_status": task.get("process_status", ""),
+            "processed_at": task.get("processed_at", ""),
         }
 
     @staticmethod
@@ -99,10 +104,14 @@ class TGPASearchHandler:
             "task_id": None,
             "openid": report.get("openid", ""),
             "file_name": report.get("file_name", ""),
-            "status": report.get("status"),
-            "status_name": "",
-            "created_at": report.get("report_time", ""),
-            "raw": report,
+            "os_type": report.get("os_type", ""),
+            "os_version": report.get("os_version", ""),
+            "sdk_version": report.get("os_sdk", ""),
+            "model": report.get("model", ""),
+            "xid": report.get("xid", ""),
+            "report_time": report.get("report_time", ""),
+            "process_status": report.get("process_status", ""),
+            "processed_at": report.get("processed_at", ""),
         }
 
     @staticmethod
@@ -134,15 +143,19 @@ class TGPASearchHandler:
         multi_execute = MultiExecuteFunc()
         multi_execute.append(
             "task_result",
-            TGPATaskHandler.get_task_page_by_time,
+            TGPATaskHandler.get_task_page,
             params={
-                "bk_biz_id": bk_biz_id,
-                "page": 1,
-                "pagesize": fetch_size,
-                "openid": openid,
-                "task_id": task_id,
-                "start_time": start_time,
-                "end_time": end_time,
+                "params": {
+                    "bk_biz_id": bk_biz_id,
+                    "page": 1,
+                    "pagesize": fetch_size,
+                    "openid": openid,
+                    "task_id": task_id,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "ordering": "-created_at",
+                },
+                "need_format": False,
             },
             multi_func_params=True,
         )
@@ -167,7 +180,6 @@ class TGPASearchHandler:
         report_result = results.get("report_result", {"total": 0, "list": []})
         report_items = [cls._format_report_item(report) for report in report_result.get("list", [])]
 
-        # ===== 归并排序（两路已按时间倒序），取当前页 =====
         merged = heapq.merge(task_items, report_items, key=lambda x: x.get("created_at") or "", reverse=True)
         start_idx = (page - 1) * pagesize
         paged_list = list(itertools.islice(merged, start_idx, start_idx + pagesize))
@@ -178,18 +190,7 @@ class TGPASearchHandler:
     @classmethod
     def get_client_info(cls, params):
         """
-        获取客户端信息：累计上报次数和时间范围内的上报次数
-        合并 task 和 report 两个数据源的统计信息
-
-        :param params: 包含 bk_biz_id, openid, start_time(可选), end_time(可选)
-        :return: {
-            "total_task_count": 累计 task 数量（全量）,
-            "total_report_count": 累计 report 数量（近30天）,
-            "total_count": 累计上报总次数,
-            "range_task_count": 时间范围内 task 数量,
-            "range_report_count": 时间范围内 report 数量,
-            "range_count": 时间范围内上报总次数,
-        }
+        获取客户端信息
         """
         bk_biz_id = params["bk_biz_id"]
         openid = params["openid"]
@@ -202,20 +203,24 @@ class TGPASearchHandler:
 
         # task 累计数量（openid 精确匹配，不限时间）
         multi_execute.append(
-            "total_task",
-            TGPATaskHandler.get_task_page_by_time,
+            result_key="total_task",
+            func=TGPATaskHandler.get_task_page,
             params={
-                "bk_biz_id": bk_biz_id,
-                "page": 1,
-                "pagesize": 1,
-                "openid": openid,
+                "params": {
+                    "bk_biz_id": bk_biz_id,
+                    "page": 1,
+                    "pagesize": 1,
+                    "openid": openid,
+                    "ordering": "-created_at",
+                },
+                "need_format": False,
             },
             multi_func_params=True,
         )
         # 2. report 累计数量（近30天）
         multi_execute.append(
-            "total_report",
-            TGPAReportHandler.get_report_count,
+            result_key="total_report",
+            func=TGPAReportHandler.get_report_count,
             params={
                 "bk_biz_id": bk_biz_id,
                 "openid": openid,
@@ -228,14 +233,18 @@ class TGPASearchHandler:
         if start_time or end_time:
             multi_execute.append(
                 result_key="range_task",
-                func=TGPATaskHandler.get_task_page_by_time,
+                func=TGPATaskHandler.get_task_page,
                 params={
-                    "bk_biz_id": bk_biz_id,
-                    "page": 1,
-                    "pagesize": 1,
-                    "openid": openid,
-                    "start_time": start_time,
-                    "end_time": end_time,
+                    "params": {
+                        "bk_biz_id": bk_biz_id,
+                        "page": 1,
+                        "pagesize": 1,
+                        "openid": openid,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "ordering": "-created_at",
+                    },
+                    "need_format": False,
                 },
                 multi_func_params=True,
             )
