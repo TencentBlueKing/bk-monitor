@@ -21,7 +21,6 @@ from datetime import timedelta
 import arrow
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
-from django.db.models.functions import Length
 
 from api.cmdb.define import Business
 
@@ -71,6 +70,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import Resource, api
+from constants.apm import CallSide
 
 
 class ApplicationListResource(Resource):
@@ -729,7 +729,7 @@ class ListPipelineResource(Resource):
 class ListCodeRedefinedRuleResource(Resource):
     RequestSerializer = ListCodeRedefinedRuleRequestSerializer
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str | None = validated_request_data["service_name"]
@@ -756,24 +756,16 @@ class ListCodeRedefinedRuleResource(Resource):
             else:
                 params[f"{dimension}__in"] = [request_value, ""]
 
-        code_relations: list[dict[str, Any]] = (
-            CodeRedefinedConfigRelation.get_relation_qs(**params)
-            .annotate(
-                method_len=Length("callee_method"),
-                service_len=Length("callee_service"),
-                server_len=Length("callee_server"),
-            )
-            .order_by("-method_len", "-service_len", "-server_len")
-            .values(
-                "service_name",
-                "kind",
-                "is_global",
-                "callee_server",
-                "callee_service",
-                "callee_method",
-                "code_type_rules",
-                "enabled",
-            )
+        relations: list[dict[str, Any]] = CodeRedefinedConfigRelation.get_relation_qs(**params).values(
+            "service_name",
+            "kind",
+            "is_global",
+            "callee_server",
+            "callee_service",
+            "callee_method",
+            "code_type_rules",
+            "enabled",
+            "updated_at",
         )
         # 按 grouped_key 分组，将同组的 service_name 聚合到 service_names 列表
         grouped_keys = (
@@ -785,17 +777,19 @@ class ListCodeRedefinedRuleResource(Resource):
             "code_type_rules",
             "enabled",
         )
-        grouped_dict: dict[tuple, dict[str, Any]] = {}
-        for relation in code_relations:
-            key = tuple(count_md5(relation[k]) for k in grouped_keys)
+        grouped_dict: dict[str, dict[str, Any]] = {}
+        for relation in relations:
+            key = count_md5({k: relation[k] for k in grouped_keys})
             if key in grouped_dict:
                 grouped_dict[key]["service_names"].append(relation["service_name"])
+                grouped_dict[key]["updated_at"] = max(grouped_dict[key]["updated_at"], relation["updated_at"])
             else:
                 grouped_dict[key] = {
                     "service_names": [relation["service_name"]] if relation["service_name"] else [],
-                    **{k: relation[k] for k in relation},
+                    **relation,
                 }
-        return list(grouped_dict.values())
+        # 显式保证全局在前，服务在后
+        return sorted(list(grouped_dict.values()), key=lambda x: x["updated_at"], reverse=True)
 
 
 class SetCodeRedefinedRuleResource(Resource):
@@ -807,28 +801,31 @@ class SetCodeRedefinedRuleResource(Resource):
         rules: list = validated_request_data["rules"]
         service_name: str | None = validated_request_data["service_name"]
 
-        sync_records: list[dict[str, Any]] = [
-            {
+        records: list[dict[str, Any]] = []
+        for rule in rules:
+            record: dict[str, Any] = {
                 "bk_biz_id": bk_biz_id,
                 "app_name": app_name,
-                "service_name": _service_name,
                 "is_global": rule["is_global"],
                 "kind": rule["kind"],
-                "callee_server": rule["callee_server"],
+                "callee_server": "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"],
                 "callee_service": rule["callee_service"],
                 "callee_method": rule["callee_method"],
                 "code_type_rules": rule["code_type_rules"],
                 "enabled": rule["enabled"],
             }
-            for rule in rules
-            for _service_name in rule["service_names"]
-        ]
+            if rule["is_global"]:
+                records.append({**record, "service_name": ""})
+                continue
+            for _service_name in rule["service_names"]:
+                records.append({**record, "service_name": _service_name})
+
         params: dict[str, Any] = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "service_name": service_name or "",
             "scope": SyncScope.SERVICE if service_name else SyncScope.ALL,
-            "records": sync_records,
+            "records": records,
         }
         if validated_request_data.get("kind"):
             params["kind"] = validated_request_data["kind"]
@@ -885,9 +882,7 @@ class SetCodeRedefinedRuleResource(Resource):
             text = str(value).strip()
             return text if text else "*"
 
-        queryset = CodeRedefinedConfigRelation.get_relation_qs(
-            bk_biz_id, app_name, include_global=True, enabled=True
-        ).order_by("service_name", "kind", "callee_server", "callee_service", "callee_method")
+        queryset = CodeRedefinedConfigRelation.get_relation_qs(bk_biz_id, app_name, include_global=True, enabled=True)
         grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
         for item in queryset:
             name = ";".join(
@@ -929,8 +924,8 @@ class SetCodeRedefinedRuleResource(Resource):
             if not metrics:
                 continue
             code_relabel.append({"metrics": metrics, "source": service_name, "services": services})
-
-        return code_relabel
+        # 优先级：服务级 > 全局，越往后优先级越高
+        return sorted(code_relabel, key=lambda x: x["source"] == "*", reverse=True)
 
 
 class GetCodeRemarksResource(Resource):

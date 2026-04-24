@@ -711,7 +711,7 @@ class SetupResource(Resource):
 
             def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
                 if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
-                    if "related_bk_biz_id" not in attrs or not attrs["related_bk_biz_id"]:
+                    if not attrs["related_bk_biz_id"]:
                         raise ValueError(_("关联日志平台日志需要选择业务"))
                 else:
                     attrs["related_bk_biz_id"] = None
@@ -888,7 +888,7 @@ class SetupResource(Resource):
         update_key = ["application_log_relation_configs"]
 
         def setup(self):
-            sync_records: list[dict[str, Any]] = [
+            records: list[dict[str, Any]] = [
                 {
                     "bk_biz_id": self._application.bk_biz_id,
                     "app_name": self._application.app_name,
@@ -901,7 +901,7 @@ class SetupResource(Resource):
                 for relation_config in self._params["application_log_relation_configs"]
             ]
             LogServiceRelation.sync_relations(
-                self._application.bk_biz_id, self._application.app_name, "", sync_records, SyncScope.GLOBAL
+                self._application.bk_biz_id, self._application.app_name, records=records, scope=SyncScope.GLOBAL
             )
 
     def perform_request(self, validated_data):

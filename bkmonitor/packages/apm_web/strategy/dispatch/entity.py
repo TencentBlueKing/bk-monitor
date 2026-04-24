@@ -16,11 +16,11 @@ from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from core.drf_resource import api
+from collections import defaultdict
 from apm_web.constants import TopoNodeKind
 from apm_web.event.handler import EventHandler
 from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.models import LogServiceRelation
 from monitor_web.data_explorer.event.constants import EventCategory
 
 
@@ -71,26 +71,27 @@ class EntitySet:
                     {"index_set_id": datasource_index_set_id, "is_app_datasource": True, "bk_biz_id": self.bk_biz_id}
                 ]
 
-        log_relation_dict: dict[str, dict[str, set[int]]] = {}
-        service_relations: list[LogServiceRelation] = []
-        global_relations: list[LogServiceRelation] = []
-        for relation_obj in ServiceLogHandler.get_log_relations(self.bk_biz_id, self.app_name, self.service_names):
-            if relation_obj.is_global:
-                global_relations.append(relation_obj)
-            else:
-                service_relations.append(relation_obj)
+        log_relation_dict: defaultdict[str, defaultdict[int, set[int]]] = defaultdict(lambda: defaultdict(set))
 
-        for relation_obj in service_relations:
-            log_relation_dict.setdefault(relation_obj.service_name, {}).setdefault(
-                relation_obj.related_bk_biz_id, set()
-            ).update({int(val) for val in (relation_obj.value_list + [relation_obj.value]) if val})
+        for relation in ServiceLogHandler.get_log_relations(self.bk_biz_id, self.app_name, self.service_names):
+            index_set_ids = {int(index_set_id) for index_set_id in relation.value_list if index_set_id}
+            if not index_set_ids:
+                continue
 
-        for relation_obj in global_relations:
-            global_value_set = {int(val) for val in (relation_obj.value_list + [relation_obj.value]) if val}
-            for service_name in self.service_names:
-                log_relation_dict.setdefault(service_name, {}).setdefault(relation_obj.related_bk_biz_id, set()).update(
-                    global_value_set
-                )
+            target_services = self.service_names if relation.is_global else (relation.service_name,)
+            for service_name in target_services:
+                log_relation_dict[service_name][relation.related_bk_biz_id].update(index_set_ids)
+
+        for service_name, relation_dict in log_relation_dict.items():
+            service_indexes.setdefault(service_name, []).extend(
+                {
+                    "index_set_id": index_set_id,
+                    "is_app_datasource": False,
+                    "bk_biz_id": related_bk_biz_id,
+                }
+                for related_bk_biz_id, index_set_ids in relation_dict.items()
+                for index_set_id in sorted(index_set_ids)
+            )
 
         for service_name, relation_dict in log_relation_dict.items():
             for related_bk_biz_id, index_set_ids in relation_dict.items():

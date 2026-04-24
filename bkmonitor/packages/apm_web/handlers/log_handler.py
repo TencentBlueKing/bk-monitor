@@ -54,29 +54,15 @@ class ServiceLogHandler:
     @classmethod
     def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):
         """获取所有服务的关联日志的数据量"""
-        from apm_web.strategy.dispatch.entity import EntitySet
 
         # Step1: 找到此应用所有服务关联的日志
-        service_names: list[str] = EntitySet(bk_biz_id, app_name).service_names
-        service_mapping: dict[str, dict[int, set[int]]] = {}
-        service_relations: list[LogServiceRelation] = []
-        global_relations: list[LogServiceRelation] = []
-        for relation_obj in cls.get_log_relations(bk_biz_id, app_name, service_names):
-            if relation_obj.is_global:
-                global_relations.append(relation_obj)
-            else:
-                service_relations.append(relation_obj)
-
-        for relation_obj in service_relations:
-            service_mapping.setdefault(relation_obj.service_name, {}).setdefault(
-                relation_obj.related_bk_biz_id, set()
-            ).update({int(val) for val in (relation_obj.value_list + [relation_obj.value]) if val})
-        for relation_obj in global_relations:
-            global_value_set = {int(val) for val in (relation_obj.value_list + [relation_obj.value]) if val}
-            for service_name in service_names:
-                service_mapping.setdefault(service_name, {}).setdefault(relation_obj.related_bk_biz_id, set()).update(
-                    global_value_set
-                )
+        service_mapping = defaultdict(dict)
+        relations = LogServiceRelation.get_relation_qs(bk_biz_id, app_name)
+        for i in relations:
+            if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:
+                service_mapping[i.service_name][i.related_bk_biz_id] = {
+                    int(val) for val in (i.value_list + [i.value]) if val
+                }
 
         # Step2: 查询业务的所有索引集 (避免每个 relation 都单独查询)
         pool = ThreadPool()
@@ -216,7 +202,7 @@ class ServiceLogHandler:
                 app_name,
                 service_names,
                 include_global=include_global,
-                log_type=ServiceRelationLogTypeChoices.BK_LOG
+                log_type=ServiceRelationLogTypeChoices.BK_LOG,
             )
         )
 
