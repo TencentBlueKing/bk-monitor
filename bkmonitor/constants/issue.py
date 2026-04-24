@@ -82,7 +82,34 @@ class ImpactScopeDimension:
         (APM_SERVICE, "apm_service"),
     )
 
+    # 维度到 instance_list 中 ID 字段的映射
+    # flattened 类型下，exists 查询必须使用叶子节点字段路径
+    ID_FIELD_MAP = {
+        SET: "set_id",
+        HOST: "bk_host_id",
+        SERVICE_INSTANCES: "bk_service_instance_id",
+        CLUSTER: "bcs_cluster_id",
+        NODE: "node",
+        SERVICE: "service",
+        POD: "pod",
+        APM_APP: "app_name",
+        APM_SERVICE: "service_name",
+    }
+
     @classmethod
     def get_display_name(cls, dimension: str) -> str:
         """获取维度的展示名称，未匹配时返回原维度值"""
         return dict(cls.CHOICES).get(dimension, dimension)
+
+    @classmethod
+    def get_id_field(cls, dimension: str) -> str:
+        """获取维度在 instance_list 中对应的 ID 字段名，未匹配时返回维度本身"""
+        return cls.ID_FIELD_MAP.get(dimension, dimension)
+
+    @classmethod
+    def get_full_dimension(cls, dimension: str) -> str:
+        """获取维度的完整维度名，未匹配时返回原维度值
+        示例：host -> impact_scope.host.bk_host_id
+        """
+        id_field = cls.get_id_field(dimension)
+        return f"impact_scope.{dimension}.{id_field}"

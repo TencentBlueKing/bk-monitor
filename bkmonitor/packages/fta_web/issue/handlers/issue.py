@@ -28,7 +28,7 @@ from bkmonitor.utils.time_tools import hms_string
 from constants.issue import ImpactScopeDimension, IssuePriority, IssueStatus
 from fta_web.alert.handlers.base import BaseBizQueryHandler, BaseQueryTransformer, QueryField
 from fta_web.alert.handlers.translator import BizTranslator, StrategyTranslator
-from fta_web.issue.handlers.translator import StatusTranslator, PriorityTranslator, ImpactDimensionsTranslator
+from fta_web.issue.handlers.translator import StatusTranslator, PriorityTranslator
 
 logger = logging.getLogger("fta_action.issue")
 
@@ -92,6 +92,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
         page_size: int = 10,
         trend_start_time: int = None,
         trend_end_time: int = None,
+        is_time_partitioned: bool = False,
+        is_finaly_partition: bool = False,
+        need_bucket_count: bool = True,
         **kwargs,
     ):
         super().__init__(
@@ -115,20 +118,45 @@ class IssueQueryHandler(BaseBizQueryHandler):
         self.trend_start_time = trend_start_time if trend_start_time is not None else self.start_time
         self.trend_end_time = trend_end_time if trend_end_time is not None else self.end_time
 
-    def get_search_object(self, start_time: int = None, end_time: int = None, **kwargs) -> Search:
+        # 时间分片查询相关标记
+        self.is_time_partitioned = is_time_partitioned
+        self.is_finaly_partition = is_finaly_partition
+        self.need_bucket_count = need_bucket_count
+
+    def get_search_object(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        is_time_partitioned: bool = False,
+        is_finaly_partition: bool = False,
+        **kwargs,
+    ) -> Search:
         start_time = start_time or self.start_time
         end_time = end_time or self.end_time
+        is_time_partitioned = is_time_partitioned or self.is_time_partitioned
+        is_finaly_partition = is_finaly_partition or self.is_finaly_partition
 
         # Issue 跨天存在，使用全量索引查询
         search_object = IssueDocument.search(all_indices=True)
 
-        # 时间范围过滤：end_time → create_time, start_time → resolved_time
-        if end_time:
-            search_object = search_object.filter("range", create_time={"lte": end_time})
-        if start_time:
-            search_object = search_object.filter(
-                Q("range", resolved_time={"gte": start_time}) | ~Q("exists", field="resolved_time")
-            )
+        # 时间范围过滤：
+        # - end_time 约束 create_time（该时间前已创建）
+        # - start_time 约束 resolved_time（在该时间之后才解决）
+        # 分片模式下，按 resolved_time 唯一归属分片，避免同一 Issue 被多分片重复计数：
+        #   非最后分片：resolved_time ∈ [start, end)，仅覆盖"已解决且解决在本分片内"的 Issue
+        #   最后分片  ：resolved_time >= start OR 未解决，承接"未解决的 Issue"（~exists 只在此处出现一次）
+        if is_time_partitioned and not is_finaly_partition:
+            if end_time:
+                search_object = search_object.filter("range", create_time={"lte": end_time})
+            if start_time and end_time:
+                search_object = search_object.filter("range", resolved_time={"gte": start_time, "lt": end_time})
+        else:
+            if end_time:
+                search_object = search_object.filter("range", create_time={"lte": end_time})
+            if start_time:
+                search_object = search_object.filter(
+                    Q("range", resolved_time={"gte": start_time}) | ~Q("exists", field="resolved_time")
+                )
 
         # 业务权限过滤
         search_object = self.add_biz_condition(search_object)
@@ -161,7 +189,12 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         if key == "impact_dimensions":
             # 维度级过滤：判断是否包含某个维度
-            should_clauses = [Q("exists", field=f"impact_scope.{dim}") for dim in condition["value"]]
+            # flattened 类型下，使用 instance_list 中的具体 ID 字段路径
+            should_clauses = []
+            for dim in condition["value"]:
+                id_field = ImpactScopeDimension.get_id_field(dim)
+                es_field = f"impact_scope.{dim}.instance_list.{id_field}"
+                should_clauses.append(Q("exists", field=es_field))
             return Q("bool", should=should_clauses, minimum_should_match=1)
 
         if key.startswith("impact_scope."):
@@ -189,7 +222,6 @@ class IssueQueryHandler(BaseBizQueryHandler):
             "priority": PriorityTranslator(),
             "bk_biz_id": BizTranslator(),
             "strategy_id": StrategyTranslator(),
-            "impact_dimensions": ImpactDimensionsTranslator(),
         }
 
         search_object = self.get_search_object()
@@ -221,13 +253,20 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
             # impact_dimensions: filters 聚合结果解析
             if actual_field == "impact_dimensions":
-                buckets = self._parse_impact_dimensions_buckets(search_result, translators)
+                buckets = self._parse_impact_dimensions_buckets(search_result)
+
+                bucket_count = len(buckets)
+                # 按 count 降序排列，数量多的优先
+                buckets = sorted(buckets, key=lambda x: x["count"], reverse=True)
+                # filters 聚合不支持 size 参数，手动截断
+                if size is not None and size > 0:
+                    buckets = buckets[:size]
+
                 result["fields"].append(
-                    # bucket_count 直接获取维度总数
                     {
                         "field": field,
                         "is_char": False,
-                        "bucket_count": len(ImpactScopeDimension.CHOICES),
+                        "bucket_count": bucket_count,
                         "buckets": buckets,
                     }
                 )
@@ -290,21 +329,23 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         return result
 
-    def _parse_impact_dimensions_buckets(self, search_result, translators):
-        """解析 impact_dimensions filters 聚合结果，只返回实际有数据的维度"""
+    def _parse_impact_dimensions_buckets(self, search_result):
+        """解析 impact_dimensions filters 聚合结果，只返回实际有数据的维度
+
+        参数:
+            size: 返回的最大维度数量，None 表示不限制
+        """
         buckets = []
         agg_result = getattr(search_result.aggs, "impact_dimensions", None)
         if agg_result:
             for dim, _ in ImpactScopeDimension.CHOICES:
-                bucket = agg_result.buckets.get(dim)
+                bucket = getattr(agg_result.buckets, dim, None) if hasattr(agg_result.buckets, dim) else None
                 count = bucket.doc_count if bucket else 0
                 if count == 0:
                     continue
                 display_name = str(ImpactScopeDimension.get_display_name(dim))
-                buckets.append({"id": dim, "name": display_name, "count": count})
-
-        if "impact_dimensions" in translators:
-            translators["impact_dimensions"].translate_from_dict(buckets, "id", "name")
+                full_dim = ImpactScopeDimension.get_full_dimension(dim)
+                buckets.append({"id": full_dim, "name": display_name, "count": count})
 
         return buckets
 
@@ -314,7 +355,26 @@ class IssueQueryHandler(BaseBizQueryHandler):
         if search_result.aggs:
             for bucket in getattr(search_result.aggs, actual_field).buckets:
                 if bucket.key is not None:
-                    buckets.append({"id": bucket.key, "name": bucket.key, "count": bucket.doc_count})
+                    display_name = None
+                    # 从 top_hits 子聚合中提取 display_name
+                    first_doc = getattr(getattr(bucket, "first_doc", None), "hits", None)
+                    if first_doc and first_doc.hits:
+                        source = first_doc.hits[0].to_dict().get("_source", {})
+                        if source:
+                            # 按 dimension 解析出 display_name 路径（AttrDict 用属性访问）
+                            parts = actual_field.split(".")
+                            if len(parts) >= 2:
+                                dimension, key = parts[1:3]
+                                instance_list = (
+                                    source.get("impact_scope", {}).get(dimension, {}).get("instance_list", [])
+                                )
+                                for instance in instance_list:
+                                    if str(instance.get(key, None)) == str(bucket.key):
+                                        display_name = instance.get("display_name", None)
+                                        break
+
+                    name = display_name if display_name is not None else bucket.key
+                    buckets.append({"id": bucket.key, "name": name, "count": bucket.doc_count})
 
         if actual_field in translators:
             translators[actual_field].translate_from_dict(buckets, "id", "name")
@@ -330,7 +390,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
         actual_field = field.lstrip("+-")
 
         if actual_field == "impact_dimensions":
-            # 维度基数直接根据ImpactScopeDimension.CHOICES的数量获取
+            # 直接去buckets的数量作为bucket_count
             return search_object
 
         if actual_field.startswith("impact_scope."):
@@ -348,8 +408,14 @@ class IssueQueryHandler(BaseBizQueryHandler):
         actual_field = field.lstrip("+-")
 
         if actual_field == "impact_dimensions":
-            filters = {dim: Q("exists", field=f"impact_scope.{dim}") for dim, _ in ImpactScopeDimension.CHOICES}
-            new_search_object = search_object.bucket("impact_dimensions", "filters", filters=filters, size=size)
+            # flattened 类型不支持对子路径使用 exists 查询，
+            # 改为查询 instance_list 中的具体 ID 字段是否存在
+            filters = {}
+            for dim, _ in ImpactScopeDimension.CHOICES:
+                id_field = ImpactScopeDimension.get_id_field(dim)
+                es_field = f"impact_scope.{dim}.instance_list.{id_field}"
+                filters[dim] = Q("exists", field=es_field)
+            new_search_object = search_object.bucket("impact_dimensions", "filters", filters=filters)
             return new_search_object
 
         if actual_field.startswith("impact_scope."):
@@ -357,7 +423,11 @@ class IssueQueryHandler(BaseBizQueryHandler):
             if len(parts) == 3 and parts[0] == "impact_scope":
                 dimension, id_field = parts[1], parts[2]
                 es_field = f"impact_scope.{dimension}.instance_list.{id_field}"
-                new_search_object = search_object.bucket(actual_field, "terms", field=es_field, size=size)
+                display_name_field = f"impact_scope.{dimension}.instance_list.display_name"
+                # terms 聚合 + top_hits 子聚合，获取第一个文档的 display_name
+                new_search_object = search_object.bucket(actual_field, "terms", field=es_field, size=size).metric(
+                    "first_doc", "top_hits", size=1, _source=[display_name_field, es_field]
+                )
                 return new_search_object
 
         # 其他字段走基类标准流程
