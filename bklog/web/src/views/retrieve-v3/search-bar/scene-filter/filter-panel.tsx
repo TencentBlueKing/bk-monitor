@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
 import draggable from 'vuedraggable';
 
@@ -68,7 +68,7 @@ export default defineComponent({
     /** 按需翻译：skipI18n 为 true 时跳过翻译，直接返回原文 */
     const translateLabel = (label: string, skipI18n?: boolean) => (skipI18n ? label : t(label));
 
-    const apiOptions = reactive<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
+    const apiOptions = ref<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
 
     const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
       .find(scene => scene.type === props.activeScene),
@@ -102,6 +102,7 @@ export default defineComponent({
         const data = (res.data ?? res) as SceneDimensionValuesResponse;
         console.log('fetchDynamicOptions data:', data);
         const values = data.values ?? [];
+        console.log('fetchDynamicOptions values:', values);
         fieldState.options = values.map(v => ({ id: v, name: v }));
       } catch (err) {
         console.error('fetchDynamicOptions error:', err);
@@ -222,10 +223,10 @@ export default defineComponent({
     };
 
     const getApiFieldState = (fieldName: string) => {
-      if (!apiOptions[fieldName]) {
-        apiOptions[fieldName] = { loading: false, options: [] };
+      if (!apiOptions.value[fieldName]) {
+        apiOptions.value = { ...apiOptions.value, [fieldName]: { loading: false, options: [] } };
       }
-      return apiOptions[fieldName];
+      return apiOptions.value[fieldName];
     };
 
     // 输入框本地缓存
@@ -297,12 +298,12 @@ export default defineComponent({
                 clearable={true}
                 loading={loading}
                 display-tag
-                auto-height={false}
                 on-change={(val: any) => {
                   const selectedIds = Array.isArray(val) ? val : (val !== null && val !== '' ? [val] : []);
                   handleFieldChange(field.key, val, buildLabels(selectedIds, options));
                 }}
                 on-toggle={(open: boolean) => {
+                  console.log('onToggle', open);
                   if (open && field.choicesType === 'dynamic') {
                     fetchDynamicOptions(field);
                   }
