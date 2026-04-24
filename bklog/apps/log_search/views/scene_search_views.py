@@ -58,6 +58,10 @@ class _SceneRouteMixin(serializers.Serializer):
         required=True,
         help_text="AllConditions 二维数组：外层 OR，内层 AND",
     )
+    scene_filter_values = serializers.DictField(
+        required=False, default=dict,
+        help_text='维度筛选值, e.g. {"__ext.io_kubernetes_pod_namespace": "default"}',
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -266,7 +270,7 @@ class SceneExportSerializer(_SceneRouteMixin):
     )
 
 
-class SceneExportHistorySerializer(serializers.Serializer):
+class SceneExportHistorySerializer(_SceneRouteMixin):
     """场景化导出历史"""
 
     bk_biz_id = serializers.IntegerField(required=True)
@@ -283,6 +287,20 @@ class SceneExportChartDataSerializer(_SceneRouteMixin):
     addition = serializers.ListField(allow_empty=True, required=False, default=list)
     start_time = serializers.CharField(required=True)
     end_time = serializers.CharField(required=True)
+
+
+def _merge_scene_filters_to_addition(data: dict) -> dict:
+    """Convert scene_filter_values dict to addition entries and merge."""
+    scene_filters = data.pop("scene_filter_values", None) or {}
+    addition = data.get("addition") or []
+    for field_name, value in scene_filters.items():
+        addition.append({
+            "key": field_name,
+            "method": "is",
+            "value": value if isinstance(value, list) else [value],
+        })
+    data["addition"] = addition
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +344,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         data = self.params_valid(SceneSearchSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
         return Response(handler.search())
 
@@ -352,6 +371,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         data = self.params_valid(SceneDateHistogramSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
         return Response(handler.date_histogram(interval=data.get("interval", "auto")))
 
@@ -365,6 +385,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         data = self.params_valid(SceneAggFieldSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
         return Response(handler.agg_field(agg_field=data["agg_field"]))
 
@@ -378,6 +399,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         data = self.params_valid(SceneTotalSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
         return Response(handler.total())
 
@@ -414,6 +436,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         data = self.params_valid(SceneAggsTermsSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
         handler = SceneTermsAggsHandler(data.get("fields", []), data)
         return Response(handler.terms())
 
@@ -427,6 +450,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         data = self.params_valid(SceneAggsDateHistogramSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
         return Response(handler.aggs_date_histogram(
             interval=data.get("interval", "auto"),
@@ -446,6 +470,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         params = self.params_valid(SceneFieldBaseSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
 
         fields_handler = SceneUnifyQueryHandler(params)
         fields_result = fields_handler.fields()
@@ -481,6 +506,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         params = self.params_valid(SceneFetchTopkListSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
         handler = SceneFieldHandler(params)
         total_count = handler.get_total_count()
         field_count = handler.get_field_count()
@@ -506,6 +532,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         params = self.params_valid(SceneFetchValueListSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
         handler = SceneFieldHandler(params)
         value_list = handler.get_value_list(params["limit"])
 
@@ -530,6 +557,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         params = self.params_valid(SceneFetchStatisticsInfoSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
         handler = SceneFieldHandler(params)
 
         total_count = handler.get_total_count()
@@ -561,6 +589,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         params = self.params_valid(SceneFieldBaseSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
         total_count = SceneFieldHandler(params).get_total_count()
         return Response({"total_count": total_count})
 
@@ -573,6 +602,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         params = self.params_valid(SceneFetchStatisticsGraphSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
         handler = SceneFieldHandler(params)
         if FIELD_TYPE_MAP.get(params["field_type"], "") == FieldDataTypeEnum.INT.value:
             if params["distinct_count"] < params["threshold"]:
@@ -597,6 +627,7 @@ class SceneSearchViewSet(APIViewSet):
         request_user = get_request_external_username() or get_request_username()
         data = self.params_valid(SceneExportSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
 
         handler = SceneUnifyQueryHandler(data)
         result = handler.search(is_export=True)
@@ -650,6 +681,7 @@ class SceneSearchViewSet(APIViewSet):
 
         data = self.params_valid(SceneExportSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        data = _merge_scene_filters_to_addition(data)
 
         handler = SceneAsyncExportHandler(
             bk_biz_id=data["bk_biz_id"],
@@ -663,20 +695,24 @@ class SceneSearchViewSet(APIViewSet):
             "prompt": f"任务提交成功，预估等待时间{math.ceil(size / MAX_RESULT_WINDOW * RESULT_WINDOW_COST_TIME)}分钟",
         })
 
-    @list_route(methods=["GET"], url_path="export/history")
+    @list_route(methods=["POST"], url_path="export/history")
     def scene_export_history(self, request):
         """
-        @api {get} /search/scene/export/history/ 场景化检索-导出历史
+        @api {post} /search/scene/export/history/ 场景化检索-导出历史
         @apiName scene_export_history
         @apiGroup 14_SceneSearch
         """
         from apps.log_unifyquery.handler.scene_async_export import SceneAsyncExportHandler
 
         data = self.params_valid(SceneExportHistorySerializer)
+        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
         return SceneAsyncExportHandler(
             bk_biz_id=data["bk_biz_id"],
             search_dict={},
-        ).get_export_history(request=request, view=self, show_all=data["show_all"])
+        ).get_export_history(
+            request=request, view=self, show_all=data["show_all"],
+            table_id_conditions=data["table_id_conditions"],
+        )
 
     @list_route(methods=["POST"], url_path="export_chart_data")
     def scene_export_chart_data(self, request):
@@ -687,6 +723,7 @@ class SceneSearchViewSet(APIViewSet):
         """
         params = self.params_valid(SceneExportChartDataSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
         handler = SceneUnifyQueryHandler(params)
         file_name = f"bklog_scene_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
         response = StreamingHttpResponse(
