@@ -3,6 +3,7 @@ export const operationToFuncName = {
   'datasource.list': 'admin.datasource.list',
   'datasource.detail': 'admin.datasource.detail',
   'datasource.kafka_sample': 'admin.datasource.kafka_sample',
+  'datasource.data_id_config.component_config': 'admin.datasource.data_id_config.component_config',
   'result_table.list': 'admin.result_table.list',
   'result_table.detail': 'admin.result_table.detail',
   'result_table.field_list': 'admin.result_table.field_list',

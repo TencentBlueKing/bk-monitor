@@ -115,10 +115,43 @@ export const datasourceDetailResponseSchema = z.object({
   space_datasources: z.array(spaceDatasourceSchema),
   data_source_result_tables: z.array(datasourceResultTableSchema),
   result_tables: z.array(datasourceResultTableSchema),
-  data_id_config: z.record(z.unknown()).nullable(),
+  data_id_configs: z
+    .array(
+      z.object({
+        namespace: z.string(),
+        kind: z.string(),
+        name: z.string(),
+        bk_data_id: z.number().optional(),
+        bk_tenant_id: z.string().optional(),
+        created_at: z.string().nullable().optional(),
+        updated_at: z.string().nullable().optional(),
+        component_config: z
+          .record(z.unknown())
+          .nullable()
+          .optional()
+      })
+    )
+    .optional()
+    .default([]),
   kafka_cluster: kafkaClusterSchema.nullable(),
   kafka_topic_config: kafkaTopicConfigSchema.nullable()
 });
+
+export const dataIdComponentConfigRequestSchema = z.object({
+  bkTenantId: z.string().default('system'),
+  namespace: z.string().min(1),
+  name: z.string().min(1)
+});
+
+export const dataIdComponentConfigResponseSchema = z.object({
+  component_config: z.record(z.unknown()).nullable()
+});
+
+export type DataIdConfig = z.infer<
+  typeof datasourceDetailResponseSchema
+>['data_id_configs'][number];
+export type DataIdComponentConfigRequest = z.infer<typeof dataIdComponentConfigRequestSchema>;
+export type DataIdComponentConfigResponse = z.infer<typeof dataIdComponentConfigResponseSchema>;
 
 export type DataSourceListQuery = z.infer<typeof datasourceListQuerySchema>;
 export type DataSourceSummary = z.infer<typeof datasourceSummarySchema>;

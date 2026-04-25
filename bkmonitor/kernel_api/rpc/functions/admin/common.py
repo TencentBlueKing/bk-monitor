@@ -146,6 +146,14 @@ def count_by_field(model_cls: Any, *, group_field: str, values: Iterable[Any], *
     return {item[group_field]: item["total"] for item in queryset.values(group_field).annotate(total=Count(pk_field))}
 
 
+def _mask_sensitive_fields(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {k: "***" if k.lower() == "password" else _mask_sensitive_fields(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [_mask_sensitive_fields(item) for item in data]
+    return data
+
+
 def serialize_option(option: Any) -> dict[str, Any]:
     try:
         value = option.get_value()

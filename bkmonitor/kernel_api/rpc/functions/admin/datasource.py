@@ -25,11 +25,13 @@ from kernel_api.rpc.functions.admin.common import (
     paginate_queryset,
     serialize_model,
     serialize_option,
+    serialize_value,
 )
 from metadata import models
 
 FUNC_DATASOURCE_LIST = "admin.datasource.list"
 FUNC_DATASOURCE_DETAIL = "admin.datasource.detail"
+FUNC_DATASOURCE_DATA_ID_CONFIG_COMPONENT_CONFIG = "admin.datasource.data_id_config.component_config"
 
 DATASOURCE_FIELDS = [
     "bk_data_id",
@@ -87,7 +89,7 @@ ORDERING_FIELDS = {
     "create_time",
     "last_modify_time",
 }
-INCLUDE_VALUES = {"options", "spaces", "result_tables", "data_id_config"}
+INCLUDE_VALUES = {"options", "spaces", "result_tables", "data_id_config", "data_id_config_component_config"}
 DEFAULT_DETAIL_INCLUDE = {"spaces", "result_tables"}
 KAFKA_CLUSTER_FIELDS = [
     "cluster_id",
@@ -151,10 +153,16 @@ def _serialize_result_table(result_table: models.ResultTable) -> dict[str, Any]:
     )
 
 
-def _serialize_data_id_config(data_id_config: models.DataIdConfig | None) -> dict[str, Any] | None:
-    if data_id_config is None:
-        return None
-    return serialize_model(data_id_config, ["bk_tenant_id", "namespace", "name", "kind", "bk_data_id"])
+def _serialize_data_id_config(data_id_config: models.DataIdConfig) -> dict[str, Any]:
+    return {
+        "namespace": data_id_config.namespace,
+        "kind": data_id_config.kind,
+        "name": data_id_config.name,
+        "bk_data_id": data_id_config.bk_data_id,
+        "bk_tenant_id": data_id_config.bk_tenant_id,
+        "created_at": serialize_value(data_id_config.create_time),
+        "updated_at": serialize_value(data_id_config.last_modify_time),
+    }
 
 
 def _serialize_kafka_cluster(cluster: models.ClusterInfo | None) -> dict[str, Any] | None:
@@ -297,6 +305,7 @@ def get_datasource_detail(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     bk_data_id = _normalize_bk_data_id(params.get("bk_data_id"))
     includes = normalize_include(params.get("include"), INCLUDE_VALUES, default=DEFAULT_DETAIL_INCLUDE)
+    warnings_list: list[dict[str, Any]] = []
 
     try:
         datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
@@ -343,16 +352,97 @@ def get_datasource_detail(params: dict[str, Any]) -> dict[str, Any]:
         data["data_source_result_tables"] = [_serialize_datasource_result_table(relation) for relation in relations]
         data["result_tables"] = [_serialize_result_table(result_table) for result_table in result_tables]
     if "data_id_config" in includes:
-        data_id_config = (
-            models.DataIdConfig.objects.filter(Q(bk_tenant_id=bk_tenant_id), Q(bk_data_id=bk_data_id))
-            .order_by("namespace", "name")
-            .first()
+        data_id_configs_qs = models.DataIdConfig.objects.filter(
+            Q(bk_tenant_id=bk_tenant_id), Q(bk_data_id=bk_data_id)
+        ).order_by("namespace", "name")
+        data["data_id_configs"] = [_serialize_data_id_config(cfg) for cfg in data_id_configs_qs]
+    if "data_id_config_component_config" in includes:
+        data_id_configs = list(
+            models.DataIdConfig.objects.filter(Q(bk_tenant_id=bk_tenant_id), Q(bk_data_id=bk_data_id)).order_by(
+                "namespace", "name"
+            )
         )
-        data["data_id_config"] = _serialize_data_id_config(data_id_config)
+        items = []
+        for cfg in data_id_configs:
+            item = _serialize_data_id_config(cfg)
+            try:
+                item["component_config"] = cfg.component_config
+            except Exception:
+                item["component_config"] = None
+                warnings_list.append(
+                    {
+                        "code": "COMPONENT_CONFIG_UNAVAILABLE",
+                        "message": (
+                            f"component_config 获取失败: namespace={cfg.namespace}, kind={cfg.kind}, name={cfg.name}"
+                        ),
+                    }
+                )
+            items.append(item)
+        data.setdefault("data_id_configs", items)
 
     return build_response(
         operation="datasource.detail",
         func_name=FUNC_DATASOURCE_DETAIL,
         bk_tenant_id=bk_tenant_id,
         data=data,
+        warnings=warnings_list,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_DATASOURCE_DATA_ID_CONFIG_COMPONENT_CONFIG,
+    summary="Admin 查询单个 DataIdConfig 的 ComponentConfig",
+    description="根据 bk_tenant_id、namespace、name 查询单个 DataIdConfig 的 component_config。",
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "namespace": "必填，数据链路命名空间",
+        "name": "必填，数据源名称",
+    },
+    example_params={
+        "bk_tenant_id": "system",
+        "namespace": "bkmonitor",
+        "name": "data-source-name",
+    },
+)
+def get_data_id_config_component_config(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+
+    namespace = params.get("namespace")
+    if not namespace:
+        raise CustomException(message="namespace 为必填项")
+    name = params.get("name")
+    if not name:
+        raise CustomException(message="name 为必填项")
+
+    from metadata.models.data_link.constants import DataLinkKind
+
+    kind = DataLinkKind.DATAID.value
+
+    try:
+        cfg = models.DataIdConfig.objects.get(
+            bk_tenant_id=bk_tenant_id,
+            namespace=str(namespace).strip(),
+            kind=kind,
+            name=str(name).strip(),
+        )
+    except models.DataIdConfig.DoesNotExist as error:
+        raise CustomException(
+            message=f"未找到 DataIdConfig: namespace={namespace}, kind={kind}, name={name}"
+        ) from error
+
+    try:
+        component_config = cfg.component_config
+    except Exception:
+        component_config = None
+
+    return build_response(
+        operation="datasource.data_id_config.component_config",
+        func_name=FUNC_DATASOURCE_DATA_ID_CONFIG_COMPONENT_CONFIG,
+        bk_tenant_id=bk_tenant_id,
+        data={
+            "component_config": component_config,
+            "namespace": namespace,
+            "kind": kind,
+            "name": name,
+        },
     )

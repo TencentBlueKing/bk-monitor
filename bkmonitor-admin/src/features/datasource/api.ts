@@ -1,8 +1,11 @@
 import type { AdminEnvironment } from '../environments/schemas';
 import { kernelRpcClient } from '../kernel-rpc/client';
 import {
+  dataIdComponentConfigResponseSchema,
   datasourceDetailResponseSchema,
   datasourceListResponseSchema,
+  type DataIdComponentConfigRequest,
+  type DataIdComponentConfigResponse,
   type DataSourceDetailResponse,
   type DataSourceListQuery,
   type DataSourceListResponse
@@ -74,4 +77,21 @@ export async function getDatasourceDetail(
   });
 
   return datasourceDetailResponseSchema.parse(envelope.data);
+}
+
+export async function getDataIdComponentConfig(
+  environment: AdminEnvironment,
+  query: DataIdComponentConfigRequest
+): Promise<DataIdComponentConfigResponse> {
+  const envelope = await kernelRpcClient.call<unknown>({
+    environment,
+    operation: 'datasource.data_id_config.component_config',
+    params: compactObject({
+      bk_tenant_id: query.bkTenantId,
+      namespace: query.namespace,
+      name: query.name
+    })
+  });
+
+  return dataIdComponentConfigResponseSchema.parse(envelope.data);
 }

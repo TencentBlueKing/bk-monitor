@@ -13,6 +13,7 @@ from typing import Any
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    _mask_sensitive_fields,
     build_response,
     count_by_field,
     get_bk_tenant_id,
@@ -69,17 +70,6 @@ SENSITIVE_FIELDS = [
 ]
 
 SENSITIVE_FLAG_MAP = {f: f"has_{f}" for f in SENSITIVE_FIELDS}
-
-MASKED_VALUE = "***"
-
-
-def _mask_sensitive_fields(data: Any) -> Any:
-    if isinstance(data, dict):
-        return {k: MASKED_VALUE if k.lower() == "password" else _mask_sensitive_fields(v) for k, v in data.items()}
-    if isinstance(data, list):
-        return [_mask_sensitive_fields(item) for item in data]
-    return data
-
 
 ORDERING_FIELDS = {
     "cluster_id",

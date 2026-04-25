@@ -1,12 +1,14 @@
 import { Link, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 
 import { Badge } from '../../shared/components/Badge';
 import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
+import { Textarea } from '../../shared/components/ui/textarea';
 import {
   buildHref,
   getStoredReturnTarget,
@@ -16,7 +18,8 @@ import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
-import type { DataSourceDetailResponse } from './schemas';
+import { getDataIdComponentConfig } from './api';
+import type { DataIdConfig, DataSourceDetailResponse } from './schemas';
 import { useDatasourceDetail, useKafkaSample } from './queries';
 
 export function DataSourceDetailPage() {
@@ -66,7 +69,7 @@ export function DataSourceDetailPage() {
     options,
     space_datasources,
     result_tables,
-    data_id_config,
+    data_id_configs,
     kafka_cluster,
     kafka_topic_config
   } = detailQuery.data;
@@ -281,7 +284,15 @@ export function DataSourceDetailPage() {
         </section>
         <section>
           <h3>DataIdConfig</h3>
-          <JsonBlock value={data_id_config ?? { message: '无 DataIdConfig' }} />
+          {data_id_configs && data_id_configs.length > 0 ? (
+            <DataIdConfigTable
+              configs={data_id_configs}
+              currentEnvironment={currentEnvironment}
+              currentTenantId={currentTenantId}
+            />
+          ) : (
+            <PageState title="无 DataIdConfig" />
+          )}
         </section>
       </div>
     </section>
@@ -311,4 +322,147 @@ function formatOptionalValue(value: string | number | null | undefined) {
   }
 
   return String(value);
+}
+
+interface DataIdComponentConfigState {
+  loading: boolean;
+  data: unknown;
+  error: string | null;
+}
+
+function DataIdConfigTable({
+  configs,
+  currentEnvironment,
+  currentTenantId
+}: {
+  configs: DataIdConfig[];
+  currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
+  currentTenantId: string;
+}) {
+  const [fetchedConfigs, setFetchedConfigs] = useState<Record<string, DataIdComponentConfigState>>(
+    {}
+  );
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const handleFetch = useCallback(
+    async (config: DataIdConfig) => {
+      const key = `${config.namespace}::${config.kind}::${config.name}`;
+      setFetchedConfigs((prev) => ({ ...prev, [key]: { loading: true, data: null, error: null } }));
+      setExpandedRows((prev) => new Set(prev).add(key));
+
+      try {
+        const result = await getDataIdComponentConfig(currentEnvironment, {
+          bkTenantId: currentTenantId,
+          namespace: config.namespace,
+          name: config.name
+        });
+        setFetchedConfigs((prev) => ({
+          ...prev,
+          [key]: { loading: false, data: result.component_config, error: null }
+        }));
+      } catch (err) {
+        setFetchedConfigs((prev) => ({
+          ...prev,
+          [key]: { loading: false, data: null, error: String(err) }
+        }));
+      }
+    },
+    [currentEnvironment, currentTenantId]
+  );
+
+  const toggleExpand = useCallback((key: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const columns = useMemo<Array<ColumnDef<DataIdConfig>>>(
+    () => [
+      { header: 'namespace', accessorKey: 'namespace' },
+      { header: 'kind', accessorKey: 'kind' },
+      { header: 'name', accessorKey: 'name' },
+      {
+        header: 'created_at',
+        cell: ({ row }) => formatDateTime(row.original.created_at)
+      },
+      {
+        header: 'updated_at',
+        cell: ({ row }) => formatDateTime(row.original.updated_at)
+      },
+      {
+        header: '操作',
+        cell: ({ row }) => {
+          const config = row.original;
+          const key = `${config.namespace}::${config.kind}::${config.name}`;
+          const fetched = fetchedConfigs[key];
+          const isExpanded = expandedRows.has(key);
+
+          return (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={fetched?.loading}
+                onClick={() => handleFetch(config)}
+              >
+                {fetched?.loading ? (
+                  <Loader2 aria-hidden="true" size={14} className="animate-spin" />
+                ) : null}
+                获取配置
+              </Button>
+              {fetched && !fetched.loading ? (
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => toggleExpand(key)}
+                >
+                  {isExpanded ? '收起' : '展开'}
+                </button>
+              ) : null}
+            </div>
+          );
+        }
+      }
+    ],
+    [fetchedConfigs, expandedRows, handleFetch, toggleExpand]
+  );
+
+  const renderExpandedRow = useCallback(
+    (row: DataIdConfig) => {
+      const key = `${row.namespace}::${row.kind}::${row.name}`;
+      const config = fetchedConfigs[key];
+      if (!config) return null;
+
+      if (config.loading) {
+        return (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 aria-hidden="true" size={14} className="animate-spin" />
+            加载中...
+          </div>
+        );
+      }
+
+      if (config.error) {
+        return <div className="text-sm text-destructive">{config.error}</div>;
+      }
+
+      return (
+        <Textarea
+          readOnly
+          className="min-h-40 font-mono text-xs"
+          value={config.data != null ? JSON.stringify(config.data, null, 2) : 'null'}
+        />
+      );
+    },
+    [fetchedConfigs]
+  );
+
+  return <DataTable data={configs} columns={columns} renderExpandedRow={renderExpandedRow} />;
 }

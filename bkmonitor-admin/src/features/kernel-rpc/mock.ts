@@ -110,6 +110,13 @@ function resolveMockData(options: KernelRpcCallOptions): unknown {
         kind: String(options.params.kind),
         name: String(options.params.name)
       });
+    case 'datasource.data_id_config.component_config':
+      return createMockComponentConfig({
+        clusterId: 0,
+        namespace: String(options.params.namespace),
+        kind: 'DataId',
+        name: String(options.params.name)
+      });
     case 'query_route.query':
       return createMockQueryRoute(options.params);
     case 'query_route.refresh':

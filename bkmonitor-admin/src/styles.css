@@ -379,6 +379,8 @@ button {
   background: #111827;
   color: #d1d5db;
   font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .two-column {

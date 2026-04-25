@@ -569,9 +569,17 @@ export function createMockDatasourceDetail(bkDataId: number): DataSourceDetailRe
       is_enable: resultTable.is_enable,
       is_deleted: resultTable.is_deleted
     })),
-    data_id_config: datasource.has_data_id_config
-      ? { namespace: 'bkmonitor', name: datasource.data_name, kind: 'bkdata' }
-      : null,
+    data_id_configs: datasource.has_data_id_config
+      ? [
+          {
+            namespace: 'bkmonitor',
+            name: datasource.data_name,
+            kind: 'DataId',
+            created_at: null,
+            updated_at: null
+          }
+        ]
+      : [],
     kafka_cluster: datasource.kafka_cluster ?? null,
     kafka_topic_config: {
       id: datasource.mq_config_id ?? datasource.bk_data_id,
