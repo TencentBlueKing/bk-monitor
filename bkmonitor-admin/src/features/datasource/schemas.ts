@@ -125,10 +125,7 @@ export const datasourceDetailResponseSchema = z.object({
         bk_tenant_id: z.string().optional(),
         created_at: z.string().nullable().optional(),
         updated_at: z.string().nullable().optional(),
-        component_config: z
-          .record(z.unknown())
-          .nullable()
-          .optional()
+        component_config: z.record(z.unknown()).nullable().optional()
       })
     )
     .optional()

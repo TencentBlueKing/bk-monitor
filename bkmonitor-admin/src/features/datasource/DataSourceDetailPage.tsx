@@ -385,7 +385,6 @@ function DataIdConfigTable({
   const columns = useMemo<Array<ColumnDef<DataIdConfig>>>(
     () => [
       { header: 'namespace', accessorKey: 'namespace' },
-      { header: 'kind', accessorKey: 'kind' },
       { header: 'name', accessorKey: 'name' },
       {
         header: 'created_at',

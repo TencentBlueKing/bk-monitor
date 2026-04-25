@@ -111,6 +111,11 @@ button {
   font-size: 13px;
 }
 
+.sidebar-selectors [data-choice-trigger]:hover {
+  background: #374151;
+  color: #f8fafc;
+}
+
 .sidebar-selectors [data-choice-trigger]:focus-visible {
   border-color: #3b82f6;
   outline: none;

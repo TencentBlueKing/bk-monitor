@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import { JsonBlock } from '../../shared/components/JsonBlock';
@@ -409,6 +409,8 @@ export function EsStorageDetailPage() {
               sampleByIndex={sampleByIndex}
               sampleErrors={sampleErrors}
               samplePending={sampleMutation.isPending}
+              needCreateIndex={es_storage.need_create_index}
+              tableId={es_storage.table_id}
               onLoadSample={loadSample}
             />
           ) : (
@@ -428,12 +430,16 @@ function RuntimeOverview({
   sampleByIndex,
   sampleErrors,
   samplePending,
+  needCreateIndex,
+  tableId,
   onLoadSample
 }: {
   overview: EsRuntimeOverviewResponse;
   sampleByIndex: Record<string, EsSampleResponse>;
   sampleErrors: Record<string, string>;
   samplePending: boolean;
+  needCreateIndex: boolean | null | undefined;
+  tableId: string;
   onLoadSample: (index: string) => void;
 }) {
   return (
@@ -477,7 +483,7 @@ function RuntimeOverview({
                   disabled={samplePending}
                   onClick={() => onLoadSample(row.original.index)}
                 >
-                  查询最新一条
+                  查询最新数据
                 </Button>
               )
             }
@@ -492,10 +498,7 @@ function RuntimeOverview({
           />
         ))}
       </section>
-      <section>
-        <h3>别名</h3>
-        <JsonBlock value={overview.aliases} />
-      </section>
+      <AliasOverview raw={overview.aliases} needCreateIndex={needCreateIndex} tableId={tableId} />
       <section>
         <h3>Mapping</h3>
         <JsonBlock value={overview.mapping ?? { message: '无 mapping' }} />
@@ -520,7 +523,7 @@ function SampleResult({
   return (
     <Card className={error ? 'border-destructive/50' : undefined}>
       <CardContent className="space-y-3 py-3">
-        <h4 className="text-sm font-semibold">{index.index} 最新一条</h4>
+        <h4 className="text-sm font-semibold">{index.index} 最新数据</h4>
         {error ? (
           <div className="text-sm text-destructive">{error}</div>
         ) : (
@@ -528,6 +531,108 @@ function SampleResult({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function AliasOverview({
+  raw,
+  needCreateIndex,
+  tableId
+}: {
+  raw: unknown;
+  needCreateIndex: boolean | null | undefined;
+  tableId: string;
+}) {
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}${m}${d}`;
+  }, []);
+
+  const aliasRows = useMemo(() => {
+    if (!raw || typeof raw !== 'object') return [];
+    const rows: Array<{ index: string; readAliases: string[]; writeAliases: string[] }> = [];
+    for (const [index, value] of Object.entries(raw as Record<string, unknown>)) {
+      const aliasesObj = (value as Record<string, unknown>)?.aliases;
+      if (!aliasesObj || typeof aliasesObj !== 'object') continue;
+      const write: string[] = [];
+      const read: string[] = [];
+      for (const alias of Object.keys(aliasesObj)) {
+        if (alias.startsWith('write_')) {
+          write.push(alias);
+        } else if (alias.endsWith('_read')) {
+          read.push(alias);
+        }
+      }
+      if (write.length > 0 || read.length > 0) {
+        rows.push({ index, readAliases: read, writeAliases: write });
+      }
+    }
+    return rows;
+  }, [raw]);
+
+  const tableIdUnder = tableId.replace(/\./g, '_');
+  const expectedWrite = `write_${todayStr}_${tableIdUnder}`;
+  const expectedRead = `${tableIdUnder}_${todayStr}_read`;
+
+  const allAliases = useMemo(
+    () => new Set(aliasRows.flatMap((r) => [...r.readAliases, ...r.writeAliases])),
+    [aliasRows]
+  );
+  const writeOk = allAliases.has(expectedWrite);
+  const readOk = allAliases.has(expectedRead);
+
+  return (
+    <section>
+      <h3>别名</h3>
+      {needCreateIndex ? (
+        <Card className={writeOk && readOk ? 'border-green-300' : 'border-destructive/50'}>
+          <CardContent className="py-3 space-y-2 text-sm">
+            <p className="font-medium">检查日期: {todayStr}</p>
+            <div>
+              <span className={writeOk ? 'text-green-600' : 'text-destructive'}>
+                {writeOk ? '✓' : '✗'}
+              </span>{' '}
+              写别名 <code className="text-xs bg-muted px-1 rounded">{expectedWrite}</code>
+            </div>
+            <div>
+              <span className={readOk ? 'text-green-600' : 'text-destructive'}>
+                {readOk ? '✓' : '✗'}
+              </span>{' '}
+              读别名 <code className="text-xs bg-muted px-1 rounded">{expectedRead}</code>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+      <DataTable
+        data={aliasRows}
+        columns={[
+          { header: '索引', accessorKey: 'index' },
+          {
+            header: '读别名',
+            cell: ({ row }) => (
+              <div className="space-y-0.5 text-sm">
+                {row.original.readAliases.length === 0
+                  ? '-'
+                  : row.original.readAliases.map((a) => <div key={a}>{a}</div>)}
+              </div>
+            )
+          },
+          {
+            header: '写别名',
+            cell: ({ row }) => (
+              <div className="space-y-0.5 text-sm">
+                {row.original.writeAliases.length === 0
+                  ? '-'
+                  : row.original.writeAliases.map((a) => <div key={a}>{a}</div>)}
+              </div>
+            )
+          }
+        ]}
+      />
+    </section>
   );
 }
 
