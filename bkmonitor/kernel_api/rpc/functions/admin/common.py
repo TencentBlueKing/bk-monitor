@@ -142,7 +142,8 @@ def count_by_field(model_cls: Any, *, group_field: str, values: Iterable[Any], *
         return {}
 
     queryset = model_cls.objects.filter(**filters, **{f"{group_field}__in": normalized_values})
-    return {item[group_field]: item["total"] for item in queryset.values(group_field).annotate(total=Count("id"))}
+    pk_field = model_cls._meta.pk.name
+    return {item[group_field]: item["total"] for item in queryset.values(group_field).annotate(total=Count(pk_field))}
 
 
 def serialize_option(option: Any) -> dict[str, Any]:

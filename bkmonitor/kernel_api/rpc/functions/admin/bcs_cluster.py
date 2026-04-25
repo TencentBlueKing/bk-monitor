@@ -68,8 +68,6 @@ ORDERING_FIELDS = {
     "last_modify_time",
 }
 
-DEFAULT_EXCLUDED_STATUSES = ["deleted", "DELETED", "init_failed"]
-
 DATA_ID_FIELD_NAMES = [
     "K8sMetricDataID",
     "CustomMetricDataID",
@@ -100,10 +98,17 @@ def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str):
     if params.get("cluster_id") not in (None, ""):
         queryset = queryset.filter(cluster_id__contains=str(params["cluster_id"]).strip())
 
-    if params.get("status") not in (None, ""):
-        queryset = queryset.filter(status=str(params["status"]).strip())
-    else:
-        queryset = queryset.exclude(status__in=DEFAULT_EXCLUDED_STATUSES)
+    status = params.get("status")
+    if status not in (None, ""):
+        if isinstance(status, str):
+            status_values = [item.strip() for item in status.split(",") if item.strip()]
+        elif isinstance(status, list | tuple | set):
+            status_values = [str(item).strip() for item in status if str(item).strip()]
+        else:
+            status_values = [str(status).strip()]
+
+        if status_values:
+            queryset = queryset.filter(status__in=status_values)
 
     return queryset
 
@@ -111,12 +116,12 @@ def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str):
 @KernelRPCRegistry.register(
     FUNC_BCS_CLUSTER_LIST,
     summary="Admin 查询 BCSClusterInfo 列表",
-    description="只读查询 BCSClusterInfo 列表，默认排除已删除和初始化失败的集群，支持受控过滤、白名单排序和分页。",
+    description="只读查询 BCSClusterInfo 列表，支持受控过滤、白名单排序和分页。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "bk_biz_id": "可选，业务 ID 精确匹配",
         "cluster_id": "可选，集群 ID 包含匹配",
-        "status": "可选，集群状态精确匹配 (running/deleted/init_failed)，默认排除 deleted 和 init_failed",
+        "status": "可选，集群状态原始值精确匹配，支持字符串、逗号分隔字符串或列表；不传则不过滤",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(ORDERING_FIELDS))}，默认 cluster_id",
@@ -169,7 +174,7 @@ def get_bcs_cluster_detail(params: dict[str, Any]) -> dict[str, Any]:
 
     if data_ids:
         datasources = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids).only(
-            "bk_data_id", "data_name", "type_label", "source_label"
+            "bk_data_id", "data_name", "type_label", "source_label", "is_enable"
         )
         datasource_summaries = [
             {
@@ -177,6 +182,7 @@ def get_bcs_cluster_detail(params: dict[str, Any]) -> dict[str, Any]:
                 "data_name": ds.data_name,
                 "type_label": ds.type_label,
                 "source_label": ds.source_label,
+                "is_enable": ds.is_enable,
             }
             for ds in datasources.order_by("bk_data_id")
         ]
