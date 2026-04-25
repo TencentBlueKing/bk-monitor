@@ -4,11 +4,18 @@ import type { AdminEnvironment } from '../environments/schemas';
 import { queryRoutes, refreshQueryRoutes } from './api';
 import type { QueryRouteQuery } from './schemas';
 
+export function queryRouteQueryKey(environment: AdminEnvironment, query: QueryRouteQuery) {
+  return ['query-route', environment.id, 'query', query] as const;
+}
+
 export function useQueryRoute(environment: AdminEnvironment, query: QueryRouteQuery, enabled = true) {
   return useQuery({
-    queryKey: ['query-route', environment.id, environment, 'query', query],
+    queryKey: queryRouteQueryKey(environment, query),
     queryFn: () => queryRoutes(environment, query),
-    enabled
+    enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false
   });
 }
 

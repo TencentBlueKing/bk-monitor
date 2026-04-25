@@ -31,6 +31,7 @@ import { ClusterInfoListPage } from '../features/cluster-info/ClusterInfoListPag
 import { ClusterInfoDetailPage } from '../features/cluster-info/ClusterInfoDetailPage';
 import { BCSClusterInfoListPage } from '../features/bcs-cluster/BCSClusterInfoListPage';
 import { BCSClusterInfoDetailPage } from '../features/bcs-cluster/BCSClusterInfoDetailPage';
+import { QueryRouteDetailPage } from '../features/query-route/QueryRouteDetailPage';
 import { QueryRoutePage } from '../features/query-route/QueryRoutePage';
 import { BrandLogo } from '../shared/components/BrandLogo';
 import {
@@ -265,6 +266,10 @@ function GuardedQueryRoutePage() {
   return <EnvironmentGuard>{() => <QueryRoutePage />}</EnvironmentGuard>;
 }
 
+function GuardedQueryRouteDetailPage() {
+  return <EnvironmentGuard>{() => <QueryRouteDetailPage />}</EnvironmentGuard>;
+}
+
 const rootRoute = createRootRoute({
   component: RootLayout
 });
@@ -358,6 +363,12 @@ const queryRouteRoute = createRoute({
   component: GuardedQueryRoutePage
 });
 
+const queryRouteDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'query-route/$tableId',
+  component: GuardedQueryRouteDetailPage
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   appRoute.addChildren([
@@ -372,7 +383,8 @@ const routeTree = rootRoute.addChildren([
     clusterInfoDetailRoute,
     bcsClusterListRoute,
     bcsClusterDetailRoute,
-    queryRouteRoute
+    queryRouteRoute,
+    queryRouteDetailRoute
   ])
 ]);
 

@@ -114,19 +114,23 @@ function normalizeSpaceRoutes(
   const inputTableIds = new Set(query.tableIds);
   const entries = normalizeRouteItems(readRouteItems(value), 'table_id');
 
-  return entries.map(({ key, raw }) => {
-    const record = isRecord(raw) ? raw : {};
-    const tableId = readString(record.table_id) ?? key;
+  return sortByInputTableIds(
+    entries.map(({ key, raw }) => {
+      const record = isRecord(raw) ? raw : {};
+      const tableId = readString(record.table_id) ?? key;
 
-    return {
-      table_id: tableId,
-      filters: normalizeFilterGroups(firstDefined(record.filter_groups, record.filters, record.filter)),
-      in_input_table_ids: inputTableIds.has(tableId),
-      in_any_data_label: tableIdsFromDataLabels.has(tableId),
-      has_detail: detailMap.get(tableId)?.exists ?? false,
-      raw
-    };
-  });
+      return {
+        table_id: tableId,
+        filters: normalizeFilterGroups(firstDefined(record.filter_groups, record.filters, record.filter)),
+        in_input_table_ids: inputTableIds.has(tableId),
+        in_any_data_label: tableIdsFromDataLabels.has(tableId),
+        has_detail: detailMap.get(tableId)?.exists ?? false,
+        raw
+      };
+    }),
+    query.tableIds,
+    (item) => item.table_id
+  );
 }
 
 function normalizeDataLabelRoutes(
@@ -145,12 +149,17 @@ function normalizeDataLabelRoutes(
 
     return {
       data_label: dataLabel,
-      table_ids: tableIds.map((tableId) => ({
-        table_id: tableId,
-        in_space: spaceTableIds.size === 0 ? false : spaceTableIds.has(tableId),
-        has_detail: detailMap.get(tableId)?.exists ?? false,
-        in_input_table_ids: inputTableIds.has(tableId)
-      })),
+      exists: readBoolean(record.exists) ?? tableIds.length > 0,
+      table_ids: sortByInputTableIds(
+        tableIds.map((tableId) => ({
+          table_id: tableId,
+          in_space: spaceTableIds.size === 0 ? false : spaceTableIds.has(tableId),
+          has_detail: detailMap.get(tableId)?.exists ?? false,
+          in_input_table_ids: inputTableIds.has(tableId)
+        })),
+        query.tableIds,
+        (item) => item.table_id
+      ),
       raw
     };
   });
@@ -317,39 +326,50 @@ function buildDiagnostics(
     dataLabelRoutes.flatMap((route) => route.table_ids.map((table) => table.table_id))
   );
   const detailMap = buildDetailMap(details);
+  const shouldCheckSpace = Boolean(query.spaceUid);
+  const shouldCheckDataLabel = query.dataLabels.length > 0;
+  const shouldCheckFields = query.fieldNames.length > 0;
 
   for (const tableId of query.tableIds) {
-    diagnostics.push(createDiagnostic('space-table', tableId, spaceTableIds.has(tableId), 'space 路由包含 table_id'));
-    diagnostics.push(
-      createDiagnostic('data-label-table', tableId, dataLabelTableIds.has(tableId), 'data_label 路由包含 table_id')
-    );
+    if (shouldCheckSpace) {
+      diagnostics.push(createDiagnostic('space-table', tableId, spaceTableIds.has(tableId), 'space 路由包含 table_id'));
+    }
+    if (shouldCheckDataLabel) {
+      diagnostics.push(
+        createDiagnostic('data-label-table', tableId, dataLabelTableIds.has(tableId), 'data_label 路由包含 table_id')
+      );
+    }
     diagnostics.push(
       createDiagnostic('detail-table', tableId, detailMap.get(tableId)?.exists === true, 'result_table_detail 存在')
     );
   }
 
-  for (const detail of details) {
-    for (const fieldName of detail.missing_field_names) {
-      diagnostics.push({
-        id: `field-${detail.table_id}-${fieldName}`,
-        status: 'missing',
-        label: '字段缺失',
-        target: `${detail.table_id}.${fieldName}`,
-        message: `${fieldName} 不存在于 result_table_detail.fields`
-      });
+  if (shouldCheckFields) {
+    for (const detail of details) {
+      for (const fieldName of detail.missing_field_names) {
+        diagnostics.push({
+          id: `field-${detail.table_id}-${fieldName}`,
+          status: 'missing',
+          label: '字段缺失',
+          target: `${detail.table_id}.${fieldName}`,
+          message: `${fieldName} 不存在于 result_table_detail.fields`
+        });
+      }
     }
   }
 
-  for (const route of dataLabelRoutes) {
-    for (const table of route.table_ids) {
-      diagnostics.push(
-        createDiagnostic(
-          'data-label-space',
-          `${route.data_label}:${table.table_id}`,
-          spaceTableIds.has(table.table_id),
-          'data_label 对应 table_id 存在于 space 路由'
-        )
-      );
+  if (shouldCheckSpace) {
+    for (const route of dataLabelRoutes) {
+      for (const table of route.table_ids) {
+        diagnostics.push(
+          createDiagnostic(
+            'data-label-space',
+            `${route.data_label}:${table.table_id}`,
+            spaceTableIds.has(table.table_id),
+            'data_label 对应 table_id 存在于 space 路由'
+          )
+        );
+      }
     }
   }
 
@@ -419,6 +439,18 @@ function readRouteItems(value: unknown): unknown {
     return value.items;
   }
   return value;
+}
+
+function sortByInputTableIds<T>(items: T[], inputTableIds: string[], getTableId: (item: T) => string): T[] {
+  if (inputTableIds.length === 0) {
+    return items;
+  }
+  const inputOrder = new Map(inputTableIds.map((tableId, index) => [tableId, index]));
+  return [...items].sort((left, right) => {
+    const leftOrder = inputOrder.get(getTableId(left)) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = inputOrder.get(getTableId(right)) ?? Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder;
+  });
 }
 
 function buildDetailMap(details: QueryRouteResultTableDetail[]) {

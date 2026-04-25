@@ -1,11 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useSearch } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { RefreshCcw, Search } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
-import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Button } from '../../shared/components/ui/button';
@@ -18,25 +17,25 @@ import { DataTable } from '../../shared/table/DataTable';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
 import { queryRoutes } from './api';
-import { useQueryRoute, useRefreshQueryRoute } from './queries';
+import { queryRouteQueryKey, useQueryRoute, useRefreshQueryRoute } from './queries';
 import {
   queryRouteQuerySchema,
   type QueryRouteDataLabelEntry,
-  type QueryRouteDiagnostic,
-  type QueryRouteDiagnosticStatus,
-  type QueryRouteField,
   type QueryRouteFilterGroup,
   type QueryRouteQuery,
   type QueryRouteResultTableDetail,
   type QueryRouteSpaceEntry
 } from './schemas';
-
-interface QueryRouteDraft {
-  spaceUid: string;
-  tableIdsText: string;
-  dataLabelsText: string;
-  fieldNamesText: string;
-}
+import {
+  QUERY_ROUTE_PAGE_SIZE,
+  buildQueryRouteQuery,
+  buildQueryRouteSearch,
+  filterItems,
+  getQueryRouteDraftFromSearch,
+  hasQueryRouteDraftInput,
+  paginate,
+  type QueryRouteDraft
+} from './utils';
 
 interface RefreshTargets {
   space: boolean;
@@ -50,29 +49,24 @@ const EMPTY_QUERY = queryRouteQuerySchema.parse({
   fieldNames: []
 });
 
-const STATUS_TONE: Record<QueryRouteDiagnosticStatus, 'default' | 'success' | 'danger' | 'warning' | 'muted'> = {
-  ok: 'success',
-  missing: 'danger',
-  warning: 'warning',
-  error: 'danger'
-};
+const SPACE_ROUTE_PAGE_SIZE = 10;
 
 export function QueryRoutePage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const currentHref = useLocation({ select: (location) => String(location.href) });
   const search = useSearch({ strict: false });
-  const initialDraft = useMemo(() => getInitialDraft(search), [search]);
+  const initialDraft = useMemo(() => getQueryRouteDraftFromSearch(search), [search]);
   const [draft, setDraft] = useState<QueryRouteDraft>(initialDraft);
   const [activeQuery, setActiveQuery] = useState<QueryRouteQuery | null>(() =>
-    hasDraftInput(initialDraft) ? buildQuery(initialDraft, currentTenantId) : null
+    hasQueryRouteDraftInput(initialDraft) ? buildQueryRouteQuery(initialDraft, currentTenantId) : null
   );
   const [spacePage, setSpacePage] = useState(1);
   const [dataLabelPage, setDataLabelPage] = useState(1);
   const [detailPage, setDetailPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
-  const [expandedTableId, setExpandedTableId] = useState<string | null>(null);
-  const [fieldPage, setFieldPage] = useState(1);
+  const [spacePageSize, setSpacePageSize] = useState(SPACE_ROUTE_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(QUERY_ROUTE_PAGE_SIZE);
   const [refreshOpen, setRefreshOpen] = useState(false);
   const [refreshTargets, setRefreshTargets] = useState<RefreshTargets>({
     space: false,
@@ -82,9 +76,7 @@ export function QueryRoutePage() {
   const [spaceKeyword, setSpaceKeyword] = useState('');
   const [dataLabelKeyword, setDataLabelKeyword] = useState('');
   const [detailKeyword, setDetailKeyword] = useState('');
-  const [fieldKeyword, setFieldKeyword] = useState('');
 
-  const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const queryRoute = useQueryRoute(currentEnvironment!, activeQuery ?? EMPTY_QUERY, Boolean(activeQuery));
   const refreshRoute = useRefreshQueryRoute(currentEnvironment!);
   const response = queryRoute.data ?? refreshRoute.data;
@@ -101,14 +93,10 @@ export function QueryRoutePage() {
     () => filterItems(response?.result_table_details ?? [], detailKeyword.trim().toLowerCase()),
     [detailKeyword, response?.result_table_details]
   );
-  const summary = useMemo(() => summarizeDiagnostics(response?.diagnostics ?? []), [response?.diagnostics]);
-  const expandedDetail =
-    response?.result_table_details.find((detail) => detail.table_id === expandedTableId) ?? null;
-  const filteredFields = useMemo(
-    () => filterItems(expandedDetail?.fields ?? [], fieldKeyword.trim().toLowerCase()),
-    [expandedDetail?.fields, fieldKeyword]
+  const routeSearch = buildQueryRouteSearch(
+    activeQuery ?? buildQueryRouteQuery(draft, currentTenantId),
+    createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId)
   );
-  const pagedFields = paginate(filteredFields, fieldPage, pageSize);
 
   const spaceColumns = useMemo<Array<ColumnDef<QueryRouteSpaceEntry>>>(
     () => [
@@ -119,24 +107,13 @@ export function QueryRoutePage() {
             tableId={row.original.table_id}
             routeSearch={routeSearch}
             currentHref={currentHref}
+            highlighted={row.original.in_input_table_ids}
           />
         )
       },
       {
         header: 'filters',
         cell: ({ row }) => <FilterGroups groups={row.original.filters} />
-      },
-      {
-        header: '输入 table_ids',
-        cell: ({ row }) => <BoolBadge value={row.original.in_input_table_ids} />
-      },
-      {
-        header: '任一 data_label',
-        cell: ({ row }) => <BoolBadge value={row.original.in_any_data_label} />
-      },
-      {
-        header: 'detail',
-        cell: ({ row }) => <BoolBadge value={row.original.has_detail} />
       }
     ],
     [currentHref, routeSearch]
@@ -146,36 +123,27 @@ export function QueryRoutePage() {
     () => [
       { header: 'data_label', accessorKey: 'data_label' },
       {
+        header: 'exists',
+        cell: ({ row }) => <CheckBadge value={row.original.exists} checked />
+      },
+      {
         header: 'table_ids',
         cell: ({ row }) => (
           <div className="flex max-w-[720px] flex-wrap gap-1.5">
             {row.original.table_ids.map((table) => (
-              <Badge key={`${row.original.data_label}-${table.table_id}`} tone="default">
-                {table.table_id}
-              </Badge>
+              <TableIdPill
+                key={`${row.original.data_label}-${table.table_id}`}
+                tableId={table.table_id}
+                routeSearch={routeSearch}
+                currentHref={currentHref}
+                highlighted={table.in_input_table_ids}
+              />
             ))}
-          </div>
-        )
-      },
-      {
-        header: 'space/detail',
-        cell: ({ row }) => (
-          <div className="grid gap-1 text-xs">
-            {row.original.table_ids.slice(0, 6).map((table) => (
-              <span key={table.table_id} className="flex items-center gap-1">
-                <span className="font-mono">{table.table_id}</span>
-                <Badge tone={table.in_space ? 'success' : 'danger'}>space</Badge>
-                <Badge tone={table.has_detail ? 'success' : 'danger'}>detail</Badge>
-              </span>
-            ))}
-            {row.original.table_ids.length > 6 ? (
-              <span className="muted-text">还有 {row.original.table_ids.length - 6} 个</span>
-            ) : null}
           </div>
         )
       }
     ],
-    []
+    [currentHref, routeSearch]
   );
 
   const detailColumns = useMemo<Array<ColumnDef<QueryRouteResultTableDetail>>>(
@@ -183,49 +151,21 @@ export function QueryRoutePage() {
       {
         header: 'table_id',
         cell: ({ row }) => (
-          <button
-            type="button"
-            className="link text-left"
-            onClick={() => {
-              setExpandedTableId(row.original.table_id);
-              setFieldPage(1);
-            }}
-          >
-            {row.original.table_id}
-          </button>
+          <TableIdLink
+            tableId={row.original.table_id}
+            routeSearch={routeSearch}
+            currentHref={currentHref}
+            highlighted={Boolean(activeQuery?.tableIds.includes(row.original.table_id))}
+          />
         )
-      },
-      {
-        header: 'exists',
-        cell: ({ row }) => <BoolBadge value={row.original.exists} />
       },
       { header: 'storage_type', accessorKey: 'storage_type' },
       { header: 'storage_id', accessorKey: 'storage_id' },
       { header: 'db', accessorKey: 'db' },
       { header: 'measurement', accessorKey: 'measurement' },
-      { header: 'field_count', accessorKey: 'field_count' },
-      {
-        header: '命中 field_names',
-        cell: ({ row }) => (
-          <FieldNameSummary
-            matched={row.original.matched_field_names}
-            missing={row.original.missing_field_names}
-          />
-        )
-      }
+      { header: 'field_count', accessorKey: 'field_count' }
     ],
-    []
-  );
-
-  const fieldColumns = useMemo<Array<ColumnDef<QueryRouteField>>>(
-    () => [
-      { header: 'field_name', accessorKey: 'field_name' },
-      { header: 'field_type', accessorKey: 'field_type' },
-      { header: 'tag', accessorKey: 'tag' },
-      { header: 'alias_name', accessorKey: 'alias_name' },
-      { header: 'description', accessorKey: 'description' }
-    ],
-    []
+    [activeQuery?.tableIds, currentHref, routeSearch]
   );
 
   if (!currentEnvironment) {
@@ -234,8 +174,13 @@ export function QueryRoutePage() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setActiveQuery(buildQuery(draft, currentTenantId));
+    const nextQuery = buildQueryRouteQuery(draft, currentTenantId);
+    setActiveQuery(nextQuery);
     resetPages();
+    void navigate({
+      to: '/query-route',
+      search: buildQueryRouteSearch(nextQuery, createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId))
+    });
   }
 
   async function handleRefresh() {
@@ -243,7 +188,7 @@ export function QueryRoutePage() {
       return;
     }
 
-    const baseQuery = buildQuery(draft, currentTenantId);
+    const baseQuery = buildQueryRouteQuery(draft, currentTenantId);
     const nextQuery = buildRefreshQuery(baseQuery, refreshTargets);
     if (!hasRefreshTarget(nextQuery)) {
       window.alert('请先在刷新操作区选择刷新类型，并填写对应的 space_uid、table_ids 或 data_labels。');
@@ -260,10 +205,10 @@ export function QueryRoutePage() {
     setActiveQuery(nextQuery);
     resetPages();
     await refreshRoute.mutateAsync(nextQuery);
-    const queryAfterRefresh = buildQuery(draft, currentTenantId);
+    const queryAfterRefresh = buildQueryRouteQuery(draft, currentTenantId);
     setActiveQuery(queryAfterRefresh);
     await queryClient.fetchQuery({
-      queryKey: ['query-route', currentEnvironment.id, currentEnvironment, 'query', queryAfterRefresh],
+      queryKey: queryRouteQueryKey(currentEnvironment, queryAfterRefresh),
       queryFn: () => queryRoutes(currentEnvironment, queryAfterRefresh)
     });
   }
@@ -388,7 +333,14 @@ export function QueryRoutePage() {
         <PageState title="正在查询路由..." />
       ) : response ? (
         <div className="section-stack">
-          <SummaryCards summary={summary} diagnostics={response.diagnostics} />
+          <DiagnosticPanel
+            query={activeQuery}
+            spaceRoutes={response.space_routes}
+            dataLabelRoutes={response.data_label_routes}
+            details={response.result_table_details}
+            routeSearch={routeSearch}
+            currentHref={currentHref}
+          />
 
           <section id="space-routes">
             <SectionTitle
@@ -401,15 +353,15 @@ export function QueryRoutePage() {
                 setSpacePage(1);
               }}
             />
-            <DataTable data={paginate(filteredSpaceRoutes, spacePage, pageSize)} columns={spaceColumns} />
+            <DataTable data={paginate(filteredSpaceRoutes, spacePage, spacePageSize)} columns={spaceColumns} />
             <LocalPagination
               page={spacePage}
-              pageSize={pageSize}
+              pageSize={spacePageSize}
               total={filteredSpaceRoutes.length}
               onPageChange={setSpacePage}
               onPageSizeChange={(size) => {
-                setPageSize(size);
-                resetPages();
+                setSpacePageSize(size);
+                setSpacePage(1);
               }}
             />
           </section>
@@ -465,45 +417,6 @@ export function QueryRoutePage() {
             />
           </section>
 
-          {expandedDetail ? (
-            <section>
-              <div className="mb-3 flex items-center justify-between">
-                <h3>{expandedDetail.table_id} 详情</h3>
-                <Button variant="secondary" onClick={() => setExpandedTableId(null)}>
-                  收起
-                </Button>
-              </div>
-              <div className="two-column">
-                <div>
-                  <h3>完整 detail</h3>
-                  <JsonBlock value={expandedDetail.detail ?? { exists: false }} />
-                </div>
-                <div>
-                  <SectionTitle
-                    title="fields"
-                    count={filteredFields.length}
-                    keyword={fieldKeyword}
-                    placeholder="过滤 field_name / tag / type"
-                    onKeywordChange={(value) => {
-                      setFieldKeyword(value);
-                      setFieldPage(1);
-                    }}
-                  />
-                  <DataTable data={pagedFields} columns={fieldColumns} emptyText="无 fields" />
-                  <LocalPagination
-                    page={fieldPage}
-                    pageSize={pageSize}
-                    total={filteredFields.length}
-                    onPageChange={setFieldPage}
-                    onPageSizeChange={(size) => {
-                      setPageSize(size);
-                      setFieldPage(1);
-                    }}
-                  />
-                </div>
-              </div>
-            </section>
-          ) : null}
         </div>
       ) : null}
     </section>
@@ -513,7 +426,6 @@ export function QueryRoutePage() {
     setSpacePage(1);
     setDataLabelPage(1);
     setDetailPage(1);
-    setFieldPage(1);
   }
 }
 
@@ -571,63 +483,135 @@ function RefreshCheckbox({
   );
 }
 
-function SummaryCards({
-  summary,
-  diagnostics
+function DiagnosticPanel({
+  query,
+  spaceRoutes,
+  dataLabelRoutes,
+  details,
+  routeSearch,
+  currentHref
 }: {
-  summary: { ok: number; missing: number; warning: number; error: number };
-  diagnostics: QueryRouteDiagnostic[];
+  query: QueryRouteQuery;
+  spaceRoutes: QueryRouteSpaceEntry[];
+  dataLabelRoutes: QueryRouteDataLabelEntry[];
+  details: QueryRouteResultTableDetail[];
+  routeSearch: Record<string, string>;
+  currentHref: string;
 }) {
-  const missingDiagnostics = diagnostics.filter((item) => item.status !== 'ok');
+  const spaceTableIds = new Set(spaceRoutes.map((route) => route.table_id));
+  const dataLabelTableIds = new Set(
+    dataLabelRoutes.flatMap((route) => route.table_ids.map((table) => table.table_id))
+  );
+  const detailMap = new Map(details.map((detail) => [detail.table_id, detail]));
 
   return (
-    <div className="grid gap-3 lg:grid-cols-4">
-      <SummaryCard href="#space-routes" label="OK" value={summary.ok} tone="success" />
-      <SummaryCard href="#result-table-details" label="Missing" value={summary.missing} tone="danger" />
-      <SummaryCard href="#data-label-routes" label="Warning" value={summary.warning} tone="warning" />
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">诊断明细</div>
-          <div className="mt-2 grid max-h-24 gap-1 overflow-auto text-xs">
-            {missingDiagnostics.length > 0 ? (
-              missingDiagnostics.slice(0, 8).map((item) => (
-                <span key={item.id}>
-                  <Badge tone={STATUS_TONE[item.status]}>{item.status}</Badge> {item.message}
-                </span>
-              ))
-            ) : (
-              <span className="muted-text">暂无异常诊断</span>
-            )}
+    <Card>
+      <CardContent className="space-y-4 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h3>诊断明细</h3>
+            <p className="text-sm text-muted-foreground">
+              聚焦输入表在 Space / DataLabel / result_table_detail 中的存在关系，以及字段是否存在。
+            </p>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+
+        {query.tableIds.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/40">
+                <tr>
+                  <th className="px-3 py-2">table_id</th>
+                  <th className="px-3 py-2">Space</th>
+                  <th className="px-3 py-2">DataLabel</th>
+                  <th className="px-3 py-2">TableDetail</th>
+                  <th className="px-3 py-2">field_names</th>
+                </tr>
+              </thead>
+              <tbody>
+                {query.tableIds.map((tableId) => {
+                  const detail = detailMap.get(tableId);
+                  return (
+                    <tr key={tableId} className="border-t border-border">
+                      <td className="px-3 py-2">
+                        <TableIdLink
+                          tableId={tableId}
+                          routeSearch={routeSearch}
+                          currentHref={currentHref}
+                          highlighted
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <CheckBadge value={spaceTableIds.has(tableId)} checked={Boolean(query.spaceUid)} uncheckedText="未查询" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <CheckBadge
+                          value={dataLabelTableIds.has(tableId)}
+                          checked={query.dataLabels.length > 0}
+                          uncheckedText="未查询"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <CheckBadge value={detail?.exists === true} checked />
+                      </td>
+                      <td className="px-3 py-2">
+                        <FieldDiagnostics detail={detail} fieldNames={query.fieldNames} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="muted-text rounded-lg border border-border p-3 text-sm">
+            未输入 table_ids，跳过表维度诊断。
+          </div>
+        )}
+
+        {query.dataLabels.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {query.dataLabels.map((dataLabel) => {
+              const route = dataLabelRoutes.find((item) => item.data_label === dataLabel);
+              return (
+                <span key={dataLabel} className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-sm">
+                  <span className="font-mono">{dataLabel}</span>
+                  <CheckBadge value={route?.exists === true} checked />
+                  {route ? <Badge tone="muted">{route.table_ids.length} tables</Badge> : null}
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
-function SummaryCard({
-  href,
-  label,
-  value,
-  tone
+function FieldDiagnostics({
+  detail,
+  fieldNames
 }: {
-  href: string;
-  label: string;
-  value: number;
-  tone: 'success' | 'danger' | 'warning';
+  detail: QueryRouteResultTableDetail | undefined;
+  fieldNames: string[];
 }) {
+  if (fieldNames.length === 0) {
+    return <Badge tone="muted">未输入</Badge>;
+  }
+  if (!detail?.exists) {
+    return <Badge tone="muted">未查询到 detail</Badge>;
+  }
   return (
-    <a href={href}>
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">{label}</div>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="text-2xl font-semibold">{value}</span>
-            <Badge tone={tone}>{label}</Badge>
-          </div>
-        </CardContent>
-      </Card>
-    </a>
+    <div className="flex flex-wrap gap-1">
+      {fieldNames.map((fieldName) => {
+        const matched = detail.matched_field_names.includes(fieldName);
+        return (
+          <Badge key={fieldName} tone={matched ? 'success' : 'danger'}>
+            {fieldName}
+          </Badge>
+        );
+      })}
+    </div>
   );
 }
 
@@ -688,7 +672,18 @@ function FilterGroups({ groups }: { groups: QueryRouteFilterGroup[] }) {
   );
 }
 
-function BoolBadge({ value }: { value: boolean }) {
+function CheckBadge({
+  value,
+  checked,
+  uncheckedText = '未检查'
+}: {
+  value: boolean;
+  checked: boolean;
+  uncheckedText?: string;
+}) {
+  if (!checked) {
+    return <Badge tone="muted">{uncheckedText}</Badge>;
+  }
   return <Badge tone={value ? 'success' : 'danger'}>{value ? 'OK' : 'Missing'}</Badge>;
 }
 
@@ -716,20 +711,57 @@ function FieldNameSummary({ matched, missing }: { matched: string[]; missing: st
 function TableIdLink({
   tableId,
   routeSearch,
-  currentHref
+  currentHref,
+  highlighted = false
 }: {
   tableId: string;
-  routeSearch: { env: string; tenant: string };
+  routeSearch: Record<string, string>;
   currentHref: string;
+  highlighted?: boolean;
+}) {
+  const targetHref = buildHref(`/query-route/${tableId}`, routeSearch);
+
+  return (
+    <Link
+      to="/query-route/$tableId"
+      params={{ tableId }}
+      search={routeSearch}
+      className={highlighted ? 'link rounded bg-warning/10 px-1 font-semibold' : 'link'}
+      onClick={() =>
+        rememberReturnTarget(targetHref, {
+          href: currentHref,
+          label: '查询路由'
+        })
+      }
+    >
+      {tableId}
+    </Link>
+  );
+}
+
+function TableIdPill({
+  tableId,
+  routeSearch,
+  currentHref,
+  highlighted = false
+}: {
+  tableId: string;
+  routeSearch: Record<string, string>;
+  currentHref: string;
+  highlighted?: boolean;
 }) {
   return (
     <Link
-      to="/result-tables/$tableId"
+      to="/query-route/$tableId"
       params={{ tableId }}
       search={routeSearch}
-      className="link"
+      className={
+        highlighted
+          ? 'inline-flex items-center rounded-full border border-warning bg-warning/10 px-2 py-0.5 font-mono text-xs font-semibold hover:bg-warning/20'
+          : 'inline-flex items-center rounded-full border border-border px-2 py-0.5 font-mono text-xs hover:bg-muted'
+      }
       onClick={() =>
-        rememberReturnTarget(buildHref(`/result-tables/${tableId}`, routeSearch), {
+        rememberReturnTarget(buildHref(`/query-route/${tableId}`, routeSearch), {
           href: currentHref,
           label: '查询路由'
         })
@@ -764,25 +796,6 @@ function LocalPagination({
   );
 }
 
-function buildQuery(draft: QueryRouteDraft, bkTenantId: string): QueryRouteQuery {
-  return queryRouteQuerySchema.parse({
-    bkTenantId,
-    spaceUid: draft.spaceUid.trim() || undefined,
-    tableIds: parseList(draft.tableIdsText),
-    dataLabels: parseList(draft.dataLabelsText),
-    fieldNames: parseList(draft.fieldNamesText)
-  });
-}
-
-function getInitialDraft(search: object): QueryRouteDraft {
-  return {
-    spaceUid: getStringSearch(search, 'space_uid') ?? getStringSearch(search, 'spaceUid') ?? '',
-    tableIdsText: getStringSearch(search, 'table_ids') ?? getStringSearch(search, 'tableIds') ?? '',
-    dataLabelsText: getStringSearch(search, 'data_labels') ?? getStringSearch(search, 'dataLabels') ?? '',
-    fieldNamesText: getStringSearch(search, 'field_names') ?? getStringSearch(search, 'fieldNames') ?? ''
-  };
-}
-
 function buildRefreshQuery(query: QueryRouteQuery, targets: RefreshTargets): QueryRouteQuery {
   return queryRouteQuerySchema.parse({
     bkTenantId: query.bkTenantId,
@@ -800,69 +813,6 @@ function buildRefreshQuery(query: QueryRouteQuery, targets: RefreshTargets): Que
 
 function hasRefreshTarget(query: QueryRouteQuery): boolean {
   return Boolean(query.spaceUid || query.tableIds.length > 0 || query.dataLabels.length > 0);
-}
-
-function getStringSearch(search: object, key: string): string | undefined {
-  const values = search as Record<string, unknown>;
-  if (!(key in values)) {
-    return undefined;
-  }
-  const value = values[key];
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.join('\n');
-  }
-  return undefined;
-}
-
-function hasDraftInput(draft: QueryRouteDraft): boolean {
-  return Boolean(
-    draft.spaceUid.trim() ||
-      draft.tableIdsText.trim() ||
-      draft.dataLabelsText.trim() ||
-      draft.fieldNamesText.trim()
-  );
-}
-
-function parseList(value: string): string[] {
-  const values: string[] = [];
-  const seen = new Set<string>();
-
-  for (const item of value.split(/[\s,]+/)) {
-    const normalized = item.trim();
-    if (!normalized || seen.has(normalized)) {
-      continue;
-    }
-    values.push(normalized);
-    seen.add(normalized);
-  }
-
-  return values;
-}
-
-function filterItems<T>(items: T[], keyword: string): T[] {
-  if (!keyword) {
-    return items;
-  }
-
-  return items.filter((item) => JSON.stringify(item).toLowerCase().includes(keyword));
-}
-
-function paginate<T>(items: T[], page: number, pageSize: number): T[] {
-  const start = (page - 1) * pageSize;
-  return items.slice(start, start + pageSize);
-}
-
-function summarizeDiagnostics(items: QueryRouteDiagnostic[]) {
-  return items.reduce(
-    (acc, item) => {
-      acc[item.status] += 1;
-      return acc;
-    },
-    { ok: 0, missing: 0, warning: 0, error: 0 }
-  );
 }
 
 function formatValue(value: unknown): ReactNode {

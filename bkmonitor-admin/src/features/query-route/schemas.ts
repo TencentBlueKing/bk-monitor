@@ -40,6 +40,7 @@ export const queryRouteSpaceEntrySchema = z.object({
 
 export const queryRouteDataLabelEntrySchema = z.object({
   data_label: z.string(),
+  exists: z.boolean().default(false),
   table_ids: z.array(queryRouteTableRefSchema).default([]),
   raw: z.unknown().optional()
 });

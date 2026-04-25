@@ -687,6 +687,7 @@ export function createMockQueryRoute(params: Record<string, unknown>): QueryRout
 
     return {
       data_label: dataLabel,
+      exists: routedTableIds.length > 0,
       table_ids: routedTableIds.map((tableId) => ({
         table_id: tableId,
         in_space: spaceRoutes.some((route) => route.table_id === tableId),
