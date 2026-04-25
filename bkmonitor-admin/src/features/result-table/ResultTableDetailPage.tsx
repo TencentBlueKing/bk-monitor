@@ -18,6 +18,10 @@ import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
+import {
+  ES_STORAGE_TABLE_KIND_LABEL,
+  ES_STORAGE_TABLE_KIND_TONE
+} from '../es-storage/constants';
 import { useResultTableDetail, useResultTableFields } from './queries';
 import { resultTableFieldListQuerySchema } from './schemas';
 
@@ -65,7 +69,7 @@ export function ResultTableDetailPage() {
     return <PageState title="加载失败" description={String(detailQuery.error)} />;
   }
 
-  const { result_table, options, datasources, custom_groups, es_storage, vm_record } =
+  const { result_table, options, datasources, custom_groups, es_storages, vm_record } =
     detailQuery.data;
 
   return (
@@ -223,7 +227,76 @@ export function ResultTableDetailPage() {
         <section className="two-column">
           <div>
             <h3>ESStorage</h3>
-            <JsonBlock value={es_storage ?? { message: '无 ESStorage' }} />
+            <DataTable
+              data={es_storages}
+              emptyText="无 ESStorage"
+              columns={[
+                {
+                  header: 'table_id',
+                  cell: ({ row }) => (
+                    <Link
+                      to="/es-storages/$tableId"
+                      params={{ tableId: row.original.table_id }}
+                      search={routeSearch}
+                      onClick={() =>
+                        rememberReturnTarget(
+                          buildHref(`/es-storages/${row.original.table_id}`, routeSearch),
+                          {
+                            href: currentHref,
+                            label: 'ResultTable 详情'
+                          }
+                        )
+                      }
+                      className="link"
+                    >
+                      {row.original.table_id}
+                    </Link>
+                  )
+                },
+                {
+                  header: 'table_kind',
+                  cell: ({ row }) => {
+                    const tableKind = row.original.table_kind ?? 'physical';
+                    return (
+                      <Badge tone={ES_STORAGE_TABLE_KIND_TONE[tableKind]}>
+                        {ES_STORAGE_TABLE_KIND_LABEL[tableKind]}
+                      </Badge>
+                    );
+                  }
+                },
+                {
+                  header: 'origin_table_id',
+                  cell: ({ row }) =>
+                    row.original.origin_table_id ? (
+                      <Link
+                        to="/es-storages/$tableId"
+                        params={{ tableId: row.original.origin_table_id }}
+                        search={routeSearch}
+                        onClick={() =>
+                          rememberReturnTarget(
+                            buildHref(`/es-storages/${row.original.origin_table_id}`, routeSearch),
+                            {
+                              href: currentHref,
+                              label: 'ResultTable 详情'
+                            }
+                          )
+                        }
+                        className="link"
+                      >
+                        {row.original.origin_table_id}
+                      </Link>
+                    ) : (
+                      <span className="muted-text">-</span>
+                    )
+                },
+                { header: 'storage_cluster_id', accessorKey: 'storage_cluster_id' },
+                { header: 'index_set', accessorKey: 'index_set' },
+                {
+                  header: 'need_create_index',
+                  cell: ({ row }) => formatBoolean(row.original.need_create_index)
+                }
+              ]}
+            />
           </div>
           <div>
             <h3>AccessVMRecord</h3>

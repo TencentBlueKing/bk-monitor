@@ -128,7 +128,33 @@ export function ClusterInfoListPage() {
             row.original.associated_datasources
           )
       },
-      { header: '关联存储', accessorKey: 'associated_storages' },
+      {
+        header: '关联存储',
+        cell: ({ row }) =>
+          row.original.cluster_type === 'elasticsearch' && row.original.associated_storages > 0 ? (
+            <Link
+              to="/es-storages"
+              search={{ ...routeSearch, storageClusterId: row.original.cluster_id }}
+              className="link"
+              onClick={() =>
+                rememberReturnTarget(
+                  buildHref('/es-storages', {
+                    ...routeSearch,
+                    storageClusterId: row.original.cluster_id
+                  }),
+                  {
+                    href: currentHref,
+                    label: '存储集群列表'
+                  }
+                )
+              }
+            >
+              {row.original.associated_storages}
+            </Link>
+          ) : (
+            row.original.associated_storages
+          )
+      },
       {
         header: '更新时间',
         cell: ({ row }) => formatDateTime(row.original.last_modify_time)

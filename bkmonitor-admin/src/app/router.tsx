@@ -7,7 +7,7 @@ import {
   createRouter,
   useSearch
 } from '@tanstack/react-router';
-import { Database, Globe, HardDrive, Settings2, Table2 } from 'lucide-react';
+import { Database, Globe, HardDrive, Search, Settings2, Table2 } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { EnvironmentGuard } from '../features/environments/EnvironmentGuard';
@@ -23,6 +23,8 @@ import {
 } from '../features/environments/search';
 import { DataSourceDetailPage } from '../features/datasource/DataSourceDetailPage';
 import { DataSourceListPage } from '../features/datasource/DataSourceListPage';
+import { EsStorageDetailPage } from '../features/es-storage/EsStorageDetailPage';
+import { EsStorageListPage } from '../features/es-storage/EsStorageListPage';
 import { ResultTableDetailPage } from '../features/result-table/ResultTableDetailPage';
 import { ResultTableListPage } from '../features/result-table/ResultTableListPage';
 import { ClusterInfoListPage } from '../features/cluster-info/ClusterInfoListPage';
@@ -158,6 +160,15 @@ function AppLayout() {
                 存储集群
               </Link>
               <Link
+                to="/es-storages"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Search aria-hidden="true" size={18} />
+                ESStorage
+              </Link>
+              <Link
                 to="/bcs-clusters"
                 search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
                 activeProps={{ className: 'nav-link active' }}
@@ -209,6 +220,14 @@ function GuardedResultTableListPage() {
 
 function GuardedResultTableDetailPage() {
   return <EnvironmentGuard>{() => <ResultTableDetailPage />}</EnvironmentGuard>;
+}
+
+function GuardedEsStorageListPage() {
+  return <EnvironmentGuard>{() => <EsStorageListPage />}</EnvironmentGuard>;
+}
+
+function GuardedEsStorageDetailPage() {
+  return <EnvironmentGuard>{() => <EsStorageDetailPage />}</EnvironmentGuard>;
 }
 
 function GuardedClusterInfoListPage() {
@@ -278,6 +297,18 @@ const resultTableDetailRoute = createRoute({
   component: GuardedResultTableDetailPage
 });
 
+const esStorageListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'es-storages',
+  component: GuardedEsStorageListPage
+});
+
+const esStorageDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'es-storages/$tableId',
+  component: GuardedEsStorageDetailPage
+});
+
 const clusterInfoListRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'clusters',
@@ -310,6 +341,8 @@ const routeTree = rootRoute.addChildren([
     datasourceDetailRoute,
     resultTableListRoute,
     resultTableDetailRoute,
+    esStorageListRoute,
+    esStorageDetailRoute,
     clusterInfoListRoute,
     clusterInfoDetailRoute,
     bcsClusterListRoute,

@@ -90,7 +90,6 @@ function normalizeResultTableDetailPayload(payload: unknown): unknown {
   const summary = isRecord(payload.summary) ? payload.summary : {};
   const storages = isRecord(payload.storages) ? payload.storages : {};
   const esStorages: unknown[] = Array.isArray(storages.es) ? storages.es : [];
-  const esStorage: unknown = esStorages[0] ?? null;
   const accessVmRecords: unknown[] = Array.isArray(payload.access_vm_records)
     ? payload.access_vm_records
     : [];
@@ -101,13 +100,14 @@ function normalizeResultTableDetailPayload(payload: unknown): unknown {
       ...resultTable,
       field_count: summary.field_count,
       datasource_count: summary.datasource_count,
-      has_es_storage: Boolean(esStorage),
+      has_es_storage: esStorages.length > 0,
       has_vm_record: accessVmRecords.length > 0
     },
     options: Array.isArray(payload.options) ? payload.options : [],
     datasources: Array.isArray(payload.datasources) ? payload.datasources : [],
     custom_groups: Array.isArray(payload.custom_groups) ? payload.custom_groups : [],
-    es_storage: esStorage,
+    es_storages: esStorages,
+    es_storage: esStorages[0] ?? null,
     vm_record: accessVmRecords[0] ?? null
   };
 }

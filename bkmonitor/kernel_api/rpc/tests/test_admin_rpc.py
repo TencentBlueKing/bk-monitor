@@ -13,6 +13,12 @@ from types import SimpleNamespace
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import _serialize_cluster_info
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
+from kernel_api.rpc.functions.admin.es_storage import (
+    _contains_index_wildcard,
+    _is_virtual_es_storage,
+    _serialize_es_storage_config,
+    _table_kind,
+)
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
 from kernel_api.rpc.registry import KernelRPCRegistry
 
@@ -32,6 +38,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bcs_cluster.list",
         "admin.bcs_cluster.detail",
         "admin.datasource.kafka_sample",
+        "admin.es_storage.list",
+        "admin.es_storage.detail",
+        "admin.es_storage.runtime_overview",
+        "admin.es_storage.sample",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -275,6 +285,53 @@ def test_bcs_cluster_serializer_empty_sensitive_fields():
     assert item["has_cert"] is False
 
 
+def test_es_storage_table_kind_uses_origin_table_id():
+    assert _is_virtual_es_storage(SimpleNamespace(origin_table_id="system.cpu_origin")) is True
+    assert _table_kind(SimpleNamespace(origin_table_id="system.cpu_origin")) == "virtual"
+    assert _is_virtual_es_storage(SimpleNamespace(origin_table_id="")) is False
+    assert _table_kind(SimpleNamespace(origin_table_id=None)) == "physical"
+
+
+def test_es_storage_config_parses_json_fields_and_warns_on_invalid_json():
+    es_storage = SimpleNamespace(
+        id=1,
+        table_id="system.cpu",
+        origin_table_id="",
+        bk_tenant_id="system",
+        storage_cluster_id=1,
+        date_format="%Y%m%d",
+        slice_size=500,
+        slice_gap=120,
+        retention=7,
+        warm_phase_days=0,
+        time_zone=0,
+        source_type="log",
+        index_set="system_cpu",
+        need_create_index=True,
+        archive_index_days=0,
+        create_time=None,
+        last_modify_time=None,
+        index_settings='{"number_of_shards": 1}',
+        mapping_settings="{bad-json",
+        warm_phase_settings={"allocation_attr_name": "box_type"},
+        long_term_storage_settings="",
+    )
+    warnings = []
+
+    item = _serialize_es_storage_config(es_storage, warnings)
+
+    assert item["table_kind"] == "physical"
+    assert item["index_settings"] == {"number_of_shards": 1}
+    assert item["mapping_settings"] == "{bad-json"
+    assert warnings[0]["code"] == "ES_STORAGE_JSON_PARSE_FAILED"
+
+
+def test_es_storage_sample_rejects_wildcard_index():
+    assert _contains_index_wildcard("v2_system_cpu_20260425_0") is False
+    assert _contains_index_wildcard("v2_system_cpu_*") is True
+    assert _contains_index_wildcard("v2_system_cpu_20260425_?") is True
+
+
 def test_cluster_info_detail_function_registered():
     detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.detail")
     assert detail is not None
@@ -294,6 +351,22 @@ def test_kafka_sample_function_registered():
     assert detail is not None
     assert detail["func_name"] == "admin.datasource.kafka_sample"
     assert "bk_data_id" in detail["params_schema"]
+
+
+def test_es_storage_functions_registered():
+    for func_name in [
+        "admin.es_storage.list",
+        "admin.es_storage.detail",
+        "admin.es_storage.runtime_overview",
+        "admin.es_storage.sample",
+    ]:
+        detail = KernelRPCRegistry.get_function_detail(func_name)
+        assert detail is not None
+        assert detail["func_name"] == func_name
+
+    runtime_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.runtime_overview")
+    assert "inspect" in runtime_detail["description"]
+    assert "table_id" in runtime_detail["params_schema"]
 
 
 def test_cluster_info_list_params_schema():

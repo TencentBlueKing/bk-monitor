@@ -11,9 +11,12 @@ import {
   getStoredReturnTarget,
   rememberReturnTarget
 } from '../../shared/navigation/returnTarget';
+import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
+import { useEsStorageList } from '../es-storage/queries';
+import { esStorageListQuerySchema } from '../es-storage/schemas';
 import { CLUSTER_TYPE_TONE } from './constants';
 import { useClusterInfoDetail } from './queries';
 import type { ClusterConfig } from './schemas';
@@ -28,6 +31,17 @@ export function ClusterInfoDetailPage() {
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const fallbackReturnHref = buildHref('/clusters', routeSearch);
   const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, '存储集群列表');
+  const esStoragePreviewQueryParams = esStorageListQuerySchema.parse({
+    bkTenantId: currentTenantId,
+    storageClusterId: Number.isNaN(clusterId) ? undefined : clusterId,
+    page: 1,
+    pageSize: 10
+  });
+  const esStoragePreviewQuery = useEsStorageList(
+    currentEnvironment!,
+    esStoragePreviewQueryParams,
+    detailQuery.data?.cluster_info.cluster_type === 'elasticsearch'
+  );
 
   if (!currentEnvironment || Number.isNaN(clusterId)) {
     return <PageState title="存储集群参数无效" />;
@@ -48,6 +62,7 @@ export function ClusterInfoDetailPage() {
       ? { ...routeSearch, mqClusterId: cluster_info.cluster_id }
       : routeSearch;
   const resultTableSearch = routeSearch;
+  const esStorageSearch = { ...routeSearch, storageClusterId: cluster_info.cluster_id };
 
   return (
     <section className="page-panel">
@@ -155,6 +170,27 @@ export function ClusterInfoDetailPage() {
             }
             raw
           />
+          {cluster_info.cluster_type === 'elasticsearch' ? (
+            <Info
+              label="关联 ESStorage"
+              value={
+                <Link
+                  to="/es-storages"
+                  search={esStorageSearch}
+                  className="link"
+                  onClick={() =>
+                    rememberReturnTarget(buildHref('/es-storages', esStorageSearch), {
+                      href: currentHref,
+                      label: '存储集群详情'
+                    })
+                  }
+                >
+                  {cluster_info.associated_storages}
+                </Link>
+              }
+              raw
+            />
+          ) : null}
           <Info
             label="关联数据源"
             value={
@@ -176,6 +212,65 @@ export function ClusterInfoDetailPage() {
           />
         </CardContent>
       </Card>
+
+      {cluster_info.cluster_type === 'elasticsearch' ? (
+        <section>
+          <div className="flex items-center justify-between gap-3">
+            <h3>关联 ESStorage</h3>
+            <Link
+              to="/es-storages"
+              search={esStorageSearch}
+              className="link"
+              onClick={() =>
+                rememberReturnTarget(buildHref('/es-storages', esStorageSearch), {
+                  href: currentHref,
+                  label: '存储集群详情'
+                })
+              }
+            >
+              查看全部
+            </Link>
+          </div>
+          {esStoragePreviewQuery.isLoading ? (
+            <PageState title="正在加载关联 ESStorage..." />
+          ) : esStoragePreviewQuery.isError ? (
+            <PageState title="关联 ESStorage 加载失败" description={String(esStoragePreviewQuery.error)} />
+          ) : (
+            <DataTable
+              data={esStoragePreviewQuery.data?.items ?? []}
+              emptyText="暂无关联 ESStorage"
+              columns={[
+                {
+                  header: 'table_id',
+                  cell: ({ row }) => (
+                    <Link
+                      to="/es-storages/$tableId"
+                      params={{ tableId: row.original.table_id }}
+                      search={routeSearch}
+                      className="link"
+                      onClick={() =>
+                        rememberReturnTarget(
+                          buildHref(`/es-storages/${row.original.table_id}`, routeSearch),
+                          {
+                            href: currentHref,
+                            label: '存储集群详情'
+                          }
+                        )
+                      }
+                    >
+                      {row.original.table_id}
+                    </Link>
+                  )
+                },
+                { header: 'table_kind', accessorKey: 'table_kind' },
+                { header: 'origin_table_id', accessorKey: 'origin_table_id' },
+                { header: 'index_set', accessorKey: 'index_set' },
+                { header: 'retention', accessorKey: 'retention' }
+              ]}
+            />
+          )}
+        </section>
+      ) : null}
     </section>
   );
 }

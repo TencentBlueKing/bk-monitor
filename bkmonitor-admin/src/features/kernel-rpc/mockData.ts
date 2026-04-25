@@ -1,4 +1,11 @@
 import type { DataSourceDetailResponse, DataSourceListResponse } from '../datasource/schemas';
+import type { ClusterInfoDetailResponse, ClusterInfoListResponse } from '../cluster-info/schemas';
+import type {
+  EsRuntimeOverviewResponse,
+  EsSampleResponse,
+  EsStorageDetailResponse,
+  EsStorageListResponse
+} from '../es-storage/schemas';
 import type {
   ResultTableDetailResponse,
   ResultTableFieldListResponse,
@@ -115,6 +122,123 @@ export const mockResultTables: ResultTableListResponse['items'] = [
   }
 ];
 
+export const mockEsStorages: EsStorageListResponse['items'] = [
+  {
+    id: 1,
+    table_id: '3_bklog.demo',
+    origin_table_id: null,
+    table_kind: 'physical',
+    bk_tenant_id: 'system',
+    storage_cluster_id: 3,
+    storage_cluster: {
+      cluster_id: 3,
+      cluster_name: 'default-es',
+      display_name: '默认 ES 集群',
+      cluster_type: 'elasticsearch'
+    },
+    result_table: {
+      table_id: '3_bklog.demo',
+      table_name_zh: '日志示例表',
+      bk_biz_id: 3,
+      data_label: 'bkdata_link_demo',
+      default_storage: 'es',
+      is_enable: true,
+      is_deleted: false
+    },
+    physical_table: null,
+    virtual_table_count: 1,
+    retention: 30,
+    slice_size: 500,
+    slice_gap: 120,
+    date_format: '%Y%m%d',
+    time_zone: 'UTC',
+    source_type: 'log',
+    index_set: '3_bklog_demo',
+    need_create_index: true,
+    archive_index_days: 0,
+    warm_phase_days: 7,
+    create_time: '2026-04-19 09:05:00',
+    last_modify_time: '2026-04-23 17:35:00'
+  },
+  {
+    id: 2,
+    table_id: '3_bklog.demo_virtual',
+    origin_table_id: '3_bklog.demo',
+    table_kind: 'virtual',
+    bk_tenant_id: 'system',
+    storage_cluster_id: 3,
+    storage_cluster: {
+      cluster_id: 3,
+      cluster_name: 'default-es',
+      display_name: '默认 ES 集群',
+      cluster_type: 'elasticsearch'
+    },
+    result_table: {
+      table_id: '3_bklog.demo_virtual',
+      table_name_zh: '日志虚拟表',
+      bk_biz_id: 3,
+      data_label: 'bkdata_link_demo',
+      default_storage: 'es',
+      is_enable: true,
+      is_deleted: false
+    },
+    physical_table: {
+      table_id: '3_bklog.demo',
+      exists: true
+    },
+    virtual_table_count: 0,
+    retention: 30,
+    slice_size: 500,
+    slice_gap: 120,
+    date_format: '%Y%m%d',
+    time_zone: 'UTC',
+    source_type: 'log',
+    index_set: '3_bklog_demo_virtual',
+    need_create_index: false,
+    archive_index_days: 0,
+    warm_phase_days: 0,
+    create_time: '2026-04-20 10:00:00',
+    last_modify_time: '2026-04-24 10:30:00'
+  }
+];
+
+export const mockClusterInfos: ClusterInfoListResponse['items'] = [
+  {
+    cluster_id: 1,
+    cluster_name: 'default-kafka',
+    display_name: '默认 Kafka 集群',
+    cluster_type: 'kafka',
+    domain_name: 'kafka.service.local',
+    port: 9092,
+    version: '2.8',
+    is_default_cluster: true,
+    registered_system: '_default',
+    label: 'default',
+    description: 'mock kafka cluster',
+    associated_datasources: 1,
+    associated_storages: 0,
+    create_time: '2026-04-18 10:00:00',
+    last_modify_time: '2026-04-22 11:30:00'
+  },
+  {
+    cluster_id: 3,
+    cluster_name: 'default-es',
+    display_name: '默认 ES 集群',
+    cluster_type: 'elasticsearch',
+    domain_name: 'es.service.local',
+    port: 9200,
+    version: '7.10',
+    is_default_cluster: true,
+    registered_system: '_default',
+    label: 'default',
+    description: 'mock elasticsearch cluster',
+    associated_datasources: 0,
+    associated_storages: mockEsStorages.length,
+    create_time: '2026-04-19 09:00:00',
+    last_modify_time: '2026-04-23 17:30:00'
+  }
+];
+
 export function createMockDatasourceDetail(bkDataId: number): DataSourceDetailResponse {
   const fallbackDatasource = mockDatasources[0];
 
@@ -203,6 +327,7 @@ export function createMockResultTableDetail(tableId: string): ResultTableDetailR
     resultTable.table_id === '3_bklog.demo'
       ? (mockDatasources[1] ?? fallbackDatasource)
       : fallbackDatasource;
+  const esStorages = mockEsStorages.filter((item) => item.table_id === resultTable.table_id);
 
   return {
     result_table: {
@@ -227,17 +352,223 @@ export function createMockResultTableDetail(tableId: string): ResultTableDetailR
         is_enable: true
       }
     ],
-    es_storage: resultTable.has_es_storage
-      ? {
-          table_id: resultTable.table_id,
-          retention: 30,
-          storage_cluster_id: 1,
-          index_set: 'demo-*'
-        }
-      : null,
+    es_storages: esStorages,
+    es_storage: esStorages[0] ?? null,
     vm_record: resultTable.has_vm_record
       ? { result_table_id: resultTable.table_id, vm_cluster_id: 1, bk_base_data_id: 100001 }
       : null
+  };
+}
+
+export function createMockEsStorageDetail(tableId: string): EsStorageDetailResponse {
+  const fallbackStorage = mockEsStorages[0];
+  if (!fallbackStorage) {
+    throw new Error('Mock ESStorage fixture is empty.');
+  }
+
+  const storage = mockEsStorages.find((item) => item.table_id === tableId) ?? fallbackStorage;
+  const resultTable = storage.result_table ?? null;
+  const isVirtual = storage.table_kind === 'virtual';
+
+  return {
+    es_storage: {
+      ...storage,
+      index_settings: {
+        number_of_shards: 1,
+        number_of_replicas: 1
+      },
+      mapping_settings: {
+        properties: {
+          dtEventTimeStamp: { type: 'date' },
+          message: { type: 'text' },
+          trace_id: { type: 'keyword' }
+        }
+      },
+      warm_phase_settings: {
+        min_age: `${storage.warm_phase_days ?? 0}d`
+      },
+      long_term_storage_settings: {}
+    },
+    result_table: resultTable,
+    storage_cluster: storage.storage_cluster ?? null,
+    storage_cluster_records: [
+      {
+        table_id: isVirtual ? (storage.origin_table_id ?? storage.table_id) : storage.table_id,
+        cluster_id: 2,
+        cluster: {
+          cluster_id: 2,
+          cluster_name: 'bkdata-kafka',
+          display_name: '历史 ES 集群',
+          cluster_type: 'elasticsearch'
+        },
+        is_current: false,
+        is_deleted: false,
+        enable_time: '2026-04-01 10:00:00',
+        disable_time: '2026-04-20 10:00:00',
+        delete_time: null,
+        creator: 'admin',
+        create_time: '2026-04-01 10:00:00'
+      },
+      {
+        table_id: isVirtual ? (storage.origin_table_id ?? storage.table_id) : storage.table_id,
+        cluster_id: storage.storage_cluster_id,
+        cluster: storage.storage_cluster ?? null,
+        is_current: true,
+        is_deleted: false,
+        enable_time: '2026-04-20 10:00:00',
+        disable_time: null,
+        delete_time: null,
+        creator: 'admin',
+        create_time: '2026-04-20 10:00:00'
+      }
+    ],
+    result_table_options: [
+      { name: 'es_unique_field_list', value: ['dtEventTimeStamp', 'trace_id'], value_type: 'list' },
+      { name: 'segmented_query_enable', value: true, value_type: 'boolean' }
+    ],
+    field_aliases: [
+      {
+        query_alias: 'traceId',
+        field_path: 'trace_id',
+        path_type: 'keyword',
+        mapping_alias: { type: 'alias', path: 'trace_id' }
+      },
+      {
+        query_alias: 'logMessage',
+        field_path: 'message',
+        path_type: 'text',
+        mapping_alias: { type: 'alias', path: 'message' }
+      }
+    ],
+    physical_table: isVirtual
+      ? {
+          table_id: storage.origin_table_id,
+          exists: true,
+          es_storage: mockEsStorages.find((item) => item.table_id === storage.origin_table_id) ?? null,
+          result_table: mockResultTables.find((item) => item.table_id === storage.origin_table_id) ?? null
+        }
+      : null,
+    virtual_tables: isVirtual
+      ? []
+      : mockEsStorages
+          .filter((item) => item.origin_table_id === storage.table_id)
+          .map((item) => ({
+            table_id: item.table_id,
+            result_table: item.result_table ?? null
+          }))
+  };
+}
+
+export function createMockEsRuntimeOverview(tableId: string): EsRuntimeOverviewResponse {
+  const storage = mockEsStorages.find((item) => item.table_id === tableId) ?? mockEsStorages[0];
+  if (!storage) {
+    throw new Error('Mock ESStorage fixture is empty.');
+  }
+
+  const indexPrefix = `v2_${storage.index_set}`;
+
+  return {
+    table_id: storage.table_id,
+    index_set: storage.index_set,
+    index_pattern: `${indexPrefix}_*`,
+    indices: [
+      {
+        index: `${indexPrefix}_20260425_0`,
+        health: 'green',
+        status: 'open',
+        docs_count: 1024,
+        store_size: '12mb',
+        creation_date: '2026-04-25 10:00:00'
+      },
+      {
+        index: `${indexPrefix}_20260424_0`,
+        health: 'yellow',
+        status: 'open',
+        docs_count: 980,
+        store_size: '10mb',
+        creation_date: '2026-04-24 10:00:00'
+      }
+    ],
+    aliases: [
+      {
+        alias: `${storage.index_set}_read`,
+        indices: [`${indexPrefix}_20260425_0`, `${indexPrefix}_20260424_0`],
+        is_write_index: false
+      }
+    ],
+    mapping: {
+      properties: {
+        dtEventTimeStamp: { type: 'date' },
+        message: { type: 'text' },
+        trace_id: { type: 'keyword' },
+        traceId: { type: 'alias', path: 'trace_id' }
+      }
+    },
+    field_aliases: [
+      {
+        query_alias: 'traceId',
+        field_path: 'trace_id',
+        path_type: 'keyword',
+        mapping_alias: { type: 'alias', path: 'trace_id' }
+      }
+    ],
+    warnings:
+      storage.table_kind === 'virtual'
+        ? ['虚拟表 mock：运行时信息按当前 ESStorage 的 index_set 返回。']
+        : []
+  };
+}
+
+export function createMockEsSample(params: {
+  tableId: string;
+  index: string;
+  timeField?: string | undefined;
+}): EsSampleResponse {
+  return {
+    table_id: params.tableId,
+    index: params.index,
+    time_field: params.timeField ?? 'dtEventTimeStamp',
+    took: 12,
+    hit: {
+      _id: 'mock-1',
+      _index: params.index,
+      _source: {
+        dtEventTimeStamp: '2026-04-25 10:00:00',
+        message: 'mock es latest log',
+        trace_id: 'trace-mock-001'
+      }
+    },
+    warnings: []
+  };
+}
+
+export function createMockClusterInfoDetail(clusterId: number): ClusterInfoDetailResponse {
+  const fallbackCluster = mockClusterInfos[0];
+  if (!fallbackCluster) {
+    throw new Error('Mock cluster fixture is empty.');
+  }
+  const cluster = mockClusterInfos.find((item) => item.cluster_id === clusterId) ?? fallbackCluster;
+
+  return {
+    cluster_info: cluster,
+    cluster_configs: [
+      {
+        namespace: 'default',
+        kind: cluster.cluster_type === 'elasticsearch' ? 'ElasticsearchCluster' : 'KafkaCluster',
+        name: cluster.cluster_name,
+        origin_config: {
+          cluster_id: cluster.cluster_id,
+          cluster_name: cluster.cluster_name
+        },
+        component_config: {
+          status: { phase: 'Ok', message: 'mock ready' }
+        },
+        created_at: cluster.create_time,
+        updated_at: cluster.last_modify_time
+      }
+    ],
+    related_result_tables: cluster.cluster_type === 'elasticsearch' ? mockEsStorages.length : 0,
+    related_datasources: cluster.associated_datasources
   };
 }
 

@@ -10,7 +10,8 @@ kernel_api/rpc/functions/admin/
 ├── common.py
 ├── tenant.py
 ├── datasource.py
-└── result_table.py
+├── result_table.py
+└── es_storage.py
 ```
 
 注意：当前 `kernel_api/rpc/functions/__init__.py` 只会 import `functions` 目录下一层模块。如果使用 `functions/admin/` 子包，需要保证 `kernel_api.rpc.functions.admin` 被 import 后会继续 import `tenant.py`、`datasource.py`、`result_table.py` 等模块，从而触发 `KernelRPCRegistry.register(...)`。
@@ -21,8 +22,9 @@ kernel_api/rpc/functions/admin/
 from . import tenant
 from . import datasource
 from . import result_table
+from . import es_storage
 
-__all__ = ["tenant", "datasource", "result_table"]
+__all__ = ["tenant", "datasource", "result_table", "es_storage"]
 ```
 
 ## 命名约定
@@ -36,6 +38,10 @@ __all__ = ["tenant", "datasource", "result_table"]
 - `admin.result_table.detail`
 - `admin.result_table.field_list`
 - `admin.result_table.field_options`
+- `admin.es_storage.list`
+- `admin.es_storage.detail`
+- `admin.es_storage.runtime_overview`
+- `admin.es_storage.sample`
 
 前端和 Agent-facing operation 可以保持去掉 `admin.` 前缀的稳定名称：
 
@@ -46,6 +52,10 @@ __all__ = ["tenant", "datasource", "result_table"]
 - `result_table.detail`
 - `result_table.field_list`
 - `result_table.field_options`
+- `es_storage.list`
+- `es_storage.detail`
+- `es_storage.runtime_overview`
+- `es_storage.sample`
 
 映射关系由 `bkmonitor-admin` 前端 RPC client 维护。
 
@@ -761,12 +771,43 @@ Safety level：`read`
 }
 ```
 
+### admin.es_storage.list
+
+用途：分页查询 ESStorage 独立资源。
+
+Safety level：`read`
+
+支持过滤：`table_id` 同时匹配 `ESStorage.table_id/origin_table_id`，`data_label` 先精确匹配 `ResultTable.data_label`，`table_kind` 支持 `physical/virtual`，并支持 `storage_cluster_id`、`source_type`、`need_create_index`。`index_set` 仅展示，不作为过滤条件。
+
+### admin.es_storage.detail
+
+用途：查询 ESStorage 静态配置和关系信息。
+
+Safety level：`read`
+
+返回 ESStorage 配置、ResultTable 摘要、ClusterInfo 摘要、实体/虚拟表关系、`StorageClusterRecord` 迁移历史、ES 相关 ResultTableOption，以及 `ESFieldQueryAliasOption.generate_query_alias_settings(...)` 生成的字段查询别名说明。虚拟表的迁移历史按实体表 `origin_table_id` 查询。
+
+### admin.es_storage.runtime_overview
+
+用途：实时读取 ES 索引、别名和 mapping 概览。
+
+Safety level：`inspect`
+
+实现优先复用 `ESStorage.get_index_names()`、`get_index_stats()`、`current_index_info()`、`index_exist()`、`search_format_v1()`、`search_format_v2()`；mapping 和 aliases 只做 ES client 薄封装。单类查询失败会返回 warning，不影响其他结果。
+
+### admin.es_storage.sample
+
+用途：从指定索引读取最新一条样例数据。
+
+Safety level：`inspect`
+
+`index` 必填且不允许通配符，必须属于当前 ESStorage 的索引集合或匹配当前索引规则；默认 `time_field=dtEventTimeStamp`，查询复用 `ESStorage.get_raw_data(index_name, time_field)`。
+
 ## 后续可扩展函数
 
 一期先不实现，但可以预留命名：
 
 - `admin.meta.tool_list`：返回 admin RPC tool 元信息。
 - `admin.meta.tool_detail`：返回单个 tool 的 schema、示例和安全级别。
-- `admin.storage.es_detail`：按 table_id 查询 ESStorage 深度详情。
 - `admin.vm.access_record_list`：按 table_id、bcs_cluster_id、bk_base_data_id 查询 VM 接入记录。
 - `admin.datasource.kafka_sample`：读取 Kafka 样例数据，安全级别应为 `inspect`，不放入第一期默认能力。

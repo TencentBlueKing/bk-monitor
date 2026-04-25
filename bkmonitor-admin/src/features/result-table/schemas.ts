@@ -60,6 +60,18 @@ export const resultTableOptionSchema = z.object({
   create_time: z.string().nullable().optional()
 });
 
+export const resultTableEsStorageSchema = z.object({
+  table_id: z.string(),
+  table_kind: z.enum(['physical', 'virtual']).optional(),
+  origin_table_id: z.string().nullable().optional(),
+  storage_cluster_id: z.number().int().nullable().optional(),
+  index_set: z.string().nullable().optional(),
+  need_create_index: z.boolean().nullable().optional(),
+  retention: z.number().int().nullable().optional(),
+  slice_size: z.number().int().nullable().optional(),
+  slice_gap: z.number().int().nullable().optional()
+});
+
 export const resultTableDetailResponseSchema = z.object({
   result_table: resultTableSummarySchema.extend({
     bk_biz_id_alias: z.string().nullable().optional(),
@@ -70,6 +82,7 @@ export const resultTableDetailResponseSchema = z.object({
   options: z.array(resultTableOptionSchema),
   datasources: z.array(datasourceSummarySchema),
   custom_groups: z.array(z.record(z.unknown())),
+  es_storages: z.array(resultTableEsStorageSchema),
   es_storage: z.record(z.unknown()).nullable(),
   vm_record: z.record(z.unknown()).nullable()
 });
