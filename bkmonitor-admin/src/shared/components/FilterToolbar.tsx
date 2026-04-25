@@ -2,15 +2,17 @@ import { Search, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from './Badge';
+import { ChoiceInput } from './ChoiceInput';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Select } from './ui/select';
+
+export type FilterValue = string | string[];
 
 export interface FilterField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'boolean' | 'combobox';
+  type: 'text' | 'number' | 'select' | 'multi-select' | 'boolean' | 'combobox';
   options?: Array<{ label: string; value: string }>;
   suggestions?: readonly string[];
   placeholder?: string;
@@ -19,23 +21,27 @@ export interface FilterField {
 
 interface FilterToolbarProps {
   fields: FilterField[];
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
+  values: Record<string, FilterValue>;
+  onChange: (key: string, value: FilterValue) => void;
   onSearch: () => void;
   onReset: () => void;
   loading?: boolean;
 }
 
-function getFilterDisplayValue(field: FilterField, value: string): string {
-  if (field.type === 'select' && field.options) {
-    return field.options.find((o) => o.value === value)?.label ?? value;
+function getFilterDisplayValue(field: FilterField, value: FilterValue): string {
+  const values = Array.isArray(value) ? value : value.split(',').filter(Boolean);
+  if ((field.type === 'select' || field.type === 'multi-select') && field.options) {
+    return values
+      .map((item) => field.options?.find((o) => o.value === item)?.label ?? item)
+      .join(', ');
   }
   if (field.type === 'boolean') {
-    if (value === 'true') return '是';
-    if (value === 'false') return '否';
-    return value;
+    const boolValue = values[0] ?? '';
+    if (boolValue === 'true') return '是';
+    if (boolValue === 'false') return '否';
+    return boolValue;
   }
-  return value;
+  return Array.isArray(value) ? values.join(', ') : value;
 }
 
 export function FilterToolbar({
@@ -51,7 +57,11 @@ export function FilterToolbar({
   const primaryFields = fields.filter((f) => !f.advanced);
   const advancedFields = fields.filter((f) => f.advanced);
 
-  const activeTags = fields.filter((f) => values[f.key] !== '' && values[f.key] !== undefined);
+  const activeTags = fields.filter((field) => {
+    const value = values[field.key];
+    if (Array.isArray(value)) return value.length > 0;
+    return value !== '' && value !== undefined;
+  });
 
   function renderField(field: FilterField) {
     switch (field.type) {
@@ -71,50 +81,54 @@ export function FilterToolbar({
         return (
           <div className="grid gap-1.5" key={field.key}>
             <Label>{field.label}</Label>
-            <Select
+            <ChoiceInput
               value={values[field.key] ?? ''}
-              onChange={(event) => onChange(field.key, event.target.value)}
-            >
-              <option value="">全部</option>
-              {field.options?.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
+              options={field.options ?? []}
+              placeholder={field.placeholder ?? '全部'}
+              onChange={(value) => onChange(field.key, value)}
+            />
+          </div>
+        );
+      case 'multi-select':
+        return (
+          <div className="grid gap-1.5" key={field.key}>
+            <Label>{field.label}</Label>
+            <ChoiceInput
+              mode="multiple"
+              allowCustom
+              value={values[field.key] ?? []}
+              options={field.options ?? []}
+              placeholder={field.placeholder ?? '全部'}
+              onChange={(value) => onChange(field.key, value)}
+            />
           </div>
         );
       case 'boolean':
         return (
           <div className="grid gap-1.5" key={field.key}>
             <Label>{field.label}</Label>
-            <Select
+            <ChoiceInput
               value={values[field.key] ?? ''}
-              onChange={(event) => onChange(field.key, event.target.value)}
-            >
-              <option value="">全部</option>
-              <option value="true">是</option>
-              <option value="false">否</option>
-            </Select>
+              options={[
+                { label: '是', value: 'true' },
+                { label: '否', value: 'false' }
+              ]}
+              placeholder="全部"
+              onChange={(value) => onChange(field.key, value)}
+            />
           </div>
         );
       case 'combobox':
         return (
           <div className="grid gap-1.5" key={field.key}>
             <Label>{field.label}</Label>
-            <Input
-              list={`${field.key}-list`}
+            <ChoiceInput
               value={values[field.key] ?? ''}
-              placeholder={field.placeholder}
-              onChange={(event) => onChange(field.key, event.target.value)}
+              options={field.suggestions?.map((item) => ({ label: item, value: item })) ?? []}
+              placeholder={field.placeholder ?? '输入或选择'}
+              allowCustom
+              onChange={(value) => onChange(field.key, value)}
             />
-            {field.suggestions ? (
-              <datalist id={`${field.key}-list`}>
-                {field.suggestions.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-            ) : null}
           </div>
         );
       case 'text':
@@ -133,11 +147,17 @@ export function FilterToolbar({
   }
 
   return (
-    <div className="space-y-3">
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSearch();
+      }}
+    >
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
         {primaryFields.map(renderField)}
         <div className="flex items-end gap-2">
-          <Button type="button" onClick={onSearch} disabled={loading}>
+          <Button type="submit" disabled={loading}>
             <Search aria-hidden="true" size={16} />
             搜索
           </Button>
@@ -178,6 +198,6 @@ export function FilterToolbar({
           ))}
         </div>
       ) : null}
-    </div>
+    </form>
   );
 }

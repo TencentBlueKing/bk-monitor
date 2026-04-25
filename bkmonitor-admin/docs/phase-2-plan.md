@@ -184,7 +184,7 @@
 
 ### P2-001 `admin.cluster_info.list` — 存储集群列表
 
-状态：Todo  
+状态：Done  
 建议负责人：Backend Agent
 
 目标：
@@ -583,7 +583,7 @@
 
 **支持的能力**：
 - 文本输入型（`Input`）：`bk_data_id`、`data_name`、`table_id`、`table_name_zh`、`bk_biz_id`、`space_uid`
-- 下拉选择型（`Select`）：`source_label`、`type_label`、`created_from`、`label`、`schema_type`、`default_storage`、`cluster_type`、`status`
+- 统一选择型（`ChoiceInput`）：支持单选、多选和自定义输入，覆盖 `source_label`、`type_label`、`created_from`、`label`、`schema_type`、`default_storage`、`cluster_type`、`status`
 - 布尔切换型（三元 Select: 全部/是/否）：`is_enable`、`is_custom_source`、`is_platform_data_id`、`is_deleted`、`is_builtin`
 - 高级过滤折叠：默认显示 3-4 个常用过滤器，通过"高级筛选"展开更多
 - 重置按钮：清空所有过滤并自动搜索
@@ -591,19 +591,22 @@
 
 **props 设计**：
 ```typescript
+type FilterValue = string | string[];
+
 interface FilterField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'boolean';
+  type: 'text' | 'number' | 'select' | 'multi-select' | 'boolean' | 'combobox';
   options?: Array<{ label: string; value: string }>;
+  suggestions?: readonly string[];
   placeholder?: string;
   advanced?: boolean;
 }
 
 interface FilterToolbarProps {
   fields: FilterField[];
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
+  values: Record<string, FilterValue>;
+  onChange: (key: string, value: FilterValue) => void;
   onSearch: () => void;
   onReset: () => void;
   loading?: boolean;

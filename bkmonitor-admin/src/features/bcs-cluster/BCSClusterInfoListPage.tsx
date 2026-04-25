@@ -1,11 +1,16 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
-import { FilterToolbar, type FilterField } from '../../shared/components/FilterToolbar';
+import {
+  FilterToolbar,
+  type FilterField,
+  type FilterValue
+} from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { buildHref, rememberReturnTarget } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -17,10 +22,24 @@ import { useBcsClusterList } from './queries';
 const FILTER_FIELDS: FilterField[] = [
   { key: 'clusterId', label: 'cluster_id', type: 'text' },
   { key: 'bkBizId', label: 'bk_biz_id', type: 'number' },
-  { key: 'status', label: 'status', type: 'select', options: BCS_STATUS_OPTIONS }
+  {
+    key: 'status',
+    label: 'status',
+    type: 'multi-select',
+    options: BCS_STATUS_OPTIONS,
+    placeholder: '默认全部'
+  }
 ];
 
-function DataIdsSummary({ row }: { row: BcsClusterSummary }) {
+function DataIdsSummary({
+  row,
+  routeSearch,
+  returnTo
+}: {
+  row: BcsClusterSummary;
+  routeSearch: { env: string; tenant: string };
+  returnTo: string;
+}) {
   const items: Array<{ label: string; value: number }> = [
     { label: 'K8s指标', value: row.K8sMetricDataID ?? 0 },
     { label: '自定义指标', value: row.CustomMetricDataID ?? 0 },
@@ -39,9 +58,21 @@ function DataIdsSummary({ row }: { row: BcsClusterSummary }) {
   return (
     <div className="flex flex-wrap gap-1 text-xs">
       {active.map((item) => (
-        <span key={item.label} className="rounded bg-muted px-1.5 py-0.5">
+        <Link
+          key={item.label}
+          to="/datasources/$bkDataId"
+          params={{ bkDataId: String(item.value) }}
+          search={routeSearch}
+          onClick={() =>
+            rememberReturnTarget(buildHref(`/datasources/${String(item.value)}`, routeSearch), {
+              href: returnTo,
+              label: 'K8s 集群列表'
+            })
+          }
+          className="rounded bg-muted px-1.5 py-0.5 text-primary hover:underline"
+        >
           {item.label}:{item.value}
-        </span>
+        </Link>
       ))}
     </div>
   );
@@ -49,11 +80,12 @@ function DataIdsSummary({ row }: { row: BcsClusterSummary }) {
 
 export function BCSClusterInfoListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, FilterValue>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>({});
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
 
@@ -76,6 +108,15 @@ export function BCSClusterInfoListPage() {
             to="/bcs-clusters/$clusterId"
             params={{ clusterId: row.original.cluster_id }}
             search={routeSearch}
+            onClick={() =>
+              rememberReturnTarget(
+                buildHref(`/bcs-clusters/${row.original.cluster_id}`, routeSearch),
+                {
+                  href: currentHref,
+                  label: 'K8s 集群列表'
+                }
+              )
+            }
             className="link"
           >
             {row.original.cluster_id}
@@ -89,15 +130,16 @@ export function BCSClusterInfoListPage() {
         header: '状态',
         cell: ({ row }) => (
           <Badge tone={BCS_STATUS_TONE[row.original.status] ?? 'default'}>
-            {BCS_STATUS_OPTIONS.find((o) => o.value === row.original.status)?.label ??
-              row.original.status}
+            {row.original.status}
           </Badge>
         )
       },
       { header: '环境', accessorKey: 'bk_env' },
       {
         header: 'DataIDs',
-        cell: ({ row }) => <DataIdsSummary row={row.original} />
+        cell: ({ row }) => (
+          <DataIdsSummary row={row.original} routeSearch={routeSearch} returnTo={currentHref} />
+        )
       },
       { header: 'operator_ns', accessorKey: 'operator_ns' },
       {
@@ -105,7 +147,7 @@ export function BCSClusterInfoListPage() {
         cell: ({ row }) => formatDateTime(row.original.last_modify_time)
       }
     ],
-    [routeSearch]
+    [currentHref, routeSearch]
   );
 
   if (!currentEnvironment) {

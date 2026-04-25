@@ -11,6 +11,7 @@
 ## 文档索引
 
 - [项目目标](./docs/overview.md)
+- [设计与组件规范](./DESIGN.md)
 - [第一期 Task List](./docs/phase-1-task-list.md)
 - [公共技术选型](./docs/technology.md)
 - [品牌资产](./docs/brand.md)

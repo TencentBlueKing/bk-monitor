@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -7,6 +7,11 @@ import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
+import {
+  buildHref,
+  getStoredReturnTarget,
+  rememberReturnTarget
+} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -17,6 +22,7 @@ import { useDatasourceDetail, useKafkaSample } from './queries';
 export function DataSourceDetailPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const bkDataId = Number(params.bkDataId);
 
@@ -40,6 +46,8 @@ export function DataSourceDetailPage() {
   const [kafkaSampleError, setKafkaSampleError] = useState<string | null>(null);
   const [showKafkaSample, setShowKafkaSample] = useState(false);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+  const fallbackReturnHref = buildHref('/datasources', routeSearch);
+  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'DataSource 列表');
 
   if (!currentEnvironment || Number.isNaN(bkDataId)) {
     return <PageState title="DataSource 参数无效" />;
@@ -71,9 +79,7 @@ export function DataSourceDetailPage() {
           <h2>{datasource.data_name}</h2>
         </div>
         <Button asChild variant="secondary">
-          <Link to="/datasources" search={routeSearch}>
-            返回列表
-          </Link>
+          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
         </Button>
       </div>
       <Card>
@@ -154,7 +160,16 @@ export function DataSourceDetailPage() {
               ) : null}
               拉取最新数据
             </Button>
-            <Badge tone="muted">safety_level: inspect</Badge>
+            {kafkaSampleResult || kafkaSampleError ? (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setShowKafkaSample((value) => !value)}
+              >
+                {showKafkaSample ? '收起数据' : '展开数据'}
+              </Button>
+            ) : null}
+            <span className="text-sm text-muted-foreground">默认只拉取最新 1 条</span>
           </div>
           {showKafkaSample && kafkaSampleResult ? (
             <Card>
@@ -174,9 +189,6 @@ export function DataSourceDetailPage() {
                       </span>
                     ) : null}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setShowKafkaSample(false)}>
-                    收起
-                  </Button>
                 </div>
                 {kafkaSampleResult.items && kafkaSampleResult.items.length > 0 ? (
                   <JsonBlock value={kafkaSampleResult.items} />
@@ -233,6 +245,15 @@ export function DataSourceDetailPage() {
                       tableId: row.original.table_id
                     }}
                     search={routeSearch}
+                    onClick={() =>
+                      rememberReturnTarget(
+                        buildHref(`/result-tables/${row.original.table_id}`, routeSearch),
+                        {
+                          href: currentHref,
+                          label: 'DataSource 详情'
+                        }
+                      )
+                    }
                     className="link"
                   >
                     {row.original.table_id}

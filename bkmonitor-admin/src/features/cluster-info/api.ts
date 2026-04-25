@@ -46,5 +46,33 @@ export async function getClusterInfoDetail(
     })
   });
 
-  return clusterInfoDetailResponseSchema.parse(envelope.data);
+  return clusterInfoDetailResponseSchema.parse(normalizeClusterInfoDetailPayload(envelope.data));
+}
+
+function normalizeClusterInfoDetailPayload(payload: unknown) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const record = payload as Record<string, unknown>;
+  return {
+    ...record,
+    cluster_info: record.cluster_info ?? record.cluster,
+    cluster_configs: Array.isArray(record.cluster_configs)
+      ? record.cluster_configs.map((item) => normalizeClusterConfig(item))
+      : []
+  };
+}
+
+function normalizeClusterConfig(config: unknown) {
+  if (!config || typeof config !== 'object') {
+    return config;
+  }
+
+  const record = config as Record<string, unknown>;
+  return {
+    ...record,
+    created_at: record.created_at ?? record.create_time,
+    updated_at: record.updated_at ?? record.update_time
+  };
 }

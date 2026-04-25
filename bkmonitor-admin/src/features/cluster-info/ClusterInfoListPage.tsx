@@ -1,11 +1,16 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
-import { FilterToolbar, type FilterField } from '../../shared/components/FilterToolbar';
+import {
+  FilterToolbar,
+  type FilterField,
+  type FilterValue
+} from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { buildHref, rememberReturnTarget } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -23,11 +28,12 @@ const FILTER_FIELDS: FilterField[] = [
 
 export function ClusterInfoListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, FilterValue>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>({});
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
 
@@ -53,6 +59,15 @@ export function ClusterInfoListPage() {
             to="/clusters/$clusterId"
             params={{ clusterId: String(row.original.cluster_id) }}
             search={routeSearch}
+            onClick={() =>
+              rememberReturnTarget(
+                buildHref(`/clusters/${String(row.original.cluster_id)}`, routeSearch),
+                {
+                  href: currentHref,
+                  label: '存储集群列表'
+                }
+              )
+            }
             className="link"
           >
             {row.original.cluster_id}
@@ -86,14 +101,40 @@ export function ClusterInfoListPage() {
         )
       },
       { header: '系统', accessorKey: 'registered_system' },
-      { header: '关联DS', accessorKey: 'associated_datasources' },
+      {
+        header: '关联DS',
+        cell: ({ row }) =>
+          row.original.cluster_type === 'kafka' && row.original.associated_datasources > 0 ? (
+            <Link
+              to="/datasources"
+              search={{ ...routeSearch, mqClusterId: row.original.cluster_id }}
+              className="link"
+              onClick={() =>
+                rememberReturnTarget(
+                  buildHref('/datasources', {
+                    ...routeSearch,
+                    mqClusterId: row.original.cluster_id
+                  }),
+                  {
+                    href: currentHref,
+                    label: '存储集群列表'
+                  }
+                )
+              }
+            >
+              {row.original.associated_datasources}
+            </Link>
+          ) : (
+            row.original.associated_datasources
+          )
+      },
       { header: '关联存储', accessorKey: 'associated_storages' },
       {
         header: '更新时间',
         cell: ({ row }) => formatDateTime(row.original.last_modify_time)
       }
     ],
-    [routeSearch]
+    [currentHref, routeSearch]
   );
 
   if (!currentEnvironment) {

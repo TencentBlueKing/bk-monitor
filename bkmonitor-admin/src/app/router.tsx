@@ -30,6 +30,10 @@ import { ClusterInfoDetailPage } from '../features/cluster-info/ClusterInfoDetai
 import { BCSClusterInfoListPage } from '../features/bcs-cluster/BCSClusterInfoListPage';
 import { BCSClusterInfoDetailPage } from '../features/bcs-cluster/BCSClusterInfoDetailPage';
 import { BrandLogo } from '../shared/components/BrandLogo';
+import {
+  hasReturnTargetInSearch,
+  migrateReturnTargetFromSearch
+} from '../shared/navigation/returnTarget';
 
 function RootLayout() {
   const { defaultEnvironmentId } = useEnvironmentConfig();
@@ -101,6 +105,14 @@ function AppLayout() {
 
     updateBrowserEnvironmentSearch(activeEnvironmentId, currentTenantId, { replace: true });
   }, [activeEnvironmentId, currentTenantId, searchTenantId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !hasReturnTargetInSearch(search)) {
+      return;
+    }
+
+    migrateReturnTargetFromSearch(window.location.pathname, search);
+  }, [search]);
 
   if (loading) {
     return <div className="setup-shell">正在加载环境配置...</div>;

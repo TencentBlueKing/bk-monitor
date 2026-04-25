@@ -1,13 +1,18 @@
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useLocation, useParams } from '@tanstack/react-router';
 
 import { Badge } from '../../shared/components/Badge';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
+import {
+  buildHref,
+  getStoredReturnTarget,
+  rememberReturnTarget
+} from '../../shared/navigation/returnTarget';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
-import { BCS_STATUS_OPTIONS, BCS_STATUS_TONE } from './constants';
+import { BCS_STATUS_TONE } from './constants';
 import { useBcsClusterDetail } from './queries';
 import { DataTable } from '../../shared/table/DataTable';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -15,11 +20,14 @@ import { useMemo } from 'react';
 
 export function BCSClusterInfoDetailPage() {
   const params = useParams({ strict: false });
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const clusterId = params.clusterId ?? '';
 
   const detailQuery = useBcsClusterDetail(currentEnvironment!, currentTenantId, clusterId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+  const fallbackReturnHref = buildHref('/bcs-clusters', routeSearch);
+  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'K8s 集群列表');
 
   const dsColumns = useMemo<
     Array<
@@ -40,6 +48,15 @@ export function BCSClusterInfoDetailPage() {
             to="/datasources/$bkDataId"
             params={{ bkDataId: String(row.original.bk_data_id) }}
             search={routeSearch}
+            onClick={() =>
+              rememberReturnTarget(
+                buildHref(`/datasources/${String(row.original.bk_data_id)}`, routeSearch),
+                {
+                  href: currentHref,
+                  label: 'K8s 集群详情'
+                }
+              )
+            }
             className="link"
           >
             {row.original.bk_data_id}
@@ -58,7 +75,7 @@ export function BCSClusterInfoDetailPage() {
         )
       }
     ],
-    [routeSearch]
+    [currentHref, routeSearch]
   );
 
   if (!currentEnvironment || !clusterId) {
@@ -92,9 +109,7 @@ export function BCSClusterInfoDetailPage() {
           <h2>{cluster.cluster_id}</h2>
         </div>
         <Button asChild variant="secondary">
-          <Link to="/bcs-clusters" search={routeSearch}>
-            返回列表
-          </Link>
+          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
         </Button>
       </div>
 
@@ -107,10 +122,7 @@ export function BCSClusterInfoDetailPage() {
           <Info
             label="status"
             value={
-              <Badge tone={BCS_STATUS_TONE[cluster.status] ?? 'default'}>
-                {BCS_STATUS_OPTIONS.find((o) => o.value === cluster.status)?.label ??
-                  cluster.status}
-              </Badge>
+              <Badge tone={BCS_STATUS_TONE[cluster.status] ?? 'default'}>{cluster.status}</Badge>
             }
             raw
           />
@@ -161,6 +173,15 @@ export function BCSClusterInfoDetailPage() {
                     to="/datasources/$bkDataId"
                     params={{ bkDataId: String(field.value) }}
                     search={routeSearch}
+                    onClick={() =>
+                      rememberReturnTarget(
+                        buildHref(`/datasources/${String(field.value)}`, routeSearch),
+                        {
+                          href: currentHref,
+                          label: 'K8s 集群详情'
+                        }
+                      )
+                    }
                     className="link text-base"
                   >
                     {field.value}

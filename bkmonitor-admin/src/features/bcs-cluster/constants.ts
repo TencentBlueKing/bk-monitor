@@ -1,7 +1,9 @@
 export const BCS_STATUS_OPTIONS = [
-  { label: '运行中', value: 'running' },
-  { label: '已删除', value: 'deleted' },
-  { label: '初始化失败', value: 'init_failed' }
+  { label: 'RUNNING', value: 'RUNNING' },
+  { label: 'running', value: 'running' },
+  { label: 'DELETED', value: 'DELETED' },
+  { label: 'deleted', value: 'deleted' },
+  { label: 'init_failed', value: 'init_failed' }
 ];
 
 export const BCS_STATUS_TONE: Record<
@@ -9,6 +11,8 @@ export const BCS_STATUS_TONE: Record<
   'default' | 'success' | 'danger' | 'warning' | 'muted'
 > = {
   running: 'success',
+  RUNNING: 'success',
   deleted: 'danger',
+  DELETED: 'danger',
   init_failed: 'warning'
 };

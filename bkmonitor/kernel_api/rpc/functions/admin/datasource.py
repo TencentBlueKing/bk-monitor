@@ -186,6 +186,11 @@ def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str):
     for field in ["created_from", "source_label", "type_label", "space_uid"]:
         if params.get(field) not in (None, ""):
             queryset = queryset.filter(**{field: params[field]})
+    if params.get("mq_cluster_id") not in (None, ""):
+        try:
+            queryset = queryset.filter(mq_cluster_id=int(params["mq_cluster_id"]))
+        except (TypeError, ValueError) as error:
+            raise CustomException(message="mq_cluster_id 必须是整数") from error
     for field in ["is_enable", "is_custom_source", "is_platform_data_id"]:
         field_value = normalize_optional_bool(params.get(field), field)
         if field_value is not None:
@@ -214,6 +219,7 @@ def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str):
         "is_custom_source": "可选，是否自定义数据源",
         "is_platform_data_id": "可选，是否平台级 ID",
         "space_uid": "可选，所属空间 UID",
+        "mq_cluster_id": "可选，Kafka 集群 ID 精确匹配",
         "table_id": "可选，通过 DataSourceResultTable 关联过滤",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",

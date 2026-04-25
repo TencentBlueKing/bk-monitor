@@ -2,7 +2,7 @@ import { Building2 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 
-import { Select } from '../../shared/components/ui/select';
+import { ChoiceInput } from '../../shared/components/ChoiceInput';
 import { useEnvironmentConfig } from './hooks';
 import { useTenantList } from './tenantQueries';
 
@@ -37,15 +37,24 @@ export function TenantSwitcher() {
     <div className="tenant-switcher">
       <Building2 aria-hidden="true" size={16} />
       <span>当前租户 ID</span>
-      <Select
+      <ChoiceInput
         value={selectValue}
         className="tenant-switcher-select"
         disabled={tenantQuery.isLoading || tenants.length === 0}
-        title={tenantQuery.isError ? '租户列表加载失败，可继续手动输入租户 ID' : undefined}
-        onChange={(event) => {
-          const nextTenantId = event.target.value;
+        ariaLabel="切换租户"
+        options={[
+          ...(!hasCurrentTenantOption
+            ? [{ label: currentTenantId, value: MANUAL_TENANT_VALUE }]
+            : []),
+          ...tenants.map((tenant) => ({
+            label: getTenantOptionLabel(tenant),
+            value: tenant.id ?? ''
+          }))
+        ].filter((option) => option.value)}
+        onChange={(value) => {
+          const nextTenantId = Array.isArray(value) ? value[0] : value;
 
-          if (nextTenantId === MANUAL_TENANT_VALUE) {
+          if (!nextTenantId || nextTenantId === MANUAL_TENANT_VALUE) {
             return;
           }
 
@@ -56,16 +65,7 @@ export function TenantSwitcher() {
             replace: true
           });
         }}
-      >
-        {!hasCurrentTenantOption ? (
-          <option value={MANUAL_TENANT_VALUE}>{currentTenantId}</option>
-        ) : null}
-        {tenants.map((tenant) => (
-          <option value={tenant.id} key={tenant.id}>
-            {getTenantOptionLabel(tenant)}
-          </option>
-        ))}
-      </Select>
+      />
     </div>
   );
 }

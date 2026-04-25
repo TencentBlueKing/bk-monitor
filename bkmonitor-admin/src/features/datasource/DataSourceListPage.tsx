@@ -1,11 +1,20 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useLocation, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
-import { FilterToolbar, type FilterField } from '../../shared/components/FilterToolbar';
+import {
+  FilterToolbar,
+  type FilterField,
+  type FilterValue
+} from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { Button } from '../../shared/components/ui/button';
+import {
+  getOptionalStoredReturnTarget,
+  rememberReturnTarget
+} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -41,6 +50,7 @@ const FILTER_FIELDS: FilterField[] = [
     options: CREATED_FROM_OPTIONS,
     advanced: true
   },
+  { key: 'mqClusterId', label: 'mq_cluster_id', type: 'number', advanced: true },
   { key: 'spaceUid', label: 'space_uid', type: 'text', advanced: true },
   { key: 'isEnable', label: 'is_enable', type: 'boolean', advanced: true },
   { key: 'isCustomSource', label: 'is_custom_source', type: 'boolean', advanced: true },
@@ -48,14 +58,22 @@ const FILTER_FIELDS: FilterField[] = [
 ];
 
 export function DataSourceListPage() {
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const search = useSearch({ strict: false });
+  const initialFilters = useMemo(() => getInitialFilters(search), [search]);
+  const [drafts, setDrafts] = useState<Record<string, FilterValue>>(initialFilters);
+  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialFilters);
+  const returnTarget = getOptionalStoredReturnTarget(currentHref);
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+  const returnSearch = {
+    env: currentEnvironment?.id ?? 'local',
+    tenant: currentTenantId
+  } satisfies Record<string, unknown>;
 
   const query = datasourceListQuerySchema.parse({
     bkTenantId: currentTenantId,
@@ -66,6 +84,7 @@ export function DataSourceListPage() {
     typeLabel: activeFilters.typeLabel || undefined,
     createdFrom: activeFilters.createdFrom || undefined,
     spaceUid: activeFilters.spaceUid || undefined,
+    mqClusterId: activeFilters.mqClusterId || undefined,
     isEnable: activeFilters.isEnable ? activeFilters.isEnable === 'true' : undefined,
     isCustomSource: activeFilters.isCustomSource
       ? activeFilters.isCustomSource === 'true'
@@ -81,18 +100,32 @@ export function DataSourceListPage() {
     () => [
       {
         header: 'bk_data_id',
-        cell: ({ row }) => (
-          <Link
-            to="/datasources/$bkDataId"
-            params={{
-              bkDataId: String(row.original.bk_data_id)
-            }}
-            search={routeSearch}
-            className="link"
-          >
-            {row.original.bk_data_id}
-          </Link>
-        )
+        cell: ({ row }) => {
+          const datasource = row.original;
+          const detailHref = createScopedHref(
+            `/datasources/${String(datasource.bk_data_id)}`,
+            returnSearch
+          );
+
+          return (
+            <Link
+              to="/datasources/$bkDataId"
+              params={{
+                bkDataId: String(datasource.bk_data_id)
+              }}
+              search={routeSearch}
+              onClick={() =>
+                rememberReturnTarget(detailHref, {
+                  href: currentHref,
+                  label: 'DataSource 列表'
+                })
+              }
+              className="link"
+            >
+              {datasource.bk_data_id}
+            </Link>
+          );
+        }
       },
       { header: '名称', accessorKey: 'data_name' },
       { header: '租户', accessorKey: 'bk_tenant_id' },
@@ -109,15 +142,33 @@ export function DataSourceListPage() {
       {
         header: 'Kafka 集群',
         cell: ({ row }) => {
-          const cluster = row.original.kafka_cluster;
-          const clusterId = cluster?.cluster_id ?? row.original.mq_cluster_id;
+          const datasource = row.original;
+          const cluster = datasource.kafka_cluster;
+          const clusterId = cluster?.cluster_id ?? datasource.mq_cluster_id;
           const clusterName = cluster ? getKafkaClusterName(cluster) : null;
 
           if (!clusterId) {
             return <span className="muted-text">-</span>;
           }
 
-          return <KafkaClusterValue name={clusterName || `#${clusterId}`} clusterId={clusterId} />;
+          const clusterHref = createScopedHref(`/clusters/${String(clusterId)}`, returnSearch);
+
+          return (
+            <Link
+              to="/clusters/$clusterId"
+              params={{ clusterId: String(clusterId) }}
+              search={routeSearch}
+              onClick={() =>
+                rememberReturnTarget(clusterHref, {
+                  href: currentHref,
+                  label: 'DataSource 列表'
+                })
+              }
+              className="link"
+            >
+              {clusterName || `#${clusterId}`}
+            </Link>
+          );
         }
       },
       {
@@ -135,7 +186,7 @@ export function DataSourceListPage() {
         cell: ({ row }) => formatDateTime(row.original.last_modify_time)
       }
     ],
-    [routeSearch]
+    [currentHref, returnSearch, routeSearch]
   );
 
   if (!currentEnvironment) {
@@ -149,6 +200,11 @@ export function DataSourceListPage() {
           <div className="eyebrow">Resource</div>
           <h2>DataSource</h2>
         </div>
+        {returnTarget ? (
+          <Button asChild variant="secondary">
+            <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+          </Button>
+        ) : null}
       </div>
       <FilterToolbar
         fields={FILTER_FIELDS}
@@ -192,15 +248,46 @@ function getKafkaClusterName(cluster: NonNullable<DataSourceSummary['kafka_clust
   return cluster.display_name || cluster.cluster_name || `#${cluster.cluster_id}`;
 }
 
-function KafkaClusterValue({ name, clusterId }: { name: string; clusterId: number }) {
-  return (
-    <button
-      type="button"
-      className="tooltip-value"
-      aria-label={`Kafka 集群 ${name}，cluster_id ${clusterId}`}
-    >
-      <span className="tooltip-value-label">{name}</span>
-      <span className="tooltip-value-panel">cluster_id: {clusterId}</span>
-    </button>
-  );
+function createScopedHref(pathname: string, search: Record<string, unknown>) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(search)) {
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      params.set(key, String(value));
+    }
+  }
+
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+function getInitialFilters(search: object): Record<string, FilterValue> {
+  return {
+    ...getStringSearchFilter(search, 'bkDataId'),
+    ...getStringSearchFilter(search, 'dataName'),
+    ...getStringSearchFilter(search, 'tableId'),
+    ...getStringSearchFilter(search, 'sourceLabel'),
+    ...getStringSearchFilter(search, 'typeLabel'),
+    ...getStringSearchFilter(search, 'createdFrom'),
+    ...getStringSearchFilter(search, 'mqClusterId'),
+    ...getStringSearchFilter(search, 'spaceUid')
+  };
+}
+
+function getStringSearchFilter(search: object, key: string): Record<string, string> {
+  if (!(key in search)) {
+    return {};
+  }
+
+  const value = search[key as keyof typeof search];
+  if (typeof value === 'string' && value) {
+    return { [key]: value };
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return { [key]: String(value) };
+  }
+  return {};
 }

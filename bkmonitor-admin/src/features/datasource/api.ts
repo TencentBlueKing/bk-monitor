@@ -28,6 +28,7 @@ export async function listDatasources(
       is_custom_source: query.isCustomSource,
       is_platform_data_id: query.isPlatformDataId,
       space_uid: query.spaceUid,
+      mq_cluster_id: query.mqClusterId,
       table_id: query.tableId,
       ...toBackendPagination(query)
     })
@@ -46,7 +47,7 @@ export async function sampleKafkaData(
     params: compactObject({
       bk_tenant_id: params.bkTenantId,
       bk_data_id: params.bkDataId,
-      size: params.size ?? 10
+      size: params.size ?? 1
     })
   });
 

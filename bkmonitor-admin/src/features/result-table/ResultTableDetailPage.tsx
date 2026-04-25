@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -9,6 +9,11 @@ import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
 import { Input } from '../../shared/components/ui/input';
 import { Label } from '../../shared/components/ui/label';
+import {
+  buildHref,
+  getStoredReturnTarget,
+  rememberReturnTarget
+} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -19,6 +24,7 @@ import { resultTableFieldListQuerySchema } from './schemas';
 export function ResultTableDetailPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const tableId = params.tableId ?? '';
   const [fieldName, setFieldName] = useState('');
@@ -36,6 +42,8 @@ export function ResultTableDetailPage() {
 
   const detailQuery = useResultTableDetail(currentEnvironment!, currentTenantId, tableId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+  const fallbackReturnHref = buildHref('/result-tables', routeSearch);
+  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'ResultTable 列表');
   const fieldQueryParams = resultTableFieldListQuerySchema.parse({
     bkTenantId: currentTenantId,
     tableId,
@@ -68,9 +76,7 @@ export function ResultTableDetailPage() {
           <h2>{result_table.table_id}</h2>
         </div>
         <Button asChild variant="secondary">
-          <Link to="/result-tables" search={routeSearch}>
-            返回列表
-          </Link>
+          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
         </Button>
       </div>
       <Card>
@@ -187,6 +193,15 @@ export function ResultTableDetailPage() {
                       bkDataId: String(row.original.bk_data_id)
                     }}
                     search={routeSearch}
+                    onClick={() =>
+                      rememberReturnTarget(
+                        buildHref(`/datasources/${String(row.original.bk_data_id)}`, routeSearch),
+                        {
+                          href: currentHref,
+                          label: 'ResultTable 详情'
+                        }
+                      )
+                    }
                     className="link"
                   >
                     {row.original.bk_data_id}

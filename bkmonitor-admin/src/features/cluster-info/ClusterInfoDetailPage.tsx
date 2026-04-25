@@ -1,4 +1,4 @@
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useLocation, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
@@ -6,6 +6,11 @@ import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
+import {
+  buildHref,
+  getStoredReturnTarget,
+  rememberReturnTarget
+} from '../../shared/navigation/returnTarget';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
@@ -15,11 +20,14 @@ import type { ClusterConfig } from './schemas';
 
 export function ClusterInfoDetailPage() {
   const params = useParams({ strict: false });
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const clusterId = Number(params.clusterId);
 
   const detailQuery = useClusterInfoDetail(currentEnvironment!, currentTenantId, clusterId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+  const fallbackReturnHref = buildHref('/clusters', routeSearch);
+  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, '存储集群列表');
 
   if (!currentEnvironment || Number.isNaN(clusterId)) {
     return <PageState title="存储集群参数无效" />;
@@ -35,6 +43,11 @@ export function ClusterInfoDetailPage() {
 
   const { cluster_info, cluster_configs, related_result_tables, related_datasources } =
     detailQuery.data;
+  const datasourceSearch =
+    cluster_info.cluster_type === 'kafka'
+      ? { ...routeSearch, mqClusterId: cluster_info.cluster_id }
+      : routeSearch;
+  const resultTableSearch = routeSearch;
 
   return (
     <section className="page-panel">
@@ -44,9 +57,7 @@ export function ClusterInfoDetailPage() {
           <h2>{cluster_info.cluster_name}</h2>
         </div>
         <Button asChild variant="secondary">
-          <Link to="/clusters" search={routeSearch}>
-            返回列表
-          </Link>
+          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
         </Button>
       </div>
 
@@ -116,6 +127,7 @@ export function ClusterInfoDetailPage() {
                 namespace={namespace}
                 configs={configs}
                 routeSearch={routeSearch}
+                returnTo={currentHref}
               />
             ))}
           </div>
@@ -127,7 +139,17 @@ export function ClusterInfoDetailPage() {
           <Info
             label="关联结果表"
             value={
-              <Link to="/result-tables" search={routeSearch} className="link">
+              <Link
+                to="/result-tables"
+                search={resultTableSearch}
+                className="link"
+                onClick={() =>
+                  rememberReturnTarget(buildHref('/result-tables', resultTableSearch), {
+                    href: currentHref,
+                    label: '存储集群详情'
+                  })
+                }
+              >
                 {related_result_tables}
               </Link>
             }
@@ -136,7 +158,17 @@ export function ClusterInfoDetailPage() {
           <Info
             label="关联数据源"
             value={
-              <Link to="/datasources" search={routeSearch} className="link">
+              <Link
+                to="/datasources"
+                search={datasourceSearch}
+                className="link"
+                onClick={() =>
+                  rememberReturnTarget(buildHref('/datasources', datasourceSearch), {
+                    href: currentHref,
+                    label: '存储集群详情'
+                  })
+                }
+              >
                 {related_datasources}
               </Link>
             }
@@ -170,11 +202,13 @@ function groupByNamespace(configs: ClusterConfig[]): Array<[string, ClusterConfi
 function NamespaceSection({
   namespace,
   configs,
-  routeSearch
+  routeSearch,
+  returnTo
 }: {
   namespace: string;
   configs: ClusterConfig[];
   routeSearch: ReturnType<typeof createEnvironmentSearch>;
+  returnTo: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -217,6 +251,7 @@ function NamespaceSection({
                   <ComponentConfigSection
                     componentConfig={config.component_config}
                     routeSearch={routeSearch}
+                    returnTo={returnTo}
                   />
                 ) : null}
               </div>
@@ -247,10 +282,12 @@ function OriginConfigSection({ originConfig }: { originConfig: Record<string, un
 
 function ComponentConfigSection({
   componentConfig,
-  routeSearch
+  routeSearch,
+  returnTo
 }: {
   componentConfig: NonNullable<ClusterConfig['component_config']>;
   routeSearch: ReturnType<typeof createEnvironmentSearch>;
+  returnTo: string;
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -288,6 +325,15 @@ function ComponentConfigSection({
                       to="/datasources/$bkDataId"
                       params={{ bkDataId: safeToString(source.data_id) }}
                       search={routeSearch}
+                      onClick={() =>
+                        rememberReturnTarget(
+                          buildHref(`/datasources/${safeToString(source.data_id)}`, routeSearch),
+                          {
+                            href: returnTo,
+                            label: '存储集群详情'
+                          }
+                        )
+                      }
                       className="link"
                     >
                       DataId #{safeToString(source.data_id)}

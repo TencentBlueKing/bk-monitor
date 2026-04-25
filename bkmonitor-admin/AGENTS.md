@@ -11,6 +11,7 @@
 ## AI 协作原则
 
 - 修改前先理解 `docs/` 中的设计文档，尤其是资源文档和 API 约束。
+- 新增或调整页面、组件、视觉样式前，必须先遵守 `DESIGN.md` 中的设计与组件使用规范。
 - 新增资源、页面或接口时，同步更新对应文档。
 - 执行第一期任务时必须更新 `docs/phase-1-task-list.md` 中对应任务的状态、阻塞项和验收结果。
 - 代码组织要按 feature 拆分，避免把业务逻辑、请求、表格状态和 UI 混在单个大组件里。
@@ -97,6 +98,7 @@ src/
 - 总体目标更新：修改 `docs/overview.md`。
 - 第一期任务状态更新：修改 `docs/phase-1-task-list.md`。
 - 技术选型更新：修改 `docs/technology.md`。
+- 设计与组件规范更新：修改 `DESIGN.md`。
 - RPC/API 约束更新：修改 `docs/kernel-rpc.md`。
 - 后端 Admin RPC 函数规划更新：修改 `docs/backend-admin-rpc.md`。
 - 多环境配置更新：修改 `docs/environments.md`。

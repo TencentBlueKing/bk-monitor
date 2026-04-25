@@ -21,7 +21,7 @@ export async function listBcsClusters(
       bk_tenant_id: query.bkTenantId,
       cluster_id: query.clusterId,
       bk_biz_id: query.bkBizId,
-      status: query.status,
+      status: query.status && query.status.length > 0 ? query.status : undefined,
       ...toBackendPagination(query)
     })
   });

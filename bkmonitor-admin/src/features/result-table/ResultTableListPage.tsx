@@ -1,11 +1,20 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
-import { FilterToolbar, type FilterField } from '../../shared/components/FilterToolbar';
+import {
+  FilterToolbar,
+  type FilterField,
+  type FilterValue
+} from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { Button } from '../../shared/components/ui/button';
+import {
+  getOptionalStoredReturnTarget,
+  rememberReturnTarget
+} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -49,13 +58,19 @@ const FILTER_FIELDS: FilterField[] = [
 
 export function ResultTableListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
+  const currentHref = useLocation({ select: (location) => String(location.href) });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, FilterValue>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>({});
+  const returnTarget = getOptionalStoredReturnTarget(currentHref);
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+  const returnSearch = {
+    env: currentEnvironment?.id ?? 'local',
+    tenant: currentTenantId
+  } satisfies Record<string, unknown>;
 
   const query = resultTableListQuerySchema.parse({
     bkTenantId: currentTenantId,
@@ -78,18 +93,32 @@ export function ResultTableListPage() {
     () => [
       {
         header: 'table_id',
-        cell: ({ row }) => (
-          <Link
-            to="/result-tables/$tableId"
-            params={{
-              tableId: row.original.table_id
-            }}
-            search={routeSearch}
-            className="link"
-          >
-            {row.original.table_id}
-          </Link>
-        )
+        cell: ({ row }) => {
+          const resultTable = row.original;
+          const detailHref = createScopedHref(
+            `/result-tables/${resultTable.table_id}`,
+            returnSearch
+          );
+
+          return (
+            <Link
+              to="/result-tables/$tableId"
+              params={{
+                tableId: resultTable.table_id
+              }}
+              search={routeSearch}
+              onClick={() =>
+                rememberReturnTarget(detailHref, {
+                  href: currentHref,
+                  label: 'ResultTable 列表'
+                })
+              }
+              className="link"
+            >
+              {resultTable.table_id}
+            </Link>
+          );
+        }
       },
       { header: '中文名', accessorKey: 'table_name_zh' },
       { header: '租户', accessorKey: 'bk_tenant_id' },
@@ -122,7 +151,7 @@ export function ResultTableListPage() {
         cell: ({ row }) => formatDateTime(row.original.last_modify_time)
       }
     ],
-    [routeSearch]
+    [currentHref, returnSearch, routeSearch]
   );
 
   if (!currentEnvironment) {
@@ -136,6 +165,11 @@ export function ResultTableListPage() {
           <div className="eyebrow">Resource</div>
           <h2>ResultTable</h2>
         </div>
+        {returnTarget ? (
+          <Button asChild variant="secondary">
+            <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+          </Button>
+        ) : null}
       </div>
       <FilterToolbar
         fields={FILTER_FIELDS}
@@ -173,4 +207,20 @@ export function ResultTableListPage() {
       )}
     </section>
   );
+}
+
+function createScopedHref(pathname: string, search: Record<string, unknown>) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(search)) {
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      params.set(key, String(value));
+    }
+  }
+
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
 }

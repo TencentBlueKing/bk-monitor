@@ -29,7 +29,20 @@ export const bcsClusterListQuerySchema = paginationQuerySchema.extend({
     const num = typeof val === 'number' ? val : Number(val);
     return Number.isNaN(num) ? undefined : num;
   }, z.number().int().optional()),
-  status: z.string().optional()
+  status: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const normalizeValue = (item: unknown) => {
+      if (typeof item === 'string') return item;
+      if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+      return '';
+    };
+    const rawValues = Array.isArray(val) ? val.map(normalizeValue) : [normalizeValue(val)];
+    return rawValues
+      .join(',')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }, z.array(z.string()).optional())
 });
 
 export const bcsClusterDetailResponseSchema = z.object({
@@ -49,7 +62,7 @@ export const bcsClusterDetailResponseSchema = z.object({
         data_description: z.string().nullable().optional(),
         source_label: z.string(),
         type_label: z.string(),
-        is_enable: z.boolean()
+        is_enable: z.boolean().default(false)
       })
     )
     .optional()

@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
+import { ChoiceInput } from './ChoiceInput';
 import { Button } from './ui/button';
-import { Select } from './ui/select';
 
 interface PaginationProps {
   page: number;
@@ -26,15 +26,17 @@ export function Pagination({
 
   return (
     <div className="flex items-center justify-end gap-3 p-3 text-sm text-muted-foreground">
-      <Select
+      <ChoiceInput
         className="h-8 w-20"
         value={String(pageSize)}
-        onChange={(event) => onPageSizeChange(Number(event.target.value))}
-      >
-        <option value="20">20</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </Select>
+        options={[
+          { label: '20', value: '20' },
+          { label: '50', value: '50' },
+          { label: '100', value: '100' }
+        ]}
+        ariaLabel="选择每页条数"
+        onChange={(value) => onPageSizeChange(Number(value))}
+      />
 
       <span>
         第 {start}-{end} 条 / 共 {total} 条

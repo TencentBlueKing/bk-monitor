@@ -17,6 +17,11 @@ export const datasourceListQuerySchema = paginationQuerySchema.extend({
   isCustomSource: z.boolean().optional(),
   isPlatformDataId: z.boolean().optional(),
   spaceUid: z.string().optional(),
+  mqClusterId: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const num = typeof val === 'number' ? val : Number(val);
+    return Number.isNaN(num) ? undefined : num;
+  }, z.number().int().positive().optional()),
   tableId: z.string().optional()
 });
 

@@ -100,7 +100,7 @@ button {
   margin-bottom: 4px;
 }
 
-.sidebar-selectors select {
+.sidebar-selectors [data-choice-trigger] {
   width: 100%;
   height: 36px;
   padding: 6px 12px;
@@ -111,15 +111,10 @@ button {
   font-size: 13px;
 }
 
-.sidebar-selectors select:focus {
+.sidebar-selectors [data-choice-trigger]:focus-visible {
   border-color: #3b82f6;
   outline: none;
   box-shadow: 0 0 0 2px rgb(59 130 246 / 30%);
-}
-
-.sidebar-selectors select option {
-  background: #1f2937;
-  color: #f8fafc;
 }
 
 .sidebar-selectors .tenant-switcher {
@@ -140,7 +135,6 @@ button {
   font-weight: 500;
 }
 
-.sidebar-selectors .tenant-switcher select,
 .sidebar-selectors .tenant-switcher .tenant-switcher-select {
   grid-column: 1 / -1;
   width: 100%;
