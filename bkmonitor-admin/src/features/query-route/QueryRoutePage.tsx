@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { RefreshCcw, Search } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { Clock, RefreshCcw, Search } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import { PageState } from '../../shared/components/PageState';
@@ -33,8 +33,11 @@ import {
   filterItems,
   getQueryRouteDraftFromSearch,
   hasQueryRouteDraftInput,
+  loadQueryRouteHistory,
   paginate,
-  type QueryRouteDraft
+  saveQueryRouteHistory,
+  type QueryRouteDraft,
+  type QueryRouteHistoryEntry
 } from './utils';
 
 interface RefreshTargets {
@@ -60,8 +63,19 @@ export function QueryRoutePage() {
   const initialDraft = useMemo(() => getQueryRouteDraftFromSearch(search), [search]);
   const [draft, setDraft] = useState<QueryRouteDraft>(initialDraft);
   const [activeQuery, setActiveQuery] = useState<QueryRouteQuery | null>(() =>
-    hasQueryRouteDraftInput(initialDraft) ? buildQueryRouteQuery(initialDraft, currentTenantId) : null
+    hasQueryRouteDraftInput(initialDraft)
+      ? buildQueryRouteQuery(initialDraft, currentTenantId)
+      : null
   );
+  const [history, setHistory] = useState<QueryRouteHistoryEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (currentEnvironment) {
+      setHistory(loadQueryRouteHistory(currentEnvironment.id, currentTenantId));
+    }
+  }, [currentEnvironment, currentTenantId]);
+
   const [spacePage, setSpacePage] = useState(1);
   const [dataLabelPage, setDataLabelPage] = useState(1);
   const [detailPage, setDetailPage] = useState(1);
@@ -77,7 +91,11 @@ export function QueryRoutePage() {
   const [dataLabelKeyword, setDataLabelKeyword] = useState('');
   const [detailKeyword, setDetailKeyword] = useState('');
 
-  const queryRoute = useQueryRoute(currentEnvironment!, activeQuery ?? EMPTY_QUERY, Boolean(activeQuery));
+  const queryRoute = useQueryRoute(
+    currentEnvironment!,
+    activeQuery ?? EMPTY_QUERY,
+    Boolean(activeQuery)
+  );
   const refreshRoute = useRefreshQueryRoute(currentEnvironment!);
   const response = queryRoute.data ?? refreshRoute.data;
 
@@ -177,9 +195,16 @@ export function QueryRoutePage() {
     const nextQuery = buildQueryRouteQuery(draft, currentTenantId);
     setActiveQuery(nextQuery);
     resetPages();
+    if (currentEnvironment) {
+      saveQueryRouteHistory(currentEnvironment.id, currentTenantId, draft);
+      setHistory(loadQueryRouteHistory(currentEnvironment.id, currentTenantId));
+    }
     void navigate({
       to: '/query-route',
-      search: buildQueryRouteSearch(nextQuery, createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId))
+      search: buildQueryRouteSearch(
+        nextQuery,
+        createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId)
+      )
     });
   }
 
@@ -191,7 +216,9 @@ export function QueryRoutePage() {
     const baseQuery = buildQueryRouteQuery(draft, currentTenantId);
     const nextQuery = buildRefreshQuery(baseQuery, refreshTargets);
     if (!hasRefreshTarget(nextQuery)) {
-      window.alert('请先在刷新操作区选择刷新类型，并填写对应的 space_uid、table_ids 或 data_labels。');
+      window.alert(
+        '请先在刷新操作区选择刷新类型，并填写对应的 space_uid、table_ids 或 data_labels。'
+      );
       return;
     }
 
@@ -232,7 +259,9 @@ export function QueryRoutePage() {
                   id="space_uid"
                   value={draft.spaceUid}
                   placeholder="bkcc__2"
-                  onChange={(event) => setDraft((prev) => ({ ...prev, spaceUid: event.target.value }))}
+                  onChange={(event) =>
+                    setDraft((prev) => ({ ...prev, spaceUid: event.target.value }))
+                  }
                 />
               </div>
               <MultiLineInput
@@ -262,6 +291,56 @@ export function QueryRoutePage() {
                 <Search aria-hidden="true" size={16} />
                 查询
               </Button>
+              {history.length > 0 ? (
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHistory((v) => !v)}
+                  >
+                    <Clock aria-hidden="true" size={16} />
+                    历史记录
+                  </Button>
+                  {showHistory ? (
+                    <>
+                      <button
+                        type="button"
+                        className="fixed inset-0 z-10 cursor-default"
+                        aria-label="关闭历史记录"
+                        onClick={() => setShowHistory(false)}
+                      />
+                      <div className="absolute left-0 top-full z-20 mt-1 w-80 rounded-lg border border-border bg-card p-2 shadow-lg">
+                        {history.map((entry, index) => (
+                          <button
+                            key={`${entry.timestamp}-${index}`}
+                            type="button"
+                            className="w-full rounded-md p-2 text-left text-xs hover:bg-muted"
+                            onClick={() => {
+                              setDraft(entry.draft);
+                              setShowHistory(false);
+                            }}
+                          >
+                            <div className="truncate font-mono">
+                              {[
+                                entry.draft.spaceUid && `s:${entry.draft.spaceUid}`,
+                                entry.draft.tableIdsText && `t:${entry.draft.tableIdsText}`,
+                                entry.draft.dataLabelsText && `d:${entry.draft.dataLabelsText}`,
+                                entry.draft.fieldNamesText && `f:${entry.draft.fieldNamesText}`
+                              ]
+                                .filter(Boolean)
+                                .join(' ') || '(空查询)'}
+                            </div>
+                            <div className="mt-0.5 text-muted-foreground">
+                              {new Date(entry.timestamp).toLocaleString()}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </form>
         </CardContent>
@@ -273,7 +352,11 @@ export function QueryRoutePage() {
             <div>
               <h3>路由刷新</h3>
             </div>
-            <Button type="button" variant="secondary" onClick={() => setRefreshOpen((value) => !value)}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setRefreshOpen((value) => !value)}
+            >
               {refreshOpen ? '收起' : '展开'}
             </Button>
           </div>
@@ -326,7 +409,10 @@ export function QueryRoutePage() {
       ) : null}
 
       {!activeQuery ? (
-        <PageState title="请输入查询条件" description="支持同时输入 space_uid / table_ids / data_labels / field_names。" />
+        <PageState
+          title="请输入查询条件"
+          description="支持同时输入 space_uid / table_ids / data_labels / field_names。"
+        />
       ) : queryRoute.isError ? (
         <PageState title="查询失败" description={String(queryRoute.error)} />
       ) : queryRoute.isLoading ? (
@@ -353,7 +439,10 @@ export function QueryRoutePage() {
                 setSpacePage(1);
               }}
             />
-            <DataTable data={paginate(filteredSpaceRoutes, spacePage, spacePageSize)} columns={spaceColumns} />
+            <DataTable
+              data={paginate(filteredSpaceRoutes, spacePage, spacePageSize)}
+              columns={spaceColumns}
+            />
             <LocalPagination
               page={spacePage}
               pageSize={spacePageSize}
@@ -404,7 +493,10 @@ export function QueryRoutePage() {
                 setDetailPage(1);
               }}
             />
-            <DataTable data={paginate(filteredDetails, detailPage, pageSize)} columns={detailColumns} />
+            <DataTable
+              data={paginate(filteredDetails, detailPage, pageSize)}
+              columns={detailColumns}
+            />
             <LocalPagination
               page={detailPage}
               pageSize={pageSize}
@@ -416,7 +508,6 @@ export function QueryRoutePage() {
               }}
             />
           </section>
-
         </div>
       ) : null}
     </section>
@@ -542,7 +633,11 @@ function DiagnosticPanel({
                         />
                       </td>
                       <td className="px-3 py-2">
-                        <CheckBadge value={spaceTableIds.has(tableId)} checked={Boolean(query.spaceUid)} uncheckedText="未查询" />
+                        <CheckBadge
+                          value={spaceTableIds.has(tableId)}
+                          checked={Boolean(query.spaceUid)}
+                          uncheckedText="未查询"
+                        />
                       </td>
                       <td className="px-3 py-2">
                         <CheckBadge
@@ -574,7 +669,10 @@ function DiagnosticPanel({
             {query.dataLabels.map((dataLabel) => {
               const route = dataLabelRoutes.find((item) => item.data_label === dataLabel);
               return (
-                <span key={dataLabel} className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-sm">
+                <span
+                  key={dataLabel}
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-sm"
+                >
                   <span className="font-mono">{dataLabel}</span>
                   <CheckBadge value={route?.exists === true} checked />
                   {route ? <Badge tone="muted">{route.table_ids.length} tables</Badge> : null}
@@ -655,11 +753,16 @@ function FilterGroups({ groups }: { groups: QueryRouteFilterGroup[] }) {
     <div className="grid max-w-[520px] gap-1.5">
       {groups.map((group, index) => (
         <div key={index} className="flex flex-wrap items-center gap-1">
-          {index > 0 ? <span className="text-xs font-semibold text-muted-foreground">OR</span> : null}
+          {index > 0 ? (
+            <span className="text-xs font-semibold text-muted-foreground">OR</span>
+          ) : null}
           <span className="text-xs text-muted-foreground">AND</span>
           {group.conditions.length > 0 ? (
             group.conditions.map((condition) => (
-              <Badge key={`${condition.field}-${condition.operator}-${String(condition.value)}`} tone="muted">
+              <Badge
+                key={`${condition.field}-${condition.operator}-${String(condition.value)}`}
+                tone="muted"
+              >
                 {condition.field} {condition.operator} {formatValue(condition.value)}
               </Badge>
             ))
@@ -685,27 +788,6 @@ function CheckBadge({
     return <Badge tone="muted">{uncheckedText}</Badge>;
   }
   return <Badge tone={value ? 'success' : 'danger'}>{value ? 'OK' : 'Missing'}</Badge>;
-}
-
-function FieldNameSummary({ matched, missing }: { matched: string[]; missing: string[] }) {
-  if (matched.length === 0 && missing.length === 0) {
-    return <span className="muted-text">未输入 field_names</span>;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1">
-      {matched.map((fieldName) => (
-        <Badge key={`matched-${fieldName}`} tone="success">
-          {fieldName}
-        </Badge>
-      ))}
-      {missing.map((fieldName) => (
-        <Badge key={`missing-${fieldName}`} tone="danger">
-          {fieldName}
-        </Badge>
-      ))}
-    </div>
-  );
 }
 
 function TableIdLink({

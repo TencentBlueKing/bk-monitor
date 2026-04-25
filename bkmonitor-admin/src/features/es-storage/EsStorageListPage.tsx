@@ -10,6 +10,7 @@ import {
 } from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { Truncated } from '../../shared/components/Truncated';
 import { Button } from '../../shared/components/ui/button';
 import {
   buildHref,
@@ -112,50 +113,53 @@ export function EsStorageListPage() {
     () => [
       {
         header: 'table_id',
+        size: 240,
         cell: ({ row }) => {
           const storage = row.original;
           const detailHref = buildHref(`/es-storages/${storage.table_id}`, routeSearch);
 
           return (
-            <div className="grid gap-1">
-              <Link
-                to="/es-storages/$tableId"
-                params={{ tableId: storage.table_id }}
-                search={routeSearch}
-                className="link"
-                onClick={() =>
-                  rememberReturnTarget(detailHref, {
-                    href: currentHref,
-                    label: 'ESStorage 列表'
-                  })
-                }
-              >
-                {storage.table_id}
-              </Link>
-            </div>
+            <Link
+              to="/es-storages/$tableId"
+              params={{ tableId: storage.table_id }}
+              search={routeSearch}
+              className="link inline-block"
+              onClick={() =>
+                rememberReturnTarget(detailHref, {
+                  href: currentHref,
+                  label: 'ESStorage 列表'
+                })
+              }
+            >
+              <Truncated text={storage.table_id} maxW="240px" />
+            </Link>
           );
         }
       },
       {
         header: '表类型',
+        size: 100,
         cell: ({ row }) => (
-          <Badge tone={ES_STORAGE_TABLE_KIND_TONE[row.original.table_kind]}>
-            {ES_STORAGE_TABLE_KIND_LABEL[row.original.table_kind]}
-          </Badge>
+          <span className="whitespace-nowrap">
+            <Badge tone={ES_STORAGE_TABLE_KIND_TONE[row.original.table_kind]}>
+              {ES_STORAGE_TABLE_KIND_LABEL[row.original.table_kind]}
+            </Badge>
+          </span>
         )
       },
       {
         header: 'origin_table_id',
+        size: 210,
         cell: ({ row }) => {
           const originTableId = row.original.origin_table_id;
-          if (!originTableId) return <span className="muted-text">-</span>;
+          if (!originTableId) return <span className="muted-text whitespace-nowrap">-</span>;
 
           return (
             <Link
               to="/es-storages/$tableId"
               params={{ tableId: originTableId }}
               search={routeSearch}
-              className="link"
+              className="link inline-block"
               onClick={() =>
                 rememberReturnTarget(buildHref(`/es-storages/${originTableId}`, routeSearch), {
                   href: currentHref,
@@ -163,24 +167,27 @@ export function EsStorageListPage() {
                 })
               }
             >
-              {originTableId}
+              <Truncated text={originTableId} maxW="200px" />
             </Link>
           );
         }
       },
       {
         header: 'storage cluster',
+        size: 170,
         cell: ({ row }) => {
           const clusterId = row.original.storage_cluster_id;
           const cluster = row.original.storage_cluster;
-          if (!clusterId) return <span className="muted-text">-</span>;
+          if (!clusterId) return <span className="muted-text whitespace-nowrap">-</span>;
+
+          const label = cluster?.display_name || cluster?.cluster_name || `#${clusterId}`;
 
           return (
             <Link
               to="/clusters/$clusterId"
               params={{ clusterId: String(clusterId) }}
               search={routeSearch}
-              className="link"
+              className="link inline-block"
               onClick={() =>
                 rememberReturnTarget(buildHref(`/clusters/${String(clusterId)}`, routeSearch), {
                   href: currentHref,
@@ -188,31 +195,39 @@ export function EsStorageListPage() {
                 })
               }
             >
-              {cluster?.display_name || cluster?.cluster_name || `#${clusterId}`}
+              <Truncated text={label} maxW="160px" />
             </Link>
           );
         }
       },
       {
         header: 'retention',
-        cell: ({ row }) => formatOptional(row.original.retention, '天')
+        size: 90,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap">{formatOptional(row.original.retention, '天')}</span>
+        )
       },
       {
         header: 'slice',
+        size: 220,
         cell: ({ row }) => (
-          <span>
-            size {formatOptional(row.original.slice_size)} / gap {formatOptional(row.original.slice_gap)}
+          <span className="whitespace-nowrap">
+            size {formatOptional(row.original.slice_size)} / gap{' '}
+            {formatOptional(row.original.slice_gap)}
           </span>
         )
       },
       {
         header: 'need_create_index',
+        size: 110,
         cell: ({ row }) => (
-          <Badge tone={row.original.need_create_index ? 'success' : 'muted'}>
-            {formatBoolean(row.original.need_create_index)}
-          </Badge>
+          <span className="whitespace-nowrap">
+            <Badge tone={row.original.need_create_index ? 'success' : 'muted'}>
+              {formatBoolean(row.original.need_create_index)}
+            </Badge>
+          </span>
         )
-      },
+      }
     ],
     [currentHref, routeSearch]
   );

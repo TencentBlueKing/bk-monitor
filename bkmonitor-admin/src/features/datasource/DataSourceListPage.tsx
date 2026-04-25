@@ -10,6 +10,7 @@ import {
 } from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { Truncated } from '../../shared/components/Truncated';
 import { Button } from '../../shared/components/ui/button';
 import {
   getOptionalStoredReturnTarget,
@@ -100,6 +101,7 @@ export function DataSourceListPage() {
     () => [
       {
         header: 'bk_data_id',
+        size: 80,
         cell: ({ row }) => {
           const datasource = row.original;
           const detailHref = createScopedHref(
@@ -120,27 +122,32 @@ export function DataSourceListPage() {
                   label: 'DataSource 列表'
                 })
               }
-              className="link"
+              className="link whitespace-nowrap"
             >
               {datasource.bk_data_id}
             </Link>
           );
         }
       },
-      { header: '名称', accessorKey: 'data_name' },
-      { header: '租户', accessorKey: 'bk_tenant_id' },
+      {
+        header: '名称',
+        size: 200,
+        cell: ({ row }) => <Truncated text={row.original.data_name} maxW="200px" />
+      },
       {
         header: '类型',
+        size: 150,
         cell: ({ row }) => (
-          <div className="badge-row">
+          <div className="badge-row whitespace-nowrap">
             <Badge>{row.original.type_label}</Badge>
             <Badge tone="muted">{row.original.source_label}</Badge>
           </div>
         )
       },
-      { header: '来源', accessorKey: 'created_from' },
+      { header: '来源', accessorKey: 'created_from', size: 100 },
       {
         header: 'Kafka 集群',
+        size: 150,
         cell: ({ row }) => {
           const datasource = row.original;
           const cluster = datasource.kafka_cluster;
@@ -148,10 +155,12 @@ export function DataSourceListPage() {
           const clusterName = cluster ? getKafkaClusterName(cluster) : null;
 
           if (!clusterId) {
-            return <span className="muted-text">-</span>;
+            return <span className="muted-text whitespace-nowrap">-</span>;
           }
 
           const clusterHref = createScopedHref(`/clusters/${String(clusterId)}`, returnSearch);
+
+          const label = clusterName || `#${clusterId}`;
 
           return (
             <Link
@@ -164,26 +173,46 @@ export function DataSourceListPage() {
                   label: 'DataSource 列表'
                 })
               }
-              className="link"
+              className="link inline-block"
             >
-              {clusterName || `#${clusterId}`}
+              <Truncated text={label} maxW="140px" />
             </Link>
           );
         }
       },
       {
         header: '启用',
+        size: 70,
         cell: ({ row }) => (
-          <Badge tone={row.original.is_enable ? 'success' : 'danger'}>
-            {formatBoolean(row.original.is_enable)}
-          </Badge>
+          <span className="whitespace-nowrap">
+            <Badge tone={row.original.is_enable ? 'success' : 'danger'}>
+              {formatBoolean(row.original.is_enable)}
+            </Badge>
+          </span>
         )
       },
-      { header: '空间', accessorKey: 'space_uid' },
-      { header: 'RT 数', accessorKey: 'result_table_count' },
+      {
+        header: '空间',
+        size: 120,
+        cell: ({ row }) => {
+          const v = row.original.space_uid;
+          if (v == null) return <span className="muted-text whitespace-nowrap">-</span>;
+          return <Truncated text={v} maxW="120px" />;
+        }
+      },
+      {
+        header: 'RT 数',
+        size: 70,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap">{row.original.result_table_count}</span>
+        )
+      },
       {
         header: '更新时间',
-        cell: ({ row }) => formatDateTime(row.original.last_modify_time)
+        size: 150,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap">{formatDateTime(row.original.last_modify_time)}</span>
+        )
       }
     ],
     [currentHref, returnSearch, routeSearch]

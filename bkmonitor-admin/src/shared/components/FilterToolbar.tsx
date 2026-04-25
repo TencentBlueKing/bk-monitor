@@ -30,7 +30,10 @@ interface FilterToolbarProps {
 
 function getFilterDisplayValue(field: FilterField, value: FilterValue): string {
   const values = Array.isArray(value) ? value : value.split(',').filter(Boolean);
-  if ((field.type === 'select' || field.type === 'multi-select' || field.type === 'combobox') && field.options) {
+  if (
+    (field.type === 'select' || field.type === 'multi-select' || field.type === 'combobox') &&
+    field.options
+  ) {
     return values
       .map((item) => field.options?.find((o) => o.value === item)?.label ?? item)
       .join(', ');

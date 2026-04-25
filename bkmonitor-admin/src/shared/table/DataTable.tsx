@@ -1,3 +1,4 @@
+import React from 'react';
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
 
 import { cn } from '../utils/cn';
@@ -15,6 +16,7 @@ interface DataTableProps<TData> {
   columns: Array<ColumnDef<TData>>;
   emptyText?: string;
   striped?: boolean;
+  renderExpandedRow?: (row: TData) => React.ReactNode;
 }
 
 function formatCellValue(value: unknown): React.ReactNode {
@@ -31,7 +33,8 @@ export function DataTable<TData>({
   data,
   columns,
   emptyText = '暂无数据',
-  striped
+  striped,
+  renderExpandedRow
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -57,25 +60,41 @@ export function DataTable<TData>({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row, rowIndex) => (
-              <TableRow
-                key={row.id}
-                className={cn('hover:bg-muted/30', striped && rowIndex % 2 === 0 && 'bg-muted/20')}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const rendered = flexRender(cell.column.columnDef.cell, cell.getContext());
-                  const accessorKey = (cell.column.columnDef as unknown as Record<string, unknown>)
-                    .accessorKey as string | undefined;
+            table.getRowModel().rows.map((row, rowIndex) => {
+              const expandedContent = renderExpandedRow ? renderExpandedRow(row.original) : null;
 
-                  if (!accessorKey) {
-                    return <TableCell key={cell.id}>{rendered}</TableCell>;
-                  }
+              return (
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    className={cn(
+                      'hover:bg-muted/30',
+                      striped && rowIndex % 2 === 0 && 'bg-muted/20'
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const rendered = flexRender(cell.column.columnDef.cell, cell.getContext());
+                      const accessorKey = (
+                        cell.column.columnDef as unknown as Record<string, unknown>
+                      ).accessorKey as string | undefined;
 
-                  const value = (row.original as Record<string, unknown>)[accessorKey];
-                  return <TableCell key={cell.id}>{formatCellValue(value)}</TableCell>;
-                })}
-              </TableRow>
-            ))
+                      if (!accessorKey) {
+                        return <TableCell key={cell.id}>{rendered}</TableCell>;
+                      }
+
+                      const value = (row.original as Record<string, unknown>)[accessorKey];
+                      return <TableCell key={cell.id}>{formatCellValue(value)}</TableCell>;
+                    })}
+                  </TableRow>
+                  {expandedContent ? (
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableCell colSpan={columns.length} className="p-4">
+                        {expandedContent}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </React.Fragment>
+              );
+            })
           ) : (
             <TableRow>
               <TableCell

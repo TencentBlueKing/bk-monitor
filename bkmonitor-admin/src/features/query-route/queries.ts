@@ -8,7 +8,11 @@ export function queryRouteQueryKey(environment: AdminEnvironment, query: QueryRo
   return ['query-route', environment.id, 'query', query] as const;
 }
 
-export function useQueryRoute(environment: AdminEnvironment, query: QueryRouteQuery, enabled = true) {
+export function useQueryRoute(
+  environment: AdminEnvironment,
+  query: QueryRouteQuery,
+  enabled = true
+) {
   return useQuery({
     queryKey: queryRouteQueryKey(environment, query),
     queryFn: () => queryRoutes(environment, query),

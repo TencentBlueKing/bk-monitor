@@ -5,9 +5,12 @@ import {
   createMockEsStorageDetail,
   createMockQueryRoute,
   createMockClusterInfoDetail,
+  createMockComponentConfig,
   createMockDatasourceDetail,
   createMockFieldList,
   createMockResultTableDetail,
+  createMockBcsClusterDetail,
+  mockBcsClusters,
   mockClusterInfos,
   mockDatasources,
   mockEsStorages,
@@ -100,6 +103,13 @@ function resolveMockData(options: KernelRpcCallOptions): unknown {
       };
     case 'cluster_info.detail':
       return createMockClusterInfoDetail(Number(options.params.cluster_id));
+    case 'cluster_info.component_config':
+      return createMockComponentConfig({
+        clusterId: Number(options.params.cluster_id),
+        namespace: String(options.params.namespace),
+        kind: String(options.params.kind),
+        name: String(options.params.name)
+      });
     case 'query_route.query':
       return createMockQueryRoute(options.params);
     case 'query_route.refresh':
@@ -109,6 +119,15 @@ function resolveMockData(options: KernelRpcCallOptions): unknown {
         targets: ['space_to_result_table', 'data_label_to_result_table', 'result_table_detail'],
         message: 'mock 已刷新相关路由，会写 Redis 并 publish 通知 unify-query。'
       };
+    case 'bcs_cluster.list':
+      return {
+        items: filterBcsClusters(options.params),
+        page: Number(options.params.page ?? 1),
+        page_size: Number(options.params.page_size ?? 20),
+        total: filterBcsClusters(options.params).length
+      };
+    case 'bcs_cluster.detail':
+      return createMockBcsClusterDetail(String(options.params.cluster_id));
   }
 }
 
@@ -170,7 +189,10 @@ function filterEsStorages(params: Record<string, unknown>) {
       return false;
     }
 
-    if (typeof params.data_label === 'string' && item.result_table?.data_label !== params.data_label) {
+    if (
+      typeof params.data_label === 'string' &&
+      item.result_table?.data_label !== params.data_label
+    ) {
       return false;
     }
 
@@ -206,11 +228,32 @@ function filterClusterInfos(params: Record<string, unknown>) {
   const page = Number(params.page ?? 1);
   const pageSize = Number(params.page_size ?? 20);
   const filtered = mockClusterInfos.filter((item) => {
-    if (typeof params.cluster_name === 'string' && !item.cluster_name.includes(params.cluster_name)) {
+    if (
+      typeof params.cluster_name === 'string' &&
+      !item.cluster_name.includes(params.cluster_name)
+    ) {
       return false;
     }
 
     if (typeof params.cluster_type === 'string' && item.cluster_type !== params.cluster_type) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return filtered.slice((page - 1) * pageSize, page * pageSize);
+}
+
+function filterBcsClusters(params: Record<string, unknown>) {
+  const page = Number(params.page ?? 1);
+  const pageSize = Number(params.page_size ?? 20);
+  const filtered = mockBcsClusters.filter((item) => {
+    if (typeof params.cluster_id === 'string' && !item.cluster_id.includes(params.cluster_id)) {
+      return false;
+    }
+
+    if (typeof params.bk_biz_id === 'number' && item.bk_biz_id !== params.bk_biz_id) {
       return false;
     }
 

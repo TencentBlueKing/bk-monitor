@@ -1,5 +1,9 @@
 import type { DataSourceDetailResponse, DataSourceListResponse } from '../datasource/schemas';
-import type { ClusterInfoDetailResponse, ClusterInfoListResponse } from '../cluster-info/schemas';
+import type {
+  ClusterInfoDetailResponse,
+  ClusterInfoListResponse,
+  ComponentConfigResponse
+} from '../cluster-info/schemas';
 import type {
   EsRuntimeOverviewResponse,
   EsSampleResponse,
@@ -12,6 +16,7 @@ import type {
   ResultTableListResponse
 } from '../result-table/schemas';
 import type { QueryRouteResponse } from '../query-route/schemas';
+import type { BcsClusterListResponse, BcsClusterDetailResponse } from '../bcs-cluster/schemas';
 
 export const mockDatasources: DataSourceListResponse['items'] = [
   {
@@ -240,6 +245,272 @@ export const mockClusterInfos: ClusterInfoListResponse['items'] = [
   }
 ];
 
+export const mockBcsClusters: BcsClusterListResponse['items'] = [
+  {
+    cluster_id: 'BCS-K8S-0001',
+    bcs_api_cluster_id: 'BCS-API-0001',
+    bk_biz_id: 2,
+    project_id: 'project-alpha',
+    status: 'running',
+    bk_env: 'production',
+    K8sMetricDataID: 50020,
+    CustomMetricDataID: 51020,
+    K8sEventDataID: 52020,
+    CustomEventDataID: 53020,
+    SystemLogDataID: 54020,
+    CustomLogDataID: 55020,
+    operator_ns: 'bcs-system-prod',
+    trace_data_id: 56020,
+    create_time: '2026-04-11 08:00:00',
+    last_modify_time: '2026-04-21 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0002',
+    bcs_api_cluster_id: 'BCS-API-0002',
+    bk_biz_id: 3,
+    project_id: 'project-beta',
+    status: 'running',
+    bk_env: 'staging',
+    K8sMetricDataID: 50030,
+    CustomMetricDataID: 51030,
+    K8sEventDataID: 52030,
+    CustomEventDataID: 53030,
+    SystemLogDataID: 54030,
+    CustomLogDataID: 55030,
+    operator_ns: 'bcs-system-staging',
+    trace_data_id: 56030,
+    create_time: '2026-04-12 08:00:00',
+    last_modify_time: '2026-04-22 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0003',
+    bcs_api_cluster_id: 'BCS-API-0003',
+    bk_biz_id: 4,
+    project_id: 'project-gamma',
+    status: 'abnormal',
+    bk_env: 'development',
+    K8sMetricDataID: 50040,
+    CustomMetricDataID: 51040,
+    K8sEventDataID: 52040,
+    CustomEventDataID: 53040,
+    SystemLogDataID: 54040,
+    CustomLogDataID: 0,
+    operator_ns: 'bcs-system-dev',
+    trace_data_id: 56040,
+    create_time: '2026-04-13 08:00:00',
+    last_modify_time: '2026-04-23 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0004',
+    bcs_api_cluster_id: 'BCS-API-0004',
+    bk_biz_id: 5,
+    project_id: 'project-prod',
+    status: 'running',
+    bk_env: 'production',
+    K8sMetricDataID: 50050,
+    CustomMetricDataID: 51050,
+    K8sEventDataID: 52050,
+    CustomEventDataID: 53050,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: 'bcs-system-prod',
+    trace_data_id: 0,
+    create_time: '2026-04-14 08:00:00',
+    last_modify_time: '2026-04-24 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0005',
+    bcs_api_cluster_id: 'BCS-API-0005',
+    bk_biz_id: 2,
+    project_id: 'project-dev',
+    status: 'deleted',
+    bk_env: 'staging',
+    K8sMetricDataID: 50060,
+    CustomMetricDataID: 51060,
+    K8sEventDataID: 52060,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: 'bcs-system-staging',
+    trace_data_id: 0,
+    create_time: '2026-04-15 08:00:00',
+    last_modify_time: '2026-04-25 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0006',
+    bcs_api_cluster_id: null,
+    bk_biz_id: 6,
+    project_id: 'project-staging',
+    status: 'running',
+    bk_env: 'development',
+    K8sMetricDataID: 50070,
+    CustomMetricDataID: 51070,
+    K8sEventDataID: 52070,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: 'bcs-system-dev',
+    trace_data_id: 0,
+    create_time: '2026-04-16 08:00:00',
+    last_modify_time: '2026-04-26 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0007',
+    bcs_api_cluster_id: null,
+    bk_biz_id: 7,
+    project_id: 'project-uat',
+    status: 'running',
+    bk_env: null,
+    K8sMetricDataID: 50080,
+    CustomMetricDataID: 51080,
+    K8sEventDataID: 0,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: 'bcs-system-prod',
+    trace_data_id: 0,
+    create_time: '2026-04-17 08:00:00',
+    last_modify_time: '2026-04-27 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0008',
+    bcs_api_cluster_id: null,
+    bk_biz_id: 3,
+    project_id: 'project-pre',
+    status: 'abnormal',
+    bk_env: null,
+    K8sMetricDataID: 50090,
+    CustomMetricDataID: 0,
+    K8sEventDataID: 0,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: 'bcs-system-staging',
+    trace_data_id: 0,
+    create_time: '2026-04-18 08:00:00',
+    last_modify_time: '2026-04-28 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0009',
+    bcs_api_cluster_id: null,
+    bk_biz_id: 8,
+    project_id: null,
+    status: 'running',
+    bk_env: null,
+    K8sMetricDataID: 50100,
+    CustomMetricDataID: 0,
+    K8sEventDataID: 0,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: null,
+    trace_data_id: 0,
+    create_time: '2026-04-19 08:00:00',
+    last_modify_time: '2026-04-29 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0010',
+    bcs_api_cluster_id: null,
+    bk_biz_id: 9,
+    project_id: null,
+    status: 'running',
+    bk_env: null,
+    K8sMetricDataID: 0,
+    CustomMetricDataID: 0,
+    K8sEventDataID: 0,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: null,
+    trace_data_id: 0,
+    create_time: '2026-04-20 08:00:00',
+    last_modify_time: '2026-04-30 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0011',
+    bcs_api_cluster_id: null,
+    bk_biz_id: null,
+    project_id: null,
+    status: 'abnormal',
+    bk_env: null,
+    K8sMetricDataID: 0,
+    CustomMetricDataID: 0,
+    K8sEventDataID: 0,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: null,
+    trace_data_id: 0,
+    create_time: '2026-04-21 08:00:00',
+    last_modify_time: '2026-05-01 14:30:00'
+  },
+  {
+    cluster_id: 'BCS-K8S-0012',
+    bcs_api_cluster_id: null,
+    bk_biz_id: null,
+    project_id: null,
+    status: 'deleted',
+    bk_env: null,
+    K8sMetricDataID: 0,
+    CustomMetricDataID: 0,
+    K8sEventDataID: 0,
+    CustomEventDataID: 0,
+    SystemLogDataID: 0,
+    CustomLogDataID: 0,
+    operator_ns: null,
+    trace_data_id: 0,
+    create_time: '2026-04-22 08:00:00',
+    last_modify_time: '2026-05-02 14:30:00'
+  }
+];
+
+export function createMockBcsClusterDetail(clusterId: string): BcsClusterDetailResponse {
+  const cluster = mockBcsClusters.find((item) => item.cluster_id === clusterId);
+  if (!cluster) {
+    throw new Error(`Mock BCS cluster not found: ${clusterId}`);
+  }
+
+  const dataIds = [
+    cluster.K8sMetricDataID,
+    cluster.CustomMetricDataID,
+    cluster.K8sEventDataID,
+    cluster.CustomEventDataID,
+    cluster.SystemLogDataID,
+    cluster.CustomLogDataID
+  ].flatMap((v) => (v != null && v > 0 ? [v] : []));
+
+  const sourceLabelMap: Record<number, string> = {
+    0: 'bk_monitor',
+    1: 'bk_data',
+    2: 'custom'
+  };
+  const typeLabelMap: Record<number, string> = {
+    0: 'time_series',
+    1: 'event',
+    2: 'log'
+  };
+
+  return {
+    cluster: {
+      ...cluster,
+      domain_name: 'bcs-api.bk.tencent.com',
+      port: 443,
+      server_address_path: '/bcsapi/v4/',
+      api_key_type: 'token',
+      has_api_key: true,
+      is_skip_ssl_verify: false
+    },
+    datasource_summaries: dataIds.map((id, idx) => ({
+      bk_data_id: id,
+      data_name: `bcs_data_${id}`,
+      data_description: `BCS 集群 ${cluster.cluster_id} 的数据源 ${id}`,
+      source_label: sourceLabelMap[idx % 3] || 'bk_monitor',
+      type_label: typeLabelMap[idx % 3] || 'time_series',
+      is_enable: id % 4 !== 0
+    }))
+  };
+}
+
 export function createMockDatasourceDetail(bkDataId: number): DataSourceDetailResponse {
   const fallbackDatasource = mockDatasources[0];
 
@@ -445,8 +716,10 @@ export function createMockEsStorageDetail(tableId: string): EsStorageDetailRespo
       ? {
           table_id: storage.origin_table_id,
           exists: true,
-          es_storage: mockEsStorages.find((item) => item.table_id === storage.origin_table_id) ?? null,
-          result_table: mockResultTables.find((item) => item.table_id === storage.origin_table_id) ?? null
+          es_storage:
+            mockEsStorages.find((item) => item.table_id === storage.origin_table_id) ?? null,
+          result_table:
+            mockResultTables.find((item) => item.table_id === storage.origin_table_id) ?? null
         }
       : null,
     virtual_tables: isVirtual
@@ -543,6 +816,23 @@ export function createMockEsSample(params: {
   };
 }
 
+export function createMockComponentConfig(params: {
+  clusterId: number;
+  namespace: string;
+  kind: string;
+  name: string;
+}): ComponentConfigResponse {
+  void params;
+  return {
+    component_config: {
+      sources: [{ type: 'kafka', brokers: ['localhost:9092'], topic: 'input-topic' }],
+      sinks: [{ type: 'elasticsearch', cluster: 'es-cluster-1', index_pattern: 'logs-*' }],
+      transforms: [{ type: 'filter', field: 'status', condition: 'exists' }],
+      status: { phase: 'Ok', message: 'mock component config is healthy' }
+    }
+  };
+}
+
 export function createMockClusterInfoDetail(clusterId: number): ClusterInfoDetailResponse {
   const fallbackCluster = mockClusterInfos[0];
   if (!fallbackCluster) {
@@ -592,7 +882,11 @@ export function createMockFieldList(
       alias_name: `字段 ${position}`,
       is_disabled: false,
       last_modify_time: '2026-04-23 12:00:00',
-      option_count: position % 4 === 0 ? 1 : 0
+      option_count: position % 4 === 0 ? 1 : 0,
+      options:
+        position % 4 === 0
+          ? [{ name: 'es_field_type', value: 'keyword', value_type: 'string' }]
+          : []
     };
   }).filter((field) => (fieldName ? field.field_name.includes(fieldName) : true));
   const start = (page - 1) * pageSize;
@@ -659,7 +953,11 @@ export function createMockQueryRoute(params: Record<string, unknown>): QueryRout
         {
           conditions: [
             { field: 'dimensions.bk_biz_id', operator: '=', value: index === 0 ? 2 : 3 },
-            { field: 'source_type', operator: '=', value: tableId.includes('bklog') ? 'log' : 'metric' }
+            {
+              field: 'source_type',
+              operator: '=',
+              value: tableId.includes('bklog') ? 'log' : 'metric'
+            }
           ],
           raw: {
             'dimensions.bk_biz_id': index === 0 ? 2 : 3,
@@ -691,7 +989,9 @@ export function createMockQueryRoute(params: Record<string, unknown>): QueryRout
       table_ids: routedTableIds.map((tableId) => ({
         table_id: tableId,
         in_space: spaceRoutes.some((route) => route.table_id === tableId),
-        has_detail: resultTableDetails.some((detail) => detail.table_id === tableId && detail.exists),
+        has_detail: resultTableDetails.some(
+          (detail) => detail.table_id === tableId && detail.exists
+        ),
         in_input_table_ids: inputTableIdSet.has(tableId)
       })),
       raw: {
@@ -761,5 +1061,7 @@ function createMockQueryRouteFields(tableId: string) {
 }
 
 function readStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.flatMap((item) => (typeof item === 'string' ? [item] : [])) : [];
+  return Array.isArray(value)
+    ? value.flatMap((item) => (typeof item === 'string' ? [item] : []))
+    : [];
 }

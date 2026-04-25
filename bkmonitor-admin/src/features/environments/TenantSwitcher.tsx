@@ -36,7 +36,7 @@ export function TenantSwitcher() {
   return (
     <div className="tenant-switcher">
       <Building2 aria-hidden="true" size={16} />
-      <span>当前租户 ID</span>
+      <span>租户</span>
       <ChoiceInput
         value={selectValue}
         className="tenant-switcher-select"

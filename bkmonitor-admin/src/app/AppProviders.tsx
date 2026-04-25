@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
 import { useState } from 'react';
 
+import { TooltipProvider } from '../shared/components/ui/tooltip';
 import { EnvironmentProvider } from '../features/environments/EnvironmentProvider';
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -20,7 +21,9 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <EnvironmentProvider>{children}</EnvironmentProvider>
+      <TooltipProvider>
+        <EnvironmentProvider>{children}</EnvironmentProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

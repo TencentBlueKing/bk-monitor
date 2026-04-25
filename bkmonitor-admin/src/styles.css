@@ -342,6 +342,8 @@ button {
   padding: 12px;
   border-radius: 8px;
   background: hsl(var(--muted));
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .info-item span {

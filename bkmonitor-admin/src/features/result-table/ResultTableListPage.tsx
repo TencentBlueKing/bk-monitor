@@ -10,6 +10,7 @@ import {
 } from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { Truncated } from '../../shared/components/Truncated';
 import { Button } from '../../shared/components/ui/button';
 import {
   getOptionalStoredReturnTarget,
@@ -93,6 +94,7 @@ export function ResultTableListPage() {
     () => [
       {
         header: 'table_id',
+        size: 240,
         cell: ({ row }) => {
           const resultTable = row.original;
           const detailHref = createScopedHref(
@@ -113,42 +115,83 @@ export function ResultTableListPage() {
                   label: 'ResultTable 列表'
                 })
               }
-              className="link"
+              className="link inline-block"
             >
-              {resultTable.table_id}
+              <Truncated text={resultTable.table_id} maxW="240px" />
             </Link>
           );
         }
       },
-      { header: '中文名', accessorKey: 'table_name_zh' },
-      { header: '租户', accessorKey: 'bk_tenant_id' },
-      { header: '业务', accessorKey: 'bk_biz_id' },
-      { header: 'label', accessorKey: 'label' },
-      { header: 'data_label', accessorKey: 'data_label' },
+      {
+        header: '中文名',
+        size: 180,
+        cell: ({ row }) => {
+          const v = row.original.table_name_zh;
+          if (v == null || v === '') return <span className="muted-text whitespace-nowrap">-</span>;
+          return <Truncated text={v} maxW="180px" />;
+        }
+      },
+      { header: '业务', accessorKey: 'bk_biz_id', size: 70 },
+      {
+        header: 'label',
+        size: 150,
+        cell: ({ row }) => {
+          const v = row.original.label;
+          if (v == null || v === '') return <span className="muted-text whitespace-nowrap">-</span>;
+          return <Truncated text={v} maxW="120px" />;
+        }
+      },
+      {
+        header: 'data_label',
+        size: 170,
+        cell: ({ row }) => {
+          const v = row.original.data_label;
+          if (v == null || v === '') return <span className="muted-text whitespace-nowrap">-</span>;
+          return <Truncated text={v} maxW="170px" />;
+        }
+      },
       {
         header: '存储',
-        cell: ({ row }) => <Badge>{row.original.default_storage ?? '-'}</Badge>
+        size: 130,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap">
+            <Badge>{row.original.default_storage ?? '-'}</Badge>
+          </span>
+        )
       },
       {
         header: '启用',
+        size: 70,
         cell: ({ row }) => (
-          <Badge tone={row.original.is_enable ? 'success' : 'danger'}>
-            {formatBoolean(row.original.is_enable)}
-          </Badge>
+          <span className="whitespace-nowrap">
+            <Badge tone={row.original.is_enable ? 'success' : 'danger'}>
+              {formatBoolean(row.original.is_enable)}
+            </Badge>
+          </span>
         )
       },
       {
         header: '删除',
+        size: 70,
         cell: ({ row }) => (
-          <Badge tone={row.original.is_deleted ? 'danger' : 'muted'}>
-            {row.original.is_deleted ? '是' : '否'}
-          </Badge>
+          <span className="whitespace-nowrap">
+            <Badge tone={row.original.is_deleted ? 'danger' : 'muted'}>
+              {row.original.is_deleted ? '是' : '否'}
+            </Badge>
+          </span>
         )
       },
-      { header: '字段数', accessorKey: 'field_count' },
+      {
+        header: '字段数',
+        size: 90,
+        cell: ({ row }) => <span className="whitespace-nowrap">{row.original.field_count}</span>
+      },
       {
         header: '更新时间',
-        cell: ({ row }) => formatDateTime(row.original.last_modify_time)
+        size: 150,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap">{formatDateTime(row.original.last_modify_time)}</span>
+        )
       }
     ],
     [currentHref, returnSearch, routeSearch]
@@ -180,8 +223,8 @@ export function ResultTableListPage() {
           setPage(1);
         }}
         onReset={() => {
-          setDrafts({});
-          setActiveFilters({});
+          setDrafts({ isDeleted: 'false' });
+          setActiveFilters({ isDeleted: 'false' });
           setPage(1);
         }}
         loading={resultTableQuery.isLoading}

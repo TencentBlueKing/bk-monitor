@@ -8,23 +8,23 @@
 
 ## 状态约定
 
-| 状态 | 说明 |
-| --- | --- |
-| Todo | 尚未开始 |
-| In Progress | 正在实现 |
-| Blocked | 被依赖、环境或方案问题阻塞 |
-| Review | 已完成实现，等待 review |
-| Done | 已完成并验证 |
+| 状态        | 说明                       |
+| ----------- | -------------------------- |
+| Todo        | 尚未开始                   |
+| In Progress | 正在实现                   |
+| Blocked     | 被依赖、环境或方案问题阻塞 |
+| Review      | 已完成实现，等待 review    |
+| Done        | 已完成并验证               |
 
 ## 总体里程碑
 
-| 阶段 | 目标 | 状态 |
-| --- | --- | --- |
-| M1 | 后端新增 ESStorage 列表、详情与实时 ES 查询 RPC | Todo |
-| M2 | 前端新增 ESStorage 列表页、详情页和导航入口 | Todo |
-| M3 | ResultTable / ClusterInfo 关联跳转增强 | Todo |
-| M4 | ESStorage 详情页实时信息与最新数据取样 | Todo |
-| M5 | 联调、测试、文档收口 | Todo |
+| 阶段 | 目标                                            | 状态 |
+| ---- | ----------------------------------------------- | ---- |
+| M1   | 后端新增 ESStorage 列表、详情与实时 ES 查询 RPC | Todo |
+| M2   | 前端新增 ESStorage 列表页、详情页和导航入口     | Todo |
+| M3   | ResultTable / ClusterInfo 关联跳转增强          | Todo |
+| M4   | ESStorage 详情页实时信息与最新数据取样          | Todo |
+| M5   | 联调、测试、文档收口                            | Todo |
 
 ---
 
@@ -53,18 +53,18 @@
 
 `ESStorage.origin_table_id` 是实体表/虚拟表判定字段：
 
-| 类型 | 判定规则 | 说明 |
-| --- | --- | --- |
-| 实体表 | `origin_table_id` 为空字符串、`null` 或 `None` | 对应真实物理索引创建与生命周期管理 |
-| 虚拟表 | `origin_table_id` 非空 | 关联到一个实体表，用于日志平台索引集等跨索引查询场景 |
+| 类型   | 判定规则                                       | 说明                                                 |
+| ------ | ---------------------------------------------- | ---------------------------------------------------- |
+| 实体表 | `origin_table_id` 为空字符串、`null` 或 `None` | 对应真实物理索引创建与生命周期管理                   |
+| 虚拟表 | `origin_table_id` 非空                         | 关联到一个实体表，用于日志平台索引集等跨索引查询场景 |
 
 第三期必须在过滤条件中明确提供“表类型”过滤：
 
-| 前端过滤项 | 后端参数 | 取值 |
-| --- | --- | --- |
-| 表类型 | `table_kind` | `physical` / `virtual` / 空 |
-| 表 ID | `table_id` | 同时匹配 `ESStorage.table_id` 与 `ESStorage.origin_table_id` |
-| 数据标签 | `data_label` | 先精确匹配 ResultTable.data_label，再用 table_ids 查询 ESStorage |
+| 前端过滤项 | 后端参数     | 取值                                                             |
+| ---------- | ------------ | ---------------------------------------------------------------- |
+| 表类型     | `table_kind` | `physical` / `virtual` / 空                                      |
+| 表 ID      | `table_id`   | 同时匹配 `ESStorage.table_id` 与 `ESStorage.origin_table_id`     |
+| 数据标签   | `data_label` | 先精确匹配 ResultTable.data_label，再用 table_ids 查询 ESStorage |
 
 > 注意：虚拟表也具备 `ResultTable`、`ESStorage`、`ESFieldQueryAliasOption` 和 ResultTableOption 相关配置，运行时 ES 信息应按虚拟表自身配置正常查询。虚拟表不具备集群迁移记录，但它的索引匹配信息是完备的，通常由 `index_set`、`date_format`、`slice_gap` 等时间分片规则共同决定。
 
@@ -124,17 +124,17 @@ ESStorage(虚拟表).origin_table_id
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `bk_tenant_id` | string | 否 | 租户 ID |
-| `table_id` | string | 否 | 表 ID，同时在 `ESStorage.table_id` 与 `ESStorage.origin_table_id` 上做精确、前缀、子串匹配 |
-| `data_label` | string | 否 | 精确匹配 ResultTable.data_label，再用匹配到的 table_ids 查询 ESStorage |
-| `table_kind` | string | 否 | `physical` / `virtual`，为空表示不过滤 |
-| `storage_cluster_id` | integer | 否 | ES 集群 ID |
-| `source_type` | string | 否 | 数据源类型，如 `log` |
-| `need_create_index` | boolean | 否 | 是否需要创建物理索引 |
-| `page` / `page_size` | int | 否 | 分页 |
-| `ordering` | string | 否 | 排序字段 |
+| 字段                 | 类型    | 必填 | 说明                                                                                       |
+| -------------------- | ------- | ---- | ------------------------------------------------------------------------------------------ |
+| `bk_tenant_id`       | string  | 否   | 租户 ID                                                                                    |
+| `table_id`           | string  | 否   | 表 ID，同时在 `ESStorage.table_id` 与 `ESStorage.origin_table_id` 上做精确、前缀、子串匹配 |
+| `data_label`         | string  | 否   | 精确匹配 ResultTable.data_label，再用匹配到的 table_ids 查询 ESStorage                     |
+| `table_kind`         | string  | 否   | `physical` / `virtual`，为空表示不过滤                                                     |
+| `storage_cluster_id` | integer | 否   | ES 集群 ID                                                                                 |
+| `source_type`        | string  | 否   | 数据源类型，如 `log`                                                                       |
+| `need_create_index`  | boolean | 否   | 是否需要创建物理索引                                                                       |
+| `page` / `page_size` | int     | 否   | 分页                                                                                       |
+| `ordering`           | string  | 否   | 排序字段                                                                                   |
 
 出参（列表项）：
 
@@ -214,11 +214,11 @@ ESStorage(虚拟表).origin_table_id
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `bk_tenant_id` | string | 否 | 租户 ID |
-| `table_id` | string | 是 | ESStorage.table_id |
-| `include` | string / list | 否 | 展开范围，初期支持 `relations` |
+| 字段           | 类型          | 必填 | 说明                           |
+| -------------- | ------------- | ---- | ------------------------------ |
+| `bk_tenant_id` | string        | 否   | 租户 ID                        |
+| `table_id`     | string        | 是   | ESStorage.table_id             |
+| `include`      | string / list | 否   | 展开范围，初期支持 `relations` |
 
 出参：
 
@@ -247,7 +247,11 @@ ESStorage(虚拟表).origin_table_id
     "long_term_storage_settings": {}
   },
   "result_table": { "table_id": "2_bklog_rt", "table_name_zh": "日志结果表" },
-  "storage_cluster": { "cluster_id": 12, "cluster_name": "es-default", "cluster_type": "elasticsearch" },
+  "storage_cluster": {
+    "cluster_id": 12,
+    "cluster_name": "es-default",
+    "cluster_type": "elasticsearch"
+  },
   "storage_cluster_records": [
     {
       "table_id": "2_bklog_origin",
@@ -345,12 +349,12 @@ ESStorage(虚拟表).origin_table_id
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `bk_tenant_id` | string | 否 | 租户 ID |
-| `table_id` | string | 是 | ESStorage.table_id |
-| `include` | list | 否 | 默认 `["indices", "aliases", "mapping"]` |
-| `index` | string | 否 | 指定索引；不传时使用 ESStorage 的 `index_set`/时间规则生成索引通配符 |
+| 字段           | 类型   | 必填 | 说明                                                                 |
+| -------------- | ------ | ---- | -------------------------------------------------------------------- |
+| `bk_tenant_id` | string | 否   | 租户 ID                                                              |
+| `table_id`     | string | 是   | ESStorage.table_id                                                   |
+| `include`      | list   | 否   | 默认 `["indices", "aliases", "mapping"]`                             |
+| `index`        | string | 否   | 指定索引；不传时使用 ESStorage 的 `index_set`/时间规则生成索引通配符 |
 
 出参：
 
@@ -417,12 +421,12 @@ ESStorage(虚拟表).origin_table_id
 }
 ```
 
-| 字段 | 类型 | 必填 | 默认 | 说明 |
-| --- | --- | --- | --- | --- |
-| `bk_tenant_id` | string | 否 | `system` | 租户 ID |
-| `table_id` | string | 是 | | ESStorage.table_id |
-| `index` | string | 是 | | 指定查询索引，必须来自当前 ESStorage 的索引列表或匹配当前 `index_set`/时间规则 |
-| `time_field` | string | 否 | `dtEventTimeStamp` | 排序时间字段 |
+| 字段           | 类型   | 必填 | 默认               | 说明                                                                           |
+| -------------- | ------ | ---- | ------------------ | ------------------------------------------------------------------------------ |
+| `bk_tenant_id` | string | 否   | `system`           | 租户 ID                                                                        |
+| `table_id`     | string | 是   |                    | ESStorage.table_id                                                             |
+| `index`        | string | 是   |                    | 指定查询索引，必须来自当前 ESStorage 的索引列表或匹配当前 `index_set`/时间规则 |
+| `time_field`   | string | 否   | `dtEventTimeStamp` | 排序时间字段                                                                   |
 
 出参：
 
@@ -521,7 +525,12 @@ ESStorage(虚拟表).origin_table_id
 ```typescript
 const esStorageFilterFields: FilterField[] = [
   { key: 'tableId', label: '表 ID', type: 'text', placeholder: '匹配 table_id / origin_table_id' },
-  { key: 'dataLabel', label: 'data_label', type: 'text', placeholder: '精确匹配 ResultTable.data_label' },
+  {
+    key: 'dataLabel',
+    label: 'data_label',
+    type: 'text',
+    placeholder: '精确匹配 ResultTable.data_label'
+  },
   {
     key: 'tableKind',
     label: '表类型',
@@ -539,18 +548,18 @@ const esStorageFilterFields: FilterField[] = [
 
 表格列：
 
-| 列 | 内容 |
-| --- | --- |
-| `table_id` | 可点击跳转 ESStorage 详情，也提供 ResultTable 跳转 |
-| `表类型` | Badge：实体表 / 虚拟表 |
-| `origin_table_id` | 虚拟表显示实体表链接；实体表显示 `-` |
-| `storage_cluster` | 集群名 + ID，可跳转 ClusterInfo 详情 |
-| `result_table` | 中文名、业务 ID、启用/删除状态 |
-| `virtual_table_count` | 实体表显示关联虚拟表数量 |
-| `retention` | 保留天数 |
-| `slice_size` / `slice_gap` | 切片配置 |
-| `need_create_index` | Badge |
-| `last_modify_time` | 更新时间 |
+| 列                         | 内容                                               |
+| -------------------------- | -------------------------------------------------- |
+| `table_id`                 | 可点击跳转 ESStorage 详情，也提供 ResultTable 跳转 |
+| `表类型`                   | Badge：实体表 / 虚拟表                             |
+| `origin_table_id`          | 虚拟表显示实体表链接；实体表显示 `-`               |
+| `storage_cluster`          | 集群名 + ID，可跳转 ClusterInfo 详情               |
+| `result_table`             | 中文名、业务 ID、启用/删除状态                     |
+| `virtual_table_count`      | 实体表显示关联虚拟表数量                           |
+| `retention`                | 保留天数                                           |
+| `slice_size` / `slice_gap` | 切片配置                                           |
+| `need_create_index`        | Badge                                              |
+| `last_modify_time`         | 更新时间                                           |
 
 ### P3-103 ESStorage 详情页
 
@@ -665,14 +674,14 @@ ESStorage Detail
 
 约定：
 
-| 来源 | 目标 | 参数 |
-| --- | --- | --- |
-| ResultTable 详情 | ESStorage 详情 | `/es-storages/$tableId` |
-| ESStorage 详情 | ResultTable 详情 | `/result-tables/$tableId` |
-| ESStorage 详情 | ClusterInfo 详情 | `/clusters/$storageClusterId` |
-| ClusterInfo 详情 | ESStorage 列表 | `/es-storages?storageClusterId=<cluster_id>` |
-| ESStorage 虚拟表 | 实体 ESStorage 详情 | `/es-storages/$originTableId` |
-| ESStorage 实体表 | 虚拟表列表 | `/es-storages?tableId=<table_id>&tableKind=virtual` |
+| 来源             | 目标                | 参数                                                |
+| ---------------- | ------------------- | --------------------------------------------------- |
+| ResultTable 详情 | ESStorage 详情      | `/es-storages/$tableId`                             |
+| ESStorage 详情   | ResultTable 详情    | `/result-tables/$tableId`                           |
+| ESStorage 详情   | ClusterInfo 详情    | `/clusters/$storageClusterId`                       |
+| ClusterInfo 详情 | ESStorage 列表      | `/es-storages?storageClusterId=<cluster_id>`        |
+| ESStorage 虚拟表 | 实体 ESStorage 详情 | `/es-storages/$originTableId`                       |
+| ESStorage 实体表 | 虚拟表列表          | `/es-storages?tableId=<table_id>&tableKind=virtual` |
 
 所有跳转必须保留当前 `env` 和 `tenant` 查询参数，并复用现有 return target 机制。
 
@@ -729,17 +738,17 @@ ESStorage Detail
 
 ## 六、风险与待确认
 
-| 风险 / 问题 | 影响 | 建议处理 |
-| --- | --- | --- |
-| ES mapping 可能很大 | 详情页渲染卡顿 | mapping 先以 JSON 展示，默认折叠；必要时再增加字段摘要接口 |
-| ES 最新数据排序字段不统一 | `dtEventTimeStamp` 不一定存在 | 默认用 `dtEventTimeStamp`，允许用户从 mapping 字段中选择 |
-| ES client 版本差异 | `cat.indices`、`get_mapping` 返回结构不同 | 后端封装兼容层，单元测试 mock ES5/ES6 常见结构 |
-| 指定 index 查询安全边界 | 可能被用来读取同集群其他索引 | 后端校验 index 必须匹配当前 ESStorage 的 `index_set`/时间分片规则 |
-| ClusterInfo 与 ESStorage 的租户关系 | 跨租户跳转可能误查 | 所有接口强制带 `bk_tenant_id`，前端保留租户参数 |
-| ResultTable 详情当前只取第一条 ESStorage | 会丢失多存储/虚拟表信息 | 三期调整 schema，恢复数组展示 |
-| ResultTableOption / 字段别名影响查询解释 | 只看 ESStorage 不足以解释查询行为 | 详情页展示相关 ResultTableOption 和 ESFieldQueryAliasOption 摘要，并在 mapping 区域对照展示 |
-| 虚拟表集群迁移历史不在自身 table_id 下 | 直接查虚拟表 table_id 会漏掉迁移记录 | 按现有 `compose_table_id_storage_cluster_records` 语义回到 `origin_table_id` 查询 |
-| Admin RPC 重复实现索引规则 | 未来 ESStorage 索引逻辑调整时容易不一致 | 索引、统计、最新数据优先调用 ESStorage 现有方法；缺口只做薄封装 |
+| 风险 / 问题                              | 影响                                      | 建议处理                                                                                    |
+| ---------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| ES mapping 可能很大                      | 详情页渲染卡顿                            | mapping 先以 JSON 展示，默认折叠；必要时再增加字段摘要接口                                  |
+| ES 最新数据排序字段不统一                | `dtEventTimeStamp` 不一定存在             | 默认用 `dtEventTimeStamp`，允许用户从 mapping 字段中选择                                    |
+| ES client 版本差异                       | `cat.indices`、`get_mapping` 返回结构不同 | 后端封装兼容层，单元测试 mock ES5/ES6 常见结构                                              |
+| 指定 index 查询安全边界                  | 可能被用来读取同集群其他索引              | 后端校验 index 必须匹配当前 ESStorage 的 `index_set`/时间分片规则                           |
+| ClusterInfo 与 ESStorage 的租户关系      | 跨租户跳转可能误查                        | 所有接口强制带 `bk_tenant_id`，前端保留租户参数                                             |
+| ResultTable 详情当前只取第一条 ESStorage | 会丢失多存储/虚拟表信息                   | 三期调整 schema，恢复数组展示                                                               |
+| ResultTableOption / 字段别名影响查询解释 | 只看 ESStorage 不足以解释查询行为         | 详情页展示相关 ResultTableOption 和 ESFieldQueryAliasOption 摘要，并在 mapping 区域对照展示 |
+| 虚拟表集群迁移历史不在自身 table_id 下   | 直接查虚拟表 table_id 会漏掉迁移记录      | 按现有 `compose_table_id_storage_cluster_records` 语义回到 `origin_table_id` 查询           |
+| Admin RPC 重复实现索引规则               | 未来 ESStorage 索引逻辑调整时容易不一致   | 索引、统计、最新数据优先调用 ESStorage 现有方法；缺口只做薄封装                             |
 
 待确认问题：
 

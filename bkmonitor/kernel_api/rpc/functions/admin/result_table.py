@@ -524,6 +524,13 @@ def list_result_table_fields(params: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id=bk_tenant_id,
         table_id=table_id,
     )
+    option_map: dict[str, list[dict[str, Any]]] = {}
+    if field_names:
+        all_options = models.ResultTableFieldOption.objects.filter(
+            bk_tenant_id=bk_tenant_id, table_id=table_id, field_name__in=field_names
+        ).order_by("field_name", "name")
+        for opt in all_options:
+            option_map.setdefault(opt.field_name, []).append(serialize_option(opt))
 
     items = []
     for field in fields:
@@ -531,6 +538,7 @@ def list_result_table_fields(params: dict[str, Any]) -> dict[str, Any]:
         option_count = option_count_map.get(field.field_name, 0)
         item["option_count"] = option_count
         item["has_option"] = option_count > 0
+        item["options"] = option_map.get(field.field_name, [])
         items.append(item)
 
     return build_response(

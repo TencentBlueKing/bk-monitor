@@ -16,15 +16,8 @@ import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
-import {
-  ES_STORAGE_TABLE_KIND_LABEL,
-  ES_STORAGE_TABLE_KIND_TONE
-} from './constants';
-import {
-  useEsRuntimeOverview,
-  useEsStorageDetail,
-  useEsStorageSample
-} from './queries';
+import { ES_STORAGE_TABLE_KIND_LABEL, ES_STORAGE_TABLE_KIND_TONE } from './constants';
+import { useEsRuntimeOverview, useEsStorageDetail, useEsStorageSample } from './queries';
 import type { EsRuntimeIndex, EsRuntimeOverviewResponse, EsSampleResponse } from './schemas';
 
 export function EsStorageDetailPage() {
@@ -170,10 +163,13 @@ export function EsStorageDetailPage() {
                   search={routeSearch}
                   className="link"
                   onClick={() =>
-                    rememberReturnTarget(buildHref(`/result-tables/${result_table.table_id}`, routeSearch), {
-                      href: currentHref,
-                      label: 'ESStorage 详情'
-                    })
+                    rememberReturnTarget(
+                      buildHref(`/result-tables/${result_table.table_id}`, routeSearch),
+                      {
+                        href: currentHref,
+                        label: 'ESStorage 详情'
+                      }
+                    )
                   }
                 >
                   {result_table.table_name_zh || result_table.table_id}
@@ -217,7 +213,10 @@ export function EsStorageDetailPage() {
               <Info label="source_type" value={es_storage.source_type ?? '-'} />
               <Info label="index_set" value={es_storage.index_set ?? '-'} />
               <Info label="need_create_index" value={formatBoolean(es_storage.need_create_index)} />
-              <Info label="warm_phase_days" value={formatOptional(es_storage.warm_phase_days, '天')} />
+              <Info
+                label="warm_phase_days"
+                value={formatOptional(es_storage.warm_phase_days, '天')}
+              />
               <Info
                 label="archive_index_days"
                 value={formatOptional(es_storage.archive_index_days, '天')}
@@ -321,12 +320,18 @@ export function EsStorageDetailPage() {
                   </Badge>
                 )
               },
-              { header: 'enable_time', cell: ({ row }) => formatDateTime(row.original.enable_time) },
+              {
+                header: 'enable_time',
+                cell: ({ row }) => formatDateTime(row.original.enable_time)
+              },
               {
                 header: 'disable_time',
                 cell: ({ row }) => formatDateTime(row.original.disable_time)
               },
-              { header: 'delete_time', cell: ({ row }) => formatDateTime(row.original.delete_time) },
+              {
+                header: 'delete_time',
+                cell: ({ row }) => formatDateTime(row.original.delete_time)
+              },
               { header: 'creator', accessorKey: 'creator' }
             ]}
           />
@@ -335,7 +340,8 @@ export function EsStorageDetailPage() {
         <section>
           <h3>字段查询别名</h3>
           <p className="muted-text">
-            ESFieldQueryAliasOption 会影响 query_alias 到 field_path 的解释，并可对应 mapping alias。
+            ESFieldQueryAliasOption 会影响 query_alias 到 field_path 的解释，并可对应 mapping
+            alias。
           </p>
           <DataTable
             data={field_aliases}
@@ -343,7 +349,10 @@ export function EsStorageDetailPage() {
               { header: 'query_alias', accessorKey: 'query_alias' },
               { header: 'field_path', accessorKey: 'field_path' },
               { header: 'path_type', accessorKey: 'path_type' },
-              { header: 'mapping_alias', cell: ({ row }) => <JsonBlock value={row.original.mapping_alias ?? {}} /> }
+              {
+                header: 'mapping_alias',
+                cell: ({ row }) => <JsonBlock value={row.original.mapping_alias ?? {}} />
+              }
             ]}
           />
         </section>
@@ -403,7 +412,10 @@ export function EsStorageDetailPage() {
               onLoadSample={loadSample}
             />
           ) : (
-            <PageState title="尚未加载实时信息" description="点击按钮后读取索引、mapping 与别名。" />
+            <PageState
+              title="尚未加载实时信息"
+              description="点击按钮后读取索引、mapping 与别名。"
+            />
           )}
         </section>
       </div>
@@ -509,7 +521,11 @@ function SampleResult({
     <Card className={error ? 'border-destructive/50' : undefined}>
       <CardContent className="space-y-3 py-3">
         <h4 className="text-sm font-semibold">{index.index} 最新一条</h4>
-        {error ? <div className="text-sm text-destructive">{error}</div> : <JsonBlock value={sample} />}
+        {error ? (
+          <div className="text-sm text-destructive">{error}</div>
+        ) : (
+          <JsonBlock value={sample} />
+        )}
       </CardContent>
     </Card>
   );
@@ -582,15 +598,7 @@ function ClusterLink({
   );
 }
 
-function Info({
-  label,
-  value,
-  raw
-}: {
-  label: string;
-  value: React.ReactNode;
-  raw?: boolean;
-}) {
+function Info({ label, value, raw }: { label: string; value: React.ReactNode; raw?: boolean }) {
   return (
     <div className="info-item">
       <span>{label}</span>

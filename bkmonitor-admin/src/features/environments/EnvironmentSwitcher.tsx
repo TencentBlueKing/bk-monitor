@@ -1,3 +1,4 @@
+import { Globe } from 'lucide-react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
 import { ChoiceInput } from '../../shared/components/ChoiceInput';
@@ -26,7 +27,10 @@ export function EnvironmentSwitcher() {
 
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor="environment-switcher">环境</Label>
+      <Label htmlFor="environment-switcher" className="flex items-center gap-1.5">
+        <Globe aria-hidden="true" size={14} />
+        环境
+      </Label>
       <ChoiceInput
         value={selectedEnvironmentId}
         options={environments.map((environment) => ({

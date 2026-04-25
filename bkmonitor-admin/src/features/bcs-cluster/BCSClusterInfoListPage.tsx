@@ -10,6 +10,7 @@ import {
 } from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
+import { Truncated } from '../../shared/components/Truncated';
 import { buildHref, rememberReturnTarget } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatDateTime } from '../../shared/utils/format';
@@ -103,6 +104,7 @@ export function BCSClusterInfoListPage() {
     () => [
       {
         header: 'cluster_id',
+        size: 180,
         cell: ({ row }) => (
           <Link
             to="/bcs-clusters/$clusterId"
@@ -117,34 +119,64 @@ export function BCSClusterInfoListPage() {
                 }
               )
             }
-            className="link"
+            className="link inline-block"
           >
-            {row.original.cluster_id}
+            <Truncated text={row.original.cluster_id} maxW="180px" />
           </Link>
         )
       },
-      { header: 'API cluster ID', accessorKey: 'bcs_api_cluster_id' },
-      { header: '业务', accessorKey: 'bk_biz_id' },
-      { header: '项目', accessorKey: 'project_id' },
+      {
+        header: 'API cluster ID',
+        size: 170,
+        cell: ({ row }) => {
+          const v = row.original.bcs_api_cluster_id;
+          if (v == null) return <span className="muted-text whitespace-nowrap">-</span>;
+          return <Truncated text={v} maxW="170px" />;
+        }
+      },
+      { header: '业务', accessorKey: 'bk_biz_id', size: 70 },
       {
         header: '状态',
+        size: 80,
         cell: ({ row }) => (
-          <Badge tone={BCS_STATUS_TONE[row.original.status] ?? 'default'}>
-            {row.original.status}
-          </Badge>
+          <span className="whitespace-nowrap">
+            <Badge tone={BCS_STATUS_TONE[row.original.status] ?? 'default'}>
+              {row.original.status}
+            </Badge>
+          </span>
         )
       },
-      { header: '环境', accessorKey: 'bk_env' },
+      {
+        header: '环境',
+        size: 110,
+        cell: ({ row }) => {
+          const v = row.original.bk_env;
+          if (v == null) return <span className="muted-text whitespace-nowrap">-</span>;
+          return <Truncated text={v} maxW="110px" />;
+        }
+      },
       {
         header: 'DataIDs',
+        size: 360,
         cell: ({ row }) => (
           <DataIdsSummary row={row.original} routeSearch={routeSearch} returnTo={currentHref} />
         )
       },
-      { header: 'operator_ns', accessorKey: 'operator_ns' },
+      {
+        header: 'operator_ns',
+        size: 150,
+        cell: ({ row }) => {
+          const v = row.original.operator_ns;
+          if (v == null) return <span className="muted-text whitespace-nowrap">-</span>;
+          return <Truncated text={v} maxW="140px" />;
+        }
+      },
       {
         header: '更新时间',
-        cell: ({ row }) => formatDateTime(row.original.last_modify_time)
+        size: 150,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap">{formatDateTime(row.original.last_modify_time)}</span>
+        )
       }
     ],
     [currentHref, routeSearch]

@@ -64,8 +64,36 @@ export const clusterInfoListResponseSchema = paginationResponseSchema.extend({
   items: z.array(clusterInfoSummarySchema)
 });
 
+export const componentConfigRequestSchema = z.object({
+  bkTenantId: z.string().default('system'),
+  clusterId: z.number().int().positive(),
+  namespace: z.string().min(1),
+  kind: z.string().min(1),
+  name: z.string().min(1)
+});
+
+export const componentConfigResponseSchema = z.object({
+  component_config: z
+    .object({
+      sources: z.array(z.record(z.unknown())).optional(),
+      sinks: z.array(z.record(z.unknown())).optional(),
+      transforms: z.array(z.record(z.unknown())).optional(),
+      status: z
+        .object({
+          phase: z.string().optional(),
+          message: z.string().optional()
+        })
+        .nullable()
+        .optional()
+    })
+    .nullable()
+});
+
 export type ClusterInfoSummary = z.infer<typeof clusterInfoSummarySchema>;
 export type ClusterInfoListQuery = z.infer<typeof clusterInfoListQuerySchema>;
 export type ClusterConfig = z.infer<typeof clusterConfigSchema>;
 export type ClusterInfoDetailResponse = z.infer<typeof clusterInfoDetailResponseSchema>;
 export type ClusterInfoListResponse = z.infer<typeof clusterInfoListResponseSchema>;
+export type ComponentConfigRequest = z.infer<typeof componentConfigRequestSchema>;
+export type ComponentConfigResponse = z.infer<typeof componentConfigResponseSchema>;
+export type ComponentConfig = NonNullable<NonNullable<ClusterConfig['component_config']>>;

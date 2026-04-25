@@ -5,9 +5,12 @@ import { compactObject } from '../../shared/utils/format';
 import {
   clusterInfoDetailResponseSchema,
   clusterInfoListResponseSchema,
+  componentConfigResponseSchema,
   type ClusterInfoDetailResponse,
   type ClusterInfoListQuery,
-  type ClusterInfoListResponse
+  type ClusterInfoListResponse,
+  type ComponentConfigRequest,
+  type ComponentConfigResponse
 } from './schemas';
 
 export async function listClusterInfos(
@@ -63,6 +66,25 @@ function normalizeClusterInfoDetailPayload(payload: unknown) {
       ? record.cluster_configs.map((item) => normalizeClusterConfig(item))
       : []
   };
+}
+
+export async function getComponentConfig(
+  environment: AdminEnvironment,
+  query: ComponentConfigRequest
+): Promise<ComponentConfigResponse> {
+  const envelope = await kernelRpcClient.call<unknown>({
+    environment,
+    operation: 'cluster_info.component_config',
+    params: compactObject({
+      bk_tenant_id: query.bkTenantId,
+      cluster_id: query.clusterId,
+      namespace: query.namespace,
+      kind: query.kind,
+      name: query.name
+    })
+  });
+
+  return componentConfigResponseSchema.parse(envelope.data);
 }
 
 function normalizeClusterConfig(config: unknown) {

@@ -7,7 +7,11 @@ import { Pagination } from '../../shared/components/Pagination';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
 import { Input } from '../../shared/components/ui/input';
-import { buildHref, getStoredReturnTarget, rememberReturnTarget } from '../../shared/navigation/returnTarget';
+import {
+  buildHref,
+  getStoredReturnTarget,
+  rememberReturnTarget
+} from '../../shared/navigation/returnTarget';
 import { createEnvironmentSearch } from '../environments/search';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { useQueryRoute } from './queries';
@@ -49,7 +53,11 @@ export function QueryRouteDetailPage() {
     [currentTenantId, draft, tableId]
   );
   const backSearch = buildQueryRouteSearch(listQuery, envSearch);
-  const queryRoute = useQueryRoute(currentEnvironment!, detailQuery, Boolean(currentEnvironment && tableId));
+  const queryRoute = useQueryRoute(
+    currentEnvironment!,
+    detailQuery,
+    Boolean(currentEnvironment && tableId)
+  );
   const detail = useMemo(
     () => findDetail(queryRoute.data?.result_table_details ?? [], tableId),
     [queryRoute.data?.result_table_details, tableId]
@@ -61,7 +69,11 @@ export function QueryRouteDetailPage() {
   const pagedFields = paginate(filteredFields, fieldPage, pageSize);
   const routeDetail = useMemo(() => getInnerRouteDetail(detail?.detail), [detail?.detail]);
   const detailWithoutFields = useMemo(() => omitFieldsFromDetail(routeDetail), [routeDetail]);
-  const returnTarget = getStoredReturnTarget(currentHref, buildHref('/query-route', backSearch), '查询路由');
+  const returnTarget = getStoredReturnTarget(
+    currentHref,
+    buildHref('/query-route', backSearch),
+    '查询路由'
+  );
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -110,15 +122,25 @@ export function QueryRouteDetailPage() {
         <div className="section-stack">
           <Card>
             <CardContent className="grid gap-3 p-4 text-sm lg:grid-cols-4">
-              <SummaryItem label="exists" value={detail.exists ? 'OK' : 'Missing'} tone={detail.exists ? 'success' : 'danger'} />
+              <SummaryItem
+                label="exists"
+                value={detail.exists ? 'OK' : 'Missing'}
+                tone={detail.exists ? 'success' : 'danger'}
+              />
               <SummaryItem label="storage_type" value={detail.storage_type ?? '-'} />
               <SummaryItem label="storage_id" value={String(detail.storage_id ?? '-')} />
               <SummaryItem label="storage_name" value={readDetailText(detail, 'storage_name')} />
               <SummaryItem label="field_count" value={String(detail.field_count)} />
               <SummaryItem label="db" value={detail.db ?? '-'} />
               <SummaryItem label="measurement" value={detail.measurement ?? '-'} />
-              <SummaryItem label="measurement_type" value={readDetailText(detail, 'measurement_type')} />
-              <SummaryItem label="bcs_cluster_id" value={readDetailText(detail, 'bcs_cluster_id')} />
+              <SummaryItem
+                label="measurement_type"
+                value={readDetailText(detail, 'measurement_type')}
+              />
+              <SummaryItem
+                label="bcs_cluster_id"
+                value={readDetailText(detail, 'bcs_cluster_id')}
+              />
             </CardContent>
           </Card>
 
@@ -141,7 +163,9 @@ export function QueryRouteDetailPage() {
             {pagedFields.length > 0 ? (
               <FieldNameGrid fields={pagedFields} />
             ) : (
-              <div className="muted-text rounded-lg border border-border p-4 text-sm">无 fields</div>
+              <div className="muted-text rounded-lg border border-border p-4 text-sm">
+                无 fields
+              </div>
             )}
             <Pagination
               page={fieldPage}
@@ -187,7 +211,11 @@ function SummaryItem({
 }
 
 function findDetail(details: QueryRouteResultTableDetail[], tableId: string) {
-  return details.find((detail) => detail.table_id === tableId || detail.normalized_table_id === tableId) ?? null;
+  return (
+    details.find(
+      (detail) => detail.table_id === tableId || detail.normalized_table_id === tableId
+    ) ?? null
+  );
 }
 
 function FieldNameGrid({ fields }: { fields: QueryRouteField[] }) {
@@ -222,7 +250,9 @@ function KeyValueTable({ value }: { value: unknown }) {
         <tbody>
           {entries.map(([key, entryValue]) => (
             <tr key={key} className="border-b border-border last:border-b-0">
-              <th className="w-56 bg-muted/40 px-3 py-2 align-top font-mono text-xs font-medium">{key}</th>
+              <th className="w-56 bg-muted/40 px-3 py-2 align-top font-mono text-xs font-medium">
+                {key}
+              </th>
               <td className="px-3 py-2 align-top font-mono text-xs">{formatValue(entryValue)}</td>
             </tr>
           ))}

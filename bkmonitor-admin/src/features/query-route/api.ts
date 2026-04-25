@@ -25,7 +25,9 @@ export async function queryRoutes(
     params: toBackendParams(query)
   });
 
-  return queryRouteResponseSchema.parse(normalizeQueryRoutePayload(envelope.data, query, envelope.warnings));
+  return queryRouteResponseSchema.parse(
+    normalizeQueryRoutePayload(envelope.data, query, envelope.warnings)
+  );
 }
 
 export async function refreshQueryRoutes(
@@ -61,7 +63,10 @@ function normalizeQueryRoutePayload(
   fromRefresh = false
 ): QueryRouteResponse {
   const source = isRecord(payload) ? payload : {};
-  const details = normalizeDetails(firstDefined(source.result_table_details, source.result_table_detail), query);
+  const details = normalizeDetails(
+    firstDefined(source.result_table_details, source.result_table_detail),
+    query
+  );
   const detailMap = buildDetailMap(details);
   const rawDataLabelRoutes = normalizeDataLabelRoutes(
     firstDefined(source.data_label_routes, source.data_label_to_result_table),
@@ -82,11 +87,21 @@ function normalizeQueryRoutePayload(
       in_space: table.in_space || spaceTableIds.has(table.table_id)
     }))
   }));
-  const diagnostics = normalizeDiagnostics(source.diagnostics, query, spaceRoutes, dataLabelRoutes, details);
+  const diagnostics = normalizeDiagnostics(
+    source.diagnostics,
+    query,
+    spaceRoutes,
+    dataLabelRoutes,
+    details
+  );
   const refresh = normalizeRefreshResult(payload, fromRefresh);
 
   return {
-    space_uid: readString(source.space_uid) ?? readNestedString(source.space_route, 'space_uid') ?? query.spaceUid ?? null,
+    space_uid:
+      readString(source.space_uid) ??
+      readNestedString(source.space_route, 'space_uid') ??
+      query.spaceUid ??
+      null,
     inputs: {
       spaceUid: query.spaceUid,
       tableIds: query.tableIds,
@@ -121,7 +136,9 @@ function normalizeSpaceRoutes(
 
       return {
         table_id: tableId,
-        filters: normalizeFilterGroups(firstDefined(record.filter_groups, record.filters, record.filter)),
+        filters: normalizeFilterGroups(
+          firstDefined(record.filter_groups, record.filters, record.filter)
+        ),
         in_input_table_ids: inputTableIds.has(tableId),
         in_any_data_label: tableIdsFromDataLabels.has(tableId),
         has_detail: detailMap.get(tableId)?.exists ?? false,
@@ -145,7 +162,9 @@ function normalizeDataLabelRoutes(
   return entries.map(({ key, raw }) => {
     const record = isRecord(raw) ? raw : {};
     const dataLabel = readString(record.data_label) ?? key;
-    const tableIds = readRouteTableIds(firstDefined(record.table_ids, record.result_table_ids, raw));
+    const tableIds = readRouteTableIds(
+      firstDefined(record.table_ids, record.result_table_ids, raw)
+    );
 
     return {
       data_label: dataLabel,
@@ -199,13 +218,20 @@ function normalizeDetail(
     table_id: tableId,
     normalized_table_id: normalizedTableId,
     exists,
-    storage_type: readString(firstDefined(record.storage_type, summary.storage_type, detail.storage_type)) ?? null,
-    storage_id: readStringOrNumber(firstDefined(record.storage_id, summary.storage_id, detail.storage_id)) ?? null,
+    storage_type:
+      readString(firstDefined(record.storage_type, summary.storage_type, detail.storage_type)) ??
+      null,
+    storage_id:
+      readStringOrNumber(firstDefined(record.storage_id, summary.storage_id, detail.storage_id)) ??
+      null,
     db: readString(firstDefined(record.db, summary.db, detail.db, detail.database)) ?? null,
-    measurement: readString(firstDefined(record.measurement, summary.measurement, detail.measurement)) ?? null,
+    measurement:
+      readString(firstDefined(record.measurement, summary.measurement, detail.measurement)) ?? null,
     field_count: readNumber(record.field_count) ?? fields.length,
     matched_field_names: fieldNames.filter((fieldName) => fieldNameSet.has(fieldName)),
-    missing_field_names: exists ? fieldNames.filter((fieldName) => !fieldNameSet.has(fieldName)) : fieldNames,
+    missing_field_names: exists
+      ? fieldNames.filter((fieldName) => !fieldNameSet.has(fieldName))
+      : fieldNames,
     fields,
     detail: raw
   };
@@ -300,7 +326,8 @@ function normalizeDiagnosticItem(value: unknown, index: number): QueryRouteDiagn
     return [];
   }
 
-  const target = readString(value.target) ?? readString(value.table_id) ?? readString(value.data_label) ?? '-';
+  const target =
+    readString(value.target) ?? readString(value.table_id) ?? readString(value.data_label) ?? '-';
   const status = normalizeStatus(value.status);
 
   return [
@@ -332,15 +359,32 @@ function buildDiagnostics(
 
   for (const tableId of query.tableIds) {
     if (shouldCheckSpace) {
-      diagnostics.push(createDiagnostic('space-table', tableId, spaceTableIds.has(tableId), 'space 路由包含 table_id'));
+      diagnostics.push(
+        createDiagnostic(
+          'space-table',
+          tableId,
+          spaceTableIds.has(tableId),
+          'space 路由包含 table_id'
+        )
+      );
     }
     if (shouldCheckDataLabel) {
       diagnostics.push(
-        createDiagnostic('data-label-table', tableId, dataLabelTableIds.has(tableId), 'data_label 路由包含 table_id')
+        createDiagnostic(
+          'data-label-table',
+          tableId,
+          dataLabelTableIds.has(tableId),
+          'data_label 路由包含 table_id'
+        )
       );
     }
     diagnostics.push(
-      createDiagnostic('detail-table', tableId, detailMap.get(tableId)?.exists === true, 'result_table_detail 存在')
+      createDiagnostic(
+        'detail-table',
+        tableId,
+        detailMap.get(tableId)?.exists === true,
+        'result_table_detail 存在'
+      )
     );
   }
 
@@ -391,7 +435,10 @@ function createDiagnostic(
   };
 }
 
-function normalizeRefreshResult(payload: unknown, fromRefresh: boolean): QueryRouteRefreshResult | undefined {
+function normalizeRefreshResult(
+  payload: unknown,
+  fromRefresh: boolean
+): QueryRouteRefreshResult | undefined {
   if (!fromRefresh) {
     return undefined;
   }
@@ -408,14 +455,18 @@ function normalizeRefreshResult(payload: unknown, fromRefresh: boolean): QueryRo
   };
 }
 
-function normalizeRouteItems(value: unknown, keyName: string): Array<{ key: string; raw: unknown }> {
+function normalizeRouteItems(
+  value: unknown,
+  keyName: string
+): Array<{ key: string; raw: unknown }> {
   if (Array.isArray(value)) {
     return value.flatMap((item) => {
       if (typeof item === 'string') {
         return [{ key: item, raw: { [keyName]: item } }];
       }
       if (isRecord(item)) {
-        const key = readString(item[keyName]) ?? readString(item.table_id) ?? readString(item.data_label);
+        const key =
+          readString(item[keyName]) ?? readString(item.table_id) ?? readString(item.data_label);
         return key ? [{ key, raw: item }] : [];
       }
       return [];
@@ -441,7 +492,11 @@ function readRouteItems(value: unknown): unknown {
   return value;
 }
 
-function sortByInputTableIds<T>(items: T[], inputTableIds: string[], getTableId: (item: T) => string): T[] {
+function sortByInputTableIds<T>(
+  items: T[],
+  inputTableIds: string[],
+  getTableId: (item: T) => string
+): T[] {
   if (inputTableIds.length === 0) {
     return items;
   }

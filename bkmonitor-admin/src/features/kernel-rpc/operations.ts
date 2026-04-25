@@ -13,6 +13,7 @@ export const operationToFuncName = {
   'es_storage.sample': 'admin.es_storage.sample',
   'cluster_info.list': 'admin.cluster_info.list',
   'cluster_info.detail': 'admin.cluster_info.detail',
+  'cluster_info.component_config': 'admin.cluster_info.component_config',
   'bcs_cluster.list': 'admin.bcs_cluster.list',
   'bcs_cluster.detail': 'admin.bcs_cluster.detail',
   'query_route.query': 'admin.query_route.query',

@@ -1,12 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type { AdminEnvironment } from '../environments/schemas';
-import {
-  getEsRuntimeOverview,
-  getEsStorageDetail,
-  listEsStorages,
-  sampleEsStorage
-} from './api';
+import { getEsRuntimeOverview, getEsStorageDetail, listEsStorages, sampleEsStorage } from './api';
 import type { EsStorageListQuery } from './schemas';
 
 export function useEsStorageList(
@@ -41,7 +36,11 @@ export function useEsRuntimeOverview(environment: AdminEnvironment) {
 
 export function useEsStorageSample(environment: AdminEnvironment) {
   return useMutation({
-    mutationFn: (params: { bkTenantId: string; tableId: string; index: string; timeField?: string }) =>
-      sampleEsStorage(environment, params)
+    mutationFn: (params: {
+      bkTenantId: string;
+      tableId: string;
+      index: string;
+      timeField?: string;
+    }) => sampleEsStorage(environment, params)
   });
 }

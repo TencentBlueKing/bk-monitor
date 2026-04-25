@@ -27,6 +27,7 @@ from metadata import models
 
 FUNC_CLUSTER_INFO_LIST = "admin.cluster_info.list"
 FUNC_CLUSTER_INFO_DETAIL = "admin.cluster_info.detail"
+FUNC_CLUSTER_INFO_COMPONENT_CONFIG = "admin.cluster_info.component_config"
 
 CLUSTER_INFO_FIELDS = [
     "cluster_id",
@@ -304,4 +305,76 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id=bk_tenant_id,
         data=data,
         warnings=warnings,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_CLUSTER_INFO_COMPONENT_CONFIG,
+    summary="Admin 查询单个 ClusterConfig 的 ComponentConfig",
+    description="根据 cluster_id、namespace、kind、name 查询单个 ClusterConfig 的 component_config。",
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "cluster_id": "必填，集群 ID",
+        "namespace": "必填，数据链路命名空间",
+        "kind": "必填，数据链路类型",
+        "name": "必填，集群名称",
+    },
+    example_params={
+        "bk_tenant_id": "system",
+        "cluster_id": 1,
+        "namespace": "bkmonitor",
+        "kind": "ElasticsearchCluster",
+        "name": "es-cluster-1",
+    },
+)
+def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+
+    cluster_id = params.get("cluster_id")
+    if cluster_id in (None, ""):
+        raise CustomException(message="cluster_id 为必填项")
+    try:
+        int(cluster_id)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="cluster_id 必须是整数") from error
+
+    namespace = params.get("namespace")
+    if not namespace:
+        raise CustomException(message="namespace 为必填项")
+    kind = params.get("kind")
+    if not kind:
+        raise CustomException(message="kind 为必填项")
+    name = params.get("name")
+    if not name:
+        raise CustomException(message="name 为必填项")
+
+    from metadata.models.data_link.data_link_configs import ClusterConfig
+
+    try:
+        cfg = ClusterConfig.objects.get(
+            bk_tenant_id=bk_tenant_id,
+            namespace=str(namespace).strip(),
+            kind=str(kind).strip(),
+            name=str(name).strip(),
+        )
+    except ClusterConfig.DoesNotExist as error:
+        raise CustomException(
+            message=f"未找到 ClusterConfig: cluster_id={cluster_id}, namespace={namespace}, kind={kind}, name={name}"
+        ) from error
+
+    try:
+        component_config = cfg.component_config
+    except Exception:
+        component_config = None
+
+    return build_response(
+        operation="cluster_info.component_config",
+        func_name=FUNC_CLUSTER_INFO_COMPONENT_CONFIG,
+        bk_tenant_id=bk_tenant_id,
+        data={
+            "component_config": component_config,
+            "namespace": namespace,
+            "kind": kind,
+            "name": name,
+        },
     )

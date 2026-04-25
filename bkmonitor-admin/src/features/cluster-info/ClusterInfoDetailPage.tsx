@@ -1,11 +1,13 @@
 import { Link, useLocation, useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
-import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
+import { Textarea } from '../../shared/components/ui/textarea';
 import {
   buildHref,
   getStoredReturnTarget,
@@ -17,6 +19,7 @@ import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
 import { useEsStorageList } from '../es-storage/queries';
 import { esStorageListQuerySchema } from '../es-storage/schemas';
+import { getComponentConfig } from './api';
 import { CLUSTER_TYPE_TONE } from './constants';
 import { useClusterInfoDetail } from './queries';
 import type { ClusterConfig } from './schemas';
@@ -135,17 +138,12 @@ export function ClusterInfoDetailPage() {
         {cluster_configs.length === 0 ? (
           <PageState title="暂无 ClusterConfig" />
         ) : (
-          <div className="space-y-4">
-            {groupByNamespace(cluster_configs).map(([namespace, configs]) => (
-              <NamespaceSection
-                key={namespace}
-                namespace={namespace}
-                configs={configs}
-                routeSearch={routeSearch}
-                returnTo={currentHref}
-              />
-            ))}
-          </div>
+          <ClusterConfigTable
+            configs={cluster_configs}
+            currentEnvironment={currentEnvironment}
+            currentTenantId={currentTenantId}
+            clusterId={cluster_info.cluster_id}
+          />
         )}
       </section>
 
@@ -234,7 +232,10 @@ export function ClusterInfoDetailPage() {
           {esStoragePreviewQuery.isLoading ? (
             <PageState title="正在加载关联 ESStorage..." />
           ) : esStoragePreviewQuery.isError ? (
-            <PageState title="关联 ESStorage 加载失败" description={String(esStoragePreviewQuery.error)} />
+            <PageState
+              title="关联 ESStorage 加载失败"
+              description={String(esStoragePreviewQuery.error)}
+            />
           ) : (
             <DataTable
               data={esStoragePreviewQuery.data?.items ?? []}
@@ -284,209 +285,147 @@ function Info({ label, value, raw }: { label: string; value: React.ReactNode; ra
   );
 }
 
-function groupByNamespace(configs: ClusterConfig[]): Array<[string, ClusterConfig[]]> {
-  const map = new Map<string, ClusterConfig[]>();
-  for (const c of configs) {
-    const list = map.get(c.namespace) ?? [];
-    list.push(c);
-    map.set(c.namespace, list);
-  }
-  return [...map.entries()];
+interface ComponentConfigState {
+  loading: boolean;
+  data: unknown;
+  error: string | null;
 }
 
-function NamespaceSection({
-  namespace,
+function ClusterConfigTable({
   configs,
-  routeSearch,
-  returnTo
+  currentEnvironment,
+  currentTenantId,
+  clusterId
 }: {
-  namespace: string;
   configs: ClusterConfig[];
-  routeSearch: ReturnType<typeof createEnvironmentSearch>;
-  returnTo: string;
+  currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
+  currentTenantId: string;
+  clusterId: number;
 }) {
-  const [open, setOpen] = useState(false);
+  const [fetchedConfigs, setFetchedConfigs] = useState<Record<string, ComponentConfigState>>({});
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-5 py-3 text-left font-medium hover:bg-muted/30"
-          onClick={() => setOpen((v) => !v)}
-        >
-          <span>{namespace}</span>
-          <span className="text-muted-foreground">{open ? '▲' : '▼'}</span>
-        </button>
-        {open ? (
-          <div className="space-y-4 px-5 pb-5">
-            {configs.map((config) => (
-              <div
-                key={`${config.kind}-${config.name}`}
-                className="space-y-3 border-t pt-4 first:border-t-0 first:pt-0"
+  const handleFetch = useCallback(
+    async (config: ClusterConfig) => {
+      const key = `${config.namespace}::${config.kind}::${config.name}`;
+      setFetchedConfigs((prev) => ({ ...prev, [key]: { loading: true, data: null, error: null } }));
+      setExpandedRows((prev) => new Set(prev).add(key));
+
+      try {
+        const result = await getComponentConfig(currentEnvironment, {
+          bkTenantId: currentTenantId,
+          clusterId,
+          namespace: config.namespace,
+          kind: config.kind,
+          name: config.name
+        });
+        setFetchedConfigs((prev) => ({
+          ...prev,
+          [key]: { loading: false, data: result.component_config, error: null }
+        }));
+      } catch (err) {
+        setFetchedConfigs((prev) => ({
+          ...prev,
+          [key]: { loading: false, data: null, error: String(err) }
+        }));
+      }
+    },
+    [currentEnvironment, currentTenantId, clusterId]
+  );
+
+  const toggleExpand = useCallback((key: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const columns = useMemo<Array<ColumnDef<ClusterConfig>>>(
+    () => [
+      { header: 'namespace', accessorKey: 'namespace' },
+      { header: 'kind', accessorKey: 'kind' },
+      { header: 'name', accessorKey: 'name' },
+      {
+        header: 'created_at',
+        cell: ({ row }) => formatDateTime(row.original.created_at)
+      },
+      {
+        header: 'updated_at',
+        cell: ({ row }) => formatDateTime(row.original.updated_at)
+      },
+      {
+        header: '操作',
+        cell: ({ row }) => {
+          const config = row.original;
+          const key = `${config.namespace}::${config.kind}::${config.name}`;
+          const fetched = fetchedConfigs[key];
+          const isExpanded = expandedRows.has(key);
+
+          return (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={fetched?.loading}
+                onClick={() => handleFetch(config)}
               >
-                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                  <span>
-                    kind: <strong className="text-foreground">{config.kind}</strong>
-                  </span>
-                  <span>
-                    name: <strong className="text-foreground">{config.name}</strong>
-                  </span>
-                  <span>created: {formatDateTime(config.created_at)}</span>
-                  <span>updated: {formatDateTime(config.updated_at)}</span>
-                </div>
-
-                <OriginConfigSection originConfig={config.origin_config} />
-
-                {config.component_config === null ? (
-                  <div className="rounded-md bg-muted/50 p-4 text-center text-muted-foreground">
-                    获取失败
-                  </div>
-                ) : config.component_config ? (
-                  <ComponentConfigSection
-                    componentConfig={config.component_config}
-                    routeSearch={routeSearch}
-                    returnTo={returnTo}
-                  />
+                {fetched?.loading ? (
+                  <Loader2 aria-hidden="true" size={14} className="animate-spin" />
                 ) : null}
-              </div>
-            ))}
+                获取配置
+              </Button>
+              {fetched && !fetched.loading ? (
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => toggleExpand(key)}
+                >
+                  {isExpanded ? '收起' : '展开'}
+                </button>
+              ) : null}
+            </div>
+          );
+        }
+      }
+    ],
+    [fetchedConfigs, expandedRows, handleFetch, toggleExpand]
+  );
+
+  const renderExpandedRow = useCallback(
+    (row: ClusterConfig) => {
+      const key = `${row.namespace}::${row.kind}::${row.name}`;
+      const config = fetchedConfigs[key];
+      if (!config) return null;
+
+      if (config.loading) {
+        return (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 aria-hidden="true" size={14} className="animate-spin" />
+            加载中...
           </div>
-        ) : null}
-      </CardContent>
-    </Card>
+        );
+      }
+
+      if (config.error) {
+        return <div className="text-sm text-destructive">{config.error}</div>;
+      }
+
+      return (
+        <Textarea
+          readOnly
+          className="min-h-40 font-mono text-xs"
+          value={config.data != null ? JSON.stringify(config.data, null, 2) : 'null'}
+        />
+      );
+    },
+    [fetchedConfigs]
   );
-}
 
-function OriginConfigSection({ originConfig }: { originConfig: Record<string, unknown> }) {
-  const [show, setShow] = useState(false);
-
-  return (
-    <div>
-      <button
-        type="button"
-        className="text-sm text-primary hover:underline"
-        onClick={() => setShow((v) => !v)}
-      >
-        {show ? '隐藏 origin_config' : '查看 origin_config'}
-      </button>
-      {show ? <JsonBlock value={originConfig} /> : null}
-    </div>
-  );
-}
-
-function ComponentConfigSection({
-  componentConfig,
-  routeSearch,
-  returnTo
-}: {
-  componentConfig: NonNullable<ClusterConfig['component_config']>;
-  routeSearch: ReturnType<typeof createEnvironmentSearch>;
-  returnTo: string;
-}) {
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {componentConfig.status ? (
-        <Card className="md:col-span-2">
-          <CardContent className="flex items-center gap-3 py-3">
-            <span className="text-sm font-medium">状态:</span>
-            <Badge
-              tone={
-                componentConfig.status.phase === 'Ok' || componentConfig.status.phase === 'ok'
-                  ? 'success'
-                  : 'danger'
-              }
-            >
-              {componentConfig.status.phase ?? 'Unknown'}
-            </Badge>
-            {componentConfig.status.message ? (
-              <span className="text-sm text-muted-foreground">
-                {componentConfig.status.message}
-              </span>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {componentConfig.sources && componentConfig.sources.length > 0 ? (
-        <Card>
-          <CardContent className="py-3">
-            <h4 className="mb-2 text-sm font-semibold">Sources</h4>
-            <div className="space-y-1 text-sm">
-              {componentConfig.sources.map((source, i) => (
-                <div key={i}>
-                  {typeof source.kind === 'string' && source.kind === 'DataId' && source.data_id ? (
-                    <Link
-                      to="/datasources/$bkDataId"
-                      params={{ bkDataId: safeToString(source.data_id) }}
-                      search={routeSearch}
-                      onClick={() =>
-                        rememberReturnTarget(
-                          buildHref(`/datasources/${safeToString(source.data_id)}`, routeSearch),
-                          {
-                            href: returnTo,
-                            label: '存储集群详情'
-                          }
-                        )
-                      }
-                      className="link"
-                    >
-                      DataId #{safeToString(source.data_id)}
-                    </Link>
-                  ) : (
-                    <span>
-                      {typeof source.kind === 'string'
-                        ? `${source.kind}: ${safeToString(source.name)}`
-                        : JSON.stringify(source)}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {componentConfig.sinks && componentConfig.sinks.length > 0 ? (
-        <Card>
-          <CardContent className="py-3">
-            <h4 className="mb-2 text-sm font-semibold">Sinks</h4>
-            <div className="space-y-1 text-sm">
-              {componentConfig.sinks.map((sink, i) => (
-                <div key={i}>
-                  {typeof sink.kind === 'string'
-                    ? `${sink.kind}: ${safeToString(sink.name)}`
-                    : JSON.stringify(sink)}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {componentConfig.transforms && componentConfig.transforms.length > 0 ? (
-        <Card>
-          <CardContent className="py-3">
-            <h4 className="mb-2 text-sm font-semibold">Transforms</h4>
-            <div className="space-y-1 text-sm">
-              {componentConfig.transforms.map((transform, i) => (
-                <div key={i}>
-                  {typeof transform.kind === 'string'
-                    ? `${transform.kind}: ${safeToString(transform.name)}`
-                    : JSON.stringify(transform)}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-    </div>
-  );
-}
-
-function safeToString(val: unknown): string {
-  if (val === null || val === undefined) return '–';
-  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean')
-    return String(val);
-  return JSON.stringify(val);
+  return <DataTable data={configs} columns={columns} renderExpandedRow={renderExpandedRow} />;
 }

@@ -7,9 +7,10 @@ import {
   createRouter,
   useSearch
 } from '@tanstack/react-router';
-import { Database, Globe, HardDrive, Search, Settings2, Table2, Wrench } from 'lucide-react';
+import { Database, Globe, HardDrive, Settings2, Table2, Wrench } from 'lucide-react';
 import { useEffect } from 'react';
 
+import { ElasticsearchIcon, KubernetesIcon } from '../shared/components/BrandIcons';
 import { EnvironmentGuard } from '../features/environments/EnvironmentGuard';
 import { EnvironmentSettingsPage } from '../features/environments/EnvironmentSettingsPage';
 import { EnvironmentSwitcher } from '../features/environments/EnvironmentSwitcher';
@@ -167,7 +168,7 @@ function AppLayout() {
                 activeProps={{ className: 'nav-link active' }}
                 inactiveProps={{ className: 'nav-link' }}
               >
-                <Search aria-hidden="true" size={18} />
+                <ElasticsearchIcon size={18} aria-hidden="true" />
                 ESStorage
               </Link>
               <Link
@@ -176,7 +177,7 @@ function AppLayout() {
                 activeProps={{ className: 'nav-link active' }}
                 inactiveProps={{ className: 'nav-link' }}
               >
-                <Globe aria-hidden="true" size={18} />
+                <KubernetesIcon size={18} aria-hidden="true" />
                 BCS集群
               </Link>
             </div>

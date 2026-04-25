@@ -120,5 +120,6 @@ export type ResultTableListQuery = z.infer<typeof resultTableListQuerySchema>;
 export type ResultTableSummary = z.infer<typeof resultTableSummarySchema>;
 export type ResultTableListResponse = z.infer<typeof resultTableListResponseSchema>;
 export type ResultTableDetailResponse = z.infer<typeof resultTableDetailResponseSchema>;
+export type ResultTableField = z.infer<typeof resultTableFieldSchema>;
 export type ResultTableFieldListQuery = z.infer<typeof resultTableFieldListQuerySchema>;
 export type ResultTableFieldListResponse = z.infer<typeof resultTableFieldListResponseSchema>;
