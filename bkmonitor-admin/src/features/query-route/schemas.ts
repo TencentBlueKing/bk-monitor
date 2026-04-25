@@ -8,7 +8,7 @@ export const queryRouteQuerySchema = z.object({
   tableIds: listInputSchema,
   dataLabels: listInputSchema,
   fieldNames: listInputSchema,
-  keyword: z.string().optional()
+  refreshTargets: z.array(z.enum(['space', 'table', 'data_label'])).optional()
 });
 
 export const queryRouteFilterConditionSchema = z.object({
@@ -87,7 +87,7 @@ export const queryRouteRefreshResultSchema = z.object({
 
 export const queryRouteResponseSchema = z.object({
   space_uid: z.string().nullable().optional(),
-  inputs: queryRouteQuerySchema.omit({ bkTenantId: true, keyword: true }),
+  inputs: queryRouteQuerySchema.omit({ bkTenantId: true }),
   space_routes: z.array(queryRouteSpaceEntrySchema).default([]),
   data_label_routes: z.array(queryRouteDataLabelEntrySchema).default([]),
   result_table_details: z.array(queryRouteResultTableDetailSchema).default([]),

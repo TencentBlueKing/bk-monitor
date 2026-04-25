@@ -29,6 +29,10 @@ from metadata.utils.redis_tools import RedisTools
 
 FUNC_QUERY_ROUTE_QUERY = "admin.query_route.query"
 FUNC_QUERY_ROUTE_REFRESH = "admin.query_route.refresh"
+REFRESH_TARGET_SPACE = "space"
+REFRESH_TARGET_TABLE = "table"
+REFRESH_TARGET_DATA_LABEL = "data_label"
+REFRESH_TARGET_VALUES = {REFRESH_TARGET_SPACE, REFRESH_TARGET_TABLE, REFRESH_TARGET_DATA_LABEL}
 
 SUMMARY_FIELDS = [
     "storage_type",
@@ -193,22 +197,6 @@ def _serialize_data_label_routes(data_labels: list[str], bk_tenant_id: str) -> l
     return routes
 
 
-def _extract_field_names(fields: Any) -> set[str]:
-    if not isinstance(fields, list):
-        return set()
-
-    field_names: set[str] = set()
-    for field in fields:
-        if isinstance(field, str):
-            field_names.add(field)
-        elif isinstance(field, dict):
-            for key in ("field_name", "name", "id"):
-                if field.get(key):
-                    field_names.add(str(field[key]))
-                    break
-    return field_names
-
-
 def _build_detail_summary(detail: dict[str, Any]) -> dict[str, Any]:
     return {field: detail.get(field) for field in SUMMARY_FIELDS if field in detail}
 
@@ -243,63 +231,6 @@ def _serialize_result_table_details(table_ids: list[str], bk_tenant_id: str) -> 
     return details
 
 
-def _build_diagnostics(
-    *,
-    table_ids: list[str],
-    data_labels: list[str],
-    field_names: list[str],
-    space_route: dict[str, Any] | None,
-    data_label_routes: list[dict[str, Any]],
-    result_table_details: list[dict[str, Any]],
-) -> dict[str, Any]:
-    space_table_ids = {item["table_id"] for item in (space_route or {}).get("items", [])}
-    data_label_table_ids = {
-        table_id for route in data_label_routes for table_id in route.get("table_ids", []) if isinstance(table_id, str)
-    }
-    detail_by_table_id = {detail["table_id"]: detail for detail in result_table_details}
-
-    table_checks = []
-    for table_id in table_ids:
-        normalized_table_id = reformat_table_id(table_id)
-        detail = detail_by_table_id.get(table_id, {})
-        table_checks.append(
-            {
-                "table_id": table_id,
-                "normalized_table_id": normalized_table_id,
-                "in_space_route": normalized_table_id in space_table_ids,
-                "in_data_label_route": normalized_table_id in data_label_table_ids,
-                "has_result_table_detail": bool(detail.get("exists")),
-            }
-        )
-
-    data_label_checks = [
-        {
-            "data_label": route["data_label"],
-            "exists": route["exists"],
-            "table_count": route["total"],
-        }
-        for route in data_label_routes
-    ]
-
-    field_checks = []
-    for detail in result_table_details:
-        detail_field_names = _extract_field_names(detail.get("fields"))
-        for field_name in field_names:
-            field_checks.append(
-                {
-                    "table_id": detail["table_id"],
-                    "field_name": field_name,
-                    "exists": field_name in detail_field_names,
-                }
-            )
-
-    return {
-        "table_checks": table_checks,
-        "data_label_checks": data_label_checks,
-        "field_checks": field_checks,
-    }
-
-
 def _normalize_query(params: dict[str, Any], bk_tenant_id: str) -> dict[str, Any]:
     space_uid, space_type_id, space_id = _resolve_space_identity(params)
     table_ids = _normalize_string_list(params.get("table_ids"), "table_ids")
@@ -317,6 +248,32 @@ def _normalize_query(params: dict[str, Any], bk_tenant_id: str) -> dict[str, Any
         "data_labels": data_labels,
         "field_names": field_names,
     }
+
+
+def _normalize_refresh_targets(params: dict[str, Any], query: dict[str, Any]) -> set[str]:
+    targets = set(_normalize_string_list(params.get("refresh_targets"), "refresh_targets"))
+    if not targets:
+        targets = set()
+        if query["space_uid"]:
+            targets.add(REFRESH_TARGET_SPACE)
+        if query["table_ids"]:
+            targets.add(REFRESH_TARGET_TABLE)
+            targets.add(REFRESH_TARGET_DATA_LABEL)
+        if query["data_labels"]:
+            targets.add(REFRESH_TARGET_DATA_LABEL)
+
+    unsupported_targets = targets - REFRESH_TARGET_VALUES
+    if unsupported_targets:
+        allowed_text = ", ".join(sorted(REFRESH_TARGET_VALUES))
+        unsupported_text = ", ".join(sorted(unsupported_targets))
+        raise CustomException(message=f"不支持的 refresh_targets: {unsupported_text}，可选值: {allowed_text}")
+    if REFRESH_TARGET_SPACE in targets and not query["space_uid"]:
+        raise CustomException(message="刷新 space 路由时必须指定 space_uid")
+    if REFRESH_TARGET_TABLE in targets and not query["table_ids"]:
+        raise CustomException(message="刷新表详情路由时必须指定 table_ids")
+    if REFRESH_TARGET_DATA_LABEL in targets and not (query["data_labels"] or query["table_ids"]):
+        raise CustomException(message="刷新 data_label 路由时必须指定 data_labels 或 table_ids")
+    return targets
 
 
 @KernelRPCRegistry.register(
@@ -345,14 +302,6 @@ def query_routes(params: dict[str, Any]) -> dict[str, Any]:
     space_route = _serialize_space_route(query["space_uid"], redis_space_field)
     data_label_routes = _serialize_data_label_routes(query["data_labels"], bk_tenant_id)
     result_table_details = _serialize_result_table_details(query["table_ids"], bk_tenant_id)
-    diagnostics = _build_diagnostics(
-        table_ids=query["table_ids"],
-        data_labels=query["data_labels"],
-        field_names=query["field_names"],
-        space_route=space_route,
-        data_label_routes=data_label_routes,
-        result_table_details=result_table_details,
-    )
 
     return build_response(
         operation="query_route.query",
@@ -363,7 +312,6 @@ def query_routes(params: dict[str, Any]) -> dict[str, Any]:
             "space_route": space_route,
             "data_label_routes": data_label_routes,
             "result_table_details": result_table_details,
-            "diagnostics": diagnostics,
         },
     )
 
@@ -400,22 +348,24 @@ def _mark_refresh_result(
         "space_id": "可选，空间 ID；需与 space_type_id 同时传入",
         "table_ids": "可选，结果表 ID，支持字符串、逗号分隔字符串或列表",
         "data_labels": "可选，数据标签，支持字符串、逗号分隔字符串或列表；兼容 data_label",
+        "refresh_targets": "可选，刷新目标: space / table / data_label；不传时兼容旧行为，按入参自动推断",
     },
     example_params={"bk_tenant_id": "system", "space_uid": "bkcc__2", "table_ids": ["system.cpu"]},
 )
 def refresh_routes(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     query = _normalize_query(params, bk_tenant_id)
+    refresh_targets = _normalize_refresh_targets(params, query)
     table_ids = query["table_ids"]
     data_labels = query["data_labels"]
-    if not query["space_uid"] and not table_ids and not data_labels:
+    if not refresh_targets:
         raise CustomException(message="至少需要指定 space_uid、table_ids 或 data_labels 中的一项")
 
     refresh_results: dict[str, Any] = {}
     warnings: list[dict[str, Any]] = []
     route_client = SpaceTableIDRedis()
 
-    if query["space_uid"]:
+    if REFRESH_TARGET_SPACE in refresh_targets and query["space_uid"]:
         space = _get_space_for_refresh(query["space_type_id"], query["space_id"], bk_tenant_id)
         try:
             route_client.push_space_table_ids(space.space_type_id, space.space_id, is_publish=True)
@@ -426,7 +376,7 @@ def refresh_routes(params: dict[str, Any]) -> dict[str, Any]:
             )
             warnings.append({"code": "SPACE_ROUTE_REFRESH_FAILED", "message": str(error)})
 
-    if table_ids:
+    if REFRESH_TARGET_TABLE in refresh_targets and table_ids:
         try:
             route_client.push_table_id_detail(
                 table_id_list=table_ids,
@@ -439,7 +389,7 @@ def refresh_routes(params: dict[str, Any]) -> dict[str, Any]:
             _mark_refresh_result(refresh_results, "result_table_detail", table_ids, success=False, error=str(error))
             warnings.append({"code": "RESULT_TABLE_DETAIL_REFRESH_FAILED", "message": str(error)})
 
-    if data_labels or table_ids:
+    if REFRESH_TARGET_DATA_LABEL in refresh_targets and (data_labels or table_ids):
         try:
             route_client.push_data_label_table_ids(
                 data_label_list=data_labels or None,

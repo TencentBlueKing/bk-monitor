@@ -49,7 +49,8 @@ function toBackendParams(query: QueryRouteQuery): Record<string, unknown> {
     space_uid: query.spaceUid,
     table_ids: query.tableIds,
     data_labels: query.dataLabels,
-    field_names: query.fieldNames
+    field_names: query.fieldNames,
+    refresh_targets: query.refreshTargets
   });
 }
 

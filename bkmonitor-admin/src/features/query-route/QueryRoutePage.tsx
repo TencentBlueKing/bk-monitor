@@ -36,7 +36,12 @@ interface QueryRouteDraft {
   tableIdsText: string;
   dataLabelsText: string;
   fieldNamesText: string;
-  keyword: string;
+}
+
+interface RefreshTargets {
+  space: boolean;
+  table: boolean;
+  dataLabel: boolean;
 }
 
 const EMPTY_QUERY = queryRouteQuerySchema.parse({
@@ -68,33 +73,42 @@ export function QueryRoutePage() {
   const [pageSize, setPageSize] = useState(50);
   const [expandedTableId, setExpandedTableId] = useState<string | null>(null);
   const [fieldPage, setFieldPage] = useState(1);
+  const [refreshOpen, setRefreshOpen] = useState(false);
+  const [refreshTargets, setRefreshTargets] = useState<RefreshTargets>({
+    space: false,
+    table: true,
+    dataLabel: true
+  });
+  const [spaceKeyword, setSpaceKeyword] = useState('');
+  const [dataLabelKeyword, setDataLabelKeyword] = useState('');
+  const [detailKeyword, setDetailKeyword] = useState('');
+  const [fieldKeyword, setFieldKeyword] = useState('');
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const queryRoute = useQueryRoute(currentEnvironment!, activeQuery ?? EMPTY_QUERY, Boolean(activeQuery));
   const refreshRoute = useRefreshQueryRoute(currentEnvironment!);
   const response = queryRoute.data ?? refreshRoute.data;
-  const keyword = draft.keyword.trim().toLowerCase();
 
   const filteredSpaceRoutes = useMemo(
-    () => filterItems(response?.space_routes ?? [], keyword),
-    [keyword, response?.space_routes]
+    () => filterItems(response?.space_routes ?? [], spaceKeyword.trim().toLowerCase()),
+    [response?.space_routes, spaceKeyword]
   );
   const filteredDataLabelRoutes = useMemo(
-    () => filterItems(response?.data_label_routes ?? [], keyword),
-    [keyword, response?.data_label_routes]
+    () => filterItems(response?.data_label_routes ?? [], dataLabelKeyword.trim().toLowerCase()),
+    [dataLabelKeyword, response?.data_label_routes]
   );
   const filteredDetails = useMemo(
-    () => filterItems(response?.result_table_details ?? [], keyword),
-    [keyword, response?.result_table_details]
-  );
-  const filteredDiagnostics = useMemo(
-    () => filterItems(response?.diagnostics ?? [], keyword),
-    [keyword, response?.diagnostics]
+    () => filterItems(response?.result_table_details ?? [], detailKeyword.trim().toLowerCase()),
+    [detailKeyword, response?.result_table_details]
   );
   const summary = useMemo(() => summarizeDiagnostics(response?.diagnostics ?? []), [response?.diagnostics]);
   const expandedDetail =
     response?.result_table_details.find((detail) => detail.table_id === expandedTableId) ?? null;
-  const pagedFields = paginate(expandedDetail?.fields ?? [], fieldPage, pageSize);
+  const filteredFields = useMemo(
+    () => filterItems(expandedDetail?.fields ?? [], fieldKeyword.trim().toLowerCase()),
+    [expandedDetail?.fields, fieldKeyword]
+  );
+  const pagedFields = paginate(filteredFields, fieldPage, pageSize);
 
   const spaceColumns = useMemo<Array<ColumnDef<QueryRouteSpaceEntry>>>(
     () => [
@@ -229,6 +243,13 @@ export function QueryRoutePage() {
       return;
     }
 
+    const baseQuery = buildQuery(draft, currentTenantId);
+    const nextQuery = buildRefreshQuery(baseQuery, refreshTargets);
+    if (!hasRefreshTarget(nextQuery)) {
+      window.alert('请先在刷新操作区选择刷新类型，并填写对应的 space_uid、table_ids 或 data_labels。');
+      return;
+    }
+
     const confirmed = window.confirm(
       '刷新相关路由会写 Redis 并 publish 通知 unify-query。确认刷新当前查询对象/相关路由并重新查询吗？'
     );
@@ -236,13 +257,14 @@ export function QueryRoutePage() {
       return;
     }
 
-    const nextQuery = buildQuery(draft, currentTenantId);
     setActiveQuery(nextQuery);
     resetPages();
     await refreshRoute.mutateAsync(nextQuery);
+    const queryAfterRefresh = buildQuery(draft, currentTenantId);
+    setActiveQuery(queryAfterRefresh);
     await queryClient.fetchQuery({
-      queryKey: ['query-route', currentEnvironment.id, currentEnvironment, 'query', nextQuery],
-      queryFn: () => queryRoutes(currentEnvironment, nextQuery)
+      queryKey: ['query-route', currentEnvironment.id, currentEnvironment, 'query', queryAfterRefresh],
+      queryFn: () => queryRoutes(currentEnvironment, queryAfterRefresh)
     });
   }
 
@@ -291,19 +313,45 @@ export function QueryRoutePage() {
               />
             </div>
             <div className="flex flex-wrap items-end gap-3">
-              <div className="grid min-w-[260px] flex-1 gap-1.5">
-                <Label htmlFor="keyword">keyword</Label>
-                <Input
-                  id="keyword"
-                  value={draft.keyword}
-                  placeholder="本地过滤 table_id / data_label / 字段 / filters"
-                  onChange={(event) => setDraft((prev) => ({ ...prev, keyword: event.target.value }))}
-                />
-              </div>
               <Button type="submit" disabled={queryRoute.isFetching}>
                 <Search aria-hidden="true" size={16} />
                 查询
               </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3>路由刷新</h3>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => setRefreshOpen((value) => !value)}>
+              {refreshOpen ? '收起' : '展开'}
+            </Button>
+          </div>
+          {refreshOpen ? (
+            <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border p-3">
+              <RefreshCheckbox
+                label="刷新 Space 路由"
+                description="使用 space_uid"
+                checked={refreshTargets.space}
+                onChange={(value) => setRefreshTargets((prev) => ({ ...prev, space: value }))}
+              />
+              <RefreshCheckbox
+                label="刷新表详情路由"
+                description="使用 table_ids"
+                checked={refreshTargets.table}
+                onChange={(value) => setRefreshTargets((prev) => ({ ...prev, table: value }))}
+              />
+              <RefreshCheckbox
+                label="刷新 DataLabel 路由"
+                description="使用 data_labels / table_ids"
+                checked={refreshTargets.dataLabel}
+                onChange={(value) => setRefreshTargets((prev) => ({ ...prev, dataLabel: value }))}
+              />
               <Button
                 type="button"
                 variant="secondary"
@@ -312,10 +360,10 @@ export function QueryRoutePage() {
                 onClick={() => void handleRefresh()}
               >
                 <RefreshCcw aria-hidden="true" size={16} />
-                刷新相关路由并重新查询
+                执行刷新并重新查询
               </Button>
             </div>
-          </form>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -340,10 +388,19 @@ export function QueryRoutePage() {
         <PageState title="正在查询路由..." />
       ) : response ? (
         <div className="section-stack">
-          <SummaryCards summary={summary} diagnostics={filteredDiagnostics} />
+          <SummaryCards summary={summary} diagnostics={response.diagnostics} />
 
           <section id="space-routes">
-            <SectionTitle title="Space 路由" count={filteredSpaceRoutes.length} />
+            <SectionTitle
+              title="Space 路由"
+              count={filteredSpaceRoutes.length}
+              keyword={spaceKeyword}
+              placeholder="过滤 table_id / filters"
+              onKeywordChange={(value) => {
+                setSpaceKeyword(value);
+                setSpacePage(1);
+              }}
+            />
             <DataTable data={paginate(filteredSpaceRoutes, spacePage, pageSize)} columns={spaceColumns} />
             <LocalPagination
               page={spacePage}
@@ -358,7 +415,16 @@ export function QueryRoutePage() {
           </section>
 
           <section id="data-label-routes">
-            <SectionTitle title="DataLabel 路由" count={filteredDataLabelRoutes.length} />
+            <SectionTitle
+              title="DataLabel 路由"
+              count={filteredDataLabelRoutes.length}
+              keyword={dataLabelKeyword}
+              placeholder="过滤 data_label / table_id"
+              onKeywordChange={(value) => {
+                setDataLabelKeyword(value);
+                setDataLabelPage(1);
+              }}
+            />
             <DataTable
               data={paginate(filteredDataLabelRoutes, dataLabelPage, pageSize)}
               columns={dataLabelColumns}
@@ -376,7 +442,16 @@ export function QueryRoutePage() {
           </section>
 
           <section id="result-table-details">
-            <SectionTitle title="ResultTable Detail" count={filteredDetails.length} />
+            <SectionTitle
+              title="ResultTable Detail"
+              count={filteredDetails.length}
+              keyword={detailKeyword}
+              placeholder="过滤 table_id / storage / measurement"
+              onKeywordChange={(value) => {
+                setDetailKeyword(value);
+                setDetailPage(1);
+              }}
+            />
             <DataTable data={paginate(filteredDetails, detailPage, pageSize)} columns={detailColumns} />
             <LocalPagination
               page={detailPage}
@@ -404,12 +479,21 @@ export function QueryRoutePage() {
                   <JsonBlock value={expandedDetail.detail ?? { exists: false }} />
                 </div>
                 <div>
-                  <h3>fields</h3>
+                  <SectionTitle
+                    title="fields"
+                    count={filteredFields.length}
+                    keyword={fieldKeyword}
+                    placeholder="过滤 field_name / tag / type"
+                    onKeywordChange={(value) => {
+                      setFieldKeyword(value);
+                      setFieldPage(1);
+                    }}
+                  />
                   <DataTable data={pagedFields} columns={fieldColumns} emptyText="无 fields" />
                   <LocalPagination
                     page={fieldPage}
                     pageSize={pageSize}
-                    total={expandedDetail.fields.length}
+                    total={filteredFields.length}
                     onPageChange={setFieldPage}
                     onPageSizeChange={(size) => {
                       setPageSize(size);
@@ -457,6 +541,33 @@ function MultiLineInput({
         onChange={(event) => onChange(event.target.value)}
       />
     </div>
+  );
+}
+
+function RefreshCheckbox({
+  label,
+  description,
+  checked,
+  onChange
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2 text-sm">
+      <input
+        type="checkbox"
+        className="mt-1"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span>
+        <span className="block font-medium">{label}</span>
+        <span className="text-xs text-muted-foreground">{description}</span>
+      </span>
+    </label>
   );
 }
 
@@ -520,11 +631,33 @@ function SummaryCard({
   );
 }
 
-function SectionTitle({ title, count }: { title: string; count: number }) {
+function SectionTitle({
+  title,
+  count,
+  keyword,
+  placeholder,
+  onKeywordChange
+}: {
+  title: string;
+  count: number;
+  keyword?: string;
+  placeholder?: string;
+  onKeywordChange?: (value: string) => void;
+}) {
   return (
-    <div className="mb-3 flex items-center gap-2">
-      <h3>{title}</h3>
-      <Badge tone="muted">{count}</Badge>
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <h3>{title}</h3>
+        <Badge tone="muted">{count}</Badge>
+      </div>
+      {onKeywordChange ? (
+        <Input
+          className="max-w-xs"
+          value={keyword ?? ''}
+          placeholder={placeholder ?? '本区域过滤'}
+          onChange={(event) => onKeywordChange(event.target.value)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -637,8 +770,7 @@ function buildQuery(draft: QueryRouteDraft, bkTenantId: string): QueryRouteQuery
     spaceUid: draft.spaceUid.trim() || undefined,
     tableIds: parseList(draft.tableIdsText),
     dataLabels: parseList(draft.dataLabelsText),
-    fieldNames: parseList(draft.fieldNamesText),
-    keyword: draft.keyword.trim() || undefined
+    fieldNames: parseList(draft.fieldNamesText)
   });
 }
 
@@ -647,9 +779,27 @@ function getInitialDraft(search: object): QueryRouteDraft {
     spaceUid: getStringSearch(search, 'space_uid') ?? getStringSearch(search, 'spaceUid') ?? '',
     tableIdsText: getStringSearch(search, 'table_ids') ?? getStringSearch(search, 'tableIds') ?? '',
     dataLabelsText: getStringSearch(search, 'data_labels') ?? getStringSearch(search, 'dataLabels') ?? '',
-    fieldNamesText: getStringSearch(search, 'field_names') ?? getStringSearch(search, 'fieldNames') ?? '',
-    keyword: getStringSearch(search, 'keyword') ?? ''
+    fieldNamesText: getStringSearch(search, 'field_names') ?? getStringSearch(search, 'fieldNames') ?? ''
   };
+}
+
+function buildRefreshQuery(query: QueryRouteQuery, targets: RefreshTargets): QueryRouteQuery {
+  return queryRouteQuerySchema.parse({
+    bkTenantId: query.bkTenantId,
+    spaceUid: targets.space ? query.spaceUid : undefined,
+    tableIds: targets.table || targets.dataLabel ? query.tableIds : [],
+    dataLabels: targets.dataLabel ? query.dataLabels : [],
+    fieldNames: [],
+    refreshTargets: [
+      ...(targets.space ? (['space'] as const) : []),
+      ...(targets.table ? (['table'] as const) : []),
+      ...(targets.dataLabel ? (['data_label'] as const) : [])
+    ]
+  });
+}
+
+function hasRefreshTarget(query: QueryRouteQuery): boolean {
+  return Boolean(query.spaceUid || query.tableIds.length > 0 || query.dataLabels.length > 0);
 }
 
 function getStringSearch(search: object, key: string): string | undefined {
@@ -677,10 +827,19 @@ function hasDraftInput(draft: QueryRouteDraft): boolean {
 }
 
 function parseList(value: string): string[] {
-  return value
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const values: string[] = [];
+  const seen = new Set<string>();
+
+  for (const item of value.split(/[\s,]+/)) {
+    const normalized = item.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    values.push(normalized);
+    seen.add(normalized);
+  }
+
+  return values;
 }
 
 function filterItems<T>(items: T[], keyword: string): T[] {
