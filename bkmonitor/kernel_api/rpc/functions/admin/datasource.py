@@ -422,13 +422,10 @@ def get_data_id_config_component_config(params: dict[str, Any]) -> dict[str, Any
         cfg = models.DataIdConfig.objects.get(
             bk_tenant_id=bk_tenant_id,
             namespace=str(namespace).strip(),
-            kind=kind,
             name=str(name).strip(),
         )
     except models.DataIdConfig.DoesNotExist as error:
-        raise CustomException(
-            message=f"未找到 DataIdConfig: namespace={namespace}, kind={kind}, name={name}"
-        ) from error
+        raise CustomException(message=f"未找到 DataIdConfig: namespace={namespace}, name={name}") from error
 
     try:
         component_config = cfg.component_config
