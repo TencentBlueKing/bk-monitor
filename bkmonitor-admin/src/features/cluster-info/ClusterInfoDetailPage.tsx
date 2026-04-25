@@ -1,10 +1,12 @@
 import { Link, useLocation, useParams } from '@tanstack/react-router';
-import { Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import { PageState } from '../../shared/components/PageState';
+import { Pagination } from '../../shared/components/Pagination';
+import { Truncated } from '../../shared/components/Truncated';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
 import { Textarea } from '../../shared/components/ui/textarea';
@@ -22,6 +24,7 @@ import { esStorageListQuerySchema } from '../es-storage/schemas';
 import { getComponentConfig } from './api';
 import { CLUSTER_TYPE_TONE } from './constants';
 import { useClusterInfoDetail } from './queries';
+import { ES_STORAGE_TABLE_KIND_LABEL, ES_STORAGE_TABLE_KIND_TONE } from '../es-storage/constants';
 import type { ClusterConfig } from './schemas';
 
 export function ClusterInfoDetailPage() {
@@ -30,6 +33,9 @@ export function ClusterInfoDetailPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const clusterId = Number(params.clusterId);
 
+  const [esStoragePage, setEsStoragePage] = useState(1);
+  const [esStoragePageSize, setEsStoragePageSize] = useState(20);
+
   const detailQuery = useClusterInfoDetail(currentEnvironment!, currentTenantId, clusterId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const fallbackReturnHref = buildHref('/clusters', routeSearch);
@@ -37,8 +43,8 @@ export function ClusterInfoDetailPage() {
   const esStoragePreviewQueryParams = esStorageListQuerySchema.parse({
     bkTenantId: currentTenantId,
     storageClusterId: Number.isNaN(clusterId) ? undefined : clusterId,
-    page: 1,
-    pageSize: 10
+    page: esStoragePage,
+    pageSize: esStoragePageSize
   });
   const esStoragePreviewQuery = useEsStorageList(
     currentEnvironment!,
@@ -133,7 +139,7 @@ export function ClusterInfoDetailPage() {
         </CardContent>
       </Card>
 
-      <section>
+      <section className="min-w-0">
         <h3>ClusterConfig</h3>
         {cluster_configs.length === 0 ? (
           <PageState title="暂无 ClusterConfig" />
@@ -212,13 +218,14 @@ export function ClusterInfoDetailPage() {
       </Card>
 
       {cluster_info.cluster_type === 'elasticsearch' ? (
-        <section>
-          <div className="flex items-center justify-between gap-3">
+        <section className="min-w-0">
+          <div className="mb-3 flex items-center gap-2">
             <h3>关联 ESStorage</h3>
             <Link
               to="/es-storages"
               search={esStorageSearch}
-              className="link"
+              className="link inline-flex items-center"
+              title="查看全部 ESStorage"
               onClick={() =>
                 rememberReturnTarget(buildHref('/es-storages', esStorageSearch), {
                   href: currentHref,
@@ -226,7 +233,7 @@ export function ClusterInfoDetailPage() {
                 })
               }
             >
-              查看全部
+              <ExternalLink aria-hidden="true" size={14} />
             </Link>
           </div>
           {esStoragePreviewQuery.isLoading ? (
@@ -237,38 +244,79 @@ export function ClusterInfoDetailPage() {
               description={String(esStoragePreviewQuery.error)}
             />
           ) : (
-            <DataTable
-              data={esStoragePreviewQuery.data?.items ?? []}
-              emptyText="暂无关联 ESStorage"
-              columns={[
-                {
-                  header: 'table_id',
-                  cell: ({ row }) => (
-                    <Link
-                      to="/es-storages/$tableId"
-                      params={{ tableId: row.original.table_id }}
-                      search={routeSearch}
-                      className="link"
-                      onClick={() =>
-                        rememberReturnTarget(
-                          buildHref(`/es-storages/${row.original.table_id}`, routeSearch),
-                          {
-                            href: currentHref,
-                            label: '存储集群详情'
-                          }
-                        )
-                      }
-                    >
-                      {row.original.table_id}
-                    </Link>
-                  )
-                },
-                { header: 'table_kind', accessorKey: 'table_kind' },
-                { header: 'origin_table_id', accessorKey: 'origin_table_id' },
-                { header: 'index_set', accessorKey: 'index_set' },
-                { header: 'retention', accessorKey: 'retention' }
-              ]}
-            />
+            <>
+              <DataTable
+                data={esStoragePreviewQuery.data?.items ?? []}
+                emptyText="暂无关联 ESStorage"
+                columns={[
+                  {
+                    header: 'table_id',
+                    size: 260,
+                    cell: ({ row }) => (
+                      <Link
+                        to="/es-storages/$tableId"
+                        params={{ tableId: row.original.table_id }}
+                        search={routeSearch}
+                        className="link inline-block"
+                        onClick={() =>
+                          rememberReturnTarget(
+                            buildHref(`/es-storages/${row.original.table_id}`, routeSearch),
+                            {
+                              href: currentHref,
+                              label: '存储集群详情'
+                            }
+                          )
+                        }
+                      >
+                        <Truncated text={row.original.table_id} maxW="240px" />
+                      </Link>
+                    )
+                  },
+                  {
+                    header: 'table_kind',
+                    cell: ({ row }) => {
+                      const kind = row.original.table_kind;
+                      return (
+                        <Badge tone={ES_STORAGE_TABLE_KIND_TONE[kind]}>
+                          {ES_STORAGE_TABLE_KIND_LABEL[kind]}
+                        </Badge>
+                      );
+                    }
+                  },
+                  {
+                    header: 'origin_table_id',
+                    size: 220,
+                    cell: ({ row }) => {
+                      const v = row.original.origin_table_id;
+                      if (!v)
+                        return <span className="muted-text whitespace-nowrap">{'\u2013'}</span>;
+                      return <Truncated text={v} maxW="200px" />;
+                    }
+                  },
+                  {
+                    header: 'index_set',
+                    size: 200,
+                    cell: ({ row }) => {
+                      const v = row.original.index_set;
+                      if (!v)
+                        return <span className="muted-text whitespace-nowrap">{'\u2013'}</span>;
+                      return <Truncated text={v} maxW="180px" />;
+                    }
+                  },
+                  { header: 'retention', accessorKey: 'retention' }
+                ]}
+              />
+              <Pagination
+                page={esStoragePage}
+                pageSize={esStoragePageSize}
+                total={esStoragePreviewQuery.data?.total ?? 0}
+                onPageChange={setEsStoragePage}
+                onPageSizeChange={(size) => {
+                  setEsStoragePageSize(size);
+                  setEsStoragePage(1);
+                }}
+              />
+            </>
           )}
         </section>
       ) : null}

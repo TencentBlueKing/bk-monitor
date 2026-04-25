@@ -70,6 +70,17 @@ SENSITIVE_FIELDS = [
 
 SENSITIVE_FLAG_MAP = {f: f"has_{f}" for f in SENSITIVE_FIELDS}
 
+MASKED_VALUE = "***"
+
+
+def _mask_sensitive_fields(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {k: MASKED_VALUE if k.lower() == "password" else _mask_sensitive_fields(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [_mask_sensitive_fields(item) for item in data]
+    return data
+
+
 ORDERING_FIELDS = {
     "cluster_id",
     "cluster_name",
@@ -271,7 +282,7 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
         }
         if "component_config" in includes:
             try:
-                item["component_config"] = cfg.component_config
+                item["component_config"] = _mask_sensitive_fields(cfg.component_config)
             except Exception:
                 item["component_config"] = None
                 warnings.append(
@@ -366,6 +377,8 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
         component_config = cfg.component_config
     except Exception:
         component_config = None
+
+    component_config = _mask_sensitive_fields(component_config)
 
     return build_response(
         operation="cluster_info.component_config",

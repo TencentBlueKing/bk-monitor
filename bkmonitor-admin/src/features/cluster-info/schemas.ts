@@ -47,6 +47,7 @@ export const clusterConfigSchema = z.object({
         .nullable()
         .optional()
     })
+    .passthrough()
     .nullable()
     .optional(),
   created_at: z.string().nullable().optional(),
@@ -86,6 +87,7 @@ export const componentConfigResponseSchema = z.object({
         .nullable()
         .optional()
     })
+    .passthrough()
     .nullable()
 });
 

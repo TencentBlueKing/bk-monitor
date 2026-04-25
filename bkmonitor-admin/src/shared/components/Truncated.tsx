@@ -9,7 +9,7 @@ interface TruncatedProps {
   className?: string;
 }
 
-export function Truncated({ text, maxW = '200px', className }: TruncatedProps) {
+export function Truncated({ text, maxW, className }: TruncatedProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [overflow, setOverflow] = useState(false);
 
@@ -17,10 +17,14 @@ export function Truncated({ text, maxW = '200px', className }: TruncatedProps) {
     const el = ref.current;
     if (!el) return;
     setOverflow(el.scrollWidth > el.offsetWidth);
-  }, [text, maxW]);
+  }, [text]);
 
   const span = (
-    <span ref={ref} className={cn('block truncate', className)} style={{ maxWidth: maxW }}>
+    <span
+      ref={ref}
+      className={cn('block truncate', className)}
+      style={maxW ? { maxWidth: maxW } : undefined}
+    >
       {text}
     </span>
   );
