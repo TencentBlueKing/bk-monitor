@@ -41,9 +41,9 @@ function DataIdsSummary({
   returnTo: string;
 }) {
   const items: Array<{ label: string; value: number }> = [
-    { label: 'K8s指标', value: row.K8sMetricDataID ?? 0 },
+    { label: 'BCS指标', value: row.K8sMetricDataID ?? 0 },
     { label: '自定义指标', value: row.CustomMetricDataID ?? 0 },
-    { label: 'K8s事件', value: row.K8sEventDataID ?? 0 },
+    { label: 'BCS事件', value: row.K8sEventDataID ?? 0 },
     { label: '自定义事件', value: row.CustomEventDataID ?? 0 },
     { label: '系统日志', value: row.SystemLogDataID ?? 0 },
     { label: '自定义日志', value: row.CustomLogDataID ?? 0 }
@@ -66,7 +66,7 @@ function DataIdsSummary({
           onClick={() =>
             rememberReturnTarget(buildHref(`/datasources/${String(item.value)}`, routeSearch), {
               href: returnTo,
-              label: 'K8s 集群列表'
+              label: 'BCS集群列表'
             })
           }
           className="rounded bg-muted px-1.5 py-0.5 text-primary hover:underline"
@@ -113,7 +113,7 @@ export function BCSClusterInfoListPage() {
                 buildHref(`/bcs-clusters/${row.original.cluster_id}`, routeSearch),
                 {
                   href: currentHref,
-                  label: 'K8s 集群列表'
+                  label: 'BCS集群列表'
                 }
               )
             }
@@ -159,7 +159,7 @@ export function BCSClusterInfoListPage() {
       <div className="page-heading">
         <div>
           <div className="eyebrow">Resource</div>
-          <h2>K8s 集群</h2>
+          <h2>BCS集群</h2>
         </div>
       </div>
       <FilterToolbar
@@ -180,7 +180,7 @@ export function BCSClusterInfoListPage() {
       {bcsQuery.isError ? (
         <PageState title="加载失败" description={String(bcsQuery.error)} />
       ) : bcsQuery.isLoading ? (
-        <PageState title="正在加载 K8s 集群..." />
+        <PageState title="正在加载 BCS集群..." />
       ) : (
         <>
           <DataTable data={bcsQuery.data?.items ?? []} columns={columns} />

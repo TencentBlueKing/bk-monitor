@@ -11,6 +11,7 @@ import type {
   ResultTableFieldListResponse,
   ResultTableListResponse
 } from '../result-table/schemas';
+import type { QueryRouteResponse } from '../query-route/schemas';
 
 export const mockDatasources: DataSourceListResponse['items'] = [
   {
@@ -602,4 +603,162 @@ export function createMockFieldList(
     page_size: pageSize,
     total: allFields.length
   };
+}
+
+export function createMockQueryRoute(params: Record<string, unknown>): QueryRouteResponse {
+  const inputTableIds = readStringArray(params.table_ids);
+  const inputDataLabels = readStringArray(params.data_labels);
+  const inputFieldNames = readStringArray(params.field_names);
+  const tableIds =
+    inputTableIds.length > 0
+      ? inputTableIds
+      : ['2_bkmonitor_time_series.__default__', '3_bklog.demo', '2_missing.demo'];
+  const dataLabels =
+    inputDataLabels.length > 0 ? inputDataLabels : ['custom_metric_demo', 'bkdata_link_demo'];
+  const spaceUid = typeof params.space_uid === 'string' ? params.space_uid : 'bkcc__2';
+  const fields = createMockQueryRouteFields(tableIds[0] ?? '2_bkmonitor_time_series.__default__');
+  const inputTableIdSet = new Set(inputTableIds);
+
+  const resultTableDetails = tableIds.map((tableId) => {
+    const exists = tableId !== '2_missing.demo';
+    const isLog = tableId.includes('bklog');
+    const detailFields = exists && !isLog ? fields : [];
+    const fieldNameSet = new Set(detailFields.map((field) => field.field_name));
+
+    return {
+      table_id: tableId,
+      exists,
+      storage_type: isLog ? 'elasticsearch' : 'influxdb',
+      storage_id: isLog ? 'default-es' : 'default-influxdb',
+      db: isLog ? '3_bklog' : 'bkmonitor_custom_metric',
+      measurement: isLog ? 'demo' : '__default__',
+      field_count: detailFields.length,
+      matched_field_names: inputFieldNames.filter((fieldName) => fieldNameSet.has(fieldName)),
+      missing_field_names: exists
+        ? inputFieldNames.filter((fieldName) => !fieldNameSet.has(fieldName))
+        : inputFieldNames,
+      fields: detailFields,
+      detail: exists
+        ? {
+            table_id: tableId,
+            data_label: isLog ? 'bkdata_link_demo' : 'custom_metric_demo',
+            storage_type: isLog ? 'elasticsearch' : 'influxdb',
+            db: isLog ? '3_bklog' : 'bkmonitor_custom_metric',
+            measurement: isLog ? 'demo' : '__default__',
+            fields: detailFields
+          }
+        : null
+    };
+  });
+
+  const spaceRoutes = tableIds
+    .filter((tableId) => tableId !== '2_missing.demo')
+    .map((tableId, index) => ({
+      table_id: tableId,
+      filters: [
+        {
+          conditions: [
+            { field: 'dimensions.bk_biz_id', operator: '=', value: index === 0 ? 2 : 3 },
+            { field: 'source_type', operator: '=', value: tableId.includes('bklog') ? 'log' : 'metric' }
+          ],
+          raw: {
+            'dimensions.bk_biz_id': index === 0 ? 2 : 3,
+            source_type: tableId.includes('bklog') ? 'log' : 'metric'
+          }
+        },
+        {
+          conditions: [{ field: 'dimensions.cluster_id', operator: '=', value: 'BCS-K8S-00000' }],
+          raw: { 'dimensions.cluster_id': 'BCS-K8S-00000' }
+        }
+      ],
+      in_input_table_ids: inputTableIdSet.size === 0 || inputTableIdSet.has(tableId),
+      in_any_data_label: true,
+      has_detail: tableId !== '2_missing.demo',
+      raw: {
+        space_uid: spaceUid,
+        table_id: tableId
+      }
+    }));
+
+  const dataLabelRoutes = dataLabels.map((dataLabel) => {
+    const routedTableIds = dataLabel.includes('log')
+      ? ['3_bklog.demo']
+      : ['2_bkmonitor_time_series.__default__', '2_missing.demo'];
+
+    return {
+      data_label: dataLabel,
+      table_ids: routedTableIds.map((tableId) => ({
+        table_id: tableId,
+        in_space: spaceRoutes.some((route) => route.table_id === tableId),
+        has_detail: resultTableDetails.some((detail) => detail.table_id === tableId && detail.exists),
+        in_input_table_ids: inputTableIdSet.has(tableId)
+      })),
+      raw: {
+        data_label: dataLabel,
+        table_ids: routedTableIds
+      }
+    };
+  });
+
+  return {
+    space_uid: spaceUid,
+    inputs: {
+      spaceUid,
+      tableIds,
+      dataLabels,
+      fieldNames: inputFieldNames
+    },
+    space_routes: spaceRoutes,
+    data_label_routes: dataLabelRoutes,
+    result_table_details: resultTableDetails,
+    diagnostics: [
+      {
+        id: 'space-ok',
+        status: 'ok',
+        label: 'space 路由包含 table_id',
+        target: tableIds[0] ?? '-',
+        message: `${tableIds[0] ?? '-'} OK`
+      },
+      {
+        id: 'detail-missing',
+        status: 'missing',
+        label: 'result_table_detail 存在',
+        target: '2_missing.demo',
+        message: '2_missing.demo Missing'
+      },
+      {
+        id: 'field-missing',
+        status: inputFieldNames.includes('missing_field') ? 'missing' : 'ok',
+        label: '字段检查',
+        target: 'missing_field',
+        message: inputFieldNames.includes('missing_field')
+          ? 'missing_field 不存在于 result_table_detail.fields'
+          : '字段检查 OK'
+      }
+    ],
+    warnings: ['mock 数据覆盖 space/data_label/detail/filter_groups/fields/diagnostics/refresh。']
+  };
+}
+
+function createMockQueryRouteFields(tableId: string) {
+  return Array.from({ length: 128 }, (_, index) => {
+    const position = index + 1;
+    const fieldName = position === 1 ? 'time' : `metric_${position}`;
+
+    return {
+      field_name: fieldName,
+      field_type: position === 1 ? 'timestamp' : 'double',
+      tag: position % 5 === 0 ? 'dimension' : 'metric',
+      description: `${tableId} 字段 ${position}`,
+      alias_name: position === 1 ? '时间' : `指标 ${position}`,
+      raw: {
+        field_name: fieldName,
+        type: position === 1 ? 'timestamp' : 'double'
+      }
+    };
+  });
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.flatMap((item) => (typeof item === 'string' ? [item] : [])) : [];
 }

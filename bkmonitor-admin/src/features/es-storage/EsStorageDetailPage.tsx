@@ -450,7 +450,10 @@ function RuntimeOverview({
             { header: 'health', accessorKey: 'health' },
             { header: 'status', accessorKey: 'status' },
             { header: 'docs_count', accessorKey: 'docs_count' },
-            { header: 'store_size', accessorKey: 'store_size' },
+            {
+              header: 'store_size',
+              cell: ({ row }) => <StoreSize value={row.original.store_size} />
+            },
             { header: 'creation_date', accessorKey: 'creation_date' },
             {
               header: '操作',
@@ -483,7 +486,7 @@ function RuntimeOverview({
       </section>
       <section>
         <h3>Mapping</h3>
-        <ExpandableJsonBlock value={overview.mapping ?? { message: '无 mapping' }} />
+        <JsonBlock value={overview.mapping ?? { message: '无 mapping' }} />
       </section>
     </div>
   );
@@ -518,21 +521,6 @@ function ConfigJson({ title, value }: { title: string; value: unknown }) {
       <CardContent className="space-y-3 py-3">
         <h4 className="text-sm font-semibold">{title}</h4>
         <JsonBlock value={value ?? {}} />
-      </CardContent>
-    </Card>
-  );
-}
-
-function ExpandableJsonBlock({ value }: { value: unknown }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Card>
-      <CardContent className="space-y-3 py-3">
-        <Button type="button" variant="ghost" onClick={() => setOpen((value) => !value)}>
-          {open ? '收起 mapping' : '展开 mapping'}
-        </Button>
-        {open ? <JsonBlock value={value} /> : <div className="muted-text">mapping 默认折叠。</div>}
       </CardContent>
     </Card>
   );
@@ -616,4 +604,30 @@ function formatOptional(value: string | number | null | undefined, suffix = '') 
     return '-';
   }
   return `${String(value)}${suffix}`;
+}
+
+function StoreSize({ value }: { value: string | null | undefined }) {
+  if (!value) {
+    return <span className="muted-text">-</span>;
+  }
+
+  return <span title={`原始值: ${value}`}>{formatStoreSize(value)}</span>;
+}
+
+function formatStoreSize(value: string) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes)) {
+    return value;
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  let unitIndex = 0;
+  let size = bytes;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  const formattedSize = unitIndex === 0 || size >= 100 ? size.toFixed(0) : size.toFixed(1);
+  return `${formattedSize} ${units[unitIndex]}`;
 }

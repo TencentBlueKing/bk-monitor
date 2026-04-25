@@ -803,6 +803,24 @@ Safety level：`inspect`
 
 `index` 必填且不允许通配符，必须属于当前 ESStorage 的索引集合或匹配当前索引规则；默认 `time_field=dtEventTimeStamp`，查询复用 `ESStorage.get_raw_data(index_name, time_field)`。
 
+### admin.query_route.query
+
+用途：Redis 查询路由诊断工具，查询 `SPACE_TO_RESULT_TABLE_KEY`、`DATA_LABEL_TO_RESULT_TABLE_KEY`、`RESULT_TABLE_DETAIL_KEY`。后端按 `settings.ENABLE_MULTI_TENANT_MODE` 自行拼接 Redis field，前端不需要感知单租/多租。
+
+Safety level：`read`
+
+入参支持 `bk_tenant_id`、`space_uid` 或 `space_type_id + space_id`、`table_ids`、`data_labels`/`data_label`、`field_names`。`table_ids`、`data_labels`、`field_names` 支持字符串、逗号分隔字符串或列表。
+
+返回包含 `query` 回显、`space_route`、`data_label_routes`、`result_table_details`、`diagnostics`。其中 `space_route.items[].filter_groups` 会把每个 filter object 解析为 AND 条件组，多个组表示 OR；同时保留原始 `filters` 和 `raw`。接口只使用明确 field 的 `hget/hmget`，不做 `hgetall` 全量扫描。
+
+### admin.query_route.refresh
+
+用途：主动刷新 Redis 查询路由，刷新时 `is_publish=True`。
+
+Safety level：`read`
+
+入参同 `admin.query_route.query`，但至少需要指定 `space_uid`、`table_ids` 或 `data_labels` 中的一项。`space_uid` 刷新 `space_to_result_table`；`table_ids` 刷新 `result_table_detail` 并包含 ES 表；`data_labels` 或 `table_ids` 刷新 `data_label_to_result_table`。多租户下会用 `bk_tenant_id` 校验目标空间，避免跨租户刷新。
+
 ## 后续可扩展函数
 
 一期先不实现，但可以预留命名：

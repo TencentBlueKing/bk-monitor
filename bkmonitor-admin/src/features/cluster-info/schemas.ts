@@ -25,7 +25,8 @@ export const clusterInfoListQuerySchema = paginationQuerySchema.extend({
   clusterName: z.string().optional(),
   clusterType: z.string().optional(),
   isDefaultCluster: z.boolean().optional(),
-  registeredSystem: z.string().optional()
+  registeredSystem: z.string().optional(),
+  include: z.array(z.string()).optional()
 });
 
 export const clusterConfigSchema = z.object({

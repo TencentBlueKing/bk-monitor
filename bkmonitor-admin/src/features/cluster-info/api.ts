@@ -23,6 +23,7 @@ export async function listClusterInfos(
       cluster_type: query.clusterType,
       is_default_cluster: query.isDefaultCluster,
       registered_system: query.registeredSystem,
+      include: query.include,
       ...toBackendPagination(query)
     })
   });

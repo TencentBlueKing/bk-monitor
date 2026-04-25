@@ -79,6 +79,8 @@ ORDERING_FIELDS = {
     "last_modify_time",
 }
 
+CLUSTER_LIST_INCLUDE_VALUES = {"associated_counts"}
+DEFAULT_LIST_INCLUDE = {"associated_counts"}
 INCLUDE_VALUES = {"component_config"}
 DEFAULT_DETAIL_INCLUDE = {"component_config"}
 
@@ -158,6 +160,7 @@ def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_t
         "cluster_name": "可选，集群名称包含匹配",
         "is_default_cluster": "可选，是否默认集群",
         "registered_system": "可选，注册来源系统精确匹配",
+        "include": "可选，展开范围；默认 associated_counts，传空列表可跳过关联统计",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(ORDERING_FIELDS))}，默认 cluster_id",
@@ -168,12 +171,16 @@ def list_cluster_infos(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), ORDERING_FIELDS, default="cluster_id")
+    includes = normalize_include(params.get("include"), CLUSTER_LIST_INCLUDE_VALUES, default=DEFAULT_LIST_INCLUDE)
 
     queryset = _build_cluster_info_queryset(params, bk_tenant_id).order_by(ordering, "cluster_id")
     clusters, total = paginate_queryset(queryset, page=page, page_size=page_size)
 
-    datasource_count_map = _enrich_clusters_with_datasource_count(clusters, bk_tenant_id)
-    storage_count_map = _enrich_clusters_with_storage_count(clusters, bk_tenant_id)
+    datasource_count_map: dict[int, int] = {}
+    storage_count_map: dict[int, int] = {}
+    if "associated_counts" in includes:
+        datasource_count_map = _enrich_clusters_with_datasource_count(clusters, bk_tenant_id)
+        storage_count_map = _enrich_clusters_with_storage_count(clusters, bk_tenant_id)
 
     items = []
     for cluster in clusters:

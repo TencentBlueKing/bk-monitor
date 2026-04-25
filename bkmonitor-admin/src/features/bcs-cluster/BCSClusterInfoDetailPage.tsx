@@ -27,7 +27,7 @@ export function BCSClusterInfoDetailPage() {
   const detailQuery = useBcsClusterDetail(currentEnvironment!, currentTenantId, clusterId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const fallbackReturnHref = buildHref('/bcs-clusters', routeSearch);
-  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'K8s 集群列表');
+  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'BCS集群列表');
 
   const dsColumns = useMemo<
     Array<
@@ -53,7 +53,7 @@ export function BCSClusterInfoDetailPage() {
                 buildHref(`/datasources/${String(row.original.bk_data_id)}`, routeSearch),
                 {
                   href: currentHref,
-                  label: 'K8s 集群详情'
+                  label: 'BCS集群详情'
                 }
               )
             }
@@ -79,11 +79,11 @@ export function BCSClusterInfoDetailPage() {
   );
 
   if (!currentEnvironment || !clusterId) {
-    return <PageState title="K8s 集群参数无效" />;
+    return <PageState title="BCS集群参数无效" />;
   }
 
   if (detailQuery.isLoading) {
-    return <PageState title="正在加载 K8s 集群详情..." />;
+    return <PageState title="正在加载 BCS集群详情..." />;
   }
 
   if (detailQuery.isError || !detailQuery.data) {
@@ -93,9 +93,9 @@ export function BCSClusterInfoDetailPage() {
   const { cluster, datasource_summaries } = detailQuery.data;
 
   const dataIdFields = [
-    { label: 'K8sMetricDataID', value: cluster.K8sMetricDataID },
+    { label: 'BCS指标 (K8sMetricDataID)', value: cluster.K8sMetricDataID },
     { label: 'CustomMetricDataID', value: cluster.CustomMetricDataID },
-    { label: 'K8sEventDataID', value: cluster.K8sEventDataID },
+    { label: 'BCS事件 (K8sEventDataID)', value: cluster.K8sEventDataID },
     { label: 'CustomEventDataID', value: cluster.CustomEventDataID },
     { label: 'SystemLogDataID', value: cluster.SystemLogDataID },
     { label: 'CustomLogDataID', value: cluster.CustomLogDataID }
@@ -105,7 +105,7 @@ export function BCSClusterInfoDetailPage() {
     <section className="page-panel">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">K8s 集群详情</div>
+          <div className="eyebrow">BCS集群详情</div>
           <h2>{cluster.cluster_id}</h2>
         </div>
         <Button asChild variant="secondary">
@@ -178,7 +178,7 @@ export function BCSClusterInfoDetailPage() {
                         buildHref(`/datasources/${String(field.value)}`, routeSearch),
                         {
                           href: currentHref,
-                          label: 'K8s 集群详情'
+                          label: 'BCS集群详情'
                         }
                       )
                     }

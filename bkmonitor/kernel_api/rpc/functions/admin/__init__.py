@@ -8,6 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from . import bcs_cluster, cluster_info, datasource, es_storage, kafka_sample, result_table, tenant
+from . import bcs_cluster, cluster_info, datasource, es_storage, kafka_sample, query_route, result_table, tenant
 
-__all__ = ["bcs_cluster", "cluster_info", "datasource", "es_storage", "kafka_sample", "result_table", "tenant"]
+__all__ = [
+    "bcs_cluster",
+    "cluster_info",
+    "datasource",
+    "es_storage",
+    "kafka_sample",
+    "query_route",
+    "result_table",
+    "tenant",
+]

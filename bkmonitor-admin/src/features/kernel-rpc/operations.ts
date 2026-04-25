@@ -14,7 +14,9 @@ export const operationToFuncName = {
   'cluster_info.list': 'admin.cluster_info.list',
   'cluster_info.detail': 'admin.cluster_info.detail',
   'bcs_cluster.list': 'admin.bcs_cluster.list',
-  'bcs_cluster.detail': 'admin.bcs_cluster.detail'
+  'bcs_cluster.detail': 'admin.bcs_cluster.detail',
+  'query_route.query': 'admin.query_route.query',
+  'query_route.refresh': 'admin.query_route.refresh'
 } as const;
 
 export type AdminOperation = keyof typeof operationToFuncName;

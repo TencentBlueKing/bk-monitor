@@ -17,7 +17,8 @@ import {
   rememberReturnTarget
 } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
-import { formatBoolean, formatDateTime } from '../../shared/utils/format';
+import { formatBoolean } from '../../shared/utils/format';
+import { useClusterInfoList } from '../cluster-info/queries';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
 import {
@@ -32,7 +33,7 @@ import {
   type EsStorageTableKind
 } from './schemas';
 
-const FILTER_FIELDS: FilterField[] = [
+const BASE_FILTER_FIELDS: FilterField[] = [
   {
     key: 'tableId',
     label: '表 ID',
@@ -51,7 +52,6 @@ const FILTER_FIELDS: FilterField[] = [
     type: 'select',
     options: ES_STORAGE_TABLE_KIND_OPTIONS
   },
-  { key: 'storageClusterId', label: 'ES 集群 ID', type: 'number' },
   { key: 'sourceType', label: 'source_type', type: 'text', advanced: true },
   { key: 'needCreateIndex', label: '需要创建索引', type: 'boolean', advanced: true }
 ];
@@ -67,6 +67,31 @@ export function EsStorageListPage() {
   const [pageSize, setPageSize] = useState(20);
   const returnTarget = getOptionalStoredReturnTarget(currentHref);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+  const esClusterQuery = useClusterInfoList(currentEnvironment!, {
+    bkTenantId: currentTenantId,
+    clusterType: 'elasticsearch',
+    include: [],
+    page: 1,
+    pageSize: 100
+  });
+  const filterFields = useMemo(
+    () => [
+      ...BASE_FILTER_FIELDS.slice(0, 3),
+      {
+        key: 'storageClusterId',
+        label: 'ES 集群 ID',
+        type: 'combobox' as const,
+        placeholder: '输入集群 ID 或选择',
+        options:
+          esClusterQuery.data?.items.map((cluster) => ({
+            value: String(cluster.cluster_id),
+            label: `${cluster.cluster_id} - ${cluster.display_name || cluster.cluster_name}`
+          })) ?? []
+      },
+      ...BASE_FILTER_FIELDS.slice(3)
+    ],
+    [esClusterQuery.data?.items]
+  );
 
   const query = esStorageListQuerySchema.parse({
     bkTenantId: currentTenantId,
@@ -106,20 +131,6 @@ export function EsStorageListPage() {
                 }
               >
                 {storage.table_id}
-              </Link>
-              <Link
-                to="/result-tables/$tableId"
-                params={{ tableId: storage.table_id }}
-                search={routeSearch}
-                className="text-xs text-muted-foreground hover:underline"
-                onClick={() =>
-                  rememberReturnTarget(buildHref(`/result-tables/${storage.table_id}`, routeSearch), {
-                    href: currentHref,
-                    label: 'ESStorage 列表'
-                  })
-                }
-              >
-                ResultTable
               </Link>
             </div>
           );
@@ -183,24 +194,6 @@ export function EsStorageListPage() {
         }
       },
       {
-        header: 'result table',
-        cell: ({ row }) => {
-          const resultTable = row.original.result_table;
-          if (!resultTable) return <span className="muted-text">-</span>;
-
-          return (
-            <div className="grid gap-1 text-sm">
-              <span>{resultTable.table_name_zh || resultTable.table_id}</span>
-              <span className="muted-text">
-                业务 {resultTable.bk_biz_id ?? '-'} / {formatBoolean(resultTable.is_enable)}
-                {resultTable.is_deleted ? ' / 已删除' : ''}
-              </span>
-            </div>
-          );
-        }
-      },
-      { header: 'virtual_table_count', accessorKey: 'virtual_table_count' },
-      {
         header: 'retention',
         cell: ({ row }) => formatOptional(row.original.retention, '天')
       },
@@ -220,10 +213,6 @@ export function EsStorageListPage() {
           </Badge>
         )
       },
-      {
-        header: 'last_modify_time',
-        cell: ({ row }) => formatDateTime(row.original.last_modify_time)
-      }
     ],
     [currentHref, routeSearch]
   );
@@ -246,7 +235,7 @@ export function EsStorageListPage() {
         ) : null}
       </div>
       <FilterToolbar
-        fields={FILTER_FIELDS}
+        fields={filterFields}
         values={drafts}
         onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
         onSearch={() => {

@@ -19,6 +19,11 @@ from kernel_api.rpc.functions.admin.es_storage import (
     _serialize_es_storage_config,
     _table_kind,
 )
+from kernel_api.rpc.functions.admin.query_route import (
+    _format_filter_groups,
+    _normalize_string_list,
+    _resolve_space_identity,
+)
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
 from kernel_api.rpc.registry import KernelRPCRegistry
 
@@ -42,6 +47,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.es_storage.detail",
         "admin.es_storage.runtime_overview",
         "admin.es_storage.sample",
+        "admin.query_route.query",
+        "admin.query_route.refresh",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -326,6 +333,43 @@ def test_es_storage_config_parses_json_fields_and_warns_on_invalid_json():
     assert warnings[0]["code"] == "ES_STORAGE_JSON_PARSE_FAILED"
 
 
+def test_query_route_normalize_string_list():
+    assert _normalize_string_list("system.cpu, 1001_bklog.stdout,,system.cpu", "table_ids") == [
+        "system.cpu",
+        "1001_bklog.stdout",
+    ]
+    assert _normalize_string_list(["a", " b ", "a", ""], "data_labels") == ["a", "b"]
+
+
+def test_query_route_resolve_space_identity():
+    assert _resolve_space_identity({"space_uid": "bkcc__2"}) == ("bkcc__2", "bkcc", "2")
+    assert _resolve_space_identity({"space_type_id": "bcs", "space_id": "project"}) == (
+        "bcs__project",
+        "bcs",
+        "project",
+    )
+
+
+def test_query_route_format_filter_groups():
+    groups = _format_filter_groups([{"bk_biz_id": "2", "cluster_id": ["a", "b"]}, {"project_id": "demo"}])
+
+    assert groups == [
+        {
+            "operator": "AND",
+            "conditions": [
+                {"field": "bk_biz_id", "operator": "eq", "value": "2"},
+                {"field": "cluster_id", "operator": "in", "value": ["a", "b"]},
+            ],
+            "raw": {"bk_biz_id": "2", "cluster_id": ["a", "b"]},
+        },
+        {
+            "operator": "AND",
+            "conditions": [{"field": "project_id", "operator": "eq", "value": "demo"}],
+            "raw": {"project_id": "demo"},
+        },
+    ]
+
+
 def test_es_storage_sample_rejects_wildcard_index():
     assert _contains_index_wildcard("v2_system_cpu_20260425_0") is False
     assert _contains_index_wildcard("v2_system_cpu_*") is True
@@ -338,6 +382,13 @@ def test_cluster_info_detail_function_registered():
     assert detail["func_name"] == "admin.cluster_info.detail"
     assert "params_schema" in detail
     assert "cluster_id" in detail["params_schema"]
+
+
+def test_cluster_info_list_supports_lightweight_include():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
+    assert detail is not None
+    assert "include" in detail["params_schema"]
+    assert "associated_counts" in detail["params_schema"]["include"]
 
 
 def test_bcs_cluster_detail_function_registered():
@@ -367,6 +418,17 @@ def test_es_storage_functions_registered():
     runtime_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.runtime_overview")
     assert "inspect" in runtime_detail["description"]
     assert "table_id" in runtime_detail["params_schema"]
+
+
+def test_query_route_functions_registered():
+    for func_name in ["admin.query_route.query", "admin.query_route.refresh"]:
+        detail = KernelRPCRegistry.get_function_detail(func_name)
+        assert detail is not None
+        assert detail["func_name"] == func_name
+
+    query_detail = KernelRPCRegistry.get_function_detail("admin.query_route.query")
+    assert "space_uid" in query_detail["params_schema"]
+    assert "hgetall" in query_detail["description"]
 
 
 def test_cluster_info_list_params_schema():

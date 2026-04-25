@@ -30,7 +30,7 @@ interface FilterToolbarProps {
 
 function getFilterDisplayValue(field: FilterField, value: FilterValue): string {
   const values = Array.isArray(value) ? value : value.split(',').filter(Boolean);
-  if ((field.type === 'select' || field.type === 'multi-select') && field.options) {
+  if ((field.type === 'select' || field.type === 'multi-select' || field.type === 'combobox') && field.options) {
     return values
       .map((item) => field.options?.find((o) => o.value === item)?.label ?? item)
       .join(', ');
@@ -124,7 +124,11 @@ export function FilterToolbar({
             <Label>{field.label}</Label>
             <ChoiceInput
               value={values[field.key] ?? ''}
-              options={field.suggestions?.map((item) => ({ label: item, value: item })) ?? []}
+              options={
+                field.options ??
+                field.suggestions?.map((item) => ({ label: item, value: item })) ??
+                []
+              }
               placeholder={field.placeholder ?? '输入或选择'}
               allowCustom
               onChange={(value) => onChange(field.key, value)}

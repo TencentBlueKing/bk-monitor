@@ -3,6 +3,7 @@ import {
   createMockEsRuntimeOverview,
   createMockEsSample,
   createMockEsStorageDetail,
+  createMockQueryRoute,
   createMockClusterInfoDetail,
   createMockDatasourceDetail,
   createMockFieldList,
@@ -99,6 +100,15 @@ function resolveMockData(options: KernelRpcCallOptions): unknown {
       };
     case 'cluster_info.detail':
       return createMockClusterInfoDetail(Number(options.params.cluster_id));
+    case 'query_route.query':
+      return createMockQueryRoute(options.params);
+    case 'query_route.refresh':
+      return {
+        ...createMockQueryRoute(options.params),
+        refreshed: true,
+        targets: ['space_to_result_table', 'data_label_to_result_table', 'result_table_detail'],
+        message: 'mock 已刷新相关路由，会写 Redis 并 publish 通知 unify-query。'
+      };
   }
 }
 

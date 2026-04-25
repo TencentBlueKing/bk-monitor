@@ -7,7 +7,7 @@ import {
   createRouter,
   useSearch
 } from '@tanstack/react-router';
-import { Database, Globe, HardDrive, Search, Settings2, Table2 } from 'lucide-react';
+import { Database, Globe, HardDrive, Search, Settings2, Table2, Wrench } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { EnvironmentGuard } from '../features/environments/EnvironmentGuard';
@@ -31,6 +31,7 @@ import { ClusterInfoListPage } from '../features/cluster-info/ClusterInfoListPag
 import { ClusterInfoDetailPage } from '../features/cluster-info/ClusterInfoDetailPage';
 import { BCSClusterInfoListPage } from '../features/bcs-cluster/BCSClusterInfoListPage';
 import { BCSClusterInfoDetailPage } from '../features/bcs-cluster/BCSClusterInfoDetailPage';
+import { QueryRoutePage } from '../features/query-route/QueryRoutePage';
 import { BrandLogo } from '../shared/components/BrandLogo';
 import {
   hasReturnTargetInSearch,
@@ -175,7 +176,21 @@ function AppLayout() {
                 inactiveProps={{ className: 'nav-link' }}
               >
                 <Globe aria-hidden="true" size={18} />
-                K8s 集群
+                BCS集群
+              </Link>
+            </div>
+          </div>
+          <div className="nav-section">
+            <div className="nav-section-title">诊断工具</div>
+            <div className="nav-section-items">
+              <Link
+                to="/query-route"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Wrench aria-hidden="true" size={18} />
+                查询路由
               </Link>
             </div>
           </div>
@@ -244,6 +259,10 @@ function GuardedBCSClusterInfoListPage() {
 
 function GuardedBCSClusterInfoDetailPage() {
   return <EnvironmentGuard>{() => <BCSClusterInfoDetailPage />}</EnvironmentGuard>;
+}
+
+function GuardedQueryRoutePage() {
+  return <EnvironmentGuard>{() => <QueryRoutePage />}</EnvironmentGuard>;
 }
 
 const rootRoute = createRootRoute({
@@ -333,6 +352,12 @@ const bcsClusterDetailRoute = createRoute({
   component: GuardedBCSClusterInfoDetailPage
 });
 
+const queryRouteRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'query-route',
+  component: GuardedQueryRoutePage
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   appRoute.addChildren([
@@ -346,7 +371,8 @@ const routeTree = rootRoute.addChildren([
     clusterInfoListRoute,
     clusterInfoDetailRoute,
     bcsClusterListRoute,
-    bcsClusterDetailRoute
+    bcsClusterDetailRoute,
+    queryRouteRoute
   ])
 ]);
 
