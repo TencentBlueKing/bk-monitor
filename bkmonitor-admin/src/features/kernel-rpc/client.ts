@@ -84,7 +84,8 @@ function normalizeRpcPayload<TData>(
     const rawCode = payload.code;
     const rawMessage = payload.message;
     throw new KernelRpcError({
-      code: typeof rawCode === 'string' || typeof rawCode === 'number' ? String(rawCode) : 'UNKNOWN',
+      code:
+        typeof rawCode === 'string' || typeof rawCode === 'number' ? String(rawCode) : 'UNKNOWN',
       message: typeof rawMessage === 'string' ? rawMessage : 'RPC request failed.'
     });
   }

@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from types import SimpleNamespace
 
+from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
+from kernel_api.rpc.functions.admin.cluster_info import _serialize_cluster_info
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
 from kernel_api.rpc.registry import KernelRPCRegistry
@@ -25,6 +27,11 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.result_table.detail",
         "admin.result_table.field_list",
         "admin.result_table.field_options",
+        "admin.cluster_info.list",
+        "admin.cluster_info.detail",
+        "admin.bcs_cluster.list",
+        "admin.bcs_cluster.detail",
+        "admin.datasource.kafka_sample",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -90,3 +97,212 @@ def test_result_table_detail_serializer_does_not_return_fields():
 
     assert item["table_id"] == "system.cpu"
     assert "fields" not in item
+
+
+def test_cluster_info_serializer_masks_sensitive_fields():
+    cluster = SimpleNamespace(
+        cluster_id=1,
+        cluster_name="kafka_cluster1",
+        display_name="Kafka Cluster 1",
+        cluster_type="kafka",
+        domain_name="kafka.example.com",
+        port=9092,
+        extranet_domain_name="",
+        extranet_port=0,
+        description="default kafka",
+        is_default_cluster=True,
+        schema=None,
+        is_ssl_verify=False,
+        ssl_verification_mode="none",
+        ssl_insecure_skip_verify=False,
+        is_auth=False,
+        sasl_mechanisms=None,
+        security_protocol=None,
+        registered_system="_default",
+        registered_to_bkbase=True,
+        is_register_to_gse=False,
+        gse_stream_to_id=-1,
+        label="",
+        default_settings={},
+        creator="admin",
+        create_time=None,
+        last_modify_user="admin",
+        last_modify_time=None,
+        version=None,
+        username="admin",
+        password="secret123",
+        ssl_certificate_authorities="ca-cert-data",
+        ssl_certificate="cert-data",
+        ssl_certificate_key="key-data",
+    )
+
+    item = _serialize_cluster_info(cluster)
+
+    assert "username" not in item
+    assert "password" not in item
+    assert "ssl_certificate_authorities" not in item
+    assert "ssl_certificate" not in item
+    assert "ssl_certificate_key" not in item
+    assert item["has_username"] is True
+    assert item["has_password"] is True
+    assert item["has_ssl_certificate_authorities"] is True
+    assert item["has_ssl_certificate"] is True
+    assert item["has_ssl_certificate_key"] is True
+    assert "custom_option" not in item
+
+
+def test_cluster_info_serializer_empty_sensitive_fields():
+    cluster = SimpleNamespace(
+        cluster_id=2,
+        cluster_name="test_cluster",
+        display_name="Test",
+        cluster_type="kafka",
+        domain_name="localhost",
+        port=9092,
+        extranet_domain_name="",
+        extranet_port=0,
+        description="",
+        is_default_cluster=False,
+        schema=None,
+        is_ssl_verify=False,
+        ssl_verification_mode="none",
+        ssl_insecure_skip_verify=False,
+        is_auth=False,
+        sasl_mechanisms=None,
+        security_protocol=None,
+        registered_system="_default",
+        registered_to_bkbase=False,
+        is_register_to_gse=False,
+        gse_stream_to_id=-1,
+        label="",
+        default_settings={},
+        creator="admin",
+        create_time=None,
+        last_modify_user="admin",
+        last_modify_time=None,
+        version=None,
+        username="",
+        password="",
+        ssl_certificate_authorities="",
+        ssl_certificate="",
+        ssl_certificate_key="",
+    )
+
+    item = _serialize_cluster_info(cluster)
+
+    assert item["has_username"] is False
+    assert item["has_password"] is False
+    assert item["has_ssl_certificate_authorities"] is False
+    assert item["has_ssl_certificate"] is False
+    assert item["has_ssl_certificate_key"] is False
+
+
+def test_bcs_cluster_serializer_masks_sensitive_fields():
+    cluster = SimpleNamespace(
+        cluster_id="BCS-K8S-00000",
+        bk_tenant_id="system",
+        bcs_api_cluster_id="BCS-K8S-00000",
+        bk_biz_id=2,
+        bk_cloud_id=None,
+        project_id="proj-123",
+        status="running",
+        domain_name="bcs-api.example.com",
+        port=443,
+        server_address_path="clusters",
+        api_key_type="authorization",
+        api_key_prefix="Bearer",
+        is_skip_ssl_verify=True,
+        K8sMetricDataID=1000,
+        CustomMetricDataID=0,
+        K8sEventDataID=2000,
+        CustomEventDataID=0,
+        SystemLogDataID=0,
+        CustomLogDataID=0,
+        bk_env="",
+        operator_ns="bkmonitor-operator",
+        creator="admin",
+        create_time=None,
+        last_modify_user="admin",
+        last_modify_time=None,
+        is_deleted_allow_view=False,
+        api_key_content="secret-api-key",
+        cert_content="cert-data",
+    )
+
+    item = _serialize_bcs_cluster(cluster)
+
+    assert "api_key_content" not in item
+    assert "cert_content" not in item
+    assert item["has_api_key"] is True
+    assert item["has_cert"] is True
+
+
+def test_bcs_cluster_serializer_empty_sensitive_fields():
+    cluster = SimpleNamespace(
+        cluster_id="BCS-K8S-00001",
+        bk_tenant_id="system",
+        bcs_api_cluster_id="BCS-K8S-00001",
+        bk_biz_id=3,
+        bk_cloud_id=None,
+        project_id="proj-456",
+        status="running",
+        domain_name="bcs-api.example.com",
+        port=443,
+        server_address_path="clusters",
+        api_key_type="authorization",
+        api_key_prefix="Bearer",
+        is_skip_ssl_verify=True,
+        K8sMetricDataID=0,
+        CustomMetricDataID=0,
+        K8sEventDataID=0,
+        CustomEventDataID=0,
+        SystemLogDataID=0,
+        CustomLogDataID=0,
+        bk_env="",
+        operator_ns="bkmonitor-operator",
+        creator="admin",
+        create_time=None,
+        last_modify_user="admin",
+        last_modify_time=None,
+        is_deleted_allow_view=False,
+        api_key_content=None,
+        cert_content=None,
+    )
+
+    item = _serialize_bcs_cluster(cluster)
+
+    assert item["has_api_key"] is False
+    assert item["has_cert"] is False
+
+
+def test_cluster_info_detail_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.detail")
+    assert detail is not None
+    assert detail["func_name"] == "admin.cluster_info.detail"
+    assert "params_schema" in detail
+    assert "cluster_id" in detail["params_schema"]
+
+
+def test_bcs_cluster_detail_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.bcs_cluster.detail")
+    assert detail is not None
+    assert detail["func_name"] == "admin.bcs_cluster.detail"
+
+
+def test_kafka_sample_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.datasource.kafka_sample")
+    assert detail is not None
+    assert detail["func_name"] == "admin.datasource.kafka_sample"
+    assert "bk_data_id" in detail["params_schema"]
+
+
+def test_cluster_info_list_params_schema():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
+    assert detail is not None
+    assert "ordering" in detail["params_schema"]
+
+
+def test_bcs_cluster_list_params_schema():
+    detail = KernelRPCRegistry.get_function_detail("admin.bcs_cluster.list")
+    assert detail is not None
+    assert "status" in detail["params_schema"]

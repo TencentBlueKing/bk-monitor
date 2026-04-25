@@ -4,19 +4,18 @@ import { paginationQuerySchema, paginationResponseSchema } from '../../shared/sc
 
 export const datasourceListQuerySchema = paginationQuerySchema.extend({
   bkTenantId: z.string().default('system'),
-  bkDataId: z.preprocess(
-    (val) => {
-      if (val === undefined || val === null || val === '') return undefined;
-      const num = typeof val === 'number' ? val : Number(val);
-      return Number.isNaN(num) ? undefined : num;
-    },
-    z.number().int().positive().optional()
-  ),
+  bkDataId: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const num = typeof val === 'number' ? val : Number(val);
+    return Number.isNaN(num) ? undefined : num;
+  }, z.number().int().positive().optional()),
   dataName: z.string().optional(),
   createdFrom: z.string().optional(),
   sourceLabel: z.string().optional(),
   typeLabel: z.string().optional(),
   isEnable: z.boolean().optional(),
+  isCustomSource: z.boolean().optional(),
+  isPlatformDataId: z.boolean().optional(),
   spaceUid: z.string().optional(),
   tableId: z.string().optional()
 });

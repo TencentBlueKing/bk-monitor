@@ -1,36 +1,77 @@
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
+import { FilterToolbar, type FilterField } from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
-import { Button } from '../../shared/components/ui/button';
-import { Card, CardContent } from '../../shared/components/ui/card';
-import { Input } from '../../shared/components/ui/input';
-import { Label } from '../../shared/components/ui/label';
+import { Pagination } from '../../shared/components/Pagination';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
+import { DEFAULT_STORAGE_OPTIONS, LABEL_COMMON, SCHEMA_TYPE_OPTIONS } from './constants';
 import { resultTableListQuerySchema, type ResultTableSummary } from './schemas';
 import { useResultTableList } from './queries';
 
+const FILTER_FIELDS: FilterField[] = [
+  { key: 'tableId', label: 'table_id', type: 'text' },
+  { key: 'tableNameZh', label: 'table_name_zh', type: 'text' },
+  { key: 'bkDataId', label: 'bk_data_id', type: 'number' },
+  { key: 'dataLabel', label: 'data_label', type: 'text' },
+  { key: 'bkBizId', label: 'bk_biz_id', type: 'number', advanced: true },
+  {
+    key: 'label',
+    label: 'label',
+    type: 'combobox',
+    suggestions: LABEL_COMMON,
+    placeholder: '输入或选择',
+    advanced: true
+  },
+  {
+    key: 'schemaType',
+    label: 'schema_type',
+    type: 'select',
+    options: SCHEMA_TYPE_OPTIONS,
+    advanced: true
+  },
+  {
+    key: 'defaultStorage',
+    label: 'default_storage',
+    type: 'select',
+    options: DEFAULT_STORAGE_OPTIONS,
+    advanced: true
+  },
+  { key: 'isEnable', label: 'is_enable', type: 'boolean', advanced: true },
+  { key: 'isDeleted', label: 'is_deleted', type: 'boolean', advanced: true },
+  { key: 'isBuiltin', label: 'is_builtin', type: 'boolean', advanced: true }
+];
+
 export function ResultTableListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
-  const [tableId, setTableId] = useState('');
-  const [bkDataId, setBkDataId] = useState('');
-  const [dataLabel, setDataLabel] = useState('');
   const [page, setPage] = useState(1);
-  const [activeFilters, setActiveFilters] = useState({ tableId: '', bkDataId: '', dataLabel: '' });
+  const [pageSize, setPageSize] = useState(20);
+
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
+
   const query = resultTableListQuerySchema.parse({
     bkTenantId: currentTenantId,
     tableId: activeFilters.tableId || undefined,
+    tableNameZh: activeFilters.tableNameZh || undefined,
     bkDataId: activeFilters.bkDataId || undefined,
     dataLabel: activeFilters.dataLabel || undefined,
+    bkBizId: activeFilters.bkBizId || undefined,
+    label: activeFilters.label || undefined,
+    schemaType: activeFilters.schemaType || undefined,
+    defaultStorage: activeFilters.defaultStorage || undefined,
+    isEnable: activeFilters.isEnable ? activeFilters.isEnable === 'true' : undefined,
+    isDeleted: activeFilters.isDeleted ? activeFilters.isDeleted === 'true' : undefined,
+    isBuiltin: activeFilters.isBuiltin ? activeFilters.isBuiltin === 'true' : undefined,
     page,
-    pageSize: 20
+    pageSize
   });
   const resultTableQuery = useResultTableList(currentEnvironment!, query);
   const columns = useMemo<Array<ColumnDef<ResultTableSummary>>>(
@@ -96,35 +137,21 @@ export function ResultTableListPage() {
           <h2>ResultTable</h2>
         </div>
       </div>
-      <form
-        className="filter-grid"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setActiveFilters({ tableId, bkDataId, dataLabel });
+      <FilterToolbar
+        fields={FILTER_FIELDS}
+        values={drafts}
+        onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
+        onSearch={() => {
+          setActiveFilters({ ...drafts });
           setPage(1);
         }}
-      >
-        <div className="grid gap-1.5">
-          <Label>table_id</Label>
-          <Input value={tableId} onChange={(event) => setTableId(event.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>bk_data_id</Label>
-          <Input
-            inputMode="numeric"
-            value={bkDataId}
-            onChange={(event) => setBkDataId(event.target.value.replace(/\D/g, ''))}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>data_label</Label>
-          <Input value={dataLabel} onChange={(event) => setDataLabel(event.target.value)} />
-        </div>
-        <Button type="submit">
-          <Search aria-hidden="true" size={16} />
-          搜索
-        </Button>
-      </form>
+        onReset={() => {
+          setDrafts({});
+          setActiveFilters({});
+          setPage(1);
+        }}
+        loading={resultTableQuery.isLoading}
+      />
       {resultTableQuery.isError ? (
         <PageState title="加载失败" description={String(resultTableQuery.error)} />
       ) : resultTableQuery.isLoading ? (
@@ -132,27 +159,16 @@ export function ResultTableListPage() {
       ) : (
         <>
           <DataTable data={resultTableQuery.data?.items ?? []} columns={columns} />
-          <Card>
-            <CardContent className="pager">
-              <Button
-                variant="secondary"
-                disabled={page <= 1}
-                onClick={() => setPage((value) => value - 1)}
-              >
-                上一页
-              </Button>
-              <span>
-                第 {page} 页 / 共 {resultTableQuery.data?.total ?? 0} 条
-              </span>
-              <Button
-                variant="secondary"
-                disabled={(resultTableQuery.data?.items.length ?? 0) < query.pageSize}
-                onClick={() => setPage((value) => value + 1)}
-              >
-                下一页
-              </Button>
-            </CardContent>
-          </Card>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={resultTableQuery.data?.total ?? 0}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
     </section>

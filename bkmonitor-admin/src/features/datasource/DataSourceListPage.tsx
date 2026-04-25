@@ -1,28 +1,60 @@
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
+import { FilterToolbar, type FilterField } from '../../shared/components/FilterToolbar';
 import { PageState } from '../../shared/components/PageState';
-import { Button } from '../../shared/components/ui/button';
-import { Card, CardContent } from '../../shared/components/ui/card';
-import { Input } from '../../shared/components/ui/input';
-import { Label } from '../../shared/components/ui/label';
+import { Pagination } from '../../shared/components/Pagination';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
+import { CREATED_FROM_OPTIONS, SOURCE_LABEL_COMMON, TYPE_LABEL_COMMON } from './constants';
 import { datasourceListQuerySchema, type DataSourceSummary } from './schemas';
 import { useDatasourceList } from './queries';
 
+const FILTER_FIELDS: FilterField[] = [
+  { key: 'bkDataId', label: 'bk_data_id', type: 'number' },
+  { key: 'dataName', label: 'data_name', type: 'text' },
+  { key: 'tableId', label: 'table_id', type: 'text' },
+  {
+    key: 'sourceLabel',
+    label: 'source_label',
+    type: 'combobox',
+    suggestions: SOURCE_LABEL_COMMON,
+    placeholder: '输入或选择',
+    advanced: true
+  },
+  {
+    key: 'typeLabel',
+    label: 'type_label',
+    type: 'combobox',
+    suggestions: TYPE_LABEL_COMMON,
+    placeholder: '输入或选择',
+    advanced: true
+  },
+  {
+    key: 'createdFrom',
+    label: 'created_from',
+    type: 'select',
+    options: CREATED_FROM_OPTIONS,
+    advanced: true
+  },
+  { key: 'spaceUid', label: 'space_uid', type: 'text', advanced: true },
+  { key: 'isEnable', label: 'is_enable', type: 'boolean', advanced: true },
+  { key: 'isCustomSource', label: 'is_custom_source', type: 'boolean', advanced: true },
+  { key: 'isPlatformDataId', label: 'is_platform_data_id', type: 'boolean', advanced: true }
+];
+
 export function DataSourceListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
-  const [bkDataId, setBkDataId] = useState('');
-  const [dataName, setDataName] = useState('');
-  const [tableId, setTableId] = useState('');
   const [page, setPage] = useState(1);
-  const [activeFilters, setActiveFilters] = useState({ bkDataId: '', dataName: '', tableId: '' });
+  const [pageSize, setPageSize] = useState(20);
+
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
 
   const query = datasourceListQuerySchema.parse({
@@ -30,8 +62,19 @@ export function DataSourceListPage() {
     bkDataId: activeFilters.bkDataId || undefined,
     dataName: activeFilters.dataName || undefined,
     tableId: activeFilters.tableId || undefined,
+    sourceLabel: activeFilters.sourceLabel || undefined,
+    typeLabel: activeFilters.typeLabel || undefined,
+    createdFrom: activeFilters.createdFrom || undefined,
+    spaceUid: activeFilters.spaceUid || undefined,
+    isEnable: activeFilters.isEnable ? activeFilters.isEnable === 'true' : undefined,
+    isCustomSource: activeFilters.isCustomSource
+      ? activeFilters.isCustomSource === 'true'
+      : undefined,
+    isPlatformDataId: activeFilters.isPlatformDataId
+      ? activeFilters.isPlatformDataId === 'true'
+      : undefined,
     page,
-    pageSize: 20
+    pageSize
   });
   const datasourceQuery = useDatasourceList(currentEnvironment!, query);
   const columns = useMemo<Array<ColumnDef<DataSourceSummary>>>(
@@ -107,35 +150,21 @@ export function DataSourceListPage() {
           <h2>DataSource</h2>
         </div>
       </div>
-      <form
-        className="filter-grid"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setActiveFilters({ bkDataId, dataName, tableId });
+      <FilterToolbar
+        fields={FILTER_FIELDS}
+        values={drafts}
+        onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
+        onSearch={() => {
+          setActiveFilters({ ...drafts });
           setPage(1);
         }}
-      >
-        <div className="grid gap-1.5">
-          <Label>bk_data_id</Label>
-          <Input
-            inputMode="numeric"
-            value={bkDataId}
-            onChange={(event) => setBkDataId(event.target.value.replace(/\D/g, ''))}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>data_name</Label>
-          <Input value={dataName} onChange={(event) => setDataName(event.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>table_id</Label>
-          <Input value={tableId} onChange={(event) => setTableId(event.target.value)} />
-        </div>
-        <Button type="submit">
-          <Search aria-hidden="true" size={16} />
-          搜索
-        </Button>
-      </form>
+        onReset={() => {
+          setDrafts({});
+          setActiveFilters({});
+          setPage(1);
+        }}
+        loading={datasourceQuery.isLoading}
+      />
       {datasourceQuery.isError ? (
         <PageState title="加载失败" description={String(datasourceQuery.error)} />
       ) : datasourceQuery.isLoading ? (
@@ -143,27 +172,16 @@ export function DataSourceListPage() {
       ) : (
         <>
           <DataTable data={datasourceQuery.data?.items ?? []} columns={columns} />
-          <Card>
-            <CardContent className="pager">
-              <Button
-                variant="secondary"
-                disabled={page <= 1}
-                onClick={() => setPage((value) => value - 1)}
-              >
-                上一页
-              </Button>
-              <span>
-                第 {page} 页 / 共 {datasourceQuery.data?.total ?? 0} 条
-              </span>
-              <Button
-                variant="secondary"
-                disabled={(datasourceQuery.data?.items.length ?? 0) < query.pageSize}
-                onClick={() => setPage((value) => value + 1)}
-              >
-                下一页
-              </Button>
-            </CardContent>
-          </Card>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={datasourceQuery.data?.total ?? 0}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
     </section>

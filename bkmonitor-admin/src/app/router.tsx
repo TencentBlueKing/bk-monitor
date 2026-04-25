@@ -7,7 +7,7 @@ import {
   createRouter,
   useSearch
 } from '@tanstack/react-router';
-import { Database, Settings2, Table2 } from 'lucide-react';
+import { Database, Globe, HardDrive, Settings2, Table2 } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { EnvironmentGuard } from '../features/environments/EnvironmentGuard';
@@ -25,6 +25,10 @@ import { DataSourceDetailPage } from '../features/datasource/DataSourceDetailPag
 import { DataSourceListPage } from '../features/datasource/DataSourceListPage';
 import { ResultTableDetailPage } from '../features/result-table/ResultTableDetailPage';
 import { ResultTableListPage } from '../features/result-table/ResultTableListPage';
+import { ClusterInfoListPage } from '../features/cluster-info/ClusterInfoListPage';
+import { ClusterInfoDetailPage } from '../features/cluster-info/ClusterInfoDetailPage';
+import { BCSClusterInfoListPage } from '../features/bcs-cluster/BCSClusterInfoListPage';
+import { BCSClusterInfoDetailPage } from '../features/bcs-cluster/BCSClusterInfoDetailPage';
 import { BrandLogo } from '../shared/components/BrandLogo';
 
 function RootLayout() {
@@ -132,6 +136,24 @@ function AppLayout() {
                 <Table2 aria-hidden="true" size={18} />
                 ResultTable
               </Link>
+              <Link
+                to="/clusters"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <HardDrive aria-hidden="true" size={18} />
+                存储集群
+              </Link>
+              <Link
+                to="/bcs-clusters"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Globe aria-hidden="true" size={18} />
+                K8s 集群
+              </Link>
             </div>
           </div>
           <div className="nav-section">
@@ -175,6 +197,22 @@ function GuardedResultTableListPage() {
 
 function GuardedResultTableDetailPage() {
   return <EnvironmentGuard>{() => <ResultTableDetailPage />}</EnvironmentGuard>;
+}
+
+function GuardedClusterInfoListPage() {
+  return <EnvironmentGuard>{() => <ClusterInfoListPage />}</EnvironmentGuard>;
+}
+
+function GuardedClusterInfoDetailPage() {
+  return <EnvironmentGuard>{() => <ClusterInfoDetailPage />}</EnvironmentGuard>;
+}
+
+function GuardedBCSClusterInfoListPage() {
+  return <EnvironmentGuard>{() => <BCSClusterInfoListPage />}</EnvironmentGuard>;
+}
+
+function GuardedBCSClusterInfoDetailPage() {
+  return <EnvironmentGuard>{() => <BCSClusterInfoDetailPage />}</EnvironmentGuard>;
 }
 
 const rootRoute = createRootRoute({
@@ -228,6 +266,30 @@ const resultTableDetailRoute = createRoute({
   component: GuardedResultTableDetailPage
 });
 
+const clusterInfoListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'clusters',
+  component: GuardedClusterInfoListPage
+});
+
+const clusterInfoDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'clusters/$clusterId',
+  component: GuardedClusterInfoDetailPage
+});
+
+const bcsClusterListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'bcs-clusters',
+  component: GuardedBCSClusterInfoListPage
+});
+
+const bcsClusterDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'bcs-clusters/$clusterId',
+  component: GuardedBCSClusterInfoDetailPage
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   appRoute.addChildren([
@@ -235,7 +297,11 @@ const routeTree = rootRoute.addChildren([
     datasourceListRoute,
     datasourceDetailRoute,
     resultTableListRoute,
-    resultTableDetailRoute
+    resultTableDetailRoute,
+    clusterInfoListRoute,
+    clusterInfoDetailRoute,
+    bcsClusterListRoute,
+    bcsClusterDetailRoute
   ])
 ]);
 

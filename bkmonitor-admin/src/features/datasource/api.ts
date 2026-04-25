@@ -25,6 +25,8 @@ export async function listDatasources(
       source_label: query.sourceLabel,
       type_label: query.typeLabel,
       is_enable: query.isEnable,
+      is_custom_source: query.isCustomSource,
+      is_platform_data_id: query.isPlatformDataId,
       space_uid: query.spaceUid,
       table_id: query.tableId,
       ...toBackendPagination(query)
@@ -32,6 +34,27 @@ export async function listDatasources(
   });
 
   return datasourceListResponseSchema.parse(envelope.data);
+}
+
+export async function sampleKafkaData(
+  environment: AdminEnvironment,
+  params: { bkTenantId: string; bkDataId: number; size?: number }
+) {
+  const envelope = await kernelRpcClient.call<unknown>({
+    environment,
+    operation: 'datasource.kafka_sample',
+    params: compactObject({
+      bk_tenant_id: params.bkTenantId,
+      bk_data_id: params.bkDataId,
+      size: params.size ?? 10
+    })
+  });
+
+  return envelope.data as {
+    topic?: string;
+    count?: number;
+    items?: unknown[];
+  };
 }
 
 export async function getDatasourceDetail(

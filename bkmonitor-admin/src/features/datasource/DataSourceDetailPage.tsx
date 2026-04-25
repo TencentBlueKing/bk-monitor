@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-
-import { useEffect, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import { JsonBlock } from '../../shared/components/JsonBlock';
@@ -12,7 +12,7 @@ import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
 import type { DataSourceDetailResponse } from './schemas';
-import { useDatasourceDetail } from './queries';
+import { useDatasourceDetail, useKafkaSample } from './queries';
 
 export function DataSourceDetailPage() {
   const navigate = useNavigate();
@@ -31,6 +31,14 @@ export function DataSourceDetailPage() {
   }, [currentTenantId, currentEnvironment?.id, navigate]);
 
   const detailQuery = useDatasourceDetail(currentEnvironment!, currentTenantId, bkDataId);
+  const kafkaSampleMutation = useKafkaSample(currentEnvironment!);
+  const [kafkaSampleResult, setKafkaSampleResult] = useState<{
+    topic?: string;
+    count?: number;
+    items?: unknown[];
+  } | null>(null);
+  const [kafkaSampleError, setKafkaSampleError] = useState<string | null>(null);
+  const [showKafkaSample, setShowKafkaSample] = useState(false);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
 
   if (!currentEnvironment || Number.isNaN(bkDataId)) {
@@ -119,6 +127,70 @@ export function DataSourceDetailPage() {
           ) : (
             <PageState title="未找到 KafkaTopic 配置" />
           )}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              disabled={kafkaSampleMutation.isPending}
+              onClick={() => {
+                setKafkaSampleError(null);
+                setKafkaSampleResult(null);
+                kafkaSampleMutation.mutate(
+                  { bkTenantId: currentTenantId, bkDataId },
+                  {
+                    onSuccess: (data) => {
+                      setKafkaSampleResult(data);
+                      setShowKafkaSample(true);
+                    },
+                    onError: (error) => {
+                      setKafkaSampleError(String(error));
+                      setShowKafkaSample(true);
+                    }
+                  }
+                );
+              }}
+            >
+              {kafkaSampleMutation.isPending ? (
+                <Loader2 aria-hidden="true" size={16} className="animate-spin" />
+              ) : null}
+              拉取最新数据
+            </Button>
+            <Badge tone="muted">safety_level: inspect</Badge>
+          </div>
+          {showKafkaSample && kafkaSampleResult ? (
+            <Card>
+              <CardContent className="py-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-4 text-sm text-muted-foreground">
+                    {kafkaSampleResult.topic ? (
+                      <span>
+                        topic:{' '}
+                        <strong className="text-foreground">{kafkaSampleResult.topic}</strong>
+                      </span>
+                    ) : null}
+                    {kafkaSampleResult.count !== undefined ? (
+                      <span>
+                        记录数:{' '}
+                        <strong className="text-foreground">{kafkaSampleResult.count}</strong>
+                      </span>
+                    ) : null}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowKafkaSample(false)}>
+                    收起
+                  </Button>
+                </div>
+                {kafkaSampleResult.items && kafkaSampleResult.items.length > 0 ? (
+                  <JsonBlock value={kafkaSampleResult.items} />
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+          {showKafkaSample && kafkaSampleError ? (
+            <Card className="border-destructive/50">
+              <CardContent className="py-3 text-sm text-destructive">
+                {kafkaSampleError}
+              </CardContent>
+            </Card>
+          ) : null}
         </section>
         <section>
           <h3>Options</h3>

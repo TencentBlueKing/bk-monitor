@@ -7,22 +7,16 @@ export const resultTableListQuerySchema = paginationQuerySchema.extend({
   bkTenantId: z.string().default('system'),
   tableId: z.string().optional(),
   tableNameZh: z.string().optional(),
-  bkBizId: z.preprocess(
-    (val) => {
-      if (val === undefined || val === null || val === '') return undefined;
-      const num = typeof val === 'number' ? val : Number(val);
-      return Number.isNaN(num) ? undefined : num;
-    },
-    z.number().int().optional()
-  ),
-  bkDataId: z.preprocess(
-    (val) => {
-      if (val === undefined || val === null || val === '') return undefined;
-      const num = typeof val === 'number' ? val : Number(val);
-      return Number.isNaN(num) ? undefined : num;
-    },
-    z.number().int().optional()
-  ),
+  bkBizId: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const num = typeof val === 'number' ? val : Number(val);
+    return Number.isNaN(num) ? undefined : num;
+  }, z.number().int().optional()),
+  bkDataId: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const num = typeof val === 'number' ? val : Number(val);
+    return Number.isNaN(num) ? undefined : num;
+  }, z.number().int().optional()),
   dataLabel: z.string().optional(),
   label: z.string().optional(),
   schemaType: z.string().optional(),

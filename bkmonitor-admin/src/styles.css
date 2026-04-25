@@ -239,21 +239,16 @@ button {
   gap: 16px;
 }
 
-.filter-grid,
 .inline-filter {
   display: grid;
-  grid-template-columns: repeat(3, minmax(150px, 1fr)) auto;
+  grid-template-columns: minmax(180px, 320px) auto;
   align-items: end;
   gap: 12px;
   padding: 16px;
+  margin-bottom: 12px;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
-}
-
-.inline-filter {
-  grid-template-columns: minmax(180px, 320px) auto;
-  margin-bottom: 12px;
 }
 
 .muted-text {
@@ -487,7 +482,6 @@ button {
     overflow-y: visible;
   }
 
-  .filter-grid,
   .inline-filter,
   .two-column,
   .settings-grid,
