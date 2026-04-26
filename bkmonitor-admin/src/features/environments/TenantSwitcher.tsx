@@ -1,6 +1,6 @@
 import { Building2 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 
 import { ChoiceInput } from '../../shared/components/ChoiceInput';
 import { useEnvironmentConfig } from './hooks';
@@ -10,6 +10,7 @@ const MANUAL_TENANT_VALUE = '__manual__';
 
 export function TenantSwitcher() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentEnvironment, currentTenantId, setCurrentTenantId } = useEnvironmentConfig();
   const tenantQuery = useTenantList(currentEnvironment);
   const tenants = useMemo(() => tenantQuery.data?.items ?? [], [tenantQuery.data]);
@@ -25,13 +26,20 @@ export function TenantSwitcher() {
       if (envId) {
         setCurrentTenantId(firstTenant.id);
         void navigate({
-          to: window.location.pathname,
-          search: { env: envId, tenant: firstTenant.id },
+          to: location.pathname,
+          search: (prev) => ({ ...prev, tenant: firstTenant.id }),
           replace: true
         });
       }
     }
-  }, [tenants, hasCurrentTenantOption, currentEnvironment?.id, setCurrentTenantId, navigate]);
+  }, [
+    tenants,
+    hasCurrentTenantOption,
+    currentEnvironment?.id,
+    setCurrentTenantId,
+    navigate,
+    location.pathname
+  ]);
 
   return (
     <div className="tenant-switcher">
@@ -60,8 +68,8 @@ export function TenantSwitcher() {
 
           setCurrentTenantId(nextTenantId);
           void navigate({
-            to: window.location.pathname,
-            search: { env: currentEnvironment?.id, tenant: nextTenantId },
+            to: location.pathname,
+            search: (prev) => ({ ...prev, tenant: nextTenantId }),
             replace: true
           });
         }}

@@ -7,7 +7,7 @@ import {
   createRouter,
   useSearch
 } from '@tanstack/react-router';
-import { Database, Globe, HardDrive, Settings2, Table2, Wrench } from 'lucide-react';
+import { Database, Globe, HardDrive, Network, Settings2, Table2, Wrench } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { ElasticsearchIcon, KubernetesIcon } from '../shared/components/BrandIcons';
@@ -32,6 +32,8 @@ import { ClusterInfoListPage } from '../features/cluster-info/ClusterInfoListPag
 import { ClusterInfoDetailPage } from '../features/cluster-info/ClusterInfoDetailPage';
 import { BCSClusterInfoListPage } from '../features/bcs-cluster/BCSClusterInfoListPage';
 import { BCSClusterInfoDetailPage } from '../features/bcs-cluster/BCSClusterInfoDetailPage';
+import { DataLinkDetailPage } from '../features/datalink/DataLinkDetailPage';
+import { DataLinkListPage } from '../features/datalink/DataLinkListPage';
 import { QueryRouteDetailPage } from '../features/query-route/QueryRouteDetailPage';
 import { QueryRoutePage } from '../features/query-route/QueryRoutePage';
 import { BrandLogo } from '../shared/components/BrandLogo';
@@ -135,6 +137,15 @@ function AppLayout() {
           <div className="nav-section">
             <div className="nav-section-title">资源管理</div>
             <div className="nav-section-items">
+              <Link
+                to="/data-links"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Network aria-hidden="true" size={18} />
+                DataLink
+              </Link>
               <Link
                 to="/datasources"
                 search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
@@ -263,6 +274,14 @@ function GuardedBCSClusterInfoDetailPage() {
   return <EnvironmentGuard>{() => <BCSClusterInfoDetailPage />}</EnvironmentGuard>;
 }
 
+function GuardedDataLinkListPage() {
+  return <EnvironmentGuard>{() => <DataLinkListPage />}</EnvironmentGuard>;
+}
+
+function GuardedDataLinkDetailPage() {
+  return <EnvironmentGuard>{() => <DataLinkDetailPage />}</EnvironmentGuard>;
+}
+
 function GuardedQueryRoutePage() {
   return <EnvironmentGuard>{() => <QueryRoutePage />}</EnvironmentGuard>;
 }
@@ -370,6 +389,18 @@ const queryRouteDetailRoute = createRoute({
   component: GuardedQueryRouteDetailPage
 });
 
+const dataLinkListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'data-links',
+  component: GuardedDataLinkListPage
+});
+
+const dataLinkDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'data-links/detail',
+  component: GuardedDataLinkDetailPage
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   appRoute.addChildren([
@@ -385,7 +416,9 @@ const routeTree = rootRoute.addChildren([
     bcsClusterListRoute,
     bcsClusterDetailRoute,
     queryRouteRoute,
-    queryRouteDetailRoute
+    queryRouteDetailRoute,
+    dataLinkListRoute,
+    dataLinkDetailRoute
   ])
 ]);
 

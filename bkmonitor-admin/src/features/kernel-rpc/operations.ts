@@ -18,7 +18,16 @@ export const operationToFuncName = {
   'bcs_cluster.list': 'admin.bcs_cluster.list',
   'bcs_cluster.detail': 'admin.bcs_cluster.detail',
   'query_route.query': 'admin.query_route.query',
-  'query_route.refresh': 'admin.query_route.refresh'
+  'query_route.refresh': 'admin.query_route.refresh',
+  'datalink.component_list': 'admin.datalink.component_list',
+  'datalink.component_detail': 'admin.datalink.component_detail',
+  'datalink.component_config': 'admin.datalink.component_config',
+  'datalink.cluster_config_list': 'admin.datalink.cluster_config_list',
+  'datalink.cluster_config_detail': 'admin.datalink.cluster_config_detail',
+  'datalink.cluster_config_component_config': 'admin.datalink.cluster_config_component_config',
+  'datalink.datalink_list': 'admin.datalink.datalink_list',
+  'datalink.datalink_detail': 'admin.datalink.datalink_detail',
+  'datalink.datalink_component_config': 'admin.datalink.datalink_component_config'
 } as const;
 
 export type AdminOperation = keyof typeof operationToFuncName;

@@ -60,6 +60,10 @@ export function ChoiceInput({
 
   function toggleValue(nextValue: string) {
     if (!isMultiple) {
+      if (selectedValues.includes(nextValue)) {
+        emit(['']);
+        return;
+      }
       emit([nextValue]);
       return;
     }

@@ -4,12 +4,12 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
+import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
-import { Textarea } from '../../shared/components/ui/textarea';
 import {
   buildHref,
   getStoredReturnTarget,
@@ -350,6 +350,8 @@ function ClusterConfigTable({
   currentTenantId: string;
   clusterId: number;
 }) {
+  const currentHref = useLocation({ select: (location) => String(location.href) });
+  const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const [fetchedConfigs, setFetchedConfigs] = useState<Record<string, ComponentConfigState>>({});
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -397,7 +399,39 @@ function ClusterConfigTable({
     () => [
       { header: 'namespace', accessorKey: 'namespace' },
       { header: 'kind', accessorKey: 'kind' },
-      { header: 'name', accessorKey: 'name' },
+      {
+        header: 'name',
+        cell: ({ row }) => {
+          const config = row.original;
+          return (
+            <Link
+              to="/data-links/detail"
+              search={{
+                ...routeSearch,
+                kind: 'ClusterConfig',
+                clusterKind: config.kind,
+                namespace: config.namespace,
+                name: config.name
+              }}
+              onClick={() =>
+                rememberReturnTarget(
+                  buildHref('/data-links/detail', {
+                    ...routeSearch,
+                    kind: 'ClusterConfig',
+                    clusterKind: config.kind,
+                    namespace: config.namespace,
+                    name: config.name
+                  }),
+                  { href: currentHref, label: '存储集群详情' }
+                )
+              }
+              className="link"
+            >
+              {config.name}
+            </Link>
+          );
+        }
+      },
       {
         header: 'created_at',
         cell: ({ row }) => formatDateTime(row.original.created_at)
@@ -442,7 +476,7 @@ function ClusterConfigTable({
         }
       }
     ],
-    [fetchedConfigs, expandedRows, handleFetch, toggleExpand]
+    [fetchedConfigs, expandedRows, handleFetch, toggleExpand, routeSearch, currentHref]
   );
 
   const renderExpandedRow = useCallback(
@@ -464,13 +498,7 @@ function ClusterConfigTable({
         return <div className="text-sm text-destructive">{config.error}</div>;
       }
 
-      return (
-        <Textarea
-          readOnly
-          className="min-h-40 font-mono text-xs"
-          value={config.data != null ? JSON.stringify(config.data, null, 2) : 'null'}
-        />
-      );
+      return <JsonBlock value={config.data} />;
     },
     [fetchedConfigs]
   );

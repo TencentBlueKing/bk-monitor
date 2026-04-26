@@ -1,5 +1,5 @@
 import { Globe } from 'lucide-react';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 
 import { ChoiceInput } from '../../shared/components/ChoiceInput';
 import { Label } from '../../shared/components/ui/label';
@@ -8,6 +8,7 @@ import { createEnvironmentSearch, getSearchEnvironmentId, getSearchTenantId } fr
 
 export function EnvironmentSwitcher() {
   const navigate = useNavigate();
+  const location = useLocation();
   const search = useSearch({ strict: false });
   const { environments, currentEnvironment, currentTenantId, defaultEnvironmentId } =
     useEnvironmentConfig();
@@ -20,8 +21,9 @@ export function EnvironmentSwitcher() {
     if (!nextEnvironmentId) return;
 
     void navigate({
-      to: '/datasources',
-      search: createEnvironmentSearch(nextEnvironmentId, selectedTenantId)
+      to: location.pathname,
+      search: (prev) => ({ ...prev, env: nextEnvironmentId, tenant: selectedTenantId }),
+      replace: true
     });
   };
 

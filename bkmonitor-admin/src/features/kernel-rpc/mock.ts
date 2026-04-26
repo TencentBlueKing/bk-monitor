@@ -10,8 +10,15 @@ import {
   createMockFieldList,
   createMockResultTableDetail,
   createMockBcsClusterDetail,
+  createMockComponentDetail,
+  createMockClusterConfigDetail,
+  createMockDatalinkDetail,
+  createMockDatalinkComponentConfig,
   mockBcsClusters,
   mockClusterInfos,
+  mockClusterConfigs,
+  mockDatalinkComponents,
+  mockDataLinks,
   mockDatasources,
   mockEsStorages,
   mockResultTables
@@ -110,6 +117,54 @@ function resolveMockData(options: KernelRpcCallOptions): unknown {
         kind: String(options.params.kind),
         name: String(options.params.name)
       });
+    case 'datalink.component_list':
+      return {
+        items: filterDatalinkComponents(options.params),
+        page: Number(options.params.page ?? 1),
+        page_size: Number(options.params.page_size ?? 20),
+        total: filterDatalinkComponents(options.params).length
+      };
+    case 'datalink.component_detail':
+      return createMockComponentDetail(
+        String(options.params.kind),
+        String(options.params.namespace),
+        String(options.params.name)
+      );
+    case 'datalink.component_config':
+    case 'datalink.datalink_component_config':
+      return createMockDatalinkComponentConfig(
+        String(options.params.namespace),
+        String(options.params.kind),
+        String(options.params.name)
+      );
+    case 'datalink.cluster_config_list':
+      return {
+        items: filterClusterConfigs(options.params),
+        page: Number(options.params.page ?? 1),
+        page_size: Number(options.params.page_size ?? 20),
+        total: filterClusterConfigs(options.params).length
+      };
+    case 'datalink.cluster_config_detail':
+      return createMockClusterConfigDetail(
+        String(options.params.kind),
+        String(options.params.namespace),
+        String(options.params.name)
+      );
+    case 'datalink.cluster_config_component_config':
+      return createMockDatalinkComponentConfig(
+        String(options.params.namespace),
+        String(options.params.kind),
+        String(options.params.name)
+      );
+    case 'datalink.datalink_list':
+      return {
+        items: filterDataLinks(options.params),
+        page: Number(options.params.page ?? 1),
+        page_size: Number(options.params.page_size ?? 20),
+        total: filterDataLinks(options.params).length
+      };
+    case 'datalink.datalink_detail':
+      return createMockDatalinkDetail(String(options.params.data_link_name));
     case 'datasource.data_id_config.component_config':
       return createMockComponentConfig({
         clusterId: 0,
@@ -266,6 +321,72 @@ function filterBcsClusters(params: Record<string, unknown>) {
 
     return true;
   });
+
+  return filtered.slice((page - 1) * pageSize, page * pageSize);
+}
+
+function filterDatalinkComponents(params: Record<string, unknown>) {
+  const page = Number(params.page ?? 1);
+  const pageSize = Number(params.page_size ?? 20);
+  const kind = typeof params.kind === 'string' ? params.kind : undefined;
+  let filtered = kind
+    ? mockDatalinkComponents.filter((item) => item.kind === kind)
+    : mockDatalinkComponents;
+
+  if (typeof params.namespace === 'string') {
+    filtered = filtered.filter((item) => item.namespace === params.namespace);
+  }
+  if (typeof params.search === 'string') {
+    filtered = filtered.filter((item) => item.name.includes(params.search as string));
+  }
+  if (typeof params.status === 'string') {
+    filtered = filtered.filter((item) => item.status === params.status);
+  }
+  if (typeof params.bk_data_id === 'number') {
+    filtered = filtered.filter((item) => item.bk_data_id === params.bk_data_id);
+  }
+  if (typeof params.has_data_link === 'boolean') {
+    filtered = filtered.filter((item) => params.has_data_link !== Boolean(item.data_link_name));
+  }
+
+  return filtered.slice((page - 1) * pageSize, page * pageSize);
+}
+
+function filterClusterConfigs(params: Record<string, unknown>) {
+  const page = Number(params.page ?? 1);
+  const pageSize = Number(params.page_size ?? 20);
+  let filtered = mockClusterConfigs;
+
+  if (typeof params.kind === 'string') {
+    filtered = filtered.filter((item) => item.kind === params.kind);
+  }
+  if (typeof params.namespace === 'string') {
+    filtered = filtered.filter((item) => item.namespace === params.namespace);
+  }
+  if (typeof params.search === 'string') {
+    filtered = filtered.filter((item) => item.name.includes(params.search as string));
+  }
+
+  return filtered.slice((page - 1) * pageSize, page * pageSize);
+}
+
+function filterDataLinks(params: Record<string, unknown>) {
+  const page = Number(params.page ?? 1);
+  const pageSize = Number(params.page_size ?? 20);
+  let filtered = mockDataLinks;
+
+  if (typeof params.namespace === 'string') {
+    filtered = filtered.filter((item) => item.namespace === params.namespace);
+  }
+  if (typeof params.search === 'string') {
+    filtered = filtered.filter((item) => item.data_link_name.includes(params.search as string));
+  }
+  if (typeof params.data_link_strategy === 'string') {
+    filtered = filtered.filter((item) => item.data_link_strategy === params.data_link_strategy);
+  }
+  if (typeof params.bk_data_id === 'number') {
+    filtered = filtered.filter((item) => item.bk_data_id === params.bk_data_id);
+  }
 
   return filtered.slice((page - 1) * pageSize, page * pageSize);
 }

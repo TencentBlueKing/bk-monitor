@@ -2,7 +2,7 @@ import type { DataSourceDetailResponse, DataSourceListResponse } from '../dataso
 import type {
   ClusterInfoDetailResponse,
   ClusterInfoListResponse,
-  ComponentConfigResponse
+  ComponentConfigResponse as ClusterComponentConfigResponse
 } from '../cluster-info/schemas';
 import type {
   EsRuntimeOverviewResponse,
@@ -17,6 +17,15 @@ import type {
 } from '../result-table/schemas';
 import type { QueryRouteResponse } from '../query-route/schemas';
 import type { BcsClusterListResponse, BcsClusterDetailResponse } from '../bcs-cluster/schemas';
+import type {
+  ComponentConfigResponse,
+  ComponentDetailResponse,
+  ComponentListItem,
+  ClusterConfigDetailResponse,
+  ClusterConfigListItem,
+  DataLinkDetailResponse,
+  DataLinkListItem
+} from '../datalink/schemas';
 
 export const mockDatasources: DataSourceListResponse['items'] = [
   {
@@ -464,6 +473,396 @@ export const mockBcsClusters: BcsClusterListResponse['items'] = [
   }
 ];
 
+// =============================================================================
+// DataLink mock data
+// =============================================================================
+
+export const mockDatalinkComponents: ComponentListItem[] = [
+  {
+    kind: 'DataId',
+    name: 'custom_metric_demo',
+    namespace: 'bkmonitor',
+    status: 'Ok',
+    data_link_name: null,
+    bk_biz_id: 2,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-18 10:00:00',
+    updated_at: '2026-04-23 11:30:00',
+    bk_data_id: 50010
+  },
+  {
+    kind: 'DataId',
+    name: 'bkdata_link_demo',
+    namespace: 'bkdata',
+    status: 'Ok',
+    data_link_name: null,
+    bk_biz_id: 3,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-19 09:00:00',
+    updated_at: '2026-04-24 17:30:00',
+    bk_data_id: 50020
+  },
+  {
+    kind: 'ResultTable',
+    name: 'vm_result_table',
+    namespace: 'bkmonitor',
+    status: 'Ok',
+    data_link_name: 'bk_standard_v2_time_series',
+    bk_biz_id: 2,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-18 10:01:00',
+    updated_at: '2026-04-23 11:32:00',
+    table_id: '2_bkmonitor_time_series.__default__',
+    data_type: 'metric',
+    bkbase_table_id: '591_bkmonitor_time_series'
+  },
+  {
+    kind: 'ResultTable',
+    name: 'es_result_table',
+    namespace: 'bklog',
+    status: 'Ok',
+    data_link_name: 'bk_log',
+    bk_biz_id: 3,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-19 09:02:00',
+    updated_at: '2026-04-24 17:33:00',
+    table_id: '3_bklog.demo',
+    data_type: 'log',
+    bkbase_table_id: '592_bklog_demo'
+  },
+  {
+    kind: 'VmStorageBinding',
+    name: 'vm_storage_binding_1',
+    namespace: 'bkmonitor',
+    status: 'Ok',
+    data_link_name: 'bk_standard_v2_time_series',
+    bk_biz_id: 2,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-18 10:02:00',
+    updated_at: '2026-04-23 11:33:00',
+    vm_cluster_name: 'default_vm',
+    bkbase_result_table_name: 'bkmonitor_time_series',
+    table_id: '2_bkmonitor_time_series.__default__'
+  },
+  {
+    kind: 'VmStorageBinding',
+    name: 'vm_storage_binding_2',
+    namespace: 'bkmonitor',
+    status: 'Pending',
+    data_link_name: '',
+    bk_biz_id: 2,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-20 14:00:00',
+    updated_at: '2026-04-25 15:00:00',
+    vm_cluster_name: 'vm_cluster_alt',
+    bkbase_result_table_name: 'alt_result_table',
+    table_id: '2_alt_table'
+  },
+  {
+    kind: 'ElasticSearchBinding',
+    name: 'es_storage_binding_1',
+    namespace: 'bklog',
+    status: 'Ok',
+    data_link_name: 'bk_log',
+    bk_biz_id: 3,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-19 09:03:00',
+    updated_at: '2026-04-24 17:34:00',
+    es_cluster_name: 'default-es',
+    table_id: '3_bklog.demo',
+    bkbase_result_table_name: 'bklog_demo',
+    timezone: 0
+  },
+  {
+    kind: 'ElasticSearchBinding',
+    name: 'es_storage_binding_2',
+    namespace: 'bklog',
+    status: 'Ok',
+    data_link_name: '',
+    bk_biz_id: 4,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-21 10:00:00',
+    updated_at: '2026-04-26 12:00:00',
+    es_cluster_name: 'es-cluster-2',
+    table_id: '4_bklog.standalone',
+    bkbase_result_table_name: 'standalone_log',
+    timezone: 8
+  },
+  {
+    kind: 'DorisBinding',
+    name: 'doris_binding_1',
+    namespace: 'bklog',
+    status: 'Ok',
+    data_link_name: 'bk_log',
+    bk_biz_id: 3,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-19 09:04:00',
+    updated_at: '2026-04-24 17:35:00',
+    table_id: '3_bklog.demo',
+    bkbase_result_table_name: 'bklog_demo',
+    doris_cluster_name: 'default-doris'
+  },
+  {
+    kind: 'Databus',
+    name: 'databus_standard_v2',
+    namespace: 'bkmonitor',
+    status: 'Ok',
+    data_link_name: 'bk_standard_v2_time_series',
+    bk_biz_id: 2,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-18 10:03:00',
+    updated_at: '2026-04-23 11:34:00',
+    data_id_name: 'custom_metric_demo',
+    bk_data_id: 50010,
+    sink_names: [{ kind: 'VmStorageBinding', namespace: 'bkmonitor', name: 'vm_storage_binding_1' }]
+  },
+  {
+    kind: 'Databus',
+    name: 'databus_log',
+    namespace: 'bklog',
+    status: 'Ok',
+    data_link_name: 'bk_log',
+    bk_biz_id: 3,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-19 09:05:00',
+    updated_at: '2026-04-24 17:36:00',
+    data_id_name: 'bkdata_link_demo',
+    bk_data_id: 50020,
+    sink_names: [
+      { kind: 'ElasticSearchBinding', namespace: 'bklog', name: 'es_storage_binding_1' },
+      { kind: 'DorisBinding', namespace: 'bklog', name: 'doris_binding_1' }
+    ]
+  },
+  {
+    kind: 'ConditionalSink',
+    name: 'conditional_sink_default',
+    namespace: 'bkmonitor',
+    status: 'Ok',
+    data_link_name: 'bk_standard_v2_time_series',
+    bk_biz_id: 2,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-18 10:04:00',
+    updated_at: '2026-04-23 11:35:00'
+  },
+  {
+    kind: 'ConditionalSink',
+    name: 'conditional_sink_orphan',
+    namespace: 'bklog',
+    status: 'Failed',
+    data_link_name: '',
+    bk_biz_id: 4,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-21 11:00:00',
+    updated_at: '2026-04-26 13:00:00'
+  }
+];
+
+export const mockClusterConfigs: ClusterConfigListItem[] = [
+  {
+    name: 'default-kafka',
+    kind: 'KafkaChannel',
+    namespace: 'bkmonitor',
+    bk_tenant_id: 'system',
+    origin_config: { brokers: ['kafka.service.local:9092'], version: '2.8', partitions: 8 },
+    created_at: '2026-04-18 10:00:00',
+    updated_at: '2026-04-23 11:30:00'
+  },
+  {
+    name: 'bkdata-kafka',
+    kind: 'KafkaChannel',
+    namespace: 'bklog',
+    bk_tenant_id: 'system',
+    origin_config: { brokers: ['kafka.bkdata.local:9092'], version: '3.2', partitions: 16 },
+    created_at: '2026-04-19 09:00:00',
+    updated_at: '2026-04-24 17:30:00'
+  },
+  {
+    name: 'default-vm',
+    kind: 'VmStorage',
+    namespace: 'bkmonitor',
+    bk_tenant_id: 'system',
+    origin_config: { endpoint: 'http://vm.service.local:8428', retention_days: 30 },
+    created_at: '2026-04-18 10:01:00',
+    updated_at: '2026-04-23 11:31:00'
+  },
+  {
+    name: 'default-es',
+    kind: 'ElasticSearch',
+    namespace: 'bklog',
+    bk_tenant_id: 'system',
+    origin_config: { endpoint: 'http://es.service.local:9200', version: '7.10' },
+    created_at: '2026-04-19 09:01:00',
+    updated_at: '2026-04-24 17:31:00'
+  },
+  {
+    name: 'default-doris',
+    kind: 'Doris',
+    namespace: 'bklog',
+    bk_tenant_id: 'system',
+    origin_config: { host: 'doris.service.local', port: 9030, user: 'admin' },
+    created_at: '2026-04-19 09:02:00',
+    updated_at: '2026-04-24 17:32:00'
+  },
+  {
+    name: 'archive-doris',
+    kind: 'Doris',
+    namespace: 'bkmonitor',
+    bk_tenant_id: 'system',
+    origin_config: { host: 'doris-archive.local', port: 9030, user: 'readonly' },
+    created_at: '2026-04-22 08:00:00',
+    updated_at: '2026-04-25 09:00:00'
+  }
+];
+
+export const mockDataLinks: DataLinkListItem[] = [
+  {
+    data_link_name: 'bk_standard_v2_time_series',
+    namespace: 'bkmonitor',
+    data_link_strategy: 'bk_standard_v2_time_series',
+    bk_data_id: 50010,
+    table_ids_count: 2,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-18 10:00:00',
+    updated_at: '2026-04-23 11:30:00'
+  },
+  {
+    data_link_name: 'bk_log',
+    namespace: 'bklog',
+    data_link_strategy: 'bk_log',
+    bk_data_id: 50020,
+    table_ids_count: 3,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-19 09:00:00',
+    updated_at: '2026-04-24 17:30:00'
+  },
+  {
+    data_link_name: 'basereport_time_series_v1',
+    namespace: 'bkmonitor',
+    data_link_strategy: 'basereport_time_series_v1',
+    bk_data_id: 50030,
+    table_ids_count: 1,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-20 08:00:00',
+    updated_at: '2026-04-25 10:00:00'
+  },
+  {
+    data_link_name: 'bk_exporter_time_series',
+    namespace: 'bkapm',
+    data_link_strategy: 'bk_exporter_time_series',
+    bk_data_id: 50040,
+    table_ids_count: 0,
+    bk_tenant_id: 'system',
+    created_at: '2026-04-21 14:00:00',
+    updated_at: '2026-04-26 16:00:00'
+  }
+];
+
+export function createMockDatalinkDetail(dataLinkName: string): DataLinkDetailResponse {
+  const datalink = mockDataLinks.find((d) => d.data_link_name === dataLinkName);
+  if (!datalink) {
+    throw new Error(`Mock DataLink not found: ${dataLinkName}`);
+  }
+
+  const childComponents = mockDatalinkComponents.filter((c) => c.data_link_name === dataLinkName);
+
+  const components: DataLinkDetailResponse['components'] = {};
+  for (const c of childComponents) {
+    if (!components[c.kind]) {
+      components[c.kind] = [];
+    }
+    components[c.kind]!.push({
+      kind: c.kind,
+      name: c.name,
+      namespace: c.namespace
+    });
+  }
+
+  return {
+    kind: 'DataLink',
+    data_link_name: datalink.data_link_name,
+    bk_tenant_id: datalink.bk_tenant_id,
+    namespace: datalink.namespace,
+    data_link_strategy: datalink.data_link_strategy,
+    bk_data_id: datalink.bk_data_id,
+    table_ids:
+      dataLinkName === 'bk_standard_v2_time_series'
+        ? ['2_bkmonitor_time_series.__default__']
+        : dataLinkName === 'bk_log'
+          ? ['3_bklog.demo']
+          : [],
+    created_at: datalink.created_at,
+    updated_at: datalink.updated_at,
+    components
+  };
+}
+
+export function createMockClusterConfigDetail(
+  kind: string,
+  namespace: string,
+  name: string
+): ClusterConfigDetailResponse {
+  const config = mockClusterConfigs.find(
+    (c) => c.kind === kind && c.namespace === namespace && c.name === name
+  );
+  if (!config) {
+    throw new Error(
+      `Mock ClusterConfig not found: kind=${kind} namespace=${namespace} name=${name}`
+    );
+  }
+
+  return {
+    ...config,
+    component_config: {
+      status: { phase: 'Ok', message: 'mock ready' },
+      address: config.origin_config
+    }
+  };
+}
+
+export function createMockComponentDetail(
+  kind: string,
+  namespace: string,
+  name: string
+): ComponentDetailResponse {
+  const component = mockDatalinkComponents.find(
+    (c) => c.kind === kind && c.namespace === namespace && c.name === name
+  );
+  if (!component) {
+    throw new Error(`Mock component not found: kind=${kind} namespace=${namespace} name=${name}`);
+  }
+
+  return {
+    ...component,
+    component_config: {
+      status: { phase: component.status, message: 'mock component ready' },
+      kind: component.kind,
+      name: component.name,
+      namespace: component.namespace
+    }
+  };
+}
+
+export function createMockDatalinkComponentConfig(
+  namespace: string,
+  kind: string,
+  name: string
+): ComponentConfigResponse {
+  return {
+    kind,
+    namespace,
+    name,
+    component_config: {
+      status: { phase: 'Ok', message: `mock config for ${namespace}/${kind}/${name}` },
+      sources: kind === 'Databus' ? [{ type: 'kafka', topic: 'input-topic' }] : [],
+      sinks: kind.includes('Binding')
+        ? [{ type: kind.toLowerCase().replace('binding', ''), cluster: 'mock-cluster' }]
+        : []
+    }
+  };
+}
+
+// =============================================================================
+
 export function createMockBcsClusterDetail(clusterId: string): BcsClusterDetailResponse {
   const cluster = mockBcsClusters.find((item) => item.cluster_id === clusterId);
   if (!cluster) {
@@ -572,7 +971,7 @@ export function createMockDatasourceDetail(bkDataId: number): DataSourceDetailRe
     data_id_configs: datasource.has_data_id_config
       ? [
           {
-            namespace: 'bkmonitor',
+            namespace: datasource.data_name === 'bkdata_link_demo' ? 'bkdata' : 'bkmonitor',
             name: datasource.data_name,
             kind: 'DataId',
             created_at: null,
@@ -829,7 +1228,7 @@ export function createMockComponentConfig(params: {
   namespace: string;
   kind: string;
   name: string;
-}): ComponentConfigResponse {
+}): ClusterComponentConfigResponse {
   void params;
   return {
     component_config: {
@@ -848,12 +1247,14 @@ export function createMockClusterInfoDetail(clusterId: number): ClusterInfoDetai
   }
   const cluster = mockClusterInfos.find((item) => item.cluster_id === clusterId) ?? fallbackCluster;
 
+  const matchingConfig = mockClusterConfigs.find((c) => c.name === cluster.cluster_name);
+
   return {
     cluster_info: cluster,
     cluster_configs: [
       {
-        namespace: 'default',
-        kind: cluster.cluster_type === 'elasticsearch' ? 'ElasticsearchCluster' : 'KafkaCluster',
+        namespace: matchingConfig?.namespace ?? 'bkmonitor',
+        kind: matchingConfig?.kind ?? 'KafkaChannel',
         name: cluster.cluster_name,
         origin_config: {
           cluster_id: cluster.cluster_id,
