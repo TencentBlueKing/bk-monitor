@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -116,6 +116,7 @@ export function DataLinkDetailPage() {
         currentTenantId={currentTenantId}
         navigate={navigate}
         listSearch={listSearch}
+        routeSearch={routeSearch}
       />
     );
   }
@@ -134,6 +135,7 @@ export function DataLinkDetailPage() {
         currentTenantId={currentTenantId}
         navigate={navigate}
         listSearch={listSearch}
+        routeSearch={routeSearch}
       />
     );
   }
@@ -151,6 +153,7 @@ export function DataLinkDetailPage() {
       currentTenantId={currentTenantId}
       navigate={navigate}
       listSearch={listSearch}
+      routeSearch={routeSearch}
     />
   );
 }
@@ -171,13 +174,15 @@ function ComponentDetailView({
   currentEnvironment,
   currentTenantId,
   navigate,
-  listSearch
+  listSearch,
+  routeSearch
 }: {
   detail: ComponentDetailResponse;
   currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
   currentTenantId: string;
   navigate: ReturnType<typeof useNavigate>;
   listSearch: Record<string, unknown>;
+  routeSearch: Record<string, unknown>;
 }) {
   const [configState, setConfigState] = useState<{
     loading: boolean;
@@ -224,11 +229,34 @@ function ComponentDetailView({
           <Info label="status" value={detail.status} />
           <Info label="dataLinkName" value={detail.data_link_name ?? '-'} />
           <Info label="bkBizId" value={String(detail.bk_biz_id)} />
-          <Info label="bkTenantId" value={detail.bk_tenant_id} />
           {detail.bk_data_id !== undefined ? (
-            <Info label="bk_data_id" value={String(detail.bk_data_id)} />
+            <div className="info-item">
+              <span>bk_data_id</span>
+              <strong>
+                <Link
+                  to="/datasources"
+                  search={{ ...routeSearch, bkDataId: detail.bk_data_id }}
+                  className="link"
+                >
+                  {detail.bk_data_id}
+                </Link>
+              </strong>
+            </div>
           ) : null}
-          {detail.table_id ? <Info label="tableId" value={detail.table_id} /> : null}
+          {detail.table_id ? (
+            <div className="info-item">
+              <span>tableId</span>
+              <strong>
+                <Link
+                  to="/result-tables"
+                  search={{ ...routeSearch, tableId: detail.table_id }}
+                  className="link"
+                >
+                  {detail.table_id}
+                </Link>
+              </strong>
+            </div>
+          ) : null}
           {detail.data_type ? <Info label="dataType" value={detail.data_type} /> : null}
           {detail.vm_cluster_name ? (
             <Info label="vmClusterName" value={detail.vm_cluster_name} />
@@ -290,13 +318,15 @@ function ClusterConfigDetailView({
   currentEnvironment,
   currentTenantId,
   navigate,
-  listSearch
+  listSearch,
+  routeSearch
 }: {
   detail: ClusterConfigDetailResponse;
   currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
   currentTenantId: string;
   navigate: ReturnType<typeof useNavigate>;
   listSearch: Record<string, unknown>;
+  routeSearch: Record<string, unknown>;
 }) {
   const [configState, setConfigState] = useState<{
     loading: boolean;
@@ -345,7 +375,6 @@ function ClusterConfigDetailView({
           </div>
           <Info label="name" value={detail.name} />
           <Info label="namespace" value={detail.namespace} />
-          <Info label="bkTenantId" value={detail.bk_tenant_id} />
           <Info label="createdAt" value={formatDateTime(detail.created_at)} />
           <Info label="updatedAt" value={formatDateTime(detail.updated_at)} />
         </CardContent>
@@ -552,13 +581,15 @@ function DataLinkDetailView({
   currentEnvironment,
   currentTenantId,
   navigate,
-  listSearch
+  listSearch,
+  routeSearch
 }: {
   detail: DataLinkDetailResponse;
   currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
   currentTenantId: string;
   navigate: ReturnType<typeof useNavigate>;
   listSearch: Record<string, unknown>;
+  routeSearch: Record<string, unknown>;
 }) {
   const groupedComponents = useMemo(() => {
     const result: Record<string, ChildComponentRow[]> = {};
@@ -608,9 +639,35 @@ function DataLinkDetailView({
             <Info label="dataLinkName" value={detail.data_link_name} />
             <Info label="namespace" value={detail.namespace} />
             <Info label="dataLinkStrategy" value={detail.data_link_strategy} />
-            <Info label="bkDataId" value={String(detail.bk_data_id)} />
-            <Info label="bkTenantId" value={detail.bk_tenant_id} />
-            <Info label="tableIds" value={detail.table_ids.join(', ')} />
+            <div className="info-item">
+              <span>bkDataId</span>
+              <strong>
+                <Link
+                  to="/datasources"
+                  search={{ ...routeSearch, bkDataId: detail.bk_data_id }}
+                  className="link"
+                >
+                  {detail.bk_data_id}
+                </Link>
+              </strong>
+            </div>
+            <div className="info-item">
+              <span>tableIds</span>
+              <strong>
+                {detail.table_ids.map((id, i) => (
+                  <span key={id}>
+                    {i > 0 ? ', ' : ''}
+                    <Link
+                      to="/result-tables"
+                      search={{ ...routeSearch, tableId: id }}
+                      className="link"
+                    >
+                      {id}
+                    </Link>
+                  </span>
+                ))}
+              </strong>
+            </div>
             <Info label="createdAt" value={formatDateTime(detail.created_at)} />
             <Info label="updatedAt" value={formatDateTime(detail.updated_at)} />
           </CardContent>
