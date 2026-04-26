@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, ExternalLink, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
@@ -9,11 +9,6 @@ import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
 import { Input } from '../../shared/components/ui/input';
 import { Label } from '../../shared/components/ui/label';
-import {
-  buildHref,
-  getStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -27,7 +22,6 @@ import { resultTableFieldListQuerySchema, type ResultTableField } from './schema
 export function ResultTableDetailPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const tableId = params.tableId ?? '';
   const [fieldName, setFieldName] = useState('');
@@ -47,8 +41,7 @@ export function ResultTableDetailPage() {
 
   const detailQuery = useResultTableDetail(currentEnvironment!, currentTenantId, tableId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
-  const fallbackReturnHref = buildHref('/result-tables', routeSearch);
-  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'ResultTable 列表');
+
   const fieldQueryParams = resultTableFieldListQuerySchema.parse({
     bkTenantId: currentTenantId,
     tableId,
@@ -101,8 +94,8 @@ export function ResultTableDetailPage() {
           <div className="eyebrow">ResultTable Detail</div>
           <h2>{result_table.table_id}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/result-tables', search: routeSearch })}>
+          返回 ResultTable 列表
         </Button>
       </div>
       <Card>
@@ -245,15 +238,6 @@ export function ResultTableDetailPage() {
                       bkDataId: String(row.original.bk_data_id)
                     }}
                     search={routeSearch}
-                    onClick={() =>
-                      rememberReturnTarget(
-                        buildHref(`/datasources/${String(row.original.bk_data_id)}`, routeSearch),
-                        {
-                          href: currentHref,
-                          label: 'ResultTable 详情'
-                        }
-                      )
-                    }
                     className="link"
                   >
                     {row.original.bk_data_id}
@@ -286,15 +270,6 @@ export function ResultTableDetailPage() {
                       to="/es-storages/$tableId"
                       params={{ tableId: row.original.table_id }}
                       search={routeSearch}
-                      onClick={() =>
-                        rememberReturnTarget(
-                          buildHref(`/es-storages/${row.original.table_id}`, routeSearch),
-                          {
-                            href: currentHref,
-                            label: 'ResultTable 详情'
-                          }
-                        )
-                      }
                       className="link"
                     >
                       {row.original.table_id}
@@ -320,15 +295,6 @@ export function ResultTableDetailPage() {
                         to="/es-storages/$tableId"
                         params={{ tableId: row.original.origin_table_id }}
                         search={routeSearch}
-                        onClick={() =>
-                          rememberReturnTarget(
-                            buildHref(`/es-storages/${row.original.origin_table_id}`, routeSearch),
-                            {
-                              href: currentHref,
-                              label: 'ResultTable 详情'
-                            }
-                          )
-                        }
                         className="link"
                       >
                         {row.original.origin_table_id}
@@ -354,7 +320,6 @@ export function ResultTableDetailPage() {
         <QueryRouteSection
           tableId={tableId}
           queryRoute={routeQuery}
-          currentHref={currentHref}
           routeSearch={routeSearch}
         />
       </div>
@@ -455,12 +420,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function QueryRouteSection({
   tableId,
   queryRoute,
-  currentHref,
   routeSearch
 }: {
   tableId: string;
   queryRoute: ReturnType<typeof useQueryRoute>;
-  currentHref: string;
   routeSearch: Record<string, string>;
 }) {
   if (queryRoute.isLoading) {
@@ -500,12 +463,6 @@ function QueryRouteSection({
           search={routeSearch}
           className="link inline-flex items-center"
           title="查看完整路由详情"
-          onClick={() =>
-            rememberReturnTarget(buildHref(`/query-route/${tableId}`, routeSearch), {
-              href: currentHref,
-              label: 'ResultTable 详情'
-            })
-          }
         >
           <ExternalLink aria-hidden="true" size={14} />
         </Link>
@@ -544,12 +501,6 @@ function QueryRouteSection({
                       params={{ tableId: spaceRoute.table_id }}
                       search={routeSearch}
                       className="link font-mono text-xs"
-                      onClick={() =>
-                        rememberReturnTarget(
-                          buildHref(`/query-route/${spaceRoute.table_id}`, routeSearch),
-                          { href: currentHref, label: 'ResultTable 详情' }
-                        )
-                      }
                     >
                       {spaceRoute.table_id} <ExternalLink aria-hidden="true" size={12} />
                     </Link>

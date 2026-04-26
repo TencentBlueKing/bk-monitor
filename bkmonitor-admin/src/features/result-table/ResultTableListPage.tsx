@@ -1,6 +1,6 @@
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import {
@@ -11,11 +11,6 @@ import {
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
-import { Button } from '../../shared/components/ui/button';
-import {
-  getOptionalStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -59,19 +54,16 @@ const FILTER_FIELDS: FilterField[] = [
 
 export function ResultTableListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [drafts, setDrafts] = useState<Record<string, FilterValue>>({});
-  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>({});
-  const returnTarget = getOptionalStoredReturnTarget(currentHref);
+  const search = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const initialFilters = useMemo(() => getInitialFilters(search), [search]);
+  const [drafts, setDrafts] = useState<Record<string, FilterValue>>(initialFilters);
+  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialFilters);
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
-  const returnSearch = {
-    env: currentEnvironment?.id ?? 'local',
-    tenant: currentTenantId
-  } satisfies Record<string, unknown>;
 
   const query = resultTableListQuerySchema.parse({
     bkTenantId: currentTenantId,
@@ -97,11 +89,6 @@ export function ResultTableListPage() {
         size: 240,
         cell: ({ row }) => {
           const resultTable = row.original;
-          const detailHref = createScopedHref(
-            `/result-tables/${resultTable.table_id}`,
-            returnSearch
-          );
-
           return (
             <Link
               to="/result-tables/$tableId"
@@ -109,12 +96,6 @@ export function ResultTableListPage() {
                 tableId: resultTable.table_id
               }}
               search={routeSearch}
-              onClick={() =>
-                rememberReturnTarget(detailHref, {
-                  href: currentHref,
-                  label: 'ResultTable 列表'
-                })
-              }
               className="link inline-block"
             >
               <Truncated text={resultTable.table_id} maxW="240px" />
@@ -194,8 +175,36 @@ export function ResultTableListPage() {
         )
       }
     ],
-    [currentHref, returnSearch, routeSearch]
+    [routeSearch]
   );
+
+  const handleSearch = useCallback(() => {
+    const nextFilters = { ...drafts };
+    setActiveFilters(nextFilters);
+    setPage(1);
+    void navigate({
+      to: '/result-tables',
+      search: {
+        env: (search as any)?.env ?? '',
+        tenant: (search as any)?.tenant ?? '',
+        ...Object.fromEntries(
+          Object.entries(nextFilters).filter(([, v]) => v !== '' && v !== undefined && (!Array.isArray(v) || v.length > 0))
+        )
+      },
+      replace: true
+    });
+  }, [drafts, navigate, search]);
+
+  const handleReset = useCallback(() => {
+    setDrafts({});
+    setActiveFilters({});
+    setPage(1);
+    void navigate({
+      to: '/result-tables',
+      search: { env: (search as any)?.env ?? '', tenant: (search as any)?.tenant ?? '' },
+      replace: true
+    });
+  }, [navigate, search]);
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -208,25 +217,14 @@ export function ResultTableListPage() {
           <div className="eyebrow">Resource</div>
           <h2>ResultTable</h2>
         </div>
-        {returnTarget ? (
-          <Button asChild variant="secondary">
-            <a href={returnTarget.href}>返回 {returnTarget.label}</a>
-          </Button>
-        ) : null}
+
       </div>
       <FilterToolbar
         fields={FILTER_FIELDS}
         values={drafts}
         onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
-        onSearch={() => {
-          setActiveFilters({ ...drafts });
-          setPage(1);
-        }}
-        onReset={() => {
-          setDrafts({ isDeleted: 'false' });
-          setActiveFilters({ isDeleted: 'false' });
-          setPage(1);
-        }}
+        onSearch={handleSearch}
+        onReset={handleReset}
         loading={resultTableQuery.isLoading}
       />
       {resultTableQuery.isError ? (
@@ -252,18 +250,33 @@ export function ResultTableListPage() {
   );
 }
 
-function createScopedHref(pathname: string, search: Record<string, unknown>) {
-  const params = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(search)) {
-    if (value === undefined || value === null || value === '') {
-      continue;
-    }
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      params.set(key, String(value));
+function getInitialFilters(search: object): Record<string, FilterValue> {
+  const filterKeys = [
+    'tableId',
+    'tableNameZh',
+    'bkDataId',
+    'dataLabel',
+    'bkBizId',
+    'label',
+    'schemaType',
+    'defaultStorage',
+    'isEnable',
+    'isDeleted',
+    'isBuiltin'
+  ];
+  const filters: Record<string, FilterValue> = {};
+  for (const key of filterKeys) {
+    const value = getSearchString(search, key);
+    if (value) {
+      filters[key] = value;
     }
   }
-
-  const query = params.toString();
-  return query ? `${pathname}?${query}` : pathname;
+  return filters;
 }
+
+function getSearchString(search: object, key: string): string | undefined {
+  if (!(key in search)) return undefined;
+  const value = (search as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : undefined;
+}
+

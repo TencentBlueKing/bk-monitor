@@ -1,4 +1,4 @@
-import { Link, useLocation, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useMemo, useState } from 'react';
@@ -10,11 +10,6 @@ import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
-import {
-  buildHref,
-  getStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -29,7 +24,7 @@ import type { ClusterConfig } from './schemas';
 
 export function ClusterInfoDetailPage() {
   const params = useParams({ strict: false });
-  const currentHref = useLocation({ select: (location) => String(location.href) });
+  const navigate = useNavigate();
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const clusterId = Number(params.clusterId);
 
@@ -38,8 +33,6 @@ export function ClusterInfoDetailPage() {
 
   const detailQuery = useClusterInfoDetail(currentEnvironment!, currentTenantId, clusterId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
-  const fallbackReturnHref = buildHref('/clusters', routeSearch);
-  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, '存储集群列表');
   const esStoragePreviewQueryParams = esStorageListQuerySchema.parse({
     bkTenantId: currentTenantId,
     storageClusterId: Number.isNaN(clusterId) ? undefined : clusterId,
@@ -80,8 +73,8 @@ export function ClusterInfoDetailPage() {
           <div className="eyebrow">存储集群详情</div>
           <h2>{cluster_info.cluster_name}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/clusters', search: routeSearch })}>
+          返回 存储集群列表
         </Button>
       </div>
 
@@ -162,12 +155,6 @@ export function ClusterInfoDetailPage() {
                 to="/result-tables"
                 search={resultTableSearch}
                 className="link"
-                onClick={() =>
-                  rememberReturnTarget(buildHref('/result-tables', resultTableSearch), {
-                    href: currentHref,
-                    label: '存储集群详情'
-                  })
-                }
               >
                 {related_result_tables}
               </Link>
@@ -182,12 +169,6 @@ export function ClusterInfoDetailPage() {
                   to="/es-storages"
                   search={esStorageSearch}
                   className="link"
-                  onClick={() =>
-                    rememberReturnTarget(buildHref('/es-storages', esStorageSearch), {
-                      href: currentHref,
-                      label: '存储集群详情'
-                    })
-                  }
                 >
                   {cluster_info.associated_storages}
                 </Link>
@@ -202,12 +183,6 @@ export function ClusterInfoDetailPage() {
                 to="/datasources"
                 search={datasourceSearch}
                 className="link"
-                onClick={() =>
-                  rememberReturnTarget(buildHref('/datasources', datasourceSearch), {
-                    href: currentHref,
-                    label: '存储集群详情'
-                  })
-                }
               >
                 {related_datasources}
               </Link>
@@ -226,12 +201,6 @@ export function ClusterInfoDetailPage() {
               search={esStorageSearch}
               className="link inline-flex items-center"
               title="查看全部 ESStorage"
-              onClick={() =>
-                rememberReturnTarget(buildHref('/es-storages', esStorageSearch), {
-                  href: currentHref,
-                  label: '存储集群详情'
-                })
-              }
             >
               <ExternalLink aria-hidden="true" size={14} />
             </Link>
@@ -258,15 +227,6 @@ export function ClusterInfoDetailPage() {
                         params={{ tableId: row.original.table_id }}
                         search={routeSearch}
                         className="link inline-block"
-                        onClick={() =>
-                          rememberReturnTarget(
-                            buildHref(`/es-storages/${row.original.table_id}`, routeSearch),
-                            {
-                              href: currentHref,
-                              label: '存储集群详情'
-                            }
-                          )
-                        }
                       >
                         <Truncated text={row.original.table_id} maxW="240px" />
                       </Link>
@@ -350,7 +310,6 @@ function ClusterConfigTable({
   currentTenantId: string;
   clusterId: number;
 }) {
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const [fetchedConfigs, setFetchedConfigs] = useState<Record<string, ComponentConfigState>>({});
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -413,18 +372,6 @@ function ClusterConfigTable({
                 namespace: config.namespace,
                 name: config.name
               }}
-              onClick={() =>
-                rememberReturnTarget(
-                  buildHref('/data-links/detail', {
-                    ...routeSearch,
-                    kind: 'ClusterConfig',
-                    clusterKind: config.kind,
-                    namespace: config.namespace,
-                    name: config.name
-                  }),
-                  { href: currentHref, label: '存储集群详情' }
-                )
-              }
               className="link"
             >
               {config.name}
@@ -476,7 +423,7 @@ function ClusterConfigTable({
         }
       }
     ],
-    [fetchedConfigs, expandedRows, handleFetch, toggleExpand, routeSearch, currentHref]
+    [fetchedConfigs, expandedRows, handleFetch, toggleExpand, routeSearch]
   );
 
   const renderExpandedRow = useCallback(

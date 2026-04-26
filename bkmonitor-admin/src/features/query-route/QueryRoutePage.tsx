@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Clock, RefreshCcw, Search } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -12,7 +12,6 @@ import { Card, CardContent } from '../../shared/components/ui/card';
 import { Input } from '../../shared/components/ui/input';
 import { Label } from '../../shared/components/ui/label';
 import { Textarea } from '../../shared/components/ui/textarea';
-import { buildHref, rememberReturnTarget } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
@@ -58,7 +57,6 @@ export function QueryRoutePage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const search = useSearch({ strict: false });
   const initialDraft = useMemo(() => getQueryRouteDraftFromSearch(search), [search]);
   const [draft, setDraft] = useState<QueryRouteDraft>(initialDraft);
@@ -124,7 +122,6 @@ export function QueryRoutePage() {
           <TableIdLink
             tableId={row.original.table_id}
             routeSearch={routeSearch}
-            currentHref={currentHref}
             highlighted={row.original.in_input_table_ids}
           />
         )
@@ -134,7 +131,7 @@ export function QueryRoutePage() {
         cell: ({ row }) => <FilterGroups groups={row.original.filters} />
       }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
 
   const dataLabelColumns = useMemo<Array<ColumnDef<QueryRouteDataLabelEntry>>>(
@@ -153,7 +150,6 @@ export function QueryRoutePage() {
                 key={`${row.original.data_label}-${table.table_id}`}
                 tableId={table.table_id}
                 routeSearch={routeSearch}
-                currentHref={currentHref}
                 highlighted={table.in_input_table_ids}
               />
             ))}
@@ -161,7 +157,7 @@ export function QueryRoutePage() {
         )
       }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
 
   const detailColumns = useMemo<Array<ColumnDef<QueryRouteResultTableDetail>>>(
@@ -172,7 +168,6 @@ export function QueryRoutePage() {
           <TableIdLink
             tableId={row.original.table_id}
             routeSearch={routeSearch}
-            currentHref={currentHref}
             highlighted={Boolean(activeQuery?.tableIds.includes(row.original.table_id))}
           />
         )
@@ -183,7 +178,7 @@ export function QueryRoutePage() {
       { header: 'measurement', accessorKey: 'measurement' },
       { header: 'field_count', accessorKey: 'field_count' }
     ],
-    [activeQuery?.tableIds, currentHref, routeSearch]
+    [activeQuery?.tableIds, routeSearch]
   );
 
   if (!currentEnvironment) {
@@ -425,7 +420,6 @@ export function QueryRoutePage() {
             dataLabelRoutes={response.data_label_routes}
             details={response.result_table_details}
             routeSearch={routeSearch}
-            currentHref={currentHref}
           />
 
           <section id="space-routes">
@@ -579,15 +573,13 @@ function DiagnosticPanel({
   spaceRoutes,
   dataLabelRoutes,
   details,
-  routeSearch,
-  currentHref
+  routeSearch
 }: {
   query: QueryRouteQuery;
   spaceRoutes: QueryRouteSpaceEntry[];
   dataLabelRoutes: QueryRouteDataLabelEntry[];
   details: QueryRouteResultTableDetail[];
   routeSearch: Record<string, string>;
-  currentHref: string;
 }) {
   const spaceTableIds = new Set(spaceRoutes.map((route) => route.table_id));
   const dataLabelTableIds = new Set(
@@ -628,7 +620,6 @@ function DiagnosticPanel({
                         <TableIdLink
                           tableId={tableId}
                           routeSearch={routeSearch}
-                          currentHref={currentHref}
                           highlighted
                         />
                       </td>
@@ -793,28 +784,18 @@ function CheckBadge({
 function TableIdLink({
   tableId,
   routeSearch,
-  currentHref,
   highlighted = false
 }: {
   tableId: string;
   routeSearch: Record<string, string>;
-  currentHref: string;
   highlighted?: boolean;
 }) {
-  const targetHref = buildHref(`/query-route/${tableId}`, routeSearch);
-
   return (
     <Link
       to="/query-route/$tableId"
       params={{ tableId }}
       search={routeSearch}
       className={highlighted ? 'link rounded bg-warning/10 px-1 font-semibold' : 'link'}
-      onClick={() =>
-        rememberReturnTarget(targetHref, {
-          href: currentHref,
-          label: '查询路由'
-        })
-      }
     >
       {tableId}
     </Link>
@@ -824,12 +805,10 @@ function TableIdLink({
 function TableIdPill({
   tableId,
   routeSearch,
-  currentHref,
   highlighted = false
 }: {
   tableId: string;
   routeSearch: Record<string, string>;
-  currentHref: string;
   highlighted?: boolean;
 }) {
   return (
@@ -841,12 +820,6 @@ function TableIdPill({
         highlighted
           ? 'inline-flex items-center rounded-full border border-warning bg-warning/10 px-2 py-0.5 font-mono text-xs font-semibold hover:bg-warning/20'
           : 'inline-flex items-center rounded-full border border-border px-2 py-0.5 font-mono text-xs hover:bg-muted'
-      }
-      onClick={() =>
-        rememberReturnTarget(buildHref(`/query-route/${tableId}`, routeSearch), {
-          href: currentHref,
-          label: '查询路由'
-        })
       }
     >
       {tableId}

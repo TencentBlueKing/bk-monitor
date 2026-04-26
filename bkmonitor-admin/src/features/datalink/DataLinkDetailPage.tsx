@@ -1,4 +1,4 @@
-import { useLocation, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -8,7 +8,6 @@ import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
-import { buildHref, getStoredReturnTarget } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -37,17 +36,16 @@ function getDetailSearchParams(search: Record<string, unknown>) {
 
 export function DataLinkDetailPage() {
   const search = useSearch({ strict: false });
+  const navigate = useNavigate();
   const params = useMemo(() => getDetailSearchParams(search), [search]);
   const { kind, namespace, name, dataLinkName, clusterKind } = params;
 
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const isDataLink = kind === 'DataLink';
   const isClusterConfig = kind === 'ClusterConfig';
   const listKind = isClusterConfig ? 'ClusterConfig' : isDataLink ? 'DataLink' : kind;
-  const fallbackReturnHref = buildHref('/data-links', { ...routeSearch, kind: listKind });
-  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'DataLink 列表');
+  const listSearch = { ...routeSearch, kind: listKind };
 
   const componentDetailParams = useMemo(
     () => ({
@@ -106,7 +104,8 @@ export function DataLinkDetailPage() {
         detail={datalinkDetailQuery.data}
         currentEnvironment={currentEnvironment}
         currentTenantId={currentTenantId}
-        returnTarget={returnTarget}
+        navigate={navigate}
+        listSearch={listSearch}
       />
     );
   }
@@ -123,7 +122,8 @@ export function DataLinkDetailPage() {
         detail={clusterConfigDetailQuery.data}
         currentEnvironment={currentEnvironment}
         currentTenantId={currentTenantId}
-        returnTarget={returnTarget}
+        navigate={navigate}
+        listSearch={listSearch}
       />
     );
   }
@@ -139,7 +139,8 @@ export function DataLinkDetailPage() {
       detail={componentDetailQuery.data}
       currentEnvironment={currentEnvironment}
       currentTenantId={currentTenantId}
-      returnTarget={returnTarget}
+      navigate={navigate}
+      listSearch={listSearch}
     />
   );
 }
@@ -159,12 +160,14 @@ function ComponentDetailView({
   detail,
   currentEnvironment,
   currentTenantId,
-  returnTarget
+  navigate,
+  listSearch
 }: {
   detail: ComponentDetailResponse;
   currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
   currentTenantId: string;
-  returnTarget: { href: string; label: string };
+  navigate: ReturnType<typeof useNavigate>;
+  listSearch: Record<string, unknown>;
 }) {
   const [configState, setConfigState] = useState<{
     loading: boolean;
@@ -198,8 +201,8 @@ function ComponentDetailView({
           <div className="eyebrow">{detail.kind} 详情</div>
           <h2>{detail.name}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/data-links', search: listSearch })}>
+          返回 DataLink 列表
         </Button>
       </div>
 
@@ -276,12 +279,14 @@ function ClusterConfigDetailView({
   detail,
   currentEnvironment,
   currentTenantId,
-  returnTarget
+  navigate,
+  listSearch
 }: {
   detail: ClusterConfigDetailResponse;
   currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
   currentTenantId: string;
-  returnTarget: { href: string; label: string };
+  navigate: ReturnType<typeof useNavigate>;
+  listSearch: Record<string, unknown>;
 }) {
   const [configState, setConfigState] = useState<{
     loading: boolean;
@@ -315,8 +320,8 @@ function ClusterConfigDetailView({
           <div className="eyebrow">ClusterConfig 详情</div>
           <h2>{detail.name}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/data-links', search: listSearch })}>
+          返回 DataLink 列表
         </Button>
       </div>
 
@@ -536,12 +541,14 @@ function DataLinkDetailView({
   detail,
   currentEnvironment,
   currentTenantId,
-  returnTarget
+  navigate,
+  listSearch
 }: {
   detail: DataLinkDetailResponse;
   currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
   currentTenantId: string;
-  returnTarget: { href: string; label: string };
+  navigate: ReturnType<typeof useNavigate>;
+  listSearch: Record<string, unknown>;
 }) {
   const groupedComponents = useMemo(() => {
     const result: Record<string, ChildComponentRow[]> = {};
@@ -577,8 +584,8 @@ function DataLinkDetailView({
           <div className="eyebrow">DataLink 详情</div>
           <h2>{detail.data_link_name}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/data-links', search: listSearch })}>
+          返回 DataLink 列表
         </Button>
       </div>
 

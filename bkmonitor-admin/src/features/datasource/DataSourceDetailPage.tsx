@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -8,11 +8,6 @@ import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
-import {
-  buildHref,
-  getStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -24,7 +19,6 @@ import { useDatasourceDetail, useKafkaSample } from './queries';
 export function DataSourceDetailPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const bkDataId = Number(params.bkDataId);
 
@@ -48,8 +42,6 @@ export function DataSourceDetailPage() {
   const [kafkaSampleError, setKafkaSampleError] = useState<string | null>(null);
   const [showKafkaSample, setShowKafkaSample] = useState(false);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
-  const fallbackReturnHref = buildHref('/datasources', routeSearch);
-  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'DataSource 列表');
 
   if (!currentEnvironment || Number.isNaN(bkDataId)) {
     return <PageState title="DataSource 参数无效" />;
@@ -80,8 +72,8 @@ export function DataSourceDetailPage() {
           <div className="eyebrow">DataSource Detail</div>
           <h2>{datasource.data_name}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/datasources', search: routeSearch })}>
+          返回 DataSource 列表
         </Button>
       </div>
       <Card>
@@ -247,15 +239,6 @@ export function DataSourceDetailPage() {
                       tableId: row.original.table_id
                     }}
                     search={routeSearch}
-                    onClick={() =>
-                      rememberReturnTarget(
-                        buildHref(`/result-tables/${row.original.table_id}`, routeSearch),
-                        {
-                          href: currentHref,
-                          label: 'DataSource 详情'
-                        }
-                      )
-                    }
                     className="link"
                   >
                     {row.original.table_id}
@@ -338,7 +321,6 @@ function DataIdConfigTable({
   currentEnvironment: NonNullable<ReturnType<typeof useEnvironmentConfig>['currentEnvironment']>;
   currentTenantId: string;
 }) {
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const [fetchedConfigs, setFetchedConfigs] = useState<Record<string, DataIdComponentConfigState>>(
     {}
@@ -391,27 +373,16 @@ function DataIdConfigTable({
         cell: ({ row }) => {
           const config = row.original;
           return (
-            <Link
-              to="/data-links/detail"
-              search={{
-                ...routeSearch,
-                kind: config.kind,
-                namespace: config.namespace,
-                name: config.name
-              }}
-              onClick={() =>
-                rememberReturnTarget(
-                  buildHref('/data-links/detail', {
-                    ...routeSearch,
-                    kind: config.kind,
-                    namespace: config.namespace,
-                    name: config.name
-                  }),
-                  { href: currentHref, label: 'DataSource 详情' }
-                )
-              }
-              className="link"
-            >
+              <Link
+                to="/data-links/detail"
+                search={{
+                  ...routeSearch,
+                  kind: config.kind,
+                  namespace: config.namespace,
+                  name: config.name
+                }}
+                className="link"
+              >
               {config.name}
             </Link>
           );
@@ -461,7 +432,7 @@ function DataIdConfigTable({
         }
       }
     ],
-    [fetchedConfigs, expandedRows, handleFetch, toggleExpand, routeSearch, currentHref]
+    [fetchedConfigs, expandedRows, handleFetch, toggleExpand, routeSearch]
   );
 
   const renderExpandedRow = useCallback(

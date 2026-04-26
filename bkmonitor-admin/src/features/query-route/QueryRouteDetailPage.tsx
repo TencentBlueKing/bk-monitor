@@ -1,4 +1,4 @@
-import { Link, useLocation, useParams, useSearch } from '@tanstack/react-router';
+import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
@@ -7,11 +7,6 @@ import { Pagination } from '../../shared/components/Pagination';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
 import { Input } from '../../shared/components/ui/input';
-import {
-  buildHref,
-  getStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { createEnvironmentSearch } from '../environments/search';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { useQueryRoute } from './queries';
@@ -27,7 +22,6 @@ import {
 
 export function QueryRouteDetailPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const search = useSearch({ strict: false });
   const params = useParams({ strict: false }) as { tableId?: string };
   const tableId = params.tableId ?? '';
@@ -69,11 +63,6 @@ export function QueryRouteDetailPage() {
   const pagedFields = paginate(filteredFields, fieldPage, pageSize);
   const routeDetail = useMemo(() => getInnerRouteDetail(detail?.detail), [detail?.detail]);
   const detailWithoutFields = useMemo(() => omitFieldsFromDetail(routeDetail), [routeDetail]);
-  const returnTarget = getStoredReturnTarget(
-    currentHref,
-    buildHref('/query-route', backSearch),
-    '查询路由'
-  );
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -101,12 +90,6 @@ export function QueryRouteDetailPage() {
               to="/result-tables/$tableId"
               params={{ tableId }}
               search={envSearch}
-              onClick={() =>
-                rememberReturnTarget(buildHref(`/result-tables/${tableId}`, envSearch), {
-                  href: currentHref,
-                  label: '路由详情'
-                })
-              }
             >
               查看 ResultTable
             </Link>
@@ -185,7 +168,7 @@ export function QueryRouteDetailPage() {
           </section>
         </div>
       ) : (
-        <PageState title="未找到 result_table_detail 路由" description={returnTarget.label} />
+        <PageState title="未找到 result_table_detail 路由" description="查询路由" />
       )}
     </section>
   );

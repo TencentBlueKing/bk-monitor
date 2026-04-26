@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -7,11 +7,6 @@ import { JsonBlock } from '../../shared/components/JsonBlock';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
-import {
-  buildHref,
-  getStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -23,7 +18,6 @@ import type { EsRuntimeIndex, EsRuntimeOverviewResponse, EsSampleResponse } from
 export function EsStorageDetailPage() {
   const navigate = useNavigate();
   const params = useParams({ strict: false });
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const tableId = params.tableId ?? '';
   const [runtimeOverview, setRuntimeOverview] = useState<EsRuntimeOverviewResponse | null>(null);
@@ -45,8 +39,6 @@ export function EsStorageDetailPage() {
   const runtimeMutation = useEsRuntimeOverview(currentEnvironment!);
   const sampleMutation = useEsStorageSample(currentEnvironment!);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
-  const fallbackReturnHref = buildHref('/es-storages', routeSearch);
-  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'ESStorage 列表');
 
   if (!currentEnvironment || !tableId) {
     return <PageState title="ESStorage 参数无效" />;
@@ -102,8 +94,8 @@ export function EsStorageDetailPage() {
           <div className="eyebrow">ESStorage Detail</div>
           <h2>{es_storage.table_id}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/es-storages', search: routeSearch })}>
+          返回 ESStorage 列表
         </Button>
       </div>
 
@@ -145,7 +137,6 @@ export function EsStorageDetailPage() {
                 <StorageLink
                   tableId={es_storage.origin_table_id}
                   routeSearch={routeSearch}
-                  currentHref={currentHref}
                 />
               ) : (
                 '-'
@@ -162,15 +153,6 @@ export function EsStorageDetailPage() {
                   params={{ tableId: result_table.table_id }}
                   search={routeSearch}
                   className="link"
-                  onClick={() =>
-                    rememberReturnTarget(
-                      buildHref(`/result-tables/${result_table.table_id}`, routeSearch),
-                      {
-                        href: currentHref,
-                        label: 'ESStorage 详情'
-                      }
-                    )
-                  }
                 >
                   {result_table.table_name_zh || result_table.table_id}
                 </Link>
@@ -188,7 +170,6 @@ export function EsStorageDetailPage() {
                   clusterId={es_storage.storage_cluster_id}
                   clusterName={storage_cluster?.display_name || storage_cluster?.cluster_name}
                   routeSearch={routeSearch}
-                  currentHref={currentHref}
                 />
               ) : (
                 '-'
@@ -235,7 +216,6 @@ export function EsStorageDetailPage() {
                   <StorageLink
                     tableId={physical_table.table_id}
                     routeSearch={routeSearch}
-                    currentHref={currentHref}
                   />
                 ) : (
                   <span className="muted-text">未返回实体表</span>
@@ -250,16 +230,6 @@ export function EsStorageDetailPage() {
                   to="/es-storages"
                   search={{ ...routeSearch, tableId: es_storage.table_id, tableKind: 'virtual' }}
                   className="ml-2 link"
-                  onClick={() =>
-                    rememberReturnTarget(
-                      buildHref('/es-storages', {
-                        ...routeSearch,
-                        tableId: es_storage.table_id,
-                        tableKind: 'virtual'
-                      }),
-                      { href: currentHref, label: 'ESStorage 详情' }
-                    )
-                  }
                 >
                   查看列表
                 </Link>
@@ -273,7 +243,6 @@ export function EsStorageDetailPage() {
                       <StorageLink
                         tableId={row.original.table_id}
                         routeSearch={routeSearch}
-                        currentHref={currentHref}
                       />
                     )
                   },
@@ -306,7 +275,6 @@ export function EsStorageDetailPage() {
                         row.original.cluster?.display_name || row.original.cluster?.cluster_name
                       }
                       routeSearch={routeSearch}
-                      currentHref={currentHref}
                     />
                   ) : (
                     '-'
@@ -649,12 +617,10 @@ function ConfigJson({ title, value }: { title: string; value: unknown }) {
 
 function StorageLink({
   tableId,
-  routeSearch,
-  currentHref
+  routeSearch
 }: {
   tableId: string;
   routeSearch: ReturnType<typeof createEnvironmentSearch>;
-  currentHref: string;
 }) {
   return (
     <Link
@@ -662,12 +628,6 @@ function StorageLink({
       params={{ tableId }}
       search={routeSearch}
       className="link"
-      onClick={() =>
-        rememberReturnTarget(buildHref(`/es-storages/${tableId}`, routeSearch), {
-          href: currentHref,
-          label: 'ESStorage 详情'
-        })
-      }
     >
       {tableId}
     </Link>
@@ -677,13 +637,11 @@ function StorageLink({
 function ClusterLink({
   clusterId,
   clusterName,
-  routeSearch,
-  currentHref
+  routeSearch
 }: {
   clusterId: number;
   clusterName?: string | null | undefined;
   routeSearch: ReturnType<typeof createEnvironmentSearch>;
-  currentHref: string;
 }) {
   return (
     <Link
@@ -691,12 +649,6 @@ function ClusterLink({
       params={{ clusterId: String(clusterId) }}
       search={routeSearch}
       className="link"
-      onClick={() =>
-        rememberReturnTarget(buildHref(`/clusters/${String(clusterId)}`, routeSearch), {
-          href: currentHref,
-          label: 'ESStorage 详情'
-        })
-      }
     >
       {clusterName || `#${clusterId}`}
     </Link>

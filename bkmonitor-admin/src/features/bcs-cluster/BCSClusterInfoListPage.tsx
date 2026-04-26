@@ -1,6 +1,6 @@
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import {
@@ -11,7 +11,6 @@ import {
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
-import { buildHref, rememberReturnTarget } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -34,12 +33,10 @@ const FILTER_FIELDS: FilterField[] = [
 
 function DataIdsSummary({
   row,
-  routeSearch,
-  returnTo
+  routeSearch
 }: {
   row: BcsClusterSummary;
   routeSearch: { env: string; tenant: string };
-  returnTo: string;
 }) {
   const items: Array<{ label: string; value: number }> = [
     { label: 'BCS指标', value: row.K8sMetricDataID ?? 0 },
@@ -64,12 +61,6 @@ function DataIdsSummary({
           to="/datasources/$bkDataId"
           params={{ bkDataId: String(item.value) }}
           search={routeSearch}
-          onClick={() =>
-            rememberReturnTarget(buildHref(`/datasources/${String(item.value)}`, routeSearch), {
-              href: returnTo,
-              label: 'BCS集群列表'
-            })
-          }
           className="rounded bg-muted px-1.5 py-0.5 text-primary hover:underline"
         >
           {item.label}:{item.value}
@@ -81,12 +72,14 @@ function DataIdsSummary({
 
 export function BCSClusterInfoListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [drafts, setDrafts] = useState<Record<string, FilterValue>>({});
-  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>({});
+  const search = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const initialFilters = useMemo(() => getInitialFilters(search), [search]);
+  const [drafts, setDrafts] = useState<Record<string, FilterValue>>(initialFilters);
+  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialFilters);
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
 
@@ -110,15 +103,6 @@ export function BCSClusterInfoListPage() {
             to="/bcs-clusters/$clusterId"
             params={{ clusterId: row.original.cluster_id }}
             search={routeSearch}
-            onClick={() =>
-              rememberReturnTarget(
-                buildHref(`/bcs-clusters/${row.original.cluster_id}`, routeSearch),
-                {
-                  href: currentHref,
-                  label: 'BCS集群列表'
-                }
-              )
-            }
             className="link inline-block"
           >
             <Truncated text={row.original.cluster_id} maxW="180px" />
@@ -159,7 +143,7 @@ export function BCSClusterInfoListPage() {
         header: 'DataIDs',
         size: 360,
         cell: ({ row }) => (
-          <DataIdsSummary row={row.original} routeSearch={routeSearch} returnTo={currentHref} />
+          <DataIdsSummary row={row.original} routeSearch={routeSearch} />
         )
       },
       {
@@ -179,8 +163,36 @@ export function BCSClusterInfoListPage() {
         )
       }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
+
+  const handleSearch = useCallback(() => {
+    const nextFilters = { ...drafts };
+    setActiveFilters(nextFilters);
+    setPage(1);
+    void navigate({
+      to: '/bcs-clusters',
+      search: {
+        env: (search as any)?.env ?? '',
+        tenant: (search as any)?.tenant ?? '',
+        ...Object.fromEntries(
+          Object.entries(nextFilters).filter(([, v]) => v !== '' && v !== undefined && (!Array.isArray(v) || v.length > 0))
+        )
+      },
+      replace: true
+    });
+  }, [drafts, navigate, search]);
+
+  const handleReset = useCallback(() => {
+    setDrafts({});
+    setActiveFilters({});
+    setPage(1);
+    void navigate({
+      to: '/bcs-clusters',
+      search: { env: (search as any)?.env ?? '', tenant: (search as any)?.tenant ?? '' },
+      replace: true
+    });
+  }, [navigate, search]);
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -198,15 +210,8 @@ export function BCSClusterInfoListPage() {
         fields={FILTER_FIELDS}
         values={drafts}
         onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
-        onSearch={() => {
-          setActiveFilters({ ...drafts });
-          setPage(1);
-        }}
-        onReset={() => {
-          setDrafts({});
-          setActiveFilters({});
-          setPage(1);
-        }}
+        onSearch={handleSearch}
+        onReset={handleReset}
         loading={bcsQuery.isLoading}
       />
       {bcsQuery.isError ? (
@@ -230,4 +235,20 @@ export function BCSClusterInfoListPage() {
       )}
     </section>
   );
+}
+
+function getInitialFilters(search: object): Record<string, FilterValue> {
+  const filterKeys = ['clusterId', 'bkBizId', 'status'];
+  const filters: Record<string, FilterValue> = {};
+  for (const key of filterKeys) {
+    if (!(key in search)) continue;
+    const value = (search as Record<string, unknown>)[key];
+    if (typeof value === 'string' && value) {
+      filters[key] = value;
+    }
+    if (Array.isArray(value) && value.length > 0) {
+      filters[key] = value;
+    }
+  }
+  return filters;
 }

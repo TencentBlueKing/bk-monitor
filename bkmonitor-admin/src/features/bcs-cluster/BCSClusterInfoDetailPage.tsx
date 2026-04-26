@@ -1,14 +1,9 @@
-import { Link, useLocation, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 
 import { Badge } from '../../shared/components/Badge';
 import { PageState } from '../../shared/components/PageState';
 import { Button } from '../../shared/components/ui/button';
 import { Card, CardContent } from '../../shared/components/ui/card';
-import {
-  buildHref,
-  getStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
 import { createEnvironmentSearch } from '../environments/search';
@@ -20,14 +15,12 @@ import { useMemo } from 'react';
 
 export function BCSClusterInfoDetailPage() {
   const params = useParams({ strict: false });
-  const currentHref = useLocation({ select: (location) => String(location.href) });
+  const navigate = useNavigate();
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const clusterId = params.clusterId ?? '';
 
   const detailQuery = useBcsClusterDetail(currentEnvironment!, currentTenantId, clusterId);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
-  const fallbackReturnHref = buildHref('/bcs-clusters', routeSearch);
-  const returnTarget = getStoredReturnTarget(currentHref, fallbackReturnHref, 'BCS集群列表');
 
   const dsColumns = useMemo<
     Array<
@@ -48,15 +41,6 @@ export function BCSClusterInfoDetailPage() {
             to="/datasources/$bkDataId"
             params={{ bkDataId: String(row.original.bk_data_id) }}
             search={routeSearch}
-            onClick={() =>
-              rememberReturnTarget(
-                buildHref(`/datasources/${String(row.original.bk_data_id)}`, routeSearch),
-                {
-                  href: currentHref,
-                  label: 'BCS集群详情'
-                }
-              )
-            }
             className="link"
           >
             {row.original.bk_data_id}
@@ -75,7 +59,7 @@ export function BCSClusterInfoDetailPage() {
         )
       }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
 
   if (!currentEnvironment || !clusterId) {
@@ -108,8 +92,8 @@ export function BCSClusterInfoDetailPage() {
           <div className="eyebrow">BCS集群详情</div>
           <h2>{cluster.cluster_id}</h2>
         </div>
-        <Button asChild variant="secondary">
-          <a href={returnTarget.href}>返回 {returnTarget.label}</a>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/bcs-clusters', search: routeSearch })}>
+          返回 BCS集群列表
         </Button>
       </div>
 
@@ -173,15 +157,6 @@ export function BCSClusterInfoDetailPage() {
                     to="/datasources/$bkDataId"
                     params={{ bkDataId: String(field.value) }}
                     search={routeSearch}
-                    onClick={() =>
-                      rememberReturnTarget(
-                        buildHref(`/datasources/${String(field.value)}`, routeSearch),
-                        {
-                          href: currentHref,
-                          label: 'BCS集群详情'
-                        }
-                      )
-                    }
                     className="link text-base"
                   >
                     {field.value}

@@ -37,10 +37,6 @@ import { DataLinkListPage } from '../features/datalink/DataLinkListPage';
 import { QueryRouteDetailPage } from '../features/query-route/QueryRouteDetailPage';
 import { QueryRoutePage } from '../features/query-route/QueryRoutePage';
 import { BrandLogo } from '../shared/components/BrandLogo';
-import {
-  hasReturnTargetInSearch,
-  migrateReturnTargetFromSearch
-} from '../shared/navigation/returnTarget';
 
 function RootLayout() {
   const { defaultEnvironmentId } = useEnvironmentConfig();
@@ -112,14 +108,6 @@ function AppLayout() {
 
     updateBrowserEnvironmentSearch(activeEnvironmentId, currentTenantId, { replace: true });
   }, [activeEnvironmentId, currentTenantId, searchTenantId]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !hasReturnTargetInSearch(search)) {
-      return;
-    }
-
-    migrateReturnTargetFromSearch(window.location.pathname, search);
-  }, [search]);
 
   if (loading) {
     return <div className="setup-shell">正在加载环境配置...</div>;

@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -11,11 +11,6 @@ import {
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
-import {
-  buildHref,
-  getOptionalStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -108,14 +103,12 @@ export function DataLinkListPage() {
   const search = useSearch({ strict: false });
   const [activeKind, setActiveKind] = useState<string>(() => getKindFromSearch(search));
 
-  // 仅在 URL 显式携带 kind 时同步，环境切换不会丢失当前标签
   useEffect(() => {
     const urlKind = getSearchString(search, 'kind');
     if (urlKind) {
       setActiveKind(urlKind);
     }
   }, [search]);
-  const currentHref = useLocation({ select: (location) => String(location.href) });
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -130,8 +123,6 @@ export function DataLinkListPage() {
     setActiveFilters(initFilters);
     setPage(1);
   }, [activeKind, search]);
-
-  const returnTarget = getOptionalStoredReturnTarget(currentHref);
 
   const handleTabChange = useCallback(
     (kind: string) => {
@@ -312,24 +303,18 @@ export function DataLinkListPage() {
         size: 200,
         cell: ({ row }) => {
           const item = row.original;
-          const detailHref = buildHref('/data-links/detail', {
-            ...routeSearch,
-            kind: 'DataLink',
-            dataLinkName: item.data_link_name
-          });
           return (
-            <a
-              href={detailHref}
-              onClick={() =>
-                rememberReturnTarget(detailHref, {
-                  href: currentHref,
-                  label: 'DataLink 列表'
-                })
-              }
+            <Link
+              to="/data-links/detail"
+              search={{
+                ...routeSearch,
+                kind: 'DataLink',
+                dataLinkName: item.data_link_name
+              }}
               className="link whitespace-nowrap"
             >
               <Truncated text={item.data_link_name} maxW="200px" />
-            </a>
+            </Link>
           );
         }
       },
@@ -351,7 +336,7 @@ export function DataLinkListPage() {
         cell: ({ row }) => formatDateTime(row.original.created_at)
       }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
 
   const componentColumns = useMemo<Array<ColumnDef<ComponentListItem>>>(() => {
@@ -361,25 +346,19 @@ export function DataLinkListPage() {
         size: 200,
         cell: ({ row }) => {
           const item = row.original;
-          const detailHref = buildHref('/data-links/detail', {
-            ...routeSearch,
-            kind: activeKind,
-            namespace: item.namespace,
-            name: item.name
-          });
           return (
-            <a
-              href={detailHref}
-              onClick={() =>
-                rememberReturnTarget(detailHref, {
-                  href: currentHref,
-                  label: 'DataLink 列表'
-                })
-              }
+            <Link
+              to="/data-links/detail"
+              search={{
+                ...routeSearch,
+                kind: activeKind,
+                namespace: item.namespace,
+                name: item.name
+              }}
               className="link whitespace-nowrap"
             >
               <Truncated text={item.name} maxW="200px" />
-            </a>
+            </Link>
           );
         }
       }
@@ -572,7 +551,7 @@ export function DataLinkListPage() {
     }
 
     return commonCols;
-  }, [activeKind, currentHref, routeSearch]);
+  }, [activeKind, routeSearch]);
 
   const clusterConfigColumns = useMemo<Array<ColumnDef<ClusterConfigListItem>>>(
     () => [
@@ -581,26 +560,20 @@ export function DataLinkListPage() {
         size: 200,
         cell: ({ row }) => {
           const item = row.original;
-          const detailHref = buildHref('/data-links/detail', {
-            ...routeSearch,
-            kind: 'ClusterConfig',
-            clusterKind: item.kind,
-            namespace: item.namespace,
-            name: item.name
-          });
           return (
-            <a
-              href={detailHref}
-              onClick={() =>
-                rememberReturnTarget(detailHref, {
-                  href: currentHref,
-                  label: 'DataLink 列表'
-                })
-              }
+            <Link
+              to="/data-links/detail"
+              search={{
+                ...routeSearch,
+                kind: 'ClusterConfig',
+                clusterKind: item.kind,
+                namespace: item.namespace,
+                name: item.name
+              }}
               className="link whitespace-nowrap"
             >
               <Truncated text={item.name} maxW="200px" />
-            </a>
+            </Link>
           );
         }
       },
@@ -617,7 +590,7 @@ export function DataLinkListPage() {
       },
       { header: 'updatedAt', size: 160, cell: ({ row }) => formatDateTime(row.original.updated_at) }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
 
   const columns =
@@ -628,15 +601,39 @@ export function DataLinkListPage() {
         : componentColumns;
 
   const handleSearch = useCallback(() => {
-    setActiveFilters({ ...drafts });
+    const nextFilters = { ...drafts };
+    setActiveFilters(nextFilters);
     setPage(1);
-  }, [drafts]);
+    void navigate({
+      to: '/data-links',
+      search: {
+        env: getEnvFromSearch(search),
+        tenant: getTenantFromSearch(search),
+        kind: activeKind,
+        ...Object.fromEntries(
+          Object.entries(nextFilters).filter(
+            ([, v]) => v !== '' && v !== undefined && (!Array.isArray(v) || v.length > 0)
+          )
+        )
+      },
+      replace: true
+    });
+  }, [drafts, navigate, search, activeKind]);
 
   const handleReset = useCallback(() => {
     setDrafts({});
     setActiveFilters({});
     setPage(1);
-  }, []);
+    void navigate({
+      to: '/data-links',
+      search: {
+        env: getEnvFromSearch(search),
+        tenant: getTenantFromSearch(search),
+        kind: activeKind
+      },
+      replace: true
+    });
+  }, [navigate, search, activeKind]);
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -649,14 +646,6 @@ export function DataLinkListPage() {
           <div className="eyebrow">DataLink</div>
           <h2>数据链路管理</h2>
         </div>
-        {returnTarget ? (
-          <a
-            href={returnTarget.href}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-          >
-            返回 {returnTarget.label}
-          </a>
-        ) : null}
       </div>
 
       <div className="flex gap-1 mb-4 border-b">

@@ -1,6 +1,6 @@
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import {
@@ -11,7 +11,6 @@ import {
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
-import { buildHref, rememberReturnTarget } from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -29,12 +28,14 @@ const FILTER_FIELDS: FilterField[] = [
 
 export function ClusterInfoListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [drafts, setDrafts] = useState<Record<string, FilterValue>>({});
-  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>({});
+  const search = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const initialFilters = useMemo(() => getInitialFilters(search), [search]);
+  const [drafts, setDrafts] = useState<Record<string, FilterValue>>(initialFilters);
+  const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialFilters);
 
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
 
@@ -61,15 +62,6 @@ export function ClusterInfoListPage() {
             to="/clusters/$clusterId"
             params={{ clusterId: String(row.original.cluster_id) }}
             search={routeSearch}
-            onClick={() =>
-              rememberReturnTarget(
-                buildHref(`/clusters/${String(row.original.cluster_id)}`, routeSearch),
-                {
-                  href: currentHref,
-                  label: '存储集群列表'
-                }
-              )
-            }
             className="link whitespace-nowrap"
           >
             {row.original.cluster_id}
@@ -149,18 +141,6 @@ export function ClusterInfoListPage() {
               to="/datasources"
               search={{ ...routeSearch, mqClusterId: row.original.cluster_id }}
               className="link whitespace-nowrap"
-              onClick={() =>
-                rememberReturnTarget(
-                  buildHref('/datasources', {
-                    ...routeSearch,
-                    mqClusterId: row.original.cluster_id
-                  }),
-                  {
-                    href: currentHref,
-                    label: '存储集群列表'
-                  }
-                )
-              }
             >
               {row.original.associated_datasources}
             </Link>
@@ -177,18 +157,6 @@ export function ClusterInfoListPage() {
               to="/es-storages"
               search={{ ...routeSearch, storageClusterId: row.original.cluster_id }}
               className="link whitespace-nowrap"
-              onClick={() =>
-                rememberReturnTarget(
-                  buildHref('/es-storages', {
-                    ...routeSearch,
-                    storageClusterId: row.original.cluster_id
-                  }),
-                  {
-                    href: currentHref,
-                    label: '存储集群列表'
-                  }
-                )
-              }
             >
               {row.original.associated_storages}
             </Link>
@@ -204,8 +172,36 @@ export function ClusterInfoListPage() {
         )
       }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
+
+  const handleSearch = useCallback(() => {
+    const nextFilters = { ...drafts };
+    setActiveFilters(nextFilters);
+    setPage(1);
+    void navigate({
+      to: '/clusters',
+      search: {
+        env: (search as any)?.env ?? '',
+        tenant: (search as any)?.tenant ?? '',
+        ...Object.fromEntries(
+          Object.entries(nextFilters).filter(([, v]) => v !== '' && v !== undefined && (!Array.isArray(v) || v.length > 0))
+        )
+      },
+      replace: true
+    });
+  }, [drafts, navigate, search]);
+
+  const handleReset = useCallback(() => {
+    setDrafts({});
+    setActiveFilters({});
+    setPage(1);
+    void navigate({
+      to: '/clusters',
+      search: { env: (search as any)?.env ?? '', tenant: (search as any)?.tenant ?? '' },
+      replace: true
+    });
+  }, [navigate, search]);
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -223,15 +219,8 @@ export function ClusterInfoListPage() {
         fields={FILTER_FIELDS}
         values={drafts}
         onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
-        onSearch={() => {
-          setActiveFilters({ ...drafts });
-          setPage(1);
-        }}
-        onReset={() => {
-          setDrafts({});
-          setActiveFilters({});
-          setPage(1);
-        }}
+        onSearch={handleSearch}
+        onReset={handleReset}
         loading={clusterQuery.isLoading}
       />
       {clusterQuery.isError ? (
@@ -255,4 +244,27 @@ export function ClusterInfoListPage() {
       )}
     </section>
   );
+}
+
+function getInitialFilters(search: object): Record<string, FilterValue> {
+  const filterKeys = [
+    'clusterName',
+    'clusterType',
+    'isDefaultCluster',
+    'registeredSystem'
+  ];
+  const filters: Record<string, FilterValue> = {};
+  for (const key of filterKeys) {
+    const value = getSearchString(search, key);
+    if (value) {
+      filters[key] = value;
+    }
+  }
+  return filters;
+}
+
+function getSearchString(search: object, key: string): string | undefined {
+  if (!(key in search)) return undefined;
+  const value = (search as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : undefined;
 }

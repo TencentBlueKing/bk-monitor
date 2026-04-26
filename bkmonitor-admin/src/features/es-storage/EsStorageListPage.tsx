@@ -1,6 +1,6 @@
-import { Link, useLocation, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import {
@@ -11,12 +11,6 @@ import {
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
-import { Button } from '../../shared/components/ui/button';
-import {
-  buildHref,
-  getOptionalStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean } from '../../shared/utils/format';
 import { useClusterInfoList } from '../cluster-info/queries';
@@ -59,14 +53,13 @@ const BASE_FILTER_FIELDS: FilterField[] = [
 
 export function EsStorageListPage() {
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const search = useSearch({ strict: false });
+  const navigate = useNavigate();
   const initialFilters = useMemo(() => getInitialFilters(search), [search]);
   const [drafts, setDrafts] = useState<Record<string, FilterValue>>(initialFilters);
   const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialFilters);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const returnTarget = getOptionalStoredReturnTarget(currentHref);
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const esClusterQuery = useClusterInfoList(currentEnvironment!, {
     bkTenantId: currentTenantId,
@@ -116,20 +109,12 @@ export function EsStorageListPage() {
         size: 240,
         cell: ({ row }) => {
           const storage = row.original;
-          const detailHref = buildHref(`/es-storages/${storage.table_id}`, routeSearch);
-
           return (
             <Link
               to="/es-storages/$tableId"
               params={{ tableId: storage.table_id }}
               search={routeSearch}
               className="link inline-block"
-              onClick={() =>
-                rememberReturnTarget(detailHref, {
-                  href: currentHref,
-                  label: 'ESStorage 列表'
-                })
-              }
             >
               <Truncated text={storage.table_id} maxW="240px" />
             </Link>
@@ -160,12 +145,6 @@ export function EsStorageListPage() {
               params={{ tableId: originTableId }}
               search={routeSearch}
               className="link inline-block"
-              onClick={() =>
-                rememberReturnTarget(buildHref(`/es-storages/${originTableId}`, routeSearch), {
-                  href: currentHref,
-                  label: 'ESStorage 列表'
-                })
-              }
             >
               <Truncated text={originTableId} maxW="200px" />
             </Link>
@@ -188,12 +167,6 @@ export function EsStorageListPage() {
               params={{ clusterId: String(clusterId) }}
               search={routeSearch}
               className="link inline-block"
-              onClick={() =>
-                rememberReturnTarget(buildHref(`/clusters/${String(clusterId)}`, routeSearch), {
-                  href: currentHref,
-                  label: 'ESStorage 列表'
-                })
-              }
             >
               <Truncated text={label} maxW="160px" />
             </Link>
@@ -229,8 +202,36 @@ export function EsStorageListPage() {
         )
       }
     ],
-    [currentHref, routeSearch]
+    [routeSearch]
   );
+
+  const handleSearch = useCallback(() => {
+    const nextFilters = { ...drafts };
+    setActiveFilters(nextFilters);
+    setPage(1);
+    void navigate({
+      to: '/es-storages',
+      search: {
+        env: (search as any)?.env ?? '',
+        tenant: (search as any)?.tenant ?? '',
+        ...Object.fromEntries(
+          Object.entries(nextFilters).filter(([, v]) => v !== '' && v !== undefined && (!Array.isArray(v) || v.length > 0))
+        )
+      },
+      replace: true
+    });
+  }, [drafts, navigate, search]);
+
+  const handleReset = useCallback(() => {
+    setDrafts({});
+    setActiveFilters({});
+    setPage(1);
+    void navigate({
+      to: '/es-storages',
+      search: { env: (search as any)?.env ?? '', tenant: (search as any)?.tenant ?? '' },
+      replace: true
+    });
+  }, [navigate, search]);
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -243,25 +244,14 @@ export function EsStorageListPage() {
           <div className="eyebrow">Resource</div>
           <h2>ESStorage</h2>
         </div>
-        {returnTarget ? (
-          <Button asChild variant="secondary">
-            <a href={returnTarget.href}>返回 {returnTarget.label}</a>
-          </Button>
-        ) : null}
+
       </div>
       <FilterToolbar
         fields={filterFields}
         values={drafts}
         onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
-        onSearch={() => {
-          setActiveFilters({ ...drafts });
-          setPage(1);
-        }}
-        onReset={() => {
-          setDrafts({});
-          setActiveFilters({});
-          setPage(1);
-        }}
+        onSearch={handleSearch}
+        onReset={handleReset}
         loading={esStorageQuery.isLoading}
       />
       {esStorageQuery.isError ? (

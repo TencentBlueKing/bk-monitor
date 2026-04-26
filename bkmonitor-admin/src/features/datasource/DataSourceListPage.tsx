@@ -1,6 +1,6 @@
-import { Link, useLocation, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '../../shared/components/Badge';
 import {
@@ -11,11 +11,6 @@ import {
 import { PageState } from '../../shared/components/PageState';
 import { Pagination } from '../../shared/components/Pagination';
 import { Truncated } from '../../shared/components/Truncated';
-import { Button } from '../../shared/components/ui/button';
-import {
-  getOptionalStoredReturnTarget,
-  rememberReturnTarget
-} from '../../shared/navigation/returnTarget';
 import { DataTable } from '../../shared/table/DataTable';
 import { formatBoolean, formatDateTime } from '../../shared/utils/format';
 import { useEnvironmentConfig } from '../environments/hooks';
@@ -59,22 +54,16 @@ const FILTER_FIELDS: FilterField[] = [
 ];
 
 export function DataSourceListPage() {
-  const currentHref = useLocation({ select: (location) => String(location.href) });
   const { currentEnvironment, currentTenantId } = useEnvironmentConfig();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
   const search = useSearch({ strict: false });
+  const navigate = useNavigate();
   const initialFilters = useMemo(() => getInitialFilters(search), [search]);
   const [drafts, setDrafts] = useState<Record<string, FilterValue>>(initialFilters);
   const [activeFilters, setActiveFilters] = useState<Record<string, FilterValue>>(initialFilters);
-  const returnTarget = getOptionalStoredReturnTarget(currentHref);
-
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
-  const returnSearch = {
-    env: currentEnvironment?.id ?? 'local',
-    tenant: currentTenantId
-  } satisfies Record<string, unknown>;
 
   const query = datasourceListQuerySchema.parse({
     bkTenantId: currentTenantId,
@@ -104,10 +93,6 @@ export function DataSourceListPage() {
         size: 80,
         cell: ({ row }) => {
           const datasource = row.original;
-          const detailHref = createScopedHref(
-            `/datasources/${String(datasource.bk_data_id)}`,
-            returnSearch
-          );
 
           return (
             <Link
@@ -116,12 +101,6 @@ export function DataSourceListPage() {
                 bkDataId: String(datasource.bk_data_id)
               }}
               search={routeSearch}
-              onClick={() =>
-                rememberReturnTarget(detailHref, {
-                  href: currentHref,
-                  label: 'DataSource 列表'
-                })
-              }
               className="link whitespace-nowrap"
             >
               {datasource.bk_data_id}
@@ -158,8 +137,6 @@ export function DataSourceListPage() {
             return <span className="muted-text whitespace-nowrap">-</span>;
           }
 
-          const clusterHref = createScopedHref(`/clusters/${String(clusterId)}`, returnSearch);
-
           const label = clusterName || `#${clusterId}`;
 
           return (
@@ -167,12 +144,6 @@ export function DataSourceListPage() {
               to="/clusters/$clusterId"
               params={{ clusterId: String(clusterId) }}
               search={routeSearch}
-              onClick={() =>
-                rememberReturnTarget(clusterHref, {
-                  href: currentHref,
-                  label: 'DataSource 列表'
-                })
-              }
               className="link inline-block"
             >
               <Truncated text={label} maxW="140px" />
@@ -215,8 +186,36 @@ export function DataSourceListPage() {
         )
       }
     ],
-    [currentHref, returnSearch, routeSearch]
+    [routeSearch]
   );
+
+  const handleSearch = useCallback(() => {
+    const nextFilters = { ...drafts };
+    setActiveFilters(nextFilters);
+    setPage(1);
+    void navigate({
+      to: '/datasources',
+      search: {
+        env: (search as any)?.env ?? '',
+        tenant: (search as any)?.tenant ?? '',
+        ...Object.fromEntries(
+          Object.entries(nextFilters).filter(([, v]) => v !== '' && v !== undefined && (!Array.isArray(v) || v.length > 0))
+        )
+      },
+      replace: true
+    });
+  }, [drafts, navigate, search]);
+
+  const handleReset = useCallback(() => {
+    setDrafts({});
+    setActiveFilters({});
+    setPage(1);
+    void navigate({
+      to: '/datasources',
+      search: { env: (search as any)?.env ?? '', tenant: (search as any)?.tenant ?? '' },
+      replace: true
+    });
+  }, [navigate, search]);
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -229,25 +228,13 @@ export function DataSourceListPage() {
           <div className="eyebrow">Resource</div>
           <h2>DataSource</h2>
         </div>
-        {returnTarget ? (
-          <Button asChild variant="secondary">
-            <a href={returnTarget.href}>返回 {returnTarget.label}</a>
-          </Button>
-        ) : null}
       </div>
       <FilterToolbar
         fields={FILTER_FIELDS}
         values={drafts}
         onChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
-        onSearch={() => {
-          setActiveFilters({ ...drafts });
-          setPage(1);
-        }}
-        onReset={() => {
-          setDrafts({});
-          setActiveFilters({});
-          setPage(1);
-        }}
+        onSearch={handleSearch}
+        onReset={handleReset}
         loading={datasourceQuery.isLoading}
       />
       {datasourceQuery.isError ? (
@@ -277,21 +264,6 @@ function getKafkaClusterName(cluster: NonNullable<DataSourceSummary['kafka_clust
   return cluster.display_name || cluster.cluster_name || `#${cluster.cluster_id}`;
 }
 
-function createScopedHref(pathname: string, search: Record<string, unknown>) {
-  const params = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(search)) {
-    if (value === undefined || value === null || value === '') {
-      continue;
-    }
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      params.set(key, String(value));
-    }
-  }
-
-  const query = params.toString();
-  return query ? `${pathname}?${query}` : pathname;
-}
 
 function getInitialFilters(search: object): Record<string, FilterValue> {
   return {
