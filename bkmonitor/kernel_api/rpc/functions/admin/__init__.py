@@ -9,8 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 from . import (
+    apm,
     bcs_cluster,
     cluster_info,
+    custom_report,
     datalink,
     datasource,
     es_storage,
@@ -21,8 +23,10 @@ from . import (
 )
 
 __all__ = [
+    "apm",
     "bcs_cluster",
     "cluster_info",
+    "custom_report",
     "datalink",
     "datasource",
     "es_storage",
