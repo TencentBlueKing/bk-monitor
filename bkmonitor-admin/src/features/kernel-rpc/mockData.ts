@@ -26,6 +26,18 @@ import type {
   DataLinkDetailResponse,
   DataLinkListItem
 } from '../datalink/schemas';
+import type {
+  CustomReportDetailResponse,
+  CustomReportListResponse,
+  CustomReportMetric,
+  CustomReportMetricListResponse
+} from '../custom-report/schemas';
+import type {
+  ApmApplicationDetailResponse,
+  ApmApplicationListResponse,
+  ApmService,
+  ApmServiceListResponse
+} from '../apm/schemas';
 
 export const mockDatasources: DataSourceListResponse['items'] = [
   {
@@ -906,6 +918,278 @@ export function createMockBcsClusterDetail(clusterId: string): BcsClusterDetailR
       type_label: typeLabelMap[idx % 3] || 'time_series',
       is_enable: id % 4 !== 0
     }))
+  };
+}
+
+// =============================================================================
+// Custom Report and APM mock data
+// =============================================================================
+
+export const mockCustomReports: CustomReportListResponse['items'] = [
+  {
+    report_type: 'custom_metric',
+    group_id: 1001,
+    group_name: 'custom_metric_demo',
+    bk_tenant_id: 'system',
+    bk_biz_id: 2,
+    bk_data_id: 50010,
+    table_id: '2_bkmonitor_time_series.__default__',
+    data_label: 'custom_metric_demo',
+    created_from: 'monitor_web',
+    is_enable: true,
+    metric_count: 128,
+    field_count: 0,
+    monitor_web_source: 'CustomTSTable',
+    apm_application_count: 1,
+    last_modify_time: '2026-04-26 10:30:00'
+  },
+  {
+    report_type: 'custom_event',
+    group_id: 2001,
+    group_name: 'custom_event_checkout',
+    bk_tenant_id: 'system',
+    bk_biz_id: 2,
+    bk_data_id: 50070,
+    table_id: '2_bkmonitor_event.checkout',
+    data_label: 'custom_event_checkout',
+    created_from: 'monitor_web',
+    is_enable: true,
+    metric_count: 0,
+    field_count: 14,
+    monitor_web_source: 'CustomEventGroup',
+    apm_application_count: 1,
+    last_modify_time: '2026-04-26 11:00:00'
+  },
+  {
+    report_type: 'custom_log',
+    group_id: 3001,
+    group_name: 'apm_log_checkout',
+    bk_tenant_id: 'system',
+    bk_biz_id: 2,
+    bk_data_id: 50020,
+    table_id: '3_bklog.demo',
+    data_label: 'bkdata_link_demo',
+    created_from: 'apm',
+    is_enable: true,
+    metric_count: 0,
+    field_count: 42,
+    monitor_web_source: null,
+    apm_application_count: 1,
+    last_modify_time: '2026-04-26 11:10:00'
+  }
+];
+
+export const mockCustomReportMetrics: CustomReportMetric[] = Array.from({ length: 65 }, (_, i) => ({
+  field_name: `custom_metric_${String(i + 1).padStart(3, '0')}`,
+  table_id: '2_bkmonitor_time_series.__default__',
+  description: `mock custom metric ${i + 1}`,
+  unit: i % 3 === 0 ? 'ms' : 'none',
+  type: i % 2 === 0 ? 'float' : 'int',
+  is_active: i % 7 !== 0,
+  last_modify_time: '2026-04-26 10:30:00'
+}));
+
+export const mockApmApplications: ApmApplicationListResponse['items'] = [
+  {
+    application_id: 1,
+    app_name: 'checkout',
+    app_alias: '结算服务',
+    bk_tenant_id: 'system',
+    bk_biz_id: 2,
+    status: 'normal',
+    metric_data_id: 50010,
+    trace_data_id: 56020,
+    log_data_id: 50020,
+    profile_data_id: 57020,
+    service_count: 8,
+    topo_node_count: 13,
+    last_modify_time: '2026-04-26 12:00:00'
+  },
+  {
+    application_id: 2,
+    app_name: 'payment',
+    app_alias: '支付服务',
+    bk_tenant_id: 'system',
+    bk_biz_id: 3,
+    status: 'stopped',
+    metric_data_id: 50030,
+    trace_data_id: 56030,
+    log_data_id: null,
+    profile_data_id: null,
+    service_count: 3,
+    topo_node_count: 5,
+    last_modify_time: '2026-04-25 16:00:00'
+  }
+];
+
+export const mockApmServices: ApmService[] = Array.from({ length: 37 }, (_, i) => ({
+  service_name: i === 0 ? 'checkout-api' : `checkout-worker-${i}`,
+  topo_key: i === 0 ? 'checkout-api' : `checkout-worker-${i}`,
+  kind: i % 4 === 0 ? 'remote_service' : 'service',
+  category: i % 4 === 0 ? 'http' : 'app',
+  instance_count: 2 + (i % 5),
+  endpoint_count: 8 + i,
+  last_seen_time: '2026-04-26 12:10:00'
+}));
+
+export function createMockCustomReportDetail(
+  reportType: string,
+  groupId: number
+): CustomReportDetailResponse {
+  const report =
+    mockCustomReports.find(
+      (item) => item.report_type === reportType && item.group_id === groupId
+    ) ?? mockCustomReports[0];
+
+  if (!report) {
+    throw new Error('Mock custom report fixture is empty.');
+  }
+
+  const datasource =
+    report.bk_data_id == null
+      ? null
+      : (mockDatasources.find((item) => item.bk_data_id === report.bk_data_id) ?? null);
+  const resultTable =
+    report.table_id == null
+      ? null
+      : (mockResultTables.find((item) => item.table_id === report.table_id) ?? null);
+
+  return {
+    report: {
+      ...report,
+      description: `${report.group_name} mock detail`,
+      token: report.report_type === 'custom_log' ? null : 'mock-token',
+      status: report.is_enable ? 'normal' : 'disabled'
+    },
+    datasource,
+    result_table: resultTable,
+    monitor_web_relation: report.monitor_web_source
+      ? {
+          model: report.monitor_web_source,
+          created_from: report.created_from,
+          note: 'monitor_web 页面侧镜像，仅作关联参考'
+        }
+      : null,
+    apm_relations:
+      report.apm_application_count > 0
+        ? [{ application_id: 1, app_name: 'checkout', relation_type: report.report_type }]
+        : [],
+    event_fields:
+      report.report_type === 'custom_metric'
+        ? []
+        : [
+            { field_name: 'event_name', field_type: 'string' },
+            { field_name: 'target', field_type: 'string' },
+            { field_name: 'dimensions', field_type: 'object' }
+          ],
+    warnings: []
+  };
+}
+
+export function createMockCustomReportMetricList(
+  groupId: number,
+  page: number,
+  pageSize: number,
+  fieldName?: string
+): CustomReportMetricListResponse {
+  const filtered = mockCustomReportMetrics.filter((item) => {
+    if (groupId !== 1001) return false;
+    return !fieldName || item.field_name.includes(fieldName);
+  });
+
+  return {
+    items: filtered.slice((page - 1) * pageSize, page * pageSize),
+    page,
+    page_size: pageSize,
+    total: filtered.length
+  };
+}
+
+export function createMockApmApplicationDetail(
+  applicationId: number
+): ApmApplicationDetailResponse {
+  const application =
+    mockApmApplications.find((item) => item.application_id === applicationId) ??
+    mockApmApplications[0];
+
+  if (!application) {
+    throw new Error('Mock APM application fixture is empty.');
+  }
+
+  const dataIds = [
+    application.metric_data_id,
+    application.trace_data_id,
+    application.log_data_id,
+    application.profile_data_id
+  ].filter((value): value is number => typeof value === 'number' && value > 0);
+  const datasources = mockDatasources.filter((item) => dataIds.includes(item.bk_data_id));
+  const resultTables = mockResultTables.filter(
+    (item) => item.bk_biz_id === application.bk_biz_id || item.table_id.includes('bklog')
+  );
+  const customReports = mockCustomReports.filter(
+    (item) => item.bk_biz_id === application.bk_biz_id && item.apm_application_count > 0
+  );
+
+  return {
+    application: {
+      ...application,
+      description: `${application.app_name} mock APM application`,
+      app_token: 'mock-apm-token'
+    },
+    datasources,
+    result_tables: resultTables,
+    custom_reports: customReports,
+    services_preview: mockApmServices.slice(0, 5),
+    topo_nodes_preview: mockApmServices.slice(0, 5).map((service) => ({
+      topo_key: service.topo_key,
+      kind: service.kind,
+      category: service.category,
+      system: 'linux',
+      platform: 'kubernetes',
+      updated_at: service.last_seen_time
+    })),
+    topo_relations_preview: [
+      {
+        from_topo_key: 'checkout-api',
+        to_topo_key: 'checkout-worker-1',
+        kind: 'call',
+        category: 'http'
+      },
+      {
+        from_topo_key: 'checkout-api',
+        to_topo_key: 'redis',
+        kind: 'remote',
+        category: 'db'
+      }
+    ],
+    service_summary: {
+      service_count: application.service_count,
+      remote_service_count: 2,
+      custom_service_count: 1
+    },
+    topo_summary: {
+      topo_node_count: application.topo_node_count,
+      relation_count: 2
+    }
+  };
+}
+
+export function createMockApmServiceList(
+  applicationId: number,
+  page: number,
+  pageSize: number,
+  serviceName?: string
+): ApmServiceListResponse {
+  const filtered = mockApmServices.filter((item) => {
+    if (applicationId !== 1 && item.service_name.startsWith('checkout-worker')) return false;
+    return !serviceName || item.service_name.includes(serviceName);
+  });
+
+  return {
+    items: filtered.slice((page - 1) * pageSize, page * pageSize),
+    page,
+    page_size: pageSize,
+    total: filtered.length
   };
 }
 

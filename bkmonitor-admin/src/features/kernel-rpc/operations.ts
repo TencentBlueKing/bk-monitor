@@ -27,7 +27,14 @@ export const operationToFuncName = {
   'datalink.cluster_config_component_config': 'admin.datalink.cluster_config_component_config',
   'datalink.datalink_list': 'admin.datalink.datalink_list',
   'datalink.datalink_detail': 'admin.datalink.datalink_detail',
-  'datalink.datalink_component_config': 'admin.datalink.datalink_component_config'
+  'datalink.datalink_component_config': 'admin.datalink.datalink_component_config',
+  'custom_report.list': 'admin.custom_report.list',
+  'custom_report.detail': 'admin.custom_report.detail',
+  'custom_report.metric_list': 'admin.custom_report.metric_list',
+  'apm.application_list': 'admin.apm.application_list',
+  'apm.application_detail': 'admin.apm.application_detail',
+  'apm.service_list': 'admin.apm.service_list',
+  'apm.topo': 'admin.apm.topo'
 } as const;
 
 export type AdminOperation = keyof typeof operationToFuncName;

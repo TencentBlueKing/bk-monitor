@@ -7,7 +7,16 @@ import {
   createRouter,
   useSearch
 } from '@tanstack/react-router';
-import { Database, Globe, HardDrive, Network, Settings2, Table2, Wrench } from 'lucide-react';
+import {
+  Activity,
+  Database,
+  FileInput,
+  HardDrive,
+  Network,
+  Settings2,
+  Table2,
+  Wrench
+} from 'lucide-react';
 import { useEffect } from 'react';
 
 import { ElasticsearchIcon, KubernetesIcon } from '../shared/components/BrandIcons';
@@ -34,6 +43,10 @@ import { BCSClusterInfoListPage } from '../features/bcs-cluster/BCSClusterInfoLi
 import { BCSClusterInfoDetailPage } from '../features/bcs-cluster/BCSClusterInfoDetailPage';
 import { DataLinkDetailPage } from '../features/datalink/DataLinkDetailPage';
 import { DataLinkListPage } from '../features/datalink/DataLinkListPage';
+import { ApmApplicationDetailPage } from '../features/apm/ApmApplicationDetailPage';
+import { ApmApplicationListPage } from '../features/apm/ApmApplicationListPage';
+import { CustomReportDetailPage } from '../features/custom-report/CustomReportDetailPage';
+import { CustomReportListPage } from '../features/custom-report/CustomReportListPage';
 import { QueryRouteDetailPage } from '../features/query-route/QueryRouteDetailPage';
 import { QueryRoutePage } from '../features/query-route/QueryRoutePage';
 import { BrandLogo } from '../shared/components/BrandLogo';
@@ -153,6 +166,24 @@ function AppLayout() {
                 ResultTable
               </Link>
               <Link
+                to="/custom-reports"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <FileInput aria-hidden="true" size={18} />
+                自定义上报
+              </Link>
+              <Link
+                to="/apm/applications"
+                search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
+                activeProps={{ className: 'nav-link active' }}
+                inactiveProps={{ className: 'nav-link' }}
+              >
+                <Activity aria-hidden="true" size={18} />
+                APM
+              </Link>
+              <Link
                 to="/clusters"
                 search={createEnvironmentSearch(activeEnvironmentId, activeTenantId)}
                 activeProps={{ className: 'nav-link active' }}
@@ -268,6 +299,22 @@ function GuardedDataLinkListPage() {
 
 function GuardedDataLinkDetailPage() {
   return <EnvironmentGuard>{() => <DataLinkDetailPage />}</EnvironmentGuard>;
+}
+
+function GuardedCustomReportListPage() {
+  return <EnvironmentGuard>{() => <CustomReportListPage />}</EnvironmentGuard>;
+}
+
+function GuardedCustomReportDetailPage() {
+  return <EnvironmentGuard>{() => <CustomReportDetailPage />}</EnvironmentGuard>;
+}
+
+function GuardedApmApplicationListPage() {
+  return <EnvironmentGuard>{() => <ApmApplicationListPage />}</EnvironmentGuard>;
+}
+
+function GuardedApmApplicationDetailPage() {
+  return <EnvironmentGuard>{() => <ApmApplicationDetailPage />}</EnvironmentGuard>;
 }
 
 function GuardedQueryRoutePage() {
@@ -389,6 +436,30 @@ const dataLinkDetailRoute = createRoute({
   component: GuardedDataLinkDetailPage
 });
 
+const customReportListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'custom-reports',
+  component: GuardedCustomReportListPage
+});
+
+const customReportDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'custom-reports/$reportType/$groupId',
+  component: GuardedCustomReportDetailPage
+});
+
+const apmApplicationListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'apm/applications',
+  component: GuardedApmApplicationListPage
+});
+
+const apmApplicationDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'apm/applications/$applicationId',
+  component: GuardedApmApplicationDetailPage
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   appRoute.addChildren([
@@ -406,7 +477,11 @@ const routeTree = rootRoute.addChildren([
     queryRouteRoute,
     queryRouteDetailRoute,
     dataLinkListRoute,
-    dataLinkDetailRoute
+    dataLinkDetailRoute,
+    customReportListRoute,
+    customReportDetailRoute,
+    apmApplicationListRoute,
+    apmApplicationDetailRoute
   ])
 ]);
 

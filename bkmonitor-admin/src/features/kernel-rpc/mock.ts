@@ -14,9 +14,15 @@ import {
   createMockClusterConfigDetail,
   createMockDatalinkDetail,
   createMockDatalinkComponentConfig,
+  createMockApmApplicationDetail,
+  createMockApmServiceList,
+  createMockCustomReportDetail,
+  createMockCustomReportMetricList,
   mockBcsClusters,
+  mockApmApplications,
   mockClusterInfos,
   mockClusterConfigs,
+  mockCustomReports,
   mockDatalinkComponents,
   mockDataLinks,
   mockDatasources,
@@ -190,6 +196,43 @@ function resolveMockData(options: KernelRpcCallOptions): unknown {
       };
     case 'bcs_cluster.detail':
       return createMockBcsClusterDetail(String(options.params.cluster_id));
+    case 'custom_report.list':
+      return {
+        items: filterCustomReports(options.params),
+        page: Number(options.params.page ?? 1),
+        page_size: Number(options.params.page_size ?? 20),
+        total: filterCustomReports(options.params).length
+      };
+    case 'custom_report.detail':
+      return createMockCustomReportDetail(
+        String(options.params.report_type),
+        Number(options.params.group_id)
+      );
+    case 'custom_report.metric_list':
+      return createMockCustomReportMetricList(
+        Number(options.params.group_id),
+        Number(options.params.page ?? 1),
+        Number(options.params.page_size ?? 20),
+        typeof options.params.field_name === 'string' ? options.params.field_name : undefined
+      );
+    case 'apm.application_list':
+      return {
+        items: filterApmApplications(options.params),
+        page: Number(options.params.page ?? 1),
+        page_size: Number(options.params.page_size ?? 20),
+        total: filterApmApplications(options.params).length
+      };
+    case 'apm.application_detail':
+      return createMockApmApplicationDetail(Number(options.params.application_id));
+    case 'apm.service_list':
+      return createMockApmServiceList(
+        Number(options.params.application_id),
+        Number(options.params.page ?? 1),
+        Number(options.params.page_size ?? 20),
+        typeof options.params.service_name === 'string' ? options.params.service_name : undefined
+      );
+    case 'apm.topo':
+      return createMockApmApplicationDetail(Number(options.params.application_id)).topo_summary;
   }
 }
 
@@ -387,6 +430,72 @@ function filterDataLinks(params: Record<string, unknown>) {
   if (typeof params.bk_data_id === 'number') {
     filtered = filtered.filter((item) => item.bk_data_id === params.bk_data_id);
   }
+
+  return filtered.slice((page - 1) * pageSize, page * pageSize);
+}
+
+function filterCustomReports(params: Record<string, unknown>) {
+  const page = Number(params.page ?? 1);
+  const pageSize = Number(params.page_size ?? 20);
+  const filtered = mockCustomReports.filter((item) => {
+    if (typeof params.report_type === 'string' && item.report_type !== params.report_type) {
+      return false;
+    }
+    if (typeof params.bk_biz_id === 'number' && item.bk_biz_id !== params.bk_biz_id) {
+      return false;
+    }
+    if (typeof params.bk_data_id === 'number' && item.bk_data_id !== params.bk_data_id) {
+      return false;
+    }
+    if (typeof params.table_id === 'string' && !item.table_id?.includes(params.table_id)) {
+      return false;
+    }
+    if (typeof params.group_name === 'string' && !item.group_name.includes(params.group_name)) {
+      return false;
+    }
+    if (typeof params.created_from === 'string' && item.created_from !== params.created_from) {
+      return false;
+    }
+    if (typeof params.has_apm === 'boolean') {
+      return params.has_apm ? item.apm_application_count > 0 : item.apm_application_count === 0;
+    }
+    return true;
+  });
+
+  return filtered.slice((page - 1) * pageSize, page * pageSize);
+}
+
+function filterApmApplications(params: Record<string, unknown>) {
+  const page = Number(params.page ?? 1);
+  const pageSize = Number(params.page_size ?? 20);
+  const filtered = mockApmApplications.filter((item) => {
+    if (typeof params.bk_biz_id === 'number' && item.bk_biz_id !== params.bk_biz_id) {
+      return false;
+    }
+    if (typeof params.app_name === 'string' && !item.app_name.includes(params.app_name)) {
+      return false;
+    }
+    if (typeof params.status === 'string' && item.status !== params.status) {
+      return false;
+    }
+    if (typeof params.bk_data_id === 'number') {
+      return [
+        item.metric_data_id,
+        item.trace_data_id,
+        item.log_data_id,
+        item.profile_data_id
+      ].includes(params.bk_data_id);
+    }
+    if (typeof params.table_id === 'string') {
+      return mockCustomReports.some(
+        (report) =>
+          report.apm_application_count > 0 &&
+          report.bk_biz_id === item.bk_biz_id &&
+          report.table_id?.includes(params.table_id as string)
+      );
+    }
+    return true;
+  });
 
   return filtered.slice((page - 1) * pageSize, page * pageSize);
 }

@@ -11,7 +11,9 @@ kernel_api/rpc/functions/admin/
 ├── tenant.py
 ├── datasource.py
 ├── result_table.py
-└── es_storage.py
+├── es_storage.py
+├── custom_report.py
+└── apm.py
 ```
 
 注意：当前 `kernel_api/rpc/functions/__init__.py` 只会 import `functions` 目录下一层模块。如果使用 `functions/admin/` 子包，需要保证 `kernel_api.rpc.functions.admin` 被 import 后会继续 import `tenant.py`、`datasource.py`、`result_table.py` 等模块，从而触发 `KernelRPCRegistry.register(...)`。
@@ -23,8 +25,10 @@ from . import tenant
 from . import datasource
 from . import result_table
 from . import es_storage
+from . import custom_report
+from . import apm
 
-__all__ = ["tenant", "datasource", "result_table", "es_storage"]
+__all__ = ["tenant", "datasource", "result_table", "es_storage", "custom_report", "apm"]
 ```
 
 ## 命名约定
@@ -42,6 +46,13 @@ __all__ = ["tenant", "datasource", "result_table", "es_storage"]
 - `admin.es_storage.detail`
 - `admin.es_storage.runtime_overview`
 - `admin.es_storage.sample`
+- `admin.custom_report.list`
+- `admin.custom_report.detail`
+- `admin.custom_report.metric_list`
+- `admin.apm.application_list`
+- `admin.apm.application_detail`
+- `admin.apm.service_list`
+- `admin.apm.topo`
 
 前端和 Agent-facing operation 可以保持去掉 `admin.` 前缀的稳定名称：
 
@@ -56,6 +67,13 @@ __all__ = ["tenant", "datasource", "result_table", "es_storage"]
 - `es_storage.detail`
 - `es_storage.runtime_overview`
 - `es_storage.sample`
+- `custom_report.list`
+- `custom_report.detail`
+- `custom_report.metric_list`
+- `apm.application_list`
+- `apm.application_detail`
+- `apm.service_list`
+- `apm.topo`
 
 映射关系由 `bkmonitor-admin` 前端 RPC client 维护。
 
@@ -820,6 +838,70 @@ Safety level：`read`
 Safety level：`read`
 
 入参同 `admin.query_route.query`，但至少需要指定 `space_uid`、`table_ids` 或 `data_labels` 中的一项。`space_uid` 刷新 `space_to_result_table`；`table_ids` 刷新 `result_table_detail` 并包含 ES 表；`data_labels` 或 `table_ids` 刷新 `data_label_to_result_table`。多租户下会用 `bk_tenant_id` 校验目标空间，避免跨租户刷新。
+
+### admin.custom_report.list
+
+用途：分页查询 metadata 自定义上报资源，覆盖自定义指标、自定义事件、日志三类。
+
+Safety level：`read`
+
+入参支持 `bk_tenant_id`、`report_type`、`bk_biz_id`、`bk_data_id`、`table_id`、`group_name`、`created_from`、`has_apm`、分页参数。
+
+返回字段包括 `report_type`、`group_id`、`group_name`、`bk_biz_id`、`bk_data_id`、`table_id`、`data_label`、`created_from`、`is_enable`、`metric_count`、`field_count`、`monitor_web_source`、`apm_application_count`、`last_modify_time`。
+
+实现注意：`TimeSeriesGroup` 是自定义指标的数据源，`TimeSeriesMetric` 是指标字段；列表只返回 metric count，不返回指标明细。
+
+### admin.custom_report.detail
+
+用途：查询单个自定义上报资源详情和关联关系。
+
+Safety level：`read`
+
+入参支持 `bk_tenant_id`、`report_type`、`group_id`、`include`。返回 `report`、`datasource`、`result_table`、`monitor_web_relation`、`apm_relations`、`event_fields`。
+
+实现注意：`monitor_web` 的 `CustomTSTable`、`CustomEventGroup` 仅作为页面/旧接口镜像，主真值仍以 metadata 模型为准；不要默认触发 `need_refresh=True` 的 ES 维度刷新。
+
+### admin.custom_report.metric_list
+
+用途：分页查询自定义指标的 `TimeSeriesMetric`。
+
+Safety level：`read`
+
+入参支持 `bk_tenant_id`、`group_id`、`field_name`、`is_active`、分页参数。默认 `page_size=20`，最大 `100`。该接口是大列表懒加载入口，不应被 detail 默认全量调用。
+
+### admin.apm.application_list
+
+用途：分页查询 APM 应用。
+
+Safety level：`read`
+
+入参支持 `bk_tenant_id`、`bk_biz_id`、`app_name`、`status`、`bk_data_id`、`table_id`、分页参数。`bk_data_id` 可匹配 metric/trace/log/profile 任意 DataSource。
+
+### admin.apm.application_detail
+
+用途：查询 APM 应用详情和数据链路关联。
+
+Safety level：`read`
+
+返回 `application`、`datasources`、`result_tables`、`custom_reports`、`services_preview`、`topo_nodes_preview`、`topo_relations_preview`、`service_summary`、`topo_summary`。
+
+实现注意：默认读 `apm.models` 表和 metadata 关联，不在 import 期重引 `apm_web` 或页面层 resource；实时 topo、缓存和 UnifyQuery 类重查询后续通过显式 include 扩展。
+
+### admin.apm.service_list
+
+用途：分页查询 APM Service / TopoInstance 摘要。
+
+Safety level：`read`
+
+入参支持 `bk_tenant_id`、`application_id`、`service_name`、`kind`、分页参数。
+
+### admin.apm.topo
+
+用途：查询 APM TopoNode / TopoRelation。
+
+Safety level：`read`
+
+入参支持 `bk_tenant_id`、`application_id`、`topo_key`、`include_relations`、分页参数。第一版前端尚未直接调用，可作为后续 topo 图与 AI 排障上下文接口。
 
 ## 后续可扩展函数
 
