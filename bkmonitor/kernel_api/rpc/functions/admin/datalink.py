@@ -25,7 +25,7 @@ from kernel_api.rpc.functions.admin.common import (
     serialize_model,
 )
 from metadata import models
-from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP
+from metadata.models.data_link.data_link_configs import ClusterConfig, COMPONENT_CLASS_MAP
 
 FUNC_COMPONENT_LIST = "admin.datalink.component_list"
 FUNC_COMPONENT_DETAIL = "admin.datalink.component_detail"
@@ -369,7 +369,7 @@ def list_cluster_configs(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
 
-    queryset = models.ClusterConfig.objects.filter(bk_tenant_id=bk_tenant_id)
+    queryset = ClusterConfig.objects.filter(bk_tenant_id=bk_tenant_id)
 
     if params.get("kind") not in (None, ""):
         queryset = queryset.filter(kind=str(params["kind"]).strip())
@@ -427,10 +427,8 @@ def get_cluster_config_detail(params: dict[str, Any]) -> dict[str, Any]:
         raise CustomException(message="name 为必填项")
 
     try:
-        instance = models.ClusterConfig.objects.get(
-            bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name
-        )
-    except models.ClusterConfig.DoesNotExist as error:
+        instance = ClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name)
+    except ClusterConfig.DoesNotExist as error:
         raise CustomException(
             message=f"未找到 ClusterConfig: kind={kind}, namespace={namespace}, name={name}"
         ) from error
@@ -495,10 +493,8 @@ def get_cluster_config_component_config(params: dict[str, Any]) -> dict[str, Any
         raise CustomException(message="name 为必填项")
 
     try:
-        instance = models.ClusterConfig.objects.get(
-            bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name
-        )
-    except models.ClusterConfig.DoesNotExist as error:
+        instance = ClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name)
+    except ClusterConfig.DoesNotExist as error:
         raise CustomException(
             message=f"未找到 ClusterConfig: kind={kind}, namespace={namespace}, name={name}"
         ) from error

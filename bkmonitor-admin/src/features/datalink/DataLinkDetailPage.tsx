@@ -44,6 +44,7 @@ export function DataLinkDetailPage() {
   const routeSearch = createEnvironmentSearch(currentEnvironment?.id ?? 'local', currentTenantId);
   const isDataLink = kind === 'DataLink';
   const isClusterConfig = kind === 'ClusterConfig';
+  const isComponentDetail = kind !== '' && kind !== 'DataLink' && kind !== 'ClusterConfig';
   const listKind = isClusterConfig ? 'ClusterConfig' : isDataLink ? 'DataLink' : kind;
   const listSearch = { ...routeSearch, kind: listKind };
 
@@ -75,14 +76,23 @@ export function DataLinkDetailPage() {
     [currentTenantId, dataLinkName]
   );
 
-  const componentDetailQuery = useComponentDetail(currentEnvironment!, componentDetailParams);
+  const componentDetailQuery = useComponentDetail(
+    currentEnvironment!,
+    componentDetailParams,
+    isComponentDetail && !!namespace && !!name
+  );
 
   const clusterConfigDetailQuery = useClusterConfigDetail(
     currentEnvironment!,
-    clusterConfigDetailParams
+    clusterConfigDetailParams,
+    isClusterConfig && !!namespace && !!name
   );
 
-  const datalinkDetailQuery = useDataLinkDetail(currentEnvironment!, datalinkDetailParams);
+  const datalinkDetailQuery = useDataLinkDetail(
+    currentEnvironment!,
+    datalinkDetailParams,
+    isDataLink && !!dataLinkName
+  );
 
   if (!currentEnvironment) {
     return <PageState title="缺少环境上下文" />;
@@ -565,7 +575,9 @@ function DataLinkDetailView({
 
   const sortedKinds = useMemo(
     () =>
-      Object.keys(groupedComponents).sort((a, b) => {
+      Object.keys(groupedComponents)
+        .filter((k) => (groupedComponents[k]?.length ?? 0) > 0)
+        .sort((a, b) => {
         const priority = ['DataId', 'ResultTable', 'VmStorageBinding'];
         const aIdx = priority.indexOf(a);
         const bIdx = priority.indexOf(b);
@@ -610,12 +622,11 @@ function DataLinkDetailView({
           <h3>关联组件</h3>
           {sortedKinds.map((kind) => {
             const rows = groupedComponents[kind];
-            if (!rows) return null;
             return (
               <DataLinkChildComponentsTable
                 key={kind}
                 kind={kind}
-                rows={rows}
+                rows={rows!}
                 currentEnvironment={currentEnvironment}
                 currentTenantId={currentTenantId}
               />

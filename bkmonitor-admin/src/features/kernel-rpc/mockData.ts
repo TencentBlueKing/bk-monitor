@@ -778,7 +778,6 @@ export function createMockDatalinkDetail(dataLinkName: string): DataLinkDetailRe
   }
 
   return {
-    kind: 'DataLink',
     data_link_name: datalink.data_link_name,
     bk_tenant_id: datalink.bk_tenant_id,
     namespace: datalink.namespace,

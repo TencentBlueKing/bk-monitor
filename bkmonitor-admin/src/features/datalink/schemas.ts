@@ -186,7 +186,6 @@ const dataLinkChildComponentSchema = z.object({
 });
 
 export const datalinkDetailResponseSchema = z.object({
-  kind: z.literal('DataLink'),
   data_link_name: z.string(),
   bk_tenant_id: z.string(),
   namespace: z.string(),

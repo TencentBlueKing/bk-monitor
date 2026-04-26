@@ -26,10 +26,15 @@ export function useComponentList(environment: AdminEnvironment, query: Component
   });
 }
 
-export function useComponentDetail(environment: AdminEnvironment, params: ComponentDetailParams) {
+export function useComponentDetail(
+  environment: AdminEnvironment,
+  params: ComponentDetailParams,
+  enabled = true
+) {
   return useQuery({
     queryKey: ['datalink', environment.id, environment, 'component-detail', params],
-    queryFn: () => getComponentDetail(environment, params)
+    queryFn: () => getComponentDetail(environment, params),
+    enabled
   });
 }
 
@@ -55,11 +60,13 @@ export function useClusterConfigList(environment: AdminEnvironment, query: Clust
 
 export function useClusterConfigDetail(
   environment: AdminEnvironment,
-  params: { bkTenantId: string; kind: string; namespace: string; name: string; include?: string[] }
+  params: { bkTenantId: string; kind: string; namespace: string; name: string; include?: string[] },
+  enabled = true
 ) {
   return useQuery({
     queryKey: ['datalink', environment.id, environment, 'cluster-config-detail', params],
-    queryFn: () => getClusterConfigDetail(environment, params)
+    queryFn: () => getClusterConfigDetail(environment, params),
+    enabled
   });
 }
 
@@ -85,11 +92,13 @@ export function useDataLinkList(environment: AdminEnvironment, query: DataLinkLi
 
 export function useDataLinkDetail(
   environment: AdminEnvironment,
-  params: { bkTenantId: string; dataLinkName: string; include?: string[] }
+  params: { bkTenantId: string; dataLinkName: string; include?: string[] },
+  enabled = true
 ) {
   return useQuery({
     queryKey: ['datalink', environment.id, environment, 'datalink-detail', params],
-    queryFn: () => getDataLinkDetail(environment, params)
+    queryFn: () => getDataLinkDetail(environment, params),
+    enabled
   });
 }
 
