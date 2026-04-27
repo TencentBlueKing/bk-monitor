@@ -712,7 +712,7 @@ class SetupResource(Resource):
             def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
                 if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
                     if not attrs["related_bk_biz_id"]:
-                        raise ValueError(_("关联日志平台日志需要选择业务"))
+                        raise serializers.ValidationError(_("关联日志平台日志需要选择业务"))
                 else:
                     attrs["related_bk_biz_id"] = None
 

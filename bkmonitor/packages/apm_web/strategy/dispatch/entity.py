@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import threading
+from collections import defaultdict
 from functools import cached_property
 from typing import Any
 
@@ -16,7 +17,6 @@ from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from core.drf_resource import api
-from collections import defaultdict
 from apm_web.constants import TopoNodeKind
 from apm_web.event.handler import EventHandler
 from apm_web.handlers.log_handler import ServiceLogHandler

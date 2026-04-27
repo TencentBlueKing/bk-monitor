@@ -50,7 +50,7 @@ class LogServiceRelationSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
             if "related_bk_biz_id" not in attrs or not attrs["related_bk_biz_id"]:
-                raise ValueError(_("关联日志平台日志需要选择业务"))
+                raise serializers.ValidationError(_("关联日志平台日志需要选择业务"))
         else:
             attrs["related_bk_biz_id"] = None
 
@@ -215,7 +215,7 @@ class CodeRedefinedRuleItemSerializer(serializers.Serializer):
     """单个代码重定义规则项序列化器"""
 
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
-    service_names = serializers.ListSerializer(
+    service_names = serializers.ListField(
         label=_("服务名列表"), child=serializers.CharField(), allow_null=True, required=False
     )
     is_global = serializers.BooleanField(label=_("是否全局"), default=False)
@@ -239,7 +239,7 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
         kind: str | None = attrs.get("kind")
         service_name: str | None = attrs.get("service_name")
 
-        # 如果是服务配置场景，过滤掉 is_global 为 True 的规则
+        # 服务级配置：必须指定 kind，且只保留非全局规则
         if service_name:
             if not kind:
                 raise serializers.ValidationError(_("请填写类型"))
@@ -263,12 +263,14 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
             if unique_key in unique_set:
                 raise serializers.ValidationError(
                     _(
-                        f"规则列表中存在重复的规则："
-                        f"是否全局：{rule['is_global']}"
-                        f"类型：{rule['kind']}"
-                        f"被调服务：{rule['callee_server']}"
-                        f"被调 Service：{rule['callee_service']}"
-                        f"被调接口：{rule['callee_method']}"
+                        "规则列表中存在重复的规则：是否全局：{is_global} 类型：{kind} "
+                        "被调服务：{callee_server} 被调 Service：{callee_service} 被调接口：{callee_method}"
+                    ).format(
+                        is_global=rule["is_global"],
+                        kind=rule["kind"],
+                        callee_server=rule["callee_server"],
+                        callee_service=rule["callee_service"],
+                        callee_method=rule["callee_method"],
                     )
                 )
             unique_set.add(unique_key)

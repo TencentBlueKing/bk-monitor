@@ -791,8 +791,8 @@ class ListCodeRedefinedRuleResource(Resource):
                     **relation,
                     "service_names": [] if relation["is_global"] else [relation["service_name"]],
                 }
-        # 显式保证全局在前，服务在后
-        return sorted(list(grouped_dict.values()), key=lambda x: x["updated_at"], reverse=True)
+        # 按更新时间倒序返回，最近更新的规则排在前面
+        return sorted(grouped_dict.values(), key=lambda x: x["updated_at"], reverse=True)
 
 
 class SetCodeRedefinedRuleResource(Resource):
@@ -830,6 +830,7 @@ class SetCodeRedefinedRuleResource(Resource):
             "scope": SyncScope.SERVICE if service_name else SyncScope.ALL,
             "records": records,
         }
+        # 仅 kind 维度参与存量比对，避免清理其它 kind 的规则
         if validated_request_data.get("kind"):
             params["kind"] = validated_request_data["kind"]
 
