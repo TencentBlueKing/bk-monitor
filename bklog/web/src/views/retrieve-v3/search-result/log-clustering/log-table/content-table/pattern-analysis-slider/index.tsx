@@ -304,7 +304,9 @@ export default defineComponent({
             fontSize: 12,
           },
           formatter: (params: any) => {
-            let html = '';
+            if (!params?.length) return '';
+            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
+            let html = `<div style="margin-bottom:4px;font-weight:bold;">${time}</div>`;
             params.forEach((p: any) => {
               if (p.value !== null && p.value !== undefined) {
                 const val = p.value[1];
