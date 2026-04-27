@@ -568,7 +568,8 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_fields_method(self, mock_local, mock_user, mock_ext_user, mock_api):
+    def test_fields_method_dict_format(self, mock_local, mock_user, mock_ext_user, mock_api):
+        """Backward compat: UQ returns {"fields": {name: info}} dict format."""
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         mock_api.return_value = {
@@ -590,6 +591,45 @@ class TestSceneUnifyQueryHandler(TestCase):
         status_field = next(f for f in result["fields"] if f["field_name"] == "status")
         self.assertFalse(status_field["is_analyzed"])
         self.assertTrue(status_field["es_doc_values"])
+
+    @patch("apps.log_unifyquery.handler.scene_search.UnifyQueryApi.query_field_map")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_fields_method_list_format(self, mock_local, mock_user, mock_ext_user, mock_api):
+        """Real UQ response: {"data": [{field_name, field_type, ...}]} list format."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        mock_api.return_value = {
+            "data": [
+                {
+                    "field_name": "log", "field_type": "text",
+                    "is_agg": False, "is_analyzed": True,
+                    "alias_name": "", "origin_field": "log",
+                },
+                {
+                    "field_name": "__ext.container_name", "field_type": "keyword",
+                    "is_agg": True, "is_analyzed": False,
+                    "alias_name": "", "origin_field": "__ext",
+                },
+            ],
+            "trace_id": "abc123",
+        }
+
+        params = {**BASE_POST_BODY, "start_time": "", "end_time": ""}
+        handler = SceneUnifyQueryHandler(params)
+        result = handler.fields()
+
+        self.assertEqual(len(result["fields"]), 2)
+        log_field = next(f for f in result["fields"] if f["field_name"] == "log")
+        self.assertEqual(log_field["field_type"], "text")
+        self.assertTrue(log_field["is_analyzed"])
+        self.assertFalse(log_field["es_doc_values"])
+
+        ext_field = next(f for f in result["fields"] if f["field_name"] == "__ext.container_name")
+        self.assertEqual(ext_field["field_type"], "keyword")
+        self.assertFalse(ext_field["is_analyzed"])
+        self.assertTrue(ext_field["es_doc_values"])
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
@@ -655,6 +695,17 @@ class TestSceneDimensionValuesSerializer(TestCase):
         s = SceneDimensionValuesSerializer(data=data)
         self.assertTrue(s.is_valid(), s.errors)
         self.assertEqual(s.validated_data["filters"], {"stream": "stdout"})
+
+    def test_valid_with_list_filters(self):
+        data = {
+            "bk_biz_id": 2,
+            "scene": "k8s",
+            "dimension_key": "cluster_id",
+            "filters": {"stream": ["file", "stdout"]},
+        }
+        s = SceneDimensionValuesSerializer(data=data)
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(s.validated_data["filters"]["stream"], ["file", "stdout"])
 
     def test_missing_scene_fails(self):
         data = {"bk_biz_id": 2, "dimension_key": "cluster_id"}
@@ -795,11 +846,52 @@ class TestIndexSetTagExtension(TestCase):
         self.assertIn("BCS-FILTER-001", values)
         self.assertNotIn("BCS-FILTER-002", values)
 
+    def test_get_dimension_values_with_list_filter(self):
+        """filters value as list means OR — match index sets carrying any of the values."""
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        stdout_tag = IndexSetTag.get_tag_id(name="stream", value="stdout", tag_type="scene")
+        file_tag = IndexSetTag.get_tag_id(name="stream", value="file", tag_type="scene")
+        c1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-LIST-001", tag_type="scene")
+        c2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-LIST-002", tag_type="scene")
+        c3 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-LIST-003", tag_type="scene")
+
+        LogIndexSet.objects.create(
+            index_set_name="list_filter_1", space_uid="bkcc__6", scenario_id="log",
+            tag_ids=[str(scene_tag), str(stdout_tag), str(c1)], is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="list_filter_2", space_uid="bkcc__6", scenario_id="log",
+            tag_ids=[str(scene_tag), str(file_tag), str(c2)], is_active=True,
+        )
+        # c3 has no stream tag — should NOT match
+        LogIndexSet.objects.create(
+            index_set_name="list_filter_3", space_uid="bkcc__6", scenario_id="log",
+            tag_ids=[str(scene_tag), str(c3)], is_active=True,
+        )
+
+        values = IndexSetTag.get_dimension_values(
+            bk_biz_id=6, scene="k8s", dimension_key="cluster_id",
+            filters={"stream": ["file", "stdout"]},
+        )
+        self.assertIn("BCS-LIST-001", values)
+        self.assertIn("BCS-LIST-002", values)
+        self.assertNotIn("BCS-LIST-003", values)
+
     def test_get_dimension_values_nonexistent_filter_returns_empty(self):
         from apps.log_search.models import IndexSetTag
         values = IndexSetTag.get_dimension_values(
             bk_biz_id=999, scene="k8s", dimension_key="cluster_id",
             filters={"stream": "nonexistent_value_xyz"},
+        )
+        self.assertEqual(values, [])
+
+    def test_get_dimension_values_nonexistent_list_filter_returns_empty(self):
+        from apps.log_search.models import IndexSetTag
+        values = IndexSetTag.get_dimension_values(
+            bk_biz_id=999, scene="k8s", dimension_key="cluster_id",
+            filters={"stream": ["no_such_a", "no_such_b"]},
         )
         self.assertEqual(values, [])
 
@@ -1002,3 +1094,52 @@ class TestSyncSceneTagsToIndexSet(TestCase):
         index_set.refresh_from_db()
         tag_ids_str = [str(t) for t in index_set.tag_ids if t]
         self.assertIn(str(existing_tag_id), tag_ids_str)
+
+
+# =========================================================================
+# 10. SceneAsyncExportHandler.get_export_history pagination test
+# =========================================================================
+
+@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
+class TestSceneExportHistoryPagination(TestCase):
+    """Verify get_export_history uses manual Paginator (not DRF query_params)."""
+
+    @patch("apps.log_unifyquery.handler.scene_async_export.get_request_app_code", return_value="bk_log_search")
+    @patch("apps.log_unifyquery.handler.scene_async_export.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_async_export.get_request_username", return_value="admin")
+    def test_get_export_history_pagination(self, mock_user, mock_ext, mock_app):
+        from apps.log_search.models import AsyncTask
+        from apps.log_unifyquery.handler.scene_async_export import SceneAsyncExportHandler
+
+        for i in range(3):
+            AsyncTask.objects.create(
+                request_param={"table_id_conditions": TABLE_ID_CONDITIONS},
+                scenario_id="scene",
+                index_set_id=0,
+                bk_biz_id=2,
+                start_time="",
+                end_time="",
+                export_status="success",
+                export_type="async",
+                created_by="admin",
+                source_app_code="bk_log_search",
+            )
+
+        factory = APIRequestFactory()
+        request = factory.post("/api/v1/search/scene/export/history/", data={}, format="json")
+
+        handler = SceneAsyncExportHandler(bk_biz_id=2, search_dict={})
+        response = handler.get_export_history(
+            request=request, view=None, show_all=True,
+            page=1, pagesize=2,
+        )
+
+        self.assertEqual(response.data["total"], 3)
+        self.assertEqual(len(response.data["list"]), 2)
+
+        response2 = handler.get_export_history(
+            request=request, view=None, show_all=True,
+            page=2, pagesize=2,
+        )
+        self.assertEqual(response2.data["total"], 3)
+        self.assertEqual(len(response2.data["list"]), 1)

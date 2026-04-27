@@ -343,17 +343,33 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 raise
 
         field_list = []
-        for field_name, field_info in field_data.get("fields", {}).items():
-            field_list.append({
-                "field_name": field_name,
-                "field_type": field_info.get("type", "object"),
-                "is_analyzed": field_info.get("type") == "text",
-                "es_doc_values": field_info.get("type") != "text",
-                "description": field_info.get("description", ""),
-                "field_alias": field_info.get("alias", ""),
-                "is_display": True,
-                "is_editable": True,
-            })
+        raw_fields = field_data.get("data") or field_data.get("fields") or {}
+        if isinstance(raw_fields, list):
+            for item in raw_fields:
+                ft = item.get("field_type", "object")
+                field_list.append({
+                    "field_name": item.get("field_name", ""),
+                    "field_type": ft,
+                    "is_analyzed": ft == "text",
+                    "es_doc_values": ft != "text",
+                    "description": item.get("description", ""),
+                    "field_alias": item.get("alias_name", ""),
+                    "is_display": True,
+                    "is_editable": True,
+                })
+        elif isinstance(raw_fields, dict):
+            for field_name, field_info in raw_fields.items():
+                ft = field_info.get("type", "object")
+                field_list.append({
+                    "field_name": field_name,
+                    "field_type": ft,
+                    "is_analyzed": ft == "text",
+                    "es_doc_values": ft != "text",
+                    "description": field_info.get("description", ""),
+                    "field_alias": field_info.get("alias", ""),
+                    "is_display": True,
+                    "is_editable": True,
+                })
 
         sort_list = self.origin_order_by or [["dtEventTimeStamp", "desc"]]
 

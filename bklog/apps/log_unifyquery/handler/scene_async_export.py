@@ -37,7 +37,6 @@ from apps.log_search.constants import (
 )
 from apps.log_search.models import AsyncTask
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
-from apps.utils.drf import DataPageNumberPagination
 from apps.utils.local import (
     get_request,
     get_request_app_code,
@@ -132,7 +131,10 @@ class SceneAsyncExportHandler:
         request = get_request()
         return f"{request.scheme}://{request.get_host()}{settings.SITE_URL}#/retrieve/scene"
 
-    def get_export_history(self, request, view, show_all=False, table_id_conditions=None):
+    def get_export_history(self, request, view, show_all=False, table_id_conditions=None,
+                           page=1, pagesize=10):
+        from django.core.paginator import Paginator
+
         source_app_code = get_request_app_code()
         external_username = get_request_external_username()
         query_set = AsyncTask.objects.filter(
@@ -149,18 +151,17 @@ class SceneAsyncExportHandler:
         if not show_all:
             query_set = query_set.filter(created_by=self.request_user)
 
-        pg = DataPageNumberPagination()
-        page_history = pg.paginate_queryset(
-            queryset=query_set.order_by("-created_at", "created_by"),
-            request=request,
-            view=view,
-        )
-        from apps.models import model_to_dict
+        query_set = query_set.order_by("-created_at", "created_by")
+        paginator = Paginator(query_set, pagesize)
+        page_obj = paginator.get_page(page)
 
-        res = pg.get_paginated_response([
-            self._format_history(model_to_dict(h)) for h in page_history
-        ])
-        return res
+        from apps.models import model_to_dict
+        from rest_framework.response import Response
+
+        return Response({
+            "total": paginator.count,
+            "list": [self._format_history(model_to_dict(h)) for h in page_obj],
+        })
 
     @staticmethod
     def _format_history(task_dict):
