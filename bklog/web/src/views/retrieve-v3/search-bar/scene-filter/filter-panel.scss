@@ -137,7 +137,7 @@
         width: 100%;
         min-width: 0;
 
-        .bk-select, .bk-form-input {
+        .bk-select, .bk-tag-input {
           border: 1px solid #C1CDE5;
         }
       }
@@ -241,7 +241,6 @@
       font-size: 12px;
       color: #63656e;
       cursor: pointer;
-      transition: background .15s;
 
       &:hover {
         background: #f1f4ff;
@@ -308,7 +307,6 @@
 
     .setting-ghost {
       background: #eaf3ff;
-      transition: background 0.2s linear;
     }
 
     .setting-actions {

@@ -113,7 +113,7 @@ export default defineComponent({
 
         // 清空检索数据
         resetRetrieveData();
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_CLEAR);
 
         router.replace({
           query: {
