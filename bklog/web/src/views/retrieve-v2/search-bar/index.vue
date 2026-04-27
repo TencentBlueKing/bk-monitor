@@ -307,9 +307,7 @@ const requestIndexSetList = () => {
   if (route.query.tab === 'origin' || !route.query.tab) {
     if (isSceneMode.value) {
       store.dispatch('requestIndexSetFieldInfo').then((resp) => {
-        if (resp?.data?.fields?.length) {
-          store.dispatch('requestIndexSetQuery');
-        }
+        store.dispatch('requestIndexSetQuery');
       });
     } else {
       store.dispatch('requestIndexSetQuery');
