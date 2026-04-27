@@ -27,6 +27,7 @@ from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -34,6 +35,7 @@ from apps.log_databus.handlers.collector_scenario.utils import build_es_option_t
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
@@ -56,6 +58,7 @@ class TransferEtlHandler(EtlHandler):
         target_fields=None,
         username="",
         total_shards_per_node=None,
+        storage_cluster_type=None,
         labels=None,
         is_platform_index=None,
         platform_index_visibility=None,
@@ -68,6 +71,13 @@ class TransferEtlHandler(EtlHandler):
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
+
+        if not storage_cluster_type:
+            storage_cluster_type = cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
+
+        # es 集群获取 es 版本, doris 集群将 es 版本设置为空
+        es_version = cluster_info["cluster_config"]["version"] if storage_cluster_type == STORAGE_CLUSTER_TYPE else ""
+
         self.check_es_storage_capacity(cluster_info, storage_cluster_id)
         is_add = False if self.data.table_id else True
 
@@ -85,9 +95,7 @@ class TransferEtlHandler(EtlHandler):
                 # 旧版聚类链路，由于入库链路不是独立的，需要更新 transfer 的结果表配置；新版则无需更新
                 etl_params["etl_flat"] = True
                 etl_params["separator_node_action"] = ""
-                log_clustering_fields = CollectorScenario.log_clustering_fields(
-                    cluster_info["cluster_config"]["version"]
-                )
+                log_clustering_fields = CollectorScenario.log_clustering_fields(es_version)
                 fields = CollectorScenario.fields_insert_field_index(
                     source_fields=fields, dst_fields=log_clustering_fields
                 )
@@ -109,7 +117,7 @@ class TransferEtlHandler(EtlHandler):
                             "tag": "dimension",
                             "alias_name": "signature",
                             "description": "signature",
-                            "option": build_es_option_type("keyword", cluster_info["cluster_config"]["version"]),
+                            "option": build_es_option_type("keyword", es_version),
                             "is_built_in": True,
                             "is_time": False,
                             "is_analyzed": False,
@@ -126,10 +134,11 @@ class TransferEtlHandler(EtlHandler):
                     storage_cluster_id=storage_cluster_id,
                     allocation_min_days=allocation_min_days,
                     storage_replies=storage_replies,
-                    es_version=cluster_info["cluster_config"]["version"],
+                    es_version=es_version,
                     hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
                     es_shards=es_shards,
                     total_shards_per_node=total_shards_per_node,
+                    storage_cluster_type=storage_cluster_type,
                 )
 
         index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
@@ -144,12 +153,13 @@ class TransferEtlHandler(EtlHandler):
             self.data,
             table_id=table_id,
             storage_cluster_id=storage_cluster_id,
+            storage_cluster_type=storage_cluster_type,
             retention=retention,
             allocation_min_days=allocation_min_days,
             storage_replies=storage_replies,
             fields=fields,
             etl_params=etl_params,
-            es_version=cluster_info["cluster_config"]["version"],
+            es_version=es_version,
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
             es_shards=es_shards,
             sort_fields=sort_fields,
@@ -176,6 +186,12 @@ class TransferEtlHandler(EtlHandler):
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
         LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})
+
+        # 4. 保存存储集群类型
+        if self.collector_config_id:
+            CollectorConfig.objects.filter(collector_config_id=self.collector_config_id).update(
+                storage_cluster_type=storage_cluster_type
+            )
 
         # add user_operation_record
         operation_record = {

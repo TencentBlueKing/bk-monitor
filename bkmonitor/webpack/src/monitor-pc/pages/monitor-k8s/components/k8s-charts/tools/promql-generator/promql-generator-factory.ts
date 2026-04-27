@@ -65,6 +65,8 @@ export class K8sPromqlGeneratorFactory {
         return new K8sNetworkPromqlGenerator();
       case SceneEnum.Capacity:
         return new K8sCapacityPromqlGenerator();
+      case SceneEnum.GPU:
+        return new K8sPerformancePromqlGenerator();
       default:
         return new K8sPerformancePromqlGenerator();
     }

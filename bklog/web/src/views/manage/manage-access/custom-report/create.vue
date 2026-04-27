@@ -192,16 +192,37 @@
           :property="'data_link_id'"
           required
         >
+          <div
+            v-if="isDorisEnabled"
+            class="cluster-type-tabs"
+          >
+            <span
+              :class="['tab-btn', clusterType === 'elasticsearch' ? 'active' : '']"
+              @click="handleClusterTypeChange('elasticsearch')"
+            >
+              {{ $t('ES集群') }}
+            </span>
+            <span
+              :class="['tab-btn', clusterType === 'doris' ? 'active' : '']"
+              @click="handleClusterTypeChange('doris')"
+            >
+              {{ $t('Doris集群') }}
+            </span>
+          </div>
           <cluster-table
+            :external-doris-mode="isDorisMode"
             :is-change-select="true"
             :storage-cluster-id.sync="formData.storage_cluster_id"
             :table-list="clusterList"
+            :table-loading="clusterLoading"
           />
           <cluster-table
             style="margin-top: 20px"
+            :external-doris-mode="isDorisMode"
             :is-change-select="true"
             :storage-cluster-id.sync="formData.storage_cluster_id"
             :table-list="exclusiveList"
+            :table-loading="clusterLoading"
             table-type="exclusive"
           />
         </bk-form-item>
@@ -287,7 +308,10 @@
           </bk-select>
         </bk-form-item>
         <!-- 副本数 -->
-        <bk-form-item :label="$t('副本数')">
+        <bk-form-item
+          v-if="!isDorisMode"
+          :label="$t('副本数')"
+        >
           <bk-input
             class="copy-number-input"
             v-model="formData.storage_replies"
@@ -303,7 +327,10 @@
           ></bk-input>
         </bk-form-item>
         <!-- 分片数 -->
-        <bk-form-item :label="$t('分片数')">
+        <bk-form-item
+          v-if="!isDorisMode"
+          :label="$t('分片数')"
+        >
           <bk-input
             class="copy-number-input"
             v-model="formData.es_shards"
@@ -319,7 +346,7 @@
         </bk-form-item>
         <!-- 热数据\冷热集群存储期限 -->
         <bk-form-item
-          v-if="selectedStorageCluster.enable_hot_warm"
+          v-if="selectedStorageCluster.enable_hot_warm && !isDorisMode"
           class="hot-data-form-item"
           :label="$t('热数据天数')"
         >
@@ -414,6 +441,7 @@
   import clusterTable from '@/components/collection-access/components/cluster-table';
   import dragMixin from '@/mixins/drag-mixin';
   import storageMixin from '@/mixins/storage-mixin';
+  import { isFeatureToggleOn } from '@/store/helper';
   import { mapGetters } from 'vuex';
 
   import IntroPanel from './components/intro-panel';
@@ -539,6 +567,10 @@
         exclusiveList: [], // 独享集群
         editStorageClusterID: null,
         isTextValid: true,
+        isDorisMode: false, // 是否为doris集群模式
+        clusterType: 'elasticsearch', // 当前集群类型
+        clusterLoading: false, // 切换集群类型时的加载状态
+        isDorisEnabled: false, // 是否启用doris集群
         fieldSettingData: {
           indexSetId: 0,
           targetFields: [],
@@ -549,6 +581,7 @@
     computed: {
       ...mapGetters({
         bkBizId: 'bkBizId',
+        spaceUid: 'spaceUid',
         globalsData: 'globals/globalsData',
       }),
       defaultRetention() {
@@ -592,6 +625,7 @@
     },
     mounted() {
       this.containerLoading = true;
+      this.checkDorisAccess();
       Promise.all([this.getLinkData(), this.getStorage()])
         .then(async () => {
           await this.initFormData();
@@ -604,6 +638,46 @@
       });
     },
     methods: {
+      checkDorisAccess() {
+        const hasAccess = isFeatureToggleOn('doris_storage_cluster', [String(this.bkBizId), String(this.spaceUid)]);
+        this.isDorisEnabled = hasAccess;
+        if (hasAccess) {
+          const tabQuery = this.$route.query.cluster_type;
+          if (tabQuery === 'doris') {
+            this.clusterType = 'doris';
+            this.isDorisMode = true;
+          }
+        } else if (this.clusterType === 'doris') {
+          this.clusterType = 'elasticsearch';
+          this.isDorisMode = false;
+          this.updateRouteClusterType('elasticsearch');
+        }
+      },
+      updateRouteClusterType(type) {
+        const currentQuery = { ...this.$route.query };
+        currentQuery.cluster_type = type;
+        this.$router.replace({
+          name: this.$route.name,
+          params: this.$route.params,
+          query: currentQuery,
+        });
+      },
+      async handleClusterTypeChange(type) {
+        if (this.clusterType === type) return;
+        this.clusterType = type;
+        this.isDorisMode = type === 'doris';
+        this.updateRouteClusterType(type);
+        this.formData.storage_cluster_id = '';
+        this.selectedStorageCluster = {};
+        this.clusterList = [];
+        this.exclusiveList = [];
+        this.clusterLoading = true;
+        try {
+          await this.getStorage();
+        } finally {
+          this.clusterLoading = false;
+        }
+      },
       handleChangeType(id) {
         this.formData.custom_type = id;
       },
@@ -781,6 +855,52 @@
 
   .custom-create-container {
     padding: 0 24px;
+
+    .cluster-type-tabs {
+      display: inline-flex;
+      margin-bottom: 16px;
+      overflow: hidden;
+      border-radius: 2px;
+
+      .tab-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 32px;
+        padding: 0 16px;
+        font-size: 14px;
+        line-height: 32px;
+        cursor: pointer;
+        border: 1px solid #3a84ff;
+        transition: all 0.15s;
+        user-select: none;
+
+        &:first-child {
+          border-radius: 2px 0 0 2px;
+        }
+
+        &:last-child {
+          border-radius: 0 2px 2px 0;
+        }
+
+        &.active {
+          z-index: 1;
+          color: #fff;
+          background-color: #3a84ff;
+          border-color: #3a84ff;
+        }
+
+        &:not(.active) {
+          color: #3a84ff;
+          background-color: #fff;
+          border-color: #3a84ff;
+
+          &:hover {
+            background-color: #e1ecff;
+          }
+        }
+      }
+    }
 
     .en-bk-form {
       width: 680px;

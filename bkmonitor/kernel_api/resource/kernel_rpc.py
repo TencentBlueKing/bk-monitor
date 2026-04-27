@@ -33,7 +33,7 @@ class KernelRPCResource(Resource):
     普通调用：
     1. func_name = "<函数名>"
     2. params 为对应函数的入参字典
-    3. 若未显式传入 bk_tenant_id，则会优先尝试基于 bk_biz_id / table_id / bk_data_id /
+    3. 若未显式传入 bk_tenant_id，则会优先尝试基于 bk_biz_id / space_uid / table_id / bk_data_id /
        time_series_group_id 等标识反查唯一租户；若无法唯一确定，则由具体函数自行处理默认逻辑
     """
 
