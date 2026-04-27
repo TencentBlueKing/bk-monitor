@@ -23,6 +23,7 @@
   &__body {
     flex: 1;
     padding: 16px 52px;
+    overflow-y: auto;
 
     .bk-tab.panel-tab {
       .bk-tab-header-item {

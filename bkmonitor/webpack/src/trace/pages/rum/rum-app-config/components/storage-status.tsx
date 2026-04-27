@@ -23,15 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, reactive } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, reactive, shallowRef } from 'vue';
 
+import { byteConvert } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
+import CommonTable from '../../../alarm-center/components/alarm-table/components/common-table/common-table';
+import { getIndicesInfoMock, getStorageFieldMock } from '../mock';
 import EditableField from './editable-field';
+import EmptyStatus from '@/components/empty-status/empty-status';
+import TextOverflowCopy from '@/components/text-overflow-copy/text-overflow-copy';
 
-import type { IRumAppConfig, IStorageInfo } from '../../typings/rum-app-config';
+import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
+import type { IIndicesInfo, IRumAppConfig, IStorageField, IStorageInfo } from '../../typings/rum-app-config';
 
 import './storage-status.scss';
+
+export const indicesInfoTableColumnKey = {
+  Index: 'index',
+  Health: 'health',
+  Pri: 'pri',
+  Rep: 'rep',
+  DocsCount: 'docs_count',
+  StoreSize: 'store_size',
+};
+
+export const fieldInfoTableColumnKey = {
+  FieldName: 'field_name',
+  ChFieldName: 'ch_field_name',
+  FieldType: 'field_type',
+  AnalysisField: 'analysis_field',
+  TimeField: 'time_field',
+};
 
 /**
  * 存储状态组件
@@ -50,7 +73,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  setup(_props) {
+  setup(props) {
     const { t } = useI18n();
 
     // 存储配置数据
@@ -68,75 +91,331 @@ export default defineComponent({
       { label: 'es集群7', value: 'es集群7' },
     ];
 
-    // 处理字段变更
-    const handleFieldChange = (field: keyof IStorageInfo, value: number | string) => {
-      storageData[field] = value as never;
-      console.log(`Field ${field} changed to:`, value);
+    /**
+     *  处理字段编辑，请求接口更新数据，成功返回true，失败返回false
+     * @param value
+     * @param field
+     * @returns
+     */
+    const handleFieldChange = (value: number | string, field: keyof IStorageInfo) => {
+      console.log(field, value);
+      storageData[field] = value;
+      return true;
     };
 
+    const healthMaps = {
+      green: t('健康'),
+      yellow: t('部分异常'),
+      red: t('异常'),
+    };
+
+    const rowMatchesCriteria = (row, c): boolean => {
+      const keys = Object.keys(c);
+      for (const key of keys) {
+        const vals = c[key];
+        if (!vals?.length) continue;
+        const rv = row[key];
+        if (!vals.includes(rv)) return false;
+      }
+      return true;
+    };
+
+    /** 索引列 */
+    const indicesInfoColumns = shallowRef<BaseTableColumn[]>([
+      {
+        colKey: indicesInfoTableColumnKey.Index,
+        title: t('索引'),
+        width: 280,
+        cellEllipsis: true,
+        cellRenderer: (row => {
+          return <TextOverflowCopy val={row.index} />;
+        }) as unknown as BaseTableColumn['cellRenderer'],
+      },
+      {
+        colKey: indicesInfoTableColumnKey.Health,
+        title: t('运行状态'),
+        filter: {
+          type: 'multiple',
+          list: Object.entries(healthMaps).map(([key, value]) => ({ label: value, value: key })),
+          resetValue: [],
+          showConfirmAndReset: true,
+        },
+        cellRenderer: (row => {
+          return (
+            <span class='status-wrap'>
+              <span class={['status-icon', `status-${row.health}`]} />
+              <span class='status-name'>{healthMaps[row.health]}</span>
+            </span>
+          );
+        }) as unknown as BaseTableColumn['cellRenderer'],
+      },
+      {
+        colKey: indicesInfoTableColumnKey.Pri,
+        title: t('主分片'),
+        sorter: true,
+      },
+      {
+        colKey: indicesInfoTableColumnKey.Rep,
+        title: t('副本分片'),
+        sorter: true,
+      },
+      {
+        colKey: indicesInfoTableColumnKey.DocsCount,
+        title: t('文档数量'),
+        sorter: true,
+      },
+      {
+        colKey: indicesInfoTableColumnKey.StoreSize,
+        title: t('存储大小'),
+        sorter: true,
+        cellRenderer: (row => {
+          return <span>{byteConvert(row.store_size)}</span>;
+        }) as unknown as BaseTableColumn['cellRenderer'],
+      },
+    ]);
+    /** 索引列表 */
+    const indicesInfoData = shallowRef<IIndicesInfo[]>([]);
+    const indicesTableFilters = shallowRef({});
+    const indicesTableSorts = shallowRef('');
+    const indicesTableData = computed(() => {
+      const filters = indicesTableFilters.value;
+      let tableData = [...indicesInfoData.value];
+      if (Object.keys(filters).length) {
+        tableData = indicesInfoData.value.filter(r => rowMatchesCriteria(r, filters));
+      }
+      if (indicesTableSorts.value) {
+        const arr = indicesTableSorts.value.split('-');
+        tableData = tableData.sort((a, b) => {
+          return arr.length === 2 ? b[arr[1]] - a[arr[1]] : a[arr[0]] - b[arr[0]];
+        });
+      }
+      return tableData;
+    });
+    const getIndicesInfo = async () => {
+      indicesInfoData.value = await getIndicesInfoMock({
+        app_name: props.detail?.app_name,
+      }).catch(() => []);
+    };
+    const handleIndicesInfoFilterChange = filters => {
+      indicesTableFilters.value = filters;
+    };
+    const handleIndicesSortChange = sorts => {
+      indicesTableSorts.value = sorts;
+    };
+
+    /** 字段信息 */
+    const fieldInfoColumns = computed<BaseTableColumn[]>(() => [
+      {
+        colKey: fieldInfoTableColumnKey.FieldName,
+        title: t('字段名'),
+      },
+      {
+        colKey: fieldInfoTableColumnKey.ChFieldName,
+        title: t('别名'),
+        cellRenderer: (row => {
+          return <span>{row.ch_field_name || '--'}</span>;
+        }) as unknown as BaseTableColumn['cellRenderer'],
+      },
+      {
+        colKey: fieldInfoTableColumnKey.FieldType,
+        title: t('数据类型'),
+        filter: {
+          type: 'multiple',
+          list: fieldFilterList.value,
+          resetValue: [],
+          showConfirmAndReset: true,
+        },
+      },
+      {
+        colKey: fieldInfoTableColumnKey.AnalysisField,
+        title: t('分词'),
+        filter: {
+          type: 'multiple',
+          list: [
+            { label: t('是'), value: 'yes' },
+            { label: t('否'), value: 'no' },
+          ],
+          resetValue: [],
+          showConfirmAndReset: true,
+        },
+        cellRenderer: (row => {
+          return <span>{row.analysis_field ? t('是') : t('否')}</span>;
+        }) as unknown as BaseTableColumn['cellRenderer'],
+      },
+      {
+        colKey: fieldInfoTableColumnKey.TimeField,
+        title: t('时间'),
+        filter: {
+          type: 'multiple',
+          list: [
+            { label: t('是'), value: 'yes' },
+            { label: t('否'), value: 'no' },
+          ],
+          resetValue: [],
+          showConfirmAndReset: true,
+        },
+        cellRenderer: (row => {
+          return <span>{row.time_field ? t('是') : t('否')}</span>;
+        }) as unknown as BaseTableColumn['cellRenderer'],
+      },
+    ]);
+    const fieldInfoData = shallowRef<IStorageField[]>([]);
+    const filedTableFilters = shallowRef({});
+    const fieldFilterList = shallowRef([]);
+    const fieldTableData = computed(() => {
+      const filters = filedTableFilters.value;
+      if (!Object.keys(filters).length) return fieldInfoData.value;
+      return fieldInfoData.value.filter(r => rowMatchesCriteria(r, filters));
+    });
+    /**
+     * @desc: 获取字段过滤列表
+     * @param { Array } list 被处理的列表
+     * @returns { Array } 返回值
+     */
+    const getFieldFilterList = list => {
+      const setList = new Set();
+      const filterList = [];
+      for (const item of list) {
+        if (!setList.has(item.field_type)) {
+          setList.add(item.field_type);
+          filterList.push({
+            label: item.field_type,
+            value: item.field_type,
+          });
+        }
+      }
+      return filterList;
+    };
+
+    const getFieldInfo = async () => {
+      fieldInfoData.value = await getStorageFieldMock().catch(() => []);
+      fieldFilterList.value = getFieldFilterList(fieldInfoData.value);
+    };
+
+    const handleFieldTableFilterChange = value => {
+      const filters = JSON.parse(JSON.stringify(value));
+      const booleanField = [fieldInfoTableColumnKey.AnalysisField, fieldInfoTableColumnKey.TimeField];
+      for (const key of booleanField) {
+        if (value[key]) {
+          filters[key] = value[key].map(item => item === 'yes');
+        }
+      }
+      filedTableFilters.value = filters;
+    };
+
+    onMounted(() => {
+      getIndicesInfo();
+      getFieldInfo();
+    });
+
     return {
-      t,
       storageData,
       clusterOptions,
       handleFieldChange,
+      indicesInfoColumns,
+      indicesTableData,
+      indicesTableSorts,
+      handleIndicesInfoFilterChange,
+      handleIndicesSortChange,
+      fieldInfoColumns,
+      fieldTableData,
+      handleFieldTableFilterChange,
     };
   },
   render() {
     return (
       <div class='storage-status'>
-        <div class='storage-status-title'>{this.t('存储信息')}</div>
-        <div class='storage-status-content'>
-          {/* 第一行：存储索引名 + 存储集群 */}
-          <div class='storage-status-row'>
-            <div class='storage-status-item'>
-              <EditableField
-                editable={false}
-                label={this.t('存储索引名')}
-                value={this.detail?.span_result_table_id || '--'}
-              />
+        <div class='storage-info'>
+          <div class='storage-status-title'>{this.$t('存储信息')}</div>
+          <div class='storage-status-content'>
+            <div class='storage-info-row'>
+              <div class='storage-info-item'>
+                <EditableField
+                  editable={false}
+                  label={this.$t('存储索引名')}
+                  value={this.detail?.es_storage_index_name || '--'}
+                />
+              </div>
+              <div class='storage-info-item'>
+                <EditableField
+                  confirm={v => this.handleFieldChange(v, 'es_storage_cluster')}
+                  label={this.$t('存储集群')}
+                  options={this.clusterOptions}
+                  type='select'
+                  value={this.storageData.es_storage_cluster}
+                />
+              </div>
             </div>
-            <div class='storage-status-item'>
-              <EditableField
-                label={this.t('存储集群')}
-                options={this.clusterOptions}
-                type='select'
-                value={this.storageData.es_storage_cluster}
-              />
+            <div class='storage-info-row'>
+              <div class='storage-info-item'>
+                <EditableField
+                  confirm={v => this.handleFieldChange(v, 'es_retention')}
+                  label={this.$t('过期时间')}
+                  suffix={this.$t('天')}
+                  value={this.storageData.es_retention}
+                />
+              </div>
+              <div class='storage-info-item'>
+                <EditableField
+                  confirm={v => this.handleFieldChange(v, 'es_number_of_replicas')}
+                  label={this.$t('副本数')}
+                  value={this.storageData.es_number_of_replicas}
+                />
+              </div>
+            </div>
+            <div class='storage-info-row'>
+              <div class='storage-info-item'>
+                <EditableField
+                  confirm={v => this.handleFieldChange(v, 'es_shards')}
+                  label={this.$t('分片数')}
+                  value={this.storageData.es_shards}
+                />
+              </div>
+              <div class='storage-info-item'>
+                <EditableField
+                  confirm={v => this.handleFieldChange(v, 'es_slice_size')}
+                  label={this.$t('索引切分大小')}
+                  suffix='G'
+                  value={this.storageData.es_slice_size}
+                />
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* 第二行：过期时间 + 副本数 */}
-          <div class='storage-status-row'>
-            <div class='storage-status-item'>
-              <EditableField
-                label={this.t('过期时间')}
-                suffix={this.t('天')}
-                value={this.storageData.es_retention}
-              />
-            </div>
-            <div class='storage-status-item'>
-              <EditableField
-                label={this.t('副本数')}
-                value={this.storageData.es_number_of_replicas}
-              />
-            </div>
+        <div class='physical-index'>
+          <div class='storage-status-title'>{this.$t('物理索引')}</div>
+          <div class='storage-status-content'>
+            <CommonTable
+              columns={this.indicesInfoColumns}
+              data={this.indicesTableData as unknown as Record<string, unknown>[]}
+              rowKey={indicesInfoTableColumnKey.Index}
+              sort={this.indicesTableSorts}
+              autoFillSpace
+              onFilterChange={this.handleIndicesInfoFilterChange}
+              onSortChange={this.handleIndicesSortChange}
+            >
+              {{
+                empty: () => <EmptyStatus type='empty' />,
+              }}
+            </CommonTable>
           </div>
+        </div>
 
-          {/* 第三行：分片数 + 索引切分大小 */}
-          <div class='storage-status-row'>
-            <div class='storage-status-item'>
-              <EditableField
-                label={this.t('分片数')}
-                value={this.storageData.es_shards}
-              />
-            </div>
-            <div class='storage-status-item'>
-              <EditableField
-                label={this.t('索引切分大小')}
-                suffix='G'
-                value={this.storageData.es_slice_size}
-              />
-            </div>
+        <div class='field-info'>
+          <div class='storage-status-title'>{this.$t('字段信息')}</div>
+          <div class='storage-status-content'>
+            <CommonTable
+              columns={this.fieldInfoColumns}
+              data={this.fieldTableData as unknown as Record<string, unknown>[]}
+              rowKey={fieldInfoTableColumnKey.FieldName}
+              autoFillSpace
+              onFilterChange={this.handleFieldTableFilterChange}
+            >
+              {{
+                empty: () => <EmptyStatus type='empty' />,
+              }}
+            </CommonTable>
           </div>
         </div>
       </div>

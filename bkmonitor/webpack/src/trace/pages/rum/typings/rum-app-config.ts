@@ -95,6 +95,7 @@ export interface IRumAppConfig {
   data_status: string;
   /** 描述 */
   description: string;
+  es_storage_index_name: string;
   /** 应用总开关 */
   is_enabled: boolean;
   /** 指标结果表 */

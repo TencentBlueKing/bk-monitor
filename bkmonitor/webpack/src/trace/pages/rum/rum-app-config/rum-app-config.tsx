@@ -74,7 +74,7 @@ export default defineComponent({
     };
 
     const getRumAppConfig = async () => {
-      appInfo.value = await getRumAppConfigMock({ app_name: route.params.appName as string, is_get_detail: true });
+      appInfo.value = await getRumAppConfigMock({ app_name: route.params.appName as string });
     };
 
     /**
