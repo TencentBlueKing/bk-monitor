@@ -245,7 +245,7 @@ class IssueTopNResource(Resource):
                     {
                         "start_time": sliced_start_time,
                         "end_time": sliced_end_time,
-                        "is_finally_partition": True if index == len(slice_times) - 1 else False,
+                        "is_finally_partition": index == len(slice_times) - 1,
                         "is_time_partitioned": True,
                         "need_bucket_count": False,
                         **validated_request_data,
@@ -270,7 +270,7 @@ class IssueTopNResource(Resource):
                         field_buckets_map[field] = {
                             "id_buckets_map": {},
                             "field": field,
-                            "is_char": field_info["is_char"],
+                            "is_char": field_info.get("is_char", False),
                         }
 
                     id_buckets_map = field_buckets_map[field]["id_buckets_map"]
@@ -353,7 +353,8 @@ class IssueTopNResource(Resource):
         bucket_count_suffix = handler.bucket_count_suffix
 
         for field in fields:
-            if field == "impact_dimensions":
+            actual_field = field.lstrip("-+")
+            if actual_field == "impact_dimensions":
                 handler.add_agg_bucket(search_object.aggs, field)
                 continue
             handler.add_cardinality_bucket(search_object.aggs, field, bucket_count_suffix)
