@@ -305,7 +305,22 @@ const setRouteParams = () => {
  */
 const requestIndexSetList = () => {
   if (route.query.tab === 'origin' || !route.query.tab) {
-    store.dispatch('requestIndexSetQuery');
+    if (isSceneMode.value) {
+      store.dispatch('requestIndexSetFieldInfo').then((resp) => {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        if (resp?.data?.fields?.length) {
+          store.dispatch('requestIndexSetQuery');
+        }
+        if (!resp?.data?.fields?.length) {
+          store.commit('updateIndexSetQueryResult', {
+            is_error: true,
+            exception_msg: 'index-set-field-not-found',
+          });
+        }
+      });
+    } else {
+      store.dispatch('requestIndexSetQuery');
+    }
   }
 };
 
