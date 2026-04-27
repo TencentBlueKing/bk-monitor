@@ -90,6 +90,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
+    TAG_TYPE_USER,
     IndexSetCustomConfig,
     IndexSetFieldsConfig,
     IndexSetTag,
@@ -1031,12 +1032,10 @@ class IndexSetHandler(APIModel):
         """
         索引集添加标签
         """
-        # 校验标签是否存在
         if not IndexSetTag.objects.filter(tag_id=tag_id).exists():
             raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
 
-        # 校验是否为内置标签
-        if tag_id in self._get_inner_tag_ids():
+        if tag_id in self._get_protected_tag_ids():
             raise IndexSetInnerTagOperatorException()
 
         index_set_obj = self._get_data()
@@ -1056,8 +1055,7 @@ class IndexSetHandler(APIModel):
         """
         索引集删除标签
         """
-        # 校验是否为内置标签
-        if tag_id in self._get_inner_tag_ids():
+        if tag_id in self._get_protected_tag_ids():
             raise IndexSetInnerTagOperatorException()
 
         index_set_obj = self._get_data()
@@ -1076,46 +1074,41 @@ class IndexSetHandler(APIModel):
         """
         创建标签
         """
-        # 名称校验
         if (
             params["name"] in list(InnerTag.get_dict_choices().values())
-            or IndexSetTag.objects.filter(name=params["name"]).exists()
+            or IndexSetTag.objects.filter(name=params["name"], tag_type=TAG_TYPE_USER).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
 
-        obj = IndexSetTag.objects.create(name=params["name"], color=params["color"])
+        obj = IndexSetTag.objects.create(name=params["name"], color=params["color"], tag_type=TAG_TYPE_USER)
 
         return model_to_dict(obj)
 
     @staticmethod
     def tag_list():
         """
-        标签列表
+        标签列表 — 仅返回用户自定义标签和系统内置标签，不包含场景维度标签
         """
-        objs = IndexSetTag.objects.all()
+        objs = IndexSetTag.objects.exclude(tag_type="scene")
 
         ret = list()
 
-        inner_tag_names = list(InnerTag.get_dict_choices().keys())
         for obj in objs:
             _data = model_to_dict(obj)
-            if _data["name"] in inner_tag_names:
-                _data["is_built_in"] = True
-            else:
-                _data["is_built_in"] = False
+            _data["is_built_in"] = obj.tag_type == "inner"
             _data["name"] = InnerTag.get_choice_label(obj.name)
             ret.append(_data)
 
         return ret
 
     @staticmethod
-    def _get_inner_tag_ids():
+    def _get_protected_tag_ids():
         """
-        获取内置标签ID列表
+        获取受保护（不可由用户操作）的标签 ID 列表，包括系统内置标签和场景维度标签
         """
-        inner_tag_names = list(InnerTag.get_dict_choices().keys())
-        inner_tag_ids = list(IndexSetTag.objects.filter(name__in=inner_tag_names).values_list("tag_id", flat=True))
-        return inner_tag_ids
+        return list(
+            IndexSetTag.objects.filter(tag_type__in=["inner", "scene"]).values_list("tag_id", flat=True)
+        )
 
     @staticmethod
     def get_desensitize_config_state(index_set_ids: list):
@@ -1929,6 +1922,7 @@ class BaseIndexSetHandler:
         # ES路由
         objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
         for obj in objs:
+            cluster_info = StorageHandler(cluster_id=obj.storage_cluster_id).get_cluster_info_by_id()
             time_field = obj.time_field or index_set.time_field
             time_field_type = obj.time_field_type or index_set.time_field_type
             table_info = {
@@ -1936,6 +1930,7 @@ class BaseIndexSetHandler:
                 "index_set": obj.result_table_id.replace(".", "_"),
                 "source_type": obj.scenario_id,
                 "cluster_id": obj.storage_cluster_id,
+                "storage_type": cluster_info["cluster_type"],
                 "options": [
                     {
                         "name": "time_field",

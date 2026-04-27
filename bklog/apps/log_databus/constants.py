@@ -42,8 +42,11 @@ CLUSTER_NAME_EN_REGEX = r"^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$"
 
 BULK_CLUSTER_INFOS_LIMIT = 20
 
-# ES集群类型配置特性开关key
+# ES 集群类型配置特性开关key
 FEATURE_TOGGLE_ES_CLUSTER_TYPE = "es_cluster_type_setup"
+
+# doris 存储集群灰度测试
+DORIS_STORAGE_CLUSTER = "doris_storage_cluster"
 
 DEFAULT_RETENTION = 14
 
@@ -103,6 +106,18 @@ class VisibleEnum(ChoicesEnum):
         (CURRENT_TENANT, _("当前租户")),
         (ALL_BIZ, _("全业务")),
         (BIZ_ATTR, _("业务属性")),
+    )
+
+
+class ClusterTypeEnum(ChoicesEnum):
+    ALL = "all"
+    ES = "elasticsearch"
+    DORIS = "doris"
+
+    _choices_labels = (
+        (ALL, _("全部类型集群")),
+        (ES, _("es类型集群")),
+        (DORIS, _("doris类型集群")),
     )
 
 
@@ -202,6 +217,7 @@ class CollectItsmStatus(ChoicesEnum):
 
 
 STORAGE_CLUSTER_TYPE = "elasticsearch"
+DORIS_CLUSTER_TYPE = "doris"
 KAFKA_CLUSTER_TYPE = "kafka"
 TRANSFER_CLUSTER_TYPE = "transfer"
 REGISTERED_SYSTEM_DEFAULT = "_default"
@@ -752,3 +768,395 @@ RETRIEVE_CHAIN = [
 BATCH_SYNC_CLUSTER_COUNT = 500
 
 MIN_FLATTENED_SUPPORT_VERSION = "7.3"
+
+# ---- 场景化检索 labels 常量 ----
+
+COLLECTOR_SCENARIO_TO_SCENE = {
+    "row": "host",
+    "section": "host",
+    "wineventlog": "host",
+    "custom": "host",
+    "redis_slowlog": "host",
+    "syslog": "host",
+    "kafka": "host",
+    "client": "client",
+}
+
+SCENE_SEARCH_DIMENSIONS = {
+    "k8s": [
+        {
+            "key": "cluster_id",
+            "name": _("BCS 集群"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne", "req", "nreq"],
+            "choices_type": "dynamic",
+        },
+        {
+            "key": "stream",
+            "name": _("日志流类型"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "static",
+            "choices": [
+                {"id": "stdout", "name": _("标准输出")},
+                {"id": "file", "name": _("容器文件")},
+            ],
+        },
+        {
+            "key": "__ext.io_kubernetes_pod_namespace",
+            "name": _("命名空间"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "__ext.io_kubernetes_workload_type",
+            "name": _("工作负载类型"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "__ext.io_kubernetes_workload_name",
+            "name": _("工作负载名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "__ext.io_kubernetes_pod",
+            "name": _("Pod名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "__ext.container_name",
+            "name": _("容器名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "serverIp",
+            "name": _("节点IP"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "path",
+            "name": _("日志路径"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+    ],
+    "host": [
+        {
+            "key": "ip",
+            "name": _("IP地址"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "cloudId",
+            "name": _("云区域"),
+            "required": False,
+            "type": "integer",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "bk_host_id",
+            "name": _("主机ID"),
+            "required": False,
+            "type": "integer",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "path",
+            "name": _("日志路径"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+    ],
+    "bk_paas": [
+        {
+            "key": "app_code",
+            "name": _("应用 Code"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "dynamic",
+        },
+        {
+            "key": "module_name",
+            "name": _("模块名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "dynamic",
+        },
+        {
+            "key": "stream",
+            "name": _("日志流类型"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "static",
+            "choices": [
+                {"id": "stdout", "name": _("标准输出")},
+                {"id": "file", "name": _("容器文件")},
+            ],
+        },
+        {
+            "key": "__ext.labels.env",
+            "name": _("环境"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "__ext.labels.process_id",
+            "name": _("进程类型"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "levelname",
+            "name": _("日志级别"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "otelTraceID",
+            "name": _("TraceID"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "otelSpanID",
+            "name": _("SpanID"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+    ],
+    "apm": [
+        {
+            "key": "app_name",
+            "name": _("APM 应用"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "dynamic",
+        },
+        {
+            "key": "resource.service.name",
+            "name": _("服务名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "trace_id",
+            "name": _("Trace ID"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "span_id",
+            "name": _("Span ID"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "span_name",
+            "name": _("Span 名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+    ],
+    "client": [
+        {
+            "key": "task_id",
+            "name": _("任务ID"),
+            "required": False,
+            "type": "integer",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "task_name",
+            "name": _("任务名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "openid",
+            "name": _("用户标识"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "manufacturer",
+            "name": _("设备厂商"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "model",
+            "name": _("设备型号"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "os_type",
+            "name": _("操作系统"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "os_version",
+            "name": _("系统版本"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "sdk_version",
+            "name": _("SDK版本"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+    ],
+    "trpc": [
+        {
+            "key": "resource.server",
+            "name": _("服务名"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "resource.target",
+            "name": _("目标服务"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "resource.namespace",
+            "name": _("命名空间"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "resource.env",
+            "name": _("环境"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "trace_id",
+            "name": _("Trace ID"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "severity_text",
+            "name": _("日志级别"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "resource.containerName",
+            "name": _("容器名称"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "resource.instance",
+            "name": _("实例IP"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+        {
+            "key": "attributes.line",
+            "name": _("代码位置"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+            "choices_type": "free_input",
+        },
+    ],
+}
+
+
+def build_scene_labels(scene: str, **dynamic_tags) -> dict:
+    """
+    Build ResultTable.labels for scene-based search routing.
+    Returns a flat dict, e.g. {"scene": "k8s", "cluster_id": "BCS-K8S-00001"}
+    """
+    labels = {"scene": scene}
+    for key, value in dynamic_tags.items():
+        if value:
+            labels[key] = str(value)
+    return labels

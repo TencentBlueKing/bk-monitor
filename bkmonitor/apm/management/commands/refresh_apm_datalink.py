@@ -17,7 +17,7 @@ from django.core.management import BaseCommand, CommandError
 from apm.models import ApmApplication, MetricDataSource
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from metadata.models import DataSource, Space
-from metadata.models.custom_report.time_series import TimeSeriesGroup
+from metadata.models.custom_report.time_series import TimeSeriesGroup, TimeSeriesMetric
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.utils import compose_bkdata_data_id_name
 from metadata.models.vm.utils import get_vm_cluster_id_name

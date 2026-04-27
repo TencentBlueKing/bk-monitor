@@ -1298,4 +1298,10 @@ export default {
   至少需要配置一个排序字段: 'At least one sorting field needs to be configured',
   文件不存在: 'File does not exist',
   热数据天数不能大于过期时间: 'The number of days for hot data cannot exceed the expiration time',
+  '请先按照 {0} 日志范围后，再进行日志检索！': 'Please narrow down the log range using {0} before performing a log search!',
+  场景过滤: 'Scene Filter',
+  筛选字段不能为空: 'The filter field cannot be empty',
+  请先通过过滤缩小范围: 'Please narrow down the scope using filters first',
+  '检索条件有变更，请点击{icon}按钮{shortcut}':
+    'The search criteria have changed. Please click the {icon} button {shortcut}',
 };

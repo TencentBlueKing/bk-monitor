@@ -36,6 +36,7 @@ import { escape as _escape } from 'lodash-es';
 import $http from '@/api';
 import store from '@/store';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
+import { isSceneRetrieve } from '../../../store/helper';
 
 import './agg-chart.scss';
 
@@ -313,6 +314,7 @@ export default class AggChart extends tsc<object> {
     this.listLoading = true;
     this.resetCache();
     try {
+      const isScene = store.getters.isSceneMode;
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
         : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];
@@ -321,10 +323,13 @@ export default class AggChart extends tsc<object> {
         ...this.retrieveParams,
         agg_field: this.fieldName,
         limit,
-        index_set_ids: indexSetIDs,
+        ...(isScene ? {} : { index_set_ids: indexSetIDs }),
       };
 
-      const res = await $http.request('retrieve/fieldFetchTopList', { data });
+      const urlStr = isScene
+        ? 'retrieve/getSceneFieldFetchTopList'
+        : 'retrieve/fieldFetchTopList';
+      const res = await $http.request(urlStr, { data });
 
       if (res.code === 0) {
         this.emitDistinctCount(res.data.distinct_count);

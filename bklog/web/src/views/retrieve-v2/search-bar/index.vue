@@ -109,6 +109,7 @@ const inspectPopInstance = new PopInstanceUtil({
 
 const isMonitorTrace = window.__IS_MONITOR_TRACE__;
 const isMonitorApm = window.__IS_MONITOR_APM__;
+const isLogPlatform = computed(() => !isMonitorApm && !isMonitorTrace);
 
 const isGloalUsage = computed(() => props.usageType === 'global');
 const activeIndex = computed(() =>
@@ -153,6 +154,22 @@ const btnIconName = computed(() => {
     ? ' bklog-icon bklog-zanting'
     : ' bklog-icon bklog-shoudongchaxun';
 });
+
+const isShowQueryText = computed(() => isLogPlatform.value && btnIconName.value === ' bklog-icon bklog-shoudongchaxun');
+
+// 场景化检索模式下，未选择任何过滤条件时禁用查询按钮
+const isSceneMode = computed(() => store.getters.isSceneMode);
+const isSceneFilterEmpty = computed(() => {
+  if (!isSceneMode.value) return false;
+  const filterValues = store.state.indexItem.scene_filter_values;
+  if (!filterValues || typeof filterValues !== 'object') return true;
+  return Object.values(filterValues).every((val) => {
+    if (val === undefined || val === null || val === '') return true;
+    if (Array.isArray(val) && val.length === 0) return true;
+    return false;
+  });
+});
+const isQueryBtnDisabled = computed(() => isLogPlatform.value && isSceneFilterEmpty.value && !isSearching.value);
 
 const isCopyBtnActive = computed(() => {
   if (activeIndex.value === 0) {
@@ -333,6 +350,9 @@ const getBtnQueryResult = () => {
  * UI 模式点击查询按钮
  */
 const handleBtnQueryClick = () => {
+  // 场景化检索模式下，未选择过滤条件时不允许查询
+  if (isQueryBtnDisabled.value) return;
+
   if (isGloalUsage.value) {
     if (isSearching.value) {
       RequestPool.execCanceToken('requestIndexSetQueryCancelToken');
@@ -777,141 +797,160 @@ defineExpose({
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper', { 'trace-log-bar': isMonitorTrace }]"
+    :class="['search-bar-wrapper', {
+      'trace-log-bar': isMonitorTrace, 'log-platform': isLogPlatform
+    }]"
   >
-    <div
-      v-bkloading="{
-        isLoading: isAiLoading,
-        opacity: 0.2,
-        theme: 'colorful',
-        size: 'mini',
-        title: $t('AI 解析中...'),
-        extCls: 'v3-search-ai-loading',
-      }"
-      :class="[
-        'search-bar-container',
-        {
-          'set-border': isFilterSecFocused,
-          'inspect-error': !inspectResponse.is_legal,
-        },
-      ]"
-    >
-      <div class="search-options" @click="handleQueryTypeChange">
-        <span class="mode-text">{{ queryText }}</span>
-        <span v-bk-tooltips.top="queryText" :class="computedIconClass" />
-        <span class="bklog-icon bklog-qiehuan-2" />
-      </div>
-      <div class="search-input" :class="{ disabled: isInputLoading }">
-        <UiInput
-          v-if="activeIndex === 0"
-          v-model="uiQueryValue"
-          class="search-input-section"
-          @change="handleBtnQueryClick"
-          @text-to-query="handleUITextToQuery"
-        >
-          <template #custom-placeholder="{ isEmptyText }">
-            <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
-          </template>
-        </UiInput>
-        <SqlQuery
-          v-if="activeIndex === 1"
-          v-model="sqlQueryValue"
-          class="search-input-section"
-          @retrieve="handleSqlRetrieve"
-          @text-to-query="handleTextToQuery"
-        >
-          <template #custom-placeholder="{ isEmptyText }">
-            <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
-          </template>
-        </SqlQuery>
-        <div ref="refPopTraget" class="hidden-focus-pointer" />
-        <div
-          v-if="isShowSearchTools"
-          class="search-tool items"
-          :style="{ 'padding-right': isMonitorTrace || isMonitorApm ? '4px' : '0' }"
-        >
-          <div
-            v-show="!inspectResponse.is_legal"
-            style="color: #ea3636"
-            class="bklog-icon bklog-circle-alert-filled bklog-keyword-validate"
-            @mouseenter="handleMouseenterInspect"
-            @mouseleave="handleMouseleaveInspect"
+    <div class="search-bar-row">
+      <div
+        v-bkloading="{
+          isLoading: isAiLoading,
+          opacity: 0.2,
+          theme: 'colorful',
+          size: 'mini',
+          title: $t('AI 解析中...'),
+          extCls: 'v3-search-ai-loading',
+        }"
+        :class="[
+          'search-bar-container',
+          {
+            'set-border': isFilterSecFocused,
+            'inspect-error': !inspectResponse.is_legal,
+          },
+        ]"
+      >
+        <div class="search-options" @click="handleQueryTypeChange">
+          <span class="mode-text">{{ queryText }}</span>
+          <span v-bk-tooltips.top="queryText" :class="computedIconClass" />
+          <span class="bklog-icon bklog-qiehuan-2" />
+        </div>
+        <div class="search-input" :class="{ disabled: isInputLoading }">
+          <UiInput
+            v-if="activeIndex === 0"
+            v-model="uiQueryValue"
+            class="search-input-section"
+            @change="handleBtnQueryClick"
+            @text-to-query="handleUITextToQuery"
           >
-            <div v-show="false">
-              <div
-                ref="refKeywordInspectElement"
-                class="bklog-keyword-inspect"
-                @mouseenter="(e) => handleMouseenterInspect(e, false)"
-                @mouseleave="handleMouseleaveInspect"
-              >
-                <div class="inspect-row">
-                  <div class="inspect-title">{{ $t('语法错误') }}：</div>
-                  <div class="inspect-message">
-                    {{ inspectResponse.message }}
+            <template #custom-placeholder="{ isEmptyText }">
+              <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
+            </template>
+          </UiInput>
+          <SqlQuery
+            v-if="activeIndex === 1"
+            v-model="sqlQueryValue"
+            class="search-input-section"
+            @retrieve="handleSqlRetrieve"
+            @text-to-query="handleTextToQuery"
+          >
+            <template #custom-placeholder="{ isEmptyText }">
+              <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
+            </template>
+          </SqlQuery>
+          <div ref="refPopTraget" class="hidden-focus-pointer" />
+          <div
+            v-if="isShowSearchTools"
+            class="search-tool items"
+            :style="{ 'padding-right': isMonitorTrace || isMonitorApm ? '4px' : '0' }"
+          >
+            <div
+              v-show="!inspectResponse.is_legal"
+              style="color: #ea3636"
+              class="bklog-icon bklog-circle-alert-filled bklog-keyword-validate"
+              @mouseenter="handleMouseenterInspect"
+              @mouseleave="handleMouseleaveInspect"
+            >
+              <div v-show="false">
+                <div
+                  ref="refKeywordInspectElement"
+                  class="bklog-keyword-inspect"
+                  @mouseenter="(e) => handleMouseenterInspect(e, false)"
+                  @mouseleave="handleMouseleaveInspect"
+                >
+                  <div class="inspect-row">
+                    <div class="inspect-title">{{ $t('语法错误') }}：</div>
+                    <div class="inspect-message">
+                      {{ inspectResponse.message }}
+                    </div>
                   </div>
-                </div>
-                <div v-show="inspectResponse.is_resolved" class="inspect-row">
-                  <div class="inspect-title">
-                    <span>{{ $t('你可能想输入:') }}</span
-                    ><span
-                      class="inspect-keyword-replace"
-                      @click="handleInspectKeywordReplace"
-                      >{{ $t('替换') }}</span
-                    >
-                  </div>
-                  <div class="inspect-message">
-                    <span>{{ inspectResponse.keyword }}</span>
+                  <div v-show="inspectResponse.is_resolved" class="inspect-row">
+                    <div class="inspect-title">
+                      <span>{{ $t('你可能想输入:') }}</span
+                      ><span
+                        class="inspect-keyword-replace"
+                        @click="handleInspectKeywordReplace"
+                        >{{ $t('替换') }}</span
+                      >
+                    </div>
+                    <div class="inspect-message">
+                      <span>{{ inspectResponse.keyword }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+            <div
+              v-if="showCopy"
+              v-bk-tooltips="$t('复制当前查询')"
+              :class="[
+                'bklog-icon bklog-copy-4',
+                ,
+                { disabled: isInputLoading || !isCopyBtnActive },
+              ]"
+              @click="handleCopyQueryValue"
+            />
+            <div
+              v-if="showClear"
+              v-bk-tooltips="$t('清理当前查询')"
+              :class="[
+                'bklog-icon bklog-qingkong',
+                { disabled: isInputLoading || !isCopyBtnActive },
+              ]"
+              @click="handleClearBtnClick"
+            />
+            <div
+              v-if="showQuerySetting"
+              v-bk-tooltips="$t('常用查询设置')"
+              :class="[
+                'bklog-icon bklog-setting',
+                { disabled: isInputLoading, 'is-focused': isFilterSecFocused },
+              ]"
+              @click="handleFilterSecClick"
+            />
+            <BookmarkPop
+              v-if="showFavorites"
+              :active-favorite="!activeFavorite?.id"
+              :addition="uiQueryValue"
+              :class="{ disabled: isInputLoading }"
+              :match-s-q-l-str="matchSQLStr"
+              :search-mode="SEARCH_MODE_DIC[activeIndex]"
+              :sql="sqlQueryValue"
+              @refresh="handleRefresh"
+              @save-current-active-favorite="saveCurrentActiveFavorite"
+            />
+            <slot name="search-tool" />
           </div>
-          <div
-            v-if="showCopy"
-            v-bk-tooltips="$t('复制当前查询')"
-            :class="[
-              'bklog-icon bklog-copy-4',
-              ,
-              { disabled: isInputLoading || !isCopyBtnActive },
-            ]"
-            @click="handleCopyQueryValue"
-          />
-          <div
-            v-if="showClear"
-            v-bk-tooltips="$t('清理当前查询')"
-            :class="[
-              'bklog-icon bklog-qingkong',
-              { disabled: isInputLoading || !isCopyBtnActive },
-            ]"
-            @click="handleClearBtnClick"
-          />
-          <div
-            v-if="showQuerySetting"
-            v-bk-tooltips="$t('常用查询设置')"
-            :class="[
-              'bklog-icon bklog-setting',
-              { disabled: isInputLoading, 'is-focused': isFilterSecFocused },
-            ]"
-            @click="handleFilterSecClick"
-          />
-          <BookmarkPop
-            v-if="showFavorites"
-            :active-favorite="!activeFavorite?.id"
-            :addition="uiQueryValue"
-            :class="{ disabled: isInputLoading }"
-            :match-s-q-l-str="matchSQLStr"
-            :search-mode="SEARCH_MODE_DIC[activeIndex]"
-            :sql="sqlQueryValue"
-            @refresh="handleRefresh"
-            @save-current-active-favorite="saveCurrentActiveFavorite"
-          />
-          <slot name="search-tool" />
         </div>
-        <div class="search-tool search-btn" @click="handleBtnQueryClick">
-          <bk-button :icon="btnIconName" size="small" theme="primary" />
-        </div>
+        <div v-if="isAiLoading" class="ai-progress-bar"></div>
       </div>
-      <div v-if="isAiLoading" class="ai-progress-bar"></div>
+      <div
+        v-bk-tooltips="{
+          content: $t('请先通过过滤缩小范围'),
+          disabled: !isQueryBtnDisabled,
+        }"
+        class="search-tool search-btn"
+        @click="handleBtnQueryClick"
+      >
+        <bk-button
+          :icon="btnIconName"
+          size="small"
+          theme="primary"
+          :disabled="isQueryBtnDisabled"
+          :ext-cls="isShowQueryText ? 'search-query-btn' : ''"
+        >
+          {{ isShowQueryText ? $t('查询') : '' }}
+        </bk-button>
+      </div>
     </div>
     <template v-if="searchMode === 'sql'">
       <AiParseResultBanner
