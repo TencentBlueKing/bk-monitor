@@ -217,7 +217,7 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
         "vm_cluster_name": "可选，VM 集群名称 (VmStorageBinding 类型)",
         "es_cluster_name": "可选，ES 集群名称 (ElasticSearchBinding 类型)",
         "doris_cluster_name": "可选，Doris 集群名称 (DorisBinding 类型)",
-        "has_data_link": "可选，筛选未关联 DataLink 的组件",
+        "has_data_link": "可选，true=筛选已关联 DataLink 的组件，false=筛选未关联的组件",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
@@ -242,7 +242,9 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
         queryset = queryset.filter(status=params["status"])
 
     has_data_link = normalize_optional_bool(params.get("has_data_link"), "has_data_link")
-    if has_data_link is not None and has_data_link:
+    if has_data_link is True:
+        queryset = queryset.filter(data_link_name__isnull=False).exclude(data_link_name="")
+    elif has_data_link is False:
         queryset = queryset.filter(Q(data_link_name="") | Q(data_link_name__isnull=True))
 
     for field_name in KIND_FILTER_MAP.get(kind, []):
