@@ -22,6 +22,7 @@ from apm_web.models import (
     LogServiceRelation,
 )
 from apm_web.handlers.service_handler import ServiceHandler
+from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import api
 from monitor_web.data_explorer.event.constants import EventDomain, EventSource
 from constants.apm import CallSide
@@ -198,7 +199,7 @@ class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer)
     """代码重定义规则列表查询请求序列化器"""
 
     # 不传 service_name 时，返回全量视图
-    service_name = serializers.CharField(label=_("本服务"), allow_null=True, default=None)
+    service_name = serializers.CharField(label=_("本服务"), allow_null=True)
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
 
     callee_server = serializers.CharField(label=_("被调服务"), required=False, allow_blank=True)
@@ -214,9 +215,7 @@ class CodeRedefinedRuleItemSerializer(serializers.Serializer):
     """单个代码重定义规则项序列化器"""
 
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
-    service_names = serializers.ListSerializer(
-        label=_("服务名列表"), child=serializers.CharField(), allow_null=True, default=None
-    )
+    service_names = serializers.ListSerializer(label=_("服务名列表"), child=serializers.CharField(), allow_null=True)
     is_global = serializers.BooleanField(label=_("是否全局"), default=False)
     callee_server = serializers.CharField(label=_("被调服务"), allow_blank=True)
     callee_service = serializers.CharField(label=_("被调 Service"), allow_blank=True)
@@ -228,9 +227,14 @@ class CodeRedefinedRuleItemSerializer(serializers.Serializer):
 class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
-    service_name = serializers.CharField(label=_("本服务"), allow_null=True, default=None)
+    service_name = serializers.CharField(label=_("本服务"), allow_null=True)
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
     rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label=_("规则列表"))
+
+    @classmethod
+    def get_unique_key(cls, rule: dict[str, Any]) -> str:
+        unique_fields = ["is_global", "kind", "callee_server", "callee_service", "callee_method"]
+        return count_md5({field: rule.get(field) for field in unique_fields})
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         kind: str | None = attrs.get("kind")
@@ -242,53 +246,33 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
                 raise serializers.ValidationError(_("请填写类型"))
             attrs["rules"] = [rule for rule in attrs["rules"] if not rule["is_global"]]
 
-        # 基础校验
+        unique_set: set[str] = set()
         for rule in attrs.get("rules", []):
             rule["kind"] = kind if service_name else rule.get("kind")
             if not rule["kind"]:
                 raise serializers.ValidationError(_("请填写类型"))
 
             # 外层有 service_name 时，强制覆盖 service_names
-            rule["service_names"] = [service_name] if service_name else rule.get("service_names")
+            rule["service_names"] = [service_name] if service_name else rule.get("service_names", [])
             if rule["is_global"] is False and not rule["service_names"]:
                 raise serializers.ValidationError(_("请填写服务名"))
 
-        # 唯一性校验
-        unique_set: set[tuple] = set()
-        for rule in attrs.get("rules", []):
-            if rule["is_global"]:
-                unique_key = (
-                    rule["is_global"],
-                    rule["kind"],
-                    rule["callee_server"],
-                    rule["callee_service"],
-                    rule["callee_method"],
-                )
-                if unique_key in unique_set:
-                    raise serializers.ValidationError(
-                        _(
-                            f"规则列表中存在重复的规则，类型：{rule['kind']}，被调服务：{rule['callee_server']}，被调 Service：{rule['callee_service']}，被调接口：{rule['callee_method']}，是否全局：{rule['is_global']}"
-                        )
+            rule["callee_server"] = "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"]
+
+            # 唯一性校验
+            unique_key: str = self.get_unique_key(rule)
+            if unique_key in unique_set:
+                raise serializers.ValidationError(
+                    _(
+                        f"规则列表中存在重复的规则："
+                        f"是否全局：{rule['is_global']}"
+                        f"类型：{rule['kind']}"
+                        f"被调服务：{rule['callee_server']}"
+                        f"被调 Service：{rule['callee_service']}"
+                        f"被调接口：{rule['callee_method']}"
                     )
-                unique_set.add(unique_key)
-                continue
-            for service_name in rule["service_names"]:
-                callee_server = "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"]
-                unique_key = (
-                    rule["is_global"],
-                    service_name,
-                    rule["kind"],
-                    callee_server,
-                    rule["callee_service"],
-                    rule["callee_method"],
                 )
-                if unique_key in unique_set:
-                    raise serializers.ValidationError(
-                        _(
-                            f"规则列表中存在重复的规则，服务名：{service_name}, 类型：{rule['kind']}，被调服务：{callee_server}，被调 Service：{rule['callee_service']}，被调接口：{rule['callee_method']}"
-                        )
-                    )
-                unique_set.add(unique_key)
+            unique_set.add(unique_key)
 
         return attrs
 

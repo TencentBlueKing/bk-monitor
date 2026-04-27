@@ -729,10 +729,20 @@ class ListPipelineResource(Resource):
 class ListCodeRedefinedRuleResource(Resource):
     RequestSerializer = ListCodeRedefinedRuleRequestSerializer
 
+    GROUP_KEYS = (
+        "kind",
+        "is_global",
+        "callee_server",
+        "callee_service",
+        "callee_method",
+        "code_type_rules",
+        "enabled",
+    )
+
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
-        service_name: str | None = validated_request_data["service_name"]
+        service_name: str | None = validated_request_data.get("service_name")
         kind: str | None = validated_request_data.get("kind")
 
         # 基础过滤
@@ -756,30 +766,23 @@ class ListCodeRedefinedRuleResource(Resource):
             else:
                 params[f"{dimension}__in"] = [request_value, ""]
 
-        relations: list[dict[str, Any]] = CodeRedefinedConfigRelation.get_relation_qs(**params).values(
-            "service_name",
-            "kind",
-            "is_global",
-            "callee_server",
-            "callee_service",
-            "callee_method",
-            "code_type_rules",
-            "enabled",
-            "updated_at",
+        relations: list[dict[str, Any]] = list(
+            CodeRedefinedConfigRelation.get_relation_qs(**params).values(
+                "service_name",
+                "kind",
+                "is_global",
+                "callee_server",
+                "callee_service",
+                "callee_method",
+                "code_type_rules",
+                "enabled",
+                "updated_at",
+            )
         )
-        # 按 grouped_key 分组，将同组的 service_name 聚合到 service_names 列表
-        grouped_keys = (
-            "kind",
-            "is_global",
-            "callee_server",
-            "callee_service",
-            "callee_method",
-            "code_type_rules",
-            "enabled",
-        )
+        # 按 GROUP_KEYS 分组，将同组的 service_name 聚合到 service_names 列表
         grouped_dict: dict[str, dict[str, Any]] = {}
         for relation in relations:
-            key = count_md5({k: relation[k] for k in grouped_keys})
+            key = count_md5({k: relation[k] for k in self.GROUP_KEYS})
             if key in grouped_dict:
                 grouped_dict[key]["service_names"].append(relation["service_name"])
                 grouped_dict[key]["updated_at"] = max(grouped_dict[key]["updated_at"], relation["updated_at"])
