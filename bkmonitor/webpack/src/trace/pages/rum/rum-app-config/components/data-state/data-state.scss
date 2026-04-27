@@ -24,6 +24,36 @@
  * IN THE SOFTWARE.
  */
 
-export * from './constants';
-export * from './data-state';
-export * from './rum-app-config';
+.run-config-data-state {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+
+  // 数据量趋势容器
+  .run-config-data-state-chart-container {
+    // 数据量趋势标题
+    .run-config-data-state-chart-title {
+      padding: 14px 0;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 22px;
+      color: #63656e;
+    }
+
+    // 数据量趋势内容
+    .run-config-data-state-chart-content {
+      padding: 24px;
+      background: #f5f7fa;
+      border-radius: 2px;
+    }
+  }
+
+  // 数据表区域
+  .run-config-data-state-table {
+    min-height: 200px;
+    padding: 16px;
+    background-color: #fff;
+    border: 1px solid #eaebf0;
+    border-radius: 2px;
+  }
+}

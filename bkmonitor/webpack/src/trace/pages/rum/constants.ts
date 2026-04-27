@@ -37,3 +37,46 @@ export const RUM_APP_CONFIG_TAB_MAP = [
   { id: RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS, name: window.i18n.t('存储状态') },
   { id: RUM_APP_CONFIG_TAB_ENUM.DATA_STATUS, name: window.i18n.t('数据状态') },
 ];
+
+// ===================== 数据状态 — 枚举常量 =====================
+
+/** 告警级别枚举：致命/预警/无告警/无数据 */
+export const AlertLevelEnum = {
+  /** 致命告警 */
+  FATAL: 'fatal',
+  /** 预警 */
+  WARNING: 'warning',
+  /** 无告警 */
+  NORMAL: 'normal',
+  /** 无数据 */
+  NO_DATA: 'no_data',
+} as const;
+
+// ===================== 数据状态 — 静态映射 =====================
+
+/** 告警色块颜色映射表 — 默认态 */
+export const ALERT_LEVEL_COLOR_MAP: Record<string, string> = {
+  [AlertLevelEnum.FATAL]: '#FF5656',
+  [AlertLevelEnum.WARNING]: '#FFB848',
+  [AlertLevelEnum.NORMAL]: '#2DCB56',
+  [AlertLevelEnum.NO_DATA]: '#EAEBF0',
+};
+
+/** 告警色块颜色映射表 — 悬停态 */
+export const ALERT_LEVEL_HOVER_COLOR_MAP: Record<string, string> = {
+  [AlertLevelEnum.FATAL]: '#F8B4B4',
+  [AlertLevelEnum.WARNING]: '#FFD695',
+  [AlertLevelEnum.NORMAL]: '#81E09A',
+  [AlertLevelEnum.NO_DATA]: '#EAEBF0',
+};
+
+// ===================== 数据状态 — 尺寸常量 =====================
+
+/** 色块宽度 (px) */
+export const ALERT_BAR_WIDTH = 6;
+/** 色块间距 (px) */
+export const ALERT_BAR_GAP = 2;
+/** 色块默认高度 (px) */
+export const ALERT_BAR_HEIGHT = 14;
+/** 色块激活高度 (px) */
+export const ALERT_BAR_ACTIVE_HEIGHT = 20;
