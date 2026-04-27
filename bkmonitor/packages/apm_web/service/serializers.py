@@ -199,7 +199,7 @@ class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer)
     """代码重定义规则列表查询请求序列化器"""
 
     # 不传 service_name 时，返回全量视图
-    service_name = serializers.CharField(label=_("本服务"), allow_null=True)
+    service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
 
     callee_server = serializers.CharField(label=_("被调服务"), required=False, allow_blank=True)
@@ -215,7 +215,9 @@ class CodeRedefinedRuleItemSerializer(serializers.Serializer):
     """单个代码重定义规则项序列化器"""
 
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
-    service_names = serializers.ListSerializer(label=_("服务名列表"), child=serializers.CharField(), allow_null=True)
+    service_names = serializers.ListSerializer(
+        label=_("服务名列表"), child=serializers.CharField(), allow_null=True, required=False
+    )
     is_global = serializers.BooleanField(label=_("是否全局"), default=False)
     callee_server = serializers.CharField(label=_("被调服务"), allow_blank=True)
     callee_service = serializers.CharField(label=_("被调 Service"), allow_blank=True)
@@ -227,14 +229,11 @@ class CodeRedefinedRuleItemSerializer(serializers.Serializer):
 class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
-    service_name = serializers.CharField(label=_("本服务"), allow_null=True)
+    UNIQUE_FIELDS = ("is_global", "kind", "callee_server", "callee_service", "callee_method")
+
+    service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
     rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label=_("规则列表"))
-
-    @classmethod
-    def get_unique_key(cls, rule: dict[str, Any]) -> str:
-        unique_fields = ["is_global", "kind", "callee_server", "callee_service", "callee_method"]
-        return count_md5({field: rule.get(field) for field in unique_fields})
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         kind: str | None = attrs.get("kind")
@@ -260,7 +259,7 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
             rule["callee_server"] = "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"]
 
             # 唯一性校验
-            unique_key: str = self.get_unique_key(rule)
+            unique_key: str = count_md5({field: rule.get(field) for field in self.UNIQUE_FIELDS})
             if unique_key in unique_set:
                 raise serializers.ValidationError(
                     _(

@@ -78,7 +78,7 @@ class EntitySet:
             if not index_set_ids:
                 continue
 
-            target_services = self.service_names if relation.is_global else (relation.service_name,)
+            target_services = self.service_names if relation.is_global else [relation.service_name]
             for service_name in target_services:
                 log_relation_dict[service_name][relation.related_bk_biz_id].update(index_set_ids)
 
@@ -92,15 +92,6 @@ class EntitySet:
                 for related_bk_biz_id, index_set_ids in relation_dict.items()
                 for index_set_id in sorted(index_set_ids)
             )
-
-        for service_name, relation_dict in log_relation_dict.items():
-            for related_bk_biz_id, index_set_ids in relation_dict.items():
-                service_indexes.setdefault(service_name, []).extend(
-                    [
-                        {"index_set_id": index_set_id, "is_app_datasource": False, "bk_biz_id": related_bk_biz_id}
-                        for index_set_id in index_set_ids
-                    ]
-                )
 
         return service_indexes
 

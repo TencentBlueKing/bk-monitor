@@ -788,8 +788,8 @@ class ListCodeRedefinedRuleResource(Resource):
                 grouped_dict[key]["updated_at"] = max(grouped_dict[key]["updated_at"], relation["updated_at"])
             else:
                 grouped_dict[key] = {
-                    "service_names": [relation["service_name"]] if relation["service_name"] else [],
                     **relation,
+                    "service_names": [] if relation["is_global"] else [relation["service_name"]],
                 }
         # 显式保证全局在前，服务在后
         return sorted(list(grouped_dict.values()), key=lambda x: x["updated_at"], reverse=True)
@@ -802,7 +802,7 @@ class SetCodeRedefinedRuleResource(Resource):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         rules: list = validated_request_data["rules"]
-        service_name: str | None = validated_request_data["service_name"]
+        service_name: str | None = validated_request_data.get("service_name")
 
         records: list[dict[str, Any]] = []
         for rule in rules:

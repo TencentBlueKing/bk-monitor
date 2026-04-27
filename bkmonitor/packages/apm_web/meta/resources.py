@@ -888,10 +888,12 @@ class SetupResource(Resource):
         update_key = ["application_log_relation_configs"]
 
         def setup(self):
+            bk_biz_id: int = self._application.bk_biz_id
+            app_name: str = self._application.app_name
             records: list[dict[str, Any]] = [
                 {
-                    "bk_biz_id": self._application.bk_biz_id,
-                    "app_name": self._application.app_name,
+                    "bk_biz_id": bk_biz_id,
+                    "app_name": app_name,
                     "service_name": "",
                     "is_global": True,
                     "log_type": relation_config["log_type"],
@@ -900,9 +902,7 @@ class SetupResource(Resource):
                 }
                 for relation_config in self._params["application_log_relation_configs"]
             ]
-            LogServiceRelation.sync_relations(
-                self._application.bk_biz_id, self._application.app_name, records=records, scope=SyncScope.GLOBAL
-            )
+            LogServiceRelation.sync_relations(bk_biz_id, app_name, records=records, scope=SyncScope.GLOBAL)
 
     def perform_request(self, validated_data):
         try:
