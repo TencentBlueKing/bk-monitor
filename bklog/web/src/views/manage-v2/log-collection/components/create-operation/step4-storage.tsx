@@ -27,9 +27,12 @@
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
 import { useRoute } from 'vue-router/composables';
 
+import ClusterTypeTabs from '../../../es-cluster/cluster-manage/cluster-type-tabs.tsx';
+import { CLUSTER_TYPES, ClusterType, useClusterType } from '../../../es-cluster/cluster-manage/use-cluster-type';
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
@@ -67,25 +70,74 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
     const route = useRoute();
+    const router = useRouter();
     const { cardRender, sortByPermission } = useOperation();
+
     const activeName = ref(['shared', 'exclusive']);
     const storageList = ref([]);
     const clusterSelect = ref();
     const clusterData = ref({});
     const loading = ref(false);
     const submitLoading = ref(false);
-    const storageFormRef = ref(null);
-    const formData = ref({
+    const STORAGE_DEFAULTS = {
       storage_replies: 1,
       retention: 7,
       es_shards: 3,
-      need_assessment: false,
       allocation_min_days: 0,
+    };
+
+    const storageFormRef = ref(null);
+    const formData = ref({
+      ...STORAGE_DEFAULTS,
+      need_assessment: false,
+      ...props.configData,
     });
     const cleanStash = ref({});
 
     const bkBizId = computed(() => store.state.bkBizId);
+    const spaceUid = computed(() => store.getters.spaceUid);
     const curCollect = computed(() => store.getters['collect/curCollect']);
+
+    const getInitialTab = (): ClusterType => {
+      const tabQuery = route.query.tab;
+      if (tabQuery === 'doris') return CLUSTER_TYPES.DORIS;
+      return CLUSTER_TYPES.ES;
+    };
+
+    const resetClusterSelection = () => {
+      clusterSelect.value = undefined;
+      clusterData.value = {};
+      (formData.value as any).storage_cluster_id = undefined;
+      Object.assign(formData.value, STORAGE_DEFAULTS);
+    };
+
+    const { activeTab, isDorisMode, isDorisEnabled, checkDorisAccess, handleTabClick } = useClusterType({
+      bkBizId,
+      spaceUid,
+      initialTab: getInitialTab(),
+      onAccessDenied: () => {
+        const { tab, ...restQuery } = route.query;
+        router.replace({
+          name: route.name,
+          params: route.params,
+          query: restQuery,
+        });
+      },
+      onTabChange: async type => {
+        const currentQuery = { ...route.query };
+        currentQuery.tab = type === CLUSTER_TYPES.DORIS ? 'doris' : 'es';
+        router.replace({
+          name: route.name,
+          params: route.params,
+          query: currentQuery,
+        });
+
+        storageList.value = [];
+        resetClusterSelection();
+        await getStorage();
+      },
+    });
+
     const collapseList = computed(() => [
       {
         title: t('共享集群'),
@@ -99,6 +151,7 @@ export default defineComponent({
         data: storageList.value.filter(item => !item.is_platform),
       },
     ]);
+
     /**
      * 是否为自定义上报
      */
@@ -207,14 +260,16 @@ export default defineComponent({
      * 功能：请求存储数据，将有管理权限的存储项优先展示，处理加载状态和错误提示
      */
     const getStorage = async () => {
-      const queryParams = { bk_biz_id: bkBizId.value };
+      const queryParams = {
+        bk_biz_id: bkBizId.value,
+        cluster_type: activeTab.value,
+      };
 
       try {
         loading.value = true;
         const res = await $http.request('collect/getStorage', { query: queryParams });
 
         if (res.data) {
-          // 调用通用排序函数处理数据
           storageList.value = sortByPermission(res.data);
         }
       } catch (error) {
@@ -223,6 +278,7 @@ export default defineComponent({
         loading.value = false;
       }
     };
+
     /**
      * 选择集群时重置为默认值（切换集群场景）
      */
@@ -285,6 +341,7 @@ export default defineComponent({
     onMounted(async () => {
       initData();
       loading.value = true;
+      checkDorisAccess();
       const isStorageEdit = ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
       if (isStorageEdit) {
         await $http
@@ -303,7 +360,7 @@ export default defineComponent({
             }
           });
       }
-      getStorage();
+      await getStorage();
       if (!isCustomReport.value) {
         getCleanStash();
       }
@@ -337,6 +394,7 @@ export default defineComponent({
             loading={loading.value}
             name={item.title}
             showBizCount={item.key === 'shared'}
+            showDesc={!isDorisMode.value}
             on-choose={handleChooseCluster}
           />
         </div>
@@ -349,6 +407,12 @@ export default defineComponent({
         class='cluster-box'
         v-bkloading={{ isLoading: loading.value }}
       >
+        <ClusterTypeTabs
+          activeTab={activeTab.value}
+          isDorisEnabled={isDorisEnabled.value}
+          on-tab-click={handleTabClick}
+        />
+
         <bk-collapse value={activeName.value}>{collapseList.value.map(item => renderCollapseItem(item))}</bk-collapse>
       </div>
     );
@@ -396,69 +460,71 @@ export default defineComponent({
               </template>
             </bk-input>
           </bk-form-item>
-          {clusterData.value.enable_hot_warm && (
+          {!isDorisMode.value && [
+            clusterData.value.enable_hot_warm && (
+              <bk-form-item
+                label={t('热数据天数')}
+                property='allocation_min_days'
+              >
+                <bk-input
+                  class='number-input'
+                  type='number'
+                  min={0}
+                  value={formData.value.allocation_min_days}
+                  on-input={val => {
+                    formData.value.allocation_min_days = val;
+                  }}
+                  on-blur={val => {
+                    if (val === '') {
+                      formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default || 7;
+                    }
+                  }}
+                >
+                  <template slot='append'>
+                    <div class='group-text'>{t('天')}</div>
+                  </template>
+                </bk-input>
+              </bk-form-item>
+            ),
             <bk-form-item
-              label={t('热数据天数')}
-              property='allocation_min_days'
+              label={t('副本数')}
+              property='storage_replies'
             >
               <bk-input
                 class='number-input'
                 type='number'
                 min={0}
-                value={formData.value.allocation_min_days}
+                value={formData.value.storage_replies}
                 on-input={val => {
-                  formData.value.allocation_min_days = val;
+                  formData.value.storage_replies = val;
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default || 7;
+                    formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 1;
                   }
                 }}
-              >
-                <template slot='append'>
-                  <div class='group-text'>{t('天')}</div>
-                </template>
-              </bk-input>
-            </bk-form-item>
-          )}
-          <bk-form-item
-            label={t('副本数')}
-            property='storage_replies'
-          >
-            <bk-input
-              class='number-input'
-              type='number'
-              min={0}
-              value={formData.value.storage_replies}
-              on-input={val => {
-                formData.value.storage_replies = val;
-              }}
-              on-blur={val => {
-                if (val === '') {
-                  formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 1;
-                }
-              }}
-            />
-          </bk-form-item>
-          <bk-form-item
-            label={t('分片数')}
-            property='es_shards'
-          >
-            <bk-input
-              class='number-input'
-              type='number'
-              min={1}
-              value={formData.value.es_shards}
-              on-input={val => {
-                formData.value.es_shards = val;
-              }}
-              on-blur={val => {
-                if (val === '') {
-                  formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 3;
-                }
-              }}
-            />
-          </bk-form-item>
+              />
+            </bk-form-item>,
+            <bk-form-item
+              label={t('分片数')}
+              property='es_shards'
+            >
+              <bk-input
+                class='number-input'
+                type='number'
+                min={1}
+                value={formData.value.es_shards}
+                on-input={val => {
+                  formData.value.es_shards = val;
+                }}
+                on-blur={val => {
+                  if (val === '') {
+                    formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 3;
+                  }
+                }}
+              />
+            </bk-form-item>,
+          ]}
         </bk-form>
       </div>
     );

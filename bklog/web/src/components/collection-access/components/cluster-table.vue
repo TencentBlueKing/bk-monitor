@@ -45,6 +45,7 @@
     <div
       class="cluster-main"
       v-show="isShowTable"
+      v-bkloading="{ isLoading: tableLoading }"
     >
       <template v-if="tableList.length">
         <bk-table
@@ -111,7 +112,7 @@
         </bk-table>
         <div
           class="cluster-illustrate"
-          v-show="!!activeItem"
+          v-show="!!activeItem && !isDorisMode"
         >
           <p class="illustrate-title">{{ $t('说明') }}</p>
           <div
@@ -188,6 +189,14 @@
         type: Boolean,
         require: true,
       },
+      externalDorisMode: {
+        type: Boolean,
+        default: false,
+      },
+      tableLoading: {
+        type: Boolean,
+        default: false,
+      },
     },
     data() {
       return {
@@ -211,6 +220,9 @@
       }),
       tableShowType() {
         return this.tableType !== 'exclusive';
+      },
+      isDorisMode() {
+        return this.externalDorisMode;
       },
     },
     watch: {

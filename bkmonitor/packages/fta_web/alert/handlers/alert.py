@@ -60,6 +60,7 @@ from fta_web.alert.handlers.translator import (
     MetricTranslator,
     PluginTranslator,
     StrategyTranslator,
+    TopoNodeTranslator,
 )
 from fta_web.alert.utils import is_include_promql
 
@@ -1380,7 +1381,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             NoticeWay.WEIXIN,  # 微信
             NoticeWay.QY_WEIXIN,  # 企微
             NoticeWay.VOICE,  # 语音
-            NoticeWay.WX_BOT,  # 企业微信机器人
+            NoticeWay.WX_BOT,  # 群机器人
         ]
         notice_way_count = defaultdict(int)
         alert_notice_ways = {}
@@ -1405,8 +1406,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
             alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
 
             # 统计每种通知方式的告警数量
-            for notice_ways in alert_notice_ways.values():
-                for way in notice_ways:
+            for ways in alert_notice_ways.values():
+                for way in ways:
                     notice_way_count[way] += 1
 
         except Exception as e:  # noqa: BLE001
@@ -1639,12 +1640,18 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return event
 
     def top_n(self, fields: list, size=10, translators: dict = None, char_add_quotes=True):
+        if self.authorized_bizs is not None:
+            bk_biz_ids = self.authorized_bizs
+        else:
+            bk_biz_ids = self.bk_biz_ids
+
         translators = {
-            "metric": MetricTranslator(name_format="{name} ({id})", bk_biz_ids=self.bk_biz_ids),
+            "metric": MetricTranslator(name_format="{name} ({id})", bk_biz_ids=bk_biz_ids),
             "bk_biz_id": BizTranslator(),
             "strategy_id": StrategyTranslator(),
             "category": CategoryTranslator(),
             "plugin_id": PluginTranslator(),
+            "bk_topo_node": TopoNodeTranslator(bk_biz_ids=bk_biz_ids), # noqa
         }
 
         result = super().top_n(fields, size, translators, char_add_quotes)

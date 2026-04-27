@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.db.models import Q
+
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource.exceptions import CustomException
 from metadata import models
@@ -64,6 +66,8 @@ def _collect_identifier_values(params: dict[str, Any]) -> dict[str, list[Any]]:
     return {
         "bk_biz_id": _normalize_int_list(params.get("bk_biz_id")),
         "bk_biz_ids": _normalize_int_list(params.get("bk_biz_ids")),
+        "space_uid": _normalize_string_list(params.get("space_uid")),
+        "space_uids": _normalize_string_list(params.get("space_uids")),
         "bk_data_id": _normalize_int_list(params.get("bk_data_id")),
         "bk_data_ids": _normalize_int_list(params.get("bk_data_ids")),
         "table_id": _normalize_table_id_list(params.get("table_id")),
@@ -82,6 +86,24 @@ def _query_tenant_ids(field_name: str, values: list[Any]) -> set[str]:
             except (TypeError, ValueError) as error:
                 raise CustomException(message=f"无法根据 {field_name}={value} 反查 bk_tenant_id: {error}") from error
         return tenant_ids
+
+    if field_name in {"space_uid", "space_uids"}:
+        query = Q()
+        has_condition = False
+        for value in values:
+            try:
+                space_type_id, space_id = str(value).split("__", 1)
+            except ValueError:
+                continue
+            if not space_type_id or not space_id:
+                continue
+            query |= Q(space_type_id=space_type_id, space_id=space_id)
+            has_condition = True
+
+        if not has_condition:
+            return set()
+
+        return set(models.Space.objects.filter(query).values_list("bk_tenant_id", flat=True).distinct())
 
     if field_name in {"bk_data_id", "bk_data_ids"}:
         return set(
@@ -134,4 +156,18 @@ def _normalize_table_id_list(value: Any) -> list[str]:
         if not table_id:
             continue
         normalized_values.append(table_id)
+    return normalized_values
+
+
+def _normalize_string_list(value: Any) -> list[str]:
+    if value is None or value == "":
+        return []
+
+    raw_values = value if isinstance(value, list | tuple | set) else [value]
+    normalized_values: list[str] = []
+    for item in raw_values:
+        normalized_item = str(item or "").strip()
+        if not normalized_item:
+            continue
+        normalized_values.append(normalized_item)
     return normalized_values
