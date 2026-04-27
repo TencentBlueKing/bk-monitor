@@ -155,7 +155,8 @@ class SceneDimensionValuesSerializer(serializers.Serializer):
     scene = serializers.CharField(required=True, help_text="场景标识, e.g. k8s / host / bk_paas")
     dimension_key = serializers.CharField(required=True, help_text="要查询的维度 key, e.g. cluster_id / stream")
     filters = serializers.DictField(
-        required=False, default=dict, help_text="前置级联筛选条件, e.g. {\"stream\": \"stdout\"}"
+        required=False, default=dict,
+        help_text='级联筛选, value 为 str 或 list, e.g. {"stream": ["file","stdout"]}',
     )
 
 
@@ -712,6 +713,7 @@ class SceneSearchViewSet(APIViewSet):
         ).get_export_history(
             request=request, view=self, show_all=data["show_all"],
             table_id_conditions=data["table_id_conditions"],
+            page=data["page"], pagesize=data["pagesize"],
         )
 
     @list_route(methods=["POST"], url_path="export_chart_data")
