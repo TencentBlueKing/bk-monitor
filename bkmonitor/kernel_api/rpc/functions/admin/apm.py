@@ -108,21 +108,6 @@ def _load_service_count_map(applications: list[Any]) -> dict[tuple[int, str], in
     return {(item["bk_biz_id"], item["app_name"]): item["total"] for item in items}
 
 
-def _application_status(application: Any) -> str:
-    if not application.is_enabled:
-        return "disabled"
-    enabled_types = []
-    if application.is_enabled_metric:
-        enabled_types.append("metric")
-    if application.is_enabled_trace:
-        enabled_types.append("trace")
-    if application.is_enabled_log:
-        enabled_types.append("log")
-    if application.is_enabled_profiling:
-        enabled_types.append("profile")
-    return ",".join(enabled_types) if enabled_types else "enabled"
-
-
 def _serialize_application_summary(
     application: Any,
     datasource_maps: dict[str, dict[tuple[int, str], Any]],
@@ -139,7 +124,6 @@ def _serialize_application_summary(
         "app_alias": application.app_alias,
         "bk_tenant_id": application.bk_tenant_id,
         "bk_biz_id": application.bk_biz_id,
-        "status": _application_status(application),
         "metric_data_id": getattr(metric_datasource, "bk_data_id", None),
         "trace_data_id": getattr(trace_datasource, "bk_data_id", None),
         "log_data_id": getattr(log_datasource, "bk_data_id", None),
@@ -349,10 +333,6 @@ def list_apm_applications(params: dict[str, Any]) -> dict[str, Any]:
         queryset = queryset.filter(app_name__icontains=app_name)
 
     applications = _filter_applications_by_datasource_params(list(queryset), params)
-    status = str(params.get("status") or "").strip()
-    if status:
-        applications = [application for application in applications if status in _application_status(application)]
-
     total = len(applications)
     offset = (page - 1) * page_size
     page_applications = applications[offset : offset + page_size]
