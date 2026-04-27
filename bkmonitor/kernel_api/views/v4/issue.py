@@ -8,11 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import time
-
 from rest_framework import serializers
 
-from constants.issue import IssueActivityType, IssuePriority, IssueStatus
+from constants.issue import IssuePriority, IssueStatus
 from core.drf_resource import Resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from bkmonitor.documents.issue import IssueDocument
@@ -35,9 +33,9 @@ class AssignResource(Resource):
         assignee = validated_request_data["assignee"]
         operator = validated_request_data["operator"]
         if issue.status == IssueStatus.PENDING_REVIEW:
-            issue.assign(assignees=assignee, operator=operator)
+            activities = issue.assign(assignees=assignee, operator=operator)
         elif issue.status == IssueStatus.UNRESOLVED:
-            issue.reassign(assignees=assignee, operator=operator)
+            activities = issue.reassign(assignees=assignee, operator=operator)
         else:
             raise ValueError(
                 f"Issue {issue.id} 当前状态 {issue.status} 不允许指派，"
@@ -49,6 +47,7 @@ class AssignResource(Resource):
             "status": issue.status,
             "assignee": list(issue.assignee or []),
             "update_time": issue.update_time,
+            "activities": activities or [],
         }
 
 
@@ -64,13 +63,14 @@ class ResolveResource(Resource):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.resolve(operator=validated_request_data["operator"])
+        activities = issue.resolve(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
             "status": issue.status,
             "resolved_time": issue.resolved_time,
             "update_time": issue.update_time,
+            "activities": activities or [],
         }
 
 
@@ -86,12 +86,13 @@ class ArchiveResource(Resource):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.archive(operator=validated_request_data["operator"])
+        activities = issue.archive(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
             "status": issue.status,
             "update_time": issue.update_time,
+            "activities": activities or [],
         }
 
 
@@ -107,12 +108,13 @@ class ReopenResource(Resource):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.reopen(operator=validated_request_data["operator"])
+        activities = issue.reopen(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
             "status": issue.status,
             "update_time": issue.update_time,
+            "activities": activities or [],
         }
 
 
@@ -128,12 +130,13 @@ class RestoreResource(Resource):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.restore(operator=validated_request_data["operator"])
+        activities = issue.restore(operator=validated_request_data["operator"])
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
             "status": issue.status,
             "update_time": issue.update_time,
+            "activities": activities or [],
         }
 
 
@@ -153,13 +156,16 @@ class UpdatePriorityResource(Resource):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        issue.update_priority(priority=validated_request_data["priority"], operator=validated_request_data["operator"])
+        activities = issue.update_priority(
+            priority=validated_request_data["priority"], operator=validated_request_data["operator"]
+        )
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
             "status": issue.status,
             "priority": issue.priority,
             "update_time": issue.update_time,
+            "activities": activities or [],
         }
 
 
@@ -178,17 +184,13 @@ class AddFollowUpResource(Resource):
         )
         content = validated_request_data["content"]
         operator = validated_request_data["operator"]
-        now = int(time.time())
-        activity = issue.add_comment(content=content, operator=operator, now=now)
+        activities = issue.add_comment(content=content, operator=operator)
         return {
             "bk_biz_id": issue.bk_biz_id,
-            "activity_id": activity.id,
             "issue_id": issue.id,
             "status": issue.status,
-            "activity_type": IssueActivityType.COMMENT,
-            "content": content,
-            "operator": operator,
-            "time": now,
+            "update_time": issue.update_time,
+            "activities": activities or [],
         }
 
 
