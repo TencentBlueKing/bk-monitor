@@ -954,7 +954,7 @@ export default defineComponent({
               onThumbtackChange={this.handleThumbtackChange}
             />
           </div>
-          <div class='trace-explore-content'>
+          <div class={['trace-explore-content', {'is-apm-trace': window.source_app === 'apm'}]}>
             {this.loading ? (
               <div class='skeleton-element filter-skeleton' />
             ) : (
