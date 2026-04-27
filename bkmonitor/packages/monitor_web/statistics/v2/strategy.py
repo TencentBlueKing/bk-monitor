@@ -45,6 +45,20 @@ class StrategyCollector(BaseCollector):
     def strategy_configs_list(self):
         return list_strategy(bk_biz_ids=list(self.biz_info.keys()))["data"]
 
+    @register(
+        labelnames=(
+            "bk_biz_id",
+            "bk_biz_name",
+            "data_source_label",
+            "data_type_label",
+            "parent_scenario",
+            "scenario",
+            "use_action",
+            "status",
+            "use_notice_collect",
+            "valid_status",
+        )
+    )
     def strategy_count(self, metric: Metric):
         """
         告警策略数
