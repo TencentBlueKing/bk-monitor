@@ -229,15 +229,16 @@ class IssueDocument(BaseDocument):
         Returns:
             该 Issue 全部活动日志列表（含本次新增），按时间降序排列。
         """
-        activits = []
-        activits.append((IssueActivityType.COMMENT, None, None, operator, content))
+        activities = [
+            (IssueActivityType.COMMENT, None, None, operator, content),
+        ]
         if self.status == IssueStatus.PENDING_REVIEW:
             old_status = self.status
             self.status = IssueStatus.UNRESOLVED
-            activits.append((IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None))
+            activities.append((IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None))
         self.update_time = int(time.time())
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
-        return self._write_activities(activits)
+        return self._write_activities(activities)
 
     def update_priority(self, priority: str, operator: str) -> list:
         """修改优先级（任意活跃状态均可）"""
@@ -245,7 +246,7 @@ class IssueDocument(BaseDocument):
             raise ValueError(f"Cannot update priority: current status={self.status} is not active")
         old_priority = self.priority
         self.priority = priority
-        activits = [
+        activities = [
             (
                 IssueActivityType.PRIORITY_CHANGE,
                 str(old_priority) if old_priority else None,
@@ -257,10 +258,10 @@ class IssueDocument(BaseDocument):
         if self.status == IssueStatus.PENDING_REVIEW:
             old_status = self.status
             self.status = IssueStatus.UNRESOLVED
-            activits.append((IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None))
+            activities.append((IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None))
         self.update_time = int(time.time())
         self._persist_and_cache(active=True)
-        return self._write_activities(activits)
+        return self._write_activities(activities)
 
     def _get_pre_archive_status(self) -> str:
         """
@@ -346,9 +347,9 @@ class IssueDocument(BaseDocument):
                     "activity_id": hit.meta.id,
                     "activity_type": hit.activity_type,
                     "operator": hit.operator or "",
-                    "from_value": getattr(hit, "from_value", None) or None,
-                    "to_value": getattr(hit, "to_value", None) or None,
-                    "content": getattr(hit, "content", None) or None,
+                    "from_value": hit.from_value,
+                    "to_value": hit.to_value,
+                    "content": hit.content,
                     "time": int(hit.time) if hit.time else 0,
                 }
                 for hit in hits
