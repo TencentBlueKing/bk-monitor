@@ -1176,17 +1176,23 @@ class IndexSetTag(models.Model):
         returns all cluster_id values whose index sets also carry stream=stdout.
         """
         scene_tag_id = cls.get_tag_id(name="scene", value=scene, tag_type=TAG_TYPE_SCENE)
-        required_tag_ids = {scene_tag_id}
+        # Each group is a set of tag_ids; an index set must contain >= 1 from each group.
+        required_groups = [{str(scene_tag_id)}]
 
         if filters:
-            for f_key, f_value in filters.items():
-                try:
-                    f_tag = cls.objects.get(name=f_key, value=f_value, tag_type=TAG_TYPE_SCENE)
-                    required_tag_ids.add(f_tag.tag_id)
-                except cls.DoesNotExist:
+            for f_key, f_values in filters.items():
+                if isinstance(f_values, str):
+                    f_values = [f_values]
+                group = set()
+                for v in f_values:
+                    try:
+                        f_tag = cls.objects.get(name=f_key, value=v, tag_type=TAG_TYPE_SCENE)
+                        group.add(str(f_tag.tag_id))
+                    except cls.DoesNotExist:
+                        pass
+                if not group:
                     return []
-
-        str_required = {str(tid) for tid in required_tag_ids}
+                required_groups.append(group)
 
         index_sets = LogIndexSet.objects.filter(
             space_uid__endswith=str(bk_biz_id),
@@ -1198,7 +1204,7 @@ class IndexSetTag(models.Model):
             if not raw_tag_ids:
                 continue
             id_set = {str(t) for t in raw_tag_ids if t}
-            if str_required.issubset(id_set):
+            if all(group & id_set for group in required_groups):
                 candidate_tag_ids.update(id_set)
 
         if not candidate_tag_ids:
