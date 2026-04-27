@@ -154,7 +154,7 @@ class IssueTopNResultResource(Resource):
         fields = serializers.ListField(label="查询字段列表", child=serializers.CharField(), default=[])
         size = serializers.IntegerField(label="获取的桶数量", default=10)
         is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
-        is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
+        is_finally_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
         authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
         unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
         need_bucket_count = serializers.BooleanField(required=False, default=True, label="是否需要进行基数聚合")
@@ -227,88 +227,94 @@ class IssueTopNResource(Resource):
         # 基数聚合需要跨越完整时间范围，无法通过分片结果简单相加得到准确值，
         # 因此放在子线程中与各分片 TopN 查询并行执行，避免串行等待
         executor = ThreadPool(processes=1)
-        future = executor.apply_async(self.get_bucket_count, [validated_request_data])
+        try:
+            future = executor.apply_async(self.get_bucket_count, [validated_request_data])
 
-        # 切分时间区间：pop 掉原始 start/end，用切片后的区间替代下发到每个分片请求
-        validated_request_data.pop("start_time")
-        validated_request_data.pop("end_time")
-        slice_times = slice_time_interval(start_time, end_time)
-        size = validated_request_data.get("size", 10)
+            # 切分时间区间：pop 掉原始 start/end，用切片后的区间替代下发到每个分片请求
+            validated_request_data.pop("start_time")
+            validated_request_data.pop("end_time")
+            slice_times = slice_time_interval(start_time, end_time)
+            size = validated_request_data.get("size", 10)
 
-        # 步骤5：并行请求各时间分片
-        # - is_time_partitioned=True：通知底层按分片语义过滤（resolved_time 区间归属）
-        # - is_finaly_partition：最后一个分片承接"未解决 Issue"（~exists 仅在此处出现一次）
-        # - need_bucket_count=False：分片内部不做基数聚合，由上面的并行线程统一获取
-        results = resource.issue.issue_top_n_result.bulk_request(
-            [
-                {
-                    "start_time": sliced_start_time,
-                    "end_time": sliced_end_time,
-                    "is_finaly_partition": True if index == len(slice_times) - 1 else False,
-                    "is_time_partitioned": True,
-                    "need_bucket_count": False,
-                    **validated_request_data,
-                }
-                for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
-            ]
-        )
-
-        # 步骤6：合并各分片结果
-        # field_buckets_map 结构：{ field_name: {"field", "is_char", "id_buckets_map": {(id, name): {...}}} }
-        # 使用 (id, name) 作为桶的唯一键，同键累加 count
-        result = {"doc_count": 0, "fields": []}
-        field_buckets_map = {}
-
-        for sliced_result in results:
-            # doc_count 直接相加（分片间按 resolved_time 不重叠归属，无重复）
-            result["doc_count"] += sliced_result["doc_count"]
-
-            for field_info in sliced_result["fields"]:
-                field = field_info["field"]
-                if field not in field_buckets_map:
-                    field_buckets_map[field] = {
-                        "id_buckets_map": {},
-                        "field": field,
-                        "is_char": field_info["is_char"],
+            # 步骤5：并行请求各时间分片
+            # - is_time_partitioned=True：通知底层按分片语义过滤（resolved_time 区间归属）
+            # - is_finally_partition：最后一个分片承接"未解决 Issue"（~exists 仅在此处出现一次）
+            # - need_bucket_count=False：分片内部不做基数聚合，由上面的并行线程统一获取
+            results = resource.issue.issue_top_n_result.bulk_request(
+                [
+                    {
+                        "start_time": sliced_start_time,
+                        "end_time": sliced_end_time,
+                        "is_finally_partition": True if index == len(slice_times) - 1 else False,
+                        "is_time_partitioned": True,
+                        "need_bucket_count": False,
+                        **validated_request_data,
                     }
+                    for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
+                ]
+            )
 
-                id_buckets_map = field_buckets_map[field]["id_buckets_map"]
+            # 步骤6：合并各分片结果
+            # field_buckets_map 结构：{ field_name: {"field", "is_char", "id_buckets_map": {(id, name): {...}}} }
+            # 使用 (id, name) 作为桶的唯一键，同键累加 count
+            result = {"doc_count": 0, "fields": []}
+            field_buckets_map = {}
 
-                # 桶级合并：同 (id, name) 累加 count，不同则新建
-                for bucket in field_info["buckets"]:
-                    _id = bucket["id"]
-                    name = bucket["name"]
-                    if (_id, name) not in id_buckets_map:
-                        id_buckets_map[(_id, name)] = {
-                            "id": _id,
-                            "name": name,
-                            "count": bucket["count"],
+            for sliced_result in results:
+                # doc_count 直接相加（分片间按 resolved_time 不重叠归属，无重复）
+                result["doc_count"] += sliced_result["doc_count"]
+
+                for field_info in sliced_result["fields"]:
+                    field = field_info["field"]
+                    if field not in field_buckets_map:
+                        field_buckets_map[field] = {
+                            "id_buckets_map": {},
+                            "field": field,
+                            "is_char": field_info["is_char"],
                         }
-                    else:
-                        id_buckets_map[(_id, name)]["count"] += bucket["count"]
 
-        # 将合并后的分桶 map 转为最终的字段列表结构
-        for filed_info in field_buckets_map.values():
-            field = {
-                "field": filed_info["field"],
-                "is_char": filed_info["is_char"],
-                "bucket_count": 0,
-                "buckets": list(filed_info["id_buckets_map"].values()),
-            }
-            result["fields"].append(field)
+                    id_buckets_map = field_buckets_map[field]["id_buckets_map"]
 
-        # 步骤7：后处理 —— 补充 bucket_count 并将 buckets 截断到 size
-        # 阻塞等待并行的基数聚合结果
-        field_bucket_count_map = future.get()
-        executor.close()
+                    # 桶级合并：同 (id, name) 累加 count，不同则新建
+                    for bucket in field_info["buckets"]:
+                        _id = bucket["id"]
+                        name = bucket["name"]
+                        if (_id, name) not in id_buckets_map:
+                            id_buckets_map[(_id, name)] = {
+                                "id": _id,
+                                "name": name,
+                                "count": bucket["count"],
+                            }
+                        else:
+                            id_buckets_map[(_id, name)]["count"] += bucket["count"]
+
+            # 将合并后的分桶 map 转为最终的字段列表结构
+            for field_info in field_buckets_map.values():
+                field = {
+                    "field": field_info["field"],
+                    "is_char": field_info["is_char"],
+                    "bucket_count": 0,
+                    "buckets": list(field_info["id_buckets_map"].values()),
+                }
+                result["fields"].append(field)
+
+            # 步骤7：后处理 —— 补充 bucket_count 并将 buckets 截断到 size
+            # 阻塞等待并行的基数聚合结果
+            field_bucket_count_map = future.get()
+        finally:
+            executor.close()
+            executor.join()
+
         for field_data in result["fields"]:
             field = field_data["field"]
+            field_info = field_bucket_count_map.get(field) or {}
+            bucket_count = field_info.get("bucket_count", 0)
+
             # bk_biz_id 字段特殊处理：把当前用户"有权限但查询结果为 0"的业务也补到桶里
             # 便于前端展示"所有授权业务"的分布情况（含 0 命中业务）
             if field == "bk_biz_id":
                 exist_bizs = {int(bucket["id"]) for bucket in field_data["buckets"]}
-                authorized_bizs = field_bucket_count_map[field]["authorized_bizs"]
-                bucket_count = field_bucket_count_map[field]["bucket_count"]
+                authorized_bizs = field_info.get("authorized_bizs", set())
                 for biz in authorized_bizs:
                     # 补齐时也不能超过 size，避免桶数膨胀
                     if len(exist_bizs) > size:
@@ -316,7 +322,6 @@ class IssueTopNResource(Resource):
                     if int(biz) not in exist_bizs:
                         field_data["buckets"].append({"id": biz, "name": biz, "count": 0})
                         bucket_count += 1
-                field_bucket_count_map[field] = bucket_count
 
             # 按 count 倒序取 Top-size
             bucket_length = len(field_data["buckets"])
@@ -324,14 +329,20 @@ class IssueTopNResource(Resource):
             field_data["buckets"] = field_data["buckets"][:size]
 
             # bucket_count 优先使用基数聚合结果；若实际桶数 <= size，则直接用当前桶数（更准确）
-            field_data["bucket_count"] = field_bucket_count_map.get(field, 0)
+            field_data["bucket_count"] = bucket_count
             if field_data["bucket_count"] <= size:
                 field_data["bucket_count"] = bucket_length
 
         return result
 
     def get_bucket_count(self, validated_request_data):
-        """获取各字段的桶基数，用于在合并结果中填充准确的 bucket_count"""
+        """获取各字段的桶基数，用于在合并结果中填充准确的 bucket_count
+
+        返回值统一为 dict 结构：{field: {"bucket_count": int, ...额外数据}}
+        - 普通字段：{"bucket_count": int}
+        - bk_biz_id：{"bucket_count": int, "authorized_bizs": set[int]}
+        - impact_dimensions：{"bucket_count": int}
+        """
         fields = validated_request_data.get("fields", [])
         handler = self.handler_cls(**validated_request_data)
         search_object = handler.get_search_object()
@@ -357,13 +368,13 @@ class IssueTopNResource(Resource):
             if actual_field == "impact_dimensions":
                 # impact_dimensions 使用 filters 聚合，bucket_count 取聚合返回 buckets 的数量
                 buckets = handler._parse_impact_dimensions_buckets(search_result)  # noqa
-                result[actual_field] = len(buckets)
+                result[actual_field] = {"bucket_count": len(buckets)}
             elif actual_field == "bk_biz_id" and hasattr(handler, "authorized_bizs"):
                 authorized_bizs = set(handler.authorized_bizs)
                 result[actual_field] = {"bucket_count": len(authorized_bizs), "authorized_bizs": authorized_bizs}
             else:
                 agg = getattr(search_result.aggs, f"{field}{bucket_count_suffix}", None)
-                result[actual_field] = agg.value if agg else 0
+                result[actual_field] = {"bucket_count": agg.value if agg else 0}
 
         return result
 

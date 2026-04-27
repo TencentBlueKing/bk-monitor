@@ -93,7 +93,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
         trend_start_time: int = None,
         trend_end_time: int = None,
         is_time_partitioned: bool = False,
-        is_finaly_partition: bool = False,
+        is_finally_partition: bool = False,
         need_bucket_count: bool = True,
         **kwargs,
     ):
@@ -120,7 +120,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         # 时间分片查询相关标记
         self.is_time_partitioned = is_time_partitioned
-        self.is_finaly_partition = is_finaly_partition
+        self.is_finally_partition = is_finally_partition
         self.need_bucket_count = need_bucket_count
 
     def get_search_object(
@@ -128,13 +128,13 @@ class IssueQueryHandler(BaseBizQueryHandler):
         start_time: int = None,
         end_time: int = None,
         is_time_partitioned: bool = False,
-        is_finaly_partition: bool = False,
+        is_finally_partition: bool = False,
         **kwargs,
     ) -> Search:
         start_time = start_time or self.start_time
         end_time = end_time or self.end_time
         is_time_partitioned = is_time_partitioned or self.is_time_partitioned
-        is_finaly_partition = is_finaly_partition or self.is_finaly_partition
+        is_finally_partition = is_finally_partition or self.is_finally_partition
 
         # Issue 跨天存在，使用全量索引查询
         search_object = IssueDocument.search(all_indices=True)
@@ -145,7 +145,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # 分片模式下，按 resolved_time 唯一归属分片，避免同一 Issue 被多分片重复计数：
         #   非最后分片：resolved_time ∈ [start, end)，仅覆盖"已解决且解决在本分片内"的 Issue
         #   最后分片  ：resolved_time >= start OR 未解决，承接"未解决的 Issue"（~exists 只在此处出现一次）
-        if is_time_partitioned and not is_finaly_partition:
+        if is_time_partitioned and not is_finally_partition:
             if end_time:
                 search_object = search_object.filter("range", create_time={"lte": end_time})
             if start_time and end_time:
@@ -783,7 +783,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 )
         except Exception as e:
             logger.exception(f"add_alert_trend: date_histogram failed, exception:{e}")
-            fill_thread.join()
+            fill_thread.join(timeout=30)
             for issue in issues:
                 issue["trend"] = list(default_time_series)
                 issue["alert_count"] = 0
@@ -811,7 +811,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
             merged[issue_id].update(abnormal_series)
 
         # 等待后台线程完成
-        fill_thread.join()
+        fill_thread.join(timeout=30)
 
         # 回填到 Issue 列表
         for issue in issues:
