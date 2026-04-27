@@ -30,6 +30,7 @@ import tippy from "tippy.js";
 import RegexMatchDialog from "./regex-match";
 import { copyMessage } from "@/common/util";
 import { type LogPattern } from "@/services/log-clustering";
+import { type ClusteringConfigData } from "../index";
 import "./index.scss";
 
 export default defineComponent({
@@ -46,6 +47,10 @@ export default defineComponent({
       type: String,
       require: true,
     },
+    clusteringConfigData: {
+      type: Object as PropType<ClusteringConfigData | null>,
+      default: null,
+    },
   },
   setup(props, { slots, emit }) {
     const { t } = useLocale();
@@ -56,6 +61,16 @@ export default defineComponent({
     let intersectionObserver: any = null;
 
     const handleClickPattern = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('text__highlight')&&props.clusteringConfigData?.placeholder_analysis_supported !== false) {
+        e.stopPropagation();
+        e.preventDefault();
+          // 获取 mark 的 index 值（getAttribute 返回字符串，需要转为数字）
+        const markIndex = Number(target.getAttribute('index'));
+        // 当 placeholder_analysis_supported 为 false 时，不展开右侧弹框分析，但继续处理行弹窗
+        emit('mark-click', markIndex, target.textContent ?? '');
+        return;
+      }
       destroyPopover();
       popoverInstance = tippy(e.target as Element, {
         appendTo: () => document.body,

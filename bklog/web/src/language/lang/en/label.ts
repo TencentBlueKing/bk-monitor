@@ -893,6 +893,7 @@ export default {
   '搜索 仓库名称': 'Search Store Name',
   '搜索 归档项': 'Search Archive Item',
   '搜索 名称': 'Search Name',
+  '搜索 值': 'Search value',
   '搜索 文件名、创建人': 'Search Filename, Created By',
   '搜索ES源名称、地址、创建人': 'Search ES Source Name, Address, Created By',
   输入后高亮: 'Highlight after input',
@@ -953,4 +954,6 @@ export default {
   '搜索名称、英文名称、地址、创建人': 'Search by name, English name, address, or creator',
   集群英文名称: 'Cluster English Name',
   '最大自定义天数为{n}': 'Maximum custom days is {n}',
+  选中值: 'Selected Value',
+  整体: 'Overall',
 };
