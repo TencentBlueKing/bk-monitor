@@ -49,6 +49,7 @@ export const SceneAliasMap = {
   [SceneEnum.Event]: window.i18n.t('事件'),
   [SceneEnum.Storage]: window.i18n.t('存储'),
   [SceneEnum.Cost]: window.i18n.t('成本'),
+  [SceneEnum.GPU]: window.i18n.t('GPU'),
 };
 
 export const sceneDimensionMap = {
@@ -60,6 +61,12 @@ export const sceneDimensionMap = {
   ],
   [SceneEnum.Network]: [EDimensionKey.namespace, EDimensionKey.ingress, EDimensionKey.service, EDimensionKey.pod],
   [SceneEnum.Capacity]: [EDimensionKey.node],
+  [SceneEnum.GPU]: [
+    EDimensionKey.namespace,
+    EDimensionKey.workload,
+    EDimensionKey.pod,
+    EDimensionKey.container,
+  ],
 };
 
 /**
@@ -90,6 +97,8 @@ export abstract class K8sGroupDimension {
         return new K8sNetworkGroupDimension();
       case SceneEnum.Capacity:
         return new K8sCapacityGroupDimension();
+      case SceneEnum.GPU:
+        return new K8sGpuGroupDimension();
       default:
         return new K8sPerformanceGroupDimension();
     }
@@ -392,7 +401,7 @@ export class K8sDimension extends K8sDimensionBase {
     this.pageMap = {};
     const pageMap = {};
     let workloadCategory = [];
-    if (this.commonParams.scenario === SceneEnum.Performance) {
+    if ([SceneEnum.Performance, SceneEnum.GPU].includes(this.commonParams.scenario)) {
       workloadCategory = await workloadOverview({
         bcs_cluster_id: this.commonParams.bcs_cluster_id,
         query_string: this.commonParams.query_string,
@@ -537,6 +546,49 @@ export class K8sNetworkGroupDimension extends K8sGroupDimension {
 export class K8sPerformanceGroupDimension extends K8sGroupDimension {
   readonly defaultSortContainer = {
     prop: K8sTableColumnKeysEnum.CPU_USAGE as K8sTableColumnChartKey,
+    orderBy: 'desc' as K8sSortType,
+  };
+  readonly dimensions = [
+    K8sTableColumnKeysEnum.CLUSTER,
+    K8sTableColumnKeysEnum.NAMESPACE,
+    K8sTableColumnKeysEnum.WORKLOAD,
+    K8sTableColumnKeysEnum.POD,
+    K8sTableColumnKeysEnum.CONTAINER,
+  ];
+  readonly groupByDimensions = [
+    K8sTableColumnKeysEnum.NAMESPACE,
+    K8sTableColumnKeysEnum.WORKLOAD,
+    K8sTableColumnKeysEnum.POD,
+    K8sTableColumnKeysEnum.CONTAINER,
+  ];
+  readonly groupByDimensionsMap = {
+    [K8sTableColumnKeysEnum.NAMESPACE]: [K8sTableColumnKeysEnum.NAMESPACE],
+    [K8sTableColumnKeysEnum.WORKLOAD]: [K8sTableColumnKeysEnum.NAMESPACE, K8sTableColumnKeysEnum.WORKLOAD],
+    [K8sTableColumnKeysEnum.POD]: [
+      K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
+      K8sTableColumnKeysEnum.POD,
+    ],
+    [K8sTableColumnKeysEnum.CONTAINER]: [
+      K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
+      K8sTableColumnKeysEnum.POD,
+      K8sTableColumnKeysEnum.CONTAINER,
+    ],
+  };
+  constructor() {
+    const fixedGroupFilters = [K8sTableColumnKeysEnum.NAMESPACE] as K8sTableColumnResourceKey[];
+    const defaultGroupFilters = [...fixedGroupFilters] as K8sTableColumnResourceKey[];
+    super(fixedGroupFilters, defaultGroupFilters);
+  }
+}
+
+/**
+ * @description GPU 类型 GroupFilter 实现类
+ * */
+export class K8sGpuGroupDimension extends K8sGroupDimension {
+  readonly defaultSortContainer = {
+    prop: K8sTableColumnKeysEnum.GPU_UTILIZATION as K8sTableColumnChartKey,
     orderBy: 'desc' as K8sSortType,
   };
   readonly dimensions = [

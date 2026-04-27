@@ -1047,7 +1047,7 @@ class ReportItems(AbstractRecordModel):
         WXBOT = "wxbot"
         USER = "user"
 
-        CHANNEL_DICT = {EMAIL: _lazy("外部邮件"), WXBOT: _lazy("企业微信机器人"), USER: _lazy("内部用户")}
+        CHANNEL_DICT = {EMAIL: _lazy("外部邮件"), WXBOT: _lazy("群机器人"), USER: _lazy("内部用户")}
 
     class HourFrequencyTime:
         HALF_HOUR = {"minutes": ["00", "30"]}
