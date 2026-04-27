@@ -19,11 +19,11 @@ class IssueViewSet(ResourceViewSet):
     """Issues 功能接口 ViewSet"""
 
     # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
-    READ_ONLY_ENDPOINTS = ["issue/search", "issue/detail", "issue/activities", "issue/history"]
+    READ_ONLY_ENDPOINTS = ["issue/search", "issue/detail", "issue/activities", "issue/history", "issue/top_n"]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
     # 新增支持「无业务 ID」的接口时，只需在此处追加 endpoint 名称即可
-    NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search"]
+    NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search", "issue/top_n"]
 
     class IssueBusinessActionPermission(IAMPermission):
         """
@@ -77,6 +77,8 @@ class IssueViewSet(ResourceViewSet):
     resource_routes = [
         # Issue 列表查询
         ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
+        # Issue TopN 统计
+        ResourceRoute("POST", resource.issue.issue_top_n, endpoint="issue/top_n"),
         # Issue 详情（元数据）
         ResourceRoute("GET", resource.issue.issue_detail, endpoint="issue/detail"),
         # 指派负责人（含改派，支持批量）
