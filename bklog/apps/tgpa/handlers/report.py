@@ -301,10 +301,11 @@ class TGPAReportHandler:
     @classmethod
     def get_openid_list(cls, bk_biz_id, keyword=None, start_time=None, end_time=None):
         """
-        获取 openid 列表（从 report 数据源中查询）
-        使用 ES collapse（字段折叠）按 openid 去重，避免高基数字段聚合带来的性能开销
+        获取 openid 列表
         :param bk_biz_id: 业务ID
         :param keyword: 搜索关键字，使用前缀匹配
+        :param start_time: 开始时间
+        :param end_time: 结束时间，默认为当前时间
         :return: 去重后的 openid 列表
         """
         result_table_id = cls._get_result_table_id()
@@ -313,9 +314,8 @@ class TGPAReportHandler:
         must_conditions = [{"term": {"cc_id": bk_biz_id}}]
         if keyword:
             must_conditions.append({"prefix": {"openid": keyword}})
-
         if not start_time:
-            start_time = int(arrow.now().shift(days=-1).timestamp() * 1000)
+            start_time = int(arrow.now().shift(days=-7).timestamp() * 1000)
         if not end_time:
             end_time = int(arrow.now().timestamp() * 1000)
         must_conditions.append({"range": {"dtEventTimeStamp": {"gte": start_time, "lt": end_time}}})
@@ -334,7 +334,6 @@ class TGPAReportHandler:
 
         if not es_response or not isinstance(es_response, dict):
             return []
-
         raw_hits = es_response.get("hits", {}).get("hits", [])
         return [hit["_source"]["openid"] for hit in raw_hits if hit.get("_source", {}).get("openid")]
 

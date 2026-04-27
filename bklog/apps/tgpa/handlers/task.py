@@ -177,9 +177,9 @@ class TGPATaskHandler:
         # 获取任务处理时间和处理状态
         task_ids = [task["id"] for task in task_list]
         tgpa_tasks = TGPATask.objects.filter(id__in=task_ids).values("id", "processed_at", "process_status")
-        task_info_map = {str(item["id"]): item for item in tgpa_tasks}
+        task_info_map = {item["id"]: item for item in tgpa_tasks}
         for task in task_list:
-            task_info = task_info_map.get(task["task_id"], {})
+            task_info = task_info_map.get(task["id"], {})
             task["processed_at"] = task_info.get("processed_at", None)
             task["process_status"] = task_info.get("process_status", None)
         return task_list

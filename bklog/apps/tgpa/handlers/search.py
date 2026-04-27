@@ -24,11 +24,7 @@ import itertools
 
 import arrow
 
-from apps.tgpa.constants import (
-    TGPA_OPENID_SUGGEST_LIMIT,
-    TGPA_MERGED_LIST_MAX_RESULT_WINDOW,
-    TGPA_CLIENT_INFO_REPORT_DAYS,
-)
+from apps.tgpa.constants import TGPA_MERGED_LIST_MAX_RESULT_WINDOW
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.utils.thread import MultiExecuteFunc
@@ -43,9 +39,7 @@ class TGPASearchHandler:
     @classmethod
     def get_openid_list(cls, params):
         """
-        通过 keyword 分别从 task 和 report 查询 openid，合并去重后返回
-        :param params: 包含 bk_biz_id, keyword(可选), start_time(可选), end_time(可选)
-        :return: 去重排序后的 openid 列表
+        openid 列表查询
         """
         bk_biz_id = params["bk_biz_id"]
         keyword = params.get("keyword")
@@ -55,25 +49,23 @@ class TGPASearchHandler:
         # 并行从 task 和 report 数据源查询 openid 列表
         multi_execute = MultiExecuteFunc()
         multi_execute.append(
-            "task_openid_list",
-            TGPATaskHandler.get_openid_list,
+            result_key="task_openid_list",
+            func=TGPATaskHandler.get_openid_list,
             params={"bk_biz_id": bk_biz_id, "keyword": keyword},
             multi_func_params=True,
         )
         multi_execute.append(
-            "report_openid_list",
-            TGPAReportHandler.get_openid_list,
+            result_key="report_openid_list",
+            func=TGPAReportHandler.get_openid_list,
             params={"bk_biz_id": bk_biz_id, "keyword": keyword, "start_time": start_time, "end_time": end_time},
             multi_func_params=True,
         )
         results = multi_execute.run()
 
+        # 合并、去重
         task_openid_list = results.get("task_openid_list", [])
         report_openid_list = results.get("report_openid_list", [])
-
-        # 合并去重、排序、截断
-        merged_openid_set = set(task_openid_list) | set(report_openid_list)
-        return sorted(merged_openid_set)[:TGPA_OPENID_SUGGEST_LIMIT]
+        return list(set(task_openid_list) | set(report_openid_list))
 
     @staticmethod
     def _format_task_item(task):
@@ -116,7 +108,9 @@ class TGPASearchHandler:
 
     @staticmethod
     def _split_target(target):
-        """将统一检索目标拆分为 task_id 或 openid"""
+        """
+        将检索目标拆分为 task_id 或 openid
+        """
         if target is None:
             return None, None
         if isinstance(target, int) or (isinstance(target, str) and target.isdigit()):
@@ -126,7 +120,7 @@ class TGPASearchHandler:
     @classmethod
     def get_merged_task_list(cls, params):
         """
-        根据统一检索目标从 task 和 report 查询并归并分页。
+        从 task 和 report 两个数据源查询任务列表，合并后返回
         """
         bk_biz_id = params["bk_biz_id"]
         target = params.get("target")
@@ -142,8 +136,8 @@ class TGPASearchHandler:
         # 并行查询 task 和 report（没有 task_id 时才查 report）
         multi_execute = MultiExecuteFunc()
         multi_execute.append(
-            "task_result",
-            TGPATaskHandler.get_task_page,
+            result_key="task_result",
+            func=TGPATaskHandler.get_task_page,
             params={
                 "params": {
                     "bk_biz_id": bk_biz_id,
@@ -161,8 +155,8 @@ class TGPASearchHandler:
         )
         if not task_id:
             multi_execute.append(
-                "report_result",
-                TGPAReportHandler.get_report_list,
+                result_key="report_result",
+                func=TGPAReportHandler.get_report_list,
                 params={
                     "bk_biz_id": bk_biz_id,
                     "openid": openid,
@@ -184,6 +178,7 @@ class TGPASearchHandler:
         start_idx = (page - 1) * pagesize
         paged_list = list(itertools.islice(merged, start_idx, start_idx + pagesize))
 
+        # 限制深度分页
         total = min(TGPA_MERGED_LIST_MAX_RESULT_WINDOW, task_result["total"] + report_result["total"])
         return {"total": total, "list": paged_list}
 
@@ -197,8 +192,6 @@ class TGPASearchHandler:
         start_time = params.get("start_time")
         end_time = params.get("end_time")
 
-        now_ms = int(arrow.now().timestamp() * 1000)
-        report_total_start_time = int(arrow.now().shift(days=-TGPA_CLIENT_INFO_REPORT_DAYS).timestamp() * 1000)
         multi_execute = MultiExecuteFunc()
 
         # task 累计数量（openid 精确匹配，不限时间）
@@ -214,10 +207,13 @@ class TGPASearchHandler:
                     "ordering": "-created_at",
                 },
                 "need_format": False,
+                "add_process_info": False,
             },
             multi_func_params=True,
         )
-        # 2. report 累计数量（近30天）
+        # 2. report 累计数量（暂定为 30 天内的数量）
+        report_total_start_time = int(arrow.now().shift(days=-30).timestamp() * 1000)
+        report_total_end_time = int(arrow.now().timestamp() * 1000)
         multi_execute.append(
             result_key="total_report",
             func=TGPAReportHandler.get_report_count,
@@ -225,7 +221,7 @@ class TGPASearchHandler:
                 "bk_biz_id": bk_biz_id,
                 "openid": openid,
                 "start_time": report_total_start_time,
-                "end_time": now_ms,
+                "end_time": report_total_end_time,
             },
             multi_func_params=True,
         )
@@ -245,6 +241,7 @@ class TGPASearchHandler:
                         "ordering": "-created_at",
                     },
                     "need_format": False,
+                    "add_process_info": False,
                 },
                 multi_func_params=True,
             )
