@@ -26,6 +26,7 @@
 
 import { isEn } from '@/i18n/i18n';
 
+import _ from 'lodash';
 import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/modules/alert_v2';
 import { updateFavorite } from 'monitor-api/modules/model';
 
@@ -116,8 +117,18 @@ export abstract class AlarmService<S = AlarmType> {
     if (this.scenes !== AlarmType.ALERT) {
       return [];
     }
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await listAlertTags({
-      ...params,
+      ...paramsClone,
     }).catch(() => []);
     return data;
   }

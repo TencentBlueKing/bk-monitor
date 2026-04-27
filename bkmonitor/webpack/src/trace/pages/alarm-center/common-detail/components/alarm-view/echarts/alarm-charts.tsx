@@ -140,6 +140,9 @@ export default defineComponent({
     const scatterClickEventData = shallowRef<AlertScatterClickEvent>({});
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
+    /** 缓存 markPoint 悬停前的 cursor 样式 */
+    let cachedCursor = '';
+
     const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(
       toRef(props, 'defaultTimeRange')
     );
@@ -206,6 +209,31 @@ export default defineComponent({
         return ['screenshot'];
       }
       return ['screenshot', 'explore'];
+    });
+
+    /**
+     * @description 创建 markPoint 的 tooltip 配置（包含带箭头的样式）
+     * @param {string} content - tooltip 文本内容
+     * @returns {object} ECharts tooltip 配置对象
+     */
+    const createMarkPointTooltip = (content: string) => ({
+      trigger: 'item' as const,
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+      extraCssText: 'padding: 0;',
+      position: (point: number[], _params: any, _dom: any, _rect: any, size: any) => {
+        const [tooltipWidth, tooltipHeight] = size.contentSize;
+        const [pointX, pointY] = point;
+        // tooltip 显示在 markPoint 上方，水平居中
+        const left = pointX - tooltipWidth / 2;
+        const top = pointY - tooltipHeight - 12; // 向上偏移（箭头高度 6px + 间距 6px）
+        return [left, top];
+      },
+      formatter: () =>
+        `<div style="position: relative; background: rgba(54,58,67,.88); color: #fafbfd; font-size: 12px; padding: 6px 12px; border-radius: 4px;">
+          ${content}
+          <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid rgba(54,58,67,.88);"></div>
+        </div>`,
     });
 
     /**
@@ -288,9 +316,10 @@ export default defineComponent({
           insertMissingPoint(Number(point), 0);
         }
 
-        // 设置标记点（异常点 + 致命告警图标）
+        // 设置标记点（异常点 + 告警级别图标）
         const mainSeries = series[0];
         mainSeries.markPoints = [
+          // 条件渲染：非事件/日志告警 且 非柱状图 时显示异常点
           ...(isEventOrLogAlarm.value && mainSeries?.type === 'bar'
             ? []
             : datapoints
@@ -302,7 +331,9 @@ export default defineComponent({
                   symbol: 'circle',
                   symbolSize: 5,
                   itemStyle: { color: ANOMALY_COLOR },
+                  tooltip: createMarkPointTooltip(t('异常检测点')),
                 }))),
+          // 告警级别标记
           {
             value: beginTime,
             xAxis: beginTimeStr,
@@ -311,12 +342,13 @@ export default defineComponent({
             symbolSize: 0,
             label: {
               show: true,
-              position: 'top',
+              position: 'top' as const,
               formatter: ALARM_ICON_CONFIG[props.detail.severity]?.unicode,
               color: ALARM_ICON_CONFIG[props.detail.severity]?.color,
               fontSize: 16,
               fontFamily: 'icon-monitor',
             },
+            tooltip: createMarkPointTooltip(ALARM_ICON_CONFIG[props.detail.severity]?.alias || ''),
           },
         ];
         mainSeries.markTimeRange = [
@@ -707,6 +739,27 @@ export default defineComponent({
       }
     };
 
+    /**
+     * @description markPoint 鼠标移入时缓存并设置光标为默认样式
+     */
+    const handleChartMouseover = (params: Record<string, any>) => {
+      if (params.componentType !== 'markPoint') return;
+      const canvas = params.event?.event?.target as HTMLElement;
+      if (!canvas) return;
+      cachedCursor = canvas.style.cursor;
+      canvas.style.cursor = 'default';
+    };
+
+    /**
+     * @description markPoint 鼠标移出时恢复光标样式
+     */
+    const handleChartMouseout = (params: Record<string, any>) => {
+      if (params.componentType !== 'markPoint') return;
+      const canvas = params.event?.event?.target as HTMLElement;
+      if (!canvas) return;
+      canvas.style.cursor = cachedCursor;
+    };
+
     onMounted(() => document.addEventListener('mousedown', handleCloseEventDetailPopup));
     onUnmounted(() => document.removeEventListener('mousedown', handleCloseEventDetailPopup));
 
@@ -725,6 +778,8 @@ export default defineComponent({
       eventDetailPopupPosition,
       scatterClickEventData,
       handleMenuClick,
+      handleChartMouseover,
+      handleChartMouseout,
     };
   },
   render() {
@@ -748,6 +803,8 @@ export default defineComponent({
           onClick={this.handleScatterClick}
           onDataZoomChange={this.handleDataZoomChange}
           onMenuClick={this.handleMenuClick}
+          onMouseout={this.handleChartMouseout}
+          onMouseover={this.handleChartMouseover}
           onRestore={this.handleRestore}
         />
 

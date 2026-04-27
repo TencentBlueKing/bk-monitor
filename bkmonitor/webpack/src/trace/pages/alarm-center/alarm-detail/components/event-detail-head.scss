@@ -9,8 +9,13 @@ $fatal-red: #ea3536;
   height: 100%;
 
   .level-tag {
-    width: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
     height: 36px;
+    padding: 0 6px;
     color: #fff;
     text-align: center;
     background: #e6e7e8;
@@ -137,6 +142,7 @@ $fatal-red: #ea3536;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      width: auto !important;
       height: 100%;
       padding: 0 16px;
       color: #4e5e7a;
@@ -168,7 +174,6 @@ $fatal-red: #ea3536;
         font-size: 12px;
         line-height: 20px;
         background: linear-gradient(98deg, #4667f3 3.74%, #d287ea 96.48%);
-        background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
       }

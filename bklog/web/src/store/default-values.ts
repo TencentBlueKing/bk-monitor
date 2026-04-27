@@ -248,6 +248,10 @@ export const IndexFieldInfo = {
   alias_mapping_field: null,
   is_virtual_alias_field: false,
   source_field_names: [],
+  // field_name → FieldInfoItem 索引，在 updateIndexFieldInfo 中同步构建
+  fieldNameIndex: {} as Record<string, any>,
+  // query_alias → FieldInfoItem 索引，在 updateIndexFieldInfo 中同步构建
+  queryAliasIndex: {} as Record<string, any>,
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };

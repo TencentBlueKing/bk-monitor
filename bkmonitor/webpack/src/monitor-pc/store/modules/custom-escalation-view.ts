@@ -28,13 +28,17 @@ import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators'
 
 import store from '../store';
 
-import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/metric-detail/services/scene_view_new';
+import type {
+  getCustomTsMetricAggInfo,
+  getCustomTsMetricGroups,
+} from 'monitor-pc/pages/custom-escalation/service/scene_view';
 
 interface GroupItem {
   groupName: string;
   metricsName: string[];
 }
 
+type TCustomTsMetricAggInfo = ServiceReturnType<typeof getCustomTsMetricAggInfo>;
 type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 
 /** 自定义指标时间范围本地存储 key（仅在此模块内部使用） */
@@ -45,21 +49,25 @@ const DEFAULT_TIME_RANGE: [string, string] = ['now-1h', 'now'];
 
 @Module({ name: 'customEscalationView', dynamic: true, namespaced: true, store })
 class CustomEscalationViewStore extends VuexModule {
+  public aggInfoData: TCustomTsMetricAggInfo = {
+    all_dimensions: [],
+    common_dimensions: [],
+  };
   // public commonDimensionList: Readonly<TCustomTsMetricGroups['common_dimensions']> = [];
   public currentSelectedGroupAndMetricNameList: GroupItem[] = [];
   // public currentSelectedMetricNameList: string[] = [];
   public endTime = DEFAULT_TIME_RANGE[1];
-  public metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
-  public startTime = DEFAULT_TIME_RANGE[0];
-  public timeSeriesGroupId = -1;
-
   /** 汇聚周期是否为「自动」模式，用于图表请求不传 down_sample_range */
   public isIntervalAuto = true;
+  public metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
+  public startTime = DEFAULT_TIME_RANGE[0];
+
+  public timeSeriesGroupId = -1;
 
   /** 自动模式下计算出的汇聚周期（秒），用于替换 $interval 变量 */
   public autoIntervalSec = 60;
 
-  // 过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
+  // 常驻过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
   get commonDimensionList() {
     const selectedGroupNames = new Set(this.currentSelectedMetricList.map(i => i.scope_name));
     const currentSelectedCommonDimensionList: TCustomTsMetricGroups['metric_groups'][number]['common_dimensions'] = [];
@@ -80,19 +88,32 @@ class CustomEscalationViewStore extends VuexModule {
   }
 
   get currentSelectedMetricList() {
-    const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & { scope_name: string })[] = [];
+    // 防止数据量过大页面无响应，预处理 currentSelectedGroupAndMetricNameList，建立 metricName -> groupNames 映射
+    const metricGroupMap = this.currentSelectedGroupAndMetricNameList.reduce<Record<string, string[]>>((map, item) => {
+      item.metricsName.forEach(metricName => {
+        if (!map[metricName]) {
+          map[metricName] = [];
+        }
+        map[metricName].push(item.groupName);
+      });
+      return map;
+    }, {});
+
+    const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & {
+      scope_id: number;
+      scope_name: string;
+    })[] = [];
     for (const groupItem of this.metricGroupList) {
       for (const metricsItem of groupItem.metrics) {
         const metricName = metricsItem.metric_name;
-        // 检查该 metric_name 是否在当前分组的 metricKeyMap 中
-        const groupNames = this.currentSelectedGroupAndMetricNameList
-          .filter(item => item.metricsName.includes(metricName))
-          .map(item => item.groupName);
+        // 直接从映射中获取，O(1) 时间复杂度
+        const groupNames = metricGroupMap[metricName] || [];
         // 如果 metricName 对应的 groupName 存在，添加到结果中
         if (groupNames.includes(groupItem.name)) {
           result.push({
             ...metricsItem,
             scope_name: groupItem.name, // 每个 metric 都附带其分组名称
+            scope_id: groupItem.scope_id,
           });
         }
       }
@@ -101,15 +122,11 @@ class CustomEscalationViewStore extends VuexModule {
   }
 
   get dimensionAliasNameMap() {
-    return this.currentSelectedMetricList.reduce<Record<string, string>>((result, groupItem) => {
-      for (const dimensionItem of groupItem.dimensions) {
-        // 如果 alias 存在，则直接赋值；否则保持原值
-        if (dimensionItem.alias) {
-          result[dimensionItem.name] = dimensionItem.alias;
-        } else if (!(dimensionItem.name in result)) {
-          // 如果当前别名为空且之前没有赋值，则保留为空字符串
-          result[dimensionItem.name] = '';
-        }
+    return (this.aggInfoData.all_dimensions || []).reduce<Record<string, string>>((result, dimensionItem) => {
+      if (dimensionItem.alias) {
+        result[dimensionItem.name] = dimensionItem.alias;
+      } else if (!(dimensionItem.name in result)) {
+        result[dimensionItem.name] = '';
       }
       return result;
     }, {});
@@ -135,14 +152,24 @@ class CustomEscalationViewStore extends VuexModule {
   // }
 
   @Mutation
-  public updateCurrentSelectedGroupAndMetricNameList(payload: GroupItem[]) {
-    this.currentSelectedGroupAndMetricNameList = payload;
+  public setIntervalAuto(payload: boolean) {
+    this.isIntervalAuto = payload;
   }
 
   // @Mutation
   // public updateCurrentSelectedMetricNameList(payload: string[]) {
   //   this.currentSelectedMetricNameList = payload;
   // }
+
+  @Mutation
+  public updateAggInfo(payload: TCustomTsMetricAggInfo) {
+    this.aggInfoData = payload;
+  }
+
+  @Mutation
+  public updateCurrentSelectedGroupAndMetricNameList(payload: GroupItem[]) {
+    this.currentSelectedGroupAndMetricNameList = payload;
+  }
 
   @Mutation
   public updateMetricGroupList(payload: TCustomTsMetricGroups['metric_groups']) {

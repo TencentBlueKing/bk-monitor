@@ -56,6 +56,9 @@ class TransferEtlHandler(EtlHandler):
         target_fields=None,
         username="",
         total_shards_per_node=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
         *args,
         **kwargs,
     ):
@@ -164,6 +167,9 @@ class TransferEtlHandler(EtlHandler):
             username=username,
             sort_fields=sort_fields,
             target_fields=target_fields,
+            is_platform_index=is_platform_index,
+            platform_index_visibility=platform_index_visibility,
+            platform_index_filter=platform_index_filter,
         )
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次

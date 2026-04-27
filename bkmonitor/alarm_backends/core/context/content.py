@@ -14,7 +14,6 @@ import logging
 import urllib.parse
 from collections import defaultdict
 from json import JSONDecodeError
-from urllib import parse
 
 from django.conf import settings
 from django.db.models import Max
@@ -276,11 +275,53 @@ class DefaultContent(BaseContextObject):
                 if dashboard == "pod" and pod:
                     filter_data.append({"name": pod})
                 if dashboard:
-                    query_data = parse.quote(
-                        parse.quote(json.dumps({"page": 0, "selectorSearch": filter_data, "filterDict": {}}))
-                    )
+                    # 将旧版 selectorSearch 转换为新版 k8s-new 页面的 filterBy 格式
+                    # 旧版格式: {"selectorSearch": [{"bcs_cluster_id": "xxx"}, {"keyword": "node-name"}]}
+                    # 新版格式: filterBy={"node": ["node-name"]} (JSON 字符串作为 query 参数)
+                    filter_by = {}
+                    for item in filter_data:
+                        for key, val in item.items():
+                            if key == "bcs_cluster_id":
+                                # bcs_cluster_id 在新版中单独作为 cluster 参数，不放入 filterBy
+                                filter_by["bcs_cluster_id"] = [val]
+                            elif key == "keyword":
+                                # 旧版用 keyword 统一表示名称，需根据 dashboard 类型映射到新字段
+                                if dashboard == "node":
+                                    filter_by["node"] = [val]
+                                elif dashboard == "container":
+                                    filter_by["container"] = [val]
+                                elif dashboard == "pod":
+                                    filter_by["pod"] = [val]
+                            elif key in ("namespace", "name", "pod_name"):
+                                if key == "name":
+                                    # name 字段根据 dashboard 类型映射: container 容器名 / pod 的 pod 名
+                                    if dashboard == "container":
+                                        filter_by["container"] = [val]
+                                    else:
+                                        filter_by["pod"] = [val]
+                                elif key == "pod_name":
+                                    # container 场景下 pod_name 用于定位所属 pod
+                                    if dashboard == "container":
+                                        filter_by["pod"] = [val]
+                                else:
+                                    filter_by["namespace"] = [val]
+                    # groupBy: 将旧版 dashboardId (node/pod/container) 映射为新版分组维度
+                    # 注意: performance/network 场景下 namespace 是前端常驻维度 (fixedGroupFilters)，
+                    # 但 URL 初始加载时 setGroupFilters 不会自动补上 fixed，所以需要显式带上
+                    if dashboard == "node":
+                        group_by = ["node"]
+                    elif dashboard in ("pod", "container"):
+                        group_by = ["namespace", dashboard]
+                    else:
+                        group_by = []
+                    group_by_str = json.dumps(group_by)
+                    filter_by_str = json.dumps(filter_by)
+                    # scene: 只有容量场景 (capacity) 才有 node 维度，其他维度用 performance
+                    # 前端 sceneDimensionMap: performance=[namespace,workload,pod,container], capacity=[node]
+                    scene = "capacity" if dashboard == "node" else "performance"
                     route_path = (
-                        f"#/k8s?dashboardId={dashboard}&sceneId=kubernetes&sceneType=overview&queryData={query_data}"
+                        f"#/k8s-new?cluster={cluster}&filterBy={filter_by_str}&groupBy={group_by_str}"
+                        f"&sceneId=kubernetes&scene={scene}&activeTab=list"
                     )
                     route_path = base64.b64encode(route_path.encode("utf8")).decode("utf8")
                     link = urllib.parse.urljoin(

@@ -110,7 +110,6 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
     try {
       await this.fromRef.validate();
       await this.requestHandlerMap.modifyCustomTsFields({
-        // time_series_group_id: Number(this.timeSeriesGroupId),
         ...params,
         update_fields: [
           {

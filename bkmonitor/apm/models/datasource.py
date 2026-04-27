@@ -31,7 +31,7 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
-from apm.models.doris import BkDataDorisProvider
+from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose_profile_data_id_name
 from apm.models.shared_datasource import BaseSharedDataSource, SHARED_DS_REGISTRY
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -494,6 +494,7 @@ class LogDataSource(ApmDataSourceConfigBase):
 class TraceDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.TRACE_DATASOURCE
     CONCURRENT_NUMBER = 5
+    GROUP_AGGREGATE_METHODS: ClassVar[tuple[str, ...]] = ("avg", "max", "min", "sum", "count")
     DATA_ID_PARAM = {
         "etl_config": "bk_flat_batch",
         "type_label": DataTypeLabel.LOG,
@@ -1036,6 +1037,49 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         return aggregated_records
 
+    @classmethod
+    def _get_group_metric_key(cls, agg_method: str) -> str:
+        return "doc_count" if agg_method == "count" else f"{agg_method}_duration"
+
+    @classmethod
+    def _get_missing_group_metric_keys(cls, group_bucket: dict[str, Any]) -> list[str]:
+        missing_keys: list[str] = []
+        for agg_method in cls.GROUP_AGGREGATE_METHODS:
+            metric_key = cls._get_group_metric_key(agg_method)
+            value = group_bucket.get(metric_key)
+            if agg_method == "count":
+                if value is None:
+                    missing_keys.append(metric_key)
+                continue
+
+            if not isinstance(value, dict) or value.get("value") is None:
+                missing_keys.append(metric_key)
+
+        return missing_keys
+
+    def _filter_complete_group_buckets(self, group_buckets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        complete_buckets: list[dict[str, Any]] = []
+        filtered_buckets: list[dict[str, Any]] = []
+        for group_bucket in group_buckets:
+            if self._get_missing_group_metric_keys(group_bucket):
+                # 热窗口（查询结束时间为「当前」）并发多次查询的场景下，存在部分稀疏 group_key 仅能统计到部分指标。
+                # 例如请求发起顺序为 sum -- 1ms --> count，请求间隔期间写入一条新数据，此时 sum 无数据，count=1。
+                # 为避免这种情况，过滤掉统计指标不全的数据。
+                filtered_buckets.append(group_bucket)
+                continue
+            complete_buckets.append(group_bucket)
+
+        if filtered_buckets:
+            sample_bucket = filtered_buckets[0]
+            logger.warning(
+                "[APM][query_span_with_group_keys][filtered_incomplete_group_bucket] "
+                f"bk_biz_id={self.bk_biz_id} app_name={self.app_name} "
+                f"filtered_count={len(filtered_buckets)} sample_key={sample_bucket.get('key', {})} "
+                f"missing_metric_keys={self._get_missing_group_metric_keys(sample_bucket)}",
+            )
+
+        return complete_buckets
+
     def query_span_with_group_keys(
         self,
         start_time: int,
@@ -1061,12 +1105,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
         q: QueryConfigBuilder = self.get_q(filter_params, category).group_by(*group_by).filter(or_query)
         qs: UnifyQuerySet = self.get_qs(start_time, end_time).limit(self.DEFAULT_LIMIT_MAX_SIZE)
 
-        pool = ThreadPool(5)
+        pool = ThreadPool(len(self.GROUP_AGGREGATE_METHODS))
         field_aggregated_records_list = pool.imap_unordered(
             lambda _agg_method: self._query_field_aggregated_records(
                 q, qs, group_by, OtlpKey.ELAPSED_TIME, _agg_method
             ),
-            ["avg", "max", "min", "sum", "count"],
+            self.GROUP_AGGREGATE_METHODS,
         )
         pool.close()
 
@@ -1076,21 +1120,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
             for record in field_aggregated_records:
                 # 将 GroupBy 字段转为 GroupKey，构建 SpanGroup 作为聚合唯一 Key。
                 span_group: dict[str, str] = {
-                    field_group_key_map.get(field, field): field_value
+                    field_group_key_map.get(field) or field: field_value
                     for field, field_value in record["dimensions"].items()
                 }
 
-                if record["agg_method"] == "count":
-                    construct_value = {"doc_count": record["value"]}
-                else:
-                    construct_value = {f"{record['agg_method']}_duration": {"value": record["value"]}}
+                metric_key = self._get_group_metric_key(record["agg_method"])
+                construct_value = {
+                    metric_key: record["value"] if record["agg_method"] == "count" else {"value": record["value"]}
+                }
 
                 # 按 SpanGroup 将不同聚合方法的聚合结果进行合并。
                 span_group_aggregated_result_map.setdefault(frozenset(span_group.items()), {"key": span_group}).update(
                     construct_value
                 )
 
-        return list(span_group_aggregated_result_map.values())
+        return self._filter_complete_group_buckets(list(span_group_aggregated_result_map.values()))
 
     def query_exists_trace_ids(self, trace_ids: list[str], start_time: int, end_time: int) -> list[str]:
         """过滤出存在的 TraceID 列表"""
@@ -1226,6 +1270,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional["ProfileDataSource"] = None
 
+    bkdata_datalink_config = models.JSONField("BkData链路配置", default=dict)
     profile_bk_biz_id = models.IntegerField(
         "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
         null=True,
@@ -1242,8 +1287,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
+    def is_bkbase_v4_link(self) -> bool:
+        return (self.bkdata_datalink_config.get("version") or 3) == 4
+
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
         profile_bk_biz_id = bk_biz_id
@@ -1264,24 +1311,69 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
-        essentials = BkDataDorisProvider.from_datasource_instance(
-            obj,
-            maintainer=global_user if not apm_maintainers else f"{global_user},{apm_maintainers}",
-            operator=global_user,
-            name_stuffix=bk_biz_id,
-        ).provider()
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
+        maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+
+        # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
+        use_v4 = profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST
+
+        if use_v4:
+            # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
+            # 先生成 DataId 名称并持久化，防止 provider() 中途失败后重试时生成不同随机后缀导致孤儿资源
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                obj,
+                bk_tenant_id=bk_tenant_id,
+                maintainer=maintainer,
+                operator=global_user,
+            )
+            data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
+            obj.bkdata_datalink_config = {
+                "version": 4,
+                "v4_resource_names": {
+                    "data_id_name": data_id_name,
+                    "result_table_name": None,
+                    "doris_binding_name": None,
+                    "databus_name": None,
+                },
+            }
+            obj.save()
+
+            essentials = provider.provider()
+            # provider() 成功后，补全 resource_name
+            resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
+            bkdata_datalink_config = {
+                "version": 4,
+                "v4_resource_names": {
+                    "data_id_name": resource_names["data_id_name"],
+                    "result_table_name": resource_names["result_table_name"],
+                    "doris_binding_name": resource_names["doris_binding_name"],
+                    "databus_name": resource_names["databus_name"],
+                },
+            }
+        else:
+            # V3 命令式链路（原有逻辑）
+            essentials = BkDataDorisProvider.from_datasource_instance(
+                obj,
+                maintainer=maintainer,
+                operator=global_user,
+                name_stuffix=bk_biz_id,
+            ).provider()
+            bkdata_datalink_config = {}
+
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
+        obj.bkdata_datalink_config = bkdata_datalink_config
         obj.save()
 
         return
 
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def create_builtin_source(cls):
         # datasource is enough, no real app created.
+        # 注意：不使用 @atomic，因为 apply_datasource 内部已自行管理事务
+        # （V4 链路含轮询，不可放在长事务内）
         cls.apply_datasource(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME, option=True)
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(
             bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME
@@ -1300,12 +1392,39 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def start(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
+        if instance.is_bkbase_v4_link():
+            # V4 声明式链路：没有启停接口，通过 apply 重新声明资源（等价于启动）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
+            global_user = get_global_user(bk_tenant_id=bk_tenant_id)
+            maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance, bk_tenant_id=bk_tenant_id, maintainer=maintainer, operator=global_user
+            )
+            provider.apply()
+        else:
+            api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if instance:
+        if not instance:
+            return
+        if instance.is_bkbase_v4_link():
+            # V4 声明式链路：没有启停接口，通过 delete 删除资源（等价于停止）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance,
+                bk_tenant_id=bk_tenant_id,
+                maintainer="",
+                operator="",
+            )
+            provider.delete()
+        else:
             api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 

@@ -418,10 +418,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE",
-            slz.BooleanField(label="是否启用同步历史ES集群记录能力", default=False),
-        ),
-        (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
             slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
         ),
@@ -429,6 +425,28 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
+        ("OPENCLAW_RECOVERING_BK_BIZ_ID", slz.IntegerField(label="OpenClaw自愈分析业务ID", default=0)),
+        ("OPENCLAW_RECOVERING_APM_APP_NAME", slz.CharField(label="OpenClaw自愈分析APM应用名", default="")),
+        (
+            "OPENCLAW_RECOVERING_TRACE_OWNER_FIELD",
+            slz.CharField(label="OpenClaw自愈分析Trace归属字段", default="attributes.agent.session.executor"),
+        ),
+        (
+            "OPENCLAW_RECOVERING_LOG_OWNER_FIELD",
+            slz.CharField(label="OpenClaw自愈分析日志归属字段", default="__ext.owner"),
+        ),
+        (
+            "OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP",
+            slz.JSONField(
+                label="OpenClaw自愈分析日志流索引集映射",
+                default={},
+            ),
+        ),
+        ("OPENCLAW_RECOVERING_ADMIN_USERS", slz.ListField(label="OpenClaw自愈分析管理员列表", default=[])),
+        (
+            "OPENCLAW_RECOVERING_MCP_SERVER_NAME",
+            slz.CharField(label="OpenClaw自愈分析MCP服务名", default=""),
+        ),
         ("AIDEV_AGENT_MCP_REQUEST_AGENT_CODE", slz.CharField(label="AIAgent请求Agent的代码", default="bkmonitor-mcp")),
         ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=False)),
         ("ENABLE_AI_RENAME", slz.BooleanField(label="是否开启AI RENAME", default=False)),
@@ -573,6 +591,15 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
+        ("APM_PROFILE_V4_BIZ_WHITE_LIST", slz.ListField(label=_("APM Profile V4 链路业务白名单"), default=[])),
+        (
+            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
+        ),
+        (
+            "APM_PROFILE_V4_DATABUS_PREFER_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 Databus 计算集群名称"), default="", allow_blank=True),
+        ),
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),

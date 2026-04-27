@@ -60,6 +60,26 @@ from metadata.utils.redis_tools import RedisTools
 logger = logging.getLogger("metadata")
 
 
+def is_sync_bkcc_space_managed_biz(bk_biz_id: str, start_biz_id: int | None) -> bool:
+    """
+    判断当前业务是否由 sync_bkcc_space 接管新增、删除及 V4 内置链路检查。
+
+    规则：
+    - 未配置 ``SYNC_BKCC_SPACE_START_BIZ_ID``（``start_biz_id`` 为 ``None``）：全部接管，保持历史行为；
+    - 已配置：仅当 ``bk_biz_id`` **严格大于**阈值时才接管，阈值以下（含阈值）的业务交由其它任务/链路管理；
+    - ``bk_biz_id`` 无法解析为整数：保守地视为不接管，避免异常数据被误纳入删除链。
+
+    注意：冲突空间软禁用等保护性逻辑不受该阈值影响，仍对全量业务生效。
+    """
+    if start_biz_id is None:
+        return True
+
+    try:
+        return int(bk_biz_id) > start_biz_id
+    except (TypeError, ValueError):
+        return False
+
+
 def _disable_related_bkci_spaces(bkcc_space_ids: list[str]):
     """禁用关联的 BKCI 空间有效性"""
     if not bkcc_space_ids:
@@ -141,10 +161,29 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
         return
 
     biz_id_name_dict = {str(b.bk_biz_id): b for b in biz_list}
+
+    # 只有业务 ID 大于阈值的业务才会被接管新增、删除及 V4 内置链路检查；阈值以下业务交由其它任务/链路管理
+    start_biz_id = settings.SYNC_BKCC_SPACE_START_BIZ_ID
+    if start_biz_id in ("", None):
+        start_biz_id = None
+    else:
+        try:
+            start_biz_id = int(start_biz_id)
+        except (TypeError, ValueError):
+            logger.warning(
+                "sync_bkcc_space: invalid SYNC_BKCC_SPACE_START_BIZ_ID(%s), disable threshold filter", start_biz_id
+            )
+            start_biz_id = None
+
+    managed_biz_ids = {biz_id for biz_id in biz_id_name_dict if is_sync_bkcc_space_managed_biz(biz_id, start_biz_id)}
     # 过滤已经创建空间的业务
     space_id_list = Space.objects.filter(space_type_id=bkcc_type_id).values_list("space_id", flat=True)
-    diff = set(biz_id_name_dict.keys()) - set(space_id_list)
-    diff_delete = set(space_id_list) - set(biz_id_name_dict.keys())
+    diff = managed_biz_ids - set(space_id_list)
+    diff_delete = {
+        space_id
+        for space_id in set(space_id_list) - set(biz_id_name_dict.keys())
+        if is_sync_bkcc_space_managed_biz(space_id, start_biz_id)
+    }
 
     # 针对删除的业务
     # 当业务在 cmdb 删除业务，并且允许删除为 True 时，才进行删除；避免因为接口返回不正确，误删除的场景
@@ -192,9 +231,14 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
 
-    # 检查V4链路配置，需要排除新增的业务
+    # 检查V4链路配置：仅覆盖受本任务接管（阈值以上）且本轮未新增的业务；
+    # 本轮新增业务在 create_bkcc_spaces 内部处理；阈值以下业务由其它任务/链路管理。
     check_bkcc_space_builtin_datalink(
-        biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list if str(b.bk_biz_id) not in diff]
+        biz_list=[
+            (b.bk_tenant_id, b.bk_biz_id)
+            for b in biz_list
+            if str(b.bk_biz_id) in managed_biz_ids and str(b.bk_biz_id) not in diff
+        ]
     )
 
     cost_time = time.time() - start_time
@@ -511,7 +555,7 @@ def get_cluster_data_id(space_id, cluster_id_list, space_data_id_map):
     logger.info("cluster data id info: %s", json.dumps(space_data_id_map))
 
 
-def bulk_create_records(space_type, space_data_id_map, space_id_list, from_authorization):
+def bulk_create_records(bk_tenant_id, space_type, space_data_id_map, space_id_list, from_authorization):
     """批量创建记录
 
     NOTE: 当共享集群项目时，返回的数据中，共享集群即使这个项目下的专用集群，也是这个项目的共享集群
@@ -528,6 +572,7 @@ def bulk_create_records(space_type, space_data_id_map, space_id_list, from_autho
         for i in diff:
             add_space_data_id_list.append(
                 SpaceDataSource(
+                    bk_tenant_id=bk_tenant_id,
                     space_type_id=space_type,
                     space_id=space_id,
                     bk_data_id=i,
@@ -560,107 +605,123 @@ def refresh_cluster_resource():
     # 拉取现阶段绑定的资源，注意资源类型仅为 bcs
     space_type = SpaceTypes.BKCI.value
     resource_type = SpaceTypes.BCS.value
-    space_res_dict = {
-        sr["resource_id"]: sr["dimension_values"]
-        for sr in SpaceResource.objects.get_resource_by_resource_type(space_type, resource_type)
-    }
-    # code 映射 id，仅过滤到有集群的项目
-    space_id_code_map = {
-        s["space_id"]: (s["space_code"], s["bk_tenant_id"])
-        for s in Space.objects.filter(space_type_id=space_type, is_bcs_valid=True).values(
-            "space_id", "space_code", "bk_tenant_id"
-        )
-        if s["space_code"]
-    }
-    # 根据项目查询项目下资源的变化
-    changed_space_list, space_id_list, add_resource_list = [], [], []
-    space_data_id_map, shared_space_data_id_map = {}, {}
-    # 获取存储在metadata中的集群数据
-    metadata_clusters = get_metadata_cluster_list()
 
-    for s_id, (s_code, bk_tenant_id) in space_id_code_map.items():
-        clusters = get_project_clusters(bk_tenant_id=bk_tenant_id, project_id=s_code)
-        if not clusters:
-            continue
-        dimension_values = []
-        project_cluster, shared_cluster, shared_cluster_ns = set(), set(), {}
-        used_cluster_list = set()
-        for c in clusters:
-            cluster_id = c["cluster_id"]
-            # 防止共享集群所在项目返回相同集群的场景
-            if cluster_id not in metadata_clusters or cluster_id in used_cluster_list:
+    for tenant in api.bk_login.list_tenant():
+        bk_tenant_id = tenant["id"]
+        space_res_dict = {
+            sr["resource_id"]: sr["dimension_values"]
+            for sr in SpaceResource.objects.filter(
+                bk_tenant_id=bk_tenant_id, space_type_id=space_type, resource_type=resource_type
+            ).values("resource_id", "dimension_values")
+        }
+        # code 映射 id，仅过滤到有集群的项目
+        space_id_code_map: dict[str, str] = {
+            s["space_id"]: s["space_code"]
+            for s in Space.objects.filter(
+                bk_tenant_id=bk_tenant_id, space_type_id=space_type, is_bcs_valid=True
+            ).values("space_id", "space_code")
+            if s["space_code"]
+        }
+        # 根据项目查询项目下资源的变化
+        changed_space_list, space_id_list, add_resource_list = [], [], []
+        space_data_id_map, shared_space_data_id_map = {}, {}
+        # 获取存储在metadata中的集群数据
+        metadata_clusters = get_metadata_cluster_list()
+
+        for s_id, s_code in space_id_code_map.items():
+            clusters = get_project_clusters(bk_tenant_id=bk_tenant_id, project_id=s_code)
+            if not clusters:
                 continue
-            used_cluster_list.add(cluster_id)
-            if c["is_shared"]:
-                ns_list = [
-                    ns["namespace"]
-                    for ns in get_shared_cluster_namespaces(
-                        bk_tenant_id=bk_tenant_id, cluster_id=cluster_id, project_code=s_id
+            dimension_values = []
+            project_cluster, shared_cluster, shared_cluster_ns = set(), set(), {}
+            used_cluster_list = set()
+            for c in clusters:
+                cluster_id = c["cluster_id"]
+                # 防止共享集群所在项目返回相同集群的场景
+                if cluster_id not in metadata_clusters or cluster_id in used_cluster_list:
+                    continue
+                used_cluster_list.add(cluster_id)
+                if c["is_shared"]:
+                    ns_list = [
+                        ns["namespace"]
+                        for ns in get_shared_cluster_namespaces(
+                            bk_tenant_id=bk_tenant_id, cluster_id=cluster_id, project_code=s_id
+                        )
+                        if cluster_id == ns["cluster_id"]
+                    ]
+                    dimension_values.append({"cluster_id": cluster_id, "namespace": ns_list, "cluster_type": "shared"})
+                    shared_cluster_ns[cluster_id] = set(ns_list)
+                    shared_cluster.add(cluster_id)
+                else:
+                    dimension_values.append({"cluster_id": cluster_id, "namespace": None, "cluster_type": "single"})
+                    project_cluster.add(cluster_id)
+            # 过滤集群对应的 data id
+            get_cluster_data_id(s_id, project_cluster, space_data_id_map)
+            logger.info("cluster data id info: %s", json.dumps(space_data_id_map))
+            if shared_cluster:
+                get_cluster_data_id(s_id, shared_cluster, shared_space_data_id_map)
+                logger.info("cluster data id info: %s", json.dumps(shared_space_data_id_map))
+
+            sr = space_res_dict.get(s_id)
+            if sr is None:
+                add_resource_list.append(
+                    SpaceResource(
+                        bk_tenant_id=bk_tenant_id,
+                        space_type_id=SpaceTypes.BKCI.value,
+                        space_id=s_id,
+                        resource_type=SpaceTypes.BCS.value,
+                        resource_id=s_id,
+                        creator=SYSTEM_USERNAME,
+                        updater=SYSTEM_USERNAME,
+                        dimension_values=dimension_values,
                     )
-                    if cluster_id == ns["cluster_id"]
-                ]
-                dimension_values.append({"cluster_id": cluster_id, "namespace": ns_list, "cluster_type": "shared"})
-                shared_cluster_ns[cluster_id] = set(ns_list)
-                shared_cluster.add(cluster_id)
-            else:
-                dimension_values.append({"cluster_id": cluster_id, "namespace": None, "cluster_type": "single"})
-                project_cluster.add(cluster_id)
-        # 过滤集群对应的 data id
-        get_cluster_data_id(s_id, project_cluster, space_data_id_map)
-        logger.info("cluster data id info: %s", json.dumps(space_data_id_map))
-        if shared_cluster:
-            get_cluster_data_id(s_id, shared_cluster, shared_space_data_id_map)
-            logger.info("cluster data id info: %s", json.dumps(shared_space_data_id_map))
-
-        sr = space_res_dict.get(s_id)
-        if sr is None:
-            add_resource_list.append(
-                SpaceResource(
-                    space_type_id=SpaceTypes.BKCI.value,
-                    space_id=s_id,
-                    resource_type=SpaceTypes.BCS.value,
-                    resource_id=s_id,
-                    creator=SYSTEM_USERNAME,
-                    updater=SYSTEM_USERNAME,
-                    dimension_values=dimension_values,
                 )
+                space_id_list.append(s_id)
+                continue
+            # 获取现存的，判断是否有变化
+            exist_project_cluster, exist_shared_cluster_ns = set(), {}
+            for srd in sr:
+                cluster_id = srd["cluster_id"]
+                if srd["namespace"]:
+                    exist_shared_cluster_ns[cluster_id] = set(srd["namespace"])
+                else:
+                    exist_project_cluster.add(cluster_id)
+            # 对比差异
+            if project_cluster != exist_project_cluster or shared_cluster_ns != exist_shared_cluster_ns:
+                changed_space_list.append(f"{space_type}__{s_id}")
+                SpaceResource.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                    space_type_id=space_type,
+                    space_id=s_id,
+                    resource_type=resource_type,
+                    resource_id=s_id,
+                ).update(dimension_values=dimension_values)
+                space_id_list.append(s_id)
+        # 创建资源
+        if add_resource_list:
+            SpaceResource.objects.bulk_create(add_resource_list)
+            logger.info("create bcs space resource successfully, space: %s", json.dumps(space_id_list))
+
+        # 根据空间 data id，判断是否已经添加
+        # 创建专用集群下的数据源 ID 记录
+        # 因为共享集群在所属项目下会返回两次，因此，需要先创建属于专用集群的数据源关联
+        bulk_create_records(bk_tenant_id, space_type, space_data_id_map, space_id_list, False)
+        # 创建共享集群下的数据源 ID 记录
+        bulk_create_records(bk_tenant_id, space_type, shared_space_data_id_map, space_id_list, True)
+
+        logger.info(f"bulk create {bk_tenant_id} space data_id record")
+
+        if space_id_list:
+            # 推送 redis 功能, 包含空间到结果表，数据标签到结果表，结果表详情
+            push_and_publish_space_router(
+                bk_tenant_id=bk_tenant_id, space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list
             )
-            space_id_list.append(s_id)
-            continue
-        # 获取现存的，判断是否有变化
-        exist_project_cluster, exist_shared_cluster_ns = set(), {}
-        for srd in sr:
-            cluster_id = srd["cluster_id"]
-            if srd["namespace"]:
-                exist_shared_cluster_ns[cluster_id] = set(srd["namespace"])
-            else:
-                exist_project_cluster.add(cluster_id)
-        # 对比差异
-        if project_cluster != exist_project_cluster or shared_cluster_ns != exist_shared_cluster_ns:
-            changed_space_list.append(f"{space_type}__{s_id}")
-            SpaceResource.objects.filter(
-                space_type_id=space_type, space_id=s_id, resource_type=resource_type, resource_id=s_id
-            ).update(dimension_values=dimension_values)
-            space_id_list.append(s_id)
-    # 创建资源
-    if add_resource_list:
-        SpaceResource.objects.bulk_create(add_resource_list)
-        logger.info("create bcs space resource successfully, space: %s", json.dumps(space_id_list))
 
-    # 根据空间 data id，判断是否已经添加
-    # 创建专用集群下的数据源 ID 记录
-    # 因为共享集群在所属项目下会返回两次，因此，需要先创建属于专用集群的数据源关联
-    bulk_create_records(space_type, space_data_id_map, space_id_list, False)
-    # 创建共享集群下的数据源 ID 记录
-    bulk_create_records(space_type, shared_space_data_id_map, space_id_list, True)
-
-    logger.info("bulk create space data_id record")
-
-    if space_id_list:
-        # 推送 redis 功能, 包含空间到结果表，数据标签到结果表，结果表详情
-        push_and_publish_space_router(space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list)
-
-        logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
+            logger.info(
+                "push updated bcs space resource to redis successfully, tenant: %s, space: %s",
+                bk_tenant_id,
+                json.dumps(space_id_list),
+            )
 
     cost_time = time.time() - start_time
 

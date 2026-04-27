@@ -39,6 +39,7 @@ import {
   importCustomTimeSeriesFields,
   createOrUpdateGroupingRule,
   exportCustomTimeSeriesFields,
+  validateCustomTsMetricFieldName,
 } from 'monitor-api/modules/apm_custom_metric';
 
 import './index.scss';
@@ -109,6 +110,7 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
               importCustomTimeSeriesFields,
               createOrUpdateGroupingRule,
               exportCustomTimeSeriesFields,
+              validateCustomTsMetricFieldName,
             }}
             onAliasChange={this.handleAliasChange}
             onGroupListChange={this.handleGroupListChange}
