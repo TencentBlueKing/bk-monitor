@@ -156,7 +156,8 @@ export const useExploreColumnConfig = ({
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
-        const tableCell = (_, { row }) => tableCellRender(row, column, renderContext);
+        const tableCell = (_, cellParams) =>
+          tableCellRender(cellParams.row, column, { ...renderContext, runtime: cellParams });
 
         return {
           ...defaultTableConfig,
