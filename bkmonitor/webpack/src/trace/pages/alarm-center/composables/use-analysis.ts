@@ -113,7 +113,10 @@ export function useAlarmAnalysis() {
     }
   );
 
-  /** 获取分析 dimension Tag列表对应的TopN数据 */
+  /**
+   * 获取分析 dimension Tag列表对应的TopN数据
+   * 只获取用户已选择维度的Top_N数据
+   */
   const getAnalysisDimensionData = async () => {
     const fields = analysisSettings.value.filter(field => field.startsWith('tags.'));
     // 中止上一次未完成的请求
