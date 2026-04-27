@@ -44,12 +44,12 @@ class IssueQueryTransformer(BaseQueryTransformer):
 
     query_fields = [
         QueryField("id", "Issue ID", is_char=True),
-        QueryField("name", "Issue 名称", agg_field="name.raw", is_char=True),
+        QueryField("name", "Issue 名称", es_field="name.raw", is_char=True),
         QueryField("status", "状态"),
         QueryField("priority", "优先级"),
         QueryField("assignee", "负责人"),
         QueryField("strategy_id", "策略ID"),
-        QueryField("strategy_name", "策略名称", agg_field="strategy_name.raw", is_char=True),
+        QueryField("strategy_name", "策略名称", es_field="strategy_name.raw", is_char=True),
         QueryField("bk_biz_id", "业务ID"),
         QueryField("labels", "标签", is_char=True),
         QueryField("is_regression", "是否回归"),
