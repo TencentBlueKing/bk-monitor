@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from apps.log_clustering.constants import AGGS_FIELD_PREFIX, StorageTypeEnum
 from apps.log_clustering.handlers.pattern import PatternHandler
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfig
 
 INDEX_SET_ID = 123
 PARAMS = {
@@ -140,3 +140,27 @@ class TestPatternSearch(TestCase):
         called_query = mock_unify_query_handler.call_args.args[0]
         self.assertEqual(called_query["index_set_ids"], [INDEX_SET_ID])
         self.assertEqual(called_query["agg_field"], f"{AGGS_FIELD_PREFIX}_05")
+
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_returns_placeholders(self, mock_multi_query):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1")
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="prefix #PATH# middle #NUMBER# suffix",
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": ""}],
+            "year_on_year_result": {},
+            "new_class": set(),
+        }
+
+        result = PatternHandler(INDEX_SET_ID, copy.deepcopy(PARAMS)).pattern_search()
+
+        self.assertEqual(
+            result[0]["placeholders"],
+            [
+                {"name": "PATH", "index": 0},
+                {"name": "NUMBER", "index": 1},
+            ],
+        )

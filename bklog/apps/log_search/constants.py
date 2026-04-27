@@ -559,6 +559,26 @@ API 频率限制 5w/s
     }
 
 
+class SceneLabelEnum(ChoicesEnum):
+    """ResultTable.labels 中 scene 字段的合法取值（场景化检索路由标签）"""
+
+    K8S = "k8s"
+    HOST = "host"
+    BK_PAAS = "bk_paas"
+    APM = "apm"
+    CLIENT = "client"
+    TRPC = "trpc"
+
+    _choices_labels = (
+        (K8S, _("容器场景")),
+        (HOST, _("主机场景")),
+        (BK_PAAS, _("蓝鲸 PaaS 场景")),
+        (APM, _("APM 场景")),
+        (CLIENT, _("客户端场景")),
+        (TRPC, _("TRPC 场景")),
+    )
+
+
 class CollectorScenarioEnum(ChoicesEnum):
     ROW = "row"
     SECTION = "section"

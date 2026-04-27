@@ -954,4 +954,9 @@ export default {
   集群英文名称: 'Cluster English Name',
   Doris集群: 'Doris Cluster',
   '最大自定义天数为{n}': 'Maximum custom days is {n}',
+  常规检索: 'Standard Search',
+  场景化检索: 'Contextual Search',
+  服务: 'Service',
+  客户端: 'Client',
+  清空查询: 'Clear Query',
 };

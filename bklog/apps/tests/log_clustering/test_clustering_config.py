@@ -2,7 +2,9 @@ from unittest.mock import Mock, call, patch
 
 from django.test import SimpleTestCase
 
+from apps.log_clustering.constants import StorageTypeEnum
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.models import ClusteringConfig
 
 TEST_INDEX_SET_ID = 1
 TEST_BK_BIZ_ID = 2
@@ -10,6 +12,34 @@ TEST_CLUSTERED_RT = "test_clustered_rt"
 
 
 class TestClusteringConfigHandler(SimpleTestCase):
+    @patch("apps.log_clustering.handlers.clustering_config.ClusteringConfig.objects.all")
+    def test_list_all_configs_includes_placeholder_analysis_supported(self, mock_all):
+        mock_all.return_value = [
+            ClusteringConfig(
+                index_set_id=TEST_INDEX_SET_ID,
+                bk_biz_id=TEST_BK_BIZ_ID,
+                min_members=1,
+                max_dist_list="0.1",
+                predefined_varibles="",
+                delimeter=" ",
+                max_log_length=1024,
+                clustering_fields="log",
+                storage_type=StorageTypeEnum.DORIS.value,
+                clustered_rt=TEST_CLUSTERED_RT,
+            )
+        ]
+
+        result = ClusteringConfigHandler.list_all_configs()
+
+        self.assertTrue(result[0]["placeholder_analysis_supported"])
+
+    def test_placeholder_analysis_supported_property(self):
+        supported_config = ClusteringConfig(storage_type=StorageTypeEnum.DORIS.value, clustered_rt=TEST_CLUSTERED_RT)
+        unsupported_config = ClusteringConfig(storage_type=StorageTypeEnum.ELASTICSEARCH.value, clustered_rt="")
+
+        self.assertTrue(supported_config.placeholder_analysis_supported)
+        self.assertFalse(unsupported_config.placeholder_analysis_supported)
+
     def test_get_access_total_count_uses_statistics_total_handler(self):
         clustering_config = Mock(index_set_id=TEST_INDEX_SET_ID, bk_biz_id=TEST_BK_BIZ_ID)
         addition = [{"field": "__dist_05", "operator": "exists"}]
@@ -58,3 +88,23 @@ class TestClusteringConfigHandler(SimpleTestCase):
             ],
         )
         clustering_config.save.assert_called_once_with(update_fields=["access_finished"])
+
+    @patch("apps.log_clustering.handlers.clustering_config.ClusteringConfig.get_by_index_set_id")
+    def test_retrieve_includes_placeholder_analysis_supported(self, mock_get_clustering_config):
+        clustering_config = ClusteringConfig(
+            index_set_id=TEST_INDEX_SET_ID,
+            bk_biz_id=TEST_BK_BIZ_ID,
+            min_members=1,
+            max_dist_list="0.1",
+            predefined_varibles="",
+            delimeter=" ",
+            max_log_length=1024,
+            clustering_fields="log",
+            storage_type=StorageTypeEnum.DORIS.value,
+            clustered_rt=TEST_CLUSTERED_RT,
+        )
+        mock_get_clustering_config.return_value = clustering_config
+
+        result = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).retrieve()
+
+        self.assertTrue(result["placeholder_analysis_supported"])

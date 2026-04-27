@@ -154,6 +154,11 @@ enum RetrieveEvent {
    * AI 助手关闭
    */
   AI_CLOSE = 'ai-close',
+
+  /**
+   * 场景筛选面板高度变化
+   */
+  SCENE_FILTER_PANEL_HEIGHT_CHANGE = 'scene-filter-panel-height-change',
 }
 
 export default RetrieveEvent;
