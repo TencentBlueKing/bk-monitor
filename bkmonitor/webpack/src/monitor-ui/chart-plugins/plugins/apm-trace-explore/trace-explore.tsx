@@ -69,6 +69,11 @@ export default class TraceExploreContainer extends tsc<TraceExploreContainerProp
   }
 
   render() {
-    return <div ref='root' />;
+    return (
+      <div
+        ref='root'
+        style={{ height: 'calc(100vh - 142px - var(--notice-alert-height))' }}
+      />
+    );
   }
 }

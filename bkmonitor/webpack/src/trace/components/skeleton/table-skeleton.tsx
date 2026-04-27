@@ -70,8 +70,10 @@ const config01 = {
     [{ width: '35px' }, 40, 40, 92, 40, 40, 0],
     [{ width: '35px' }, 40, 40, 52, 40, 40, 0],
     [{ width: '35px' }, 40, 73, 40, 40, 40, 0],
+    // #if !IS_APM_MONITOR
     [{ width: '35px' }, 40, 40, 92, 40, 40, 0],
     [{ width: '35px' }, 40, 60, 40, 40, 40, 0],
+    // #endif
   ],
 };
 const config02 = {
