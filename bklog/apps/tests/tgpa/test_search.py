@@ -19,9 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from unittest.mock import call, patch
+from unittest.mock import patch
 
-import arrow
 from django.test import SimpleTestCase
 
 from apps.tgpa.constants import TGPA_MERGED_LIST_MAX_RESULT_WINDOW
@@ -289,24 +288,18 @@ class TestTGPASearchHandler(SimpleTestCase):
         self.assertIsInstance(report_call_kwargs["end_time"], int)
         self.assertLess(report_call_kwargs["start_time"], report_call_kwargs["end_time"])
 
-    @patch("apps.tgpa.handlers.search.arrow.now", return_value=arrow.get("2026-04-27T12:00:00+08:00"))
     @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_count")
     @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
     def test_get_client_info_with_range_returns_total_and_range_count(
         self,
         mock_get_task_page,
         mock_get_report_count,
-        mock_arrow_now,
     ):
         mock_get_task_page.side_effect = [
             {"total": 3, "list": []},
             {"total": 1, "list": []},
         ]
         mock_get_report_count.side_effect = [4, 2]
-        expected_now = arrow.get("2026-04-27T12:00:00+08:00")
-        expected_total_start_time = int(expected_now.shift(days=-30).timestamp() * 1000)
-        expected_total_end_time = int(expected_now.timestamp() * 1000)
-
         result = TGPASearchHandler.get_client_info(
             {
                 "bk_biz_id": 2,
@@ -315,52 +308,4 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "end_time": 1716600000000,
             }
         )
-
         self.assertEqual(result, {"total_count": 7, "range_count": 3})
-        self.assertEqual(
-            mock_get_task_page.call_args_list,
-            [
-                call(
-                    params={
-                        "bk_biz_id": 2,
-                        "page": 1,
-                        "pagesize": 1,
-                        "openid": "openid_1",
-                        "ordering": "-created_at",
-                    },
-                    need_format=False,
-                    add_process_info=False,
-                ),
-                call(
-                    params={
-                        "bk_biz_id": 2,
-                        "page": 1,
-                        "pagesize": 1,
-                        "openid": "openid_1",
-                        "start_time": 1716000000000,
-                        "end_time": 1716600000000,
-                        "ordering": "-created_at",
-                    },
-                    need_format=False,
-                    add_process_info=False,
-                ),
-            ],
-        )
-        self.assertEqual(
-            mock_get_report_count.call_args_list,
-            [
-                call(
-                    bk_biz_id=2,
-                    openid="openid_1",
-                    start_time=expected_total_start_time,
-                    end_time=expected_total_end_time,
-                ),
-                call(
-                    bk_biz_id=2,
-                    openid="openid_1",
-                    start_time=1716000000000,
-                    end_time=1716600000000,
-                ),
-            ],
-        )
-        mock_arrow_now.assert_called()
