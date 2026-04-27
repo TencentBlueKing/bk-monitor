@@ -133,7 +133,7 @@ class CreateApplicationResource(Resource):
         # 共享数据源类型
         shared_datasource_types = serializers.ListField(
             label="共享数据源类型列表",
-            child=serializers.CharField(),
+            child=serializers.ChoiceField(choices=TelemetryDataType.choices()),
             required=False,
         )
 
@@ -187,9 +187,14 @@ class ApplyDatasourceResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
+        # 先保留存量 is_shared，下一阶段再补齐显式迁移逻辑（增加 shared_datasource_types 参数，根据具体值去执行迁入/迁出逻辑）
+        ds = TraceDataSource.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name).first()
         return application.apply_datasource(
             trace_storage_config=validated_request_data.get("trace_datasource_option"),
             log_storage_config=validated_request_data.get("log_datasource_option"),
+            options={
+                "shared_datasource_types": [ApmDataSourceConfigBase.TRACE_DATASOURCE] if ds and ds.is_shared else []
+            },
         )
 
 
@@ -2004,9 +2009,15 @@ class OperateApmDataIdResource(Resource):
 
     def perform_request(self, validated_data):
         if validated_data["datasource_type"] == DataSamplingLogTypeChoices.TRACE:
-            data_id = TraceDataSource.objects.get(
+            datasource = TraceDataSource.objects.get(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-            ).bk_data_id
+            )
+            # 共享数据源的多个应用复用同一 bk_data_id，单个应用暂停或恢复会影响共享池内所有应用的上报，因此需拒绝该操作
+            if datasource.is_shared:
+                raise ValueError(
+                    f"应用 {validated_data['app_name']} 的 Trace 上报共享数据源，不支持单应用去暂停/恢复数据链路操作"
+                )
+            data_id = datasource.bk_data_id
         else:
             data_id = MetricDataSource.objects.get(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]

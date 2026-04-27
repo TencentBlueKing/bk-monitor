@@ -18,7 +18,7 @@ from typing import Any, ClassVar, Optional
 
 from django.conf import settings
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -32,6 +32,7 @@ from apm.constants import (
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models.doris import BkDataDorisProvider
+from apm.models.shared_datasource import BaseSharedDataSource, SHARED_DS_REGISTRY
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.db import JsonField
@@ -43,6 +44,7 @@ from constants.apm import (
     FlowType,
     OtlpKey,
     SpanKind,
+    TelemetryDataType,
     TRACE_RESULT_TABLE_OPTION,
     TraceDataSourceConfig,
     DEFAULT_DATA_LABEL,
@@ -54,155 +56,16 @@ from core.errors.api import BKAPIError
 from metadata import models as metadata_models
 
 
-class BaseSharedDataSource(models.Model):
-    """共享数据源池基类。
-
-    管理共享数据源的容量、用量及元数据，按 data_type 扩展子类。
-    """
-
-    DEFAULT_QUOTA = 100
-
-    quota = models.IntegerField("容量上限", default=DEFAULT_QUOTA)
-    usage_count = models.IntegerField("当前用量", default=0)
-    is_enabled = models.BooleanField("是否启用", default=False, db_index=True)
-    bk_data_id = models.IntegerField("数据 ID", default=-1)
-    result_table_id = models.CharField("结果表 ID", max_length=128, default="")
-
-    class Meta:
-        abstract = True
-
-    @property
-    def data_name(self) -> str:
-        raise NotImplementedError
-
-    @property
-    def table_id(self) -> str:
-        raise NotImplementedError
-
-    def to_shared_info(self) -> dict[str, Any]:
-        """导出共享链路元数据字典。
-
-        子类覆写以追加扩展字段。
-        """
-        return {
-            "bk_data_id": self.bk_data_id,
-            "result_table_id": self.result_table_id,
-        }
-
-    @classmethod
-    def allocate(cls) -> dict[str, Any] | None:
-        """从池中选取可用共享源并占用一个槽位。
-
-        使用乐观锁的方式保证并发安全
-
-        :return: 共享链路信息字典，无可用时返回 None。
-        """
-        candidate = cls.objects.filter(is_enabled=True, usage_count__lt=F("quota")).order_by("usage_count").first()
-        if not candidate:
-            return None
-
-        # 乐观锁：仅当 usage_count 未变时才占用槽位，计数 +1
-        updated = cls.objects.filter(
-            pk=candidate.pk,
-            usage_count=candidate.usage_count,
-        ).update(usage_count=F("usage_count") + 1)
-
-        if not updated:
-            # 若被并发抢占，则重试一次
-            return cls.allocate()
-
-        return {**candidate.to_shared_info(), "shared_datasource_id": candidate.pk}
-
-    @classmethod
-    def reserve(cls) -> "BaseSharedDataSource":
-        """创建草稿实例（is_enabled=False）。
-
-        主键即序列号，用于 data_name 和 table_id 的命名构建。
-        """
-        return cls.objects.create(is_enabled=False, usage_count=0)
-
-    def activate(self, link_info: dict[str, Any]) -> None:
-        """填充链路元数据并启用。
-
-        :param link_info: 来自 ApmDataSourceConfigBase.to_link_info() 的字典。
-        子类可覆写以处理扩展字段，需先调用 super().activate()。
-        """
-        self.bk_data_id = link_info["bk_data_id"]
-        self.result_table_id = link_info["result_table_id"]
-        self.usage_count = 1
-        self.is_enabled = True
-        self.save()
-
-    def release(self) -> None:
-        """释放占用，usage_count 减 1。"""
-        type(self).objects.filter(pk=self.pk).update(usage_count=F("usage_count") - 1)
-
-
-class SharedTraceDataSource(BaseSharedDataSource):
-    """Trace 共享数据源。
-
-    扩展 BaseSharedDataSource，增加 Trace 数据类型的索引集字段。
-    """
-
-    DATA_NAME_PREFIX = "bkapm"
-    DATASOURCE_TYPE = "trace"
-
-    index_set_id = models.IntegerField("索引集 ID", null=True)
-    index_set_name = models.CharField("索引集名称", max_length=512, null=True)
-
-    class Meta:
-        verbose_name = "Trace 共享数据源"
-
-    @property
-    def data_name(self) -> str:
-        return f"{self.DATA_NAME_PREFIX}_shared_{self.DATASOURCE_TYPE}_{self.pk:04d}"
-
-    @property
-    def table_id(self) -> str:
-        return f"apm_global.shared_{self.DATASOURCE_TYPE}_{self.pk:04d}"
-
-    def to_shared_info(self) -> dict[str, Any]:
-        info = super().to_shared_info()
-        info["index_set_id"] = self.index_set_id
-        info["index_set_name"] = self.index_set_name
-        return info
-
-    def activate(self, link_info: dict[str, Any]) -> None:
-        """填充链路元数据并启用（含 Trace 特有字段）。"""
-        self.index_set_id = link_info.get("index_set_id")
-        self.index_set_name = link_info.get("index_set_name")
-        super().activate(link_info)
-
-
-# data_type -> SharedDataSource 子类映射表，后续扩展其他共享数据源类型
-SHARED_DS_REGISTRY: dict[str, type[BaseSharedDataSource]] = {
-    "trace": SharedTraceDataSource,
-}
-
-
 class ApmDataSourceConfigBase(models.Model):
-    LOG_DATASOURCE = "log"
-    TRACE_DATASOURCE = "trace"
-    METRIC_DATASOURCE = "metric"
+    LOG_DATASOURCE = TelemetryDataType.LOG.value
+    TRACE_DATASOURCE = TelemetryDataType.TRACE.value
+    METRIC_DATASOURCE = TelemetryDataType.METRIC.value
+    # 注：TelemetryDataType.PROFILING.value 为 "profiling"，无法直接使用
     PROFILE_DATASOURCE = "profile"
 
     TABLE_SPACE_PREFIX = "space"
 
-    DATASOURCE_CHOICE = (
-        (TRACE_DATASOURCE, "Log"),
-        (TRACE_DATASOURCE, "Trace"),
-        (METRIC_DATASOURCE, "Metric"),
-        (PROFILE_DATASOURCE, "Profile"),
-    )
-
     DATA_NAME_PREFIX = "bkapm"
-
-    DATASOURCE_TYPE_MAP = {
-        METRIC_DATASOURCE: "metric",
-        LOG_DATASOURCE: "log",
-        TRACE_DATASOURCE: "trace",
-        PROFILE_DATASOURCE: "profile",
-    }
 
     # target字段配置
     DATA_ID_PARAM: ClassVar[dict[str, Any]]
@@ -240,28 +103,20 @@ class ApmDataSourceConfigBase(models.Model):
     @classmethod
     def start(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not instance:
+        # 共享数据源：结果表由共享池统一管理，应用级启停不做任何操作
+        if not instance or instance.is_shared:
             return
 
-        if instance.is_shared:
-            # 共享数据源：仅占用一个槽位，不启用结果表
-            shared_cls = SHARED_DS_REGISTRY[cls.DATASOURCE_TYPE]
-            shared_cls.objects.filter(pk=instance.shared_datasource_id).update(usage_count=F("usage_count") + 1)
-        else:
-            instance.switch_result_table(True)
+        instance.switch_result_table(True)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not instance:
+        # 共享数据源：结果表由共享池统一管理，应用级启停不做任何操作
+        if not instance or instance.is_shared:
             return
 
-        if instance.is_shared:
-            # 共享数据源：仅需释放占用，不停用结果表（结果表由共享源统一管理）
-            shared_cls = SHARED_DS_REGISTRY[cls.DATASOURCE_TYPE]
-            shared_cls.objects.get(pk=instance.shared_datasource_id).release()
-        else:
-            instance.switch_result_table(False)
+        instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
@@ -281,7 +136,7 @@ class ApmDataSourceConfigBase(models.Model):
         :param data_name: 可指定 data_name，若不指定则使用 self.data_name。
         """
         if global_mode:
-            bk_biz_id = settings.APM_SHARED_DATASOURCE_BK_BIZ_ID
+            bk_biz_id = settings.BKAPP_ADMIN_BIZ_ID
             bk_tenant_id = DEFAULT_TENANT_ID
         else:
             bk_biz_id = self.bk_biz_id

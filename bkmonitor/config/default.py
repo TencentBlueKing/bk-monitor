@@ -548,8 +548,8 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
 # 是否下发平台级别字段标准化配置
 APM_FIELD_NORMALIZER_ENABLED = True
 
-# APM 共享数据源创建使用的特权业务 ID
-APM_SHARED_DATASOURCE_BK_BIZ_ID = int(os.environ.get("APM_SHARED_DATASOURCE_BK_BIZ_ID", 2))
+# 监控管理业务，用于全局资源的注册或初始化等场景
+BKAPP_ADMIN_BIZ_ID = int(os.environ.get("BKAPP_ADMIN_BIZ_ID", 2))
 
 # APM 共享数据源匹配规则配置
 APM_SHARED_DATASOURCE_RULES = {}

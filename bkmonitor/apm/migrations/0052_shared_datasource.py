@@ -9,7 +9,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Create SharedTraceDataSource table
         migrations.CreateModel(
             name="SharedTraceDataSource",
             fields=[
@@ -40,25 +39,21 @@ class Migration(migrations.Migration):
                 "verbose_name": "Trace 共享数据源",
             },
         ),
-        # Add shared_datasource_id to TraceDataSource
         migrations.AddField(
             model_name="tracedatasource",
             name="shared_datasource_id",
             field=models.IntegerField(default=None, null=True, verbose_name="共享数据源 ID"),
         ),
-        # Add shared_datasource_id to MetricDataSource
         migrations.AddField(
             model_name="metricdatasource",
             name="shared_datasource_id",
             field=models.IntegerField(default=None, null=True, verbose_name="共享数据源 ID"),
         ),
-        # Add shared_datasource_id to LogDataSource
         migrations.AddField(
             model_name="logdatasource",
             name="shared_datasource_id",
             field=models.IntegerField(default=None, null=True, verbose_name="共享数据源 ID"),
         ),
-        # Add shared_datasource_id to ProfileDataSource
         migrations.AddField(
             model_name="profiledatasource",
             name="shared_datasource_id",

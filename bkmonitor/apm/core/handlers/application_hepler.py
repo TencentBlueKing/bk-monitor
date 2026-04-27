@@ -111,12 +111,12 @@ class ApplicationHelper:
 class SharedDatasourceRule(abc.ABC):
     """共享数据源匹配规则抽象基类
 
-    子类通过 type_key 声明规则类型，从 params 字典中按约定键名读取自身所需参数
+    子类通过 TYPE_KEY 声明规则类型，从 params 字典中按约定键名读取自身所需参数
 
-    :cvar type_key: 规则类型标识，对应配置中 rules 列表每一项的 type 字段
+    :cvar TYPE_KEY: 规则类型标识，对应配置中 rules 列表每一项的 type 字段
     """
 
-    type_key: str = ""
+    TYPE_KEY: str = ""
 
     def __init__(self, params: dict[str, Any]):
         self.params = params or {}
@@ -132,7 +132,7 @@ class SpaceTypeRule(SharedDatasourceRule):
     从 params.space_types 读取允许的空间类型列表（如 ["bksaas"]），业务所属空间类型命中任一即返回 True
     """
 
-    type_key = "SPACE_TYPE"
+    TYPE_KEY = "SPACE_TYPE"
 
     def match(self, bk_biz_id: int, app_name: str) -> bool:
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
@@ -148,7 +148,7 @@ class AppNamePrefixRule(SharedDatasourceRule):
     从 params.prefixes 读取允许的前缀列表，应用名以任一前缀开头即返回 True
     """
 
-    type_key = "APP_NAME_PREFIX"
+    TYPE_KEY = "APP_NAME_PREFIX"
 
     def match(self, bk_biz_id: int, app_name: str) -> bool:
         return any(app_name.startswith(prefix) for prefix in self.params.get("prefixes", []))
@@ -161,9 +161,9 @@ class SharedDatasourceRuleFactory:
     注：每个数据源类型下的 group 之间为 OR 关系（任一命中即该类型需共享），单个 group 内的 rules 通过 connector(AND/OR) 组合
     """
 
-    builder_register: dict[str, type[SharedDatasourceRule]] = {
-        SpaceTypeRule.type_key: SpaceTypeRule,
-        AppNamePrefixRule.type_key: AppNamePrefixRule,
+    BUILDER_REGISTER: dict[str, type[SharedDatasourceRule]] = {
+        SpaceTypeRule.TYPE_KEY: SpaceTypeRule,
+        AppNamePrefixRule.TYPE_KEY: AppNamePrefixRule,
     }
 
     @classmethod
@@ -220,7 +220,7 @@ class SharedDatasourceRuleFactory:
 
         未注册的规则类型视为不命中，避免误判
         """
-        rule_cls = cls.builder_register.get(rule_config.get("type"))
+        rule_cls = cls.BUILDER_REGISTER.get(rule_config.get("type"))
         if not rule_cls:
             return False
         rule = rule_cls(params=rule_config.get("params", {}))
