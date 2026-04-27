@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { issueSearch } from 'monitor-api/modules/issue';
+import { issueSearch, issueTopN } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -151,6 +151,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
     name: 'name',
     alias: window.i18n.t('Issue 名称'),
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '=',
@@ -238,6 +239,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
     name: 'strategy_name',
     alias: window.i18n.t('策略名称'),
     type: EFieldType.keyword,
+    isEnableOptions: true,
     methods: [
       {
         alias: '=',
@@ -337,9 +339,25 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
     ],
   },
   {
+    name: 'impact_dimensions',
+    alias: window.i18n.t('影响范围维度'),
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
     name: 'first_alert_time',
     alias: window.i18n.t('首次告警时间'),
-    type: EFieldType.integer,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -370,7 +388,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'last_alert_time',
     alias: window.i18n.t('最近告警时间'),
-    type: EFieldType.integer,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -401,7 +419,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'create_time',
     alias: window.i18n.t('创建时间'),
-    type: EFieldType.integer,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -432,7 +450,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'update_time',
     alias: window.i18n.t('更新时间'),
-    type: EFieldType.integer,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -463,7 +481,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'resolved_time',
     alias: window.i18n.t('解决时间'),
-    type: EFieldType.integer,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -626,10 +644,17 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     return data;
   }
 
-  async getRetrievalFilterValues(_params: Partial<CommonFilterParams>, _config = {}) {
-    return {
+  async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const data = await issueTopN(
+      {
+        ...params,
+        need_time_partition: true,
+      },
+      config
+    ).catch(() => ({
       doc_count: 0,
       fields: [],
-    };
+    }));
+    return data;
   }
 }
