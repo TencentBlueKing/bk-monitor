@@ -1,7 +1,0 @@
-dist
-node_modules
-coverage
-playwright-report
-test-results
-pnpm-lock.yaml
-docs/**/*.md

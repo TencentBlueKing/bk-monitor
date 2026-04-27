@@ -1,8 +1,0 @@
-node_modules
-dist
-coverage
-playwright-report
-test-results
-.data
-.env
-.DS_Store
