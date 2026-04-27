@@ -248,20 +248,21 @@ export default defineComponent({
               </div>
             </div>
           )}
+          {/* // #if !IS_APM_MONITOR */}
           {this.hideFeatures.includes('application') ? null : (
             <Select
-              ref='applicationSelectRef'
-              class='application-select'
-              popoverOptions={{
-                extCls: 'trace-explore-application-select-popover',
-              }}
-              clearable={false}
-              filterOption={this.applicationFilter}
-              modelValue={this.store.appName}
-              search-placeholder={this.t('请输入 关键字')}
-              filterable
-              onSelect={this.handleApplicationChange}
-              onToggle={this.handleApplicationToggle}
+            ref='applicationSelectRef'
+            class='application-select'
+            popoverOptions={{
+              extCls: 'trace-explore-application-select-popover',
+            }}
+            clearable={false}
+            filterOption={this.applicationFilter}
+            modelValue={this.store.appName}
+            search-placeholder={this.t('请输入 关键字')}
+            filterable
+            onSelect={this.handleApplicationChange}
+            onToggle={this.handleApplicationToggle}
             >
               {{
                 trigger: () => (
@@ -312,7 +313,9 @@ export default defineComponent({
               }}
             </Select>
           )}
+          {/* // #endif */}
         </div>
+        {/* // #if !IS_APM_MONITOR */}
         {this.hideFeatures.includes('dateRange') ? null : (
           <div class='header-tools'>
             <span class='inquire-header-append-item'>
@@ -362,6 +365,7 @@ export default defineComponent({
             )}
           </div>
         </div>
+        {/* // #endif */}
       </div>
     );
   },
