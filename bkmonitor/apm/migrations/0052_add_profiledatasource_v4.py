@@ -12,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="profiledatasource",
             name="bkdata_datalink_config",
-            field=models.JSONField(default=None, null=True, verbose_name="BkData链路配置"),
+            field=models.JSONField(default=dict, verbose_name="BkData链路配置"),
         ),
     ]

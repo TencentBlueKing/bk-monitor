@@ -1096,7 +1096,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional["ProfileDataSource"] = None
 
-    bkdata_datalink_config = models.JSONField("BkData链路配置", null=True, default=None)
+    bkdata_datalink_config = models.JSONField("BkData链路配置", default=dict)
     profile_bk_biz_id = models.IntegerField(
         "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
         null=True,
