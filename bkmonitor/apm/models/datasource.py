@@ -1113,6 +1113,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
+    def is_bkbase_v4_link(self) -> bool:
+        return (self.bkdata_datalink_config.get("version") or 3) == 4
+
     @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
@@ -1150,18 +1153,18 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 maintainer=maintainer,
                 operator=global_user,
             )
-            if not obj.bkdata_datalink_config:
-                data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
-                obj.bkdata_datalink_config = {
-                    "version": 4,
-                    "v4_resource_names": {
-                        "data_id_name": data_id_name,
-                        "result_table_name": None,
-                        "doris_binding_name": None,
-                        "databus_name": None,
-                    },
-                }
-                obj.save(using=DATABASE_CONNECTION_NAME)
+            data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
+            obj.bkdata_datalink_config = {
+                "version": 4,
+                "v4_resource_names": {
+                    "data_id_name": data_id_name,
+                    "result_table_name": None,
+                    "doris_binding_name": None,
+                    "databus_name": None,
+                },
+            }
+            obj.save()
+
             essentials = provider.provider()
             # provider() 成功后，补全 resource_name
             resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
@@ -1182,14 +1185,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 operator=global_user,
                 name_stuffix=bk_biz_id,
             ).provider()
-            bkdata_datalink_config = None
+            bkdata_datalink_config = {}
 
-        with atomic(using=DATABASE_CONNECTION_NAME):
-            obj.bk_data_id = essentials["bk_data_id"]
-            obj.result_table_id = essentials["result_table_id"]
-            obj.retention = essentials["retention"]
-            obj.bkdata_datalink_config = bkdata_datalink_config
-            obj.save()
+        obj.bk_data_id = essentials["bk_data_id"]
+        obj.result_table_id = essentials["result_table_id"]
+        obj.retention = essentials["retention"]
+        obj.bkdata_datalink_config = bkdata_datalink_config
+        obj.save()
 
         return
 
@@ -1216,7 +1218,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def start(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        if instance.bkdata_datalink_config:
+        if instance.is_bkbase_v4_link():
             # V4 声明式链路：没有启停接口，通过 apply 重新声明资源（等价于启动）
             from apm.models.doris import BkDataDorisV4Provider
 
@@ -1228,15 +1230,15 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 instance, bk_tenant_id=bk_tenant_id, maintainer=maintainer, operator=global_user
             )
             provider.apply()
-            return
-        api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
+        else:
+            api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not instance:
             return
-        if instance.bkdata_datalink_config:
+        if instance.is_bkbase_v4_link():
             # V4 声明式链路：没有启停接口，通过 delete 删除资源（等价于停止）
             from apm.models.doris import BkDataDorisV4Provider
 
@@ -1248,8 +1250,8 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 operator="",
             )
             provider.delete()
-            return
-        api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
+        else:
+            api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 
 class DataLink(models.Model):
