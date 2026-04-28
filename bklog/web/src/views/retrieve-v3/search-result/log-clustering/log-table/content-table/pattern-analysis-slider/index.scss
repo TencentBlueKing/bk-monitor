@@ -1,4 +1,8 @@
 .pattern-analysis-slider {
+  .bk-sideslider-wrapper {
+    background: #f5f7fa;
+  }
+
   .slider-header {
     display: flex;
     align-items: center;
@@ -308,16 +312,12 @@
               transition: opacity 0.2s, color 0.2s, background-color 0.2s;
             }
 
-            .bk-overflow-title {
-              flex: 1;
-              overflow: hidden;
-
-              .col-value-text {
+            .col-value-text {
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                padding-right: 8px;
               }
-            }
           }
 
           .col-count {
@@ -365,11 +365,25 @@
     .right-section {
       flex: 1;
       flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
       gap: 16px;
       border-radius: 4px;
+      min-height: 0;
+      overflow: hidden;
 
-      .trend-section,
+      .trend-section {
+        flex-shrink: 0;
+        background: #fff;
+        border-radius: 4px;
+        padding: 12px;
+      }
+
       .sample-section {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
         background: #fff;
         border-radius: 4px;
         padding: 12px;
@@ -450,11 +464,12 @@
       }
 
       .sample-list {
+        flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         gap: 8px;
         overflow: auto;
-        max-height: calc(-578px + 100vh);
 
         .sample-item {
           padding: 8px 10px;
@@ -491,6 +506,135 @@
           }
         }
       }
+    }
+  }
+
+  // ========== 骨架屏样式 ==========
+
+  // 脉冲动画
+  @keyframes skeleton-pulse {
+    0% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  // 基础骨架块
+  .skeleton-block {
+    background: #ebeef5;
+    border-radius: 4px;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  // 图标占位
+  .skeleton-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  // 文字尺寸
+  .skeleton-text-xs {
+    height: 10px;
+  }
+  .skeleton-text-sm {
+    height: 14px;
+  }
+  .skeleton-text-lg {
+    height: 24px;
+  }
+
+  // 标签占位
+  .skeleton-tag {
+    height: 22px;
+    border-radius: 10px;
+  }
+
+  // 进度条占位
+  .skeleton-progress {
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  // 值分布表骨架行
+  .skeleton-row {
+    cursor: default !important;
+
+    &:hover {
+      background: transparent !important;
+    }
+  }
+
+  // 趋势图骨架
+  .skeleton-trend-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 250px;
+    padding: 8px 0;
+
+    .skeleton-chart {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 0 4px;
+
+      .skeleton-chart-lines {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+
+        .skeleton-chart-line {
+          height: 1px;
+          background: #f0f1f5;
+        }
+      }
+
+      .skeleton-chart-area {
+        position: absolute;
+        bottom: 0;
+        left: 4px;
+        right: 4px;
+        height: 80%;
+        border-radius: 4px;
+        background: linear-gradient(180deg, rgba(235, 238, 245, 0.6) 0%, rgba(235, 238, 245, 0.1) 100%);
+      }
+    }
+
+    .skeleton-legend {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 12px;
+    }
+  }
+
+  // 相关样本骨架
+  .skeleton-sample-item {
+    border: 1px solid #eaebf0 !important;
+    background: #fff !important;
+    padding: 12px !important;
+  }
+
+  // ========== 隐藏滚动条 ==========
+  .pattern-analysis-content,
+  .table-body,
+  .sample-list,
+  .sample-content {
+    scrollbar-width: none; // Firefox
+    -ms-overflow-style: none; // IE / Edge
+
+    &::-webkit-scrollbar {
+      display: none; // Chrome / Safari / 新版 Edge
     }
   }
 }
