@@ -486,7 +486,15 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
 
             ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
             if ts_group and ts_group.metric_group_dimensions:
-                metric_group_dimensions = [dim.get("key") for dim in ts_group.metric_group_dimensions if dim.get("key")]
+                metric_group_dimensions = []
+                for dim in ts_group.metric_group_dimensions:
+                    key = dim.get("key")
+                    if not key:
+                        continue
+                    if "default_value" in dim and dim["default_value"] is not None:
+                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
+                    else:
+                        metric_group_dimensions.append(key)
                 render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
                 render_params["dd_version"] = "v2"
 
@@ -805,6 +813,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         storage_keys: list[str],
         json_fields: list[str],
         field_config_group: dict[str, Any],
+        original_json_fields: list[str],
         expires: str,
         flush_timeout: int | None,
     ) -> dict[str, Any]:
@@ -815,18 +824,27 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         {
             "kind": "DorisBinding",
             "metadata": {
-                "labels": {"bk_biz_id": "{{monitor_biz_id}}"}},
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "labels": {"bk_biz_id": "{{monitor_biz_id}}"},
                 "name": "{{name}}",
                 "namespace": "{{namespace}}"
             },
             "spec": {
                 "data": {
                     "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "kind": "ResultTable"
                 },
                 "storage": {
                     "name": "{{storage_cluster_name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "kind": "Doris"
                 },
@@ -838,6 +856,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "table": "{{name}}_{{bk_biz_id}}",
                     "storage_keys": {{storage_keys}},
                     "json_fields": {{json_fields}},
+                    "original_json_fields": {{original_json_fields}},
                     "field_config_group": {{field_config_group}},
                     "expires": "{{expires}}",
                     "flush_timeout": {{flush_timeout}}
@@ -855,9 +874,15 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             "storage_keys": json.dumps(storage_keys),
             "json_fields": json.dumps(json_fields),
             "field_config_group": json.dumps(field_config_group),
+            "original_json_fields": json.dumps(original_json_fields),
             "expires": expires,
             "flush_timeout": json.dumps(flush_timeout),
         }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
             render_params=render_params,

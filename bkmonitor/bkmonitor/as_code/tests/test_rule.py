@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,46 +7,42 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import mock
+
+import json
+from copy import deepcopy
+from unittest import mock
+
 import pytest
 import yaml
 
 from api.cmdb.define import TopoTree
-from bkmonitor.as_code.parse import import_strategy
-from bkmonitor.as_code.parse_yaml import SnippetRenderer, StrategyConfigParser
-from bkmonitor.models import StrategyModel
+from bkmonitor.as_code.parse import convert_rules
+from bkmonitor.as_code.parse_yaml import StrategyConfigParser
+from bkmonitor.strategy.new_strategy import Strategy
 
 pytestmark = pytest.mark.django_db
 
 DATA_PATH = "bkmonitor/as_code/tests/data/"
 
 
-def test_strategy_parse():
-    with open(f"{DATA_PATH}rule/snippets/base.yaml", "r") as f:
-        snippet = yaml.safe_load(f.read())
-
-    with open(f"{DATA_PATH}rule/all.yaml", "r") as f:
-        code_config = yaml.safe_load(f.read())
-        result, message, code_config = SnippetRenderer.render(code_config, {"base.yaml": snippet})
-
-    p = StrategyConfigParser(2, {}, {}, {}, {}, {})
-    result, code_config = p.check(code_config)
-    assert result
-    config = p.parse(code_config)
-    assert config
-
-    with open(f"{DATA_PATH}rule/cpu_simple.yaml", "r") as f:
-        code_config = yaml.safe_load(f.read())
-        result, message, code_config = SnippetRenderer.render(code_config, {"base.yaml": snippet})
-
-    p = StrategyConfigParser(2, {}, {}, {}, {}, {})
-    result, code_config = p.check(code_config)
-    assert result
-    config = p.parse(code_config)
-    assert config
+def load_rule_config(filename: str) -> dict:
+    with open(f"{DATA_PATH}rule/{filename}") as f:
+        return yaml.safe_load(f.read())
 
 
-def test_strategy_import():
+def make_parser(notice_group_ids=None, action_ids=None):
+    return StrategyConfigParser(
+        2,
+        notice_group_ids or {},
+        action_ids or {},
+        {},
+        {},
+        {},
+        {},
+    )
+
+
+def patch_cmdb_apis():
     get_topo_tree = mock.patch("bkmonitor.as_code.parse.api.cmdb.get_topo_tree").start()
     get_topo_tree.side_effect = lambda *args, **kwargs: TopoTree(
         {
@@ -78,26 +73,131 @@ def test_strategy_import():
     get_dynamic_query = mock.patch("bkmonitor.as_code.parse.api.cmdb.get_dynamic_query").start()
     get_dynamic_query.side_effect = lambda *args, **kwargs: {"children": []}
 
-    configs = {}
-    with open(f"{DATA_PATH}rule/all.yaml", "r") as f:
-        configs["all.yaml"] = yaml.safe_load(f.read())
+    search_dynamic_group = mock.patch("bkmonitor.as_code.parse.api.cmdb.search_dynamic_group").start()
+    search_dynamic_group.side_effect = lambda *args, **kwargs: []
 
-    with open(f"{DATA_PATH}rule/cpu_simple.yaml", "r") as f:
-        configs["cpu_simple.yaml"] = yaml.safe_load(f.read())
 
-    with open(f"{DATA_PATH}rule/cpu_simple_with_snippet.yaml", "r") as f:
-        configs["cpu_simple_with_snippet.yaml"] = yaml.safe_load(f.read())
+def test_strategy_parse_issue_config():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+    code_config = parser.check(load_rule_config("issue_config.yaml"))
+    config = parser.parse(code_config)
 
-    with open(f"{DATA_PATH}rule/snippets/base.yaml", "r") as f:
-        snippet = yaml.safe_load(f.read())
+    assert config["issue_config"] == {
+        "is_enabled": True,
+        "aggregate_dimensions": ["bk_target_ip"],
+        "conditions": [
+            {"key": "bk_target_ip", "method": "eq", "value": ["127.0.0.1"]},
+            {"key": "bk_target_cloud_id", "method": "neq", "value": ["0"], "condition": "and"},
+        ],
+        "alert_levels": [1, 2],
+    }
 
-    import_strategy(
+
+def test_strategy_parse_issue_config_absent_and_null():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+
+    config_without_issue = parser.parse(parser.check(load_rule_config("cpu_simple.yaml")))
+    assert config_without_issue["issue_config"] is None
+
+    null_issue_config = load_rule_config("issue_config.yaml")
+    null_issue_config["issue_config"] = None
+    config_with_null_issue = parser.parse(parser.check(null_issue_config))
+    assert config_with_null_issue["issue_config"] is None
+
+
+def test_convert_rules_passes_issue_config():
+    patch_cmdb_apis()
+    code_config = load_rule_config("issue_config.yaml")
+
+    records = convert_rules(
         bk_biz_id=2,
         app="app1",
-        configs=configs,
-        snippets={"base.yaml": snippet},
-        notice_group_ids={},
+        configs={"issue_config.yaml": code_config},
+        snippets={},
+        notice_group_ids={"ops.yaml": 1},
         action_ids={},
     )
 
-    assert StrategyModel.objects.filter(bk_biz_id=2, app="app1", path__in=list(configs.keys())).count() == 3
+    assert len(records) == 1
+    assert records[0]["validate_error"] is None
+    assert records[0]["obj"] is not None
+    assert records[0]["obj"].issue_config is not None
+    assert records[0]["obj"].issue_config.to_dict() == {
+        "is_enabled": True,
+        "aggregate_dimensions": ["bk_target_ip"],
+        "conditions": [
+            {"key": "bk_target_ip", "method": "eq", "value": ["127.0.0.1"]},
+            {"key": "bk_target_cloud_id", "method": "neq", "value": ["0"], "condition": "and"},
+        ],
+        "alert_levels": [1, 2],
+    }
+
+
+def test_strategy_unparse_issue_config_round_trip():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+    parsed = parser.parse(parser.check(load_rule_config("issue_config.yaml")))
+    strategy = Strategy(**parsed)
+
+    unparsed = parser.unparse(strategy.to_dict())
+
+    # is_enabled=True 为默认值，不应出现在导出的 YAML 中
+    assert unparsed["issue_config"] == {
+        "dimensions": ["bk_target_ip"],
+        "levels": ["fatal", "warning"],
+        "conditions": 'bk_target_ip="127.0.0.1" and bk_target_cloud_id!="0"',
+    }
+
+
+def test_strategy_unparse_issue_config_disabled_emits_enabled_false():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+    code_config = deepcopy(load_rule_config("issue_config.yaml"))
+    code_config["issue_config"]["enabled"] = False
+
+    parsed = parser.parse(parser.check(code_config))
+    strategy = Strategy(**parsed)
+    unparsed = parser.unparse(strategy.to_dict())
+
+    assert unparsed["issue_config"]["enabled"] is False
+
+
+def test_strategy_unparse_without_issue_config():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+    parsed = parser.parse(parser.check(load_rule_config("cpu_simple.yaml")))
+    strategy = Strategy(**parsed)
+
+    unparsed = parser.unparse(strategy.to_dict())
+
+    assert "issue_config" not in unparsed
+
+
+def test_strategy_unparse_issue_config_null():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+    parsed = parser.parse(parser.check(load_rule_config("issue_config.yaml")))
+    parsed["issue_config"] = None
+    strategy = Strategy(**parsed)
+
+    unparsed = parser.unparse(strategy.to_dict())
+
+    assert "issue_config" not in unparsed
+
+
+def test_strategy_issue_config_levels_round_trip():
+    parser = make_parser(notice_group_ids={"ops.yaml": 1})
+    code_config = deepcopy(load_rule_config("issue_config.yaml"))
+    code_config["issue_config"]["levels"] = ["remind"]
+
+    parsed = parser.parse(parser.check(code_config))
+    strategy = Strategy(**parsed)
+    unparsed = parser.unparse(strategy.to_dict())
+
+    assert parsed["issue_config"]["alert_levels"] == [3]
+    assert unparsed["issue_config"]["levels"] == ["remind"]
+
+
+def test_rule_json_schema_contains_issue_config():
+    with open("bkmonitor/as_code/json_schema/rule.json") as f:
+        schema = json.load(f)
+
+    issue_config_schema = schema["properties"]["issue_config"]["anyOf"][1]
+    assert issue_config_schema["properties"]["levels"]["items"]["enum"] == ["fatal", "warning", "remind"]
+    assert issue_config_schema["properties"]["conditions"]["type"] == "string"

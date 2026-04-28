@@ -33,7 +33,7 @@ const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change', 'tex
 
 const store = useStore();
 const { $t } = useLocale();
-const { getQualifiedFieldName, getQualifiedFieldAttrs } = useFieldNameHook({ store });
+const { getQualifiedFieldName, buildFieldNameIndex } = useFieldNameHook({ store });
 
 const shortCutClsName = computed(() => {
   const iconMap = {
@@ -338,12 +338,15 @@ const calculateDropdown = () => {
   // 开始输入字段【nam】
   const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
   if (inputField) {
+    const fieldIndex = store.state.indexFieldInfo.fieldNameIndex ?? buildFieldNameIndex(totalFields.value);
+    const inputLower = inputField.toLowerCase();
     fieldList.value = originFieldList()
       .reduce((acc: { index: number; fieldName: string }[], item) => {
-        const { field_name: fieldName, is_virtual_alias_field: isVirtualAliasField } = getQualifiedFieldAttrs(item, totalFields.value, false, ['is_virtual_alias_field']);
-        const index = fieldName.toLowerCase().indexOf(inputField.toLowerCase());
-        if (index >= 0) {
-          acc.push({ index: index * 10 - (isVirtualAliasField ? 1 : 0), fieldName: item });
+        const field = fieldIndex[item];
+        const displayName = field?.query_alias ? `${field.query_alias}(${item})` : item;
+        const idx = displayName.toLowerCase().indexOf(inputLower);
+        if (idx >= 0) {
+          acc.push({ index: idx * 10 - (field?.is_virtual_alias_field ? 1 : 0), fieldName: item });
         }
         return acc;
       }, [])
@@ -584,7 +587,7 @@ const debounceUpdate = debounce(() => {
   });
 });
 const fieldNameShow = (item) => {
-  return getQualifiedFieldName(item, totalFields.value);
+  return getQualifiedFieldName(item);
 };
 
 defineExpose({

@@ -93,7 +93,6 @@ export default defineComponent({
           >
             {this.$slots.aside?.()}
           </div>
-
           {!this.isCollapsed ? (
             <MonitorDrag
               isShow={!this.isCollapsed}

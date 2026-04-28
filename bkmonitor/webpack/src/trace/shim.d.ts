@@ -54,6 +54,8 @@ declare global {
     dayjs?: Dayjs;
     enable_apm_profiling: boolean;
     enable_create_chat_group?: boolean;
+    // APM 监控相关
+    APM_QUERY_STRING?: string;
     // 多租户用户中心是否开启
     enable_multi_tenant_mode?: boolean;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;

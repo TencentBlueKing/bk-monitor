@@ -80,6 +80,14 @@ export default class SetMealAdd extends tsc<object> {
     return this.$route.params.id;
   }
 
+  /** BKFara 等外链跳转新建套餐时带入的模板名（query: template_name） */
+  get initialTemplateNameFromRoute(): string {
+    if (this.type !== 'add') return '';
+    const raw = this.$route.query?.template_name;
+    const str = Array.isArray(raw) ? raw[0] : raw;
+    return typeof str === 'string' ? str : '';
+  }
+
   /** 套餐克隆 */
   get isClone() {
     return this.$route.name === 'clone-meal' || this.$route.query?.isClone;
@@ -121,12 +129,14 @@ export default class SetMealAdd extends tsc<object> {
     } else {
       this.type = 'add';
       const { pluginType } = this.$route.params;
-      const planType = this.$route.query?.plan_type ? decodeURIComponent(this.$route.query.plan_type as string) : '';
-      const planName = this.$route.query?.plan_name ? decodeURIComponent(this.$route.query.plan_name as string) : '';
-      if (planName) {
-        this.basicInfo.name = planName;
+      const pluginName = this.$route.query?.plugin_name
+        ? decodeURIComponent(this.$route.query.plugin_name as string)
+        : '';
+      const presetMealName = this.$route.query?.name ? decodeURIComponent(this.$route.query.name as string) : '';
+      if (presetMealName) {
+        this.basicInfo.name = presetMealName;
       }
-      if (pluginType || planType) {
+      if (pluginType || pluginName) {
         this.$nextTick(() => {
           const mealTypes = [];
           this.mealTypeList.forEach(item => {
@@ -135,8 +145,8 @@ export default class SetMealAdd extends tsc<object> {
           let mealTypeItem: IMealTypeList | undefined;
           if (pluginType) {
             mealTypeItem = mealTypes.find(item => item.pluginType === pluginType);
-          } else if (planType) {
-            mealTypeItem = mealTypes.find(item => item.name === planType);
+          } else if (pluginName) {
+            mealTypeItem = mealTypes.find(item => item.name === pluginName);
           }
           if (mealTypeItem) {
             this.mealContentRef.mealTypeChange(mealTypeItem.id as number);
@@ -167,14 +177,12 @@ export default class SetMealAdd extends tsc<object> {
     this.basicInfo.enable = isEnabled;
     this.basicInfo.asStrategy = strategyCount;
   }
-  async validator() {
-    return new Promise(async (resolve, reject) => {
-      // 校验基本信息
-      if (!this.basicInfoRefEl.validator()) reject(false);
-      const isPass = await this.mealContentRef.validator();
-      if (!isPass) reject(false);
-      resolve(true);
-    });
+  async validator(): Promise<boolean> {
+    if (!this.basicInfoRefEl.validator()) {
+      return false;
+    }
+    const isPass = await this.mealContentRef.validator();
+    return isPass;
   }
 
   // 确定
@@ -325,6 +333,7 @@ export default class SetMealAdd extends tsc<object> {
               </div>
               <MealContentNew
                 ref='mealContentRef'
+                initialTemplateName={this.initialTemplateNameFromRoute}
                 mealData={this.mealData}
                 mealTypeList={this.mealTypeList}
                 name={this.basicInfo.name}
