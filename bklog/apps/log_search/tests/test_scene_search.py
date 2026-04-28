@@ -649,12 +649,14 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
     def test_fields_method_dict_format(self, mock_local, mock_user, mock_ext_user, mock_api):
         """Backward compat: UQ returns {"fields": {name: info}} dict format."""
+        from apps.log_search.constants import OPERATORS
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         mock_api.return_value = {
             "fields": {
                 "log": {"type": "text", "description": "日志内容"},
                 "status": {"type": "keyword", "description": "状态码"},
+                "dtEventTimeStamp": {"type": "date", "description": "时间"},
             }
         }
 
@@ -662,14 +664,28 @@ class TestSceneUnifyQueryHandler(TestCase):
         handler = SceneUnifyQueryHandler(params)
         result = handler.fields()
 
-        self.assertEqual(len(result["fields"]), 2)
+        self.assertEqual(len(result["fields"]), 3)
         log_field = next(f for f in result["fields"] if f["field_name"] == "log")
         self.assertTrue(log_field["is_analyzed"])
         self.assertFalse(log_field["es_doc_values"])
+        self.assertEqual(log_field["field_operator"], OPERATORS["text"])
+        self.assertEqual(log_field["tag"], "metric")
+        self.assertIn("is_built_in", log_field)
+        self.assertIn("is_case_sensitive", log_field)
+        self.assertIn("tokenize_on_chars", log_field)
+        self.assertIn("query_alias", log_field)
+        self.assertIn("origin_field", log_field)
 
         status_field = next(f for f in result["fields"] if f["field_name"] == "status")
         self.assertFalse(status_field["is_analyzed"])
         self.assertTrue(status_field["es_doc_values"])
+        self.assertEqual(status_field["field_operator"], OPERATORS["keyword"])
+        self.assertEqual(status_field["tag"], "dimension")
+
+        ts_field = next(f for f in result["fields"] if f["field_name"] == "dtEventTimeStamp")
+        self.assertEqual(ts_field["tag"], "timestamp")
+        self.assertEqual(ts_field["field_operator"], OPERATORS["date"])
+        self.assertTrue(ts_field["is_built_in"])
 
     @patch("apps.log_unifyquery.handler.scene_search.UnifyQueryApi.query_field_map")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
@@ -677,6 +693,7 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
     def test_fields_method_list_format(self, mock_local, mock_user, mock_ext_user, mock_api):
         """Real UQ response: {"data": [{field_name, field_type, ...}]} list format."""
+        from apps.log_search.constants import OPERATORS
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         mock_api.return_value = {
@@ -689,7 +706,8 @@ class TestSceneUnifyQueryHandler(TestCase):
                 {
                     "field_name": "__ext.container_name", "field_type": "keyword",
                     "is_agg": True, "is_analyzed": False,
-                    "alias_name": "", "origin_field": "__ext",
+                    "alias_name": "container", "origin_field": "__ext",
+                    "is_case_sensitive": True, "tokenize_on_chars": ["-", "_"],
                 },
             ],
             "trace_id": "abc123",
@@ -704,11 +722,21 @@ class TestSceneUnifyQueryHandler(TestCase):
         self.assertEqual(log_field["field_type"], "text")
         self.assertTrue(log_field["is_analyzed"])
         self.assertFalse(log_field["es_doc_values"])
+        self.assertEqual(log_field["field_operator"], OPERATORS["text"])
+        self.assertEqual(log_field["tag"], "metric")
+        self.assertEqual(log_field["origin_field"], "log")
 
         ext_field = next(f for f in result["fields"] if f["field_name"] == "__ext.container_name")
         self.assertEqual(ext_field["field_type"], "keyword")
         self.assertFalse(ext_field["is_analyzed"])
         self.assertTrue(ext_field["es_doc_values"])
+        self.assertEqual(ext_field["field_operator"], OPERATORS["keyword"])
+        self.assertEqual(ext_field["tag"], "dimension")
+        self.assertEqual(ext_field["query_alias"], "container")
+        self.assertEqual(ext_field["origin_field"], "__ext")
+        self.assertTrue(ext_field["is_case_sensitive"])
+        self.assertEqual(ext_field["tokenize_on_chars"], "-_")
+        self.assertTrue(ext_field["is_built_in"])
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
