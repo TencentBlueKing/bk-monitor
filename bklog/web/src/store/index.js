@@ -63,7 +63,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneRetrieve } from './helper.ts';
+import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneFilterValuesEmpty, isSceneRetrieve } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
@@ -235,7 +235,12 @@ const store = new Vuex.Store({
       return state.visibleFields.filter(field => !field.is_virtual_alias_field);
     },
     /** 是否为场景化检索模式 */
-    isSceneMode: (state) => isSceneRetrieve(state),
+    isSceneMode: state => isSceneRetrieve(state),
+    /** 场景化检索模式下，过滤条件是否全部为空 */
+    isSceneFilterEmpty: (state) => {
+      if (!isSceneRetrieve(state)) return false;
+      return isSceneFilterValuesEmpty(state.indexItem?.scene_filter_values);
+    },
     /** 是否是联合查询 */
     isUnionSearch: state => !!state.indexItem.isUnionIndex,
     /** 联合查询索引集ID数组 */

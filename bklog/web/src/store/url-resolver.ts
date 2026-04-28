@@ -28,6 +28,7 @@ import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-r
 import { getAllSceneFieldKeys } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
 
 import { ConditionOperator } from './condition-operator';
+import { isEmptyFilterValue } from './helper';
 import { BK_LOG_STORAGE } from './store.type';
 
 import type { Route } from 'vue-router';
@@ -538,9 +539,9 @@ class RetrieveUrlResolver {
 
       const sceneFilterValues = this.routeQueryParams.scene_filter_values ?? {};
       for (const [key, val] of Object.entries(sceneFilterValues)) {
-        if (val === undefined || val === null || val === '') continue;
+        if (isEmptyFilterValue(val)) continue;
         if (Array.isArray(val)) {
-          if (val.length) result[key] = val;
+          result[key] = val;
         } else {
           result[key] = String(val);
         }

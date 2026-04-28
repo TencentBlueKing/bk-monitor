@@ -199,6 +199,24 @@ export const isSceneRetrieve = (state: any): boolean => {
 };
 
 /**
+ * 判断场景过滤值的单个字段值是否为空
+ * 空值定义：undefined / null / '' / []
+ */
+export const isEmptyFilterValue = (val: any): boolean => {
+  if (val === undefined || val === null || val === '') return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  return false;
+};
+
+/**
+ * 判断场景过滤条件整体是否为空（所有字段值均为空时返回 true）
+ */
+export const isSceneFilterValuesEmpty = (filterValues: Record<string, any> | undefined | null): boolean => {
+  if (!filterValues || typeof filterValues !== 'object') return true;
+  return Object.values(filterValues).every(isEmptyFilterValue);
+};
+
+/**
  * 根据 scene_active 和 scene_filter_values 组装 table_id_conditions 和 scene_filter_values
  * - static / dynamic 类型的字段 → table_id_conditions
  * - free_input 类型的字段 → scene_filter_values
