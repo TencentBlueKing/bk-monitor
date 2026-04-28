@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
+from apps.log_databus.constants import OTLP_LOG_DEFAULT_SORT_FIELDS, OTLP_LOG_DEFAULT_TARGET_FIELDS
 from apps.log_search.constants import CustomTypeEnum
 
 CUSTOM_MAP = {}
@@ -61,6 +62,8 @@ class OtlpLog(CustomMeta):
     custom_type = CustomTypeEnum.OTLP_LOG.value
     etl_params = {"retain_original_text": False}
     etl_config = "bk_log_json"
+    default_target_fields = list(OTLP_LOG_DEFAULT_TARGET_FIELDS)
+    default_sort_fields = list(OTLP_LOG_DEFAULT_SORT_FIELDS)
     fields = [
         {
             "field_name": "time_unix",
