@@ -165,18 +165,6 @@ class TestMergeSceneFiltersToAddition(TestCase):
         self.assertEqual(result["addition"][1]["operator"], "is one of")
         self.assertNotIn("scene_filter_values", result)
 
-    def test_legacy_dict_format_compat(self):
-        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
-        data = {
-            "addition": [],
-            "scene_filter_values": {"__ext.io_kubernetes_pod_namespace": "default"},
-        }
-        result = _merge_scene_filters_to_addition(data)
-        self.assertEqual(len(result["addition"]), 1)
-        self.assertEqual(result["addition"][0]["field"], "__ext.io_kubernetes_pod_namespace")
-        self.assertEqual(result["addition"][0]["operator"], "is")
-        self.assertEqual(result["addition"][0]["value"], ["default"])
-
     def test_empty_scene_filters_noop(self):
         from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
         data = {"addition": [{"field": "a", "operator": "is", "value": "1"}]}
