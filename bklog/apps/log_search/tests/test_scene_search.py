@@ -550,6 +550,85 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_base_dict_has_step(self, mock_local, mock_user, mock_ext_user):
+        """_init_scene_base_dict must include 'step' (used by get_topk_ts_data)."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertIn("step", handler.base_dict)
+        self.assertTrue(handler.base_dict["step"])
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_step_auto_interval_1h(self, mock_local, mock_user, mock_ext_user):
+        """1-hour time range with auto interval → step should be '1m'."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["step"], "1m")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_step_explicit_interval(self, mock_local, mock_user, mock_ext_user):
+        """Explicit interval param should be used as step."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50, "interval": "5m"}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["step"], "5m")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_step_empty_time_defaults_1m(self, mock_local, mock_user, mock_ext_user):
+        """Empty time range → step defaults to '1m'."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**BASE_POST_BODY, "start_time": "", "end_time": ""}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["step"], "1m")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_agg_field_sets_field_name(self, mock_local, mock_user, mock_ext_user):
+        """When agg_field is provided, query_dict.field_name should use it."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "agg_field": "status", "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["query_list"][0]["field_name"], "status")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_no_agg_field_uses_time_field(self, mock_local, mock_user, mock_ext_user):
+        """Without agg_field, query_dict.field_name should be time_field."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["query_list"][0]["field_name"], "dtEventTimeStamp")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_query_dict_has_dimensions(self, mock_local, mock_user, mock_ext_user):
+        """query_dict should include 'dimensions' key for consistency with parent."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertIn("dimensions", handler.base_dict["query_list"][0])
+        self.assertEqual(handler.base_dict["query_list"][0]["dimensions"], [])
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
     def test_additions_transform(self, mock_local, mock_user, mock_ext_user):
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
