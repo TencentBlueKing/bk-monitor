@@ -99,23 +99,20 @@ export default defineComponent({
       activeScene.value = type;
       filterValues.value = {};
       filterLabels.value = {};
-      syncUrlParams();
     };
 
     const handleFilterChange = (
-      payload: { values: FilterValues; labels?: { fieldName: string; labels: Record<string, string> } }
+      payload: { values: FilterValues; labels?: { fieldName: string; labels: Record<string, string> } },
     ) => {
       filterValues.value = payload.values;
       if (payload.labels) {
         filterLabels.value = { ...filterLabels.value, [payload.labels.fieldName]: payload.labels.labels };
       }
-      syncUrlParams();
     };
 
     const handleClear = () => {
       filterValues.value = {};
       filterLabels.value = {};
-      syncUrlParams();
     };
 
     // 每场景独立的显示字段配置
@@ -171,12 +168,13 @@ export default defineComponent({
     /** 上次查询时的 activeScene 快照 */
     const lastQueriedScene = ref<string | null>(null);
 
-    // 监听查询事件，记录快照并隐藏提示条
+    // 监听查询事件，记录快照、同步URL并隐藏提示条
     addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
       hasQueried.value = true;
       lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
       lastQueriedScene.value = activeScene.value;
       showQueryHint.value = false;
+      syncUrlParams();
     });
 
     // 监听索引集切换，重置快照
