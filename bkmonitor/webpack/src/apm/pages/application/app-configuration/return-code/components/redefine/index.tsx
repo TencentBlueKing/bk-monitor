@@ -1,0 +1,879 @@
+import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import dayjs from 'dayjs';
+import { cloneDeep } from 'lodash';
+import { Component as tsc } from 'vue-tsx-support';
+import type { CodeRedefineItem, CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
+import { listCodeRedefinedRule, serviceList, setCodeRedefinedRule } from 'monitor-api/modules/apm_service';
+import { uploadJsonFile } from 'monitor-pc/pages/view-detail/utils';
+import { downloadFile, random } from 'monitor-common/utils';
+import TagBlock from 'monitor-pc/components/tag-block';
+
+import './index.scss';
+
+interface Props {
+  /** 应用名（接口请求主键） */
+  appName: string;
+  callOptions?: Partial<CallOptions>;
+  variablesData?: Record<string, any>;
+}
+
+interface ColumnItem {
+  label: string;
+  prop: string;
+  options: { value: string; text: string }[];
+  loading: boolean;
+  width?: number;
+  minWidth?: number;
+}
+
+@Component
+export default class RedefineTabContent extends tsc<Props> {
+  @Prop({ default: '' }) appName: string;
+
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @InjectReactive('callOptions') readonly callOptions: CallOptions;
+  @InjectReactive({ from: 'variablesData', default: () => ({}) }) readonly variablesData!: Record<string, any>;
+
+  @Ref('fileRef') fileRef!: HTMLInputElement;
+  @Ref('tableRef') tableRef!: any;
+
+  /** 全量数据（作为编辑回滚快照） */
+  data: CodeRedefineItem[] = [];
+  /** 当前表格展示数据（可能被筛选） */
+  showData: CodeRedefineItem[] = [];
+  /** 表格加载状态 */
+  tableLoading = false;
+
+  /** 重复的规则id */
+  repeatRulesIdSet = new Set<string>();
+
+  columns: ColumnItem[] = [
+    { label: this.$tc('类型'), prop: 'kind', options: [], loading: false, width: 124, minWidth: 124 },
+    { label: this.$tc('被调服务'), prop: 'callee_server', options: [], loading: false, width: 194 },
+    { label: this.$tc('被调service'), prop: 'callee_service', options: [], loading: false, width: 194 },
+    { label: this.$tc('被调接口'), prop: 'callee_method', options: [], loading: false, width: 202 },
+    { label: this.$tc('返回码'), prop: 'code_type_rules', options: [], loading: false },
+    { label: this.$tc('作用范围'), prop: 'service_names', options: [], loading: false, width: 204 },
+  ];
+
+  codeStatus = [
+    { label: this.$tc('失败'), value: 'exception' },
+    { label: this.$tc('超时'), value: 'timeout' },
+    { label: this.$tc('成功'), value: 'success' },
+  ];
+
+  codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
+
+  callTypeOptions = [
+    { text: this.$tc('主调'), value: 'caller' },
+    { text: this.$tc('被调'), value: 'callee' },
+  ];
+
+  applyScopeOptions = [];
+
+  /** 主调枚举值映射 */
+  callerEnumOptionsMap = {
+    callee_server: [],
+    callee_service: [],
+    callee_method: [],
+  };
+
+  /** 被调枚举值映射 */
+  calleeEnumOptionsMap = {
+    callee_server: [],
+    callee_service: [],
+    callee_method: [],
+  };
+
+  rowEditMap: Record<string, boolean> = {};
+  filterValues: string[] = [];
+
+  /** 三者都为空时才校验「不能为空」；任一有值则不做该项提示，仅对已填内容做格式校验 */
+  getCodeTypeRules(codeTypeRules: CodeRedefineItem['code_type_rules']) {
+    const keys: Array<'success' | 'exception' | 'timeout'> = ['success', 'exception', 'timeout'];
+    // success/exception/timeout 三项全部为空时，提示“返回码不能为空”
+    const isAllEmpty = () => keys.every(k => !(codeTypeRules[k] ?? '').toString().trim());
+
+    // 每个状态字段共享同一组校验：
+    // 1. 三项至少填一项；2. 已填写值需要满足返回码格式
+    const fieldRules = () => [
+      {
+        validator: () => !isAllEmpty(),
+        message: window.i18n.tc('返回码不能为空'),
+        trigger: 'blur',
+      },
+      {
+        validator: (val: string) =>
+          !(val ?? '').toString().trim() || this.codeRegex.test((val ?? '').toString().trim()),
+        message: window.i18n.tc('返回码格式错误'),
+        trigger: 'blur',
+      },
+    ];
+
+    return {
+      success: fieldRules(),
+      exception: fieldRules(),
+      timeout: fieldRules(),
+    };
+  }
+
+  generateNewRow() {
+    // 新增行默认值：被调类型、全局生效、三类返回码均为空
+    return {
+      id: random(8),
+      kind: 'callee',
+      callee_server: '',
+      callee_service: '',
+      callee_method: '',
+      code_type_rules: {
+        success: '',
+        exception: '',
+        timeout: '',
+      },
+      isNew: true,
+      is_global: true,
+      service_names: ['0'],
+    };
+  }
+
+  addRow() {
+    // 新增后插入到顶部，并进入编辑态
+    const newRow = this.generateNewRow();
+    this.showData.unshift(newRow);
+    this.data.unshift(cloneDeep(newRow));
+    this.handleEditRow(0);
+  }
+
+  async getCodeRedefineList() {
+    // 拉取重定义规则列表
+    this.tableLoading = true;
+    const data = await listCodeRedefinedRule({
+      app_name: this.appName,
+    }).finally(() => {
+      this.tableLoading = false;
+    });
+    if (data.length) {
+      for (let index = 0; index < data.length; index++) {
+        // 补充前端运行时字段
+        const id = random(8);
+        data[index].id = id;
+        data[index].isNew = false;
+        data[index].isSaving = false;
+        // 全局规则在前端展示态固定为 ['0']
+        if (data[index].is_global) {
+          data[index].service_names = ['0'];
+        }
+        // 默认非编辑态
+        this.$set(this.rowEditMap, id, false);
+      }
+      // showData 用于展示，data 作为基准快照
+      this.showData = data;
+      this.data = cloneDeep(data);
+    } else {
+      // 无历史规则时给一条默认可编辑行
+      this.addRow();
+    }
+  }
+
+  async getServiceList() {
+    const data = await serviceList({
+      app_name: this.appName,
+    });
+    this.applyScopeOptions = data.reduce(
+      (results, item) => {
+        // 仅保留 trpc 服务作为作用范围候选
+        if (item.system.name === 'trpc') {
+          results.push({
+            text: item.service_name,
+            value: item.service_name,
+          });
+        }
+        return results;
+      },
+      [
+        {
+          // 约定 value='0' 代表全局生效
+          text: this.$tc('全局生效'),
+          value: '0',
+        },
+      ]
+    );
+  }
+
+  async getEnumOptions() {
+    // 三个维度共用同一套拉取逻辑
+    const fields = ['callee_server', 'callee_service', 'callee_method'];
+    // 近 1 小时时间范围，获取实时枚举候选
+    const startTime = dayjs().subtract(1, 'hour').unix();
+    const endTime = dayjs().unix();
+    // 主调口径字段枚举
+    const callerResults = await Promise.all(
+      fields.map(field =>
+        getFieldOptionValues({
+          field,
+          start_time: startTime,
+          end_time: endTime,
+          app_name: this.appName,
+          metric_field: 'rpc_client_handled_total',
+        })
+      )
+    );
+    // 被调口径字段枚举
+    const calleeResults = await Promise.all(
+      fields.map(field =>
+        getFieldOptionValues({
+          field,
+          start_time: startTime,
+          end_time: endTime,
+          app_name: this.appName,
+          metric_field: 'rpc_server_handled_total',
+        })
+      )
+    );
+    // fields 下标与查询结果下标一一对应，组装为 map 便于按列读取
+    this.callerEnumOptionsMap = callerResults.reduce((acc, cur, index) => {
+      acc[fields[index]] = cur;
+      return acc;
+    }, {});
+    this.calleeEnumOptionsMap = calleeResults.reduce((acc, cur, index) => {
+      acc[fields[index]] = cur;
+      return acc;
+    }, {});
+  }
+
+  /** 校验填写的规则 */
+  async validRules() {
+    // 规则唯一键：类型+被调服务+被调service+被调接口+是否全局
+    const values = this.showData.map(
+      item => `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}_${item.is_global}`
+    );
+    const keyIdsMap: Record<string, string[]> = {};
+    for (let index = 0; index < values.length; index++) {
+      const item = values[index];
+      if (!item) continue;
+      if (keyIdsMap[item]) {
+        keyIdsMap[item].push(this.showData[index].id);
+      } else {
+        keyIdsMap[item] = [this.showData[index].id];
+      }
+    }
+    const repeatIds = Object.values(keyIdsMap)
+      .filter(item => item.length > 1)
+      .flat();
+    this.repeatRulesIdSet = new Set(repeatIds);
+    // 收集每一行“返回码规则表单”的异步校验
+    const codeValidate = this.showData.map((_, index) => this.tableRef.$refs[`codeRulesForm_${index}`]?.validate());
+    const codeValid = await Promise.all(codeValidate)
+      .then(() => true)
+      .catch(() => false);
+    // 只要存在格式/必填错误或重复规则，则不允许保存
+    if (!codeValid || this.repeatRulesIdSet.size !== 0) return false;
+    return true;
+  }
+
+  async handleValueChange(value: string | string[], prop: string, index: number) {
+    let newValue = value;
+    if (['success', 'exception', 'timeout'].includes(prop)) {
+      // 三个返回码状态写入 code_type_rules 子对象
+      this.$set(this.showData[index].code_type_rules, prop, newValue);
+    } else {
+      if (prop === 'kind') {
+        // 当类型为「被调」时，「被调服务」不让填
+        if (value === 'callee') {
+          this.$set(this.showData[index], 'callee_server', '');
+        }
+      }
+      if (prop === 'service_names') {
+        // “全局生效(0)”与具体服务互斥，交互规则同 remark 组件
+        newValue = cloneDeep(value);
+        if (newValue.includes('0') && value.length > 1) {
+          if (value[0] !== '0') {
+            newValue = ['0'];
+            this.$set(this.showData[index], 'is_global', true);
+          } else {
+            newValue = (newValue as string[]).filter(item => item !== '0');
+            this.$set(this.showData[index], 'is_global', false);
+          }
+        }
+      }
+      // 普通字段直接写入当前行
+      this.$set(this.showData[index], prop, newValue);
+    }
+    // 任意字段变更后都执行整表校验，实时反馈保存按钮状态
+    const valid = await this.validRules();
+    this.$set(this.showData[index], 'isAbleSave', valid);
+  }
+
+  handleCancelEditRow(index: number) {
+    // 退出编辑态
+    this.$set(this.rowEditMap, this.showData[index].id, false);
+    // 新建且仍为空白的行，取消时直接移除
+    if (this.data[index].isNew && this.showData.length > 1) {
+      const row = this.data[index];
+      const isEmpty =
+        row.callee_server === '' &&
+        row.callee_service === '' &&
+        row.callee_method === '' &&
+        row.code_type_rules.success === '' &&
+        row.code_type_rules.exception === '' &&
+        row.code_type_rules.timeout === '' &&
+        row.service_names.length === 1 &&
+        row.service_names[0] === '0';
+      if (isEmpty) {
+        this.showData.splice(index, 1);
+        this.data.splice(index, 1);
+        return;
+      }
+    }
+    // 回滚到编辑前快照
+    this.$set(this.showData, index, cloneDeep(this.data[index]));
+  }
+
+  handleDeleteRow(index: number) {
+    this.$bkInfo({
+      title: this.$t('是否确认删除？'),
+      theme: 'danger',
+      okText: this.$t('删除'),
+      cancelText: this.$t('取消'),
+      // TODO：组件库bug，该配置无效，已提issue，待修复
+      // confirmLoading: true,
+      confirmFn: async () => {
+        // 删除通过“提交剩余全量规则”完成
+        const dataList = this.showData.filter((_, i) => i !== index);
+        const params = {
+          app_name: this.appName,
+          rules: dataList.map(item => ({
+            kind: item.kind,
+            callee_server: item.callee_server,
+            callee_service: item.callee_service,
+            callee_method: item.callee_method,
+            code_type_rules: item.code_type_rules,
+            service_names: item.service_names,
+            is_global: item.is_global,
+          })),
+        };
+        await setCodeRedefinedRule(params);
+        // 接口成功后再同步本地数组
+        this.showData.splice(index, 1);
+        this.data.splice(index, 1);
+        this.$bkMessage({
+          message: this.$t('删除成功，需要 5 分钟左右生效。'),
+          theme: 'success',
+        });
+      },
+    });
+  }
+
+  handleEditRow(index: number) {
+    // 切换为编辑态
+    this.$set(this.rowEditMap, this.showData[index].id, true);
+  }
+
+  async handleSaveEditRow(index: number) {
+    // 保存前做整表校验（包含重复校验和返回码表单校验）
+    const valid = await this.validRules();
+    if (!valid) return;
+    // 非新建且内容未变化时，无需调用接口
+    if (JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index]) && !this.showData[index].isNew) {
+      this.$set(this.rowEditMap, this.showData[index].id, false);
+      return;
+    }
+    const params = {
+      app_name: this.appName,
+      rules: this.showData.reduce((results, item, showIndex) => {
+        // 新建行只提交当前保存行；历史行全部带上
+        if (!item.isNew || showIndex === index) {
+          results.push({
+            kind: item.kind,
+            callee_server: item.callee_server,
+            callee_service: item.callee_service,
+            callee_method: item.callee_method,
+            code_type_rules: item.code_type_rules,
+            // 后端协议：全局规则 service_names 传空数组
+            service_names: item.is_global ? [] : item.service_names,
+            is_global: item.is_global,
+          });
+        }
+        return results;
+      }, []),
+    };
+    try {
+      // 行级 loading，防止重复提交
+      this.$set(this.showData[index], 'isSaving', true);
+      await setCodeRedefinedRule(params);
+      // 保存成功：更新编辑态与快照
+      this.$set(this.showData[index], 'isNew', false);
+      this.$set(this.rowEditMap, this.showData[index].id, false);
+      this.$set(this.data, index, cloneDeep(this.showData[index]));
+      this.$bkMessage({
+        message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
+        theme: 'success',
+      });
+    } finally {
+      // 无论成功失败都关闭 loading
+      this.$set(this.showData[index], 'isSaving', false);
+      this.$set(this.data[index], 'isSaving', false);
+    }
+  }
+
+  handleFilterChange(filters: Record<string, string[]>) {
+    // 读取“作用范围”列的过滤条件
+    const values = Object.values(filters)[0];
+    this.filterValues = values;
+    if (values.length) {
+      const valuesSet = new Set(values);
+      const isIncluGlobal = valuesSet.has('0');
+      // 命中当前服务或命中全局规则时保留
+      this.showData = this.data.filter(
+        item => item.service_names.some(service => valuesSet.has(service)) || (isIncluGlobal && item.is_global)
+      );
+    } else {
+      // 清空筛选还原全量
+      this.showData = cloneDeep(this.data);
+    }
+  }
+
+  async fileChange(e) {
+    // 读取导入的 json 文件
+    const files = e.target.files;
+    const data = await uploadJsonFile<CodeRedefineItem[]>(files[0]).catch(() => false);
+    if (!data || !Array.isArray(data)) {
+      this.$bkMessage({
+        theme: 'error',
+        message: this.$t('文件格式不正确'),
+      });
+      return;
+    }
+    /**
+     * 以 类型 + 被调服务 + 被调service + 被调接口 为组合key：
+     * 1. 存量的覆盖更新
+     * 2. 新增的追加到前面
+     */
+    const importKeySet = new Set<string>(
+      data.map(item => `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}`)
+    );
+    // 记录已被导入数据替换的旧行 id，用于后续生成新增列表
+    const replaceIds = new Set<string>();
+    for (let index = 0; index < this.showData.length; index++) {
+      const item = this.showData[index];
+      const rowKey = `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}`;
+      if (importKeySet.has(rowKey)) {
+        // 命中相同组合键时，用导入值覆盖当前行
+        this.showData[index] = data.find(
+          childItem =>
+            `${childItem.kind}_${childItem.callee_server}_${childItem.callee_service}_${childItem.callee_method}` ===
+            rowKey
+        );
+        replaceIds.add(this.showData[index].id);
+      }
+    }
+    // 剩余未替换项视为纯新增，插到表格前部
+    const newList = data.filter(item => !replaceIds.has(item.id));
+    const tatalList = [...newList, ...this.showData];
+    for (let index = 0; index < tatalList.length; index++) {
+      const item = tatalList[index];
+      // 导入后统一置为编辑态，便于用户复核并保存
+      this.$set(this.rowEditMap, item.id, true);
+    }
+    this.showData = tatalList;
+  }
+
+  handleImport() {
+    // 触发隐藏文件选择框
+    this.fileRef?.click();
+  }
+
+  handleExport() {
+    // 以当前快照数据导出，保留结构与缩进方便二次编辑
+    downloadFile(JSON.stringify(this.data, null, 2), 'application/json', 'code-redefine.json');
+  }
+
+  renderColumn(item: ColumnItem) {
+    // 按列类型渲染“只读态 / 编辑态”双视图
+    switch (item.prop) {
+      case 'kind':
+        return (
+          <bk-table-column
+            key={item.prop}
+            label={item.label}
+            prop={item.prop}
+            width={item.width}
+            scopedSlots={{
+              default: ({ row, $index }) => {
+                // 非编辑态展示文本
+                if (!this.rowEditMap[row.id]) {
+                  return (
+                    <div>
+                      {row[item.prop] === '' ? '--' : row[item.prop] === 'caller' ? this.$tc('主调') : this.$tc('被调')}
+                    </div>
+                  );
+                }
+                return (
+                  <div class='interface-column'>
+                    {/* 编辑态：类型可选且可自定义创建 */}
+                    <bk-select
+                      value={row[item.prop]}
+                      allow-create
+                      clearable={false}
+                      placeholder={this.$tc('请选择或输入')}
+                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                    >
+                      {this.callTypeOptions.map(opt => (
+                        <bk-option
+                          id={opt.value}
+                          key={opt.value}
+                          name={opt.text}
+                        />
+                      ))}
+                    </bk-select>
+                  </div>
+                );
+              },
+            }}
+          />
+        );
+      case 'callee_server':
+      case 'callee_service':
+      case 'callee_method':
+        return (
+          <bk-table-column
+            key={item.prop}
+            label={item.label}
+            prop={item.prop}
+            width={item.width}
+            scopedSlots={{
+              default: ({ row, $index }) => {
+                // 非编辑态：纯文本
+                if (!this.rowEditMap[row.id]) {
+                  return (
+                    <div
+                      class='interface-column-readonly'
+                      v-bk-overflow-tips
+                    >
+                      <div
+                        class='value-content'
+                        v-bk-overflow-tips
+                      >
+                        {row[item.prop] === '' ? '--' : row[item.prop]}
+                      </div>
+                    </div>
+                  );
+                }
+                const enumOptions =
+                  row.kind === 'caller' ? this.callerEnumOptionsMap[item.prop] : this.calleeEnumOptionsMap[item.prop];
+                // 业务约束：kind=callee 时，callee_server 禁止输入
+                const isCalleeServerDisabled = item.prop === 'callee_server' && row.kind === 'callee';
+                return (
+                  <div class='interface-column'>
+                    <bk-select
+                      value={row[item.prop]}
+                      allow-create={!isCalleeServerDisabled}
+                      display-tag={true}
+                      searchable
+                      placeholder={this.$tc('请选择或输入')}
+                      disabled={isCalleeServerDisabled}
+                      loading={item.loading}
+                      showEmpty={!item.loading && !item.options.length}
+                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                    >
+                      {enumOptions.map(opt => (
+                        <bk-option
+                          id={opt.value}
+                          key={opt.value}
+                          name={opt.text}
+                        />
+                      ))}
+                    </bk-select>
+                    {this.repeatRulesIdSet.has(row.id) && item.prop === 'callee_method' && (
+                      <i
+                        class='icon-monitor icon-mind-fill'
+                        v-bk-tooltips={{
+                          content: this.$tc('类型、被调服务、被调Service、被调接口、是否全局的组合值须唯一'),
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              },
+            }}
+          />
+        );
+      case 'code_type_rules':
+        return (
+          <bk-table-column
+            key={item.prop}
+            label={item.label}
+            prop={item.prop}
+            width={item.width}
+            render-header={() => {
+              return (
+                <div class='code-column-header'>
+                  <span>{this.$tc('返回码')}</span>
+                  <i
+                    class='icon-monitor icon-hint'
+                    v-bk-tooltips={{
+                      content: this.$t(
+                        '多个返回码之间用“，”分割，数值区间用～连接，有前缀的需要把前缀带上，比如：error_4003,200,3001~3005'
+                      ),
+                    }}
+                  />
+                </div>
+              );
+            }}
+            scopedSlots={{
+              default: ({ row, $index }) => {
+                // 非编辑态：按状态分组展示返回码，空值不展示
+                if (!this.rowEditMap[row.id]) {
+                  const isEmpty = this.codeStatus.every(item => !row.code_type_rules[item.value]);
+                  if (isEmpty) {
+                    return <span>--</span>;
+                  }
+                  return (
+                    <div class='code-rules-readonly'>
+                      {this.codeStatus.map(item => {
+                        if (!row.code_type_rules[item.value]) {
+                          return null;
+                        }
+
+                        return (
+                          <div
+                            class='code-status-rule-item'
+                            key={item.value}
+                          >
+                            <TagBlock
+                              class='code-tag-block'
+                              data={row.code_type_rules[item.value].split(',')}
+                              size='small'
+                            />
+                            <div class='code-status-rule-item-label'>
+                              <i18n path={'重定义为 {0}'}>
+                                <span class={[item.value]}>{item.label}</span>
+                              </i18n>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                return (
+                  // 编辑态：每行一个 form，支持按状态字段独立校验
+                  <bk-form
+                    ref={`codeRulesForm_${$index}`}
+                    class='code-rules'
+                    label-width={0}
+                    {...{
+                      props: {
+                        model: row.code_type_rules,
+                        rules: this.getCodeTypeRules(row.code_type_rules),
+                      },
+                    }}
+                  >
+                    {this.codeStatus.map(item => (
+                      <div
+                        class='code-status-rule-item'
+                        key={item.value}
+                      >
+                        <bk-form-item property={item.value}>
+                          <bk-input
+                            value={row.code_type_rules[item.value]}
+                            // on-change 与组件事件命名保持一致
+                            on-change={v => this.handleValueChange(v, item.value, $index)}
+                          />
+                        </bk-form-item>
+                        <i18n path={'重定义为 {0}'}>
+                          <span class={[item.value]}>{item.label}</span>
+                        </i18n>
+                      </div>
+                    ))}
+                  </bk-form>
+                );
+              },
+            }}
+          />
+        );
+      case 'service_names':
+        return (
+          <bk-table-column
+            key={item.prop}
+            label={item.label}
+            prop={item.prop}
+            width={item.width}
+            filters={this.applyScopeOptions}
+            scopedSlots={{
+              default: ({ row, $index }) => {
+                // 非编辑态：作用范围列表
+                if (!this.rowEditMap[row.id]) {
+                  return (
+                    <div class='interface-column-readonly'>
+                      <div
+                        class='value-content'
+                        v-bk-overflow-tips
+                      >
+                        {row[item.prop].map(item => (item === '0' ? this.$tc('全局生效') : item)).join(',')}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div class='interface-column'>
+                    {/* 编辑态：多选作用范围（含全局生效） */}
+                    <bk-select
+                      value={row[item.prop]}
+                      class='scoped-select'
+                      ext-popover-cls='scoped-select-popover'
+                      clearable={false}
+                      searchable
+                      multiple
+                      placeholder={this.$tc('请选择或输入')}
+                      disabled={item.loading}
+                      loading={item.loading}
+                      showEmpty={!item.loading && !item.options.length}
+                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                    >
+                      {this.applyScopeOptions.map(opt => (
+                        <bk-option
+                          id={opt.value}
+                          key={opt.value}
+                          name={opt.text}
+                        />
+                      ))}
+                    </bk-select>
+                  </div>
+                );
+              },
+            }}
+          />
+        );
+      default:
+        return undefined;
+    }
+  }
+
+  created() {
+    // 页面初始化：并行加载规则数据、枚举候选、作用范围选项
+    this.getCodeRedefineList();
+    this.getEnumOptions();
+    this.getServiceList();
+  }
+
+  render() {
+    return (
+      <div class='return-code-redefine-content'>
+        <div class='top-btns'>
+          <bk-button
+            theme='primary'
+            icon='plus'
+            on-click={this.addRow}
+          >
+            {this.$t('新增')}
+          </bk-button>
+        </div>
+        <div class='explore-btns'>
+          <input
+            class='hidden-file-input'
+            type='file'
+            accept='application/json'
+            ref='fileRef'
+            onChange={this.fileChange}
+          />
+          <bk-button
+            class='btn'
+            theme='primary'
+            text
+            onClick={this.handleImport}
+          >
+            {this.$t('导入')}
+          </bk-button>
+          <bk-button
+            class='btn'
+            theme='primary'
+            text
+            onClick={this.handleExport}
+          >
+            {this.$t('导出')}
+          </bk-button>
+        </div>
+        <div class='submit-table'>
+          {this.tableLoading ? (
+            <div class='skeleton-wrap'>
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+              <div class='skeleton-element' />
+            </div>
+          ) : (
+            <bk-table
+              ref='tableRef'
+              data={this.showData}
+              border
+              row-auto-height
+              height='100%'
+              row-class-name='return-code-redefine-row'
+              on-filter-change={this.handleFilterChange}
+              empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
+            >
+              {this.columns.map(item => this.renderColumn(item))}
+              <bk-table-column
+                label={this.$tc('操作')}
+                width={120}
+                // fixed='right'
+                scopedSlots={{
+                  default: ({ row, $index }) => {
+                    if (this.rowEditMap[row.id]) {
+                      return (
+                        <div class='operate-btns'>
+                          <bk-button
+                            class='btn'
+                            theme='primary'
+                            disabled={!this.showData[$index].isAbleSave || this.showData[$index].isSaving}
+                            loading={this.showData[$index].isSaving}
+                            text
+                            onClick={() => this.handleSaveEditRow($index)}
+                          >
+                            {this.$t('保存')}
+                          </bk-button>
+                          <bk-button
+                            class='btn'
+                            theme='primary'
+                            text
+                            onClick={() => this.handleCancelEditRow($index)}
+                          >
+                            {this.$t('取消')}
+                          </bk-button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div class='operate-btns'>
+                        <bk-button
+                          class='btn'
+                          theme='primary'
+                          text
+                          onClick={() => this.handleEditRow($index)}
+                        >
+                          {this.$t('编辑')}
+                        </bk-button>
+                        {this.data.length > 1 && (
+                          <bk-button
+                            class='btn'
+                            theme='danger'
+                            text
+                            onClick={() => this.handleDeleteRow($index)}
+                          >
+                            {this.$t('删除')}
+                          </bk-button>
+                        )}
+                      </div>
+                    );
+                  },
+                }}
+              />
+            </bk-table>
+          )}
+        </div>
+      </div>
+    );
+  }
+}
