@@ -297,7 +297,7 @@ const store = new Vuex.Store({
     },
 
     // @ts-ignore
-    retrieveParams: (state, getters) => {
+    retrieveParams: (state, getters, _, rootGetters) => {
       const {
         start_time,
         end_time,
@@ -354,10 +354,17 @@ const store = new Vuex.Store({
         ...searchParams,
       };
 
-      // 场景化检索：附加 space_uid 和 table_id_conditions
+      // 场景化检索：附加 space_uid、table_id_conditions 和 scene_filter_values
       if (isSceneRetrieve(state)) {
-        baseParams.space_uid = state.spaceUid;
-        baseParams.table_id_conditions = buildTableIdConditions(state);
+        const { table_id_conditions, scene_filter_values } = buildTableIdConditions(
+          state,
+          rootGetters['retrieve/sceneConfigList'],
+        );
+        Object.assign(baseParams, {
+          space_uid: state.spaceUid,
+          table_id_conditions,
+          scene_filter_values,
+        });
       }
 
       return baseParams;
@@ -1169,7 +1176,7 @@ const store = new Vuex.Store({
     },
 
     /** 请求字段config信息 */
-    requestIndexSetFieldInfo({ commit, state }) {
+    requestIndexSetFieldInfo({ commit, state, getters }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
       commit('resetIndexFieldInfo');
@@ -1199,10 +1206,8 @@ const store = new Vuex.Store({
         is_realtime: 'True',
       };
       if (isScene) {
-        Object.assign(queryData, {
-          space_uid: state.spaceUid,
-          table_id_conditions: buildTableIdConditions(state),
-        });
+        const { space_uid, table_id_conditions, scene_filter_values } = getters.retrieveParams;
+        Object.assign(queryData, { space_uid, table_id_conditions, scene_filter_values });
       } else if (isUnionIndex) {
         Object.assign(queryData, {
           index_set_ids: ids,
@@ -1526,7 +1531,7 @@ const store = new Vuex.Store({
      * }
      * @returns
      */
-    requestIndexSetValueList({ commit, state }, payload) {
+    requestIndexSetValueList({ commit, state, getters }, payload) {
       const { start_time: startTime, end_time: endTime } = state.indexItem;
       const lastQueryTimerange = `${startTime}_${endTime}`;
 
@@ -1584,10 +1589,12 @@ const store = new Vuex.Store({
 
       let queryData;
       if (isScene) {
+        const { space_uid, table_id_conditions, scene_filter_values } = getters.retrieveParams;
         queryData = {
           ...baseQueryData,
-          space_uid: state.spaceUid,
-          table_id_conditions: buildTableIdConditions(state),
+          space_uid,
+          table_id_conditions,
+          scene_filter_values,
           fields,
         };
       } else {

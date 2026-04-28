@@ -199,18 +199,40 @@ export const isSceneRetrieve = (state: any): boolean => {
 };
 
 /**
- * 根据 scene_active 和 scene_filter_values 组装 table_id_conditions
+ * 根据 scene_active 和 scene_filter_values 组装 table_id_conditions 和 scene_filter_values
+ * - static / dynamic 类型的字段 → table_id_conditions
+ * - free_input 类型的字段 → scene_filter_values
  *
  * @param state Vuex state
+ * @param sceneConfigs 场景配置列表（来自 retrieve/sceneConfigList getter）
  */
 export const buildTableIdConditions = (
   state: any,
-): Array<Array<{ field_name: string; value: any[]; op: string }>> => {
+  sceneConfigs: any[] = [],
+): {
+  table_id_conditions: Array<Array<{ field_name: string; value: any[]; op: string }>>;
+  scene_filter_values: Array<{ field: string; operator: string; value: any[] }>;
+} => {
   const { scene_active: sceneActive, scene_filter_values = {} } = state.indexItem ?? {};
 
-  if (!sceneActive) return [];
+  const emptyResult = {
+    table_id_conditions: [],
+    scene_filter_values: [],
+  };
+
+  if (!sceneActive) return emptyResult;
+
+  // 根据 sceneActive 找到当前场景的配置，建立 fieldName → choicesType 的映射
+  const activeConfig = sceneConfigs.find((s: any) => s.type === sceneActive);
+  const fieldChoicesTypeMap: Record<string, string> = {};
+  if (activeConfig) {
+    (activeConfig.fields ?? []).forEach((f: any) => {
+      fieldChoicesTypeMap[f.key] = f.choicesType ?? 'static';
+    });
+  }
 
   const conditions: Array<{ field_name: string; value: any[]; op: string }> = [];
+  const filterValues: Array<{ field: string; operator: string; value: any[] }> = [];
 
   // 第一个固定条件：场景
   conditions.push({
@@ -219,19 +241,34 @@ export const buildTableIdConditions = (
     op: 'eq',
   });
 
-  // 由 scene_filter_values 生成后续条件
+  // 由 scene_filter_values 生成后续条件，根据 choicesType 分类
   for (const [fieldName, fieldValue] of Object.entries(scene_filter_values)) {
     if (fieldValue === undefined || fieldValue === null || fieldValue === '') continue;
 
     const valueArray = Array.isArray(fieldValue) ? fieldValue : [fieldValue];
     if (valueArray.length === 0) continue;
 
-    conditions.push({
-      field_name: fieldName,
-      value: valueArray,
-      op: 'eq',
-    });
+    const choicesType = fieldChoicesTypeMap[fieldName] ?? 'static';
+
+    if (choicesType === 'free_input') {
+      // free_input 类型放入 scene_filter_values
+      filterValues.push({
+        field: fieldName,
+        operator: '=',
+        value: valueArray,
+      });
+    } else {
+      // static / dynamic 类型放入 table_id_conditions
+      conditions.push({
+        field_name: fieldName,
+        value: valueArray,
+        op: 'eq',
+      });
+    }
   }
 
-  return [conditions];
+  return {
+    table_id_conditions: [conditions],
+    scene_filter_values: filterValues,
+  };
 };
