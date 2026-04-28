@@ -41,7 +41,7 @@ import TemporaryShareNew from '../../../../components/temporary-share/temporary-
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
-import ChatGroup from '@/pages/failure/alarm-detail/chat-group/chat-group';
+import ChatGroup from '@/components/chat-group/chat-group';
 
 import type { IChatGroupDialogOptions } from '../../typings';
 
@@ -351,6 +351,7 @@ export default defineComponent({
           alarmEventName={this.chatGroupDialog.alertName}
           alertIds={this.chatGroupDialog.alertIds}
           assignee={this.chatGroupDialog.assignee}
+          bizId={this.alarmDetail?.bk_biz_id}
           show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />

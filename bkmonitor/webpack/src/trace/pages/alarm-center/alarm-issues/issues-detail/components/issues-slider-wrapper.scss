@@ -1,0 +1,90 @@
+/* stylelint-disable selector-class-pattern */
+.issues-slider-wrapper {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+  padding: 0 0 16px 16px;
+  overflow: hidden;
+  background-color: #f2f6fc;
+
+  .issues-slider-left-panel {
+    flex: 1;
+    padding-right: 8px;
+    overflow: hidden auto;
+
+    .issues-retrieval-filter {
+      position: sticky;
+      top: -1px;
+      z-index: 52;
+      margin-top: 16px;
+      border: 1px solid #e4e9f2;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px 0 #1919290a;
+
+      .retrieval-filter__component-main {
+        border-radius: 8px;
+
+        .component-right .search-btn {
+          position: relative;
+          top: -1px;
+          height: calc(100% + 1px);
+          border-top-right-radius: 8px;
+          border-bottom-right-radius: 8px;
+        }
+      }
+    }
+
+    .issues-chart-wrapper {
+      display: flex;
+      gap: 16px;
+      height: 256px;
+      margin: 16px 0 8px;
+
+      .issues-trend-chart {
+        flex-shrink: 0;
+      }
+    }
+
+    .issues-alarm-tab {
+      position: sticky;
+      top: 49px;
+      z-index: 52;
+      margin-bottom: 16px;
+      background: #f2f6fc;
+      opacity: 1;
+
+      .bk-tab-content {
+        display: none;
+      }
+    }
+
+    & > .panel-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 36px;
+    }
+
+    .issues-detail-alarm-panel .alarm-center-detail-box .panel-tab {
+      top: 100px;
+    }
+
+    .issues-detail-alarm-panel .alarm-center-detail-box .alarm-view-tab > .bk-tab {
+      top: 151px;
+    }
+  }
+
+  .issues-slider-right-panel {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 16px;
+    width: 384px;
+    padding-right: 16px;
+    overflow-y: auto;
+
+    .issues-basic-info {
+      margin-top: 16px;
+    }
+  }
+}

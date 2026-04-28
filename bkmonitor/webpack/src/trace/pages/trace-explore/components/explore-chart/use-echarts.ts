@@ -24,11 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, inject, watch } from 'vue';
-import { shallowRef } from 'vue';
-import { computed } from 'vue';
+import { type MaybeRef, type Ref, computed, inject, shallowRef, toValue, watch } from 'vue';
 
-import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { random } from 'monitor-common/utils';
@@ -58,11 +55,376 @@ export interface ChartInteractionState {
   /** 当前鼠标是否 hover 在图表区域 */
   isMouseOver: MaybeRef<boolean>;
 }
+export interface ChartOptions {
+  $api: Record<string, () => Promise<any>>;
+  chartRef: Ref<HTMLElement>;
+  customOptions: CustomOptions;
+  interactionState?: ChartInteractionState;
+  panel: MaybeRef<PanelModel>;
+  params: MaybeRef<Record<string, any>>;
+  downSampleRangeComputed?: (timeRange: number[]) => string | undefined;
+}
+
 export interface CustomOptions {
   formatterData?: (formatter: any, target: IDataQuery) => any;
   options?: (options: any) => any;
   series?: (series: EchartSeriesItem[]) => EchartSeriesItem[];
 }
+
+export const createSeries = (series: SeriesItem[], customSeries?: CustomOptions['series']) => {
+  const xAllData = new Set<number>();
+  let xAxisIndex = -1;
+  const xAxis: any[] = [];
+  const seriesData: EchartSeriesItem[] = [];
+  /** 记录每个 xAxisIndex 对应的当前 xData 快照，用于后续系列的合并判断 */
+  const xAxisDataMap = new Map<number, number[]>();
+  for (const data of series) {
+    let list: { value: any }[] = [];
+    let xData: number[] = [];
+    /** 与 data（list）索引对齐的 datapoints 副本，头尾补 null 后仍能通过下标一一对应 */
+    let alignedDatapoints: [null | number, number][] = data.datapoints.map(p => [...p] as [null | number, number]);
+    for (const point of data.datapoints) {
+      xData.push(point[1]);
+      xAllData.add(point[1]);
+      list.push({
+        value: point[0],
+      });
+    }
+    let reuseAxisIndex = -1;
+    // 遍历所有已有的 xAxis，尝试找到一个可以复用的
+    for (const [axisIdx, axisData] of xAxisDataMap) {
+      if (arraysEqual(axisData, xData)) {
+        reuseAxisIndex = axisIdx;
+        break;
+      }
+      const mergeResult = mergeOverlappingArrays(axisData, xData);
+      if (mergeResult) {
+        reuseAxisIndex = axisIdx;
+        const { head1, head2, merged, tail1, tail2 } = mergeResult;
+        // 如果合并后比已有的 xAxis 更长，更新 xAxis 数据
+        if (head1 > 0 || tail1 > 0) {
+          xAxis[axisIdx].data = merged;
+          const headNulls = Array.from({ length: head1 }, () => ({ value: null }));
+          const tailNulls = Array.from({ length: tail1 }, () => ({ value: null }));
+          const headNullDps: [null, number][] = merged.slice(0, head1).map(ts => [null, ts]);
+          const tailNullDps: [null, number][] = merged.slice(merged.length - tail1).map(ts => [null, ts]);
+          // 为之前复用同一 xAxisIndex 的系列补点
+          for (const prevSeries of seriesData) {
+            if (prevSeries.xAxisIndex === axisIdx) {
+              prevSeries.data = [...headNulls, ...(prevSeries.data as { value: any }[]), ...tailNulls];
+              // 同步更新 alignedDatapoints 保持与 data 索引对齐
+              const prevAligned = prevSeries.alignedDatapoints as [null | number, number][];
+              if (prevAligned) {
+                prevSeries.alignedDatapoints = [...headNullDps, ...prevAligned, ...tailNullDps];
+              }
+            }
+          }
+        }
+        // 为当前系列在首尾补 null 值
+        if (head2 > 0) {
+          const headDps: [null, number][] = merged.slice(0, head2).map(ts => [null, ts]);
+          xData = [...merged.slice(0, head2), ...xData];
+          list = [...Array.from({ length: head2 }, () => ({ value: null })), ...list];
+          alignedDatapoints = [...headDps, ...alignedDatapoints];
+        }
+        if (tail2 > 0) {
+          const tailDps: [null, number][] = merged.slice(merged.length - tail2).map(ts => [null, ts]);
+          xData = [...xData, ...merged.slice(merged.length - tail2)];
+          list = [...list, ...Array.from({ length: tail2 }, () => ({ value: null }))];
+          alignedDatapoints = [...alignedDatapoints, ...tailDps];
+        }
+        // 更新该 xAxisIndex 的 xData 快照为合并后的完整数据
+        xAxisDataMap.set(axisIdx, merged);
+        break;
+      }
+    }
+
+    const canReuse = reuseAxisIndex !== -1;
+    if (!canReuse) {
+      xAxisIndex += 1;
+      reuseAxisIndex = xAxisIndex;
+    }
+    const unitFormatter = getValueFormat(data.unit);
+    // 获取y轴上可设置的最小的精确度
+    const precision = handleGetMinPrecision(
+      list
+        ?.filter?.(set => {
+          const typedSet = set as { value: number | undefined };
+          return typedSet && typeof typedSet.value === 'number';
+        })
+        .map(set => {
+          const typedSet = set as { value: number | undefined };
+          return typedSet.value;
+        }) ?? [],
+      unitFormatter,
+      data.unit
+    );
+    // 构建基础 series 配置
+    const seriesItem: EchartSeriesItem = {
+      name: data.alias || data.target || '',
+      data: list,
+      xAxisIndex: reuseAxisIndex,
+      type: data.type,
+      stack: data.stack,
+      unit: data.unit,
+      // @ts-expect-error
+      connectNulls: false,
+      sampling: 'none',
+      showAllSymbol: 'auto',
+      showSymbol: false,
+      smooth: 0,
+      smoothMonotone: null,
+      lineStyle: {
+        width: 1.2,
+        type: 'solid',
+      },
+      raw_data: {
+        ...data,
+        precision,
+        datapoints: undefined,
+        unitFormatter,
+      },
+      z: data.z || 3,
+      ...data,
+      alignedDatapoints,
+    };
+
+    // 处理 markPoints（告警点）
+    if (data.markPoints?.length && data.datapoints?.length) {
+      seriesItem.markPoint = handleSetMarkPoints(data.markPoints, data.datapoints);
+    }
+
+    // 处理 markTimeRange（时间范围标记区域）
+    if (data.markTimeRange?.length) {
+      seriesItem.markArea = handleSetMarkTimeRange(data.markTimeRange);
+    }
+
+    // 处理 thresholds（阈值线和阈值区域）
+    if (data.thresholds?.length) {
+      seriesItem.markLine = handleSetThresholdLine(data.thresholds);
+      const thresholdArea = handleSetThresholdArea(data.thresholds);
+      if (thresholdArea) {
+        seriesItem.markArea = seriesItem.markArea
+          ? { ...seriesItem.markArea, data: [...(seriesItem.markArea.data || []), ...thresholdArea.data] }
+          : thresholdArea;
+      }
+    }
+
+    seriesData.push(seriesItem);
+
+    if (!canReuse) {
+      xAxis.push(...createXAxis(xData, { show: reuseAxisIndex === 0 }));
+      xAxisDataMap.set(reuseAxisIndex, [...xData]);
+    }
+  }
+  return {
+    xData: Array.from(xAllData).sort(),
+    seriesData: customSeries?.(seriesData) ?? seriesData,
+    xAxis,
+  };
+};
+export const createXAxis = (
+  xData: number[],
+  options: { show: boolean } = {
+    show: true,
+  }
+) => {
+  const minXTime = xData.at(0);
+  const maxXTime = xData.at(-1);
+  let formatterFunc: FormatterFunc = '{value}';
+  if (minXTime && maxXTime) {
+    const duration = Math.abs(dayjs.tz(maxXTime).diff(dayjs.tz(minXTime), 'second'));
+    formatterFunc = (v: string) => {
+      if (duration < 1 * 60) {
+        return dayjs.tz(+v).format('mm:ss');
+      }
+      if (duration < 60 * 60 * 24 * 1) {
+        return dayjs.tz(+v).format('HH:mm');
+      }
+      if (duration < 60 * 60 * 24 * 6) {
+        return dayjs.tz(+v).format('MM-DD HH:mm');
+      }
+      if (duration <= 60 * 60 * 24 * 30 * 12) {
+        return dayjs.tz(+v).format('MM-DD');
+      }
+      return dayjs.tz(+v).format('YYYY-MM-DD');
+    };
+  }
+  return [
+    {
+      show: !!options.show,
+      position: 'bottom',
+      // boundaryGap: false,
+      axisTick: {
+        show: false,
+      },
+      alignTicks: !!options.show,
+      axisLine: {
+        show: false,
+        lineStyle: {
+          color: '#ccd6eb',
+          width: 1,
+          type: 'solid',
+        },
+      },
+      splitLine: {
+        show: false,
+      },
+      minInterval: 5 * 60 * 1000,
+      splitNumber: 10,
+      scale: true,
+      type: 'category',
+      data: xData,
+      axisLabel: {
+        show: !!options.show,
+        fontSize: 12,
+        color: '#979BA5',
+        showMinLabel: false,
+        showMaxLabel: false,
+        align: 'left',
+        formatter: formatterFunc || '{value}',
+      },
+      z: options.show ? 3 : 0,
+    },
+  ];
+};
+export const createYAxis = (yData: EchartSeriesItem[], type?: string) => {
+  let hasBarChart = false;
+  const unitSet = Array.from(
+    new Set<string>(
+      yData.map(item => {
+        if ((!hasBarChart && item.type === 'bar') || type === 'bar') {
+          hasBarChart = true;
+        }
+        return item.unit?.length ? item.unit : '';
+      })
+    )
+  );
+  return unitSet.map(unit => {
+    const yValueFormatter = getValueFormat(unit);
+    return {
+      type: 'value',
+      axisLine: {
+        show: false,
+        lineStyle: {
+          color: '#ccd6eb',
+          width: 1,
+          type: 'solid',
+        },
+      },
+      axisTick: {
+        show: false,
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: '#F0F1F5',
+          type: 'dashed',
+        },
+      },
+      z: 3,
+      axisLabel: {
+        color: '#979BA5',
+        formatter: (v: any) => {
+          if (unit !== 'none') {
+            const { text, suffix } = yValueFormatter(v) || { text: v, suffix: '' };
+            return `${text}${suffix}`;
+          }
+          return v;
+        },
+      },
+      splitNumber: 2,
+      minInterval: 1,
+      scale: true,
+      unit,
+      max: 'dataMax',
+      min: hasBarChart ? 0 : 'dataMin',
+    };
+  });
+};
+export const createOptions = (xAxis, yAxis, series, customOptions?: CustomOptions['options']) => {
+  const options = {
+    useUTC: false,
+    animation: false,
+    animationThreshold: 2000,
+    animationDurationUpdate: 0,
+    animationDuration: 20,
+    animationDelay: 300,
+    title: {
+      text: '',
+      show: false,
+    },
+    color: COLOR_LIST_BAR,
+    legend: {
+      show: false,
+    },
+    tooltip: {
+      show: true,
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        label: {
+          backgroundColor: '#6a7985',
+        },
+      },
+      transitionDuration: 0,
+      alwaysShowContent: false,
+      backgroundColor: 'rgba(54,58,67,.88)',
+      borderWidth: 0,
+      textStyle: {
+        fontSize: 12,
+        color: '#BEC0C6',
+      },
+      extraCssText: 'border-radius: 4px',
+    },
+    toolbox: {
+      showTitle: false,
+      itemSize: 0,
+      iconStyle: {
+        color: '#979ba5',
+        borderWidth: 0,
+        shadowColor: '#979ba5',
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+      },
+      feature: {
+        saveAsImage: {
+          icon: 'path://',
+        },
+        dataZoom: {
+          icon: {
+            zoom: 'path://',
+            back: 'path://',
+          },
+          show: true,
+          yAxisIndex: false,
+          iconStyle: {
+            opacity: 0,
+          },
+        },
+        restore: { icon: 'path://' },
+      },
+    },
+    grid: {
+      containLabel: true,
+      left: 10,
+      right: 10,
+      top: 10,
+      bottom: 10,
+      backgroundColor: 'transparent',
+    },
+    xAxis: xAxis,
+    yAxis: yAxis,
+    series: series.map(item => {
+      const yAxisIndex = yAxis.findIndex(axis => axis.unit === item.raw_data.unit);
+      return {
+        ...item,
+        yAxisIndex: yAxisIndex < 1 ? 0 : yAxisIndex,
+      };
+    }),
+  };
+  return customOptions?.(options) ?? options;
+};
 
 /**
  * @function useAlertEcharts 告警图表 ECharts Hook
@@ -74,15 +436,15 @@ export interface CustomOptions {
  * @param customOptions - 数据格式化函数，用于需要自定义逻辑
  * @param interactionState - 图表交互状态配置，控制 tooltip 联动等行为
  */
-export const useEcharts = (
-  panel: MaybeRef<PanelModel>,
-  chartRef: Ref<HTMLElement>,
-  $api: Record<string, () => Promise<any>>,
-  params: MaybeRef<Record<string, any>>,
-  customOptions: CustomOptions,
-  interactionState?: ChartInteractionState,
-  downSampleRangeComputed?: (timeRange: number[]) => string | undefined
-) => {
+export const useEcharts = ({
+  panel,
+  chartRef,
+  $api,
+  params,
+  customOptions,
+  interactionState,
+  downSampleRangeComputed,
+}: ChartOptions) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
@@ -114,13 +476,13 @@ export const useEcharts = (
     loading.value = true;
     metricList.value = [];
     targets.value = [];
-    const [startTime, endTime] = handleTransformToTimestamp(get(timeRange) || DEFAULT_TIME_RANGE);
-    const promiseList = get(panel)?.targets?.map?.(target => {
+    const [startTime, endTime] = handleTransformToTimestamp(toValue(timeRange) || DEFAULT_TIME_RANGE);
+    const promiseList = toValue(panel)?.targets?.map?.(target => {
       const resultParams = {
         start_time: startTime,
         end_time: endTime,
         ...target.data,
-        ...(get(params) ?? {}),
+        ...(toValue(params) ?? {}),
       };
 
       if (downSampleRangeComputed) {
@@ -158,9 +520,9 @@ export const useEcharts = (
             ? series.map(item => ({
                 ...item,
                 alias: target.alias || item.alias,
-                type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
+                type: target.chart_type || toValue(panel).options?.time_series?.type || item.type || 'line',
                 stack: target.data?.stack || item.stack,
-                unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
+                unit: item.unit || (toValue(panel)?.options as { unit?: string })?.unit,
               }))
             : [];
         })
@@ -179,9 +541,9 @@ export const useEcharts = (
     if (!seriesList.length) {
       return undefined;
     }
-    const { xAxis, seriesData } = createSeries(seriesList);
-    const yAxis = createYAxis(seriesData);
-    const options = createOptions(xAxis, yAxis, seriesData);
+    const { xAxis, seriesData } = createSeries(seriesList, customOptions.series);
+    const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
+    const options = createOptions(xAxis, yAxis, seriesData, customOptions.options);
     const { tooltipsOptions } = useChartTooltips(chartRef, {
       isMouseOver: interactionState?.isMouseOver ?? true,
       hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
@@ -192,362 +554,8 @@ export const useEcharts = (
       tooltip: tooltipsOptions.value,
     };
   };
-  const createSeries = (series: SeriesItem[]) => {
-    const xAllData = new Set<number>();
-    let xAxisIndex = -1;
-    const xAxis: any[] = [];
-    const seriesData: EchartSeriesItem[] = [];
-    /** 记录每个 xAxisIndex 对应的当前 xData 快照，用于后续系列的合并判断 */
-    const xAxisDataMap = new Map<number, number[]>();
-    for (const data of series) {
-      let list: { value: any }[] = [];
-      let xData: number[] = [];
-      /** 与 data（list）索引对齐的 datapoints 副本，头尾补 null 后仍能通过下标一一对应 */
-      let alignedDatapoints: [null | number, number][] = data.datapoints.map(p => [...p] as [null | number, number]);
-      for (const point of data.datapoints) {
-        xData.push(point[1]);
-        xAllData.add(point[1]);
-        list.push({
-          value: point[0],
-        });
-      }
-      let reuseAxisIndex = -1;
-      // 遍历所有已有的 xAxis，尝试找到一个可以复用的
-      for (const [axisIdx, axisData] of xAxisDataMap) {
-        if (arraysEqual(axisData, xData)) {
-          reuseAxisIndex = axisIdx;
-          break;
-        }
-        const mergeResult = mergeOverlappingArrays(axisData, xData);
-        if (mergeResult) {
-          reuseAxisIndex = axisIdx;
-          const { head1, head2, merged, tail1, tail2 } = mergeResult;
-          // 如果合并后比已有的 xAxis 更长，更新 xAxis 数据
-          if (head1 > 0 || tail1 > 0) {
-            xAxis[axisIdx].data = merged;
-            const headNulls = Array.from({ length: head1 }, () => ({ value: null }));
-            const tailNulls = Array.from({ length: tail1 }, () => ({ value: null }));
-            const headNullDps: [null, number][] = merged.slice(0, head1).map(ts => [null, ts]);
-            const tailNullDps: [null, number][] = merged.slice(merged.length - tail1).map(ts => [null, ts]);
-            // 为之前复用同一 xAxisIndex 的系列补点
-            for (const prevSeries of seriesData) {
-              if (prevSeries.xAxisIndex === axisIdx) {
-                prevSeries.data = [...headNulls, ...(prevSeries.data as { value: any }[]), ...tailNulls];
-                // 同步更新 alignedDatapoints 保持与 data 索引对齐
-                const prevAligned = prevSeries.alignedDatapoints as [null | number, number][];
-                if (prevAligned) {
-                  prevSeries.alignedDatapoints = [...headNullDps, ...prevAligned, ...tailNullDps];
-                }
-              }
-            }
-          }
-          // 为当前系列在首尾补 null 值
-          if (head2 > 0) {
-            const headDps: [null, number][] = merged.slice(0, head2).map(ts => [null, ts]);
-            xData = [...merged.slice(0, head2), ...xData];
-            list = [...Array.from({ length: head2 }, () => ({ value: null })), ...list];
-            alignedDatapoints = [...headDps, ...alignedDatapoints];
-          }
-          if (tail2 > 0) {
-            const tailDps: [null, number][] = merged.slice(merged.length - tail2).map(ts => [null, ts]);
-            xData = [...xData, ...merged.slice(merged.length - tail2)];
-            list = [...list, ...Array.from({ length: tail2 }, () => ({ value: null }))];
-            alignedDatapoints = [...alignedDatapoints, ...tailDps];
-          }
-          // 更新该 xAxisIndex 的 xData 快照为合并后的完整数据
-          xAxisDataMap.set(axisIdx, merged);
-          break;
-        }
-      }
-
-      const canReuse = reuseAxisIndex !== -1;
-      if (!canReuse) {
-        xAxisIndex += 1;
-        reuseAxisIndex = xAxisIndex;
-      }
-      const unitFormatter = getValueFormat(data.unit);
-      // 获取y轴上可设置的最小的精确度
-      const precision = handleGetMinPrecision(
-        list
-          ?.filter?.(set => {
-            const typedSet = set as { value: number | undefined };
-            return typedSet && typeof typedSet.value === 'number';
-          })
-          .map(set => {
-            const typedSet = set as { value: number | undefined };
-            return typedSet.value;
-          }) ?? [],
-        unitFormatter,
-        data.unit
-      );
-      // 构建基础 series 配置
-      const seriesItem: EchartSeriesItem = {
-        name: data.alias || data.target || '',
-        data: list,
-        xAxisIndex: reuseAxisIndex,
-        type: data.type,
-        stack: data.stack,
-        unit: data.unit,
-        // @ts-expect-error
-        connectNulls: false,
-        sampling: 'none',
-        showAllSymbol: 'auto',
-        showSymbol: false,
-        smooth: 0,
-        smoothMonotone: null,
-        lineStyle: {
-          width: 1.2,
-          type: 'solid',
-        },
-        raw_data: {
-          ...data,
-          precision,
-          datapoints: undefined,
-          unitFormatter,
-        },
-        z: data.z || 3,
-        ...data,
-        alignedDatapoints,
-      };
-
-      // 处理 markPoints（告警点）
-      if (data.markPoints?.length && data.datapoints?.length) {
-        seriesItem.markPoint = handleSetMarkPoints(data.markPoints, data.datapoints);
-      }
-
-      // 处理 markTimeRange（时间范围标记区域）
-      if (data.markTimeRange?.length) {
-        seriesItem.markArea = handleSetMarkTimeRange(data.markTimeRange);
-      }
-
-      // 处理 thresholds（阈值线和阈值区域）
-      if (data.thresholds?.length) {
-        seriesItem.markLine = handleSetThresholdLine(data.thresholds);
-        const thresholdArea = handleSetThresholdArea(data.thresholds);
-        if (thresholdArea) {
-          seriesItem.markArea = seriesItem.markArea
-            ? { ...seriesItem.markArea, data: [...(seriesItem.markArea.data || []), ...thresholdArea.data] }
-            : thresholdArea;
-        }
-      }
-
-      seriesData.push(seriesItem);
-
-      if (!canReuse) {
-        xAxis.push(...createXAxis(xData, { show: reuseAxisIndex === 0 }));
-        xAxisDataMap.set(reuseAxisIndex, [...xData]);
-      }
-    }
-    return {
-      xData: Array.from(xAllData).sort(),
-      seriesData: customOptions.series?.(seriesData) ?? seriesData,
-      xAxis,
-    };
-  };
-  const createXAxis = (
-    xData: number[],
-    options: { show: boolean } = {
-      show: true,
-    }
-  ) => {
-    const minXTime = xData.at(0);
-    const maxXTime = xData.at(-1);
-    let formatterFunc: FormatterFunc = '{value}';
-    if (minXTime && maxXTime) {
-      const duration = Math.abs(dayjs.tz(maxXTime).diff(dayjs.tz(minXTime), 'second'));
-      formatterFunc = (v: string) => {
-        if (duration < 1 * 60) {
-          return dayjs.tz(+v).format('mm:ss');
-        }
-        if (duration < 60 * 60 * 24 * 1) {
-          return dayjs.tz(+v).format('HH:mm');
-        }
-        if (duration < 60 * 60 * 24 * 6) {
-          return dayjs.tz(+v).format('MM-DD HH:mm');
-        }
-        if (duration <= 60 * 60 * 24 * 30 * 12) {
-          return dayjs.tz(+v).format('MM-DD');
-        }
-        return dayjs.tz(+v).format('YYYY-MM-DD');
-      };
-    }
-    return [
-      {
-        show: !!options.show,
-        position: 'bottom',
-        // boundaryGap: false,
-        axisTick: {
-          show: false,
-        },
-        alignTicks: !!options.show,
-        axisLine: {
-          show: false,
-          lineStyle: {
-            color: '#ccd6eb',
-            width: 1,
-            type: 'solid',
-          },
-        },
-        splitLine: {
-          show: false,
-        },
-        minInterval: 5 * 60 * 1000,
-        splitNumber: 10,
-        scale: true,
-        type: 'category',
-        data: xData,
-        axisLabel: {
-          show: !!options.show,
-          fontSize: 12,
-          color: '#979BA5',
-          showMinLabel: false,
-          showMaxLabel: false,
-          align: 'left',
-          formatter: formatterFunc || '{value}',
-        },
-        z: options.show ? 3 : 0,
-      },
-    ];
-  };
-  const createYAxis = (yData: EchartSeriesItem[]) => {
-    let hasBarChart = false;
-    const unitSet = Array.from(
-      new Set<string>(
-        yData.map(item => {
-          if ((!hasBarChart && item.type === 'bar') || get(panel).options?.time_series?.type === 'bar') {
-            hasBarChart = true;
-          }
-          return item.unit?.length ? item.unit : '';
-        })
-      )
-    );
-    return unitSet.map(unit => {
-      const yValueFormatter = getValueFormat(unit);
-      return {
-        type: 'value',
-        axisLine: {
-          show: false,
-          lineStyle: {
-            color: '#ccd6eb',
-            width: 1,
-            type: 'solid',
-          },
-        },
-        axisTick: {
-          show: false,
-        },
-        splitLine: {
-          show: true,
-          lineStyle: {
-            color: '#F0F1F5',
-            type: 'dashed',
-          },
-        },
-        z: 3,
-        axisLabel: {
-          color: '#979BA5',
-          formatter: (v: any) => {
-            if (unit !== 'none') {
-              const { text, suffix } = yValueFormatter(v) || { text: v, suffix: '' };
-              return `${text}${suffix}`;
-            }
-            return v;
-          },
-        },
-        splitNumber: 2,
-        minInterval: 1,
-        scale: true,
-        unit,
-        max: 'dataMax',
-        min: hasBarChart ? 0 : 'dataMin',
-      };
-    });
-  };
-  const createOptions = (xAxis, yAxis, series) => {
-    const options = {
-      useUTC: false,
-      animation: false,
-      animationThreshold: 2000,
-      animationDurationUpdate: 0,
-      animationDuration: 20,
-      animationDelay: 300,
-      title: {
-        text: '',
-        show: false,
-      },
-      color: COLOR_LIST_BAR,
-      legend: {
-        show: false,
-      },
-      tooltip: {
-        show: true,
-        trigger: 'axis',
-        axisPointer: {
-          type: 'cross',
-          label: {
-            backgroundColor: '#6a7985',
-          },
-        },
-        transitionDuration: 0,
-        alwaysShowContent: false,
-        backgroundColor: 'rgba(54,58,67,.88)',
-        borderWidth: 0,
-        textStyle: {
-          fontSize: 12,
-          color: '#BEC0C6',
-        },
-        extraCssText: 'border-radius: 4px',
-      },
-      toolbox: {
-        showTitle: false,
-        itemSize: 0,
-        iconStyle: {
-          color: '#979ba5',
-          borderWidth: 0,
-          shadowColor: '#979ba5',
-          shadowOffsetX: 0,
-          shadowOffsetY: 0,
-        },
-        feature: {
-          saveAsImage: {
-            icon: 'path://',
-          },
-          dataZoom: {
-            icon: {
-              zoom: 'path://',
-              back: 'path://',
-            },
-            show: true,
-            yAxisIndex: false,
-            iconStyle: {
-              opacity: 0,
-            },
-          },
-          restore: { icon: 'path://' },
-        },
-      },
-      grid: {
-        containLabel: true,
-        left: 10,
-        right: 10,
-        top: 10,
-        bottom: 10,
-        backgroundColor: 'transparent',
-      },
-      xAxis: xAxis,
-      yAxis: yAxis,
-      series: series.map(item => {
-        const yAxisIndex = yAxis.findIndex(axis => axis.unit === item.raw_data.unit);
-        return {
-          ...item,
-          yAxisIndex: yAxisIndex < 1 ? 0 : yAxisIndex,
-        };
-      }),
-    };
-    return customOptions.options?.(options) ?? options;
-  };
   watch(
-    [timeRange, refreshImmediate, panel, params],
+    [() => toValue(timeRange), () => toValue(refreshImmediate), () => toValue(panel), () => toValue(params)],
     async () => {
       loading.value = true;
       options.value = await getEchartOptions();
@@ -565,6 +573,64 @@ export const useEcharts = (
     targets,
     queryConfigs,
     duration,
+    series,
+    chartId,
+    getEchartOptions,
+  };
+};
+
+export interface EchartOptionsV2 {
+  chartRef: Ref<HTMLElement>;
+  customOptions: CustomOptions;
+  interactionState?: ChartInteractionState;
+  seriesList: MaybeRef<SeriesItem[]>;
+}
+
+/**
+ * echarts 配置（不需要panel）
+ * @param param0.chartRef 图表引用
+ * @param param0.seriesList 系列列表
+ * @param param0.customOptions 自定义配置
+ * @param param0.interactionState 交互状态
+ * @returns echarts配置
+ */
+export const useEchartsOptions = ({ chartRef, seriesList, customOptions, interactionState }: EchartOptionsV2) => {
+  /** 图表id，每次重新请求会修改该值 */
+  const chartId = shallowRef(random(8));
+
+  const options = shallowRef();
+  const series = shallowRef([]);
+
+  const getEchartOptions = async () => {
+    if (!toValue(seriesList).length) {
+      return undefined;
+    }
+    const { xAxis, seriesData } = createSeries(toValue(seriesList), customOptions?.series);
+    const yAxis = createYAxis(seriesData);
+    const options = createOptions(xAxis, yAxis, seriesData, customOptions?.options);
+    const { tooltipsOptions } = useChartTooltips(chartRef, {
+      isMouseOver: interactionState?.isMouseOver ?? true,
+      hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
+      options,
+    });
+    return {
+      ...options,
+      tooltip: tooltipsOptions.value,
+    };
+  };
+
+  watch(
+    [() => toValue(seriesList)],
+    async () => {
+      options.value = await getEchartOptions();
+      chartId.value = random(8);
+    },
+    {
+      immediate: true,
+    }
+  );
+  return {
+    options,
     series,
     chartId,
     getEchartOptions,

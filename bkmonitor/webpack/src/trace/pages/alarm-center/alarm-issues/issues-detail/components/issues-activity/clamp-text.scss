@@ -1,0 +1,42 @@
+.clamp-text-wrapper {
+  position: relative;
+  display: inline;
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+  word-break: break-all;
+
+  .clamp-text-content {
+    display: inline;
+
+    &.is-clamped {
+      display: -webkit-box;
+      overflow: hidden;
+      padding-right: 18px; // 为 icon 预留空间
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .clamp-text-icon {
+    display: inline;
+    margin-left: 4px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    &:hover {
+      color: #699df4;
+    }
+  }
+
+  .clamp-text-content.is-clamped + .clamp-text-icon {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    margin-left: 0;
+    padding-left: 8px;
+    background: linear-gradient(to right, transparent, #f5f7fa 8px);
+  }
+}
