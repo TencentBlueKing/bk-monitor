@@ -35,7 +35,13 @@ import { getDefaultTimezone } from '../../i18n/dayjs';
 import CommonTable from '../alarm-center/components/alarm-table/components/common-table/common-table';
 import CreateApp from './components/create-app/create-app';
 import SDKReport from './components/sdk-report/sdk-report';
-import { type MetricTier, type RumAppRow, MOCK_TABLE_DATA } from './rum-mock';
+import { buildRumAppRows } from './rum-controller';
+import {
+  type MetricTier,
+  type RumAppRow,
+  MOCK_APPLICATION_ASYNC_RESPONSES,
+  MOCK_APPLICATION_LIST_RESPONSE,
+} from './rum-mock';
 
 import type { TimeRangeType } from '../../components/time-range/utils';
 import type { BaseTableColumn } from '../trace-explore/components/trace-explore-table/typing';
@@ -46,15 +52,17 @@ import type { GetMenuListFunc, ICommonItem, ISearchValue } from 'bkui-vue/lib/se
 
 import './rum.scss';
 
-type RumCriteriaKey = 'accessStatus' | 'alias' | 'appStatus' | 'dataStatus' | 'domain';
+type RumCriteriaKey = 'appAlias' | 'appName' | 'appStatus' | 'dataStatus';
 
 type RumFilterCriteria = Partial<Record<RumCriteriaKey, string[]>>;
 
 /** 顶部 SearchSelect 支持的维度（与表头筛选项共用 rumCriteria，双向联动） */
-const SEARCH_DIMENSION_KEYS: RumCriteriaKey[] = ['domain', 'alias', 'accessStatus', 'appStatus'];
+const SEARCH_DIMENSION_KEYS: RumCriteriaKey[] = ['appName', 'appAlias', 'appStatus'];
 
 /** 表头带筛选的列字段（含 dataStatus；与 criteriaToFilterValue 一致） */
-const TABLE_FILTER_KEYS: RumCriteriaKey[] = ['domain', 'alias', 'accessStatus', 'appStatus', 'dataStatus'];
+const TABLE_FILTER_KEYS: RumCriteriaKey[] = ['appName', 'appAlias', 'appStatus', 'dataStatus'];
+
+const MOCK_TABLE_DATA = buildRumAppRows(MOCK_APPLICATION_LIST_RESPONSE.data, MOCK_APPLICATION_ASYNC_RESPONSES);
 
 const uniqSorted = (arr: string[]) => [...new Set(arr)].sort((a, b) => a.localeCompare(b));
 
@@ -149,9 +157,8 @@ export default defineComponent({
 
     const searchLabel = (k: RumCriteriaKey) => {
       const map: Record<RumCriteriaKey, string> = {
-        domain: t('域名'),
-        alias: t('别名'),
-        accessStatus: t('接入状态'),
+        appName: t('应用名称'),
+        appAlias: t('展示名称'),
         appStatus: t('应用状态'),
         dataStatus: t('数据状态'),
       };
@@ -234,24 +241,23 @@ export default defineComponent({
     };
 
     const columns = computed<BaseTableColumn[]>(() => {
-      const domainFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.domain)).map(v => ({ label: v, value: v }));
-      const aliasFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.alias)).map(v => ({ label: v, value: v }));
-      const accessFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.accessStatus)).map(v => ({ label: v, value: v }));
+      const appNameFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.appName)).map(v => ({ label: v, value: v }));
+      const appAliasFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.appAlias)).map(v => ({ label: v, value: v }));
       const appStatusFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.appStatus)).map(v => ({ label: v, value: v }));
       const dataStatusFilters = [
-        { label: t('正常'), value: 'ok' },
-        { label: t('异常'), value: 'warn' },
+        { label: t('正常'), value: 'normal' },
+        { label: t('无数据'), value: 'no_data' },
       ];
       return [
         {
-          colKey: 'domain',
+          colKey: 'appName',
           title: t('应用名称'),
           thClassName: 'rum-th--filter',
           minWidth: 220,
           ellipsis: true,
           filter: {
             type: 'multiple',
-            list: domainFilters,
+            list: appNameFilters,
             resetValue: [],
             showConfirmAndReset: true,
           },
@@ -263,45 +269,28 @@ export default defineComponent({
                   <i class='icon-monitor icon-mc-global' />
                 </div>
                 <div class='rum-app-name-text'>
-                  <div class='rum-app-domain'>{r.domain}</div>
-                  <div class='rum-app-alias'>{r.alias}</div>
+                  <div class='rum-app-domain'>{r.appName}</div>
+                  <div class='rum-app-alias'>{r.appAlias}</div>
                 </div>
               </div>
             );
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
         {
-          colKey: 'alias',
-          title: t('别名'),
+          colKey: 'appAlias',
+          title: t('展示名称'),
           thClassName: 'rum-th--filter',
           width: 140,
           ellipsis: true,
           filter: {
             type: 'multiple',
-            list: aliasFilters,
+            list: appAliasFilters,
             resetValue: [],
             showConfirmAndReset: true,
           },
           cellRenderer: (row => {
             const r = row as RumAppRow;
-            return <span>{r.alias}</span>;
-          }) as unknown as BaseTableColumn['cellRenderer'],
-        },
-        {
-          colKey: 'accessStatus',
-          title: t('接入状态'),
-          thClassName: 'rum-th--filter',
-          width: 110,
-          ellipsis: true,
-          filter: {
-            type: 'multiple',
-            list: accessFilters,
-            resetValue: [],
-            showConfirmAndReset: true,
-          },
-          cellRenderer: (row => {
-            const r = row as RumAppRow;
-            return <span>{r.accessStatus}</span>;
+            return <span>{r.appAlias}</span>;
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
         {
@@ -322,6 +311,16 @@ export default defineComponent({
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
         {
+          colKey: 'description',
+          title: t('描述'),
+          minWidth: 160,
+          ellipsis: true,
+          cellRenderer: (row => {
+            const r = row as RumAppRow;
+            return <span>{r.description || '--'}</span>;
+          }) as unknown as BaseTableColumn['cellRenderer'],
+        },
+        {
           colKey: 'lcpP75',
           title: t('LCP P75'),
           thClassName: 'rum-th--dotted',
@@ -329,7 +328,7 @@ export default defineComponent({
           sorter: true,
           cellRenderer: (row => {
             const r = row as RumAppRow;
-            return <span class={metricClass(r.lcpTier)}>{r.lcpDisplay}</span>;
+            return <span class={metricClass(r.lcpP75.tier)}>{r.lcpP75.display}</span>;
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
         {
@@ -340,7 +339,7 @@ export default defineComponent({
           sorter: true,
           cellRenderer: (row => {
             const r = row as RumAppRow;
-            return <span class={metricClass(r.jsErrorTier)}>{r.jsErrorDisplay}</span>;
+            return <span class={metricClass(r.jsErrorRate.tier)}>{r.jsErrorRate.display}</span>;
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
         {
@@ -351,7 +350,7 @@ export default defineComponent({
           sorter: true,
           cellRenderer: (row => {
             const r = row as RumAppRow;
-            return <span class={metricClass(r.apiFailTier)}>{r.apiFailDisplay}</span>;
+            return <span class={metricClass(r.apiFailRate.tier)}>{r.apiFailRate.display}</span>;
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
         {
@@ -367,10 +366,20 @@ export default defineComponent({
           },
           cellRenderer: (row => {
             const r = row as RumAppRow;
-            if (r.dataStatus === 'ok') {
-              return <i class='icon-monitor icon-duihao rum-data-status rum-data-status--ok' />;
+            if (r.dataStatus === 'normal') {
+              return (
+                <span class='rum-data-status-text rum-data-status-text--ok'>
+                  <i class='icon-monitor icon-duihao rum-data-status rum-data-status--ok' />
+                  {r.dataStatusText}
+                </span>
+              );
             }
-            return <i class='icon-monitor icon-warning rum-data-status rum-data-status--warn' />;
+            return (
+              <span class='rum-data-status-text rum-data-status-text--warn'>
+                <i class='icon-monitor icon-warning rum-data-status rum-data-status--warn' />
+                {r.dataStatusText}
+              </span>
+            );
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
         {
@@ -396,10 +405,10 @@ export default defineComponent({
 
     const tableSettings = computed<BkUiSettings>(() => ({
       fields: [
-        { label: t('应用名称'), field: 'domain' },
-        { label: t('别名'), field: 'alias' },
-        { label: t('接入状态'), field: 'accessStatus' },
+        { label: t('应用名称'), field: 'appName' },
+        { label: t('展示名称'), field: 'appAlias' },
         { label: t('应用状态'), field: 'appStatus' },
+        { label: t('描述'), field: 'description' },
         { label: t('LCP P75'), field: 'lcpP75', disabled: true },
         { label: t('JS 错误率'), field: 'jsErrorRate', disabled: true },
         { label: t('API 失败率'), field: 'apiFailureRate', disabled: true },
@@ -407,10 +416,10 @@ export default defineComponent({
         { label: t('操作'), field: 'operations', disabled: true },
       ],
       checked: [
-        'domain',
-        'alias',
-        'accessStatus',
+        'appName',
+        'appAlias',
         'appStatus',
+        'description',
         'lcpP75',
         'jsErrorRate',
         'apiFailureRate',
@@ -502,7 +511,7 @@ export default defineComponent({
                   data={searchSelectDataSource.value}
                   getMenuList={getMenuList}
                   modelValue={criteriaToSearchValues(rumCriteria.value, searchLabel)}
-                  placeholder={t('搜索 域名、别名、接入状态、应用状态')}
+                  placeholder={t('搜索 应用名称、展示名称、应用状态')}
                   clearable
                   onUpdate:modelValue={handleSearchSelectUpdate}
                 />

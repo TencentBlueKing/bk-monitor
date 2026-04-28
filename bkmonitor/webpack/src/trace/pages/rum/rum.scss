@@ -118,13 +118,13 @@ $rum-filter-icon-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
       gap: 4px;
       align-items: center;
 
-      &::after {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        content: '';
-        background: url($rum-filter-icon-svg) center / contain no-repeat;
-      }
+      // &::after {
+      //   display: inline-block;
+      //   width: 12px;
+      //   height: 12px;
+      //   content: '';
+      //   background: url($rum-filter-icon-svg) center / contain no-repeat;
+      // }
     }
   }
 
@@ -202,6 +202,20 @@ $rum-filter-icon-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 
   .rum-data-status {
     font-size: 18px;
+
+    &--ok {
+      color: $rum-status-success;
+    }
+
+    &--warn {
+      color: $rum-status-warning;
+    }
+  }
+
+  .rum-data-status-text {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
 
     &--ok {
       color: $rum-status-success;
