@@ -24,6 +24,7 @@ import shutil
 import uuid
 
 import arrow
+from django.conf import settings
 from django.utils.functional import cached_property
 
 from apps.api import TGPATaskApi
@@ -221,10 +222,12 @@ class TGPATaskHandler:
 
         start_time = params.get("start_time")
         end_time = params.get("end_time")
-        if start_time or end_time:
-            start_str = arrow.get(start_time / 1000).strftime("%Y-%m-%d %H:%M:%S") if start_time else ""
-            end_str = arrow.get(end_time / 1000).strftime("%Y-%m-%d %H:%M:%S") if end_time else ""
-            request_params["time_range"] = f"{start_str},{end_str}"
+        start_str = (
+            arrow.get(start_time / 1000).to(settings.TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S") if start_time else ""
+        )
+        end_str = arrow.get(end_time / 1000).to(settings.TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S") if end_time else ""
+        if start_str or end_str:
+            request_params["time_range"] = ",".join([start_str, end_str])
 
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
         task_list = result.get("results", [])

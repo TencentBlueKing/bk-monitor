@@ -19,12 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import heapq
-import itertools
-
 import arrow
 
-from apps.tgpa.constants import TGPA_MERGED_LIST_MAX_RESULT_WINDOW
+from apps.tgpa.constants import TGPA_MERGED_LIST_MAX_RESULT_WINDOW, TGPA_REPORT_TOTAL_COUNT_DAYS
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.utils.thread import MultiExecuteFunc
@@ -82,7 +79,7 @@ class TGPASearchHandler:
             "sdk_version": task_detail.get("sdk_version", ""),
             "model": task_detail.get("model", ""),
             "xid": task.get("xid", ""),
-            "report_time": task.get("processed_at", ""),  # 用 processed_at 更接近上报时间
+            "report_time": task.get("created_at", ""),
             "process_status": task.get("process_status", ""),
             "processed_at": task.get("processed_at", ""),
         }
@@ -174,9 +171,10 @@ class TGPASearchHandler:
         report_result = results.get("report_result", {"total": 0, "list": []})
         report_items = [cls._format_report_item(report) for report in report_result.get("list", [])]
 
-        merged = heapq.merge(task_items, report_items, key=lambda x: x.get("report_time") or "", reverse=True)
+        merged_list = task_items + report_items
+        merged_list.sort(key=lambda x: x.get("report_time") or "", reverse=True)
         start_idx = (page - 1) * pagesize
-        paged_list = list(itertools.islice(merged, start_idx, start_idx + pagesize))
+        paged_list = merged_list[start_idx : start_idx + pagesize]
 
         # 限制深度分页
         total = min(TGPA_MERGED_LIST_MAX_RESULT_WINDOW, task_result["total"] + report_result["total"])
@@ -212,7 +210,7 @@ class TGPASearchHandler:
             multi_func_params=True,
         )
         # 2. report 累计数量（暂定为 30 天内的数量）
-        report_total_start_time = int(arrow.now().shift(days=-30).timestamp() * 1000)
+        report_total_start_time = int(arrow.now().shift(days=-TGPA_REPORT_TOTAL_COUNT_DAYS).timestamp() * 1000)
         report_total_end_time = int(arrow.now().timestamp() * 1000)
         multi_execute.append(
             result_key="total_report",
