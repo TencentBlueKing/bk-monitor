@@ -109,7 +109,7 @@ class ImpactScopeDimension:
     @classmethod
     def get_full_dimension(cls, dimension: str) -> str:
         """获取维度的完整维度名，未匹配时返回原维度值
-        示例：host -> impact_scope.host.bk_host_id
+        示例：host -> impact_scope.host.instance_list.bk_host_id
         """
         id_field = cls.get_id_field(dimension)
-        return f"impact_scope.{dimension}.{id_field}"
+        return f"impact_scope.{dimension}.instance_list.{id_field}"

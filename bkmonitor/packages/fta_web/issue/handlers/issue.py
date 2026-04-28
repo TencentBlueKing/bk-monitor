@@ -40,6 +40,9 @@ class IssueQueryTransformer(BaseQueryTransformer):
         "status": IssueStatus.CHOICES,
         "priority": IssuePriority.CHOICES,
     }
+
+    KEYWORD_FIELD_MAPPING = {"name": "name.raw", "strategy_name": "strategy_name.raw"}
+
     doc_cls = IssueDocument
 
     query_fields = [
@@ -59,6 +62,14 @@ class IssueQueryTransformer(BaseQueryTransformer):
         QueryField("create_time", "创建时间"),
         QueryField("update_time", "更新时间"),
         QueryField("resolved_time", "解决时间"),
+    ] + [
+        QueryField(
+            field=f"impact_scope.{impact_field}",
+            display=str(name),
+            es_field=ImpactScopeDimension.get_full_dimension(impact_field),
+            is_char=True,
+        )
+        for impact_field, name in ImpactScopeDimension.CHOICES
     ]
 
 
@@ -186,27 +197,21 @@ class IssueQueryHandler(BaseBizQueryHandler):
         2. 实例 ID 级过滤（impact_scope.{维度}.{ID字段}）→ terms 查询
         """
         key = condition["key"]
+        raw_query_fields = self.query_transformer.KEYWORD_FIELD_MAPPING
 
         if key == "impact_dimensions":
             # 维度级过滤：判断是否包含某个维度
             # flattened 类型下，使用 instance_list 中的具体 ID 字段路径
             should_clauses = []
-            for dim in condition["value"]:
-                id_field = ImpactScopeDimension.get_id_field(dim)
-                es_field = f"impact_scope.{dim}.instance_list.{id_field}"
+            for impact_field in condition["value"]:
+                impact_field = impact_field.removeprefix("impact_scope.")
+                es_field = ImpactScopeDimension.get_full_dimension(impact_field)
+                # impact_field: "impact_scope.host.instance_list.bk_host_id"
                 should_clauses.append(Q("exists", field=es_field))
             return Q("bool", should=should_clauses, minimum_should_match=1)
 
-        if key.startswith("impact_scope."):
-            # 实例 ID 级过滤：按具体实例 ID 精确匹配
-            # key: "impact_scope.host.bk_host_id" → ES field: "impact_scope.host.instance_list.bk_host_id"
-            parts = key.split(".", 2)  # ["impact_scope", "host", "bk_host_id"]
-            if len(parts) == 3:
-                dimension, id_field = parts[1], parts[2]
-                es_field = f"impact_scope.{dimension}.instance_list.{id_field}"
-                # Flattened 类型所有值为 keyword，统一转字符串
-                values = [str(v) for v in condition["value"]]
-                return Q("terms", **{es_field: values})
+        elif key in raw_query_fields:
+            condition["key"] = raw_query_fields[key]
 
         return super().parse_condition_item(condition)
 
@@ -244,10 +249,15 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         for field in fields:
             actual_field = field.lstrip("+-")
-
+            bucket_count = 0
             if not search_result.aggs:
                 result["fields"].append(
-                    {"field": field, "is_char": actual_field in char_fields, "bucket_count": 0, "buckets": []}
+                    {
+                        "field": field,
+                        "is_char": actual_field in char_fields,
+                        "bucket_count": bucket_count,
+                        "buckets": [],
+                    }
                 )
                 continue
 
@@ -338,19 +348,18 @@ class IssueQueryHandler(BaseBizQueryHandler):
         buckets = []
         agg_result = getattr(search_result.aggs, "impact_dimensions", None)
         if agg_result:
-            for dim, _ in ImpactScopeDimension.CHOICES:
+            for dim, _name in ImpactScopeDimension.CHOICES:
                 bucket = getattr(agg_result.buckets, dim, None) if hasattr(agg_result.buckets, dim) else None
                 count = bucket.doc_count if bucket else 0
                 if count == 0:
                     continue
                 display_name = str(ImpactScopeDimension.get_display_name(dim))
-                full_dim = ImpactScopeDimension.get_full_dimension(dim)
-                buckets.append({"id": full_dim, "name": display_name, "count": count})
+                buckets.append({"id": f"impact_scope.{dim}", "name": display_name, "count": count})
 
         return buckets
 
     def _parse_impact_scope_buckets(self, search_result, actual_field, translators, char_add_quotes):
-        """解析 impact_scope.{维度}.{ID字段} terms 聚合结果"""
+        """解析 impact_scope.{维度} terms 聚合结果"""
         buckets = []
         if search_result.aggs:
             for bucket in getattr(search_result.aggs, actual_field).buckets:
@@ -362,16 +371,13 @@ class IssueQueryHandler(BaseBizQueryHandler):
                         source = first_doc.hits[0].to_dict().get("_source", {})
                         if source:
                             # 按 dimension 解析出 display_name 路径（AttrDict 用属性访问）
-                            parts = actual_field.split(".")
-                            if len(parts) >= 2:
-                                dimension, key = parts[1:3]
-                                instance_list = (
-                                    source.get("impact_scope", {}).get(dimension, {}).get("instance_list", [])
-                                )
-                                for instance in instance_list:
-                                    if str(instance.get(key, None)) == str(bucket.key):
-                                        display_name = instance.get("display_name", None)
-                                        break
+                            dimension = actual_field.removeprefix("impact_scope.")
+                            id_field = ImpactScopeDimension.get_id_field(dimension)
+                            instance_list = source.get("impact_scope", {}).get(dimension, {}).get("instance_list", [])
+                            for instance in instance_list:
+                                if str(instance.get(id_field, None)) == str(bucket.key):
+                                    display_name = instance.get("display_name", None)
+                                    break
 
                     name = display_name if display_name is not None else bucket.key
                     buckets.append({"id": bucket.key, "name": name, "count": bucket.doc_count})
@@ -393,42 +399,45 @@ class IssueQueryHandler(BaseBizQueryHandler):
             # 直接去buckets的数量作为bucket_count
             return search_object
 
-        if actual_field.startswith("impact_scope."):
-            parts = actual_field.split(".")
-            if len(parts) == 3 and parts[0] == "impact_scope":
-                dimension, id_field = parts[1], parts[2]
-                es_field = f"impact_scope.{dimension}.instance_list.{id_field}"
-                new_search_object = search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=es_field)
-                return new_search_object
-
         return super().add_cardinality_bucket(search_object, field, bucket_count_suffix)
 
     def add_agg_bucket(self, search_object, field: str, size: int = 10):
-        """按字段添加聚合桶，支持 impact_dimensions 和 impact_scope 特殊字段"""
+        """
+        按字段添加聚合桶，支持 impact_dimensions 和 impact_scope 特殊字段。
+
+        参数:
+            search_object: elasticsearch_dsl 聚合桶对象，用于挂载子聚合
+            field: 聚合字段名，可带 +/- 排序前缀（如 "-impact_scope.host"）
+            size: terms 聚合返回的最大桶数量，默认 10
+
+        返回值:
+            添加聚合桶后的 search_object
+        """
+        # 去除排序前缀，得到实际字段名
         actual_field = field.lstrip("+-")
 
         if actual_field == "impact_dimensions":
             # flattened 类型不支持对子路径使用 exists 查询，
-            # 改为查询 instance_list 中的具体 ID 字段是否存在
+            # 改为查询 instance_list 中的具体 ID 字段是否存在，
+            # 每个维度构造一个 exists 过滤条件，最终使用 filters 聚合分桶
             filters = {}
-            for dim, _ in ImpactScopeDimension.CHOICES:
-                id_field = ImpactScopeDimension.get_id_field(dim)
-                es_field = f"impact_scope.{dim}.instance_list.{id_field}"
+            for dim, _name in ImpactScopeDimension.CHOICES:
+                # 获取维度在 ES 中的完整叶子节点路径，如 impact_scope.host.instance_list.bk_host_id
+                es_field = ImpactScopeDimension.get_full_dimension(dim)
                 filters[dim] = Q("exists", field=es_field)
             new_search_object = search_object.bucket("impact_dimensions", "filters", filters=filters)
             return new_search_object
 
         if actual_field.startswith("impact_scope."):
-            parts = actual_field.split(".")
-            if len(parts) == 3 and parts[0] == "impact_scope":
-                dimension, id_field = parts[1], parts[2]
-                es_field = f"impact_scope.{dimension}.instance_list.{id_field}"
-                display_name_field = f"impact_scope.{dimension}.instance_list.display_name"
-                # terms 聚合 + top_hits 子聚合，获取第一个文档的 display_name
-                new_search_object = search_object.bucket(actual_field, "terms", field=es_field, size=size).metric(
-                    "first_doc", "top_hits", size=1, _source=[display_name_field, es_field]
-                )
-                return new_search_object
+            # 将前端字段名转换为 ES flattened 类型下的叶子节点路径，用于 terms 聚合
+            es_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
+            # display_name 字段路径，用于 top_hits 子聚合获取实例展示名称
+            display_name_field = f"{actual_field}.instance_list.display_name"
+            # terms 聚合按实例 ID 分桶，top_hits 子聚合取第一条文档以获取 display_name
+            new_search_object = search_object.bucket(actual_field, "terms", field=es_field, size=size).metric(
+                "first_doc", "top_hits", size=1, _source=[display_name_field, es_field]
+            )
+            return new_search_object
 
         # 其他字段走基类标准流程
         return super().add_agg_bucket(search_object, field, size)
