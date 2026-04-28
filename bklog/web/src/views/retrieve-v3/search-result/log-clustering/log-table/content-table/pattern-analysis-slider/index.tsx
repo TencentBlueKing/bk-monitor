@@ -780,7 +780,7 @@ export default defineComponent({
                               <div class='col-value'>
                                 <i
                                   class='bklog-icon bklog-jump hover-icon'
-                                  onClick={e => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
                                     handleJumpToRetrieve(item);
                                   }}
@@ -812,7 +812,7 @@ export default defineComponent({
                                 </div>
                               </div>
                             </div>
-                          ))
+                        ))
                         : (
                             <bk-exception
                               class='exception-wrap-item exception-part'
@@ -820,7 +820,7 @@ export default defineComponent({
                               style='margin-top: 240px;'
                               type='empty'
                             />
-                          )}
+                        )}
                     </div>
                   )
                 }
@@ -880,7 +880,7 @@ export default defineComponent({
                               <div class='sample-time'>{sample.dteventtime}</div>
                               <div class='sample-content'>{sample.log}</div>
                             </div>
-                          ))
+                        ))
                         : (
                             <bk-exception
                               class='exception-wrap-item exception-part'
@@ -888,7 +888,7 @@ export default defineComponent({
                               style='margin-top: 80px;margin-bottom: 80px'
                               type='empty'
                             />
-                          )}
+                        )}
                     </div>
                   )
                 }
