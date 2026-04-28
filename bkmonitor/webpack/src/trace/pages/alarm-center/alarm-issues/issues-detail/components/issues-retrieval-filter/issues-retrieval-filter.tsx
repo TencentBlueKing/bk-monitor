@@ -73,7 +73,7 @@ export default defineComponent({
     conditionChange: (_v: CommonCondition[]) => true,
     queryStringChange: (_v: string) => true,
     filterModeChange: (_v: EMode) => true,
-    query: () => true,
+    search: () => true,
   },
   setup(props, { emit }) {
     // 告警服务实例
@@ -112,8 +112,8 @@ export default defineComponent({
       emit('filterModeChange', val);
     }
 
-    function handleQuery() {
-      emit('query');
+    function handleSearch() {
+      emit('search');
     }
 
     return {
@@ -122,7 +122,7 @@ export default defineComponent({
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
-      handleQuery,
+      handleSearch,
     };
   },
   render() {
@@ -150,7 +150,7 @@ export default defineComponent({
         zIndex={9999}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
-        onSearch={this.handleQuery}
+        onSearch={this.handleSearch}
         onWhereChange={this.handleConditionChange}
       />
     );

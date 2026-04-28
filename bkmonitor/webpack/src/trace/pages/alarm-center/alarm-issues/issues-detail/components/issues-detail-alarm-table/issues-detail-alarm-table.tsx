@@ -94,6 +94,10 @@ export default defineComponent({
     horizontalScrollAffixedBottom: {
       type: Object as PropType<{ container: string }>,
     },
+    refreshKey: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     showAlertDetail: (_id: string, _defaultTab?: string) => true,
@@ -181,6 +185,8 @@ export default defineComponent({
         page_size: pageSize.value,
         page: page.value,
         ordering: ordering.value ? [ordering.value] : [],
+        // 仅触发watchEffect
+        ...(props.refreshKey ? {} : {}),
       };
       loading.value = true;
       data.value = [];
