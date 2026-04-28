@@ -1,0 +1,43 @@
+.return-code-page-main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  .tab-list {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 236px;
+    height: 32px;
+    margin-bottom: 24px;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    .tab-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 116px;
+      height: 28px;
+      font-family: 'Microsoft YaHei', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      color: #4d4f56;
+
+      &.is-active {
+        color: #3a84ff;
+        background: #fff;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #0000001a;
+      }
+    }
+  }
+
+  .tab-content {
+    flex: 1;
+    overflow: hidden;
+  }
+}
