@@ -63,7 +63,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneRetrieve } from './helper.ts';
+import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneFilterValuesEmpty, isSceneRetrieve } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
@@ -235,7 +235,12 @@ const store = new Vuex.Store({
       return state.visibleFields.filter(field => !field.is_virtual_alias_field);
     },
     /** 是否为场景化检索模式 */
-    isSceneMode: (state) => isSceneRetrieve(state),
+    isSceneMode: state => isSceneRetrieve(state),
+    /** 场景化检索模式下，过滤条件是否全部为空 */
+    isSceneFilterEmpty: (state) => {
+      if (!isSceneRetrieve(state)) return false;
+      return isSceneFilterValuesEmpty(state.indexItem?.scene_filter_values);
+    },
     /** 是否是联合查询 */
     isUnionSearch: state => !!state.indexItem.isUnionIndex,
     /** 联合查询索引集ID数组 */
@@ -297,7 +302,7 @@ const store = new Vuex.Store({
     },
 
     // @ts-ignore
-    retrieveParams: (state, getters) => {
+    retrieveParams: (state, getters, _, rootGetters) => {
       const {
         start_time,
         end_time,
@@ -354,10 +359,17 @@ const store = new Vuex.Store({
         ...searchParams,
       };
 
-      // 场景化检索：附加 space_uid 和 table_id_conditions
+      // 场景化检索：附加 space_uid、table_id_conditions 和 scene_filter_values
       if (isSceneRetrieve(state)) {
-        baseParams.space_uid = state.spaceUid;
-        baseParams.table_id_conditions = buildTableIdConditions(state);
+        const { table_id_conditions, scene_filter_values } = buildTableIdConditions(
+          state,
+          rootGetters['retrieve/sceneConfigList'],
+        );
+        Object.assign(baseParams, {
+          space_uid: state.spaceUid,
+          table_id_conditions,
+          scene_filter_values,
+        });
       }
 
       return baseParams;
@@ -1169,7 +1181,7 @@ const store = new Vuex.Store({
     },
 
     /** 请求字段config信息 */
-    requestIndexSetFieldInfo({ commit, state }) {
+    requestIndexSetFieldInfo({ commit, state, getters }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
       commit('resetIndexFieldInfo');
@@ -1199,10 +1211,8 @@ const store = new Vuex.Store({
         is_realtime: 'True',
       };
       if (isScene) {
-        Object.assign(queryData, {
-          space_uid: state.spaceUid,
-          table_id_conditions: buildTableIdConditions(state),
-        });
+        const { space_uid, table_id_conditions, scene_filter_values } = getters.retrieveParams;
+        Object.assign(queryData, { space_uid, table_id_conditions, scene_filter_values });
       } else if (isUnionIndex) {
         Object.assign(queryData, {
           index_set_ids: ids,
@@ -1526,7 +1536,7 @@ const store = new Vuex.Store({
      * }
      * @returns
      */
-    requestIndexSetValueList({ commit, state }, payload) {
+    requestIndexSetValueList({ commit, state, getters }, payload) {
       const { start_time: startTime, end_time: endTime } = state.indexItem;
       const lastQueryTimerange = `${startTime}_${endTime}`;
 
@@ -1584,10 +1594,12 @@ const store = new Vuex.Store({
 
       let queryData;
       if (isScene) {
+        const { space_uid, table_id_conditions, scene_filter_values } = getters.retrieveParams;
         queryData = {
           ...baseQueryData,
-          space_uid: state.spaceUid,
-          table_id_conditions: buildTableIdConditions(state),
+          space_uid,
+          table_id_conditions,
+          scene_filter_values,
           fields,
         };
       } else {

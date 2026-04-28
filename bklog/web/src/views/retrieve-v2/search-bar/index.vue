@@ -159,16 +159,7 @@ const isShowQueryText = computed(() => isLogPlatform.value && btnIconName.value 
 
 // 场景化检索模式下，未选择任何过滤条件时禁用查询按钮
 const isSceneMode = computed(() => store.getters.isSceneMode);
-const isSceneFilterEmpty = computed(() => {
-  if (!isSceneMode.value) return false;
-  const filterValues = store.state.indexItem.scene_filter_values;
-  if (!filterValues || typeof filterValues !== 'object') return true;
-  return Object.values(filterValues).every((val) => {
-    if (val === undefined || val === null || val === '') return true;
-    if (Array.isArray(val) && val.length === 0) return true;
-    return false;
-  });
-});
+const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
 const isQueryBtnDisabled = computed(() => isLogPlatform.value && isSceneFilterEmpty.value && !isSearching.value);
 
 const isCopyBtnActive = computed(() => {
