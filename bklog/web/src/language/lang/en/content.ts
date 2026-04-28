@@ -1304,4 +1304,9 @@ export default {
   请先通过过滤缩小范围: 'Please narrow down the scope using filters first',
   '检索条件有变更，请点击{icon}按钮{shortcut}':
     'The search criteria have changed. Please click the {icon} button {shortcut}',
+  当前日志未过滤: 'The current log is not filtered',
+  '请先按照标签过滤日志范围后，再进行日志检索':
+    'Please filter the log range by tags before performing log retrieval',
+  '场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容':
+    'Contextualized search defaults to searching the entire log. To ensure a better search experience and cluster stability, please filter data using the tags at the top and then view the logs. You can modify the tag filters at any time',
 };
