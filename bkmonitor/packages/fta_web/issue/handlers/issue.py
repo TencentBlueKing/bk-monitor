@@ -40,6 +40,9 @@ class IssueQueryTransformer(BaseQueryTransformer):
         "status": IssueStatus.CHOICES,
         "priority": IssuePriority.CHOICES,
     }
+
+    KEYWORD_FIELD_MAPPING = {"name": "name.raw", "strategy_name": "strategy_name.raw"}
+
     doc_cls = IssueDocument
 
     query_fields = [
@@ -194,6 +197,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
         2. 实例 ID 级过滤（impact_scope.{维度}.{ID字段}）→ terms 查询
         """
         key = condition["key"]
+        raw_query_fields = self.query_transformer.KEYWORD_FIELD_MAPPING
 
         if key == "impact_dimensions":
             # 维度级过滤：判断是否包含某个维度
@@ -205,6 +209,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 # impact_field: "impact_scope.host.instance_list.bk_host_id"
                 should_clauses.append(Q("exists", field=es_field))
             return Q("bool", should=should_clauses, minimum_should_match=1)
+
+        elif key in raw_query_fields:
+            condition["key"] = raw_query_fields[key]
 
         return super().parse_condition_item(condition)
 
