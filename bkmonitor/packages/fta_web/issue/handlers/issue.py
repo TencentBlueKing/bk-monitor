@@ -59,37 +59,15 @@ class IssueQueryTransformer(BaseQueryTransformer):
         QueryField("create_time", "创建时间"),
         QueryField("update_time", "更新时间"),
         QueryField("resolved_time", "解决时间"),
+    ] + [
+        QueryField(
+            field=f"impact_scope.{impact_field}",
+            display=str(name),
+            es_field=ImpactScopeDimension.get_full_dimension(impact_field),
+            is_char=True,
+        )
+        for impact_field, name in ImpactScopeDimension.CHOICES
     ]
-
-    @classmethod
-    def _build_field_map(cls) -> dict[str, "QueryField"]:
-        """
-        构建查询字段映射表，在父类基础上动态注入影响范围维度字段。
-
-        注入的字段语义：
-        - field      : "impact_scope.{维度}"，前端过滤/聚合使用的逻辑字段名
-        - es_field   : flattened 类型下的完整叶子路径，如 impact_scope.host.instance_list.bk_host_id
-        - 过滤行为    : terms 查询会按该维度的 ID 字段（如 bk_host_id）做精确匹配
-        """
-        # 以 QueryField.field 作为去重 key，与注入字段命名空间保持一致
-        existed_fields = {f.field for f in cls.query_fields}
-
-        # 动态注入尚未注册的影响范围维度字段
-        for impact_field, name in ImpactScopeDimension.CHOICES:
-            full_field = f"impact_scope.{impact_field}"
-            if full_field in existed_fields:
-                continue
-            cls.query_fields.append(
-                QueryField(
-                    field=full_field,
-                    display=str(name),
-                    es_field=ImpactScopeDimension.get_full_dimension(impact_field),
-                    is_char=True,
-                )
-            )
-
-        # 调用父类方法，将 query_fields 列表转换为字段名到 QueryField 的映射字典
-        return super()._build_field_map()
 
 
 def add_dimension_display_name(impact_scope: dict) -> dict:
