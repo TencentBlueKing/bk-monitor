@@ -276,7 +276,7 @@ class TGPATaskViewSet(APIViewSet):
         params = self.params_valid(GetUsernameListSerializer)
         return Response(TGPATaskHandler.get_username_list(params["bk_biz_id"]))
 
-    @list_route(methods=["POST"], url_path="task_status")
+    @list_route(methods=["POST"], url_path="status")
     def get_task_status(self, request, *args, **kwargs):
         """
         获取任务处理状态
