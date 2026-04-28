@@ -391,12 +391,12 @@ function handleIndexConfigSliderOpen() {
       <AutoRefresh class="custom-border-right" />
       <ShareLink v-if="!isExternal" />
       <FieldSetting
-        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
+        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId && !isSceneMode"
         ref="fieldSettingRef"
         class="custom-border-right"
       />
       <WarningSetting
-        v-if="!isExternal"
+        v-if="!isExternal && !isSceneMode"
         class="custom-border-right"
       />
       <ClusterSetting
@@ -404,16 +404,18 @@ function handleIndexConfigSliderOpen() {
         class="custom-border-right"
       />
       <BarGlobalSetting
+        v-if="!isSceneMode"
         class="custom-border-right"
         @show-index-config-slider="handleIndexConfigSliderOpen"
       />
       <div
-        v-if="!isExternal"
+        v-if="!isExternal && !isSceneMode"
         class="more-setting"
       >
         <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting" />
       </div>
       <VersionSwitch
+        v-if="!isSceneMode"
         style="border-left: 1px solid #eaebf0"
         version="v2"
       />

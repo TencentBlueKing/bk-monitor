@@ -121,9 +121,8 @@ export default defineComponent({
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
-            {isSceneMode.value && isFirstSearch.value
-              ? renderSceneEmptyTip()
-              : <V3SearchResult></V3SearchResult>}
+            <V3SearchResult v-show={!(isSceneMode.value && isFirstSearch.value)}></V3SearchResult>
+            {isSceneMode.value && isFirstSearch.value && renderSceneEmptyTip()}
           </V3Container>,
         ];
       }
