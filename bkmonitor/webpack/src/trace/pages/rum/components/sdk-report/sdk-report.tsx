@@ -88,18 +88,19 @@ export default defineComponent({
       console.log('reset token');
     };
     const handleSubmit = async () => {
-      if (submitLoading.value) {
-        return;
-      }
-      submitLoading.value = true;
-      const type = await (() =>
-        new Promise(resolve => {
-          setTimeout(() => {
-            resolve(Date.now() % 2 === 1 ? operateTypeMap.success : operateTypeMap.fail);
-          }, 2000);
-        }))();
-      operateType.value = type as EOperateType;
-      submitLoading.value = false;
+      handleShowChange(false);
+      // if (submitLoading.value) {
+      //   return;
+      // }
+      // submitLoading.value = true;
+      // const type = await (() =>
+      //   new Promise(resolve => {
+      //     setTimeout(() => {
+      //       resolve(Date.now() % 2 === 1 ? operateTypeMap.success : operateTypeMap.fail);
+      //     }, 2000);
+      //   }))();
+      // operateType.value = type as EOperateType;
+      // submitLoading.value = false;
     };
     return {
       protocol,
@@ -231,13 +232,13 @@ export default defineComponent({
                       <span class='icon-monitor icon-mc-copy' />
                       <span>{this.t('复制')}</span>
                     </span>
-                    <span
+                    {/* <span
                       class='reset-btn'
                       onClick={() => this.handleResetToken()}
                     >
                       <span class='icon-monitor icon-zhongzhi1' />
                       <span>{this.t('重置')}</span>
-                    </span>
+                    </span> */}
                   </div>
                 </div>
               </div>
@@ -272,7 +273,7 @@ export default defineComponent({
                 ) : undefined}
               </div>
               <div class='btns-wrap'>
-                <Button
+                {/* <Button
                   class='mr-8'
                   loading={this.submitLoading}
                   theme='primary'
@@ -293,7 +294,25 @@ export default defineComponent({
                   onClick={this.handleSkip}
                 >
                   {this.t('跳过，稍后接入')}
+                </Button> */}
+                <Button
+                  class='mr-8'
+                  theme='primary'
+                  onClick={this.handleSubmit}
+                >
+                  {this.t('确认')}
                 </Button>
+                <i18n-t
+                  style='margin-left: 8px; font-size: 12px;'
+                  keypath='稍等几分钟后，前往{0}查看相关数据'
+                >
+                  <Button
+                    theme='primary'
+                    text
+                  >
+                    「RUM - {this.t('应用详情')}」
+                  </Button>
+                </i18n-t>
               </div>
             </div>
           ),
