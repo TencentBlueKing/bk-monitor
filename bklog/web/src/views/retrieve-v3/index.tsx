@@ -62,7 +62,7 @@ export default defineComponent({
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.getters.isSceneMode);
-    const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
+    const isFirstSearch = computed(() => store.state.indexSetQueryResult.search_count < 1);
 
     /**
      * AI 助手关闭
@@ -121,7 +121,7 @@ export default defineComponent({
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
-            {isSceneMode.value && isSceneFilterEmpty.value
+            {isSceneMode.value && isFirstSearch.value
               ? renderSceneEmptyTip()
               : <V3SearchResult></V3SearchResult>}
           </V3Container>,
