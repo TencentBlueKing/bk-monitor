@@ -113,19 +113,27 @@ export default defineComponent({
     const trendLoading = ref(false);
     const samplesLoading = ref(false);
 
+    // 缓存的时间戳，确保同一轮请求（分布 + 趋势 + 样本）使用同一个时间窗口
+    let cachedStartTime: number | string = '';
+    let cachedEndTime: number | string = '';
+
+    // 刷新缓存的时间戳（在每次新发起分布请求前调用）
+    const refreshCachedTime = () => {
+      if (isTimeRangeManualChanged.value) {
+        [cachedStartTime, cachedEndTime] = handleTransformToTimestamp(timeRange.value);
+      } else {
+        const { start_time, end_time } = retrieveParams.value;
+        cachedStartTime = start_time;
+        cachedEndTime = end_time;
+      }
+    };
+
     // 构建公共请求参数
     const getBaseParams = () => {
       const { signature, origin_pattern, pattern, group } = props.rowData;
-      const { addition, keyword, start_time, end_time } = retrieveParams.value;
+      const { addition, keyword } = retrieveParams.value;
       const { pattern_level } = props.requestData;
       const mergeGroup = getGroupsValue(group);
-
-      // 初始化时使用 retrieveParams 的精确时间戳，用户手动修改时间选择器后使用 timeRange 转换
-      let startTime = start_time;
-      let endTime = end_time;
-      if (isTimeRangeManualChanged.value) {
-        [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
-      }
 
       return {
         signature,
@@ -134,8 +142,8 @@ export default defineComponent({
         pattern_level,
         pattern: origin_pattern || pattern,
         placeholder_index: props.markIndex,
-        start_time: startTime,
-        end_time: endTime,
+        start_time: cachedStartTime,
+        end_time: cachedEndTime,
         groups: mergeGroup,
         value_keyword: searchValue.value,
         sort: sortValue.value,
@@ -151,6 +159,8 @@ export default defineComponent({
     const fetchPlaceholderDistribution = async () => {
       if (!canRequest()) return;
 
+      // 刷新缓存时间戳，确保本轮分布 + 趋势 + 样本请求使用同一个时间窗口
+      refreshCachedTime();
       const params = getBaseParams();
 
       distributionLoading.value = true;
@@ -280,10 +290,12 @@ export default defineComponent({
       // 构建 overall 数据（时间轴格式 [timestamp, value]）
       const overallMap = new Map<number, number>();
       overall.forEach((item: any) => overallMap.set(item.time, item.count));
-      const overallData = sortedTimes.map(time => [time, overallMap.get(time) ?? null]);
+      const overallData = sortedTimes.map(time => [time, overallMap.get(time) ?? 0]);
 
       // 构建 selected 数据（时间轴格式 [timestamp, value]）
-      const selectedData = selected.map((item: any) => [item.time, item.count]);
+      const selectedMap = new Map<number, number>();
+      selected.forEach((item: any) => selectedMap.set(item.time, item.count));
+      const selectedData = sortedTimes.map(time => [time, selectedMap.get(time) ?? 0]);
 
       trendChartInstance.value.setOption({
         animation: false,
@@ -304,7 +316,9 @@ export default defineComponent({
             fontSize: 12,
           },
           formatter: (params: any) => {
-            let html = '';
+            if (!params?.length) return '';
+            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
+            let html = `<div style="margin-bottom:4px;font-weight:bold;">${time}</div>`;
             params.forEach((p: any) => {
               if (p.value !== null && p.value !== undefined) {
                 const val = p.value[1];
@@ -468,6 +482,10 @@ export default defineComponent({
     // 选中值分布表某行
     const handleValueClick = (item: { value: string; count: number; percentage: number }) => {
       selectedValue.value = item.value;
+      // 销毁旧图表实例并清空数据，确保骨架屏正确展示
+      trendChartInstance.value?.dispose();
+      trendChartInstance.value = null;
+      trendData.value = null;
       fetchPlaceholderTrend(item.value);
       fetchPlaceholderSamples(item.value);
     };
@@ -491,6 +509,63 @@ export default defineComponent({
     };
 
     const exportLoading = ref(false);
+
+    // ========== 骨架屏渲染函数 ==========
+
+    /** 值分布表骨架屏 */
+    const renderDistributionSkeleton = () => (
+      <div class='table-body'>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div class='table-row skeleton-row' key={i}>
+            <div class='col-index'>
+              <div class='skeleton-block skeleton-text-xs' style='width: 16px;' />
+            </div>
+            <div class='col-value'>
+              <div class='skeleton-block skeleton-text-sm' style={{ width: `${60 + Math.random() * 30}%` }} />
+            </div>
+            <div class='col-count'>
+              <div class='count-bar-wrapper'>
+                <div class='skeleton-block skeleton-text-xs' style='width: 100%; margin-bottom: 6px;' />
+                <div class='skeleton-block skeleton-progress' style='width: 100%;' />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+    /** 趋势图骨架屏 */
+    const renderTrendSkeleton = () => (
+      <div class='trend-chart-wrapper skeleton-trend-wrapper'>
+        <div class='skeleton-chart'>
+          {/* 模拟 Y 轴刻度线 */}
+          <div class='skeleton-chart-lines'>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div class='skeleton-chart-line' key={i} />
+            ))}
+          </div>
+          {/* 模拟曲线区域 */}
+          <div class='skeleton-block skeleton-chart-area' />
+        </div>
+        {/* 模拟图例 */}
+        <div class='skeleton-legend'>
+          <div class='skeleton-block skeleton-text-xs' style='width: 64px;' />
+          <div class='skeleton-block skeleton-text-xs' style='width: 48px;' />
+        </div>
+      </div>
+    );
+
+    /** 相关样本骨架屏 */
+    const renderSamplesSkeleton = () => (
+      <div class='sample-list'>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div class='sample-item skeleton-sample-item' key={i}>
+            <div class='skeleton-block skeleton-tag' style='width: 120px; margin-bottom: 6px;' />
+            <div class='skeleton-block skeleton-text-sm' style='width: 90%;' />
+          </div>
+        ))}
+      </div>
+    );
 
     const handleViewOriginalLog = async () => {
       if (!canRequest()) return;
@@ -605,12 +680,10 @@ export default defineComponent({
               </div>
               <div class='stat-info'>
                 <div class='stat-label'>{t('唯一值数量')}</div>
-                <div
-                  class='stat-value'
-                  v-bkloading={{ isLoading: distributionLoading.value }}
-                >
-                  {statsData.value.uniqueValueCount}
-                </div>
+                {distributionLoading.value
+                  ? <div class='stat-value'><div class='skeleton-block skeleton-text-lg' style='width: 96px;' /></div>
+                  : <div class='stat-value'>{statsData.value.uniqueValueCount}</div>
+                }
               </div>
             </div>
             <div class='stat-card'>
@@ -619,12 +692,10 @@ export default defineComponent({
               </div>
               <div class='stat-info'>
                 <div class='stat-label'>{t('总出现次数')}</div>
-                <div
-                  class='stat-value'
-                  v-bkloading={{ isLoading: distributionLoading.value }}
-                >
-                  {statsData.value.totalCount}
-                </div>
+                {distributionLoading.value
+                  ? <div class='stat-value'><div class='skeleton-block skeleton-text-lg' style='width: 96px;' /></div>
+                  : <div class='stat-value'>{statsData.value.totalCount}</div>
+                }
               </div>
             </div>
           </div>
@@ -663,6 +734,11 @@ export default defineComponent({
               <bk-button
                 theme='primary'
                 outline
+                v-bk-tooltips={{
+                  placement: 'top',
+                  content: t('当前仅支持下载1w条数据'),
+                  delay: 300,
+                }}
                 onClick={handleViewOriginalLog}
               >
                 {t('下载')}
@@ -689,65 +765,65 @@ export default defineComponent({
                   </div>
                   <div class='col-count'>{t('出现次数 & 占比')}</div>
                 </div>
-                <div
-                  class='table-body'
-                  v-bkloading={{ isLoading: distributionLoading.value }}
-                >
-                  {valueDistributionList.value.length > 0
-                    ? valueDistributionList.value.map((item, index) => (
-                        <div
-                          class={`table-row ${selectedValue.value === item.value ? 'active' : ''}`}
-                          key={index}
-                          onClick={() => handleValueClick(item)}
-                        >
-                          <div class='col-index'>{index + 1}</div>
-                          <div class='col-value'>
-                            <i
-                              class='bklog-icon bklog-jump hover-icon'
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleJumpToRetrieve(item);
-                              }}
-                              v-bk-tooltips={{
-                                placement: 'top',
-                                content: t('前往日志检索'),
-                                delay: 300,
-                              }}
-                            />
-                            <i v-bk-overflow-tips>
-                              <span
-                                class='col-value-text'
-                                onClick={() => handleValueClick(item)}
-                              >
-                                {item.value}
-                              </span>
-                            </i>
-                          </div>
-                          <div class='col-count'>
-                            <div class='count-bar-wrapper'>
-                              <div class='count-info'>
-                                <span class='count-num'>{item.count}</span>
-                                <span class='percentage'>{item.percentage.toFixed(2)}%</span>
-                              </div>
-                              <div class='progress-bar'>
-                                <div
-                                  class='progress-fill'
-                                  style={{ width: `${item.percentage}%` }}
+                {distributionLoading.value
+                  ? renderDistributionSkeleton()
+                  : (
+                    <div class='table-body'>
+                      {valueDistributionList.value.length > 0
+                        ? valueDistributionList.value.map((item, index) => (
+                            <div
+                              class={`table-row ${selectedValue.value === item.value ? 'active' : ''}`}
+                              key={index}
+                              onClick={() => handleValueClick(item)}
+                            >
+                              <div class='col-index'>{index + 1}</div>
+                              <div class='col-value'>
+                                <i
+                                  class='bklog-icon bklog-jump hover-icon'
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleJumpToRetrieve(item);
+                                  }}
+                                  v-bk-tooltips={{
+                                    placement: 'top',
+                                    content: t('前往日志检索'),
+                                    delay: 300,
+                                  }}
                                 />
+                                <span
+                                  class='col-value-text'
+                                  v-bk-overflow-tips
+                                >
+                                  {item.value}
+                                </span>
+                              </div>
+                              <div class='col-count'>
+                                <div class='count-bar-wrapper'>
+                                  <div class='count-info'>
+                                    <span class='count-num'>{item.count}</span>
+                                    <span class='percentage'>{item.percentage.toFixed(2)}%</span>
+                                  </div>
+                                  <div class='progress-bar'>
+                                    <div
+                                      class='progress-fill'
+                                      style={{ width: `${item.percentage}%` }}
+                                    />
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      ))
-                    : !distributionLoading.value && (
-                        <bk-exception
-                          class='exception-wrap-item exception-part'
-                          scene='part'
-                          style='margin-top: 240px;'
-                          type='empty'
-                        />
-                      )}
-                </div>
+                        ))
+                        : (
+                            <bk-exception
+                              class='exception-wrap-item exception-part'
+                              scene='part'
+                              style='margin-top: 240px;'
+                              type='empty'
+                            />
+                        )}
+                    </div>
+                  )
+                }
               </div>
             </div>
 
@@ -763,57 +839,59 @@ export default defineComponent({
                     </span>
                   )}
                 </div>
-                <div
-                  class='trend-chart-wrapper'
-                  v-bkloading={{ isLoading: trendLoading.value }}
-                >
-                  {trendData.value ? (
-                    <div class='trend-chart'>
-                      <div
-                        ref={trendChartRef}
-                        style={{ width: '100%', height: '250px' }}
-                      />
+                {trendLoading.value
+                  ? renderTrendSkeleton()
+                  : (
+                    <div class='trend-chart-wrapper'>
+                      {trendData.value ? (
+                        <div class='trend-chart'>
+                          <div
+                            ref={trendChartRef}
+                            style={{ width: '100%', height: '250px' }}
+                          />
+                        </div>
+                      ) : (
+                        <bk-exception
+                          class='exception-wrap-item exception-part'
+                          scene='part'
+                          style='margin-top: 60px;'
+                          type='empty'
+                        />
+                      )}
                     </div>
-                  ) : (
-                    !trendLoading.value && (
-                      <bk-exception
-                        class='exception-wrap-item exception-part'
-                        scene='part'
-                        style='margin-top: 60px;'
-                        type='empty'
-                      />
-                    )
-                  )}
-                </div>
+                  )
+                }
               </div>
 
               <div class='sample-section'>
                 <div class='section-title'>
                   {selectedValue.value} {t('相关样本')}
                 </div>
-                <div
-                  class='sample-list'
-                  v-bkloading={{ isLoading: samplesLoading.value }}
-                >
-                  {sampleList.value.length > 0
-                    ? sampleList.value.map(sample => (
-                        <div
-                          class='sample-item'
-                          key={sample.id}
-                        >
-                          <div class='sample-time'>{sample.dteventtime}</div>
-                          <div class='sample-content'>{sample.log}</div>
-                        </div>
-                      ))
-                    : !samplesLoading.value && (
-                        <bk-exception
-                          class='exception-wrap-item exception-part'
-                          scene='part'
-                          style='margin-top: 80px;margin-bottom: 80px'
-                          type='empty'
-                        />
-                      )}
-                </div>
+                {samplesLoading.value
+                  ? renderSamplesSkeleton()
+                  : (
+                    <div class='sample-list'>
+                      {sampleList.value.length > 0
+                        ? sampleList.value.map(sample => (
+                            <div
+                              class='sample-item'
+                              key={sample.id}
+                            >
+                              <div class='sample-time'>{sample.dteventtime}</div>
+                              <div class='sample-content'>{sample.log}</div>
+                            </div>
+                        ))
+                        : (
+                            <bk-exception
+                              class='exception-wrap-item exception-part'
+                              scene='part'
+                              style='margin-top: 80px;margin-bottom: 80px'
+                              type='empty'
+                            />
+                        )}
+                    </div>
+                  )
+                }
               </div>
             </div>
           </div>
