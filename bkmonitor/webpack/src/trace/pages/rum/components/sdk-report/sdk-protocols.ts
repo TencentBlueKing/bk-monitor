@@ -37,7 +37,7 @@ export const PROTOCOLS = [
     id: 'Aegis',
     name: 'Aegis 协议',
     labels: ['蓝鲸原生'],
-    desc: '遵循 OpenTelemetry 标准，数据通过 OTLP 格式上报，兼容可观测平台生态，适合已有 OTel 基础设施的团队。',
+    desc: '蓝鲸监控原生上报协议，接入成本低，数据结构针对 RUM 场景深度优化，适合新项目快速接入',
     tags: ['轻量接入', '深度优化', '配置简单'],
   },
 ];
