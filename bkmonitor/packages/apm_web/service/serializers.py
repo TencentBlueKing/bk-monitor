@@ -185,16 +185,6 @@ class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
     service_name = serializers.CharField(label=_("本服务"))
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices())
 
-    def validate_callee_kind_consistency(self, attrs):
-        """验证 callee 角色的一致性规则"""
-        kind = attrs.get("kind")
-        service_name = attrs.get("service_name")
-        callee_server = attrs.get("callee_server")
-
-        if kind == "callee" and service_name and callee_server and callee_server != service_name:
-            raise serializers.ValidationError(_("callee 场景下 callee_server 必须等于 service_name"))
-        return attrs
-
 
 class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则列表查询请求序列化器"""
@@ -206,10 +196,6 @@ class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer)
     callee_server = serializers.CharField(label=_("被调服务"), required=False, allow_blank=True)
     callee_service = serializers.CharField(label=_("被调 Service"), required=False, allow_blank=True)
     callee_method = serializers.CharField(label=_("被调接口"), required=False, allow_blank=True)
-
-    def validate(self, attrs):
-        """验证请求参数"""
-        return self.validate_callee_kind_consistency(attrs)
 
 
 class CodeRedefinedRuleItemSerializer(serializers.Serializer):
