@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { type Ref, ref as deepRef, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { commonPageSizeGet } from 'monitor-common/utils';
 
@@ -53,8 +53,8 @@ export function useIssuesTable(options: UseIssuesTableOptions) {
   const page = shallowRef(1);
   /** 总条数 */
   const total = shallowRef(0);
-  /** 数据 */
-  const data = shallowRef<IssueItem[]>([]);
+  /** 表格数据（深响应式，支持直接修改行对象属性后触发重新渲染） */
+  const data = deepRef<IssueItem[]>([]);
   /** 排序 */
   const ordering = shallowRef('');
   /** 是否加载中 */

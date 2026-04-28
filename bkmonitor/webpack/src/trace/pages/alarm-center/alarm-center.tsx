@@ -89,7 +89,6 @@ import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
 import { type AlarmCenterApmHooks, ALARM_CENTER_APM_HOOKS_KEY } from './alarm-center-apm';
-
 import { useIssuesImpactScopeDrawer } from './alarm-issues/components/issues-impact-scope-drawer/hooks/use-issues-impact-scope-drawer';
 import IssuesImpactScopeDrawer from './alarm-issues/components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
@@ -167,6 +166,7 @@ export default defineComponent({
       issuesDialogType,
       issuesDialogData,
       issuesDialogParam,
+      updateIssueItems,
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
@@ -190,12 +190,7 @@ export default defineComponent({
 
       showOperationResult(res, t('修改成功'));
 
-      // 接口成功，原地更新行数据
-      const item = res.succeeded?.[0];
-      if (item) {
-        targetRow.priority = item.priority;
-        targetRow.update_time = item.update_time;
-      }
+      updateIssueItems(res.succeeded);
     };
 
     /** 兼容旧版「事件中心」(fta-solutions/pages/event) 的 URL 入口 */
