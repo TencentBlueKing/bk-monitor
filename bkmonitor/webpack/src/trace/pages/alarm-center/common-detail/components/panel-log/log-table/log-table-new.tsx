@@ -42,7 +42,6 @@ import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
 import { useTable } from './hooks/use-table';
-import LogException from './log-exception';
 
 import type { TClickMenuOpt } from './typing';
 
@@ -316,7 +315,7 @@ export default defineComponent({
             onSortChange={this.handleSortChange}
           />
         ) : (
-          <LogException />
+          this.$slots?.empty?.()
         )}
       </div>
     );
