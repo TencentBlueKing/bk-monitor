@@ -89,7 +89,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             class='issues-name-title-text'
             onClick={() => rendererCtx.handleShowDetail(row)}
           >
-            {row.name}
+            {row.name || '--'}
           </span>
         </div>
         <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(column)}`}>

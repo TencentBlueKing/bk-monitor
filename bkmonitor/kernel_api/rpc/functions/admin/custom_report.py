@@ -175,7 +175,6 @@ def _serialize_time_series_group(group: models.TimeSeriesGroup, metric_counts: d
         "metric_count": metric_counts.get(group_id, 0),
         "field_count": 0,
         "monitor_web_source": None,
-        "apm_application_count": 0,
         "last_modify_time": serialize_value(group.last_modify_time),
     }
 
@@ -195,7 +194,6 @@ def _serialize_event_group(group: models.EventGroup) -> dict[str, Any]:
         "metric_count": 0,
         "field_count": len(getattr(group, "STORAGE_FIELD_LIST", []) or []),
         "monitor_web_source": None,
-        "apm_application_count": 0,
         "last_modify_time": serialize_value(group.last_modify_time),
     }
 
@@ -224,7 +222,6 @@ def _serialize_log_datasource(datasource: models.DataSource) -> dict[str, Any]:
         "metric_count": 0,
         "field_count": 0,
         "monitor_web_source": None,
-        "apm_application_count": 0,
         "last_modify_time": serialize_value(datasource.last_modify_time),
     }
 
@@ -299,7 +296,6 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
         "table_id": "可选，结果表 ID 包含匹配",
         "group_name": "可选，名称包含匹配",
         "created_from": "可选，创建来源",
-        "has_apm": "可选，是否关联 APM，当前仅保留参数兼容",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
@@ -387,7 +383,6 @@ def get_custom_report_detail(params: dict[str, Any]) -> dict[str, Any]:
             "datasource": _serialize_datasource_summary(datasource),
             "result_table": _serialize_result_table_summary(result_table),
             "monitor_web_relation": None,
-            "apm_relations": [],
             "event_fields": event_fields,
             "warnings": [],
         },

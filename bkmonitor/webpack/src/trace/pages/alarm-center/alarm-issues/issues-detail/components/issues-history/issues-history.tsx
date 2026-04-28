@@ -80,9 +80,9 @@ export default defineComponent({
     };
 
     watch(
-      () => props.detail,
-      detail => {
-        if (detail) {
+      () => props.detail?.id,
+      id => {
+        if (id) {
           getIssuesHistoryList();
         }
       }

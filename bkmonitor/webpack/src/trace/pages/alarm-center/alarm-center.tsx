@@ -57,9 +57,11 @@ import { useAlarmFilter } from './components/alarm-retrieval-filter/hooks/use-al
 import AlarmTable from './components/alarm-table/alarm-table';
 import AlarmTrendChart from './components/alarm-trend-chart/alarm-trend-chart';
 import AlertOperationDialogs from './components/alert-operation-dialogs/alert-operation-dialogs';
+import BizPermissionTips from './components/biz-permission-tips/biz-permission-tips';
 import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
 import { useAlertDialogs } from './composables/use-alert-dialogs';
+import { useLegacyEventCenterCompat } from './composables/use-legacy-event-center-compat';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
 import {
@@ -164,6 +166,7 @@ export default defineComponent({
       issuesDialogType,
       issuesDialogData,
       issuesDialogParam,
+      updateIssueItems,
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
@@ -187,13 +190,21 @@ export default defineComponent({
 
       showOperationResult(res, t('修改成功'));
 
-      // 接口成功，原地更新行数据
-      const item = res.succeeded?.[0];
-      if (item) {
-        targetRow.priority = item.priority;
-        targetRow.update_time = item.update_time;
-      }
+      updateIssueItems(res.succeeded);
     };
+
+    /** 兼容旧版「事件中心」(fta-solutions/pages/event) 的 URL 入口 */
+    const {
+      legacyBatchAction,
+      shouldAutoOpenFirstDetail,
+      showPermissionTips,
+      applyLegacyQueryStringInjection,
+      applyPromqlIfNeeded,
+      setupAutoOpenFirstDetailFlag,
+      computeShowPermissionTips,
+      dismissPermissionTips,
+      handleApplyPermission,
+    } = useLegacyEventCenterCompat();
 
     const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
     const allFavoriteList = computed(() => {
@@ -650,11 +661,17 @@ export default defineComponent({
     /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
      * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
+     * 同时兼容旧版 fta-solutions/pages/event 的 ?batchAction=alarmConfirm|quickShield 入口
+     * 旧版安全策略：仅当 queryString 以 `action_id` 开头才自动弹出，避免误操作
      * @returns {boolean} 是否自动打开了告警确认 | 告警屏蔽 dialog
      */
     const autoShowAlertDialog = () => {
-      const alertAction = route?.query?.autoShowAlertAction as AlertAllActionEnum;
+      const isLegacy = !!route?.query?.batchAction;
+      const alertAction = (route?.query?.autoShowAlertAction as AlertAllActionEnum) || legacyBatchAction.value;
       const isCanAutoShowAlertDialog = CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS.includes(alertAction);
+      if (isLegacy && !/(^action_id).+/g.test(alarmStore.queryString || '')) {
+        return false;
+      }
       if (
         alarmStore.alarmType !== AlarmType.ALERT ||
         !data.value?.length ||
@@ -837,13 +854,29 @@ export default defineComponent({
       () => data.value,
       () => {
         if (autoShowAlertDialog()) return;
+        /** 旧版「移动端告警通知/首页搜索」入口要求自动展开第一条数据的详情 */
+        if (shouldAutoOpenFirstDetail.value && data.value?.length) {
+          shouldAutoOpenFirstDetail.value = false;
+          handleShowAlertDetail(data.value[0] as AlertTableItem);
+          return;
+        }
         // 如非自动打开dialog，则清空selectedRowKeys
         handleSelectedRowKeysChange();
       }
     );
-
-    onBeforeMount(() => {
+    /** 业务变化时刷新权限提示 */
+    watch(
+      () => alarmStore.bizIds,
+      () => computeShowPermissionTips()
+    );
+    onBeforeMount(async () => {
       getUrlParams();
+      /** 旧 URL 兼容：actionId / collectId / alertId / metricId 注入 queryString */
+      applyLegacyQueryStringInjection();
+      setupAutoOpenFirstDetailFlag();
+      computeShowPermissionTips();
+      /** PromQL 异步转换 queryString，需在首次表格请求触发前完成 */
+      await applyPromqlIfNeeded();
       setUrlParams();
     });
     return {
@@ -940,6 +973,9 @@ export default defineComponent({
       handleIssuePreviousDetail,
       handleIssueNextDetail,
       handleCopyWhereQueryString,
+      showPermissionTips,
+      dismissPermissionTips,
+      handleApplyPermission,
     };
   },
   render() {
@@ -1018,6 +1054,11 @@ export default defineComponent({
             onQueryStringChange={this.handleQueryStringChange}
             onResidentConditionChange={this.handleResidentConditionChange}
             onShowResidentBtnChange={this.handleShowResidentBtnChange}
+          />
+          <BizPermissionTips
+            show={this.showPermissionTips}
+            onApply={this.handleApplyPermission}
+            onClose={this.dismissPermissionTips}
           />
           <div class='alarm-center-main'>
             <TraceExploreLayout

@@ -29,6 +29,7 @@ import * as tsx from 'vue-tsx-support';
 
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { isZh } from 'monitor-pc/common/constant';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
@@ -277,16 +278,14 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     };
   }
   handleToEventCenter(id) {
-    this.$router.push({
-      name: 'event-center',
-      query: {
-        searchType: 'action',
-        activeFilterId: 'action',
-        from: 'now-7d',
-        to: 'now',
-        queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`,
-      },
+    const url = getAlarmCenterListUrl({
+      searchType: 'action',
+      activeFilterId: 'action',
+      from: 'now-7d',
+      to: 'now',
+      queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`,
     });
+    window.open(url);
   }
 
   handleOperate(type, id) {

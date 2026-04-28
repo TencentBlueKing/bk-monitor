@@ -10,8 +10,8 @@
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
  * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
@@ -40,7 +40,7 @@ import type {
   AssignIssuesParams,
   FollowUpIssuesParams,
   IssueIdentifier,
-  IssuesOperationDialogEvent,
+  IssuesBatchOperationResponse,
   ResolveIssuesParams,
   UpdatePriorityParams,
 } from '../typing';
@@ -49,12 +49,12 @@ import type {
  * @description 指派 Issues 负责人，封装底层 API 调用与数据预处理
  * @param {AssignIssuesParams} params - 指派请求参数（issues / assignee）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<IssuesOperationDialogEvent<'assign'>>} 包含 succeeded 和 failed 的操作结果
+ * @returns {Promise<IssuesBatchOperationResponse<'assign'>>} 包含 succeeded 和 failed 的操作结果
  */
 export const assignIssues = async (
   params: AssignIssuesParams,
   options?: RequestOptions
-): Promise<IssuesOperationDialogEvent<'assign'>> => {
+): Promise<IssuesBatchOperationResponse<'assign'>> => {
   const data = await assignIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
@@ -63,12 +63,12 @@ export const assignIssues = async (
  * @description 修改 Issues 优先级，封装底层 API 调用与数据预处理
  * @param {UpdatePriorityParams} params - 修改优先级请求参数（issues / priority）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<IssuesOperationDialogEvent<'priority'>>} 包含 succeeded 和 failed 的操作结果
+ * @returns {Promise<IssuesBatchOperationResponse<'priority'>>} 包含 succeeded 和 failed 的操作结果
  */
 export const updateIssuesPriority = async (
   params: UpdatePriorityParams,
   options?: RequestOptions
-): Promise<IssuesOperationDialogEvent<'priority'>> => {
+): Promise<IssuesBatchOperationResponse<'priority'>> => {
   const data = await updateIssuePriority(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
@@ -77,54 +77,54 @@ export const updateIssuesPriority = async (
  * @description 标记 Issues 为已解决，封装底层 API 调用与数据预处理
  * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果
+ * @returns {Promise<IssuesBatchOperationResponse<'resolve'>>} 包含 succeeded 和 failed 的操作结果
  */
 export const resolveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
-): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+): Promise<IssuesBatchOperationResponse<'resolve'>> => {
   const data = await resolveIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
 /**
- * @description 重新打开 Issues ，封装底层 API 调用与数据预处理
- * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
+ * @description 重新打开 Issues，封装底层 API 调用与数据预处理
+ * @param {ResolveIssuesParams} params - 重新打开请求参数（issues）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果
+ * @returns {Promise<IssuesBatchOperationResponse<'unresolve'>>} 包含 succeeded 和 failed 的操作结果
  */
 export const unResolveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
-): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+): Promise<IssuesBatchOperationResponse<'unresolve'>> => {
   const data = await reopenIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
 /**
- * @description 归档Issues，封装底层 API 调用与数据预处理
- * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
+ * @description 归档 Issues，封装底层 API 调用与数据预处理
+ * @param {ResolveIssuesParams} params - 归档请求参数（issues）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果
+ * @returns {Promise<IssuesBatchOperationResponse<'archive'>>} 包含 succeeded 和 failed 的操作结果
  */
 export const archiveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
-): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+): Promise<IssuesBatchOperationResponse<'archive'>> => {
   const data = await archiveIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
 /**
  * @description 恢复归档 Issues，封装底层 API 调用与数据预处理
- * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
+ * @param {ResolveIssuesParams} params - 恢复归档请求参数（issues）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果
+ * @returns {Promise<IssuesBatchOperationResponse<'unarchive'>>} 包含 succeeded 和 failed 的操作结果
  */
 export const unArchiveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
-): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+): Promise<IssuesBatchOperationResponse<'unarchive'>> => {
   const data = await restoreIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
@@ -133,12 +133,12 @@ export const unArchiveIssues = async (
  * @description 添加 Issues 跟进信息，封装底层 API 调用与数据预处理
  * @param {FollowUpIssuesParams} params - 添加跟进信息请求参数（issues / content）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<IssuesOperationDialogEvent<'follow_up'>>} 包含 succeeded 和 failed 的操作结果
+ * @returns {Promise<IssuesBatchOperationResponse<'follow_up'>>} 包含 succeeded 和 failed 的操作结果
  */
 export const followUpIssues = async (
   params: FollowUpIssuesParams,
   options?: RequestOptions
-): Promise<IssuesOperationDialogEvent<'follow_up'>> => {
+): Promise<IssuesBatchOperationResponse<'follow_up'>> => {
   const data = await addIssueFollowUp(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
@@ -158,11 +158,11 @@ export const exportIssues = async (issues: IssueIdentifier[], options?: RequestO
 /**
  * @description 统一处理 Issues 操作结果的 Message 提示：根据 succeeded / failed 列表判断成功/失败并弹出对应提示；
  *   当 succeeded 和 failed 均为空时不弹出任何提示（防御性兜底）
- * @param {IssuesOperationDialogEvent} res - 操作结果（包含 succeeded 和 failed）
+ * @param {IssuesBatchOperationResponse} res - 操作结果（包含 succeeded 和 failed）
  * @param {string} successMessage - 操作成功时的提示文案
  * @returns {boolean} 操作是否成功（true = 全部成功，false = 存在失败项或结果为空）
  */
-export const showOperationResult = (res: IssuesOperationDialogEvent, successMessage: string): boolean => {
+export const showOperationResult = (res: IssuesBatchOperationResponse, successMessage: string): boolean => {
   const hasFailed = !!res.failed?.length;
   const hasSucceeded = !!res.succeeded?.length;
   if (hasFailed) {

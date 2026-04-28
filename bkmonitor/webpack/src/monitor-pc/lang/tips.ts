@@ -470,4 +470,7 @@ export default {
   标记为已解决成功: 'Mark as resolved successfully',
   已配置issue聚合: 'Issue aggregation already configured',
   '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies',
+  归档成功: 'Archive successfully',
+  恢复成功: 'Restore successfully',
+  重新打开成功: 'Reopen successfully',
 };

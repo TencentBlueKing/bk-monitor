@@ -36,6 +36,7 @@ import AlarmConfirm from '../../pages/failure/alarm-detail/alarm-confirm';
 import AlarmDispatch from '../../pages/failure/alarm-detail/alarm-dispatch';
 import ManualProcess from '../../pages/failure/alarm-detail/manual-process';
 import QuickShield from '../../pages/failure/alarm-detail/quick-shield';
+import { incidentAlarmDetailInject } from '../../pages/failure/composables/use-alarm-detail';
 import FeedbackCauseDialog from '../../pages/failure/failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../../pages/failure/utils';
 import { useChartInfoInject } from '../hooks/chart';
@@ -250,8 +251,14 @@ export default defineComponent({
       dialog.rootCauseConfirm.data = v;
       dialog.rootCauseConfirm.show = true;
     };
+    const { updateAlarmDetailData } = incidentAlarmDetailInject();
     const handleAlertDetail = v => {
-      window.__BK_WEWEB_DATA__?.showDetailSlider?.(JSON.parse(JSON.stringify({ ...v })));
+      // window.__BK_WEWEB_DATA__?.showDetailSlider?.(JSON.parse(JSON.stringify({ ...v })));
+      v.id &&
+        updateAlarmDetailData({
+          bk_biz_id: v.bk_biz_id ?? window.cc_biz_id ?? window.bk_biz_id,
+          id: v.id,
+        });
     };
     const handleAlertConfirm = v => {
       setDialogData(v);

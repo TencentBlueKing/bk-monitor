@@ -29,6 +29,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -189,13 +190,13 @@ class ResourceChart extends CommonSimpleChart {
       alertFilterable.event_center?.query_string.map(
         item => `指标ID : ${data_source_label}.${data_type_label}.${result_table_id}.${item.metric}`
       ) || [];
-    query.length &&
-      window.open(
-        location.href.replace(
-          location.hash,
-          `#/event-center?queryString=${query.join(' or ')}&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-        )
-      );
+    if (query.length) {
+      openAlarmCenter({
+        queryString: query.join(' or '),
+        from: this.timeRange[0],
+        to: this.timeRange[1],
+      });
+    }
   }
 
   /**
@@ -236,15 +237,15 @@ class ResourceChart extends CommonSimpleChart {
         break;
       case 2: {
         const eventTargetStr = alarmStatus.targetStr;
-
-        window.open(
-          location.href.replace(
-            location.hash,
-            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
-              eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-          )
-        );
+        const queryString = `${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+          eventTargetStr ? ` AND ${eventTargetStr}` : ''
+        }`;
+        openAlarmCenter({
+          queryString,
+          activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+          from: this.timeRange[0],
+          to: this.timeRange[1],
+        });
         break;
       }
     }

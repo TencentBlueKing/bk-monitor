@@ -28,6 +28,7 @@ import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
@@ -185,7 +186,7 @@ export default class AiWhale extends tsc<{
     event.preventDefault();
     // this.handlePopoverHidden();
     this.downActive = true;
-    this.downTime = new Date().getTime();
+    this.downTime = Date.now();
     document.addEventListener('mousemove', this.mousemoveFn);
   }
   /* 小球停止移动 */
@@ -308,14 +309,14 @@ export default class AiWhale extends tsc<{
       if (this.data.need_notice) {
         if (this.lastRecordTime) {
           const needTime = 10 * 60 * 1000;
-          const curTime = new Date().getTime();
+          const curTime = Date.now();
           if (curTime - this.lastRecordTime < needTime) {
             this.lastRecordTime = curTime;
             return;
           }
           this.lastRecordTime = 0;
         } else {
-          this.lastRecordTime = new Date().getTime();
+          this.lastRecordTime = Date.now();
         }
         this.$nextTick(() => {
           this.handleInitiativeTip(true);
@@ -339,25 +340,25 @@ export default class AiWhale extends tsc<{
 
   /* 区分点击与拖拽 */
   getIsDrag() {
-    const curTime = new Date().getTime();
+    const curTime = Date.now();
     const isDrag = curTime - this.downTime > 300;
     this.downTime = 0;
     return isDrag;
   }
 
-  /* 跳转到事件中心 */
+  /* 跳转到告警中心 */
   handleToEventCenter(isSeverity = false) {
     const fetchRange = this.data?.fetch_range || '24h';
-    let query = '';
-    if (isSeverity) {
-      query = `activeFilterId=MY_ASSIGNEE&from=now-${fetchRange}&to=now`;
-    } else {
-      // const condition = encodeURIComponent('{"severity":[1]}');
-      query = `activeFilterId=NOT_SHIELDED_ABNORMAL&from=now-${fetchRange}&to=now`;
-    }
-    const url = `${location.origin}${location.pathname}?bizId=${
+    console.log('getAlarmCenterListUrl', fetchRange);
+    const url = getAlarmCenterListUrl(
+      {
+        activeFilterId: isSeverity ? 'MY_ASSIGNEE' : 'NOT_SHIELDED_ABNORMAL',
+        from: `now-${fetchRange}`,
+        to: 'now',
+        bizIds: this.$store.getters.bizId || window.cc_biz_id,
+      },
       this.$store.getters.bizId || window.cc_biz_id
-    }#/event-center?${query}`;
+    );
     window.open(url);
   }
 

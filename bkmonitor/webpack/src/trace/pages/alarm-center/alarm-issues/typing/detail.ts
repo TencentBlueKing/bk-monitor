@@ -34,6 +34,7 @@ export interface IssueActivityItem {
   activity_id: string;
   /** 活动类型：create, comment, status_change, assignee_change, priority_change */
   activity_type: IssueActiveNodeType;
+  bk_biz_id: number;
   /** 评论内容，仅 comment 类型有值 */
   content: null | string;
   /** 变更前的值，仅 *_change 类型有值 */

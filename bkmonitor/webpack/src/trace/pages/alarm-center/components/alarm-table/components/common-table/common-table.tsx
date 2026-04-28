@@ -166,10 +166,10 @@ export default defineComponent({
         // @ts-expect-error
         ellipsisTitle: column?.ellipsisTitle != null ? column?.ellipsisTitle : true,
         ...column,
-        cell: (_, { row }) =>
+        cell: (_, cellParams) =>
           column?.cellRenderer
-            ? column?.cellRenderer(row, column, renderContext)
-            : tableCellRender(row, column, renderContext),
+            ? column?.cellRenderer(cellParams.row, column, { ...renderContext, runtime: cellParams })
+            : tableCellRender(cellParams.row, column, { ...renderContext, runtime: cellParams }),
       }))
     );
     /** 表格骨架屏展示相关配置 */

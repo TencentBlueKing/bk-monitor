@@ -112,6 +112,29 @@ paths:
           resourcePermissionRequired: true
         descriptionEn:
   /index_set/{index_set_id}/:
+    get:
+      operationId: index_set_retrieve
+      description: 索引集详情
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/index_set/{index_set_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: false
+        descriptionEn:
+        noneSchema: true
     put:
       operationId: update_index_set
       description: 更新索引集
@@ -2816,6 +2839,72 @@ paths:
           name: default
           method: post
           path: /api/v1/field/index_set/statistics/total/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /field/index_set/statistics/info/:
+    post:
+      operationId: fetch_statistics_info
+      description: 日志平台-字段统计信息
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/field/index_set/statistics/info/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /field/index_set/statistics/graph/:
+    post:
+      operationId: fetch_statistics_graph
+      description: 日志平台-字段统计图表
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/field/index_set/statistics/graph/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /field/index_set/fetch_topk_list/:
+    post:
+      operationId: fetch_topk_list
+      description: 日志平台-字段TopK计数列表
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/field/index_set/fetch_topk_list/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
