@@ -293,10 +293,14 @@ export default defineComponent({
       }
     );
 
-    watch([() => props.detail?.id, commonParams.value, () => props.timeRange, () => searchRefreshKey.value], () => {
-      getDimensionStatsData();
-      getAllAlertId();
-    });
+    watch(
+      [() => props.detail?.id, () => commonParams.value, () => props.timeRange, () => searchRefreshKey.value],
+      () => {
+        getDimensionStatsData();
+        getAllAlertId();
+      },
+      { deep: true }
+    );
 
     onMounted(() => {
       getDimensionStatsData();
