@@ -229,7 +229,7 @@ class CodeRedefinedRuleItemSerializer(serializers.Serializer):
 class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
-    UNIQUE_FIELDS = ("is_global", "kind", "callee_server", "callee_service", "callee_method")
+    UNIQUE_FIELDS = ("is_global", "kind", "callee_server", "callee_service", "callee_method", "code_type_rules")
 
     service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)

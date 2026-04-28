@@ -736,7 +736,6 @@ class ListCodeRedefinedRuleResource(Resource):
         "callee_service",
         "callee_method",
         "code_type_rules",
-        "enabled",
     )
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
