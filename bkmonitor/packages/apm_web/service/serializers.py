@@ -20,6 +20,7 @@ from apm_web.models import (
     CMDBServiceRelation,
     EventServiceRelation,
     LogServiceRelation,
+    CodeRedefinedConfigRelation,
 )
 from apm_web.handlers.service_handler import ServiceHandler
 from bkmonitor.utils.common_utils import count_md5
@@ -229,7 +230,7 @@ class CodeRedefinedRuleItemSerializer(serializers.Serializer):
 class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
-    UNIQUE_FIELDS = ("is_global", "kind", "callee_server", "callee_service", "callee_method", "code_type_rules")
+    UNIQUE_FIELDS = ("is_global", "service_name", "kind", "callee_server", "callee_service", "callee_method")
 
     service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
     kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
@@ -258,19 +259,26 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
 
             rule["callee_server"] = "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"]
 
-            # 唯一性校验
-            unique_key: str = count_md5({field: rule.get(field) for field in self.UNIQUE_FIELDS})
+        # 唯一性校验
+        for record in CodeRedefinedConfigRelation.build_sync_records(attrs.get("rules", [])):
+            unique_key: str = count_md5({field: record.get(field) for field in self.UNIQUE_FIELDS})
             if unique_key in unique_set:
                 raise serializers.ValidationError(
                     _(
-                        "规则列表中存在重复的规则：是否全局：{is_global} 类型：{kind} "
-                        "被调服务：{callee_server} 被调 Service：{callee_service} 被调接口：{callee_method}"
+                        "规则列表中存在重复的规则："
+                        "是否全局：{is_global} "
+                        "服务名：{service_name} "
+                        "类型：{kind} "
+                        "被调服务：{callee_server} "
+                        "被调 Service：{callee_service} "
+                        "被调接口：{callee_method} "
                     ).format(
-                        is_global=rule["is_global"],
-                        kind=rule["kind"],
-                        callee_server=rule["callee_server"],
-                        callee_service=rule["callee_service"],
-                        callee_method=rule["callee_method"],
+                        is_global=record["is_global"],
+                        service_name=record["service_name"],
+                        kind=record["kind"],
+                        callee_server=record["callee_server"],
+                        callee_service=record["callee_service"],
+                        callee_method=record["callee_method"],
                     )
                 )
             unique_set.add(unique_key)

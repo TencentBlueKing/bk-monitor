@@ -70,7 +70,6 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import Resource, api
-from constants.apm import CallSide
 
 
 class ApplicationListResource(Resource):
@@ -803,24 +802,7 @@ class SetCodeRedefinedRuleResource(Resource):
         rules: list = validated_request_data["rules"]
         service_name: str | None = validated_request_data.get("service_name")
 
-        records: list[dict[str, Any]] = []
-        for rule in rules:
-            record: dict[str, Any] = {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "is_global": rule["is_global"],
-                "kind": rule["kind"],
-                "callee_server": "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"],
-                "callee_service": rule["callee_service"],
-                "callee_method": rule["callee_method"],
-                "code_type_rules": rule["code_type_rules"],
-                "enabled": rule["enabled"],
-            }
-            if rule["is_global"]:
-                records.append({**record, "service_name": ""})
-                continue
-            for _service_name in rule["service_names"]:
-                records.append({**record, "service_name": _service_name})
+        records: list[dict[str, Any]] = CodeRedefinedConfigRelation.build_sync_records(rules)
 
         params: dict[str, Any] = {
             "bk_biz_id": bk_biz_id,

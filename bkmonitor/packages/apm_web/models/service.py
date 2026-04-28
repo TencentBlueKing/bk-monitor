@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 from typing import Any, Self
 
 from django.db import models, transaction
@@ -16,6 +17,7 @@ from django.utils import timezone
 
 from apm_web.constants import ServiceRelationLogTypeChoices, SyncScope
 from bkmonitor.utils.request import get_request_username
+from constants.apm import CallSide
 from monitor_web.data_explorer.event.constants import EventCategory
 
 
@@ -351,3 +353,38 @@ class CodeRedefinedConfigRelation(ServiceBase):
     def is_callee(self) -> bool:
         """判断是否为被调类型"""
         return self.kind == "callee"
+
+    @classmethod
+    def build_sync_records(cls, rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """将前端聚合后的规则列表展开为可直接用于 sync_relations 的扁平 records。
+
+        输入 rule 结构（每条规则面向一组服务）：
+          - is_global (bool): 是否为全局规则
+          - kind (str): caller / callee
+          - callee_server (str): 被调服务；callee 类型时强制置为空串
+          - callee_service (str)
+          - callee_method (str)
+          - code_type_rules (dict)
+          - enabled (bool)
+          - service_names (list[str]): 非全局时按该列表展开为多条记录；全局规则忽略该字段
+
+        输出 records：每条记录对应 DB 的一行，service_name 已落到具体值（全局规则为 ""）。
+        """
+        records: list[dict[str, Any]] = []
+        for rule in rules:
+            record: dict[str, Any] = {
+                "is_global": rule["is_global"],
+                "kind": rule["kind"],
+                # callee 类型下 callee_server 语义等同 service_name，统一归零避免冗余
+                "callee_server": "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"],
+                "callee_service": rule["callee_service"],
+                "callee_method": rule["callee_method"],
+                "code_type_rules": copy.deepcopy(rule["code_type_rules"]),
+                "enabled": rule["enabled"],
+            }
+            if rule["is_global"]:
+                records.append({**record, "service_name": ""})
+                continue
+            for service_name in rule["service_names"]:
+                records.append({**record, "service_name": service_name})
+        return records
