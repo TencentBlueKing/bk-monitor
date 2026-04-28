@@ -145,6 +145,14 @@ class GetFileStatusSerializer(serializers.Serializer):
     file_name_list = serializers.ListField(label=_("文件名列表"), child=serializers.CharField())
 
 
+class GetTaskStatusSerializer(serializers.Serializer):
+    """
+    获取任务处理状态
+    """
+
+    task_id_list = serializers.ListField(label=_("任务ID列表"), child=serializers.IntegerField())
+
+
 class RetrieveSyncRecordSerializer(serializers.Serializer):
     """
     获取同步记录详情

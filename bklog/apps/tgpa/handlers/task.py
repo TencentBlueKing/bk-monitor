@@ -32,6 +32,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import (
     TGPA_BASE_DIR,
     TGPATaskTypeEnum,
+    TGPATaskProcessStatusEnum,
     TASK_LIST_BATCH_SIZE,
     TGPA_DOWNLOAD_DIR,
     FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE,
@@ -283,6 +284,29 @@ class TGPATaskHandler:
         }
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
         return result["user_list"]
+
+    @staticmethod
+    def get_task_status(task_id_list):
+        """
+        获取任务处理状态
+        :param task_id_list: 后台任务ID列表
+        :return: 任务处理状态列表
+        """
+        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_id_list).values(
+            "task_id", "process_status", "processed_at", "error_message"
+        )
+        task_info_map = {item["task_id"]: item for item in tgpa_tasks}
+        return [
+            {
+                "task_id": task_id,
+                "process_status": task_info_map.get(task_id, {}).get(
+                    "process_status", TGPATaskProcessStatusEnum.INIT.value
+                ),
+                "processed_at": task_info_map.get(task_id, {}).get("processed_at"),
+                "error_message": task_info_map.get(task_id, {}).get("error_message", ""),
+            }
+            for task_id in task_id_list
+        ]
 
     def download_and_process_file(self):
         """

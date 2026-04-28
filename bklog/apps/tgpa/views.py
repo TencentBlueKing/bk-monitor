@@ -41,6 +41,7 @@ from apps.tgpa.serializers import (
     GetReportListSerializer,
     SyncReportSerializer,
     GetFileStatusSerializer,
+    GetTaskStatusSerializer,
     RetrieveSyncRecordSerializer,
     GetCountInfoSerializer,
     GetUsernameListSerializer,
@@ -273,6 +274,14 @@ class TGPATaskViewSet(APIViewSet):
         """
         params = self.params_valid(GetUsernameListSerializer)
         return Response(TGPATaskHandler.get_username_list(params["bk_biz_id"]))
+
+    @list_route(methods=["POST"], url_path="task_status")
+    def get_task_status(self, request, *args, **kwargs):
+        """
+        获取任务处理状态
+        """
+        params = self.params_valid(GetTaskStatusSerializer)
+        return Response(TGPATaskHandler.get_task_status(params["task_id_list"]))
 
 
 class TGPAReportViewSet(APIViewSet):
