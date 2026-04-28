@@ -113,6 +113,11 @@ export default {
   设为默认: 'Set as default',
   取消默认: 'Remove default',
   取消选择: 'Cancel Selection',
+  修改全局配置: 'Modify Global Configuration',
+  全局生效规则: 'Global Effective Rules',
+  备注: 'Remark',
+  返回码备注: 'Return Code Remark',
+  全局生效: 'Global Effective',
 
   // 规范：平台特性 术语
   新建节点: 'New Probe',

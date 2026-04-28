@@ -451,4 +451,15 @@ export default {
   一键反馈: 'One-click feedback',
   '若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。':
     'If you still cannot identify the cause, please click the feedback button below to contact us. We will respond as soon as possible.',
+  '配置保存成功，需要 5 分钟左右生效。': 'Configuration saved successfully, it will take effect in 5 minutes.',
+  '删除成功，需要 5 分钟左右生效。': 'Deleted successfully, it will take effect in 5 minutes.',
+  '类型、返回码的组合值须唯一': 'The combination of type and return code must be unique',
+  '类型、返回码、备注范围的组合值须唯一': 'The combination of type, return code, and remark range must be unique',
+  返回码不能为空: 'Return code cannot be empty',
+  备注范围: 'Remark range',
+  '被调 Service、被调接口的组合值须唯一': 'The combination of called Service and called interface must be unique',
+  备注不能为空: 'Remark cannot be empty',
+  可配置全局返回码规则: 'Can configure global return code rules',
+  点击: 'Click',
+  '是否确认删除？': 'Are you sure you want to delete?',
 };

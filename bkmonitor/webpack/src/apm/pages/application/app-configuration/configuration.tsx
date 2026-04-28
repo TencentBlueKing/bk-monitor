@@ -37,6 +37,7 @@ import BasicConfiguration from './basic-configuration';
 import ConfigurationView from './configuration-view';
 import DataStatus from './data-state/data-state';
 import StorageState from './storage-state/storage-state';
+import CodeRedefine from './return-code';
 
 import type { IAppInfo, IClusterItem, IMenuItem } from './type';
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -120,6 +121,7 @@ export default class ApplicationConfiguration extends tsc<undefined> {
     { id: 'basicConfiguration', name: window.i18n.tc('基础配置') },
     { id: 'storageState', name: window.i18n.tc('存储状态') },
     { id: 'dataStatus', name: window.i18n.tc('数据状态') },
+    { id: 'codeRedefine', name: window.i18n.tc('返回码') },
     // { id: 'indicatorDimension', name: window.i18n.tc('指标维度') }
   ];
   clusterList: IClusterItem[] = []; // 存储集群列表
@@ -321,6 +323,8 @@ export default class ApplicationConfiguration extends tsc<undefined> {
         );
       case 'dataStatus': // 数据状态
         return <DataStatus data={this.appInfo} />;
+      case 'codeRedefine': // 返回码重定义
+        return <CodeRedefine appName={this.appName} />;
       // case 'indicatorDimension': // 指标维度
       //   return <IndicatorDimension />;
       default:
