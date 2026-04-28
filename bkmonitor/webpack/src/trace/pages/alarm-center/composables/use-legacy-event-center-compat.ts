@@ -136,8 +136,7 @@ export function useLegacyEventCenterCompat() {
   async function applyPromqlIfNeeded() {
     const rawPromql = route.query?.promql as string | undefined;
     if (!rawPromql) return;
-    const promql = rawPromql;
-    console.info('promql', promql);
+    const promql = parsePromqlQuery(rawPromql);
     const data = await promqlToQueryConfig({ promql }).catch(() => null);
     const configs = data?.query_configs as Array<{ metric_id?: string }> | undefined;
     if (!configs?.length) return;
@@ -228,5 +227,15 @@ function parseMetricIdQuery(value: unknown): string[] {
     return [String(parsed)];
   } catch {
     return [value];
+  }
+}
+
+/** 兼容历史链接中被 JSON.stringify 包裹过的 PromQL 参数 */
+function parsePromqlQuery(value: string): string {
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === 'string' ? parsed : value;
+  } catch {
+    return value;
   }
 }

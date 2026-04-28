@@ -162,7 +162,7 @@ export default defineComponent({
         if (target.data?.query_configs?.length) {
           for (const item of target.data.query_configs) {
             if (item.promql) {
-              promqlSet.add(JSON.stringify(item.promql));
+              promqlSet.add(String(item.promql));
             } else {
               const metricId = getMetricId(
                 item.data_source_label,

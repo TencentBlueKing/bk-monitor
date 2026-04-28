@@ -754,7 +754,7 @@ export class PanelModel implements IPanelModel {
       if (target?.query_configs?.length) {
         for (const item of target.query_configs) {
           if (item.promql) {
-            promqlSet.add(JSON.stringify(item.promql));
+            promqlSet.add(String(item.promql));
           } else {
             const metricId = getMetricId(
               item.data_source_label,
