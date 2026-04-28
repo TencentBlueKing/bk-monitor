@@ -210,3 +210,12 @@ class GetClientInfoSerializer(serializers.Serializer):
     openid = serializers.CharField(label=_("openid"))
     start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
     end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
+
+
+class SyncTaskSerializer(serializers.Serializer):
+    """
+    手动触发同步客户端日志捞取任务
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    task_id_list = serializers.ListField(label=_("后台任务ID列表"), child=serializers.IntegerField())

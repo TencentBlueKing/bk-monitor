@@ -40,6 +40,7 @@ from apps.tgpa.serializers import (
     GetIndexSetIdSerializer,
     GetReportListSerializer,
     SyncReportSerializer,
+    SyncTaskSerializer,
     GetFileStatusSerializer,
     GetTaskStatusSerializer,
     RetrieveSyncRecordSerializer,
@@ -50,7 +51,7 @@ from apps.tgpa.serializers import (
     GetMergedTaskListSerializer,
     GetClientInfoSerializer,
 )
-from apps.tgpa.tasks import fetch_and_process_tgpa_reports
+from apps.tgpa.tasks import fetch_and_process_tgpa_reports, sync_and_process_tgpa_tasks
 from bkm_search_module.constants import list_route
 
 
@@ -282,6 +283,19 @@ class TGPATaskViewSet(APIViewSet):
         """
         params = self.params_valid(GetTaskStatusSerializer)
         return Response(TGPATaskHandler.get_task_status(params["task_id_list"]))
+
+    @list_route(methods=["POST"], url_path="sync")
+    def sync_task(self, request, *args, **kwargs):
+        """
+        手动触发同步并处理指定的客户端日志捞取任务
+        """
+        params = self.params_valid(SyncTaskSerializer)
+        bk_biz_id = params["bk_biz_id"]
+        if not FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, bk_biz_id):
+            return Response()
+
+        sync_and_process_tgpa_tasks.delay(bk_biz_id, params["task_id_list"])
+        return Response()
 
 
 class TGPAReportViewSet(APIViewSet):
