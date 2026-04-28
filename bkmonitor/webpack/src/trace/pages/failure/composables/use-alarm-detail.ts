@@ -23,51 +23,45 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 
-import { getMetricId } from './utils';
+import { inject, provide, shallowRef } from 'vue';
 
-import type { PanelModel } from '../typings';
+const ALARM_DETAIL_SYMBOL = Symbol('ALARM_DETAIL_SYMBOL');
 
-export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
-  const metricIdMap = {};
-  const promqlSet = new Set<string>();
-  if (panel?.targets?.length) {
-    for (const target of panel.targets) {
-      if (target.data?.query_configs?.length) {
-        for (const item of target.data.query_configs) {
-          if (item.promql) {
-            promqlSet.add(JSON.stringify(item.promql));
-          } else {
-            const metricId = getMetricId(
-              item.data_source_label,
-              item.data_type_label,
-              item.metrics?.[0]?.field,
-              item.table,
-              item.index_set_id
-            );
-            if (metricId) {
-              metricIdMap[metricId] = 'true';
-            }
-          }
-        }
-      }
+export const useIncidentAlarmDetail = () => {
+  const alarmDetailShow = shallowRef(false);
+  const alarmDetailData = shallowRef<{
+    bk_biz_id?: number;
+    id?: string;
+  }>({});
+
+  const updateAlarmDetailData = (data: { bk_biz_id?: number; id?: string }) => {
+    alarmDetailShow.value = true;
+    alarmDetailData.value = data;
+  };
+  const updateAlarmDetailShow = (show: boolean) => {
+    alarmDetailShow.value = show;
+    if (!show) {
+      alarmDetailData.value = {};
     }
-  }
-  let queryString = '';
-  for (const metricId of Object.keys(metricIdMap)) {
-    queryString += `${queryString.length ? ' OR ' : ''}指标ID : ${metricId}`;
-  }
-  let promqlString = '';
-  for (const promql of promqlSet) {
-    promqlString = promql;
-  }
-  if (queryString.length || promqlString) {
-    openAlarmCenter({
-      from: timeRange[0],
-      to: timeRange[1],
-      timezone: window.timezone,
-      ...(promqlString ? { promql: promqlString } : { queryString }),
-    });
-  }
+  };
+
+  provide(ALARM_DETAIL_SYMBOL, {
+    updateAlarmDetailData,
+    updateAlarmDetailShow,
+  });
+
+  return {
+    updateAlarmDetailData,
+    updateAlarmDetailShow,
+    alarmDetailShow,
+    alarmDetailData,
+  };
+};
+
+export const incidentAlarmDetailInject = () => {
+  return inject<{
+    updateAlarmDetailData?: (data: { bk_biz_id?: number; id?: string }) => void;
+    updateAlarmDetailShow?: (show: boolean) => void;
+  }>(ALARM_DETAIL_SYMBOL, {});
 };

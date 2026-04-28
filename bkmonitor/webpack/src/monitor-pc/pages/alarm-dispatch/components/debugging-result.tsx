@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { batchUpdate, matchDebug } from 'monitor-api/modules/assign';
 import { destroyAssignGroup } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 
 import TimeRange, { type TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
@@ -186,7 +187,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
   }
 
   handleToEvent(id) {
-    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/event-center?queryString=id : ${id}`;
+    const url = getAlarmCenterListUrl({ queryString: `id : ${id}` }, this.$store.getters.bizId);
     window.open(url);
   }
 

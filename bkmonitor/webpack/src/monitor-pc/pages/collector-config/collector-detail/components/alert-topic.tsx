@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { alertStatus, updateAlertUserGroups } from 'monitor-api/modules/datalink';
 import { Debounce } from 'monitor-common/utils';
+import { getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
 
 import AlarmGroup, { type IAlarmGroupList } from './alarm-group';
 import AlertHistogram from './alert-histogram';
@@ -83,15 +84,12 @@ export default class AlertTopic extends tsc<IProps> {
   }
 
   handleToEvent() {
-    // const strategyIds = this.strategies.map(item => item.id);
-    // const isEn = isEnFn();
-    // const strategyKey = isEn ? 'strategy_id' : this.$t('策略ID');
-    // const query = `queryString=${strategyIds.map(id => `${strategyKey} : ${id}`).join(' OR ')}`;
-    const timeRange = 'from=now-30d&to=now';
-    // window.open(`${location.origin}${location.pathname}${location.search}#/event-center?${query}&${timeRange}`);
-    window.open(
-      `${location.origin}${location.pathname}${location.search}#/event-center?queryString=${this.alertQuery}&${timeRange}`
-    );
+    const hash = getAlarmCenterListHash({
+      queryString: this.alertQuery,
+      from: 'now-30d',
+      to: 'now',
+    });
+    window.open(`${location.origin}${location.pathname}${location.search}${hash}`);
   }
 
   @Debounce(1000)

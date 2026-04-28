@@ -103,6 +103,7 @@
 </template>
 
 <script>
+import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import MonitorPieEchart from 'monitor-ui/monitor-echarts/monitor-echarts';
 
 import { gotoPageMixin } from '../../../common/mixins';
@@ -174,25 +175,23 @@ export default {
       params?.data && this.itemClickHandle(params.data.level);
     },
     itemClickHandle(level) {
-      this.$router.push({
-        name: 'event-center',
-        query: {
+      this.$router.push(
+        getAlarmCenterRouteLocation({
           data: JSON.stringify({
             condition: { severity: [level] },
             activeFilterId: 'NOT_SHIELDED_ABNORMAL',
           }),
-        },
-      });
+        })
+      );
     },
     unrecoveredClickHandle() {
-      this.$router.push({
-        name: 'event-center',
-        query: {
+      this.$router.push(
+        getAlarmCenterRouteLocation({
           data: JSON.stringify({
             activeFilterId: 'NOT_SHIELDED_ABNORMAL',
           }),
-        },
-      });
+        })
+      );
     },
   },
 };

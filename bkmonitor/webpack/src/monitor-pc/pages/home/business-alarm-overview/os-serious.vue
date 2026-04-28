@@ -65,6 +65,8 @@
 </template>
 
 <script>
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
+
 import { gotoPageMixin } from '../../../common/mixins';
 
 export default {
@@ -101,18 +103,30 @@ export default {
   },
   methods: {
     gotoEventCenter() {
-      const conditionStr = JSON.stringify({
-        category: ['hosts', 'host_process', 'os', 'host_device'],
-      });
-      const query = `activeFilterId=NOT_SHIELDED_ABNORMAL&from=now-${
-        this.homeDays || 7
-      }d&to=now&=bizIds=${this.homeItemBizId}&condition=${conditionStr}`;
-      const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center?${query}`;
+      const url = getAlarmCenterListUrl(
+        {
+          activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+          from: `now-${this.homeDays || 7}d`,
+          to: 'now',
+          bizIds: this.homeItemBizId,
+          condition: JSON.stringify({
+            category: ['hosts', 'host_process', 'os', 'host_device'],
+          }),
+        },
+        this.homeItemBizId
+      );
       window.open(url);
     },
     gotoDetailHandle(id) {
-      const query = `from=now-${this.homeDays || 7}d&to=now&=bizIds=${this.homeItemBizId}&queryString=id : ${id}`;
-      const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center?${query}`;
+      const url = getAlarmCenterListUrl(
+        {
+          from: `now-${this.homeDays || 7}d`,
+          to: 'now',
+          bizIds: this.homeItemBizId,
+          queryString: `id : ${id}`,
+        },
+        this.homeItemBizId
+      );
       window.open(url);
     },
   },

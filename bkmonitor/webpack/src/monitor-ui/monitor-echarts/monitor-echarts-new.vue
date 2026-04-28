@@ -245,6 +245,7 @@ import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import { toBlob, toPng } from 'html-to-image';
 import { traceListById } from 'monitor-api/modules/apm_trace';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import { type IUnifyQuerySeriesItem, downCsvFile } from 'monitor-pc/pages/view-detail/utils';
 import { debounce } from 'throttle-debounce';
@@ -1194,7 +1195,7 @@ export default class MonitorEcharts extends Vue {
         );
         break;
       case 2:
-        window.open(location.href.replace(location.hash, `#/event-center?metricId=${this.extendMetricData.metric_id}`));
+        openAlarmCenter({ metricId: this.extendMetricData.metric_id });
         break;
     }
   }
