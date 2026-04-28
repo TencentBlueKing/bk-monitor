@@ -34,6 +34,8 @@ from apps.log_commons.serializers import BkIpSerializer
 from apps.log_databus.constants import (
     CLUSTER_NAME_EN_REGEX,
     COLLECTOR_CONFIG_NAME_EN_REGEX,
+    OTLP_LOG_DEFAULT_SORT_FIELDS,
+    OTLP_LOG_DEFAULT_TARGET_FIELDS,
     ArchiveInstanceType,
     CollectorBatchOperationType,
     ContainerCollectorType,
@@ -1594,6 +1596,10 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsS
             attrs["bk_biz_id"] = space_uid_to_bk_biz_id(attrs["space_uid"])
         elif not attrs.get("bk_biz_id", ""):
             raise ValueError("bk_biz_id or space_uid not found")
+
+        if attrs["custom_type"] == CustomTypeEnum.OTLP_LOG.value:
+            attrs["target_fields"] = OTLP_LOG_DEFAULT_TARGET_FIELDS
+            attrs["sort_fields"] = OTLP_LOG_DEFAULT_SORT_FIELDS
 
         return attrs
 
