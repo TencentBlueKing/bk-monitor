@@ -65,6 +65,7 @@ class TestTGPASearchHandler(SimpleTestCase):
         openid,
         file_name,
         processed_at,
+        created_at="",
         process_status="done",
         os_type="Android",
         os_version="14",
@@ -84,6 +85,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                 {"key": "model", "value": model},
             ],
             "xid": xid,
+            "created_at": created_at or processed_at,
             "processed_at": processed_at,
             "process_status": process_status,
         }
@@ -151,9 +153,15 @@ class TestTGPASearchHandler(SimpleTestCase):
         mock_get_task_page.return_value = {
             "total": 3,
             "list": [
-                self._build_task(1, "task-1", "openid_1", "task_1.zip", "2026-04-24 12:00:00"),
-                self._build_task(2, "task-2", "openid_1", "task_2.zip", "2026-04-24 09:00:00"),
-                self._build_task(3, "task-3", "openid_1", "task_3.zip", "2026-04-24 07:00:00"),
+                self._build_task(
+                    1, "task-1", "openid_1", "task_1.zip", "2026-04-24 12:00:00", created_at="2026-04-24 12:00:00"
+                ),
+                self._build_task(
+                    2, "task-2", "openid_1", "task_2.zip", "2026-04-24 09:00:00", created_at="2026-04-24 09:00:00"
+                ),
+                self._build_task(
+                    3, "task-3", "openid_1", "task_3.zip", "2026-04-24 07:00:00", created_at="2026-04-24 07:00:00"
+                ),
             ],
         }
         mock_get_report_list.return_value = {
