@@ -240,9 +240,9 @@ export function getAlarmCenterRouteLocation(query?: ILegacyAlarmCenterQuery): {
 export function getAlarmCenterUrl(opts: { bizId?: number | string; hash?: string } = {}): string {
   const hash = opts.hash ?? ALARM_CENTER_LIST_HASH;
   const bizId = resolveBizId(opts.bizId);
-  if (process.env.NODE_ENV === 'development' && (process.env as any).proxyUrl) {
-    return `${(process.env as any).proxyUrl}?bizId=${bizId}${hash}`;
-  }
+  // if (process.env.NODE_ENV === 'development' && (process.env as any).proxyUrl) {
+  //   return `${(process.env as any).proxyUrl}?bizId=${bizId}${hash}`;
+  // }
   const { origin, pathname } = window.location;
   return `${origin}${pathname}?bizId=${bizId}${hash}`;
 }
@@ -253,6 +253,7 @@ export function openAlarmCenter(
   target = '_blank',
   bizId?: number | string
 ): null | Window {
+  console.info('getAlarmCenterListUrl', getAlarmCenterListUrl(query, bizId));
   return window.open(getAlarmCenterListUrl(query, bizId), target);
 }
 
