@@ -269,7 +269,7 @@ export default () => {
               targetItem = flatIndexSetList.value.find(item => `${item.index_set_id}` === `${cur}`);
             }
 
-            if (targetItem.unique_id) {
+            if (targetItem?.unique_id) {
               // 从 unique_id 中提取 pid（作为备选方案）
               const parts = targetItem.unique_id.split('_');
               const extractedPid = parts.length > 1 ? parts[0] : '#';
@@ -448,9 +448,14 @@ export default () => {
                   route.query.tab === ''
                 ) {
                   if (resp?.data?.fields?.length) {
-                    store.dispatch('requestIndexSetQuery').then(() => {
-                      RetrieveHelper.setSearchingValue(false);
-                    });
+                    store
+                      .dispatch('requestIndexSetQuery')
+                      .catch(err => {
+                        console.error('requestIndexSetQuery failed:', err);
+                      })
+                      .finally(() => {
+                        RetrieveHelper.setSearchingValue(false);
+                      });
                   }
 
                   if (!resp?.data?.fields?.length) {
@@ -505,6 +510,17 @@ export default () => {
           store.getters.isUnionSearch,
         );
 
+      })
+      .catch(err => {
+        // 任何异常（请求失败 / then 内同步代码抛错）都要确保 loading 能退出
+        // 否则 isPreApiLoaded 永远为 false，页面 v-bkloading 会一直转圈
+        console.error('getIndexSetList failed:', err);
+        isPreApiLoaded.value = true;
+        RetrieveHelper.setSearchingValue(false);
+        store.commit('updateIndexSetQueryResult', {
+          is_error: true,
+          exception_msg: err?.message || 'get-index-set-list-failed',
+        });
       });
   };
 

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from apm_web.decorators import user_visit_record
-from apm_web.log.resources import ServiceLogInfoResource, ServiceRelationListResource
+from apm_web.log.resources import LogInfoResource, LogRelationListResource
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
@@ -31,10 +31,10 @@ class LogViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("POST", ServiceLogInfoResource, endpoint="log_relation"),
+        ResourceRoute("POST", LogInfoResource, endpoint="log_relation"),
         ResourceRoute(
             "POST",
-            ServiceRelationListResource,
+            LogRelationListResource,
             endpoint="log_relation_list",
             decorators=[
                 user_visit_record,

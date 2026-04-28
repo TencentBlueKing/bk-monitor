@@ -407,6 +407,7 @@ class LogDataSource(ApmDataSourceConfigBase):
 class TraceDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.TRACE_DATASOURCE
     CONCURRENT_NUMBER = 5
+    GROUP_AGGREGATE_METHODS: ClassVar[tuple[str, ...]] = ("avg", "max", "min", "sum", "count")
     DATA_ID_PARAM = {
         "etl_config": "bk_flat_batch",
         "type_label": DataTypeLabel.LOG,
@@ -917,6 +918,49 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         return aggregated_records
 
+    @classmethod
+    def _get_group_metric_key(cls, agg_method: str) -> str:
+        return "doc_count" if agg_method == "count" else f"{agg_method}_duration"
+
+    @classmethod
+    def _get_missing_group_metric_keys(cls, group_bucket: dict[str, Any]) -> list[str]:
+        missing_keys: list[str] = []
+        for agg_method in cls.GROUP_AGGREGATE_METHODS:
+            metric_key = cls._get_group_metric_key(agg_method)
+            value = group_bucket.get(metric_key)
+            if agg_method == "count":
+                if value is None:
+                    missing_keys.append(metric_key)
+                continue
+
+            if not isinstance(value, dict) or value.get("value") is None:
+                missing_keys.append(metric_key)
+
+        return missing_keys
+
+    def _filter_complete_group_buckets(self, group_buckets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        complete_buckets: list[dict[str, Any]] = []
+        filtered_buckets: list[dict[str, Any]] = []
+        for group_bucket in group_buckets:
+            if self._get_missing_group_metric_keys(group_bucket):
+                # 热窗口（查询结束时间为「当前」）并发多次查询的场景下，存在部分稀疏 group_key 仅能统计到部分指标。
+                # 例如请求发起顺序为 sum -- 1ms --> count，请求间隔期间写入一条新数据，此时 sum 无数据，count=1。
+                # 为避免这种情况，过滤掉统计指标不全的数据。
+                filtered_buckets.append(group_bucket)
+                continue
+            complete_buckets.append(group_bucket)
+
+        if filtered_buckets:
+            sample_bucket = filtered_buckets[0]
+            logger.warning(
+                "[APM][query_span_with_group_keys][filtered_incomplete_group_bucket] "
+                f"bk_biz_id={self.bk_biz_id} app_name={self.app_name} "
+                f"filtered_count={len(filtered_buckets)} sample_key={sample_bucket.get('key', {})} "
+                f"missing_metric_keys={self._get_missing_group_metric_keys(sample_bucket)}",
+            )
+
+        return complete_buckets
+
     def query_span_with_group_keys(
         self,
         start_time: int,
@@ -942,12 +986,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
         q: QueryConfigBuilder = self.get_q(filter_params, category).group_by(*group_by).filter(or_query)
         qs: UnifyQuerySet = self.get_qs(start_time, end_time).limit(self.DEFAULT_LIMIT_MAX_SIZE)
 
-        pool = ThreadPool(5)
+        pool = ThreadPool(len(self.GROUP_AGGREGATE_METHODS))
         field_aggregated_records_list = pool.imap_unordered(
             lambda _agg_method: self._query_field_aggregated_records(
                 q, qs, group_by, OtlpKey.ELAPSED_TIME, _agg_method
             ),
-            ["avg", "max", "min", "sum", "count"],
+            self.GROUP_AGGREGATE_METHODS,
         )
         pool.close()
 
@@ -957,21 +1001,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
             for record in field_aggregated_records:
                 # 将 GroupBy 字段转为 GroupKey，构建 SpanGroup 作为聚合唯一 Key。
                 span_group: dict[str, str] = {
-                    field_group_key_map.get(field, field): field_value
+                    field_group_key_map.get(field) or field: field_value
                     for field, field_value in record["dimensions"].items()
                 }
 
-                if record["agg_method"] == "count":
-                    construct_value = {"doc_count": record["value"]}
-                else:
-                    construct_value = {f"{record['agg_method']}_duration": {"value": record["value"]}}
+                metric_key = self._get_group_metric_key(record["agg_method"])
+                construct_value = {
+                    metric_key: record["value"] if record["agg_method"] == "count" else {"value": record["value"]}
+                }
 
                 # 按 SpanGroup 将不同聚合方法的聚合结果进行合并。
                 span_group_aggregated_result_map.setdefault(frozenset(span_group.items()), {"key": span_group}).update(
                     construct_value
                 )
 
-        return list(span_group_aggregated_result_map.values())
+        return self._filter_complete_group_buckets(list(span_group_aggregated_result_map.values()))
 
     def query_exists_trace_ids(self, trace_ids: list[str], start_time: int, end_time: int) -> list[str]:
         """过滤出存在的 TraceID 列表"""

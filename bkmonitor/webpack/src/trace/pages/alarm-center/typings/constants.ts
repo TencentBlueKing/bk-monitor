@@ -210,6 +210,7 @@ export const NoticeWayEnum = {
   WEIXIN: 'weixin',
   QYWEIXIN: 'qy_weixin',
   WXWORKBOT: 'wxwork-bot',
+  VOICE: 'voice',
 } as const;
 
 export const AlarmNoticeWayIconMap = {
@@ -241,6 +242,12 @@ export const AlarmNoticeWayIconMap = {
     icon: 'icon-mc-email',
     iconColor: '#8E9BB3',
     text: window.i18n.t('邮件'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.VOICE]: {
+    icon: 'icon-yuyin',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('语音'),
     textColor: '#313238',
   },
 };

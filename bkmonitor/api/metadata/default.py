@@ -588,7 +588,9 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
                 required=True,
                 label="搜索字段",
             )
-            values = serializers.ListField(child=serializers.CharField(), required=True, label="搜索值列表", min_length=0)
+            values = serializers.ListField(
+                child=serializers.CharField(), required=True, label="搜索值列表", min_length=0
+            )
             search_type = serializers.ChoiceField(
                 choices=[
                     "regex",
@@ -597,6 +599,7 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
                     "fuzzy_case_sensitive",
                     "exact",
                     "exact_case_sensitive",
+                    "startswith",
                 ],
                 required=False,
                 default="fuzzy",
@@ -660,6 +663,7 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
                     "fuzzy_case_sensitive",
                     "exact",
                     "exact_case_sensitive",
+                    "startswith",
                 ],
                 required=False,
                 default="fuzzy",

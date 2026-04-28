@@ -270,6 +270,7 @@ export default defineComponent({
       }
       scrollLoading.value = false;
       loading.value = false;
+      emit('getOptions', list);
       return list;
     }
     /**

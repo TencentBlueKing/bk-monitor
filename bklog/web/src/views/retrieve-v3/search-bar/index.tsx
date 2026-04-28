@@ -90,16 +90,13 @@ export default defineComponent({
      * 获取字段配置
      */
     const fieldsJsonValue = computed(() => {
-      const fieldConfig = store.state.indexFieldInfo.fields.reduce((acc, field) => {
-        return {
-          ...acc,
-          [field.field_name]: {
-            type: field.field_type,
-            ...(field.query_alias ? { query_alias: field.query_alias } : {}),
-          },
+      const fieldConfig = {};
+      for (const field of store.state.indexFieldInfo.fields) {
+        fieldConfig[field.field_name] = {
+          type: field.field_type,
+          ...(field.query_alias ? { query_alias: field.query_alias } : {}),
         };
-      }, {});
-
+      }
       return JSON.stringify(fieldConfig);
     });
 

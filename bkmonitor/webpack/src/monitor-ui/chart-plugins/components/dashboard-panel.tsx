@@ -41,7 +41,7 @@ import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
-const ALARM_CENTER_DASHBOARD_ID = 'service-default-alarm_center';
+const ALARM_CENTER_DASHBOARD_IDS = ['service-default-alarm_center', 'alarm_center'];
 interface IDashboardPanelEvents {
   onLintToDetail: ITableItem<'link'>;
   onBackToOverview: () => void;
@@ -134,14 +134,14 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
   }
   @Watch('timeRange', { immediate: true })
   handleGlobalTimeRangeChange(val: TimeRangeType) {
-    if (this.dashboardId === ALARM_CENTER_DASHBOARD_ID) {
+    if (ALARM_CENTER_DASHBOARD_IDS.includes(this.dashboardId)) {
       return;
     }
     window.LOCAL_OLD_TIME_RANGE = val;
   }
   @Watch('dashboardId', { immediate: true })
   handleDashboardIdChange() {
-    if (this.dashboardId === ALARM_CENTER_DASHBOARD_ID) {
+    if (ALARM_CENTER_DASHBOARD_IDS.includes(this.dashboardId)) {
       this.handleTimeRangeChange(['now-7d', 'now']);
     } else {
       if (!window.LOCAL_OLD_TIME_RANGE) {

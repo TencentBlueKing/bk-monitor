@@ -145,10 +145,14 @@ def test_diagnose_ts_metric_sync_stages(mocker, create_ts_group) -> None:
         output = json.loads(out.getvalue())
         metric_output = output["metrics"][0]
         assert metric_output["diagnosis"]["stage"] == case["expected_stage"], case["name"]
+        assert metric_output["status"]["direct_metric_cache_exists"] is case["expected_cache"], case["name"]
         assert metric_output["status"]["web_metric_cache_exists"] is case["expected_cache"], case["name"]
         assert output["context"]["source"]["backend"] == "redis", case["name"]
         assert metric_output["status"]["source_recent_discovered"] is (case["name"] != "source_missing"), case["name"]
         assert "redis" in metric_output["details"]["source"], case["name"]
+
+        if case["name"] == "web_cache_missing":
+            assert "页面侧缓存尚未刷新" in metric_output["diagnosis"]["message"]
 
 
 def test_diagnose_ts_metric_sync_bkdata_source(mocker, create_ts_group) -> None:
@@ -193,6 +197,59 @@ def test_diagnose_ts_metric_sync_bkdata_source(mocker, create_ts_group) -> None:
     assert output["metrics"][0]["status"]["source_recent_discovered"] is True
     assert "redis" not in output["metrics"][0]["details"]["source"]
     assert output["context"]["source"] == {"backend": "bkdata", "query_path": "bkdata.query_metric_and_dimension"}
+
+
+def test_diagnose_ts_metric_sync_strategy_cache_hit(mocker, create_ts_group) -> None:
+    """结果表直连缓存缺失但策略侧缓存已命中时，应判定 web_cache 命中。"""
+    metric_name = "timer_scheduled_total"
+    score = 1775808502
+    metrics_key = f"bkmonitor:metrics_{DEFAULT_DATA_ID}"
+    dimensions_key = f"bkmonitor:metric_dimensions_{DEFAULT_DATA_ID}"
+    redis_client = FakeRedisClient(
+        scores={(metrics_key, metric_name): score},
+        dimensions={(dimensions_key, metric_name): b'{"dimensions": {"target": {"values": []}}}'},
+    )
+    mock_metric_info = {
+        "field_name": metric_name,
+        "field_scope": "default",
+        "tag_value_list": {"target": {"last_update_time": score, "values": []}},
+        "last_modify_time": score,
+    }
+
+    mocker.patch(
+        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisClient.from_envs",
+        return_value=redis_client,
+    )
+    mocker.patch("bkmonitor.management.commands.diagnose_ts_metric_sync.RedisTools.get_list", return_value=[])
+    mocker.patch(
+        "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metrics_from_redis",
+        side_effect=[[mock_metric_info], [mock_metric_info]],
+    )
+
+    _create_metadata_records(metric_name)
+    _create_other_source_metric_cache(metric_name)
+
+    out = StringIO()
+    call_command(
+        "diagnose_ts_metric_sync",
+        data_id=DEFAULT_DATA_ID,
+        metrics=metric_name,
+        json=True,
+        stdout=out,
+    )
+
+    output = json.loads(out.getvalue())
+    metric_output = output["metrics"][0]
+    assert metric_output["diagnosis"]["stage"] == "ok"
+    assert "该 TimeSeriesGroup 指标已在策略侧缓存中命中" in metric_output["diagnosis"]["message"]
+    assert metric_output["status"]["direct_metric_cache_exists"] is False
+    assert metric_output["status"]["web_metric_cache_exists"] is True
+    assert metric_output["details"]["web_metric_cache_candidates"]
+    assert metric_output["details"]["strategy_metric_cache_candidates"]
+    assert (
+        metric_output["details"]["strategy_metric_cache_candidates"][0]["data_source_label"]
+        == DataSourceLabel.BK_MONITOR_COLLECTOR
+    )
 
 
 def _create_metadata_records(metric_name: str) -> None:
@@ -246,6 +303,38 @@ def _create_metric_cache(metric_name: str) -> None:
         collect_interval=60,
         category_display="",
         result_table_label_name="",
+        extend_fields={},
+        data_label="",
+    )
+
+
+def _create_other_source_metric_cache(metric_name: str) -> None:
+    """创建其他数据源下的同名指标缓存，用于验证选择器同名冲突提示。"""
+    MetricListCache.objects.create(
+        bk_tenant_id="system",
+        bk_biz_id=DEFAULT_BK_BIZ_ID,
+        result_table_id="",
+        result_table_name="timer_scheduled",
+        metric_field=metric_name,
+        metric_field_name=metric_name,
+        unit="",
+        unit_conversion=1.0,
+        dimensions=[],
+        plugin_type="",
+        related_name="timer",
+        related_id="timer",
+        collect_config="",
+        collect_config_ids=[],
+        result_table_label="kubernetes",
+        data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+        data_type_label=DataTypeLabel.TIME_SERIES,
+        data_target="none_target",
+        default_dimensions=[],
+        default_condition=[],
+        description="",
+        collect_interval=60,
+        category_display="",
+        result_table_label_name="kubernetes",
         extend_fields={},
         data_label="",
     )

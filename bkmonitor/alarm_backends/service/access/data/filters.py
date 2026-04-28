@@ -79,6 +79,10 @@ class HostStatusFilter(base.Filter):
     主机状态过滤器
     """
 
+    def __init__(self):
+        # 每次处理任务（一个 processor 实例生命周期）内，对同一主机只打一次 WARNING，避免海量重复日志
+        self._warned_hosts: set[tuple] = set()
+
     def filter(self, record: DataRecord):
         """
         如果主机运营状态为不监控的几种类型，则直接过滤
@@ -118,4 +122,15 @@ class HostStatusFilter(base.Filter):
             logger.debug(
                 f"Discard the record ({record.raw_data}) because host({host.display_name}) status is {host.bk_state}"
             )
+            warn_key = (host.bk_host_id, "ignore_monitoring")
+            if warn_key not in self._warned_hosts:
+                self._warned_hosts.add(warn_key)
+                logger.warning(
+                    "[HostStatusFilter] host ignore_monitoring=True, is_retains set to False:"
+                    " bk_host_id=%s ip=%s bk_state=%s strategy_ids=%s",
+                    host.bk_host_id,
+                    record.dimensions.get("bk_target_ip") or record.dimensions.get("ip", ""),
+                    host.bk_state,
+                    [item.strategy.id for item in record.items],
+                )
         return False
