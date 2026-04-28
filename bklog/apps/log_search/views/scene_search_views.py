@@ -296,21 +296,12 @@ def _merge_scene_filters_to_addition(data: dict) -> dict:
 
     scene_filter_values uses the same format as addition:
         [{"field": "xxx", "operator": "is", "value": "yyy"}, ...]
-    Also accepts legacy dict format {"field_name": "value"} for backward compat.
     """
     scene_filters = data.pop("scene_filter_values", None)
     if not scene_filters:
         return data
     addition = data.get("addition") or []
-    if isinstance(scene_filters, list):
-        addition.extend(scene_filters)
-    elif isinstance(scene_filters, dict):
-        for field_name, value in scene_filters.items():
-            addition.append({
-                "field": field_name,
-                "operator": "is",
-                "value": value if isinstance(value, list) else [value],
-            })
+    addition.extend(scene_filters)
     data["addition"] = addition
     return data
 
