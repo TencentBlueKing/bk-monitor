@@ -47,8 +47,10 @@ import type {
   ImpactScopeResource,
   ImpactScopeResourceKeyType,
   IssueActionType,
+  IssueActivityItem,
   IssueDetail,
   IssuePriorityType,
+  IssueStatusType,
 } from '../../../typing';
 
 import './issues-basic-info.scss';
@@ -62,9 +64,9 @@ export default defineComponent({
     },
   },
   emits: {
-    assigneeChange: (_users: string[]) => true,
-    priorityChange: (_priority: IssuePriorityType) => true,
-    confirm: (_type: IssueActionType) => true,
+    assigneeChange: (_users: string[], _activities: IssueActivityItem[]) => true,
+    priorityChange: (_priority: IssuePriorityType, _activities: IssueActivityItem[]) => true,
+    confirm: (_type: IssueStatusType, _activities: IssueActivityItem[]) => true,
     impactScopeClick: (_resourceKey: ImpactScopeResourceKeyType, _resource: ImpactScopeResource) => true,
   },
   setup(props, { emit }) {
@@ -163,7 +165,7 @@ export default defineComponent({
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
             priorityPopover.value?.hide();
-            emit('priorityChange', id);
+            emit('priorityChange', id, activeItem.activities);
           }
           Message({
             theme: activeItem ? 'success' : 'error',
@@ -204,7 +206,7 @@ export default defineComponent({
         .then(({ succeeded, failed }) => {
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
-            emit('assigneeChange', userList.value);
+            emit('assigneeChange', userList.value, activeItem.activities);
           }
           Message({
             theme: activeItem ? 'success' : 'error',
@@ -242,7 +244,7 @@ export default defineComponent({
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
             handleDialogChange(false);
-            emit('confirm', actionType.value);
+            emit('confirm', activeItem.status, activeItem.activities);
           }
           Message({
             theme: activeItem ? 'success' : 'error',

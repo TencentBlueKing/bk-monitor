@@ -27,7 +27,7 @@ import { defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { issueDetail } from 'monitor-api/modules/issue';
-import { convertDurationArray, random } from 'monitor-common/utils';
+import { convertDurationArray } from 'monitor-common/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
@@ -41,7 +41,7 @@ import useRequestAbort from '@/hooks/useRequestAbort';
 
 import type { CommonCondition } from '../../typings';
 import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../typing';
-import type { ImpactScopeResourceKeyType, IssuePriorityType } from '../typing/constants';
+import type { ImpactScopeResourceKeyType, IssuePriorityType, IssueStatusType } from '../typing/constants';
 
 import './issues-detail-sideslider.scss';
 
@@ -80,7 +80,6 @@ export default defineComponent({
     const timeRange = shallowRef<(number | string)[]>(['now-1h', 'now']);
     const timezone = shallowRef(getDefaultTimezone());
     const refreshInterval = shallowRef(-1);
-    const refreshImmediate = shallowRef(random(4));
     let timer = null;
     // 筛选条件状态
     const conditions = shallowRef<IWhereItem[]>([]);
@@ -156,7 +155,7 @@ export default defineComponent({
 
     /** 强制刷新 */
     const handleImmediateRefresh = () => {
-      refreshImmediate.value = random(5);
+      timeRange.value = [...timeRange.value];
       getIssueDetailData();
     };
 
@@ -203,8 +202,8 @@ export default defineComponent({
       detail.value = { ...detail.value, priority };
     };
     /** issues 基础信息状态操作 */
-    const handleStatusAction = () => {
-      getIssueDetailData(false);
+    const handleStatusAction = (status: IssueStatusType) => {
+      detail.value = { ...detail.value, status };
     };
 
     /** 影响范围点击 */

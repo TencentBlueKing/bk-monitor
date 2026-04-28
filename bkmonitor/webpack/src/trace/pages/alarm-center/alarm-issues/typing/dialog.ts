@@ -27,6 +27,7 @@
 import type { IssuesBatchActionEnum } from '../constant';
 import type { IssuePriorityType } from './constants';
 import type { IssuesBatchActionType } from './constants';
+import type { IssueActivityItem } from './detail';
 import type { IssueItem } from './table';
 
 /** 指派负责人请求参数 */
@@ -65,6 +66,7 @@ export interface IssueIdentifier {
 
 /** 指派责任人 dialog 组件 确认提交成功的回调事件对象 */
 export interface IssuesAssigneeDialogEvent {
+  activities: IssueActivityItem[];
   assignee: IssueItem['assignee'];
   issue_id: IssueItem['id'];
   status: IssueItem['status'];
@@ -73,6 +75,8 @@ export interface IssuesAssigneeDialogEvent {
 
 /** 添加跟进信息 dialog 组件 确认提交成功的回调事件对象 */
 export interface IssuesFollowUpDialogEvent {
+  /** 该issue的所有活动记录信息 */
+  activities: IssueActivityItem[];
   /** 活动记录 ID */
   activity_id: string;
   /** 活动类型 */
@@ -100,6 +104,7 @@ export type IssuesOperationDialogParams = IssuesPriorityDialogParams;
 
 /** 修改优先级 dialog 组件 确认提交成功的回调事件对象 */
 export interface IssuesPriorityDialogEvent {
+  activities: IssueActivityItem[];
   issue_id: IssueItem['id'];
   priority: IssueItem['priority'];
   update_time: IssueItem['update_time'];
@@ -113,6 +118,8 @@ export interface IssuesPriorityDialogParams {
 
 /** 标记为已解决 dialog 组件 确认提交成功的回调事件对象 */
 export interface IssuesResolveDialogEvent {
+  /** 该issue的所有活动记录信息 */
+  activities: IssueActivityItem[];
   issue_id: IssueItem['id'];
   resolved_time: IssueItem['resolved_time'];
   status: IssueItem['status'];

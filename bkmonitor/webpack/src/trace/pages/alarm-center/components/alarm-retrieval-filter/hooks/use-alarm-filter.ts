@@ -193,17 +193,17 @@ const commonIssuesFieldMap = {
     {
       zhId: '高',
       id: 'P0',
-      name: window.i18n.t('高'),
+      name: window.i18n.t('button-高'),
     },
     {
       zhId: '中',
       id: 'P1',
-      name: window.i18n.t('中'),
+      name: window.i18n.t('button-中'),
     },
     {
       zhId: '低',
       id: 'P2',
-      name: window.i18n.t('低'),
+      name: window.i18n.t('button-低'),
     },
   ],
 };
