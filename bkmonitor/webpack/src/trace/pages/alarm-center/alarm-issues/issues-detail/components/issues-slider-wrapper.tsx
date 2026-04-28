@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, KeepAlive, shallowRef, watchEffect } from 'vue';
+import { type PropType, computed, defineComponent, KeepAlive, onMounted, shallowRef, watch } from 'vue';
 
 import { Loading, Tab } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert_v2';
+import { listIssueActivities } from 'monitor-api/modules/issue';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { AlarmServiceFactory } from 'trace/pages/alarm-center/services/factory';
@@ -50,8 +51,13 @@ import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import useRequestAbort from '@/hooks/useRequestAbort';
 
-import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../../typing';
-import type { ImpactScopeResourceKeyType, IssueDetailTabType, IssuePriorityType } from '../../typing/constants';
+import type { ImpactScopeEvent, ImpactScopeResource, IssueActivityItem, IssueDetail } from '../../typing';
+import type {
+  ImpactScopeResourceKeyType,
+  IssueDetailTabType,
+  IssuePriorityType,
+  IssueStatusType,
+} from '../../typing/constants';
 
 import './issues-slider-wrapper.scss';
 
@@ -70,11 +76,6 @@ export default defineComponent({
     detail: {
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
-    },
-    /** Issue ID */
-    issueId: {
-      type: String,
-      default: '',
     },
     timeRange: {
       type: Array as PropType<TimeRangeType>,
@@ -105,7 +106,7 @@ export default defineComponent({
     /** 优先级变更 */
     priorityChange: (_v: IssuePriorityType) => true,
     /** 状态变更 */
-    statusAction: () => true,
+    statusAction: (_status: IssueStatusType) => true,
     /** 影响范围点击 */
     impactScopeClick: (impactScope: ImpactScopeEvent) => impactScope,
   },
@@ -196,7 +197,7 @@ export default defineComponent({
     const { run, signal } = useRequestAbort<AnalysisTopNDataResponse<AnalysisListItem>>(alertTopN);
     /** 获取维度统计数据 */
     const getDimensionStatsData = async () => {
-      if (!props.detail) return;
+      if (!props.detail.id) return;
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
       const data = await run({
         ...commonParams.value,
@@ -245,9 +246,41 @@ export default defineComponent({
       dimensionStatsData.value = data;
     };
 
-    watchEffect(() => {
+    /** 活动列表 */
+    const activities = shallowRef<IssueActivityItem[]>([]);
+    const activityLoading = shallowRef(false);
+    const { run: getActiveListRun, signal: getActiveListSignal } =
+      useRequestAbort<IssueActivityItem[]>(listIssueActivities);
+    const getActiveList = async () => {
+      if (!props.detail?.id) return;
+      activityLoading.value = true;
+      const data = await getActiveListRun({
+        bk_biz_id: props.detail?.bk_biz_id,
+        issue_id: props.detail?.id,
+      });
+      if (getActiveListSignal?.aborted) return;
+      activities.value = data;
+      activityLoading.value = false;
+    };
+
+    watch(
+      () => props.detail?.id,
+      id => {
+        if (id) {
+          getActiveList();
+        }
+      }
+    );
+
+    watch([() => props.detail?.id, commonParams.value, () => props.timeRange], () => {
       getDimensionStatsData();
       getAllAlertId();
+    });
+
+    onMounted(() => {
+      getDimensionStatsData();
+      getAllAlertId();
+      getActiveList();
     });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
@@ -274,18 +307,25 @@ export default defineComponent({
     };
 
     /** 负责人变更 */
-    const handleAssigneeChange = (users: string[]) => {
+    const handleAssigneeChange = (users: string[], list: IssueActivityItem[]) => {
+      handleActivitiesChange(list);
       emit('assigneeChange', users);
     };
 
     /** 优先级变更 */
-    const handlePriorityChange = (priority: IssuePriorityType) => {
+    const handlePriorityChange = (priority: IssuePriorityType, list: IssueActivityItem[]) => {
+      handleActivitiesChange(list);
       emit('priorityChange', priority);
     };
 
     /** 状态变更 */
-    const handleResolved = () => {
-      emit('statusAction');
+    const handleStatusAction = (status: IssueStatusType, list: IssueActivityItem[]) => {
+      handleActivitiesChange(list);
+      emit('statusAction', status);
+    };
+
+    const handleActivitiesChange = (list: IssueActivityItem[]) => {
+      activities.value = list;
     };
 
     /**
@@ -382,6 +422,8 @@ export default defineComponent({
       dimensionStatsData,
       earliestAlertId,
       latestAlertId,
+      activities,
+      activityLoading,
       handleTabChange,
       getPanelComponent,
       handleConditionChange,
@@ -389,7 +431,8 @@ export default defineComponent({
       handleFilterModeChange,
       handleAssigneeChange,
       handlePriorityChange,
-      handleResolved,
+      handleStatusAction,
+      handleActivitiesChange,
       handleImpactScopeClick,
     };
   },
@@ -435,12 +478,17 @@ export default defineComponent({
           <IssuesBasicInfo
             detail={this.detail}
             onAssigneeChange={this.handleAssigneeChange}
-            onConfirm={this.handleResolved}
+            onConfirm={this.handleStatusAction}
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
-          <IssuesActivity detail={this.detail} />
           <IssuesHistory detail={this.detail} />
+          <IssuesActivity
+            detail={this.detail}
+            list={this.activities}
+            loading={this.activityLoading}
+            onCommentChange={this.handleActivitiesChange}
+          />
         </div>
       </div>
     );

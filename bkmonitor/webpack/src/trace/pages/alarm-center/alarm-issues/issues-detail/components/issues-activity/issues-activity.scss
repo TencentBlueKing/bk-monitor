@@ -1,4 +1,13 @@
 .issues-activity {
+  max-height: 100%;
+  padding-right: 0;
+
+  .basic-card-content {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100% - 24px);
+  }
+
   .comment-input-wrapper {
     .comment-input-collapsed {
       display: flex;
@@ -88,6 +97,16 @@
 
     .title-skeleton {
       height: 32px;
+    }
+  }
+
+  .activity-list {
+    flex: 1;
+    padding-right: 16px;
+    overflow-y: hidden;
+
+    &:hover {
+      overflow-y: auto;
     }
   }
 
@@ -184,6 +203,10 @@
         border-radius: 4px;
       }
     }
+  }
+
+  .comment-input {
+    padding-right: 16px;
   }
 
   // Issue 拆分

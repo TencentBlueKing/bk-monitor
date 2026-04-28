@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
 
 import { Button, Dialog, Input, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
-import { listIssueActivities } from 'monitor-api/modules/issue';
 import { useI18n } from 'vue-i18n';
 
 import MarkdownEditor from '../../../../../../components/markdown-editor/editor';
@@ -40,7 +39,6 @@ import {
 } from '../../../constant';
 import { followUpIssues } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
-import useRequestAbort from '@/hooks/useRequestAbort';
 
 import type { IssueActivityItem, IssueDetail } from '../../../typing';
 
@@ -53,8 +51,19 @@ export default defineComponent({
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    list: {
+      type: Array as PropType<IssueActivityItem[]>,
+      default: () => [],
+    },
   },
-  setup(props) {
+  emits: {
+    commentChange: (_activities: IssueActivityItem[]) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const commonInput = useTemplateRef<InstanceType<typeof Input>>('commonInput');
@@ -71,31 +80,6 @@ export default defineComponent({
     const markdownContent = shallowRef('');
     /** 评论loading */
     const commentLoading = shallowRef(false);
-
-    const loading = shallowRef(false);
-    const activeList = shallowRef<IssueActivityItem[]>([]);
-
-    const { run, signal } = useRequestAbort<IssueActivityItem[]>(listIssueActivities);
-    const getActiveList = async () => {
-      loading.value = true;
-      const data = await run({
-        bk_biz_id: props.detail?.bk_biz_id,
-        issue_id: props.detail?.id,
-      });
-      if (signal?.aborted) return;
-      activeList.value = data;
-      loading.value = false;
-    };
-    watch(
-      () => props.detail,
-      detail => {
-        if (detail) {
-          getActiveList();
-        }
-      }
-    );
-
-    getActiveList();
 
     /** 处理评论输入框聚焦 */
     const handleCommentInputFocus = () => {
@@ -161,23 +145,16 @@ export default defineComponent({
         ],
         content: commentContent.value,
       })
-        .then(({ succeeded }) => {
+        .then(({ succeeded, failed }) => {
           const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
           if (activeItem) {
             commentContent.value = '';
             isCommentInputFocus.value = false;
-            activeList.value = [
-              {
-                ...activeItem,
-                from_value: null,
-                to_value: null,
-              },
-              ...activeList.value,
-            ];
+            emit('commentChange', activeItem.activities);
           }
 
           Message({
-            message: t(activeItem ? '评论发送成功' : '评论发送失败'),
+            message: t(activeItem ? '评论发送成功' : failed[0]?.message),
             theme: activeItem ? 'success' : 'error',
           });
         })
@@ -238,7 +215,8 @@ export default defineComponent({
             )}
           </div>
         ),
-        showLine: activeList.value.length > 0,
+        showLine: props.list.length > 0,
+        extCls: 'comment-input',
       });
     };
 
@@ -595,8 +573,6 @@ export default defineComponent({
     };
 
     return {
-      loading,
-      activeList,
       renderCommentInput,
       renderMarkdownDialog,
       renderActivityContent,
@@ -613,9 +589,7 @@ export default defineComponent({
         <div class='activity-list'>
           {this.loading
             ? this.renderSkeleton()
-            : this.activeList.map((item, index) =>
-                this.renderActivityContent(item, index !== this.activeList.length - 1)
-              )}
+            : this.list.map((item, index) => this.renderActivityContent(item, index !== this.list.length - 1))}
         </div>
         {this.renderMarkdownDialog()}
       </BasicCard>
