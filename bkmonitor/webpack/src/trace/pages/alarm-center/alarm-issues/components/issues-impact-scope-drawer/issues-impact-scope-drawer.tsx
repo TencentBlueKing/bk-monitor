@@ -87,7 +87,8 @@ export default defineComponent({
       const idValue = instance[idField];
       if (idValue === undefined) return;
       const condition: CommonCondition = {
-        key: `impact_scope.${props.resourceKey}.${idField}`,
+        key: `impact_scope.${props.resourceKey}`,
+        // key: `impact_scope.${props.resourceKey}.${idField}`,
         method,
         value: [String(idValue)],
       };
@@ -101,7 +102,9 @@ export default defineComponent({
      */
     const renderOperationIcons = (instance: ImpactScopeInstance) => {
       const idField = IMPACT_SCOPE_ID_FIELD_MAP[props.resourceKey];
-      const conditionKey = idField ? `impact_scope.${props.resourceKey}.${idField}` : '';
+      // 这里只需要两段式
+      const conditionKey = idField ? `impact_scope.${props.resourceKey}` : '';
+      // const conditionKey = idField ? `impact_scope.${props.resourceKey}.${idField}` : '';
       const idValue = instance?.[idField] ?? '""';
 
       return (

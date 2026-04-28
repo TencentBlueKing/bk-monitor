@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, KeepAlive, onMounted, shallow
 import { Loading, Tab } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert_v2';
 import { listIssueActivities } from 'monitor-api/modules/issue';
+import { random } from 'monitor-common/utils';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { AlarmServiceFactory } from 'trace/pages/alarm-center/services/factory';
@@ -109,6 +110,7 @@ export default defineComponent({
     statusAction: (_status: IssueStatusType) => true,
     /** 影响范围点击 */
     impactScopeClick: (impactScope: ImpactScopeEvent) => impactScope,
+    search: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -117,6 +119,9 @@ export default defineComponent({
     const earliestAlertId = shallowRef('');
     const latestAlertIdLoading = shallowRef(false);
     const earliestAlertIdLoading = shallowRef(false);
+    const latestAlertAbortController = shallowRef<AbortController>(null);
+    const earliestAlertAbortController = shallowRef<AbortController>(null);
+    const searchRefreshKey = shallowRef(random(8));
     /** 告警事件数量 */
     const alertCount = shallowRef(0);
     /** 公共参数 */
@@ -151,6 +156,10 @@ export default defineComponent({
       if (!props.detail?.id) {
         return;
       }
+      latestAlertAbortController.value?.abort();
+      earliestAlertAbortController.value?.abort();
+      latestAlertAbortController.value = null;
+      earliestAlertAbortController.value = null;
       latestAlertIdLoading.value = true;
       earliestAlertIdLoading.value = true;
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
@@ -165,17 +174,29 @@ export default defineComponent({
         show_overview: false,
         show_aggs: false,
       };
+      latestAlertAbortController.value = new AbortController();
+      earliestAlertAbortController.value = new AbortController();
       const latestResFn = async () => {
-        return await alarmService.getFilterTableList({
-          ...params,
-          ordering: ['-create_time'],
-        });
+        return await alarmService.getFilterTableList(
+          {
+            ...params,
+            ordering: ['-create_time'],
+          },
+          {
+            signal: latestAlertAbortController.value.signal,
+          }
+        );
       };
       const earliestResFn = async () => {
-        return await alarmService.getFilterTableList({
-          ...params,
-          ordering: ['create_time'],
-        });
+        return await alarmService.getFilterTableList(
+          {
+            ...params,
+            ordering: ['create_time'],
+          },
+          {
+            signal: earliestAlertAbortController.value.signal,
+          }
+        );
       };
       latestResFn()
         .then(res => {
@@ -272,10 +293,14 @@ export default defineComponent({
       }
     );
 
-    watch([() => props.detail?.id, commonParams.value, () => props.timeRange], () => {
-      getDimensionStatsData();
-      getAllAlertId();
-    });
+    watch(
+      [() => props.detail?.id, () => commonParams.value, () => props.timeRange, () => searchRefreshKey.value],
+      () => {
+        getDimensionStatsData();
+        getAllAlertId();
+      },
+      { deep: true }
+    );
 
     onMounted(() => {
       getDimensionStatsData();
@@ -338,6 +363,11 @@ export default defineComponent({
         resourceKey,
         resource,
       });
+    };
+
+    const handleSearch = () => {
+      searchRefreshKey.value = random(8);
+      emit('search');
     };
 
     const loadingRender = () => {
@@ -405,6 +435,7 @@ export default defineComponent({
               detail={props.detail}
               filterMode={props.filterMode}
               queryString={props.queryString}
+              refreshKey={searchRefreshKey.value}
               scrollContainerSelector={`.${leftPanelClass}`}
               timeRange={props.timeRange}
               onShowAlertDetail={handleShowAlertDetail}
@@ -434,6 +465,8 @@ export default defineComponent({
       handleStatusAction,
       handleActivitiesChange,
       handleImpactScopeClick,
+      handleSearch,
+      searchRefreshKey,
     };
   },
   render() {
@@ -449,6 +482,7 @@ export default defineComponent({
             onConditionChange={this.handleConditionChange}
             onFilterModeChange={this.handleFilterModeChange}
             onQueryStringChange={this.handleQueryStringChange}
+            onSearch={this.handleSearch}
           />
           <div class='issues-chart-wrapper'>
             <IssuesTrendChart
