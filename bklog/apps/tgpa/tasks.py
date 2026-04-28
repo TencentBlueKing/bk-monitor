@@ -203,7 +203,7 @@ def sync_and_process_tgpa_tasks(bk_biz_id: int, task_id_list: list):
     # 批量查询任务信息
     task_ids_str = ",".join([str(tid) for tid in task_id_list])
     remote_task_map = {}
-    for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
+    for item in TGPATaskHandler.iter_task_list(bk_biz_id, search=f"task_id={task_ids_str}"):
         item["go_svr_task_id"] = int(item["go_svr_task_id"])
         item["status"] = str(item["status"])
         remote_task_map[item["go_svr_task_id"]] = item
