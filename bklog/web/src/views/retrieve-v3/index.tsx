@@ -26,6 +26,7 @@
 
 import { computed, defineComponent } from 'vue';
 
+import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import { BK_LOG_STORAGE } from '../../store/store.type';
@@ -48,6 +49,7 @@ export default defineComponent({
   name: 'RetrieveV3',
   setup() {
     const store = useStore();
+    const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
 
     const {
@@ -60,6 +62,7 @@ export default defineComponent({
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.getters.isSceneMode);
+    const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
 
     /**
      * AI 助手关闭
@@ -97,13 +100,30 @@ export default defineComponent({
       return <V3Searchbar class={stickyClass} />;
     };
 
+    /**
+     * 渲染场景化检索空状态提示
+     */
+    const renderSceneEmptyTip = () => (
+      <div class='scene-empty-tip'>
+        <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
+        <div class='scene-empty-tip-desc'>
+          {t('请先按照标签过滤日志范围后，再进行日志检索')}
+        </div>
+        <div class='scene-empty-tip-detail'>
+          {t('场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容')}
+        </div>
+      </div>
+    );
+
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
-            <V3SearchResult></V3SearchResult>
+            {isSceneMode.value && isSceneFilterEmpty.value
+              ? renderSceneEmptyTip()
+              : <V3SearchResult></V3SearchResult>}
           </V3Container>,
         ];
       }
