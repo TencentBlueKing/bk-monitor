@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, PropType } from "vue";
-import useLocale from "@/hooks/use-locale";
-import tippy from "tippy.js";
-import RegexMatchDialog from "./regex-match";
-import { copyMessage } from "@/common/util";
-import { type LogPattern } from "@/services/log-clustering";
-import { type ClusteringConfigData } from "../index";
-import "./index.scss";
+import { defineComponent, ref, PropType } from 'vue';
+import useLocale from '@/hooks/use-locale';
+import tippy from 'tippy.js';
+import RegexMatchDialog from './regex-match';
+import { copyMessage } from '@/common/util';
+import { type LogPattern } from '@/services/log-clustering';
+import { type ClusteringConfigData } from '../index';
+import './index.scss';
 
 export default defineComponent({
-  name: "ClusterPopover",
+  name: 'ClusterPopover',
   components: {
     RegexMatchDialog,
   },
@@ -62,7 +62,7 @@ export default defineComponent({
 
     const handleClickPattern = (e: Event) => {
       const target = e.target as HTMLElement;
-      if (target.classList.contains('text__highlight')) {
+      if (target.classList.contains('text__highlight') && props.clusteringConfigData?.placeholder_analysis_supported !== false) {
         e.stopPropagation();
         e.preventDefault();
         // 获取 mark 的 index 值（getAttribute 返回字符串，需要转为数字）
@@ -78,9 +78,9 @@ export default defineComponent({
         appendTo: () => document.body,
         content: eventTippyRef.value,
         arrow: true,
-        trigger: "click",
-        theme: "light",
-        placement: "bottom",
+        trigger: 'click',
+        theme: 'light',
+        placement: 'bottom',
         interactive: true,
         allowHTML: true,
         onShow: handlePopoverShow,
@@ -106,7 +106,7 @@ export default defineComponent({
 
     const handleClick = (isLink = false) => {
       destroyPopover();
-      emit("event-click", isLink);
+      emit('event-click', isLink);
     };
 
     const unregisterOberver = () => {
@@ -142,35 +142,35 @@ export default defineComponent({
     };
 
     const popoverSlot = () => (
-      <div style={{ display: "none" }}>
-        <div ref={eventTippyRef} class="pattern-event-tippy">
-          <div class="event-icons">
-            <div class="event-box">
-              <span class="event-btn" onClick={handleCopy}>
-                <log-icon type="copy" class="icon copy-icon" />
-                <span>{t("复制")}</span>
+      <div style={{ display: 'none' }}>
+        <div ref={eventTippyRef} class='pattern-event-tippy'>
+          <div class='event-icons'>
+            <div class='event-box'>
+              <span class='event-btn' onClick={handleCopy}>
+                <log-icon type='copy' class='icon copy-icon' />
+                <span>{t('复制')}</span>
               </span>
             </div>
-            <div class="event-box" on-click={handleShowRegexDialog}>
-              <span class="event-btn">
-                <log-icon type="zhengze" class="icon" />
-                <span>{t("正则匹配")}</span>
+            <div class='event-box' on-click={handleShowRegexDialog}>
+              <span class='event-btn'>
+                <log-icon type='zhengze' class='icon' />
+                <span>{t('正则匹配')}</span>
               </span>
             </div>
-            <div class="event-box">
-              <span class="event-btn" onClick={() => handleClick(true)}>
-                <log-icon type="audit" class="icon" />
-                <span>{t("查询命中pattern的日志")}</span>
+            <div class='event-box'>
+              <span class='event-btn' onClick={() => handleClick(true)}>
+                <log-icon type='audit' class='icon' />
+                <span>{t('查询命中pattern的日志')}</span>
               </span>
               <div
-                class="new-link"
-                v-bk-tooltips={t("新开标签页")}
+                class='new-link'
+                v-bk-tooltips={t('新开标签页')}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleClick(true);
                 }}
               >
-                <i class="bklog-icon bklog-jump"></i>
+                <i class='bklog-icon bklog-jump'></i>
               </div>
             </div>
           </div>
@@ -179,15 +179,15 @@ export default defineComponent({
     );
 
     return () => (
-      <div class="pattern-line" onClick={handleClickPattern}>
+      <div class='pattern-line' onClick={handleClickPattern}>
         {slots.default?.()}
         {popoverSlot()}
         <RegexMatchDialog
           sampleStr={props.rowData.origin_log}
           indexId={props.indexId}
           value={isShowRuleDialog.value}
-          on-change={(value) => (isShowRuleDialog.value = value)}
-          on-open-cluster-config={() => emit("open-cluster-config")}
+          on-change={value => (isShowRuleDialog.value = value)}
+          on-open-cluster-config={() => emit('open-cluster-config')}
         />
       </div>
     );
