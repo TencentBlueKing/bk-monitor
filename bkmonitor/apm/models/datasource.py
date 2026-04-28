@@ -31,7 +31,7 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
-from apm.models.doris import BkDataDorisProvider
+from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose_profile_data_id_name
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.db import JsonField
@@ -1140,6 +1140,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional["ProfileDataSource"] = None
 
+    bkdata_datalink_config = models.JSONField("BkData链路配置", default=dict)
     profile_bk_biz_id = models.IntegerField(
         "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
         null=True,
@@ -1156,8 +1157,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
+    def is_bkbase_v4_link(self) -> bool:
+        return (self.bkdata_datalink_config.get("version") or 3) == 4
+
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
         profile_bk_biz_id = bk_biz_id
@@ -1178,24 +1181,69 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
-        essentials = BkDataDorisProvider.from_datasource_instance(
-            obj,
-            maintainer=global_user if not apm_maintainers else f"{global_user},{apm_maintainers}",
-            operator=global_user,
-            name_stuffix=bk_biz_id,
-        ).provider()
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
+        maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+
+        # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
+        use_v4 = profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST
+
+        if use_v4:
+            # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
+            # 先生成 DataId 名称并持久化，防止 provider() 中途失败后重试时生成不同随机后缀导致孤儿资源
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                obj,
+                bk_tenant_id=bk_tenant_id,
+                maintainer=maintainer,
+                operator=global_user,
+            )
+            data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
+            obj.bkdata_datalink_config = {
+                "version": 4,
+                "v4_resource_names": {
+                    "data_id_name": data_id_name,
+                    "result_table_name": None,
+                    "doris_binding_name": None,
+                    "databus_name": None,
+                },
+            }
+            obj.save()
+
+            essentials = provider.provider()
+            # provider() 成功后，补全 resource_name
+            resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
+            bkdata_datalink_config = {
+                "version": 4,
+                "v4_resource_names": {
+                    "data_id_name": resource_names["data_id_name"],
+                    "result_table_name": resource_names["result_table_name"],
+                    "doris_binding_name": resource_names["doris_binding_name"],
+                    "databus_name": resource_names["databus_name"],
+                },
+            }
+        else:
+            # V3 命令式链路（原有逻辑）
+            essentials = BkDataDorisProvider.from_datasource_instance(
+                obj,
+                maintainer=maintainer,
+                operator=global_user,
+                name_stuffix=bk_biz_id,
+            ).provider()
+            bkdata_datalink_config = {}
+
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
+        obj.bkdata_datalink_config = bkdata_datalink_config
         obj.save()
 
         return
 
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def create_builtin_source(cls):
         # datasource is enough, no real app created.
+        # 注意：不使用 @atomic，因为 apply_datasource 内部已自行管理事务
+        # （V4 链路含轮询，不可放在长事务内）
         cls.apply_datasource(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME, option=True)
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(
             bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME
@@ -1214,12 +1262,39 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def start(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
+        if instance.is_bkbase_v4_link():
+            # V4 声明式链路：没有启停接口，通过 apply 重新声明资源（等价于启动）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
+            global_user = get_global_user(bk_tenant_id=bk_tenant_id)
+            maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance, bk_tenant_id=bk_tenant_id, maintainer=maintainer, operator=global_user
+            )
+            provider.apply()
+        else:
+            api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if instance:
+        if not instance:
+            return
+        if instance.is_bkbase_v4_link():
+            # V4 声明式链路：没有启停接口，通过 delete 删除资源（等价于停止）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance,
+                bk_tenant_id=bk_tenant_id,
+                maintainer="",
+                operator="",
+            )
+            provider.delete()
+        else:
             api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 

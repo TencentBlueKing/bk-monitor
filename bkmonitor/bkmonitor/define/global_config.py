@@ -571,6 +571,15 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
+        ("APM_PROFILE_V4_BIZ_WHITE_LIST", slz.ListField(label=_("APM Profile V4 链路业务白名单"), default=[])),
+        (
+            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
+        ),
+        (
+            "APM_PROFILE_V4_DATABUS_PREFER_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 Databus 计算集群名称"), default="", allow_blank=True),
+        ),
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
