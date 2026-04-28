@@ -132,6 +132,63 @@ class TestSceneRouteMixin(TestCase):
         s = _SceneRouteMixin(data={"space_uid": SPACE_UID, "table_id_conditions": []})
         self.assertFalse(s.is_valid())
 
+    def test_scene_filter_values_list_format(self):
+        data = {
+            **BASE_POST_BODY,
+            "scene_filter_values": [
+                {"field": "__ext.io_kubernetes_pod_namespace", "operator": "is", "value": "default"},
+            ],
+        }
+        s = _SceneRouteMixin(data=data)
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertIsInstance(s.validated_data["scene_filter_values"], list)
+
+    def test_scene_filter_values_defaults_empty_list(self):
+        s = _SceneRouteMixin(data=BASE_POST_BODY)
+        s.is_valid(raise_exception=True)
+        self.assertEqual(s.validated_data["scene_filter_values"], [])
+
+
+class TestMergeSceneFiltersToAddition(TestCase):
+
+    def test_list_format_merges(self):
+        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+        data = {
+            "addition": [{"field": "status", "operator": "is", "value": "200"}],
+            "scene_filter_values": [
+                {"field": "__ext.container_name", "operator": "is one of", "value": ["app1", "app2"]},
+            ],
+        }
+        result = _merge_scene_filters_to_addition(data)
+        self.assertEqual(len(result["addition"]), 2)
+        self.assertEqual(result["addition"][1]["field"], "__ext.container_name")
+        self.assertEqual(result["addition"][1]["operator"], "is one of")
+        self.assertNotIn("scene_filter_values", result)
+
+    def test_legacy_dict_format_compat(self):
+        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+        data = {
+            "addition": [],
+            "scene_filter_values": {"__ext.io_kubernetes_pod_namespace": "default"},
+        }
+        result = _merge_scene_filters_to_addition(data)
+        self.assertEqual(len(result["addition"]), 1)
+        self.assertEqual(result["addition"][0]["field"], "__ext.io_kubernetes_pod_namespace")
+        self.assertEqual(result["addition"][0]["operator"], "is")
+        self.assertEqual(result["addition"][0]["value"], ["default"])
+
+    def test_empty_scene_filters_noop(self):
+        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+        data = {"addition": [{"field": "a", "operator": "is", "value": "1"}]}
+        result = _merge_scene_filters_to_addition(data)
+        self.assertEqual(len(result["addition"]), 1)
+
+    def test_none_scene_filters_noop(self):
+        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+        data = {"addition": [], "scene_filter_values": None}
+        result = _merge_scene_filters_to_addition(data)
+        self.assertEqual(result["addition"], [])
+
 
 class TestSceneSearchSerializer(TestCase):
 
