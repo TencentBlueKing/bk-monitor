@@ -53,10 +53,14 @@ from apps.log_databus.handlers.collector_scenario.utils import build_es_option_t
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config, is_version_less_than
 from apps.log_search.constants import (
+    DEFAULT_TIME_FIELD,
     FieldBuiltInEnum,
     FieldDataTypeEnum,
     FieldDateFormatEnum,
+    TimeFieldTypeEnum,
+    TimeFieldUnitEnum,
 )
+from apps.log_search.models import Scenario
 from apps.utils import is_match_variate, md5_sum
 from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
@@ -1166,6 +1170,29 @@ class EtlStorage:
         self.add_metadata_path_configs(etl_path_regexp, result_table_config)
 
         params.update(result_table_config)
+
+        # IaaS 兼容：创建/修改 RT 时传入与 router 一致的 index_set 和查询选项
+        params["default_storage_config"]["index_set"] = params["table_id"].replace(".", "_")
+
+        index_set_obj = None
+        if hasattr(instance, "index_set_id") and instance.index_set_id:
+            from apps.log_search.models import LogIndexSet
+
+            index_set_obj = LogIndexSet.objects.filter(index_set_id=instance.index_set_id).first()
+
+        tf_name = (index_set_obj.time_field if index_set_obj and index_set_obj.time_field else DEFAULT_TIME_FIELD)
+        tf_type = (
+            index_set_obj.time_field_type
+            if index_set_obj and index_set_obj.time_field_type
+            else TimeFieldTypeEnum.DATE.value
+        )
+        tf_unit = (
+            index_set_obj.time_field_unit
+            if index_set_obj and index_set_obj.time_field_unit
+            else TimeFieldUnitEnum.MILLISECOND.value
+        )
+        params["option"]["need_add_time"] = instance.collector_scenario_id != Scenario.ES
+        params["option"]["time_field"] = {"name": tf_name, "type": tf_type, "unit": tf_unit}
 
         # 字段mapping优化
         for field in params["field_list"]:

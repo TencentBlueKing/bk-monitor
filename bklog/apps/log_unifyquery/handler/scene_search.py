@@ -50,7 +50,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         self._enhance()
         self.query_string = QueryStringBuilder(self.query_string).query_string
 
-        self._agg_field_name: str = params.get("agg_field", "")
+        self.agg_field: str = params.get("agg_field", "")
         self.request_username = get_request_external_username() or get_request_username()
 
         # sort — use frontend-provided sort_list directly, no DB lookup
@@ -104,15 +104,22 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # ------------------------------------------------------------------
 
     def _init_scene_base_dict(self) -> dict:
+        if self.search_params.get("interval", "auto") == "auto":
+            interval = self._init_default_interval()
+        else:
+            interval = self.search_params["interval"]
+
         conditions = self._transform_scene_additions()
+        field_name = self.agg_field if self.agg_field else self.time_field
         query_dict = {
             "data_source": "bklog",
             "table_id": "",
             "table_id_conditions": self.table_id_conditions,
             "query_string": self.query_string,
-            "time_field": "dtEventTimeStamp",
+            "time_field": self.time_field,
             "conditions": conditions,
-            "field_name": "dtEventTimeStamp",
+            "field_name": field_name,
+            "dimensions": [],
             "function": [],
             "reference_name": "a",
         }
@@ -121,6 +128,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "query_list": [query_dict],
             "metric_merge": "a",
             "order_by": self.order_by,
+            "step": interval,
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
