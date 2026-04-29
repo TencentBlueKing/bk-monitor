@@ -54,7 +54,7 @@ class BaseSharedDataSource(models.Model):
 
     @classmethod
     def allocate(cls) -> dict[str, Any] | None:
-        """从池中选取可用共享源并占用一个槽位
+        """从池中选取可用共享源并占用一个槽位。
 
         :return: 共享链路信息字典，无可用或占位失败时返回 None
         """
@@ -122,13 +122,7 @@ class BaseSharedDataSource(models.Model):
         if check_quota:
             filter_kwargs["usage_count__lt"] = F("quota")
 
-        updated = (
-            type(self)
-            .objects.filter(**filter_kwargs)
-            .update(
-                usage_count=Greatest(F("usage_count") + delta, 0),
-            )
-        )
+        updated = type(self).objects.filter(**filter_kwargs).update(usage_count=Greatest(F("usage_count") + delta, 0))
         return bool(updated)
 
 

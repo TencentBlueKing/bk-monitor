@@ -253,9 +253,7 @@ class ApmApplication(AbstractRecordModel):
         # step2: 异步创建数据源
         from apm.task.tasks import create_application_async
 
-        create_application_async(application.id, es_storage_config, options)
-
-        # create_application_async.apply_async(args=(application.id, es_storage_config, options), countdown=3)
+        create_application_async.apply_async(args=(application.id, es_storage_config, options), countdown=3)
 
         return {
             "bk_biz_id": bk_biz_id,

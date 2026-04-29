@@ -107,7 +107,7 @@ class ApmDataSourceConfigBase(models.Model):
         if not instance:
             return
 
-        # 共享模式：结果表由共享池统一管理，单应用启用仅变更共享池计数
+        # 共享模式：结果表由共享池统一管理，单应用启停仅变更共享池计数
         if instance.is_shared and (shared_ds := instance._get_shared_datasource()):
             if not shared_ds.acquire():
                 raise ValueError(_("当前所分配的共享池已达容量上限，请增加容量后再执行此操作"))
@@ -121,7 +121,7 @@ class ApmDataSourceConfigBase(models.Model):
         if not instance:
             return
 
-        # 共享模式：结果表由共享池统一管理，单应用停用仅变更共享池计数
+        # 共享模式：结果表由共享池统一管理，单应用启停仅变更共享池计数
         if instance.is_shared and (shared_ds := instance._get_shared_datasource()):
             shared_ds.release()
             return
