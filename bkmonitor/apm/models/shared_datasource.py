@@ -54,25 +54,16 @@ class BaseSharedDataSource(models.Model):
 
     @classmethod
     def allocate(cls) -> dict[str, Any] | None:
-        """从池中选取可用共享源并占用一个槽位。
+        """从池中选取可用共享源并占用一个槽位
 
-        使用乐观锁的方式保证并发安全
-
-        :return: 共享链路信息字典，无可用时返回 None。
+        :return: 共享链路信息字典，无可用或占位失败时返回 None
         """
         candidate = cls.objects.filter(is_enabled=True, usage_count__lt=F("quota")).order_by("usage_count").first()
         if not candidate:
             return None
 
-        # 乐观锁：仅当 usage_count 未变时才占用槽位，计数 +1
-        updated = cls.objects.filter(
-            pk=candidate.pk,
-            usage_count=candidate.usage_count,
-        ).update(usage_count=F("usage_count") + 1)
-
-        if not updated:
-            # 若被并发抢占，则重试一次
-            return cls.allocate()
+        if not candidate.acquire():
+            return None
 
         return {**candidate.to_shared_info(), "shared_datasource_id": candidate.pk}
 
@@ -96,22 +87,49 @@ class BaseSharedDataSource(models.Model):
         self.is_enabled = True
         self.save()
 
-    def release(self) -> None:
-        """释放占用，usage_count 减 1。"""
-        self._change_usage_count(-1)
+    def acquire(self) -> bool:
+        """占用槽位，usage_count 加 1
 
-    def acquire(self) -> None:
-        """占用槽位，usage_count 加 1。"""
-        self._change_usage_count(1)
-
-    def _change_usage_count(self, delta: int) -> None:
-        """原子变更 usage_count。
-
-        使用 Greatest 防止 usage_count 变为负数。
+        :return: True 表示占用成功；False 表示容量已满或重试 3 次仍被并发抢占
         """
-        type(self).objects.filter(pk=self.pk).update(
-            usage_count=Greatest(F("usage_count") + delta, 0),
+        for _ in range(3):
+            if self._change_usage_count(1, check_quota=True):
+                return True
+            self.refresh_from_db(fields=["usage_count"])
+        return False
+
+    def release(self) -> bool:
+        """释放占用，usage_count 减 1
+
+        :return: True 表示释放成功；False 表示重试 3 次仍被并发抢占
+        """
+        for _ in range(3):
+            if self._change_usage_count(-1, check_quota=False):
+                return True
+            self.refresh_from_db(fields=["usage_count"])
+        return False
+
+    def _change_usage_count(self, delta: int, check_quota: bool) -> bool:
+        """原子变更 usage_count（乐观锁）
+
+        以 self.usage_count 的内存快照作为乐观锁条件；Greatest 作为防负兜底（双重保护）
+
+        :param delta: 变更量，正数为占用、负数为释放
+        :param check_quota: 是否在 SQL 层校验 usage_count < quota
+        :return: True 表示更新成功；False 表示被并发抢占或已达容量上限
+        """
+        filter_kwargs: dict[str, Any] = {"pk": self.pk, "usage_count": self.usage_count}
+        if check_quota:
+            filter_kwargs["usage_count__lt"] = F("quota")
+
+        updated = (
+            type(self)
+            .objects.filter(**filter_kwargs)
+            .update(
+                usage_count=Greatest(F("usage_count") + delta, 0),
+            )
         )
+        return bool(updated)
 
 
 class SharedTraceDataSource(BaseSharedDataSource):

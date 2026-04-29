@@ -112,6 +112,9 @@ class ApmApplication(AbstractRecordModel):
         self.save(update_fields=["is_enabled", "is_enabled_log"])
 
     def stop_trace(self):
+        # 已经是停用状态时直接返回，避免共享模式下重复 release 导致 usage_count 被多次递减
+        if not self.is_enabled_trace:
+            return
         TraceDataSource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         self.is_enabled_trace = False
         self.save(update_fields=["is_enabled_trace"])
@@ -250,7 +253,9 @@ class ApmApplication(AbstractRecordModel):
         # step2: 异步创建数据源
         from apm.task.tasks import create_application_async
 
-        create_application_async.apply_async(args=(application.id, es_storage_config, options), countdown=3)
+        create_application_async(application.id, es_storage_config, options)
+
+        # create_application_async.apply_async(args=(application.id, es_storage_config, options), countdown=3)
 
         return {
             "bk_biz_id": bk_biz_id,
