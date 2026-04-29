@@ -74,4 +74,5 @@ export default {
   查看数据: 'View Data',
   '跳过，稍后接入': 'Skip, Access Later',
   重新检测上报: 'Recheck and report again',
+  '稍等几分钟后，前往{0}查看相关数据': 'Wait a few minutes, then go to {0} to view related data',
 };
