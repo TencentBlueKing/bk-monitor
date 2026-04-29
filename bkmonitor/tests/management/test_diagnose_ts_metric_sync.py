@@ -87,11 +87,8 @@ def test_diagnose_ts_metric_sync_stages(mocker, create_ts_group) -> None:
         "last_modify_time": score,
     }
 
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisClient.from_envs",
-        return_value=redis_client,
-    )
-    mocker.patch("bkmonitor.management.commands.diagnose_ts_metric_sync.RedisTools.get_list", return_value=[])
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisClient.from_envs", return_value=redis_client)
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisTools.get_list", return_value=[])
 
     test_cases = [
         {
@@ -166,14 +163,8 @@ def test_diagnose_ts_metric_sync_bkdata_source(mocker, create_ts_group) -> None:
         "last_modify_time": score,
     }
 
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisClient.from_envs",
-        return_value=FakeRedisClient(),
-    )
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisTools.get_list",
-        return_value=[DEFAULT_TABLE_ID],
-    )
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisClient.from_envs", return_value=FakeRedisClient())
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisTools.get_list", return_value=[DEFAULT_TABLE_ID])
     mocker.patch(
         "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metrics_from_redis",
         side_effect=[[mock_metric_info], [mock_metric_info]],
@@ -216,11 +207,8 @@ def test_diagnose_ts_metric_sync_strategy_cache_hit(mocker, create_ts_group) -> 
         "last_modify_time": score,
     }
 
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisClient.from_envs",
-        return_value=redis_client,
-    )
-    mocker.patch("bkmonitor.management.commands.diagnose_ts_metric_sync.RedisTools.get_list", return_value=[])
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisClient.from_envs", return_value=redis_client)
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisTools.get_list", return_value=[])
     mocker.patch(
         "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metrics_from_redis",
         side_effect=[[mock_metric_info], [mock_metric_info]],
