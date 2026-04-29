@@ -397,7 +397,7 @@
 
         let downRequestUrl;
         if (this.isScene) {
-          downRequestUrl = '/search/scene/export/';
+          downRequestUrl = '/search/scene/export/sample/';
         } else if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
           downRequestUrl = '/search/index_set/union_search/export/';
