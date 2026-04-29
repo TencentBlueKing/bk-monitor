@@ -832,6 +832,7 @@ class GrokInfo(OperateRecordModel):
     is_builtin = models.BooleanField(_("是否内置"), default=False)
     sample = models.TextField(_("样例"), null=True, blank=True)
     description = models.TextField(_("描述"), null=True, blank=True)
+    sample_result = models.JSONField(_("样例匹配结果"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("Grok规则")
