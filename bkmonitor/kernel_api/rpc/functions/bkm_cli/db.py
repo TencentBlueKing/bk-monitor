@@ -53,59 +53,30 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         model_path="metadata.models.space.space.SpaceResource",
         fields={"space_type_id", "space_id", "resource_type", "resource_id", "dimension_values", "bk_tenant_id"},
     ),
-    "bkmonitor.bkmonitor.models.bcs_cluster.BCSCluster": ModelSpec(
-        model_path="bkmonitor.models.bcs_cluster.BCSCluster",
-        fields={"bk_biz_id", "bcs_cluster_id", "name", "environment", "space_uid", "bk_tenant_id"},
-    ),
     "bkmonitor.models.bcs_cluster.BCSCluster": ModelSpec(
         model_path="bkmonitor.models.bcs_cluster.BCSCluster",
         fields={"bk_biz_id", "bcs_cluster_id", "name", "environment", "space_uid", "bk_tenant_id"},
-    ),
-    "bkmonitor.bkmonitor.models.metric_list_cache.MetricListCache": ModelSpec(
-        model_path="bkmonitor.models.metric_list_cache.MetricListCache",
-        fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "dimensions", "bk_tenant_id"},
     ),
     "bkmonitor.models.metric_list_cache.MetricListCache": ModelSpec(
         model_path="bkmonitor.models.metric_list_cache.MetricListCache",
         fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "dimensions", "bk_tenant_id"},
     ),
-    "bkmonitor.bkmonitor.models.report.ReportItems": ModelSpec(
-        model_path="bkmonitor.models.base.ReportItems",
-        fields={"id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"},
-    ),
     "bkmonitor.models.base.ReportItems": ModelSpec(
         model_path="bkmonitor.models.base.ReportItems",
         fields={"id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"},
-    ),
-    "bkmonitor.bkmonitor.models.report.ReportContents": ModelSpec(
-        model_path="bkmonitor.models.base.ReportContents",
-        fields={"id", "report_id", "content", "create_time", "update_time"},
     ),
     "bkmonitor.models.base.ReportContents": ModelSpec(
         model_path="bkmonitor.models.base.ReportContents",
         fields={"id", "report_id", "content", "create_time", "update_time"},
     ),
-    "bkmonitor.bkmonitor.models.report.ReportStatus": ModelSpec(
-        model_path="bkmonitor.models.base.ReportStatus",
-        fields={"id", "report_id", "send_status", "last_send_time", "create_time", "update_time"},
-    ),
     "bkmonitor.models.base.ReportStatus": ModelSpec(
         model_path="bkmonitor.models.base.ReportStatus",
         fields={"id", "report_id", "send_status", "last_send_time", "create_time", "update_time"},
-    ),
-    "bkmonitor.bkmonitor.models.fta.action.ActionInstance": ModelSpec(
-        model_path="bkmonitor.models.fta.action.ActionInstance",
-        fields={"id", "bk_biz_id", "status", "assignee", "strategy_id", "action_config_id", "create_time"},
-        sensitive_fields={"ex_data", "alerts"},
     ),
     "bkmonitor.models.fta.action.ActionInstance": ModelSpec(
         model_path="bkmonitor.models.fta.action.ActionInstance",
         fields={"id", "bk_biz_id", "status", "assignee", "strategy_id", "action_config_id", "create_time"},
         sensitive_fields={"ex_data", "alerts"},
-    ),
-    "bkmonitor.bkmonitor.models.fta.action.ActionInstanceLog": ModelSpec(
-        model_path="bkmonitor.models.fta.action.ActionInstanceLog",
-        fields={"id", "action_instance_id", "level", "message", "create_time"},
     ),
     "bkmonitor.models.fta.action.ActionInstanceLog": ModelSpec(
         model_path="bkmonitor.models.fta.action.ActionInstanceLog",

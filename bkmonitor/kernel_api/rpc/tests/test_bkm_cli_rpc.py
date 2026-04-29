@@ -16,6 +16,16 @@ from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from kernel_api.rpc.registry import KernelRPCRegistry
 
 
+@pytest.fixture(autouse=True)
+def _cleanup_registries():
+    """每个测试结束后清理测试注册的函数和 op，避免污染全局注册表。"""
+    _original_functions = dict(KernelRPCRegistry._functions)
+    _original_ops = dict(BkmCliOpRegistry._ops)
+    yield
+    KernelRPCRegistry._functions = _original_functions
+    BkmCliOpRegistry._ops = _original_ops
+
+
 def test_bkm_cli_op_call_resolves_op_id_to_whitelisted_registered_function():
     KernelRPCRegistry.register_function(
         func_name="bkm_cli.phase1_echo",

@@ -79,11 +79,20 @@ def _list_by_priority_group(params: dict[str, Any], bk_biz_id: int) -> dict[str,
 
 
 def _build_strategy_config(strategy_model: StrategyModel, *, include_user_groups: bool) -> dict[str, Any]:
-    strategy_obj = Strategy.from_models([strategy_model])[0]
-    strategy_obj.restore()
-    config = strategy_obj.to_dict()
+    try:
+        strategy_obj = Strategy.from_models([strategy_model])[0]
+        strategy_obj.restore()
+        config = strategy_obj.to_dict()
+    except Exception as error:
+        raise CustomException(message=f"策略配置解析失败: strategy_id={strategy_model.id}, 原因: {error}") from error
+
     if include_user_groups:
-        Strategy.fill_user_groups([config])
+        try:
+            Strategy.fill_user_groups([config])
+        except Exception as error:
+            raise CustomException(
+                message=f"策略通知组填充失败: strategy_id={strategy_model.id}, 原因: {error}"
+            ) from error
     return config
 
 
