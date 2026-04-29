@@ -345,6 +345,21 @@ def _diagnose_metric(
         (stage, message, next_action)
         stage 枚举：source | metadata | web_cache | ok
     """
+    # web cache 优先：指标已在策略侧缓存中可见，则无论 source/metadata 状态如何都视为 ok
+    if web_metric_cache_candidates:
+        first_candidate = web_metric_cache_candidates[0]
+        return (
+            "ok",
+            (
+                f"该 TimeSeriesGroup 指标已在策略侧缓存中命中，"
+                f"data_source_label={first_candidate['data_source_label']}，"
+                "当前不属于指标缓存缺失问题。"
+            ),
+            (
+                "若页面已能搜到该指标，可结束排查；"
+                "若页面仍搜不到，请抓 get_metric_list 接口返回，继续核对 data_source_label、result_table_label 与查询条件。"
+            ),
+        )
     if source_backend == "bkdata" and redis_recent_detail is None and redis_history_detail is None:
         return (
             "source",
@@ -392,21 +407,6 @@ def _diagnose_metric(
             "metadata",
             "TimeSeriesMetric 已存在，但 ResultTableField 中没有该字段。",
             "说明 metadata 已发现指标，但结果表字段刷新阶段未落库，需检查 update_metrics 链路。",
-        )
-    # 策略侧缓存命中（非直连缓存），也属于 ok：页面侧通过不同 data_source_label 已能搜到
-    if web_metric_cache_candidates:
-        first_candidate = web_metric_cache_candidates[0]
-        return (
-            "ok",
-            (
-                f"该 TimeSeriesGroup 指标已在策略侧缓存中命中，"
-                f"data_source_label={first_candidate['data_source_label']}，"
-                "当前不属于指标缓存缺失问题。"
-            ),
-            (
-                "若页面已能搜到该指标，可结束排查；"
-                "若页面仍搜不到，请抓 get_metric_list 接口返回，继续核对 data_source_label、result_table_label 与查询条件。"
-            ),
         )
     if not direct_metric_caches:
         return (

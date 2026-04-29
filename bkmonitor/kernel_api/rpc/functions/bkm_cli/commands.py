@@ -58,14 +58,18 @@ def _diagnose_ts_metric_sync(params: dict[str, Any]) -> dict[str, Any]:
     if not metrics:
         raise CustomException(message="params.metrics must contain at least one non-empty metric name")
 
+    import json
+
     try:
-        return diagnose_ts_metric_sync(
+        result = diagnose_ts_metric_sync(
             data_id=int(data_id),
             metrics=metrics,
             window_seconds=params.get("window_seconds"),
             history_seconds=params.get("history_seconds"),
             redis_prefix=str(params.get("redis_prefix") or "BK_MONITOR_TRANSFER"),
         )
+        # normalize datetime / Decimal / lazy objects to JSON-safe primitives
+        return json.loads(json.dumps(result, default=str))
     except ValueError as exc:
         raise CustomException(message=str(exc)) from exc
 
