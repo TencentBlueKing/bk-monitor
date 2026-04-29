@@ -1,3 +1,6 @@
+/* stylelint-disable no-descending-specificity */
+
+/* stylelint-disable scss/no-global-function-names */
 @import '../../../theme';
 
 $levelColor: #ea3636 #ff9c01 #699df4;
@@ -85,7 +88,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
             .custom-label {
               line-height: 20px;
               background-color: #fafbfd;
-              border: 1px solid rgba(151, 155, 165, 0.3);
+              border: 1px solid rgb(151 155 165 / 30%);
             }
           }
         }
@@ -158,6 +161,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
         .promql-content {
           .edit-wrap {
             position: relative;
+
             // height: 160px;
             // min-height: 160px;
             // overflow-y: auto;
@@ -167,7 +171,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
 
           .step-wrap {
             display: block;
-            margin: 10px 0 0 0;
+            margin: 10px 0 0;
 
             .step-input {
               width: 205px;
@@ -246,7 +250,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
         }
 
         .panel-content {
-          padding: 9px 8px 24px 8px;
+          padding: 9px 8px 24px;
 
           .comm-item {
             display: flex;
@@ -321,6 +325,45 @@ $levelColor: #ea3636 #ff9c01 #699df4;
                   color: #8e8e93;
                 }
               }
+
+              .conditions-item {
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 20px;
+                color: #63656e;
+
+                .where-method {
+                  color: #3a84ff;
+                }
+
+                .where-condition {
+                  color: #ff9c01;
+                }
+
+                .where-content {
+                  word-break: break-all;
+                }
+              }
+
+              .level-item {
+                margin-right: 10px;
+
+                .icon-monitor {
+                  margin-right: 4px;
+                }
+
+                .icon-danger {
+                  color: #e71818;
+                }
+
+                .icon-mind-fill {
+                  color: #f59500;
+                }
+
+                .icon-tips {
+                  color: #3a84ff;
+                }
+              }
             }
           }
 
@@ -355,8 +398,8 @@ $levelColor: #ea3636 #ff9c01 #699df4;
                 padding: 0 10px;
                 margin-right: 10px;
                 line-height: 22px;
-                color: #63656e;
                 vertical-align: middle;
+                color: #63656e;
                 background: #f0f1f5;
                 border-radius: 2px;
 
@@ -380,7 +423,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
               border-radius: 3px;
 
               .wrap-bottom {
-                padding: 16px 24px 24px 24px;
+                padding: 16px 24px 24px;
 
                 .template-title {
                   line-height: 20px;
@@ -418,7 +461,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
                     color: #63656e;
 
                     .is-unselected {
-                      /* stylelint-disable-next-line max-nesting-depth*/
+                      /* stylelint-disable-next-line max-nesting-depth */
                       &::before {
                         left: 10px;
                         line-height: 20px;
@@ -447,13 +490,13 @@ $levelColor: #ea3636 #ff9c01 #699df4;
                       color: #3a84ff;
                       cursor: pointer;
 
-                      /* stylelint-disable-next-line max-nesting-depth*/
+                      /* stylelint-disable-next-line max-nesting-depth */
                       .template-btn-text {
                         margin-left: 5px;
                         font-size: 12px;
                       }
 
-                      /* stylelint-disable-next-line max-nesting-depth*/
+                      /* stylelint-disable-next-line max-nesting-depth */
                       &.template-btn-disabled {
                         color: #c4c6cc;
                         cursor: not-allowed;
@@ -495,7 +538,7 @@ $levelColor: #ea3636 #ff9c01 #699df4;
         max-height: calc(100% - 104px - var(--notice-alert-height));
         overflow-y: auto;
         background: #fff;
-        box-shadow: 0px 1px 2px 0px rgba(253, 207, 207, 0.1);
+        box-shadow: 0 1px 2px 0 rgb(253 207 207 / 10%);
 
         &::-webkit-scrollbar {
           display: none;
@@ -507,12 +550,11 @@ $levelColor: #ea3636 #ff9c01 #699df4;
         top: 104px;
         z-index: 9;
         display: flex;
-        align-items: center;
-        justify-items: center;
+        place-items: center center;
         width: 7px;
         height: calc(100% - 104px);
-        border-left: 1px solid rgba(255, 255, 255, 0);
         outline: 0;
+        border-left: 1px solid rgb(255 255 255 / 0%);
 
         &::after {
           position: absolute;

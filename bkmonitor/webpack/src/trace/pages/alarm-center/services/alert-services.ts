@@ -854,7 +854,7 @@ export class AlertService extends AlarmService {
       .then(({ alerts, total }) => {
         // 将后端queryConfig相关数转换组装为前端定义统一的 QueryConfig 格式
         for (const alert of alerts || []) {
-          const sourceQueryConfigs = alert.items[0]?.query_configs || [];
+          const sourceQueryConfigs = alert.items?.[0]?.query_configs || [];
           const queryConfigs: QueryConfig[] = [];
           for (const source of sourceQueryConfigs) {
             const metricDetail = alert?.metric_display?.find?.(metric => metric.id === source.metric_id);
@@ -881,7 +881,9 @@ export class AlertService extends AlarmService {
               )
             );
           }
-          alert.items[0].query_configs = queryConfigs;
+          if (alert.items?.[0]?.query_configs) {
+            alert.items[0].query_configs = queryConfigs;
+          }
         }
         return {
           total,

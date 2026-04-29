@@ -29,6 +29,7 @@ export enum AlarmType {
   ACTION = 'action',
   ALERT = 'alert',
   INCIDENT = 'incident',
+  ISSUES = 'issues',
 }
 
 /** 告警场景中数据所有可操作的事件枚举 */
@@ -78,6 +79,16 @@ export const SpecialSeriesColorMap = {
   },
 };
 
+/** 告警状态 */
+export const AlarmStatusEnum = {
+  /** 未恢复 */
+  ABNORMAL: 'ABNORMAL',
+  /** 已恢复 */
+  RECOVERED: 'RECOVERED',
+  /** 已失效 */
+  CLOSED: 'CLOSED',
+} as const;
+
 export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {
     label: window.i18n.t('告警'),
@@ -88,6 +99,10 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
     value: AlarmType.INCIDENT,
   },
   {
+    label: 'Issues',
+    value: AlarmType.ISSUES,
+  },
+  {
     label: window.i18n.t('处理记录'),
     value: AlarmType.ACTION,
   },
@@ -95,7 +110,7 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
 
 /** 告警状态icon */
 export const AlarmStatusIconMap = {
-  ABNORMAL: {
+  [AlarmStatusEnum.ABNORMAL]: {
     icon: 'icon-mind-fill',
     iconColor: '#F59789',
     name: window.i18n.t('未恢复'),
@@ -110,12 +125,12 @@ export const AlarmStatusIconMap = {
     iconColor: '#F8B64F',
     name: window.i18n.t('未恢复（已屏蔽）'),
   },
-  RECOVERED: {
+  [AlarmStatusEnum.RECOVERED]: {
     icon: 'icon-mc-check-fill',
     iconColor: '#6FC5BF',
     name: window.i18n.t('已恢复'),
   },
-  CLOSED: {
+  [AlarmStatusEnum.CLOSED]: {
     icon: 'icon-mc-close-fill',
     iconColor: '#DCDEE5',
     name: window.i18n.t('已失效'),

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef } from 'vue';
+import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
 
@@ -39,6 +39,7 @@ import { type IncidentTableItem, type TableEmpty, IncidentLevelIconMap, Incident
 import { BaseScenario } from './base-scenario';
 
 import type { IUsePopoverTools } from '../hooks/use-popover';
+import type { TimeRangeType } from '@/components/time-range/utils';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 import type { Router } from 'vue-router';
 /**
@@ -55,7 +56,7 @@ export class IncidentScenario extends BaseScenario {
       [methodName: string]: any;
       hoverPopoverTools: IUsePopoverTools;
       router: Router;
-      timeRange: MaybeRef<string[]>;
+      timeRange: MaybeRef<TimeRangeType>;
     }
   ) {
     super();

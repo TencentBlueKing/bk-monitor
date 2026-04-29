@@ -148,7 +148,11 @@ export default defineComponent({
           }}
         >
           <div class='key-wrap'>
-            <span class='key-name'>{`${this.localValue.key.name} (${this.localValue.key.id})`}</span>
+            <span class='key-name'>
+              {this.localValue.key.id === this.localValue.key.name
+                ? this.localValue.key.id
+                : `${this.localValue.key.name} (${this.localValue.key.id})`}
+            </span>
             <span class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id) }]}>
               {this.localValue.method.name}
             </span>

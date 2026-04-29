@@ -2008,4 +2008,7 @@ export default {
   数据后保留小数位: 'Data decimal places',
   '{0} 位': '{0} decimal places',
   Y轴最小值自适应: 'Y-axis minimum value adaptive',
+  动作: 'Action',
+  Issue聚合: 'Issue aggregation',
+  生效告警级别: 'Effective alarm level',
 };

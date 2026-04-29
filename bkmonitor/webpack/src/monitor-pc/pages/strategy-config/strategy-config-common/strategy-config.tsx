@@ -40,6 +40,7 @@ import {
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
 import { commonPageSizeGet, commonPageSizeSet, copyText, tryURLDecodeParse } from 'monitor-common/utils';
+import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 
@@ -1797,16 +1798,15 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   /* 查看相关告警 */
   handleViewRelatedAlerts() {
-    const { href } = this.$router.resolve({
-      name: 'event-center',
-      query: {
+    const { href } = this.$router.resolve(
+      getAlarmCenterRouteLocation({
         queryString: isEn
           ? `告警名称 : "${this.popover.data.strategyName}"`
           : `alert_name : "${this.popover.data.strategyName}"`,
         from: 'now-7d',
         to: 'now',
-      },
-    });
+      })
+    );
     window.open(href, '_blank');
   }
   handleSelectedDataSource(v) {
@@ -1945,15 +1945,14 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   /* 跳转到事件中心 */
   handleToEventCenter(item, type = 'NOT_SHIELDED_ABNORMAL') {
-    const { href } = this.$router.resolve({
-      name: 'event-center',
-      query: {
+    const { href } = this.$router.resolve(
+      getAlarmCenterRouteLocation({
         queryString: isEn ? `strategy_id : ${item.id}` : `策略ID : ${item.id}`,
         activeFilterId: type,
         from: 'now-30d',
         to: 'now',
-      },
-    });
+      })
+    );
     window.open(href, '_blank');
   }
   /**
