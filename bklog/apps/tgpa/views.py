@@ -118,7 +118,8 @@ class TGPAViewSet(APIViewSet):
         @apiGroup TGPA
         @apiDescription 查询检索页合并任务列表，返回日志捞取任务与用户上报记录的统一结果
         @apiParam {Int} bk_biz_id 业务ID
-        @apiParam {String} target 检索目标（任务ID或openid）
+        @apiParam {Int} [task_id] 后台任务ID（指定时仅查询 task 数据源，不查 report）
+        @apiParam {String} [openid] openid
         @apiParam {Int} start_time 开始时间（毫秒时间戳）
         @apiParam {Int} end_time 结束时间（毫秒时间戳）
         @apiParam {Int} page 页码
@@ -282,7 +283,7 @@ class TGPATaskViewSet(APIViewSet):
         获取任务处理状态
         """
         params = self.params_valid(GetTaskStatusSerializer)
-        return Response(TGPATaskHandler.get_task_status(params["task_id_list"]))
+        return Response(TGPATaskHandler.get_task_status(params["bk_biz_id"], params["task_id_list"]))
 
     @list_route(methods=["POST"], url_path="sync")
     def sync_task(self, request, *args, **kwargs):

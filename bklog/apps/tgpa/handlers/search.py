@@ -103,25 +103,17 @@ class TGPASearchHandler:
             "processed_at": report.get("processed_at", ""),
         }
 
-    @staticmethod
-    def _split_target(target):
-        """
-        将检索目标拆分为 task_id 或 openid
-        """
-        if target is None:
-            return None, None
-        if isinstance(target, int) or (isinstance(target, str) and target.isdigit()):
-            return str(target), None
-        return None, target
-
     @classmethod
     def get_merged_task_list(cls, params):
         """
         从 task 和 report 两个数据源查询任务列表，合并后返回
+        因跨源归并分页，当两数据源时序交错较深时，靠后页的顺序可能不完全准确。
         """
         bk_biz_id = params["bk_biz_id"]
-        target = params.get("target")
-        task_id, openid = cls._split_target(target)
+        task_id = params.get("task_id")
+        openid = params.get("openid")
+        if task_id is not None:
+            task_id = str(task_id)
         start_time = params.get("start_time")
         end_time = params.get("end_time")
         page = params.get("page", 1)
@@ -166,7 +158,7 @@ class TGPASearchHandler:
         results = multi_execute.run()
 
         task_result = results.get("task_result", {"total": 0, "list": []})
-        task_items = [cls._format_task_item(task) for task in task_result["list"]]
+        task_items = [cls._format_task_item(task) for task in task_result.get("list", [])]
 
         report_result = results.get("report_result", {"total": 0, "list": []})
         report_items = [cls._format_report_item(report) for report in report_result.get("list", [])]
@@ -177,7 +169,10 @@ class TGPASearchHandler:
         paged_list = merged_list[start_idx : start_idx + pagesize]
 
         # 限制深度分页
-        total = min(TGPA_MERGED_LIST_MAX_RESULT_WINDOW, task_result["total"] + report_result["total"])
+        total = min(
+            TGPA_MERGED_LIST_MAX_RESULT_WINDOW,
+            task_result.get("total", 0) + report_result.get("total", 0),
+        )
         return {"total": total, "list": paged_list}
 
     @classmethod
@@ -192,7 +187,7 @@ class TGPASearchHandler:
 
         multi_execute = MultiExecuteFunc()
 
-        # task 累计数量（openid 精确匹配，不限时间）
+        # 1. task 累计数量（openid 精确匹配，不限时间）
         multi_execute.append(
             result_key="total_task",
             func=TGPATaskHandler.get_task_page,
@@ -209,9 +204,10 @@ class TGPASearchHandler:
             },
             multi_func_params=True,
         )
-        # 2. report 累计数量（暂定为 30 天内的数量）
-        report_total_start_time = int(arrow.now().shift(days=-TGPA_REPORT_TOTAL_COUNT_DAYS).timestamp() * 1000)
-        report_total_end_time = int(arrow.now().timestamp() * 1000)
+        # 2. report 累计数量（暂定为最近 TGPA_REPORT_TOTAL_COUNT_DAYS 天内的数量）
+        now = arrow.now()
+        report_total_start_time = int(now.shift(days=-TGPA_REPORT_TOTAL_COUNT_DAYS).timestamp() * 1000)
+        report_total_end_time = int(now.timestamp() * 1000)
         multi_execute.append(
             result_key="total_report",
             func=TGPAReportHandler.get_report_count,

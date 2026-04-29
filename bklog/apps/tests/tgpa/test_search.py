@@ -144,7 +144,7 @@ class TestTGPASearchHandler(SimpleTestCase):
     def test_get_merged_task_list_formats_and_paginates(self, mock_get_task_page, mock_get_report_list):
         params = {
             "bk_biz_id": 2,
-            "target": "openid_1",
+            "openid": "openid_1",
             "start_time": 1716000000000,
             "end_time": 1716600000000,
             "page": 2,
@@ -239,7 +239,7 @@ class TestTGPASearchHandler(SimpleTestCase):
     def test_get_merged_task_list_skips_report_for_task_id(self, mock_get_task_page, mock_get_report_list):
         params = {
             "bk_biz_id": 2,
-            "target": "12345",
+            "task_id": 12345,
             "page": 1,
             "pagesize": 10,
         }

@@ -182,8 +182,8 @@ class TGPATaskHandler:
         task_info_map = {item["id"]: item for item in tgpa_tasks}
         for task in task_list:
             task_info = task_info_map.get(task["id"], {})
-            task["processed_at"] = task_info.get("processed_at", None)
-            task["process_status"] = task_info.get("process_status", None)
+            task["processed_at"] = task_info.get("processed_at")
+            task["process_status"] = task_info.get("process_status")
         return task_list
 
     @staticmethod
@@ -286,13 +286,14 @@ class TGPATaskHandler:
         return result["user_list"]
 
     @staticmethod
-    def get_task_status(task_id_list):
+    def get_task_status(bk_biz_id, task_id_list):
         """
         获取任务处理状态
+        :param bk_biz_id: 业务ID
         :param task_id_list: 后台任务ID列表
         :return: 任务处理状态列表
         """
-        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_id_list).values(
+        tgpa_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id, task_id__in=task_id_list).values(
             "task_id", "process_status", "processed_at", "error_message"
         )
         task_info_map = {item["task_id"]: item for item in tgpa_tasks}

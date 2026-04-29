@@ -150,6 +150,7 @@ class GetTaskStatusSerializer(serializers.Serializer):
     获取任务处理状态
     """
 
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     task_id_list = serializers.ListField(label=_("任务ID列表"), child=serializers.IntegerField())
 
 
@@ -178,20 +179,14 @@ class GetMergedTaskListSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    target = serializers.CharField(
-        label=_("检索目标（任务ID或openid）"), required=False, allow_null=True, allow_blank=True
-    )
+    task_id = serializers.IntegerField(label=_("后台任务ID"), required=False, allow_null=True)
+    openid = serializers.CharField(label=_("openid"), required=False, allow_null=True, allow_blank=True)
     start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
     end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
     page = serializers.IntegerField(label=_("页码"), default=1, min_value=1)
     pagesize = serializers.IntegerField(label=_("分页大小"), default=10, min_value=1)
 
     def validate(self, attrs):
-        target = attrs.get("target")
-        if isinstance(target, str):
-            target = target.strip() or None
-            attrs["target"] = target
-
         page = attrs.get("page", 1)
         pagesize = attrs.get("pagesize", 10)
         if page * pagesize > TGPA_MERGED_LIST_MAX_RESULT_WINDOW:
@@ -218,4 +213,4 @@ class SyncTaskSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    task_id_list = serializers.ListField(label=_("后台任务ID列表"), child=serializers.IntegerField())
+    task_id_list = serializers.ListField(label=_("后台任务ID列表"), child=serializers.IntegerField(), max_length=200)

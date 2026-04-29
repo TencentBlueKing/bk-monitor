@@ -238,14 +238,19 @@ def sync_and_process_tgpa_tasks(bk_biz_id: int, task_id_list: list):
             task_obj.save(update_fields=["process_status"])
             process_single_task.delay(remote_info)
         else:
-            if task_obj.process_status in (
-                TGPATaskProcessStatusEnum.INIT.value,
-                TGPATaskProcessStatusEnum.FAILED.value,
-            ):
-                task_obj.task_status = remote_info["status"]
-                task_obj.file_status = remote_info["exe_code"]
-                task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-                task_obj.save(update_fields=["task_status", "file_status", "process_status"])
+            # 使用原子 CAS 更新，避免并发 worker 重复触发处理
+            updated = TGPATask.objects.filter(
+                task_id=task_id,
+                process_status__in=(
+                    TGPATaskProcessStatusEnum.INIT.value,
+                    TGPATaskProcessStatusEnum.FAILED.value,
+                ),
+            ).update(
+                task_status=remote_info["status"],
+                file_status=remote_info["exe_code"],
+                process_status=TGPATaskProcessStatusEnum.PENDING.value,
+            )
+            if updated:
                 process_single_task.delay(remote_info)
 
     logger.info("Finished manually sync tasks, bk_biz_id: %s, task_id_list: %s", bk_biz_id, task_id_list)
