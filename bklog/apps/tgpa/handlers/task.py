@@ -233,7 +233,7 @@ class TGPATaskHandler:
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
         task_list = result.get("results", [])
         if need_format:
-            task_list = TGPATaskHandler.format_task_list(result["results"])
+            task_list = TGPATaskHandler.format_task_list(task_list)
         if add_process_info:
             task_list = TGPATaskHandler.add_task_process_info(task_list)
 

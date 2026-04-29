@@ -62,7 +62,7 @@ class TGPASearchHandler:
         # 合并、去重
         task_openid_list = results.get("task_openid_list", [])
         report_openid_list = results.get("report_openid_list", [])
-        return list(set(task_openid_list) | set(report_openid_list))
+        return sorted(set(task_openid_list) | set(report_openid_list))
 
     @staticmethod
     def _format_task_item(task):
