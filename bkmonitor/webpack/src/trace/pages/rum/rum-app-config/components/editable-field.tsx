@@ -29,6 +29,8 @@ import { Input, Select } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 
+import ExpiredSelect from '../../../../components/expired-select/expired-select';
+
 import './editable-field.scss';
 /**
  * 可编辑字段组件
@@ -59,9 +61,9 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 编辑类型：input / select */
+    /** 编辑类型：input / select / expired */
     type: {
-      type: String as PropType<'input' | 'select'>,
+      type: String as PropType<'expired' | 'input' | 'select'>,
       default: 'input',
     },
     /** 下拉选项（type为select时使用） */
@@ -71,8 +73,18 @@ export default defineComponent({
     },
     /** 编辑处理函数 */
     confirm: {
-      type: Function,
-      default: () => {},
+      type: Function as PropType<
+        (value: number | string) => Promise<{ isPass: boolean; msg: string }> | { isPass: boolean; msg: string }
+      >,
+      default: null,
+    },
+    maxExpired: {
+      type: Number,
+      default: 0,
+    },
+    required: {
+      type: Boolean,
+      default: true,
     },
   },
   setup(props) {
@@ -106,16 +118,18 @@ export default defineComponent({
 
     // 确认修改
     const handleConfirm = async () => {
-      if (!editValue.value && editValue.value !== 0) {
+      if (!editValue.value && editValue.value !== 0 && props.required) {
         errorMsg.value = t('必填项');
         return;
       }
-      loading.value = true;
-      const isPass = await props.confirm(editValue.value);
-      loading.value = false;
-      if (isPass) {
-        isEditing.value = false;
+      if (props.confirm) {
+        loading.value = true;
+        const { isPass, msg } = await props.confirm(editValue.value);
+        loading.value = false;
+        errorMsg.value = msg;
+        if (!isPass) return;
       }
+      isEditing.value = false;
     };
 
     // 取消编辑
@@ -142,7 +156,15 @@ export default defineComponent({
               ))}
             </Select>
           );
-
+        case 'expired':
+          return (
+            <ExpiredSelect
+              class='edit-item expired-select'
+              v-model={editValue.value}
+              max={props.maxExpired}
+              placeholder={t('最大为{n}天', { n: props.maxExpired })}
+            />
+          );
         default:
           return (
             <Input

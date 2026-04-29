@@ -86,20 +86,16 @@
           /* TOKEN 操作按钮 */
           .token-action {
             display: flex;
+            gap: 2px;
             align-items: center;
             margin-left: 8px;
-            font-size: 11px;
+            font-size: 12px;
+            font-weight: 500;
             color: #3a84ff;
             cursor: pointer;
 
-            .icon-mc-copy {
-              margin-right: 2px;
-              font-size: 15px;
-            }
-
-            .icon-zhongzhi1 {
-              margin-right: 4px;
-              font-size: 11px;
+            .icon-monitor {
+              font-size: 14px;
             }
           }
         }
