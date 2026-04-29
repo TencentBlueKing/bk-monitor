@@ -227,8 +227,13 @@ class GrokHandler:
         """
         self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(params["name"], params["pattern"])
-        sample_result = self.debug(params)
-        sample_result.pop("_matched", None)
+
+        if params.get("sample"):
+            custom_patterns = self.get_custom_patterns_map()
+            sample_result = Grok(params["pattern"], custom_patterns).match(params["sample"])
+        else:
+            sample_result = {}
+
         try:
             grok = GrokInfo.objects.create(
                 bk_biz_id=self.bk_biz_id,
@@ -254,9 +259,11 @@ class GrokHandler:
         self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(grok_info.name, params["pattern"])
 
-        sample_result = self.debug(params)
-        sample_result.pop("_matched", None)
-        params["sample_result"] = sample_result
+        if params.get("sample"):
+            custom_patterns = self.get_custom_patterns_map()
+            params["sample_result"] = Grok(params["pattern"], custom_patterns).match(params["sample"])
+        else:
+            params["sample_result"] = {}
 
         update_fields = ["pattern", "sample", "description", "sample_result"]
         for field in update_fields:
