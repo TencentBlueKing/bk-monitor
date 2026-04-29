@@ -180,6 +180,12 @@ class ApplyDatasourceResource(Resource):
         application_id = serializers.IntegerField(label="应用id")
         trace_datasource_option = DatasourceConfigRequestSerializer(required=False, label="trace 存储配置")
         log_datasource_option = DatasourceConfigRequestSerializer(required=False, label="log 存储配置")
+        # 共享数据源类型（不传则表示保持当前数据源现有模式）
+        shared_datasource_types = serializers.ListField(
+            label="共享数据源类型列表",
+            child=serializers.ChoiceField(choices=TelemetryDataType.choices()),
+            required=False,
+        )
 
     def perform_request(self, validated_request_data):
         try:
@@ -187,14 +193,22 @@ class ApplyDatasourceResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        # 先保留存量 is_shared，下一阶段再补齐显式迁移逻辑（增加 shared_datasource_types 参数，根据具体值去执行迁入/迁出逻辑）
-        ds = TraceDataSource.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name).first()
+        # 显式传入 shared_datasource_types 参数（含空列表）：以列表值作为本次 apply 的目标状态
+        if validated_request_data.get("shared_datasource_types") is not None:
+            shared_datasource_types = validated_request_data["shared_datasource_types"]
+        # 未传入：查询各数据源的共享配置后构造共享列表，以保持现状不触发迁移
+        else:
+            shared_datasource_types = []
+            trace_ds = TraceDataSource.objects.filter(
+                bk_biz_id=application.bk_biz_id, app_name=application.app_name
+            ).first()
+            if trace_ds and trace_ds.is_shared:
+                shared_datasource_types.append(ApmDataSourceConfigBase.TRACE_DATASOURCE)
+
         return application.apply_datasource(
             trace_storage_config=validated_request_data.get("trace_datasource_option"),
             log_storage_config=validated_request_data.get("log_datasource_option"),
-            options={
-                "shared_datasource_types": [ApmDataSourceConfigBase.TRACE_DATASOURCE] if ds and ds.is_shared else []
-            },
+            options={"shared_datasource_types": shared_datasource_types},
         )
 
 

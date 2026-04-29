@@ -21,6 +21,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -103,8 +104,14 @@ class ApmDataSourceConfigBase(models.Model):
     @classmethod
     def start(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        # 共享数据源：结果表由共享池统一管理，应用级启停不做任何操作
-        if not instance or instance.is_shared:
+        if not instance:
+            return
+
+        # 共享模式：结果表由共享池统一管理，单应用启停仅变更共享池计数
+        if instance.is_shared and (shared_ds := instance._get_shared_datasource()):
+            if shared_ds.usage_count >= shared_ds.quota:
+                raise ValueError(_("当前所分配的共享池已达容量上限，请增加容量后再执行此操作"))
+            shared_ds.acquire()
             return
 
         instance.switch_result_table(True)
@@ -112,11 +119,21 @@ class ApmDataSourceConfigBase(models.Model):
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        # 共享数据源：结果表由共享池统一管理，应用级启停不做任何操作
-        if not instance or instance.is_shared:
+        if not instance:
+            return
+
+        # 共享模式：结果表由共享池统一管理，单应用启停仅变更共享池计数
+        if instance.is_shared and (shared_ds := instance._get_shared_datasource()):
+            shared_ds.release()
             return
 
         instance.switch_result_table(False)
+
+    def _get_shared_datasource(self) -> Optional["BaseSharedDataSource"]:
+        shared_cls = SHARED_DS_REGISTRY.get(self.DATASOURCE_TYPE)
+        if not shared_cls or not self.shared_datasource_id:
+            return None
+        return shared_cls.objects.filter(pk=self.shared_datasource_id).first()
 
     def switch_result_table(self, is_enable=True):
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
@@ -202,6 +219,15 @@ class ApmDataSourceConfigBase(models.Model):
         self.result_table_id = shared_info["result_table_id"]
         self.shared_datasource_id = shared_info["shared_datasource_id"]
 
+    def reset_link_info(self) -> None:
+        """重置当前数据源链路信息为未创建状态。
+
+        子类可覆写以重置扩展字段
+        """
+        self.bk_data_id = -1
+        self.result_table_id = ""
+        self.shared_datasource_id = None
+
     def to_json(self):
         return {"bk_data_id": self.bk_data_id, "result_table_id": self.result_table_id}
 
@@ -214,6 +240,12 @@ class ApmDataSourceConfigBase(models.Model):
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
 
         is_shared: bool = options.get("is_shared", False)
+
+        # 更新应用时判断模式变化：迁入（独占 → 共享，停用独占资源）或迁出（共享 → 独占，释放共享池占用），随后 reset_link_info，再复用既有创建流程
+        if obj.result_table_id != "" and obj.is_shared != is_shared:
+            cls.stop(bk_biz_id, app_name)
+            obj.reset_link_info()
+
         if is_shared:
             obj._apply_shared_datasource(**options)
         else:
@@ -654,6 +686,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
         self.index_set_id = shared_info.get("index_set_id")
         self.index_set_name = shared_info.get("index_set_name")
 
+    def reset_link_info(self) -> None:
+        """重置当前数据源链路信息为未创建状态（含 Trace 特有字段）。"""
+        super().reset_link_info()
+        self.index_set_id = None
+        self.index_set_name = None
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
@@ -763,13 +801,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 }
             )
 
-        # 全局模式：暂不创建索引集
-        if global_mode:
-            index_set_id, index_set_name = None, None
-        else:
-            index_set_id, index_set_name = self.update_or_create_index_set(
-                option["es_storage_cluster"], self.index_set_id
-            )
+        index_set_id, index_set_name = self.update_or_create_index_set(
+            option["es_storage_cluster"],
+            bk_biz_id=bk_biz_id,
+            table_id=table_id,
+            index_set_id=self.index_set_id,
+        )
 
         if self.result_table_id != "":
             # 更新存储
@@ -788,20 +825,16 @@ class TraceDataSource(ApmDataSourceConfigBase):
         self.index_set_id = index_set_id
         self.save()
 
-    def update_or_create_index_set(self, storage_id, index_set_id=None):
-        table_id = self.table_id
-        if self.result_table_id:
-            table_id = self.result_table_id
-
+    def update_or_create_index_set(self, storage_id, bk_biz_id: int, table_id: str, index_set_id=None):
         params = {
-            "index_set_name": self.index_set,
-            "bk_biz_id": self.bk_biz_id,
+            "index_set_name": f"{table_id.replace('.', '_')}_index_set",
+            "bk_biz_id": bk_biz_id,
             "category_id": "application_check",
             "scenario_id": "es",
             "view_roles": [],
             "indexes": [
                 {
-                    "bk_biz_id": self.bk_biz_id,
+                    "bk_biz_id": bk_biz_id,
                     "result_table_id": f"{table_id.replace('.', '_')}_*",
                 }
             ],

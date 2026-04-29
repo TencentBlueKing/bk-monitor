@@ -12,6 +12,7 @@ from typing import Any
 
 from django.db import models
 from django.db.models import F
+from django.db.models.functions import Greatest
 
 from constants.apm import TelemetryDataType
 
@@ -97,7 +98,20 @@ class BaseSharedDataSource(models.Model):
 
     def release(self) -> None:
         """释放占用，usage_count 减 1。"""
-        type(self).objects.filter(pk=self.pk).update(usage_count=F("usage_count") - 1)
+        self._change_usage_count(-1)
+
+    def acquire(self) -> None:
+        """占用槽位，usage_count 加 1。"""
+        self._change_usage_count(1)
+
+    def _change_usage_count(self, delta: int) -> None:
+        """原子变更 usage_count。
+
+        使用 Greatest 防止 usage_count 变为负数。
+        """
+        type(self).objects.filter(pk=self.pk).update(
+            usage_count=Greatest(F("usage_count") + delta, 0),
+        )
 
 
 class SharedTraceDataSource(BaseSharedDataSource):
