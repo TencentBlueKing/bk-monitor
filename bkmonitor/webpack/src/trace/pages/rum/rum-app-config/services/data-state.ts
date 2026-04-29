@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { fetchMockDataViewConfig, fetchMockStrategyInfo } from '../components/data-state/mock';
+import { fetchMockDataSampling, fetchMockDataViewConfig, fetchMockStrategyInfo } from '../components/data-state/mock';
 
 import type { IRumAppBaseParams, IStrategyData } from '../../typings';
+import type { IDataSamplingItem } from '../components/data-state/mock';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 /**
@@ -86,6 +87,29 @@ export const getDataViewConfig = async (
   const rawData = await fetchMockDataViewConfig({ ...params }, requestConfig).catch((err: unknown) => {
     isAborted = requestErrorMessage(err);
     return [] as IPanelModel[];
+  });
+
+  return { data: rawData, isAborted };
+};
+
+// ===================== 1.15 GetDataSamplingResource =====================
+
+/**
+ * @description 获取数据采样（Service 中间层）
+ * @description 封装底层 API 调用，统一处理数据转换和错误兜底
+ * @param {IRumAppBaseParams} params - 请求参数
+ * @param {{ signal?: AbortSignal }} [requestConfig] - 请求配置
+ * @returns {Promise<{ data: IDataSamplingItem[]; isAborted: boolean }>} 采样数据列表与终止状态
+ */
+export const getDataSampling = async (
+  params: IRumAppBaseParams,
+  requestConfig: { signal?: AbortSignal } = {}
+): Promise<{ data: IDataSamplingItem[]; isAborted: boolean }> => {
+  let isAborted = false;
+
+  const rawData = await fetchMockDataSampling({ ...params }, requestConfig).catch((err: unknown) => {
+    isAborted = requestErrorMessage(err);
+    return [] as IDataSamplingItem[];
   });
 
   return { data: rawData, isAborted };

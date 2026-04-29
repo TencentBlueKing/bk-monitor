@@ -1,0 +1,94 @@
+.data-sampling-table-wrapper {
+  .sampling-table {
+    /* ===================== 多行文本展开收起 ===================== */
+    $line-height: 20px;
+    $lines: 3;
+    $btn-height: 20px;
+    $max-height: $line-height * $lines;
+
+    .text-log-wrap {
+      display: flex;
+      padding: 8px 0;
+      overflow: hidden;
+
+      /* 文本容器：承载截断 + 浮动环绕逻辑 */
+      .text-log {
+        position: relative;
+        max-height: $max-height;
+        overflow: hidden;
+        font-size: 12px;
+        line-height: $line-height;
+        word-break: break-all;
+
+        /* 右浮动占位：撑满容器高度减去按钮高度，把按钮挤到右下角 */
+        &::before {
+          float: right;
+          width: 0;
+          height: 100%;
+          margin-bottom: -$btn-height;
+          content: '';
+        }
+
+        /* 文本不溢出时遮挡按钮 —— "障眼法" */
+        &::after {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          content: '';
+          background: #fff;
+        }
+      }
+
+      /* 文本内容 */
+      .log-text {
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+
+      /* 展开/收起按钮：浮动到文本右下角 */
+      .collapse-btn {
+        position: relative;
+        float: right;
+        clear: both;
+        margin-left: 6px;
+        font-size: 12px;
+        line-height: $btn-height;
+        color: #3a84ff;
+        white-space: nowrap;
+        cursor: pointer;
+
+        /* 省略号：紧贴按钮文字左侧 */
+        &::before {
+          margin-right: 4px;
+          color: #63656e;
+          content: '...';
+        }
+      }
+
+      /* 展开状态 */
+      &.is-expanded {
+        .text-log {
+          max-height: none;
+
+          &::after {
+            visibility: hidden;
+          }
+        }
+
+        .collapse-btn::before {
+          display: none;
+        }
+      }
+    }
+
+    /* ===================== 操作列 ===================== */
+    .operation-cell {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+  }
+}
