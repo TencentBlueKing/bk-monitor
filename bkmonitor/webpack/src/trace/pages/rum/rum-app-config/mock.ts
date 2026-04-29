@@ -36,6 +36,17 @@ export const indicesInfo = request('post', 'rum/meta/application/indices_info/')
 /** 获取存储字段 */
 export const storageField = request('post', 'rum/meta/application/storage_field/');
 
+/** 删除应用 */
+export const deleteApp = request('post', 'rum/meta/application/delete_application/');
+
+/** 开启应用 */
+export const startApp = request('post', 'rum/meta/application/start/');
+
+/** 停止应用 */
+export const stopApp = request('post', 'rum/meta/application/stop/');
+
+/** 保存配置 */
+export const applicationSetup = request('post', 'rum/meta/application/setup/');
 /**
  * ============================================
  * 索引信息相关接口 Mock
@@ -94,7 +105,7 @@ export const INDICES_INFO_MOCK: IIndicesInfo[] = generateIndicesInfoList(10);
  * RUM 应用配置 Mock 数据
  */
 export const RUM_APP_CONFIG_MOCK: IRumAppConfig = {
-  application_id: 1,
+  application_id: 421,
   bk_biz_id: 2,
   app_name: 'web_official',
   app_alias: 'Web 端官网',

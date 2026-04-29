@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, reactive, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { byteConvert } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import CommonTable from '../../../alarm-center/components/alarm-table/components/common-table/common-table';
-import { getIndicesInfoMock, getStorageFieldMock } from '../mock';
+import { applicationSetup, getIndicesInfoMock, getStorageFieldMock, storageInfo } from '../mock';
 import EditableField from './editable-field';
 import EmptyStatus from '@/components/empty-status/empty-status';
 import TextOverflowCopy from '@/components/text-overflow-copy/text-overflow-copy';
@@ -69,7 +69,7 @@ export default defineComponent({
     },
     /** ES集群列表 */
     clusterList: {
-      type: Array as PropType<Array<{ id: number | string; name: string }>>,
+      type: Array,
       default: () => [],
     },
   },
@@ -77,7 +77,7 @@ export default defineComponent({
     const { t } = useI18n();
 
     // 存储配置数据
-    const storageData = reactive<IStorageInfo>({
+    const storageData = shallowRef<IStorageInfo>({
       es_number_of_replicas: 0,
       es_retention: 14,
       es_shards: 3,
@@ -86,10 +86,30 @@ export default defineComponent({
     });
 
     // 集群下拉选项
-    const clusterOptions = [
-      { label: '蓝鲸运维APM公共集群', value: '蓝鲸运维APM公共集群' },
-      { label: 'es集群7', value: 'es集群7' },
-    ];
+    const clusterOptions = computed(() => {
+      return props.clusterList.map(item => ({ label: item.storage_display_name, value: item.storage_cluster_id }));
+    });
+
+    /** 校验各个字段是否符合规范 */
+    const checkField = (value: number | string, field: keyof IStorageInfo) => {
+      const numValue = Number(value);
+      switch (field) {
+        case 'es_number_of_replicas':
+          if (numValue < 0) return { isPass: false, msg: t('最小副本数不能小于0') };
+          if (numValue > 1) return { isPass: false, msg: t('最大副本数不能超过1') };
+          break;
+        case 'es_slice_size':
+          if (numValue < 1) return { isPass: false, msg: t('索引切分大小不能小于1') };
+          break;
+        case 'es_shards':
+          if (numValue < 1) return { isPass: false, msg: t('分片数不能小于1') };
+          if (numValue > 3) return { isPass: false, msg: t('最大分片数不能超过3') };
+          break;
+        default:
+          break;
+      }
+      return { isPass: true, msg: '' };
+    };
 
     /**
      *  处理字段编辑，请求接口更新数据，成功返回true，失败返回false
@@ -97,16 +117,44 @@ export default defineComponent({
      * @param field
      * @returns
      */
-    const handleFieldChange = (value: number | string, field: keyof IStorageInfo) => {
-      console.log(field, value);
-      storageData[field] = value;
-      return true;
+    const handleFieldChange = async (value: number | string, field: keyof IStorageInfo) => {
+      const res = checkField(value, field);
+      if (!res.isPass) return res;
+      const isSuccess = await applicationSetup({
+        bk_biz_id: props.detail?.bk_biz_id,
+        app_name: props.detail?.app_name,
+        span_datasource_config: {
+          ...storageData.value,
+          [field]: value,
+        },
+      })
+        .then(() => {
+          storageData.value = {
+            ...storageData.value,
+            [field]: value,
+          };
+          return true;
+        })
+        .catch(() => false);
+
+      return {
+        isPass: isSuccess,
+        msg: '',
+      };
     };
 
-    const healthMaps = {
-      green: t('健康'),
-      yellow: t('部分异常'),
-      red: t('异常'),
+    /** 获取存储信息 */
+    const getStorageInfo = async () => {
+      storageData.value = await storageInfo({
+        bk_biz_id: props.detail?.bk_biz_id,
+        app_name: props.detail?.app_name,
+      }).catch(() => ({
+        es_number_of_replicas: 0,
+        es_retention: 14,
+        es_shards: 3,
+        es_slice_size: 100,
+        es_storage_cluster: '蓝鲸运维APM公共集群',
+      }));
     };
 
     const rowMatchesCriteria = (row, c): boolean => {
@@ -120,6 +168,12 @@ export default defineComponent({
       return true;
     };
 
+    /** 运行状态枚举 */
+    const healthMaps = {
+      green: t('健康'),
+      yellow: t('部分异常'),
+      red: t('异常'),
+    };
     /** 索引列 */
     const indicesInfoColumns = shallowRef<BaseTableColumn[]>([
       {
@@ -306,6 +360,7 @@ export default defineComponent({
     onMounted(() => {
       getIndicesInfo();
       getFieldInfo();
+      getStorageInfo();
     });
 
     return {
@@ -351,7 +406,9 @@ export default defineComponent({
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_retention')}
                   label={this.$t('过期时间')}
+                  maxExpired={3}
                   suffix={this.$t('天')}
+                  type='expired'
                   value={this.storageData.es_retention}
                 />
               </div>

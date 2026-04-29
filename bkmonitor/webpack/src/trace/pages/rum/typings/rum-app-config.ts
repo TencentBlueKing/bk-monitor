@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import type { RUM_APP_CONFIG_TAB_ENUM } from '../constants';
+import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
+
+/** 应用操作类型 */
+export type ApplicationOperationType = 'delete' | 'start' | 'stop';
+
 // TODO 等待后端确认这些子类型具体的值
 
 /**
@@ -114,6 +120,16 @@ export interface IRumAppConfig {
   update_time: string;
   /** 更新人 */
   update_user: string;
+}
+
+export interface IRumApplicationSetupRequestParams {
+  app_alias?: string;
+  app_name: string;
+  application_apdex_config?: IApdexConfig;
+  application_qps_config?: number;
+  bk_biz_id: number;
+  description?: string;
+  span_datasource_config?: IStorageInfo;
 }
 
 /**

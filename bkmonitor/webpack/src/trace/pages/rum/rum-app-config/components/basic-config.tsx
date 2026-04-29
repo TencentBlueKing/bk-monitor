@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
+import { computed } from 'vue';
 
 import { Button, Form, Input } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
@@ -72,12 +73,14 @@ export default defineComponent({
     };
 
     const historyShow = shallowRef(false);
-    const historyList = shallowRef([
-      { label: t('创建人'), value: '--' },
-      { label: t('创建时间'), value: '--' },
-      { label: t('最近更新人'), value: '--' },
-      { label: t('修改时间'), value: '--' },
-    ]);
+    const historyList = computed(() => {
+      return [
+        { label: t('创建人'), value: props.detail?.create_user },
+        { label: t('创建时间'), value: props.detail?.create_time },
+        { label: t('最近更新人'), value: props.detail?.update_user },
+        { label: t('修改时间'), value: props.detail?.update_time },
+      ];
+    });
 
     const handleEditClick = (v: boolean) => {
       if (v) {

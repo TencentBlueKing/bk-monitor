@@ -38,7 +38,7 @@ import StorageStatus from './components/storage-status';
 import { getRumAppConfigMock } from './mock';
 import NavBar from '@/components/nav-bar/nav-bar';
 
-import type { IRumAppConfig, RumAppConfigTabType } from '../typings';
+import type { ApplicationOperationType, IRumAppConfig, RumAppConfigTabType } from '../typings';
 
 import './rum-app-config.scss';
 
@@ -85,6 +85,19 @@ export default defineComponent({
       clusterList.value = await listEsClusterGroups().catch(() => []);
     };
 
+    const handleApplicationOperation = (type: ApplicationOperationType) => {
+      console.log(type);
+      // 删除返回列表页
+      if (type === 'delete') {
+        router.replace({
+          name: 'rum',
+        });
+      } else {
+        // 修改应用配置禁用状态即可
+        appInfo.value = { ...appInfo.value, is_enabled: type === 'start' };
+      }
+    };
+
     onMounted(() => {
       getRumAppConfig();
       getEsCluster();
@@ -113,6 +126,7 @@ export default defineComponent({
       handleCurrentPanelChange,
       handleBackPage,
       getPanelComponent,
+      handleApplicationOperation,
     };
   },
 
@@ -127,7 +141,10 @@ export default defineComponent({
         />
         {/* 应用基本信息头部区域 */}
         <div class='rum-app-config-page__header'>
-          <AppBasicInfo data={this.appInfo} />
+          <AppBasicInfo
+            data={this.appInfo}
+            onApplicationOperation={this.handleApplicationOperation}
+          />
         </div>
 
         <div class='rum-app-config-page__body'>

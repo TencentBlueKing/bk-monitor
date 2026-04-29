@@ -25,11 +25,15 @@
  */
 import { type PropType, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
 
-import { $bkPopover, Button, Form, Input, Popover } from 'bkui-vue';
+import { $bkPopover, Button, Form, Input, Message, Popover } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
+import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
+import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
-import type { IRumAppConfig } from '../../typings/rum-app-config';
+import { deleteApp, startApp, stopApp } from '../mock';
+
+import type { ApplicationOperationType, IRumAppConfig } from '../../typings/rum-app-config';
 
 import './app-basic-info.scss';
 
@@ -47,7 +51,11 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  setup(props) {
+  emits: {
+    applicationOperation: (_type: ApplicationOperationType) => true,
+    applicationInfoChange: (_params: { app_alias: string; description: string }) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     /** 编辑弹窗引用 */
@@ -55,7 +63,12 @@ export default defineComponent({
     /** 编辑表单引用 */
     const editDescFormRef = useTemplateRef<InstanceType<typeof Form>>('editDescForm');
 
-    const token = shallowRef('*******************');
+    /** 应用 TOKEN */
+    const token = shallowRef('');
+    /** 是否显示 TOKEN */
+    const isShowToken = shallowRef(false);
+    /** TOKEN 加载中 */
+    const tokenLoading = shallowRef(false);
 
     /** 表单校验规则 */
     const rules = {
@@ -81,8 +94,8 @@ export default defineComponent({
      * 处理保存操作
      * 触发 save 事件并关闭弹窗
      */
-    const handleSave = () => {
-      const isValid = editDescFormRef.value.validate();
+    const handleSave = async () => {
+      const isValid = await editDescFormRef.value.validate().catch(() => false);
       if (!isValid) return;
       saveLoading.value = true;
       saveLoading.value = false;
@@ -98,15 +111,51 @@ export default defineComponent({
     /**
      * 处理复制 TOKEN
      */
-    const handleCopyToken = () => {};
+    const handleCopyToken = () => {
+      let isError = false;
+      copyText(token.value, msg => {
+        Message({
+          message: msg,
+          theme: 'error',
+        });
+        isError = true;
+        return;
+      });
+      if (isError) return;
+      Message({
+        message: t('复制成功'),
+        theme: 'success',
+      });
+    };
 
     /**
-     * 处理重置 TOKEN
+     * 处理查看 TOKEN
      */
-    const handleResetToken = () => {};
+    const handleViewToken = async () => {
+      if (!isShowToken.value && !token.value) {
+        tokenLoading.value = true;
+        token.value = await queryBkDataToken(props.data?.application_id).catch(() => '');
+        tokenLoading.value = false;
+      }
+      isShowToken.value = !isShowToken.value;
+    };
 
+    const appOperationMenuShow = shallowRef(false);
+    const popoverLoading = shallowRef(false);
     const popoverInstance = shallowRef(null);
-    const handleOperationApp = (e: Event, type: 'delete' | 'start' | 'stop') => {
+    const documentClickFn = () => {
+      appOperationMenuShow.value = false;
+    };
+    const handleAppOperationMenuShow = (e: Event) => {
+      e.stopPropagation();
+      appOperationMenuShow.value = true;
+      document.addEventListener('click', documentClickFn);
+    };
+    const handleAppOperationMenuHidden = () => {
+      appOperationMenuShow.value = false;
+      document.removeEventListener('click', documentClickFn);
+    };
+    const handleOperationApp = (e: Event, type: ApplicationOperationType) => {
       const operationMap = {
         delete: {
           title: t('确认删除该应用？'),
@@ -139,11 +188,10 @@ export default defineComponent({
 
             <div class='btns'>
               <Button
+                loading={popoverLoading.value}
                 size='small'
                 theme='primary'
-                onClick={() => {
-                  popoverInstance.value?.hide();
-                }}
+                onClick={() => handleApplicationOperation(type)}
               >
                 {operationMap[type].confirmText}
               </Button>
@@ -169,17 +217,41 @@ export default defineComponent({
         popoverInstance.value?.vm?.show();
       }, 100);
     };
+    const handleApplicationOperation = async (type: ApplicationOperationType) => {
+      const appOperationApi = {
+        stop: stopApp,
+        delete: deleteApp,
+        start: startApp,
+      };
+      popoverLoading.value = true;
+      appOperationApi[type]?.({
+        bk_biz_id: props.data?.bk_biz_id,
+        app_name: props.data?.app_name,
+      })
+        .then(() => {
+          popoverInstance.value?.hide();
+          emit('applicationOperation', type);
+        })
+        .finally(() => {
+          popoverLoading.value = false;
+        });
+    };
 
     return {
       token,
+      isShowToken,
+      tokenLoading,
       model,
       rules,
       saveLoading,
+      appOperationMenuShow,
+      handleAppOperationMenuShow,
+      handleAppOperationMenuHidden,
       handleEditPopoverShow,
       handleSave,
       handleCancel,
       handleCopyToken,
-      handleResetToken,
+      handleViewToken,
       handleOperationApp,
     };
   },
@@ -194,24 +266,33 @@ export default defineComponent({
           <div class='app-content'>
             <div class='content-row'>
               <span class='app-domain'>{this.data.app_name}</span>
-              <span class='app-status'>{this.data.data_status}</span>
+              <span class='app-status'>{this.data.is_enabled ? this.$t('启用中') : this.$t('已停用')}</span>
               <div class='app-token'>
                 <span class='token-label'>TOKEN：</span>
-                <span class='token-value'>{this.token}</span>
+                {this.tokenLoading ? (
+                  <div
+                    style='height: 12px; width: 65px'
+                    class='skeleton-element'
+                  />
+                ) : (
+                  <span class='token-value'>{this.isShowToken ? this.token : '●●●●●●●●●●'}</span>
+                )}
                 <span
                   class='token-action'
-                  onClick={this.handleCopyToken}
+                  onClick={this.handleViewToken}
                 >
-                  <i class='icon-monitor icon-mc-copy' />
-                  <span>{this.$t('复制')}</span>
+                  <i class={['icon-monitor', this.isShowToken ? 'icon-mc-invisible' : 'icon-mc-visual']} />
+                  <span>{this.isShowToken ? this.$t('隐藏') : this.$t('查看')}</span>
                 </span>
-                <span
-                  class='token-action'
-                  onClick={this.handleResetToken}
-                >
-                  <i class='icon-monitor icon-zhongzhi1' />
-                  <span>{this.$t('重置')}</span>
-                </span>
+                {this.isShowToken && (
+                  <span
+                    class='token-action'
+                    onClick={this.handleCopyToken}
+                  >
+                    <i class='icon-monitor icon-mc-copy' />
+                    <span>{this.$t('复制')}</span>
+                  </span>
+                )}
               </div>
             </div>
             <div class='content-row'>
@@ -296,10 +377,10 @@ export default defineComponent({
                   <div
                     class='more-menu-item'
                     onClick={e => {
-                      this.handleOperationApp(e, 'stop');
+                      this.handleOperationApp(e, this.data?.is_enabled ? 'stop' : 'delete');
                     }}
                   >
-                    {this.$t('停用')}
+                    {this.data?.is_enabled ? this.$t('停用') : this.$t('启用')}
                   </div>
                   <div
                     class='more-menu-item'
@@ -312,11 +393,16 @@ export default defineComponent({
                 </div>
               ),
             }}
+            isShow={this.appOperationMenuShow}
             placement='bottom'
             theme='light'
-            trigger='click'
+            trigger='manual'
+            onAfterHidden={this.handleAppOperationMenuHidden}
           >
-            <span class='operation-btn'>
+            <span
+              class='operation-btn'
+              onClick={this.handleAppOperationMenuShow}
+            >
               <i class='icon-monitor icon-mc-more' />
               <span>{this.$t('更多')}</span>
             </span>
