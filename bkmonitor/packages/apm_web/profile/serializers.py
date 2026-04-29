@@ -8,6 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
+from django.http import QueryDict
 from rest_framework import serializers
 
 from apm_web.models import ProfileUploadRecord
@@ -76,6 +79,26 @@ class ProfileQuerySerializer(QueryBaseSerializer):
 class ProfileQueryExportSerializer(ProfileQuerySerializer):
     # export
     export_format = serializers.CharField(label="数据导出格式")
+
+    def to_internal_value(self, data: dict):
+        # 导出接口通过 GET 下载文件，前端会将 dict 参数 JSON 序列化到 query string。
+        # DRF DictField 默认只解析 filter_labels[key] 形式，这里兼容 filter_labels={"k":"v"}。
+        if isinstance(data, QueryDict):
+            data = data.dict()
+        else:
+            data = data.copy()
+
+        for field in ("filter_labels", "diff_filter_labels"):
+            value = data.get(field)
+            if not isinstance(value, str):
+                continue
+
+            try:
+                data[field] = json.loads(value) if value else {}
+            except json.JSONDecodeError:
+                raise serializers.ValidationError({field: "请输入合法的 JSON 对象"})
+
+        return super().to_internal_value(data)
 
 
 class ProfileQueryLabelsSerializer(QueryBaseSerializer):
