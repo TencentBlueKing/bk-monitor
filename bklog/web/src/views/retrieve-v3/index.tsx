@@ -63,6 +63,9 @@ export default defineComponent({
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.getters.isSceneMode);
     const isFirstSearch = computed(() => store.state.indexSetQueryResult.search_count < 1);
+    const isSceneLoading = computed(
+      () => store.state.indexFieldInfo.is_loading || store.state.indexSetQueryResult.is_loading,
+    );
 
     /**
      * AI 助手关闭
@@ -104,7 +107,7 @@ export default defineComponent({
      * 渲染场景化检索空状态提示
      */
     const renderSceneEmptyTip = () => (
-      <div class='scene-empty-tip'>
+      <div class='scene-empty-tip' v-bkloading={{ isLoading: isSceneLoading.value }}>
         <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
         <div class='scene-empty-tip-desc'>
           {t('请先按照标签过滤日志范围后，再进行日志检索')}

@@ -163,7 +163,7 @@ watch(
   () => isSceneMode.value,
   (isSceneMode) => {
     if (isSceneMode && normalizedValue.value !== 'origin') {
-      handleActive('origin');
+      emit('input', 'origin', false);
     }
   },
 );

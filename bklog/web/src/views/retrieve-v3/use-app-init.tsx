@@ -45,7 +45,6 @@ export default () => {
   const route = useRoute();
   const searchBarHeight = ref(0);
   const isPreApiLoaded = ref(false);
-
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
@@ -447,7 +446,18 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          resolveAdditionKeyword().then(() => {
+          resolveAdditionKeyword().then(async () => {
+            if (isSceneMode.value) {
+              // 场景化检索：请求场景配置，从URL获取筛选参数
+              await requestSceneConfigs();
+              if (store.getters.isSceneFilterEmpty) {
+                return;
+              }
+            } else {
+              // 非场景化检索：请求场景配置但不阻塞后续流程
+              requestSceneConfigs();
+            }
+
             store
               .dispatch('requestIndexSetFieldInfo')
               .then(resp => {
@@ -555,34 +565,31 @@ export default () => {
   /**
    * 请求场景配置数据，接口返回后从 URL query 中回填场景筛选值
    */
-  const requestSceneConfigs = () => {
-    store.dispatch('retrieve/requestSceneConfigs').then(() => {
-      const configs = store.getters['retrieve/sceneConfigList'];
-      const sceneActive = store.state.indexItem.scene_active;
-      if (!sceneActive || !configs.length) return;
+  const requestSceneConfigs = async () => {
+    await store.dispatch('retrieve/requestSceneConfigs');
+    const configs = store.getters['retrieve/sceneConfigList'];
+    const sceneActive = store.state.indexItem.scene_active;
+    if (!sceneActive || !configs.length) return;
 
-      const sceneFieldKeys = getSceneFieldKeys(configs, sceneActive);
-      if (!sceneFieldKeys.length) return;
+    const sceneFieldKeys = getSceneFieldKeys(configs, sceneActive);
+    if (!sceneFieldKeys.length) return;
 
-      const result: Record<string, any> = {};
-      for (const fieldKey of sceneFieldKeys) {
-        const val = route.query[fieldKey];
-        if (val !== undefined && val !== null && val !== '') {
-          result[fieldKey] = val;
-        }
+    const result: Record<string, any> = {};
+    for (const fieldKey of sceneFieldKeys) {
+      const val = route.query[fieldKey];
+      if (val !== undefined && val !== null && val !== '') {
+        result[fieldKey] = val;
       }
+    }
 
-      if (Object.keys(result).length) {
-        store.commit('updateIndexItem', { scene_filter_values: result });
-      }
-    });
+    if (Object.keys(result).length) {
+      store.commit('updateIndexItem', { scene_filter_values: result });
+    }
   };
 
   getIndexSetList(() => {
     reoverRouteParams();
   });
-
-  requestSceneConfigs();
 
   const handleSpaceIdChange = () => {
     const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
