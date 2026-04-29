@@ -10,8 +10,8 @@
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
  * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
@@ -29,11 +29,8 @@ import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 // ===================== 类型定义 =====================
 
-/** 数据状态枚举值 */
-type DataStatusType = 'DISABLED' | 'NO_DATA' | 'NORMAL';
-
 /** 1.15 GetDataSamplingResource 采样数据项 */
-interface IDataSamplingItem {
+export interface IDataSamplingItem {
   /** 原始样例数据 */
   raw_log: Record<string, unknown>;
   /** 采样时间 */
@@ -41,7 +38,10 @@ interface IDataSamplingItem {
 }
 
 /** 1.15 GetDataSamplingResource 响应 */
-type IDataSamplingResponse = IDataSamplingItem[];
+export type IDataSamplingResponse = IDataSamplingItem[];
+
+/** 数据状态枚举值 */
+type DataStatusType = 'DISABLED' | 'NO_DATA' | 'NORMAL';
 
 /** 1.14 GetDataStatusResource 响应 */
 interface IDataStatusResponse {
@@ -87,6 +87,107 @@ export const MOCK_DATA_SAMPLING: IDataSamplingResponse = [
       'attributes.http.url': 'https://demo-app.test.com/api/v1/resource/list',
       'attributes.http.status_code': 200,
       'attributes.http.response_content_length': 1024,
+      items: [
+        {
+          span_name: 'HTTP POST',
+          elapsed_time: 22948,
+          attributes: {
+            'http.method': 'POST',
+            'http.flavor': '1.1',
+            'http.url': 'http://127.0.0.1:0000/api/v1/hosts/list',
+            'net.peer.name': '127.0.0.1',
+            'net.peer.port': '0000',
+            'http.status_code': 200,
+            apdex_type: 'satisfied',
+          },
+          kind: 3,
+          trace_state: '',
+          resource: {
+            'bk.instance.id': ':demo_server:::',
+            bk_data_id: 1000,
+            'service.name': 'demo_server',
+          },
+          span_id: 'a1b2c3d4e5f6a7b8',
+          trace_id: 'b1b2b3b4b5b6b7b8b9c0c1c2c3c4c5c6',
+          parent_span_id: '1a2b3c4d5e6f7a8b',
+          start_time: 1713764403000000,
+          end_time: 1713764403023526,
+          events: [],
+          status: {
+            code: 0,
+            message: '',
+          },
+          client_ip: '127.0.0.1',
+          iterationindex: 0,
+          links: [],
+        },
+        {
+          span_name: 'HTTP POST',
+          elapsed_time: 22948,
+          attributes: {
+            'http.method': 'POST',
+            'http.flavor': '1.1',
+            'http.url': 'http://127.0.0.1:0000/api/v1/hosts/list',
+            'net.peer.name': '127.0.0.1',
+            'net.peer.port': '0000',
+            'http.status_code': 200,
+            apdex_type: 'satisfied',
+          },
+          kind: 3,
+          trace_state: '',
+          resource: {
+            'bk.instance.id': ':demo_server:::',
+            bk_data_id: 1000,
+            'service.name': 'demo_server',
+          },
+          span_id: 'a1b2c3d4e5f6a7b8',
+          trace_id: 'b1b2b3b4b5b6b7b8b9c0c1c2c3c4c5c6',
+          parent_span_id: '1a2b3c4d5e6f7a8b',
+          start_time: 1713764403000000,
+          end_time: 1713764403023526,
+          events: [],
+          status: {
+            code: 0,
+            message: '',
+          },
+          client_ip: '127.0.0.1',
+          iterationindex: 0,
+          links: [],
+        },
+        {
+          span_name: 'HTTP POST',
+          elapsed_time: 22948,
+          attributes: {
+            'http.method': 'POST',
+            'http.flavor': '1.1',
+            'http.url': 'http://127.0.0.1:0000/api/v1/hosts/list',
+            'net.peer.name': '127.0.0.1',
+            'net.peer.port': '0000',
+            'http.status_code': 200,
+            apdex_type: 'satisfied',
+          },
+          kind: 3,
+          trace_state: '',
+          resource: {
+            'bk.instance.id': ':demo_server:::',
+            bk_data_id: 1000,
+            'service.name': 'demo_server',
+          },
+          span_id: 'a1b2c3d4e5f6a7b8',
+          trace_id: 'b1b2b3b4b5b6b7b8b9c0c1c2c3c4c5c6',
+          parent_span_id: '1a2b3c4d5e6f7a8b',
+          start_time: 1713764403000000,
+          end_time: 1713764403023526,
+          events: [],
+          status: {
+            code: 0,
+            message: '',
+          },
+          client_ip: '127.0.0.1',
+          iterationindex: 0,
+          links: [],
+        },
+      ],
     },
     sampling_time: '2026-04-22 15:00:00',
   },
@@ -141,7 +242,7 @@ export const MOCK_DATA_SAMPLING_EMPTY: IDataSamplingResponse = [];
 
 /** 1.16 GetNoDataStrategyInfoResource — 策略信息（已配置、已启用、有告警图） */
 export const MOCK_STRATEGY_INFO: IStrategyData = {
-  id: 8992,
+  id: 111111,
   name: 'BKRUM-无数据告警-demo_app-metric',
   alert_status: 1,
   alert_count: 0,
@@ -155,9 +256,9 @@ export const MOCK_STRATEGY_INFO: IStrategyData = {
         datasource: 'time_series',
         api: 'rum_metric.alertQuery',
         data: {
-          bk_biz_id: 2,
+          bk_biz_id: 8888,
           app_name: 'demo_app',
-          strategy_id: 8992,
+          strategy_id: 111111,
         },
       },
     ],
@@ -165,7 +266,7 @@ export const MOCK_STRATEGY_INFO: IStrategyData = {
   is_enabled: false,
   notice_group: [
     {
-      id: 451,
+      id: 11111,
       name: '运维',
     },
   ],
@@ -173,7 +274,7 @@ export const MOCK_STRATEGY_INFO: IStrategyData = {
 
 /** 1.16 GetNoDataStrategyInfoResource — 策略信息（已启用、有告警） */
 export const MOCK_STRATEGY_INFO_WITH_ALERT: IStrategyData = {
-  id: 8993,
+  id: 111111,
   name: 'BKRUM-无数据告警-demo_app-metric',
   alert_status: 2,
   alert_count: 5,
@@ -187,9 +288,9 @@ export const MOCK_STRATEGY_INFO_WITH_ALERT: IStrategyData = {
         datasource: 'time_series',
         api: 'rum_metric.alertQuery',
         data: {
-          bk_biz_id: 2,
+          bk_biz_id: 8888,
           app_name: 'demo_app',
-          strategy_id: 8993,
+          strategy_id: 111111,
         },
       },
     ],
@@ -197,11 +298,11 @@ export const MOCK_STRATEGY_INFO_WITH_ALERT: IStrategyData = {
   is_enabled: true,
   notice_group: [
     {
-      id: 451,
+      id: 11111,
       name: '运维',
     },
     {
-      id: 452,
+      id: 11111,
       name: '开发',
     },
   ],
@@ -209,7 +310,7 @@ export const MOCK_STRATEGY_INFO_WITH_ALERT: IStrategyData = {
 
 /** 1.16 GetNoDataStrategyInfoResource — 策略信息（未配置告警图） */
 export const MOCK_STRATEGY_INFO_NO_GRAPH: IStrategyData = {
-  id: 8994,
+  id: 111111,
   name: 'BKRUM-无数据告警-demo_app-metric',
   alert_status: 1,
   alert_count: 0,
@@ -217,7 +318,7 @@ export const MOCK_STRATEGY_INFO_NO_GRAPH: IStrategyData = {
   is_enabled: true,
   notice_group: [
     {
-      id: 451,
+      id: 11111,
       name: '运维',
     },
   ],
