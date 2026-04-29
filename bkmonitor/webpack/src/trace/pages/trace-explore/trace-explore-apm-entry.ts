@@ -26,8 +26,8 @@
 /**
  * trace-explore-apm-entry.ts —— Vue 3 Trace 检索子应用入口
  *
- * 本模块作为 Vue 3 Trace 检索（TraceExplore）的独立构建入口，供 Vue 2 宿主应用
- * （TraceExploreContainer）通过动态 import 加载并挂载。
+ * 本模块作为 Vue 3 Trace 检索（TraceExploreApm → TraceExplore）的独立构建入口，供 Vue 2 宿主应用
+ * （TraceExploreContainer）通过 dynamic import 加载并挂载。
  *
  * 设计背景：
  *   宿主应用基于 Vue 2，而 Trace 检索基于 Vue 3 开发。两者运行时完全隔离，
@@ -85,7 +85,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import directives from '../../directive/index';
 import i18n from '../../i18n/i18n';
-import TraceExplore from './trace-explore';
+import TraceExploreApm, { BRIDGE_EMIT_KEY, BRIDGE_PROPS_KEY } from './trace-explore-apm';
 
 import '@blueking/tdesign-ui/vue3/index.css';
 
@@ -118,7 +118,7 @@ use([
   DataZoomSliderComponent,
 ]);
 
-export default TraceExplore;
+export default TraceExploreApm;
 
 /* ==================== 桥接类型定义 ==================== */
 
@@ -130,10 +130,7 @@ export interface BridgeProps {
 /** 向 Vue 2 宿主抛出事件的函数签名 */
 export type BridgeEmit = (event: string, ...args: unknown[]) => void;
 
-/** provide/inject 所使用的 key —— 桥接属性 */
-export const BRIDGE_PROPS_KEY = Symbol('bridgeProps');
-/** provide/inject 所使用的 key —— 桥接事件发射器 */
-export const BRIDGE_EMIT_KEY = Symbol('bridgeEmit');
+// export { BRIDGE_PROPS_KEY, BRIDGE_EMIT_KEY };
 
 /** mount() 的可选配置项 */
 export interface MountOptions {
@@ -172,7 +169,7 @@ export function mount(el: string | HTMLElement, options?: MountOptions): MountHa
     routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
   });
 
-  const app = createApp(TraceExplore);
+  const app = createApp(TraceExploreApm);
   app.config.compilerOptions = {
     ...app.config.compilerOptions,
     isCustomElement: tag => tag === 'bk-user-display-name',

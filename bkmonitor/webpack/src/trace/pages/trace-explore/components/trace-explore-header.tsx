@@ -251,18 +251,18 @@ export default defineComponent({
           {/* // #if !IS_APM_MONITOR */}
           {this.hideFeatures.includes('application') ? null : (
             <Select
-            ref='applicationSelectRef'
-            class='application-select'
-            popoverOptions={{
-              extCls: 'trace-explore-application-select-popover',
-            }}
-            clearable={false}
-            filterOption={this.applicationFilter}
-            modelValue={this.store.appName}
-            search-placeholder={this.t('请输入 关键字')}
-            filterable
-            onSelect={this.handleApplicationChange}
-            onToggle={this.handleApplicationToggle}
+              ref='applicationSelectRef'
+              class='application-select'
+              popoverOptions={{
+                extCls: 'trace-explore-application-select-popover',
+              }}
+              clearable={false}
+              filterOption={this.applicationFilter}
+              modelValue={this.store.appName}
+              search-placeholder={this.t('请输入 关键字')}
+              filterable
+              onSelect={this.handleApplicationChange}
+              onToggle={this.handleApplicationToggle}
             >
               {{
                 trigger: () => (

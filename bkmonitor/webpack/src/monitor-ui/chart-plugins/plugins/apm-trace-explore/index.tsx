@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import type { IViewOptions } from '../../typings';
 import TraceExplore from './trace-explore';
+import type { TimeRangeType } from 'trace/components/time-range/utils';
 
 import './index.scss';
 
@@ -37,6 +38,8 @@ export default class ApmTraceHome extends tsc<any, any> {
   @InjectReactive('timeRange') readonly timeRange: [string, string];
   @InjectReactive('refreshInterval') readonly panelRefreshInterval: number;
   @InjectReactive('refreshImmediate') readonly panelRefreshImmediate: string;
+  // 处理时间范围变化
+  @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: TimeRangeType) => void;
 
   get v3Props() {
     return {
@@ -47,8 +50,11 @@ export default class ApmTraceHome extends tsc<any, any> {
     };
   }
 
-  handleV3EventChange(eventName: string, ...args: unknown[]) {
-    this.$emit(eventName, ...args);
+  handleV3EventChange(eventName: string, params: any) {
+    if (eventName === 'exploreChartZoomChange') {
+      this.handleTimeRangeChange(params as TimeRangeType);
+      return;
+    }
   }
 
   render() {
