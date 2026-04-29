@@ -153,12 +153,82 @@ class GrokHandler:
 
         return {"total": total, "list": grok_list}
 
+    @staticmethod
+    def _get_subsequence_position(keyword: str, candidate: str) -> int | None:
+        """
+        获取子序列匹配的起始位置
+        """
+        keyword_index = 0
+        first_position = None
+        for candidate_index, candidate_char in enumerate(candidate):
+            if candidate_char != keyword[keyword_index]:
+                continue
+            if first_position is None:
+                first_position = candidate_index
+            keyword_index += 1
+            if keyword_index == len(keyword):
+                return first_position
+        return None
+
+    @classmethod
+    def _get_name_score(cls, keyword: str, candidate: str) -> float | None:
+        """
+        Grok 名称排序打分
+        """
+        candidate_length = len(candidate)
+        if candidate == keyword:
+            base_score = 400
+            match_position = 0
+        elif candidate.startswith(keyword):
+            base_score = 300
+            match_position = 0
+        else:
+            match_position = candidate.find(keyword)
+            if match_position >= 0:
+                base_score = 200
+            else:
+                match_position = cls._get_subsequence_position(keyword, candidate)
+                if match_position is None:
+                    return None
+                base_score = 100
+
+        position_score = max(candidate_length - match_position, 0) / max(candidate_length, 1)
+        length_score = len(keyword) / max(candidate_length, 1)
+        return base_score + position_score + length_score
+
+    @classmethod
+    def search_grok(cls, params: dict) -> dict:
+        """
+        Grok 名称联想
+        """
+        keyword = "".join(params["keyword"].lower().split())
+        grok_list = list(
+            GrokInfo.objects.filter(Q(is_builtin=True) | Q(bk_biz_id=params["bk_biz_id"])).values(
+                "id", "name", "pattern", "description", "sample", "sample_result"
+            )
+        )
+        if keyword:
+            scored_grok_list = []
+            for grok in grok_list:
+                normalized_name = "".join(grok["name"].lower().split())
+                score = cls._get_name_score(keyword, normalized_name)
+                if score is None:
+                    continue
+                scored_grok_list.append((score, grok))
+            scored_grok_list.sort(key=lambda item: item[0], reverse=True)
+            grok_list = [grok for _, grok in scored_grok_list]
+
+        total = len(grok_list)
+        return {"total": total, "list": grok_list[: params["limit"]]}
+
     def create_grok_info(self, params: dict) -> dict:
         """
         创建 Grok 模式
         """
         self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(params["name"], params["pattern"])
+        sample_result = self.debug(params)
+        sample_result.pop("_matched", None)
         try:
             grok = GrokInfo.objects.create(
                 bk_biz_id=self.bk_biz_id,
@@ -166,6 +236,7 @@ class GrokHandler:
                 pattern=params["pattern"],
                 sample=params.get("sample"),
                 description=params.get("description"),
+                sample_result=sample_result,
             )
         except IntegrityError:
             raise DuplicateGrokPatternException
@@ -183,7 +254,11 @@ class GrokHandler:
         self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(grok_info.name, params["pattern"])
 
-        update_fields = ["pattern", "sample", "description"]
+        sample_result = self.debug(params)
+        sample_result.pop("_matched", None)
+        params["sample_result"] = sample_result
+
+        update_fields = ["pattern", "sample", "description", "sample_result"]
         for field in update_fields:
             setattr(grok_info, field, params[field])
 

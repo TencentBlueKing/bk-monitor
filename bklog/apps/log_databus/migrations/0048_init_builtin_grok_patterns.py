@@ -8,6 +8,7 @@ def init_builtin_grok_patterns(apps, schema_editor):
     初始化内置 Grok 规则
     """
     from apps.log_databus.handlers.grok.patterns import ALL_PATTERNS
+    from apps.log_databus.handlers.grok.base import Grok
 
     GrokInfo = apps.get_model("log_databus", "GrokInfo")
 
@@ -17,6 +18,12 @@ def init_builtin_grok_patterns(apps, schema_editor):
 
     to_create = []
     for pattern_data in ALL_PATTERNS:
+        try:
+            grok = Grok(pattern_data["pattern"])
+            sample_result = grok.match(pattern_data.get("sample", ""))
+        except Exception as e:
+            print("Failed to match grok pattern [{}]: {}, skip sample_result".format(pattern_data.get("name"), e))
+            sample_result = {}
         to_create.append(
             GrokInfo(
                 name=pattern_data["name"],
@@ -27,6 +34,7 @@ def init_builtin_grok_patterns(apps, schema_editor):
                 bk_biz_id=0,
                 created_by="system",
                 updated_by="system",
+                sample_result=sample_result,
             )
         )
     GrokInfo.objects.bulk_create(to_create)
