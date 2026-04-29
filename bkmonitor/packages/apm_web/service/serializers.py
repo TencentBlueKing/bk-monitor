@@ -272,10 +272,26 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
         return attrs
 
 
+def build_code_remark_configs(remark_configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    remark_records: list[dict[str, Any]] = []
+    for remark_config in remark_configs:
+        service_names = [""] if remark_config.get("is_global") else remark_config.get("service_names", [])
+        for service_name in service_names:
+            remark_records.append(
+                {
+                    "service_name": service_name,
+                    "kind": remark_config.get("kind"),
+                    "code": remark_config.get("code", ""),
+                    "remark": remark_config.get("remark", ""),
+                }
+            )
+    return remark_records
+
+
 class CodeRemarkItemSerializer(serializers.Serializer):
     """单个返回码备注项序列化器，用于应用级别配置"""
 
-    kind = serializers.ChoiceField(label=_("角色"), choices=[("caller", "caller"), ("callee", "callee")])
+    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices())
     code = serializers.CharField(label=_("返回码"), allow_blank=False)
     remark = serializers.CharField(label=_("备注"), allow_blank=True, default="")
     is_global = serializers.BooleanField(label=_("是否全局生效"), default=False)
@@ -285,12 +301,10 @@ class CodeRemarkItemSerializer(serializers.Serializer):
 class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """设置返回码备注请求序列化器，同时支持服务级别和应用级别配置"""
 
-    service_name = serializers.CharField(label=_("本服务"), allow_null=True, default=None)
-    kind = serializers.ChoiceField(
-        label=_("角色"), choices=[("caller", "caller"), ("callee", "callee")], required=False
-    )
+    service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
+    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
     code = serializers.CharField(label=_("返回码"), allow_blank=False, required=False)
-    remark = serializers.CharField(label=_("备注"), required=False, allow_blank=True, default="")
+    remark = serializers.CharField(label=_("备注"), allow_blank=True, default="")
     is_global = serializers.BooleanField(label=_("是否全局生效"), default=False)
     remarks = serializers.ListField(label=_("备注列表"), child=CodeRemarkItemSerializer(), default=[])
 
@@ -301,17 +315,20 @@ class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
 
         # 应用配置场景下，校验记录唯一性（service_name、kind、code）
         unique_keys: set[tuple[str, str, str]] = set()
-        for remark_dict in attrs["remarks"]:
-            service_names = [""] if remark_dict["is_global"] else remark_dict["service_names"]
-            for service_name in service_names:
-                _kind, _code = remark_dict["kind"], remark_dict["code"]
-                unique_key = (service_name, _kind, _code)
-                if unique_key in unique_keys:
-                    raise serializers.ValidationError(
-                        _(
-                            f"应用配置记录键存在冲突，is_global={remark_dict['is_global']}, service_name={service_name}, kind={_kind}, code={_code}"
-                        )
+        for remark_dict in build_code_remark_configs(attrs["remarks"]):
+            unique_key = (remark_dict["service_name"], remark_dict["kind"], remark_dict["code"])
+            if unique_key in unique_keys:
+                raise serializers.ValidationError(
+                    _(
+                        "应用配置记录键存在冲突，"
+                        "is_global={is_global}, service_name={service_name}, kind={kind}, code={code}"
+                    ).format(
+                        is_global=remark_dict["service_name"] == "",
+                        service_name=remark_dict["service_name"],
+                        kind=remark_dict["kind"],
+                        code=remark_dict["code"],
                     )
-                unique_keys.add(unique_key)
+                )
+            unique_keys.add(unique_key)
 
         return super().validate(attrs)
