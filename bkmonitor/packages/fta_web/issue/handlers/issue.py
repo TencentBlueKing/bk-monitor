@@ -86,7 +86,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
     query_transformer = IssueQueryTransformer
 
-    MY_ISSUE_STATUS_NAME = "MY_ISSUE"
+    MY_ISSUE_STATUS_NAME = "MY_ASSIGNEE"
     NO_ASSIGNEE_STATUS_NAME = "NO_ASSIGNEE"
 
     def __init__(
@@ -122,9 +122,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
         )
         self.status = [status] if isinstance(status, str) else status
 
-        # 默认排序：活跃状态优先，同状态按更新时间倒序
+        # 默认排序：最早发生时间降序 > 优先级 > 状态
         if not self.ordering:
-            self.ordering = ["status", "-update_time"]
+            self.ordering = ["-first_alert_time", "priority", "status"]
 
         self.trend_start_time = trend_start_time if trend_start_time is not None else self.start_time
         self.trend_end_time = trend_end_time if trend_end_time is not None else self.end_time
@@ -176,9 +176,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
         if self.status:
             queries = []
             for s in self.status:
-                if s == self.MY_ISSUE_STATUS_NAME:
+                s_lower = s.lower()
+                if s_lower == self.MY_ISSUE_STATUS_NAME.lower():
                     queries.append(Q("term", assignee=self.request_username))
-                elif s == self.NO_ASSIGNEE_STATUS_NAME:
+                elif s_lower == self.NO_ASSIGNEE_STATUS_NAME.lower():
                     queries.append(~Q("exists", field="assignee"))
 
             if queries:
