@@ -132,6 +132,51 @@ class TestSceneRouteMixin(TestCase):
         s = _SceneRouteMixin(data={"space_uid": SPACE_UID, "table_id_conditions": []})
         self.assertFalse(s.is_valid())
 
+    def test_scene_filter_values_list_format(self):
+        data = {
+            **BASE_POST_BODY,
+            "scene_filter_values": [
+                {"field": "__ext.io_kubernetes_pod_namespace", "operator": "is", "value": "default"},
+            ],
+        }
+        s = _SceneRouteMixin(data=data)
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertIsInstance(s.validated_data["scene_filter_values"], list)
+
+    def test_scene_filter_values_defaults_empty_list(self):
+        s = _SceneRouteMixin(data=BASE_POST_BODY)
+        s.is_valid(raise_exception=True)
+        self.assertEqual(s.validated_data["scene_filter_values"], [])
+
+
+class TestMergeSceneFiltersToAddition(TestCase):
+
+    def test_list_format_merges(self):
+        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+        data = {
+            "addition": [{"field": "status", "operator": "is", "value": "200"}],
+            "scene_filter_values": [
+                {"field": "__ext.container_name", "operator": "is one of", "value": ["app1", "app2"]},
+            ],
+        }
+        result = _merge_scene_filters_to_addition(data)
+        self.assertEqual(len(result["addition"]), 2)
+        self.assertEqual(result["addition"][1]["field"], "__ext.container_name")
+        self.assertEqual(result["addition"][1]["operator"], "is one of")
+        self.assertNotIn("scene_filter_values", result)
+
+    def test_empty_scene_filters_noop(self):
+        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+        data = {"addition": [{"field": "a", "operator": "is", "value": "1"}]}
+        result = _merge_scene_filters_to_addition(data)
+        self.assertEqual(len(result["addition"]), 1)
+
+    def test_none_scene_filters_noop(self):
+        from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+        data = {"addition": [], "scene_filter_values": None}
+        result = _merge_scene_filters_to_addition(data)
+        self.assertEqual(result["addition"], [])
+
 
 class TestSceneSearchSerializer(TestCase):
 
@@ -550,6 +595,85 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_base_dict_has_step(self, mock_local, mock_user, mock_ext_user):
+        """_init_scene_base_dict must include 'step' (used by get_topk_ts_data)."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertIn("step", handler.base_dict)
+        self.assertTrue(handler.base_dict["step"])
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_step_auto_interval_1h(self, mock_local, mock_user, mock_ext_user):
+        """1-hour time range with auto interval → step should be '1m'."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["step"], "1m")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_step_explicit_interval(self, mock_local, mock_user, mock_ext_user):
+        """Explicit interval param should be used as step."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50, "interval": "5m"}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["step"], "5m")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_step_empty_time_defaults_1m(self, mock_local, mock_user, mock_ext_user):
+        """Empty time range → step defaults to '1m'."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**BASE_POST_BODY, "start_time": "", "end_time": ""}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["step"], "1m")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_agg_field_sets_field_name(self, mock_local, mock_user, mock_ext_user):
+        """When agg_field is provided, query_dict.field_name should use it."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "agg_field": "status", "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["query_list"][0]["field_name"], "status")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_no_agg_field_uses_time_field(self, mock_local, mock_user, mock_ext_user):
+        """Without agg_field, query_dict.field_name should be time_field."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertEqual(handler.base_dict["query_list"][0]["field_name"], "dtEventTimeStamp")
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_query_dict_has_dimensions(self, mock_local, mock_user, mock_ext_user):
+        """query_dict should include 'dimensions' key for consistency with parent."""
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        params = {**SEARCH_POST_BODY, "begin": 0, "size": 50}
+        handler = SceneUnifyQueryHandler(params)
+        self.assertIn("dimensions", handler.base_dict["query_list"][0])
+        self.assertEqual(handler.base_dict["query_list"][0]["dimensions"], [])
+
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
     def test_additions_transform(self, mock_local, mock_user, mock_ext_user):
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
@@ -570,12 +694,14 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
     def test_fields_method_dict_format(self, mock_local, mock_user, mock_ext_user, mock_api):
         """Backward compat: UQ returns {"fields": {name: info}} dict format."""
+        from apps.log_search.constants import OPERATORS
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         mock_api.return_value = {
             "fields": {
                 "log": {"type": "text", "description": "日志内容"},
                 "status": {"type": "keyword", "description": "状态码"},
+                "dtEventTimeStamp": {"type": "date", "description": "时间"},
             }
         }
 
@@ -583,14 +709,28 @@ class TestSceneUnifyQueryHandler(TestCase):
         handler = SceneUnifyQueryHandler(params)
         result = handler.fields()
 
-        self.assertEqual(len(result["fields"]), 2)
+        self.assertEqual(len(result["fields"]), 3)
         log_field = next(f for f in result["fields"] if f["field_name"] == "log")
         self.assertTrue(log_field["is_analyzed"])
         self.assertFalse(log_field["es_doc_values"])
+        self.assertEqual(log_field["field_operator"], OPERATORS["text"])
+        self.assertEqual(log_field["tag"], "metric")
+        self.assertIn("is_built_in", log_field)
+        self.assertIn("is_case_sensitive", log_field)
+        self.assertIn("tokenize_on_chars", log_field)
+        self.assertIn("query_alias", log_field)
+        self.assertIn("origin_field", log_field)
 
         status_field = next(f for f in result["fields"] if f["field_name"] == "status")
         self.assertFalse(status_field["is_analyzed"])
         self.assertTrue(status_field["es_doc_values"])
+        self.assertEqual(status_field["field_operator"], OPERATORS["keyword"])
+        self.assertEqual(status_field["tag"], "dimension")
+
+        ts_field = next(f for f in result["fields"] if f["field_name"] == "dtEventTimeStamp")
+        self.assertEqual(ts_field["tag"], "timestamp")
+        self.assertEqual(ts_field["field_operator"], OPERATORS["date"])
+        self.assertTrue(ts_field["is_built_in"])
 
     @patch("apps.log_unifyquery.handler.scene_search.UnifyQueryApi.query_field_map")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
@@ -598,6 +738,7 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
     def test_fields_method_list_format(self, mock_local, mock_user, mock_ext_user, mock_api):
         """Real UQ response: {"data": [{field_name, field_type, ...}]} list format."""
+        from apps.log_search.constants import OPERATORS
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         mock_api.return_value = {
@@ -610,7 +751,8 @@ class TestSceneUnifyQueryHandler(TestCase):
                 {
                     "field_name": "__ext.container_name", "field_type": "keyword",
                     "is_agg": True, "is_analyzed": False,
-                    "alias_name": "", "origin_field": "__ext",
+                    "alias_name": "container", "origin_field": "__ext",
+                    "is_case_sensitive": True, "tokenize_on_chars": ["-", "_"],
                 },
             ],
             "trace_id": "abc123",
@@ -625,11 +767,21 @@ class TestSceneUnifyQueryHandler(TestCase):
         self.assertEqual(log_field["field_type"], "text")
         self.assertTrue(log_field["is_analyzed"])
         self.assertFalse(log_field["es_doc_values"])
+        self.assertEqual(log_field["field_operator"], OPERATORS["text"])
+        self.assertEqual(log_field["tag"], "metric")
+        self.assertEqual(log_field["origin_field"], "log")
 
         ext_field = next(f for f in result["fields"] if f["field_name"] == "__ext.container_name")
         self.assertEqual(ext_field["field_type"], "keyword")
         self.assertFalse(ext_field["is_analyzed"])
         self.assertTrue(ext_field["es_doc_values"])
+        self.assertEqual(ext_field["field_operator"], OPERATORS["keyword"])
+        self.assertEqual(ext_field["tag"], "dimension")
+        self.assertEqual(ext_field["query_alias"], "container")
+        self.assertEqual(ext_field["origin_field"], "__ext")
+        self.assertTrue(ext_field["is_case_sensitive"])
+        self.assertEqual(ext_field["tokenize_on_chars"], "-_")
+        self.assertTrue(ext_field["is_built_in"])
 
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")

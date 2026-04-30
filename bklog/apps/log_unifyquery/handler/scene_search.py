@@ -22,6 +22,8 @@ from apps.log_search.constants import (
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     MAX_RESULT_WINDOW,
+    OPERATORS,
+    FieldBuiltInEnum,
 )
 from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -50,7 +52,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         self._enhance()
         self.query_string = QueryStringBuilder(self.query_string).query_string
 
-        self._agg_field_name: str = params.get("agg_field", "")
+        self.agg_field: str = params.get("agg_field", "")
         self.request_username = get_request_external_username() or get_request_username()
 
         # sort — use frontend-provided sort_list directly, no DB lookup
@@ -104,15 +106,22 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # ------------------------------------------------------------------
 
     def _init_scene_base_dict(self) -> dict:
+        if self.search_params.get("interval", "auto") == "auto":
+            interval = self._init_default_interval()
+        else:
+            interval = self.search_params["interval"]
+
         conditions = self._transform_scene_additions()
+        field_name = self.agg_field if self.agg_field else self.time_field
         query_dict = {
             "data_source": "bklog",
             "table_id": "",
             "table_id_conditions": self.table_id_conditions,
             "query_string": self.query_string,
-            "time_field": "dtEventTimeStamp",
+            "time_field": self.time_field,
             "conditions": conditions,
-            "field_name": "dtEventTimeStamp",
+            "field_name": field_name,
+            "dimensions": [],
             "function": [],
             "reference_name": "a",
         }
@@ -121,6 +130,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "query_list": [query_dict],
             "metric_merge": "a",
             "order_by": self.order_by,
+            "step": interval,
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
@@ -342,20 +352,32 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             else:
                 raise
 
-        field_list = []
+        field_list: list = []
+        built_in_fields = FieldBuiltInEnum.get_choices()
         raw_fields = field_data.get("data") or field_data.get("fields") or {}
         if isinstance(raw_fields, list):
             for item in raw_fields:
                 ft = item.get("field_type", "object")
+                tokenize_on_chars = item.get("tokenize_on_chars", "")
+                if isinstance(tokenize_on_chars, list | tuple):
+                    tokenize_on_chars = "".join(tokenize_on_chars)
+                elif not isinstance(tokenize_on_chars, str):
+                    tokenize_on_chars = ""
                 field_list.append({
                     "field_name": item.get("field_name", ""),
                     "field_type": ft,
-                    "is_analyzed": ft == "text",
-                    "es_doc_values": ft != "text",
-                    "description": item.get("description", ""),
-                    "field_alias": item.get("alias_name", ""),
+                    "field_alias": item.get("field_alias", ""),
+                    "query_alias": item.get("alias_name", ""),
                     "is_display": True,
                     "is_editable": True,
+                    "tag": item.get("tag", ""),
+                    "origin_field": item.get("origin_field", ""),
+                    "es_doc_values": item.get("is_agg", ft != "text"),
+                    "is_analyzed": item.get("is_analyzed", ft == "text"),
+                    "field_operator": OPERATORS.get(ft, []),
+                    "is_case_sensitive": item.get("is_case_sensitive", False),
+                    "tokenize_on_chars": tokenize_on_chars,
+                    "description": item.get("description", ""),
                 })
         elif isinstance(raw_fields, dict):
             for field_name, field_info in raw_fields.items():
@@ -363,13 +385,29 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 field_list.append({
                     "field_name": field_name,
                     "field_type": ft,
-                    "is_analyzed": ft == "text",
-                    "es_doc_values": ft != "text",
-                    "description": field_info.get("description", ""),
                     "field_alias": field_info.get("alias", ""),
+                    "query_alias": "",
                     "is_display": True,
                     "is_editable": True,
+                    "tag": "",
+                    "origin_field": "",
+                    "es_doc_values": ft != "text",
+                    "is_analyzed": ft == "text",
+                    "field_operator": OPERATORS.get(ft, []),
+                    "is_case_sensitive": False,
+                    "tokenize_on_chars": "",
+                    "description": field_info.get("description", ""),
                 })
+
+        for field in field_list:
+            tag = "metric"
+            if field.get("field_type") == "date":
+                tag = "timestamp"
+            elif field.get("es_doc_values"):
+                tag = "dimension"
+            field["tag"] = tag
+            field_name_lower = field.get("field_name", "").lower()
+            field["is_built_in"] = field_name_lower in built_in_fields or field_name_lower.startswith("__ext.")
 
         sort_list = self.origin_order_by or [["dtEventTimeStamp", "desc"]]
 

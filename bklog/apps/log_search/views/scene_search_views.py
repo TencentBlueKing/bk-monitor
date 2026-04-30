@@ -58,9 +58,10 @@ class _SceneRouteMixin(serializers.Serializer):
         required=True,
         help_text="AllConditions 二维数组：外层 OR，内层 AND",
     )
-    scene_filter_values = serializers.DictField(
-        required=False, default=dict,
-        help_text='维度筛选值, e.g. {"__ext.io_kubernetes_pod_namespace": "default"}',
+    scene_filter_values = serializers.ListField(
+        required=False, default=list, allow_empty=True,
+        help_text='维度筛选条件，格式与 addition 一致，'
+                  'e.g. [{"field": "__ext.io_kubernetes_pod_namespace", "operator": "is", "value": "default"}]',
     )
 
     def validate(self, attrs):
@@ -291,15 +292,16 @@ class SceneExportChartDataSerializer(_SceneRouteMixin):
 
 
 def _merge_scene_filters_to_addition(data: dict) -> dict:
-    """Convert scene_filter_values dict to addition entries and merge."""
-    scene_filters = data.pop("scene_filter_values", None) or {}
+    """Merge scene_filter_values into addition list.
+
+    scene_filter_values uses the same format as addition:
+        [{"field": "xxx", "operator": "is", "value": "yyy"}, ...]
+    """
+    scene_filters = data.pop("scene_filter_values", None)
+    if not scene_filters:
+        return data
     addition = data.get("addition") or []
-    for field_name, value in scene_filters.items():
-        addition.append({
-            "key": field_name,
-            "method": "is",
-            "value": value if isinstance(value, list) else [value],
-        })
+    addition.extend(scene_filters)
     data["addition"] = addition
     return data
 
