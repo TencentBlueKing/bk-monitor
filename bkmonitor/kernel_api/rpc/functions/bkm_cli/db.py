@@ -31,6 +31,7 @@ DEFAULT_SENSITIVE_FIELDS = {
     "access_token",
     "refresh_token",
 }
+DISCOVERY_NEXT_ACTIONS = ["调用 list-db-models 获取当前环境可读模型、字段、filter、排序和 limit 上限。"]
 
 
 @dataclass
@@ -38,49 +39,131 @@ class ModelSpec:
     model_path: str
     fields: set[str] = field(default_factory=set)
     sensitive_fields: set[str] = field(default_factory=set)
+    default_fields: set[str] = field(default_factory=set)
+    examples: list[dict[str, Any]] = field(default_factory=list)
 
 
 ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
     "metadata.models.bcs.cluster.BCSClusterInfo": ModelSpec(
         model_path="metadata.models.bcs.cluster.BCSClusterInfo",
         fields={"cluster_id", "bk_biz_id", "status", "bk_tenant_id", "project_id", "created_at", "updated_at"},
+        default_fields={"cluster_id", "bk_biz_id", "status", "bk_tenant_id"},
+        examples=[
+            {
+                "filter": {"cluster_id": "BCS-K8S-00001"},
+                "fields": ["cluster_id", "bk_biz_id", "status", "bk_tenant_id"],
+                "limit": 20,
+            }
+        ],
     ),
     "metadata.models.space.space.Space": ModelSpec(
         model_path="metadata.models.space.space.Space",
         fields={"space_type_id", "space_id", "space_uid", "space_name", "bk_tenant_id", "is_bcs_valid"},
+        default_fields={"space_type_id", "space_id", "space_uid", "space_name", "bk_tenant_id"},
+        examples=[
+            {
+                "filter": {"space_type_id": "bkcc", "space_id": "2"},
+                "fields": ["space_uid", "space_name", "space_id"],
+                "limit": 20,
+            }
+        ],
     ),
     "metadata.models.space.space.SpaceResource": ModelSpec(
         model_path="metadata.models.space.space.SpaceResource",
         fields={"space_type_id", "space_id", "resource_type", "resource_id", "dimension_values", "bk_tenant_id"},
+        default_fields={"space_type_id", "space_id", "resource_type", "resource_id", "bk_tenant_id"},
+        examples=[
+            {
+                "filter": {"space_type_id": "bkcc", "space_id": "2"},
+                "fields": ["space_type_id", "space_id", "resource_type", "resource_id"],
+                "limit": 20,
+            }
+        ],
     ),
     "bkmonitor.models.bcs_cluster.BCSCluster": ModelSpec(
         model_path="bkmonitor.models.bcs_cluster.BCSCluster",
         fields={"bk_biz_id", "bcs_cluster_id", "name", "environment", "space_uid", "bk_tenant_id"},
+        default_fields={"bk_biz_id", "bcs_cluster_id", "name", "environment", "space_uid"},
+        examples=[
+            {
+                "filter": {"bcs_cluster_id": "BCS-K8S-00001"},
+                "fields": ["bk_biz_id", "bcs_cluster_id", "name", "environment", "space_uid"],
+                "limit": 20,
+            }
+        ],
     ),
     "bkmonitor.models.metric_list_cache.MetricListCache": ModelSpec(
         model_path="bkmonitor.models.metric_list_cache.MetricListCache",
         fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "dimensions", "bk_tenant_id"},
+        default_fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "bk_tenant_id"},
+        examples=[
+            {
+                "filter": {"bk_biz_id": 2, "metric_field": "cpu_usage"},
+                "fields": ["bk_biz_id", "result_table_id", "metric_field", "metric_field_name"],
+                "limit": 20,
+            }
+        ],
     ),
     "bkmonitor.models.base.ReportItems": ModelSpec(
         model_path="bkmonitor.models.base.ReportItems",
         fields={"id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"},
+        default_fields={"id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"},
+        examples=[
+            {
+                "filter": {"bk_biz_id": 2},
+                "fields": ["id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"],
+                "limit": 20,
+            }
+        ],
     ),
     "bkmonitor.models.base.ReportContents": ModelSpec(
         model_path="bkmonitor.models.base.ReportContents",
         fields={"id", "report_id", "content", "create_time", "update_time"},
+        default_fields={"id", "report_id", "create_time", "update_time"},
+        examples=[
+            {
+                "filter": {"report_id": 1},
+                "fields": ["id", "report_id", "create_time", "update_time"],
+                "limit": 20,
+            }
+        ],
     ),
     "bkmonitor.models.base.ReportStatus": ModelSpec(
         model_path="bkmonitor.models.base.ReportStatus",
         fields={"id", "report_id", "send_status", "last_send_time", "create_time", "update_time"},
+        default_fields={"id", "report_id", "send_status", "last_send_time"},
+        examples=[
+            {
+                "filter": {"report_id": 1},
+                "fields": ["id", "report_id", "send_status", "last_send_time"],
+                "limit": 20,
+            }
+        ],
     ),
     "bkmonitor.models.fta.action.ActionInstance": ModelSpec(
         model_path="bkmonitor.models.fta.action.ActionInstance",
         fields={"id", "bk_biz_id", "status", "assignee", "strategy_id", "action_config_id", "create_time"},
         sensitive_fields={"ex_data", "alerts"},
+        default_fields={"id", "bk_biz_id", "status", "assignee", "strategy_id", "action_config_id", "create_time"},
+        examples=[
+            {
+                "filter": {"bk_biz_id": 2, "strategy_id": 121950},
+                "fields": ["id", "bk_biz_id", "status", "assignee", "strategy_id", "create_time"],
+                "limit": 20,
+            }
+        ],
     ),
     "bkmonitor.models.fta.action.ActionInstanceLog": ModelSpec(
         model_path="bkmonitor.models.fta.action.ActionInstanceLog",
         fields={"id", "action_instance_id", "level", "message", "create_time"},
+        default_fields={"id", "action_instance_id", "level", "message", "create_time"},
+        examples=[
+            {
+                "filter": {"action_instance_id": 1},
+                "fields": ["id", "action_instance_id", "level", "message", "create_time"],
+                "limit": 20,
+            }
+        ],
     ),
 }
 
@@ -108,10 +191,44 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def list_db_models(params: dict[str, Any]) -> dict[str, Any]:
+    items = [_serialize_model_spec(model_name, spec) for model_name, spec in sorted(ALLOWED_MODEL_SPECS.items())]
+    return {
+        "count": len(items),
+        "items": items,
+    }
+
+
+def _safe_fields(spec: ModelSpec) -> set[str]:
+    return spec.fields - (DEFAULT_SENSITIVE_FIELDS | spec.sensitive_fields)
+
+
+def _default_fields(spec: ModelSpec) -> set[str]:
+    default_fields = spec.default_fields or _safe_fields(spec)
+    return default_fields & _safe_fields(spec)
+
+
+def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
+    safe_fields = sorted(_safe_fields(spec))
+    return {
+        "model": model_name,
+        "allowed_fields": safe_fields,
+        "allowed_filter_fields": safe_fields,
+        "allowed_order_by": safe_fields,
+        "allowed_lookups": sorted(ALLOWED_LOOKUPS),
+        "default_fields": sorted(_default_fields(spec)),
+        "max_limit": MAX_LIMIT,
+        "examples": spec.examples,
+    }
+
+
 def _get_model_spec(model_name: str) -> ModelSpec:
     spec = ALLOWED_MODEL_SPECS.get(model_name)
     if spec is None:
-        raise CustomException(message=f"模型不在 bkm-cli read-db-model 白名单: {model_name}")
+        raise CustomException(
+            message=f"模型不在 bkm-cli read-db-model 白名单: {model_name}。请先调用 list-db-models 获取可读模型列表。",
+            data={"next_actions": DISCOVERY_NEXT_ACTIONS},
+        )
     return spec
 
 
@@ -189,12 +306,24 @@ def _normalize_order_by(raw_order_by: list[Any], spec: ModelSpec) -> list[str]:
 
 def _validate_field(field_name: str, spec: ModelSpec) -> None:
     if field_name not in spec.fields:
-        raise CustomException(message=f"字段不在 read-db-model 允许列表: {field_name}")
+        raise CustomException(
+            message=f"字段不在 read-db-model 允许列表: {field_name}。请先调用 list-db-models 获取可读字段列表。",
+            data={"next_actions": DISCOVERY_NEXT_ACTIONS},
+        )
 
 
 def _serialize_instance(instance: Any, selected_fields: set[str]) -> dict[str, Any]:
     return {field_name: getattr(instance, field_name) for field_name in sorted(selected_fields)}
 
+
+KernelRPCRegistry.register_function(
+    func_name="bkm_cli.list_db_models",
+    summary="列出 read-db-model 可读 Django Model 白名单",
+    description="返回当前服务端 read-db-model 白名单模型、可读字段、可过滤字段、排序字段、limit 上限和示例。",
+    handler=list_db_models,
+    params_schema={},
+    example_params={},
+)
 
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.read_db_model",
@@ -215,6 +344,19 @@ KernelRPCRegistry.register_function(
         "fields": ["space_uid", "space_name", "space_id"],
         "limit": 20,
     },
+)
+
+BkmCliOpRegistry.register(
+    op_id="list-db-models",
+    func_name="bkm_cli.list_db_models",
+    summary="列出 read-db-model 可读 Django Model 白名单",
+    description="供 agent 在不知道 read-db-model 可用模型时自动发现服务端白名单。",
+    capability_level="readonly",
+    risk_level="low",
+    requires_confirmation=False,
+    audit_tags=["db", "readonly", "discovery"],
+    params_schema={},
+    example_params={},
 )
 
 BkmCliOpRegistry.register(

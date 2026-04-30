@@ -60,6 +60,59 @@ def test_read_db_model_registered_as_bkm_cli_op():
     assert function_detail is not None
 
 
+def test_list_db_models_registered_as_bkm_cli_op():
+    op = BkmCliOpRegistry.resolve("list-db-models")
+    function_detail = KernelRPCRegistry.get_function_detail("bkm_cli.list_db_models")
+
+    assert op.func_name == "bkm_cli.list_db_models"
+    assert op.capability_level == "readonly"
+    assert op.risk_level == "low"
+    assert function_detail is not None
+
+
+def test_list_db_models_returns_read_db_model_allowlist(monkeypatch):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    monkeypatch.setattr(db, "ALLOWED_MODEL_SPECS", {})
+    monkeypatch.setitem(
+        db.ALLOWED_MODEL_SPECS,
+        "demo.Model",
+        db.ModelSpec(
+            model_path="demo.Model",
+            fields={"id", "name", "token"},
+            sensitive_fields={"token"},
+            examples=[
+                {
+                    "filter": {"id": 1},
+                    "fields": ["id", "name"],
+                    "limit": 20,
+                }
+            ],
+        ),
+    )
+
+    result = BkmCliOpCallResource().perform_request({"op_id": "list-db-models", "params": {}})
+
+    assert result["op_id"] == "list-db-models"
+    assert result["func_name"] == "bkm_cli.list_db_models"
+    assert result["protocol"] == "bkm_cli_op_call"
+    assert result["result"] == {
+        "count": 1,
+        "items": [
+            {
+                "model": "demo.Model",
+                "allowed_fields": ["id", "name"],
+                "allowed_filter_fields": ["id", "name"],
+                "allowed_order_by": ["id", "name"],
+                "allowed_lookups": ["contains", "endswith", "exact", "gte", "in", "isnull", "lte", "startswith"],
+                "default_fields": ["id", "name"],
+                "max_limit": 500,
+                "examples": [{"filter": {"id": 1}, "fields": ["id", "name"], "limit": 20}],
+            }
+        ],
+    }
+
+
 def test_read_db_model_rejects_model_outside_allowlist():
     with pytest.raises(CustomException) as exc:
         BkmCliOpCallResource().perform_request(
@@ -73,6 +126,9 @@ def test_read_db_model_rejects_model_outside_allowlist():
         )
 
     assert "不在 bkm-cli read-db-model 白名单" in str(exc.value)
+    assert exc.value.data == {
+        "next_actions": ["调用 list-db-models 获取当前环境可读模型、字段、filter、排序和 limit 上限。"]
+    }
 
 
 def test_read_db_model_rejects_unsafe_lookup(monkeypatch):
