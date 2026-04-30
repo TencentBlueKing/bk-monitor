@@ -953,7 +953,7 @@ class GetResultTableStorageResult(Resource):
             result[result_table] = storage_info.consul_config
 
             # 判断是否需要明文返回链接信息
-            if not validated_request_data["is_plain_text"]:
+            if not validated_request_data.get("is_plain_text", False):
                 result[result_table]["auth_info"] = base64.b64encode(
                     json.dumps(result[result_table]["auth_info"]).encode("utf-8")
                 )
