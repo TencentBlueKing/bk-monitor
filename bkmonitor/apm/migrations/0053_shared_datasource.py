@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("apm", "0051_auto_20251017_1101"),
+        ("apm", "0052_add_profiledatasource_v4"),
     ]
 
     operations = [
