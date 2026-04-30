@@ -255,14 +255,16 @@ export default defineComponent({
             footer: () => (
               <div class='dialog-footer'>
                 {isEditMarkdown.value && (
-                  <Button
-                    theme='primary'
-                    onClick={handleConfirmMarkdown}
-                  >
-                    {t('确定')}
-                  </Button>
+                  <>
+                    <Button
+                      theme='primary'
+                      onClick={handleConfirmMarkdown}
+                    >
+                      {t('确定')}
+                    </Button>
+                    <Button onClick={handleCloseMarkdownDialog}>{t('取消')}</Button>
+                  </>
                 )}
-                <Button onClick={handleCloseMarkdownDialog}>{t('取消')}</Button>
               </div>
             ),
           }}
