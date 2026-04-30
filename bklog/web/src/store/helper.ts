@@ -290,3 +290,53 @@ export const buildTableIdConditions = (
     scene_filter_values: filterValues,
   };
 };
+
+/**
+ * 从历史记录中的 table_id_conditions 和 scene_filter_values 反向解析出 scene_active 和 scene_filter_values
+ * - table_id_conditions 中 field_name 为 "scene" 的条目 → 提取为 scene_active
+ * - table_id_conditions 中除 scene 外的字段 → 转换为 { fieldName: value } 格式，写入 scene_filter_values
+ * - 历史记录中的 scene_filter_values（{field, operator, value} 格式）→ 转换为 { fieldName: value } 格式，合并到 scene_filter_values
+ *
+ * @param tableIdConditions 历史记录中的 table_id_conditions
+ * @param sceneFilterValues 历史记录中的 scene_filter_values
+ */
+export const parseTableIdConditions = (
+  tableIdConditions?: Array<Array<{ field_name: string; value: any[]; op: string }>>,
+  sceneFilterValues?: Array<{ field: string; operator: string; value: any[] }>,
+): {
+  scene_active: string;
+  scene_filter_values: Record<string, any>;
+} => {
+  let sceneActive = '';
+  const filterValues: Record<string, any> = {};
+
+  // 从 table_id_conditions 解析
+  if (Array.isArray(tableIdConditions) && tableIdConditions.length > 0) {
+    const innerConditions = tableIdConditions[0];
+    if (Array.isArray(innerConditions)) {
+      for (const condition of innerConditions) {
+        const { field_name, value } = condition;
+        if (field_name === 'scene') {
+          // scene 字段 → scene_active
+          sceneActive = Array.isArray(value) ? (value[0] ?? '') : value;
+        } else {
+          // 非 scene 字段 → scene_filter_values
+          filterValues[field_name] = Array.isArray(value) && value.length === 1 ? value[0] : value;
+        }
+      }
+    }
+  }
+
+  // 从历史记录的 scene_filter_values 合并
+  if (Array.isArray(sceneFilterValues)) {
+    for (const item of sceneFilterValues) {
+      const { field, value } = item;
+      filterValues[field] = Array.isArray(value) && value.length === 1 ? value[0] : value;
+    }
+  }
+
+  return {
+    scene_active: sceneActive,
+    scene_filter_values: filterValues,
+  };
+};

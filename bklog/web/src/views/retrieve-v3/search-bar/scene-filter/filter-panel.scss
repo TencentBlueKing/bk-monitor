@@ -140,6 +140,10 @@
         .bk-select, .bk-tag-input {
           border: 1px solid #C1CDE5;
         }
+
+        .bk-tag-input .tag-list {
+          overflow-x: hidden;
+        }
       }
     }
   }

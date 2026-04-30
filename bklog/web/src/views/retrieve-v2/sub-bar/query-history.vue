@@ -169,8 +169,8 @@
       },
       handleClickHistory(item) {
         const { params } = item;
-        const { keyword, addition, ip_chooser, search_mode = item.search_mode  } = params;
-        this.$emit('change', { keyword, addition, ip_chooser, search_mode });
+        const { keyword, addition, ip_chooser, search_mode = item.search_mode, scene_filter_values, table_id_conditions } = params;
+        this.$emit('change', { keyword, addition, ip_chooser, search_mode, scene_filter_values, table_id_conditions });
         this.popoverInstance.hide();
       },
       requestSearchHistory() {
