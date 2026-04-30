@@ -283,12 +283,11 @@ export default defineComponent({
       const beginTime = props.detail.begin_time * 1000;
       const beginTimeStr = String(beginTime);
       const firstAnomalyTimeStr = String(props.detail.first_anomaly_time * 1000);
-      const endTimeStr = String(
-        props.detail.end_time ? props.detail.end_time * 1000 : datapoints[datapoints.length - 1][1]
-      );
+      const lastDataPointTime = datapoints?.at(-1)?.[1];
+      const endTime = props.detail.end_time ? props.detail.end_time * 1000 : lastDataPointTime;
 
       // 为主要系列添加 markPoints 和 markTimeRange，利用 use-monitor-echarts 的处理逻辑
-      if (series.length > 0) {
+      if (series.length > 0 && datapoints?.length && typeof endTime === 'number') {
         /**
          * @description 在所有系列的 datapoints 中插入缺失的时间点
          * @param timestamp - 需要插入的时间戳（毫秒）
@@ -304,6 +303,24 @@ export default defineComponent({
             }
           }
         };
+        const getTimeAxisTimestamps = (): number[] => {
+          const timestamps = Array.from(
+            new Set<number>(series.flatMap(s => s.datapoints?.map(point => point[1] as number) ?? []))
+          ).sort((a, b) => a - b);
+          if (!timestamps.length) {
+            return [endTime];
+          }
+          return timestamps;
+        };
+        const getMarkEndTime = (timestamp: number) => {
+          const timestamps = getTimeAxisTimestamps();
+          let markTime = timestamps[0];
+          for (const time of timestamps) {
+            if (time > timestamp) break;
+            markTime = time;
+          }
+          return markTime;
+        };
 
         /** 异常告警点时间不在图表x轴上，补充告警点的时间 */
         const anomalyValue = isEventOrLogAlarm.value ? 1 : 0;
@@ -312,9 +329,10 @@ export default defineComponent({
         }
 
         /** 填充不在图表时间轴上的告警面积分割点 */
-        for (const point of [firstAnomalyTimeStr, beginTimeStr, endTimeStr]) {
+        for (const point of [firstAnomalyTimeStr, beginTimeStr]) {
           insertMissingPoint(Number(point), 0);
         }
+        const endTimeStr = String(getMarkEndTime(endTime));
 
         // 设置标记点（异常点 + 告警级别图标）
         const mainSeries = series[0];

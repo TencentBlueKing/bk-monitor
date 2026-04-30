@@ -430,6 +430,10 @@ class QueryDataLinkMetadataViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkMetadataResource)]
 
 
+class GetDataLinkMetadataViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetDataLinkMetadataResource)]
+
+
 class SpaceDataLinkMetaReportViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.SpaceDataLinkMetaReport)]
 
@@ -440,6 +444,10 @@ class IntelligentDiagnosisMetadataViewSet(MetaViewSet):
 
 class QueryDataIdsByBizIdViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataIdsByBizIdResource)]
+
+
+class BizHasDataIdViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.BizHasDataIdResource)]
 
 
 class GetBCSClusterRelatedDataLinkViewSet(MetaViewSet):
