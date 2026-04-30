@@ -86,7 +86,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
     query_transformer = IssueQueryTransformer
 
-    MY_ISSUE_STATUS_NAME = "MY_ISSUE"
+    MY_ISSUE_STATUS_NAME = "MY_ASSIGNEE"
     NO_ASSIGNEE_STATUS_NAME = "NO_ASSIGNEE"
 
     def __init__(
@@ -122,9 +122,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
         )
         self.status = [status] if isinstance(status, str) else status
 
-        # 默认排序：活跃状态优先，同状态按更新时间倒序
+        # 默认排序：最早发生时间降序 > 优先级 > 状态
         if not self.ordering:
-            self.ordering = ["status", "-update_time"]
+            self.ordering = ["-first_alert_time", "priority", "status"]
 
         self.trend_start_time = trend_start_time if trend_start_time is not None else self.start_time
         self.trend_end_time = trend_end_time if trend_end_time is not None else self.end_time
@@ -176,9 +176,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
         if self.status:
             queries = []
             for s in self.status:
-                if s == self.MY_ISSUE_STATUS_NAME:
+                s_lower = s.lower()
+                if s_lower == self.MY_ISSUE_STATUS_NAME.lower():
                     queries.append(Q("term", assignee=self.request_username))
-                elif s == self.NO_ASSIGNEE_STATUS_NAME:
+                elif s_lower == self.NO_ASSIGNEE_STATUS_NAME.lower():
                     queries.append(~Q("exists", field="assignee"))
 
             if queries:
@@ -534,17 +535,16 @@ class IssueQueryHandler(BaseBizQueryHandler):
             return []
 
         aggs = []
-        status_display = dict(IssueStatus.CHOICES)
-        priority_display = dict(IssuePriority.CHOICES)
 
-        # 优先级聚合
+        # 优先级聚合：确保所有优先级选项都展示，count 为 0 的也展示
+        priority_bucket_map = {bucket.key: bucket.doc_count for bucket in search_result.aggs.priority.buckets}
         priority_buckets = []
-        for bucket in search_result.aggs.priority.buckets:
+        for priority_key, priority_name in IssuePriority.CHOICES:
             priority_buckets.append(
                 {
-                    "id": bucket.key,
-                    "name": str(priority_display.get(bucket.key, bucket.key)),
-                    "count": bucket.doc_count,
+                    "id": priority_key,
+                    "name": str(priority_name),
+                    "count": priority_bucket_map.get(priority_key, 0),
                 }
             )
         aggs.append(
@@ -556,14 +556,15 @@ class IssueQueryHandler(BaseBizQueryHandler):
             }
         )
 
-        # 状态聚合
+        # 状态聚合：确保所有状态选项都展示，count 为 0 的也展示
+        status_bucket_map = {bucket.key: bucket.doc_count for bucket in search_result.aggs.status.buckets}
         status_buckets = []
-        for bucket in search_result.aggs.status.buckets:
+        for status_key, status_name in IssueStatus.CHOICES:
             status_buckets.append(
                 {
-                    "id": bucket.key,
-                    "name": str(status_display.get(bucket.key, bucket.key)),
-                    "count": bucket.doc_count,
+                    "id": status_key,
+                    "name": str(status_name),
+                    "count": status_bucket_map.get(status_key, 0),
                 }
             )
         aggs.append(
@@ -590,18 +591,27 @@ class IssueQueryHandler(BaseBizQueryHandler):
             }
         )
 
-        # 类型聚合（是否回归）
-        regression_buckets = []
+        # 类型聚合（是否回归）：确保"新问题"和"回归问题"都展示
+        regression_bucket_map = {}
         for bucket in search_result.aggs.is_regression.buckets:
-            key_str = str(bucket.key).lower()
-            name = "回归问题" if key_str in ("true", "1") else "新问题"
-            regression_buckets.append(
-                {
-                    "id": key_str,
-                    "name": name,
-                    "count": bucket.doc_count,
-                }
-            )
+            # ES boolean 字段聚合，key 为 True/False（或 "true"/"false"），统一归一化
+            key = bucket.key
+            if isinstance(key, str):
+                key = key.lower() in ("true", "1")
+            regression_bucket_map[bool(key)] = bucket.doc_count
+
+        regression_buckets = [
+            {
+                "id": "false",
+                "name": "新问题",
+                "count": regression_bucket_map.get(False, 0),
+            },
+            {
+                "id": "true",
+                "name": "回归问题",
+                "count": regression_bucket_map.get(True, 0),
+            },
+        ]
         aggs.append(
             {
                 "id": "is_regression",

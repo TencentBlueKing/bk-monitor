@@ -223,6 +223,7 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
       <div class='issue-agg-container'>
         <CommonItem
           title={this.$t('聚合维度')}
+          isRequired
           show-semicolon
         >
           <bk-select
@@ -281,6 +282,7 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
         </CommonItem>
         <CommonItem
           title={this.$t('生效告警级别')}
+          isRequired
           show-semicolon
         >
           <bk-checkbox-group
