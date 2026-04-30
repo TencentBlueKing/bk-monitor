@@ -574,12 +574,18 @@ export default () => {
     const sceneFieldKeys = getSceneFieldKeys(configs, sceneActive);
     if (!sceneFieldKeys.length) return;
 
+    // 读取当前业务的场景显示字段配置，以显示字段为主过滤回填值
+    const allDisplayFields = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
+    const bizDisplayFields = allDisplayFields[bkBizId.value] ?? {};
+    const sceneDisplayFields: string[] | null | undefined = bizDisplayFields[sceneActive];
+
     const result: Record<string, any> = {};
     for (const fieldKey of sceneFieldKeys) {
       const val = route.query[fieldKey];
-      if (val !== undefined && val !== null && val !== '') {
-        result[fieldKey] = val;
-      }
+      if (val === undefined || val === null || val === '') continue;
+      // 显示字段为 null/undefined/空数组 表示全部显示，否则只回填显示字段中的值
+      if (sceneDisplayFields && sceneDisplayFields.length > 0 && !sceneDisplayFields.includes(fieldKey)) continue;
+      result[fieldKey] = val;
     }
 
     if (Object.keys(result).length) {
