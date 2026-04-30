@@ -1030,15 +1030,22 @@ class SetCodeRemarkResource(Resource):
         if service_name:
             config_obj = ApmMetaConfig.get_application_config_value(app.application_id, APM_CODE_REMARK_CONFIG_KEY)
             remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
-            update_remark_configs: list[dict[str, Any]] = [
+            is_global: bool = validated_request_data["is_global"]
+            kind: str = validated_request_data["kind"]
+            update_remark_configs = [
                 {
-                    "kind": validated_request_data["kind"],
+                    "kind": kind,
                     "code": code,
                     "remark": remark,
-                    "is_global": validated_request_data["is_global"],
-                    "service_names": [service_name],
+                    "is_global": is_global,
+                    "service_names": [] if is_global else [service_name],
                 }
             ]
+            # 保存并应用为全局时，需要同时移除服务级配置
+            if is_global:
+                update_remark_configs.append(
+                    {"kind": kind, "code": code, "remark": "", "is_global": False, "service_names": [service_name]}
+                )
         else:
             remark_configs: list[dict[str, Any]] = validated_request_data["remarks"]
         remark_configs = self.merge_remark_configs(remark_configs, update_remark_configs)
