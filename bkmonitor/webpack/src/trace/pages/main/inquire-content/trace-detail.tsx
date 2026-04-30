@@ -854,8 +854,8 @@ export default defineComponent({
       contentLoading.value = false;
     }
 
-    // 快捷跳转
-    const handleQuickJump = () => {
+    // 日志检索快捷跳转
+    const handleLogQuickJump = () => {
       if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
       const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
       const startMs = toUnixMilliseconds(start_time);
@@ -924,7 +924,7 @@ export default defineComponent({
       handleServiceTopoClickItem,
       handleChangeEnableTimeALignment,
       disabledSpanKindById,
-      handleQuickJump,
+      handleLogQuickJump,
       t,
     };
   },
@@ -1129,7 +1129,7 @@ export default defineComponent({
                       size='small'
                       theme='primary'
                       outline
-                      onClick={this.handleQuickJump}
+                      onClick={this.handleLogQuickJump}
                     >
                       {this.exploreButtonName}
                       <i class='icon-monitor icon-fenxiang' />
