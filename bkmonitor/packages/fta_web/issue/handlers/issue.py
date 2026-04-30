@@ -122,9 +122,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
         )
         self.status = [status] if isinstance(status, str) else status
 
-        # 默认排序：活跃状态优先，同状态按更新时间倒序
+        # 默认排序：最早发生时间降序 > 优先级 > 状态
         if not self.ordering:
-            self.ordering = ["status", "-update_time"]
+            self.ordering = ["-first_alert_time", "priority", "status"]
 
         self.trend_start_time = trend_start_time if trend_start_time is not None else self.start_time
         self.trend_end_time = trend_end_time if trend_end_time is not None else self.end_time
