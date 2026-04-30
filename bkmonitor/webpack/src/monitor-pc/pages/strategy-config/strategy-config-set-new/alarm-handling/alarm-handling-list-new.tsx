@@ -347,11 +347,24 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
       const skipDelayValidate = this.localValue.some(item =>
         item.activeTab === actionType.action ? item.action?.options.skip_delay === -1 : false
       );
+      const issueAggLevelsValidate = this.localValue.some(item =>
+        item.activeTab === actionType.issueAgg ? !item.issueConfig?.alert_levels?.length : false
+      );
+      const issueAggDimensionsValidate = this.localValue.some(item =>
+        item.activeTab === actionType.issueAgg ? !item.issueConfig?.aggregate_dimensions?.length : false
+      );
       if (validate) {
         this.errMsg = window.i18n.tc('输入告警场景');
         reject();
       } else if (!configValidate) {
         this.errMsg = window.i18n.tc('选择处理套餐');
+        reject();
+      } else if (issueAggDimensionsValidate) {
+        this.errMsg = window.i18n.tc('请选择Issue聚合维度');
+        reject();
+      } else if (issueAggLevelsValidate) {
+        this.errMsg = window.i18n.tc('请选择Issue聚合生效告警级别');
+        reject();
       } else if (skipDelayValidate) {
         // 后端只存储延迟时间，不记录开关状态。 -1：switch状态开但时间设置不正确
         reject();
@@ -390,9 +403,37 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
           key={`${index}_tab`}
           class='action-tab-form-item'
           title={this.$t('动作')}
+          isRequired
           show-semicolon
         >
-          <div class='bk-button-group'>
+          <bk-select
+            style='flex: 1; max-width: 180px;'
+            behavior='simplicity'
+            clearable={false}
+            searchable={false}
+            size={'small'}
+            value={item.activeTab}
+            onChange={val => {
+              if (item.needIssueConfig) {
+                this.handleTabChange(val, index);
+              }
+            }}
+          >
+            {ACTION_TYPE_OPTIONS.map(action => (
+              <bk-option
+                id={action.id}
+                key={action.id}
+                v-bk-tooltips={{
+                  content: this.$t('已配置issue聚合'),
+                  placements: ['right'],
+                  disabled: action.id === actionType.issueAgg ? item.needIssueConfig : true,
+                }}
+                disabled={action.id === actionType.issueAgg ? !item.needIssueConfig : false}
+                name={action.name}
+              />
+            ))}
+          </bk-select>
+          {/* <div class='bk-button-group'>
             {ACTION_TYPE_OPTIONS.map(action => (
               <span
                 key={action.id}
@@ -418,7 +459,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                 </bk-button>
               </span>
             ))}
-          </div>
+          </div> */}
         </CommonItem>,
         item.activeTab === actionType.issueAgg ? (
           <IssueAgg
