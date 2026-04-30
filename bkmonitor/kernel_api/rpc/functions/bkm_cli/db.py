@@ -46,12 +46,34 @@ class ModelSpec:
 ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
     "metadata.models.bcs.cluster.BCSClusterInfo": ModelSpec(
         model_path="metadata.models.bcs.cluster.BCSClusterInfo",
-        fields={"cluster_id", "bk_biz_id", "status", "bk_tenant_id", "project_id", "created_at", "updated_at"},
-        default_fields={"cluster_id", "bk_biz_id", "status", "bk_tenant_id"},
+        fields={
+            "cluster_id",
+            "bcs_api_cluster_id",
+            "bk_biz_id",
+            "status",
+            "bk_tenant_id",
+            "project_id",
+            "bk_env",
+            "operator_ns",
+            "K8sMetricDataID",
+            "K8sEventDataID",
+            "CustomMetricDataID",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={"cluster_id", "bk_biz_id", "status", "bk_env", "K8sMetricDataID", "bk_tenant_id"},
         examples=[
             {
                 "filter": {"cluster_id": "BCS-K8S-00001"},
-                "fields": ["cluster_id", "bk_biz_id", "status", "bk_tenant_id"],
+                "fields": [
+                    "cluster_id",
+                    "bk_biz_id",
+                    "status",
+                    "bk_env",
+                    "K8sMetricDataID",
+                    "operator_ns",
+                    "last_modify_time",
+                ],
                 "limit": 20,
             }
         ],

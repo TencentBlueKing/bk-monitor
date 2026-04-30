@@ -65,6 +65,10 @@ def test_inspect_bcs_metadata_reads_db_models_only(monkeypatch):
                 status="running",
                 K8sMetricDataID=10001,
                 K8sEventDataID=10002,
+                CustomMetricDataID=10003,
+                CustomEventDataID=10004,
+                bk_env="bkop",
+                bk_env_label="bkop",
                 bk_tenant_id="system",
             )
         ]
@@ -140,7 +144,10 @@ def test_inspect_bcs_metadata_reads_db_models_only(monkeypatch):
     assert result["result"]["cluster_id"] == "BCS-K8S-00001"
     assert result["result"]["bk_biz_id"] == 1001
     assert result["result"]["space_uid"] == "bkcc__1001"
-    assert result["result"]["bcs_cluster_info"][0]["status"] == "running"
+    cluster_info = result["result"]["bcs_cluster_info"][0]
+    assert cluster_info["status"] == "running"
+    assert cluster_info["bk_env"] == "bkop"
+    assert cluster_info["bk_env_label"] == "bkop"
     assert result["result"]["spaces"][0]["space_uid"] == "bkcc__1001"
     assert result["result"]["space_resources"][0]["resource_id"] == "BCS-K8S-00001"
     assert result["result"]["bcs_clusters"][0]["space_uid"] == "bkcc__1001"
