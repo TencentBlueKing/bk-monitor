@@ -296,12 +296,27 @@ export default defineComponent({
       );
     };
 
-    const renderActivityItemTime = (time: number) => {
-      const timeObj = dayjs(time * 1000);
+    const renderActivityItemTime = (item: IssueActivityItem, showOperator = true) => {
+      const timeObj = dayjs(item.time * 1000);
+      const tooltipContent = showOperator ? (
+        <div>
+          <div>
+            {t('操作人')}：
+            <bk-user-display-name user-id={item.operator} />
+          </div>
+          <div>
+            {t('操作时间')}：{timeObj.format('YYYY-MM-DD HH:mm:ssZ')}
+          </div>
+        </div>
+      ) : (
+        `${timeObj.format('YYYY-MM-DD HH:mm:ss')}${timeObj.format('Z')}`
+      );
       return (
         <span
           class='time'
-          v-bk-tooltips={{ content: `${timeObj.format('YYYY-MM-DD HH:mm:ss')}${timeObj.format('Z')}` }}
+          v-bk-tooltips={{
+            content: tooltipContent,
+          }}
         >
           <span class='time-text'>{timeObj.fromNow()}</span>
         </span>
@@ -394,8 +409,10 @@ export default defineComponent({
         icon: <i class='icon-monitor icon-a-useryonghu' />,
         title: (
           <div class='title-row'>
-            <span class='user'>{item.operator}</span>
-            {renderActivityItemTime(item.time)}
+            <span class='user'>
+              <bk-user-display-name user-id={item.operator} />
+            </span>
+            {renderActivityItemTime(item, false)}
           </div>
         ),
         content: (
@@ -439,7 +456,7 @@ export default defineComponent({
             >
               {statusNode.alias}：{ISSUES_STATUS_MAP[item.to_value]?.alias}
             </span>
-            {renderActivityItemTime(item.time)}
+            {renderActivityItemTime(item)}
           </div>
         ),
         showLine,
@@ -467,9 +484,15 @@ export default defineComponent({
                 placement: 'top',
               }}
             >
-              {dispatchNode.alias}：{item.to_value}
+              {dispatchNode.alias}：
+              {item.to_value.split(',').map((user: string, index: number) => (
+                <span key={user.trim()}>
+                  {index > 0 && ', '}
+                  <bk-user-display-name user-id={user.trim()} />
+                </span>
+              ))}
             </span>
-            {renderActivityItemTime(item.time)}
+            {renderActivityItemTime(item)}
           </div>
         ),
         showLine,
@@ -499,7 +522,7 @@ export default defineComponent({
             >
               {priorityNode.alias}：{ISSUES_PRIORITY_MAP[item.to_value]?.alias}
             </span>
-            {renderActivityItemTime(item.time)}
+            {renderActivityItemTime(item)}
           </div>
         ),
         showLine,
@@ -529,7 +552,7 @@ export default defineComponent({
             >
               {firstNode.alias}
             </span>
-            {renderActivityItemTime(item.time)}
+            {renderActivityItemTime(item)}
           </div>
         ),
         showLine,
