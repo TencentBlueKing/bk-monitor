@@ -196,3 +196,51 @@ def test_inspect_strategy_config_rejects_missing_required_params():
         )
 
     assert "strategy_id" in str(exc.value)
+
+
+def test_inspect_strategy_config_detail_without_bk_biz_id(monkeypatch):
+    """strategy_id is globally unique — bk_biz_id should be optional for detail."""
+    from kernel_api.rpc.functions.bkm_cli import strategy
+
+    model = SimpleNamespace(id=51, bk_biz_id=100900)
+    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    strategy_obj = FakeStrategyObject(
+        {
+            "id": 51,
+            "bk_biz_id": 100900,
+            "name": "cross-biz strategy",
+            "scenario": "os",
+            "type": "monitor",
+            "source": "bkmonitorv3",
+            "is_enabled": True,
+            "is_invalid": False,
+            "invalid_type": "",
+            "priority": 1,
+            "priority_group_key": "PGK:cross",
+            "items": [],
+            "detects": [],
+            "actions": [],
+            "notice": {},
+            "issue_config": {},
+        }
+    )
+
+    monkeypatch.setattr(strategy.Strategy, "from_models", lambda rows: [strategy_obj])
+    monkeypatch.setattr(strategy.Strategy, "fill_user_groups", lambda configs: None)
+
+    result = BkmCliOpCallResource().perform_request(
+        {
+            "op_id": "inspect-strategy-config",
+            "params": {
+                "operation": "detail",
+                "strategy_id": 51,
+            },
+        }
+    )
+
+    # Queried by id alone, no bk_biz_id filter
+    assert strategy.StrategyModel.objects.get_kwargs == {"id": 51}
+    assert result["result"]["operation"] == "detail"
+    assert result["result"]["strategy_id"] == 51
+    assert result["result"]["bk_biz_id"] == 100900  # returned from the model
+    assert result["result"]["strategy"]["id"] == 51
