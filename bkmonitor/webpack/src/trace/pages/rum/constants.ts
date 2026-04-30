@@ -80,3 +80,28 @@ export const ALERT_BAR_GAP = 2;
 export const ALERT_BAR_HEIGHT = 14;
 /** 色块激活高度 (px) */
 export const ALERT_BAR_ACTIVE_HEIGHT = 20;
+
+// ===================== 数据采样 — 静态列配置 =====================
+
+/** 数据采样表格静态列配置（title / width 等静态属性，cellRenderer 由 useSamplingColumnsRenderer 注入） */
+export const SAMPLING_TABLE_COLUMNS = [
+  {
+    colKey: 'index',
+    title: window.i18n.t('序号'),
+    width: 80,
+  },
+  {
+    colKey: 'raw_log',
+    title: window.i18n.t('原始数据'),
+  },
+  {
+    colKey: 'sampling_time',
+    title: window.i18n.t('采样时间'),
+    width: 200,
+  },
+  {
+    colKey: 'operations',
+    title: window.i18n.t('操作'),
+    width: 180,
+  },
+] as const;
