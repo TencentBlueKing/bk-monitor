@@ -802,7 +802,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         index_set_id, index_set_name = self.update_or_create_index_set(
             option["es_storage_cluster"],
-            bk_biz_id=bk_biz_id,
+            bk_biz_id=settings.BKAPP_ADMIN_BIZ_ID if global_mode else self.bk_biz_id,
             table_id=table_id,
             index_set_id=self.index_set_id,
         )
