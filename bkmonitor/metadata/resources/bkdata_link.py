@@ -19,7 +19,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.serializers import TenantIdField
-from core.drf_resource import Resource
+from core.drf_resource import Resource, api
 from metadata import models
 from metadata.config import METADATA_RESULT_TABLE_WHITE_LIST
 from metadata.models import AccessVMRecord, DataSource
@@ -497,6 +497,26 @@ class QueryDataIdsByBizIdResource(Resource):
             for item in data_source_mappings
         ]
         return result
+
+
+class BizHasDataIdResource(Resource):
+    """
+    判断业务下是否存在结果表（有 RT 则必有 data_id 关联，不返回具体 DataId）
+    @param bk_biz_id 业务ID
+    @return {"has_data_id": bool}
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.CharField(label="业务ID", required=True)
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, bool]:
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+
+        has_data_id = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).exists()
+
+        return {"has_data_id": has_data_id}
 
 
 class IntelligentDiagnosisMetadataResource(Resource):
@@ -1121,3 +1141,25 @@ class QueryDataLinkMetadataResource(Resource):
         except Exception as e:
             logger.warning("Failed to build V3-to-V4 migration hints for table_id %s: %s", table_id, str(e))
             return None
+
+
+class GetDataLinkMetadataResource(Resource):
+    """
+    查询数据链路元数据 - 通过计算平台 v4 meta API
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(label="计算平台数据ID", required=False)
+        vm_result_table_id = serializers.CharField(label="VM结果表ID", required=False)
+
+        def validate(self, attrs):
+            if not (bool(attrs.get("bk_data_id")) ^ bool(attrs.get("vm_result_table_id"))):
+                raise serializers.ValidationError(
+                    "bk_data_id and vm_result_table_id are mutually exclusive, one must be specified"
+                )
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        logger.info("GetDataLinkMetadataResource: querying metadata with params: %s", validated_request_data)
+        result = api.bkdata.get_data_link_metadata(**validated_request_data)
+        return result

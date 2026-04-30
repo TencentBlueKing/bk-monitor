@@ -244,7 +244,7 @@ class Command(BaseCommand):
             table_id=ts_group.table_id,
             field_name=metric,
         ).first()
-        metric_caches = list(
+        direct_metric_caches = list(
             MetricListCache.objects.filter(
                 bk_biz_id=ts_group.bk_biz_id,
                 result_table_id=ts_group.table_id,
@@ -255,6 +255,38 @@ class Command(BaseCommand):
             .values("bk_biz_id", "result_table_id", "metric_field", "data_label", "last_update")
             .order_by("bk_biz_id")
         )
+        strategy_metric_cache_candidates = list(
+            MetricListCache.objects.filter(
+                bk_biz_id=ts_group.bk_biz_id,
+                metric_field=metric,
+                data_type_label=DataTypeLabel.TIME_SERIES,
+            )
+            .exclude(
+                result_table_id=ts_group.table_id,
+                data_source_label=DataSourceLabel.CUSTOM,
+            )
+            .values(
+                "bk_biz_id",
+                "bk_tenant_id",
+                "result_table_id",
+                "metric_field",
+                "metric_field_name",
+                "data_source_label",
+                "data_type_label",
+                "result_table_label",
+                "result_table_name",
+                "related_name",
+                "data_label",
+                "last_update",
+            )
+            .order_by("data_source_label", "result_table_id", "metric_field")
+        )
+        web_metric_cache_candidates = [
+            candidate
+            for candidate in strategy_metric_cache_candidates
+            if candidate["data_source_label"] == DataSourceLabel.BK_MONITOR_COLLECTOR
+        ]
+        web_metric_caches = direct_metric_caches or web_metric_cache_candidates
 
         diagnosis_stage, diagnosis_message, action = self._diagnose_metric(
             ts_group=ts_group,
@@ -265,7 +297,8 @@ class Command(BaseCommand):
             redis_history_detail=redis_history_detail,
             ts_metric=ts_metric,
             rt_field=rt_field,
-            metric_caches=metric_caches,
+            direct_metric_caches=direct_metric_caches,
+            web_metric_cache_candidates=web_metric_cache_candidates,
         )
 
         return {
@@ -275,7 +308,8 @@ class Command(BaseCommand):
                 "source_history_discovered": redis_history_detail is not None,
                 "metadata_time_series_metric_exists": bool(ts_metric),
                 "metadata_result_table_field_exists": bool(rt_field),
-                "web_metric_cache_exists": bool(metric_caches),
+                "direct_metric_cache_exists": bool(direct_metric_caches),
+                "web_metric_cache_exists": bool(web_metric_caches),
             },
             "details": {
                 "source": self._build_source_details(
@@ -309,7 +343,9 @@ class Command(BaseCommand):
                     if rt_field
                     else None
                 ),
-                "web_metric_cache": metric_caches,
+                "direct_metric_cache": direct_metric_caches,
+                "web_metric_cache_candidates": web_metric_cache_candidates,
+                "strategy_metric_cache_candidates": strategy_metric_cache_candidates,
             },
             "diagnosis": {
                 "stage": diagnosis_stage,
@@ -356,7 +392,8 @@ class Command(BaseCommand):
         redis_history_detail: dict[str, Any] | None,
         ts_metric: models.TimeSeriesMetric | None,
         rt_field: models.ResultTableField | None,
-        metric_caches: list[dict[str, Any]],
+        direct_metric_caches: list[dict[str, Any]],
+        web_metric_cache_candidates: list[dict[str, Any]],
     ) -> tuple[str, str, str]:
         """根据各层检查结果推断故障环节。
 
@@ -421,18 +458,30 @@ class Command(BaseCommand):
                 "TimeSeriesMetric 已存在，但 ResultTableField 中没有该字段。",
                 "说明 metadata 已发现指标，但结果表字段刷新阶段未落库，需检查 update_metrics 链路。",
             )
-        if not metric_caches:
+        if web_metric_cache_candidates:
+            return (
+                "recovered",
+                ("该指标的 source、metadata 与页面指标缓存均已命中；当前不属于指标缓存缺失问题。"),
+                (
+                    "若页面已能搜到该指标，可结束排查；"
+                    "若页面仍搜不到，请抓 get_metric_list 接口返回，继续核对 data_source_label、result_table_label 与查询条件。"
+                ),
+            )
+        if not direct_metric_caches:
             return (
                 "web_cache",
-                "metadata 已同步完成，但当前 api 环境的 MetricListCache 中还没有该指标。",
+                (
+                    "metadata 已同步完成，但当前 api 环境下尚未命中该指标对应的策略侧 MetricListCache。"
+                    "这通常意味着页面侧缓存尚未刷新。"
+                ),
                 (
                     f"建议在 api 环境执行 `update_metric_list_by_biz({ts_group.bk_biz_id})` "
-                    "或等待 web 指标缓存定时任务刷新。"
+                    "或等待策略指标缓存定时任务刷新。"
                 ),
             )
         return (
             "ok",
-            f"source({source_backend})、metadata、web 指标缓存三层均已命中，当前环境下后端链路正常。",
+            f"source({source_backend})、metadata、web_cache 三层均已命中，当前环境下后端链路正常。",
             "如果页面仍查不到，请继续核对前端筛选条件、业务范围或租户差异。",
         )
 
@@ -549,6 +598,7 @@ class Command(BaseCommand):
             status = metric_report["status"]
             source_details = metric_report["details"]["source"]
             diagnosis = metric_report["diagnosis"]
+            web_metric_cache_candidates = metric_report["details"]["web_metric_cache_candidates"]
             lines.extend(
                 [
                     f"[指标] {metric_report['metric']}",
@@ -574,6 +624,29 @@ class Command(BaseCommand):
                     f"  metadata.TimeSeriesMetric: {'是' if status['metadata_time_series_metric_exists'] else '否'}",
                     f"  metadata.ResultTableField: {'是' if status['metadata_result_table_field_exists'] else '否'}",
                     f"  web.MetricListCache: {'是' if status['web_metric_cache_exists'] else '否'}",
+                    ("  缓存命中依据:" if status["web_metric_cache_exists"] else "  缓存未命中依据:"),
+                    (
+                        "    - 当前业务下未找到该指标的策略侧缓存记录"
+                        if not web_metric_cache_candidates
+                        else "    - "
+                        + "；".join(
+                            f"data_source={item['data_source_label']}, "
+                            f"result_table_label={item['result_table_label'] or '-'}, "
+                            f"result_table_name={item['result_table_name'] or '-'}, "
+                            f"result_table_id={item['result_table_id'] or '-'}"
+                            for item in web_metric_cache_candidates
+                        )
+                    ),
+                    "  补充说明:",
+                    (
+                        "    - 574080 对应结果表未出现单独缓存记录，但不影响当前指标缓存已存在"
+                        if status["web_metric_cache_exists"] and not status["direct_metric_cache_exists"]
+                        else (
+                            "    - 当前指标缓存已存在，无需继续关注结果表对应的单独缓存形态"
+                            if status["web_metric_cache_exists"]
+                            else "    - metadata 已同步，但页面侧指标缓存仍未建立"
+                        )
+                    ),
                     "",
                 ]
             )

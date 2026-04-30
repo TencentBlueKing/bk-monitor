@@ -461,7 +461,7 @@ class GetTemplateDetailResource(GetPluginTemplatesResource):
 
     def perform_request(self, validated_request_data):
         plugin_instance = self.get_object(validated_request_data["plugin_id"])
-        request_schema = plugin_instance.config_schema["detail"]
+        request_schema = plugin_instance.config_schema.get("detail", {})
         detail_params = plugin_instance.perform_resource_request("detail", **validated_request_data)
         rsp_data = []
         for param in detail_params:

@@ -28,8 +28,8 @@ class StrategyIssueConfig(AbstractRecordModel):
 
     strategy_id = models.IntegerField(unique=True, db_index=True, verbose_name="策略 ID")
     bk_biz_id = models.IntegerField(db_index=True, verbose_name="业务 ID")
-    aggregate_dimensions = JsonField(default=list, verbose_name="聚合维度")
-    conditions = JsonField(default=list, verbose_name="过滤条件")
+    aggregate_dimensions = JsonField(default=list, blank=True, verbose_name="聚合维度")
+    conditions = JsonField(default=list, blank=True, verbose_name="过滤条件")
     alert_levels = JsonField(default=list, verbose_name="生效告警级别")
 
     VALID_CONDITION_METHODS = {"eq", "neq", "include", "exclude", "reg", "nreg"}

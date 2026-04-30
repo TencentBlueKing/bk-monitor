@@ -77,6 +77,7 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
     { label: window.i18n.tc('网络'), value: 'network', icon: 'icon-wangluo', disabled: false },
     { label: window.i18n.tc('容量'), value: 'capacity', icon: 'icon-rongliang', disabled: false },
     { label: window.i18n.tc('事件'), value: 'event', icon: 'icon-shijian2', disabled: false },
+    { label: window.i18n.tc('GPU'), value: 'tke_gpu', icon: 'icon-yingjian', disabled: false },
     { label: window.i18n.tc('存储'), value: 'storage', icon: 'icon-cunchu', disabled: true },
     { label: window.i18n.tc('成本'), value: 'cost', icon: 'icon-chengben', disabled: true },
   ];
