@@ -86,7 +86,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
     query_transformer = IssueQueryTransformer
 
-    MY_ISSUE_STATUS_NAME = "MY_ISSUE"
+    MY_ISSUE_STATUS_NAME = "MY_ASSIGNEE"
     NO_ASSIGNEE_STATUS_NAME = "NO_ASSIGNEE"
 
     def __init__(
@@ -176,9 +176,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
         if self.status:
             queries = []
             for s in self.status:
-                if s == self.MY_ISSUE_STATUS_NAME:
+                s_lower = s.lower()
+                if s_lower == self.MY_ISSUE_STATUS_NAME.lower():
                     queries.append(Q("term", assignee=self.request_username))
-                elif s == self.NO_ASSIGNEE_STATUS_NAME:
+                elif s_lower == self.NO_ASSIGNEE_STATUS_NAME.lower():
                     queries.append(~Q("exists", field="assignee"))
 
             if queries:
