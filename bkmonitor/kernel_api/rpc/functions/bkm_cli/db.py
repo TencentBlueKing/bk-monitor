@@ -126,67 +126,6 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
-    "bkmonitor.models.base.ReportItems": ModelSpec(
-        model_path="bkmonitor.models.base.ReportItems",
-        fields={"id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"},
-        default_fields={"id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"},
-        examples=[
-            {
-                "filter": {"bk_biz_id": 2},
-                "fields": ["id", "name", "bk_biz_id", "frequency", "last_send_time", "is_enabled"],
-                "limit": 20,
-            }
-        ],
-    ),
-    "bkmonitor.models.base.ReportContents": ModelSpec(
-        model_path="bkmonitor.models.base.ReportContents",
-        fields={"id", "report_id", "content", "create_time", "update_time"},
-        default_fields={"id", "report_id", "create_time", "update_time"},
-        examples=[
-            {
-                "filter": {"report_id": 1},
-                "fields": ["id", "report_id", "create_time", "update_time"],
-                "limit": 20,
-            }
-        ],
-    ),
-    "bkmonitor.models.base.ReportStatus": ModelSpec(
-        model_path="bkmonitor.models.base.ReportStatus",
-        fields={"id", "report_id", "send_status", "last_send_time", "create_time", "update_time"},
-        default_fields={"id", "report_id", "send_status", "last_send_time"},
-        examples=[
-            {
-                "filter": {"report_id": 1},
-                "fields": ["id", "report_id", "send_status", "last_send_time"],
-                "limit": 20,
-            }
-        ],
-    ),
-    "bkmonitor.models.fta.action.ActionInstance": ModelSpec(
-        model_path="bkmonitor.models.fta.action.ActionInstance",
-        fields={"id", "bk_biz_id", "status", "assignee", "strategy_id", "action_config_id", "create_time"},
-        sensitive_fields={"ex_data", "alerts"},
-        default_fields={"id", "bk_biz_id", "status", "assignee", "strategy_id", "action_config_id", "create_time"},
-        examples=[
-            {
-                "filter": {"bk_biz_id": 2, "strategy_id": 121950},
-                "fields": ["id", "bk_biz_id", "status", "assignee", "strategy_id", "create_time"],
-                "limit": 20,
-            }
-        ],
-    ),
-    "bkmonitor.models.fta.action.ActionInstanceLog": ModelSpec(
-        model_path="bkmonitor.models.fta.action.ActionInstanceLog",
-        fields={"id", "action_instance_id", "level", "message", "create_time"},
-        default_fields={"id", "action_instance_id", "level", "message", "create_time"},
-        examples=[
-            {
-                "filter": {"action_instance_id": 1},
-                "fields": ["id", "action_instance_id", "level", "message", "create_time"],
-                "limit": 20,
-            }
-        ],
-    ),
 }
 
 

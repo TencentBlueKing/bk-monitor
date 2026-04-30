@@ -241,3 +241,17 @@ def test_bcs_cluster_info_allowlist_has_diagnostic_fields():
 
     stale = {"created_at", "updated_at"}
     assert not (stale & spec.fields), f"Stale field names still present: {stale & spec.fields}"
+
+
+def test_allowlist_excludes_deprecated_and_low_value_models():
+    from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
+
+    removed = {
+        "bkmonitor.models.base.ReportItems",
+        "bkmonitor.models.base.ReportContents",
+        "bkmonitor.models.base.ReportStatus",
+        "bkmonitor.models.fta.action.ActionInstance",
+        "bkmonitor.models.fta.action.ActionInstanceLog",
+    }
+    present = removed & set(ALLOWED_MODEL_SPECS.keys())
+    assert not present, f"Deprecated/low-value models still in allowlist: {present}"
