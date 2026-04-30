@@ -29,7 +29,6 @@ from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
-from api.cmdb.define import Business
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
@@ -51,6 +50,7 @@ from apm_web.constants import (
     SceneEventKey,
     ServiceRelationLogTypeChoices,
     StorageStatus,
+    SyncScope,
     TopoNodeKind,
     nodata_error_strategy_config_mapping,
 )
@@ -88,8 +88,6 @@ from apm_web.models import (
     Application,
     ApplicationCustomService,
     ApplicationRelationInfo,
-    AppServiceRelation,
-    CMDBServiceRelation,
     LogServiceRelation,
     UriServiceRelation,
 )
@@ -100,9 +98,7 @@ from apm_web.serializers import (
     AsyncSerializer,
     CustomServiceConfigSerializer,
 )
-from apm_web.service.resources import CMDBServiceTemplateResource
 from apm_web.service.serializers import (
-    AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
@@ -465,6 +461,10 @@ class ApplicationInfoResource(Resource):
             data[Application.SAMPLER_CONFIG_KEY] = self.convert_sampler_config(
                 instance.bk_biz_id, instance.app_name, data[Application.SAMPLER_CONFIG_KEY]
             )
+            # 补充关联日志配置
+            data["application_log_relation_configs"] = LogServiceRelationOutputSerializer(
+                instance=LogServiceRelation.get_relation_qs(instance.bk_biz_id, instance.app_name, [], True), many=True
+            ).data
             return data
 
     def perform_request(self, validated_request_data):
@@ -704,6 +704,20 @@ class SetupResource(Resource):
             subscription_id = serializers.IntegerField(label="订阅任务id", required=False)
             bk_data_id = serializers.IntegerField(label="数据id", required=False)
 
+        class LogRelationSerializer(serializers.Serializer):
+            log_type = serializers.CharField(label=_("日志类型"))
+            related_bk_biz_id = serializers.IntegerField(label=_("关联业务ID"))
+            value_list = serializers.ListField(child=serializers.IntegerField(), label=_("日志值列表"))
+
+            def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+                if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
+                    if not attrs["related_bk_biz_id"]:
+                        raise serializers.ValidationError(_("关联日志平台日志需要选择业务"))
+                else:
+                    attrs["related_bk_biz_id"] = None
+
+                return super().validate(attrs)
+
         application_id = serializers.IntegerField(label="应用id")
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="应用描述", max_length=255, allow_blank=True, required=False)
@@ -714,6 +728,9 @@ class SetupResource(Resource):
         application_instance_name_config = InstanceNameConfigSerializer(required=False)
         application_dimension_config = DimensionConfigSerializer(required=False)
         application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), default=[])
+        application_log_relation_configs = serializers.ListField(
+            label=_("日志关联配置"), child=LogRelationSerializer(), default=[]
+        )
 
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
         plugin_config = PluginConfigSerializer(required=False)
@@ -867,6 +884,26 @@ class SetupResource(Resource):
             )
             self._application.event_config = self._params[Application.EVENT_CONFIG_KEY]
 
+    class LogRelationProcessor(SetupProcessor):
+        update_key = ["application_log_relation_configs"]
+
+        def setup(self):
+            bk_biz_id: int = self._application.bk_biz_id
+            app_name: str = self._application.app_name
+            records: list[dict[str, Any]] = [
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "app_name": app_name,
+                    "service_name": "",
+                    "is_global": True,
+                    "log_type": relation_config["log_type"],
+                    "related_bk_biz_id": relation_config["related_bk_biz_id"],
+                    "value_list": relation_config["value_list"],
+                }
+                for relation_config in self._params["application_log_relation_configs"]
+            ]
+            LogServiceRelation.sync_relations(bk_biz_id, app_name, records=records, scope=SyncScope.GLOBAL)
+
     def perform_request(self, validated_data):
         try:
             application = Application.objects.get(application_id=validated_data["application_id"])
@@ -886,6 +923,7 @@ class SetupResource(Resource):
                 self.NoDataPeriodProcessor,
                 self.DbSetupProcessor,
                 self.QPSSetupProcessor,
+                self.LogRelationProcessor,
             ]
         ]
 
@@ -1203,9 +1241,6 @@ class ServiceDetailResource(Resource):
                 }.items()
             ]
 
-        # 暂时用不上，并需注意方法体逻辑已过时
-        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
-
         return [
             {
                 "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
@@ -1220,49 +1255,6 @@ class ServiceDetailResource(Resource):
             }.items()
             if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
         ]
-
-    def add_service_relation(self, bk_biz_id, app_name, service):
-        service_name: str = service["topo_key"]
-        # -- 添加cmdb关联信息
-        cmdb_obj: CMDBServiceRelation = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
-        if cmdb_obj:
-            template_id = cmdb_obj.template_id
-            template = {t["id"]: t for t in CMDBServiceTemplateResource.get_templates(bk_biz_id)}.get(template_id, {})
-            service.update(
-                {
-                    "cmdb_template_name": template.get("name"),
-                    "cmdb_first_category": template.get("first_category", {}).get("name"),
-                    "cmdb_second_category": template.get("second_category", {}).get("name"),
-                }
-            )
-
-        # -- 添加日志关联
-        log_obj: LogServiceRelation = LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
-        if log_obj:
-            log_data: dict[str, Any] = LogServiceRelationOutputSerializer(instance=log_obj).data
-            if log_data["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
-                service.update(
-                    {
-                        "log_type": log_data["log_type_alias"],
-                        "log_related_bk_biz_name": log_data["related_bk_biz_name"],
-                        "log_value_alias": log_data["value_alias"],
-                    }
-                )
-            else:
-                service.update({"log_type": log_data["log_type_alias"], "log_value": log_data["value"]})
-
-        # -- 添加app关联
-        app_obj: AppServiceRelation = AppServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
-        if app_obj:
-            res: dict[str, Any] = AppServiceRelationSerializer(instance=app_obj).data
-            relate_bk_biz_id = app_obj.relate_bk_biz_id
-            biz = {i.bk_biz_id: i for i in api.cmdb.get_business(bk_biz_ids=[relate_bk_biz_id])}.get(relate_bk_biz_id)
-            service.update(
-                {
-                    "app_related_bk_biz_name": biz.bk_biz_name if isinstance(biz, Business) else None,
-                    "app_related_app_name": res["relate_app_name"],
-                }
-            )
 
 
 class EndpointDetailResource(Resource):
