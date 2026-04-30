@@ -454,9 +454,7 @@ class ModifyResultTableResource(Resource):
 
         return result_table.to_json()
 
-    def _update_es_storage_config(
-        self, table_id: str, storage_config: dict | None, bk_tenant_id: str
-    ) -> None:
+    def _update_es_storage_config(self, table_id: str, storage_config: dict | None, bk_tenant_id: str) -> None:
         """根据 default_storage_config 更新 ESStorage 可变字段（如 index_set）"""
         if not storage_config:
             return
