@@ -28,32 +28,39 @@ def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
     if operation not in ALLOWED_OPERATIONS:
         raise CustomException(message=f"不支持的 inspect-strategy-config operation: {operation}")
 
-    bk_biz_id = _required_int(params, "bk_biz_id")
     if operation == OPERATION_DETAIL:
-        return _inspect_strategy_detail(params, bk_biz_id)
-    return _list_by_priority_group(params, bk_biz_id)
+        return _inspect_strategy_detail(params)
+    return _list_by_priority_group(params)
 
 
-def _inspect_strategy_detail(params: dict[str, Any], bk_biz_id: int) -> dict[str, Any]:
+def _inspect_strategy_detail(params: dict[str, Any]) -> dict[str, Any]:
     strategy_id = _required_int(params, "strategy_id")
+    bk_biz_id = _optional_int(params, "bk_biz_id")
     include_user_groups = bool(params.get("include_user_groups", False))
     include_raw_model_ids = bool(params.get("include_raw_model_ids", False))
 
     try:
-        strategy_model = StrategyModel.objects.get(bk_biz_id=bk_biz_id, id=strategy_id)
+        if bk_biz_id is not None:
+            strategy_model = StrategyModel.objects.get(bk_biz_id=bk_biz_id, id=strategy_id)
+        else:
+            strategy_model = StrategyModel.objects.get(id=strategy_id)
     except StrategyModel.DoesNotExist as error:
-        raise CustomException(message=f"策略不存在: bk_biz_id={bk_biz_id}, strategy_id={strategy_id}") from error
+        detail = f"strategy_id={strategy_id}"
+        if bk_biz_id is not None:
+            detail = f"bk_biz_id={bk_biz_id}, {detail}"
+        raise CustomException(message=f"策略不存在: {detail}") from error
 
     strategy_config = _build_strategy_config(strategy_model, include_user_groups=include_user_groups)
     return {
         "operation": OPERATION_DETAIL,
-        "bk_biz_id": bk_biz_id,
+        "bk_biz_id": strategy_model.bk_biz_id,
         "strategy_id": strategy_id,
         "strategy": _select_strategy_config(strategy_config, include_raw_model_ids=include_raw_model_ids),
     }
 
 
-def _list_by_priority_group(params: dict[str, Any], bk_biz_id: int) -> dict[str, Any]:
+def _list_by_priority_group(params: dict[str, Any]) -> dict[str, Any]:
+    bk_biz_id = _required_int(params, "bk_biz_id")
     priority_group_key = str(params.get("priority_group_key") or "").strip()
     if not priority_group_key:
         raise CustomException(message="operation=list_by_priority_group 必须提供 priority_group_key")
@@ -170,6 +177,16 @@ def _required_int(params: dict[str, Any], field_name: str) -> int:
     value = params.get(field_name)
     if value in (None, ""):
         raise CustomException(message=f"inspect-strategy-config 必须提供 {field_name}")
+    try:
+        return int(value)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message=f"{field_name} 必须是整数: {value}") from error
+
+
+def _optional_int(params: dict[str, Any], field_name: str) -> int | None:
+    value = params.get(field_name)
+    if value in (None, ""):
+        return None
     try:
         return int(value)
     except (TypeError, ValueError) as error:
