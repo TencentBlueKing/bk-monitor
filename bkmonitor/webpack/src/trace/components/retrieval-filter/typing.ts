@@ -209,7 +209,7 @@ export interface IWhereItem {
   operator?: string;
   value: number[] | string[];
   options?: {
-    group_relation?: boolean;
+    group_relation?: string;
     is_wildcard?: boolean;
   };
 }
