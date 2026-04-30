@@ -188,6 +188,19 @@ export default defineComponent({
       const allNames = allFieldsOfScene.value.map(f => f.key);
       const isDefault = editDisplayFields.value.length === allNames.length
         && editDisplayFields.value.every((name, i) => name === allNames[i]);
+
+      // 找出被移除的字段，清除其选中值
+      const prevFields = props.displayFields ?? allNames;
+      const removedFields = prevFields.filter(key => !editDisplayFields.value.includes(key));
+
+      if (removedFields.length > 0) {
+        const newValues = { ...props.filterValues };
+        for (const key of removedFields) {
+          delete newValues[key];
+        }
+        emit('filter-change', { values: newValues });
+      }
+
       emit('display-fields-change', isDefault ? null : [...editDisplayFields.value]);
       settingPopoverRef.value?.hide();
     };
@@ -355,6 +368,7 @@ export default defineComponent({
               allow-next-focus={true}
               clearable={true}
               free-paste={true}
+              collapse-tags={true}
               on-change={(tags: string[]) => handleTagChange(field.key, tags)}
               on-removeAll={() => handleTagClear(field.key)}
             />
