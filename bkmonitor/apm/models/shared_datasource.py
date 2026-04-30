@@ -90,39 +90,43 @@ class BaseSharedDataSource(models.Model):
     def acquire(self) -> bool:
         """占用槽位，usage_count 加 1
 
+        使用乐观锁保证并发一致性：以 self.usage_count 的内存快照作为更新条件，并在 SQL 层同时校验容量上限；若被并发抢占则最多重试 3 次
+
         :return: True 表示占用成功；False 表示容量已满或重试 3 次仍被并发抢占
         """
         for _ in range(3):
-            if self._change_usage_count(1, check_quota=True):
+            if self._change_usage_count(1):
                 return True
+            # 重试前刷新快照
             self.refresh_from_db(fields=["usage_count"])
         return False
 
     def release(self) -> bool:
         """释放占用，usage_count 减 1
 
-        :return: True 表示释放成功；False 表示重试 3 次仍被并发抢占
+        :return: True 表示释放成功；False 仅在记录已被删除时出现
         """
-        for _ in range(3):
-            if self._change_usage_count(-1, check_quota=False):
-                return True
-            self.refresh_from_db(fields=["usage_count"])
-        return False
+        return self._change_usage_count(-1)
 
-    def _change_usage_count(self, delta: int, check_quota: bool) -> bool:
-        """原子变更 usage_count（乐观锁）
+    def _change_usage_count(self, delta: int) -> bool:
+        """原子变更 usage_count，按 delta 正负自动选择策略
 
-        以 self.usage_count 的内存快照作为乐观锁条件；Greatest 作为防负兜底（双重保护）
+        - delta > 0（占用）：使用乐观锁（usage_count 快照匹配）与容量校验；
+          此场景不可能负数，无需 Greatest 兜底
+        - delta < 0（释放）：不加乐观锁与容量校验，使用 Greatest 防负兜底
 
         :param delta: 变更量，正数为占用、负数为释放
-        :param check_quota: 是否在 SQL 层校验 usage_count < quota
-        :return: True 表示更新成功；False 表示被并发抢占或已达容量上限
+        :return: True 表示更新成功；False 表示被并发抢占、已达容量上限（仅占用时可能）或记录不存在
         """
-        filter_kwargs: dict[str, Any] = {"pk": self.pk, "usage_count": self.usage_count}
-        if check_quota:
+        filter_kwargs: dict[str, Any] = {"pk": self.pk}
+        if delta > 0:
+            filter_kwargs["usage_count"] = self.usage_count
             filter_kwargs["usage_count__lt"] = F("quota")
+            new_value = F("usage_count") + delta
+        else:
+            new_value = Greatest(F("usage_count") + delta, 0)
 
-        updated = type(self).objects.filter(**filter_kwargs).update(usage_count=Greatest(F("usage_count") + delta, 0))
+        updated = type(self).objects.filter(**filter_kwargs).update(usage_count=new_value)
         return bool(updated)
 
 
