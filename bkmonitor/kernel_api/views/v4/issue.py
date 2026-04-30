@@ -34,13 +34,8 @@ class AssignResource(Resource):
         operator = validated_request_data["operator"]
         if issue.status == IssueStatus.PENDING_REVIEW:
             activities = issue.assign(assignees=assignee, operator=operator)
-        elif issue.status == IssueStatus.UNRESOLVED:
-            activities = issue.reassign(assignees=assignee, operator=operator)
         else:
-            raise ValueError(
-                f"Issue {issue.id} 当前状态 {issue.status} 不允许指派，"
-                f"仅允许 {IssueStatus.PENDING_REVIEW} / {IssueStatus.UNRESOLVED}"
-            )
+            activities = issue.reassign(assignees=assignee, operator=operator)
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
