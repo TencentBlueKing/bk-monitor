@@ -225,11 +225,14 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
 def _get_model_spec(model_name: str) -> ModelSpec:
     spec = ALLOWED_MODEL_SPECS.get(model_name)
     if spec is None:
-        raise CustomException(
-            message=f"模型不在 bkm-cli read-db-model 白名单: {model_name}。请先调用 list-db-models 获取可读模型列表。",
-            data={"next_actions": DISCOVERY_NEXT_ACTIONS},
+        _raise_discovery_error(
+            f"模型不在 bkm-cli read-db-model 白名单: {model_name}。请先调用 list-db-models 获取可读模型列表。"
         )
     return spec
+
+
+def _raise_discovery_error(message: str) -> None:
+    raise CustomException(message=message, data={"next_actions": DISCOVERY_NEXT_ACTIONS})
 
 
 def _normalize_limit(value: Any) -> int:
@@ -238,24 +241,27 @@ def _normalize_limit(value: Any) -> int:
     try:
         limit = int(value)
     except (TypeError, ValueError) as error:
-        raise CustomException(message=f"limit 必须是整数: {value}") from error
+        raise CustomException(
+            message=f"limit 必须是整数: {value}",
+            data={"next_actions": DISCOVERY_NEXT_ACTIONS},
+        ) from error
     if limit <= 0:
-        raise CustomException(message="limit 必须大于 0")
+        _raise_discovery_error("limit 必须大于 0")
     if limit > MAX_LIMIT:
-        raise CustomException(message=f"limit 超过硬上限 {MAX_LIMIT}: {limit}")
+        _raise_discovery_error(f"limit 超过硬上限 {MAX_LIMIT}: {limit}")
     return limit
 
 
 def _normalize_filter(raw_filter: dict[str, Any], spec: ModelSpec) -> dict[str, Any]:
     if not isinstance(raw_filter, dict):
-        raise CustomException(message="filter 必须是对象")
+        _raise_discovery_error("filter 必须是对象")
 
     normalized_filter: dict[str, Any] = {}
     for key, value in raw_filter.items():
         field_name, lookup = _split_lookup(key)
         _validate_field(field_name, spec)
         if lookup not in ALLOWED_LOOKUPS:
-            raise CustomException(message=f"不支持的 lookup: {lookup}")
+            _raise_discovery_error(f"不支持的 lookup: {lookup}")
         normalized_key = field_name if lookup == "exact" else f"{field_name}__{lookup}"
         normalized_filter[normalized_key] = value
     return normalized_filter
@@ -274,12 +280,12 @@ def _normalize_selected_fields(raw_fields: Any, raw_exclude_fields: Any, spec: M
 
     if raw_fields:
         if not isinstance(raw_fields, list):
-            raise CustomException(message="fields 必须是数组")
+            _raise_discovery_error("fields 必须是数组")
         selected_fields = set(str(field) for field in raw_fields)
 
     if raw_exclude_fields:
         if not isinstance(raw_exclude_fields, list):
-            raise CustomException(message="exclude_fields 必须是数组")
+            _raise_discovery_error("exclude_fields 必须是数组")
         selected_fields -= {str(field) for field in raw_exclude_fields}
 
     safe_fields = selected_fields - blocked_fields
@@ -291,7 +297,7 @@ def _normalize_selected_fields(raw_fields: Any, raw_exclude_fields: Any, spec: M
 
 def _normalize_order_by(raw_order_by: list[Any], spec: ModelSpec) -> list[str]:
     if not isinstance(raw_order_by, list):
-        raise CustomException(message="order_by 必须是数组")
+        _raise_discovery_error("order_by 必须是数组")
 
     order_by: list[str] = []
     for raw_field in raw_order_by:
@@ -306,9 +312,8 @@ def _normalize_order_by(raw_order_by: list[Any], spec: ModelSpec) -> list[str]:
 
 def _validate_field(field_name: str, spec: ModelSpec) -> None:
     if field_name not in spec.fields:
-        raise CustomException(
-            message=f"字段不在 read-db-model 允许列表: {field_name}。请先调用 list-db-models 获取可读字段列表。",
-            data={"next_actions": DISCOVERY_NEXT_ACTIONS},
+        _raise_discovery_error(
+            f"字段不在 read-db-model 允许列表: {field_name}。请先调用 list-db-models 获取可读字段列表。"
         )
 
 

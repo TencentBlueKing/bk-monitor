@@ -151,6 +151,45 @@ def test_read_db_model_rejects_unsafe_lookup(monkeypatch):
         )
 
     assert "不支持的 lookup" in str(exc.value)
+    assert exc.value.data == {
+        "next_actions": ["调用 list-db-models 获取当前环境可读模型、字段、filter、排序和 limit 上限。"]
+    }
+
+
+def test_read_db_model_rejects_invalid_limit_with_discovery_next_actions():
+    with pytest.raises(CustomException) as exc:
+        BkmCliOpCallResource().perform_request(
+            {
+                "op_id": "read-db-model",
+                "params": {
+                    "model": "metadata.models.space.space.Space",
+                    "limit": 501,
+                },
+            }
+        )
+
+    assert "limit 超过硬上限" in str(exc.value)
+    assert exc.value.data == {
+        "next_actions": ["调用 list-db-models 获取当前环境可读模型、字段、filter、排序和 limit 上限。"]
+    }
+
+
+def test_read_db_model_rejects_invalid_filter_shape_with_discovery_next_actions():
+    with pytest.raises(CustomException) as exc:
+        BkmCliOpCallResource().perform_request(
+            {
+                "op_id": "read-db-model",
+                "params": {
+                    "model": "metadata.models.space.space.Space",
+                    "filter": "space_id=2",
+                },
+            }
+        )
+
+    assert "filter 必须是对象" in str(exc.value)
+    assert exc.value.data == {
+        "next_actions": ["调用 list-db-models 获取当前环境可读模型、字段、filter、排序和 limit 上限。"]
+    }
 
 
 def test_read_db_model_filters_limits_and_returns_allowed_fields(monkeypatch):
