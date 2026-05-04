@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
@@ -79,6 +81,36 @@ ALLOWED_KEY_SPECS: dict[str, CacheKeySpec] = {
         label="[detect] detect 异常点积压 — 等待推送到 trigger 的异常点队列",
     ),
 }
+
+
+# ---------- read-config-cache helpers ----------
+
+
+def _host_to_dict(host) -> dict[str, Any]:
+    """将 Host 对象序列化为 JSON 安全的 dict。"""
+    result: dict[str, Any] = {}
+    from api.cmdb.define import Host
+
+    for f in Host.Fields:
+        result[f] = getattr(host, f, None)
+    topo_link = getattr(host, "topo_link", None)
+    if topo_link:
+        result["topo_link"] = {node_id: [node.to_dict() for node in nodes] for node_id, nodes in topo_link.items()}
+    result["display_name"] = getattr(host, "display_name", "")
+    return result
+
+
+def _normalize_shield_datetimes(shields: list[dict]) -> None:
+    """将 shield 字典中的 datetime 对象原地转为 ISO 格式字符串。"""
+    datetime_fields = {"begin_time", "end_time", "failure_time", "create_time", "update_time"}
+    for shield in shields:
+        for f in datetime_fields:
+            value = shield.get(f)
+            if isinstance(value, datetime):
+                shield[f] = value.isoformat()
+
+
+# ---------- read_cache_key ----------
 
 
 def _get_key_spec(key_name: str) -> CacheKeySpec:
@@ -240,6 +272,135 @@ def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------- read-config-cache ----------
+
+
+def _read_strategy(params: dict[str, Any]) -> dict[str, Any]:
+    strategy_id = params.get("strategy_id")
+    if strategy_id is None:
+        raise CustomException(message="params.strategy_id is required for cache_type=strategy")
+    try:
+        strategy_id = int(strategy_id)
+    except (TypeError, ValueError) as exc:
+        raise CustomException(message=f"strategy_id must be an integer: {strategy_id}") from exc
+
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    data = StrategyCacheManager.get_strategy_by_id(strategy_id)
+    return {
+        "cache_type": "strategy",
+        "params": {"strategy_id": strategy_id},
+        "exists": data is not None,
+        "data": data,
+    }
+
+
+def _read_host(params: dict[str, Any]) -> dict[str, Any]:
+    ip = str(params.get("ip") or "").strip()
+    if not ip:
+        raise CustomException(message="params.ip is required for cache_type=host")
+
+    bk_cloud_id = params.get("bk_cloud_id", 0)
+    try:
+        bk_cloud_id = int(bk_cloud_id)
+    except (TypeError, ValueError) as exc:
+        raise CustomException(message=f"bk_cloud_id must be an integer: {bk_cloud_id}") from exc
+
+    bk_tenant_id = str(params.get("bk_tenant_id") or DEFAULT_TENANT_ID)
+
+    from alarm_backends.core.cache.cmdb.host import HostManager
+
+    host = HostManager.get(bk_tenant_id=bk_tenant_id, ip=ip, bk_cloud_id=bk_cloud_id)
+    return {
+        "cache_type": "host",
+        "params": {"ip": ip, "bk_cloud_id": bk_cloud_id, "bk_tenant_id": bk_tenant_id},
+        "exists": host is not None,
+        "data": _host_to_dict(host) if host else None,
+    }
+
+
+def _read_assign(params: dict[str, Any]) -> dict[str, Any]:
+    bk_biz_id = params.get("bk_biz_id")
+    if bk_biz_id is None:
+        raise CustomException(message="params.bk_biz_id is required for cache_type=assign.biz")
+    try:
+        bk_biz_id = int(bk_biz_id)
+    except (TypeError, ValueError) as exc:
+        raise CustomException(message=f"bk_biz_id must be an integer: {bk_biz_id}") from exc
+
+    from alarm_backends.core.cache.assign import AssignCacheManager
+
+    priority_list = AssignCacheManager.get_assign_priority_by_biz_id(bk_biz_id)
+    groups: dict[str, list] = {}
+    for priority in priority_list:
+        group_ids = AssignCacheManager.get_assign_groups_by_priority(bk_biz_id, priority)
+        groups[str(priority)] = sorted(group_ids) if isinstance(group_ids, set) else sorted(group_ids)
+
+    all_group_ids = {gid for grp in groups.values() for gid in grp}
+    rules: dict[str, list] = {}
+    for group_id in all_group_ids:
+        rule_list = AssignCacheManager.get_assign_rules_by_group(bk_biz_id, group_id)
+        if rule_list:
+            rules[str(group_id)] = rule_list
+
+    data = {
+        "bk_biz_id": bk_biz_id,
+        "priorities": sorted(priority_list, reverse=True),
+        "groups": groups,
+        "rules": rules,
+    }
+    return {
+        "cache_type": "assign.biz",
+        "params": {"bk_biz_id": bk_biz_id},
+        "exists": len(priority_list) > 0,
+        "data": data,
+    }
+
+
+def _read_shield(params: dict[str, Any]) -> dict[str, Any]:
+    bk_biz_id = params.get("bk_biz_id")
+    if bk_biz_id is None:
+        raise CustomException(message="params.bk_biz_id is required for cache_type=shield.biz")
+    try:
+        bk_biz_id = int(bk_biz_id)
+    except (TypeError, ValueError) as exc:
+        raise CustomException(message=f"bk_biz_id must be an integer: {bk_biz_id}") from exc
+
+    from alarm_backends.core.cache.shield import ShieldCacheManager
+
+    shields = ShieldCacheManager.get_shields_by_biz_id(bk_biz_id)
+    _normalize_shield_datetimes(shields)
+    return {
+        "cache_type": "shield.biz",
+        "params": {"bk_biz_id": bk_biz_id},
+        "exists": len(shields) > 0,
+        "data": shields,
+    }
+
+
+def read_config_cache(params: dict[str, Any]) -> dict[str, Any]:
+    cache_type = str(params.get("cache_type") or "").strip()
+    if not cache_type:
+        raise CustomException(message="cache_type is required")
+
+    cache_params = params.get("params") or {}
+    if not isinstance(cache_params, dict):
+        raise CustomException(message="params must be an object")
+
+    if cache_type == "strategy":
+        return _read_strategy(cache_params)
+    elif cache_type == "host":
+        return _read_host(cache_params)
+    elif cache_type == "assign.biz":
+        return _read_assign(cache_params)
+    elif cache_type == "shield.biz":
+        return _read_shield(cache_params)
+    else:
+        raise CustomException(
+            message=f"不支持的 cache_type: {cache_type}。允许: strategy, host, assign.biz, shield.biz"
+        )
+
+
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.read_cache_key",
     summary="运行时 Redis 缓存键只读查询",
@@ -285,5 +446,46 @@ BkmCliOpRegistry.register(
     example_params={
         "key_name": "CHECK_RESULT_CACHE_KEY",
         "params": {"strategy_id": 12345, "item_id": 67890, "dimensions_md5": "abc123", "level": 1},
+    },
+)
+
+KernelRPCRegistry.register_function(
+    func_name="bkm_cli.read_config_cache",
+    summary="告警后端配置缓存只读查询 (CacheManager)",
+    description=(
+        "bkm-cli read-config-cache 后端函数。"
+        "按 cache_type 读取 alarm_backends CacheManager 子类管理的 Redis 配置缓存。"
+        "支持的 cache_type: strategy, host, assign.biz, shield.biz。"
+    ),
+    handler=read_config_cache,
+    params_schema={
+        "cache_type": "缓存类型: strategy | host | assign.biz | shield.biz",
+        "params": "缓存查询参数，因 cache_type 而异",
+    },
+    example_params={
+        "cache_type": "strategy",
+        "params": {"strategy_id": 121950},
+    },
+)
+
+BkmCliOpRegistry.register(
+    op_id="read-config-cache",
+    func_name="bkm_cli.read_config_cache",
+    summary="告警后端配置缓存只读查询 (CacheManager)",
+    description=(
+        "按 cache_type 读取 alarm_backends CacheManager 子类管理的 Redis 配置缓存。"
+        "cache_type 映射到对应的 CacheManager 子类。"
+    ),
+    capability_level="readonly",
+    risk_level="low",
+    requires_confirmation=False,
+    audit_tags=["cache", "redis", "readonly", "config"],
+    params_schema={
+        "cache_type": "string",
+        "params": "object",
+    },
+    example_params={
+        "cache_type": "strategy",
+        "params": {"strategy_id": 121950},
     },
 )
