@@ -280,6 +280,8 @@ def _read_set(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
     total: int = client.scard(str(resolved_key))
+    # smembers returns all members (no server-side limit). This is acceptable for
+    # troubleshooting sets whose cardinality is bound by short TTL windows (<1k entries).
     raw_items = client.smembers(str(resolved_key))
     members = [_try_json(_safe_decode(v)) for v in raw_items]
     return {
