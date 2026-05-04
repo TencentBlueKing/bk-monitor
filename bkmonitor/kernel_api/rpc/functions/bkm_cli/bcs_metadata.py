@@ -67,6 +67,8 @@ def _query_bcs_cluster_info(cluster_id: str, bk_biz_id: int | None) -> list[dict
                 "K8sEventDataID",
                 "CustomMetricDataID",
                 "CustomEventDataID",
+                "bk_env",
+                "bk_env_label",
                 "bk_tenant_id",
             ],
         )

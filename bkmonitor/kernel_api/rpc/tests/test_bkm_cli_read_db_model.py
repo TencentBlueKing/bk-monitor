@@ -229,3 +229,29 @@ def test_read_db_model_filters_limits_and_returns_allowed_fields(monkeypatch):
     assert queryset.filter_kwargs == {"id__in": [1, 2]}
     assert queryset.order_by_args == ("-id",)
     assert queryset.slice_value == slice(None, 1, None)
+
+
+def test_bcs_cluster_info_allowlist_has_diagnostic_fields():
+    from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
+
+    spec = ALLOWED_MODEL_SPECS["metadata.models.bcs.cluster.BCSClusterInfo"]
+
+    required = {"bk_env", "K8sMetricDataID", "K8sEventDataID", "operator_ns", "create_time", "last_modify_time"}
+    assert required <= spec.fields, f"Missing fields: {required - spec.fields}"
+
+    stale = {"created_at", "updated_at"}
+    assert not (stale & spec.fields), f"Stale field names still present: {stale & spec.fields}"
+
+
+def test_allowlist_excludes_deprecated_and_low_value_models():
+    from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
+
+    removed = {
+        "bkmonitor.models.base.ReportItems",
+        "bkmonitor.models.base.ReportContents",
+        "bkmonitor.models.base.ReportStatus",
+        "bkmonitor.models.fta.action.ActionInstance",
+        "bkmonitor.models.fta.action.ActionInstanceLog",
+    }
+    present = removed & set(ALLOWED_MODEL_SPECS.keys())
+    assert not present, f"Deprecated/low-value models still in allowlist: {present}"
