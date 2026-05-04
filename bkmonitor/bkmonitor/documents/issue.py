@@ -142,13 +142,11 @@ class IssueDocument(BaseDocument):
         )
 
     def reassign(self, assignees: list[str], operator: str) -> list:
-        """改派负责人：UNRESOLVED 下改派，不触发状态流转"""
-        if self.status != IssueStatus.UNRESOLVED:
-            raise ValueError(f"Cannot reassign: current status={self.status}, expected={IssueStatus.UNRESOLVED}")
+        """改派负责人(任意状态均可)：不触发状态流转"""
         old_assignees = list(self.assignee or [])
         self.assignee = assignees
         self.update_time = int(time.time())
-        self._persist_and_cache(active=True)
+        self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(
             [
                 (IssueActivityType.ASSIGNEE_CHANGE, ",".join(old_assignees), ",".join(assignees), operator, None),
@@ -241,9 +239,7 @@ class IssueDocument(BaseDocument):
         return self._write_activities(activities)
 
     def update_priority(self, priority: str, operator: str) -> list:
-        """修改优先级（任意活跃状态均可）"""
-        if self.status not in IssueStatus.ACTIVE_STATUSES:
-            raise ValueError(f"Cannot update priority: current status={self.status} is not active")
+        """修改优先级（任意状态均可）"""
         old_priority = self.priority
         self.priority = priority
         activities = [
@@ -260,7 +256,7 @@ class IssueDocument(BaseDocument):
             self.status = IssueStatus.UNRESOLVED
             activities.append((IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None))
         self.update_time = int(time.time())
-        self._persist_and_cache(active=True)
+        self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(activities)
 
     def _get_pre_archive_status(self) -> str:

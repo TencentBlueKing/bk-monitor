@@ -548,7 +548,7 @@ class AssignIssueResource(Resource):
         def _action(bk_biz_id, issue_id):
             """
             指派或改派 Issue 负责人。
-            待审核状态执行首次指派，未解决状态执行改派，其他状态不允许操作。
+            待审核状态执行首次指派（PENDING_REVIEW → UNRESOLVED），其他状态执行改派（不触发状态流转）。
 
             Args:
                 bk_biz_id: 业务 ID。
@@ -556,9 +556,6 @@ class AssignIssueResource(Resource):
 
             Returns:
                 dict，包含 issue_id、status、assignee、update_time 字段。
-
-            Raises:
-                ValueError: Issue 当前状态不允许指派时抛出。
             """
             return api.issue.assign(
                 bk_biz_id=bk_biz_id,
