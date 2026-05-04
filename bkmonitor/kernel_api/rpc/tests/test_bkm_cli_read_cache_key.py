@@ -50,6 +50,12 @@ class FakeRedisClient:
         items = list(self._data.get(key) or [])
         return items[start : None if stop == -1 else stop + 1]
 
+    def scard(self, key):
+        return len(self._data.get(key) or set())
+
+    def smembers(self, key):
+        return self._data.get(key) or set()
+
 
 def _make_key_obj(fake_client, key_type: str, key_tpl: str):
     """创建最小化的假 key 对象。"""
@@ -224,3 +230,219 @@ def test_read_cache_key_resolved_key_in_output(mocker):
     assert "resolved_key" in result
     assert "99" in result["resolved_key"]
     assert "label" in result
+
+
+# ---------- set type ----------
+
+
+def test_read_cache_key_set_access_duplicate(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.access.data.duplicate.strategy_group_group_abc.1777000000"] = {b"item1", b"item2", b"item3"}
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(
+            fake, "set", "test.access.data.duplicate.strategy_group_{strategy_group_key}.{dt_event_time}"
+        ),
+    )
+
+    result = read_cache_key(
+        {
+            "key_name": "ACCESS_DUPLICATE_KEY",
+            "params": {"strategy_group_key": "group_abc", "dt_event_time": "1777000000"},
+            "limit": 10,
+        }
+    )
+
+    assert result["key_type"] == "set"
+    assert result["exists"] is True
+    assert result["total_count"] == 3
+    assert result["returned_count"] == 3
+    assert result["truncated"] is False
+    assert {"item1", "item2", "item3"} == set(result["members"])
+
+
+def test_read_cache_key_set_empty(mocker):
+    fake = FakeRedisClient()
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(
+            fake, "set", "test.access.data.duplicate.strategy_group_{strategy_group_key}.{dt_event_time}"
+        ),
+    )
+
+    result = read_cache_key(
+        {
+            "key_name": "ACCESS_DUPLICATE_KEY",
+            "params": {"strategy_group_key": "group_abc", "dt_event_time": "1777000000"},
+        }
+    )
+
+    assert result["exists"] is False
+    assert result["total_count"] == 0
+    assert result["members"] == []
+
+
+def test_read_cache_key_set_truncated(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.access.data.duplicate.strategy_group_group_abc.1777000000"] = {
+        b"item1",
+        b"item2",
+        b"item3",
+        b"item4",
+        b"item5",
+    }
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(
+            fake, "set", "test.access.data.duplicate.strategy_group_{strategy_group_key}.{dt_event_time}"
+        ),
+    )
+
+    result = read_cache_key(
+        {
+            "key_name": "ACCESS_DUPLICATE_KEY",
+            "params": {"strategy_group_key": "group_abc", "dt_event_time": "1777000000"},
+            "limit": 2,
+        }
+    )
+
+    assert result["total_count"] == 5
+    assert result["returned_count"] == 2
+    assert result["truncated"] is True
+
+
+# ---------- new string keys ----------
+
+
+def test_read_cache_key_alert_data_poller_leader(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.alert.poller.leader"] = b"host-1"
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.alert.poller.leader"),
+    )
+
+    result = read_cache_key({"key_name": "ALERT_DATA_POLLER_LEADER_KEY", "params": {}})
+
+    assert result["key_type"] == "string"
+    assert result["exists"] is True
+    assert result["value"] == "host-1"
+
+
+def test_read_cache_key_alert_detect_result(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.alert.detect.1774970114271323713"] = b'{"status": "ok"}'
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.alert.detect.{alert_id}"),
+    )
+
+    result = read_cache_key({"key_name": "ALERT_DETECT_RESULT", "params": {"alert_id": 1774970114271323713}})
+
+    assert result["key_type"] == "string"
+    assert result["value"] == {"status": "ok"}
+
+
+def test_read_cache_key_alert_snapshot(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.alert.builder.snapshot.121950.1774970114271323713"] = b'{"data": "snapshot_content"}'
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.alert.builder.snapshot.{strategy_id}.{alert_id}"),
+    )
+
+    result = read_cache_key(
+        {
+            "key_name": "ALERT_SNAPSHOT_KEY",
+            "params": {"strategy_id": 121950, "alert_id": 1774970114271323713},
+        }
+    )
+
+    assert result["exists"] is True
+    assert result["value"] == {"data": "snapshot_content"}
+
+
+def test_read_cache_key_alert_dedupe_content(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.alert.builder.121950.abc123.content"] = b'{"alert": "content"}'
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.alert.builder.{strategy_id}.{dedupe_md5}.content"),
+    )
+
+    result = read_cache_key(
+        {
+            "key_name": "ALERT_DEDUPE_CONTENT_KEY",
+            "params": {"strategy_id": 121950, "dedupe_md5": "abc123"},
+        }
+    )
+
+    assert result["exists"] is True
+    assert result["value"] == {"alert": "content"}
+
+
+def test_read_cache_key_service_lock_nodata(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.detect.lock.100367"] = b"locked"
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.detect.lock.{strategy_id}"),
+    )
+
+    result = read_cache_key({"key_name": "SERVICE_LOCK_NODATA", "params": {"strategy_id": 100367}})
+
+    assert result["key_type"] == "string"
+    assert result["value"] == "locked"
+
+
+# ---------- new hash key ----------
+
+
+def test_read_cache_key_alert_host_data_id_hgetall(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.alert.poller.host_data_id"] = {b"host-1": b"data_id_1", b"host-2": b"data_id_2"}
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.alert.poller.host_data_id"),
+    )
+
+    result = read_cache_key({"key_name": "ALERT_HOST_DATA_ID_KEY", "params": {}})
+
+    assert result["key_type"] == "hash"
+    assert result["exists"] is True
+    assert result["total_fields"] == 2
+    assert "host-1" in result["items"]
+
+
+def test_read_cache_key_alert_host_data_id_single_field(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.alert.poller.host_data_id"] = {b"host-1": b"data_id_1"}
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "hash", "test.alert.poller.host_data_id"),
+    )
+
+    result = read_cache_key({"key_name": "ALERT_HOST_DATA_ID_KEY", "params": {}, "field": "host-1"})
+
+    assert result["field"] == "host-1"
+    assert result["value"] == "data_id_1"
+
+
+def test_read_cache_key_set_missing_param_raises():
+    with pytest.raises(CustomException, match="缺少必填参数"):
+        read_cache_key(
+            {
+                "key_name": "ACCESS_DUPLICATE_KEY",
+                "params": {"strategy_group_key": "abc"},
+            }
+        )
