@@ -35,7 +35,7 @@ MAX_LIMIT = 200
 @dataclass
 class CacheKeySpec:
     key_name: str
-    key_type: str  # "string" | "hash" | "zset" | "list"
+    key_type: str  # "string" | "hash" | "zset" | "list" | "set"
     required_params: set[str]
     label: str
     extra_params: set[str] = field(default_factory=set)
@@ -79,6 +79,49 @@ ALLOWED_KEY_SPECS: dict[str, CacheKeySpec] = {
         key_type="list",
         required_params={"strategy_id", "item_id"},
         label="[detect] detect 异常点积压 — 等待推送到 trigger 的异常点队列",
+    ),
+    "ACCESS_DUPLICATE_KEY": CacheKeySpec(
+        key_name="ACCESS_DUPLICATE_KEY",
+        key_type="set",
+        required_params={"strategy_group_key", "dt_event_time"},
+        label="[access] 数据拉取去重 — 查看指定策略组+时间窗口内已处理的数据去重集合",
+    ),
+    "ALERT_DATA_POLLER_LEADER_KEY": CacheKeySpec(
+        key_name="ALERT_DATA_POLLER_LEADER_KEY",
+        key_type="string",
+        required_params=set(),
+        label="[alert] 告警生成数据拉取 Leader — 查看当前集群的 poller leader 标识",
+    ),
+    "ALERT_DEDUPE_CONTENT_KEY": CacheKeySpec(
+        key_name="ALERT_DEDUPE_CONTENT_KEY",
+        key_type="string",
+        required_params={"strategy_id", "dedupe_md5"},
+        label="[alert] 当前正在产生的告警内容 — 查看指定策略+去重 MD5 的告警内容缓存",
+    ),
+    "ALERT_DETECT_RESULT": CacheKeySpec(
+        key_name="ALERT_DETECT_RESULT",
+        key_type="string",
+        required_params={"alert_id"},
+        label="[composite] 单告警检测结果 — 查看指定 alert_id 的 composite 检测结果",
+    ),
+    "ALERT_HOST_DATA_ID_KEY": CacheKeySpec(
+        key_name="ALERT_HOST_DATA_ID_KEY",
+        key_type="hash",
+        required_params=set(),
+        extra_params={"field"},
+        label="[alert] 告警生成数据分配 — 按 host 查看 partition 分配情况，指定 field 可查单 host",
+    ),
+    "ALERT_SNAPSHOT_KEY": CacheKeySpec(
+        key_name="ALERT_SNAPSHOT_KEY",
+        key_type="string",
+        required_params={"strategy_id", "alert_id"},
+        label="[alert] 告警内容快照 — 查看指定策略+告警的快照数据",
+    ),
+    "SERVICE_LOCK_NODATA": CacheKeySpec(
+        key_name="SERVICE_LOCK_NODATA",
+        key_type="string",
+        required_params={"strategy_id"},
+        label="[nodata] 无数据告警处理锁 — 查看指定策略当前是否被 nodata 检测占用",
     ),
 }
 
@@ -233,6 +276,21 @@ def _read_list(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any
     }
 
 
+def _read_set(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]:
+    resolved_key = key_obj.get_key(**key_params)
+    client = key_obj.client
+    total: int = client.scard(str(resolved_key))
+    raw_items = client.smembers(str(resolved_key))
+    members = [_try_json(_safe_decode(v)) for v in raw_items]
+    return {
+        "exists": total > 0,
+        "total_count": total,
+        "returned_count": min(len(members), limit),
+        "truncated": total > limit,
+        "members": members[:limit],
+    }
+
+
 def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
     key_name = str(params.get("key_name") or "").strip()
     if not key_name:
@@ -260,6 +318,8 @@ def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
         data = _read_zset(key_obj, key_params, limit, score_min, score_max)
     elif spec.key_type == "list":
         data = _read_list(key_obj, key_params, limit)
+    elif spec.key_type == "set":
+        data = _read_set(key_obj, key_params, limit)
     else:
         raise CustomException(message=f"不支持的 key_type: {spec.key_type}")
 
