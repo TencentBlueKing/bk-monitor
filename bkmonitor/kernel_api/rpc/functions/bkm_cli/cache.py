@@ -334,7 +334,7 @@ def _read_assign(params: dict[str, Any]) -> dict[str, Any]:
     groups: dict[str, list] = {}
     for priority in priority_list:
         group_ids = AssignCacheManager.get_assign_groups_by_priority(bk_biz_id, priority)
-        groups[str(priority)] = sorted(group_ids) if isinstance(group_ids, set) else sorted(group_ids)
+        groups[str(priority)] = sorted(group_ids)
 
     all_group_ids = {gid for grp in groups.values() for gid in grp}
     rules: dict[str, list] = {}
