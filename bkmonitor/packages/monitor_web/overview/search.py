@@ -233,7 +233,7 @@ class TraceSearchItem(SearchItem):
 
     RE_TRACE_ID = re.compile(r"^[0-9a-z]{32}$")
 
-    _RAW_QUERY_TOP_N = 15
+    _RAW_QUERY_TOP_N = 25
     _CURRENT_BIZ_WEIGHT = 1  # 当前业务基础分
     _DEFAULT_BIZ_WEIGHT = 1  # 默认业务基础分
     _HAS_SERVICE_APP_WEIGHT = 0.5  # 有服务关联的应用加分，提升命中率较低但价值较高的应用
