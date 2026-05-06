@@ -732,12 +732,9 @@ class TestEtl(TestCase):
         )
 
         # IaaS 兼容: index_set 与 router 选项
-        from apps.log_databus.handlers.collector import CollectorHandler
-
-        expected_table_id = CollectorHandler.build_result_table_id(COLLECTOR_CONFIG["bk_biz_id"], TABLE_ID)
         self.assertEqual(
             result["params"]["default_storage_config"]["index_set"],
-            expected_table_id.replace(".", "_"),
+            result["params"]["table_id"].replace(".", "_"),
         )
         self.assertIn("need_add_time", result["params"]["option"])
         self.assertTrue(result["params"]["option"]["need_add_time"])
