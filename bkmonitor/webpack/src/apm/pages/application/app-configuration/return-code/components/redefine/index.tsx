@@ -245,10 +245,11 @@ export default class RedefineTabContent extends tsc<Props> {
 
   /** 校验填写的规则 */
   async validRules() {
-    // 规则唯一键：类型+被调服务+被调service+被调接口+是否全局
-    const values = this.showData.map(
-      item => `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}_${item.is_global}`
-    );
+    // 规则唯一键：类型+被调服务+被调service+被调接口+是否全局+作用范围
+    const values = this.showData.map(item => {
+      const serviceNames = cloneDeep(item.service_names).sort().join(',');
+      return `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}_${item.is_global}_${serviceNames}`;
+    });
     const keyIdsMap: Record<string, string[]> = {};
     for (let index = 0; index < values.length; index++) {
       const item = values[index];
@@ -264,12 +265,20 @@ export default class RedefineTabContent extends tsc<Props> {
       .flat();
     this.repeatRulesIdSet = new Set(repeatIds);
     // 收集每一行“返回码规则表单”的异步校验
-    const codeValidate = this.showData.map((_, index) => this.tableRef.$refs[`codeRulesForm_${index}`]?.validate());
-    const codeValid = await Promise.all(codeValidate)
-      .then(() => true)
-      .catch(() => false);
+    const codeValidate = this.showData.map(item => this.tableRef.$refs[`codeRulesForm_${item.id}`]?.validate());
+    const codeValid = await Promise.allSettled(codeValidate);
+    for (let index = 0; index < this.showData.length; index++) {
+      const { id } = this.showData[index];
+      if (this.repeatRulesIdSet.has(id) || codeValid[index].status === 'rejected') {
+        this.$set(this.showData[index], 'isAbleSave', false);
+      } else {
+        this.$set(this.showData[index], 'isAbleSave', true);
+      }
+    }
     // 只要存在格式/必填错误或重复规则，则不允许保存
-    if (!codeValid || this.repeatRulesIdSet.size !== 0) return false;
+    if (codeValid.some(item => item.status === 'rejected') || this.repeatRulesIdSet.size !== 0) {
+      return false;
+    }
     return true;
   }
 
@@ -301,9 +310,7 @@ export default class RedefineTabContent extends tsc<Props> {
       // 普通字段直接写入当前行
       this.$set(this.showData[index], prop, newValue);
     }
-    // 任意字段变更后都执行整表校验，实时反馈保存按钮状态
-    const valid = await this.validRules();
-    this.$set(this.showData[index], 'isAbleSave', valid);
+    this.validRules();
   }
 
   handleCancelEditRow(index: number) {
@@ -341,7 +348,7 @@ export default class RedefineTabContent extends tsc<Props> {
       // confirmLoading: true,
       confirmFn: async () => {
         // 删除通过“提交剩余全量规则”完成
-        const dataList = this.showData.filter((_, i) => i !== index);
+        const dataList = this.showData.filter((item, i) => i !== index && !item.isNew);
         const params = {
           app_name: this.appName,
           rules: dataList.map(item => ({
@@ -661,7 +668,7 @@ export default class RedefineTabContent extends tsc<Props> {
                 return (
                   // 编辑态：每行一个 form，支持按状态字段独立校验
                   <bk-form
-                    ref={`codeRulesForm_${$index}`}
+                    ref={`codeRulesForm_${row.id}`}
                     class='code-rules'
                     label-width={0}
                     {...{

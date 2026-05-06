@@ -1,6 +1,8 @@
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { cloneDeep } from 'lodash';
+import dayjs from 'dayjs';
 import { Component as tsc } from 'vue-tsx-support';
+import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import type { CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { serviceList, setCodeRemark, getCodeRemarks } from 'monitor-api/modules/apm_service';
@@ -76,8 +78,6 @@ export default class RemarkTabContent extends tsc<Props> {
     { label: this.$tc('成功'), value: 'success' },
   ];
 
-  returnCodeOptions = [];
-
   codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
 
   callTypeOptions = [
@@ -88,6 +88,8 @@ export default class RemarkTabContent extends tsc<Props> {
   applyScopeOptions = [];
   rowEditMap: Record<string, boolean> = {};
   filterValues: string[] = [];
+  callerEnumOptions = [];
+  calleeEnumOptions = [];
 
   get showColumn() {
     return this.columns;
@@ -110,6 +112,28 @@ export default class RemarkTabContent extends tsc<Props> {
     this.handleEditRow(0);
   }
 
+  async getCodeEnumOptions() {
+    // 近 1 小时时间范围，获取实时枚举候选
+    const startTime = dayjs().subtract(1, 'hour').unix();
+    const endTime = dayjs().unix();
+    // 主调口径字段枚举
+    this.callerEnumOptions = await getFieldOptionValues({
+      field: 'code',
+      start_time: startTime,
+      end_time: endTime,
+      app_name: this.appName,
+      metric_field: 'rpc_client_handled_total',
+    });
+    // 被调口径字段枚举
+    this.calleeEnumOptions = await getFieldOptionValues({
+      field: 'code',
+      start_time: startTime,
+      end_time: endTime,
+      app_name: this.appName,
+      metric_field: 'rpc_server_handled_total',
+    });
+  }
+
   async getCodeRemarkList() {
     // 拉取服务端规则，失败与结束都要恢复 loading
     this.tableLoading = true;
@@ -118,12 +142,8 @@ export default class RemarkTabContent extends tsc<Props> {
     }).finally(() => {
       this.tableLoading = false;
     });
-    // 用于提取“返回码”下拉候选值
-    const codeSet = new Set();
     if (data.length) {
       for (let index = 0; index < data.length; index++) {
-        // 返回码候选值去重
-        codeSet.add(data[index].code);
         // 前端侧补充临时 id 与编辑状态字段
         const id = random(8);
         data[index].id = id;
@@ -139,10 +159,6 @@ export default class RemarkTabContent extends tsc<Props> {
       // showData 用于页面展示；data 用于取消编辑时回滚
       this.showData = data;
       this.data = cloneDeep(data);
-      this.returnCodeOptions = Array.from(codeSet).map(code => ({
-        text: code,
-        value: code,
-      }));
     } else {
       // 首次无数据时默认给一条可编辑空行，降低用户操作成本
       this.addRow();
@@ -237,6 +253,19 @@ export default class RemarkTabContent extends tsc<Props> {
       .filter(item => item.length > 1)
       .flat();
     this.isGlobalFalseRepeatRulesIdSet = new Set(isGlobalFalseRepeatIds);
+    for (let index = 0; index < this.showData.length; index++) {
+      const { id } = this.showData[index];
+      if (
+        this.isGlobalTruerepeatRulesIdSet.has(id) ||
+        this.isGlobalFalseRepeatRulesIdSet.has(id) ||
+        this.codeColumnEmptyIdSet.has(id) ||
+        this.remarkColumnEmptyIdSet.has(id)
+      ) {
+        this.$set(this.showData[index], 'isAbleSave', false);
+      } else {
+        this.$set(this.showData[index], 'isAbleSave', true);
+      }
+    }
     // 任一错误集非空，则本次校验失败
     if (
       this.isGlobalTruerepeatRulesIdSet.size !== 0 ||
@@ -269,9 +298,7 @@ export default class RemarkTabContent extends tsc<Props> {
     }
     // 先写入当前编辑值，再触发整表校验
     this.$set(this.showData[index], prop, newValue);
-    const valid = await this.validRules();
-    // 将当前“整表可保存状态”同步到本行按钮
-    this.$set(this.showData[index], 'isAbleSave', valid);
+    this.validRules();
   }
 
   handleCancelEditRow(index: number) {
@@ -302,14 +329,14 @@ export default class RemarkTabContent extends tsc<Props> {
       // confirmLoading: true,
       confirmFn: async () => {
         // 删除采用“全量提交剩余规则”方式
-        const dataList = this.showData.filter((_, i) => i !== index);
+        const dataList = this.showData.filter((item, i) => i !== index && !item.isNew);
         const params = {
           app_name: this.appName,
           remarks: dataList.map(item => ({
             kind: item.kind,
             code: item.code,
             remark: item.remark,
-            service_names: item.service_names,
+            service_names: item.is_global ? [] : item.service_names,
             is_global: item.is_global,
           })),
         };
@@ -485,6 +512,7 @@ export default class RemarkTabContent extends tsc<Props> {
                     </div>
                   );
                 }
+                const enumOptions = row.kind === 'caller' ? this.callerEnumOptions : this.calleeEnumOptions;
                 return (
                   <div class='interface-column'>
                     {/* 编辑态：返回码支持搜索、选填与自定义创建 */}
@@ -498,7 +526,7 @@ export default class RemarkTabContent extends tsc<Props> {
                       showEmpty={!item.loading && !item.options.length}
                       onChange={v => this.handleValueChange(v, item.prop, $index)}
                     >
-                      {this.returnCodeOptions.map(opt => (
+                      {enumOptions.map(opt => (
                         <bk-option
                           id={opt.value}
                           key={opt.value}
@@ -618,6 +646,7 @@ export default class RemarkTabContent extends tsc<Props> {
 
   created() {
     // 初始化并行加载：规则列表 + 服务范围选项
+    this.getCodeEnumOptions();
     this.getCodeRemarkList();
     this.getServiceList();
   }
