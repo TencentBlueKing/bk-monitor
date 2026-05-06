@@ -845,7 +845,7 @@ SCENE_SEARCH_DIMENSIONS = {
             "choices_type": "free_input",
         },
         {
-            "key": "serverIp",
+            "key": "__ext.io_kubernetes_pod_ip",
             "name": _("节点IP"),
             "required": False,
             "type": "string",
@@ -863,7 +863,7 @@ SCENE_SEARCH_DIMENSIONS = {
     ],
     "host": [
         {
-            "key": "ip",
+            "key": "serverIp",
             "name": _("IP地址"),
             "required": False,
             "type": "string",
