@@ -1,0 +1,42 @@
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+
+  &-input {
+    flex: 0 0 360px;
+  }
+
+  &-time {
+    border-radius: 4px;
+    border: 1px solid #C1CDE5;
+
+    .__bk_date_picker__ {
+        .date-icon {
+          background-color: #F2F6FC;
+          border-radius: 4px;
+        }
+    
+        .date-content {
+          padding: 0 24px;
+        }
+      }
+    
+  }
+
+  &-btn {
+    width: 78px;
+    border-radius: 4px;
+
+    div {
+      align-items: center;
+      display: flex;
+      gap: 4px;
+    }
+
+    .bklog-icon {
+      font-size: 14px;
+    }
+  }
+}

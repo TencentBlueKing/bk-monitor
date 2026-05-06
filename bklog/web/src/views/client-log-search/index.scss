@@ -1,0 +1,27 @@
+/* 公共卡片样式 */
+.card-base {
+  background-color: #fff;
+  padding: 12px;
+  border: 1px solid #E9EDF5;
+  box-shadow: 0px 1px 2px 0px #19192905;
+  border-radius: 8px;
+}
+
+.client-log-search-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .task-content-area {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    min-height: 0;
+  }
+}

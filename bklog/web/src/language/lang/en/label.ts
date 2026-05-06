@@ -953,4 +953,12 @@ export default {
   '搜索名称、英文名称、地址、创建人': 'Search by name, English name, address, or creator',
   集群英文名称: 'Cluster English Name',
   '最大自定义天数为{n}': 'Maximum custom days is {n}',
+  用户: 'User',
+  设备型号: 'Device Model',
+  最近活跃: 'Last Active',
+  网络状态: 'Network Status',
+  累计上报: 'Total Uploads',
+  检索时间范围下: 'within retrieval time range',
+  任务列表: 'Task List',
+  日志详情: 'Log Details',
 };

@@ -1,0 +1,219 @@
+.card-base.log-detail-panel {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #fff;
+  padding: 0;
+  gap: 16px;
+
+  .expand-icon {
+    position: absolute;
+    top: 12px;
+    left: -12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff;
+    border: 1px solid #E4E9F2;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    transform: rotate(180deg);
+    z-index: 10;
+  }
+
+  .log-detail-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* 头部样式 */
+  .detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px 0;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+
+      .title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #313238;
+        margin: 0;
+        line-height: 22px;
+        margin-right: 8px;
+      }
+
+      .device-info {
+        font-size: 13px;
+        color: #63656E;
+        line-height: 22px;
+        position: relative;
+        padding-left: 12px;
+        margin-right: 8px;
+
+        /* 使用伪元素实现分隔线 */
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 1px;
+          height: 14px;
+          background-color: #C4C6CC;
+        }
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .bk-button {
+        border-radius: 6px;
+        border: 1px solid #C1CDE6;
+
+        span {
+          display: flex;
+          align-items: center;
+        }
+
+        i {
+          margin-right: 4px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  /* 标签页容器 */
+  .tab-container {
+    flex: 1;
+    overflow: hidden;
+
+    .panel-name {
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0 3px;
+    }
+
+    .bk-tab {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+
+      .bk-tab-header {
+        padding: 0 20px;
+        border-bottom: 1px solid #F0F1F5;
+
+        .bk-tab-nav {
+          .bk-tab-item {
+            padding: 0 8px;
+            margin-right: 24px;
+            font-size: 13px;
+            color: #63656E;
+            height: 40px;
+            line-height: 40px;
+
+            &.active {
+              color: #3A84FF;
+              font-weight: 500;
+            }
+
+            &:hover:not(.active) {
+              color: #3A84FF;
+            }
+          }
+        }
+      }
+
+      .bk-tab-section {
+        flex: 1;
+        overflow: auto;
+        padding: 0 24px;
+
+        .bk-tab-content {
+          height: 100%;
+          padding-top: 16px;
+        }
+      }
+    }
+  }
+
+  /* 原始日志面板：左右分栏布局 */
+  .original-log-content {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+    padding-top: 8px;
+    background-color: #212429;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+
+    /* 左侧文件树 */
+    .file-tree-sidebar {
+      width: 240px;
+      min-width: 240px;
+      height: 100%;
+      overflow-y: auto;
+      border-right: 1px solid #F0F1F5;
+
+      .bk-big-tree {
+        height: 100%;
+      }
+
+      .tree-node-content {
+        display: flex;
+        align-items: center;
+
+        .bklog-icon {
+          font-size: 16px;
+          margin-right: 6px;
+          color: #979BA5;
+        }
+
+        .node-name {
+          font-size: 12px;
+          color: #63656E;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    /* 右侧文件内容 */
+    .file-content-area {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+
+      .toolbar-wrapper {
+        flex-shrink: 0;
+      }
+
+      .log-content-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+
+        .log-viewer {
+          flex: 1;
+          min-height: 0;
+        }
+      }
+    }
+  }
+}
