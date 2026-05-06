@@ -155,15 +155,14 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     this.handleEditRow(0);
   }
 
-  async handleValueChange(value: string, prop: string, index: number) {
+  handleValueChange(value: string, prop: string, index: number) {
     const newValue = value;
     if (['success', 'exception', 'timeout'].includes(prop)) {
       this.$set(this.showData[index].code_type_rules, prop, newValue);
     } else {
       this.$set(this.showData[index], prop, newValue);
     }
-    const valid = await this.validRules();
-    this.$set(this.showData[index], 'isAbleSave', valid);
+    this.validRules();
   }
 
   async getCodeRedefineList() {
@@ -286,11 +285,19 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       .filter(item => item.length > 1)
       .flat();
     this.repeatRulesIdSet = new Set(repeatIds);
-    const codeValidate = this.showData.map((_, index) => this.tableRef.$refs[`codeRulesForm_${index}`]?.validate());
-    const codeValid = await Promise.all(codeValidate)
-      .then(() => true)
-      .catch(() => false);
-    if (!codeValid || this.repeatRulesIdSet.size !== 0) return false;
+    const codeValidate = this.showData.map(item => this.tableRef.$refs[`codeRulesForm_${item.id}`]?.validate());
+    const codeValid = await Promise.allSettled(codeValidate);
+    for (let index = 0; index < this.showData.length; index++) {
+      const { id } = this.showData[index];
+      if (this.repeatRulesIdSet.has(id) || codeValid[index].status === 'rejected') {
+        this.$set(this.showData[index], 'isAbleSave', false);
+      } else {
+        this.$set(this.showData[index], 'isAbleSave', true);
+      }
+    }
+    if (codeValid.some(item => item.status === 'rejected') || this.repeatRulesIdSet.size !== 0) {
+      return false;
+    }
     return true;
   }
 
@@ -329,7 +336,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       // TODO：组件库bug，该配置无效，已提issue，待修复
       // confirmLoading: true,
       confirmFn: async () => {
-        const dataList = this.showData.filter((_, i) => i !== index);
+        const dataList = this.showData.filter((item, i) => i !== index && !item.isNew);
         const params = {
           app_name: this.appName,
           service_name: this.service,
@@ -578,7 +585,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                 }
                 return (
                   <bk-form
-                    ref={`codeRulesForm_${$index}`}
+                    ref={`codeRulesForm_${row.id}`}
                     class='code-rules'
                     label-width={0}
                     {...{
