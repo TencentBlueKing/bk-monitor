@@ -233,11 +233,12 @@ class TraceSearchItem(SearchItem):
 
     RE_TRACE_ID = re.compile(r"^[0-9a-z]{32}$")
 
+    _RAW_QUERY_TOP_N = 15
     _CURRENT_BIZ_WEIGHT = 1  # 当前业务基础分
     _DEFAULT_BIZ_WEIGHT = 1  # 默认业务基础分
     _HAS_SERVICE_APP_WEIGHT = 0.5  # 有服务关联的应用加分，提升命中率较低但价值较高的应用
-    # 最近访问应用基础分：向有访问记录的应用额外加分，避免过度倾斜（当前 & 默认）业务的应用。
-    _CURRENT_APP_WEIGHT = 1 * (_CURRENT_BIZ_WEIGHT + _DEFAULT_BIZ_WEIGHT + _HAS_SERVICE_APP_WEIGHT)
+    # 最近访问应用基础分：保证访问过的应用恒定优于未访问层最高分。
+    _CURRENT_APP_WEIGHT = _CURRENT_BIZ_WEIGHT + _DEFAULT_BIZ_WEIGHT + _HAS_SERVICE_APP_WEIGHT
 
     @classmethod
     def match(cls, query: str) -> bool:
@@ -311,7 +312,7 @@ class TraceSearchItem(SearchItem):
         return cls._fetch_data(
             trace_id,
             table_id,
-            OtlpKey.START_TIME,
+            PreCalculateSpecificField.MIN_START_TIME,
             [PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME],
             limit,
         )
@@ -395,7 +396,7 @@ class TraceSearchItem(SearchItem):
     def _collect_candidate_apps(cls, bk_tenant_id: str, username: str, bk_biz_id: int | None) -> list[Application]:
         """构造候选应用列表：候选业务并集 → 应用全量拉取 → 统一打分截 TopN
 
-        应用得分 ``score = (ACCESS_BONUS + α·log1p(visit)) if visit > 0 else 0  + biz_boost``，
+        应用得分 ``score = VISITED_BONUS + log1p(visit) if visit > 0 else biz_boost + service_boost``，
         同分按 ``application_id`` 升序保障稳定性。
         """
         biz_app_visit_count_map: dict[tuple[int, str], int] = cls._aggregate_user_visits(username)
@@ -422,15 +423,16 @@ class TraceSearchItem(SearchItem):
             # Q：为什么使用 log1p？
             # A：归一化：直接使用访问次数会导致该因素过于突出，log1p 可以将访问次数映射到一个更小的范围，避免极端值对得分的过度影响。
             visit_count: int = biz_app_visit_count_map.get((app.bk_biz_id, app.app_name), 0)
-            visit_score: float = cls._CURRENT_APP_WEIGHT * math.log1p(visit_count) if visit_count > 0 else 0.0
+            if visit_count > 0:
+                return cls._CURRENT_APP_WEIGHT + math.log1p(visit_count)
 
             has_service_score: float = cls._HAS_SERVICE_APP_WEIGHT * (app.service_count > 0)
             current_biz_score: float = cls._CURRENT_BIZ_WEIGHT * (app.bk_biz_id == bk_biz_id)
             default_biz_score: float = cls._DEFAULT_BIZ_WEIGHT * (app.bk_biz_id == default_biz_id)
-            return visit_score + has_service_score + current_biz_score + default_biz_score
+            return has_service_score + current_biz_score + default_biz_score
 
         # 先按得分降序、再按 application_id 升序排序，最后截取 TopN 作为 Path B 的查询候选，保障结果稳定且兼顾访问频次和业务相关性。
-        return sorted(apps, key=lambda app: (-_score(app), app.application_id))[:15]
+        return sorted(apps, key=lambda app: (-_score(app), app.application_id))[: cls._RAW_QUERY_TOP_N]
 
     @classmethod
     def _path_raw(
