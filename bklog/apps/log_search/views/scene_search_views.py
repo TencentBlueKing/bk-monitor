@@ -24,9 +24,10 @@ from apps.log_search.constants import (
     MAX_RESULT_WINDOW,
     RESULT_WINDOW_COST_TIME,
 )
+from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.handlers.scene_search import AllConditionsBuilder
-from apps.log_search.models import AsyncTask
+from apps.log_search.models import AsyncTask, UserIndexSetSearchHistory
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
 from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
@@ -276,9 +277,12 @@ class SceneExportHistorySerializer(_SceneRouteMixin):
     """场景化导出历史"""
 
     bk_biz_id = serializers.IntegerField(required=True)
-    page = serializers.IntegerField(required=True)
-    pagesize = serializers.IntegerField(required=True)
     show_all = serializers.BooleanField(required=False, default=False)
+
+
+class SceneSearchHistorySerializer(_SceneRouteMixin):
+    """场景化检索历史"""
+    pass
 
 
 class SceneExportChartDataSerializer(_SceneRouteMixin):
@@ -338,6 +342,7 @@ class SceneSearchViewSet(APIViewSet):
         return Response(scenes)
 
     @list_route(methods=["POST"], url_path="search")
+    @search_history_record
     def search(self, request):
         """
         @api {post} /search/scene/search/ 场景化检索-日志内容
@@ -349,7 +354,21 @@ class SceneSearchViewSet(APIViewSet):
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
         data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
-        return Response(handler.search())
+        result = Response(handler.search())
+        result.data["history_obj"] = {
+            "index_set_id": 0,
+            "params": {
+                "keyword": data.get("keyword", "*"),
+                "addition": data.get("addition", []),
+                "ip_chooser": data.get("ip_chooser", {}),
+                "table_id_conditions": data["table_id_conditions"],
+                "space_uid": data["space_uid"],
+            },
+            "search_type": "default",
+            "search_mode": data.get("search_mode", "ui"),
+            "from_favorite_id": 0,
+        }
+        return result
 
     @list_route(methods=["POST"], url_path="fields")
     def fields(self, request):
@@ -715,8 +734,47 @@ class SceneSearchViewSet(APIViewSet):
         ).get_export_history(
             request=request, view=self, show_all=data["show_all"],
             table_id_conditions=data["table_id_conditions"],
-            page=data["page"], pagesize=data["pagesize"],
         )
+
+    @list_route(methods=["POST"], url_path="history")
+    def scene_search_history(self, request):
+        """
+        @api {post} /search/scene/history/ 场景化检索-检索历史
+        @apiName scene_search_history
+        @apiGroup 14_SceneSearch
+        @apiDescription 按 space_uid + table_id_conditions 查询场景化检索历史，去重后返回最近 30 条。
+        """
+        from apps.utils.lucene import generate_query_string
+
+        data = self.params_valid(SceneSearchHistorySerializer)
+        data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+
+        username = get_request_external_username() or get_request_username()
+        history_qs = UserIndexSetSearchHistory.objects.filter(
+            is_deleted=False,
+            created_by=username,
+            index_set_id=0,
+            search_type="default",
+        )
+        if data.get("space_uid"):
+            history_qs = history_qs.filter(params__space_uid=data["space_uid"])
+        if data.get("table_id_conditions"):
+            history_qs = history_qs.filter(params__table_id_conditions=data["table_id_conditions"])
+
+        history_qs = history_qs.order_by("-created_at").values(
+            "id", "params", "search_mode", "created_by", "created_at"
+        )
+
+        seen, result = [], []
+        for h in history_qs.iterator():
+            key = (h["params"].get("keyword", ""), json.dumps(h["params"].get("addition", []), sort_keys=True))
+            if key not in seen:
+                seen.append(key)
+                h["query_string"] = generate_query_string(h["params"])
+                result.append(h)
+                if len(result) >= 30:
+                    break
+        return Response(result)
 
     @list_route(methods=["POST"], url_path="export_chart_data")
     def scene_export_chart_data(self, request):
