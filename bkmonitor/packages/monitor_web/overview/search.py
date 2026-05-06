@@ -403,6 +403,7 @@ class TraceSearchItem(SearchItem):
 
         default_biz_id = cls._get_default_biz_id(username)
         biz_ids: set[int] = {biz for biz, _ in biz_app_visit_count_map}
+        biz_ids.update(cls._get_allowed_bk_biz_ids(bk_tenant_id, username, ActionEnum.VIEW_BUSINESS))
         if bk_biz_id:
             biz_ids.add(bk_biz_id)
         if default_biz_id is not None:
