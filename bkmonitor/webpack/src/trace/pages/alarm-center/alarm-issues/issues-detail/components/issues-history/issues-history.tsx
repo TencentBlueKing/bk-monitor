@@ -123,9 +123,9 @@ export default defineComponent({
                 </div>
                 <div
                   class='item-time'
-                  v-bk-tooltips={{ content: dayjs(item.create_time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
+                  v-bk-tooltips={{ content: dayjs(item.resolved_time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
                 >
-                  {dayjs(item.create_time * 1000).fromNow()}
+                  {dayjs(item.resolved_time * 1000).fromNow()}
                 </div>
               </div>
             ))

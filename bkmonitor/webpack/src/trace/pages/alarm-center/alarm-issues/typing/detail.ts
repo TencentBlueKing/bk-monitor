@@ -145,6 +145,8 @@ export interface IssueHistoryItem {
   priority: IssuePriorityType;
   /** 优先级中文名 */
   priority_display: string;
+  /** 解决时间（秒级时间戳） */
+  resolved_time: number;
   /** 状态 */
   status: IssueStatusType;
   /** 状态中文名 */
