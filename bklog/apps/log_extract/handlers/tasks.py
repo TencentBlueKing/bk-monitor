@@ -469,7 +469,7 @@ class TasksHandler:
 
         if need_query_topo_ip_list:
             topo_list = ExplorerHandler.get_module_by_ip(
-                task.get("bk_biz_id"), need_query_topo_ip_list, is_allowed_topo_list_null=True
+                task["bk_biz_id"], need_query_topo_ip_list, is_allowed_topo_list_null=True
             )
             for topo in topo_list:
                 target_nodes.append(
