@@ -85,10 +85,11 @@ export default defineComponent({
           default: () => (
             <div class='json-text-style'>
               <VueJsonPretty
+                height={document.documentElement.clientHeight - 52}
                 data={this.log}
                 deep={5}
+                itemHeight={20}
                 virtual={true}
-                virtualLines={80}
               />
             </div>
           ),
