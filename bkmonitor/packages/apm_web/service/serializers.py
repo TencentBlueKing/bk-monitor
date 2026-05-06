@@ -223,6 +223,7 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label=_("规则列表"))
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
         kind: str | None = attrs.get("kind")
         service_name: str | None = attrs.get("service_name")
 
@@ -267,7 +268,7 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
                 )
             unique_set.add(unique_key)
 
-        return super().validate(attrs)
+        return attrs
 
 
 def build_code_remark_configs(remark_configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -314,6 +315,7 @@ class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
     remarks = serializers.ListField(label=_("备注列表"), child=CodeRemarkItemSerializer(), required=False)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
         # 服务配置场景下，kind、code 两者必须同时存在
         if attrs.get("service_name") and not (attrs.get("kind") and attrs.get("code")):
             raise serializers.ValidationError(_("服务配置场景下，kind、code 必须同时存在"))
@@ -340,4 +342,4 @@ class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
                 )
             unique_keys.add(unique_key)
 
-        return super().validate(attrs)
+        return attrs
