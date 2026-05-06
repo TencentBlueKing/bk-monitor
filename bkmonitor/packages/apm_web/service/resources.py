@@ -26,12 +26,10 @@ from api.cmdb.define import Business
 
 from apm_web.constants import (
     SyncScope,
-    APM_CODE_REMARK_CONFIG_KEY,
     CategoryEnum,
     CMDBCategoryIconMap,
     ServiceDetailReqTypeChoices,
     ServiceRelationLogTypeChoices,
-    TRPC_DEFAULT_CODE_REMARK,
 )
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
@@ -73,7 +71,6 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import Resource, api
-from constants.apm import CallSide
 
 
 class ApplicationListResource(Resource):
@@ -927,9 +924,65 @@ class GetCodeRemarksResource(Resource):
       - 传 service_name（服务配置场景）：按 kind + service_name 过滤全局/服务级备注，返回 code → remark 字典
     """
 
+    APM_CODE_REMARK_CONFIG_KEY = "code_remarks"
+
     class RequestSerializer(BaseCodeRedefinedRequestSerializer):
-        service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
-        kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
+        pass
+
+    TRPC_DEFAULT_CODE_REMARK = {
+        "1": _("服务端解码错误"),
+        "2": _("服务端编码错误"),
+        "11": _("服务端无对应 Service 实现"),
+        "12": _("服务端无对应接口实现"),
+        "21": _("服务端处理超时"),
+        "22": _("服务端过载保护丢弃请求"),
+        "23": _("服务端限流"),
+        "24": _("服务端全链路超时"),
+        "31": _("服务端系统错误"),
+        "41": _("服务端鉴权失败"),
+        "51": _("服务端请求参数校验失败"),
+        "101": _("客户端调用超时"),
+        "102": _("客户端全链路超时"),
+        "111": _("客户端连接错误"),
+        "121": _("客户端编码错误"),
+        "122": _("客户端解码错误"),
+        "123": _("客户端限流"),
+        "124": _("客户端过载保护丢弃请求"),
+        "131": _("客户端路由错误"),
+        "141": _("客户端网络错误"),
+        "151": _("客户端响应参数校验失败"),
+        "161": _("上游主动取消请求"),
+        "171": _("客户端读取 Frame 错误"),
+        "201": _("服务端流式网络错误"),
+        "211": _("服务端流消息超限"),
+        "221": _("服务端流式编码错误"),
+        "222": _("服务端流式解码错误"),
+        "231": _("服务端流写结束"),
+        "232": _("服务端流写溢出"),
+        "233": _("服务端流写关闭"),
+        "234": _("服务端流写超时"),
+        "251": _("服务端流读结束"),
+        "252": _("服务端流读关闭"),
+        "253": _("服务端流读空数据"),
+        "254": _("服务端流读超时"),
+        "255": _("服务端流空闲超时"),
+        "301": _("客户端流式网络错误"),
+        "311": _("客户端流消息超限"),
+        "321": _("客户端流式编码错误"),
+        "322": _("客户端流式解码错误"),
+        "331": _("客户端流写结束"),
+        "332": _("客户端流写溢出"),
+        "333": _("客户端流写关闭"),
+        "334": _("客户端流写超时"),
+        "351": _("客户端流读结束"),
+        "352": _("客户端流读关闭"),
+        "353": _("客户端流读空数据"),
+        "354": _("客户端流读超时"),
+        "355": _("客户端流空闲超时"),
+        "361": _("客户端流初始化错误"),
+        "999": _("未明确错误"),
+        "1000": _("未明确流式错误"),
+    }
 
     def perform_request(self, validated_request_data: dict[str, Any]):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
@@ -941,7 +994,7 @@ class GetCodeRemarksResource(Resource):
         if not app:
             raise serializers.ValidationError(_("应用不存在"))
 
-        config_obj = ApmMetaConfig.get_application_config_value(app.application_id, APM_CODE_REMARK_CONFIG_KEY)
+        config_obj = ApmMetaConfig.get_application_config_value(app.application_id, self.APM_CODE_REMARK_CONFIG_KEY)
 
         # 应用配置场景直接返回用户显式配置的备注
         remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
@@ -949,7 +1002,11 @@ class GetCodeRemarksResource(Resource):
             return remark_configs
 
         # 服务配置场景返回字典数据结构，全局配置优先级低于服务级配置，通过排序保证服务级后写入覆盖全局
-        service_config: dict[str, str] = {**TRPC_DEFAULT_CODE_REMARK}
+        service_config: dict[str, str] = {
+            **self.TRPC_DEFAULT_CODE_REMARK,
+            # 基于 TRPC_DEFAULT_CODE_REMARK 另外派生 err_{code}: {default_remark} 的备注规则。
+            **{f"err_{code}": remark for code, remark in self.TRPC_DEFAULT_CODE_REMARK.items()},
+        }
         for remark_dict in sorted(remark_configs, key=lambda x: not x.get("is_global")):
             if remark_dict.get("kind") != kind:
                 continue
@@ -961,6 +1018,7 @@ class GetCodeRemarksResource(Resource):
 
 
 class SetCodeRemarkResource(Resource):
+    APM_CODE_REMARK_CONFIG_KEY = "code_remarks"
     RequestSerializer = SetCodeRemarkRequestSerializer
 
     @classmethod
@@ -1028,7 +1086,7 @@ class SetCodeRemarkResource(Resource):
 
         update_remark_configs: list[dict[str, Any]] | None = None
         if service_name:
-            config_obj = ApmMetaConfig.get_application_config_value(app.application_id, APM_CODE_REMARK_CONFIG_KEY)
+            config_obj = ApmMetaConfig.get_application_config_value(app.application_id, self.APM_CODE_REMARK_CONFIG_KEY)
             remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
             is_global: bool = validated_request_data["is_global"]
             kind: str = validated_request_data["kind"]
@@ -1050,6 +1108,6 @@ class SetCodeRemarkResource(Resource):
             remark_configs: list[dict[str, Any]] = validated_request_data["remarks"]
         remark_configs = self.merge_remark_configs(remark_configs, update_remark_configs)
         ApmMetaConfig.application_config_setup(
-            app.application_id, APM_CODE_REMARK_CONFIG_KEY, {"remarks": remark_configs}
+            app.application_id, self.APM_CODE_REMARK_CONFIG_KEY, {"remarks": remark_configs}
         )
         return {}
