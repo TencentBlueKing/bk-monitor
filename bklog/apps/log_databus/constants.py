@@ -752,9 +752,3 @@ RETRIEVE_CHAIN = [
 BATCH_SYNC_CLUSTER_COUNT = 500
 
 MIN_FLATTENED_SUPPORT_VERSION = "7.3"
-
-# otlp 上报目标字段默认值
-OTLP_LOG_DEFAULT_TARGET_FIELDS = ["resource.env", "resource.instance", "resource.server", "resource.namespace"]
-
-# otlp 上报排序字段默认值
-OTLP_LOG_DEFAULT_SORT_FIELDS = ["dtEventTimeStamp", "gseIndex", "iterationIndex"]

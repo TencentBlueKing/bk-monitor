@@ -560,10 +560,10 @@ class CollectorHandler:
         custom_config = get_custom(self.data.custom_type)
 
         # otlp 上报自动补充 target_fields、sort_fields 默认值
-        if not target_fields:
-            target_fields = getattr(custom_config, "default_target_fields", []) or []
-        if not sort_fields:
-            sort_fields = getattr(custom_config, "default_sort_fields", []) or []
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
 
         if etl_params and fields:
             # 1. 传递了清洗参数，则优先级最高
@@ -1448,10 +1448,10 @@ class CollectorHandler:
         custom_config = get_custom(custom_type)
 
         # otlp 上报自动补充 target_fields、sort_fields 默认值
-        if not target_fields:
-            target_fields = getattr(custom_config, "default_target_fields", []) or []
-        if not sort_fields:
-            sort_fields = getattr(custom_config, "default_sort_fields", []) or []
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
 
         # 仅在有集群ID时创建清洗
         if storage_cluster_id:
