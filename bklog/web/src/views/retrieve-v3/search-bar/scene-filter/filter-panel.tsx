@@ -244,6 +244,31 @@ export default defineComponent({
     // 标签输入本地缓存
     const localTagValues = ref<Record<string, string[]>>({});
 
+    // 当前激活的字段 key，用于控制 z-index 层级
+    const activeFieldKey = ref<string>('');
+    let blurTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const setActiveField = (key: string) => {
+      if (blurTimer) {
+        clearTimeout(blurTimer);
+        blurTimer = null;
+      }
+      activeFieldKey.value = key;
+    };
+
+    const deactivateField = (key: string) => {
+      if (blurTimer) {
+        clearTimeout(blurTimer);
+      }
+      // 延迟取消激活，等待折叠动画完成
+      blurTimer = setTimeout(() => {
+        if (activeFieldKey.value === key) {
+          activeFieldKey.value = '';
+        }
+        blurTimer = null;
+      }, 300);
+    };
+
     // 父组件 filterValues 变化时（切换场景、清空等），同步重置本地缓存
     watch(
       () => props.filterValues,
@@ -322,6 +347,8 @@ export default defineComponent({
     };
 
     const renderFilterField = (field: FilterFieldConfig) => {
+      const isFieldActive = activeFieldKey.value === field.key;
+
       if (field.choicesType === 'static' || field.choicesType === 'dynamic') {
         const options = getFieldOptions(field);
         const loading = field.choicesType === 'dynamic' ? (getApiFieldState(field.key).loading ?? false) : false;
@@ -329,7 +356,8 @@ export default defineComponent({
         return (
           <div class='filter-field-item' key={field.key}>
             <span class='field-label' v-bk-overflow-tips>{field.name}</span>
-            <div class='field-input'>
+            <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
+              <div class='field-input-placeholder' />
               <bk-select
                 value={getSelectValue(field)}
                 placeholder={field.placeholder || t('请选择')}
@@ -342,8 +370,13 @@ export default defineComponent({
                   handleFieldChange(field.key, val, buildLabels(selectedIds, options));
                 }}
                 on-toggle={(open: boolean) => {
-                  if (open && field.choicesType === 'dynamic') {
-                    fetchDynamicOptions(field);
+                  if (open) {
+                    setActiveField(field.key);
+                    if (field.choicesType === 'dynamic') {
+                      fetchDynamicOptions(field);
+                    }
+                  } else {
+                    deactivateField(field.key);
                   }
                 }}
               >
@@ -359,7 +392,8 @@ export default defineComponent({
       return (
         <div class='filter-field-item' key={field.key}>
           <span class='field-label' v-bk-overflow-tips>{field.name}</span>
-          <div class='field-input'>
+          <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
+            <div class='field-input-placeholder' />
             <bk-tag-input
               value={getLocalTagValues(field.key)}
               placeholder={field.placeholder}
@@ -371,6 +405,8 @@ export default defineComponent({
               collapse-tags={true}
               on-change={(tags: string[]) => handleTagChange(field.key, tags)}
               on-removeAll={() => handleTagClear(field.key)}
+              on-focus={() => setActiveField(field.key)}
+              on-blur={() => deactivateField(field.key)}
             />
           </div>
         </div>
