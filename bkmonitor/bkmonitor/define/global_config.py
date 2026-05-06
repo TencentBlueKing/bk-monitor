@@ -242,14 +242,7 @@ ADVANCED_OPTIONS = OrderedDict(
                 label="APM 共享数据源规则配置",
                 default={
                     "trace": {
-                        "list": [
-                            {
-                                "connector": "OR",
-                                "rules": [
-                                    {"type": "SPACE_TYPE", "params": {"space_types": ["bksaas"]}},
-                                ],
-                            },
-                        ],
+                        "list": [],
                     },
                 },
             ),
