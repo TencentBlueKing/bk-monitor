@@ -257,11 +257,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -304,11 +304,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     type: EFieldType.text,
     methods: [
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -344,11 +344,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -368,11 +368,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -392,11 +392,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -416,11 +416,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -440,11 +440,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -464,11 +464,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -488,11 +488,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -512,11 +512,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -536,11 +536,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -559,11 +559,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -583,11 +583,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -607,11 +607,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -639,11 +639,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -663,11 +663,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -687,11 +687,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -711,11 +711,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
   //       value: 'neq',
   //     },
   //     {
-  //       alias: '包含',
+  //       alias: window.i18n.t('包含'),
   //       value: 'include',
   //     },
   //     {
-  //       alias: '不包含',
+  //       alias: window.i18n.t('不包含'),
   //       value: 'exclude',
   //     },
   //   ],
