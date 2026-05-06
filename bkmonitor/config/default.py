@@ -1281,7 +1281,7 @@ BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PA
 ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
-    "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}",
+    "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
