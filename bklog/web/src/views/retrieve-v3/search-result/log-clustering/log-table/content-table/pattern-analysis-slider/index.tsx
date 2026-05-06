@@ -243,12 +243,12 @@ export default defineComponent({
 
     // 搜索防抖处理（300ms）
     let searchTimer: ReturnType<typeof setTimeout> | null = null;
-    watch(searchValue, () => {
+    const handleSearch = () => {
       if (searchTimer) clearTimeout(searchTimer);
       searchTimer = setTimeout(() => {
         refreshDistribution();
       }, 300);
-    });
+    };
 
     // 排序、时间范围变化时立即重新请求数据
     watch([sortValue, timeRange], () => {
@@ -287,21 +287,28 @@ export default defineComponent({
       selected.forEach((item: any) => allTimes.add(item.time));
       const sortedTimes = Array.from(allTimes).sort((a, b) => a - b);
 
+      // 计算首尾时间用于 xAxis min/max
+      const timeMin = sortedTimes[0];
+      const timeMax = sortedTimes[sortedTimes.length - 1];
+
       // 构建 overall 数据（时间轴格式 [timestamp, value]）
       const overallMap = new Map<number, number>();
       overall.forEach((item: any) => overallMap.set(item.time, item.count));
-      const overallData = sortedTimes.map(time => [time, overallMap.get(time) ?? 0]);
+      const overallData = sortedTimes.map(time => overallMap.get(time) ?? 0);
 
-      // 构建 selected 数据（时间轴格式 [timestamp, value]）
+      // 构建 selected 数据
       const selectedMap = new Map<number, number>();
       selected.forEach((item: any) => selectedMap.set(item.time, item.count));
-      const selectedData = sortedTimes.map(time => [time, selectedMap.get(time) ?? 0]);
+      const selectedData = sortedTimes.map(time => selectedMap.get(time) ?? 0);
+
+      // 判断是否跨天，决定 axisLabel 格式
+      const isSameDay = timeMin && timeMax && dayjs(timeMin).isSame(dayjs(timeMax), 'day');
 
       trendChartInstance.value.setOption({
         animation: false,
         grid: {
           top: 20,
-          right: 20,
+          right: 30,
           bottom: 30,
           left: 10,
           containLabel: true,
@@ -317,14 +324,15 @@ export default defineComponent({
           },
           formatter: (params: any) => {
             if (!params?.length) return '';
-            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
+            const dataIndex = params[0].dataIndex;
+            const timestamp = sortedTimes[dataIndex];
+            const time = dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss');
             let html = `<div style="margin-bottom:4px;font-weight:bold;">${time}</div>`;
             params.forEach((p: any) => {
               if (p.value !== null && p.value !== undefined) {
-                const val = p.value[1];
                 html += `<div style="display:flex;align-items:center;gap:4px;">
                   <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};"></span>
-                  <span>${p.seriesName}: ${val}</span>
+                  <span>${p.seriesName}: ${p.value}</span>
                 </div>`;
               }
             });
@@ -342,17 +350,25 @@ export default defineComponent({
           },
         },
         xAxis: {
-          type: 'time',
+          type: 'category',
+          boundaryGap: false,
+          data: sortedTimes,
           axisTick: { show: false },
           axisLabel: {
             color: '#979BA5',
-            fontSize: 11,
+            fontSize: isSameDay ? 10 : 9,
+            showMinLabel: true,
+            showMaxLabel: true,
+            hideOverlap: true,
+            interval: sortedTimes.length <= 10 ? 0 : Math.floor(sortedTimes.length / 10) - 1,
             formatter: (val: number) => {
-              if (interval === '1d') return dayjs(val).format('MM-DD');
-              if (interval === '1h' || interval === '1H') return dayjs(val).format('MM-DD HH:mm');
-              return dayjs(val).format('HH:mm');
+              if (interval === '1d') return dayjs(Number(val)).format('MM-DD');
+              if (isSameDay) {
+                return dayjs(Number(val)).format('HH:mm');
+              }
+              return dayjs(Number(val)).format('MM-DD HH:mm');
             },
-          },
+          } as any,
           axisLine: {
             lineStyle: {
               color: '#F0F1F5',
@@ -592,15 +608,15 @@ export default defineComponent({
     // 跳转到日志检索（新开 Tab），实现与 handleMenuBatchClick 相同的跳转逻辑
     const handleJumpToRetrieve = (item: { value: string; count: number; percentage: number }) => {
       const params: any = getBaseParams();
-      const { signature, group } = params;
+      const { signature, groups } = params;
       const { pattern_level } = props.requestData;
 
       // 构建 additionList，与 handleMenuBatchClick 逻辑一致
       const additionList = [];
 
       // 添加分组条件
-      if (group && Object.keys(group).length) {
-        Object.entries(group).forEach(([field, value]) => {
+      if (groups && Object.keys(groups).length) {
+        Object.entries(groups).forEach(([field, value]) => {
           additionList.push({
             field,
             operator: 'is',
@@ -707,6 +723,7 @@ export default defineComponent({
               placeholder={t('搜索 值')}
               right-icon='bk-icon icon-search'
               on-change={val => (searchValue.value = val)}
+              onEnter={() => handleSearch()}
             />
             <div class='filter-actions'>
               <bk-select
