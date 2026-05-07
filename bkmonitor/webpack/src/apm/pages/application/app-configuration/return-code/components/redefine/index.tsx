@@ -115,6 +115,8 @@ export default class RedefineTabContent extends tsc<Props> {
   };
 
   rowEditMap: Record<string, boolean> = {};
+  savingMap: Record<string, boolean> = {};
+  ableSaveMap: Record<string, boolean> = {};
   filterValues: string[] = [];
 
   /** 三者都为空时才校验「不能为空」；任一有值则不做该项提示，仅对已填内容做格式校验 */
@@ -168,9 +170,11 @@ export default class RedefineTabContent extends tsc<Props> {
   addRow() {
     // 新增后插入到顶部，并进入编辑态
     const newRow = this.generateNewRow();
+    this.$set(this.ableSaveMap, newRow.id, false);
+    this.$set(this.savingMap, newRow.id, false);
     this.showData.unshift(newRow);
     this.data.unshift(cloneDeep(newRow));
-    this.handleEditRow(0);
+    this.handleEditRow(newRow.id);
   }
 
   async getCodeRedefineList() {
@@ -187,13 +191,14 @@ export default class RedefineTabContent extends tsc<Props> {
         const id = random(8);
         data[index].id = id;
         data[index].isNew = false;
-        data[index].isSaving = false;
         // 全局规则在前端展示态固定为 ['0']
         if (data[index].is_global) {
           data[index].service_names = ['0'];
         }
         // 默认非编辑态
         this.$set(this.rowEditMap, id, false);
+        this.$set(this.ableSaveMap, id, false);
+        this.$set(this.savingMap, id, false);
       }
       // showData 用于展示，data 作为基准快照
       this.showData = data;
@@ -271,7 +276,7 @@ export default class RedefineTabContent extends tsc<Props> {
   }
 
   /** 校验填写的规则 */
-  async validRules() {
+  async validRules(rowId: string) {
     // 规则唯一键：类型+被调服务+被调service+被调接口+是否全局+作用范围
     const values = this.showData.map(item => {
       const serviceNames = cloneDeep(item.service_names).sort().join(',');
@@ -296,10 +301,13 @@ export default class RedefineTabContent extends tsc<Props> {
     const codeValid = await Promise.allSettled(codeValidate);
     for (let index = 0; index < this.showData.length; index++) {
       const { id } = this.showData[index];
+      if (id !== rowId) {
+        continue;
+      }
       if (this.repeatRulesIdSet.has(id) || codeValid[index].status === 'rejected') {
-        this.$set(this.showData[index], 'isAbleSave', false);
+        this.$set(this.ableSaveMap, id, false);
       } else {
-        this.$set(this.showData[index], 'isAbleSave', true);
+        this.$set(this.ableSaveMap, id, true);
       }
     }
     // 只要存在格式/必填错误或重复规则，则不允许保存
@@ -309,8 +317,9 @@ export default class RedefineTabContent extends tsc<Props> {
     return true;
   }
 
-  async handleValueChange(value: string | string[], prop: string, index: number) {
+  async handleValueChange(value: string | string[], prop: string, id: string) {
     let newValue = value;
+    const index = this.showData.findIndex(item => item.id === id);
     if (['success', 'exception', 'timeout'].includes(prop)) {
       // 三个返回码状态写入 code_type_rules 子对象
       this.$set(this.showData[index].code_type_rules, prop, newValue);
@@ -337,35 +346,42 @@ export default class RedefineTabContent extends tsc<Props> {
       // 普通字段直接写入当前行
       this.$set(this.showData[index], prop, newValue);
     }
-    this.validRules();
+    this.validRules(this.showData[index].id);
   }
 
-  handleCancelEditRow(index: number) {
+  handleEditRow(id: string) {
+    // 切换为编辑态
+    this.$set(this.rowEditMap, id, true);
+  }
+
+  handleCancelEditRow(id: string) {
     // 退出编辑态
-    this.$set(this.rowEditMap, this.showData[index].id, false);
+    this.$set(this.rowEditMap, id, false);
+    const dataIndex = this.data.findIndex(item => item.id === id);
+    const showIndex = this.showData.findIndex(item => item.id === id);
+    const dataRow = this.data[dataIndex];
     // 新建且仍为空白的行，取消时直接移除
-    if (this.data[index].isNew && this.showData.length > 1) {
-      const row = this.data[index];
+    if (dataRow.isNew && this.data.length > 1) {
       const isEmpty =
-        row.callee_server === '' &&
-        row.callee_service === '' &&
-        row.callee_method === '' &&
-        row.code_type_rules.success === '' &&
-        row.code_type_rules.exception === '' &&
-        row.code_type_rules.timeout === '' &&
-        row.service_names.length === 1 &&
-        row.service_names[0] === '0';
+        dataRow.callee_server === '' &&
+        dataRow.callee_service === '' &&
+        dataRow.callee_method === '' &&
+        dataRow.code_type_rules.success === '' &&
+        dataRow.code_type_rules.exception === '' &&
+        dataRow.code_type_rules.timeout === '' &&
+        dataRow.service_names.length === 1 &&
+        dataRow.service_names[0] === '0';
       if (isEmpty) {
-        this.showData.splice(index, 1);
-        this.data.splice(index, 1);
+        this.showData.splice(showIndex, 1);
+        this.data.splice(dataIndex, 1);
         return;
       }
     }
     // 回滚到编辑前快照
-    this.$set(this.showData, index, cloneDeep(this.data[index]));
+    this.$set(this.showData, showIndex, cloneDeep(this.data[dataIndex]));
   }
 
-  handleDeleteRow(index: number) {
+  handleDeleteRow(id: string) {
     this.$bkInfo({
       title: this.$t('是否确认删除？'),
       theme: 'danger',
@@ -375,7 +391,9 @@ export default class RedefineTabContent extends tsc<Props> {
       // confirmLoading: true,
       confirmFn: async () => {
         // 删除通过“提交剩余全量规则”完成
-        const dataList = this.data.filter((item, i) => i !== index && !item.isNew);
+        const dataList = this.data.filter(item => item.id !== id && !item.isNew);
+        const showIndex = this.showData.findIndex(item => item.id === id);
+        const dataIndex = this.data.findIndex(item => item.id === id);
         const params = {
           app_name: this.appName,
           rules: dataList.map(item => ({
@@ -384,14 +402,14 @@ export default class RedefineTabContent extends tsc<Props> {
             callee_service: item.callee_service,
             callee_method: item.callee_method,
             code_type_rules: item.code_type_rules,
-            service_names: item.service_names,
+            service_names: item.is_global ? [] : item.service_names,
             is_global: item.is_global,
           })),
         };
         await setCodeRedefinedRule(params);
         // 接口成功后再同步本地数组
-        this.showData.splice(index, 1);
-        this.data.splice(index, 1);
+        this.showData.splice(showIndex, 1);
+        this.data.splice(dataIndex, 1);
         this.$bkMessage({
           message: this.$t('删除成功，需要 5 分钟左右生效。'),
           theme: 'success',
@@ -400,42 +418,37 @@ export default class RedefineTabContent extends tsc<Props> {
     });
   }
 
-  handleEditRow(index: number) {
-    // 切换为编辑态
-    this.$set(this.rowEditMap, this.showData[index].id, true);
-  }
-
-  async handleSaveEditRow(index: number) {
+  async handleSaveEditRow(id: string) {
+    const showRow = this.showData.find(item => item.id === id);
+    const dataIndex = this.data.findIndex(item => item.id === id);
+    const dataRow = this.data[dataIndex];
     // 非新建且内容未变化时，无需调用接口
-    if (JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index]) && !this.showData[index].isNew) {
-      this.$set(this.rowEditMap, this.showData[index].id, false);
+    if (JSON.stringify(showRow) === JSON.stringify(dataRow) && !showRow.isNew) {
+      this.$set(this.rowEditMap, showRow.id, false);
       return;
     }
+
     const params = {
       app_name: this.appName,
-      rules: this.data.reduce((results, item, showIndex) => {
-        // 编辑态且不是当前行，则提交原始数据
-        if (this.rowEditMap[item.id] && showIndex !== index && !item.isNew) {
-          const rowItem = this.data.find(i => i.id === item.id);
-          if (rowItem) {
-            results.push({
-              kind: rowItem.kind,
-              callee_server: rowItem.callee_server,
-              callee_service: rowItem.callee_service,
-              callee_method: rowItem.callee_method,
-              code_type_rules: rowItem.code_type_rules,
-              is_global: rowItem.is_global,
-            });
-          }
-          // 非编辑态或当前行，则提交编辑态数据
-        } else if (!item.isNew || showIndex === index) {
+      rules: this.data.reduce((results, item) => {
+        if (item.id === id) {
+          results.push({
+            kind: showRow.kind,
+            callee_server: showRow.callee_server,
+            callee_service: showRow.callee_service,
+            callee_method: showRow.callee_method,
+            code_type_rules: showRow.code_type_rules,
+            is_global: showRow.is_global,
+            // 后端协议：全局规则 service_names 传空数组
+            service_names: showRow.is_global ? [] : showRow.service_names,
+          });
+        } else if (!item.isNew) {
           results.push({
             kind: item.kind,
             callee_server: item.callee_server,
             callee_service: item.callee_service,
             callee_method: item.callee_method,
             code_type_rules: item.code_type_rules,
-            // 后端协议：全局规则 service_names 传空数组
             service_names: item.is_global ? [] : item.service_names,
             is_global: item.is_global,
           });
@@ -445,20 +458,20 @@ export default class RedefineTabContent extends tsc<Props> {
     };
     try {
       // 行级 loading，防止重复提交
-      this.$set(this.showData[index], 'isSaving', true);
+      this.$set(this.savingMap, showRow.id, true);
       await setCodeRedefinedRule(params);
       // 保存成功：更新编辑态与快照
-      this.$set(this.showData[index], 'isNew', false);
-      this.$set(this.rowEditMap, this.showData[index].id, false);
-      this.$set(this.data, index, cloneDeep(this.showData[index]));
+      this.$set(showRow, 'isNew', false);
+      this.$set(this.rowEditMap, showRow.id, false);
+      this.$set(this.data, dataIndex, cloneDeep(showRow));
       this.$bkMessage({
         message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
         theme: 'success',
       });
     } finally {
       // 无论成功失败都关闭 loading
-      this.$set(this.showData[index], 'isSaving', false);
-      this.$set(this.data[index], 'isSaving', false);
+      this.$set(this.savingMap, showRow.id, false);
+      this.$set(this.ableSaveMap, showRow.id, false);
     }
   }
 
@@ -470,9 +483,10 @@ export default class RedefineTabContent extends tsc<Props> {
       const valuesSet = new Set(values);
       const isIncluGlobal = valuesSet.has('0');
       // 命中当前服务或命中全局规则时保留
-      this.showData = this.data.filter(
+      const showData = this.data.filter(
         item => item.service_names.some(service => valuesSet.has(service)) || (isIncluGlobal && item.is_global)
       );
+      this.showData = cloneDeep(showData);
     } else {
       // 清空筛选还原全量
       this.showData = cloneDeep(this.data);
@@ -543,7 +557,7 @@ export default class RedefineTabContent extends tsc<Props> {
             key={item.prop}
             width={item.width}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态展示文本
                 if (!this.rowEditMap[row.id]) {
                   return (
@@ -560,7 +574,7 @@ export default class RedefineTabContent extends tsc<Props> {
                       placeholder={this.$tc('请选择或输入')}
                       value={row[item.prop]}
                       allow-create
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >
                       {this.callTypeOptions.map(opt => (
                         <bk-option
@@ -586,7 +600,7 @@ export default class RedefineTabContent extends tsc<Props> {
             key={item.prop}
             width={item.width}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态：纯文本
                 if (!this.rowEditMap[row.id]) {
                   return (
@@ -618,7 +632,7 @@ export default class RedefineTabContent extends tsc<Props> {
                       showEmpty={!item.loading && !item.options.length}
                       value={row[item.prop]}
                       searchable
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >
                       {enumOptions.map(opt => (
                         <bk-option
@@ -665,7 +679,7 @@ export default class RedefineTabContent extends tsc<Props> {
               );
             }}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态：按状态分组展示返回码，空值不展示
                 if (!this.rowEditMap[row.id]) {
                   const isEmpty = this.codeStatus.every(item => !row.code_type_rules[item.value]);
@@ -722,7 +736,7 @@ export default class RedefineTabContent extends tsc<Props> {
                           <bk-input
                             value={row.code_type_rules[item.value]}
                             // on-change 与组件事件命名保持一致
-                            on-change={v => this.handleValueChange(v, item.value, $index)}
+                            on-change={v => this.handleValueChange(v, item.value, row.id)}
                           />
                         </bk-form-item>
                         <i18n path={'重定义为 {0}'}>
@@ -744,7 +758,7 @@ export default class RedefineTabContent extends tsc<Props> {
             key={item.prop}
             width={item.width}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态：作用范围列表
                 if (!this.rowEditMap[row.id]) {
                   return (
@@ -772,7 +786,7 @@ export default class RedefineTabContent extends tsc<Props> {
                       value={row[item.prop]}
                       multiple
                       searchable
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >
                       {this.applyScopeOptions.map(opt => (
                         <bk-option
@@ -863,17 +877,17 @@ export default class RedefineTabContent extends tsc<Props> {
                 width={120}
                 // fixed='right'
                 scopedSlots={{
-                  default: ({ row, $index }) => {
+                  default: ({ row }) => {
                     if (this.rowEditMap[row.id]) {
                       return (
                         <div class='operate-btns'>
                           <bk-button
                             class='btn'
-                            disabled={!this.showData[$index].isAbleSave || this.showData[$index].isSaving}
-                            loading={this.showData[$index].isSaving}
+                            disabled={!this.ableSaveMap[row.id] || this.savingMap[row.id]}
+                            loading={this.savingMap[row.id]}
                             theme='primary'
                             text
-                            onClick={() => this.handleSaveEditRow($index)}
+                            onClick={() => this.handleSaveEditRow(row.id)}
                           >
                             {this.$t('保存')}
                           </bk-button>
@@ -881,7 +895,7 @@ export default class RedefineTabContent extends tsc<Props> {
                             class='btn'
                             theme='primary'
                             text
-                            onClick={() => this.handleCancelEditRow($index)}
+                            onClick={() => this.handleCancelEditRow(row.id)}
                           >
                             {this.$t('取消')}
                           </bk-button>
@@ -894,7 +908,7 @@ export default class RedefineTabContent extends tsc<Props> {
                           class='btn'
                           theme='primary'
                           text
-                          onClick={() => this.handleEditRow($index)}
+                          onClick={() => this.handleEditRow(row.id)}
                         >
                           {this.$t('编辑')}
                         </bk-button>
@@ -903,7 +917,7 @@ export default class RedefineTabContent extends tsc<Props> {
                             class='btn'
                             theme='danger'
                             text
-                            onClick={() => this.handleDeleteRow($index)}
+                            onClick={() => this.handleDeleteRow(row.id)}
                           >
                             {this.$t('删除')}
                           </bk-button>
