@@ -782,3 +782,26 @@ class ListIssueHistoryResource(Resource):
             }
             for hit in hits
         ]
+
+
+class ExportIssueResource(Resource):
+    """导出 Issue 列表数据"""
+
+    class RequestSerializer(serializers.Serializer):
+        issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
+
+    def perform_request(self, validated_request_data):
+        issues = validated_request_data["issues"]
+        issue_ids = list({item["issue_id"] for item in issues})
+        bk_biz_ids = list({item["bk_biz_id"] for item in issues})
+
+        handler = IssueQueryHandler(
+            bk_biz_ids=bk_biz_ids,
+            conditions=[{"key": "id", "value": issue_ids, "method": "eq"}],
+            page=1,
+            page_size=len(issue_ids),
+        )
+        result = handler.search(show_aggs=False)
+        issue_list = result.get("issues", [])
+
+        return resource.export_import.export_package(json_list_data=issue_list)

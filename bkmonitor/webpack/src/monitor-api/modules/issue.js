@@ -12,6 +12,7 @@ export const listIssueHistory = request('GET', 'fta/issue/issue/history/');
 export const issueDetail = request('GET', 'fta/issue/issue/detail/');
 export const issueSearch = request('POST', 'fta/issue/issue/search/');
 export const issueTopN = request('POST', 'fta/issue/issue/top_n/');
+export const exportIssue = request('POST', 'fta/issue/issue/export/');
 
 
 export default {
@@ -26,5 +27,6 @@ export default {
   listIssueHistory,
   issueDetail,
   issueSearch,
-  issueTopN
+  issueTopN,
+  exportIssue,
 };

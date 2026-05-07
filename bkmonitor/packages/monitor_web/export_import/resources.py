@@ -261,10 +261,11 @@ class ExportPackageRequestSerializer(serializers.Serializer):
     strategy_config_ids = serializers.ListField(required=False, allow_empty=True, label="需要导出的策略配置ID列表")
     view_config_ids = serializers.ListField(required=False, allow_empty=True, label="需要导出的视图配置ID列表")
     list_data = serializers.ListField(required=False, allow_empty=True, label="需转为csv的列表数据")
+    json_list_data = serializers.ListField(required=False, allow_empty=True, label="需转为json的列表数据")
 
     def validate(self, attrs):
-        # 如果不是需要列表转csv，则必须传业务ID
-        if not attrs.get("list_data") and not attrs.get("bk_biz_id"):
+        # 如果不是需要列表转csv/json，则必须传业务ID
+        if not (attrs.get("list_data") or attrs.get("json_list_data")) and not attrs.get("bk_biz_id"):
             raise ValidationError(_("业务ID不可为空"))
         return attrs
 
@@ -282,6 +283,7 @@ class ExportPackageResource(Resource):
         self.associated_plugin_list = []
         self.associated_collect_config_list = []
         self.list_data = []
+        self.json_list_data = []
         self.bk_biz_id = None
         self.username = ""
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "export_import", "tmp")
@@ -298,7 +300,16 @@ class ExportPackageResource(Resource):
         self.strategy_config_ids = validated_request_data.get("strategy_config_ids", [])
         self.view_config_ids = validated_request_data.get("view_config_ids", [])
         self.list_data = validated_request_data.get("list_data", [])
-        if not any([self.collect_config_ids, self.strategy_config_ids, self.view_config_ids, self.list_data]):
+        self.json_list_data = validated_request_data.get("json_list_data", [])
+        if not any(
+            [
+                self.collect_config_ids,
+                self.strategy_config_ids,
+                self.view_config_ids,
+                self.list_data,
+                self.json_list_data,
+            ]
+        ):
             raise ValidationError(_("未选择任何配置"))
 
         self.file_msg = self.prepare_file()
@@ -427,6 +438,20 @@ class ExportPackageResource(Resource):
             for data in self.list_data:
                 writer.writerow(data)
 
+    def make_list_to_json_file(self):
+        """将 json_list_data 写入 JSON 文件"""
+        if not self.json_list_data:
+            return
+        os.makedirs(os.path.join(self.package_path, "issue_directory"))
+        for data in self.json_list_data:
+            issue_file_path = os.path.join(
+                self.package_path,
+                "issue_directory",
+                f"{convert_filename(data['name'])}.json",
+            )
+            with open(issue_file_path, "w", encoding="utf-8") as fs:
+                fs.write(json.dumps(data, indent=2))
+
     def make_plugin_file(self):
         if not self.associated_plugin_list:
             return
@@ -504,6 +529,7 @@ class ExportPackageResource(Resource):
         self.make_strategy_config_file()
         self.make_view_config_file()
         self.make_list_to_csv_file()
+        self.make_list_to_json_file()
         t = tarfile.open(os.path.join(self.package_path, self.package_name + ".tar.gz"), "w:gz")
         for root, dirs, files in os.walk(self.package_path):
             for filename in files:
