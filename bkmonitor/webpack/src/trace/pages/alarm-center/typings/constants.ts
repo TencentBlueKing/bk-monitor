@@ -408,6 +408,10 @@ export const IncidentStatusIconMap = {
     alias: window.i18n.t('已解决'),
     prefixIcon: 'incident-status-icon icon-monitor icon-mc-solved',
   },
+  merged: {
+    alias: window.i18n.t('已合并'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-yihebing',
+  },
   ABNORMAL: {
     alias: window.i18n.t('未恢复'),
     prefixIcon: 'incident-status-icon icon-monitor icon-mind-fill',
