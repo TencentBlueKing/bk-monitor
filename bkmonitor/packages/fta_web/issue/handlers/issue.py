@@ -73,14 +73,6 @@ class IssueQueryTransformer(BaseQueryTransformer):
     ]
 
 
-def add_dimension_display_name(impact_scope: dict) -> dict:
-    """为 impact_scope 中每个维度添加 display_name 字段"""
-    for dimension_key, dimension_data in impact_scope.items():
-        if isinstance(dimension_data, dict):
-            dimension_data["display_name"] = ImpactScopeDimension.get_display_name(dimension_key)
-    return impact_scope
-
-
 class IssueQueryHandler(BaseBizQueryHandler):
     """Issue 列表查询处理器"""
 
@@ -663,7 +655,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         # impact_scope 添加 display_name
         impact_scope = data.get("impact_scope") or {}
-        cleaned["impact_scope"] = add_dimension_display_name(impact_scope)
+        cleaned["impact_scope"] = cls.enrich_impact_scope(impact_scope)
 
         # aggregate_config 添加display_name
         cleaned["aggregate_config"] = cls.enrich_aggregate_dimensions(data.get("aggregate_config") or {})
@@ -732,6 +724,36 @@ class IssueQueryHandler(BaseBizQueryHandler):
         aggregate_config["aggregate_dimensions"] = new_aggregate_dimensions
 
         return aggregate_config
+
+    @classmethod
+    def enrich_impact_scope(cls, impact_scope: dict) -> dict:
+        """丰富 impact_scope 数据：为每个维度添加 display_name，为每个实例渲染 alert_query_fields"""
+        for dimension_key, dimension_data in impact_scope.items():
+            if isinstance(dimension_data, dict):
+                dimension_data["display_name"] = ImpactScopeDimension.get_display_name(dimension_key)
+                # 为每个实例渲染 alert_query_fields（后端预渲染，前端直接使用）
+                mapping_key = f"impact_scope.{dimension_key}"
+                mapping_entries = ImpactScopeDimension.ALERT_QUERY_MAPPING.get(mapping_key)
+                if mapping_entries and "instance_list" in dimension_data:
+                    for instance in dimension_data["instance_list"]:
+                        instance["alert_query_fields"] = cls._render_alert_query_fields(mapping_entries, instance)
+        return impact_scope
+
+    @classmethod
+    def _render_alert_query_fields(cls, mapping_entries: list[dict], instance: dict) -> list[dict]:
+        """根据 ALERT_QUERY_MAPPING 模板和实例数据，渲染出实际的查询字段列表
+
+        返回值示例:
+            [{"keys": ["event.bk_host_id", "tags.bk_host_id"], "value": "9185731"}]
+        """
+        result = []
+        for entry in mapping_entries:
+            try:
+                value = entry["value_tpl"].format(**instance)
+            except (KeyError, IndexError):
+                continue
+            result.append({"keys": entry["keys"], "value": value, "condition": entry.get("condition", "or")})
+        return result
 
     def add_alert_trend(self, issues: list[dict]) -> None:
         """

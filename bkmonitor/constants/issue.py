@@ -96,6 +96,126 @@ class ImpactScopeDimension:
         APM_SERVICE: "service_name",
     }
 
+    # impact_scope 维度 → AlertDocument 查询字段映射
+    #
+    # 用途：前端根据 impact_scope 中的实例反查关联告警时，使用此映射构造 ES 查询条件
+    #
+    # 结构说明：
+    #   - key: 简化两段式维度标识 "impact_scope.{dimension}"
+    #   - value: 列表，每个元素为一组查询条件
+    #     - keys: AlertDocument 中可查询的字段列表
+    #       - "event.XXX"     → 走顶层 term 查询
+    #       - "tags.XXX"      → 走 event.tags nested 查询
+    #       - "query_string"  → 走 query_string 查询（value_tpl 为完整查询语句）
+    #     - value_tpl: 值模板，{field} 占位符对应 instance_list 中的字段名
+    #     - condition: 元素间的组合逻辑
+    #       - "or"  → 该元素与列表中其他元素为"或"关系，任一命中即匹配
+    #       - "and" → 该元素与列表中其他元素为"与"关系，必须同时满足
+    #       同一元素内多个 keys 之间始终为"或"关系
+    #
+    # 后端在返回 impact_scope 时，会将 value_tpl 中的占位符替换为实例的实际值，
+    # 渲染后的结果存放在 instance_list 每个实例的 alert_query_fields 字段中
+    ALERT_QUERY_MAPPING = {
+        "impact_scope.set": [
+            {
+                "keys": ["event.bk_topo_node", "tags.bk_topo_node"],
+                "value_tpl": "set|{set_id}",
+                "condition": "or",
+            },
+        ],
+        "impact_scope.host": [
+            {
+                "keys": ["event.bk_host_id", "tags.bk_host_id"],
+                "value_tpl": "{bk_host_id}",
+                "condition": "or",
+            },
+        ],
+        "impact_scope.service_instances": [
+            {
+                "keys": [
+                    "event.bk_service_instance_id",
+                    "tags.bk_service_instance_id",
+                    "tags.bk_target_service_instance_id",
+                ],
+                "value_tpl": "{bk_service_instance_id}",
+                "condition": "or",
+            },
+        ],
+        "impact_scope.cluster": [
+            {
+                "keys": ["tags.bcs_cluster_id"],
+                "value_tpl": "{bcs_cluster_id}",
+                "condition": "or",
+            },
+        ],
+        # node: 需同时满足集群过滤（and），否则同集群不同命名空间的同名节点会误匹配
+        "impact_scope.node": [
+            {
+                "keys": ["tags.bcs_cluster_id"],
+                "value_tpl": "{bcs_cluster_id}",
+                "condition": "and",
+            },
+            {
+                "keys": ["event.target", "tags.node", "tags.node_name"],
+                "value_tpl": "{node}",
+                "condition": "or",
+            },
+        ],
+        # service: 需同时满足集群过滤（and），避免跨集群同名 service 误匹配
+        "impact_scope.service": [
+            {
+                "keys": ["tags.bcs_cluster_id"],
+                "value_tpl": "{bcs_cluster_id}",
+                "condition": "and",
+            },
+            {
+                "keys": ["event.target", "tags.service", "tags.service_name"],
+                "value_tpl": "{service}",
+                "condition": "or",
+            },
+        ],
+        # pod: 需同时满足集群过滤（and），避免跨集群同名 pod 误匹配
+        "impact_scope.pod": [
+            {
+                "keys": ["tags.bcs_cluster_id"],
+                "value_tpl": "{bcs_cluster_id}",
+                "condition": "and",
+            },
+            {
+                "keys": ["event.target", "tags.pod", "tags.pod_name"],
+                "value_tpl": "{pod}",
+                "condition": "or",
+            },
+        ],
+        # apm_app: event.target 格式为 "{app_name}:{service_name}"，需前缀匹配
+        # query_string 中双引号内 * 不作为通配符，需用 \: 转义冒号，* 才能作为通配符生效
+        # 渲染示例：event.target:nf\:* → 匹配 event.target 以 "nf:" 开头的所有文档
+        "impact_scope.apm_app": [
+            {
+                "keys": ["query_string"],
+                "value_tpl": "event.target:{app_name}\\:*",
+                "condition": "or",
+            },
+            {
+                "keys": ["tags.app_name"],
+                "value_tpl": "{app_name}",
+                "condition": "or",
+            },
+        ],
+        "impact_scope.apm_service": [
+            {
+                "keys": ["event.target"],
+                "value_tpl": "{app_name}:{service_name}",
+                "condition": "or",
+            },
+            {
+                "keys": ["tags.service_name"],
+                "value_tpl": "{service_name}",
+                "condition": "or",
+            },
+        ],
+    }
+
     @classmethod
     def get_display_name(cls, dimension: str) -> str:
         """获取维度的展示名称，未匹配时返回原维度值"""
