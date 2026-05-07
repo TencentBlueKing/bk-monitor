@@ -454,9 +454,7 @@ class ModifyResultTableResource(Resource):
 
         return result_table.to_json()
 
-    def _update_es_storage_config(
-        self, table_id: str, storage_config: dict | None, bk_tenant_id: str
-    ) -> None:
+    def _update_es_storage_config(self, table_id: str, storage_config: dict | None, bk_tenant_id: str) -> None:
         """根据 default_storage_config 更新 ESStorage 可变字段（如 index_set）"""
         if not storage_config:
             return
@@ -977,7 +975,7 @@ class GetResultTableStorageResult(Resource):
             result[result_table] = storage_info.consul_config
 
             # 判断是否需要明文返回链接信息
-            if not validated_request_data["is_plain_text"]:
+            if not validated_request_data.get("is_plain_text", False):
                 result[result_table]["auth_info"] = base64.b64encode(
                     json.dumps(result[result_table]["auth_info"]).encode("utf-8")
                 )

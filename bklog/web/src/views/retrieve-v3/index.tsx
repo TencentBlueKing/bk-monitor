@@ -63,6 +63,9 @@ export default defineComponent({
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.getters.isSceneMode);
     const isFirstSearch = computed(() => store.state.indexSetQueryResult.search_count < 1);
+    const isSceneLoading = computed(
+      () => store.state.indexFieldInfo.is_loading || store.state.indexSetQueryResult.is_loading,
+    );
 
     /**
      * AI 助手关闭
@@ -104,14 +107,16 @@ export default defineComponent({
      * 渲染场景化检索空状态提示
      */
     const renderSceneEmptyTip = () => (
-      <div class='scene-empty-tip'>
-        <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
-        <div class='scene-empty-tip-desc'>
-          {t('请先按照标签过滤日志范围后，再进行日志检索')}
-        </div>
-        <div class='scene-empty-tip-detail'>
-          {t('场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容')}
-        </div>
+      <div class='scene-empty-tip' v-bkloading={{ isLoading: isSceneLoading.value }}>
+        <bk-exception class='exception-wrap-item' type='search-empty' scene='part'>
+          <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
+          <div class='scene-empty-tip-desc'>
+            {t('请先按照标签过滤日志范围后，再进行日志检索')}
+          </div>
+          <div class='scene-empty-tip-detail'>
+            {t('场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容')}
+          </div>
+        </bk-exception>
       </div>
     );
 
@@ -121,9 +126,8 @@ export default defineComponent({
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
-            {isSceneMode.value && isFirstSearch.value
-              ? renderSceneEmptyTip()
-              : <V3SearchResult></V3SearchResult>}
+            <V3SearchResult v-show={!(isSceneMode.value && isFirstSearch.value)}></V3SearchResult>
+            {isSceneMode.value && isFirstSearch.value && renderSceneEmptyTip()}
           </V3Container>,
         ];
       }

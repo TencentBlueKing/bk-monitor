@@ -37,6 +37,7 @@ import AutoRefresh from './auto-refresh-new.tsx';
 
 import * as authorityMap from '@/common/authority-map';
 import { BK_LOG_STORAGE } from '@/store/store.type';
+import { parseTableIdConditions } from '@/store/helper';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import ShareLink from './share-link.tsx';
@@ -164,8 +165,10 @@ const handleIndexSetSelected = async (payload) => {
   if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
     /** 索引集默认条件 */
     let indexSetDefaultCondition = {};
-    /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件 */
-    if (payload.items.length === 1 && !indexSetParams.value.addition.length && !indexSetParams.value.keyword) {
+    /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件
+     *  如果是监控组件，切换采集项的时候也取对应索引集默认条件
+     */
+    if (payload.items.length === 1 && ((!indexSetParams.value.addition.length && !indexSetParams.value.keyword) || isMonitorComponent)) {
       if (payload.items[0]?.query_string) {
         indexSetDefaultCondition = {
           keyword: payload.items[0].query_string,
@@ -237,7 +240,7 @@ const handleIndexSetSelected = async (payload) => {
 };
 
 const handleHistoryChange = (payload) => {
-  const { keyword, addition, ip_chooser, search_mode: searchMode } = payload;
+  const { keyword, addition, ip_chooser, search_mode: searchMode, scene_filter_values, table_id_conditions } = payload;
   const foramtAddition = (addition ?? []).map((item) => {
     const instance = new ConditionOperator(item);
     return instance.formatApiOperatorToFront();
@@ -260,6 +263,27 @@ const handleHistoryChange = (payload) => {
   store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
 
   setRouteQuery();
+  // 场景化检索模式：解析 table_id_conditions 和 scene_filter_values，先请求字段列表再检索
+  if (store.getters.isSceneMode && (table_id_conditions || scene_filter_values)) {
+    const { scene_active, scene_filter_values: parsedFilterValues } = parseTableIdConditions(
+      table_id_conditions,
+      scene_filter_values,
+    );
+    store.commit('updateIndexItemParams', {
+      scene_active,
+      scene_filter_values: parsedFilterValues,
+    });
+    setTimeout(() => {
+      store.dispatch('requestIndexSetFieldInfo').then((resp) => {
+        if (resp?.data?.fields?.length) {
+          store.dispatch('requestIndexSetQuery');
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        }
+      });
+    });
+    return;
+  }
+
   setTimeout(() => {
     store.dispatch('requestIndexSetQuery');
     RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
@@ -391,12 +415,12 @@ function handleIndexConfigSliderOpen() {
       <AutoRefresh class="custom-border-right" />
       <ShareLink v-if="!isExternal" />
       <FieldSetting
-        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
+        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId && !isSceneMode"
         ref="fieldSettingRef"
         class="custom-border-right"
       />
       <WarningSetting
-        v-if="!isExternal"
+        v-if="!isExternal && !isSceneMode"
         class="custom-border-right"
       />
       <ClusterSetting
@@ -404,16 +428,18 @@ function handleIndexConfigSliderOpen() {
         class="custom-border-right"
       />
       <BarGlobalSetting
+        v-if="!isSceneMode"
         class="custom-border-right"
         @show-index-config-slider="handleIndexConfigSliderOpen"
       />
       <div
-        v-if="!isExternal"
+        v-if="!isExternal && !isSceneMode"
         class="more-setting"
       >
         <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting" />
       </div>
       <VersionSwitch
+        v-if="!isSceneMode"
         style="border-left: 1px solid #eaebf0"
         version="v2"
       />

@@ -292,7 +292,7 @@
 <script>
   import { formatDate, blobDownload } from '@/common/util';
   import { mapGetters } from 'vuex';
-  import { isSceneRetrieve } from '@/store/helper.ts';
+  import { parseTableIdConditions } from '@/store/helper.ts';
 
   import { axiosInstance } from '@/api';
 
@@ -397,7 +397,7 @@
 
         let downRequestUrl;
         if (this.isScene) {
-          downRequestUrl = '/search/scene/export/';
+          downRequestUrl = '/search/scene/export/sample/';
         } else if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
           downRequestUrl = '/search/index_set/union_search/export/';
@@ -530,14 +530,44 @@
               break;
           }
         }
+
+        // 拼接 URL 参数
         const params = Object.keys(queryParamsStr)
           .reduce((output, key) => {
             output.push(`${key}=${encodeURIComponent(queryParamsStr[key])}`);
             return output;
           }, [])
           .join('&');
+
+        // 场景化检索下，search_dict 会附加 table_id_conditions 和 scene_filter_values
+        // 单独解析并拼接场景化参数
+        let sceneParams = '';
+        if (dict.table_id_conditions || dict.scene_filter_values) {
+          const { scene_active, scene_filter_values } = parseTableIdConditions(
+            dict.table_id_conditions,
+            dict.scene_filter_values,
+          );
+          const sceneParts = [];
+          sceneParts.push('retrieve_type=scene');
+          if (scene_active) {
+            sceneParts.push(`scene_active=${encodeURIComponent(scene_active)}`);
+          }
+          for (const [fieldKey, fieldValue] of Object.entries(scene_filter_values)) {
+            if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+              if (Array.isArray(fieldValue)) {
+                // 数组值展开为多个同 key 参数（与 Vue Router 行为一致）
+                fieldValue.forEach(v => sceneParts.push(`${fieldKey}=${encodeURIComponent(v)}`));
+              } else {
+                sceneParts.push(`${fieldKey}=${encodeURIComponent(fieldValue)}`);
+              }
+            }
+          }
+          sceneParams = sceneParts.join('&');
+        }
+
+        const allParams = [params, sceneParams].filter(Boolean).join('&');
         const siteUrl = window.__IS_MONITOR_COMPONENT__ ? window.site_url : window.SITE_URL;
-        const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
+        const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${allParams}`;
         window.open(jumpUrl, '_blank');
       },
       /**
