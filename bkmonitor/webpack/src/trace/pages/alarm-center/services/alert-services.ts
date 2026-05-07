@@ -674,7 +674,7 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
   },
   {
     name: 'bk_topo_node',
-    alias: 'cmdb集群',
+    alias: 'cmdb拓扑',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
