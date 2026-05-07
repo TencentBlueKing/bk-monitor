@@ -157,6 +157,7 @@ export default defineComponent({
         {(this.isEveryCopy || this.hasCopy) && (
           <span
             class='icon-monitor icon-mc-copy'
+            v-bk-tooltips={{ content: this.$t('复制') }}
             onClick={this.handleCopy}
           />
         )}

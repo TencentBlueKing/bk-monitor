@@ -35,7 +35,10 @@ export type ApplicationOperationType = 'delete' | 'start' | 'stop';
 /**
  * Apdex 配置
  */
-export type IApdexConfig = Record<string, number>;
+export type IApdexConfig = {
+  apdex_api_request: number;
+  apdex_view_load: number;
+};
 
 /**
  * 索引信息接口返回数据
@@ -66,12 +69,7 @@ export interface IIndicesInfo {
 /**
  * 权限信息
  */
-export type IPermission = Record<string, unknown>;
-
-/**
- * QPS 配置
- */
-export type IQpsConfig = Record<string, number>;
+export type IPermission = Record<string, boolean>;
 
 /**
  * RUM 应用配置接口
@@ -86,7 +84,7 @@ export interface IRumAppConfig {
   /** 应用 ID */
   application_id: number;
   /** 当前 qps 配置 */
-  application_qps_config: IQpsConfig | null;
+  application_qps_config: number;
   /** 业务 ID */
   bk_biz_id: number;
   /** 租户 ID */

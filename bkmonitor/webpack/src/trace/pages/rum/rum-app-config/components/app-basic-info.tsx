@@ -31,7 +31,7 @@ import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
-import { deleteApp, startApp, stopApp } from '../mock';
+import { applicationSetup, deleteApp, startApp, stopApp } from '../mock';
 
 import type { ApplicationOperationType, IRumAppConfig } from '../../typings/rum-app-config';
 
@@ -98,7 +98,23 @@ export default defineComponent({
       const isValid = await editDescFormRef.value.validate().catch(() => false);
       if (!isValid) return;
       saveLoading.value = true;
-      saveLoading.value = false;
+      applicationSetup({
+        bk_biz_id: props.data?.bk_biz_id,
+        app_name: props.data?.app_name,
+        app_alias: model.alias,
+        description: model.desc,
+      })
+        .then(() => {
+          emit('applicationInfoChange', { app_alias: model.alias, description: model.desc });
+          editDescPopoverRef.value?.hide();
+          Message({
+            message: t('保存成功'),
+            theme: 'success',
+          });
+        })
+        .finally(() => {
+          saveLoading.value = false;
+        });
     };
 
     /**
@@ -229,6 +245,10 @@ export default defineComponent({
         app_name: props.data?.app_name,
       })
         .then(() => {
+          Message({
+            message: t('操作成功'),
+            theme: 'success',
+          });
           popoverInstance.value?.hide();
           emit('applicationOperation', type);
         })

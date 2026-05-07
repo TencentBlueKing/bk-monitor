@@ -85,7 +85,11 @@ export default defineComponent({
       clusterList.value = await listEsClusterGroups().catch(() => []);
     };
 
-    const handleApplicationOperation = (type: ApplicationOperationType) => {
+    const handleAppInfoChange = (info: Partial<IRumAppConfig>) => {
+      appInfo.value = { ...appInfo.value, ...info };
+    };
+
+    const handleAppOperation = (type: ApplicationOperationType) => {
       console.log(type);
       // 删除返回列表页
       if (type === 'delete') {
@@ -106,7 +110,12 @@ export default defineComponent({
     const getPanelComponent = () => {
       switch (currentPanel.value) {
         case RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG:
-          return <BasicConfig detail={appInfo.value} />;
+          return (
+            <BasicConfig
+              detail={appInfo.value}
+              onApplicationInfoChange={handleAppInfoChange}
+            />
+          );
         case RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS:
           return (
             <StorageStatus
@@ -126,7 +135,8 @@ export default defineComponent({
       handleCurrentPanelChange,
       handleBackPage,
       getPanelComponent,
-      handleApplicationOperation,
+      handleAppOperation,
+      handleAppInfoChange,
     };
   },
 
@@ -143,7 +153,8 @@ export default defineComponent({
         <div class='rum-app-config-page__header'>
           <AppBasicInfo
             data={this.appInfo}
-            onApplicationOperation={this.handleApplicationOperation}
+            onApplicationInfoChange={this.handleAppInfoChange}
+            onApplicationOperation={this.handleAppOperation}
           />
         </div>
 
