@@ -69,11 +69,11 @@ def test_run_readonly_command_diagnose_rejects_empty_metrics_list():
         run_readonly_command({"command_id": "diagnose_ts_metric_sync", "params": {"data_id": 1, "metrics": [" "]}})
 
 
-# ── 其他白名单命令（尚未实现）────────────────────────────────────────────────
+# ── 白名单外的命令应被拒绝（含曾经预留但未实现的占位命令）────────────────────
 
 
 @pytest.mark.parametrize("command_id", ["strategy_check", "context_preview", "check_bcs_cluster_status"])
-def test_run_readonly_command_not_yet_implemented(command_id):
-    """已在白名单但尚未实现的命令应返回明确错误，不能静默成功。"""
-    with pytest.raises(CustomException, match="not yet implemented"):
+def test_run_readonly_command_rejects_unregistered_placeholders(command_id):
+    """未在白名单中注册的命令应被拒绝，返回 not in the readonly whitelist 错误。"""
+    with pytest.raises(CustomException, match="not in the readonly whitelist"):
         run_readonly_command({"command_id": command_id, "params": {}})

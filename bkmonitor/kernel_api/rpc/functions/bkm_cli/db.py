@@ -126,6 +126,122 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "bkmonitor.models.base.ReportItems": ModelSpec(
+        model_path="bkmonitor.models.base.ReportItems",
+        fields={
+            "id",
+            "bk_tenant_id",
+            "mail_title",
+            "channels",
+            "frequency",
+            "last_send_time",
+            "is_link_enabled",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+        },
+        default_fields={"id", "bk_tenant_id", "mail_title", "channels", "last_send_time", "is_enabled"},
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "default"},
+                "fields": ["id", "mail_title", "channels", "last_send_time", "is_enabled"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "bkmonitor.models.base.ReportContents": ModelSpec(
+        model_path="bkmonitor.models.base.ReportContents",
+        fields={
+            "id",
+            "bk_tenant_id",
+            "report_item",
+            "content_title",
+            "content_details",
+            "row_pictures_num",
+            "width",
+            "height",
+        },
+        default_fields={"id", "bk_tenant_id", "report_item", "content_title"},
+        examples=[
+            {
+                "filter": {"report_item": 1},
+                "fields": ["id", "report_item", "content_title", "row_pictures_num"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "bkmonitor.models.base.ReportStatus": ModelSpec(
+        model_path="bkmonitor.models.base.ReportStatus",
+        fields={
+            "id",
+            "bk_tenant_id",
+            "report_item",
+            "mail_title",
+            "create_time",
+            "details",
+            "is_success",
+        },
+        default_fields={"id", "bk_tenant_id", "report_item", "mail_title", "create_time", "is_success"},
+        examples=[
+            {
+                "filter": {"report_item": 1, "is_success": False},
+                "fields": ["id", "report_item", "mail_title", "create_time", "is_success"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "bkmonitor.models.fta.action.ActionInstance": ModelSpec(
+        model_path="bkmonitor.models.fta.action.ActionInstance",
+        fields={
+            "id",
+            "signal",
+            "strategy_id",
+            "dimension_hash",
+            "alert_level",
+            "status",
+            "failure_type",
+            "ex_data",
+            "create_time",
+            "end_time",
+            "update_time",
+            "action_config_id",
+            "bk_biz_id",
+            "is_parent_action",
+            "parent_action_id",
+        },
+        default_fields={
+            "id",
+            "signal",
+            "strategy_id",
+            "status",
+            "failure_type",
+            "create_time",
+            "end_time",
+            "bk_biz_id",
+        },
+        examples=[
+            {
+                "filter": {"strategy_id": 12345, "status": "failure"},
+                "fields": ["id", "signal", "strategy_id", "status", "failure_type", "ex_data", "create_time"],
+                "order_by": ["-create_time"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "bkmonitor.models.fta.action.ActionInstanceLog": ModelSpec(
+        model_path="bkmonitor.models.fta.action.ActionInstanceLog",
+        fields={"id", "action_instance_id", "content", "time", "step_name", "level"},
+        default_fields={"id", "action_instance_id", "step_name", "level", "time"},
+        examples=[
+            {
+                "filter": {"action_instance_id": 9876},
+                "fields": ["id", "step_name", "level", "content", "time"],
+                "order_by": ["time"],
+                "limit": 50,
+            }
+        ],
+    ),
 }
 
 

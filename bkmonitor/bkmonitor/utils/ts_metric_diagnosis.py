@@ -436,7 +436,7 @@ def _detect_source_backend(ts_group: Any) -> str:
 
         if ts_group.data_source.created_from == DataIdCreatedFromSystem.BKDATA.value:
             return "bkdata"
-    except Exception:
+    except (AttributeError, ImportError):
         pass
 
     return "redis"

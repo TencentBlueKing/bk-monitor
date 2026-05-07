@@ -20,8 +20,8 @@ class BkmCliOpCallResource(Resource):
     """
     bkm-cli 服务端 op 调用入口。
 
-    该入口只接收 op_id 与 params，不暴露底层 func_name。op_id 必须先注册到 BkmCliOpRegistry，
-    再由服务端映射到 KernelRPCRegistry 中的实际函数，避免客户端绕过白名单直接调用底层函数。
+    请求侧只接受 op_id + params，客户端不能直接指定 func_name，避免绕过白名单。
+    响应侧包含 func_name 以便客户端日志追踪和审计，op_id → func_name 映射由服务端白名单管控。
     """
 
     class RequestSerializer(serializers.Serializer):

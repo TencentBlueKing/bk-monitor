@@ -243,15 +243,21 @@ def test_bcs_cluster_info_allowlist_has_diagnostic_fields():
     assert not (stale & spec.fields), f"Stale field names still present: {stale & spec.fields}"
 
 
-def test_allowlist_excludes_deprecated_and_low_value_models():
+def test_allowlist_contains_expected_models():
     from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
 
-    removed = {
+    expected = {
+        "metadata.models.bcs.cluster.BCSClusterInfo",
+        "metadata.models.space.space.Space",
+        "metadata.models.space.space.SpaceResource",
+        "bkmonitor.models.bcs_cluster.BCSCluster",
+        "bkmonitor.models.metric_list_cache.MetricListCache",
         "bkmonitor.models.base.ReportItems",
         "bkmonitor.models.base.ReportContents",
         "bkmonitor.models.base.ReportStatus",
         "bkmonitor.models.fta.action.ActionInstance",
         "bkmonitor.models.fta.action.ActionInstanceLog",
     }
-    present = removed & set(ALLOWED_MODEL_SPECS.keys())
-    assert not present, f"Deprecated/low-value models still in allowlist: {present}"
+    actual = set(ALLOWED_MODEL_SPECS.keys())
+    missing = expected - actual
+    assert not missing, f"Expected models missing from allowlist: {missing}"

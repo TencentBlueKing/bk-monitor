@@ -74,21 +74,6 @@ def _diagnose_ts_metric_sync(params: dict[str, Any]) -> dict[str, Any]:
         raise CustomException(message=str(exc)) from exc
 
 
-@_register("strategy_check")
-def _strategy_check(params: dict[str, Any]) -> dict[str, Any]:
-    raise CustomException(message="strategy_check is not yet implemented")
-
-
-@_register("context_preview")
-def _context_preview(params: dict[str, Any]) -> dict[str, Any]:
-    raise CustomException(message="context_preview is not yet implemented")
-
-
-@_register("check_bcs_cluster_status")
-def _check_bcs_cluster_status(params: dict[str, Any]) -> dict[str, Any]:
-    raise CustomException(message="check_bcs_cluster_status is not yet implemented")
-
-
 # ── 分发器 ────────────────────────────────────────────────────────────────────
 
 
