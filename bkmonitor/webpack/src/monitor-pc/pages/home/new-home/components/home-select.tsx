@@ -694,7 +694,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
           specEvent: 1,
           bizIds: item.bk_biz_id,
         }),
-        // specEvent 同时透传到 url search，供路由权限判断使用
+        // specEvent 同时透传到 url search，供旧版详情自动展开兼容使用
         extraParams: { specEvent: 1 },
       },
       /** 告警策略 */
