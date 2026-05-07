@@ -1,43 +1,71 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import type { CallOptions, CodeRedefineItem } from '../../type';
-import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
-import { VariablesService } from '../../../../utils/variable';
-import { downloadFile } from 'monitor-common/utils';
-import { listCodeRedefinedRule, setCodeRedefinedRule } from 'monitor-api/modules/apm_service';
-import { uploadJsonFile } from 'monitor-pc/pages/view-detail/utils';
-import TagBlock from 'monitor-pc/components/tag-block';
-import { random } from 'monitor-common/utils';
+
 import { cloneDeep } from 'lodash';
+import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
+import { listCodeRedefinedRule, setCodeRedefinedRule } from 'monitor-api/modules/apm_service';
+import { downloadFile } from 'monitor-common/utils';
+import { random } from 'monitor-common/utils';
+import TagBlock from 'monitor-pc/components/tag-block';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { uploadJsonFile } from 'monitor-pc/pages/view-detail/utils';
+
+import { VariablesService } from '../../../../utils/variable';
+
+import type { CallOptions, CodeRedefineItem } from '../../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './code-redefine-slider.scss';
-interface CodeRedefineSliderProps {
-  isShow: boolean;
-  type: 'caller' | 'callee';
-  appName: string;
-  service: string;
-  callOptions?: Partial<CallOptions>;
-  variablesData?: Record<string, any>;
-}
-
 interface CodeRedefineSliderEvents {
   onShowChange(isShow: boolean): void;
 }
 
+interface CodeRedefineSliderProps {
+  appName: string;
+  callOptions?: Partial<CallOptions>;
+  isShow: boolean;
+  service: string;
+  type: 'callee' | 'caller';
+  variablesData?: Record<string, any>;
+}
+
 interface ColumnItem {
   label: string;
-  prop: string;
-  options: { value: string; text: string }[];
   loading: boolean;
+  options: { text: string; value: string }[];
+  prop: string;
   width?: number;
 }
 
 @Component
 export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, CodeRedefineSliderEvents> {
   @Prop({ default: false }) isShow: boolean;
-  @Prop({ default: 'caller' }) type: 'caller' | 'callee';
+  @Prop({ default: 'caller' }) type: 'callee' | 'caller';
   @Prop({ default: '' }) appName: string;
   @Prop({ default: '' }) service: string;
   @Prop({ default: () => ({}) }) callOptions: Partial<CallOptions>;
@@ -107,7 +135,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
   /** 三者都为空时才校验「不能为空」；任一有值则不做该项提示，仅对已填内容做格式校验 */
   getCodeTypeRules(codeTypeRules: CodeRedefineItem['code_type_rules']) {
-    const keys: Array<'success' | 'exception' | 'timeout'> = ['success', 'exception', 'timeout'];
+    const keys: Array<'exception' | 'success' | 'timeout'> = ['success', 'exception', 'timeout'];
     const isAllEmpty = () => keys.every(k => !(codeTypeRules[k] ?? '').toString().trim());
 
     const fieldRules = () => [
@@ -268,8 +296,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   async validRules() {
     const values = this.showData.map(item =>
       this.type === 'caller'
-        ? `${item.callee_server}_${item.callee_service}_${item.callee_method}`
-        : `${item.callee_service}_${item.callee_method}`
+        ? `${item.callee_server}_${item.callee_service}_${item.callee_method}_${item.is_global}`
+        : `${item.callee_service}_${item.callee_method}_${item.is_global}`
     );
     const keyIdsMap: Record<string, string[]> = {};
     for (let index = 0; index < values.length; index++) {
@@ -336,7 +364,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       // TODO：组件库bug，该配置无效，已提issue，待修复
       // confirmLoading: true,
       confirmFn: async () => {
-        const dataList = this.showData.filter((item, i) => i !== index && !item.isNew);
+        const dataList = this.data.filter((item, i) => i !== index && !item.isNew);
         const params = {
           app_name: this.appName,
           service_name: this.service,
@@ -366,8 +394,6 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   async handleSaveEditRow(index: number) {
-    const valid = await this.validRules();
-    if (!valid) return;
     if (JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index]) && !this.showData[index].isNew) {
       this.$set(this.rowEditMap, this.showData[index].id, false);
       return;
@@ -377,7 +403,21 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       service_name: this.service,
       kind: this.type,
       rules: this.showData.reduce((results, item, showIndex) => {
-        if (!item.isNew || showIndex === index) {
+        // 编辑态且不是当前行，则提交原始数据
+        if (this.rowEditMap[item.id] && showIndex !== index && !item.isNew) {
+          const rowItem = this.data.find(i => i.id === item.id);
+          if (rowItem) {
+            results.push({
+              kind: rowItem.kind,
+              callee_server: rowItem.callee_server,
+              callee_service: rowItem.callee_service,
+              callee_method: rowItem.callee_method,
+              code_type_rules: rowItem.code_type_rules,
+              is_global: rowItem.is_global,
+            });
+          }
+          // 非编辑态或当前行，则提交编辑态数据
+        } else if (!item.isNew || showIndex === index) {
           results.push({
             kind: item.kind,
             callee_server: item.callee_server,
@@ -414,8 +454,6 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
         return (
           <bk-table-column
             key={item.prop}
-            label={item.label}
-            prop={item.prop}
             width={item.width}
             scopedSlots={{
               default: ({ row, $index }) => {
@@ -459,14 +497,14 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                 return (
                   <div class='interface-column'>
                     <bk-select
+                      disabled={item.loading}
+                      display-tag={true}
+                      loading={item.loading}
+                      placeholder={this.$tc('请选择或输入')}
+                      showEmpty={!item.loading && !item.options.length}
                       value={row[item.prop]}
                       allow-create
-                      display-tag={true}
                       searchable
-                      placeholder={this.$tc('请选择或输入')}
-                      disabled={item.loading}
-                      loading={item.loading}
-                      showEmpty={!item.loading && !item.options.length}
                       onChange={v => this.handleValueChange(v, item.prop, $index)}
                     >
                       {item.options.map(opt => (
@@ -492,14 +530,14 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                 );
               },
             }}
+            label={item.label}
+            prop={item.prop}
           />
         );
       case 'code_type_rules':
         return (
           <bk-table-column
             key={item.prop}
-            label={item.label}
-            prop={item.prop}
             width={item.width}
             render-header={() => {
               return (
@@ -531,8 +569,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                         }
                         return (
                           <div
-                            class='code-status-rule-item'
                             key={item.value}
+                            class='code-status-rule-item'
                           >
                             <TagBlock
                               class='code-tag-block'
@@ -564,8 +602,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
                         return (
                           <div
-                            class='code-status-rule-item'
                             key={item.value}
+                            class='code-status-rule-item'
                           >
                             <TagBlock
                               class='code-tag-block'
@@ -597,8 +635,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                   >
                     {this.codeStatus.map(item => (
                       <div
-                        class='code-status-rule-item'
                         key={item.value}
+                        class='code-status-rule-item'
                       >
                         <bk-form-item property={item.value}>
                           <bk-input
@@ -615,6 +653,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                 );
               },
             }}
+            label={item.label}
+            prop={item.prop}
           />
         );
       default:
@@ -625,11 +665,11 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   render() {
     return (
       <bk-sideslider
+        width={1250}
         class='code-redefine-slider'
         is-show={this.isShow}
-        width={1250}
-        quick-close
         title={this.$t('返回码重定义')}
+        quick-close
         {...{ on: { 'update:isShow': this.handleShowChange } }}
       >
         <div
@@ -639,8 +679,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
           <div class='info-table'>
             {this.infoData.map(item => (
               <div
-                class='table-row'
                 key={item.key}
+                class='table-row'
               >
                 <div class='row-label'>{item.label}</div>
                 <div class='row-value'>{item.value}</div>
@@ -649,8 +689,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
           </div>
           <div class='top-btns'>
             <bk-button
-              theme='primary'
               icon='plus'
+              theme='primary'
               on-click={this.handleAddNewRow}
             >
               {this.$t('新增')}
@@ -660,9 +700,9 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
               <i class='icon-monitor icon-tishi' />
               <span>{this.$t('点击')}</span>
               <bk-button
-                theme='primary'
-                size='small'
                 class='global-config-btn'
+                size='small'
+                theme='primary'
                 text
                 on-click={this.handleGlobalConfigClick}
               >
@@ -675,10 +715,10 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
           <div class='submit-table'>
             <div class='explore-btns'>
               <input
-                class='hidden-file-input'
-                type='file'
-                accept='application/json'
                 ref='fileRef'
+                class='hidden-file-input'
+                accept='application/json'
+                type='file'
                 onChange={this.fileChange}
               />
               <bk-button
@@ -708,13 +748,12 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
               <bk-table
                 ref='tableRef'
                 data={this.showData}
+                row-class-name={({ row }) => (row.is_global ? 'rule-row-global' : 'rule-row')}
                 border
                 row-auto-height
-                row-class-name={({ row }) => (row.is_global ? 'rule-row-global' : 'rule-row')}
               >
                 {this.showColumn.map(item => this.renderColumn(item))}
                 <bk-table-column
-                  label={this.$tc('操作')}
                   width={136}
                   scopedSlots={{
                     default: ({ $index, row }) => {
@@ -734,9 +773,9 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                           <div class='operate-btns'>
                             <bk-button
                               class='btn'
-                              theme='primary'
                               disabled={!this.showData[$index].isAbleSave || this.showData[$index].isSaving}
                               loading={this.showData[$index].isSaving}
+                              theme='primary'
                               text
                               onClick={() => this.handleSaveEditRow($index)}
                             >
@@ -777,6 +816,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                       );
                     },
                   }}
+                  label={this.$tc('操作')}
                 />
               </bk-table>
             )}
