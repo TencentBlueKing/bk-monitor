@@ -105,6 +105,7 @@ from apps.log_search.constants import (
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import (
+    TAG_TYPE_SCENE,
     IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
@@ -967,8 +968,8 @@ class CollectorHandler:
             tag_ids_mapping[obj.index_set_id] = obj.tag_ids
             tag_ids_all.extend(obj.tag_ids)
 
-        # 查询出所有的tag信息
-        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        # 查询出所有的tag信息（排除场景化检索路由标签，仅后端使用，不暴露给前端）
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all).exclude(tag_type=TAG_TYPE_SCENE)
         index_set_tag_mapping = {
             obj.tag_id: {
                 "name": InnerTag.get_choice_label(obj.name),
@@ -1621,8 +1622,6 @@ class CollectorHandler:
         """
         if not self.data.index_set_id:
             return
-
-        from apps.log_search.models import TAG_TYPE_SCENE
 
         tag_ids = []
         for key, value in labels.items():
