@@ -25,6 +25,7 @@
  */
 import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
+import { Message } from 'bkui-vue';
 import { byteConvert } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -69,7 +70,7 @@ export default defineComponent({
     },
     /** ES集群列表 */
     clusterList: {
-      type: Array,
+      type: Array as PropType<{ storage_cluster_id: string; storage_display_name: string }[]>,
       default: () => [],
     },
   },
@@ -82,7 +83,7 @@ export default defineComponent({
       es_retention: 14,
       es_shards: 3,
       es_slice_size: 100,
-      es_storage_cluster: '蓝鲸运维APM公共集群',
+      es_storage_cluster: '',
     });
 
     // 集群下拉选项
@@ -133,6 +134,10 @@ export default defineComponent({
             ...storageData.value,
             [field]: value,
           };
+          Message({
+            message: t('修改成功'),
+            theme: 'success',
+          });
           return true;
         })
         .catch(() => false);

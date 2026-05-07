@@ -40,7 +40,7 @@ export const storageField = request('post', 'rum/meta/application/storage_field/
 export const deleteApp = request('post', 'rum/meta/application/delete_application/');
 
 /** 开启应用 */
-export const startApp = request('post', 'rum/meta/application/start/');
+export const startApp = request('post', 'rum/meta/application/start/');
 
 /** 停止应用 */
 export const stopApp = request('post', 'rum/meta/application/stop/');
@@ -113,12 +113,10 @@ export const RUM_APP_CONFIG_MOCK: IRumAppConfig = {
   client_type: 'web',
   is_enabled: true,
   application_apdex_config: {
-    load: 1000,
-    request: 500,
+    apdex_view_load: 100,
+    apdex_api_request: 200,
   },
-  application_qps_config: {
-    qps: 1000,
-  },
+  application_qps_config: 1000,
   span_datasource_config: {
     datasource_id: 1,
     datasource_name: 'elasticsearch',

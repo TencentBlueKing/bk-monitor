@@ -97,6 +97,10 @@
             .icon-monitor {
               font-size: 14px;
             }
+
+            &:hover {
+              color: #5594fa;
+            }
           }
         }
 
@@ -133,6 +137,10 @@
             font-size: 14px;
             color: #3a84ff;
             cursor: pointer;
+
+            &:hover {
+              color: #5594fa;
+            }
           }
         }
       }
@@ -147,9 +155,12 @@
 
     .link-icon {
       font-size: 16px;
+
+      &:hover {
+        color: #5594fa;
+      }
     }
 
-    /* SDK 接入指引链接 */
     .operation-btn {
       display: flex;
       gap: 4px;
@@ -157,6 +168,10 @@
       font-size: 12px;
       color: #3a84ff;
       cursor: pointer;
+
+      &:hover {
+        color: #5594fa;
+      }
     }
   }
 }

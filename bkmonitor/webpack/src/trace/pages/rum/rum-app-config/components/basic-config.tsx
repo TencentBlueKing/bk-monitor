@@ -26,10 +26,11 @@
 import { type PropType, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
 import { computed } from 'vue';
 
-import { Button, Form, Input } from 'bkui-vue';
+import { Button, Form, Input, Message } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 
+import { applicationSetup } from '../mock';
 import HistoryDialog from '@/components/history-dialog/history-dialog';
 
 import type { IRumAppConfig } from '../../typings/rum-app-config';
@@ -44,7 +45,11 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  setup(props) {
+  emits: {
+    applicationInfoChange: (_params: Pick<IRumAppConfig, 'application_apdex_config' | 'application_qps_config'>) =>
+      true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const isEdit = shallowRef(false);
 
@@ -54,6 +59,7 @@ export default defineComponent({
       request: 500,
       qps: 10,
     });
+    const loading = shallowRef(false);
 
     const numberRequired = [
       { required: true, message: t('必填项'), trigger: 'blur' },
@@ -84,9 +90,9 @@ export default defineComponent({
 
     const handleEditClick = (v: boolean) => {
       if (v) {
-        formData.load = props.detail?.application_apdex_config?.load;
-        formData.request = props.detail?.application_apdex_config?.request;
-        formData.qps = props.detail?.application_qps_config?.qps;
+        formData.load = props.detail?.application_apdex_config?.apdex_view_load;
+        formData.request = props.detail?.application_apdex_config?.apdex_api_request;
+        formData.qps = props.detail?.application_qps_config;
       }
       formRef.value.clearValidate();
       isEdit.value = v;
@@ -110,17 +116,43 @@ export default defineComponent({
 
     const qpsTips = [t('设置系统可承受的 qps 峰值，每秒最多处理 X 条请求，超出可以造成数据丢弃。')];
 
-    const handleSave = () => {
-      formRef.value.validate().then(() => {
-        console.log(formData);
-        handleEditClick(false);
-      });
+    const handleSave = async () => {
+      const isValid = formRef.value.validate().catch(() => false);
+      if (!isValid) return;
+      loading.value = true;
+      applicationSetup({
+        bk_biz_id: props.detail?.bk_biz_id,
+        app_name: props.detail?.app_name,
+        application_apdex_config: {
+          apdex_view_load: formData.load,
+          apdex_api_request: formData.request,
+        },
+        application_qps_config: formData.qps,
+      })
+        .then(() => {
+          Message({
+            message: t('保存成功'),
+            theme: 'success',
+          });
+          handleEditClick(false);
+          emit('applicationInfoChange', {
+            application_apdex_config: {
+              apdex_view_load: formData.load,
+              apdex_api_request: formData.request,
+            },
+            application_qps_config: formData.qps,
+          });
+        })
+        .finally(() => {
+          loading.value = false;
+        });
     };
 
     return {
       isEdit,
       formData,
       rules,
+      loading,
       apdexTips,
       qpsTips,
       historyList,
@@ -169,7 +201,7 @@ export default defineComponent({
                           type='number'
                         />
                       ) : (
-                        <span class='value-text'>{this.detail?.application_apdex_config?.load}</span>
+                        <span class='value-text'>{this.detail?.application_apdex_config?.apdex_view_load}</span>
                       )}
                     </Form.FormItem>
                     <Form.FormItem
@@ -186,7 +218,7 @@ export default defineComponent({
                           type='number'
                         />
                       ) : (
-                        <span class='value-text'>{this.detail?.application_apdex_config?.request}</span>
+                        <span class='value-text'>{this.detail?.application_apdex_config?.apdex_api_request}</span>
                       )}
                     </Form.FormItem>
                   </div>
@@ -222,7 +254,7 @@ export default defineComponent({
                           type='number'
                         />
                       ) : (
-                        <span class='value-text'>{this.detail?.application_qps_config?.qps}</span>
+                        <span class='value-text'>{this.detail?.application_qps_config}</span>
                       )}
                     </Form.FormItem>
                   </div>
@@ -234,6 +266,7 @@ export default defineComponent({
           {this.isEdit && (
             <div class='btns'>
               <Button
+                loading={this.loading}
                 theme='primary'
                 onClick={this.handleSave}
               >
