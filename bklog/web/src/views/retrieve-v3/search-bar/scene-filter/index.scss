@@ -103,4 +103,9 @@
   margin: 0 8px;
   height: 12px;
   background-color: #fff;
+  opacity: 1;
+}
+
+.is-sticky-top .scene-search-sticky-spacer {
+  opacity: 0;
 }
