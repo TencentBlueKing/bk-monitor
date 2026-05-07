@@ -90,6 +90,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
+    TAG_TYPE_SCENE,
     TAG_TYPE_USER,
     IndexSetCustomConfig,
     IndexSetFieldsConfig,
@@ -340,8 +341,8 @@ class IndexSetHandler(APIModel):
                 _index["time_field"] = time_field
         result = multi_execute_func.run()
 
-        # 获取标签信息
-        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        # 获取标签信息（排除场景化检索路由标签，仅后端使用，不暴露给前端）
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all).exclude(tag_type=TAG_TYPE_SCENE)
         index_set_tag_mapping = {
             obj.tag_id: {
                 "name": InnerTag.get_choice_label(obj.name),
