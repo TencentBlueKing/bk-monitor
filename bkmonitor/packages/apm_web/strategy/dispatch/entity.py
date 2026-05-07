@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import threading
+from collections import defaultdict
 from functools import cached_property
 from typing import Any
 
@@ -70,16 +71,26 @@ class EntitySet:
                     {"index_set_id": datasource_index_set_id, "is_app_datasource": True, "bk_biz_id": self.bk_biz_id}
                 ]
 
+        log_relation_dict: defaultdict[str, defaultdict[int, set[int]]] = defaultdict(lambda: defaultdict(set))
+
         for relation in ServiceLogHandler.get_log_relations(self.bk_biz_id, self.app_name, self.service_names):
-            service_indexes.setdefault(relation.service_name, []).extend(
-                [
-                    {
-                        "index_set_id": index_set_id,
-                        "is_app_datasource": False,
-                        "bk_biz_id": relation.related_bk_biz_id,
-                    }
-                    for index_set_id in relation.value_list
-                ]
+            index_set_ids = {int(index_set_id) for index_set_id in relation.value_list if index_set_id}
+            if not index_set_ids:
+                continue
+
+            target_services = self.service_names if relation.is_global else [relation.service_name]
+            for service_name in target_services:
+                log_relation_dict[service_name][relation.related_bk_biz_id].update(index_set_ids)
+
+        for service_name, relation_dict in log_relation_dict.items():
+            service_indexes.setdefault(service_name, []).extend(
+                {
+                    "index_set_id": index_set_id,
+                    "is_app_datasource": False,
+                    "bk_biz_id": related_bk_biz_id,
+                }
+                for related_bk_biz_id, index_set_ids in relation_dict.items()
+                for index_set_id in sorted(index_set_ids)
             )
 
         return service_indexes
