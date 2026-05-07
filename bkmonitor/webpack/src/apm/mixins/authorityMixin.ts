@@ -71,8 +71,12 @@ export default (authMap: { [propsName: string]: string }, inCreated = true) => {
 
     async getAuthCreated() {
       const authorityMap: any = authMap || (this.$route.meta.authority?.map ? this.$route.meta.authority.map : false);
-      const isSpecialEvent =
-        ['event-center', 'event-center-detail'].includes(this.$route.name) && location.search.indexOf('specEvent') > -1;
+      const isSpecialEvent = [
+        'event-center',
+        'event-action',
+        'event-center-detail',
+        'event-center-action-detail',
+      ].includes(this.$route.name);
       if (!authorityMap) {
         return;
       }
