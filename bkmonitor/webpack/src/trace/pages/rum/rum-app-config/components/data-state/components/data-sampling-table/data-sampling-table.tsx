@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, toRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, toRef } from 'vue';
 
 import CommonTable from '../../../../../../alarm-center/components/alarm-table/components/common-table/common-table';
-import { useSamplingColumns } from '../../../../hooks/use-sampling-columns';
+import { SAMPLING_TABLE_COLUMNS } from '../../../../../constants';
+import { useSamplingColumnsRenderer } from '../../../../hooks/use-sampling-columns-renderer';
 
 import type { IDataSamplingItem } from '../../mock';
 
@@ -69,14 +70,17 @@ export default defineComponent({
         : [...collapseRowIndexes.value, index];
     };
 
-    /** 表格列配置 */
-    const { columns } = useSamplingColumns({
+    /** 列渲染器：将静态列配置与各列 cellRenderer 合并 */
+    const { transformColumns } = useSamplingColumnsRenderer({
       samplingList: toRef(props, 'samplingList'),
       collapseRowIndexes,
       handleCollapse,
       copyEmit: (log: IDataSamplingItem['raw_log']) => emit('copy', log),
       viewDetailEmit: (log: IDataSamplingItem['raw_log']) => emit('viewDetail', log),
     });
+
+    /** 合并静态配置与渲染配置后的完整列定义 */
+    const columns = computed(() => transformColumns([...SAMPLING_TABLE_COLUMNS]));
 
     return {
       collapseRowIndexes,
@@ -88,7 +92,7 @@ export default defineComponent({
       <div class='data-sampling-table-wrapper'>
         <CommonTable
           class='sampling-table'
-          columns={this.columns as any}
+          columns={this.columns}
           data={this.samplingList as unknown as Record<string, unknown>[]}
           loading={this.loading}
           rowKey='sampling_time'
