@@ -1,41 +1,68 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
-import { cloneDeep } from 'lodash';
-import dayjs from 'dayjs';
 import { Component as tsc } from 'vue-tsx-support';
+
+import dayjs from 'dayjs';
+import { cloneDeep } from 'lodash';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
-import type { CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { serviceList, setCodeRemark, getCodeRemarks } from 'monitor-api/modules/apm_service';
+import { getCodeRemarks, serviceList, setCodeRemark } from 'monitor-api/modules/apm_service';
 import { random } from 'monitor-common/utils';
 
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
+
 import './index.scss';
+
+interface CodeRemarkItem {
+  code: string;
+  id?: string;
+  is_global: boolean;
+  isAbleSave?: boolean;
+  isNew?: boolean;
+  isSaving?: boolean;
+  kind: string;
+  remark: string;
+  service_names: string[];
+}
+
+interface ColumnItem {
+  label: string;
+  loading: boolean;
+  minWidth?: number;
+  options: { text: string; value: string }[];
+  prop: string;
+  width?: number;
+}
 
 interface Props {
   /** 应用名（接口请求主键） */
   appName: string;
   callOptions?: Partial<CallOptions>;
   variablesData?: Record<string, any>;
-}
-
-interface ColumnItem {
-  label: string;
-  prop: string;
-  options: { value: string; text: string }[];
-  loading: boolean;
-  width?: number;
-  minWidth?: number;
-}
-
-interface CodeRemarkItem {
-  code: string;
-  remark: string;
-  kind: string;
-  is_global: boolean;
-  service_names: string[];
-  id?: string;
-  isSaving?: boolean;
-  isNew?: boolean;
-  isAbleSave?: boolean;
 }
 
 @Component
@@ -329,7 +356,7 @@ export default class RemarkTabContent extends tsc<Props> {
       // confirmLoading: true,
       confirmFn: async () => {
         // 删除采用“全量提交剩余规则”方式
-        const dataList = this.showData.filter((item, i) => i !== index && !item.isNew);
+        const dataList = this.data.filter((item, i) => i !== index && !item.isNew);
         const params = {
           app_name: this.appName,
           remarks: dataList.map(item => ({
@@ -358,9 +385,6 @@ export default class RemarkTabContent extends tsc<Props> {
   }
 
   async handleSaveEditRow(index: number) {
-    // 保存前先做整表校验（含重复规则和必填）
-    const valid = await this.validRules();
-    if (!valid) return;
     // 非新建行且内容未变更时，直接退出编辑态
     if (JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index]) && !this.showData[index].isNew) {
       this.$set(this.rowEditMap, this.showData[index].id, false);
@@ -369,10 +393,21 @@ export default class RemarkTabContent extends tsc<Props> {
 
     const params = {
       app_name: this.appName,
-      remarks: this.showData.reduce((results, item, showIndex) => {
-        // 仅提交：
-        // 1. 历史已存在规则；2. 当前正在保存的新规则
-        if (!item.isNew || showIndex === index) {
+      remarks: this.data.reduce((results, item, showIndex) => {
+        // 编辑态且不是当前行，则提交原始数据
+        if (this.rowEditMap[item.id] && showIndex !== index && !item.isNew) {
+          const rowItem = this.data.find(i => i.id === item.id);
+          if (rowItem) {
+            results.push({
+              kind: rowItem.kind,
+              code: rowItem.code,
+              remark: rowItem.remark,
+              service_names: rowItem.service_names,
+              is_global: rowItem.is_global,
+            });
+          }
+          // 非编辑态或当前行，则提交编辑态数据
+        } else if (!item.isNew || showIndex === index) {
           results.push({
             kind: item.kind,
             code: item.code,
@@ -452,8 +487,6 @@ export default class RemarkTabContent extends tsc<Props> {
         return (
           <bk-table-column
             key={item.prop}
-            label={item.label}
-            prop={item.prop}
             width={item.width}
             scopedSlots={{
               default: ({ row, $index }) => {
@@ -469,11 +502,11 @@ export default class RemarkTabContent extends tsc<Props> {
                   <div class='interface-column'>
                     {/* 编辑态：可输入可选择 */}
                     <bk-select
-                      value={row[item.prop]}
-                      allow-create
                       clearable={false}
                       display-tag={true}
                       placeholder={this.$tc('请选择或输入')}
+                      value={row[item.prop]}
+                      allow-create
                       onChange={v => this.handleValueChange(v, item.prop, $index)}
                     >
                       {this.callTypeOptions.map(opt => (
@@ -488,14 +521,14 @@ export default class RemarkTabContent extends tsc<Props> {
                 );
               },
             }}
+            label={item.label}
+            prop={item.prop}
           />
         );
       case 'code':
         return (
           <bk-table-column
             key={item.prop}
-            label={item.label}
-            prop={item.prop}
             width={item.width}
             scopedSlots={{
               default: ({ row, $index }) => {
@@ -517,13 +550,13 @@ export default class RemarkTabContent extends tsc<Props> {
                   <div class='interface-column'>
                     {/* 编辑态：返回码支持搜索、选填与自定义创建 */}
                     <bk-select
-                      value={row[item.prop]}
                       display-tag={true}
+                      loading={item.loading}
+                      placeholder={this.$tc('请选择或输入')}
+                      showEmpty={!item.loading && !item.options.length}
+                      value={row[item.prop]}
                       allow-create
                       searchable
-                      placeholder={this.$tc('请选择或输入')}
-                      loading={item.loading}
-                      showEmpty={!item.loading && !item.options.length}
                       onChange={v => this.handleValueChange(v, item.prop, $index)}
                     >
                       {enumOptions.map(opt => (
@@ -540,14 +573,14 @@ export default class RemarkTabContent extends tsc<Props> {
                 );
               },
             }}
+            label={item.label}
+            prop={item.prop}
           />
         );
       case 'remark':
         return (
           <bk-table-column
             key={item.prop}
-            label={item.label}
-            prop={item.prop}
             width={item.width}
             scopedSlots={{
               default: ({ row, $index }) => {
@@ -583,16 +616,15 @@ export default class RemarkTabContent extends tsc<Props> {
                 );
               },
             }}
+            label={item.label}
+            prop={item.prop}
           />
         );
       case 'service_names':
         return (
           <bk-table-column
             key={item.prop}
-            label={item.label}
-            prop={item.prop}
             width={item.width}
-            filters={this.applyScopeOptions}
             scopedSlots={{
               default: ({ row, $index }) => {
                 // 非编辑态：展示服务名列表；0 映射为“全局生效”
@@ -612,17 +644,17 @@ export default class RemarkTabContent extends tsc<Props> {
                   <div class='interface-column'>
                     {/* 编辑态：多选作用范围，含“全局生效(0)”特殊值 */}
                     <bk-select
-                      value={row[item.prop]}
                       // allow-create
                       class='scoped-select'
-                      ext-popover-cls='scoped-select-popover'
-                      searchable
-                      multiple
                       clearable={false}
-                      placeholder={this.$tc('请选择或输入')}
                       disabled={item.loading}
+                      ext-popover-cls='scoped-select-popover'
                       loading={item.loading}
+                      placeholder={this.$tc('请选择或输入')}
                       showEmpty={!item.loading && !item.options.length}
+                      value={row[item.prop]}
+                      multiple
+                      searchable
                       onChange={v => this.handleValueChange(v, item.prop, $index)}
                     >
                       {this.applyScopeOptions.map(opt => (
@@ -637,6 +669,9 @@ export default class RemarkTabContent extends tsc<Props> {
                 );
               },
             }}
+            filters={this.applyScopeOptions}
+            label={item.label}
+            prop={item.prop}
           />
         );
       default:
@@ -656,8 +691,8 @@ export default class RemarkTabContent extends tsc<Props> {
       <div class='code-redefine-content'>
         <div class='top-btns'>
           <bk-button
-            theme='primary'
             icon='plus'
+            theme='primary'
             on-click={this.addRow}
           >
             {this.$t('新增')}
@@ -673,17 +708,16 @@ export default class RemarkTabContent extends tsc<Props> {
           ) : (
             <bk-table
               ref='tableRef'
-              data={this.showData}
-              border
               height='100%'
-              row-auto-height
-              row-class-name='return-code-remark-row'
-              on-filter-change={this.handleFilterChange}
+              data={this.showData}
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
+              row-class-name='return-code-remark-row'
+              border
+              row-auto-height
+              on-filter-change={this.handleFilterChange}
             >
               {this.showColumn.map(item => this.renderColumn(item))}
               <bk-table-column
-                label={this.$tc('操作')}
                 width={120}
                 scopedSlots={{
                   default: ({ row, $index }) => {
@@ -692,9 +726,9 @@ export default class RemarkTabContent extends tsc<Props> {
                         <div class='operate-btns'>
                           <bk-button
                             class='btn'
-                            theme='primary'
                             disabled={!this.showData[$index].isAbleSave}
                             loading={this.showData[$index].isSaving}
+                            theme='primary'
                             text
                             onClick={() => this.handleSaveEditRow($index)}
                           >
@@ -735,6 +769,7 @@ export default class RemarkTabContent extends tsc<Props> {
                     );
                   },
                 }}
+                label={this.$tc('操作')}
               />
             </bk-table>
           )}
