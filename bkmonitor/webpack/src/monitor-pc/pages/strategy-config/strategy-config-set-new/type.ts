@@ -101,7 +101,27 @@ export const noticeMethod = [
   },
 ];
 
+/** issue 聚合 */
+export interface IIssueConfig {
+  aggregate_dimensions: string[];
+  alert_levels: number[];
+  is_enabled?: boolean;
+  conditions: {
+    condition: string;
+    key: string;
+    method: string;
+    value: string[];
+  }[];
+}
+
 export interface IMultivariateAnomalyDetectionParams {
   metrics: MetricDetail[];
   refreshKey: string;
 }
+
+/** 告警级别列表 */
+export const LEVEL_LIST = [
+  { id: 1, name: window.i18n.t('致命'), icon: 'icon-danger' },
+  { id: 2, name: window.i18n.t('预警'), icon: 'icon-mind-fill' },
+  { id: 3, name: window.i18n.t('提醒'), icon: 'icon-tips' },
+];

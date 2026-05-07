@@ -26,6 +26,7 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
@@ -688,8 +689,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     const routeOptions = {
       /** 告警 */
       alert: {
-        name: 'event-center',
-        query: { alertId: String(item.alert_id) },
+        ...getAlarmCenterRouteLocation({
+          alertId: String(item.alert_id),
+          specEvent: 1,
+          bizIds: item.bk_biz_id,
+        }),
+        // specEvent 同时透传到 url search，供路由权限判断使用
         extraParams: { specEvent: 1 },
       },
       /** 告警策略 */
@@ -719,10 +724,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         query: item.compare_hosts?.length > 0 ? { compares: JSON.stringify({ targets: item.compare_hosts }) } : {},
       },
       /** 关联的告警 */
-      'strategy-alarm': {
-        name: 'event-center',
-        query: { queryString: `策略ID : ${item.strategy_id}` },
-      },
+      'strategy-alarm': getAlarmCenterRouteLocation({
+        queryString: `策略ID : ${item.strategy_id}`,
+      }),
       /** 关联的屏蔽策略 */
       'alarm-shield': {
         name: 'alarm-shield',

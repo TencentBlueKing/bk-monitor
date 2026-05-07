@@ -48,7 +48,6 @@ import {
 } from 'monitor-api/modules/incident';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils.js';
-import { type CheckboxGroupValue } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
 import { type TippyContent, useTippy } from 'vue-tippy';
 
@@ -57,6 +56,7 @@ import SetMealAdd from '../../../store/modules/set-meal-add';
 import CollapseTags from '../../trace-explore/components/trace-explore-table/components/table-cell/collapse-tags';
 import { isEllipsisActiveLine } from '../../trace-explore/components/trace-explore-table/utils/dom-helper';
 import StatusTag from '../components/status-tag';
+import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
 import { checkIsRoot, replaceSpecialCondition } from '../utils';
@@ -69,6 +69,7 @@ import QuickShield from './quick-shield';
 import useTableChangeSetting from './useTableChangeSetting';
 
 import type { IFilterSearch, IIncident } from '../types';
+import type { CheckboxGroupValue } from 'tdesign-vue-next';
 
 import './alarm-detail.scss';
 
@@ -204,6 +205,8 @@ export default defineComponent({
       });
     }
 
+    const { updateAlarmDetailData } = incidentAlarmDetailInject();
+
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
@@ -241,7 +244,12 @@ export default defineComponent({
       dialog.manualProcess.show = v;
     };
     const handleShowDetail = data => {
-      window.__BK_WEWEB_DATA__?.showDetailSlider?.(JSON.parse(JSON.stringify({ ...data })));
+      // window.__BK_WEWEB_DATA__?.showDetailSlider?.(JSON.parse(JSON.stringify({ ...data })));
+      data.id &&
+        updateAlarmDetailData({
+          bk_biz_id: data.bk_biz_id,
+          id: data.id,
+        });
     };
 
     /**

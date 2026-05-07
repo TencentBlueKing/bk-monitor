@@ -42,3 +42,4 @@ from .subscribe import *  # noqa
 from .utils import *  # noqa
 from .ai_repo import *  # noqa
 from .alert_v2 import *  # noqa
+from .issue import *  # noqa

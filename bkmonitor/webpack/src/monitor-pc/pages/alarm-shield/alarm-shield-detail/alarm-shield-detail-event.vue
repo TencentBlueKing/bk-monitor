@@ -73,6 +73,8 @@
 </template>
 
 <script>
+import { getAlarmCenterDetailRouteLocation } from 'monitor-common/utils/alarm-center-router';
+
 export default {
   name: 'AlarmShieldDetailEvent',
   props: {
@@ -87,9 +89,9 @@ export default {
     };
   },
   methods: {
-    // 跳转到对应的事件详情
+    // 跳转到对应的告警详情
     handleToEvent() {
-      this.$router.push({ name: 'event-center-detail', params: { id: this.dimension.id } });
+      this.$router.push(getAlarmCenterDetailRouteLocation(this.dimension.id));
     },
     handleToStrategy(id) {
       this.$router.push({ name: 'strategy-config-detail', params: { id } });

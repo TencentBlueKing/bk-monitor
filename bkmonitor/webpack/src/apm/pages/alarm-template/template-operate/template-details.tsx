@@ -27,6 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
@@ -164,12 +165,13 @@ export default class TemplateDetails extends tsc<IProps> {
 
   handleGoAlarm(id: string) {
     const { from, to } = this.$route.query;
-    window.open(
-      location.href.replace(
-        location.hash,
-        `#/event-center?queryString=${`strategy_id : "${id}"`}&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`
-      )
-    );
+    const hash = getAlarmCenterListHash({
+      queryString: `strategy_id : "${id}"`,
+      activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+      from: (from as string) || DEFAULT_TIME_RANGE[0],
+      to: (to as string) || DEFAULT_TIME_RANGE[1],
+    });
+    window.open(location.href.replace(location.hash, hash));
   }
 
   handleGoStrategy(id) {

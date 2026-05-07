@@ -1,0 +1,154 @@
+.issues-basic-info {
+  .basic-info-wrapper {
+    margin-top: 4px;
+
+    .basic-info-item {
+      display: flex;
+      align-items: center;
+      min-height: 24px;
+      margin-top: 12px;
+
+      .basic-info-label {
+        flex-shrink: 0;
+        width: 90px;
+        font-size: 12px;
+        color: #8f9fbd;
+        text-align: left;
+
+        .label-icon {
+          margin-right: 4px;
+          font-size: 14px;
+        }
+      }
+
+      .basic-info-value {
+        flex: 1;
+        min-width: 0;
+        margin-left: 12px;
+        font-size: 12px;
+        color: #000;
+        word-break: break-all;
+
+        &.is-active {
+          background-color: #f0f4fa;
+          border-radius: 4px;
+        }
+      }
+
+      &.priority {
+        .basic-info-value {
+          padding: 5px 8px;
+        }
+      }
+
+      &.user {
+        .bk-user-selector {
+          height: auto;
+        }
+
+        .tags-container-collapsed {
+          padding-left: 8px;
+          cursor: pointer;
+          border: none;
+
+          .bk-tag {
+            color: #4e5e7a;
+          }
+
+          .bk-tag-close {
+            display: none !important;
+          }
+
+          .search-input {
+            min-width: 0;
+          }
+
+          &:hover {
+            background-color: #f0f4fa;
+
+            .bk-tag {
+              background-color: #fff;
+            }
+          }
+        }
+      }
+
+      &.influence {
+        .basic-info-value {
+          padding: 4px 8px;
+          background-color: #f2f6fc;
+          border-radius: 6px;
+
+          .influence-item {
+            display: flex;
+            align-items: center;
+            line-height: 20px;
+
+            .label {
+              flex-shrink: 0;
+              color: #8f9fbd;
+            }
+
+            .value {
+              color: #3974ff;
+              cursor: pointer;
+            }
+          }
+        }
+      }
+
+      &.priority,
+      &.user {
+        margin-top: 0;
+        margin-bottom: 4px;
+
+        .basic-info-value {
+          margin-left: 4px;
+          cursor: pointer;
+
+          &:hover {
+            background-color: #f0f4fa;
+            border-radius: 4px;
+          }
+        }
+      }
+    }
+
+    .confirm-btns {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 16px;
+
+      .confirm-btn {
+        flex: 1;
+        border-radius: 4px;
+      }
+    }
+  }
+}
+
+.bk-popover.bk-pop2-content.priority-select-popover {
+  padding: 0;
+
+  .priority-select-wrap {
+    padding: 4px 0;
+
+    .priority-item {
+      width: 68px;
+      padding: 5px 12px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #f5f7fa;
+      }
+    }
+  }
+}
+
+.priority-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  line-height: 20px;
+  border-radius: 4px;
+}
