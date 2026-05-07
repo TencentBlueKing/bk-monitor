@@ -125,11 +125,13 @@ export class IncidentScenario extends BaseScenario {
           style={{ '--lever-rect-color': rectColor }}
           class='lever-rect'
         />
-        <div
-          class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}
-          onClick={() => this.jumpToIncidentDetail(row.id)}
-        >
-          <span>{row?.incident_name}</span>
+        <div class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}>
+          <a
+            class='lever-rect-link'
+            href={this.getIncidentDetailUrl(row.id)}
+          >
+            {row?.incident_name}
+          </a>
         </div>
       </div>
     ) as unknown as SlotReturnValue;
@@ -179,6 +181,16 @@ export class IncidentScenario extends BaseScenario {
    * @param {string} id 故障id
    * @param {string} activeTab 跳转至故障页面后激活显示的tab
    */
+  private getIncidentDetailUrl(id: string) {
+    const timeRange = get(this.context.timeRange) || [];
+    const { href } = this.context.router.resolve({
+      name: 'incident-detail',
+      params: { id },
+      query: { from: timeRange[0], to: timeRange[1] },
+    });
+    return href;
+  }
+
   private jumpToIncidentDetail(id: string, activeTab = '') {
     const timeRange = get(this.context.timeRange) || [];
     this.context.router.push({
