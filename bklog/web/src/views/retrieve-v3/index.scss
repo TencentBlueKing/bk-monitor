@@ -103,11 +103,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - var(--top-searchbar-height) - 332px);
   background-color: #fff;
   margin: 8px;
   padding: 40px 24px;
   text-align: center;
+  flex: 1;
 
   &-title {
     color: #313238;

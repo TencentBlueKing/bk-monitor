@@ -108,13 +108,15 @@ export default defineComponent({
      */
     const renderSceneEmptyTip = () => (
       <div class='scene-empty-tip' v-bkloading={{ isLoading: isSceneLoading.value }}>
-        <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
-        <div class='scene-empty-tip-desc'>
-          {t('请先按照标签过滤日志范围后，再进行日志检索')}
-        </div>
-        <div class='scene-empty-tip-detail'>
-          {t('场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容')}
-        </div>
+        <bk-exception class='exception-wrap-item' type='search-empty' scene='part'>
+          <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
+          <div class='scene-empty-tip-desc'>
+            {t('请先按照标签过滤日志范围后，再进行日志检索')}
+          </div>
+          <div class='scene-empty-tip-detail'>
+            {t('场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容')}
+          </div>
+        </bk-exception>
       </div>
     );
 
