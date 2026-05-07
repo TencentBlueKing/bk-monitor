@@ -756,25 +756,28 @@ class SceneSearchViewSet(APIViewSet):
             created_by=username,
             index_set_id=0,
             search_type="default",
-        )
-        if data.get("space_uid"):
-            history_qs = history_qs.filter(params__space_uid=data["space_uid"])
-        if data.get("table_id_conditions"):
-            history_qs = history_qs.filter(params__table_id_conditions=data["table_id_conditions"])
-
-        history_qs = history_qs.order_by("-created_at").values(
+        ).order_by("-created_at").values(
             "id", "params", "search_mode", "created_by", "created_at"
         )
 
+        target_space_uid = data.get("space_uid")
+        target_conditions = data.get("table_id_conditions")
+
         seen, result = [], []
         for h in history_qs.iterator():
-            key = (h["params"].get("keyword", ""), json.dumps(h["params"].get("addition", []), sort_keys=True))
-            if key not in seen:
-                seen.append(key)
-                h["query_string"] = generate_query_string(h["params"])
-                result.append(h)
-                if len(result) >= 30:
-                    break
+            params = h["params"] or {}
+            if target_space_uid and params.get("space_uid") != target_space_uid:
+                continue
+            if target_conditions and params.get("table_id_conditions") != target_conditions:
+                continue
+            key = (params.get("keyword", ""), json.dumps(params.get("addition", []), sort_keys=True))
+            if key in seen:
+                continue
+            seen.append(key)
+            h["query_string"] = generate_query_string(params)
+            result.append(h)
+            if len(result) >= 30:
+                break
         return Response(result)
 
     @list_route(methods=["POST"], url_path="export_chart_data")
