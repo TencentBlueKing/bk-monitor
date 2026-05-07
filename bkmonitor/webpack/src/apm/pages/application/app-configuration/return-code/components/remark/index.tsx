@@ -41,9 +41,7 @@ interface CodeRemarkItem {
   code: string;
   id?: string;
   is_global: boolean;
-  isAbleSave?: boolean;
   isNew?: boolean;
-  isSaving?: boolean;
   kind: string;
   remark: string;
   service_names: string[];
@@ -114,6 +112,8 @@ export default class RemarkTabContent extends tsc<Props> {
 
   applyScopeOptions = [];
   rowEditMap: Record<string, boolean> = {};
+  savingMap: Record<string, boolean> = {};
+  ableSaveMap: Record<string, boolean> = {};
   filterValues: string[] = [];
   callerEnumOptions = [];
   calleeEnumOptions = [];
@@ -132,11 +132,12 @@ export default class RemarkTabContent extends tsc<Props> {
       is_global: true,
       service_names: ['0'],
       isNew: true,
-      isSaving: false,
     };
+    this.$set(this.ableSaveMap, newRow.id, false);
+    this.$set(this.savingMap, newRow.id, false);
     this.showData.unshift(newRow);
     this.data.unshift(cloneDeep(newRow));
-    this.handleEditRow(0);
+    this.handleEditRow(newRow.id);
   }
 
   async getCodeEnumOptions() {
@@ -175,13 +176,14 @@ export default class RemarkTabContent extends tsc<Props> {
         const id = random(8);
         data[index].id = id;
         data[index].isNew = false;
-        data[index].isSaving = false;
         // 全局规则统一以 ['0'] 作为展示态占位
         if (data[index].is_global) {
           data[index].service_names = ['0'];
         }
         // 默认非编辑态
         this.$set(this.rowEditMap, id, false);
+        this.$set(this.ableSaveMap, id, false);
+        this.$set(this.savingMap, id, false);
       }
       // showData 用于页面展示；data 用于取消编辑时回滚
       this.showData = data;
@@ -218,7 +220,7 @@ export default class RemarkTabContent extends tsc<Props> {
   }
 
   /** 校验填写的规则 */
-  async validRules() {
+  async validRules(rowId: string) {
     // 全局规则：按 kind+code 判重
     const isGlobalTrueValues: string[] = [];
     // 非全局规则：按 kind+code+service 判重（同一行可能多个 service）
@@ -282,15 +284,18 @@ export default class RemarkTabContent extends tsc<Props> {
     this.isGlobalFalseRepeatRulesIdSet = new Set(isGlobalFalseRepeatIds);
     for (let index = 0; index < this.showData.length; index++) {
       const { id } = this.showData[index];
+      if (id !== rowId) {
+        continue;
+      }
       if (
         this.isGlobalTruerepeatRulesIdSet.has(id) ||
         this.isGlobalFalseRepeatRulesIdSet.has(id) ||
         this.codeColumnEmptyIdSet.has(id) ||
         this.remarkColumnEmptyIdSet.has(id)
       ) {
-        this.$set(this.showData[index], 'isAbleSave', false);
+        this.$set(this.ableSaveMap, id, false);
       } else {
-        this.$set(this.showData[index], 'isAbleSave', true);
+        this.$set(this.ableSaveMap, id, true);
       }
     }
     // 任一错误集非空，则本次校验失败
@@ -305,7 +310,8 @@ export default class RemarkTabContent extends tsc<Props> {
     return true;
   }
 
-  async handleValueChange(value: string | string[], prop: string, index: number) {
+  async handleValueChange(value: string | string[], prop: string, id: string) {
+    const index = this.showData.findIndex(item => item.id === id);
     let newValue = value;
     if (prop === 'service_names') {
       // 拷贝一份，避免直接改动事件原值
@@ -325,28 +331,30 @@ export default class RemarkTabContent extends tsc<Props> {
     }
     // 先写入当前编辑值，再触发整表校验
     this.$set(this.showData[index], prop, newValue);
-    this.validRules();
+    this.validRules(this.showData[index].id);
   }
 
-  handleCancelEditRow(index: number) {
+  handleCancelEditRow(id: string) {
+    const showIndex = this.showData.findIndex(item => item.id === id);
+    const dataIndex = this.data.findIndex(item => item.id === id);
     // 退出编辑态
-    this.$set(this.rowEditMap, this.showData[index].id, false);
+    this.$set(this.rowEditMap, id, false);
     // 新增空白行取消时，直接删除，避免遗留无效数据
-    if (this.data[index].isNew) {
-      const row = this.data[index];
+    if (this.data[dataIndex].isNew) {
+      const row = this.data[dataIndex];
       const isEmpty =
         row.code === '' && row.remark === '' && row.service_names.length === 1 && row.service_names[0] === '0';
       if (isEmpty) {
-        this.showData.splice(index, 1);
-        this.data.splice(index, 1);
+        this.showData.splice(showIndex, 1);
+        this.data.splice(dataIndex, 1);
         return;
       }
     }
     // 回滚到进入编辑前快照
-    this.$set(this.showData, index, cloneDeep(this.data[index]));
+    this.$set(this.showData, showIndex, cloneDeep(this.data[dataIndex]));
   }
 
-  handleDeleteRow(index: number) {
+  handleDeleteRow(id: string) {
     this.$bkInfo({
       title: this.$t('是否确认删除？'),
       theme: 'danger',
@@ -356,7 +364,9 @@ export default class RemarkTabContent extends tsc<Props> {
       // confirmLoading: true,
       confirmFn: async () => {
         // 删除采用“全量提交剩余规则”方式
-        const dataList = this.data.filter((item, i) => i !== index && !item.isNew);
+        const dataList = this.data.filter(item => item.id !== id && !item.isNew);
+        const showIndex = this.showData.findIndex(item => item.id === id);
+        const dataIndex = this.data.findIndex(item => item.id === id);
         const params = {
           app_name: this.appName,
           remarks: dataList.map(item => ({
@@ -369,8 +379,8 @@ export default class RemarkTabContent extends tsc<Props> {
         };
         await setCodeRemark(params);
         // 接口成功后再同步前端列表
-        this.showData.splice(index, 1);
-        this.data.splice(index, 1);
+        this.showData.splice(showIndex, 1);
+        this.data.splice(dataIndex, 1);
         this.$bkMessage({
           message: this.$t('删除成功，需要 5 分钟左右生效。'),
           theme: 'success',
@@ -379,40 +389,38 @@ export default class RemarkTabContent extends tsc<Props> {
     });
   }
 
-  handleEditRow(index: number) {
+  handleEditRow(id: string) {
     // 切换为编辑态
-    this.$set(this.rowEditMap, this.showData[index].id, true);
+    this.$set(this.rowEditMap, id, true);
   }
 
-  async handleSaveEditRow(index: number) {
+  async handleSaveEditRow(id: string) {
+    const showRow = this.showData.find(item => item.id === id);
+    const dataIndex = this.data.findIndex(item => item.id === id);
+    const dataRow = this.data[dataIndex];
     // 非新建行且内容未变更时，直接退出编辑态
-    if (JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index]) && !this.showData[index].isNew) {
-      this.$set(this.rowEditMap, this.showData[index].id, false);
+    if (JSON.stringify(showRow) === JSON.stringify(dataRow) && !showRow.isNew) {
+      this.$set(this.rowEditMap, showRow.id, false);
       return;
     }
 
     const params = {
       app_name: this.appName,
-      remarks: this.data.reduce((results, item, showIndex) => {
-        // 编辑态且不是当前行，则提交原始数据
-        if (this.rowEditMap[item.id] && showIndex !== index && !item.isNew) {
-          const rowItem = this.data.find(i => i.id === item.id);
-          if (rowItem) {
-            results.push({
-              kind: rowItem.kind,
-              code: rowItem.code,
-              remark: rowItem.remark,
-              service_names: rowItem.service_names,
-              is_global: rowItem.is_global,
-            });
-          }
-          // 非编辑态或当前行，则提交编辑态数据
-        } else if (!item.isNew || showIndex === index) {
+      remarks: this.data.reduce((results, item) => {
+        if (item.id === id) {
+          results.push({
+            kind: showRow.kind,
+            code: showRow.code,
+            remark: showRow.remark,
+            // 后端协议：全局规则 service_names 传空数组
+            service_names: showRow.is_global ? [] : showRow.service_names,
+            is_global: showRow.is_global,
+          });
+        } else if (!item.isNew) {
           results.push({
             kind: item.kind,
             code: item.code,
             remark: item.remark,
-            // 后端协议：全局规则 service_names 传空数组
             service_names: item.is_global ? [] : item.service_names,
             is_global: item.is_global,
           });
@@ -422,20 +430,20 @@ export default class RemarkTabContent extends tsc<Props> {
     };
     try {
       // 行级 loading：避免重复点击提交
-      this.$set(this.showData[index], 'isSaving', true);
+      this.$set(this.savingMap, showRow.id, true);
       await setCodeRemark(params);
       // 保存成功后将该行转为“非新增”，并更新快照
-      this.$set(this.showData[index], 'isNew', false);
-      this.$set(this.rowEditMap, this.showData[index].id, false);
-      this.$set(this.data, index, cloneDeep(this.showData[index]));
+      this.$set(showRow, 'isNew', false);
+      this.$set(this.rowEditMap, showRow.id, false);
+      this.$set(this.data, dataIndex, cloneDeep(showRow));
       this.$bkMessage({
         message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
         theme: 'success',
       });
     } finally {
       // 无论成败都要关闭 loading
-      this.$set(this.showData[index], 'isSaving', false);
-      this.$set(this.data[index], 'isSaving', false);
+      this.$set(this.savingMap, showRow.id, false);
+      this.$set(this.ableSaveMap, showRow.id, false);
     }
   }
 
@@ -449,9 +457,10 @@ export default class RemarkTabContent extends tsc<Props> {
       // 命中条件：
       // 1. 行中任一 service 在筛选集合内；或
       // 2. 勾选了全局且当前行为全局规则
-      this.showData = this.data.filter(
+      const showData = this.data.filter(
         item => item.service_names.some(service => valuesSet.has(service)) || (isIncluGlobal && item.is_global)
       );
+      this.showData = cloneDeep(showData);
     } else {
       // 清空筛选恢复全量数据
       this.showData = cloneDeep(this.data);
@@ -489,7 +498,7 @@ export default class RemarkTabContent extends tsc<Props> {
             key={item.prop}
             width={item.width}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态：输出翻译后的枚举文本
                 if (!this.rowEditMap[row.id]) {
                   return (
@@ -507,7 +516,7 @@ export default class RemarkTabContent extends tsc<Props> {
                       placeholder={this.$tc('请选择或输入')}
                       value={row[item.prop]}
                       allow-create
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >
                       {this.callTypeOptions.map(opt => (
                         <bk-option
@@ -531,7 +540,7 @@ export default class RemarkTabContent extends tsc<Props> {
             key={item.prop}
             width={item.width}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态：纯文本 + 溢出提示
                 if (!this.rowEditMap[row.id]) {
                   return (
@@ -557,7 +566,7 @@ export default class RemarkTabContent extends tsc<Props> {
                       value={row[item.prop]}
                       allow-create
                       searchable
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >
                       {enumOptions.map(opt => (
                         <bk-option
@@ -583,7 +592,7 @@ export default class RemarkTabContent extends tsc<Props> {
             key={item.prop}
             width={item.width}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态：展示备注文本
                 if (!this.rowEditMap[row.id]) {
                   return (
@@ -602,7 +611,7 @@ export default class RemarkTabContent extends tsc<Props> {
                     {/* 编辑态：备注输入框 */}
                     <bk-input
                       value={row[item.prop]}
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     />
                     {this.remarkColumnEmptyIdSet.has(row.id) && (
                       <i
@@ -626,7 +635,7 @@ export default class RemarkTabContent extends tsc<Props> {
             key={item.prop}
             width={item.width}
             scopedSlots={{
-              default: ({ row, $index }) => {
+              default: ({ row }) => {
                 // 非编辑态：展示服务名列表；0 映射为“全局生效”
                 if (!this.rowEditMap[row.id]) {
                   return (
@@ -655,7 +664,7 @@ export default class RemarkTabContent extends tsc<Props> {
                       value={row[item.prop]}
                       multiple
                       searchable
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
+                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >
                       {this.applyScopeOptions.map(opt => (
                         <bk-option
@@ -720,17 +729,17 @@ export default class RemarkTabContent extends tsc<Props> {
               <bk-table-column
                 width={120}
                 scopedSlots={{
-                  default: ({ row, $index }) => {
+                  default: ({ row }) => {
                     if (this.rowEditMap[row.id]) {
                       return (
                         <div class='operate-btns'>
                           <bk-button
                             class='btn'
-                            disabled={!this.showData[$index].isAbleSave}
-                            loading={this.showData[$index].isSaving}
+                            disabled={!this.ableSaveMap[row.id]}
+                            loading={this.savingMap[row.id]}
                             theme='primary'
                             text
-                            onClick={() => this.handleSaveEditRow($index)}
+                            onClick={() => this.handleSaveEditRow(row.id)}
                           >
                             {this.$t('保存')}
                           </bk-button>
@@ -738,7 +747,7 @@ export default class RemarkTabContent extends tsc<Props> {
                             class='btn'
                             theme='primary'
                             text
-                            onClick={() => this.handleCancelEditRow($index)}
+                            onClick={() => this.handleCancelEditRow(row.id)}
                           >
                             {this.$t('取消')}
                           </bk-button>
@@ -751,7 +760,7 @@ export default class RemarkTabContent extends tsc<Props> {
                           class='btn'
                           theme='primary'
                           text
-                          onClick={() => this.handleEditRow($index)}
+                          onClick={() => this.handleEditRow(row.id)}
                         >
                           {this.$t('编辑')}
                         </bk-button>
@@ -760,7 +769,7 @@ export default class RemarkTabContent extends tsc<Props> {
                             class='btn'
                             theme='danger'
                             text
-                            onClick={() => this.handleDeleteRow($index)}
+                            onClick={() => this.handleDeleteRow(row.id)}
                           >
                             {this.$t('删除')}
                           </bk-button>
