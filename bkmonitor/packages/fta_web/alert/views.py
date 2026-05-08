@@ -35,6 +35,7 @@ class AlertViewSet(ResourceViewSet):
             "event/search",
             "alert/extend_fields",
             "alert/graph_query",
+            "alert/graph_drill_down",
             "event/date_histogram",
             "strategy_snapshot",
             "action/search",
