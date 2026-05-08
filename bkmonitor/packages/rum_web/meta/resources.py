@@ -246,7 +246,7 @@ class GetApplicationInfoByAppNameResource(ApiAuthResource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return self.ResponseSerializer(application).data
+        return application
 
 
 class QueryRumTokenInfoResource(Resource):
