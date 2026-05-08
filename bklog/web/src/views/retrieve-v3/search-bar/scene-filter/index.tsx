@@ -139,6 +139,8 @@ export default defineComponent({
       // 清空检索数据
       resetRetrieveData(store);
 
+      syncUrlParams();
+
       updateQueryHint();
     };
 
