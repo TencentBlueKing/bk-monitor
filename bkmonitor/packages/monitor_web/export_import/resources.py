@@ -293,7 +293,11 @@ class ExportPackageResource(Resource):
         self.RequestSerializer = ExportPackageRequestSerializer
 
     def perform_request(self, validated_request_data):
-        self.bk_biz_id = validated_request_data["bk_biz_id"]
+        # bk_biz_id 为可选参数：
+        # - 当导出采集配置/策略/仪表盘（collect_config_ids / strategy_config_ids / view_config_ids）时，
+        #   prepare_file 中会按 bk_biz_id 查询关联资源，因此需要调用方传入；
+        # - 当仅导出 json_list_data（如 Issue 列表）时，数据已在外层准备好，不需要按 bk_biz_id 查库，因此可以为空。
+        self.bk_biz_id = validated_request_data.get("bk_biz_id")
         self.package_name = "bk_monitor_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         self.package_path = os.path.join(self.tmp_path, self.package_name)
         self.collect_config_ids = validated_request_data.get("collect_config_ids", [])
@@ -339,7 +343,8 @@ class ExportPackageResource(Resource):
                 + f"{len(self.strategy_config_ids)}个策略配置,"
                 + f"{len(self.view_config_ids)}个仪表盘"
             )
-            send_frontend_report_event(self, self.bk_biz_id, username, event_content)
+            if self.bk_biz_id:
+                send_frontend_report_event(self, self.bk_biz_id, username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event error: {e}")
 
@@ -347,6 +352,9 @@ class ExportPackageResource(Resource):
 
     @step(state="PREPARE_FILE", message=_("准备文件中..."))
     def prepare_file(self):
+        if not any([self.collect_config_ids, self.strategy_config_ids, self.view_config_ids]):
+            return {}
+
         collect_config_file = len(self.collect_config_ids)
         strategy_config_file = len(self.strategy_config_ids)
         view_config_file = len(self.view_config_ids)
@@ -447,7 +455,7 @@ class ExportPackageResource(Resource):
             issue_file_path = os.path.join(
                 self.package_path,
                 "issue_directory",
-                f"{convert_filename(data['name'])}.json",
+                f"{convert_filename(data['name'])}_{data['id']}.json",
             )
             with open(issue_file_path, "w", encoding="utf-8") as fs:
                 fs.write(json.dumps(data, indent=2))

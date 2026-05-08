@@ -788,20 +788,27 @@ class ExportIssueResource(Resource):
     """导出 Issue 列表数据"""
 
     class RequestSerializer(serializers.Serializer):
-        issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
+        issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1, max_length=500)
+        trend_start_time = serializers.IntegerField(label="趋势图起始时间", required=False)
+        trend_end_time = serializers.IntegerField(label="趋势图结束时间", required=False)
 
     def perform_request(self, validated_request_data):
         issues = validated_request_data["issues"]
-        issue_ids = list({item["issue_id"] for item in issues})
-        bk_biz_ids = list({item["bk_biz_id"] for item in issues})
+        issue_ids = [item["issue_id"] for item in issues]
+        bk_biz_ids = [item["bk_biz_id"] for item in issues]
 
         handler = IssueQueryHandler(
             bk_biz_ids=bk_biz_ids,
             conditions=[{"key": "id", "value": issue_ids, "method": "eq"}],
             page=1,
             page_size=len(issue_ids),
+            trend_start_time=validated_request_data.get("trend_start_time"),
+            trend_end_time=validated_request_data.get("trend_end_time"),
         )
         result = handler.search(show_aggs=False)
         issue_list = result.get("issues", [])
+
+        if not issue_list:
+            raise ValueError("未找到符合条件的 Issue，无法导出")
 
         return resource.export_import.export_package(json_list_data=issue_list)
