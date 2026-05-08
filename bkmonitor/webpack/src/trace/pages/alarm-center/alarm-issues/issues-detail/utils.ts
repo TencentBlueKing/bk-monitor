@@ -101,6 +101,9 @@ function mergeConditionsByUniqueKey(result: IWhereItem[]): IWhereItem[] {
   const merged = new Map<string, { item: IWhereItem; value: Set<string> }>();
 
   for (const c of result) {
+    // 仅 condition 为 or 的记录才参与合并，其他直接保留
+    if (c.condition !== 'or') continue;
+
     // 用 key + method + condition 作为唯一标识
     const uniqueKey = `${c.key ?? ''}|${c.method ?? 'eq'}|${c.condition ?? 'or'}`;
     const existing = merged.get(uniqueKey);
@@ -114,10 +117,15 @@ function mergeConditionsByUniqueKey(result: IWhereItem[]): IWhereItem[] {
     }
   }
 
-  return Array.from(merged.values()).map(({ value, item }) => ({
-    ...item,
-    value: [...value],
-  }));
+  // 未合并的记录（condition 非 or）追加到结果末尾
+  const unmerged = result.filter(c => c.condition !== 'or');
+  return [
+    ...Array.from(merged.values()).map(({ value, item }) => ({
+      ...item,
+      value: [...value],
+    })),
+    ...unmerged,
+  ];
 }
 
 /**
