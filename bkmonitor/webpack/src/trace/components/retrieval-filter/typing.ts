@@ -73,7 +73,12 @@ export enum APIType {
 
 export enum ECondition {
   and = 'and',
+  or = 'or',
 }
+export const CONDITION_MAP = {
+  [ECondition.and]: 'AND',
+  [ECondition.or]: 'OR',
+};
 
 export enum EQueryStringTokenType {
   bracket = 'bracket',

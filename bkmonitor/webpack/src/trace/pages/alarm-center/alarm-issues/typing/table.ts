@@ -50,9 +50,14 @@ export interface ImpactScopeEvent {
 /** 影响范围资源实例（instance_list 中的单条记录） */
 export interface ImpactScopeInstance {
   /** 其余字段为动态标识字段（如 bk_host_id、bcs_cluster_id 等），用于 link_tpl 模板渲染 */
-  [key: string]: number | string;
+  [key: string]: number | string | unknown;
   /** 展示名称 */
   display_name: string;
+  alert_query_fields?: {
+    condition: string;
+    keys: string[];
+    value: unknown;
+  };
 }
 
 /** 影响范围单一资源类型 */

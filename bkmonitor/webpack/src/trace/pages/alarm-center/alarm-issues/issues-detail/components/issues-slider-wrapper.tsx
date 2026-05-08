@@ -41,6 +41,7 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import { IssueDetailTabEnum } from '../../constant';
+import { conditionAlertQueryFieldReplace } from '../utils';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
@@ -130,7 +131,12 @@ export default defineComponent({
       const newValue = {
         bk_biz_ids: [props.detail.bk_biz_id],
         query_string: props.filterMode === EMode.ui ? '' : props.queryString,
-        conditions: [issueIdCondition, ...(props.filterMode === EMode.ui ? props.conditions : [])],
+        conditions: [
+          issueIdCondition,
+          ...(props.filterMode === EMode.ui
+            ? conditionAlertQueryFieldReplace(props.conditions, props.detail?.impact_scope || {})
+            : []),
+        ],
       };
       if (JSON.stringify(oldValue) === JSON.stringify(newValue)) {
         return oldValue;
@@ -488,6 +494,7 @@ export default defineComponent({
             <IssuesTrendChart
               alertCount={this.alertCount}
               commonParams={this.commonParams}
+              refreshKey={this.searchRefreshKey}
               timeRange={this.timeRange}
             />
             <DimensionStats data={this.dimensionStatsData.fields} />
