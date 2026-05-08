@@ -25,7 +25,7 @@ from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.alert.serializers import AlertIDField
 from kernel_api.resource.qos import FailurePublishResource, FailureRecoveryResource
-from kernel_api.resource.alert import ListAlertResource, ListAlertTopNResource
+from kernel_api.resource.alert import ListAlertResource, ListAlertTopNResource, ListStrategySnapshotResource
 from monitor_web.strategies.resources.v2 import GetStrategyV2Resource
 
 logger = logging.getLogger("kernel_api")
@@ -52,8 +52,10 @@ class SearchAlertViewSet(ResourceViewSet):
         ResourceRoute("POST", ListAlertResource, endpoint="list_alert"),
         # 告警 TopN 查询接口
         ResourceRoute("POST", ListAlertTopNResource, endpoint="alert_top_n"),
-        # 获取告警策略配置
-        ResourceRoute("GET", GetStrategyV2Resource, endpoint="get_alert_strategy_config"),
+        # 根据告警事件ID获取策略快照（告警触发时刻的策略配置）
+        ResourceRoute("POST", ListStrategySnapshotResource, endpoint="get_strategy_snapshot"),
+        # 根据策略ID获取策略详情
+        ResourceRoute("GET", GetStrategyV2Resource, endpoint="get_strategy_detail"),
     ]
 
 
