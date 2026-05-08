@@ -172,20 +172,20 @@ export default defineComponent({
             </div>
           ),
         },
+        // 2: {
+        //   index: 2,
+        //   title: this.t('选择安装方式'),
+        //   descRender: () => <span style='color: #8896B3;font-size: 12px;'>根据项目类型选择安装方式</span>,
+        //   contentRender: () => <div>contentRender</div>,
+        // },
         2: {
           index: 2,
-          title: this.t('选择安装方式'),
-          descRender: () => <span style='color: #8896B3;font-size: 12px;'>根据项目类型选择安装方式</span>,
-          contentRender: () => <div>contentRender</div>,
-        },
-        3: {
-          index: 3,
           title: this.t('接入指引'),
           descRender: () => <span>descRender</span>,
           contentRender: () => <div>contentRender</div>,
         },
       };
-      return [1, 2, 3].map(item =>
+      return [1, 2].map(item =>
         stepRender(
           {
             index: stepRenderMap[item].index,

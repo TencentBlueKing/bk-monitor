@@ -1,0 +1,1421 @@
+[
+  {
+    "resource": {
+      "attributes": [
+        {
+          "key": "service.name",
+          "value": {
+            "stringValue": "bk-monitor-pc"
+          }
+        },
+        {
+          "key": "deployment.environment.name",
+          "value": {
+            "stringValue": "development"
+          }
+        },
+        {
+          "key": "rum.provider",
+          "value": {
+            "stringValue": "blueking"
+          }
+        },
+        {
+          "key": "telemetry.sdk.language",
+          "value": {
+            "stringValue": "webjs"
+          }
+        },
+        {
+          "key": "bk.biz.id",
+          "value": {
+            "stringValue": "7"
+          }
+        },
+        {
+          "key": "bk.space.uid",
+          "value": {
+            "stringValue": ""
+          }
+        },
+        {
+          "key": "bk.tenant.id",
+          "value": {
+            "stringValue": ""
+          }
+        },
+        {
+          "key": "service.version",
+          "value": {
+            "stringValue": "0.0.0"
+          }
+        }
+      ],
+      "droppedAttributesCount": 0
+    },
+    "scopeSpans": [
+      {
+        "scope": {
+          "name": "bk-monitor-pc",
+          "version": "0.0.0"
+        },
+        "spans": [
+          {
+            "traceId": "934b2fc48a4d9d0c5b2c4ad52ebcfffe",
+            "spanId": "18078059f8ea4e0c",
+            "name": "browser.page_view",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856400000000",
+            "endTimeUnixNano": "1778143856400000000",
+            "attributes": [
+              {
+                "key": "bk.rum.sampled",
+                "value": {
+                  "boolValue": true
+                }
+              },
+              {
+                "key": "device.id",
+                "value": {
+                  "stringValue": "session-1777540970783-fc5dbd4a522858"
+                }
+              },
+              {
+                "key": "browser.viewport.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.viewport.height",
+                "value": {
+                  "intValue": 934
+                }
+              },
+              {
+                "key": "browser.screen.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.screen.height",
+                "value": {
+                  "intValue": 1080
+                }
+              },
+              {
+                "key": "network.effective_type",
+                "value": {
+                  "stringValue": "4g"
+                }
+              },
+              {
+                "key": "session.id",
+                "value": {
+                  "stringValue": "session-1778143855501-fcb1091ee7e9b8"
+                }
+              },
+              {
+                "key": "rum.page.host",
+                "value": {
+                  "stringValue": "appdev.woa.com:7001"
+                }
+              },
+              {
+                "key": "rum.page.path",
+                "value": {
+                  "stringValue": "/"
+                }
+              },
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              },
+              {
+                "key": "url.previous",
+                "value": {
+                  "stringValue": ""
+                }
+              },
+              {
+                "key": "document.referrer",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/"
+                }
+              },
+              {
+                "key": "bk.rum.event.source",
+                "value": {
+                  "stringValue": "load"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "699e33e8a8ee86fd5641fc6264aaf576",
+            "spanId": "bf7b1aa92587bae5",
+            "name": "browser.web_vital",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856403000000",
+            "endTimeUnixNano": "1778143856403000000",
+            "attributes": [
+              {
+                "key": "bk.rum.sampled",
+                "value": {
+                  "boolValue": true
+                }
+              },
+              {
+                "key": "device.id",
+                "value": {
+                  "stringValue": "session-1777540970783-fc5dbd4a522858"
+                }
+              },
+              {
+                "key": "browser.viewport.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.viewport.height",
+                "value": {
+                  "intValue": 934
+                }
+              },
+              {
+                "key": "browser.screen.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.screen.height",
+                "value": {
+                  "intValue": 1080
+                }
+              },
+              {
+                "key": "network.effective_type",
+                "value": {
+                  "stringValue": "4g"
+                }
+              },
+              {
+                "key": "session.id",
+                "value": {
+                  "stringValue": "session-1778143855501-fcb1091ee7e9b8"
+                }
+              },
+              {
+                "key": "rum.page.host",
+                "value": {
+                  "stringValue": "appdev.woa.com:7001"
+                }
+              },
+              {
+                "key": "rum.page.path",
+                "value": {
+                  "stringValue": "/"
+                }
+              },
+              {
+                "key": "bk.biz.id",
+                "value": {
+                  "stringValue": "7"
+                }
+              },
+              {
+                "key": "bk.space.uid",
+                "value": {
+                  "stringValue": ""
+                }
+              },
+              {
+                "key": "bk.tenant.id",
+                "value": {
+                  "stringValue": ""
+                }
+              },
+              {
+                "key": "rum.navigation.type",
+                "value": {
+                  "stringValue": "navigate"
+                }
+              },
+              {
+                "key": "web_vital.name",
+                "value": {
+                  "stringValue": "FCP"
+                }
+              },
+              {
+                "key": "web_vital.rating",
+                "value": {
+                  "stringValue": "good"
+                }
+              },
+              {
+                "key": "web_vital.id",
+                "value": {
+                  "stringValue": "v5-1778143856402-5330644995902"
+                }
+              },
+              {
+                "key": "web_vital.value",
+                "value": {
+                  "intValue": 92
+                }
+              },
+              {
+                "key": "web_vital.fcp.time_to_first_byte",
+                "value": {
+                  "doubleValue": 4.700000047683716
+                }
+              },
+              {
+                "key": "web_vital.fcp.load_state",
+                "value": {
+                  "stringValue": "dom-interactive"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "2db021377722d0738fd798faeec0683a",
+            "spanId": "e1b43abc81262f2a",
+            "name": "browser.web_vital",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856409000000",
+            "endTimeUnixNano": "1778143856409000000",
+            "attributes": [
+              {
+                "key": "bk.rum.sampled",
+                "value": {
+                  "boolValue": true
+                }
+              },
+              {
+                "key": "device.id",
+                "value": {
+                  "stringValue": "session-1777540970783-fc5dbd4a522858"
+                }
+              },
+              {
+                "key": "browser.viewport.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.viewport.height",
+                "value": {
+                  "intValue": 934
+                }
+              },
+              {
+                "key": "browser.screen.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.screen.height",
+                "value": {
+                  "intValue": 1080
+                }
+              },
+              {
+                "key": "network.effective_type",
+                "value": {
+                  "stringValue": "4g"
+                }
+              },
+              {
+                "key": "session.id",
+                "value": {
+                  "stringValue": "session-1778143855501-fcb1091ee7e9b8"
+                }
+              },
+              {
+                "key": "rum.page.host",
+                "value": {
+                  "stringValue": "appdev.woa.com:7001"
+                }
+              },
+              {
+                "key": "rum.page.path",
+                "value": {
+                  "stringValue": "/"
+                }
+              },
+              {
+                "key": "bk.biz.id",
+                "value": {
+                  "stringValue": "7"
+                }
+              },
+              {
+                "key": "bk.space.uid",
+                "value": {
+                  "stringValue": ""
+                }
+              },
+              {
+                "key": "bk.tenant.id",
+                "value": {
+                  "stringValue": ""
+                }
+              },
+              {
+                "key": "rum.navigation.type",
+                "value": {
+                  "stringValue": "navigate"
+                }
+              },
+              {
+                "key": "web_vital.name",
+                "value": {
+                  "stringValue": "TTFB"
+                }
+              },
+              {
+                "key": "web_vital.rating",
+                "value": {
+                  "stringValue": "good"
+                }
+              },
+              {
+                "key": "web_vital.id",
+                "value": {
+                  "stringValue": "v5-1778143856402-4974647100274"
+                }
+              },
+              {
+                "key": "web_vital.value",
+                "value": {
+                  "doubleValue": 4.700000047683716
+                }
+              },
+              {
+                "key": "web_vital.ttfb.waiting_duration",
+                "value": {
+                  "doubleValue": 2.399999976158142
+                }
+              },
+              {
+                "key": "web_vital.ttfb.dns_duration",
+                "value": {
+                  "intValue": 0
+                }
+              },
+              {
+                "key": "web_vital.ttfb.connection_duration",
+                "value": {
+                  "intValue": 0
+                }
+              },
+              {
+                "key": "web_vital.ttfb.request_duration",
+                "value": {
+                  "doubleValue": 2.3000000715255737
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "253dd3ed15e871e611f2184f5df953d8",
+            "spanId": "80be3a3a72f3a8cb",
+            "name": "browser.web_vital",
+            "kind": 1,
+            "startTimeUnixNano": "1778143859058000000",
+            "endTimeUnixNano": "1778143859058000000",
+            "attributes": [
+              {
+                "key": "bk.rum.sampled",
+                "value": {
+                  "boolValue": true
+                }
+              },
+              {
+                "key": "device.id",
+                "value": {
+                  "stringValue": "session-1777540970783-fc5dbd4a522858"
+                }
+              },
+              {
+                "key": "browser.viewport.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.viewport.height",
+                "value": {
+                  "intValue": 934
+                }
+              },
+              {
+                "key": "browser.screen.width",
+                "value": {
+                  "intValue": 1920
+                }
+              },
+              {
+                "key": "browser.screen.height",
+                "value": {
+                  "intValue": 1080
+                }
+              },
+              {
+                "key": "network.effective_type",
+                "value": {
+                  "stringValue": "4g"
+                }
+              },
+              {
+                "key": "session.id",
+                "value": {
+                  "stringValue": "session-1778143855501-fcb1091ee7e9b8"
+                }
+              },
+              {
+                "key": "rum.page.host",
+                "value": {
+                  "stringValue": "appdev.woa.com:7001"
+                }
+              },
+              {
+                "key": "rum.page.path",
+                "value": {
+                  "stringValue": "/"
+                }
+              },
+              {
+                "key": "bk.biz.id",
+                "value": {
+                  "stringValue": "7"
+                }
+              },
+              {
+                "key": "bk.space.uid",
+                "value": {
+                  "stringValue": ""
+                }
+              },
+              {
+                "key": "bk.tenant.id",
+                "value": {
+                  "stringValue": "system"
+                }
+              },
+              {
+                "key": "rum.navigation.type",
+                "value": {
+                  "stringValue": "navigate"
+                }
+              },
+              {
+                "key": "web_vital.name",
+                "value": {
+                  "stringValue": "LCP"
+                }
+              },
+              {
+                "key": "web_vital.rating",
+                "value": {
+                  "stringValue": "good"
+                }
+              },
+              {
+                "key": "web_vital.id",
+                "value": {
+                  "stringValue": "v5-1778143856402-1745201014543"
+                }
+              },
+              {
+                "key": "web_vital.value",
+                "value": {
+                  "intValue": 1692
+                }
+              },
+              {
+                "key": "web_vital.lcp.url",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/img/home-bg6cc7510.png"
+                }
+              },
+              {
+                "key": "web_vital.lcp.target",
+                "value": {
+                  "stringValue": "div.home-page.page-container>div.monitor-new-home.page-wrapper>div.new-home-bg>div.new-home-bg-img"
+                }
+              },
+              {
+                "key": "web_vital.lcp.element_render_delay",
+                "value": {
+                  "doubleValue": 47.700000047683716
+                }
+              },
+              {
+                "key": "web_vital.lcp.resource_load_duration",
+                "value": {
+                  "intValue": 2
+                }
+              },
+              {
+                "key": "web_vital.lcp.time_to_first_byte",
+                "value": {
+                  "doubleValue": 4.700000047683716
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          }
+        ]
+      },
+      {
+        "scope": {
+          "name": "@opentelemetry/instrumentation-document-load",
+          "version": "0.61.0"
+        },
+        "spans": [
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "eeec46582c5f26d5",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "documentFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143855861000098",
+            "endTimeUnixNano": "1778143855863600098",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143855861000098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "domainLookupStart",
+                "timeUnixNano": "1778143855861000098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "domainLookupEnd",
+                "timeUnixNano": "1778143855861000098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "connectStart",
+                "timeUnixNano": "1778143855861000098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "secureConnectionStart",
+                "timeUnixNano": "1778143855858600098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "connectEnd",
+                "timeUnixNano": "1778143855861000098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "requestStart",
+                "timeUnixNano": "1778143855862400098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseStart",
+                "timeUnixNano": "1778143855863300098",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143855863600098",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "780efb7f247a8ca7",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143855869200000",
+            "endTimeUnixNano": "1778143855885700000",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/loading.gif"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143855869200000",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143855885700000",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "14eae4bac2062825",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143855869200000",
+            "endTimeUnixNano": "1778143855902000000",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/main.css"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143855869200000",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143855902000000",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "f04d1e82e1597415",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143855869200000",
+            "endTimeUnixNano": "1778143856264200000",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/js/main.ea15ad5ea6516d6d1f53.js"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143855869200000",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143856264200000",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "a65413c6c3b03f74",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856296700000",
+            "endTimeUnixNano": "1778143856378800000",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/js/vendors-node_modules_pnpm_opentelemetry_instrumentation_0_216_0__opentelemetry_api_1_9_1_node-55e9fb.7d25ca0c7740d3ee80b1.js"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143856296700000",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143856378800000",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "5eb7b31277084bc7",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856296699902",
+            "endTimeUnixNano": "1778143856380699902",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/js/vendors-node_modules_pnpm_opentelemetry_instrumentation-document-load_0_61_0__opentelemetry_a-af1d84.97cb225513c6c46f0a16.js"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143856296699902",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143856380699902",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "e94b54e5b6c8137b",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856381499903",
+            "endTimeUnixNano": "1778143856387799902",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/js/vendors-node_modules_pnpm_opentelemetry_instrumentation-fetch_0_216_0__opentelemetry_api_1_9_-2dcd3b.6d3d95083c8eae4d80e3.js"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143856381499903",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143856387799902",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "e48d6da4810ae33f",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856388599903",
+            "endTimeUnixNano": "1778143856390899903",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/js/vendors-node_modules_pnpm_opentelemetry_instrumentation-xml-http-request_0_216_0__opentelemet-dd2a7b.75b6b7397d037198b772.js"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143856388599903",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143856390899903",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "fe439009bb6ecc87",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856391799902",
+            "endTimeUnixNano": "1778143856398699902",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/js/vendors-node_modules_pnpm_opentelemetry_instrumentation-user-interaction_0_60_0__opentelemetr-7abb73.252dc65c50cccaa3e208.js"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143856391799902",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143856398699902",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "495c5548fc71a356",
+            "parentSpanId": "ce211ffc1eed4c26",
+            "name": "resourceFetch",
+            "kind": 1,
+            "startTimeUnixNano": "1778143856399599903",
+            "endTimeUnixNano": "1778143856401299902",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/js/vendors-node_modules_pnpm_web-vitals_5_2_0_node_modules_web-vitals_dist_web-vitals_attribution_js.9c53731fdf068354da6a.js"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143856399599903",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "responseEnd",
+                "timeUnixNano": "1778143856401299902",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "bcd08e6f1dcd22d9e708af53f78dad50",
+            "spanId": "ce211ffc1eed4c26",
+            "name": "documentLoad",
+            "kind": 1,
+            "startTimeUnixNano": "1778143855861099951",
+            "endTimeUnixNano": "1778143856408599951",
+            "attributes": [
+              {
+                "key": "url.full",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              },
+              {
+                "key": "user_agent.original",
+                "value": {
+                  "stringValue": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [
+              {
+                "attributes": [],
+                "name": "fetchStart",
+                "timeUnixNano": "1778143855861099951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "unloadEventStart",
+                "timeUnixNano": "1778143855867899951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "unloadEventEnd",
+                "timeUnixNano": "1778143855867899951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "domInteractive",
+                "timeUnixNano": "1778143855875399951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "domContentLoadedEventStart",
+                "timeUnixNano": "1778143856338699951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "domContentLoadedEventEnd",
+                "timeUnixNano": "1778143856338799951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "domComplete",
+                "timeUnixNano": "1778143856408299951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "loadEventStart",
+                "timeUnixNano": "1778143856408299951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "loadEventEnd",
+                "timeUnixNano": "1778143856408599951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "firstPaint",
+                "timeUnixNano": "1778143855950699951",
+                "droppedAttributesCount": 0
+              },
+              {
+                "attributes": [],
+                "name": "firstContentfulPaint",
+                "timeUnixNano": "1778143855950699951",
+                "droppedAttributesCount": 0
+              }
+            ],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          }
+        ]
+      },
+      {
+        "scope": {
+          "name": "@opentelemetry/instrumentation-user-interaction",
+          "version": "0.60.0"
+        },
+        "spans": [
+          {
+            "traceId": "6fc6a4ec429f2a70c85af6e05feec7a7",
+            "spanId": "cd08330de2574f8a",
+            "name": "click",
+            "kind": 1,
+            "startTimeUnixNano": "1778143859054000000",
+            "endTimeUnixNano": "1778143859054300000",
+            "attributes": [
+              {
+                "key": "event_type",
+                "value": {
+                  "stringValue": "click"
+                }
+              },
+              {
+                "key": "target_element",
+                "value": {
+                  "stringValue": "DIV"
+                }
+              },
+              {
+                "key": "target_xpath",
+                "value": {
+                  "stringValue": "//html/body/div/div/div[2]/div/div/div/div/div[2]/div"
+                }
+              },
+              {
+                "key": "http.url",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "f9211629fb7ab715f13e23f4ebbe805f",
+            "spanId": "b502aa986391efd3",
+            "name": "click",
+            "kind": 1,
+            "startTimeUnixNano": "1778143859055000000",
+            "endTimeUnixNano": "1778143859055000000",
+            "attributes": [
+              {
+                "key": "event_type",
+                "value": {
+                  "stringValue": "click"
+                }
+              },
+              {
+                "key": "target_element",
+                "value": {
+                  "stringValue": "DIV"
+                }
+              },
+              {
+                "key": "target_xpath",
+                "value": {
+                  "stringValue": "//html/body/div/div/div[2]/div/div/div/div/div[2]/div"
+                }
+              },
+              {
+                "key": "http.url",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "25c741b022cf2f2f0e4dd90ddc9e428a",
+            "spanId": "8599369d4b628542",
+            "name": "click",
+            "kind": 1,
+            "startTimeUnixNano": "1778143859055000000",
+            "endTimeUnixNano": "1778143859055000000",
+            "attributes": [
+              {
+                "key": "event_type",
+                "value": {
+                  "stringValue": "click"
+                }
+              },
+              {
+                "key": "target_element",
+                "value": {
+                  "stringValue": "DIV"
+                }
+              },
+              {
+                "key": "target_xpath",
+                "value": {
+                  "stringValue": "//html/body/div/div/div[2]/div/div/div/div/div[2]/div"
+                }
+              },
+              {
+                "key": "http.url",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "28a071ccda4957270707d44fbe6a26e7",
+            "spanId": "9214c97f540077bb",
+            "name": "click",
+            "kind": 1,
+            "startTimeUnixNano": "1778143859055000000",
+            "endTimeUnixNano": "1778143859055000000",
+            "attributes": [
+              {
+                "key": "event_type",
+                "value": {
+                  "stringValue": "click"
+                }
+              },
+              {
+                "key": "target_element",
+                "value": {
+                  "stringValue": "DIV"
+                }
+              },
+              {
+                "key": "target_xpath",
+                "value": {
+                  "stringValue": "//html/body/div/div/div[2]/div/div/div/div/div[2]/div"
+                }
+              },
+              {
+                "key": "http.url",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "07143b0802e9204e7df5087d2c07458f",
+            "spanId": "9a38e4ab1b75325d",
+            "name": "click",
+            "kind": 1,
+            "startTimeUnixNano": "1778143859055000000",
+            "endTimeUnixNano": "1778143859055400000",
+            "attributes": [
+              {
+                "key": "event_type",
+                "value": {
+                  "stringValue": "click"
+                }
+              },
+              {
+                "key": "target_element",
+                "value": {
+                  "stringValue": "DIV"
+                }
+              },
+              {
+                "key": "target_xpath",
+                "value": {
+                  "stringValue": "//html/body/div/div/div[2]/div/div/div/div/div[2]/div"
+                }
+              },
+              {
+                "key": "http.url",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          },
+          {
+            "traceId": "c5ad69d83db6354a071cec0659a7c557",
+            "spanId": "c3703cd6de396ec6",
+            "name": "click",
+            "kind": 1,
+            "startTimeUnixNano": "1778143859055000000",
+            "endTimeUnixNano": "1778143859055000000",
+            "attributes": [
+              {
+                "key": "event_type",
+                "value": {
+                  "stringValue": "click"
+                }
+              },
+              {
+                "key": "target_element",
+                "value": {
+                  "stringValue": "DIV"
+                }
+              },
+              {
+                "key": "target_xpath",
+                "value": {
+                  "stringValue": "//html/body/div/div/div[2]/div/div/div/div/div[2]/div"
+                }
+              },
+              {
+                "key": "http.url",
+                "value": {
+                  "stringValue": "http://appdev.woa.com:7001/?bizId=7#/"
+                }
+              }
+            ],
+            "droppedAttributesCount": 0,
+            "events": [],
+            "droppedEventsCount": 0,
+            "status": {
+              "code": 0
+            },
+            "links": [],
+            "droppedLinksCount": 0,
+            "flags": 257
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -24,46 +24,127 @@
  * IN THE SOFTWARE.
  */
 
-import { metrics } from '@opentelemetry/api';
-import { getWebAutoInstrumentations } from '@opentelemetry/auto-instrumentations-web';
-import { ZoneContextManager } from '@opentelemetry/context-zone';
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
-import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
-import { ConsoleSpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import { initBkOT } from '@blueking/rum';
 
-const resource = defaultResource().merge(
-  resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: 'my-frontend-app',
-    [ATTR_SERVICE_VERSION]: '1.0.0',
-  })
-);
-const meterProvider = new MeterProvider({
-  resource,
-  readers: [
-    new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: 'https://your-otlp-endpoint/v1/metrics',
-      }),
-      exportIntervalMillis: 30000,
-    }),
-  ],
-});
-const provider = new WebTracerProvider({
-  resource,
-  spanProcessors: [new SimpleSpanProcessor(new ConsoleSpanExporter())],
+import type { BkOTHttpBodyRedactPayload } from '@blueking/rum';
+
+const DEFAULT_ENDPOINT = '/otel';
+const DEFAULT_SERVICE_NAME = 'bk-monitor-pc';
+// URL query 和 HTTP body 中可能携带敏感参数，默认脱敏。
+const SENSITIVE_QUERY_KEYS = [
+  'token',
+  'access_token',
+  'refresh_token',
+  'password',
+  'pwd',
+  'secret',
+  'auth',
+  'session',
+  'sessionid',
+];
+
+const getUrlParam = (key: string) => {
+  try {
+    return new URLSearchParams(window.location.search).get(key) || '';
+  } catch {
+    return '';
+  }
+};
+
+const getBkRuntimeAttributes = () => ({
+  'bk.biz.id': String(window.bk_biz_id || getUrlParam('bizId') || ''),
+  'bk.space.uid': String(window.space_uid || getUrlParam('space_uid') || ''),
+  'bk.tenant.id': window.bk_tenant_id || '',
 });
 
-provider.register({
-  // 将默认的 contextManager 更改为使用 ZoneContextManager（支持异步操作，可选）
-  contextManager: new ZoneContextManager(),
-});
-metrics.setGlobalMeterProvider(meterProvider);
+// 默认 URL 脱敏：替换敏感 query 参数值为 [REDACTED]
+const defaultRedactUrl = (url: string): string => {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    let mutated = false;
+    for (const key of Array.from(parsed.searchParams.keys())) {
+      if (SENSITIVE_QUERY_KEYS.includes(key.toLowerCase())) {
+        parsed.searchParams.set(key, '[REDACTED]');
+        mutated = true;
+      }
+    }
+    return mutated ? parsed.toString() : url;
+  } catch {
+    return url;
+  }
+};
 
-// 注册插桩
-registerInstrumentations({
-  instrumentations: [getWebAutoInstrumentations()],
-});
+const redactSensitiveJsonValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(redactSensitiveJsonValue);
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>((result, [key, item]) => {
+    result[key] = SENSITIVE_QUERY_KEYS.includes(key.toLowerCase()) ? '[REDACTED]' : redactSensitiveJsonValue(item);
+    return result;
+  }, {});
+};
+
+// 请求体/响应体由使用方配置脱敏策略，这里提供监控 PC 默认策略。
+const defaultRedactHttpBody = ({ body, contentType }: BkOTHttpBodyRedactPayload) => {
+  if (!body) {
+    return body;
+  }
+  try {
+    if (contentType?.includes('application/json')) {
+      return JSON.stringify(redactSensitiveJsonValue(JSON.parse(body)));
+    }
+    if (contentType?.includes('application/x-www-form-urlencoded')) {
+      const params = new URLSearchParams(body);
+      for (const key of Array.from(params.keys())) {
+        if (SENSITIVE_QUERY_KEYS.includes(key.toLowerCase())) {
+          params.set(key, '[REDACTED]');
+        }
+      }
+      return params.toString();
+    }
+  } catch {
+    return body;
+  }
+  return body;
+};
+
+try {
+  initBkOT({
+    console: process.env.NODE_ENV === 'development',
+    enabled: true,
+    environment: process.env.NODE_ENV,
+    getBusinessAttributes: getBkRuntimeAttributes,
+    getErrorAttributes: getBkRuntimeAttributes,
+    getMetricAttributes: getBkRuntimeAttributes,
+    endpoint: DEFAULT_ENDPOINT,
+    ignoreUrls: [/\/sockjs-node/, /\/__webpack_hmr/],
+    propagateTraceHeaderUrls: [window.location.origin],
+    redactUrl: defaultRedactUrl,
+    resourceAttributes: getBkRuntimeAttributes(),
+    sampleRate: 1,
+    serviceName: DEFAULT_SERVICE_NAME,
+    serviceVersion: '0.0.0',
+    rum: {
+      httpBody: {
+        maxBodySize: 20 * 1024,
+        redact: defaultRedactHttpBody,
+      },
+      routeTiming: true,
+      websocket: true,
+      longTask: {
+        threshold: 50,
+      },
+      cspViolation: true,
+      blankScreen: true,
+      error: true,
+      webVitals: true,
+    },
+  });
+} catch (err) {
+  // RUM 初始化失败不影响主业务运行
+  globalThis.console?.warn('[bk-monitor-pc][open-telemetry] init failed:', err);
+}
