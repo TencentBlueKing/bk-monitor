@@ -1437,8 +1437,8 @@ class GetMetricListV2Resource(Resource):
         result_table_label = serializers.ListField(allow_empty=True, child=serializers.CharField(), default=[])
         tag = serializers.CharField(default="", label="标签", allow_blank=True)
         conditions = serializers.ListField(required=False, child=serializers.DictField(), default=[], label="条件")
-        page = serializers.IntegerField(required=False, label="页码")
-        page_size = serializers.IntegerField(required=False, label="每页数目")
+        page = serializers.IntegerField(required=False, min_value=1, label="页码")
+        page_size = serializers.IntegerField(required=False, min_value=1, label="每页数目")
 
     @classmethod
     def filter_by_double_paragaphs_metric_id(cls, metrics, filter_dict: dict) -> QuerySet:
@@ -1627,7 +1627,7 @@ class GetMetricListV2Resource(Resource):
                     ],
                 )
             )
-        return metrics.order_by("-use_frequency")
+        return metrics.order_by("-use_frequency", "id")
 
     @classmethod
     def scenario_filter(cls, metrics: QuerySet, params):
