@@ -135,7 +135,7 @@ function transformSingleInstanceFields(
       key,
       value: [group.value],
       method: method || 'eq',
-      condition: method === 'neq' ? 'and' : (group.condition as IWhereItem['condition']),
+      condition: group.condition as IWhereItem['condition'],
     }))
   );
 }
