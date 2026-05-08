@@ -40,6 +40,7 @@ import SceneFilterTags from '../../../retrieve-v2/sub-bar/scene-filter-tags';
 import V3Searchbar from '../index';
 import FilterPanel from './filter-panel';
 import { getAllSceneFieldKeys } from './scene-config';
+import { cancelPendingRetrieveRequests, resetRetrieveData } from './scene-retrieve-utils';
 import { SceneType } from './types';
 import type { FilterValues, SceneDisplayFields } from './types';
 
@@ -128,9 +129,16 @@ export default defineComponent({
     };
 
     const handleSceneChange = (type: string) => {
+      // 取消进行中的请求
+      cancelPendingRetrieveRequests();
+
       activeScene.value = type;
       filterValues.value = {};
       filterLabels.value = {};
+
+      // 清空检索数据
+      resetRetrieveData(store);
+
       updateQueryHint();
     };
 

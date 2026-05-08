@@ -298,7 +298,9 @@ const requestIndexSetList = () => {
   if (route.query.tab === 'origin' || !route.query.tab) {
     if (isSceneMode.value) {
       store.dispatch('requestIndexSetFieldInfo').then((resp) => {
-        store.dispatch('requestIndexSetQuery');
+        if(resp?.data?.fields?.length){
+          store.dispatch('requestIndexSetQuery');
+        }
       });
     } else {
       store.dispatch('requestIndexSetQuery');
