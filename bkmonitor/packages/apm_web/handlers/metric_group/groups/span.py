@@ -123,6 +123,7 @@ class SpanMetricGroup(base.BaseMetricGroup):
             self._q()
             .alias("a")
             .metric(field=TraceMetric.BK_APM_DURATION_BUCKET, method="SUM", alias="a")
+            .group_by("le")
             .func(_id="rate", params=[{"id": "window", "value": f"{self.interval}s"}])
             .func(_id="histogram_quantile", params=[{"id": "scalar", "value": scalar}])
         )
