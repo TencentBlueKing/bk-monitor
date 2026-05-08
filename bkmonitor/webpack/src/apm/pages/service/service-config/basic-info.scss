@@ -42,6 +42,10 @@
       margin-right: 4px;
     }
 
+    .info-log-row {
+      @include flex-align;
+    }
+
     .relation-info-tag:first-child {
       margin-left: 0;
     }
@@ -59,6 +63,49 @@
         width: 14px;
         height: 14px;
         margin-right: 4px;
+      }
+    }
+
+    .log-global-tag {
+      margin-left: 8px;
+      font-size: 12px;
+      line-height: 20px;
+
+      @include flex-align;
+    }
+
+    .log-global-tag-hd {
+      position: relative;
+      padding-right: 8px;
+      margin-right: 8px;
+      color: #979BA5;
+
+      &::after {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        width: 1px;
+        height: 12px;
+        content: '';
+        background-color: #979BA5;
+        transform: translateY(-50%);
+      }
+    }
+
+    .log-global-tag-bd {
+      color: #3A84FF;
+      cursor: pointer;
+
+      @include flex-align;
+
+      &.disabled {
+        color: #979BA5;
+        cursor: default;
+      }
+
+      .icon-monitor {
+        margin-right: 4px;
+        font-size: 12px;
       }
     }
 

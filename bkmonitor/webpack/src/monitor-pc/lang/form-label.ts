@@ -1946,6 +1946,8 @@ export default {
   容器场景页: 'Container scene page',
   复制节点名: 'Copy node name',
   关联边: 'Associated edges',
+  继承自应用: 'Inherited from application',
+  去修改: 'Go to modify',
 
   // K8s 容器场景
   图表: 'Chart',
