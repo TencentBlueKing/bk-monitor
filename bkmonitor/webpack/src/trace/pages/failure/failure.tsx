@@ -48,6 +48,7 @@ import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import AlarmCenterDetail from '../alarm-center/alarm-detail/alarm-detail-sideslider';
 import FailureContent from './failure-content/failure-content';
 import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';
@@ -59,8 +60,9 @@ import type { IAlert, IAlertData, IAlertObj } from './types';
 import type { IFilterSearch, IIncident } from './types';
 import type { ITagInfoType } from './types';
 import type { AnlyzeField, ICommonItem } from 'fta-solutions/pages/event/typings/event';
-
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+import { useIncidentAlarmDetail } from './composables/use-alarm-detail';
+
 import './failure.scss';
 export const commonAlertFieldMap = {
   status: [
@@ -129,6 +131,9 @@ export default defineComponent({
     const isShowDiagnosis = shallowRef(false);
     const currentAlertList = deepRef({});
     const isCollapsed = deepRef(false);
+
+    const { updateAlarmDetailShow, alarmDetailShow, alarmDetailData } = useIncidentAlarmDetail();
+
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -436,6 +441,9 @@ export default defineComponent({
       currentAlertList,
       isCollapsed,
       handleCollapseChange,
+      updateAlarmDetailShow,
+      alarmDetailShow,
+      alarmDetailData,
     };
   },
   render() {
@@ -492,6 +500,13 @@ export default defineComponent({
           max={850}
           collapsible
           onCollapse-change={this.handleCollapseChange}
+        />
+        <AlarmCenterDetail
+          alarmBizId={this.alarmDetailData?.bk_biz_id}
+          alarmId={this.alarmDetailData?.id}
+          show={this.alarmDetailShow}
+          showStepBtn={false}
+          onUpdate:show={this.updateAlarmDetailShow}
         />
       </div>
     );

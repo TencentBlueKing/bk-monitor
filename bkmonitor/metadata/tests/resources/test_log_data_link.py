@@ -8,13 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import base64
+import json
 from unittest.mock import call, patch
 
 import pytest
 
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-from metadata.resources import CreateOrUpdateLogRouter
+from metadata.resources import CreateOrUpdateLogRouter, GetResultTableStorageResult
 
 non_exist_doris_table_id = "2_bklog.test_doris_non_exists"
 exist_doris_table_id = "2_bklog.test_doris_exists"
@@ -147,6 +149,29 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             assert result_table_ins.data_label == "bkdata_index_set_7839"
             assert result_table_ins.default_storage == "doris"
             assert result_table_ins.bk_biz_id == 2
+
+    actual_storage = GetResultTableStorageResult().request(
+        bk_tenant_id="system",
+        result_table_list=f"{non_exist_doris_table_id},{exist_doris_table_id}",
+        storage_type="doris",
+    )
+    assert set(actual_storage.keys()) == {non_exist_doris_table_id}
+    assert actual_storage[non_exist_doris_table_id]["storage_config"] == {
+        "bkbase_table_id": "2_bklog_pure_doris,2_bklog_doris_log",
+        "source_type": "bkdata",
+        "index_set": "2_bklog_pure_doris,2_bklog_doris_log",
+        "table_type": models.DorisStorage.PRIMARY_TABLE_TYPE,
+        "field_config_mapping": {},
+        "expire_days": 30,
+        "bk_tenant_id": "system",
+    }
+    assert actual_storage[non_exist_doris_table_id]["cluster_type"] == models.ClusterInfo.TYPE_DORIS
+    assert actual_storage[non_exist_doris_table_id]["cluster_config"]["cluster_id"] == 10034
+    assert "last_modify_time" not in actual_storage[non_exist_doris_table_id]["cluster_config"]
+    assert json.loads(base64.b64decode(actual_storage[non_exist_doris_table_id]["auth_info"]).decode("utf-8")) == {
+        "username": "",
+        "password": "",
+    }
 
     # 空间路由推送 后台任务方式
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:

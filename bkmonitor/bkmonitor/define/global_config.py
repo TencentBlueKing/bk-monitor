@@ -234,6 +234,19 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
+        # APM 共享数据源匹配规则配置
+        # 按数据源类型（trace/log/…）分组，每个类型下 list 内的 group 为 OR 关系，单 group 内 rules 可通过 connector（AND/OR）组合
+        (
+            "APM_SHARED_DATASOURCE_RULES",
+            slz.DictField(
+                label="APM 共享数据源规则配置",
+                default={
+                    "trace": {
+                        "list": [],
+                    },
+                },
+            ),
+        ),
         # 表映射关系，用于在 UnifyQuery 数据检索时，路由到灰度表验证功能（比如 Doris 切换）。
         ("UNIFY_QUERY_TABLE_MAPPING_CONFIG", slz.DictField(label="UnifyQuery查询表映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
@@ -571,6 +584,15 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
+        ("APM_PROFILE_V4_BIZ_WHITE_LIST", slz.ListField(label=_("APM Profile V4 链路业务白名单"), default=[])),
+        (
+            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
+        ),
+        (
+            "APM_PROFILE_V4_DATABUS_PREFER_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 Databus 计算集群名称"), default="", allow_blank=True),
+        ),
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),

@@ -252,6 +252,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
     return (
       <div class={['alarm-handling-new-component', this.extCls, { readonly: this.readonly }]}>
         <CommonItem
+          isRequired={true}
           title={this.$t('处理套餐')}
           show-semicolon
         >

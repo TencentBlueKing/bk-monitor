@@ -53,13 +53,13 @@ export const useAlertDialogs = (
   const alertDialogShow = shallowRef(false);
   /** dialog类型 */
   const alertDialogType = shallowRef<AlertAllActionEnum>(undefined);
-  /** 告警业务id */
+  /** 空间业务id */
   const alertDialogBizId = shallowRef<number>(
     (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined
   );
   /** 告警id数组 */
   const alertDialogIds = shallowRef<string[]>([]);
-  /** 各操作类型 dialog 私有参数 */
+  /** 各操作类型 dialog 个性化(私有)属性 */
   const alertDialogParam = shallowRef<AlertOperationDialogParams>(null);
 
   /**
@@ -73,9 +73,9 @@ export const useAlertDialogs = (
   };
 
   /**
-   * @description 通过 操作数据对象数组 获取告警业务id数组
+   * @description 通过 操作数据对象数组 获取空间业务id数组
    * @param {AlertTableItem[]} data 操作数据对象数组
-   * @returns {number[]} 告警业务id数组
+   * @returns {number[]} 空间业务id数组
    */
   const getBizIdByOperationalData = (data: AlertTableItem[]) => {
     if (!data?.length) {

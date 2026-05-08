@@ -35,6 +35,8 @@ class SearchSerializer(serializers.Serializer):
         max_value=100,
         required=False,
     )
+    # 用户当前所在业务，仅作为 TraceSearchItem 候选业务输入，不强制语义
+    bk_biz_id = serializers.IntegerField(label="当前业务ID", required=False, allow_null=True)
 
 
 class SearchViewSet(viewsets.GenericViewSet):
@@ -60,12 +62,15 @@ class SearchViewSet(viewsets.GenericViewSet):
 
         query: str = serializer.validated_data["query"]
         page_size: int = serializer.validated_data["page_size"]
+        bk_biz_id: int | None = serializer.validated_data.get("bk_biz_id")
 
         # 反转义
         query = self.unescape(query).strip()
 
         # 搜索
-        searcher: Searcher = Searcher(bk_tenant_id=get_request_tenant_id(), username=request.user.username)
+        searcher: Searcher = Searcher(
+            bk_tenant_id=get_request_tenant_id(), username=request.user.username, current_bk_biz_id=bk_biz_id
+        )
         result: Iterator[dict] = searcher.search(query, limit=page_size)
 
         # 使用 event-stream 返回搜索结果

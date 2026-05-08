@@ -650,6 +650,7 @@ import type { CreateElement } from 'vue';
 
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import { typeTools } from 'monitor-common/utils/utils.js';
 
 // import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue'
@@ -993,17 +994,16 @@ export default class PerformanceTable extends Vue<MonitorVue> {
 
   handleGoEventCenter(row) {
     if (!row.bk_host_innerip || !row.totalAlarmCount) return;
-    const url = this.$router.resolve({
-      name: 'event-center',
-      query: {
+    const url = this.$router.resolve(
+      getAlarmCenterRouteLocation({
         from: 'now-7d',
         to: 'now',
         queryString: ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale)
           ? `目标IP : ${row.bk_host_innerip}`
           : `ip : ${row.bk_host_innerip}`,
         activeFilterId: 'NOT_SHIELDED_ABNORMAL',
-      },
-    });
+      })
+    );
     window.open(url.href);
   }
 

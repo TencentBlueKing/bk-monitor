@@ -25,6 +25,7 @@
  */
 
 import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-next';
+import type { PrimaryTableCellParams } from 'tdesign-vue-next/es/table/type';
 import type { TippyOptions } from 'vue-tippy';
 
 /**
@@ -154,6 +155,8 @@ export interface TableCellRenderContext<K extends string = string> {
   cellEllipsisClass: string;
   /** 不同类型单元格渲染策略对象集合 */
   cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | K, TableCellRenderer>;
+  /** TDesign cell 回调运行时上下文（row / rowIndex / col / colIndex） */
+  runtime?: PrimaryTableCellParams<any>;
   /** 获取当前行的唯一 rowId */
   getRowId: (row: Record<string, any>) => string;
   /** 获取表格单元格渲染值 */

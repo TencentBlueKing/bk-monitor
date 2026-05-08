@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 from typing import Any, Self
 
 from django.db import models, transaction
@@ -16,6 +17,7 @@ from django.utils import timezone
 
 from apm_web.constants import ServiceRelationLogTypeChoices, SyncScope
 from bkmonitor.utils.request import get_request_username
+from constants.apm import CallSide
 from monitor_web.data_explorer.event.constants import EventCategory
 
 
@@ -117,6 +119,7 @@ class ServiceBase(models.Model):
         records: list[dict[str, Any]] | None = None,
         scope: SyncScope = SyncScope.SERVICE,
         is_delete: bool = True,
+        **extra_filters,
     ) -> dict[str, Any]:
         """统一更新入口，按 DIFF_KEYS 比对存量，执行增/改/删。
 
@@ -138,12 +141,16 @@ class ServiceBase(models.Model):
         is_delete (bool): 是否删除存量中多余的记录，默认为 True。
           为 True 时，不在 records 中的存量记录会被删除（完整同步语义）；
           为 False 时，仅执行新增和更新，不删除任何已有记录（增量同步语义）。
+
+        **extra_filters: 额外的 ORM 过滤条件，以关键字参数形式传入，
+          会被合并到 base_q 查询条件中（即 Q(bk_biz_id=..., app_name=..., **extra_filters)），
+          用于在基础的 bk_biz_id + app_name 之外进一步缩小存量记录的查询范围。
         """
 
         records: list[dict[str, Any]] = records or []
 
         # 1. 构建工作集查询条件
-        base_q = Q(bk_biz_id=bk_biz_id, app_name=app_name)
+        base_q = Q(bk_biz_id=bk_biz_id, app_name=app_name, **extra_filters)
         if scope == SyncScope.SERVICE:
             base_q &= Q(is_global=False, service_name=service_name)
         elif scope == SyncScope.GLOBAL:
@@ -281,8 +288,8 @@ class LogServiceRelation(ServiceBase):
     # 需要保证value_list中的值是是 int 类型
     value_list = models.JSONField("日志值列表", default=list)
 
-    DIFF_KEYS: list[str] = ["related_bk_biz_id"]
-    DEFAULT_KEYS: list[str] = ["log_type", "value", "value_list"]
+    DIFF_KEYS: list[str] = ["log_type", "related_bk_biz_id"]
+    DEFAULT_KEYS: list[str] = ["value", "value_list"]
 
     @classmethod
     def filter_by_index_set_id(cls, index_set_id):
@@ -346,3 +353,38 @@ class CodeRedefinedConfigRelation(ServiceBase):
     def is_callee(self) -> bool:
         """判断是否为被调类型"""
         return self.kind == "callee"
+
+    @classmethod
+    def build_sync_records(cls, rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """将前端聚合后的规则列表展开为可直接用于 sync_relations 的扁平 records。
+
+        输入 rule 结构（每条规则面向一组服务）：
+          - is_global (bool): 是否为全局规则
+          - kind (str): caller / callee
+          - callee_server (str): 被调服务；callee 类型时强制置为空串
+          - callee_service (str)
+          - callee_method (str)
+          - code_type_rules (dict)
+          - enabled (bool)
+          - service_names (list[str]): 非全局时按该列表展开为多条记录；全局规则忽略该字段
+
+        输出 records：每条记录对应 DB 的一行，service_name 已落到具体值（全局规则为 ""）。
+        """
+        records: list[dict[str, Any]] = []
+        for rule in rules:
+            record: dict[str, Any] = {
+                "is_global": rule["is_global"],
+                "kind": rule["kind"],
+                # callee 类型下 callee_server 语义等同 service_name，统一归零避免冗余
+                "callee_server": "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"],
+                "callee_service": rule["callee_service"],
+                "callee_method": rule["callee_method"],
+                "code_type_rules": copy.deepcopy(rule["code_type_rules"]),
+                "enabled": rule["enabled"],
+            }
+            if rule["is_global"]:
+                records.append({**record, "service_name": ""})
+                continue
+            for service_name in rule["service_names"]:
+                records.append({**record, "service_name": service_name})
+        return records

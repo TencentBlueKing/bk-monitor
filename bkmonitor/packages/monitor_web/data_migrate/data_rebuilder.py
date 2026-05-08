@@ -107,8 +107,13 @@ def _register_data_source(bk_biz_id: int, data_source: DataSource, need_register
     except BKAPIError as e:
         if "not found" not in e.message:
             raise e
+        print(f"query gse route not found, data_id: {data_source.bk_data_id}")
         result = []
-    exists_route_names: list[str] = [route["name"] for route in result[0]["route"]]
+
+    if not result:
+        exists_route_names = []
+    else:
+        exists_route_names: list[str] = [route["name"] for route in result[0]["route"]]
 
     # 准备注册到gse的路由配置
     gse_route_config = data_source.gse_route_config
@@ -299,7 +304,7 @@ def rebuild_collect_plugins(
                 accessor = PluginDataAccessor(
                     plugin.current_version, operator="system", data_label=_get_plugin_data_label(plugin)
                 )
-                accessor.access()
+                accessor.access(force_split_measurement=True)
 
     # 启用采集配置
     for collect_config in collect_configs:

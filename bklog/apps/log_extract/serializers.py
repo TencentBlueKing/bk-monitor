@@ -478,6 +478,7 @@ class TaskListSerializer(GeneralSerializer):
     class Meta:
         model = models.Tasks
         fields = [
+            "bk_biz_id",
             "task_id",
             "target_node_type",
             "ip_list",

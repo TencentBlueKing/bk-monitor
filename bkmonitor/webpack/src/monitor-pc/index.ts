@@ -68,10 +68,9 @@ const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
-// 通知人可无权限进入事件详情
+// 通知人可无权限进入事件详情 / 告警中心详情
 if (hasRouteHash) {
-  const isSpecEvent = hasRouteHash.indexOf('event-center') > -1;
-  let url = `${location.origin}${location.pathname}?bizId=${bizId}${isSpecEvent ? '&specEvent=1' : ''}${
+  let url = `${location.origin}${location.pathname}?bizId=${bizId}${
     hasRouteHash.match(/^#/) ? hasRouteHash : `#/${hasRouteHash}`
   }`;
   /* 如果包含批量操作则需要将batchAction带过去 */
