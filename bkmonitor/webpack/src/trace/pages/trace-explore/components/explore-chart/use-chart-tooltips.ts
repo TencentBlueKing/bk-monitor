@@ -44,7 +44,6 @@ export const useChartTooltips = (
     hoverAllTooltips: MaybeRef<boolean>;
     isMouseOver: MaybeRef<boolean>;
     options: MaybeRef<any>;
-    showTotal?: boolean;
   }
 ) => {
   const tooltipsSize = shallowRef<number>();
