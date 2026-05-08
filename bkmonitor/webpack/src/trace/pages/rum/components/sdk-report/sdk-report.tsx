@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Alert, Button, Message, Sideslider } from 'bkui-vue';
+import { queryRumTokenInfo } from 'monitor-api/modules/rum_meta';
 import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -57,11 +58,35 @@ export default defineComponent({
   emits: {
     showChange: (_v: boolean) => true,
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
     const protocol = shallowRef(PROTOCOLS[0].id);
     const operateType = shallowRef<EOperateType>(operateTypeMap.init);
     const submitLoading = shallowRef(false);
+    const tokenRef = shallowRef('');
+    const tokenLoading = shallowRef(false);
+
+    watch(
+      () => props.show,
+      async show => {
+        if (!show || !props.appInfo?.app_name || !props.appInfo?.bk_biz_id) return;
+        tokenLoading.value = true;
+        queryRumTokenInfo({
+          bk_biz_id: props.appInfo.bk_biz_id,
+          app_name: props.appInfo.app_name,
+          application_id: props.appInfo.application_id,
+        })
+          .then(res => {
+            tokenRef.value = res ?? '';
+          })
+          .catch(() => {
+            // ignore
+          })
+          .finally(() => {
+            tokenLoading.value = false;
+          });
+      }
+    );
     const handleShowChange = (show: boolean) => {
       emit('showChange', show);
     };
@@ -72,7 +97,7 @@ export default defineComponent({
       handleShowChange(false);
     };
     const handleCopyToken = () => {
-      copyText('token', (msg: string) => {
+      copyText(tokenRef.value, (msg: string) => {
         Message({
           message: msg,
           theme: 'error',
@@ -106,6 +131,8 @@ export default defineComponent({
       protocol,
       operateType,
       submitLoading,
+      tokenRef,
+      tokenLoading,
       handleSubmit,
       t,
       handleShowChange,
@@ -224,7 +251,16 @@ export default defineComponent({
                     <span class='desc-text'>{this.appInfo?.app_alias || '--'}</span>
                     <span class='split-line' />
                     <span class='token-title'>TOKEN:</span>
-                    <span class='token-text'>{'todo'}</span>
+                    <span class='token-text'>
+                      {this.tokenLoading ? (
+                        <div
+                          style={{ width: '120px', height: '16px' }}
+                          class='skeleton-element'
+                        />
+                      ) : (
+                        this.tokenRef || '--'
+                      )}
+                    </span>
                     <span
                       class='copy-btn'
                       onClick={() => this.handleCopyToken()}
