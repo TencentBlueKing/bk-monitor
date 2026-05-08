@@ -49,13 +49,13 @@ class RecordHelperMixin:
         except Exception:  # pylint: disable=broad-except
             value = 0
 
-        if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
+        if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL.value:
             # 请求量必须是整型
             value = int(value)
         elif metric_cal_type in [
-            metric_group.CalculationType.TIMEOUT_RATE,
-            metric_group.CalculationType.SUCCESS_RATE,
-            metric_group.CalculationType.EXCEPTION_RATE,
+            metric_group.CalculationType.TIMEOUT_RATE.value,
+            metric_group.CalculationType.SUCCESS_RATE.value,
+            metric_group.CalculationType.EXCEPTION_RATE.value,
         ]:
             value = format_percent(value, precision=3, sig_fig_cnt=2)
         else:

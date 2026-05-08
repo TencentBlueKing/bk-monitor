@@ -145,7 +145,7 @@ class TraceChartsResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_lazy("应用不存在"))
 
-        get_span_group = partial(MetricGroupRegistry.get, GroupEnum.SPAN, **validated_request_data)
+        get_span_group = partial(MetricGroupRegistry.get, GroupEnum.SPAN.value, **validated_request_data)
         span_groups: dict[str, BaseMetricGroup] = {
             "default": get_span_group(),
             CallSide.CALLEE.value: get_span_group(kind=CallSide.CALLEE.value),
@@ -163,7 +163,7 @@ class TraceChartsResource(Resource):
                 "target_specs": [
                     {
                         "group": span_groups[call_side.value],
-                        "calculation_type": CalculationType.REQUEST_TOTAL,
+                        "calculation_type": CalculationType.REQUEST_TOTAL.value,
                         "alias": _lazy(call_side.label),
                         "stack": "all",
                     }
@@ -180,14 +180,14 @@ class TraceChartsResource(Resource):
                 "target_specs": [
                     {
                         "group": span_groups["default"],
-                        "calculation_type": CalculationType.ERROR_COUNT,
+                        "calculation_type": CalculationType.ERROR_COUNT.value,
                         "alias": _lazy("错误数"),
                         "yAxisIndex": 0,
                         "chart_type": "bar",
                     },
                     {
                         "group": span_groups["default"],
-                        "calculation_type": CalculationType.EXCEPTION_RATE,
+                        "calculation_type": CalculationType.EXCEPTION_RATE.value,
                         "alias": _lazy("错误率"),
                         "unit": "percentunit",
                         "yAxisIndex": 1,

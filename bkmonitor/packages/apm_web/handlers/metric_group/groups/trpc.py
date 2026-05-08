@@ -100,20 +100,20 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return self._export_qs(self._get_qs(calculation_type), raw=raw)
 
     class Meta:
-        name = define.GroupEnum.TRPC
+        name = define.GroupEnum.TRPC.value
 
     def get_calculation_method(self, calculation_type: str) -> Callable[..., list[dict[str, Any]]]:
         support_calculation_methods: dict[str, Callable[..., list[dict[str, Any]]]] = {
-            define.CalculationType.REQUEST_TOTAL: self._request_total,
-            define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate, CodeType.SUCCESS),
-            define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate, CodeType.TIMEOUT),
-            define.CalculationType.EXCEPTION_RATE: functools.partial(self._request_code_rate, CodeType.EXCEPTION),
-            define.CalculationType.AVG_DURATION: self._avg_duration,
-            define.CalculationType.P50_DURATION: functools.partial(self._histogram_quantile_duration, 0.50),
-            define.CalculationType.P95_DURATION: functools.partial(self._histogram_quantile_duration, 0.95),
-            define.CalculationType.P99_DURATION: functools.partial(self._histogram_quantile_duration, 0.99),
-            define.CalculationType.TOP_N: self._top_n,
-            define.CalculationType.BOTTOM_N: self._bottom_n,
+            define.CalculationType.REQUEST_TOTAL.value: self._request_total,
+            define.CalculationType.SUCCESS_RATE.value: functools.partial(self._request_code_rate, CodeType.SUCCESS),
+            define.CalculationType.TIMEOUT_RATE.value: functools.partial(self._request_code_rate, CodeType.TIMEOUT),
+            define.CalculationType.EXCEPTION_RATE.value: functools.partial(self._request_code_rate, CodeType.EXCEPTION),
+            define.CalculationType.AVG_DURATION.value: self._avg_duration,
+            define.CalculationType.P50_DURATION.value: functools.partial(self._histogram_quantile_duration, 0.50),
+            define.CalculationType.P95_DURATION.value: functools.partial(self._histogram_quantile_duration, 0.95),
+            define.CalculationType.P99_DURATION.value: functools.partial(self._histogram_quantile_duration, 0.99),
+            define.CalculationType.TOP_N.value: self._top_n,
+            define.CalculationType.BOTTOM_N.value: self._bottom_n,
         }
         if calculation_type not in support_calculation_methods:
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")
@@ -296,13 +296,15 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
     def _get_qs(self, qs_type: str, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         return {
-            define.CalculationType.REQUEST_TOTAL: self._request_total_qs,
-            define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate_qs, CodeType.SUCCESS),
-            define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate_qs, CodeType.TIMEOUT),
-            define.CalculationType.EXCEPTION_RATE: functools.partial(self._request_code_rate_qs, CodeType.EXCEPTION),
-            define.CalculationType.AVG_DURATION: self._avg_duration_qs,
-            define.CalculationType.P99_DURATION: functools.partial(self._histogram_quantile_duration_qs, 0.99),
-            define.CalculationType.PANIC: self._panic_qs,
+            define.CalculationType.REQUEST_TOTAL.value: self._request_total_qs,
+            define.CalculationType.SUCCESS_RATE.value: functools.partial(self._request_code_rate_qs, CodeType.SUCCESS),
+            define.CalculationType.TIMEOUT_RATE.value: functools.partial(self._request_code_rate_qs, CodeType.TIMEOUT),
+            define.CalculationType.EXCEPTION_RATE.value: functools.partial(
+                self._request_code_rate_qs, CodeType.EXCEPTION
+            ),
+            define.CalculationType.AVG_DURATION.value: self._avg_duration_qs,
+            define.CalculationType.P99_DURATION.value: functools.partial(self._histogram_quantile_duration_qs, 0.99),
+            define.CalculationType.PANIC.value: self._panic_qs,
         }[qs_type](start_time, end_time)
 
     def _top_n(

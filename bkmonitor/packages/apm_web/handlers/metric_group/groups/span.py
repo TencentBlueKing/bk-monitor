@@ -40,7 +40,7 @@ class SpanMetricGroup(base.BaseMetricGroup):
         self.kind: str | None = kind
 
     class Meta:
-        name = define.GroupEnum.SPAN
+        name = define.GroupEnum.SPAN.value
 
     def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:
         raise NotImplementedError
@@ -50,13 +50,13 @@ class SpanMetricGroup(base.BaseMetricGroup):
 
     def _get_qs(self, calculation_type: str) -> UnifyQuerySet:
         support_get_qs_methods: dict[str, Callable[[], UnifyQuerySet]] = {
-            define.CalculationType.REQUEST_TOTAL: self._request_total_qs,
-            define.CalculationType.ERROR_COUNT: self._error_count_qs,
-            define.CalculationType.EXCEPTION_RATE: self._error_rate_qs,
-            define.CalculationType.AVG_DURATION: self._avg_duration_qs,
-            define.CalculationType.P50_DURATION: lambda: self._histogram_quantile_duration_qs(0.5),
-            define.CalculationType.P95_DURATION: lambda: self._histogram_quantile_duration_qs(0.95),
-            define.CalculationType.P99_DURATION: lambda: self._histogram_quantile_duration_qs(0.99),
+            define.CalculationType.REQUEST_TOTAL.value: self._request_total_qs,
+            define.CalculationType.ERROR_COUNT.value: self._error_count_qs,
+            define.CalculationType.EXCEPTION_RATE.value: self._error_rate_qs,
+            define.CalculationType.AVG_DURATION.value: self._avg_duration_qs,
+            define.CalculationType.P50_DURATION.value: lambda: self._histogram_quantile_duration_qs(0.5),
+            define.CalculationType.P95_DURATION.value: lambda: self._histogram_quantile_duration_qs(0.95),
+            define.CalculationType.P99_DURATION.value: lambda: self._histogram_quantile_duration_qs(0.99),
         }
         if calculation_type not in support_get_qs_methods:
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")

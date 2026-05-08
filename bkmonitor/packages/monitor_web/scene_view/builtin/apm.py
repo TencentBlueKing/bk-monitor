@@ -67,7 +67,7 @@ def get_rpc_service_config_from_metric_or_none(
 
     discover_result: dict[str, dict[str, Any] | list[str]] = {}
     group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-        metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+        metric_group.GroupEnum.TRPC.value, bk_biz_id, app_name
     )
     run_threads([InheritParentThread(target=_fetch_server_list), InheritParentThread(target=_get_server_config)])
 

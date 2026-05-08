@@ -53,8 +53,8 @@ class MetricGroupByLimitSerializer(MetricFilterMergeSerializer):
     method = serializers.ChoiceField(
         label="计算类型",
         required=False,
-        default=metric_group.CalculationType.TOP_N,
-        choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+        default=metric_group.CalculationType.TOP_N.value,
+        choices=[metric_group.CalculationType.TOP_N.value, metric_group.CalculationType.BOTTOM_N.value],
     )
     metric_group_name = serializers.ChoiceField(label="指标组", required=True, choices=metric_group.GroupEnum.choices())
     metric_cal_type = serializers.ChoiceField(
@@ -150,8 +150,8 @@ class QueryDimensionsByLimitRequestSerializer(MetricFilterMergeSerializer):
     method = serializers.ChoiceField(
         label="计算类型",
         required=False,
-        default=metric_group.CalculationType.TOP_N,
-        choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+        default=metric_group.CalculationType.TOP_N.value,
+        choices=[metric_group.CalculationType.TOP_N.value, metric_group.CalculationType.BOTTOM_N.value],
     )
     metric_group_name = serializers.ChoiceField(label="指标组", required=True, choices=metric_group.GroupEnum.choices())
     metric_cal_type = serializers.ChoiceField(

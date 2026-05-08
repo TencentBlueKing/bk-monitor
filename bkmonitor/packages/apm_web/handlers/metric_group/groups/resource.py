@@ -38,7 +38,7 @@ class ResourceMetricGroup(base.BaseMetricGroup):
         self.interval: int = interval or self.DEFAULT_INTERVAL
 
     class Meta:
-        name = define.GroupEnum.RESOURCE
+        name = define.GroupEnum.RESOURCE.value
 
     def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:
         raise NotImplementedError
@@ -50,10 +50,10 @@ class ResourceMetricGroup(base.BaseMetricGroup):
         self, calculation_type: str, start_time: int | None = None, end_time: int | None = None
     ) -> UnifyQuerySet:
         support_get_qs_methods: dict[str, Callable[[int | None, int | None], UnifyQuerySet]] = {
-            define.CalculationType.KUBE_MEMORY_USAGE: self._kube_memory_usage_qs,
-            define.CalculationType.KUBE_CPU_USAGE: self._kube_cpu_usage_qs,
-            define.CalculationType.KUBE_OOM_KILLED: self._kube_oom_killed_qs,
-            define.CalculationType.KUBE_ABNORMAL_RESTART: self._kube_abnormal_restart_qs,
+            define.CalculationType.KUBE_MEMORY_USAGE.value: self._kube_memory_usage_qs,
+            define.CalculationType.KUBE_CPU_USAGE.value: self._kube_cpu_usage_qs,
+            define.CalculationType.KUBE_OOM_KILLED.value: self._kube_oom_killed_qs,
+            define.CalculationType.KUBE_ABNORMAL_RESTART.value: self._kube_abnormal_restart_qs,
         }
         if calculation_type not in support_get_qs_methods:
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")
