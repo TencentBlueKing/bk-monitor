@@ -133,6 +133,11 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
           statusQuickFilter.push(...filter.value);
           isStatus = true;
         }
+      } else if (alarmType.value === AlarmType.ISSUES) {
+        if (filter.key === 'assignee') {
+          statusQuickFilter.push(...filter.value);
+          isStatus = true;
+        }
       }
       if (!isStatus) {
         otherQuickFilter.push(filter);

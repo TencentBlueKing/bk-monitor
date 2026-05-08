@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { actionDetail, searchAlert } from 'monitor-api/modules/alert';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { isZh } from 'monitor-pc/common/constant';
 
@@ -46,19 +47,21 @@ export const handleToAlertList = (
   detailInfo: { converge_id?: number; create_time: number; end_time: number; id: string },
   bizId
 ) => {
-  // const queryStringUrl = `queryString="${encodeURI(queryString(type, detailInfo.id))}"`;
   const curUnix = dayjs.tz().unix() * 1000;
   const oneDay = 60 * 24 * 60 * 1000;
   const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).valueOf();
   const endTime = detailInfo.end_time
     ? dayjs.tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay).valueOf()
     : dayjs.tz().valueOf();
-  window.open(
-    `${location.origin}${location.pathname}?bizId=${bizId}/#/event-center?queryString=${queryString(
-      type,
-      detailInfo.id
-    )}&timeRange=${startTime}&timeRange=${endTime}`
+  const url = getAlarmCenterListUrl(
+    {
+      queryString: queryString(type, detailInfo.id),
+      from: startTime,
+      to: endTime,
+    },
+    bizId
   );
+  window.open(url);
 };
 
 interface IActiveDetail {

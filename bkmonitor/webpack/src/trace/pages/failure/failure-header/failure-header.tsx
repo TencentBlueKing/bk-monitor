@@ -29,7 +29,7 @@ import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
@@ -47,6 +47,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const route = useRoute();
+    const router = useRouter();
     const isShow = ref<boolean>(false);
     const isShowResolve = ref<boolean>(false);
     const listLoading = ref(false);
@@ -123,17 +124,15 @@ export default defineComponent({
     const handleBack = () => {
       // 回退到告警列表是携带告警列表已经配置的时间范围，避免查询时间丢失
       const { from, to } = route.query;
-      let timeRangText = '';
-      if (from && to) {
-        timeRangText = `&from=${from}&to=${to}`;
-      }
       const { bk_biz_id } = incidentDetail.value;
-      const { origin, pathname } = location;
-      // 旧版告警中心路由
-      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident${timeRangText}`;
-      // 新版告警中心路由
-      // const url = `${origin}${pathname}?bizId=${bk_biz_id}#/trace/alarm-center?alarmType=${AlarmType.INCIDENT}${timeRangText}`;
-      window.location.href = url;
+      router.push({
+        name: 'alarm-center',
+        query: {
+          alarmType: 'incident',
+          ...(from && to ? { from: from as string, to: to as string } : {}),
+          bizIds: [bk_biz_id],
+        },
+      });
     };
     /** 一期先不展示 */
     // const tipsItem = (val: number) => (

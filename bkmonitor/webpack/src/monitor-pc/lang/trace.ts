@@ -35,4 +35,5 @@ export default {
   已读: 'Read',
   'Trace 助手': 'Trace Helper',
   请输入应用名称: 'Please enter the application name',
+  总计: 'Total',
 };

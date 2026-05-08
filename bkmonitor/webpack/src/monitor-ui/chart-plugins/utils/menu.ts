@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
+
 import { getMetricId } from './utils';
 
 import type { PanelModel } from '../typings';
@@ -35,7 +37,7 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
       if (target.data?.query_configs?.length) {
         for (const item of target.data.query_configs) {
           if (item.promql) {
-            promqlSet.add(JSON.stringify(item.promql));
+            promqlSet.add(String(item.promql));
           } else {
             const metricId = getMetricId(
               item.data_source_label,
@@ -58,13 +60,14 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
   }
   let promqlString = '';
   for (const promql of promqlSet) {
-    promqlString = `promql=${promql}`;
+    promqlString = promql;
   }
-  (queryString.length || promqlString) &&
-    window.open(
-      location.href.replace(
-        location.hash,
-        `#/event-center?from=${timeRange[0]}&to=${timeRange[1]}&timezone=${window.timezone}&${promqlString || `queryString=${queryString}`}`
-      )
-    );
+  if (queryString.length || promqlString) {
+    openAlarmCenter({
+      from: timeRange[0],
+      to: timeRange[1],
+      timezone: window.timezone,
+      ...(promqlString ? { promql: promqlString } : { queryString }),
+    });
+  }
 };

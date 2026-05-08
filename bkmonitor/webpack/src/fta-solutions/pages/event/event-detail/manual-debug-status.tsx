@@ -27,6 +27,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getDemoActionDetail } from 'monitor-api/modules/action';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 
 import './manual-debug-status.scss';
 
@@ -53,8 +54,14 @@ export default class ManualDebugStatus extends tsc<IProps> {
   } = {};
 
   get actionUrl() {
-    const queryString = `?queryString=套餐名称: "${this.mealInfo?.name || ''}"`;
-    return `${location.origin}${location.pathname}${location.search}#/event-center${queryString}&searchType=action&activeFilterId=action&from=now-24h&to=now&bizIds=-1`;
+    return getAlarmCenterListUrl({
+      queryString: `套餐名称: "${this.mealInfo?.name || ''}"`,
+      searchType: 'action',
+      activeFilterId: 'action',
+      from: 'now-24h',
+      to: 'now',
+      bizIds: '-1',
+    });
   }
 
   @Watch('debugKey')

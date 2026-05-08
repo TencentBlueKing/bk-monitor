@@ -28,6 +28,7 @@
 // import { docCookies } from 'monitor-common/utils/utils';
 
 import {
+  type IFilterField,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
   EMode,
@@ -165,8 +166,55 @@ const commonIncidentFieldMap = {
   ],
 };
 
+const commonIssuesFieldMap = {
+  status: [
+    {
+      zhId: '待审核',
+      id: 'pending_review',
+      name: window.i18n.t('待审核'),
+    },
+    {
+      zhId: '未解决',
+      id: 'unresolved',
+      name: window.i18n.t('未解决'),
+    },
+    {
+      zhId: '已解决',
+      id: 'resolved',
+      name: window.i18n.t('已解决'),
+    },
+    {
+      zhId: '已归档',
+      id: 'archived',
+      name: window.i18n.t('已归档'),
+    },
+  ],
+  priority: [
+    {
+      zhId: '高',
+      id: 'P0',
+      name: window.i18n.t('button-高'),
+    },
+    {
+      zhId: '中',
+      id: 'P1',
+      name: window.i18n.t('button-中'),
+    },
+    {
+      zhId: '低',
+      id: 'P2',
+      name: window.i18n.t('button-低'),
+    },
+  ],
+};
 export function useAlarmFilter(
-  options: () => { alarmType: AlarmType; commonFilterParams: Record<string, any>; filterMode: EMode }
+  options: () => {
+    alarmType: AlarmType;
+    commonFilterParams: Record<string, any>;
+    fields: IFilterField[];
+    filterMode: EMode;
+    preConditions?: any[];
+  }
 ) {
   let axiosController = new AbortController();
   let candidateValueMap: ICandidateValueMap = new Map();
@@ -204,29 +252,44 @@ export function useAlarmFilter(
       const searchValue = String(params.where?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
-
       // 故障部分字段枚举值
       const paramsField = params?.fields?.[0];
+      const fieldType = options().fields?.find(item => item?.name === paramsField)?.type || '';
+      const isBoolean = fieldType === 'boolean';
       const listTranslate = (list: { id: number | string; name: string; zhId: string }[]) => {
         return list.map(item => ({
           id: item.id,
           name: item.name,
         }));
       };
-      if (options().alarmType === AlarmType.ALERT && ['status', 'severity', 'stage'].includes(paramsField)) {
+      if (isBoolean) {
+        const list = getBooleanValues().filter(item => item.name.includes(searchValueLower));
+        resolve({
+          count: list.length,
+          list,
+        });
+      } else if (options().alarmType === AlarmType.ALERT && Object.keys(commonAlertFieldMap).includes(paramsField)) {
         resolve({
           list: listTranslate(commonAlertFieldMap[paramsField]),
           count: commonAlertFieldMap[paramsField].length,
         });
-      } else if (options().alarmType === AlarmType.ACTION && ['status'].includes(paramsField)) {
+      } else if (options().alarmType === AlarmType.ACTION && Object.keys(commonActionFieldMap).includes(paramsField)) {
         resolve({
           list: listTranslate(commonActionFieldMap[paramsField]),
           count: commonActionFieldMap[paramsField].length,
         });
-      } else if (options().alarmType === AlarmType.INCIDENT && ['status', 'level'].includes(paramsField)) {
+      } else if (
+        options().alarmType === AlarmType.INCIDENT &&
+        Object.keys(commonIncidentFieldMap).includes(paramsField)
+      ) {
         resolve({
           list: listTranslate(commonIncidentFieldMap[paramsField]),
           count: commonIncidentFieldMap[paramsField].length,
+        });
+      } else if (options().alarmType === AlarmType.ISSUES && Object.keys(commonIssuesFieldMap).includes(paramsField)) {
+        resolve({
+          list: listTranslate(commonIssuesFieldMap[paramsField]),
+          count: commonIssuesFieldMap[paramsField].length,
         });
       } else if (candidateItem?.isEnd && !params?.queryString) {
         if (searchValue) {
@@ -253,9 +316,12 @@ export function useAlarmFilter(
           .getRetrievalFilterValues(
             {
               ...options().commonFilterParams,
-              conditions: searchValue
-                ? [{ key: paramsField, method: 'include', value: [searchValue], options: { is_wildcard: true } }]
-                : [],
+              conditions: [
+                ...(options()?.preConditions || []),
+                ...(searchValue
+                  ? [{ key: paramsField, method: 'include', value: [searchValue], options: { is_wildcard: true } }]
+                  : []),
+              ],
               fields: params.fields,
               size: params.limit,
             },
@@ -305,4 +371,19 @@ export function useAlarmFilter(
   return {
     getRetrievalFilterValueData,
   };
+}
+
+function getBooleanValues() {
+  return JSON.parse(
+    JSON.stringify([
+      {
+        id: 'true',
+        name: 'true',
+      },
+      {
+        id: 'false',
+        name: 'false',
+      },
+    ])
+  );
 }

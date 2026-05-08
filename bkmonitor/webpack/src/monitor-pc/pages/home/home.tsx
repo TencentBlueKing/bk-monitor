@@ -30,6 +30,7 @@ import dayjs from 'dayjs';
 import { initUnit } from 'fta-solutions/pages/home/home';
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { statistics } from 'monitor-api/modules/home';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 import { throttle } from 'throttle-debounce';
 
@@ -393,16 +394,18 @@ export default class Home extends tsc<object> {
     this.init();
   }
 
-  // 跳转至事件中心
+  // 跳转至告警中心
   handleToEvent(params: { activeFilterId: any; id: string }) {
     if (!params.id) return;
-    let query = '';
-    if (params.activeFilterId) {
-      query = `from=now-${this.homeDays}d&to=now&bizIds=${params.id}&activeFilterId=${params.activeFilterId}`;
-    } else {
-      query = `from=now-${this.homeDays}d&to=now&bizIds=${params.id}`;
-    }
-    const url = `${location.origin}${location.pathname}?bizId=${params.id}#/event-center?${query}`;
+    const url = getAlarmCenterListUrl(
+      {
+        from: `now-${this.homeDays}d`,
+        to: 'now',
+        bizIds: params.id,
+        ...(params.activeFilterId ? { activeFilterId: params.activeFilterId } : {}),
+      },
+      params.id
+    );
     location.href = url;
   }
   handleOpenGuide() {

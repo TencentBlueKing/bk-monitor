@@ -61,13 +61,12 @@ export default defineComponent({
     const userDisplayNameList = shallowRef<string[]>([]);
 
     // 获取负责人显示名称
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     watchEffect(async () => {
       const displayNameConfig = getUserComponentConfig();
       const list = props?.tags || [];
       if (list.length && displayNameConfig.apiBaseUrl && displayNameConfig.tenantId) {
         const displayNames = await getBkUserDisplayNameInstance()
-          // @ts-ignore
           .getMultipleUsersDisplayName(list)
           .then(v => v?.split(',') || list)
           .catch(() => list);

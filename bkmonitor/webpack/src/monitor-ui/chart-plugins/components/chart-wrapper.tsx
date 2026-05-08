@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Inject, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AlarmTemplate from 'apm/pages/alarm-template/alarm-template';
@@ -35,6 +35,7 @@ import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmAlarmCenter from '../plugins/apm-alarm-center';
 import ApmCustomGraphV2 from '../plugins/apm-custom-graph-v2/apm-custom-graph-v2';
 import ApmCustomGraph from '../plugins/apm-custom-graph/apm-custom-graph';
 import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
@@ -73,7 +74,6 @@ import TextUnit from '../plugins/text-unit/text-unit';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 import LineEcharts from '../plugins/time-series/time-series';
-import ApmAlarmCenter from '../plugins/apm-alarm-center';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
@@ -630,7 +630,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'alarm_template':
         return <AlarmTemplate />;
       case 'alarm_center':
-        return <ApmAlarmCenter />
+        return <ApmAlarmCenter />;
       // 不需要报错显示
       // case 'graph':
       default:
