@@ -36,8 +36,6 @@ const sceneMetaMap: Record<string, { label: string; icon: string; skipI18n?: boo
   [SceneType.Host]: { label: '主机', icon: 'bklog-host' },
   [SceneType.PaaS]: { label: 'Paas', icon: 'bklog-paas', skipI18n: true },
   [SceneType.Service]: { label: '服务', icon: 'bklog-service' },
-  [SceneType.Client]: { label: '客户端', icon: 'bklog-kehuduan' },
-  [SceneType.TRPC]: { label: 'TRPC', icon: 'bklog-trpc', skipI18n: true },
 };
 
 /** 默认的场景图标（映射表中未匹配时使用） */
@@ -74,7 +72,9 @@ export const transformSceneConfigItem = (item: SceneConfigItem): SceneConfig => 
  * 将接口返回的场景配置列表转换为内部使用的配置列表
  */
 export const transformSceneConfigs = (items: SceneConfigItem[]): SceneConfig[] => {
-  return (items ?? []).map(transformSceneConfigItem);
+  return (items ?? [])
+    .filter(item => item.id in sceneMetaMap)
+    .map(transformSceneConfigItem);
 };
 
 /**

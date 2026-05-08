@@ -31,8 +31,6 @@ export enum SceneType {
   Host = 'host',
   PaaS = 'bk_paas',
   Service = 'apm',
-  Client = 'client',
-  TRPC = 'trpc',
 }
 
 /** ============ 接口返回数据类型 ============ */

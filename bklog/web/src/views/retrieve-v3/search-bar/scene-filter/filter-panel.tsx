@@ -287,7 +287,8 @@ export default defineComponent({
     );
 
     const getLocalTagValues = (fieldName: string) => {
-      return localTagValues.value[fieldName] ?? (Array.isArray(props.filterValues[fieldName]) ? props.filterValues[fieldName] : []);
+      return localTagValues.value[fieldName]
+      ?? (Array.isArray(props.filterValues[fieldName]) ? props.filterValues[fieldName] : []);
     };
 
     const handleTagChange = (fieldName: string, tags: string[]) => {
