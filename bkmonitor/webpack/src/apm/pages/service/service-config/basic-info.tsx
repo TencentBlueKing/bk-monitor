@@ -26,6 +26,7 @@
 import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import _ from 'lodash';
 import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
@@ -212,6 +213,7 @@ export default class BasicInfo extends tsc<object> {
   // 关联日志列表
   logRelationList: ILogRelation[] = [];
   indexSetListMap = new Map();
+  tempLogRelationList: ILogRelation[] = [];
 
   get bizSelectList() {
     return this.$store.getters.bizList.map(el => ({
@@ -362,11 +364,13 @@ export default class BasicInfo extends tsc<object> {
         tempLogRelationList.push({
           related_bk_biz_id: item.related_bk_biz_id,
           value_list: item.value_list.map(v => v.value),
+          is_global: item.is_global,
         });
       }
     }
     await this.getIndexSetList(tempLogRelationList.map(item => item.related_bk_biz_id));
     this.logRelationList = tempLogRelationList;
+    this.tempLogRelationList = _.cloneDeep(tempLogRelationList);
     // if (logRelation.log_type) {
     //   this.localRelationInfo.logType = logRelation.log_type;
     //   // 关联日志
@@ -447,9 +451,16 @@ export default class BasicInfo extends tsc<object> {
     } else {
       // 如果URI为空 则删除该列展示
       this.uriList = this.uriList.filter(val => val.trim?.().length);
+      this.handleResetRelationData();
     }
     this.eventRelation.relationK8s = JSON.parse(JSON.stringify(this.eventRelation.cacheRelationK8s));
     this.eventRelation.isAutoRelation = this.eventRelation.cacheIsAutoRelation;
+  }
+
+  // 点击取消 关联日志需要还原数据
+  handleResetRelationData() {
+    this.logRelationList = _.cloneDeep(this.tempLogRelationList);
+    this.indexSetListMap = new Map();
   }
   /**
    * @desc 切换关联日志应用
@@ -580,13 +591,16 @@ export default class BasicInfo extends tsc<object> {
 
     // 关联日志
     if (this.logRelationList.length) {
-      params.log_relation_list = this.logRelationList
-        .filter(item => item.related_bk_biz_id && item.value_list.length)
-        .map(item => ({
-          log_type: 'bk_log',
-          value_list: item.value_list,
-          related_bk_biz_id: item.related_bk_biz_id,
-        }));
+      params.log_relation_list = this.logRelationList.reduce<(typeof this.logRelationList)[number][]>((acc, item) => {
+        if (!item.is_global && item.related_bk_biz_id && item.value_list.length) {
+          acc.push({
+            log_type: 'bk_log',
+            value_list: item.value_list,
+            related_bk_biz_id: item.related_bk_biz_id,
+          });
+        }
+        return acc;
+      }, []);
     }
     // 关联应用
     if (bizId) {
@@ -692,6 +706,17 @@ export default class BasicInfo extends tsc<object> {
       );
     }
     await Promise.all(promiseList);
+  }
+
+  handleGoToAppConfig() {
+    const { query } = this.$route;
+    const routeData = this.$router.resolve({
+      name: 'application-config',
+      params: {
+        appName: query.app_name as string,
+      },
+    });
+    window.open(routeData.href, '_blank');
   }
 
   /** 渲染基础信息 */
@@ -910,6 +935,21 @@ export default class BasicInfo extends tsc<object> {
   //     </div>
   //   );
   // }
+  renderGlobalLogChange = () => (
+    <div class='log-global-tag'>
+      <div class='log-global-tag-hd'>{this.$t('继承自应用')}</div>
+      <div
+        class={['log-global-tag-bd', { disabled: !this.authority.VIEW_AUTH }]}
+        v-authority={{ active: !this.authority.VIEW_AUTH }}
+        onClick={() =>
+          this.authority.VIEW_AUTH ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
+        }
+      >
+        <i class='icon-monitor icon-fenxiang' />
+        {this.$t('去修改')}
+      </div>
+    </div>
+  );
   /** 数据关联 */
   renderDataLink() {
     const {
@@ -973,6 +1013,14 @@ export default class BasicInfo extends tsc<object> {
                 <bk-form>
                   <LogRelationList
                     ref='logRelationListRef'
+                    scopedSlots={{
+                      itemExtra: ({ item }) => {
+                        if (item?.is_global) {
+                          return this.renderGlobalLogChange();
+                        }
+                        return null;
+                      },
+                    }}
                     bizSelectList={this.bizSelectList}
                     indexSetListMap={this.indexSetListMap}
                     value={this.logRelationList}
@@ -1005,6 +1053,7 @@ export default class BasicInfo extends tsc<object> {
                             <span>{`${item.log_type_alias} : ${item.value_alias}`}</span>
                           </bk-tag>
                         )}
+                        {item?.is_global ? this.renderGlobalLogChange() : undefined}
                       </div>
                     ))
                   : '--'}
