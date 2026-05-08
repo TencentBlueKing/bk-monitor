@@ -46,7 +46,7 @@ import {
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
-import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { DataQuery, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 /** 图表交互状态配置 */
 export interface ChartInteractionState {
@@ -454,6 +454,8 @@ export const useEcharts = ({
   const refreshImmediate = inject('refreshImmediate');
 
   let cancelTokens = [];
+  /** 请求版本号，用于丢弃 lazyRender 阶段的过期回调 */
+  let currentRequestId = 0;
   const loading = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
@@ -475,12 +477,15 @@ export const useEcharts = ({
       cb?.();
     }
     cancelTokens = [];
+    const requestId = ++currentRequestId;
     const startDate = Date.now();
     loading.value = true;
     metricList.value = [];
     targets.value = [];
     const [startTime, endTime] = handleTransformToTimestamp(toValue(timeRange) || DEFAULT_TIME_RANGE);
-    const promiseList = toValue(panel)?.targets?.map?.(target => {
+
+    /** 单个 target 请求 + 数据格式化 */
+    const queryTarget = (target: DataQuery) => {
       const resultParams = {
         start_time: startTime,
         end_time: endTime,
@@ -530,33 +535,65 @@ export const useEcharts = ({
             : [];
         })
         .catch(() => []);
-    });
-    const resList = await Promise.allSettled(promiseList ?? []).finally(() => {
+    };
+
+    /** 根据已合并的 series 列表构建 echarts options */
+    const buildOptions = (seriesList: any[]) => {
+      if (!seriesList.length) return undefined;
+      const { xAxis, seriesData } = createSeries(seriesList, customOptions.series);
+      const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
+      const echartOptions = createOptions(xAxis, yAxis, seriesData, customOptions.options);
+      const { tooltipsOptions } = useChartTooltips(chartRef, {
+        isMouseOver: interactionState?.isMouseOver ?? true,
+        hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
+        options: echartOptions,
+      });
+      return {
+        ...echartOptions,
+        tooltip: tooltipsOptions.value,
+      };
+    };
+
+    /** 把 Promise.allSettled 结果展开为 series 列表 */
+    const flattenSeries = (resList: PromiseSettledResult<any[]>[]) => {
+      const list: any[] = [];
+      for (const item of resList) {
+        if (item.status === 'fulfilled' && Array.isArray(item.value) && item.value.length) {
+          list.push(...item.value);
+        }
+      }
+      return list;
+    };
+
+    const allTargets = toValue(panel)?.targets ?? [];
+    const syncTargets = allTargets.filter(t => !t.lazyRender);
+    const lazyTargets = allTargets.filter(t => t.lazyRender);
+
+    // 阶段一：先等同步 target，得到首屏渲染数据
+    const syncResList = await Promise.allSettled(syncTargets.map(queryTarget)).finally(() => {
       loading.value = false;
     });
-    const seriesList = [];
-    for (const item of resList) {
-      // @ts-expect-error
-      Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
-    }
+    const syncSeriesList = flattenSeries(syncResList);
     duration.value = Date.now() - startDate;
-    series.value = seriesList;
-    if (!seriesList.length) {
-      return undefined;
+    series.value = syncSeriesList;
+
+    // 阶段二：lazyRender target 后台请求，到达后合并并刷新图表
+    if (lazyTargets.length) {
+      Promise.allSettled(lazyTargets.map(queryTarget)).then(lazyResList => {
+        // 期间已有新请求触发，丢弃过期数据
+        if (requestId !== currentRequestId) return;
+        const lazySeriesList = flattenSeries(lazyResList);
+        if (!lazySeriesList.length) return;
+        const merged = [...series.value, ...lazySeriesList];
+        series.value = merged;
+        const nextOptions = buildOptions(merged);
+        if (nextOptions) {
+          options.value = nextOptions;
+          chartId.value = random(8);
+        }
+      });
     }
-    const { xAxis, seriesData } = createSeries(seriesList, customOptions.series);
-    const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
-    const options = createOptions(xAxis, yAxis, seriesData, customOptions.options);
-    const { tooltipsOptions } = useChartTooltips(chartRef, {
-      isMouseOver: interactionState?.isMouseOver ?? true,
-      hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
-      options,
-      customTooltipsOptions: customOptions.tooltips,
-    });
-    return {
-      ...options,
-      tooltip: tooltipsOptions.value,
-    };
+    return buildOptions(syncSeriesList);
   };
   watch(
     [() => toValue(timeRange), () => toValue(refreshImmediate), () => toValue(panel), () => toValue(params)],

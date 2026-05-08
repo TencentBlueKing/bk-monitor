@@ -189,6 +189,7 @@ export default defineComponent({
             },
           },
           {
+            lazyRender: true,
             alias: 'alertEventTs',
             datasource: 'time_series',
             dataType: 'time_series',
