@@ -611,7 +611,6 @@ export default () => {
 
     getIndexSetList();
     store.dispatch('requestFavoriteList');
-    requestSceneConfigs();
   };
 
   watch(spaceUid, () => {

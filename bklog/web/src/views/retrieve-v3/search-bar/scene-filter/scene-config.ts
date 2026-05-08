@@ -44,20 +44,23 @@ const DEFAULT_SCENE_ICON = 'bklog-container-2';
 /**
  * 将接口返回的 SceneConfigItem 转换为内部使用的 SceneConfig。
  * - 场景名称和图标从 sceneMetaMap 映射获取，未匹配时回退到接口的 name 和默认图标。
+ * - disabled 为 true 时表示接口未返回该场景配置（仅本地映射存在），置灰展示。
  */
-export const transformSceneConfigItem = (item: SceneConfigItem): SceneConfig => {
+export const transformSceneConfigItem = (item: SceneConfigItem, disabled = false): SceneConfig => {
   const meta = sceneMetaMap[item.id];
 
-  const fields = (item.dimensions ?? []).map(dim => ({
-    name: dim.name,
-    key: dim.key,
-    fieldType: dim.type,
-    choicesType: dim.choices_type,
-    choices: dim.choices,
-    required: dim.required,
-    ops: dim.ops,
-    multiple: dim.multiple ?? true,
-  }));
+  const fields = disabled
+    ? []
+    : (item.dimensions ?? []).map(dim => ({
+      name: dim.name,
+      key: dim.key,
+      fieldType: dim.type,
+      choicesType: dim.choices_type,
+      choices: dim.choices,
+      required: dim.required,
+      ops: dim.ops,
+      multiple: dim.multiple ?? true,
+    }));
 
   return {
     type: item.id,
@@ -65,16 +68,28 @@ export const transformSceneConfigItem = (item: SceneConfigItem): SceneConfig => 
     skipI18n: meta?.skipI18n,
     icon: meta?.icon ?? DEFAULT_SCENE_ICON,
     fields,
+    disabled,
   };
 };
 
 /**
- * 将接口返回的场景配置列表转换为内部使用的配置列表
+ * 将接口返回的场景配置列表转换为内部使用的配置列表。
+ * - 接口包含的场景：正常转换，disabled = false
+ * - 接口不包含但本地映射表存在的场景：生成占位配置，disabled = true（置灰展示）
  */
 export const transformSceneConfigs = (items: SceneConfigItem[]): SceneConfig[] => {
-  return (items ?? [])
-    .filter(item => item.id in sceneMetaMap)
-    .map(transformSceneConfigItem);
+  const apiItems = items ?? [];
+  const apiIdSet = new Set(apiItems.map(item => item.id));
+
+  return Object.keys(sceneMetaMap).map(id => {
+    if (apiIdSet.has(id)) {
+      // 接口有数据，正常转换
+      const apiItem = apiItems.find(item => item.id === id)!;
+      return transformSceneConfigItem(apiItem, false);
+    }
+    // 接口无数据，但本地映射存在，生成占位配置并置灰
+    return transformSceneConfigItem({ id, name: sceneMetaMap[id].label, dimensions: [] }, true);
+  });
 };
 
 /**

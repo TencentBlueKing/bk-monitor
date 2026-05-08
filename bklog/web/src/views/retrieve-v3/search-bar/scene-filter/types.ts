@@ -128,6 +128,8 @@ export interface SceneConfig {
   icon: string;
   /** 筛选字段列表 */
   fields: FilterFieldConfig[];
+  /** 是否禁用（接口未返回该场景配置时为 true，按钮置灰展示） */
+  disabled?: boolean;
 }
 
 /** 筛选条件值 */
