@@ -38,8 +38,6 @@ export const toUnixMilliseconds = (value: unknown): string => {
     const n = Number(s);
     return String(n).padEnd(13, '0');
   }
-  // dayjs.tz(s) 会把带 +0800 的时间再按默认时区重解释一次，导致少 8 小时
-  const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s);
-  const d = hasTimezone ? dayjs(s) : dayjs.tz(s);
+  const d = dayjs(s);
   return d.isValid() ? String(d.valueOf()) : s;
 };
