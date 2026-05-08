@@ -27,6 +27,8 @@
 import { defineComponent, shallowReactive, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Alert, Button, Form, Input, Select, Sideslider } from 'bkui-vue';
+import { Message } from 'bkui-vue';
+import { checkDuplicateAppName, createApplication } from 'monitor-api/modules/rum_meta';
 import { useI18n } from 'vue-i18n';
 
 import './create-app.scss';
@@ -85,20 +87,17 @@ export default defineComponent({
     const handleShowChange = (show: boolean) => {
       emit('showChange', show);
     };
-    function checkDuplicateAppName(val) {
-      return new Promise((resolve, _reject) => {
-        setTimeout(() => {
-          if (val === 'a') {
-            resolve(true);
-          } else {
-            resolve(false);
-          }
-        }, 1000);
-      });
+    async function checkAppDuplicate(appName: string) {
+      try {
+        const res: { exists?: boolean } = await checkDuplicateAppName({ app_name: appName });
+        return !!res.exists;
+      } catch {
+        return false;
+      }
     }
     const handleSubmit = async () => {
       submitLoading.value = true;
-      const isDuplicate = await checkDuplicateAppName(formData.app_name);
+      const isDuplicate = await checkAppDuplicate(formData.app_name);
       if (isDuplicate) {
         appNameErr.value = t('应用名称已存在');
       } else {
@@ -112,14 +111,13 @@ export default defineComponent({
           description: formData.description,
           client_type: formData.client_type,
         };
-        await (() =>
-          new Promise(resolve => {
-            setTimeout(() => {
-              resolve(true);
-            }, 2000);
-          }))();
-
-        emit('success', params);
+        const res = await createApplication(params).catch(() => null);
+        if (!res) {
+          Message({ theme: 'error', message: t('创建失败') });
+          submitLoading.value = false;
+          return;
+        }
+        emit('success', res);
       }
       submitLoading.value = false;
     };
