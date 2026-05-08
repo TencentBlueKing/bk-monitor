@@ -29,12 +29,20 @@ def filter_tables_by_source(
     if source_cond is None:
         return set(tables)
 
+    if set(constants.EventSource.label_mapping().keys()) == set(source_cond.get("value") or []):
+        # 全选场景，直接根据操作符返回结果，无需再对每个表进行事件源匹配。
+        if source_cond["method"] == constants.Operation.EQ["value"]:
+            return set(tables)
+        elif source_cond["method"] == constants.Operation.NE["value"]:
+            return set()
+
     filtered_tables: set[str] = set()
     if data_labels_map is None:
         data_labels_map = utils.get_data_labels_map(bk_biz_id, tables)
 
     for table in tables:
-        __, source = constants.EVENT_ORIGIN_MAPPING.get(data_labels_map.get(table), constants.DEFAULT_EVENT_ORIGIN)
+        data_label: str = data_labels_map.get(table) or table
+        __, source = constants.EVENT_ORIGIN_MAPPING.get(data_label, constants.DEFAULT_EVENT_ORIGIN)
         if source_cond["method"] == constants.Operation.EQ["value"]:
             if source in (source_cond.get("value") or []):
                 filtered_tables.add(table)
