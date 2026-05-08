@@ -123,16 +123,27 @@ export default defineComponent({
     };
     const handleBack = () => {
       // 回退到告警列表是携带告警列表已经配置的时间范围，避免查询时间丢失
-      const { from, to } = route.query;
+      const { from, to, fromPage } = route.query;
       const { bk_biz_id } = incidentDetail.value;
-      router.push({
-        name: 'alarm-center',
-        query: {
-          alarmType: 'incident',
-          ...(from && to ? { from: from as string, to: to as string } : {}),
-          bizIds: [bk_biz_id],
-        },
-      });
+      if (fromPage === 'event') {
+        // 返回旧版告警中心
+        const { origin, pathname } = location;
+        let timeRangText = '';
+        if (from && to) {
+          timeRangText = `&from=${from}&to=${to}`;
+        }
+        window.location.href = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident&bizIds=${bk_biz_id}${timeRangText}`;
+      } else {
+        // 默认返回新版告警中心
+        router.push({
+          name: 'alarm-center',
+          query: {
+            alarmType: 'incident',
+            ...(from && to ? { from: from as string, to: to as string } : {}),
+            bizIds: [bk_biz_id],
+          },
+        });
+      }
     };
     /** 一期先不展示 */
     // const tipsItem = (val: number) => (
