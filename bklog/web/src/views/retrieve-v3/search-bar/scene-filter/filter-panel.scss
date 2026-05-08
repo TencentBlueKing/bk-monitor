@@ -173,6 +173,10 @@
         .bk-tag-input .tag-list {
           overflow-x: hidden;
         }
+
+        .bk-tag-input .tag-list .input {
+          min-width: 12px;
+        }
       }
     }
   }
