@@ -1437,8 +1437,8 @@ class GetMetricListV2Resource(Resource):
         result_table_label = serializers.ListField(allow_empty=True, child=serializers.CharField(), default=[])
         tag = serializers.CharField(default="", label="标签", allow_blank=True)
         conditions = serializers.ListField(required=False, child=serializers.DictField(), default=[], label="条件")
-        page = serializers.IntegerField(required=False, min_value=1, label="页码")
-        page_size = serializers.IntegerField(required=False, min_value=1, label="每页数目")
+        page = serializers.IntegerField(required=False, label="页码")
+        page_size = serializers.IntegerField(required=False, label="每页数目")
 
     @classmethod
     def filter_by_double_paragaphs_metric_id(cls, metrics, filter_dict: dict) -> QuerySet:
@@ -1581,9 +1581,12 @@ class GetMetricListV2Resource(Resource):
         分页过滤
         """
         count = metrics.count()
-        if params.get("page") and params.get("page_size"):
+        page = params.get("page")
+        page_size = params.get("page_size")
+        if page is not None and page_size:
+            page = max(page, 1)
             # fmt: off
-            metrics = metrics[(params["page"] - 1) * params["page_size"]: params["page"] * params["page_size"]]
+            metrics = metrics[(page - 1) * page_size: page * page_size]
             # fmt: on
         return metrics, count
 

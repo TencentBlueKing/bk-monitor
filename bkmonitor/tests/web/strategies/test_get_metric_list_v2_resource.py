@@ -9,11 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.models.metric_list_cache import MetricListCache
+from django.db.models.query import QuerySet
 from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
 
 
 class TestGetMetricListV2Resource:
-    def test_serializer_rejects_zero_page(self):
+    def test_serializer_accepts_zero_page_for_compatibility(self):
         serializer = GetMetricListV2Resource.RequestSerializer(
             data={
                 "bk_biz_id": 2,
@@ -22,8 +23,37 @@ class TestGetMetricListV2Resource:
             }
         )
 
-        assert not serializer.is_valid()
-        assert "page" in serializer.errors
+        assert serializer.is_valid()
+
+    def test_page_filter_treats_zero_page_as_first_page_when_page_size_is_positive(self, mocker):
+        mocker.patch.object(QuerySet, "count", return_value=2855)
+
+        metrics, count = GetMetricListV2Resource.page_filter(
+            MetricListCache.objects.all(),
+            {
+                "page": 0,
+                "page_size": 100,
+            },
+        )
+
+        assert count == 2855
+        assert metrics.query.low_mark == 0
+        assert metrics.query.high_mark == 100
+
+    def test_page_filter_keeps_zero_page_size_unpaginated(self, mocker):
+        mocker.patch.object(QuerySet, "count", return_value=2855)
+
+        metrics, count = GetMetricListV2Resource.page_filter(
+            MetricListCache.objects.all(),
+            {
+                "page": 0,
+                "page_size": 0,
+            },
+        )
+
+        assert count == 2855
+        assert metrics.query.low_mark == 0
+        assert metrics.query.high_mark is None
 
     def test_data_source_filter_orders_by_frequency_and_id(self):
         params = {
