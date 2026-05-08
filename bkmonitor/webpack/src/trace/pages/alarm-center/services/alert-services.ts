@@ -938,7 +938,7 @@ export class AlertService extends AlarmService {
             continue;
           }
           // 告警状态
-          if (['NOT_SHIELDED_ABNORMAL', 'SHIELDED_ABNORMAL', 'RECOVERED'].includes(item.id)) {
+          if (['NOT_SHIELDED_ABNORMAL', 'SHIELDED_ABNORMAL', 'RECOVERED', 'CLOSED'].includes(item.id)) {
             alarmStatusList.push({
               ...item,
               ...AlarmStatusIconMap[item.id],

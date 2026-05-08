@@ -131,8 +131,8 @@ export const AlarmStatusIconMap = {
     name: window.i18n.t('已恢复'),
   },
   [AlarmStatusEnum.CLOSED]: {
-    icon: 'icon-mc-close-fill',
-    iconColor: '#DCDEE5',
+    icon: 'icon-shixiao',
+    iconColor: '#8e9bb3',
     name: window.i18n.t('已失效'),
   },
 };

@@ -69,6 +69,9 @@ export interface CustomOptions {
   formatterData?: (formatter: any, target: IDataQuery) => any;
   options?: (options: any) => any;
   series?: (series: EchartSeriesItem[]) => EchartSeriesItem[];
+  tooltips?: {
+    showTotal?: boolean;
+  };
 }
 
 export const createSeries = (series: SeriesItem[], customSeries?: CustomOptions['series']) => {
@@ -548,6 +551,7 @@ export const useEcharts = ({
       isMouseOver: interactionState?.isMouseOver ?? true,
       hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
       options,
+      customTooltipsOptions: customOptions.tooltips,
     });
     return {
       ...options,
