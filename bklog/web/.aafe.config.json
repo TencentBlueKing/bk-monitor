@@ -1,0 +1,57 @@
+{
+  "runtime": ".ai-agent",
+  "template": "default",
+  "memory": {
+    "enabled": true,
+    "path": ".ai-agent/memory",
+    "categories": [
+      "design",
+      "component",
+      "habit",
+      "convention",
+      "decision",
+      "learning"
+    ],
+    "dedupe": true,
+    "summary": true
+  },
+  "framework": "vue",
+  "frameworks": [
+    "vue"
+  ],
+  "scenarios": [
+    "dashboard"
+  ],
+  "editors": [
+    "cursor",
+    "codebuddy"
+  ],
+  "packs": {
+    "frameworks": [
+      "vue"
+    ],
+    "scenarios": [
+      "dashboard"
+    ]
+  },
+  "recommendedPackages": [
+    "@aafe/core",
+    "@aafe/vue",
+    "@aafe/dashboard",
+    "@aafe/adapter-cursor",
+    "@aafe/adapter-codebuddy"
+  ],
+  "rerun": {
+    "enabled": true,
+    "maxReruns": 1,
+    "triggers": [
+      "refactor-critic:fail",
+      "merge_gate:fail"
+    ]
+  },
+  "gates": [
+    "architecture_gate",
+    "implementation_gate",
+    "merge_gate"
+  ]
+}

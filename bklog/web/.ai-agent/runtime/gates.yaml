@@ -1,0 +1,13 @@
+gates:
+  architecture_gate:
+    requires:
+      - boundaries
+      - decomposition
+      - pattern_selection
+  implementation_gate:
+    requires:
+      - risk_review
+      - extension_points
+  merge_gate:
+    requires:
+      - critic_pass

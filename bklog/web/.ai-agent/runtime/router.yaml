@@ -1,0 +1,11 @@
+routes:
+  feature:
+    pipeline: feature
+  refactor:
+    pipeline: refactor
+  bugfix:
+    pipeline: bugfix
+  performance:
+    pipeline: performance
+  graphFeature:
+    pipeline: graph-feature
