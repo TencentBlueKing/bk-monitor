@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -15,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 class GroupEnum:
     TRPC: str = "trpc"
     RESOURCE: str = "resource"
+    SPAN: str = "span"
 
     @classmethod
     def choices(cls):
@@ -23,6 +23,7 @@ class GroupEnum:
 
 class CalculationType:
     REQUEST_TOTAL = "request_total"
+    ERROR_COUNT = "error_count"
     AVG_DURATION = "avg_duration"
     EXCEPTION_RATE = "exception_rate"
     TIMEOUT_RATE = "timeout_rate"

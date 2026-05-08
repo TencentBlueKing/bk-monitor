@@ -25,14 +25,13 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL
+from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL, CallSide
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -46,8 +45,8 @@ def get_rpc_service_config_from_metric_or_none(
     bk_biz_id: int, app_name: str, table_id: str, service_name: str
 ) -> dict[str, Any] | None:
     metric_fields: list[str] = [
-        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
-        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[CallSide.CALLER.value]["rpc_handled_total"],
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[CallSide.CALLEE.value]["rpc_handled_total"],
     ]
     metric_exists: bool = MetricListCache.objects.filter(
         bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),

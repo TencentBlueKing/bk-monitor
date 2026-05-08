@@ -15,10 +15,9 @@ from collections.abc import Callable
 from django.db.models import Q
 from django.utils.functional import cached_property
 
-from apm_web.metric.constants import SeriesAliasType
 from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from constants.apm import MetricTemporality, RPCMetricTag
+from constants.apm import MetricTemporality, RPCMetricTag, CallSide
 
 from .. import base, define
 
@@ -58,13 +57,13 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     PANIC_METRIC_FIELD: str = "trpc_PanicNum"
 
     METRIC_FIELDS: dict[str, dict[str, str]] = {
-        SeriesAliasType.CALLER.value: {
+        CallSide.CALLER.value: {
             "rpc_handled_total": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
             "rpc_handled_seconds_sum": TRPCMetricField.RPC_CLIENT_HANDLED_SECONDS_SUM,
             "rpc_handled_seconds_count": TRPCMetricField.RPC_CLIENT_HANDLED_SECONDS_COUNT,
             "rpc_handled_seconds_bucket": TRPCMetricField.RPC_CLIENT_HANDLED_SECONDS_BUCKET,
         },
-        SeriesAliasType.CALLEE.value: {
+        CallSide.CALLEE.value: {
             "rpc_handled_total": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
             "rpc_handled_seconds_sum": TRPCMetricField.RPC_SERVER_HANDLED_SECONDS_SUM,
             "rpc_handled_seconds_count": TRPCMetricField.RPC_SERVER_HANDLED_SECONDS_COUNT,
@@ -83,7 +82,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         **kwargs,
     ):
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
-        self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
+        self.kind: str = kwargs.get("kind") or CallSide.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
         self.time_shift: str | None = kwargs.get("time_shift")
         # 预留 interval 可配置入口
@@ -97,8 +96,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:
         return self.get_calculation_method(calculation_type)(**kwargs)
 
-    def query_config(self, calculation_type: str, **kwargs) -> dict[str, Any]:
-        return self._get_qs(calculation_type).query_config
+    def query_config(self, calculation_type: str, raw: bool = False, **kwargs) -> dict[str, Any]:
+        return self._export_qs(self._get_qs(calculation_type), raw=raw)
 
     class Meta:
         name = define.GroupEnum.TRPC
