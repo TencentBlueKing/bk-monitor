@@ -80,7 +80,7 @@ export const conditionAlertQueryFieldReplace = (conditions: IWhereItem[], impact
     }
 
     // 展开每个 alert_query_field group，同组内各 key 生成独立 condition
-    const expanded = transformSingleInstanceFields(targetInstance.alert_query_fields);
+    const expanded = transformSingleInstanceFields(targetInstance.alert_query_fields, c.method);
     result.push(...expanded);
   }
 
@@ -125,7 +125,8 @@ function mergeConditionsByUniqueKey(result: IWhereItem[]): IWhereItem[] {
  * 每个 key 生成一条独立 condition，value 保持原值，method 默认 eq，condition 来自原字段组
  */
 function transformSingleInstanceFields(
-  fields?: Array<{ condition: string; keys: string[]; value: string }>
+  fields?: Array<{ condition: string; keys: string[]; value: string }>,
+  method?: string
 ): IWhereItem[] {
   if (!fields?.length) return [];
 
@@ -133,8 +134,8 @@ function transformSingleInstanceFields(
     group.keys.map(key => ({
       key,
       value: [group.value],
-      method: 'eq',
-      condition: group.condition as IWhereItem['condition'],
+      method: method || 'eq',
+      condition: method === 'neq' ? 'and' : (group.condition as IWhereItem['condition']),
     }))
   );
 }
