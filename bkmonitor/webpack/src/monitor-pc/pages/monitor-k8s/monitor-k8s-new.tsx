@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Provide, ProvideReactive, Watch, Inject } from 'vue-property-decorator';
 
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random, tryURLDecodeParse } from 'monitor-common/utils';
@@ -106,6 +106,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   // 场景
   @ProvideReactive('scene')
   scene: SceneEnum = SceneEnum.Performance;
+  @Inject('isApmMonitor') isApmMonitor = false;
   // 集群
   cluster = '';
   /** 集群选择器下拉折叠状态 */
@@ -835,31 +836,33 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
               }}
               class='monitor-k8s-new-content'
             >
-              <div class='content-left'>
-                <K8sLeftPanel>
-                  <K8sDimensionList
-                    key='dimension-list'
-                    commonParams={this.commonParams as ICommonParams}
-                    filterBy={this.filterBy}
-                    groupBy={this.groupFilters}
-                    onClearFilterBy={this.clearFilterBy}
-                    onDimensionTotal={this.dimensionTotalChange}
-                    onDrillDown={this.handleTableGroupChange}
-                    onFilterByChange={this.filterByChange}
-                    onGroupByChange={this.groupByChange}
-                  />
-                  <K8sMetricList
-                    key='metric-list'
-                    activeMetric={this.activeMetricId}
-                    disabledMetricList={this.disabledMetricList}
-                    hideMetrics={this.resultHideMetrics}
-                    loading={this.metricLoading}
-                    metricList={this.metricList}
-                    onHandleItemClick={this.handleMetricItemClick}
-                    onMetricHiddenChange={this.metricHiddenChange}
-                  />
-                </K8sLeftPanel>
-              </div>
+              {!this.isApmMonitor && (
+                <div class='content-left'>
+                  <K8sLeftPanel>
+                    <K8sDimensionList
+                      key='dimension-list'
+                      commonParams={this.commonParams as ICommonParams}
+                      filterBy={this.filterBy}
+                      groupBy={this.groupFilters}
+                      onClearFilterBy={this.clearFilterBy}
+                      onDimensionTotal={this.dimensionTotalChange}
+                      onDrillDown={this.handleTableGroupChange}
+                      onFilterByChange={this.filterByChange}
+                      onGroupByChange={this.groupByChange}
+                    />
+                    <K8sMetricList
+                      key='metric-list'
+                      activeMetric={this.activeMetricId}
+                      disabledMetricList={this.disabledMetricList}
+                      hideMetrics={this.resultHideMetrics}
+                      loading={this.metricLoading}
+                      metricList={this.metricList}
+                      onHandleItemClick={this.handleMetricItemClick}
+                      onMetricHiddenChange={this.metricHiddenChange}
+                    />
+                  </K8sLeftPanel>
+                </div>
+              )}
               <div class='content-right'>
                 <div class='content-tab-wrap'>
                   <bk-tab
