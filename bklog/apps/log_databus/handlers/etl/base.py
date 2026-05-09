@@ -395,7 +395,7 @@ class EtlHandler:
         storage_cluster_id = storage["cluster_config"]["cluster_id"]
         retention = storage["storage_config"].get("retention")
         allocation_min_days = storage["storage_config"].get("warm_phase_days")
-        storage_replies = storage["storage_config"]["index_settings"]["number_of_replicas"]
+        storage_replies = storage["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
         _, table_id = self.data.table_id.split(".")
         self.update_or_create(
             etl_config=EtlConfig.BK_LOG_TEXT,

@@ -1655,10 +1655,12 @@ class CollectorHandler:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
 
             default_etl_params = {
-                "es_shards": result_table["storage_config"]["index_settings"]["number_of_shards"],
-                "storage_replies": result_table["storage_config"]["index_settings"]["number_of_replicas"],
+                "es_shards": result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1),
+                "storage_replies": (
+                    result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
+                ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
-                "retention": result_table["storage_config"]["retention"],
+                "retention": result_table["storage_config"].get("retention", 0),
                 "allocation_min_days": params.get("allocation_min_days", 0),
                 "etl_config": self.data.etl_config,
             }
