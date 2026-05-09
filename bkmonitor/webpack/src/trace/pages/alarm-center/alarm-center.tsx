@@ -70,6 +70,7 @@ import {
   type AlertAllActionEnum,
   type AlertContentNameEditInfo,
   type AlertTableItem,
+  type ColumnResizeContext,
   type CommonCondition,
   AlarmType,
   CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS,
@@ -1175,6 +1176,10 @@ export default defineComponent({
                             selectedRowKeys={this.selectedRowKeys}
                             sort={this.ordering}
                             timeRange={this.alarmStore.timeRange}
+                            onColumnResizeChange={(ctx: ColumnResizeContext) => {
+                              if (ctx?.columnsWidth)
+                                this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
+                            }}
                             onCurrentPageChange={this.handleCurrentPageChange}
                             onDisplayColFieldsChange={displayColFields => {
                               this.storageColumns = displayColFields;
