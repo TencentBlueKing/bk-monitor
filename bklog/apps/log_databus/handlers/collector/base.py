@@ -128,10 +128,12 @@ class CollectorHandler:
     def __init__(self, collector_config_id=None, data=None):
         self.collector_config_id = collector_config_id
         self.data = data if data else None
+        self.storage_cluster_type = STORAGE_CLUSTER_TYPE
 
         if collector_config_id and not data:
             try:
                 self.data = CollectorConfig.objects.get(collector_config_id=self.collector_config_id)
+                self.storage_cluster_type = self.data.storage_cluster_type
             except CollectorConfig.DoesNotExist:
                 raise CollectorConfigNotExistException()
 
@@ -184,7 +186,7 @@ class CollectorHandler:
             multi_execute_func.append(
                 "result_table_storage",
                 TransferApi.get_result_table_storage,
-                params={"result_table_list": self.data.table_id, "storage_type": "elasticsearch"},
+                params={"result_table_list": self.data.table_id, "storage_type": self.storage_cluster_type},
                 use_request=use_request,
             )
         if self.data.subscription_id:
@@ -1604,7 +1606,7 @@ class CollectorHandler:
             table_id = self.data.table_id
             # 更新场景，需要把之前的存储设置拿出来，和更新的配置合并一下
             result_table_info = TransferApi.get_result_table_storage(
-                {"result_table_list": table_id, "storage_type": "elasticsearch"}
+                {"result_table_list": table_id, "storage_type": self.storage_cluster_type}
             )
             result_table = result_table_info.get(table_id, {})
             if not result_table:
