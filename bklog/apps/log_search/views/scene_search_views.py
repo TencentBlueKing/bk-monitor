@@ -824,7 +824,6 @@ class SceneSearchViewSet(APIViewSet):
         ).get_export_history(
             request=request, view=self, show_all=data["show_all"],
             table_id_conditions=data["table_id_conditions"],
-            page=data["page"], pagesize=data["pagesize"],
         )
 
     @list_route(methods=["POST"], url_path="history")
