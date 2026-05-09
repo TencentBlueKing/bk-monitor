@@ -154,6 +154,8 @@ class TestAssignBizCacheType:
             }
         )
         assert result["exists"] is True
+        assert result["source_state"] == "current_cache_state"
+        assert result["data"]["source_state"] == "current_cache_state"
         assert result["data"]["bk_biz_id"] == 2
         assert "10" in result["data"]["groups"]
         assert "20" in result["data"]["groups"]

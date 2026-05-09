@@ -411,6 +411,7 @@ def _read_assign(params: dict[str, Any]) -> dict[str, Any]:
             rules[str(group_id)] = rule_list
 
     data = {
+        "source_state": "current_cache_state",
         "bk_biz_id": bk_biz_id,
         "priorities": sorted(priority_list, reverse=True),
         "groups": groups,
@@ -418,6 +419,7 @@ def _read_assign(params: dict[str, Any]) -> dict[str, Any]:
     }
     return {
         "cache_type": "assign.biz",
+        "source_state": "current_cache_state",
         "params": {"bk_biz_id": bk_biz_id},
         "exists": len(priority_list) > 0,
         "data": data,
