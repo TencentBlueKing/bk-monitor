@@ -298,7 +298,9 @@ const requestIndexSetList = () => {
   if (route.query.tab === 'origin' || !route.query.tab) {
     if (isSceneMode.value) {
       store.dispatch('requestIndexSetFieldInfo').then((resp) => {
-        store.dispatch('requestIndexSetQuery');
+        if(resp?.data?.fields?.length){
+          store.dispatch('requestIndexSetQuery');
+        }
       });
     } else {
       store.dispatch('requestIndexSetQuery');
@@ -397,6 +399,9 @@ const handleBtnQueryClick = () => {
  * @param value
  */
 const handleSqlRetrieve = (value) => {
+  // 场景化检索模式下，未选择过滤条件时不允许查询
+  if (isQueryBtnDisabled.value) return;
+
   if (isGloalUsage.value) {
     if (value !== '*') {
       beforeQueryBtnClick().then(() => {
