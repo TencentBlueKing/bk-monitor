@@ -28,6 +28,7 @@ import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 import { Alert, Button, Message, Sideslider } from 'bkui-vue';
 import { queryRumTokenInfo } from 'monitor-api/modules/rum_meta';
 import { copyText } from 'monitor-common/utils';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import { PROTOCOLS } from './sdk-protocols';
@@ -45,6 +46,9 @@ type EOperateType = (typeof operateTypeMap)[keyof typeof operateTypeMap];
 
 export default defineComponent({
   name: 'SDKReport',
+  directive: {
+    OverflowTips,
+  },
   props: {
     show: {
       type: Boolean,
@@ -55,6 +59,7 @@ export default defineComponent({
       default: () => null,
     },
   },
+
   emits: {
     showChange: (_v: boolean) => true,
   },
@@ -66,15 +71,21 @@ export default defineComponent({
     const tokenRef = shallowRef('');
     const tokenLoading = shallowRef(false);
 
+    /** 侧栏弹出时获取 token；关闭时重置状态防止下次打开残留旧数据 */
     watch(
       () => props.show,
       async show => {
-        if (!show || !props.appInfo?.app_name || !props.appInfo?.bk_biz_id) return;
+        if (!show) {
+          tokenRef.value = '';
+          protocol.value = PROTOCOLS[0].id;
+          return;
+        }
+        if (!props.appInfo?.app_name || !props.appInfo?.bk_biz_id) return;
         tokenLoading.value = true;
         queryRumTokenInfo({
           bk_biz_id: props.appInfo.bk_biz_id,
           app_name: props.appInfo.app_name,
-          application_id: props.appInfo.application_id,
+          // application_id: props.appInfo.application_id,
         })
           .then(res => {
             tokenRef.value = res ?? '';
@@ -87,16 +98,22 @@ export default defineComponent({
           });
       }
     );
+
     const handleShowChange = (show: boolean) => {
       emit('showChange', show);
     };
+
+    /** 切换 SDK 协议 */
     const handleProtocolChange = id => {
       protocol.value = id;
     };
+    /** 跳过接入，直接关闭侧栏 */
     const handleSkip = () => {
       handleShowChange(false);
     };
+    /** 复制 token 到剪贴板，空 token 时不执行 */
     const handleCopyToken = () => {
+      if (!tokenRef.value) return;
       copyText(tokenRef.value, (msg: string) => {
         Message({
           message: msg,
@@ -109,9 +126,12 @@ export default defineComponent({
         theme: 'success',
       });
     };
+    /** 重置 token（待实现） */
     const handleResetToken = () => {
       console.log('reset token');
     };
+
+    /** 确认关闭侧栏 */
     const handleSubmit = async () => {
       handleShowChange(false);
       // if (submitLoading.value) {
@@ -143,6 +163,7 @@ export default defineComponent({
     };
   },
   render() {
+    /** 渲染单步引导项：标题 + 描述 + 内容 */
     const stepRender = (
       stepInfo: { index: number; title: string } = { index: 0, title: '' },
       descRender: () => JSX.Element = () => <span />,
@@ -161,6 +182,7 @@ export default defineComponent({
       );
     };
 
+    /** 渲染所有引导步骤列表 */
     const stepListRender = () => {
       const stepRenderMap = {
         1: {
@@ -248,7 +270,12 @@ export default defineComponent({
                 <div class='right-wrap'>
                   <div class='right-wrap-top'>{this.appInfo?.app_name || '--'}</div>
                   <div class='right-wrap-bottom'>
-                    <span class='desc-text'>{this.appInfo?.app_alias || '--'}</span>
+                    <span
+                      class='desc-text'
+                      v-overflow-tips
+                    >
+                      {this.appInfo?.app_alias || '--'}
+                    </span>
                     <span class='split-line' />
                     <span class='token-title'>TOKEN:</span>
                     <span class='token-text'>

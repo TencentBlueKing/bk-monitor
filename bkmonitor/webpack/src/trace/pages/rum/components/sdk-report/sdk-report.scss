@@ -47,6 +47,7 @@
       min-height: 61px;
       padding: 10px 12px;
       margin-bottom: 40px;
+      overflow: hidden;
       background: #f7f9fc;
       border: 1px solid #e4e9f2;
       border-radius: 8px;
@@ -70,6 +71,8 @@
       }
 
       .right-wrap {
+        overflow: hidden;
+
         .right-wrap-top {
           font-size: 14px;
           font-weight: 500;
@@ -79,11 +82,15 @@
 
         .right-wrap-bottom {
           display: inline-flex;
-          flex-wrap: wrap;
           align-items: center;
+          max-width: 100%;
+          overflow: hidden;
           line-height: 20px;
 
           .desc-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
             font-size: 12px;
             color: #8896b3;
           }
