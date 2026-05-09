@@ -1433,6 +1433,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             cls.SHIELD_ABNORMAL_STATUS_NAME: 0,
             cls.NOT_SHIELD_ABNORMAL_STATUS_NAME: 0,
             EventStatus.RECOVERED: 0,
+            EventStatus.CLOSED: 0,
         }
 
         if search_result.aggs:
@@ -1487,6 +1488,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "id": EventStatus.RECOVERED,
                     "name": _("已恢复"),
                     "count": agg_result[EventStatus.RECOVERED],
+                },
+                {
+                    "id": EventStatus.CLOSED,
+                    "name": _("已失效"),
+                    "count": agg_result[EventStatus.CLOSED],
                 },
             ],
         }
@@ -1651,7 +1657,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             "strategy_id": StrategyTranslator(),
             "category": CategoryTranslator(),
             "plugin_id": PluginTranslator(),
-            "bk_topo_node": TopoNodeTranslator(bk_biz_ids=bk_biz_ids), # noqa
+            "bk_topo_node": TopoNodeTranslator(bk_biz_ids=bk_biz_ids),  # noqa
         }
 
         result = super().top_n(fields, size, translators, char_add_quotes)

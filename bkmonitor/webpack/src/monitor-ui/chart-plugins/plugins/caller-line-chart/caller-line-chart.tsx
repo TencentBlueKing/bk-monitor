@@ -32,6 +32,7 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/cancel';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -1129,18 +1130,17 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 2: {
         const eventTargetStr = alarmStatus.targetStr;
-        window.open(
-          location.href.replace(
-            location.hash,
-            `#/event-center?queryString=${Array.from(new Set(metricIds))
-              .map(item => `metric : "${item}"`)
-              .join(' AND ')} AND ${this.getFetchItemStatusParams()
-              ?.labels?.map(item => `策略标签 : "${item}"`)
-              .join(' AND ')}${
-              eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-          )
-        );
+        const queryString = `${Array.from(new Set(metricIds))
+          .map(item => `metric : "${item}"`)
+          .join(' AND ')} AND ${this.getFetchItemStatusParams()
+          ?.labels?.map(item => `策略标签 : "${item}"`)
+          .join(' AND ')}${eventTargetStr ? ` AND ${eventTargetStr}` : ''}`;
+        openAlarmCenter({
+          queryString,
+          activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+          from: this.timeRange[0],
+          to: this.timeRange[1],
+        });
         break;
       }
     }

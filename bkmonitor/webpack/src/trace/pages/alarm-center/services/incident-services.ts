@@ -167,16 +167,15 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'incident_reason',
     alias: window.i18n.t('故障原因'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.text,
     methods: [
       {
-        alias: '=',
-        value: 'eq',
+        alias: window.i18n.t('包含'),
+        value: 'include',
       },
       {
-        alias: '!=',
-        value: 'neq',
+        alias: window.i18n.t('不包含'),
+        value: 'exclude',
       },
     ],
   },
@@ -279,8 +278,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'create_time',
     alias: window.i18n.t('故障检出时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -295,8 +293,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'update_time',
     alias: window.i18n.t('故障更新时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -311,8 +308,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'begin_time',
     alias: window.i18n.t('故障开始时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -327,8 +323,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'end_time',
     alias: window.i18n.t('故障结束时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',

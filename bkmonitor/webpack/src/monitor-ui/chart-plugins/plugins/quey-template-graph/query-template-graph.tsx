@@ -32,6 +32,7 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/cancel';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -795,14 +796,15 @@ class QueryTemplateGraph extends CommonSimpleChart {
       }
       case 'relate-alert': {
         // 关联告警
-        const queryString = this.panel.toRelateEvent();
-        queryString &&
-          window.open(
-            location.href.replace(
-              location.hash,
-              `#/event-center?from=${this.timeRange[0]}&to=${this.timeRange[1]}&timezone=${window.timezone}&${queryString}`
-            )
-          );
+        const relateQuery = this.panel.toRelateEvent();
+        if (relateQuery) {
+          openAlarmCenter({
+            from: this.timeRange[0],
+            to: this.timeRange[1],
+            timezone: window.timezone,
+            ...relateQuery,
+          });
+        }
         break;
       }
       default:
@@ -896,14 +898,15 @@ class QueryTemplateGraph extends CommonSimpleChart {
         break;
       case 2: {
         const eventTargetStr = alarmStatus.targetStr;
-        window.open(
-          location.href.replace(
-            location.hash,
-            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
-              eventTargetStr ? ` AND ${eventTargetStr}` : ''
-            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-          )
-        );
+        const queryString = `${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+          eventTargetStr ? ` AND ${eventTargetStr}` : ''
+        }`;
+        openAlarmCenter({
+          queryString,
+          activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+          from: this.timeRange[0],
+          to: this.timeRange[1],
+        });
         break;
       }
     }

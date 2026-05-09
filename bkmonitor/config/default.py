@@ -552,6 +552,12 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
 # 是否下发平台级别字段标准化配置
 APM_FIELD_NORMALIZER_ENABLED = True
 
+# 监控管理业务，用于全局资源的注册或初始化等场景
+BKAPP_ADMIN_BIZ_ID = int(os.environ.get("BKAPP_ADMIN_BIZ_ID", 2))
+
+# APM 共享数据源匹配规则配置
+APM_SHARED_DATASOURCE_RULES = {}
+
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
@@ -1275,7 +1281,7 @@ BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PA
 ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
-    "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}",
+    "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 

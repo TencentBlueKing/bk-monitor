@@ -27,6 +27,7 @@ import { reactive } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
+import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import { LEVEL_LIST, STATUS_LIST } from '../constant';
 
 /** 文案对应表 */
@@ -87,7 +88,7 @@ export const handleFun = (data, callback) => {
   callback?.(data);
   const node = JSON.parse(JSON.stringify({ ...data }));
   node.id = data.alert_id;
-  window.__BK_WEWEB_DATA__?.showDetailSlider?.(node);
+  // window.__BK_WEWEB_DATA__?.showDetailSlider?.(node);
 };
 
 /** 故障合并相关渲染函数 */
@@ -122,10 +123,18 @@ export const handleDetail = (e, data, id, bizId, callback) => {
 };
 /** 点击告警名 */
 export const handleAlertName = (extra_info, callback) => {
+  const { updateAlarmDetailData } = incidentAlarmDetailInject();
   return (
     <span
       class='link cursor'
-      onClick={() => handleFun(extra_info, callback)}
+      onClick={() => {
+        handleFun(extra_info, callback);
+        extra_info.alert_id &&
+          updateAlarmDetailData({
+            bk_biz_id: extra_info.bk_biz_id ?? window.cc_biz_id ?? window.bk_biz_id,
+            id: extra_info.alert_id,
+          });
+      }}
     >
       {extra_info.alert_name}
     </span>

@@ -118,6 +118,19 @@
         <img :src="aiImageUrl" />
       </span>
     </template>
+    <template v-if="showTraceInput">
+      <span
+        class="handle-card"
+      >
+        <span
+          class="icon bklog-icon bklog-tracing"
+          v-bk-tooltips="{ allowHtml: false, content: $t('关联Trace检索') }"
+          @click.stop="handleCheckClick('trace_id', true)"
+          @mouseup.stop
+        >
+        </span>
+      </span>
+    </template>
   </div>
 </template>
 
@@ -206,10 +219,60 @@
       isShowSourceField() {
         return this.operatorConfig?.isShowSourceField;
       },
+      showTraceInput() {
+        return this.$store.state.indexSetFieldConfig?.apm_relation?.is_active ?? false;
+      }
     },
     methods: {
+      getTraceIdFromRowData() {
+        const traceId = this.rowData.trace_id;
+        if (traceId) {
+          return traceId;
+        }
+
+        for (let v of Object.values(this.rowData)) {
+          if (typeof v === 'string') {
+            const traceIdPattern = /^[a-f0-9]{32}$/;
+            const match = v.match(traceIdPattern);
+            if (match) {
+              return match[0];
+            }
+          }
+
+          if (typeof v === 'object') {
+            const jsonValue = JSON.stringify(v);
+            const traceIdPattern = /^[a-f0-9]{32}$/;
+            const match = jsonValue.match(traceIdPattern);
+            if (match) {
+              return match[0];
+            }
+          }
+        }
+
+        return null;
+      },
       handleCheckClick(clickType, isActive = false, event) {
         if (!isActive) return;
+
+        if (clickType === 'trace_id') {
+          const apmRelation = this.$store.state.indexSetFieldConfig?.apm_relation;
+          const traceId = this.getTraceIdFromRowData() ;
+          if (apmRelation?.is_active && traceId) {
+            const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
+            path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+            if (path) {
+              const url = `${window.MONITOR_URL}${path}`;
+              window.open(url, '_blank');
+            }
+          } else {
+            this.$bkMessage({
+              theme: 'warning',
+              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+            });
+          }
+
+          return;
+        }
         return this.handleClick(clickType, event);
       },
     },

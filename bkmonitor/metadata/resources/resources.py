@@ -1553,7 +1553,7 @@ class TimeSeriesMetricConditionQueryMixin:
         elif search_type == "fuzzy_case_sensitive":
             return Q(field_name__contains=value)
         elif search_type == "fuzzy":
-            return Q(field_name__iregex=re.escape(value))
+            return Q(field_name__icontains=value)
         elif search_type == "exact_case_sensitive":
             return Q(field_name=value)
         elif search_type == "startswith":
@@ -1567,7 +1567,7 @@ class TimeSeriesMetricConditionQueryMixin:
         elif search_type == "regex":
             return Q(field_config__alias__iregex=value)
         elif search_type == "fuzzy_case_sensitive":
-            return Q(field_config__alias__regex=re.escape(value))
+            return Q(field_config__alias__contains=value)
         elif search_type == "fuzzy":
             return Q(field_config__alias__icontains=value)
         elif search_type == "exact_case_sensitive":
