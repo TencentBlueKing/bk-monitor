@@ -30,7 +30,12 @@ import { byteConvert } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import CommonTable from '../../../alarm-center/components/alarm-table/components/common-table/common-table';
-import { applicationSetup, getIndicesInfoMock, getStorageFieldMock, storageInfo } from '../mock';
+import {
+  getFieldInfoData,
+  getIndicesInfoData,
+  getStorageInfoData,
+  updateAppStorageConfig,
+} from '../services/app-config';
 import EditableField from './editable-field';
 import EmptyStatus from '@/components/empty-status/empty-status';
 import TextOverflowCopy from '@/components/text-overflow-copy/text-overflow-copy';
@@ -40,6 +45,7 @@ import type { IIndicesInfo, IRumAppConfig, IStorageField, IStorageInfo } from '.
 
 import './storage-status.scss';
 
+/** 索引信息表格列名映射 */
 export const indicesInfoTableColumnKey = {
   Index: 'index',
   Health: 'health',
@@ -49,6 +55,7 @@ export const indicesInfoTableColumnKey = {
   StoreSize: 'store_size',
 };
 
+/** 字段信息表格列名映射 */
 export const fieldInfoTableColumnKey = {
   FieldName: 'field_name',
   ChFieldName: 'ch_field_name',
@@ -121,7 +128,7 @@ export default defineComponent({
     const handleFieldChange = async (value: number | string, field: keyof IStorageInfo) => {
       const res = checkField(value, field);
       if (!res.isPass) return res;
-      const isSuccess = await applicationSetup({
+      const isSuccess = await updateAppStorageConfig({
         bk_biz_id: props.detail?.bk_biz_id,
         app_name: props.detail?.app_name,
         span_datasource_config: {
@@ -149,19 +156,23 @@ export default defineComponent({
     };
 
     /** 获取存储信息 */
-    const getStorageInfo = async () => {
-      storageData.value = await storageInfo({
-        bk_biz_id: props.detail?.bk_biz_id,
-        app_name: props.detail?.app_name,
-      }).catch(() => ({
-        es_number_of_replicas: 0,
-        es_retention: 14,
-        es_shards: 3,
-        es_slice_size: 100,
-        es_storage_cluster: '蓝鲸运维APM公共集群',
-      }));
+    const fetchStorageInfoData = async () => {
+      storageData.value = await getStorageInfoData(
+        {
+          bk_biz_id: props.detail?.bk_biz_id,
+          app_name: props.detail?.app_name,
+        },
+        {
+          es_number_of_replicas: 0,
+          es_retention: 14,
+          es_shards: 3,
+          es_slice_size: 100,
+          es_storage_cluster: '',
+        }
+      );
     };
 
+    /** 判断行数据是否满足筛选条件 */
     const rowMatchesCriteria = (row, c): boolean => {
       const keys = Object.keys(c);
       for (const key of keys) {
@@ -233,9 +244,13 @@ export default defineComponent({
       },
     ]);
     /** 索引列表 */
+    /** 索引列表数据 */
     const indicesInfoData = shallowRef<IIndicesInfo[]>([]);
+    /** 索引表格筛选条件 */
     const indicesTableFilters = shallowRef({});
+    /** 索引表格排序条件 */
     const indicesTableSorts = shallowRef('');
+    /** 带筛选和排序的索引表格数据 */
     const indicesTableData = computed(() => {
       const filters = indicesTableFilters.value;
       let tableData = [...indicesInfoData.value];
@@ -250,14 +265,17 @@ export default defineComponent({
       }
       return tableData;
     });
-    const getIndicesInfo = async () => {
-      indicesInfoData.value = await getIndicesInfoMock({
+    /** 获取物理索引数据 */
+    const fetchIndicesInfoData = async () => {
+      indicesInfoData.value = await getIndicesInfoData({
         app_name: props.detail?.app_name,
-      }).catch(() => []);
+      });
     };
+    /** 索引表格筛选变更 */
     const handleIndicesInfoFilterChange = filters => {
       indicesTableFilters.value = filters;
     };
+    /** 索引表格排序变更 */
     const handleIndicesSortChange = sorts => {
       indicesTableSorts.value = sorts;
     };
@@ -318,9 +336,13 @@ export default defineComponent({
         }) as unknown as BaseTableColumn['cellRenderer'],
       },
     ]);
+    /** 字段信息数据 */
     const fieldInfoData = shallowRef<IStorageField[]>([]);
+    /** 字段表格筛选条件 */
     const filedTableFilters = shallowRef({});
+    /** 字段类型筛选列表 */
     const fieldFilterList = shallowRef([]);
+    /** 带筛选的字段表格数据 */
     const fieldTableData = computed(() => {
       const filters = filedTableFilters.value;
       if (!Object.keys(filters).length) return fieldInfoData.value;
@@ -346,11 +368,16 @@ export default defineComponent({
       return filterList;
     };
 
-    const getFieldInfo = async () => {
-      fieldInfoData.value = await getStorageFieldMock().catch(() => []);
+    /** 获取字段信息数据并生成字段类型筛选列表 */
+    const fetchFieldInfo = async () => {
+      fieldInfoData.value = await getFieldInfoData({
+        bk_biz_id: props.detail?.bk_biz_id,
+        app_name: props.detail?.app_name,
+      });
       fieldFilterList.value = getFieldFilterList(fieldInfoData.value);
     };
 
+    /** 字段表格筛选变更，将 yes/no 字符串转为布尔值以匹配数据 */
     const handleFieldTableFilterChange = value => {
       const filters = JSON.parse(JSON.stringify(value));
       const booleanField = [fieldInfoTableColumnKey.AnalysisField, fieldInfoTableColumnKey.TimeField];
@@ -363,9 +390,9 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      getIndicesInfo();
-      getFieldInfo();
-      getStorageInfo();
+      fetchIndicesInfoData();
+      fetchFieldInfo();
+      fetchStorageInfoData();
     });
 
     return {
