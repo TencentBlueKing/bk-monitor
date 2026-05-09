@@ -11,6 +11,7 @@ from io import StringIO
 from typing import Any, Dict, List
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 from apps.api import UnifyQueryApi
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
@@ -27,6 +28,7 @@ from apps.log_search.constants import (
 )
 from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.local import get_local_param, get_request_external_username, get_request_username
 from apps.utils.log import logger
@@ -411,6 +413,50 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         sort_list = self.origin_order_by or [["dtEventTimeStamp", "desc"]]
 
+        field_name_set = {f.get("field_name", "") for f in field_list}
+        config_list: list = []
+
+        analyze = UnifyQueryMappingHandler.analyze_fields(field_list)
+        ctx_active = bool(analyze.get("context_search_usable"))
+        config_list.append({
+            "name": "context_and_realtime",
+            "is_active": ctx_active,
+            "extra": (
+                {"reason": "", "context_fields": analyze.get("context_fields", [])}
+                if ctx_active
+                else {"reason": analyze.get("usable_reason", "")}
+            ),
+        })
+
+        bkm_active = ("ip" in field_name_set) or ("serverIp" in field_name_set)
+        config_list.append({
+            "name": "bkmonitor",
+            "is_active": bkm_active,
+            "extra": {} if bkm_active else {"reason": _("缺少字段, ip 和 serverIp 不能同时为空")},
+        })
+
+        bcs_domain = getattr(settings, "BCS_WEB_CONSOLE_DOMAIN", "") or ""
+        if not bcs_domain:
+            bcs_active, bcs_extra = False, {"reason": _("未配置BCS WEB CONSOLE")}
+        else:
+            container_field_pairs = (
+                ("cluster", "container_id"),
+                ("__ext.io_tencent_bcs_cluster", "__ext.container_id"),
+                ("__ext.bk_bcs_cluster_id", "__ext.container_id"),
+            )
+            bcs_active = any(
+                c in field_name_set and ci in field_name_set for c, ci in container_field_pairs
+            )
+            bcs_extra = (
+                {} if bcs_active
+                else {"reason": _("{} 不能同时为空").format(container_field_pairs)}
+            )
+        config_list.append({
+            "name": "bcs_web_console",
+            "is_active": bcs_active,
+            "extra": bcs_extra,
+        })
+
         return {
             "fields": field_list,
             "display_fields": ["dtEventTimeStamp", "log"],
@@ -419,7 +465,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "time_field": self.time_field,
             "time_field_type": "date",
             "time_field_unit": "millisecond",
-            "config": [],
+            "config": config_list,
         }
 
     def date_histogram(self, interval: str = "auto") -> dict:
