@@ -285,6 +285,12 @@ class SceneSearchHistorySerializer(_SceneRouteMixin):
     pass
 
 
+class SceneListSerializer(serializers.Serializer):
+    """场景列表查询"""
+
+    bk_biz_id = serializers.IntegerField(required=False, default=None, allow_null=True)
+
+
 class SceneExportChartDataSerializer(_SceneRouteMixin):
     """场景化导出图表数据"""
 
@@ -310,6 +316,48 @@ def _merge_scene_filters_to_addition(data: dict) -> dict:
     return data
 
 
+def _format_table_id_conditions(tic) -> str:
+    """二维数组（外层 OR、内层 AND）→ Lucene-like 字符串"""
+    if not tic:
+        return ""
+    or_groups = []
+    for and_group in tic:
+        parts = [
+            f"{c.get('field_name', '')} {c.get('op', 'eq')} {','.join(map(str, c.get('value') or []))}"
+            for c in and_group if c.get("field_name")
+        ]
+        if parts:
+            or_groups.append(" AND ".join(parts))
+    return ("(" + " OR ".join(f"({g})" for g in or_groups) + ")") if or_groups else ""
+
+
+def _format_scene_filter_values(filters) -> str:
+    if not filters:
+        return ""
+    parts = [
+        f"{f['field']} {f['operator']} {f.get('value', '')}"
+        for f in filters if f.get("field") and f.get("operator")
+    ]
+    return ("(" + " AND ".join(parts) + ")") if parts else ""
+
+
+def _build_scene_query_string(params: dict) -> str:
+    """场景化检索的可读预览：table_id_conditions AND scene_filter_values AND keyword/addition"""
+    from apps.utils.lucene import generate_query_string
+
+    pieces = []
+    tic = _format_table_id_conditions(params.get("table_id_conditions"))
+    if tic:
+        pieces.append(tic)
+    sfv = _format_scene_filter_values(params.get("scene_filter_values"))
+    if sfv:
+        pieces.append(sfv)
+    base = generate_query_string(params)
+    if base and base.strip():
+        pieces.append(base)
+    return " AND ".join(pieces) if pieces else "*"
+
+
 # ---------------------------------------------------------------------------
 # ViewSet
 # ---------------------------------------------------------------------------
@@ -326,14 +374,53 @@ class SceneSearchViewSet(APIViewSet):
         @api {get} /search/scene/scenes/ 场景化检索-场景列表
         @apiName scene_search_scenes
         @apiGroup 14_SceneSearch
-        @apiDescription 返回所有可用场景及其维度定义，前端据此渲染场景选择器和维度筛选器，
+        @apiDescription 返回当前业务可用场景及其维度定义，前端据此渲染场景选择器和维度筛选器，
             并拼装 table_id_conditions。
+            - 不传 bk_biz_id 时返回全部场景（向后兼容）；
+            - 传 bk_biz_id 时按 IndexSetTag(scene 路由) 主路径判定 + PaaS 兜底，容器/主机始终返回。
         """
         from apps.log_databus.constants import SCENE_SEARCH_DIMENSIONS
+        from apps.log_databus.models import CollectorConfig
         from apps.log_search.constants import SceneLabelEnum
+        from apps.log_search.models import (
+            TAG_TYPE_SCENE,
+            IndexSetTag,
+            LogIndexSet,
+        )
+        from bkm_space.utils import bk_biz_id_to_space_uid
+
+        PAAS_APP_CODES = {"bk_paas", "bk_paas3"}
+
+        data = self.params_valid(SceneListSerializer)
+        bk_biz_id = data.get("bk_biz_id")
+
+        if bk_biz_id:
+            available = {SceneLabelEnum.K8S.value, SceneLabelEnum.HOST.value}
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            active_tag_ids = set()
+            for tag_ids in LogIndexSet.objects.filter(
+                space_uid=space_uid, is_active=True
+            ).values_list("tag_ids", flat=True):
+                if tag_ids:
+                    active_tag_ids.update(int(t) for t in tag_ids if t)
+            if active_tag_ids:
+                scene_values = IndexSetTag.objects.filter(
+                    tag_id__in=active_tag_ids,
+                    tag_type=TAG_TYPE_SCENE,
+                    name="scene",
+                ).values_list("value", flat=True).distinct()
+                available.update(v for v in scene_values if v)
+            if CollectorConfig.objects.filter(
+                bk_biz_id=bk_biz_id, bk_app_code__in=PAAS_APP_CODES
+            ).exists():
+                available.add(SceneLabelEnum.BK_PAAS.value)
+        else:
+            available = {v for v, _ in SceneLabelEnum.get_choices()}
 
         scenes = []
         for value, label in SceneLabelEnum.get_choices():
+            if value not in available:
+                continue
             scenes.append({
                 "id": value,
                 "name": str(label),
@@ -352,6 +439,8 @@ class SceneSearchViewSet(APIViewSet):
         """
         data = self.params_valid(SceneSearchSerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        original_addition = list(data.get("addition") or [])
+        original_scene_filter_values = list(data.get("scene_filter_values") or [])
         data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
         result = Response(handler.search())
@@ -359,7 +448,8 @@ class SceneSearchViewSet(APIViewSet):
             "index_set_id": 0,
             "params": {
                 "keyword": data.get("keyword", "*"),
-                "addition": data.get("addition", []),
+                "addition": original_addition,
+                "scene_filter_values": original_scene_filter_values,
                 "ip_chooser": data.get("ip_chooser", {}),
                 "table_id_conditions": data["table_id_conditions"],
                 "space_uid": data["space_uid"],
@@ -744,8 +834,6 @@ class SceneSearchViewSet(APIViewSet):
         @apiGroup 14_SceneSearch
         @apiDescription 按 space_uid + table_id_conditions 查询场景化检索历史，去重后返回最近 30 条。
         """
-        from apps.utils.lucene import generate_query_string
-
         data = self.params_valid(SceneSearchHistorySerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
 
@@ -773,7 +861,7 @@ class SceneSearchViewSet(APIViewSet):
             if key in seen:
                 continue
             seen.append(key)
-            h["query_string"] = generate_query_string(params)
+            h["query_string"] = _build_scene_query_string(params)
             result.append(h)
             if len(result) >= 30:
                 break
