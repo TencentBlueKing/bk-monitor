@@ -317,15 +317,22 @@ def _merge_scene_filters_to_addition(data: dict) -> dict:
 
 
 def _format_table_id_conditions(tic) -> str:
-    """二维数组（外层 OR、内层 AND）→ Lucene-like 字符串"""
+    """二维数组（外层 OR、内层 AND）→ Lucene-like 字符串。
+
+    历史预览中跳过 field_name='scene' 这一路由维度（对用户无信息量），
+    其他维度（如 cluster_id 等）正常拼接。
+    """
     if not tic:
         return ""
     or_groups = []
     for and_group in tic:
-        parts = [
-            f"{c.get('field_name', '')} {c.get('op', 'eq')} {','.join(map(str, c.get('value') or []))}"
-            for c in and_group if c.get("field_name")
-        ]
+        parts = []
+        for c in and_group:
+            field = c.get("field_name", "")
+            if not field or field == "scene":
+                continue
+            value_str = ",".join(map(str, c.get("value") or []))
+            parts.append(f"{field} {c.get('op', 'eq')} {value_str}")
         if parts:
             or_groups.append(" AND ".join(parts))
     return ("(" + " OR ".join(f"({g})" for g in or_groups) + ")") if or_groups else ""
@@ -358,7 +365,7 @@ def _build_scene_query_string(params: dict) -> str:
     """场景化检索的可读预览。
 
     设计取舍：
-    - 不拼接 table_id_conditions（路由信息对预览无意义）
+    - table_id_conditions 仅过滤掉 scene 这个路由维度，其他维度（如 cluster_id）保留拼接
     - 过滤掉 addition 中由"场景维度 key"派生的项，避免与 scene_filter_values 重复展示，
       同时兼容修复前持久化的脏 history（addition 中混入了 scene_filter_values 转换项）
     """
@@ -372,6 +379,9 @@ def _build_scene_query_string(params: dict) -> str:
     ]
 
     pieces = []
+    tic = _format_table_id_conditions(params.get("table_id_conditions"))
+    if tic:
+        pieces.append(tic)
     sfv = _format_scene_filter_values(params.get("scene_filter_values"))
     if sfv:
         pieces.append(sfv)
