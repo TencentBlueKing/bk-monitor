@@ -45,6 +45,8 @@
     }
 
     .panel-tab-body {
+      display: flex;
+      flex-direction: column;
       height: calc(100% - 40px);
       padding: 24px;
       overflow-y: auto;

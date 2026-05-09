@@ -30,7 +30,7 @@ import CommonTable from '../../../../../../alarm-center/components/alarm-table/c
 import { SAMPLING_TABLE_COLUMNS } from '../../../../../constants';
 import { useSamplingColumnsRenderer } from '../../../../hooks/use-sampling-columns-renderer';
 
-import type { IDataSamplingItem } from '../../mock';
+import type { IDataSamplingItem } from '../../../../../typings';
 
 import './data-sampling-table.scss';
 
@@ -92,6 +92,7 @@ export default defineComponent({
       <div class='data-sampling-table-wrapper'>
         <CommonTable
           class='sampling-table'
+          autoFillSpace={true}
           columns={this.columns}
           data={this.samplingList as unknown as Record<string, unknown>[]}
           loading={this.loading}

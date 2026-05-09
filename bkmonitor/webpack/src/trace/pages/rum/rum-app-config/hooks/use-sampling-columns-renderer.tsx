@@ -31,7 +31,7 @@ import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IDataSamplingItem } from '../components/data-state/mock';
+import type { IDataSamplingItem } from '../../typings';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 /** useSamplingColumnsRenderer 入参：采样表格交互处理函数 */

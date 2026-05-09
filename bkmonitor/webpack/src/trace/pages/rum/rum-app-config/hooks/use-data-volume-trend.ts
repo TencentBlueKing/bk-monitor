@@ -28,7 +28,7 @@ import { type MaybeRef, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { get } from '@vueuse/core';
 
-import { getDataViewConfig } from '../services/data-state';
+import { fetchDataViewConfig } from '../services/data-state';
 
 import type { IRumAppBaseParams } from '../../typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -60,7 +60,7 @@ export const useDataVolumeTrend = (options: UseDataVolumeTrendOptions) => {
    * @description 通过 Service 层获取数据，Hook 只负责状态管理
    * @returns {Promise<void>}
    */
-  const fetchDataViewConfig = async (): Promise<void> => {
+  const fetchDashboardConfig = async (): Promise<void> => {
     if (!get(bizId) || !get(appName)) return;
     if (abortController) {
       abortController.abort();
@@ -69,7 +69,7 @@ export const useDataVolumeTrend = (options: UseDataVolumeTrendOptions) => {
     abortController = new AbortController();
     const { signal } = abortController;
 
-    const { data, isAborted } = await getDataViewConfig(
+    const { data, isAborted } = await fetchDataViewConfig(
       {
         bk_biz_id: get(bizId),
         app_name: get(appName),
@@ -83,7 +83,7 @@ export const useDataVolumeTrend = (options: UseDataVolumeTrendOptions) => {
   };
 
   watchEffect(() => {
-    fetchDataViewConfig();
+    fetchDashboardConfig();
   });
 
   onScopeDispose(() => {

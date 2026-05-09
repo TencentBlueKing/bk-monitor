@@ -29,10 +29,9 @@ import { type MaybeRef, onScopeDispose, shallowRef, watchEffect } from 'vue';
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 
-import { getDataSampling } from '../services/data-state';
+import { fetchDataSampling } from '../services/data-state';
 
-import type { IRumAppBaseParams } from '../../typings';
-import type { IDataSamplingItem } from '../components/data-state/mock';
+import type { IDataSamplingItem, IRumAppBaseParams } from '../../typings';
 
 export type UseDataSamplingReturnType = ReturnType<typeof useDataSampling>;
 
@@ -63,7 +62,7 @@ export const useDataSampling = (options: UseDataSamplingOptions) => {
    * @description 通过 Service 层获取数据，Hook 只负责状态管理与时间格式化
    * @returns {Promise<void>}
    */
-  const fetchDataSampling = async (): Promise<void> => {
+  const fetchSamplingData = async (): Promise<void> => {
     if (!get(bizId) || !get(appName)) return;
     if (abortController) {
       abortController.abort();
@@ -72,7 +71,7 @@ export const useDataSampling = (options: UseDataSamplingOptions) => {
     abortController = new AbortController();
     const { signal } = abortController;
 
-    const { data, isAborted } = await getDataSampling(
+    const { data, isAborted } = await fetchDataSampling(
       {
         bk_biz_id: get(bizId),
         app_name: get(appName),
@@ -92,7 +91,7 @@ export const useDataSampling = (options: UseDataSamplingOptions) => {
   };
 
   watchEffect(() => {
-    fetchDataSampling();
+    fetchSamplingData();
   });
 
   onScopeDispose(() => {
@@ -107,7 +106,7 @@ export const useDataSampling = (options: UseDataSamplingOptions) => {
    * @returns {Promise<void>}
    */
   const handleRefresh = async (): Promise<void> => {
-    await fetchDataSampling();
+    await fetchSamplingData();
   };
 
   return {
