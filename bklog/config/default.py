@@ -213,6 +213,8 @@ CELERY_ACCEPT_CONTENT = ["pickle"]
 CELERY_IMPORTS = (
     "apps.log_search.tasks.bkdata",
     "apps.log_search.tasks.async_export",
+    "apps.log_search.tasks.scene_async_export",
+    "apps.log_search.tasks.unify_query_async_export",
     "apps.log_search.tasks.project",
     "apps.log_search.tasks.space",
     "apps.log_search.tasks.cmdb",
