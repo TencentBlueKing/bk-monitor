@@ -23,15 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
 
-import { $bkPopover, Button, Form, Input, Message, Popover } from 'bkui-vue';
+import { Button, Form, Input, Message, Popover } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
-import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
-import { applicationSetup, deleteApp, startApp, stopApp } from '../mock';
+import { operateApplication, queryAppToken, updateAppBasicInfo } from '../services/app-config';
 
 import type { ApplicationOperationType, IRumAppConfig } from '../../typings/rum-app-config';
 
@@ -62,7 +61,6 @@ export default defineComponent({
     const editDescPopoverRef = useTemplateRef<InstanceType<typeof Popover>>('editDescPopover');
     /** 编辑表单引用 */
     const editDescFormRef = useTemplateRef<InstanceType<typeof Form>>('editDescForm');
-
     /** 应用 TOKEN */
     const token = shallowRef('');
     /** 是否显示 TOKEN */
@@ -98,7 +96,7 @@ export default defineComponent({
       const isValid = await editDescFormRef.value.validate().catch(() => false);
       if (!isValid) return;
       saveLoading.value = true;
-      applicationSetup({
+      updateAppBasicInfo({
         bk_biz_id: props.data?.bk_biz_id,
         app_name: props.data?.app_name,
         app_alias: model.alias,
@@ -150,97 +148,78 @@ export default defineComponent({
     const handleViewToken = async () => {
       if (!isShowToken.value && !token.value) {
         tokenLoading.value = true;
-        token.value = await queryBkDataToken(props.data?.application_id).catch(() => '');
+        token.value = await queryAppToken(props.data?.application_id);
         tokenLoading.value = false;
+        if (!token.value) return;
       }
       isShowToken.value = !isShowToken.value;
     };
 
+    /** 更多菜单 Popover 引用 */
+    const menuPopoverRef = useTemplateRef<InstanceType<typeof Popover>>('menuPopover');
+    /** 更多菜单是否显示 */
     const appOperationMenuShow = shallowRef(false);
+    /** 操作确认弹窗加载状态 */
     const popoverLoading = shallowRef(false);
-    const popoverInstance = shallowRef(null);
+    /** 当前操作类型 */
+    const operationType = shallowRef<ApplicationOperationType>('stop');
+    /** 操作确认弹窗是否显示 */
+    const appConfirmPopoverShow = shallowRef(false);
+    /** 各操作类型对应的文案映射 */
+    const operationMap = {
+      delete: {
+        title: t('确认删除该应用？'),
+        confirmText: t('删除'),
+        tips: t('删除后无法恢复，请谨慎操作！'),
+      },
+      start: {
+        title: t('确认启用该应用？'),
+        confirmText: t('启用'),
+        tips: t('启用后数据将重新上报至该应用，若无数据，请检查上报配置'),
+      },
+      stop: {
+        title: t('确认停用该应用？'),
+        confirmText: t('停用'),
+        tips: t('停用后将不会有数据上报，请谨慎操作'),
+      },
+    };
+    /** 根据当前操作类型获取对应的文案配置 */
+    const appOperationMapText = computed(() => {
+      return operationMap[operationType.value];
+    });
+
+    /** 全局点击事件，关闭所有操作弹窗 */
     const documentClickFn = () => {
       appOperationMenuShow.value = false;
+      appConfirmPopoverShow.value = false;
     };
+    /** 点击"更多"按钮，显示操作菜单 */
     const handleAppOperationMenuShow = (e: Event) => {
       e.stopPropagation();
       appOperationMenuShow.value = true;
       document.addEventListener('click', documentClickFn);
     };
+    /** 操作菜单隐藏后，移除全局点击监听 */
     const handleAppOperationMenuHidden = () => {
       appOperationMenuShow.value = false;
       document.removeEventListener('click', documentClickFn);
     };
-    const handleOperationApp = (e: Event, type: ApplicationOperationType) => {
-      const operationMap = {
-        delete: {
-          title: t('确认删除该应用？'),
-          confirmText: t('删除'),
-          tips: t('删除后无法恢复，请谨慎操作！'),
-        },
-        start: {
-          title: t('确认启用该应用？'),
-          confirmText: t('启用'),
-          tips: t('启用后数据将重新上报至该应用，若无数据，请检查上报配置'),
-        },
-        stop: {
-          title: t('确认停用该应用？'),
-          confirmText: t('停用'),
-          tips: t('停用后将不会有数据上报，请谨慎操作'),
-        },
-      };
 
-      popoverInstance.value = $bkPopover({
-        target: e.target as HTMLDivElement,
-        trigger: 'click',
-        content: (
-          <div class='rum-app-operation-content'>
-            <div class='title'>{operationMap[type].title}</div>
-            <div class='app-name'>
-              <span class='label'>{t('应用名称')}：</span>
-              <span class='value'>{props.data.app_name}</span>
-            </div>
-            <div class='tips'>{operationMap[type].tips}</div>
-
-            <div class='btns'>
-              <Button
-                loading={popoverLoading.value}
-                size='small'
-                theme='primary'
-                onClick={() => handleApplicationOperation(type)}
-              >
-                {operationMap[type].confirmText}
-              </Button>
-              <Button
-                size='small'
-                onClick={() => {
-                  popoverInstance.value?.hide();
-                }}
-              >
-                {t('取消')}
-              </Button>
-            </div>
-          </div>
-        ),
-        placement: 'left',
-        theme: 'light rum-app-operation-popover',
-        arrow: true,
-        interactive: true,
-      });
-
-      popoverInstance.value.install();
-      setTimeout(() => {
-        popoverInstance.value?.vm?.show();
-      }, 100);
+    /** 选中操作项，设置操作类型并显示确认弹窗 */
+    const handleOperationApp = (_e: Event, type: ApplicationOperationType) => {
+      operationType.value = type;
+      appConfirmPopoverShow.value = true;
     };
-    const handleApplicationOperation = async (type: ApplicationOperationType) => {
-      const appOperationApi = {
-        stop: stopApp,
-        delete: deleteApp,
-        start: startApp,
-      };
+
+    /** 取消操作，隐藏确认弹窗 */
+    const handleOperationCancel = () => {
+      appConfirmPopoverShow.value = false;
+    };
+
+    /** 执行应用操作（启用/停用/删除），成功后通知父组件 */
+    const handleApplicationOperation = async () => {
       popoverLoading.value = true;
-      appOperationApi[type]?.({
+      operateApplication(operationType.value, {
         bk_biz_id: props.data?.bk_biz_id,
         app_name: props.data?.app_name,
       })
@@ -249,8 +228,9 @@ export default defineComponent({
             message: t('操作成功'),
             theme: 'success',
           });
-          popoverInstance.value?.hide();
-          emit('applicationOperation', type);
+          appConfirmPopoverShow.value = false;
+          menuPopoverRef.value?.hide();
+          emit('applicationOperation', operationType.value);
         })
         .finally(() => {
           popoverLoading.value = false;
@@ -265,6 +245,9 @@ export default defineComponent({
       rules,
       saveLoading,
       appOperationMenuShow,
+      appOperationMapText,
+      appConfirmPopoverShow,
+      popoverLoading,
       handleAppOperationMenuShow,
       handleAppOperationMenuHidden,
       handleEditPopoverShow,
@@ -273,6 +256,8 @@ export default defineComponent({
       handleCopyToken,
       handleViewToken,
       handleOperationApp,
+      handleOperationCancel,
+      handleApplicationOperation,
     };
   },
 
@@ -286,7 +271,9 @@ export default defineComponent({
           <div class='app-content'>
             <div class='content-row'>
               <span class='app-domain'>{this.data.app_name}</span>
-              <span class='app-status'>{this.data.is_enabled ? this.$t('启用中') : this.$t('已停用')}</span>
+              <span class={['app-status', { 'is-enabled': this.data.is_enabled }]}>
+                {this.data.is_enabled ? this.$t('启用中') : this.$t('已停用')}
+              </span>
               <div class='app-token'>
                 <span class='token-label'>TOKEN：</span>
                 {this.tokenLoading ? (
@@ -390,42 +377,79 @@ export default defineComponent({
             <span>{this.$t('SDK 接入指引')}</span>
           </span>
           <Popover
-            extCls='rum-app-more-menu-popover'
             v-slots={{
               content: () => (
-                <div class='more-menu'>
-                  <div
-                    class='more-menu-item'
-                    onClick={e => {
-                      this.handleOperationApp(e, this.data?.is_enabled ? 'stop' : 'delete');
-                    }}
-                  >
-                    {this.data?.is_enabled ? this.$t('停用') : this.$t('启用')}
+                <div class='rum-app-operation-content'>
+                  <div class='title'>{this.appOperationMapText.title}</div>
+                  <div class='app-name'>
+                    <span class='label'>{this.$t('应用名称')}：</span>
+                    <span class='value'>{this.data.app_name}</span>
                   </div>
-                  <div
-                    class='more-menu-item'
-                    onClick={e => {
-                      this.handleOperationApp(e, 'delete');
-                    }}
-                  >
-                    {this.$t('删除')}
+                  <div class='tips'>{this.appOperationMapText.tips}</div>
+                  <div class='btns'>
+                    <Button
+                      loading={this.popoverLoading}
+                      size='small'
+                      theme='primary'
+                      onClick={this.handleApplicationOperation}
+                    >
+                      {this.appOperationMapText.confirmText}
+                    </Button>
+                    <Button
+                      size='small'
+                      onClick={this.handleOperationCancel}
+                    >
+                      {this.$t('取消')}
+                    </Button>
                   </div>
                 </div>
               ),
             }}
-            isShow={this.appOperationMenuShow}
-            placement='bottom'
-            theme='light'
+            arrow={true}
+            isShow={this.appConfirmPopoverShow}
+            placement='left'
+            theme='light rum-app-operation-popover'
             trigger='manual'
-            onAfterHidden={this.handleAppOperationMenuHidden}
           >
-            <span
-              class='operation-btn'
-              onClick={this.handleAppOperationMenuShow}
+            <Popover
+              ref='menuPopover'
+              extCls='rum-app-more-menu-popover'
+              v-slots={{
+                content: () => (
+                  <div class='more-menu'>
+                    <div
+                      class='more-menu-item'
+                      onClick={e => {
+                        this.handleOperationApp(e, this.data?.is_enabled ? 'stop' : 'start');
+                      }}
+                    >
+                      {this.data?.is_enabled ? this.$t('停用') : this.$t('启用')}
+                    </div>
+                    <div
+                      class='more-menu-item'
+                      onClick={e => {
+                        this.handleOperationApp(e, 'delete');
+                      }}
+                    >
+                      {this.$t('删除')}
+                    </div>
+                  </div>
+                ),
+              }}
+              isShow={this.appOperationMenuShow}
+              placement='bottom'
+              theme='light'
+              trigger='manual'
+              onAfterHidden={this.handleAppOperationMenuHidden}
             >
-              <i class='icon-monitor icon-mc-more' />
-              <span>{this.$t('更多')}</span>
-            </span>
+              <span
+                class='operation-btn'
+                onClick={this.handleAppOperationMenuShow}
+              >
+                <i class='icon-monitor icon-mc-more' />
+                <span>{this.$t('更多')}</span>
+              </span>
+            </Popover>
           </Popover>
         </div>
       </div>

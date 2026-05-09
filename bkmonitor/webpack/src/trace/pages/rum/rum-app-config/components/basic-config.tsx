@@ -30,7 +30,7 @@ import { Button, Form, Input, Message } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 
-import { applicationSetup } from '../mock';
+import { updateAppApdexConfig } from '../services/app-config';
 import HistoryDialog from '@/components/history-dialog/history-dialog';
 
 import type { IRumAppConfig } from '../../typings/rum-app-config';
@@ -51,16 +51,21 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    /** 是否处于编辑状态 */
     const isEdit = shallowRef(false);
 
+    /** 表单引用 */
     const formRef = useTemplateRef<InstanceType<typeof Form>>('form');
+    /** 表单数据模型：页面加载阈值、API请求阈值、QPS限制 */
     const formData = reactive({
       load: 500,
       request: 500,
       qps: 10,
     });
+    /** 保存加载状态 */
     const loading = shallowRef(false);
 
+    /** 数字类型必填校验规则 */
     const numberRequired = [
       { required: true, message: t('必填项'), trigger: 'blur' },
       {
@@ -72,13 +77,16 @@ export default defineComponent({
       },
     ];
 
+    /** 表单校验规则 */
     const rules = {
       load: [...numberRequired],
       request: [...numberRequired],
       qps: [...numberRequired],
     };
 
+    /** 历史记录弹窗显示状态 */
     const historyShow = shallowRef(false);
+    /** 历史记录列表（创建人/时间、更新人/时间） */
     const historyList = computed(() => {
       return [
         { label: t('创建人'), value: props.detail?.create_user },
@@ -88,6 +96,7 @@ export default defineComponent({
       ];
     });
 
+    /** 切换编辑状态，进入编辑时填充当前配置值 */
     const handleEditClick = (v: boolean) => {
       if (v) {
         formData.load = props.detail?.application_apdex_config?.apdex_view_load;
@@ -98,10 +107,12 @@ export default defineComponent({
       isEdit.value = v;
     };
 
+    /** 切换历史记录弹窗显示 */
     const handleHistoryShowChange = (v: boolean) => {
       historyShow.value = v;
     };
 
+    /** Apdex 说明文案 */
     const apdexTips = [
       t(
         'Apdex（Application Performance Index）是由 Apdex 联盟开发的用于评估应用性能的工业标准。Apdex 标准从用户的角度出发，将对应用响应时间的表现，转为用户对于应用性能的可量化范围为 0-1 的满意度评价。'
@@ -114,13 +125,15 @@ export default defineComponent({
       `● Frustrated ${t('（烦躁期）- 应用响应时间大于')} 4T`,
     ];
 
+    /** QPS 限制说明文案 */
     const qpsTips = [t('设置系统可承受的 qps 峰值，每秒最多处理 X 条请求，超出可以造成数据丢弃。')];
 
+    /** 保存配置，调用 setupApplication 接口更新 Apdex 和 QPS 配置 */
     const handleSave = async () => {
       const isValid = formRef.value.validate().catch(() => false);
       if (!isValid) return;
       loading.value = true;
-      applicationSetup({
+      updateAppApdexConfig({
         bk_biz_id: props.detail?.bk_biz_id,
         app_name: props.detail?.app_name,
         application_apdex_config: {
