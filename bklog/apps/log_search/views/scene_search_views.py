@@ -341,18 +341,41 @@ def _format_scene_filter_values(filters) -> str:
     return ("(" + " AND ".join(parts) + ")") if parts else ""
 
 
+def _collect_scene_dimension_keys() -> set:
+    """汇总所有场景定义中出现过的维度 key，用于识别 addition 中的场景维度过滤项。"""
+    from apps.log_databus.constants import SCENE_SEARCH_DIMENSIONS
+
+    keys = set()
+    for dims in SCENE_SEARCH_DIMENSIONS.values():
+        for d in dims or []:
+            k = d.get("key")
+            if k:
+                keys.add(k)
+    return keys
+
+
 def _build_scene_query_string(params: dict) -> str:
-    """场景化检索的可读预览：table_id_conditions AND scene_filter_values AND keyword/addition"""
+    """场景化检索的可读预览。
+
+    设计取舍：
+    - 不拼接 table_id_conditions（路由信息对预览无意义）
+    - 过滤掉 addition 中由"场景维度 key"派生的项，避免与 scene_filter_values 重复展示，
+      同时兼容修复前持久化的脏 history（addition 中混入了 scene_filter_values 转换项）
+    """
     from apps.utils.lucene import generate_query_string
 
+    scene_keys = _collect_scene_dimension_keys()
+    cleaned_params = dict(params)
+    cleaned_params["addition"] = [
+        a for a in (params.get("addition") or [])
+        if (a.get("field") or "") not in scene_keys
+    ]
+
     pieces = []
-    tic = _format_table_id_conditions(params.get("table_id_conditions"))
-    if tic:
-        pieces.append(tic)
     sfv = _format_scene_filter_values(params.get("scene_filter_values"))
     if sfv:
         pieces.append(sfv)
-    base = generate_query_string(params)
+    base = generate_query_string(cleaned_params)
     if base and base.strip():
         pieces.append(base)
     return " AND ".join(pieces) if pieces else "*"
