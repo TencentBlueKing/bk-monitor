@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { fetchMockDataSampling, fetchMockDataViewConfig, fetchMockStrategyInfo } from '../components/data-state/mock';
+import { getDataSampling, getDataViewConfig, getNoDataStrategyInfo } from 'monitor-api/modules/rum_meta';
 
-import type { IRumAppBaseParams, IStrategyData } from '../../typings';
-import type { IDataSamplingItem } from '../components/data-state/mock';
+import type { IDataSamplingItem, IRumAppBaseParams, IStrategyData } from '../../typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 /**
@@ -49,14 +48,13 @@ const requestErrorMessage = (err: unknown): boolean => {
  * @param {{ signal?: AbortSignal }} [requestConfig] - 请求配置
  * @returns {Promise<{ data: IStrategyData; isAborted: boolean }>} 策略数据与终止状态
  */
-export const getNoDataStrategyInfo = async (
+export const fetchNoDataStrategyInfo = async (
   params: IRumAppBaseParams,
   requestConfig: { signal?: AbortSignal } = {}
 ): Promise<{ data: IStrategyData; isAborted: boolean }> => {
   let isAborted = false;
 
-  // Mock 数据（通过 mock 层模拟底层 API）
-  const data = await fetchMockStrategyInfo({ ...params }, requestConfig).catch((err: unknown) => {
+  const data = await getNoDataStrategyInfo(params, requestConfig).catch((err: unknown) => {
     isAborted = requestErrorMessage(err);
     return null;
   });
@@ -73,18 +71,13 @@ export const getNoDataStrategyInfo = async (
  * @param {{ signal?: AbortSignal }} [requestConfig] - 请求配置
  * @returns {Promise<{ data: IPanelModel[]; isAborted: boolean }>} 面板配置列表与终止状态
  */
-export const getDataViewConfig = async (
+export const fetchDataViewConfig = async (
   params: IRumAppBaseParams,
   requestConfig: { signal?: AbortSignal } = {}
 ): Promise<{ data: IPanelModel[]; isAborted: boolean }> => {
   let isAborted = false;
 
-  // TODO: 替换为真实接口调用
-  // 真实场景示例：
-  // const data = await $api.rum.meta.application.dataViewConfig(params, requestConfig).catch(() => []);
-
-  // Mock 数据（通过 mock 层模拟底层 API）
-  const rawData = await fetchMockDataViewConfig({ ...params }, requestConfig).catch((err: unknown) => {
+  const rawData = await getDataViewConfig(params, requestConfig).catch((err: unknown) => {
     isAborted = requestErrorMessage(err);
     return [] as IPanelModel[];
   });
@@ -101,13 +94,13 @@ export const getDataViewConfig = async (
  * @param {{ signal?: AbortSignal }} [requestConfig] - 请求配置
  * @returns {Promise<{ data: IDataSamplingItem[]; isAborted: boolean }>} 采样数据列表与终止状态
  */
-export const getDataSampling = async (
+export const fetchDataSampling = async (
   params: IRumAppBaseParams,
   requestConfig: { signal?: AbortSignal } = {}
 ): Promise<{ data: IDataSamplingItem[]; isAborted: boolean }> => {
   let isAborted = false;
 
-  const rawData = await fetchMockDataSampling({ ...params }, requestConfig).catch((err: unknown) => {
+  const rawData = await getDataSampling(params, requestConfig).catch((err: unknown) => {
     isAborted = requestErrorMessage(err);
     return [] as IDataSamplingItem[];
   });

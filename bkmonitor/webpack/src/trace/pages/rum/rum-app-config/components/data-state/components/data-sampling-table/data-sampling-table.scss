@@ -1,5 +1,13 @@
 .data-sampling-table-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
   .sampling-table {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
     /* ===================== 多行文本展开收起 ===================== */
     $line-height: 20px;
     $lines: 3;

@@ -28,7 +28,7 @@ import { type MaybeRef, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { get } from '@vueuse/core';
 
-import { getNoDataStrategyInfo } from '../services/data-state';
+import { fetchNoDataStrategyInfo } from '../services/data-state';
 
 import type { AsyncDialogConfirmEvent, IRumAppBaseParams, IStrategyData } from '../../typings';
 
@@ -89,7 +89,7 @@ export const useNoDataStrategy = (options: UseNoDataStrategyOptions) => {
     abortController = new AbortController();
     const { signal } = abortController;
 
-    const { data, isAborted } = await getNoDataStrategyInfo(
+    const { data, isAborted } = await fetchNoDataStrategyInfo(
       {
         bk_biz_id: get(bizId),
         app_name: get(appName),

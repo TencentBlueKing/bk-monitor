@@ -24,30 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import type { IDataSamplingResponse, IDataStatusResponse } from '../../../typings';
 import type { IStrategyData } from '../../../typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
-
-// ===================== 类型定义 =====================
-
-/** 1.15 GetDataSamplingResource 采样数据项 */
-export interface IDataSamplingItem {
-  /** 原始样例数据 */
-  raw_log: Record<string, unknown>;
-  /** 采样时间 */
-  sampling_time: string;
-}
-
-/** 1.15 GetDataSamplingResource 响应 */
-export type IDataSamplingResponse = IDataSamplingItem[];
-
-/** 数据状态枚举值 */
-type DataStatusType = 'DISABLED' | 'NO_DATA' | 'NORMAL';
-
-/** 1.14 GetDataStatusResource 响应 */
-interface IDataStatusResponse {
-  /** 数据状态：NORMAL-正常 / NO_DATA-无数据 / DISABLED-已停用 */
-  span: DataStatusType;
-}
 
 // ===================== Mock 数据 =====================
 
@@ -212,6 +191,50 @@ export const MOCK_DATA_SAMPLING: IDataSamplingResponse = [
       'attributes.http.response_content_length': 204800,
     },
     sampling_time: '2026-04-22 15:00:01',
+  },
+  {
+    raw_log: {
+      'resource.bk.instance.id': 'demo_web_01',
+      'resource.service.name': 'demo_app',
+      'resource.telemetry.sdk.language': 'javascript',
+      'resource.telemetry.sdk.name': '@opentelemetry/sdk-trace-web',
+      'resource.telemetry.sdk.version': '1.21.0',
+      span_name: 'XMLHttpRequest POST',
+      kind: 2,
+      'status.code': 2,
+      trace_id: 'c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6',
+      span_id: '2b3c4d5e6f7a8b9c',
+      elapsed_time: 3200000,
+      start_time: 1713764402000000,
+      end_time: 1713764405200000,
+      'attributes.http.method': 'POST',
+      'attributes.http.url': 'https://demo-app.test.com/api/v1/resource/update',
+      'attributes.http.status_code': 500,
+      'attributes.http.response_content_length': 256,
+    },
+    sampling_time: '2026-04-22 15:00:02',
+  },
+  {
+    raw_log: {
+      'resource.bk.instance.id': 'demo_web_01',
+      'resource.service.name': 'demo_app',
+      'resource.telemetry.sdk.language': 'javascript',
+      'resource.telemetry.sdk.name': '@opentelemetry/sdk-trace-web',
+      'resource.telemetry.sdk.version': '1.21.0',
+      span_name: 'XMLHttpRequest POST',
+      kind: 2,
+      'status.code': 2,
+      trace_id: 'c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6',
+      span_id: '2b3c4d5e6f7a8b9c',
+      elapsed_time: 3200000,
+      start_time: 1713764402000000,
+      end_time: 1713764405200000,
+      'attributes.http.method': 'POST',
+      'attributes.http.url': 'https://demo-app.test.com/api/v1/resource/update',
+      'attributes.http.status_code': 500,
+      'attributes.http.response_content_length': 256,
+    },
+    sampling_time: '2026-04-22 15:00:02',
   },
   {
     raw_log: {
