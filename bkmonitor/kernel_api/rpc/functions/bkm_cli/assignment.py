@@ -15,8 +15,6 @@ from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 
-DEFAULT_LIMIT = 50
-MAX_LIMIT = 200
 GLOBAL_BIZ_ID = 0
 
 
@@ -33,17 +31,6 @@ def _optional_int(value: Any, field: str) -> int | None:
     if value in (None, ""):
         return None
     return _to_int(value, field)
-
-
-def _limit(value: Any) -> int:
-    if value in (None, ""):
-        return DEFAULT_LIMIT
-    limit = _to_int(value, "limit")
-    if limit <= 0:
-        raise CustomException(message="limit must be greater than 0")
-    if limit > MAX_LIMIT:
-        raise CustomException(message=f"limit exceeds max {MAX_LIMIT}: {limit}")
-    return limit
 
 
 def _bool_param(value: Any, default: bool = False) -> bool:
@@ -69,7 +56,9 @@ def _json_safe(value: Any) -> Any:
         return value.isoformat()
     if isinstance(value, dict):
         return {str(k): _json_safe(v) for k, v in value.items()}
-    if isinstance(value, list | tuple | set):
+    if isinstance(value, set):
+        return sorted((_json_safe(item) for item in value), key=repr)
+    if isinstance(value, list | tuple):
         return [_json_safe(item) for item in value]
     return value
 
@@ -104,27 +93,6 @@ ACTION_FIELDS = [
     "execute_times",
     "generate_uuid",
 ]
-
-
-def _action_summary(action: Any) -> dict[str, Any]:
-    return _serialize_model(
-        action,
-        [
-            "id",
-            "bk_biz_id",
-            "strategy_id",
-            "strategy_relation_id",
-            "signal",
-            "status",
-            "action_config_id",
-            "is_parent_action",
-            "parent_action_id",
-            "alerts",
-            "create_time",
-            "execute_times",
-            "generate_uuid",
-        ],
-    )
 
 
 def inspect_action_detail(params: dict[str, Any]) -> dict[str, Any]:

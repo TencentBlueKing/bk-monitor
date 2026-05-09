@@ -83,7 +83,7 @@ def test_inspect_action_detail_by_action_id(monkeypatch):
         parent_action_id=6885950367,
         sub_actions=[],
         assignee=[],
-        inputs={"notice_way": "wxwork-bot", "notice_receiver": "chatid"},
+        inputs={"notice_way": "wxwork-bot", "notice_receiver": "chatid", "debug_set": {"z", "a"}},
         outputs={},
         create_time="2026-05-09 06:34:20",
         update_time="2026-05-09 06:34:30",
@@ -104,6 +104,7 @@ def test_inspect_action_detail_by_action_id(monkeypatch):
     assert result["exists"] is True
     assert result["action"]["id"] == 6885950371
     assert result["action"]["inputs"]["notice_receiver"] == "chatid"
+    assert result["action"]["inputs"]["debug_set"] == ["a", "z"]
 
 
 def test_inspect_action_detail_rejects_alert_id_without_action_id():
@@ -168,6 +169,101 @@ def test_inspect_assign_config_returns_db_groups_rules_and_user_groups(monkeypat
     assert result["user_groups"][0]["id"] == 95671
 
 
+def test_inspect_assign_config_honors_enabled_and_global_filters(monkeypatch):
+    from bkmonitor.models import AlertAssignGroup, AlertAssignRule, UserGroup
+    from kernel_api.rpc.functions.bkm_cli import assignment
+
+    group = SimpleNamespace(
+        id=1595,
+        bk_biz_id=-4220780,
+        name="MLAI告警分派",
+        priority=105,
+        is_builtin=False,
+        is_enabled=True,
+        settings={},
+        source="bkmonitor",
+        update_user="admin",
+        update_time="2026-05-09 14:45:20",
+    )
+    rule = SimpleNamespace(
+        id=133699,
+        bk_biz_id=-4220780,
+        assign_group_id=1595,
+        is_enabled=True,
+        user_groups=[95671],
+        user_type="main",
+        conditions=[],
+        actions=[],
+        alert_severity=0,
+        additional_tags=[],
+    )
+    group_manager = FakeManager(rows=[group])
+    rule_manager = FakeManager(rows=[rule])
+    monkeypatch.setattr(AlertAssignGroup, "objects", group_manager)
+    monkeypatch.setattr(AlertAssignRule, "objects", rule_manager)
+    monkeypatch.setattr(UserGroup, "objects", FakeManager(rows=[]))
+
+    result = assignment.inspect_assign_config({"bk_biz_id": -4220780, "include_global": False, "only_enabled": True})
+
+    assert result["include_global"] is False
+    assert group_manager.queryset.filter_calls[0] == {"bk_biz_id__in": [-4220780]}
+    assert {"is_enabled": True} in group_manager.queryset.filter_calls
+    assert rule_manager.queryset.filter_calls[0] == {"bk_biz_id__in": [-4220780]}
+    assert {"is_enabled": True} in rule_manager.queryset.filter_calls
+
+
+def test_inspect_assign_config_reports_missing_user_group_ids(monkeypatch):
+    from bkmonitor.models import AlertAssignGroup, AlertAssignRule, UserGroup
+    from kernel_api.rpc.functions.bkm_cli import assignment
+
+    group = SimpleNamespace(
+        id=1595,
+        bk_biz_id=-4220780,
+        name="MLAI告警分派",
+        priority=105,
+        is_builtin=False,
+        is_enabled=True,
+        settings={},
+        source="bkmonitor",
+        update_user="admin",
+        update_time="2026-05-09 14:45:20",
+    )
+    rule = SimpleNamespace(
+        id=133699,
+        bk_biz_id=-4220780,
+        assign_group_id=1595,
+        is_enabled=True,
+        user_groups=[95671, 99999],
+        user_type="main",
+        conditions=[],
+        actions=[],
+        alert_severity=0,
+        additional_tags=[],
+    )
+    user_group = SimpleNamespace(
+        id=95671,
+        bk_biz_id=-4220780,
+        name="garycgzheng",
+        timezone="Asia/Shanghai",
+        need_duty=False,
+        channels=["user"],
+        mention_list=[],
+        alert_notice=[],
+        action_notice=[],
+        duty_notice={},
+        duty_rules=[],
+        update_user="admin",
+        update_time="2026-05-09 14:45:20",
+    )
+    monkeypatch.setattr(AlertAssignGroup, "objects", FakeManager(rows=[group]))
+    monkeypatch.setattr(AlertAssignRule, "objects", FakeManager(rows=[rule]))
+    monkeypatch.setattr(UserGroup, "objects", FakeManager(rows=[user_group]))
+
+    result = assignment.inspect_assign_config({"bk_biz_id": -4220780})
+
+    assert result["missing_user_group_ids"] == [99999]
+
+
 def test_inspect_notice_target_returns_duty_arranges(monkeypatch):
     from bkmonitor.models import DutyArrange, UserGroup
     from kernel_api.rpc.functions.bkm_cli import assignment
@@ -211,6 +307,35 @@ def test_inspect_notice_target_returns_duty_arranges(monkeypatch):
     assert result["exists"] is True
     assert result["user_groups"][0]["channels"] == ["wxwork-bot"]
     assert result["user_groups"][0]["duty_arranges"][0]["user_group_id"] == 94872
+
+
+def test_inspect_notice_target_can_skip_duty_lookup(monkeypatch):
+    from bkmonitor.models import DutyArrange, UserGroup
+    from kernel_api.rpc.functions.bkm_cli import assignment
+
+    group = SimpleNamespace(
+        id=94872,
+        bk_biz_id=-4220780,
+        name="AI-bot",
+        timezone="Asia/Shanghai",
+        need_duty=True,
+        channels=["wxwork-bot"],
+        mention_list=[],
+        alert_notice=[],
+        action_notice=[],
+        duty_notice={},
+        duty_rules=[],
+        update_user="admin",
+        update_time="2026-05-09 14:45:20",
+    )
+    duty_manager = FakeManager(rows=[SimpleNamespace(id=1, user_group_id=94872)])
+    monkeypatch.setattr(UserGroup, "objects", FakeManager(rows=[group]))
+    monkeypatch.setattr(DutyArrange, "objects", duty_manager)
+
+    result = assignment.inspect_notice_target({"user_group_ids": [94872], "include_duty": False})
+
+    assert result["user_groups"][0]["duty_arranges"] == []
+    assert duty_manager.queryset.filter_calls == []
 
 
 def test_replay_assign_match_labels_current_runtime_state(monkeypatch):
