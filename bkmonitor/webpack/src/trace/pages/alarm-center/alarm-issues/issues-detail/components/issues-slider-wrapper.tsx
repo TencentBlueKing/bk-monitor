@@ -513,7 +513,7 @@ export default defineComponent({
               />
             ))}
           </Tab>
-          <KeepAlive>{this.getPanelComponent()}</KeepAlive>
+          <KeepAlive key={this.currentTab}>{this.getPanelComponent()}</KeepAlive>
         </div>
         <div class='issues-slider-right-panel'>
           <IssuesBasicInfo
