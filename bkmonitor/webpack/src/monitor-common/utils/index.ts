@@ -44,13 +44,27 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
   window.space_list = list;
   return list;
 }
+
+// 通过告警通知等外链进入时，旧版事件中心和新版告警中心都允许无业务权限访问页面。
+export const isAlarmCenterRouteHash = (hash?: null | string) => {
+  const hashPath = `${hash || ''}`
+    .replace(/^#?\/?/, '')
+    .replace(/\?.*/, '')
+    .replace(/\/$/, '');
+  return (
+    ['event-center', 'event-action', 'trace/alarm-center', 'alarm-center'].includes(hashPath) ||
+    /^event-center\/(detail|action-detail)(\/|$)/.test(hashPath) ||
+    /^trace\/alarm-center\/detail(\/|$)/.test(hashPath) ||
+    /^alarm-center\/.+/.test(hashPath)
+  );
+};
 // 设置全局业务ID
 export const setGlobalBizId = () => {
   let bizId: number | string = +getUrlParam('bizId')?.replace(/\//gim, '');
   const hasRouteHash = getUrlParam('routeHash');
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
-  const isSpacialEvent = !!getUrlParam('specEvent');
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
+  const isSpecialAlarmCenterEntry = isAlarmCenterRouteHash(location.hash);
 
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
   const defaultBizId = Number(window.default_biz_id) || '';
@@ -68,6 +82,7 @@ export const setGlobalBizId = () => {
   const isCanAllIn =
     ['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
     /^#\/(event-center\/detail|share)\//.test(location.hash) ||
+    isSpecialAlarmCenterEntry ||
     !!window.__BK_WEWEB_DATA__?.token;
   const hasBizId = () => !(!bizId || bizId === -1);
   const setBizId = (id: number | string) => {
@@ -84,12 +99,12 @@ export const setGlobalBizId = () => {
     return false;
   };
   // 如果bizId不在空间列表中 几没有权限或者是不存在的 bizId，则返回到无权限页面进行申请
-  if (bizId && !isInSpaceList(bizId)) {
+  if (bizId && !isInSpaceList(bizId) && !isSpecialAlarmCenterEntry) {
     location.href = `${location.origin}${location.pathname}?${`bizId=${bizId}`}#/no-business`;
     return true;
   }
 
-  if (bizId && bizId !== window.bk_biz_id && hasAuth(window.bk_biz_id)) {
+  if (!isSpecialAlarmCenterEntry && bizId && bizId !== window.bk_biz_id && hasAuth(window.bk_biz_id)) {
     const newBizId = defaultBizId || localBizId;
     if (hasAuth(newBizId)) {
       window.bk_biz_id = +newBizId;
@@ -113,24 +128,24 @@ export const setGlobalBizId = () => {
     }
     // 设置过默认id时，优先取defaultBizId
     const newBizId = defaultBizId || spaceItem?.bk_biz_id || window.cc_biz_id;
-    // search with space_uid
-    if (spaceUid) {
+    if (isSpecialAlarmCenterEntry && !bizList.length) {
+      bizId = newBizId && newBizId !== -1 ? newBizId : 0;
+    } else if (spaceUid) {
+      // search with space_uid
       window.space_uid = spaceUid;
       return setLocationSearch(newBizId);
-    }
-    if (bizList.length && !bizList.some(item => +item.bk_biz_id === +newBizId)) {
+    } else if (bizList.length && !bizList.some(item => +item.bk_biz_id === +newBizId)) {
       return setLocationSearch(bizList[0].bk_biz_id);
-    }
-    if (newBizId && newBizId !== -1) {
+    } else if (newBizId && newBizId !== -1) {
       return setLocationSearch(newBizId);
-    }
-    if (!bizList.length) {
+    } else if (!bizList.length) {
       location.href = `${location.origin}${location.pathname}?${`bizId=${newBizId}`}#/no-business`;
       return ['#/no-business'].includes(location.hash.replace(/\?.*/, '')) ? newBizId : false;
+    } else {
+      bizId = newBizId;
     }
-    bizId = newBizId;
   }
-  if (!isSpacialEvent && !hasRouteHash && !isEmailSubscriptions) {
+  if (!isSpecialAlarmCenterEntry && !hasRouteHash && !isEmailSubscriptions) {
     const isDemoBizId = isDemo(bizId);
     if (!isDemoBizId && (!bizId || !hasAuth(bizId))) {
       if (!hasBizId() && localBizId && bizList.length && hasAuth(localBizId)) {

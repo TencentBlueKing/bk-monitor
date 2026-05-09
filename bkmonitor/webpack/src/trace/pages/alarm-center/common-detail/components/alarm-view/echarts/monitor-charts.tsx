@@ -127,18 +127,18 @@ export default defineComponent({
       return props.downSampleRange;
     };
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts({
       panel,
       chartRef,
-      instance.appContext.config.globalProperties.$api,
+      $api: instance.appContext.config.globalProperties.$api,
       params,
-      props.customOptions,
-      {
+      customOptions: props.customOptions,
+      interactionState: {
         isMouseOver: mouseIn,
         hoverAllTooltips: toRef(props, 'hoverAllTooltips'),
       },
-      downSampleRangeComputed
-    );
+      downSampleRangeComputed: props.downSampleRange ? downSampleRangeComputed : undefined,
+    });
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
       targets,

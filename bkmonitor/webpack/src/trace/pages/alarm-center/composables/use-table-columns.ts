@@ -143,6 +143,9 @@ export function useAlarmTableColumns() {
     const widths = fieldsWidthConfig.value;
     return allTableFields.value
       .map(({ field }) => {
+        if (field === 'row-select') {
+          return { colKey: 'row-select', type: 'multiple' as const, width: 50, minWidth: 50, fixed: 'left' as const };
+        }
         if (
           field === BK_BIZ_NAME_FIELD &&
           alarmStore.bizIds.length < 2 &&
@@ -161,7 +164,7 @@ export function useAlarmTableColumns() {
       .filter(Boolean);
   });
   const allTableFields = computed<BkUiSettings['fields']>(() => {
-    if (alarmStore.alarmType === AlarmType.ALERT) {
+    if ([AlarmType.ALERT, AlarmType.ISSUES].includes(alarmStore.alarmType)) {
       return [{ title: '', colKey: 'row-select' }, ...alarmStore.alarmService.allTableColumns].map(item => ({
         label: item.title.toString(),
         field: item.colKey,

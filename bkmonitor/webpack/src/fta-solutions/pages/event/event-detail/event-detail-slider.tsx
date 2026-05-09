@@ -26,6 +26,11 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  getAlarmCenterDetailUrl,
+  getAlarmCenterListHash,
+  getAlarmCenterUrl,
+} from 'monitor-common/utils/alarm-center-router';
 import { copyText } from 'monitor-common/utils/utils';
 
 import ActionDetail from './action-detail';
@@ -109,9 +114,19 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
 
   // 复制事件详情连接
   handleToEventDetail(type: 'action-detail' | 'detail', isNewPage = false) {
-    let url = location.href.replace(location.hash, `#/event-center/${type}/${this.eventId}`);
     const { bizId } = this.$store.getters;
-    url = url.replace(location.search, `?bizId=${this.bizId || bizId}`);
+    const targetBizId = this.bizId || bizId;
+    const url =
+      type === 'action-detail'
+        ? getAlarmCenterUrl({
+            hash: getAlarmCenterListHash({
+              searchType: 'action',
+              alarmId: this.eventId,
+              showDetail: 'true',
+            }),
+            bizId: targetBizId,
+          })
+        : getAlarmCenterDetailUrl(this.eventId, undefined, targetBizId);
     if (isNewPage) {
       window.open(url);
       return;

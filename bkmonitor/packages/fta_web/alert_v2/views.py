@@ -37,6 +37,7 @@ class AlertV2ViewSet(_BaseAlertViewSet):
         ResourceRoute("GET", resource.alert_v2.alert_host_target, endpoint="alert/host_target"),
         ResourceRoute("POST", resource.alert_v2.alert_traces, endpoint="alert/traces"),
         ResourceRoute("GET", resource.alert_v2.alert_log_relation_list, endpoint="alert/log_relation_list"),
+        ResourceRoute("POST", resource.scene_view.graph_drill_down, endpoint="alert/graph_drill_down"),
     ]
 
 

@@ -20,6 +20,7 @@
 - `python manage.py data_migrate apply-sequences ...`
 - `python manage.py data_migrate export ...`
 - `python manage.py data_migrate import ...`
+- `python manage.py data_migrate enable-closed-strategies ...`
 - `python manage.py data_migrate disable-models ...`
 - `python manage.py data_migrate replace-tenant-id ...`
 - `python manage.py data_migrate restore-disabled-models ...`
@@ -67,6 +68,20 @@ python manage.py data_migrate import \
   - 仅导入指定业务 ID 列表
 - `--disable-atomic`
   - 是否按单个文件事务导入
+
+### 开启导入阶段关闭的策略
+
+```bash
+python manage.py data_migrate enable-closed-strategies \
+  --bk-biz-ids 2 3
+```
+
+说明：
+
+- 从业务维度的 `ApplicationConfig` 中读取 `data_migrate_closed_records`
+- 只处理其中 `bkmonitor.strategymodel` 对应的策略 ID
+- 仅重新开启当前仍处于关闭状态的策略，并输出每个业务的处理统计
+- `--bk-biz-ids` 仅支持正整数业务 ID
 
 ### 恢复自增游标
 

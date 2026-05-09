@@ -340,8 +340,7 @@ export const ACTION_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'create_time',
     alias: window.i18n.t('开始时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -356,8 +355,7 @@ export const ACTION_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'end_time',
     alias: window.i18n.t('结束时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',

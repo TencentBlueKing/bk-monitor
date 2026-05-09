@@ -158,6 +158,51 @@
               font-weight: 700;
               color: #a3b1cc;
             }
+
+            &.regression {
+              .item-icon-wrapper {
+                text-align: center;
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+              }
+            }
+
+            &.regression-true {
+              .item-icon-wrapper {
+                background-color: #ffedd1;
+              }
+            }
+
+            &.regression-false {
+              .item-icon-wrapper {
+                background-color: #e1f5f0;
+              }
+            }
+
+            &.priority {
+              .item-name {
+                padding: 0 6px;
+                height: 20px;
+                border-radius: 4px;
+              }
+            }
+
+            &.priority-P0 {
+              .item-name {
+                background-color: #e54040;
+              }
+            }
+            &.priority-P1 {
+              .item-name {
+                background-color: #faa41e;
+              }
+            }
+            &.priority-P2 {
+              .item-name {
+                background-color: #8f9fbd;
+              }
+            }
           }
         }
       }
