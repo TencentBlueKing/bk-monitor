@@ -272,7 +272,9 @@ export default defineComponent({
                   <div class='right-wrap-bottom'>
                     <span
                       class='desc-text'
-                      v-overflow-tips
+                      v-overflow-tips={{
+                        placement: 'top',
+                      }}
                     >
                       {this.appInfo?.app_alias || '--'}
                     </span>
