@@ -106,52 +106,11 @@ def test_inspect_action_detail_by_action_id(monkeypatch):
     assert result["action"]["inputs"]["notice_receiver"] == "chatid"
 
 
-def test_inspect_action_detail_by_alert_returns_candidates(monkeypatch):
-    from bkmonitor.models import ActionInstance
+def test_inspect_action_detail_rejects_alert_id_without_action_id():
     from kernel_api.rpc.functions.bkm_cli import assignment
 
-    rows = [
-        SimpleNamespace(
-            id=1,
-            bk_biz_id="-4220780",
-            strategy_id=227784,
-            strategy_relation_id=133676,
-            signal="abnormal",
-            status="success",
-            action_config_id=1,
-            is_parent_action=True,
-            parent_action_id=0,
-            alerts=["alert-a"],
-            create_time="2026-05-09 06:34:20",
-            execute_times=0,
-            generate_uuid="uuid-1",
-        ),
-        SimpleNamespace(
-            id=2,
-            bk_biz_id="-4220780",
-            strategy_id=227784,
-            strategy_relation_id=133676,
-            signal="abnormal",
-            status="success",
-            action_config_id=1,
-            is_parent_action=True,
-            parent_action_id=0,
-            alerts=["alert-a"],
-            create_time="2026-05-09 06:39:20",
-            execute_times=1,
-            generate_uuid="uuid-2",
-        ),
-    ]
-    manager = FakeManager(rows=rows, missing_exc=ActionInstance.DoesNotExist)
-    monkeypatch.setattr(ActionInstance, "objects", manager)
-
-    result = assignment.inspect_action_detail({"alert_id": "alert-a", "bk_biz_id": -4220780})
-
-    assert result["lookup_mode"] == "alert_id_candidates"
-    assert result["count"] == 2
-    assert result["items"][0]["id"] == 1
-    assert "action_id" in result["next_actions"][0]
-    assert manager.queryset.filter_calls[0] == {"alerts__contains": ["alert-a"]}
+    with pytest.raises(CustomException, match="action_id is required"):
+        assignment.inspect_action_detail({"alert_id": "alert-a"})
 
 
 def test_inspect_assign_config_returns_db_groups_rules_and_user_groups(monkeypatch):

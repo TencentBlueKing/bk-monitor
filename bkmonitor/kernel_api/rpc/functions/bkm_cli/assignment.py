@@ -130,61 +130,24 @@ def _action_summary(action: Any) -> dict[str, Any]:
 def inspect_action_detail(params: dict[str, Any]) -> dict[str, Any]:
     from bkmonitor.models import ActionInstance
 
-    action_id = _optional_int(params.get("action_id"), "action_id")
-    limit = _limit(params.get("limit"))
-
-    if action_id is not None:
-        try:
-            action = ActionInstance.objects.get(id=action_id)
-        except ActionInstance.DoesNotExist:
-            return {
-                "source_state": "current_db_state",
-                "lookup_mode": "action_id",
-                "exists": False,
-                "action_id": action_id,
-                "action": None,
-                "next_actions": ["确认 action_id 是否来自目标通知批次；alert_id 只能用于列出候选 action。"],
-            }
+    action_id = _to_int(params.get("action_id"), "action_id")
+    try:
+        action = ActionInstance.objects.get(id=action_id)
+    except ActionInstance.DoesNotExist:
         return {
             "source_state": "current_db_state",
             "lookup_mode": "action_id",
-            "exists": True,
+            "exists": False,
             "action_id": action_id,
-            "action": _serialize_model(action, ACTION_FIELDS),
+            "action": None,
+            "next_actions": ["确认 action_id 是否来自目标通知批次；inspect-action-detail 不接受 alert_id。"],
         }
-
-    alert_id = str(params.get("alert_id") or "").strip()
-    if not alert_id:
-        raise CustomException(message="action_id or alert_id is required")
-
-    queryset = ActionInstance.objects.filter(alerts__contains=[alert_id])
-    bk_biz_id = _optional_int(params.get("bk_biz_id"), "bk_biz_id")
-    if bk_biz_id is not None:
-        queryset = queryset.filter(bk_biz_id=str(bk_biz_id))
-    for field in ["parent_action_id", "action_config_id", "strategy_relation_id", "execute_times"]:
-        normalized = _optional_int(params.get(field), field)
-        if normalized is not None:
-            queryset = queryset.filter(**{field: normalized})
-    if "is_parent_action" in params:
-        queryset = queryset.filter(is_parent_action=_bool_param(params.get("is_parent_action")))
-    if params.get("created_after"):
-        queryset = queryset.filter(create_time__gte=params["created_after"])
-    if params.get("created_before"):
-        queryset = queryset.filter(create_time__lte=params["created_before"])
-
-    actions = list(queryset.order_by("-create_time")[:limit])
     return {
         "source_state": "current_db_state",
-        "lookup_mode": "alert_id_candidates",
-        "exists": bool(actions),
-        "alert_id": alert_id,
-        "count": len(actions),
-        "limit": limit,
-        "items": [_action_summary(action) for action in actions],
-        "next_actions": [
-            "从 items[].id 选择目标通知批次的 action_id，再调用 inspect-action-detail 精确查询。",
-            "如同一 alert 周期通知产生多个 action，请用 created_after/created_before 或 parent_action_id 缩小候选范围。",
-        ],
+        "lookup_mode": "action_id",
+        "exists": True,
+        "action_id": action_id,
+        "action": _serialize_model(action, ACTION_FIELDS),
     }
 
 
@@ -410,17 +373,9 @@ def _register_op(
 _register_op(
     "inspect-action-detail",
     "bkm_cli.inspect_action_detail",
-    "读取通知 action 详情或按 alert_id 列出候选 action",
+    "通过 action_id 读取通知 action 详情",
     {
-        "action_id": "integer，可选；提供时精确查询 action",
-        "alert_id": "string，可选；未提供 action_id 时用于列出候选 action",
-        "bk_biz_id": "integer，可选过滤",
-        "created_after": "datetime，可选过滤",
-        "created_before": "datetime，可选过滤",
-        "parent_action_id": "integer，可选过滤",
-        "is_parent_action": "boolean，可选过滤",
-        "action_config_id": "integer，可选过滤",
-        "limit": f"默认 {DEFAULT_LIMIT}，最大 {MAX_LIMIT}",
+        "action_id": "integer，必填；inspect-action-detail 不接受 alert_id",
     },
     {"action_id": 6885950371},
 )
