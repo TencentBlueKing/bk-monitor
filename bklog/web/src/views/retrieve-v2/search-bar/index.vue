@@ -399,6 +399,9 @@ const handleBtnQueryClick = () => {
  * @param value
  */
 const handleSqlRetrieve = (value) => {
+  // 场景化检索模式下，未选择过滤条件时不允许查询
+  if (isQueryBtnDisabled.value) return;
+
   if (isGloalUsage.value) {
     if (value !== '*') {
       beforeQueryBtnClick().then(() => {

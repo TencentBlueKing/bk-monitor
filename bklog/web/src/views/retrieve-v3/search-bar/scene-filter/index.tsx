@@ -119,13 +119,19 @@ export default defineComponent({
 
     /** 根据当前值与快照的对比，更新提示条状态 */
     const updateQueryHint = () => {
-      if (lastQueriedFilterValues.value === null) return;
+      if (lastQueriedFilterValues.value === null) {
+        const hasValues = Object.keys(normalizeFilterValues(filterValues.value)).length > 0;
+        store.commit('updateIndexItem', { isSceneFilterChanged: hasValues });
+        return;
+      }
       const filtersChanged = !isEqual(
         normalizeFilterValues(filterValues.value),
         normalizeFilterValues(lastQueriedFilterValues.value),
       );
       const sceneChanged = activeScene.value !== lastQueriedScene.value;
-      showQueryHint.value = filtersChanged || sceneChanged;
+      const changed = filtersChanged || sceneChanged;
+      showQueryHint.value = changed;
+      store.commit('updateIndexItem', { isSceneFilterChanged: changed });
     };
 
     const handleSceneChange = (type: string) => {
@@ -158,6 +164,7 @@ export default defineComponent({
       filterValues.value = {};
       filterLabels.value = {};
       showQueryHint.value = false;
+      store.commit('updateIndexItem', { isSceneFilterChanged: false });
     };
 
     // 每场景独立的显示字段配置
@@ -207,6 +214,7 @@ export default defineComponent({
           lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
           lastQueriedScene.value = activeScene.value;
           showQueryHint.value = false;
+          store.commit('updateIndexItem', { isSceneFilterChanged: false });
           syncUrlParams();
         }
       },
@@ -217,6 +225,7 @@ export default defineComponent({
       lastQueriedFilterValues.value = null;
       lastQueriedScene.value = null;
       showQueryHint.value = false;
+      store.commit('updateIndexItem', { isSceneFilterChanged: false });
     });
 
     const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
