@@ -165,10 +165,14 @@ export default {
   },
   actions: {
     /** 请求场景化检索配置列表 */
-    requestSceneConfigs({ commit }) {
+    requestSceneConfigs({ commit, rootState }) {
       commit('updateSceneConfigs', { is_loading: true });
       return http
-        .request('retrieve/getSceneConfigs')
+        .request('retrieve/getSceneConfigs', {
+          query: {
+            bk_biz_id: rootState?.bkBizId,
+          },
+        })
         .then((resp) => {
           const data = resp.data ?? resp ?? [];
           commit('updateSceneConfigs', { data });

@@ -510,20 +510,22 @@ export default defineComponent({
                     />
                   ))}
                 </bk-select>
-                <BklogPopover
-                  ref={refGradePopover}
-                  content={() => (
-                    <GradeOption
-                      ref={refGradeOption}
-                      on-Change={handleGradeOptionChange}
-                    />
-                  )}
-                  beforeHide={beforePopoverHide}
-                  content-class='bklog-v3-grade-setting'
-                  options={tippyOptions as any}
-                >
-                  <span class='bklog-icon bklog-shezhi' />
-                </BklogPopover>
+                {!store.getters.isSceneMode && (
+                  <BklogPopover
+                    ref={refGradePopover}
+                    content={() => (
+                      <GradeOption
+                        ref={refGradeOption}
+                        on-Change={handleGradeOptionChange}
+                      />
+                    )}
+                    beforeHide={beforePopoverHide}
+                    content-class='bklog-v3-grade-setting'
+                    options={tippyOptions as any}
+                  >
+                    <span class='bklog-icon bklog-shezhi' />
+                  </BklogPopover>
+                )}
               </div>
             )}
           </div>
