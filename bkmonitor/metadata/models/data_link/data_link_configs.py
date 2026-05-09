@@ -531,6 +531,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         transform_kind: str | None = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
         transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
+        transform_options: dict[str, Any] | None = None,
     ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
@@ -540,6 +541,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         @param transform_kind: 转换类型
         @param transform_name: 转换名称
         @param transform_format: 转换格式
+        @param transform_options: 转换额外配置
         """
         tpl = """
         {
@@ -566,16 +568,19 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     }
                 ],
                 "transforms": [
-                    {
-                        "kind": "{{transform_kind}}",
-                        "name": "{{transform_name}}",
-                        "format": "{{transform_format}}"
-                    }
+                    {{transform}}
                 ]
             }
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        transform = {
+            "kind": transform_kind,
+            "name": transform_name,
+            "format": transform_format,
+        }
+        if transform_options:
+            transform.update(transform_options)
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -583,9 +588,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
             "data_id_name": self.data_id_name,
-            "transform_kind": transform_kind,
-            "transform_name": transform_name,
-            "transform_format": transform_format,
+            "transform": json.dumps(transform),
             "maintainers": json.dumps(maintainer),
         }
 
