@@ -224,8 +224,7 @@ class ApplyDatasourceResource(Resource):
 
 
 class QueryBkDataTokenInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用ID")
+    RequestSerializer = ApplicationRequestSerializer
 
     def perform_request(self, validated_request_data):
         return ApplicationInfoResource()(**validated_request_data)["token"]

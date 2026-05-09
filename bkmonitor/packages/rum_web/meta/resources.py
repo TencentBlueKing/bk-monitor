@@ -251,7 +251,9 @@ class GetApplicationInfoByAppNameResource(ApiAuthResource):
 
 class QueryRumTokenInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用ID")
+        application_id = serializers.IntegerField(label="应用ID", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+        app_name = serializers.CharField(label="应用名称", max_length=50, required=False)
 
     def perform_request(self, validated_request_data):
         return api.rum_api.query_bk_data_token_info(validated_request_data)
