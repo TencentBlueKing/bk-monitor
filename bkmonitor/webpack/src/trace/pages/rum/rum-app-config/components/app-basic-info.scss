@@ -59,6 +59,10 @@
           color: #fff;
           background: #2caf5e;
           border-radius: 999px;
+
+          &.is-enabled {
+            background-color: #2caf5e;
+          }
         }
 
         /* TOKEN 区域 */

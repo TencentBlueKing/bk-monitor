@@ -208,7 +208,7 @@ export default defineComponent({
               <div class='editable-field-edit-mode'>
                 {this.renderEditValue()}
                 {this.loading ? (
-                  <div class='loading' />
+                  <div class='action-loading' />
                 ) : (
                   <div class='action-btns'>
                     <i

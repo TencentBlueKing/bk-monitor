@@ -28,10 +28,9 @@ import { type PropType, defineComponent, reactive, shallowRef, useTemplateRef } 
 import { $bkPopover, Button, Form, Input, Message, Popover } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
+import { deleteApplication, setupApplication, startDataSource, stopDataSource } from 'monitor-api/modules/rum_meta';
 import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
-
-import { applicationSetup, deleteApp, startApp, stopApp } from '../mock';
 
 import type { ApplicationOperationType, IRumAppConfig } from '../../typings/rum-app-config';
 
@@ -98,7 +97,7 @@ export default defineComponent({
       const isValid = await editDescFormRef.value.validate().catch(() => false);
       if (!isValid) return;
       saveLoading.value = true;
-      applicationSetup({
+      setupApplication({
         bk_biz_id: props.data?.bk_biz_id,
         app_name: props.data?.app_name,
         app_alias: model.alias,
@@ -152,10 +151,12 @@ export default defineComponent({
         tokenLoading.value = true;
         token.value = await queryBkDataToken(props.data?.application_id).catch(() => '');
         tokenLoading.value = false;
+        if (!token.value) return;
       }
       isShowToken.value = !isShowToken.value;
     };
 
+    const menuPopoverRef = shallowRef<InstanceType<typeof Popover>>(null);
     const appOperationMenuShow = shallowRef(false);
     const popoverLoading = shallowRef(false);
     const popoverInstance = shallowRef(null);
@@ -189,6 +190,10 @@ export default defineComponent({
           tips: t('停用后将不会有数据上报，请谨慎操作'),
         },
       };
+
+      if (popoverInstance.value) {
+        popoverInstance.value?.vm?.hide();
+      }
 
       popoverInstance.value = $bkPopover({
         target: e.target as HTMLDivElement,
@@ -235,9 +240,9 @@ export default defineComponent({
     };
     const handleApplicationOperation = async (type: ApplicationOperationType) => {
       const appOperationApi = {
-        stop: stopApp,
-        delete: deleteApp,
-        start: startApp,
+        stop: stopDataSource,
+        delete: deleteApplication,
+        start: startDataSource,
       };
       popoverLoading.value = true;
       appOperationApi[type]?.({
@@ -250,6 +255,7 @@ export default defineComponent({
             theme: 'success',
           });
           popoverInstance.value?.hide();
+          menuPopoverRef.value?.hide();
           emit('applicationOperation', type);
         })
         .finally(() => {
@@ -286,7 +292,9 @@ export default defineComponent({
           <div class='app-content'>
             <div class='content-row'>
               <span class='app-domain'>{this.data.app_name}</span>
-              <span class='app-status'>{this.data.is_enabled ? this.$t('启用中') : this.$t('已停用')}</span>
+              <span class={['app-status', { 'is-enabled': this.data.is_enabled }]}>
+                {this.data.is_enabled ? this.$t('启用中') : this.$t('已停用')}
+              </span>
               <div class='app-token'>
                 <span class='token-label'>TOKEN：</span>
                 {this.tokenLoading ? (
@@ -390,6 +398,7 @@ export default defineComponent({
             <span>{this.$t('SDK 接入指引')}</span>
           </span>
           <Popover
+            ref='menuPopover'
             extCls='rum-app-more-menu-popover'
             v-slots={{
               content: () => (
@@ -397,7 +406,7 @@ export default defineComponent({
                   <div
                     class='more-menu-item'
                     onClick={e => {
-                      this.handleOperationApp(e, this.data?.is_enabled ? 'stop' : 'delete');
+                      this.handleOperationApp(e, this.data?.is_enabled ? 'stop' : 'start');
                     }}
                   >
                     {this.data?.is_enabled ? this.$t('停用') : this.$t('启用')}

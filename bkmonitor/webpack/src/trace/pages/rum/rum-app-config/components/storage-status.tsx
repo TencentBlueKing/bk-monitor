@@ -26,11 +26,11 @@
 import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { Message } from 'bkui-vue';
+import { getIndicesInfo, getStorageInfo, setupApplication, storageFieldInfo } from 'monitor-api/modules/rum_meta';
 import { byteConvert } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import CommonTable from '../../../alarm-center/components/alarm-table/components/common-table/common-table';
-import { applicationSetup, getIndicesInfoMock, getStorageFieldMock, storageInfo } from '../mock';
 import EditableField from './editable-field';
 import EmptyStatus from '@/components/empty-status/empty-status';
 import TextOverflowCopy from '@/components/text-overflow-copy/text-overflow-copy';
@@ -121,7 +121,7 @@ export default defineComponent({
     const handleFieldChange = async (value: number | string, field: keyof IStorageInfo) => {
       const res = checkField(value, field);
       if (!res.isPass) return res;
-      const isSuccess = await applicationSetup({
+      const isSuccess = await setupApplication({
         bk_biz_id: props.detail?.bk_biz_id,
         app_name: props.detail?.app_name,
         span_datasource_config: {
@@ -149,8 +149,8 @@ export default defineComponent({
     };
 
     /** 获取存储信息 */
-    const getStorageInfo = async () => {
-      storageData.value = await storageInfo({
+    const getStorageInfoData = async () => {
+      storageData.value = await getStorageInfo({
         bk_biz_id: props.detail?.bk_biz_id,
         app_name: props.detail?.app_name,
       }).catch(() => ({
@@ -250,8 +250,8 @@ export default defineComponent({
       }
       return tableData;
     });
-    const getIndicesInfo = async () => {
-      indicesInfoData.value = await getIndicesInfoMock({
+    const getIndicesInfoData = async () => {
+      indicesInfoData.value = await getIndicesInfo({
         app_name: props.detail?.app_name,
       }).catch(() => []);
     };
@@ -347,7 +347,10 @@ export default defineComponent({
     };
 
     const getFieldInfo = async () => {
-      fieldInfoData.value = await getStorageFieldMock().catch(() => []);
+      fieldInfoData.value = await storageFieldInfo({
+        bk_biz_id: props.detail?.bk_biz_id,
+        app_name: props.detail?.app_name,
+      }).catch(() => []);
       fieldFilterList.value = getFieldFilterList(fieldInfoData.value);
     };
 
@@ -363,9 +366,9 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      getIndicesInfo();
+      getIndicesInfoData();
       getFieldInfo();
-      getStorageInfo();
+      getStorageInfoData();
     });
 
     return {

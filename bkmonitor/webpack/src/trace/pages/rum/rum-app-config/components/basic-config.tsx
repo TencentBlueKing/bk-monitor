@@ -28,9 +28,9 @@ import { computed } from 'vue';
 
 import { Button, Form, Input, Message } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
+import { setupApplication } from 'monitor-api/modules/rum_meta';
 import { useI18n } from 'vue-i18n';
 
-import { applicationSetup } from '../mock';
 import HistoryDialog from '@/components/history-dialog/history-dialog';
 
 import type { IRumAppConfig } from '../../typings/rum-app-config';
@@ -120,7 +120,7 @@ export default defineComponent({
       const isValid = formRef.value.validate().catch(() => false);
       if (!isValid) return;
       loading.value = true;
-      applicationSetup({
+      setupApplication({
         bk_biz_id: props.detail?.bk_biz_id,
         app_name: props.detail?.app_name,
         application_apdex_config: {

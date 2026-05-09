@@ -27,6 +27,7 @@ import { computed, defineComponent, KeepAlive, onMounted, shallowRef } from 'vue
 
 import { Tab } from 'bkui-vue';
 import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
+import { getApplicationInfoByAppName } from 'monitor-api/modules/rum_meta';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -35,7 +36,6 @@ import AppBasicInfo from './components/app-basic-info';
 import BasicConfig from './components/basic-config';
 import DataState from './components/data-state/data-state';
 import StorageStatus from './components/storage-status';
-import { getRumAppConfigMock } from './mock';
 import NavBar from '@/components/nav-bar/nav-bar';
 
 import type { ApplicationOperationType, IRumAppConfig, RumAppConfigTabType } from '../typings';
@@ -75,7 +75,7 @@ export default defineComponent({
     };
 
     const getRumAppConfig = async () => {
-      appInfo.value = await getRumAppConfigMock({ app_name: route.params.appName as string });
+      appInfo.value = await getApplicationInfoByAppName({ app_name: route.params.appName as string });
     };
 
     /**
