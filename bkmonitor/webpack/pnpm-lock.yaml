@@ -163,6 +163,9 @@ importers:
       '@blueking/monitor-alarm-center':
         specifier: 0.0.7
         version: 0.0.7(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)(highlight.js@11.11.1)(typescript@5.9.3)
+      '@blueking/monitor-trace-explore':
+        specifier: 0.0.5
+        version: 0.0.5(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -655,8 +658,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-trace-log':
-        specifier: 2.0.9
-        version: 2.0.9
+        specifier: 2.0.11
+        version: 2.0.11
       '@blueking/monitor-vue2-components':
         specifier: 0.0.0-beta.8
         version: 0.0.0-beta.8
@@ -1677,8 +1680,11 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-log@2.0.9':
-    resolution: {integrity: sha512-C9bsj0lhVnmf1ezGtrVh7l5dq6IjEsHXXRxNVmR7WLXRe/7e9kXdnARuMs1gVQTRwDHcxJ5xwUJqdPc8GTQeaQ==}
+  '@blueking/monitor-trace-explore@0.0.5':
+    resolution: {integrity: sha512-J2v032GM45Sj+PXtEa+7l19/gvRdqD+eHxlPdG1vw+85GHgqYGsLUIyre69C4123yeQUpmfgrI8Ph1kbW8v7AA==}
+
+  '@blueking/monitor-trace-log@2.0.11':
+    resolution: {integrity: sha512-Cinqsn3R2+tjESSbIuN2+iX0Q9urIGMI95D6dMKF7f0FwIyG07aG3CrGxwg92sEu7wmllW+oWNk5RiWSkFMl7w==}
 
   '@blueking/monitor-vue2-components@0.0.0-beta.8':
     resolution: {integrity: sha512-sEbhCszh8f5SXREBygdw2Lu+q8KBUQJz7zmfaZJMjbWAiF0ZrQF6D9zz2ptPi1tuz0nCx0IYg4pm4sgIPt3wiQ==}
@@ -10546,7 +10552,18 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-log@2.0.9': {}
+  '@blueking/monitor-trace-explore@0.0.5(highlight.js@11.11.1)(typescript@5.9.3)':
+    dependencies:
+      '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
+      bkui-vue: 2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))
+      dayjs: 1.11.18
+      vue: 3.5.29(typescript@5.9.3)
+      vue-tippy: 6.7.1(vue@3.5.29(typescript@5.9.3))
+    transitivePeerDependencies:
+      - highlight.js
+      - typescript
+
+  '@blueking/monitor-trace-log@2.0.11': {}
 
   '@blueking/monitor-vue2-components@0.0.0-beta.8':
     dependencies:

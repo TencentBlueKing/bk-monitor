@@ -25,10 +25,13 @@ from kernel_api.rpc.functions.admin.common import (
     serialize_value,
 )
 from metadata import models
+from metadata.utils import es_tools
 
 FUNC_CLUSTER_INFO_LIST = "admin.cluster_info.list"
 FUNC_CLUSTER_INFO_DETAIL = "admin.cluster_info.detail"
 FUNC_CLUSTER_INFO_COMPONENT_CONFIG = "admin.cluster_info.component_config"
+FUNC_CLUSTER_INFO_ES_OVERVIEW = "admin.cluster_info.es_overview"
+INSPECT_SAFETY_LEVEL = "inspect"
 
 CLUSTER_INFO_FIELDS = [
     "cluster_id",
@@ -96,6 +99,210 @@ STORAGE_MODEL_MAP: dict[str, type[Any] | None] = {
     models.ClusterInfo.TYPE_VM: None,
     models.ClusterInfo.TYPE_BKDATA: None,
 }
+
+
+def _mark_inspect_response(response: dict[str, Any]) -> dict[str, Any]:
+    response["meta"]["safety_level"] = INSPECT_SAFETY_LEVEL
+    response["meta"]["requested_safety_level"] = INSPECT_SAFETY_LEVEL
+    return response
+
+
+def _parse_int(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _get_nested(data: dict[str, Any] | None, path: list[str]) -> Any:
+    current: Any = data
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _append_es_overview_warning(
+    warnings: list[dict[str, Any]], code: str, message: str, error: Exception | None = None
+) -> None:
+    warning: dict[str, Any] = {"code": code, "message": message}
+    if error is not None:
+        warning["details"] = {"error": str(error)}
+    warnings.append(warning)
+
+
+def _run_es_overview_query(
+    name: str,
+    warnings: list[dict[str, Any]],
+    query,
+) -> Any:
+    try:
+        return query()
+    except Exception as error:  # pylint: disable=broad-except
+        _append_es_overview_warning(
+            warnings,
+            "ES_CLUSTER_OVERVIEW_QUERY_FAILED",
+            f"ES 集群 {name} 查询失败",
+            error,
+        )
+        return None
+
+
+def _sum_allocation_bytes(allocations: list[dict[str, Any]], field: str) -> int | None:
+    values = []
+    for node in allocations:
+        value = _parse_int(node.get(field))
+        if value is not None:
+            values.append(value)
+    return sum(values) if values else None
+
+
+def _calc_percent(used: int | None, total: int | None) -> float | None:
+    if used is None or total in (None, 0):
+        return None
+    return round(used * 100 / total, 2)
+
+
+def _extract_shard_limit(settings: dict[str, Any] | None) -> int | None:
+    for scope in ("persistent", "transient", "defaults"):
+        value = _get_nested(settings, [scope, "cluster", "max_shards_per_node"])
+        parsed = _parse_int(value)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _build_alias_summary(client: Any, warnings: list[dict[str, Any]]) -> dict[str, Any]:
+    aliases = _run_es_overview_query(
+        "aliases",
+        warnings,
+        lambda: client.cat.aliases(format="json", params={"request_timeout": 10}),
+    )
+    if isinstance(aliases, list):
+        alias_names = {str(alias.get("alias")) for alias in aliases if alias.get("alias")}
+        index_names = {str(alias.get("index")) for alias in aliases if alias.get("index")}
+        return {"count": len(alias_names), "relation_count": len(aliases), "index_count": len(index_names)}
+
+    alias_map = _run_es_overview_query(
+        "alias map",
+        warnings,
+        lambda: client.indices.get_alias(index="*"),
+    )
+    if not isinstance(alias_map, dict):
+        return {"count": None, "relation_count": None, "index_count": None}
+
+    alias_names: set[str] = set()
+    relation_count = 0
+    for detail in alias_map.values():
+        if not isinstance(detail, dict):
+            continue
+        aliases_obj = detail.get("aliases")
+        if not isinstance(aliases_obj, dict):
+            continue
+        alias_names.update(str(alias_name) for alias_name in aliases_obj)
+        relation_count += len(aliases_obj)
+
+    return {"count": len(alias_names), "relation_count": relation_count, "index_count": len(alias_map)}
+
+
+def _build_es_cluster_overview(
+    cluster: models.ClusterInfo, bk_tenant_id: str
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    warnings: list[dict[str, Any]] = []
+    client = es_tools.get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster.cluster_id)
+
+    health = _run_es_overview_query("health", warnings, lambda: client.cluster.health())
+    stats = _run_es_overview_query("stats", warnings, lambda: client.cluster.stats())
+    settings = _run_es_overview_query(
+        "settings",
+        warnings,
+        lambda: client.cluster.get_settings(include_defaults=True),
+    )
+    allocations = _run_es_overview_query(
+        "allocation",
+        warnings,
+        lambda: client.cat.allocation(format="json", bytes="b", params={"request_timeout": 10}),
+    )
+    if not isinstance(allocations, list):
+        allocations = []
+
+    shard_limit_per_node = _extract_shard_limit(settings if isinstance(settings, dict) else None)
+    data_node_count = _parse_int((health or {}).get("number_of_data_nodes")) if isinstance(health, dict) else None
+    active_shards = _parse_int((health or {}).get("active_shards")) if isinstance(health, dict) else None
+    initializing_shards = _parse_int((health or {}).get("initializing_shards")) if isinstance(health, dict) else None
+    relocating_shards = _parse_int((health or {}).get("relocating_shards")) if isinstance(health, dict) else None
+    unassigned_shards = _parse_int((health or {}).get("unassigned_shards")) if isinstance(health, dict) else None
+    current_shards = sum(
+        value or 0 for value in [active_shards, initializing_shards, relocating_shards, unassigned_shards]
+    )
+    max_shards = shard_limit_per_node * data_node_count if shard_limit_per_node and data_node_count else None
+
+    disk_total = _sum_allocation_bytes(allocations, "disk.total")
+    disk_available = _sum_allocation_bytes(allocations, "disk.avail")
+    disk_used = _sum_allocation_bytes(allocations, "disk.used")
+    if disk_used is None and disk_total is not None and disk_available is not None:
+        disk_used = disk_total - disk_available
+
+    indices_count = _parse_int(_get_nested(stats, ["indices", "count"])) if isinstance(stats, dict) else None
+    indices_store_bytes = (
+        _parse_int(_get_nested(stats, ["indices", "store", "size_in_bytes"])) if isinstance(stats, dict) else None
+    )
+    docs_count = _parse_int(_get_nested(stats, ["indices", "docs", "count"])) if isinstance(stats, dict) else None
+    deleted_docs_count = (
+        _parse_int(_get_nested(stats, ["indices", "docs", "deleted"])) if isinstance(stats, dict) else None
+    )
+    total_shards_from_stats = (
+        _parse_int(_get_nested(stats, ["indices", "shards", "total"])) if isinstance(stats, dict) else None
+    )
+
+    return (
+        {
+            "cluster_id": cluster.cluster_id,
+            "cluster_name": cluster.cluster_name,
+            "display_name": cluster.display_name,
+            "cluster_type": cluster.cluster_type,
+            "status": (health or {}).get("status") if isinstance(health, dict) else None,
+            "timed_out": (health or {}).get("timed_out") if isinstance(health, dict) else None,
+            "nodes": {
+                "number_of_nodes": _parse_int((health or {}).get("number_of_nodes"))
+                if isinstance(health, dict)
+                else None,
+                "number_of_data_nodes": data_node_count,
+                "stats_total": _parse_int(_get_nested(stats, ["nodes", "count", "total"]))
+                if isinstance(stats, dict)
+                else None,
+            },
+            "storage": {
+                "disk_used_bytes": disk_used,
+                "disk_total_bytes": disk_total,
+                "disk_available_bytes": disk_available,
+                "disk_used_percent": _calc_percent(disk_used, disk_total),
+                "indices_store_bytes": indices_store_bytes,
+            },
+            "indices": {
+                "count": indices_count,
+                "docs_count": docs_count,
+                "deleted_docs_count": deleted_docs_count,
+            },
+            "aliases": _build_alias_summary(client, warnings),
+            "shards": {
+                "current": total_shards_from_stats or current_shards,
+                "active": active_shards,
+                "initializing": initializing_shards,
+                "relocating": relocating_shards,
+                "unassigned": unassigned_shards,
+                "max_per_node": shard_limit_per_node,
+                "max": max_shards,
+                "used_percent": _calc_percent(total_shards_from_stats or current_shards, max_shards),
+            },
+            "health": serialize_value(health),
+            "inspect": True,
+        },
+        warnings,
+    )
 
 
 def _serialize_cluster_info(cluster: models.ClusterInfo) -> dict[str, Any]:
@@ -381,3 +588,42 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
             "name": name,
         },
     )
+
+
+@KernelRPCRegistry.register(
+    FUNC_CLUSTER_INFO_ES_OVERVIEW,
+    summary="Admin 查询 ES ClusterInfo 运行时大盘",
+    description="inspect 级别能力，访问目标 ES 集群读取健康状态、存储使用量、索引/别名数量和 shard 使用情况。",
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "cluster_id": "必填，ClusterInfo.cluster_id，必须是 elasticsearch 集群",
+    },
+    example_params={"bk_tenant_id": "system", "cluster_id": 1},
+)
+def get_es_cluster_overview(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    cluster_id = params.get("cluster_id")
+    if cluster_id in (None, ""):
+        raise CustomException(message="cluster_id 为必填项")
+    try:
+        cluster_id = int(cluster_id)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="cluster_id 必须是整数") from error
+
+    try:
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
+    except models.ClusterInfo.DoesNotExist as error:
+        raise CustomException(message=f"未找到 ClusterInfo: cluster_id={cluster_id}") from error
+
+    if cluster.cluster_type != models.ClusterInfo.TYPE_ES:
+        raise CustomException(message=f"cluster_id={cluster_id} 不是 elasticsearch 集群")
+
+    data, warnings = _build_es_cluster_overview(cluster, bk_tenant_id)
+    response = build_response(
+        operation="cluster_info.es_overview",
+        func_name=FUNC_CLUSTER_INFO_ES_OVERVIEW,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+        warnings=warnings,
+    )
+    return _mark_inspect_response(response)

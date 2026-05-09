@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import abc
 import copy
 import logging
+from functools import partial
 from typing import Any
 
 from django.utils.translation import gettext as _
@@ -58,6 +59,7 @@ from constants.apm import (
     SpanStandardField,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
+    CallSide,
 )
 from core.drf_resource import Resource, api, FaultTolerantResource
 from core.drf_resource.exceptions import CustomException
@@ -70,6 +72,7 @@ from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
 from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
+from ..handlers.metric_group import GroupEnum, MetricGroupRegistry, BaseMetricGroup, CalculationType
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +81,61 @@ class BaseTraceFaultTolerantResource(FaultTolerantResource, abc.ABC):
     pass
 
 
-class TraceChatsResource(Resource):
+class TraceChartsResource(Resource):
+    TARGET_QUERY_CONFIG_FIELDS = [
+        "data_source_label",
+        "data_type_label",
+        "table",
+        "metrics",
+        "group_by",
+        "where",
+        "filter_dict",
+        "functions",
+        "time_field",
+        "data_label",
+    ]
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
+        service_name = serializers.CharField(label="服务名称", required=False)
+
+    @classmethod
+    def build_target(
+        cls, q: dict[str, Any], app_name: str, alias: str, unit: str | None = None, stack: str | None = None, **kwargs
+    ) -> dict[str, Any]:
+        query_configs: list[dict[str, Any]] = [
+            cls._build_query_config(query_config) for query_config in q["query_configs"]
+        ]
+        query_params: dict[str, Any] = {"expression": q["expression"], "query_configs": query_configs}
+        target_data: dict[str, Any] = {
+            "app_name": app_name,
+            **query_params,
+            "unify_query_param": copy.deepcopy(query_params),
+            "fill_bar": True,
+        }
+
+        if unit:
+            target_data["unit"] = unit
+        if stack:
+            target_data["stack"] = stack
+
+        return {
+            "data_type": "time_series",
+            "api": "apm_metric.dynamicUnifyQuery",
+            "datasource": "time_series",
+            "alias": alias,
+            "data": target_data,
+            **kwargs,
+        }
+
+    @classmethod
+    def _build_query_config(cls, query_config: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "display": True,
+            "interval_unit": "s",
+            **{k: v for k, v in query_config.items() if k in cls.TARGET_QUERY_CONFIG_FIELDS},
+        }
 
     def perform_request(self, validated_request_data):
         try:
@@ -90,519 +144,87 @@ class TraceChatsResource(Resource):
             )
         except Application.DoesNotExist:
             raise ValueError(_lazy("应用不存在"))
-        database, _ = app.metric_result_table_id.split(".")
-        return [
+
+        get_span_group = partial(MetricGroupRegistry.get, GroupEnum.SPAN.value, **validated_request_data)
+        span_groups: dict[str, BaseMetricGroup] = {
+            "default": get_span_group(),
+            CallSide.CALLEE.value: get_span_group(kind=CallSide.CALLEE.value),
+            CallSide.CALLER.value: get_span_group(kind=CallSide.CALLER.value),
+        }
+
+        panels: list[dict[str, Any]] = [
             {
-                "id": 1,
                 "title": _lazy("请求数"),
-                "type": "apm-timeseries-chart",
                 "gridPos": {"x": 0, "y": 16, "w": 8, "h": 4},
-                "alias": _lazy("请求数"),
-                "targets": [
-                    {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
-                        "alias": _lazy("主调"),
-                        "data": {
-                            "app_name": app.app_name,
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                    "group_by": [],
-                                    "display": True,
-                                    "where": [
-                                        {"key": "kind", "method": "eq", "value": ["3"]},
-                                        {"condition": "or", "key": "kind", "method": "eq", "value": ["4"]},
-                                    ],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [],
-                                }
-                            ],
-                            "stack": "all",
-                            "unify_query_param": {
-                                "expression": "A",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "table": f"{database}.__default__",
-                                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                        "group_by": [],
-                                        "display": True,
-                                        "where": [
-                                            {"key": "kind", "method": "eq", "value": ["3"]},
-                                            {"condition": "or", "key": "kind", "method": "eq", "value": ["4"]},
-                                        ],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [],
-                                    }
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
-                    },
-                    {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
-                        "alias": _lazy("被调"),
-                        "data": {
-                            "app_name": app.app_name,
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                    "group_by": [],
-                                    "display": True,
-                                    "where": [
-                                        {"key": "kind", "method": "eq", "value": ["2"]},
-                                        {"condition": "or", "key": "kind", "method": "eq", "value": ["5"]},
-                                    ],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [],
-                                }
-                            ],
-                            "stack": "all",
-                            "unify_query_param": {
-                                "expression": "A",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "table": f"{database}.__default__",
-                                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                        "group_by": [],
-                                        "display": True,
-                                        "where": [
-                                            {"key": "kind", "method": "eq", "value": ["2"]},
-                                            {"condition": "or", "key": "kind", "method": "eq", "value": ["5"]},
-                                        ],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [],
-                                    }
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
-                    },
-                ],
                 "options": {
-                    "apm_time_series": {
-                        "metric": "request_count",
-                        "unit": "number",
-                    },
+                    "apm_time_series": {"metric": "request_count", "unit": "number"},
                     "time_series": {"type": "bar", "hoverAllTooltips": True},
                 },
+                "target_specs": [
+                    {
+                        "group": span_groups[call_side.value],
+                        "calculation_type": CalculationType.REQUEST_TOTAL.value,
+                        "alias": _lazy(call_side.label),
+                        "stack": "all",
+                    }
+                    for call_side in [CallSide.CALLER, CallSide.CALLEE]
+                ],
             },
             {
-                "id": 2,
                 "title": _lazy("错误数"),
-                "type": "apm-timeseries-chart",
                 "gridPos": {"x": 8, "y": 16, "w": 8, "h": 4},
-                "targets": [
+                "options": {
+                    "apm_time_series": {"metric": "error_count", "unit": "number"},
+                    "time_series": {"type": "bar", "hoverAllTooltips": True},
+                },
+                "target_specs": [
                     {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
+                        "group": span_groups["default"],
+                        "calculation_type": CalculationType.ERROR_COUNT.value,
                         "alias": _lazy("错误数"),
-                        "data": {
-                            "app_name": app.app_name,
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                    "group_by": [],
-                                    "display": True,
-                                    "where": [
-                                        {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                                    ],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [],
-                                }
-                            ],
-                            "unify_query_param": {
-                                "type": "range",
-                                "stack": "all",
-                                "expression": "A",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "table": f"{database}.__default__",
-                                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                        "group_by": [],
-                                        "display": True,
-                                        "where": [
-                                            {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                                        ],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [],
-                                    }
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
                         "yAxisIndex": 0,
                         "chart_type": "bar",
                     },
                     {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
+                        "group": span_groups["default"],
+                        "calculation_type": CalculationType.EXCEPTION_RATE.value,
                         "alias": _lazy("错误率"),
-                        "data": {
-                            "app_name": app.app_name,
-                            "unit": "percentunit",
-                            "expression": "a / b",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
-                                    "table": f"{database}.__default__",
-                                    "data_label": "",
-                                    "index_set_id": None,
-                                    "group_by": [],
-                                    "where": [
-                                        {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                                    ],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [],
-                                },
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "b"}],
-                                    "table": f"{database}.__default__",
-                                    "data_label": "",
-                                    "index_set_id": None,
-                                    "group_by": [],
-                                    "where": [],
-                                    "interval_unit": "s",
-                                    "time_field": None,
-                                    "filter_dict": {},
-                                    "functions": [],
-                                },
-                            ],
-                            "unify_query_param": {
-                                "expression": "a / b",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
-                                        "table": f"{database}.__default__",
-                                        "data_label": "",
-                                        "index_set_id": None,
-                                        "group_by": [],
-                                        "where": [
-                                            {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                                        ],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [],
-                                    },
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "b"}],
-                                        "table": f"{database}.__default__",
-                                        "data_label": "",
-                                        "index_set_id": None,
-                                        "group_by": [],
-                                        "where": [],
-                                        "interval_unit": "s",
-                                        "time_field": None,
-                                        "filter_dict": {},
-                                        "functions": [],
-                                    },
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
+                        "unit": "percentunit",
                         "yAxisIndex": 1,
                         "chart_type": "line",
                     },
                 ],
-                "options": {
-                    "apm_time_series": {
-                        "metric": "error_count",
-                        "unit": "number",
-                    },
-                    "time_series": {"type": "bar", "hoverAllTooltips": True},
-                },
             },
             {
-                "id": 3,
                 "title": _lazy("耗时"),
                 "gridPos": {"x": 16, "y": 16, "w": 8, "h": 4},
-                "type": "apm-timeseries-chart",
-                "targets": [
-                    {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
-                        "alias": "AVG",
-                        "data": {
-                            "app_name": app.app_name,
-                            "unit": "ns",
-                            "expression": "a / b",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_duration_sum", "method": "SUM", "alias": "a"}],
-                                    "table": f"{database}.__default__",
-                                    "data_label": "",
-                                    "index_set_id": None,
-                                    "group_by": [],
-                                    "where": [],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
-                                },
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "metrics": [{"field": "bk_apm_total", "method": "SUM", "alias": "b"}],
-                                    "table": f"{database}.__default__",
-                                    "data_label": "",
-                                    "index_set_id": None,
-                                    "group_by": [],
-                                    "where": [],
-                                    "interval_unit": "s",
-                                    "time_field": None,
-                                    "filter_dict": {},
-                                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
-                                },
-                            ],
-                            "unify_query_param": {
-                                "expression": "a / b",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "metrics": [{"field": "bk_apm_duration_sum", "method": "SUM", "alias": "a"}],
-                                        "table": f"{database}.__default__",
-                                        "data_label": "",
-                                        "index_set_id": None,
-                                        "group_by": [],
-                                        "where": [],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
-                                    },
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "metrics": [{"field": "bk_apm_total", "method": "SUM", "alias": "b"}],
-                                        "table": f"{database}.__default__",
-                                        "data_label": "",
-                                        "index_set_id": None,
-                                        "group_by": [],
-                                        "where": [],
-                                        "interval_unit": "s",
-                                        "time_field": None,
-                                        "filter_dict": {},
-                                        "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
-                                    },
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
-                    },
-                    {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
-                        "alias": "P50",
-                        "data": {
-                            "app_name": app.app_name,
-                            "unit": "ns",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                                    "group_by": ["le"],
-                                    "display": True,
-                                    "where": [],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [
-                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.5}]},
-                                    ],
-                                }
-                            ],
-                            "unify_query_param": {
-                                "expression": "A",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "table": f"{database}.__default__",
-                                        "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                                        "group_by": ["le"],
-                                        "display": True,
-                                        "where": [],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [
-                                            {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                                            {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.5}]},
-                                        ],
-                                    }
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
-                    },
-                    {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
-                        "alias": "P95",
-                        "data": {
-                            "app_name": app.app_name,
-                            "unit": "ns",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                                    "group_by": ["le"],
-                                    "display": True,
-                                    "where": [],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [
-                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.95}]},
-                                    ],
-                                }
-                            ],
-                            "unify_query_param": {
-                                "expression": "A",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "table": f"{database}.__default__",
-                                        "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                                        "group_by": ["le"],
-                                        "display": True,
-                                        "where": [],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [
-                                            {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                                            {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.95}]},
-                                        ],
-                                    }
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
-                    },
-                    {
-                        "data_type": "time_series",
-                        "api": "apm_metric.dynamicUnifyQuery",
-                        "datasource": "time_series",
-                        "alias": "P99",
-                        "data": {
-                            "app_name": app.app_name,
-                            "unit": "ns",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                                    "group_by": ["le"],
-                                    "display": True,
-                                    "where": [],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [
-                                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                                        {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.99}]},
-                                    ],
-                                }
-                            ],
-                            "unify_query_param": {
-                                "expression": "A",
-                                "query_configs": [
-                                    {
-                                        "data_source_label": "custom",
-                                        "data_type_label": "time_series",
-                                        "table": f"{database}.__default__",
-                                        "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                                        "group_by": ["le"],
-                                        "display": True,
-                                        "where": [],
-                                        "interval_unit": "s",
-                                        "time_field": "time",
-                                        "filter_dict": {},
-                                        "functions": [
-                                            {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                                            {"id": "histogram_quantile", "params": [{"id": "scalar", "value": 0.99}]},
-                                        ],
-                                    }
-                                ],
-                            },
-                            "fill_bar": True,
-                        },
-                    },
-                ],
                 "options": {
-                    "apm_time_series": {
-                        "metric": "avg_duration",
-                        "unit": "μs",
-                    },
+                    "apm_time_series": {"metric": "avg_duration", "unit": "μs"},
                     "time_series": {"hoverAllTooltips": True},
                 },
+                "target_specs": [
+                    {
+                        "group": span_groups["default"],
+                        "calculation_type": f"{alias}_DURATION".lower(),
+                        "alias": alias,
+                        "unit": "ns",
+                    }
+                    for alias in ["AVG", "P50", "P95", "P99"]
+                ],
             },
         ]
 
+        for idx, panel in enumerate(panels, 1):
+            panel.update({"id": idx, "type": "apm-timeseries-chart", "targets": []})
+            for target_spec in panel.pop("target_specs", []):
+                group: BaseMetricGroup = target_spec.pop("group")
+                query_config: dict[str, Any] = group.query_config(target_spec.pop("calculation_type"), raw=True)
+                panel["targets"].append(self.build_target(query_config, app.app_name, **target_spec))
+
+        return panels
+
 
 class TraceOptionsResource(Resource):
-    # class RequestSerializer(serializers.Serializer):
-    #     bk_biz_id = serializers.IntegerField(label="业务ID")
-    #     app_name = serializers.CharField(label="应用名称")
-
     many_response_data = True
 
     class ResponseSerializer(serializers.Serializer):
@@ -696,15 +318,23 @@ class ListTraceResource(Resource):
 
     def perform_request(self, data):
         response = self.get_trace_list_api_data(data)
-
         QueryHandler.handle_trace_list(response["data"])
-
         return response
+
+    @classmethod
+    def _transform2origin_filters(cls, filters: list[dict[str, Any]]):
+        """将预计算表的 filters 转换为原始表的 filters"""
+        origin_filters = []
+        for f in filters:
+            origin_filter: dict[str, Any] = copy.deepcopy(f)
+            origin_filter["key"] = TraceQueryTransformer.to_common_field(origin_filter["key"])
+            origin_filters.append(origin_filter)
+        return origin_filters
 
     def get_trace_list_api_data(self, data):
         bk_biz_id: int = data["bk_biz_id"]
         app_name: str = data["app_name"]
-        params = {
+        params: dict[str, Any] = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "start_time": data["start_time"],
@@ -729,6 +359,7 @@ class ListTraceResource(Resource):
         if is_contain_non_standard_fields:
             # 如果查询包含了非标准字段 -> 走原始表（预计算表无法查询非标准字段）
             qm = TraceListQueryMode.ORIGIN
+            params["filters"] = self._transform2origin_filters(params["filters"])
             params["query_string"] = QueryHandler.process_query_string(
                 SpanQueryTransformer(bk_biz_id, app_name), data["query"]
             )
@@ -745,6 +376,7 @@ class ListTraceResource(Resource):
                 # 如果本次为预计算查询但是无数据时 切换为原始表再次查询 同时 es_dsl 也需要切换为 Span 表的 DSL 转换器
                 qm = TraceListQueryMode.ORIGIN
                 params["query_mode"] = qm
+                params["filters"] = self._transform2origin_filters(params["filters"])
                 params["query_string"] = QueryHandler.process_query_string(
                     SpanQueryTransformer(bk_biz_id, app_name), data["query"]
                 )
@@ -756,7 +388,8 @@ class ListTraceResource(Resource):
         response["type"] = qm
         return response
 
-    def burial_point(self, bk_biz_id, app_name):
+    @classmethod
+    def burial_point(cls, bk_biz_id, app_name):
         # 查询指标埋点
         try:
             unify_query_count(data_type_label="trace", bk_biz_id=bk_biz_id, app_name=app_name)

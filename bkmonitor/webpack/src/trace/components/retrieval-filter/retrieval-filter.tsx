@@ -576,7 +576,6 @@ export default defineComponent({
                   <span class='icon-monitor icon-configuration' />
                 </div>
               )}
-              {/* // #if !IS_APM_MONITOR */}
               {this.isShowFavorite && (
                 <Popover
                   extCls='retrieval-filter-favorite-btn-popover'
@@ -626,7 +625,6 @@ export default defineComponent({
                   }}
                 </Popover>
               )}
-              {/* // #endif */}
               {this.$slots?.customRightBtns?.()}
             </div>
 
