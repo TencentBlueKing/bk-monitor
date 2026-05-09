@@ -63,6 +63,8 @@ import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
 import ProfilingGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
+import ApmMonitorK8s from '../plugins/apm-monitor-k8s';
+
 // import RelationGraph from '../plugins/relation-graph/relation-graph';
 import ResourceChart from '../plugins/resource-chart/resource-chart';
 import StatusListChart from '../plugins/status-list-chart/status-list-chart';
@@ -489,11 +491,13 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return <monitor-retrieve />;
       case 'exception-guide':
         return (
-          <ExceptionGuide
-            clearErrorMsg={this.handleClearErrorMsg}
-            panel={this.panel}
-            onErrorMsg={this.handleErrorMsgChange}
-          />
+          // TODO: 本地调试临时变更，后续会恢复
+          <ApmMonitorK8s />
+          // <ExceptionGuide
+          //   clearErrorMsg={this.handleClearErrorMsg}
+          //   panel={this.panel}
+          //   onErrorMsg={this.handleErrorMsgChange}
+          // />
         );
       case 'resource':
         return (
