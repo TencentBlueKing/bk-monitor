@@ -336,6 +336,7 @@
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield.js';
+import { getAlarmCenterDetailRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import { debounce } from 'throttle-debounce';
 
 import { commonPageSizeMixin } from '../../../common/mixins';
@@ -761,10 +762,7 @@ export default {
           params: { id: row.dimensionConfig.id },
         });
       } else if (row.shieldType === 'event') {
-        this.$router.push({
-          name: 'event-center-detail',
-          params: { id: row.dimensionConfig.id },
-        });
+        this.$router.push(getAlarmCenterDetailRouteLocation(row.dimensionConfig.id));
       }
     },
     handleClearDate() {

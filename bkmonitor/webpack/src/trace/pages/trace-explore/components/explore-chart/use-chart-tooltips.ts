@@ -29,6 +29,7 @@ import { type MaybeRef, type Ref, computed, shallowRef } from 'vue';
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 
+import type { CustomOptions } from './use-echarts';
 import type { TooltipComponentOption } from 'echarts';
 
 export const useChartTooltips = (
@@ -37,7 +38,9 @@ export const useChartTooltips = (
     isMouseOver,
     hoverAllTooltips,
     options,
+    customTooltipsOptions,
   }: {
+    customTooltipsOptions: CustomOptions['tooltips'];
     hoverAllTooltips: MaybeRef<boolean>;
     isMouseOver: MaybeRef<boolean>;
     options: MaybeRef<any>;
@@ -54,6 +57,7 @@ export const useChartTooltips = (
     let ulStyle = '';
     let hasWrapText = false;
     const pointTime = dayjs.tz(+params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
+
     liHtmlList = params.map(item => {
       const markColor = 'color: #fafbfd;';
       if (item.value === null) return '';
@@ -71,6 +75,23 @@ export const useChartTooltips = (
                   ${valueObj.text} ${valueObj.suffix || ''}</span>
                   </li>`;
     });
+    if (customTooltipsOptions?.showTotal) {
+      const value = params.reduce((acc, cur) => acc + cur.value, 0);
+      if (value === null) return '';
+      const rawData = get(options).series?.[0].raw_data;
+      const unitFormatter = rawData.unitFormatter || ((v: string) => ({ text: v }));
+      const precision =
+        !['none', ''].some(val => val === rawData.unit) && +rawData.precision < 1 ? 2 : +rawData.precision;
+      const valueObj = unitFormatter(value, precision);
+      liHtmlList.push(`<li class="tooltips-content-item">
+                  <span class="item-series"
+                   style="background-color:transparent;">
+                  </span>
+                  <span class="item-name" style="color: #fafbfd;">${window.i18n.t('总计')}:</span>
+                  <span class="item-value" style="color: #fafbfd;">
+                  ${valueObj.text} ${valueObj.suffix || ''}</span>
+                  </li>`);
+    }
     liHtmlList = liHtmlList.filter(Boolean);
     if (liHtmlList?.length < 1) return '';
     // 如果超出屏幕高度，则分列展示，100为预估预留空间（表头 + tooltip 内边距等），22为每行高度

@@ -26,6 +26,7 @@
 
 import { toPng } from 'html-to-image';
 import { deepClone } from 'monitor-common/utils';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
 import { commOpenUrl, getMetricId, transformLogUrlQuery } from '@/plugins/utls/menu';
@@ -96,13 +97,17 @@ export const handleRelateAlert = (targets: IDataQuery[], timeRange: string[]) =>
   Object.keys(metricIdMap).forEach(metricId => {
     queryString += `${queryString.length ? ' or ' : ''}指标ID : ${metricId}`;
   });
-  queryString.length &&
-    window.open(
-      commOpenUrl(
-        `#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}`,
-        targetBizId.toString()
-      )
+  if (queryString.length) {
+    openAlarmCenter(
+      {
+        queryString,
+        from: timeRange[0],
+        to: timeRange[1],
+      },
+      '_blank',
+      targetBizId.toString()
     );
+  }
 };
 
 export function handleAddStrategy(targets: IDataQuery[], metric: IExtendMetricData | null) {

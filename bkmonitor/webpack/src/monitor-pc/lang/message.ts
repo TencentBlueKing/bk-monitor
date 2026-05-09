@@ -545,4 +545,5 @@ export default {
   克隆模板成功: 'Cloned template successfully',
   解除关联成功: 'Unassociation successful',
   解除关联失败: 'Unassociation failed',
+  评论发送失败: 'Comment sending failed',
 };

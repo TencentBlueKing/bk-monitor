@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import os
 from unittest import mock
@@ -40,6 +40,18 @@ mock.patch(
 ).start()
 
 from fta_web.handlers import install_global_event_plugin, register_event_plugin
+
+
+PUBLIC_CLOUD_ALARM_LEVEL_EXPR = "get_field({Warn: '2', Serious: '1', Remind: '3'}, alarmLevel || '') || '1'"
+
+
+def get_public_cloud_alarm_level_exprs(clean_configs):
+    return [
+        field["expr"]
+        for clean_config in clean_configs
+        for field in clean_config.get("normalization_config", [])
+        if field["field"] == "severity" and "alarmLevel" in field["expr"]
+    ]
 
 
 def get_plugin_info():
@@ -332,7 +344,7 @@ def get_multi_cloud_plugin_info():
             {
                 "rules": [
                     {"key": 'headers."user-agent"', "value": ["Google-Alerts"], "method": "eq", "condition": "or"},
-                    {"key": '__http_query_params__.source', "value": ["google"], "method": "eq", "condition": "or"},
+                    {"key": "__http_query_params__.source", "value": ["google"], "method": "eq", "condition": "or"},
                 ],
                 "normalization_config": [
                     {"field": "alert_name", "expr": "incident.policy_name"},
@@ -367,7 +379,7 @@ def get_multi_cloud_plugin_info():
             },
             {
                 "rules": [
-                    {"key": '__http_query_params__.source', "value": ["tencent"], "method": "eq"},
+                    {"key": "__http_query_params__.source", "value": ["tencent"], "method": "eq"},
                 ],
                 "normalization_config": [
                     {"field": "alert_name", "expr": "alarmPolicyInfo.policyName"},
@@ -621,6 +633,12 @@ class TestEventPluginMigrate(TestCase):
         self.assertEqual(data["ingest_config"]["url"], "http://127.0.0.1:8009")
         self.assertEqual(data["ingest_config"]["method"], "PUT")
 
+        public_cloud_plugin = EventPluginV2.objects.get(plugin_id="public_cloud_alert", version="0.4.0")
+        self.assertEqual(
+            get_public_cloud_alarm_level_exprs(public_cloud_plugin.clean_configs),
+            [PUBLIC_CLOUD_ALARM_LEVEL_EXPR] * 3,
+        )
+
         EventPluginV2.objects.get(plugin_id="tencent_cloud_alert")
         inst_info = {
             "bk_biz_id": 2,
@@ -638,6 +656,19 @@ class TestEventPluginMigrate(TestCase):
         self.assertEqual(
             '{"PageNumber":{{page}},"PageSize":{{page_size}},"Module":"monitor","EndTime":{{end_time}}}',
             data["ingest_config"]["body"]["content"],
+        )
+
+        inst_info = {
+            "bk_biz_id": 2,
+            "plugin_id": "public_cloud_alert",
+            "version": "0.4.0",
+            "config_params": {},
+        }
+        inst_r = CreateEventPluginInstanceResource().request(inst_info)
+        public_cloud_inst = EventPluginInstance.objects.get(id=inst_r["id"])
+        self.assertEqual(
+            get_public_cloud_alarm_level_exprs(public_cloud_inst.clean_configs),
+            [PUBLIC_CLOUD_ALARM_LEVEL_EXPR] * 3,
         )
 
     def test_register_prom_pull_event_plugin(self):

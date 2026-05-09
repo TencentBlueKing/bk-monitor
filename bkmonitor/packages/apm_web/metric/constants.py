@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from functools import cached_property
+
 from bkmonitor.utils.enum import ChoicesEnum
+from constants.apm import CachedEnum
 
 
 class StatisticsMetric(ChoicesEnum):
@@ -45,20 +48,16 @@ class ErrorMetricCategory(ChoicesEnum):
     )
 
 
-class SeriesAliasType(ChoicesEnum):
-    """
-    指标图表里面的显示名称分类
-    如果不能固定显示名称需要动态判断 就需要传递这个参数（例如组件类服务时）
-    """
+class ProcessorHookType(CachedEnum):
+    """处理器钩子类型"""
 
-    CALLER = "caller"
-    CALLEE = "callee"
+    BEFORE_REQUEST = "before_request"
+    AFTER_RESPONSE = "after_response"
 
-    _choices_labels = ((CALLER, "主调"), (CALLEE, "被调"))
+    @cached_property
+    def label(self) -> str:
+        return self.value
 
     @classmethod
-    def get_opposite(cls, s):
-        if s == cls.CALLER.value:
-            return cls.CALLEE
-        if s == cls.CALLEE.value:
-            return cls.CALLER
+    def choices(cls):
+        return [(member.value, member.label) for member in cls]

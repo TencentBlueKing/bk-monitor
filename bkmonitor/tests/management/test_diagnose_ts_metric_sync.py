@@ -87,11 +87,8 @@ def test_diagnose_ts_metric_sync_stages(mocker, create_ts_group) -> None:
         "last_modify_time": score,
     }
 
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisClient.from_envs",
-        return_value=redis_client,
-    )
-    mocker.patch("bkmonitor.management.commands.diagnose_ts_metric_sync.RedisTools.get_list", return_value=[])
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisClient.from_envs", return_value=redis_client)
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisTools.get_list", return_value=[])
 
     test_cases = [
         {
@@ -166,14 +163,8 @@ def test_diagnose_ts_metric_sync_bkdata_source(mocker, create_ts_group) -> None:
         "last_modify_time": score,
     }
 
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisClient.from_envs",
-        return_value=FakeRedisClient(),
-    )
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisTools.get_list",
-        return_value=[DEFAULT_TABLE_ID],
-    )
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisClient.from_envs", return_value=FakeRedisClient())
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisTools.get_list", return_value=[DEFAULT_TABLE_ID])
     mocker.patch(
         "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metrics_from_redis",
         side_effect=[[mock_metric_info], [mock_metric_info]],
@@ -216,11 +207,8 @@ def test_diagnose_ts_metric_sync_strategy_cache_hit(mocker, create_ts_group) -> 
         "last_modify_time": score,
     }
 
-    mocker.patch(
-        "bkmonitor.management.commands.diagnose_ts_metric_sync.RedisClient.from_envs",
-        return_value=redis_client,
-    )
-    mocker.patch("bkmonitor.management.commands.diagnose_ts_metric_sync.RedisTools.get_list", return_value=[])
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisClient.from_envs", return_value=redis_client)
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisTools.get_list", return_value=[])
     mocker.patch(
         "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metrics_from_redis",
         side_effect=[[mock_metric_info], [mock_metric_info]],
@@ -250,6 +238,42 @@ def test_diagnose_ts_metric_sync_strategy_cache_hit(mocker, create_ts_group) -> 
         metric_output["details"]["strategy_metric_cache_candidates"][0]["data_source_label"]
         == DataSourceLabel.BK_MONITOR_COLLECTOR
     )
+
+
+def test_diagnose_ts_metric_sync_web_cache_beats_source_missing(mocker, create_ts_group) -> None:
+    """source 层无数据（bkdata 路径），但 web 策略侧缓存已命中时，应判定 ok 而非 source。
+
+    复现场景：transfer_pipeline_frontend_handled_total 在 BCS-K8S-90001 上，
+    BKData 查不到该指标（近期/历史均为 None），但 MetricListCache 中以
+    BK_MONITOR_COLLECTOR 存在，误判为 source 的 bug。
+    """
+    metric_name = "transfer_pipeline_frontend_handled_total"
+
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisClient.from_envs", return_value=FakeRedisClient())
+    mocker.patch("bkmonitor.utils.ts_metric_diagnosis.RedisTools.get_list", return_value=[DEFAULT_TABLE_ID])
+    mocker.patch(
+        "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metrics_from_redis",
+        side_effect=[[], []],
+    )
+
+    _create_other_source_metric_cache(metric_name)
+
+    out = StringIO()
+    call_command(
+        "diagnose_ts_metric_sync",
+        data_id=DEFAULT_DATA_ID,
+        metrics=metric_name,
+        json=True,
+        stdout=out,
+    )
+
+    output = json.loads(out.getvalue())
+    metric_output = output["metrics"][0]
+    assert metric_output["diagnosis"]["stage"] == "ok", "web cache 命中时不应误判为 source"
+    assert "策略侧缓存中命中" in metric_output["diagnosis"]["message"]
+    assert metric_output["status"]["source_recent_discovered"] is False
+    assert metric_output["status"]["source_history_discovered"] is False
+    assert metric_output["status"]["web_metric_cache_exists"] is True
 
 
 def _create_metadata_records(metric_name: str) -> None:

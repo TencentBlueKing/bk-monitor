@@ -1759,8 +1759,15 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           activeTab,
           from: this.timeRange[0],
           to: this.timeRange[1],
+          fromPage: 'event',
         },
       });
+      // 同步更新地址栏中的bizId为故障对应的bk_biz_id
+      const url = new URL(window.location.href);
+      url.searchParams.set('bizId', String(bizId));
+      window.history.replaceState({}, '', url.toString());
+      window.bk_biz_id = +bizId;
+      window.cc_biz_id = +bizId;
     } else {
       this.detailInfo.id = id;
       this.detailInfo.type = type;

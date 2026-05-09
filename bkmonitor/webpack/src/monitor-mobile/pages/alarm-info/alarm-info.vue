@@ -270,7 +270,7 @@ export default class AlarmDetail extends Vue {
   // 自动弹窗确认框或跳转到屏蔽页(取第一个事件跳转到屏蔽页)
   handleBatchAction() {
     if (this.eventList.length) {
-      const type = getUrlParam('batchAction');
+      const type = getUrlParam('batchAction') || this.getLegacyCompatibleBatchAction();
       if (type === 'ack') {
         this.handleAlarmCheck();
       } else if (type === 'shield') {
@@ -280,9 +280,21 @@ export default class AlarmDetail extends Vue {
   }
 
   closeBatchAction() {
-    if (/batchAction=(ack|shield)/g.test(location.href)) {
-      window.history.replaceState({}, '', location.href.replace(/&?batchAction=(ack|shield)/g, ''));
+    if (/(batchAction=(ack|shield)|autoShowAlertAction=(confirm|shield))/g.test(location.href)) {
+      window.history.replaceState(
+        {},
+        '',
+        location.href.replace(/&?(batchAction=(ack|shield)|autoShowAlertAction=(confirm|shield))/g, '')
+      );
     }
+  }
+
+  getLegacyCompatibleBatchAction() {
+    const action = getUrlParam('autoShowAlertAction');
+    return {
+      confirm: 'ack',
+      shield: 'shield',
+    }[action];
   }
 
   async handleGetChartData(item: IEventItem) {

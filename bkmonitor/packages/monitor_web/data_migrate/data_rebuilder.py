@@ -13,6 +13,7 @@ from bk_dataview.api import DashboardPermissionActions, get_or_create_user, sync
 from bk_dataview.models import BuiltinRole, Dashboard, Org, Permission, Role
 from bk_dataview.permissions import GrafanaPermission
 from bk_dataview.utils import generate_uid
+from bkmonitor.models import StrategyModel
 from bkmonitor.utils.tenant import set_local_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -56,6 +57,7 @@ logger = logging.getLogger(__name__)
 
 UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL = "monitor.uptimechecktask"
 COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL = "monitor_web.collectconfigmeta"
+STRATEGY_CLOSE_RECORDS_MODEL_LABEL = "bkmonitor.strategymodel"
 
 
 DEFAULT_KAFKA_CLUSTER_NAMES = {
@@ -205,6 +207,40 @@ def _get_closed_record_ids_from_application_config(bk_biz_id: int, model_label: 
                 record_id,
             )
     return closed_record_ids
+
+
+def enable_closed_strategies_from_application_config(bk_biz_ids: list[int]) -> dict[int, dict[str, Any]]:
+    """根据导入阶段记录的关闭策略 ID 重新开启策略。"""
+    enable_results: dict[int, dict[str, Any]] = {}
+    for bk_biz_id in bk_biz_ids:
+        closed_strategy_ids = _get_closed_record_ids_from_application_config(
+            bk_biz_id=bk_biz_id,
+            model_label=STRATEGY_CLOSE_RECORDS_MODEL_LABEL,
+        )
+        if not closed_strategy_ids:
+            enable_results[bk_biz_id] = {
+                "configured_count": 0,
+                "existing_count": 0,
+                "enabled_count": 0,
+                "missing_ids": [],
+            }
+            continue
+
+        existing_strategy_ids = set(
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=closed_strategy_ids).values_list("id", flat=True)
+        )
+        enabled_count = StrategyModel.objects.filter(
+            bk_biz_id=bk_biz_id,
+            id__in=closed_strategy_ids,
+            is_enabled=False,
+        ).update(is_enabled=True, update_user="system")
+        enable_results[bk_biz_id] = {
+            "configured_count": len(closed_strategy_ids),
+            "existing_count": len(existing_strategy_ids),
+            "enabled_count": enabled_count,
+            "missing_ids": sorted(closed_strategy_ids - existing_strategy_ids),
+        }
+    return enable_results
 
 
 def rebuild_collect_plugins(

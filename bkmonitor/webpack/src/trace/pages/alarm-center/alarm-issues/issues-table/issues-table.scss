@@ -1,0 +1,249 @@
+/* stylelint-disable selector-class-pattern */
+
+.issues-table {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+
+  --td-text-color-primary: #4e5e7a;
+
+  %btn-hover {
+    color: #3974ff;
+    cursor: pointer;
+
+    &:hover {
+      color: #5594fa;
+    }
+  }
+
+  .issues-table-main {
+    flex-grow: 1;
+    flex-basis: auto;
+
+    .t-table__th-cell-inner {
+      font-weight: 500;
+      color: #111214;
+    }
+  }
+
+  // ===================== Issues 名称列 =====================
+  .issues-name-col {
+    min-width: 0;
+
+    .issues-name-title {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 24px;
+      color: #3974ff;
+
+      .issues-name-title-text {
+        @extend %btn-hover;
+      }
+    }
+
+    .issues-name-exception {
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .issues-name-meta {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-top: 6px;
+
+      .issues-type-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        color: var(--issues-type-color, #21a380);
+        background-color: var(--issues-type-bg, #e1f5f0);
+        border-radius: 4px;
+
+        .icon-monitor {
+          font-size: 12px;
+        }
+      }
+
+      .issues-alert-count {
+        display: inline-flex;
+        gap: 2px;
+        align-items: center;
+        height: 18px;
+        padding: 3px 4px;
+        font-size: 11px;
+        color: #8f9fbd;
+        background: #f0f4fa;
+        border-radius: 4px;
+
+        .icon-shijianjiansuo {
+          font-size: 11px;
+        }
+      }
+    }
+  }
+
+  // ===================== 时间列 =====================
+  .issues-time-col {
+    .time-absolute {
+      margin-top: 4px;
+      color: #8f9fbd;
+    }
+  }
+
+  // ===================== 趋势列 =====================
+  .issues-trend-col {
+    padding: 0 10px 0 0;
+  }
+
+  // ===================== 影响范围列 =====================
+  .issues-impact-col {
+    .impact-row {
+      display: flex;
+      font-size: 12px;
+
+      .impact-label {
+        flex-shrink: 0;
+        color: #8f9fbd;
+      }
+
+      .impact-value {
+        margin-left: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #4e5e7a;
+        white-space: nowrap;
+
+        &.is-number {
+          @extend %btn-hover;
+        }
+      }
+    }
+  }
+
+  // ===================== 优先级列 =====================
+  .issues-priority-col {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+
+    .priority-tag-wrapper {
+      display: inline-flex;
+      align-items: center;
+      width: 68px;
+      height: 32px;
+      padding-left: 6px;
+      border-radius: 4px;
+      transition: background-color 0.2s ease;
+    }
+
+    .priority-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 22px;
+      padding: 0 6px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+    }
+
+    &:hover,
+    &.is-active {
+      .priority-tag-wrapper {
+        background-color: #f0f4fa;
+      }
+    }
+  }
+
+  // ===================== 状态列 =====================
+  .issues-status-col {
+    display: flex;
+    column-gap: 2px;
+    align-items: center;
+    width: 100%;
+
+    .status-tag {
+      display: inline-flex;
+      gap: 2px;
+      align-items: center;
+      min-width: 0;
+      height: 24px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 12px;
+
+      .status-icon {
+        flex-shrink: 0;
+        width: 14px;
+        height: 14px;
+        font-size: 14px;
+        line-height: 14px;
+      }
+    }
+  }
+
+  // ===================== 负责人列 =====================
+  .issues-assignee-cell {
+    .issues-assignee-unassigned-col {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+      cursor: pointer;
+
+      .assignee-tag-wrapper {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        height: 32px;
+        padding: 0 6px 0 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+
+        .icon-mc-arrow-down {
+          font-size: 12px;
+          color: #8f9fbd;
+        }
+      }
+
+      &:hover {
+        .assignee-tag-wrapper {
+          background-color: #f0f4fa;
+        }
+      }
+    }
+
+    .explore-user-tags-col {
+      .bk-tag {
+        border-radius: 4px !important;
+      }
+    }
+  }
+
+  // ===================== 操作列 =====================
+  .issues-operation-col {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+
+    .operation-btn {
+      font-size: 12px;
+      white-space: nowrap;
+
+      @extend %btn-hover;
+
+      &.is-disabled {
+        color: #c1cde6;
+        cursor: not-allowed;
+      }
+    }
+  }
+}

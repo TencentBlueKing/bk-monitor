@@ -29,6 +29,7 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/cancel';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -442,6 +443,16 @@ export class LineChart
               ...config,
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
+          }
+          if (
+            this.$route.query.dashboardId === 'service-default-custom_metric' &&
+            item.apiFunc === 'dynamicUnifyQuery' &&
+            newParams.group_by_limit &&
+            newParams.query_configs?.length
+          ) {
+            // apm下的旧版自定义指标需要补充filter参数进去
+            const filters = newParams.query_configs.flatMap(config => config.where);
+            newParams.group_by_limit.where = [...newParams.group_by_limit.where, ...filters];
           }
           if (!this.viewOptions?.groupByVariables?.group_by_limit_enabled) {
             newParams.group_by_limit = undefined;
@@ -1212,14 +1223,15 @@ export class LineChart
       case 2:
         {
           const eventTargetStr = alarmStatus.targetStr;
-          window.open(
-            location.href.replace(
-              location.hash,
-              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
-                eventTargetStr ? ` AND ${eventTargetStr}` : ''
-              }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
-            )
-          );
+          const queryString = `${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+            eventTargetStr ? ` AND ${eventTargetStr}` : ''
+          }`;
+          openAlarmCenter({
+            queryString,
+            activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+            from: this.timeRange[0],
+            to: this.timeRange[1],
+          });
         }
         break;
     }
