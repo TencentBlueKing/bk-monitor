@@ -287,7 +287,8 @@ export default defineComponent({
     );
 
     const getLocalTagValues = (fieldName: string) => {
-      return localTagValues.value[fieldName] ?? (Array.isArray(props.filterValues[fieldName]) ? props.filterValues[fieldName] : []);
+      return localTagValues.value[fieldName]
+      ?? (Array.isArray(props.filterValues[fieldName]) ? props.filterValues[fieldName] : []);
     };
 
     const handleTagChange = (fieldName: string, tags: string[]) => {
@@ -304,8 +305,14 @@ export default defineComponent({
       <div class='scene-tab-bar'>
         {sceneConfigs.value.map(scene => (
           <div
-            class={['scene-tab-item', { 'is-active': scene.type === props.activeScene }]}
-            onClick={() => handleSceneChange(scene.type)}
+            class={[
+              'scene-tab-item',
+              {
+                'is-active': !scene.disabled && scene.type === props.activeScene,
+                'is-disabled': scene.disabled,
+              },
+            ]}
+            onClick={() => !scene.disabled && handleSceneChange(scene.type)}
           >
             {scene.icon && <i class={`bklog-icon ${scene.icon} tab-icon`} />}
             <span class='tab-label'>{translateLabel(scene.label, scene.skipI18n)}</span>

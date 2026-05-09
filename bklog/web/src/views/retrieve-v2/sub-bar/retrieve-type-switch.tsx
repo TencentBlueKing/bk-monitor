@@ -28,9 +28,9 @@ import { computed, defineComponent } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
-import RequestPool from '@/store/request-pool';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getAllSceneFieldKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
+import { cancelPendingRetrieveRequests, resetRetrieveData } from '../../retrieve-v3/search-bar/scene-filter/scene-retrieve-utils';
 import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
 import './retrieve-type-switch.scss';
 
@@ -52,26 +52,11 @@ export default defineComponent({
 
     const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
 
-    /** 清空检索相关的数据 */
-    const resetRetrieveData = () => {
-      // 清空字段信息
-      store.commit('resetIndexFieldInfo');
-      // 清空日志检索结果
-      store.commit('resetIndexSetQueryResult');
-    };
-
-    /** 取消所有进行中的请求 */
-    const cancelPendingRequests = () => {
-      RequestPool.execCanceToken('requestIndexSetFieldInfoCancelToken');
-      RequestPool.execCanceToken('requestIndexSetQueryCancelToken');
-      RequestPool.execCanceToken('requestSearchTotalCancelToken');
-    };
-
     const handleChange = (type: string) => {
       if (retrieveType.value === type) return;
 
       // 先取消所有进行中的请求，防止旧请求返回覆盖新数据
-      cancelPendingRequests();
+      cancelPendingRetrieveRequests();
 
       // 切换到常规检索时，清空场景化检索条件
       if (type === RetrieveType.Normal) {
@@ -82,7 +67,7 @@ export default defineComponent({
         });
 
         // 清空检索数据后重新请求
-        resetRetrieveData();
+        resetRetrieveData(store);
         store.dispatch('requestIndexSetFieldInfo').then((resp) => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
@@ -112,7 +97,7 @@ export default defineComponent({
         });
 
         // 清空检索数据
-        resetRetrieveData();
+        resetRetrieveData(store);
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_CLEAR);
 
         router.replace({

@@ -451,6 +451,7 @@ export default () => {
               // 场景化检索：请求场景配置，从URL获取筛选参数
               await requestSceneConfigs();
               if (store.getters.isSceneFilterEmpty) {
+                RetrieveHelper.setSearchingValue(false);
                 return;
               }
             } else {
@@ -611,7 +612,6 @@ export default () => {
 
     getIndexSetList();
     store.dispatch('requestFavoriteList');
-    requestSceneConfigs();
   };
 
   watch(spaceUid, () => {
