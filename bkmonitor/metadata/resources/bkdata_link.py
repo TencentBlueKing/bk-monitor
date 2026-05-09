@@ -584,6 +584,13 @@ class QueryDataLinkMetadataResource(Resource):
     1. bk_data_id - 直接使用数据源ID查询
     2. result_table_id - 通过结果表ID查找对应的数据源ID
     3. vm_result_table_id - 通过VM结果表ID查找对应的数据源ID
+
+    V4 链路信息来源：
+    - 本地：BkBaseResultTable + DataBusConfig，反映链路声明式配置
+    - 远端：调用 BKBase V4 元数据 API（GetDataLinkMetadataResource）获取链路实际运行情况
+      （kafka_host / dispatch_cluster / kafka_shipper / doris 等 branches 字段）
+    对于 V3 -> V4 迁移链路（无 BkBaseResultTable 记录），不再进行 databus_name 猜测，
+    直接基于 AccessVMRecord 中的 bk_base_data_id / vm_result_table_id 调用远端 API 获取真实数据。
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -629,7 +636,7 @@ class QueryDataLinkMetadataResource(Resource):
             result = {
                 "data_source": self._build_data_source_info(ds),
                 "kafka_config": self._build_kafka_config(ds),
-                "result_tables": self._build_result_tables_info(bk_tenant_id, bk_data_id, is_v4_link),
+                "result_tables": self._build_result_tables_info(bk_tenant_id, bk_data_id, is_v4_link=is_v4_link, ds=ds),
             }
 
             # 如果是通过其他参数解析得到的bk_data_id，添加解析信息
@@ -761,7 +768,11 @@ class QueryDataLinkMetadataResource(Resource):
             return {"error": f"Failed to retrieve Kafka configuration: {str(e)}"}
 
     def _build_result_tables_info(
-        self, bk_tenant_id: str, bk_data_id: str, is_v4_link: bool = False
+        self,
+        bk_tenant_id: str,
+        bk_data_id: str,
+        is_v4_link: bool = False,
+        ds: models.DataSource | None = None,
     ) -> list[dict[str, Any]]:
         """构建结果表信息列表"""
         result_tables = []
@@ -814,9 +825,9 @@ class QueryDataLinkMetadataResource(Resource):
                 if backend_kafka:
                     rt_info["backend_kafka"] = backend_kafka
 
-                # 如果是V4链路，尝试获取BkBase V4链路信息
+                # 如果是V4链路，尝试获取BkBase V4链路信息（本地DB + 远端 V4 元数据 API）
                 if is_v4_link:
-                    bkbase_v4_info = self._get_bkbase_v4_link_info(bk_tenant_id, table_id)
+                    bkbase_v4_info = self._get_bkbase_v4_link_info(bk_tenant_id, table_id, ds=ds)
                     if bkbase_v4_info:
                         rt_info["bkbase_v4_link"] = bkbase_v4_info
 
@@ -958,189 +969,178 @@ class QueryDataLinkMetadataResource(Resource):
         except Exception as e:
             return {"type": "vm", "error": str(e)}
 
-    def _get_bkbase_v4_link_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any] | None:
+    def _get_bkbase_v4_link_info(
+        self,
+        bk_tenant_id: str,
+        table_id: str,
+        ds: models.DataSource | None = None,
+    ) -> dict[str, Any] | None:
         """
-        获取BkBase V4链路信息
+        获取 BkBase V4 链路信息（本地 DB 信息 + 远端 V4 元数据 API 实际链路）
 
-        仅纯V4链路才有BkBaseResultTable记录，V3迁移到V4的链路没有此记录
-        流程：
-        1. 通过result_table_id查找BkBaseResultTable（使用monitor_table_id字段）
-        2. 从中提取data_link_name
-        3. 通过data_link_name查找DataBusConfig
-        4. 返回component_config中的annotations、namespace、name等信息
+        组装顺序：
+        1. 本地 DB：通过 BkBaseResultTable + DataBusConfig 获取链路声明式配置（仅纯 V4 链路）
+        2. 解析参数：从 AccessVMRecord 拿到 bk_base_data_id 和 vm_result_table_id；
+           对纯 V4 原生链路（DataSource.created_from == BKDATA），fallback 使用 bk_data_id
+        3. 远端 API：调用 BKBase V4 元数据接口（GetDataLinkMetadataResource），
+           取回 branches（kafka_host / dispatch_cluster / kafka_shipper / doris 等真实链路明细）
 
-        对于V3迁移到V4的链路，提供猜测的databus_name和帮助信息
+        对于 V3 -> V4 迁移链路（无 BkBaseResultTable 记录），不再猜测 databus_name，
+        直接通过 AccessVMRecord 调用 V4 API 获取真实链路；同时附带本地 DataSource
+        基础信息（etl_config / bk_data_id）便于排查。
         """
         try:
-            # 通过monitor_table_id查找BkBaseResultTable
+            info: dict[str, Any] = {}
+
+            # ---- 第一阶段：本地 DB 查询 BkBaseResultTable + DataBusConfig ----
             bkbase_rt = models.BkBaseResultTable.objects.filter(
                 bk_tenant_id=bk_tenant_id, monitor_table_id=table_id
             ).first()
 
-            if not bkbase_rt:
-                # 没有BkBaseResultTable记录，可能是V3迁移到V4的链路
-                # 尝试提供猜测信息
-                return self._build_v3_to_v4_migration_hints(bk_tenant_id, table_id)
-
-            # 获取data_link_name
-            data_link_name = bkbase_rt.data_link_name
-
-            # 构建BkBaseResultTable基础信息
-            bkbase_info = {
-                "is_native_v4": True,
-                "data_link_name": data_link_name,
-                "bkbase_data_name": bkbase_rt.bkbase_data_name,
-                "bkbase_table_id": bkbase_rt.bkbase_table_id,
-                "bkbase_rt_name": bkbase_rt.bkbase_rt_name,
-                "storage_type": bkbase_rt.storage_type,
-                "status": bkbase_rt.status,
-            }
-
-            # 通过data_link_name查找DataBusConfig
-            try:
-                databus_config = models.DataBusConfig.objects.filter(
-                    bk_tenant_id=bk_tenant_id, data_link_name=data_link_name
-                ).first()
-
-                if databus_config:
-                    # 获取component_config
-                    component_config = databus_config.component_config
-
-                    if component_config:
-                        # 提取metadata信息
-                        metadata = component_config.get("metadata", {})
-                        bkbase_info["databus"] = {
-                            "kind": component_config.get("kind"),
-                            "namespace": metadata.get("namespace"),
-                            "name": metadata.get("name"),
-                            "annotations": metadata.get("annotations", {}),
-                            "labels": metadata.get("labels", {}),
-                        }
-
-                        # 提取spec中的关键信息
-                        spec = component_config.get("spec", {})
-                        if spec:
-                            bkbase_info["databus"]["sources"] = spec.get("sources", [])
-                            bkbase_info["databus"]["sinks"] = spec.get("sinks", [])
-                            bkbase_info["databus"]["transforms"] = spec.get("transforms", [])
-                            if spec.get("preferCluster"):
-                                bkbase_info["databus"]["prefer_cluster"] = spec.get("preferCluster")
-
-                        # 提取status信息
-                        status = component_config.get("status", {})
-                        if status:
-                            bkbase_info["databus"]["phase"] = status.get("phase")
-                            bkbase_info["databus"]["message"] = status.get("message")
-
-            except Exception as e:
-                logger.warning(
-                    "Failed to get DataBusConfig for data_link_name %s: %s",
-                    data_link_name,
-                    str(e),
+            if bkbase_rt:
+                info.update(
+                    {
+                        "is_native_v4": True,
+                        "data_link_name": bkbase_rt.data_link_name,
+                        "bkbase_data_name": bkbase_rt.bkbase_data_name,
+                        "bkbase_table_id": bkbase_rt.bkbase_table_id,
+                        "bkbase_rt_name": bkbase_rt.bkbase_rt_name,
+                        "storage_type": bkbase_rt.storage_type,
+                        "status": bkbase_rt.status,
+                    }
                 )
-                bkbase_info["databus_error"] = f"Failed to retrieve DataBusConfig: {str(e)}"
 
-            return bkbase_info
-
-        except Exception as e:
-            logger.warning("Failed to get BkBase V4 link info for table_id %s: %s", table_id, str(e))
-            return None
-
-    def _build_v3_to_v4_migration_hints(self, bk_tenant_id: str, table_id: str) -> dict[str, Any] | None:
-        """
-        为V3迁移到V4的链路构建猜测信息和帮助提示
-
-        由于V3迁移到V4的链路没有BkBaseResultTable记录，
-        我们尝试根据数据源类型和AccessVMRecord中的vm_result_table_id来猜测可能的databus_name
-
-        规则：
-        1. 如果etl_config是bk_flat_batch，databus_name大概率是 l_{bk_data_id}，namespace是bklog
-        2. 其他情况根据vm_result_table_id猜测，namespace是bkmonitor
-        """
-        try:
-            # 获取数据源信息
-            dsrt = models.DataSourceResultTable.objects.filter(table_id=table_id).first()
-            ds = None
-            etl_config = None
-            bk_data_id = None
-
-            if dsrt:
                 try:
-                    ds = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=dsrt.bk_data_id)
-                    etl_config = ds.etl_config
-                    bk_data_id = ds.bk_data_id
-                except models.DataSource.DoesNotExist:
+                    databus_config = models.DataBusConfig.objects.filter(
+                        bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name
+                    ).first()
+                    if databus_config and databus_config.component_config:
+                        info["databus"] = self._extract_databus_info(databus_config.component_config)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(
+                        "Failed to get DataBusConfig for data_link_name %s: %s",
+                        bkbase_rt.data_link_name,
+                        str(e),
+                    )
+                    info["databus_error"] = f"Failed to retrieve DataBusConfig: {str(e)}"
+            else:
+                # V3 -> V4 迁移链路：无 BkBaseResultTable 记录，不再猜测 databus_name
+                info.update({"is_native_v4": False, "migration_type": "v3_to_v4"})
+
+                try:
+                    dsrt = models.DataSourceResultTable.objects.filter(table_id=table_id).first()
+                    ds_local = ds
+                    if dsrt and ds_local is None:
+                        ds_local = models.DataSource.objects.filter(
+                            bk_tenant_id=bk_tenant_id, bk_data_id=dsrt.bk_data_id
+                        ).first()
+                    if ds_local is not None:
+                        info["etl_config"] = ds_local.etl_config
+                        info["bk_data_id"] = ds_local.bk_data_id
+                except Exception:  # pylint: disable=broad-except
                     pass
 
-            # 如果是bk_flat_batch类型（日志类数据）
-            if etl_config == "bk_flat_batch" and bk_data_id:
-                return {
-                    "is_native_v4": False,
-                    "migration_type": "v3_to_v4",
-                    "etl_config": etl_config,
-                    "bk_data_id": bk_data_id,
-                    "possible_databus_names": [f"l_{bk_data_id}"],
-                    "helper_message": (
-                        "This is a V3-to-V4 migrated log data link (bk_flat_batch). "
-                        "The databus_name is likely 'l_{bk_data_id}'."
-                    ),
-                    "helper_message_cn": (
-                        "这是一个从V3迁移到V4的日志数据链路（bk_flat_batch类型）。"
-                        f"databus_name大概率是 'l_{bk_data_id}'。"
-                    ),
-                    "query_hints": {
-                        "namespace": "bklog",
-                        "kind": "Databus",
-                        "name": f"l_{bk_data_id}",
-                    },
-                }
+            # ---- 第二阶段：解析远端 V4 API 调用参数 ----
+            bk_base_data_id: int | None = None
+            vm_result_table_id_for_api: str | None = None
 
-            # 非bk_flat_batch类型，尝试从AccessVMRecord获取信息
             vm_record = models.AccessVMRecord.objects.filter(
                 bk_tenant_id=bk_tenant_id, result_table_id=table_id
             ).first()
+            if vm_record:
+                bk_base_data_id = vm_record.bk_base_data_id or None
+                vm_result_table_id_for_api = vm_record.vm_result_table_id or None
 
-            if not vm_record:
-                return None
+            # 纯 V4 原生链路场景下，监控侧 bk_data_id 与 BKBase 侧 bk_data_id 一致
+            if bk_base_data_id is None and ds is not None and ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
+                try:
+                    bk_base_data_id = int(ds.bk_data_id)
+                except (TypeError, ValueError):
+                    bk_base_data_id = None
 
-            vm_result_table_id = vm_record.vm_result_table_id
-            if not vm_result_table_id:
-                return None
+            if bk_base_data_id is not None:
+                info.setdefault("bk_base_data_id", bk_base_data_id)
+            if vm_result_table_id_for_api:
+                info.setdefault("vm_result_table_id", vm_result_table_id_for_api)
 
-            # 对于非bk_flat_batch类型，databus_name统一为 vm_{vm_result_table_id}
-            databus_name = f"vm_{vm_result_table_id}"
+            # ---- 第三阶段：调用 BKBase V4 元数据 API ----
+            bkbase_metadata = self._fetch_bkbase_v4_metadata(
+                bk_base_data_id=bk_base_data_id,
+                vm_result_table_id=vm_result_table_id_for_api,
+            )
+            if bkbase_metadata is not None:
+                info["bkbase_metadata"] = bkbase_metadata
 
-            result = {
-                "is_native_v4": False,
-                "migration_type": "v3_to_v4",
-                "vm_result_table_id": vm_result_table_id,
-                "possible_databus_names": [databus_name],
-                "helper_message": (
-                    "This is a V3-to-V4 migrated data link without BkBaseResultTable record. "
-                    "The databus_name is likely 'vm_{vm_result_table_id}'."
-                ),
-                "helper_message_cn": (
-                    "这是一个从V3迁移到V4的数据链路，没有BkBaseResultTable记录。"
-                    f"databus_name大概率是 '{databus_name}'。"
-                ),
-                "query_hints": {
-                    "namespace": "bkmonitor",
-                    "kind": "Databus",
-                    "name": databus_name,
-                },
-            }
+            return info or None
 
-            # 如果有etl_config信息，添加到返回结果中
-            if etl_config:
-                result["etl_config"] = etl_config
-            if bk_data_id:
-                result["bk_data_id"] = bk_data_id
-
-            return result
-
-        except Exception as e:
-            logger.warning("Failed to build V3-to-V4 migration hints for table_id %s: %s", table_id, str(e))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("Failed to get BkBase V4 link info for table_id %s: %s", table_id, str(e))
             return None
+
+    def _extract_databus_info(self, component_config: dict[str, Any]) -> dict[str, Any]:
+        """从 DataBusConfig.component_config 中提取关键字段"""
+        metadata = component_config.get("metadata", {})
+        info: dict[str, Any] = {
+            "kind": component_config.get("kind"),
+            "namespace": metadata.get("namespace"),
+            "name": metadata.get("name"),
+            "annotations": metadata.get("annotations", {}),
+            "labels": metadata.get("labels", {}),
+        }
+
+        spec = component_config.get("spec", {})
+        if spec:
+            info["sources"] = spec.get("sources", [])
+            info["sinks"] = spec.get("sinks", [])
+            info["transforms"] = spec.get("transforms", [])
+            prefer_cluster = spec.get("preferCluster")
+            if prefer_cluster:
+                info["prefer_cluster"] = prefer_cluster
+
+        status = component_config.get("status", {})
+        if status:
+            info["phase"] = status.get("phase")
+            info["message"] = status.get("message")
+
+        return info
+
+    def _fetch_bkbase_v4_metadata(
+        self,
+        bk_base_data_id: int | None = None,
+        vm_result_table_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """通过 BKBase V4 元数据 API 查询数据链路元数据。
+
+        Args:
+            bk_base_data_id: BKBase 内部 raw_data_id / bk_base_data_id（优先使用）
+            vm_result_table_id: BKBase 侧 result_table_id
+
+        Returns:
+            - 成功：API 返回的 dict（包含 branches 等字段）
+            - 入参不足：None
+            - 调用异常：包含 error 字段的 dict（保留排障线索，不抛异常）
+
+        备注：BKBase V4 API 要求 bk_data_id 与 vm_result_table_id 互斥，至少传一个，
+        因此优先使用 bk_base_data_id，仅在缺失时回退到 vm_result_table_id。
+        """
+        if not (bk_base_data_id or vm_result_table_id):
+            return None
+
+        params: dict[str, Any] = {}
+        if bk_base_data_id:
+            params["bk_data_id"] = int(bk_base_data_id)
+        elif vm_result_table_id:
+            params["vm_result_table_id"] = vm_result_table_id
+
+        try:
+            return api.bkdata.get_data_link_metadata(**params)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "Failed to fetch BKBase V4 metadata, params=%s, error=%s",
+                params,
+                str(e),
+            )
+            return {"error": f"Failed to fetch BKBase V4 metadata: {str(e)}"}
 
 
 class GetDataLinkMetadataResource(Resource):
