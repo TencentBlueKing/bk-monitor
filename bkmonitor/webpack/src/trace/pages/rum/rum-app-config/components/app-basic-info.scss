@@ -56,11 +56,12 @@
           padding: 0 12px;
           margin: 0 8px 0 12px;
           font-size: 11px;
-          color: #fff;
-          background: #2caf5e;
+          color: #4e5e7a;
+          background: #f0f4fa;
           border-radius: 999px;
 
           &.is-enabled {
+            color: #fff;
             background-color: #2caf5e;
           }
         }

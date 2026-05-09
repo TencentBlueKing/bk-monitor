@@ -26,8 +26,6 @@
 import { computed, defineComponent, KeepAlive, onMounted, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
-import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
-import { getApplicationInfoByAppName } from 'monitor-api/modules/rum_meta';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -36,6 +34,7 @@ import AppBasicInfo from './components/app-basic-info';
 import BasicConfig from './components/basic-config';
 import DataState from './components/data-state/data-state';
 import StorageStatus from './components/storage-status';
+import { getAppConfigByAppName, getEsClusterList } from './services/app-config';
 import NavBar from '@/components/nav-bar/nav-bar';
 
 import type { ApplicationOperationType, IRumAppConfig, RumAppConfigTabType } from '../typings';
@@ -66,29 +65,35 @@ export default defineComponent({
      */
     const appInfo = shallowRef<IRumAppConfig>(undefined);
 
+    /** 当前选中的 Tab 面板 */
     const currentPanel = shallowRef<RumAppConfigTabType>(RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG);
 
+    /** ES 集群列表 */
     const clusterList = shallowRef([]);
 
+    /** 切换 Tab 面板 */
     const handleCurrentPanelChange = (v: RumAppConfigTabType) => {
       currentPanel.value = v;
     };
 
+    /** 获取应用配置信息 */
     const getRumAppConfig = async () => {
-      appInfo.value = await getApplicationInfoByAppName({ app_name: route.params.appName as string });
+      appInfo.value = await getAppConfigByAppName(route.params.appName as string);
     };
 
     /**
      * @desc 获取es集群列表
      */
     const getEsCluster = async () => {
-      clusterList.value = await listEsClusterGroups().catch(() => []);
+      clusterList.value = await getEsClusterList();
     };
 
+    /** 处理应用信息变更，合并更新后的字段 */
     const handleAppInfoChange = (info: Partial<IRumAppConfig>) => {
       appInfo.value = { ...appInfo.value, ...info };
     };
 
+    /** 处理应用操作（启用/停用/删除） */
     const handleAppOperation = (type: ApplicationOperationType) => {
       console.log(type);
       // 删除返回列表页
@@ -107,6 +112,7 @@ export default defineComponent({
       getEsCluster();
     });
 
+    /** 根据当前 Tab 获取对应的面板组件 */
     const getPanelComponent = () => {
       switch (currentPanel.value) {
         case RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG:

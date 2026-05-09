@@ -78,10 +78,12 @@ export default defineComponent({
       >,
       default: null,
     },
+    /** 最大过期天数（type 为 expired 时使用） */
     maxExpired: {
       type: Number,
       default: 0,
     },
+    /** 是否必填 */
     required: {
       type: Boolean,
       default: true,
@@ -137,6 +139,7 @@ export default defineComponent({
       isEditing.value = false;
     };
 
+    /** 根据编辑类型渲染对应的编辑控件（Input / Select / ExpiredSelect） */
     const renderEditValue = () => {
       switch (props.type) {
         case 'select':
