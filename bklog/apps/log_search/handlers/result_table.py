@@ -18,15 +18,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import List
 
-from apps.api import BkDataAuthApi, BkLogApi, TransferApi
+from apps.api import BkLogApi, TransferApi
 from apps.api.modules.utils import (
     get_bkcc_biz_id_related_spaces,
     get_non_bkcc_space_related_bkcc_biz_id,
 )
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import TraceMatchFieldType, TraceMatchResult
 from apps.log_search.exceptions import (
     FieldsTypeConsistencyException,
@@ -47,6 +47,7 @@ from apps.utils.db import array_group
 from apps.utils.local import get_request_username
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
+import builtins
 
 
 class ResultTableHandler(APIModel):
@@ -132,8 +133,9 @@ class ResultTableHandler(APIModel):
                 # 如果未指定集群ID，则从最后一个结果表中获取，scenario_id 为 log 时，一般只会传一个result_table_id
                 if not _cluster_id:
                     last_result_table_id = _result_table_id.split(",")[-1]
+                    storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(last_result_table_id)
                     storage_info = TransferApi.get_result_table_storage(
-                        {"result_table_list": last_result_table_id, "storage_type": "elasticsearch"}
+                        {"result_table_list": last_result_table_id, "storage_type": storage_cluster_type}
                     )[last_result_table_id]
                     cluster_config = storage_info.get("cluster_config", {})
                     _cluster_id = cluster_config.get("cluster_id")
@@ -183,7 +185,7 @@ class ResultTableHandler(APIModel):
         )
         return index_retrieve
 
-    def adapt(self, basic_indices: List[str], append_index):
+    def adapt(self, basic_indices: builtins.list[str], append_index):
         """
         1、检查两索引字段类型是否一致；
         2、检查两索引时间字段和类型是否一致；

@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from collections import defaultdict
 from typing import Union
 
 from django.conf import settings
@@ -49,7 +50,7 @@ from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-i
 )
 
 from apps.api import CmsiApi, TransferApi  # noqa
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, CollectItsmStatus  # noqa
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE, CollectItsmStatus  # noqa
 from apps.log_databus.constants import EtlConfig  # noqa
 from apps.log_databus.constants import TargetNodeTypeEnum  # noqa
 from apps.log_databus.constants import TargetObjectTypeEnum  # noqa
@@ -219,7 +220,7 @@ class CollectorConfig(CollectorBase):
         multi_execute_func.append(
             "result_table_storage",
             TransferApi.get_result_table_storage,
-            params={"result_table_list": self.table_id, "storage_type": "elasticsearch", "no_request": True},
+            params={"result_table_list": self.table_id, "storage_type": self.storage_cluster_type, "no_request": True},
             use_request=False,
         )
         result = multi_execute_func.run(return_exception=True)
@@ -410,6 +411,41 @@ class CollectorConfig(CollectorBase):
             self.index_set_id = index_set.index_set_id
             self.save(update_fields=["index_set_id"])
         return index_set
+
+    @staticmethod
+    def get_storage_cluster_type_by_table_id(table_id: str):
+        """
+        根据 table_id 获取存储集群类型
+        """
+        collector_config_obj = CollectorConfig.objects.filter(table_id=table_id).first()
+        return collector_config_obj.storage_cluster_type if collector_config_obj else STORAGE_CLUSTER_TYPE
+
+    @staticmethod
+    def get_storage_cluster_type_map_by_table_ids(table_ids: list | str):
+        """
+        根据 table_ids 获取存储集群类型
+        """
+        if not table_ids:
+            return {}
+        if isinstance(table_ids, str):
+            table_ids = table_ids.split(",")
+        storage_cluster_type_map = dict(
+            CollectorConfig.objects.filter(table_id__in=table_ids).values_list("table_id", "storage_cluster_type")
+        )
+        return {t_id: (storage_cluster_type_map.get(t_id) or STORAGE_CLUSTER_TYPE) for t_id in table_ids}
+
+    @staticmethod
+    def get_table_str_map_by_storage_cluster_type(table_str: str):
+        """
+        将 table_str 按照相对应的存储集群类型分组
+        """
+        if not table_str:
+            return {}
+        storage_cluster_type_map = CollectorConfig.get_storage_cluster_type_map_by_table_ids(table_str)
+        table_str_map = defaultdict(list)
+        for key, value in storage_cluster_type_map.items():
+            table_str_map[value].append(key)
+        return {storage_cluster_type: ",".join(t_ids) for storage_cluster_type, t_ids in table_str_map.items()}
 
 
 class ContainerCollectorConfig(SoftDeleteModel):

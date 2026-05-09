@@ -35,6 +35,7 @@ from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import (
     ETL_PARAMS,
     REGISTERED_SYSTEM_DEFAULT,
+    STORAGE_CLUSTER_TYPE,
     EtlConfig,
     ETLProcessorChoices,
 )
@@ -75,9 +76,11 @@ class EtlHandler:
         self.collector_config_id = collector_config_id
         self.data = None
         self.etl_processor = etl_processor
+        self.storage_cluster_type = STORAGE_CLUSTER_TYPE
         if collector_config_id:
             self.data = self._get_collect_config(collector_config_id)
             self.etl_processor = self.data.etl_processor
+            self.storage_cluster_type = self.data.storage_cluster_type
 
     @staticmethod
     def _get_collect_config(collector_config_id):
@@ -387,7 +390,7 @@ class EtlHandler:
 
     def close_clean(self):
         storage = TransferApi.get_result_table_storage(
-            params={"result_table_list": self.data.table_id, "storage_type": "elasticsearch"}
+            params={"result_table_list": self.data.table_id, "storage_type": self.storage_cluster_type}
         )[self.data.table_id]
         storage_cluster_id = storage["cluster_config"]["cluster_id"]
         retention = storage["storage_config"].get("retention")

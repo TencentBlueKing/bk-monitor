@@ -1523,7 +1523,7 @@ class DataFlowHandler(BaseAiopsHandler):
             storage = TransferApi.get_result_table_storage(
                 params={
                     "result_table_list": collector_config.table_id,
-                    "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                    "storage_type": collector_config.storage_cluster_type,
                 }
             )[collector_config.table_id]
             es_storage["expires"] = str(storage["storage_config"].get("retention"))
