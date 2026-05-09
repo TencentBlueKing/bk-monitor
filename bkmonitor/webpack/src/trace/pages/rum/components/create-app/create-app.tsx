@@ -72,6 +72,7 @@ export default defineComponent({
     });
     const submitLoading = shallowRef(false);
 
+    /** 侧栏关闭时重置表单数据与错误状态 */
     watch(
       () => props.show,
       v => {
@@ -80,6 +81,7 @@ export default defineComponent({
           formData.app_alias = '';
           formData.app_name = '';
           formData.description = '';
+          appNameErr.value = '';
         }
       }
     );
@@ -87,6 +89,12 @@ export default defineComponent({
     const handleShowChange = (show: boolean) => {
       emit('showChange', show);
     };
+
+    /**
+     * 检查应用名称是否已存在
+     * @param appName 待检查的应用名称
+     * @returns 是否重复（true=已存在）
+     */
     async function checkAppDuplicate(appName: string) {
       try {
         const res: { exists?: boolean } = await checkDuplicateAppName({ app_name: appName });
@@ -95,13 +103,18 @@ export default defineComponent({
         return false;
       }
     }
+
+    /** 提交创建应用：校验重名 → 表单验证 → 调用创建接口 → 触发成功回调 */
     const handleSubmit = async () => {
+      if (submitLoading.value) return; // 防重复点击
       submitLoading.value = true;
-      const isDuplicate = await checkAppDuplicate(formData.app_name);
-      if (isDuplicate) {
-        appNameErr.value = t('应用名称已存在');
-      } else {
-        appNameErr.value = '';
+      if (formData.app_name) {
+        const isDuplicate = await checkAppDuplicate(formData.app_name);
+        if (isDuplicate) {
+          appNameErr.value = t('应用名称已存在');
+        } else {
+          appNameErr.value = '';
+        }
       }
       const valid = await formRef.value?.validate().catch(() => false);
       if (valid) {
