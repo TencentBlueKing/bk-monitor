@@ -154,7 +154,7 @@ class SceneAsyncExportHandler:
             queryset=query_set.order_by("-created_at", "created_by"),
             request=request,
             view=view,
-        )
+        ) or []
         from apps.models import model_to_dict
 
         return pg.get_paginated_response([
