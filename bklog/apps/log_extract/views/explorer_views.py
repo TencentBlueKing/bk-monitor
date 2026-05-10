@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from apps.generic import APIViewSet
 from apps.log_extract import serializers
 from apps.log_extract.handlers.explorer import ExplorerHandler
@@ -121,7 +121,9 @@ class ExplorerViewSet(APIViewSet):
         @apiGroup 18_extract
         @apiDescription 返回某用户在某业务下多个IP中可访问目录的交集
         @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {String} target_node_type 目标节点类型
         @apiParam {List[Dict]} ip_list 业务机器IP列表
+        @apiParam {List[Dict]} target_nodes 节点列表
         @apiSuccess {String} visible_dir 用户可访问的目录(用户在选定IP列表下可访问目录的交集)
         @apiParamExample  {json} 请求示例:
         {
@@ -145,8 +147,13 @@ class ExplorerViewSet(APIViewSet):
         """
 
         data = self.params_valid(serializers.ExplorerStrategiesSerializer)
-        strategies = ExplorerHandler().get_strategies(bk_biz_id=data["bk_biz_id"], ip_list=data["ip_list"])
-        return Response(strategies["allowed_dir_file_list"])
+        strategies = ExplorerHandler().get_strategies(
+            bk_biz_id=data["bk_biz_id"],
+            ip_list=data.get("ip_list") or [],
+            target_node_type=data["target_node_type"],
+            target_nodes=data.get("target_nodes") or [],
+        )
+        return Response({"ip_list": strategies["ip_list"], "strategies": strategies["allowed_dir_file_list"]})
 
     @list_route(methods=["get"], url_path="topo")
     def list_accessible_topo(self, request, *args, **kwargs):

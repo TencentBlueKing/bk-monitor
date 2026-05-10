@@ -14,7 +14,7 @@ import pytest
 
 from metadata import models
 from metadata.resources import GetBCSClusterRelatedDataLinkResource
-from metadata.resources.bkdata_link import QueryDataIdsByBizIdResource
+from metadata.resources.bkdata_link import BizHasDataIdResource, QueryDataIdsByBizIdResource
 from metadata.tests.common_utils import consul_client
 
 
@@ -157,3 +157,17 @@ def test_query_data_ids_by_biz_id(create_or_delete_records):
     ]
 
     assert json.dumps(actual_data) == json.dumps(expected_data)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_biz_has_data_id_true(create_or_delete_records):
+    """业务下存在 ResultTable 与 DataSourceResultTable 关联时返回 has_data_id=True"""
+    actual = BizHasDataIdResource().request(bk_tenant_id="system", bk_biz_id=1001)
+    assert actual == {"has_data_id": True}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_biz_has_data_id_false():
+    """业务下无关联数据源时返回 has_data_id=False"""
+    actual = BizHasDataIdResource().request(bk_tenant_id="system", bk_biz_id=999999)
+    assert actual == {"has_data_id": False}

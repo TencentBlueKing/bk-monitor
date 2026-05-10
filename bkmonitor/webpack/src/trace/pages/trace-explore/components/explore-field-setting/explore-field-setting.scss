@@ -14,9 +14,20 @@
   }
 }
 
-.bk-popover.bk-pop2-content.explore-table-field-setting {
+.tippy-box[data-theme~='light'][data-theme~='explore-table-field-setting'] {
   padding: 0;
   box-shadow: 0 2px 6px 0 #0000001a;
+
+  .tippy-content {
+    padding: 0;
+  }
+
+  // #if IS_APM_MONITOR
+  > .tippy-arrow {
+    margin-left: -8px;
+  }
+
+  // #endif
 
   .setting-container {
     display: flex;
@@ -95,7 +106,7 @@
           min-height: 0;
           padding: 4px 8px;
           overflow-y: auto;
-          overflow-y: overlay;
+          overflow-y: auto;
 
           .list-item {
             display: flex;
@@ -214,7 +225,7 @@
           }
 
           &.dragging {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
             opacity: 0.5;
             transform: scale(0.98);
           }

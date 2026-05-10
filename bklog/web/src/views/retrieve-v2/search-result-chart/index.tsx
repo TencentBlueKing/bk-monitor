@@ -355,6 +355,7 @@ export default defineComponent({
     const loadTrendData = () => {
       cacheChartOptions();
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
+      store.commit('retrieve/updateTotalCountLoaded', false); // 重置总数加载状态
 
       logChartCancel?.(); // 取消上一次未完成的趋势图请求
       setChartData(null, null, true); // 清空图表数据, 重置为初始状态
@@ -376,6 +377,7 @@ export default defineComponent({
         try {
           // 1. 先请求总数
           const res = await store.dispatch('requestSearchTotal');
+          store.commit('retrieve/updateTotalCountLoaded', true); // 总数请求成功
           // 2. 判断总数是否为0或请求是否失败
           if (store.state.searchTotal === 0 || res.result === false) {
             isStart.value = false;

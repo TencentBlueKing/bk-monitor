@@ -830,8 +830,8 @@ export default {
   正则不匹配: 'Regular expression mismatch',
   路径黑名单: 'Path blacklist',
   '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
-  '过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本':
-    'The filter supports filtering non-conforming log content during collection, please ensure that the collector has been upgraded to the latest version.',
+  '仅保留命中以下规则的日志，未命中将被丢弃。':
+    'Only logs that match the following rules will be retained; logs that do not match will be discarded.',
   操作符: 'Operator',
   新增过滤组: 'Add filter group',
   请输入列数: 'Please enter the number of columns',

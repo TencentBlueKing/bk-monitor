@@ -2904,6 +2904,8 @@ class Strategy(AbstractConfig):
         """
         批量删除策略
         """
+        from bkmonitor.models.issue import StrategyIssueConfig
+
         histories = []
         for strategy_id in strategy_ids:
             histories.append(
@@ -2922,6 +2924,7 @@ class Strategy(AbstractConfig):
         AlgorithmModel.objects.filter(strategy_id__in=strategy_ids).delete()
         QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).delete()
         StrategyLabel.objects.filter(strategy_id__in=strategy_ids).delete()
+        StrategyIssueConfig.objects.filter(strategy_id__in=strategy_ids).delete()
 
     @classmethod
     def from_models(cls, strategies: list[StrategyModel] | QuerySet) -> list["Strategy"]:

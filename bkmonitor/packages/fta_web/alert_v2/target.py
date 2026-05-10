@@ -91,15 +91,12 @@ class BaseTarget(abc.ABC):
         return default
 
     def _get_time_range(
-        self,
-        left_shift: int = -20 * 60,
-        right_shift: int = 20 * 60,
-        max_duration: int = 60 * 60,
+        self, left_shift: int = -5 * 60, right_shift: int = 5 * 60, max_duration: int = 30 * 60
     ) -> tuple[int, int]:
         """获取关联数据查询时间范围
-        :param left_shift: 起始时间相对于「首次告警事件」的偏移，单位秒，默认 -20 分钟
-        :param right_shift: 结束时间相对于「告警结束时间」的偏移，单位秒，默认 +20 分钟
-        :param max_duration: 最大持续时间，单位秒，默认 1 小时
+        :param left_shift: 起始时间相对于「首次告警事件」的偏移，单位秒。
+        :param right_shift: 结束时间相对于「告警结束时间」的偏移，单位秒。
+        :param max_duration: 最大持续时间，单位秒。
         :return: 起始时间和结束时间的元组
         """
         # Q: 为什么不直接取首次告警事件到结束时间作为时间范围？

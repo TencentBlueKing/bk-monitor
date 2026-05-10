@@ -1581,9 +1581,12 @@ class GetMetricListV2Resource(Resource):
         分页过滤
         """
         count = metrics.count()
-        if params.get("page") and params.get("page_size"):
+        page = params.get("page")
+        page_size = params.get("page_size")
+        if page is not None and page_size:
+            page = max(page, 1)
             # fmt: off
-            metrics = metrics[(params["page"] - 1) * params["page_size"]: params["page"] * params["page_size"]]
+            metrics = metrics[(page - 1) * page_size: page * page_size]
             # fmt: on
         return metrics, count
 
@@ -1627,7 +1630,7 @@ class GetMetricListV2Resource(Resource):
                     ],
                 )
             )
-        return metrics.order_by("-use_frequency")
+        return metrics.order_by("-use_frequency", "id")
 
     @classmethod
     def scenario_filter(cls, metrics: QuerySet, params):
@@ -2570,6 +2573,8 @@ class CloneStrategyV2Resource(Resource):
             strategy.name += "_copy"
             strategy.app = ""
             strategy.source = settings.APP_CODE
+            if strategy.issue_config:
+                strategy._issue_config_in_request = True
 
             while StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"], name=strategy.name).exists():
                 strategy.name += "_copy"

@@ -518,6 +518,9 @@ class CollectorHandler:
         sort_fields=None,
         target_fields=None,
         parent_index_set_ids=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -551,9 +554,17 @@ class CollectorHandler:
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
         # 更新归属索引集
-        IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
+        if self.data.index_set_id:
+            IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         custom_config = get_custom(self.data.custom_type)
+
+        # otlp 上报自动补充 target_fields、sort_fields 默认值
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
+
         if etl_params and fields:
             # 1. 传递了清洗参数，则优先级最高
             etl_params, etl_config, fields = etl_params, etl_config, fields
@@ -597,6 +608,9 @@ class CollectorHandler:
                 "fields": fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "is_platform_index": is_platform_index,
+                "platform_index_visibility": platform_index_visibility,
+                "platform_index_filter": platform_index_filter,
             }
             etl_handler.update_or_create(**etl_params)
 
@@ -1338,6 +1352,10 @@ class CollectorHandler:
         target_fields=None,
         collector_scenario_id=CollectorScenarioEnum.CUSTOM.value,
         parent_index_set_ids=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
+        ignore_exists=False,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -1355,6 +1373,16 @@ class CollectorHandler:
         bkdata_biz_id = bkdata_biz_id or bk_biz_id
         # 判断是否已存在同英文名collector
         if self._pre_check_collector_config_en(model_fields=collector_config_params, bk_biz_id=bkdata_biz_id):
+            if ignore_exists:
+                existing = CollectorConfig.objects.get(
+                    collector_config_name_en=collector_config_name_en, bk_biz_id=bkdata_biz_id
+                )
+                return {
+                    "collector_config_id": existing.collector_config_id,
+                    "index_set_id": existing.index_set_id,
+                    "bk_data_id": existing.bk_data_id,
+                    "created": False,
+                }
             logger.error(f"collector_config_name_en {collector_config_name_en} already exists")
             raise CollectorConfigNameENDuplicateException(
                 CollectorConfigNameENDuplicateException.MESSAGE.format(
@@ -1419,6 +1447,12 @@ class CollectorHandler:
 
         custom_config = get_custom(custom_type)
 
+        # otlp 上报自动补充 target_fields、sort_fields 默认值
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
+
         # 仅在有集群ID时创建清洗
         if storage_cluster_id:
             from apps.log_databus.handlers.etl import EtlHandler
@@ -1436,6 +1470,9 @@ class CollectorHandler:
                 "fields": custom_config.fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "is_platform_index": is_platform_index,
+                "platform_index_visibility": platform_index_visibility,
+                "platform_index_filter": platform_index_filter,
             }
             if etl_params and fields:
                 # 如果传递了清洗参数，则优先使用
@@ -1449,6 +1486,7 @@ class CollectorHandler:
             "collector_config_id": self.data.collector_config_id,
             "index_set_id": self.data.index_set_id,
             "bk_data_id": self.data.bk_data_id,
+            "created": True,
         }
 
         # create custom Log Group

@@ -952,6 +952,56 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_create_basereport_datalink_for_bkcc_extra_source_metadata_part(create_or_delete_records, mocker):
+    """
+    测试多租户基础采集额外主机维度数据链路 Metadata 部分。
+    """
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    extra_source = "bkcc"
+
+    with (
+        patch.object(
+            DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
+        ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
+    ):  # noqa
+        create_basereport_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1, extra_source=extra_source)
+        mock_apply_with_retry.assert_called_once()
+
+    data_source = models.DataSource.objects.get(data_name="system_1_sys_base")
+    table_id_prefix = f"system_1_{extra_source}."
+    extra_result_tables = models.ResultTable.objects.filter(table_id__startswith=table_id_prefix)
+    assert len(extra_result_tables) == 11
+    assert set(extra_result_tables.values_list("data_label", flat=True)) == {f"{extra_source}_system"}
+
+    data_link_ins = models.DataLink.objects.get(data_link_name="system_1_sys_base")
+    assert len(data_link_ins.table_ids) == 22
+
+    for usage in BASEREPORT_USAGES:
+        table_id = f"{table_id_prefix}{usage}"
+        result_table = models.ResultTable.objects.get(table_id=table_id)
+        assert result_table.bk_biz_id == 1
+        assert result_table.is_enable
+        assert result_table.bk_tenant_id == "system"
+        assert result_table.data_label == f"{extra_source}_system"
+
+        vm_record = models.AccessVMRecord.objects.get(result_table_id=table_id)
+        assert vm_record.bk_base_data_id == data_source.bk_data_id
+        assert vm_record.vm_result_table_id == f"1_base_1_{extra_source}_{usage}"
+        assert vm_record.vm_cluster_id == 100112
+
+        dsrt = models.DataSourceResultTable.objects.get(table_id=table_id)
+        assert dsrt.bk_data_id == data_source.bk_data_id
+        assert dsrt.bk_tenant_id == "system"
+
+        expected_fields = BASEREPORT_RESULT_TABLE_FIELD_MAP[usage]
+        for expected_field in expected_fields:
+            field = models.ResultTableField.objects.get(table_id=table_id, field_name=expected_field["field_name"])
+            assert field.field_type == expected_field["field_type"]
+            assert field.bk_tenant_id == "system"
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_records, mocker):
     """
     测试多租户基础采集数据链路创建
@@ -2016,6 +2066,86 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_create_basereport_datalink_for_bkcc_extra_source_bkbase_v4_part(create_or_delete_records, mocker):
+    """
+    测试多租户基础采集额外主机维度 V4 链路配置。
+    """
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    extra_source = "bkcc"
+
+    with (
+        patch.object(
+            DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
+        ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
+    ):  # noqa
+        create_basereport_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1, extra_source=extra_source)
+        mock_apply_with_retry.assert_called_once()
+
+    data_link_ins = models.DataLink.objects.get(data_link_name="system_1_sys_base")
+    data_source = models.DataSource.objects.get(data_name="system_1_sys_base")
+    storage_cluster_name = "vm-default2"
+    actual_configs = data_link_ins.compose_configs(
+        data_source=data_source,
+        storage_cluster_name=storage_cluster_name,
+        bk_biz_id=1,
+        source=BASEREPORT_SOURCE_SYSTEM,
+        extra_source=extra_source,
+    )
+
+    basereport_sink = next(c for c in actual_configs if c["kind"] == "BasereportSink")
+    assert basereport_sink["metadata"] == {
+        "name": f"system_1_sys_base_{extra_source}",
+        "namespace": "bkmonitor",
+        "tenant": "system",
+    }
+    mapping_by_metric = {m["metric_type"]: m["sinks"] for m in basereport_sink["spec"]["mappings"]}
+    assert set(mapping_by_metric) == set(BASEREPORT_USAGES)
+    for usage in BASEREPORT_USAGES:
+        assert mapping_by_metric[usage] == [
+            {
+                "kind": "VmStorageBinding",
+                "name": f"base_1_{extra_source}_{usage}",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            }
+        ]
+
+    extra_databus = next(
+        c
+        for c in actual_configs
+        if c["kind"] == "Databus" and c["metadata"]["name"] == f"system_1_sys_base_{extra_source}"
+    )
+    assert extra_databus["spec"]["sinks"] == [
+        {
+            "kind": "BasereportSink",
+            "name": f"system_1_sys_base_{extra_source}",
+            "namespace": "bkmonitor",
+            "tenant": "system",
+        }
+    ]
+    assert extra_databus["spec"]["sources"] == [
+        {"kind": "DataId", "name": "system_1_sys_base", "namespace": "bkmonitor", "tenant": "system"}
+    ]
+    assert extra_databus["spec"]["transforms"] == [
+        {
+            "extra_dims": True,
+            "format": "bkmonitor_basereport_v1",
+            "kind": "PreDefinedLogic",
+            "name": "log_to_metric",
+        }
+    ]
+    assert "biz_to_rt_prefix" not in extra_databus["spec"]["transforms"][0]
+
+    extra_result_table = next(
+        c
+        for c in actual_configs
+        if c["kind"] == "ResultTable" and c["metadata"]["name"] == f"base_1_{extra_source}_cpu_summary"
+    )
+    assert extra_result_table["spec"]["alias"] == f"base_1_{extra_source}_cpu_summary"
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_records, mocker):
     """
     测试多租户基础事件数据链路
@@ -2889,14 +3019,11 @@ def test_bk_exporter_keep_leftover_allows_apply(
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_bk_exporter_guard_field_change_raises_integrity_error(
-    create_or_delete_records, bk_exporter_reuse_enabled, mocker
-):
-    """guard 字段（vm_cluster_name）变化时，update_or_create 会触发 IntegrityError。"""
+def test_bk_exporter_reuse_updates_vm_cluster_name(create_or_delete_records, bk_exporter_reuse_enabled, mocker):
+    """复用既有 binding 时，vm_cluster_name 应跟随本次 apply 更新。"""
     datalink, ds, rt = _prepare_bk_exporter_datalink()
     bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_EXPORTER_TIME_SERIES)
 
-    # legacy binding 的 vm_cluster_name 与本次传入的 storage_cluster_name 不一致
     VMStorageBindingConfig.objects.create(
         name="legacy_binding",
         namespace=datalink.namespace,
@@ -2911,17 +3038,21 @@ def test_bk_exporter_guard_field_change_raises_integrity_error(
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
 
     ctx = ExistingComponentContext.from_datalink(datalink)
-    # claim 基于 table_id 命中 legacy_binding -> binding_name = "legacy_binding"；
-    # 但 update_or_create 保留 vm_cluster_name="vm-plat" 作为查询条件（guard），
-    # 找不到既有记录 -> 尝试 create -> 与 legacy_binding 撞 unique_together -> IntegrityError。
-    with pytest.raises(IntegrityError):
-        datalink.compose_configs(
-            bk_biz_id=1001,
-            data_source=ds,
-            table_id=rt.table_id,
-            storage_cluster_name="vm-plat",
-            existing_context=ctx,
-        )
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        existing_context=ctx,
+    )
+
+    binding_cfg = VMStorageBindingConfig.objects.get(data_link_name=datalink.data_link_name)
+    assert binding_cfg.name == "legacy_binding"
+    assert binding_cfg.vm_cluster_name == "vm-plat"
+    assert binding_cfg.bkbase_result_table_name == bkbase_vmrt_name
+    assert ctx.leftover() == {}
+    assert configs[1]["metadata"]["name"] == "legacy_binding"
+    assert configs[1]["spec"]["storage"]["name"] == "vm-plat"
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3271,14 +3402,11 @@ def test_bk_standard_v2_strict_leftover_raises_on_apply(create_or_delete_records
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_bk_standard_v2_guard_field_change_raises_integrity_error(
-    create_or_delete_records, bk_standard_v2_reuse_enabled, mocker
-):
-    """V2 链路 guard 字段（vm_cluster_name）变化时，update_or_create 会触发 IntegrityError。"""
+def test_bk_standard_v2_reuse_updates_vm_cluster_name(create_or_delete_records, bk_standard_v2_reuse_enabled, mocker):
+    """V2 链路复用既有 binding 时，vm_cluster_name 应跟随本次 apply 更新。"""
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
 
-    # legacy binding 的 vm_cluster_name 与本次传入的 storage_cluster_name 不一致
     VMStorageBindingConfig.objects.create(
         name="legacy_v2_binding",
         namespace=datalink.namespace,
@@ -3293,14 +3421,18 @@ def test_bk_standard_v2_guard_field_change_raises_integrity_error(
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
 
     ctx = ExistingComponentContext.from_datalink(datalink)
-    # claim 基于 table_id 命中 legacy_v2_binding -> binding_name = "legacy_v2_binding"；
-    # 但 update_or_create 保留 vm_cluster_name="vm-plat" 作为查询条件（guard），
-    # 找不到既有记录 -> 尝试 create -> 与 legacy_v2_binding 撞 unique_together -> IntegrityError。
-    with pytest.raises(IntegrityError):
-        datalink.compose_configs(
-            bk_biz_id=1001,
-            data_source=ds,
-            table_id=rt.table_id,
-            storage_cluster_name="vm-plat",
-            existing_context=ctx,
-        )
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        existing_context=ctx,
+    )
+
+    binding_cfg = VMStorageBindingConfig.objects.get(data_link_name=datalink.data_link_name)
+    assert binding_cfg.name == "legacy_v2_binding"
+    assert binding_cfg.vm_cluster_name == "vm-plat"
+    assert binding_cfg.bkbase_result_table_name == bkbase_vmrt_name
+    assert ctx.leftover() == {}
+    assert configs[1]["metadata"]["name"] == "legacy_v2_binding"
+    assert configs[1]["spec"]["storage"]["name"] == "vm-plat"

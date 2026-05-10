@@ -92,9 +92,10 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
   /** 容器监控-资源列表数据 */
   const resourceListData = computed(() => {
     const obj = {};
-    for (const key in get(currentTarget)) {
-      if (key !== 'bcs_cluster_id' && get(currentTarget)[key]) {
-        obj[key] = get(currentTarget)[key];
+    const target = get(currentTarget);
+    for (const key in target) {
+      if (key !== 'bcs_cluster_id' && target[key]) {
+        obj[key] = target[key];
       }
     }
     return [obj] as Record<K8sTableColumnKeysEnum, string>[];
@@ -190,7 +191,7 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
    * @param signal - 用于取消请求的 AbortSignal
    */
   const createPanelList = async (signal: AbortSignal) => {
-    if (!get(metricList)?.length) return;
+    if (!get(metricList)?.length || !get(currentTarget)) return;
     const isWorkloadGroupBy = get(groupBy) === K8sTableColumnKeysEnum.WORKLOAD;
     await getResourceList(isWorkloadGroupBy, signal);
     if (signal.aborted) return;

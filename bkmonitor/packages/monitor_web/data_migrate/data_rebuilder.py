@@ -13,6 +13,7 @@ from bk_dataview.api import DashboardPermissionActions, get_or_create_user, sync
 from bk_dataview.models import BuiltinRole, Dashboard, Org, Permission, Role
 from bk_dataview.permissions import GrafanaPermission
 from bk_dataview.utils import generate_uid
+from bkmonitor.models import StrategyModel
 from bkmonitor.utils.tenant import set_local_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -56,6 +57,7 @@ logger = logging.getLogger(__name__)
 
 UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL = "monitor.uptimechecktask"
 COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL = "monitor_web.collectconfigmeta"
+STRATEGY_CLOSE_RECORDS_MODEL_LABEL = "bkmonitor.strategymodel"
 
 
 DEFAULT_KAFKA_CLUSTER_NAMES = {
@@ -65,6 +67,20 @@ DEFAULT_KAFKA_CLUSTER_NAMES = {
 }
 
 DEFAULT_ES_CLUSTER_NAMES = {"log": "log-es-public-1", "event": "event-es-public-1"}
+
+
+def _get_plugin_data_label(plugin: CollectorPluginMeta) -> str | None:
+    qcloud_exporter_plugin_id = getattr(settings, "TENCENT_CLOUD_METRIC_PLUGIN_ID", "")
+    if not qcloud_exporter_plugin_id:
+        return None
+
+    if plugin.plugin_type != CollectorPluginMeta.PluginType.K8S:
+        return None
+
+    if plugin.plugin_id in [qcloud_exporter_plugin_id, f"{qcloud_exporter_plugin_id}_{plugin.bk_biz_id}"]:
+        return qcloud_exporter_plugin_id
+
+    return None
 
 
 def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
@@ -93,8 +109,13 @@ def _register_data_source(bk_biz_id: int, data_source: DataSource, need_register
     except BKAPIError as e:
         if "not found" not in e.message:
             raise e
+        print(f"query gse route not found, data_id: {data_source.bk_data_id}")
         result = []
-    exists_route_names: list[str] = [route["name"] for route in result[0]["route"]]
+
+    if not result:
+        exists_route_names = []
+    else:
+        exists_route_names: list[str] = [route["name"] for route in result[0]["route"]]
 
     # 准备注册到gse的路由配置
     gse_route_config = data_source.gse_route_config
@@ -186,6 +207,40 @@ def _get_closed_record_ids_from_application_config(bk_biz_id: int, model_label: 
                 record_id,
             )
     return closed_record_ids
+
+
+def enable_closed_strategies_from_application_config(bk_biz_ids: list[int]) -> dict[int, dict[str, Any]]:
+    """根据导入阶段记录的关闭策略 ID 重新开启策略。"""
+    enable_results: dict[int, dict[str, Any]] = {}
+    for bk_biz_id in bk_biz_ids:
+        closed_strategy_ids = _get_closed_record_ids_from_application_config(
+            bk_biz_id=bk_biz_id,
+            model_label=STRATEGY_CLOSE_RECORDS_MODEL_LABEL,
+        )
+        if not closed_strategy_ids:
+            enable_results[bk_biz_id] = {
+                "configured_count": 0,
+                "existing_count": 0,
+                "enabled_count": 0,
+                "missing_ids": [],
+            }
+            continue
+
+        existing_strategy_ids = set(
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=closed_strategy_ids).values_list("id", flat=True)
+        )
+        enabled_count = StrategyModel.objects.filter(
+            bk_biz_id=bk_biz_id,
+            id__in=closed_strategy_ids,
+            is_enabled=False,
+        ).update(is_enabled=True, update_user="system")
+        enable_results[bk_biz_id] = {
+            "configured_count": len(closed_strategy_ids),
+            "existing_count": len(existing_strategy_ids),
+            "enabled_count": enabled_count,
+            "missing_ids": sorted(closed_strategy_ids - existing_strategy_ids),
+        }
+    return enable_results
 
 
 def rebuild_collect_plugins(
@@ -282,8 +337,10 @@ def rebuild_collect_plugins(
                 result_table = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=dsrts.get().table_id)
                 result_table.modify(operator="system", is_enable=True)
             else:
-                accessor = PluginDataAccessor(plugin.current_version, operator="system")
-                accessor.access()
+                accessor = PluginDataAccessor(
+                    plugin.current_version, operator="system", data_label=_get_plugin_data_label(plugin)
+                )
+                accessor.access(force_split_measurement=True)
 
     # 启用采集配置
     for collect_config in collect_configs:

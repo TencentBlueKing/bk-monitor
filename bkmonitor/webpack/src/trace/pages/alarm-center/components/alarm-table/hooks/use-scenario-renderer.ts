@@ -91,26 +91,11 @@ export const useScenarioRenderer = (
    * @returns {TableColumnItem[]} 场景渲染所需结构列配置
    */
   const transformColumns = (columns: TableColumnItem[]) => {
-    const isAlert = currentScenario.value.name === ALERT_STORAGE_KEY;
-    const targetColumns = [];
-
-    if (isAlert) {
-      // 告警场景需要添加多选列
-      targetColumns.push({
-        colKey: 'row-select',
-        type: 'multiple',
-        width: 50,
-        minWidth: 50,
-        fixed: 'left',
-      });
-    }
     const scenarioColumns = currentScenario.value.getMergedColumnsConfig();
-    for (const column of columns) {
+    return columns.map(column => {
       const scenarioConfig = scenarioColumns[column.colKey];
-      const targetColumn = scenarioConfig ? { ...column, ...scenarioConfig } : column;
-      targetColumns.push(targetColumn);
-    }
-    return targetColumns;
+      return scenarioConfig ? { ...column, ...scenarioConfig } : column;
+    });
   };
 
   watch(

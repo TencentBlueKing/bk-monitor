@@ -159,9 +159,16 @@ class Command(BaseCommand):
                     )
                 )
 
-            if to_create:
-                LogIndexSetData.objects.bulk_create(to_create)
-                total_created += len(to_create)
+            if not to_create:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  SKIP: no mappable records for index_set_id={index_set.index_set_id}, keep is_group=False"
+                    )
+                )
+                continue
+
+            LogIndexSetData.objects.bulk_create(to_create)
+            total_created += len(to_create)
 
             index_set.is_group = True
             index_set.save(update_fields=["is_group"])

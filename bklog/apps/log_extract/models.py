@@ -1,4 +1,3 @@
-# coding=utf-8
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import operator
 from datetime import datetime
 from functools import reduce
-from typing import List
 
 from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.db import models
@@ -30,7 +29,8 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from pipeline.service import task_service
 
-from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType
+
+from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType, LogExtractTargetNodeTypeEnum
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaFieldText,
@@ -76,7 +76,14 @@ class Tasks(OperateRecordModel):
     objects = TasksManager()
     task_id = models.AutoField(_("任务记录id"), primary_key=True)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
+    target_node_type = models.CharField(
+        _("目标节点类型"),
+        max_length=64,
+        choices=LogExtractTargetNodeTypeEnum.get_choices(),
+        default=LogExtractTargetNodeTypeEnum.INSTANCE.value,
+    )
     ip_list = MultiStrSplitByCommaFieldText(_("业务机器ip"))
+    target_nodes = JsonField(_("节点列表"), null=True, blank=True, default=list)
     file_path = MultiStrSplitByCommaFieldText(_("文件列表"))
 
     filter_type = models.CharField(_("过滤类型"), max_length=16, null=True, blank=True)
@@ -94,15 +101,21 @@ class Tasks(OperateRecordModel):
     cstone_upload_random = models.TextField(_("上传随机值"), null=True, blank=True)
 
     # 创建中转服务器到云石的上传任务
-    job_upload_task_id = models.BigIntegerField(_("任务上传ID"), null=True, blank=True)  # 查询上传脚本的执行结果, 执行结果里有云石返回的task_id
-    cstone_upload_task_id = models.BigIntegerField(_("云石上传ID"), null=True, blank=True)  # 用于查询中转服务器到云石的上传情况
+    job_upload_task_id = models.BigIntegerField(
+        _("任务上传ID"), null=True, blank=True
+    )  # 查询上传脚本的执行结果, 执行结果里有云石返回的task_id
+    cstone_upload_task_id = models.BigIntegerField(
+        _("云石上传ID"), null=True, blank=True
+    )  # 用于查询中转服务器到云石的上传情况
 
     # 云石上待下载的文件路径
     cstone_file_path = models.CharField(_("云石文件路径"), default=None, max_length=64, null=True, blank=True)
     # 等到上传完毕后，调创建下载链接的API
     cstone_download_task_id = models.BigIntegerField(_("云石任务ID"), null=True, blank=True)
     cstone_download_bk_biz_id = models.BigIntegerField(_("云石下载业务ID"), null=True, blank=True)
-    cstone_download_ticket = models.BigIntegerField(_("下载票据"), null=True, blank=True)  # 根据票据向云石网盘发起下载请求
+    cstone_download_ticket = models.BigIntegerField(
+        _("下载票据"), null=True, blank=True
+    )  # 根据票据向云石网盘发起下载请求
     cstone_download_random = models.TextField(_("下载随机值"), null=True, blank=True)
     task_process_info = models.TextField(_("任务过程信息"), null=True, blank=True)
     remark = models.TextField(_("备注"), null=True, blank=True)
@@ -118,7 +131,9 @@ class Tasks(OperateRecordModel):
     ex_data = JsonField(_("额外数据"), null=True, blank=True)
     cos_file_name = models.CharField(_("cos对象文件名称"), null=True, blank=True, max_length=255)
     link_id = models.IntegerField(_("链路id"), null=True, blank=True)
-    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -142,7 +157,7 @@ class Tasks(OperateRecordModel):
             task_status = task_service.get_state(self.pipeline_id)
         except Exception:  # pylint: disable=broad-except
             # 存在多主机，单主机日志下载的情况，因此有可能有些pipeline节点未执行
-            logger.info("pipeline任务不存在，pipeline_id=>[{}]".format(self.pipeline_id))
+            logger.info(f"pipeline任务不存在，pipeline_id=>[{self.pipeline_id}]")
             return "0s"
 
         component_status_list = []
@@ -157,7 +172,7 @@ class Tasks(OperateRecordModel):
                 pass
         return f"{self._cal_total_time(component_status_list)}s"
 
-    def _cal_total_time(self, components: List[dict]):
+    def _cal_total_time(self, components: list[dict]):
         return sum(
             [
                 (
@@ -197,7 +212,9 @@ class ExtractLink(OperateRecordModel):
     link_type = models.CharField(_("链路类型"), max_length=20, default=ExtractLinkType.COMMON.value)
     operator = models.CharField(_("执行人"), max_length=255)
     op_bk_biz_id = models.IntegerField(_("执行bk_biz_id"))
-    qcloud_secret_id = SymmetricTextField(_("腾讯云SecretId"), default="", null=True, blank=True, help_text=_("内网链路不需要填写"))
+    qcloud_secret_id = SymmetricTextField(
+        _("腾讯云SecretId"), default="", null=True, blank=True, help_text=_("内网链路不需要填写")
+    )
     qcloud_secret_key = SymmetricTextField(
         _("腾讯云SecretKey"), default="", null=True, blank=True, help_text=_("内网链路不需要填写")
     )

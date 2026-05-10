@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext as _
 
 from apps.log_databus.constants import EtlConfig, LogPluginInfo, PluginParamLogicOpEnum
@@ -232,6 +232,7 @@ class SysLogScenario(CollectorScenario):
                         "tag": "dimension",
                         "alias_name": "log",
                         "description": "客户端信息",
+                        "flat_field": True,
                         "option": build_es_option_type("object", es_version),
                     },
                     {
@@ -240,6 +241,7 @@ class SysLogScenario(CollectorScenario):
                         "tag": "dimension",
                         "alias_name": "syslog",
                         "description": "严重程度",
+                        "flat_field": True,
                         "option": build_es_option_type("object", es_version),
                     },
                     {
@@ -248,6 +250,7 @@ class SysLogScenario(CollectorScenario):
                         "tag": "dimension",
                         "alias_name": "event",
                         "description": "日志级别",
+                        "flat_field": True,
                         "option": build_es_option_type("object", es_version),
                     },
                     {
@@ -256,6 +259,7 @@ class SysLogScenario(CollectorScenario):
                         "tag": "dimension",
                         "alias_name": "process",
                         "description": "应用程序",
+                        "flat_field": True,
                         "option": build_es_option_type("object", es_version),
                     },
                 ]

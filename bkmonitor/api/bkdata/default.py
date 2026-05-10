@@ -184,6 +184,26 @@ class GetResultTableResource(BkDataAPIGWResource):
         return super().get_request_url(validated_request_data).format(**validated_request_data)
 
 
+class GetDataLinkMetadataResource(BkDataAPIGWResource):
+    """
+    查询数据链路元数据
+    """
+
+    action = "/v4/meta/datalink/metadata/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="计算平台数据ID")
+        vm_result_table_id = serializers.CharField(required=False, label="VM结果表ID")
+
+        def validate(self, attrs):
+            if not (bool(attrs.get("bk_data_id")) ^ bool(attrs.get("vm_result_table_id"))):
+                raise serializers.ValidationError(
+                    "bk_data_id and vm_result_table_id are mutually exclusive, one must be specified"
+                )
+            return attrs
+
+
 class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
     """
     查询数据

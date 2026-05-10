@@ -58,6 +58,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import ExceptionComp from '../../../components/exception';
+import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import ResourceGraph from '../resource-graph/resource-graph';
 import { checkIsRoot, useIncidentInject } from '../utils';
 import LegendPopoverContent from './components/legend-popover-content';
@@ -187,6 +188,8 @@ export default defineComponent({
     const zoomValue = ref<number>(10);
     const showServiceOverview = ref<boolean>(false);
     const showResourceGraph = ref<boolean>(false);
+
+    const { updateAlarmDetailData } = incidentAlarmDetailInject();
     /** 检测文字长度，溢出截断 */
     const accumulatedWidth = (text, maxWidth = 80) => {
       const context = graph.get('canvas').get('context'); // 获取canvas上下文用于测量文本
@@ -2672,7 +2675,12 @@ export default defineComponent({
       const data = cloneDeep(node);
       data.nodeId = node.id;
       data.id = node.alert_ids[0];
-      window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
+      // window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
+      data.id &&
+        updateAlarmDetailData({
+          bk_biz_id: data.bk_biz_id ?? window.cc_biz_id ?? window.bk_biz_id,
+          id: data.id,
+        });
     };
     const handleRootToSpan = () => {
       const rootNode = topoRawData.nodes.find(node => node.entity.is_root);

@@ -55,7 +55,7 @@ import {
   hasExcludeNoticeWayOptions,
   intervalModeNames,
 } from '../strategy-config-set-new/notice-config/notice-config';
-import { levelList, noticeMethod } from '../strategy-config-set-new/type';
+import { type IIssueConfig, LEVEL_LIST, levelList, noticeMethod } from '../strategy-config-set-new/type';
 import {
   type dataModeType,
   type IDetectionConfig,
@@ -73,6 +73,7 @@ import { transformLogMetricId } from './utils';
 
 import type { ISpaceItem } from '../../../types';
 import type { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/alarm-handling';
+import type { ActionTypeEnum } from '../strategy-config-set-new/alarm-handling/typing';
 import type { ChartType } from '../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import type { IModelData } from '../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
 import type { IFunctionsValue } from '../strategy-config-set-new/monitor-data/function-select';
@@ -250,7 +251,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     timeRange: ['00:00:00', '23:59:59'],
   };
   // 告警处理
-  actionsData: IAlarmItem[] = [];
+  actionsData: (Partial<IAlarmItem> & { activeTab: ActionTypeEnum })[] = [];
   // 通知设置。
   noticeData: INoticeValue = {
     config_id: 0, // 套餐id
@@ -355,6 +356,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   };
 
   targetDetailLoading = false;
+  /* issue聚合 */
+  issueConfig: IIssueConfig = null;
 
   get calendarsData() {
     if (this.calendars.length) return this.calendars;
@@ -472,7 +475,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       .catch(err => {
         console.log(err);
       })
-      .finally(() => (this.loading = false));
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   mounted() {
@@ -862,6 +867,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         skip_delay: item.options?.skip_delay ? item.options?.skip_delay / 60 : 0,
       },
     }));
+    this.issueConfig = data?.issue_config || null;
   }
 
   // 获取通知设置数据
@@ -997,6 +1003,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     this.multivariateAnomalyDetectionParams.refreshKey = random(8);
   }
 
+  handleActionsDataTabChange(index: number, activeTab: ActionTypeEnum) {
+    this.actionsData[index].activeTab = activeTab;
+  }
+
   render() {
     const panelItem = (title: string, content: any, style = {}, titleRight?: any) => (
       <div
@@ -1065,7 +1075,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
               delay: 200,
               appendTo: () => document.body,
             }}
-            onClick={() => (this.strategyView.show = !this.strategyView.show)}
+            onClick={() => {
+              this.strategyView.show = !this.strategyView.show;
+            }}
           />
         </CommonNavBar>
         <div
@@ -1340,7 +1352,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                   key={this.actionsKey}
                   class='actions-list'
                 >
-                  {this.actionsData.length ? (
+                  {this.actionsData.length || this.issueConfig ? (
                     this.actionsData.map((item, index) => (
                       <div
                         key={index}
@@ -1348,6 +1360,24 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       >
                         <div class='item-head'>{item.signal.map(key => signalNames[key]).join(',')}</div>
                         <div class='item-content'>
+                          <span
+                            key={'tab-01'}
+                            class='title'
+                          >
+                            {this.$t('动作')}:
+                          </span>
+
+                          <span
+                            key={'tab-02'}
+                            class='content'
+                          >
+                            {this.$t('处理套餐')}
+                          </span>
+                        </div>
+                        <div
+                          key='action-01'
+                          class='item-content'
+                        >
                           <span class='title'>{this.$t('处理套餐')}:</span>
                           <span class='content'>
                             {this.actionConfigMap[item.config_id]?.name || ''}
@@ -1356,7 +1386,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             ) : undefined}
                           </span>
                         </div>
-                        <div class='item-content'>
+                        <div
+                          key='action-02'
+                          class='item-content'
+                        >
                           <span class='title'>{this.$t('防御规则')}:</span>
                           {item.options.converge_config.is_enabled ? (
                             <span class='content'>
@@ -1385,6 +1418,76 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                   ) : (
                     <span>{this.$t('空')}</span>
                   )}
+                  {this.issueConfig ? (
+                    <div
+                      key={'issueConfig'}
+                      class='action-item'
+                    >
+                      <div class='item-head'>{['abnormal'].map(key => signalNames[key]).join(',')}</div>
+                      <div class='item-content'>
+                        <span
+                          key={'tab-01'}
+                          class='title'
+                        >
+                          {this.$t('动作')}:
+                        </span>
+
+                        <span
+                          key={'tab-02'}
+                          class='content'
+                        >
+                          {this.$t('Issue聚合')}
+                        </span>
+                      </div>
+
+                      <div
+                        key='action-01'
+                        class='item-content'
+                      >
+                        <span class='title'>{this.$t('聚合维度')}:</span>
+                        <span class='content'>{this.issueConfig?.aggregate_dimensions?.join(', ') || '--'}</span>
+                      </div>
+                      <div
+                        key='action-02'
+                        class='item-content'
+                      >
+                        <span class='title'>{this.$t('过滤条件')}:</span>
+                        <span class='content'>
+                          {this.issueConfig?.conditions?.map((item, cIndex) => (
+                            <span
+                              key={`${cIndex}_conditions`}
+                              class='conditions-item'
+                            >
+                              {cIndex > 0 && <span class='where-condition'>{` ${item.condition} `}</span>}
+                              <span>{` ${item.key} `}</span>
+                              <span class='where-method'>{` ${item.method} `}</span>
+                              <span class='where-content'>{` ${item.value.join(',')} `}</span>
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                      <div
+                        key='action-03'
+                        class='item-content'
+                      >
+                        <span class='title'>{this.$t('生效告警级别')}:</span>
+                        <span class='content'>
+                          {this.issueConfig?.alert_levels.map(a => {
+                            const levelItem = LEVEL_LIST.find(l => a === l.id);
+                            return (
+                              <span
+                                key={a}
+                                class='level-item'
+                              >
+                                <i class={`icon-monitor ${levelItem.icon}`} />
+                                {levelItem.name}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  ) : undefined}
                 </div>
               )}
               {panelItem(
@@ -1599,11 +1702,23 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       <StrategyTemplatePreview
                         dialogShow={this.isShowTemplate}
                         template={this.templateData.message_tmpl}
-                        {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
+                        {...{
+                          on: {
+                            'update:dialogShow': v => {
+                              this.isShowTemplate = v;
+                            },
+                          },
+                        }}
                       />
                       <StrategyVariateList
                         dialogShow={this.variateListShow}
-                        {...{ on: { 'update:dialogShow': val => (this.variateListShow = val) } }}
+                        {...{
+                          on: {
+                            'update:dialogShow': val => {
+                              this.variateListShow = val;
+                            },
+                          },
+                        }}
                         variate-list={this.variateList}
                       />
                     </div>
@@ -1613,7 +1728,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     v-model={this.alarmGroupDetail.show}
                     customEdit
                     onEditGroup={this.handleEditAlarmGroup}
-                    onShowChange={val => !val && (this.alarmGroupDetail.id = 0)}
+                    onShowChange={val => {
+                      if (!val) {
+                        this.alarmGroupDetail.id = 0;
+                      }
+                    }}
                   />
                 </div>
               )}
@@ -1660,7 +1779,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
             need-footer={false}
             show-footer={false}
             title={this.$t('监控目标')}
-            on-change={v => (this.showTargetTable = v)}
+            on-change={v => {
+              this.showTargetTable = v;
+            }}
           >
             <strategy-target-table
               objType={this.metricData[0]?.objectType || this.targetDetail?.instance_type || ''}

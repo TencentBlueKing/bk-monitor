@@ -97,6 +97,8 @@ export interface IDataQuery {
   fields?: Record<string, string>;
   /** 排序后的fields, 用于前端id拼接 */
   fieldsSort?: FieldsSortType;
+  /** 是否延迟渲染：标记为 true 的 target 不会阻塞首屏图表渲染，请求完成后再合并到现有图表 */
+  lazyRender?: boolean;
   /** 查询的单独配置 */
   options?: DataQueryOptions;
   handleCreateFilterDictValue?: (
@@ -410,6 +412,8 @@ export class DataQuery implements IDataQuery {
   // 用于主机ipv6 去除不需要的group_by字段
   ignore_group_by?: string[];
   isMultiple?: boolean;
+  /** 是否延迟渲染：标记为 true 的 target 不会阻塞首屏图表渲染 */
+  lazyRender?: boolean;
   options?: DataQueryOptions;
   // 主键参数
   primary_key?: string;
@@ -507,6 +511,11 @@ export class DataQuery implements IDataQuery {
       let value = data?.[isFilterDict ? filterDictKey : itemKey];
       if (value === undefined && isExist) {
         isExist = false;
+      }
+      // 兼容endpoint_name 数组结构 特殊处理 apm 接口 和 DB tab 特殊结构
+      if (itemKey === 'endpoint_name' && Array.isArray(value) && value[0]?.value) {
+        total[itemKey] = value[0]?.value;
+        return total;
       }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
@@ -749,7 +758,7 @@ export class PanelModel implements IPanelModel {
       if (target?.query_configs?.length) {
         for (const item of target.query_configs) {
           if (item.promql) {
-            promqlSet.add(JSON.stringify(item.promql));
+            promqlSet.add(String(item.promql));
           } else {
             const metricId = getMetricId(
               item.data_source_label,
@@ -771,9 +780,10 @@ export class PanelModel implements IPanelModel {
     }
     let promqlString = '';
     for (const promql of promqlSet) {
-      promqlString = `promql=${promql}`;
+      promqlString = promql;
     }
-    return promqlString || `queryString=${queryString}`;
+    if (!promqlString && !queryString) return undefined;
+    return promqlString ? { promql: promqlString } : { queryString };
   }
   public toStrategy() {
     const queries = this.targets
