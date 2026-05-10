@@ -1590,24 +1590,50 @@ class DataLink(models.Model):
             )
             raise e
 
-    def sync_metadata(self, table_id, storage_cluster_name):
+    def sync_metadata(
+        self,
+        table_id,
+        storage_cluster_name: str | None = None,
+        storage_type: str | None = None,
+        storage_cluster_id: int | None = None,
+    ):
         """
         从本次 apply 落库的 ResultTableConfig / DataBusConfig 读实名回填 BkBaseResultTable。
+
+        集群定位支持两种方式（二选一，``storage_cluster_id`` 优先）：
+        - 方式一：传 ``storage_cluster_id``，直接查 ``ClusterInfo`` 反查 ``cluster_type``。
+        - 方式二：传 ``storage_cluster_name``（可选 ``storage_type``，默认 ``ClusterInfo.TYPE_VM``），
+          按 ``(bk_tenant_id, cluster_type, cluster_name)`` 唯一键命中 ``ClusterInfo``。
 
         不变式：
         - ``bkbase_rt_name == ResultTableConfig.name``
         - ``bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"``
         - ``bkbase_data_name == DataBusConfig.data_id_name``
+        - ``storage_type`` / ``storage_cluster_id`` 与 ``ClusterInfo`` 实际记录保持一致。
         """
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
         try:
-            storage_cluster_id = ClusterInfo.objects.get(
-                bk_tenant_id=self.bk_tenant_id, cluster_name=storage_cluster_name
-            ).cluster_id
+            if storage_cluster_id is not None:
+                cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=storage_cluster_id)
+            else:
+                # 兼容旧调用：未显式传 storage_type 时按 VM 处理，避免改变 VM/Fed 行为。
+                resolved_storage_type = storage_type or ClusterInfo.TYPE_VM
+                cluster = ClusterInfo.objects.get(
+                    bk_tenant_id=self.bk_tenant_id,
+                    cluster_name=storage_cluster_name,
+                    cluster_type=resolved_storage_type,
+                )
+            resolved_storage_cluster_id = cluster.cluster_id
+            resolved_storage_type = cluster.cluster_type
         except ClusterInfo.DoesNotExist:
-            logger.error("sync_metadata: storage_cluster_name->[%s] not exist!", storage_cluster_name)
+            logger.error(
+                "sync_metadata: storage cluster not exist! cluster_id->[%s] cluster_name->[%s] storage_type->[%s]",
+                storage_cluster_id,
+                storage_cluster_name,
+                storage_type,
+            )
             return
 
         rt_queryset = ResultTableConfig.objects.filter(
@@ -1656,8 +1682,8 @@ class DataLink(models.Model):
 
         defaults = {
             "monitor_table_id": table_id,
-            "storage_type": ClusterInfo.TYPE_VM,
-            "storage_cluster_id": storage_cluster_id,
+            "storage_type": resolved_storage_type,
+            "storage_cluster_id": resolved_storage_cluster_id,
         }
         if rt:
             bkbase_rt_name = rt.name

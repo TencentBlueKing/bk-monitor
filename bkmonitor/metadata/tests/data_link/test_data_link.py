@@ -3509,3 +3509,76 @@ def test_bk_standard_v2_reuse_updates_vm_cluster_name(create_or_delete_records, 
     assert ctx.leftover() == {}
     assert configs[1]["metadata"]["name"] == "legacy_v2_binding"
     assert configs[1]["spec"]["storage"]["name"] == "vm-plat"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_metadata_supports_storage_cluster_id_lookup(create_or_delete_records):
+    """传入 storage_cluster_id 时，sync_metadata 应反查 ClusterInfo 得到对应 storage_type。"""
+    datalink, _, rt = _prepare_bk_standard_v2_datalink()
+
+    ResultTableConfig.objects.create(
+        name="legacy_v2_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+
+    es_cluster = models.ClusterInfo.objects.get(cluster_name="es_default")
+    datalink.sync_metadata(table_id=rt.table_id, storage_cluster_id=es_cluster.cluster_id)
+
+    brt = BkBaseResultTable.objects.get(data_link_name=datalink.data_link_name)
+    assert brt.storage_cluster_id == es_cluster.cluster_id
+    assert brt.storage_type == models.ClusterInfo.TYPE_ES
+    assert brt.bkbase_rt_name == "legacy_v2_rt"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_metadata_supports_cluster_name_with_storage_type(create_or_delete_records):
+    """传入 storage_cluster_name + storage_type 时，按 (cluster_name, cluster_type) 命中 ClusterInfo。"""
+    datalink, _, rt = _prepare_bk_standard_v2_datalink()
+
+    ResultTableConfig.objects.create(
+        name="legacy_v2_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+
+    datalink.sync_metadata(
+        table_id=rt.table_id,
+        storage_cluster_name="es_default",
+        storage_type=models.ClusterInfo.TYPE_ES,
+    )
+
+    brt = BkBaseResultTable.objects.get(data_link_name=datalink.data_link_name)
+    es_cluster = models.ClusterInfo.objects.get(cluster_name="es_default")
+    assert brt.storage_cluster_id == es_cluster.cluster_id
+    assert brt.storage_type == models.ClusterInfo.TYPE_ES
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_metadata_storage_type_mismatch_skips(create_or_delete_records):
+    """cluster_name 命中但 cluster_type 不匹配时，应判为 cluster 不存在并跳过回填。"""
+    datalink, _, rt = _prepare_bk_standard_v2_datalink()
+
+    ResultTableConfig.objects.create(
+        name="legacy_v2_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+
+    # vm-plat 是 VM 集群，给出错误的 storage_type=ES 时 sync_metadata 应静默返回。
+    datalink.sync_metadata(
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        storage_type=models.ClusterInfo.TYPE_ES,
+    )
+
+    assert not BkBaseResultTable.objects.filter(data_link_name=datalink.data_link_name).exists()
