@@ -29,6 +29,7 @@ import * as tsx from 'vue-tsx-support';
 
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { isZh } from 'monitor-pc/common/constant';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
@@ -105,16 +106,20 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
 
   activated() {
     this.pagination.limit = commonPageSizeGet();
+    const queryKeyword = (this.$route.query?.keyword as string) || '';
+    if (queryKeyword) {
+      this.keyword = decodeURIComponent(queryKeyword);
+      this.emptyType = 'search-empty';
+    }
     this.getListActionConfig();
     if (this.id) {
-      // 打开详情
       this.loading = false;
       this.detailData.id = +this.id;
       this.detailData.isShow = true;
     }
   }
 
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _from, next) {
     this.detailData.isShow = false;
     next();
   }
@@ -133,7 +138,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
       this.emptyType = '500';
       return [];
     });
-    this.pagination.count = this.data.length;
+    this.pagination.count = this.filterData.length;
   }
 
   handlePageChange(page: number) {
@@ -166,7 +171,6 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   handleGoAddMeal() {
     this.$router.push({ name: 'set-meal-add' });
   }
-  // title组件
   headerTitle() {
     return (
       <div class='header-title'>
@@ -274,16 +278,14 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     };
   }
   handleToEventCenter(id) {
-    this.$router.push({
-      name: 'event-center',
-      query: {
-        searchType: 'action',
-        activeFilterId: 'action',
-        from: 'now-7d',
-        to: 'now',
-        queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`,
-      },
+    const url = getAlarmCenterListUrl({
+      searchType: 'action',
+      activeFilterId: 'action',
+      from: 'now-7d',
+      to: 'now',
+      queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`,
     });
+    window.open(url);
   }
 
   handleOperate(type, id) {
@@ -508,7 +510,9 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           id={this.detailData.id}
           width={this.detailData.width}
           isShow={this.detailData.isShow}
-          onShowChange={v => (this.detailData.isShow = v)}
+          onShowChange={v => {
+            this.detailData.isShow = v;
+          }}
         />
       </div>
     );

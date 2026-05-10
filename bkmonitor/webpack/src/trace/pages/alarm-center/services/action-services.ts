@@ -53,7 +53,6 @@ const ACTION_TABLE_COLUMNS = [
     title: window.i18n.t('空间名'),
     is_default: true,
     is_locked: true,
-    minWidth: 100,
     width: 100,
     sorter: false,
     fixed: 'left',
@@ -142,6 +141,7 @@ const ACTION_TABLE_COLUMNS = [
     is_default: true,
     is_locked: false,
     ellipsis: true,
+    width: 260,
   },
 ] as const;
 
@@ -340,8 +340,7 @@ export const ACTION_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'create_time',
     alias: window.i18n.t('开始时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',
@@ -356,8 +355,7 @@ export const ACTION_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'end_time',
     alias: window.i18n.t('结束时间'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.date,
     methods: [
       {
         alias: '=',

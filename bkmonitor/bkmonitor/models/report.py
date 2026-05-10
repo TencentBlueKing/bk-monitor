@@ -26,6 +26,22 @@ from constants.new_report import (
 )
 
 
+def get_render_image_upload_path(instance, filename: str) -> str:
+    """
+    生成渲染图片的上传路径：``render/image/<type>/<YYYYMMDDHH(UTC)>/<filename>``。
+
+    注意：目录名必须使用文件"实际写入时刻"而不是 ``instance.create_time``。
+    ``RenderImageTask`` 从创建（``create_time``）到 celery 实际执行完成并保存图片，
+    中间可能因排队、重试或渲染耗时产生较长延迟。如果目录名按 ``create_time`` 命名，
+    后续按目录名整目录清理过期小时目录时，可能把刚写入这个"旧小时目录"的新文件误删。
+    这里改用 ``arrow.utcnow()``，与清理端
+    :func:`monitor_web.tasks._clean_bkrepo_expired_time_dirs` 的判断基准一致。
+    """
+    base_filename = filename.rsplit("/", 1)[-1]
+    hour_path = arrow.utcnow().format("YYYYMMDDHH")
+    return f"render/image/{instance.type}/{hour_path}/{base_filename}"
+
+
 class ReportChannel(Model):
     """
     订阅渠道
@@ -152,7 +168,7 @@ class RenderImageTask(Model):
     create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
     start_time = models.DateTimeField(verbose_name="开始时间", null=True)
     finish_time = models.DateTimeField(verbose_name="完成时间", null=True)
-    image = models.ImageField(verbose_name="图片", null=True, upload_to="render/image/")
+    image = models.ImageField(verbose_name="图片", null=True, upload_to=get_render_image_upload_path)
     options = models.JSONField(verbose_name="图片渲染参数", default=dict)
     type = models.CharField(verbose_name="类型", max_length=128, choices=TYPE)
     status = models.CharField(verbose_name="状态", max_length=128, choices=STATUS)

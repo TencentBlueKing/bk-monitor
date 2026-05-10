@@ -1,12 +1,12 @@
 .new-metric-view-metrics-group {
   height: calc(100% - 118px);
-  padding: 0 8px 0 10px;
+  // padding: 0 8px 0 10px;
   margin-top: 8px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  // scrollbar-gutter: stable;
 
   .metrics-select-box {
     position: relative;
+    margin: 0 8px 0 10px;
 
     & ~ .metrics-select-box {
       margin-top: 6px;
@@ -87,19 +87,21 @@
     }
   }
 
-  .metrics-select-item-content {
-    position: relative;
+  // .metrics-select-item-content {
+  //   position: relative;
+  //   height: 400px;
+  //   overflow-y: auto;
 
-    &:after {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 27px;
-      width: 1px;
-      content: '';
-      background: #dcdee5;
-    }
-  }
+  //   &:after {
+  //     position: absolute;
+  //     top: 0;
+  //     bottom: 0;
+  //     left: 27px;
+  //     width: 1px;
+  //     content: '';
+  //     background: #dcdee5;
+  //   }
+  // }
 
   .bk-exception {
     margin-top: 80px;

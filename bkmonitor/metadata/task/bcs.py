@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import collections
 import itertools
 import logging
+import re
 import time
 
 from django.conf import settings
@@ -35,6 +36,56 @@ logger = logging.getLogger("metadata")
 
 BCS_SYNC_SYNC_CONCURRENCY = 20
 CMDB_IP_SEARCH_MAX_SIZE = 100
+BCS_CLUSTER_ID_PATTERN = re.compile(r"^BCS-K8S-(\d+)$")
+
+
+def get_bcs_cluster_id_suffix(cluster_id: str) -> int | None:
+    """提取 BCS 集群 ID 的数字后缀。"""
+    match = BCS_CLUSTER_ID_PATTERN.fullmatch(cluster_id)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def get_discover_start_cluster_id_suffix() -> int | None:
+    """获取 discover 任务起始集群 ID 的数字后缀。"""
+    start_cluster_id = settings.BCS_DISCOVER_START_CLUSTER_ID
+    if not start_cluster_id:
+        return None
+
+    start_cluster_id_suffix = get_bcs_cluster_id_suffix(start_cluster_id)
+    if start_cluster_id_suffix is None:
+        logger.warning(
+            "discover_bcs_clusters: invalid BCS_DISCOVER_START_CLUSTER_ID(%s), disable threshold filter",
+            start_cluster_id,
+        )
+    return start_cluster_id_suffix
+
+
+def is_discover_managed_cluster(cluster_id: str, start_cluster_id_suffix: int | None) -> bool:
+    """
+    判断当前集群是否由 discover 任务接管新增和删除。
+
+    规则：
+    - 未配置 ``BCS_DISCOVER_START_CLUSTER_ID``（``start_cluster_id_suffix`` 为 ``None``）：全部接管，保持历史行为；
+    - 已配置：仅当 ``cluster_id`` 的数字后缀**严格大于**该阈值时才接管，阈值本身不接管；
+    - ``cluster_id`` 无法解析出数字后缀：保守地视为不接管，避免异常数据被误纳入删除链。
+
+    Args:
+        cluster_id: BCS 集群 ID，形如 ``BCS-K8S-00001``。
+        start_cluster_id_suffix: ``BCS_DISCOVER_START_CLUSTER_ID`` 的数字后缀，``None`` 表示阈值未生效。
+
+    Returns:
+        True 表示该集群由 discover 任务接管；False 表示不接管。
+    """
+    if start_cluster_id_suffix is None:
+        return True
+
+    cluster_id_suffix = get_bcs_cluster_id_suffix(cluster_id)
+    if cluster_id_suffix is None:
+        return False
+
+    return cluster_id_suffix > start_cluster_id_suffix
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMonitorInfo")
@@ -201,7 +252,9 @@ def discover_bcs_clusters():
     # BCS 接口仅返回非 DELETED 状态的集群信息
     start_time = time.time()
     logger.info("discover_bcs_clusters: start to discover bcs clusters")
-    cluster_list: list[str] = []
+    start_cluster_id_suffix = get_discover_start_cluster_id_suffix()
+    all_discovered_cluster_ids: set[str] = set()
+    managed_discovered_cluster_ids: set[str] = set()
     for tenant in api.bk_login.list_tenant():
         bk_tenant_id = tenant["id"]
         try:
@@ -244,8 +297,11 @@ def discover_bcs_clusters():
 
             cluster_id = bcs_cluster["cluster_id"]
             cluster_raw_status = bcs_cluster["status"]
-            cluster_list.append(cluster_id)
+            all_discovered_cluster_ids.add(cluster_id)
             is_fed_cluster = cluster_id in fed_cluster_id_list
+            is_managed_cluster = is_discover_managed_cluster(cluster_id, start_cluster_id_suffix)
+            if is_managed_cluster:
+                managed_discovered_cluster_ids.add(cluster_id)
 
             # todo 同一个集群在切换业务时不能重复接入
             cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
@@ -321,6 +377,14 @@ def discover_bcs_clusters():
                 logger.info(f"cluster_id:{cluster_id},project_id:{project_id} already exists,skip create it")
                 continue
 
+            if not is_managed_cluster:
+                logger.info(
+                    "discover_bcs_clusters: cluster_id:%s is not managed by start cluster id(%s), skip register",
+                    cluster_id,
+                    settings.BCS_DISCOVER_START_CLUSTER_ID,
+                )
+                continue
+
             cluster = BCSClusterInfo.register_cluster(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -355,16 +419,24 @@ def discover_bcs_clusters():
             )
 
     # 如果是不存在的集群列表则更新当前状态为删除，加上>0的判断防止误删
-    if cluster_list:
+    if all_discovered_cluster_ids:
         logger.info(
             "discover_bcs_clusters: enable always running fake clusters->[%s]",
             settings.ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST,
         )
-        cluster_list.extend(settings.ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST)
+        # ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST 本身语义就是"不应被标记为删除"，
+        # 无论是否在 discover 阈值管理范围内，都统一加入 protected 集合，避免被误删。
+        protected_cluster_ids = managed_discovered_cluster_ids | set(settings.ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST)
+        managed_existing_cluster_ids = [
+            cluster_id
+            for cluster_id in BCSClusterInfo.objects.values_list("cluster_id", flat=True)
+            if is_discover_managed_cluster(cluster_id, start_cluster_id_suffix)
+        ]
 
-        BCSClusterInfo.objects.exclude(cluster_id__in=cluster_list).update(
-            status=BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED
-        )
+        if managed_existing_cluster_ids:
+            BCSClusterInfo.objects.filter(cluster_id__in=managed_existing_cluster_ids).exclude(
+                cluster_id__in=protected_cluster_ids
+            ).update(status=BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED)
 
     # 统计耗时，并上报指标
     cost_time = time.time() - start_time

@@ -421,7 +421,11 @@ export default defineComponent({
           fieldindex: '-1',
         }));
       }
-
+      if (!filterSwitcher.value) {
+        return {
+          type: 'none',
+        };
+      }
       return {
         type: activeFilterType.value,
         separator: separator.value,
@@ -663,7 +667,7 @@ export default defineComponent({
           />
           <InfoTips
             class='ml-12'
-            tips={t('过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本')}
+            tips={t('仅保留命中以下规则的日志，未命中将被丢弃。')}
           />
         </div>
 

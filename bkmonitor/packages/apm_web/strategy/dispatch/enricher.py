@@ -44,7 +44,10 @@ class RPCSystemDiscoverer(BaseSystemDiscoverer):
     SYSTEM: str = StrategyTemplateSystem.RPC.value
 
     def _get_related_data(self, service_name: str) -> Any:
-        return self._entity_set.get_rpc_service_config_or_none(service_name)
+        system: dict[str, Any] = self._entity_set.get_system(service_name)
+        if not system.get("is_support_call_analysis"):
+            return None
+        return system
 
     def discover(self) -> list[str]:
         service_names: list[str] = []
@@ -65,7 +68,7 @@ class K8SSystemDiscoverer(RPCSystemDiscoverer):
 class LogSystemDiscoverer(BaseSystemDiscoverer):
     SYSTEM: str = StrategyTemplateSystem.LOG.value
 
-    def _get_index_set_id_or_none(self) -> str | None:
+    def _get_index_set_id_or_none(self) -> int | None:
         return self._entity_set.get_log_datasource_index_set_id_or_none()
 
     def discover(self) -> list[str]:
@@ -77,7 +80,7 @@ class LogSystemDiscoverer(BaseSystemDiscoverer):
 class TraceSystemDiscoverer(LogSystemDiscoverer):
     SYSTEM: str = StrategyTemplateSystem.TRACE.value
 
-    def _get_index_set_id_or_none(self) -> str | None:
+    def _get_index_set_id_or_none(self) -> int | None:
         return self._entity_set.get_trace_datasource_index_set_id_or_none()
 
 
@@ -103,7 +106,7 @@ class SystemChecker:
     def __init__(self, entity_set: EntitySet) -> None:
         self._entity_set: EntitySet = entity_set
 
-    def _check(self, discoverer_cls: type[BaseSystemDiscoverer]) -> dict[str, list[str] | str]:
+    def _check(self, discoverer_cls: type[BaseSystemDiscoverer]) -> dict[str, Any]:
         return {
             "system": discoverer_cls.SYSTEM,
             "service_names": discoverer_cls(self._entity_set).discover(),
@@ -314,8 +317,8 @@ class RPCEnricher(BaseEnricher):
             self.upsert_group_by(dispatch_config, self._UPSERT_TAGS)
             self.upsert_conditions(dispatch_config, Q(app_name=self.app_name) & Q(service_name=service_name))
 
-            rpc_service_config: dict[str, Any] | None = self._entity_set.get_rpc_service_config_or_none(service_name)
-            if rpc_service_config["temporality"] == apm_constants.MetricTemporality.DELTA:
+            system: dict[str, Any] = self._entity_set.get_system(service_name)
+            if system.get("temporality") == apm_constants.MetricTemporality.DELTA:
                 dispatch_config.context["FUNCTIONS"] = []
 
         self.upsert_message_template(dispatch_config)

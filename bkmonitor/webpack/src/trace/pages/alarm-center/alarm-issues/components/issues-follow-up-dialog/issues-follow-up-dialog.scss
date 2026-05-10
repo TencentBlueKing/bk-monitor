@@ -1,0 +1,31 @@
+// ===================== 批量添加跟进信息弹窗样式 =====================
+.issues-follow-up-dialog {
+  .bk-modal-header {
+    line-height: 28px;
+  }
+
+  .bk-dialog-content {
+    margin-top: 24px;
+
+    .issues-follow-up-dialog-content {
+      height: 420px;
+      border-radius: 8px;
+      border-radius: 2px 2px 0 0;
+
+      .issues-follow-up-dialog-editor {
+        padding: 0;
+        background: #fff;
+      }
+    }
+  }
+
+  .issues-follow-up-dialog-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+
+    .bk-button {
+      width: 60px;
+    }
+  }
+}

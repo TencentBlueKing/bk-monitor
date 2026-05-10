@@ -25,8 +25,10 @@
  */
 import {
   computed,
+  defineAsyncComponent,
   defineComponent,
   inject,
+  provide,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -36,13 +38,14 @@ import {
   watch,
 } from 'vue';
 
-import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab } from 'bkui-vue';
+import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab, Button } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { typeTools } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+import dayjs from 'dayjs';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
@@ -52,8 +55,13 @@ import SearchBar from '../../../components/trace-view/search-bar';
 import { formatDuration } from '../../../components/trace-view/utils/date';
 // import FlameGraph from '../../../plugins/charts/flame-graph/flame-graph';
 import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
-import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph';
 import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
+import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
+import { toUnixMilliseconds } from '../../../utils/date';
+const MonitorTraceLog = defineAsyncComponent(
+  () =>
+    import(/* webpackChunkName: "monitor-trace-log" */ '../../../plugins/charts/monitor-trace-log/monitor-trace-log')
+);
 import {
   DEFAULT_TRACE_DATA,
   QUERY_TRACE_RELATION_APP,
@@ -78,6 +86,12 @@ import type { Span } from '../../../components/trace-view/typings';
 
 import './trace-detail.scss';
 
+/**
+ * Vite 不再将 mermaid 打包/拆分，内部的 import 'fork-mermaid' 留给宿主 webpack 按自身策略解析
+ * 宿主 webpack 对 mermaid 的 bundling 方式与 trace 主站一致，不会出现 getBBox 问题
+ */
+const SequenceGraph = defineAsyncComponent(() => import('../../../plugins/charts/sequence-graph/sequence-graph'));
+
 const { TabPanel } = Tab;
 
 const TraceDetailProps = {
@@ -95,7 +109,7 @@ const TraceDetailProps = {
   },
 };
 
-type IPanelEnum = 'flame' | 'sequence' | 'statistics' | 'timeline' | 'topo';
+type IPanelEnum = 'flame' | 'sequence' | 'statistics' | 'timeline' | 'topo' | 'log';
 
 interface IState {
   activePanel: IPanelEnum;
@@ -131,6 +145,7 @@ export default defineComponent({
     let searchCancelFn = () => {};
     const { t } = useI18n();
     const store = useTraceStore();
+    const spanDetailQueryStore = useSpanDetailQueryStore();
     /** 缓存不同tab下的过滤选项 */
     const cacheFilterToolsValues = {
       waterFallAndTopo: ['duration'],
@@ -156,6 +171,7 @@ export default defineComponent({
         { id: 'statistics', name: t('表格统计'), icon: 'table' },
         { id: 'sequence', name: t('时序图'), icon: 'Sequence' },
         { id: 'flame', name: t('火焰图'), icon: 'Flame' },
+        { id: 'log', name: t('日志'), icon: 'a-logrizhi' },
       ],
       isClassifyFilter: false,
       filterSpanIds: [],
@@ -236,7 +252,49 @@ export default defineComponent({
     );
     /** 是否展示 span list */
     const showSpanList = computed(() => ['sequence', 'topo'].includes(state.activePanel));
+    const currentTraceId = computed(() => props.traceID || traceData.value.trace_id);
+    // 快捷跳转文案
+    const exploreButtonName = computed(() => {
+      if (state.activePanel === 'log') {
+        return t('日志检索');
+      }
+      return '';
+    });
+    /* 当前应用名称 */
+    const appName = computed(() => store.traceData.appName);
+    provide('traceId', currentTraceId);
+    provide('appName', appName);
+    /**
+     * 如果 spanEnd - spanStart > 2h，时间范围固定为 [spanEnd - 2h, spanEnd]。
+     * 如果 spanEnd - spanStart <= 2h，左边界固定为 spanStart - 1h；右边界则分两种：
+     * spanEnd 在最近 1 小时内时取 now，否则取 spanEnd + 1h。
+     */
+    const customTimeProvider = computed(() => {
+      const traceStartTime = Math.floor(traceData.value.trace_info.trace_start_time / 1000);
+      const traceEndTime = Math.floor(traceData.value.trace_info.trace_end_time / 1000);
+      const diff = dayjs(traceEndTime).diff(dayjs(traceStartTime), 'millisecond');
 
+      /** end_time - start_time 没超过 2 小时 */
+      if (Math.abs(diff) <= 2 * 60 * 60 * 1000) {
+        const diff2 = dayjs().diff(dayjs(traceEndTime), 'millisecond');
+        // span 的 end_time 在当前一小时内
+        if (Math.abs(diff2) <= 60 * 60 * 1000) {
+          return [
+            dayjs(traceStartTime).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+            dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
+          ];
+        }
+        return [
+          dayjs(traceStartTime).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+          dayjs(traceEndTime).add(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+        ];
+      }
+      return [
+        dayjs(traceEndTime).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs(traceEndTime).format('YYYY-MM-DD HH:mm:ssZZ'),
+      ];
+    });
+    provide('customTimeProvider', customTimeProvider);
     /* 节点拓扑类型 时间/服务 */
     const topoType = ref<ETopoType>(ETopoType.time);
 
@@ -795,6 +853,21 @@ export default defineComponent({
       data && (await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId }));
       contentLoading.value = false;
     }
+
+    // 日志检索快捷跳转
+    const handleLogQuickJump = () => {
+      if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
+      const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+      const startMs = toUnixMilliseconds(start_time);
+      const endMs = toUnixMilliseconds(end_time);
+      let url = '';
+      if (unionList) {
+        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+      } else {
+        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+      }
+      window.open(url, '_blank');
+    };
     return {
       ...toRefs(state),
       isLoading,
@@ -806,6 +879,7 @@ export default defineComponent({
       traceMainElem,
       statisticsElem,
       searchBarElem,
+      exploreButtonName,
       handleSelectFilters,
       handleTabChange,
       trackFilter,
@@ -850,6 +924,7 @@ export default defineComponent({
       handleServiceTopoClickItem,
       handleChangeEnableTimeALignment,
       disabledSpanKindById,
+      handleLogQuickJump,
       t,
     };
   },
@@ -990,63 +1065,79 @@ export default defineComponent({
           <MonitorTab
             class='trace-main-tab'
             v-slots={{
-              setting: () =>
+              setting: () => {
                 // 时序图暂不支持
-                ['timeline', 'topo', 'statistics', 'flame'].includes(this.activePanel) ? (
-                  <div class='tab-setting'>
-                    {this.showCompareSelect ? (
-                      <CompareSelect
-                        ref='compareSelect'
-                        appName={this.appName}
-                        targetTraceID={this.compareTraceID}
-                        onCancel={this.handleCancelCompare}
-                        onCompare={this.handleCompare}
+                if (['timeline', 'topo', 'statistics', 'flame'].includes(this.activePanel)) {
+                  return (
+                    <div class='tab-setting'>
+                      {this.showCompareSelect ? (
+                        <CompareSelect
+                          ref='compareSelect'
+                          appName={this.appName}
+                          targetTraceID={this.compareTraceID}
+                          onCancel={this.handleCancelCompare}
+                          onCompare={this.handleCompare}
+                        />
+                      ) : (
+                        ''
+                      )}
+                      <SearchBar
+                        ref='searchBarElem'
+                        clearSearch={this.clearSearch}
+                        limitClassify={!!Object.keys(this.selectClassifyFilters).length}
+                        nextResult={this.nextResult}
+                        prevResult={this.prevResult}
+                        resultCount={this.matchedSpanIds}
+                        showResultCount={this.activePanel !== 'statistics'}
+                        trackFilter={val => this.trackFilter(val)}
                       />
-                    ) : (
-                      ''
-                    )}
-                    <SearchBar
-                      ref='searchBarElem'
-                      clearSearch={this.clearSearch}
-                      limitClassify={!!Object.keys(this.selectClassifyFilters).length}
-                      nextResult={this.nextResult}
-                      prevResult={this.prevResult}
-                      resultCount={this.matchedSpanIds}
-                      showResultCount={this.activePanel !== 'statistics'}
-                      trackFilter={val => this.trackFilter(val)}
-                    />
-                    {['timeline', 'flame'].includes(this.activePanel) ? (
-                      <div class='ellipsis-direction'>
-                        <Popover
-                          content={'Head first'}
-                          popoverDelay={[500, 0]}
-                        >
-                          <div
-                            class={`item ${this.ellipsisDirection === 'ltr' ? 'active' : ''}`}
-                            onClick={() => this.updateEllipsisDirection('ltr')}
+                      {['timeline', 'flame'].includes(this.activePanel) ? (
+                        <div class='ellipsis-direction'>
+                          <Popover
+                            content={'Head first'}
+                            popoverDelay={[500, 0]}
                           >
-                            <i class='icon-monitor icon-AB' />
-                          </div>
-                        </Popover>
-                        <Popover
-                          content={'Tail first'}
-                          popoverDelay={[500, 0]}
-                        >
-                          <div
-                            class={`item ${this.ellipsisDirection === 'rtl' ? 'active' : ''}`}
-                            onClick={() => this.updateEllipsisDirection('rtl')}
+                            <div
+                              class={`item ${this.ellipsisDirection === 'ltr' ? 'active' : ''}`}
+                              onClick={() => this.updateEllipsisDirection('ltr')}
+                            >
+                              <i class='icon-monitor icon-AB' />
+                            </div>
+                          </Popover>
+                          <Popover
+                            content={'Tail first'}
+                            popoverDelay={[500, 0]}
                           >
-                            <i class='icon-monitor icon-YZ' />
-                          </div>
-                        </Popover>
-                      </div>
-                    ) : (
-                      ''
-                    )}
-                  </div>
-                ) : (
-                  ''
-                ),
+                            <div
+                              class={`item ${this.ellipsisDirection === 'rtl' ? 'active' : ''}`}
+                              onClick={() => this.updateEllipsisDirection('rtl')}
+                            >
+                              <i class='icon-monitor icon-YZ' />
+                            </div>
+                          </Popover>
+                        </div>
+                      ) : (
+                        ''
+                      )}
+                    </div>
+                  );
+                }
+                if (this.exploreButtonName) {
+                  return (
+                    <Button
+                      class='quick-jump'
+                      size='small'
+                      theme='primary'
+                      outline
+                      onClick={this.handleLogQuickJump}
+                    >
+                      {this.exploreButtonName}
+                      <i class='icon-monitor icon-fenxiang' />
+                    </Button>
+                  );
+                }
+                return '';
+              },
             }}
             active={this.activePanel}
             onTabChange={this.handleTabChange}
@@ -1068,74 +1159,76 @@ export default defineComponent({
             ))}
           </MonitorTab>
           {/* 工具栏 */}
-          <div
-            ref='viewTool'
-            class='view-tools'
-          >
-            {
-              /** 拓扑图、火焰图在对比模式下不显示节点过滤选项 */
-              <div
-                class={`span-kind-filters ${
-                  ['topo', 'flame'].includes(this.activePanel) && this.isCompareView ? 'is-hidden' : ''
-                }`}
-              >
-                <span class={`label ${isStatisticsPanel ? 'is-required' : ''}`}>
-                  {`${isStatisticsPanel ? this.t('分组') : this.t('显示')}`}
-                </span>
-                :
-                <Checkbox.Group
-                  class='span-kind-checkbox'
-                  v-model={this.traceViewFilters}
-                  onChange={this.handleSpanKindChange}
+          {this.activePanel !== 'log' && (
+            <div
+              ref='viewTool'
+              class='view-tools'
+            >
+              {
+                /** 拓扑图、火焰图在对比模式下不显示节点过滤选项 */
+                <div
+                  class={`span-kind-filters ${
+                    ['topo', 'flame'].includes(this.activePanel) && this.isCompareView ? 'is-hidden' : ''
+                  }`}
                 >
-                  {this.filterToolList.map((kind, index) => (
-                    <Checkbox
-                      key={index}
-                      disabled={this.disabledSpanKindById(kind.id)}
-                      label={kind.id}
-                      size='small'
-                    >
-                      {/* 增加特殊过滤类型说明 */}
-                      <Popover
-                        key={kind.id}
-                        disabled={!kind.desc}
-                        placement='top'
-                        popoverDelay={[500, 50]}
+                  <span class={`label ${isStatisticsPanel ? 'is-required' : ''}`}>
+                    {`${isStatisticsPanel ? this.t('分组') : this.t('显示')}`}
+                  </span>
+                  :
+                  <Checkbox.Group
+                    class='span-kind-checkbox'
+                    v-model={this.traceViewFilters}
+                    onChange={this.handleSpanKindChange}
+                  >
+                    {this.filterToolList.map((kind, index) => (
+                      <Checkbox
+                        key={index}
+                        disabled={this.disabledSpanKindById(kind.id)}
+                        label={kind.id}
+                        size='small'
                       >
-                        {{
-                          default: () => <span>{kind.label}</span>,
-                          content: () => {
-                            if (kind.id !== SOURCE_CATEGORY_EBPF) {
-                              return kind.desc;
-                            }
-                            return this.traceData?.ebpf_enabled ? kind.desc : kind.disabledDesc;
-                          },
-                        }}
-                      </Popover>
-                    </Checkbox>
-                  ))}
-                </Checkbox.Group>
-              </div>
-            }
-            {['topo', 'flame'].includes(this.activePanel) && this.isCompareView && this.showCompareSelect ? (
-              <div class='compare-legend'>
-                <span class='tag tag-new'>added</span>
-                <div class='percent-queue'>
-                  {this.diffPercentList.map((item, index) => (
-                    <span
-                      key={index}
-                      class={`percent-tag tag-${index + 1}`}
-                    >
-                      {item}
-                    </span>
-                  ))}
+                        {/* 增加特殊过滤类型说明 */}
+                        <Popover
+                          key={kind.id}
+                          disabled={!kind.desc}
+                          placement='top'
+                          popoverDelay={[500, 50]}
+                        >
+                          {{
+                            default: () => <span>{kind.label}</span>,
+                            content: () => {
+                              if (kind.id !== SOURCE_CATEGORY_EBPF) {
+                                return kind.desc;
+                              }
+                              return this.traceData?.ebpf_enabled ? kind.desc : kind.disabledDesc;
+                            },
+                          }}
+                        </Popover>
+                      </Checkbox>
+                    ))}
+                  </Checkbox.Group>
                 </div>
-                <span class='tag tag-removed'>removed</span>
-              </div>
-            ) : (
-              ''
-            )}
-          </div>
+              }
+              {['topo', 'flame'].includes(this.activePanel) && this.isCompareView && this.showCompareSelect ? (
+                <div class='compare-legend'>
+                  <span class='tag tag-new'>added</span>
+                  <div class='percent-queue'>
+                    {this.diffPercentList.map((item, index) => (
+                      <span
+                        key={index}
+                        class={`percent-tag tag-${index + 1}`}
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                  <span class='tag tag-removed'>removed</span>
+                </div>
+              ) : (
+                ''
+              )}
+            </div>
+          )}
           {this.traceTree && (
             <div
               style={this.traceMainStyle}
@@ -1205,6 +1298,8 @@ export default defineComponent({
                     onUpdate:loading={this.contentLoadingChange}
                   />
                 )}
+                {/* 日志视图 */}
+                {this.activePanel === 'log' && <MonitorTraceLog />}
               </Loading>
               <ResizeLayout
                 key={this.activePanel}

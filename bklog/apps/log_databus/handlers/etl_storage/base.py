@@ -38,7 +38,6 @@ from apps.log_databus.constants import (
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
     V4_RESERVED_FIELD_NAMES,
-    V4_RESERVED_MINUTE_PATTERN,
     EtlConfig,
     MetadataTypeEnum,
     MIN_FLATTENED_SUPPORT_VERSION,
@@ -135,12 +134,7 @@ class EtlStorage:
 
     @staticmethod
     def _is_v4_reserved_field(field_name: str) -> bool:
-        lower_name = field_name.lower()
-        if lower_name in V4_RESERVED_FIELD_NAMES:
-            return True
-        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
-            return True
-        return False
+        return field_name.lower() in V4_RESERVED_FIELD_NAMES
 
     @classmethod
     def _validate_v4_reserved_fields(cls, fields: list):
@@ -149,9 +143,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(
-                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
-                )
+                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -192,16 +184,18 @@ class EtlStorage:
 
         pattern = re.compile(path_regexp)
         for field_name in pattern.groupindex.keys():
-            rules.append({
-                "input_id": "bk_separator_object_path",
-                "output_id": field_name,
-                "operator": {
-                    "type": "assign",
-                    "key_index": field_name,
-                    "alias": field_name,
-                    "output_type": "string",
-                },
-            })
+            rules.append(
+                {
+                    "input_id": "bk_separator_object_path",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": field_name,
+                        "alias": field_name,
+                        "output_type": "string",
+                    },
+                }
+            )
         return rules
 
     @staticmethod
@@ -226,6 +220,8 @@ class EtlStorage:
             "object": "dict",
             "bool": "boolean",
             "boolean": "boolean",
+            "keyword": "string",
+            "text": "string",
         }
         return type_mapping.get(field_type, "string")
 
@@ -324,10 +320,11 @@ class EtlStorage:
         for field in built_in_fields:
             field_name = field["field_name"]
             alias_name = field.get("alias_name", field_name)
-            field_type = field["field_type"]
+            # 优先使用es_type确定output_type
+            field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
-            # 跳过log、iterationIndex字段，它会在后面单独处理
-            if field_name in ["log", "iterationIndex"]:
+            # 跳过 flat_field=True 的字段和 log 字段，会在后面单独处理
+            if field.get("flat_field", False) or field_name in ["log"]:
                 continue
 
             rules.append(
@@ -408,6 +405,27 @@ class EtlStorage:
                     }
                 )
 
+                # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
+                rules.append(
+                    {
+                        "input_id": "json_data",
+                        "output_id": "time",
+                        "operator": {
+                            "type": "assign",
+                            "key_index": time_alias_name,
+                            "alias": "time",
+                            "desc": "data timestamp in epoch second",
+                            "input_type": None,
+                            "output_type": "long",
+                            "fixed_value": None,
+                            "is_time_field": None,
+                            "time_format": None,
+                            "in_place_time_parsing": v4_time_parsing,
+                            "default_value": None,
+                        },
+                    }
+                )
+
             # 如果是纳秒级时间格式，记录需要生成dtEventTimeStampNanos字段
             # 注意：dtEventTimeStampNanos规则需要在bk_separator_object之后生成，因为用户指定的时间字段在bk_separator_object中
             # 这里只记录is_nanos状态，实际的规则生成在_build_nanos_time_field_v4方法中
@@ -422,45 +440,43 @@ class EtlStorage:
 
         return rules
 
-    def _build_iteration_index_field_v4(self, built_in_config: dict) -> list:
+    def _build_flat_built_in_fields_v4(self, built_in_config: dict) -> list:
         """
-        构建V4版本的iterationIndex字段规则（从iter_item提取）
+        构建V4版本的 flat_field=True 内置字段规则（从 iter_item 提取）
         :param built_in_config: 内置配置，包含fields
-        :return: iterationIndex字段规则列表
+        :return: flat_field 字段规则列表
         """
         rules = []
         built_in_fields = built_in_config.get("fields", [])
 
-        # 查找iterationIndex字段（flat_field为True的字段）
         for field in built_in_fields:
-            if field.get("field_name") == "iterationIndex" and field.get("flat_field", False):
-                alias_name = field.get("alias_name", "iterationindex")
+            if not field.get("flat_field", False):
+                continue
 
-                # 优先使用es_type确定output_type
-                # iterationIndex的field_type可能是float，但es_type是integer，需映射为long
-                field_type = field.get("option", {}).get("es_type") or field.get("field_type")
-                output_type = self._get_output_type(field_type)
+            field_name = field["field_name"]
+            alias_name = field.get("alias_name", field_name)
+            # 优先使用es_type确定output_type
+            field_type = field.get("option", {}).get("es_type") or field.get("field_type")
 
-                rules.append(
-                    {
-                        "input_id": "iter_item",
-                        "output_id": "iterationIndex",
-                        "operator": {
-                            "type": "assign",
-                            "key_index": alias_name,
-                            "alias": "iterationIndex",
-                            "desc": field.get("description"),
-                            "input_type": None,
-                            "output_type": output_type,
-                            "fixed_value": None,
-                            "is_time_field": None,
-                            "time_format": None,
-                            "in_place_time_parsing": None,
-                            "default_value": None,
-                        },
-                    }
-                )
-                break
+            rules.append(
+                {
+                    "input_id": "iter_item",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": alias_name,
+                        "alias": field_name,
+                        "desc": field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(field_type),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                }
+            )
 
         return rules
 
@@ -494,6 +510,27 @@ class EtlStorage:
                         "desc": user_time_field.get("description"),
                         "input_type": None,
                         "output_type": self._get_output_type(user_time_field["time_field_type"]),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
+
+            # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": "time",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": key_index,
+                        "alias": "time",
+                        "desc": "data timestamp in epoch second",
+                        "input_type": None,
+                        "output_type": "long",
                         "fixed_value": None,
                         "is_time_field": None,
                         "time_format": None,
@@ -931,7 +968,6 @@ class EtlStorage:
 
                 nano_time_field = copy.deepcopy(time_field)
                 nano_time_field["field_name"] = "dtEventTimeStampNanos"
-                nano_time_field["field_type"] = "long" if field["option"]["time_format"] == "epoch_micros" else "string"
                 nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
@@ -1231,7 +1267,9 @@ class EtlStorage:
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
             collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
-            collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
+            collector_config["storage_display_name"] = (
+                result_table_storage["cluster_config"].get("display_name") or collector_config["storage_cluster_name"]
+            )
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 

@@ -43,6 +43,53 @@
       "type": "boolean",
       "default": true
     },
+    "issue_config": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "是否启用 issue 聚合"
+            },
+            "dimensions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": [],
+              "description": "issue 聚合维度"
+            },
+            "levels": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "fatal",
+                  "warning",
+                  "remind"
+                ]
+              },
+              "default": [],
+              "description": "issue 生效告警级别"
+            },
+            "conditions": {
+              "type": "string",
+              "default": "",
+              "description": "issue 过滤条件，语法与 query.where 一致"
+            }
+          },
+          "additionalProperties": false,
+          "description": "issue 聚合配置"
+        }
+      ],
+      "default": null
+    },
     "active_time": {
       "type": "string",
       "pattern": "^\\d{2}:\\d{2} *-- *\\d{2}:\\d{2}(,\\d{2}:\\d{2} *-- *\\d{2}:\\d{2})*$",

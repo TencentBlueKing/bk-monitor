@@ -525,4 +525,16 @@ export default {
   上一个: 'Previous',
   下一个: 'Next',
   分析详情: 'Analysis Details',
+
+  // ISSUES
+  标为已解决: 'Mark as Resolved',
+  标记为已解决: 'Mark as Resolved',
+  重新打开: 'Reopen',
+  添加跟进信息: 'Add Follow-up Information',
+  批量添加跟进信息: 'Batch Add Follow-up Information',
+  未指派: 'Unassigned',
+  'button-高': 'High',
+  'button-中': 'Medium',
+  'button-低': 'Low',
+  'button-富文本编辑': 'Rich Text Editor',
 };

@@ -96,6 +96,7 @@ class NodeType:
     REALTIME = "realtime"
     REDIS_KV_SOURCE = "redis_kv_source"
     ELASTIC_STORAGE = "elastic_storage"
+    DORIS_STORAGE = "doris"
     MODEL = "model_ts_custom"
     STREAM_SOURCE = "stream_source"
 

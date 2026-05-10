@@ -53,11 +53,7 @@ from metadata.models.vm.utils import (
     get_vm_cluster_id_name,
     report_metadata_data_link_status_info,
 )
-from metadata.service.sync_metadata import (
-    sync_es_metadata,
-    sync_kafka_metadata,
-    sync_vm_metadata,
-)
+from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
@@ -78,6 +74,13 @@ def refresh_custom_log_report_config(log_group_id=None):
     from metadata.task.custom_report import refresh_custom_log_config
 
     refresh_custom_log_config(log_group_id=log_group_id)
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def refresh_entity_definition_to_redis():
+    from metadata.task.entity_relation import refresh_entity_definition_to_redis as _refresh
+
+    _refresh()
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -977,19 +980,6 @@ def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
             sync_kafka_metadata(bk_tenant_id=bk_tenant_id, kafka_info=kafka_info, ds=ds, bk_data_id=bk_data_id)
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
-    # 处理 ES 信息
-    es_info = bkbase_metadata_dict.get("es")
-    if es_info and "es" not in skip_types:
-        with transaction.atomic():  # 单独事务
-            logger.info(
-                "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
-            )
-            # TODO: 这里需要特别注意,新版协议中，es_info中的数据结构是 {key:[info1,info2]},这里的key对应计算平台侧的RT,在监控平台这边不可读
-            # TODO：考虑到目前日志链路中，不存在1个DataId关联多个ES结果表的场景，因此这里默认只选取第一条元素的value
-            es_info_value = next(iter(es_info.values()))
-            sync_es_metadata(bk_tenant_id=bk_tenant_id, es_info=es_info_value, table_id=table_id)
-            logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
-
     # 处理 VM 信息
     vm_info = bkbase_metadata_dict.get("vm")
     if vm_info and "vm" not in skip_types:
@@ -1250,12 +1240,18 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
+def create_basereport_datalink_for_bkcc(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_cluster_name: str | None = None,
+    extra_source: str | None = None,
+):
     """
     为单个业务创建基础采集数据链路
     @param bk_tenant_id: 租户ID
     @param bk_biz_id: 业务ID
     @param storage_cluster_name: 存储集群名称(VM)
+    @param extra_source: 额外主机维度数据来源
     """
 
     logger.info(
@@ -1351,11 +1347,30 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                 }
                 for usage in BASEREPORT_USAGES
             ]
+            if extra_source:
+                result_table_usage_mapping.extend(
+                    [
+                        {
+                            "usage": usage,
+                            "table_id": f"{bk_tenant_id}_{bk_biz_id}_{extra_source}.{usage}",
+                            "table_name": f"{bk_tenant_id}_{bk_biz_id}_{extra_source}_{usage}",
+                            "data_label": f"{extra_source}_system",
+                        }
+                        for usage in BASEREPORT_USAGES
+                    ]
+                )
 
             result_table_ids = [t["table_id"] for t in result_table_usage_mapping]
             existing_rts = set(
                 models.ResultTable.objects.filter(table_id__in=result_table_ids).values_list("table_id", flat=True)
             )
+            if extra_source:
+                extra_result_table_ids = [
+                    t["table_id"] for t in result_table_usage_mapping if t.get("data_label") == f"{extra_source}_system"
+                ]
+                models.ResultTable.objects.filter(table_id__in=extra_result_table_ids).update(
+                    data_label=f"{extra_source}_system"
+                )
 
             for table in result_table_usage_mapping:
                 if table["table_id"] in existing_rts:  # 已存在
@@ -1372,6 +1387,7 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                         bk_tenant_id=bk_tenant_id,
                         bk_biz_id=bk_biz_id,
                         table_name_zh=table["table_name"],
+                        data_label=table.get("data_label", ""),
                         is_custom_table=False,
                         default_storage=models.ClusterInfo.TYPE_VM,
                         creator="system",
@@ -1492,10 +1508,18 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
     # 2. 申请数据链路配置 VmResultTable, VmResultTableBinding, DataBus, ConditionalSink
     try:
         data_link_ins.apply_data_link(
-            data_source=data_source, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id, source=source
+            data_source=data_source,
+            storage_cluster_name=storage_cluster_name,
+            bk_biz_id=bk_biz_id,
+            source=source,
+            extra_source=extra_source,
         )
         data_link_ins.sync_basereport_metadata(
-            bk_biz_id=bk_biz_id, storage_cluster_name=storage_cluster_name, source=source, datasource=data_source
+            bk_biz_id=bk_biz_id,
+            storage_cluster_name=storage_cluster_name,
+            source=source,
+            datasource=data_source,
+            extra_source=extra_source,
         )
         logger.info(
             "create_basereport_datalink_for_bkcc: data link applied successfully,for bk_biz_id->[%s]", bk_biz_id

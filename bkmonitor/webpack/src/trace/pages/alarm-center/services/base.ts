@@ -26,11 +26,13 @@
 
 import { isEn } from '@/i18n/i18n';
 
+import _ from 'lodash';
 import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/modules/alert_v2';
 import { updateFavorite } from 'monitor-api/modules/model';
 
 import { AlarmType } from '../typings';
 
+import type { IssueItem } from '../alarm-issues/typing';
 import type {
   ActionTableItem,
   AlertEventCountResult,
@@ -95,8 +97,8 @@ export abstract class AlarmService<S = AlarmType> {
       return null;
     }
     const params = { ids: data.map(item => item.id) };
-    const eventCountPromise = alertEventCount(params, options).catch(() => { }) as Promise<Record<string, number>>;
-    const relateInfosPromise = alertRelatedInfo(params, options).catch(() => { });
+    const eventCountPromise = alertEventCount(params, options).catch(() => {}) as Promise<Record<string, number>>;
+    const relateInfosPromise = alertRelatedInfo(params, options).catch(() => {});
 
     const [eventCount, extendInfo] = (await Promise.allSettled([eventCountPromise, relateInfosPromise])) as [
       PromiseFulfilledResult<AlertEventCountResult>,
@@ -116,8 +118,18 @@ export abstract class AlarmService<S = AlarmType> {
     if (this.scenes !== AlarmType.ALERT) {
       return [];
     }
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await listAlertTags({
-      ...params,
+      ...paramsClone,
     }).catch(() => []);
     return data;
   }
@@ -138,7 +150,13 @@ export abstract class AlarmService<S = AlarmType> {
    * @param {RequestOptions} options 请求配置选项
    */
   abstract getFilterTableList<
-    T = S extends AlarmType.ALERT ? AlertTableItem : S extends AlarmType.INCIDENT ? IncidentTableItem : ActionTableItem,
+    T = S extends AlarmType.ALERT
+      ? AlertTableItem
+      : S extends AlarmType.INCIDENT
+        ? IncidentTableItem
+        : S extends AlarmType.ACTION
+          ? ActionTableItem
+          : IssueItem,
   >(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<FilterTableResponse<T>>;
 
   /**

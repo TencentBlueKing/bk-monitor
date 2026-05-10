@@ -23,28 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  computed,
-  defineComponent,
-  onBeforeUnmount,
-  onMounted,
-  toRef,
-  toValue,
-  useTemplateRef,
-} from 'vue';
+import { type PropType, computed, defineComponent, toRef, toValue, useTemplateRef } from 'vue';
 
 import { useRouter } from 'vue-router';
 
+import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
-import {
-  type AlertAllActionEnum,
-  type AlertContentNameEditInfo,
-  type AlertTableItem,
-  type TableColumnItem,
-  type TablePagination,
-  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
-} from '../../typings';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
 import { useActionHandlers } from './hooks/use-action-handlers';
@@ -52,10 +36,20 @@ import { useAlertHandlers } from './hooks/use-alert-handlers';
 import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 
+import type {
+  ActionTableItem,
+  AlertAllActionEnum,
+  AlertContentNameEditInfo,
+  AlertTableItem,
+  ColumnResizeContext,
+  TableColumnItem,
+  TablePagination,
+} from '../../typings';
 import type { AlertSavePromiseEvent } from './components/alert-content-detail/alert-content-detail';
 import type { ActionScenario } from './scenarios/action-scenario';
 import type { AlertScenario } from './scenarios/alert-scenario';
 import type { IncidentScenario } from './scenarios/incident-scenario';
+import type { TimeRangeType } from '@/components/time-range/utils';
 import type { BkUiSettings } from '@blueking/tdesign-ui/.';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
@@ -108,8 +102,18 @@ export default defineComponent({
     },
     /** 时间范围 [from, to] */
     timeRange: {
-      type: Array as PropType<string[]>,
+      type: Array as PropType<TimeRangeType>,
       default: () => [],
+    },
+    /** 滚动容器的 CSS 选择器（用于滚动优化及表头/滚动条吸附） */
+    scrollContainerSelector: {
+      type: String,
+    },
+    headerAffixedTop: {
+      type: Object as PropType<{ container: string }>,
+    },
+    horizontalScrollAffixedBottom: {
+      type: Object as PropType<{ container: string }>,
     },
   },
   emits: {
@@ -117,8 +121,8 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    showAlertDetail: (item: string, _defaultTab?: string) => typeof item === 'string',
-    showActionDetail: (item: string) => typeof item === 'string',
+    showAlertDetail: (row: AlertTableItem, _defaultTab?: string) => row,
+    showActionDetail: (row: ActionTableItem) => row,
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,
     openAlertDialog: (
@@ -128,6 +132,8 @@ export default defineComponent({
     ) => type && ids,
     saveAlertContentName: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) =>
       saveInfo && savePromiseEvent,
+    /** 列宽拖拽变化回调 */
+    columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
     // const alarmStore = useAlarmCenterStore();
@@ -146,10 +152,15 @@ export default defineComponent({
       },
     });
 
-    /** 滚动容器元素 */
-    let scrollContainer: HTMLElement = null;
-    /** 滚动结束后回调逻辑执行计时器  */
-    let scrollPointerEventsTimer = null;
+    /** 表格滚动优化：滚动时禁用 pointerEvents 并隐藏 popover */
+    useTableScrollOptimize({
+      targetElement: tableRef,
+      scrollContainerSelector: props.scrollContainerSelector,
+      onScroll: () => {
+        hoverPopoverTools.hidePopover();
+        clickPopoverTools.hidePopover();
+      },
+    });
 
     /** 告警场景私有交互逻辑 */
     const {
@@ -162,7 +173,7 @@ export default defineComponent({
       clickPopoverTools,
       selectedRowKeys: toRef(props, 'selectedRowKeys'),
       clearSelected: () => handleSelectionChange(),
-      showDetailEmit: (id, defaultTab) => emit('showAlertDetail', id, defaultTab),
+      showDetailEmit: (row, defaultTab) => emit('showAlertDetail', row, defaultTab),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),
       saveContentNameEmit: (saveInfo, savePromiseEvent) => emit('saveAlertContentName', saveInfo, savePromiseEvent),
     });
@@ -192,48 +203,8 @@ export default defineComponent({
     const settings = computed(() => ({
       ...props.tableSettings,
       hasCheckAll: true,
+      showRowSize: false,
     }));
-
-    /**
-     * @description 配置表格是否能够触发事件target
-     */
-    const updateTablePointEvents = (val: 'auto' | 'none') => {
-      const tableDom = tableRef?.value?.$el;
-      if (!tableDom) return;
-      tableDom.style.pointerEvents = val;
-    };
-
-    /**
-     * @description 滚动触发事件
-     */
-    const handleScroll = () => {
-      updateTablePointEvents('none');
-      hoverPopoverTools.hidePopover();
-      clickPopoverTools.hidePopover();
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      scrollPointerEventsTimer = setTimeout(() => {
-        updateTablePointEvents('auto');
-      }, 600);
-    };
-
-    /**
-     * @description 添加滚动监听
-     */
-    const addScrollListener = () => {
-      removeScrollListener();
-      scrollContainer = document.querySelector(`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`);
-      if (!scrollContainer) return;
-      scrollContainer.addEventListener('scroll', handleScroll);
-    };
-
-    /**
-     * @description 移除滚动监听
-     */
-    const removeScrollListener = () => {
-      if (!scrollContainer) return;
-      scrollContainer.removeEventListener('scroll', handleScroll);
-      scrollContainer = null;
-    };
 
     /**
      * @description 处理行选择变化(不传参数则清空选择)
@@ -243,15 +214,6 @@ export default defineComponent({
       if (keys?.length && toValue(currentScenario).name !== ALERT_STORAGE_KEY) return;
       emit('selectionChange', (keys ?? []) as string[], options);
     };
-
-    onMounted(() => {
-      addScrollListener();
-    });
-
-    onBeforeUnmount(() => {
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      removeScrollListener();
-    });
 
     return {
       transformedColumns,
@@ -283,22 +245,19 @@ export default defineComponent({
                   ) as unknown as SlotReturnValue
               : null
           }
-          headerAffixedTop={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
-          horizontalScrollAffixedBottom={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}
           defaultActiveRowKeys={this.defaultActiveRowKeys}
           empty={this.tableEmpty}
+          headerAffixedTop={this.headerAffixedTop}
+          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           loading={this.loading}
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
           tableSettings={this.settings}
+          onColumnResizeChange={context => this.$emit('columnResizeChange', context)}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}

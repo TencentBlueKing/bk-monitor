@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef } from 'vue';
+import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
 
@@ -39,6 +39,7 @@ import { type IncidentTableItem, type TableEmpty, IncidentLevelIconMap, Incident
 import { BaseScenario } from './base-scenario';
 
 import type { IUsePopoverTools } from '../hooks/use-popover';
+import type { TimeRangeType } from '@/components/time-range/utils';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 import type { Router } from 'vue-router';
 /**
@@ -55,7 +56,7 @@ export class IncidentScenario extends BaseScenario {
       [methodName: string]: any;
       hoverPopoverTools: IUsePopoverTools;
       router: Router;
-      timeRange: MaybeRef<string[]>;
+      timeRange: MaybeRef<TimeRangeType>;
     }
   ) {
     super();
@@ -83,7 +84,7 @@ export class IncidentScenario extends BaseScenario {
       /** 告警数量(alert_count) 列 */
       alert_count: {
         getRenderValue: row => row?.alert_count,
-        clickCallback: row => this.jumpToIncidentDetail(row.id, 'FailureView'),
+        clickCallback: row => this.jumpToIncidentDetail(row.id, 'FailureView', row.bk_biz_id),
         cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
       },
       /** 标签(labels) 列 */
@@ -124,11 +125,13 @@ export class IncidentScenario extends BaseScenario {
           style={{ '--lever-rect-color': rectColor }}
           class='lever-rect'
         />
-        <div
-          class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}
-          onClick={() => this.jumpToIncidentDetail(row.id)}
-        >
-          <span>{row?.incident_name}</span>
+        <div class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}>
+          <a
+            class='lever-rect-link'
+            href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
+          >
+            {row?.incident_name}
+          </a>
         </div>
       </div>
     ) as unknown as SlotReturnValue;
@@ -178,7 +181,23 @@ export class IncidentScenario extends BaseScenario {
    * @param {string} id 故障id
    * @param {string} activeTab 跳转至故障页面后激活显示的tab
    */
-  private jumpToIncidentDetail(id: string, activeTab = '') {
+  private getIncidentDetailUrl(id: string, bkBizId?: number | string) {
+    const timeRange = get(this.context.timeRange) || [];
+    const { href } = this.context.router.resolve({
+      name: 'incident-detail',
+      params: { id },
+      query: { from: timeRange[0], to: timeRange[1], fromPage: 'alarm-center' },
+    });
+    // 同步更新地址栏中的bizId为故障对应的bk_biz_id
+    if (bkBizId != null) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('bizId', String(bkBizId));
+      return `${url.origin}${url.pathname}?bizId=${bkBizId}${href}`;
+    }
+    return href;
+  }
+
+  private jumpToIncidentDetail(id: string, activeTab = '', bkBizId?: number | string) {
     const timeRange = get(this.context.timeRange) || [];
     this.context.router.push({
       name: 'incident-detail',
@@ -189,8 +208,17 @@ export class IncidentScenario extends BaseScenario {
         activeTab,
         from: timeRange[0],
         to: timeRange[1],
+        fromPage: 'alarm-center',
       },
     });
+    // 同步更新地址栏中的bizId为故障对应的bk_biz_id
+    if (bkBizId != null) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('bizId', String(bkBizId));
+      window.history.replaceState({}, '', url.toString());
+      window.bk_biz_id = +bkBizId;
+      window.cc_biz_id = +bkBizId;
+    }
   }
 
   /**

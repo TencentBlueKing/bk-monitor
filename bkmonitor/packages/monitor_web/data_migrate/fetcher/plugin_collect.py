@@ -44,20 +44,27 @@ def get_collector_plugin_fetcher(bk_biz_id: int | None) -> list[FetcherResultTyp
     """
     获取业务下的插件定义链。
 
-    ``CollectorPluginMeta`` 本身就带有 ``bk_biz_id``，因此插件主表直接按业务过滤。
-    然后再基于这批插件的 ``plugin_id`` 回查版本表，以及版本依赖的 config/info。
+    非全局业务导出时，这里只导出当前业务自己的插件定义链，
+    不再把全局插件的 ``CollectorPluginMeta`` / ``PluginVersionHistory``
+    以及对应的 config/info 一并带出。
     """
-    plugin_filters = None if bk_biz_id is None else {"bk_biz_id": bk_biz_id}
-    plugin_queryset = CollectorPluginMeta.objects.filter(**(plugin_filters or {}))
-    plugin_ids = plugin_queryset.values_list("plugin_id", flat=True)
-    plugin_versions = PluginVersionHistory.objects.filter(plugin_id__in=plugin_ids)
+    if bk_biz_id is None:
+        plugin_meta_filters = None
+        version_plugin_id_filters = None
+    else:
+        biz_plugin_ids = CollectorPluginMeta.objects.filter(bk_biz_id=bk_biz_id).values_list("plugin_id", flat=True)
+        version_plugin_id_list = sorted(set(biz_plugin_ids))
+        plugin_meta_filters = {"bk_biz_id": bk_biz_id, "plugin_id__in": version_plugin_id_list}
+        version_plugin_id_filters = {"plugin_id__in": version_plugin_id_list}
+
+    plugin_versions = PluginVersionHistory.objects.filter(**(version_plugin_id_filters or {}))
 
     plugin_config_ids = plugin_versions.values_list("config_id", flat=True)
     plugin_info_ids = plugin_versions.values_list("info_id", flat=True)
 
     return [
-        (CollectorPluginMeta, plugin_filters, None),
+        (CollectorPluginMeta, plugin_meta_filters, None),
         (CollectorPluginConfig, {"id__in": plugin_config_ids}, None),
         (CollectorPluginInfo, {"id__in": plugin_info_ids}, None),
-        (PluginVersionHistory, {"plugin_id__in": plugin_ids}, None),
+        (PluginVersionHistory, version_plugin_id_filters, None),
     ]

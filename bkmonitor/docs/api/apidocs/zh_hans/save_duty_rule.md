@@ -17,8 +17,8 @@
 | labels         | list[str] | 是   | 规则标签                                 |
 | enabled        | bool      | 否   | 是否开启，默认为否                            |
 | duty_arranges  | list      | 是   | 轮值人员设置                               |
-| effective_time | string    | 是   | 生效时间， 格式 `2022-03-11 00:00:00`       |
-| end_time       | string    | 否   | 截止时间， 格式 `2022-03-11 00:00:00`       |
+| effective_time | string    | 是   | 生效时间，格式 `2022-03-11 00:00:00` 或 `2022-03-11 00:00:00+0800`。建议携带时区偏移（如 `+0800`），不带时区时以服务器本地时区解释 |
+| end_time       | string    | 否   | 截止时间，格式 `2022-03-11 00:00:00` 或 `2022-03-11 00:00:00+0800`。建议携带时区偏移（如 `+0800`），不带时区时以服务器本地时区解释 |
 
 ### `duty_arranges` 数据格式
 
@@ -73,7 +73,7 @@
 {
   "name": "name",
   "bk_biz_id": 2,
-  "effective_time": "2023-07-25 11:00:00",
+  "effective_time": "2023-07-25 11:00:00+0800",
   "end_time": "",
   "labels": [
     "mysql",
@@ -136,7 +136,7 @@
 {
             "name": "handoff duty",
             "bk_biz_id": 2,
-            "effective_time": "2023-07-25 11:00:00",
+            "effective_time": "2023-07-25 11:00:00+0800",
             "end_time": "",
             "labels": ["mysql", "redis", "business"],
             "enabled": true,

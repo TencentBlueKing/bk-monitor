@@ -49,6 +49,7 @@ from apps.log_databus.constants import (
     SyslogProtocolEnum,
     TopoType,
     VisibleEnum,
+    DEFAULT_CATEGORY_ID,
 )
 from apps.log_databus.models import CleanTemplate, CollectorConfig, CollectorPlugin
 from apps.log_search.constants import (
@@ -392,6 +393,44 @@ class BcsContainerConfigSerializer(serializers.Serializer):
     multiline = MultilineSerializer(label=_("段日志配置"), required=False)
 
 
+class PlatformIndexVisibilitySerializer(serializers.Serializer):
+    type = serializers.ChoiceField(choices=["biz_attr", "multi_biz"])
+    bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), required=False, allow_null=True)
+    bk_biz_labels = serializers.DictField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        vis_type = attrs["type"]
+        if vis_type == "multi_biz":
+            if not attrs.get("bk_biz_ids"):
+                raise serializers.ValidationError(_("multi_biz 模式下 bk_biz_ids 必填且不能为空"))
+        elif vis_type == "biz_attr":
+            if not attrs.get("bk_biz_labels"):
+                raise serializers.ValidationError(_("biz_attr 模式下 bk_biz_labels 必填且不能为空"))
+        return attrs
+
+
+class PlatformIndexFilterSerializer(serializers.Serializer):
+    field = serializers.CharField()
+    value_ref = serializers.ChoiceField(choices=["space_id", "bk_biz_id"])
+
+
+class PlatformIndexFieldsSerializer(serializers.Serializer):
+    """在各 Serializer 中声明平台级索引集字段时复用"""
+
+    is_platform_index = serializers.BooleanField(required=False, allow_null=True)
+    platform_index_visibility = PlatformIndexVisibilitySerializer(required=False, allow_null=True, default=None)
+    platform_index_filter = PlatformIndexFilterSerializer(required=False, allow_null=True, default=None)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("is_platform_index"):
+            if not attrs.get("platform_index_visibility") or not attrs.get("platform_index_filter"):
+                raise serializers.ValidationError(
+                    _("is_platform_index 为 True 时, platform_index_visibility 和 platform_index_filter 不能为空")
+                )
+        return attrs
+
+
 class CollectorCreateSerializer(serializers.Serializer):
     """
     创建采集项序列化
@@ -404,7 +443,7 @@ class CollectorCreateSerializer(serializers.Serializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))
     target_nodes = TargetNodeSerializer(label=_("目标节点"), many=True)
@@ -416,6 +455,7 @@ class CollectorCreateSerializer(serializers.Serializer):
         label=_("环境"), default=Environment.LINUX, choices=[Environment.LINUX, Environment.WINDOWS]
     )
     params = PluginParamSerializer()
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -447,7 +487,7 @@ class CreateContainerCollectorSerializer(serializers.Serializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
     )
@@ -459,6 +499,7 @@ class CreateContainerCollectorSerializer(serializers.Serializer):
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate_yaml_config(self, value):
         try:
@@ -489,6 +530,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
         label=_("环境"), required=False, choices=[Environment.LINUX, Environment.WINDOWS]
     )
     params = PluginParamSerializer()
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
 
 class UpdateContainerCollectorSerializer(serializers.Serializer):
@@ -506,6 +548,7 @@ class UpdateContainerCollectorSerializer(serializers.Serializer):
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate_yaml_config(self, value):
         try:
@@ -833,6 +876,10 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     )
 
 
+class CollectorStopSerializer(serializers.Serializer):
+    is_stop_index_set = serializers.BooleanField(label=_("是否停止索引集"), required=False, default=True)
+
+
 class CollectorEtlSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
@@ -930,7 +977,7 @@ class AliasSettingSerializer(serializers.Serializer):
     path_type = serializers.CharField(label=_("字段类型"), required=True)
 
 
-class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
+class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer):
     table_id = serializers.CharField(label=_("结果表ID"), required=True)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=True)
@@ -1496,7 +1543,7 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
 
 class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     # 清洗配置
     etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=EtlConfig.BK_LOG_TEXT)
     # 存储配置
@@ -1513,6 +1560,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
     )
     is_display = serializers.BooleanField(label=_("是否展示"), default=True, required=False)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate(self, attrs: dict) -> dict:
         # 先进行校验
@@ -1527,7 +1575,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         return attrs
 
 
-class CustomCreateSerializer(CustomCollectorBaseSerializer):
+class CustomCreateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsSerializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
 
@@ -1538,6 +1586,7 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
     custom_type = serializers.ChoiceField(label=_("日志类型"), choices=CustomTypeEnum.get_choices())
     sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
+    ignore_exists = serializers.BooleanField(label=_("是否忽略已存在"), required=False, default=False)
 
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)
@@ -1549,12 +1598,12 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
         return attrs
 
 
-class CustomUpdateSerializer(CustomCollectorBaseSerializer):
+class CustomUpdateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsSerializer):
     sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
 
 
-class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
+class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_plugin_id = serializers.IntegerField(label=_("采集插件ID"), required=False)
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
@@ -1563,7 +1612,7 @@ class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
     )
@@ -1597,7 +1646,7 @@ class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
         return yaml_text
 
 
-class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
+class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer):
     """
     API快速创建采集项序列化
     """
@@ -1609,7 +1658,7 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))
     target_nodes = TargetNodeSerializer(label=_("目标节点"), many=True)
@@ -1635,6 +1684,7 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         if attrs["collector_scenario_id"] == "section":
             for field in ["multiline_pattern", "multiline_max_lines", "multiline_timeout"]:
                 if field not in attrs["params"]:
@@ -1679,7 +1729,7 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
         return attrs
 
 
-class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
+class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer):
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50, required=False)
     description = serializers.CharField(label=_("备注说明"), max_length=100, required=False, allow_blank=True)
     collector_scenario_id = serializers.ChoiceField(
@@ -1707,7 +1757,7 @@ class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
         return yaml_text
 
 
-class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
+class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer):
     collector_config_name = serializers.CharField(label=_("采集名称"), required=False, max_length=50)
     description = serializers.CharField(
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
@@ -1801,3 +1851,25 @@ class RunSubscriptionTaskSerializer(serializers.Serializer):
     scope = ScopeParams(label="事件订阅监听的范围", required=False)
     action = serializers.CharField(label="操作", default="install")
     bk_biz_id = serializers.IntegerField(label="业务ID")
+
+
+class LogCollectorSerializer(serializers.Serializer):
+    class ConditionSerializer(serializers.Serializer):
+        key = serializers.CharField(required=True)
+        value = serializers.ListField(required=True)
+
+    parent_index_set_id = serializers.IntegerField(label=_("归属索引集ID"), default=None, allow_null=True)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+    page = serializers.IntegerField(label=_("分页"), min_value=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
+    conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)
+    keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_blank=True, allow_null=True)
+    exclude_not_completed = serializers.BooleanField(label=_("排除未完成的采集项"), default=False)
+
+
+class GetCollectorFieldEnumsSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+
+
+class GetCollectorStatusSerializer(serializers.Serializer):
+    collector_config_id_list = serializers.ListSerializer(label=_("采集项ID列表"), child=serializers.IntegerField())

@@ -18,6 +18,7 @@ from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import IssueDocument
+from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.issue import IssueStatus
 
@@ -97,9 +98,14 @@ def _process_single_issue(issue: IssueDocument):
 
     result = alert_search.execute()
     alert_count = int(result.aggregations.alert_count.value or 0)
-    last_alert_time = result.aggregations.max_begin_time.value or issue.last_alert_time
+    # ES date aggregations always return milliseconds; IssueDocument uses epoch_second → divide by 1000
+    raw_max = result.aggregations.max_begin_time.value
+    last_alert_time = int(raw_max / 1000) if raw_max else issue.last_alert_time
 
-    agg_dims: list[str] = (issue.aggregate_config or {}).get("aggregate_dimensions", [])
+    agg_config = issue.aggregate_config
+    if hasattr(agg_config, "to_dict"):
+        agg_config = agg_config.to_dict()
+    agg_dims: list[str] = (agg_config or {}).get("aggregate_dimensions", [])
     impact_scope = _build_impact_scope(issue.id, aggregate_dimensions=agg_dims)
 
     now = int(time.time())
@@ -127,10 +133,14 @@ def _process_single_issue(issue: IssueDocument):
     )
     try:
         IssueDocument.bulk_create([update_doc], action=BulkActionType.UPDATE)
-    except Exception:
-        logger.exception(
-            "[issue] sync_issue_alert_stats: UPDATE failed, strategy(%s) issue(%s)", issue.strategy_id, issue.id
+    except Exception as e:
+        logger.error(
+            "[issue] sync_issue_alert_stats: UPDATE failed, strategy(%s) issue(%s): %s",
+            issue.strategy_id,
+            issue.id,
+            e,
         )
+        raise
 
 
 def _backfill_unlinked_alerts(issue: IssueDocument):
@@ -222,8 +232,10 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
     """
     sets: dict[str, dict] = {}
     pending_set_names: dict[str, int] = {}
-    all_hosts: dict[str, str] = {}
-    all_sids: dict[str, str] = {}
+    # 升级为 {key: {"display_name": str, "bk_biz_id": int|None}}，
+    # 以便每条实例携带归属业务，统一拼装 ?bizId={bk_biz_id}#/... 跳转链接
+    all_hosts: dict[str, dict] = {}
+    all_sids: dict[str, dict] = {}
     k8s_clusters: dict[str, dict] = {}
     apm_apps: dict[str, dict] = {}
 
@@ -249,7 +261,11 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                         dim_cluster_display = _format_cluster_display(d.get("display_value", ""), str(v))
 
             # ── 关键字段提取 ──────────────────────────────────────────────────
-            target_type = hit_dict.get("target_type") or dim_map.get("target_type", "")
+            target_type = (
+                hit_dict.get("target_type")
+                or dim_map.get("target_type", "")
+                or hit_dict.get("event", {}).get("target_type", "")
+            )
             target = dim_map.get("target", "")
             host_key = str(
                 hit_dict.get("bk_host_id")
@@ -265,7 +281,14 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
             )
 
             # ── CMDB Set 统计 ────────────────────────────────────────────────
-            bk_biz_id = hit_dict.get("bk_biz_id")
+            # AlertDocument 顶层未声明 bk_biz_id 字段，业务 ID 实际存放在 event.bk_biz_id 中，
+            # 与 Alert.bk_biz_id 的读取逻辑（top_event.get("bk_biz_id")）以及
+            # alert/manager/tasks.py 中的取法保持一致。
+            bk_biz_id = hit_dict.get("bk_biz_id") or (hit_dict.get("event") or {}).get("bk_biz_id")
+            try:
+                bk_biz_id = int(bk_biz_id) if bk_biz_id else None
+            except (TypeError, ValueError):
+                bk_biz_id = None
             if target_type in ("HOST", "SERVICE"):
                 topo_nodes = hit_dict.get("bk_topo_node") or hit_dict.get("event", {}).get("bk_topo_node") or []
                 if isinstance(topo_nodes, str):
@@ -295,27 +318,54 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
                 entry = sets[set_node]
                 if host_key:
                     entry["hosts"].add(host_key)
-                    all_hosts[host_key] = (
-                        dim_map.get("ip") or hit_dict.get("ip") or hit_dict.get("event", {}).get("ip") or host_key
+                    all_hosts.setdefault(
+                        host_key,
+                        {
+                            "display_name": (
+                                dim_map.get("ip")
+                                or hit_dict.get("ip")
+                                or hit_dict.get("event", {}).get("ip")
+                                or host_key
+                            ),
+                            "bk_biz_id": bk_biz_id,
+                        },
                     )
                 if target_type == "SERVICE" and sid:
                     entry["service_instances"].add(sid)
-                    all_sids.setdefault(sid, _build_si_display_name(hit_dict, dim_map, sid))
+                    all_sids.setdefault(
+                        sid,
+                        {
+                            "display_name": _build_si_display_name(hit_dict, dim_map, sid),
+                            "bk_biz_id": bk_biz_id,
+                        },
+                    )
 
             if target_type in ("HOST", "SERVICE") and host_key and host_key not in all_hosts:
-                all_hosts[host_key] = (
-                    dim_map.get("ip") or hit_dict.get("ip") or hit_dict.get("event", {}).get("ip") or host_key
-                )
+                all_hosts[host_key] = {
+                    "display_name": (
+                        dim_map.get("ip") or hit_dict.get("ip") or hit_dict.get("event", {}).get("ip") or host_key
+                    ),
+                    "bk_biz_id": bk_biz_id,
+                }
 
             # ── K8S Cluster 统计（与 CMDB Set 并行，不互斥）────────────────
             if target_type and target_type.startswith("K8S"):
                 cluster_id = dim_map.get("bcs_cluster_id")
                 if cluster_id:
                     entry = k8s_clusters.setdefault(
-                        cluster_id, {"display_name": "", "nodes": {}, "services": {}, "pods": {}}
+                        cluster_id,
+                        {
+                            "display_name": "",
+                            "bk_biz_id": bk_biz_id,
+                            "nodes": {},
+                            "services": {},
+                            "pods": {},
+                        },
                     )
                     if dim_cluster_display and not entry["display_name"]:
                         entry["display_name"] = dim_cluster_display
+                    if not entry.get("bk_biz_id") and bk_biz_id:
+                        entry["bk_biz_id"] = bk_biz_id
 
                     if target_type == "K8S-NODE" and target:
                         entry["nodes"][target] = f"{cluster_id}/{target}"
@@ -378,15 +428,23 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
     if all_hosts:
         result["host"] = {
             "count": len(all_hosts),
-            "instance_list": [{"bk_host_id": int(hid), "display_name": dn} for hid, dn in all_hosts.items()][:50],
-            "link_tpl": "/performance/detail/{bk_host_id}",
+            "instance_list": [
+                {"bk_host_id": int(hid), "bk_biz_id": data.get("bk_biz_id"), "display_name": data["display_name"]}
+                for hid, data in all_hosts.items()
+            ][:50],
+            "link_tpl": "?bizId={bk_biz_id}#/performance/detail/{bk_host_id}",
         }
 
     if all_sids:
         result["service_instances"] = {
             "count": len(all_sids),
             "instance_list": [
-                {"bk_service_instance_id": int(si_id), "display_name": dn} for si_id, dn in all_sids.items()
+                {
+                    "bk_service_instance_id": int(si_id),
+                    "bk_biz_id": data.get("bk_biz_id"),
+                    "display_name": data["display_name"],
+                }
+                for si_id, data in all_sids.items()
             ][:50],
             "link_tpl": None,
         }
@@ -396,46 +454,54 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
             result["cluster"] = {
                 "count": len(k8s_clusters),
                 "instance_list": [
-                    {"bcs_cluster_id": cid, "display_name": d["display_name"]} for cid, d in k8s_clusters.items()
+                    {"bcs_cluster_id": cid, "bk_biz_id": d.get("bk_biz_id"), "display_name": d["display_name"]}
+                    for cid, d in k8s_clusters.items()
                 ][:50],
-                "link_tpl": "/k8s?filter-bcs_cluster_id={bcs_cluster_id}&sceneId=kubernetes&sceneType=overview",
+                "link_tpl": (
+                    "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+                    "&sceneId=kubernetes&scene=performance&activeTab=list"
+                ),
             }
         else:
             cid, cdata = next(iter(k8s_clusters.items()))
+            cluster_biz_id = cdata.get("bk_biz_id")
             if cdata["nodes"]:
                 result["node"] = {
                     "count": len(cdata["nodes"]),
                     "instance_list": [
-                        {"bcs_cluster_id": cid, "node": n, "display_name": dn} for n, dn in cdata["nodes"].items()
+                        {"bcs_cluster_id": cid, "bk_biz_id": cluster_biz_id, "node": n, "display_name": dn}
+                        for n, dn in cdata["nodes"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-node_name={node}&dashboardId=node"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"node":["{node}"]}}&groupBy=["node"]'
+                        "&sceneId=kubernetes&scene=capacity&activeTab=list"
                     ),
                 }
             if cdata["services"]:
                 result["service"] = {
                     "count": len(cdata["services"]),
                     "instance_list": [
-                        {"bcs_cluster_id": cid, "service": s, "display_name": dn} for s, dn in cdata["services"].items()
+                        {"bcs_cluster_id": cid, "bk_biz_id": cluster_biz_id, "service": s, "display_name": dn}
+                        for s, dn in cdata["services"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-service_name={service}&dashboardId=service"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"namespace":[],"service":["{service}"]}}&groupBy=["namespace","service"]'
+                        "&sceneId=kubernetes&scene=network&activeTab=list"
                     ),
                 }
             if cdata["pods"]:
                 result["pod"] = {
                     "count": len(cdata["pods"]),
                     "instance_list": [
-                        {"bcs_cluster_id": cid, "pod": p, "display_name": dn} for p, dn in cdata["pods"].items()
+                        {"bcs_cluster_id": cid, "bk_biz_id": cluster_biz_id, "pod": p, "display_name": dn}
+                        for p, dn in cdata["pods"].items()
                     ][:50],
                     "link_tpl": (
-                        "/k8s?filter-bcs_cluster_id={bcs_cluster_id}"
-                        "&filter-pod_name={pod}&dashboardId=pod"
-                        "&sceneId=kubernetes&sceneType=detail"
+                        "?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+                        '&filterBy={{"namespace":[],"pod":["{pod}"]}}&groupBy=["namespace","pod"]'
+                        "&sceneId=kubernetes&scene=performance&activeTab=list"
                     ),
                 }
 
@@ -472,7 +538,8 @@ def _build_impact_scope(issue_id: str, aggregate_dimensions: list[str] | None = 
 def _build_set_display_name(set_node: str, translation: list) -> str:
     """
     HOST/SERVICE 场景：从 origin_alarm.dimension_translation.bk_topo_node 提取 biz_name/set_name。
-    通过 bk_inst_id 精确匹配当前 set_node，避免同一告警多 Set 时取错名称。
+    有 bk_inst_id 时精确匹配，防止同一告警含多个 Set 时取错名称；
+    bk_inst_id 缺失时直接信任该集群条目（dimension_translation 里的集群条目即对应当前 set）。
     K8S 宿主机场景由调用方循环结束后统一批量填充。
     """
     set_id = int(set_node.split("|")[1]) if "|" in set_node else None
@@ -482,8 +549,11 @@ def _build_set_display_name(set_node: str, translation: list) -> str:
         name = item.get("bk_inst_name", "")
         if obj in ("biz", "业务"):
             biz_name = name
-        elif obj in ("set", "集群") and set_id and int(item.get("bk_inst_id") or 0) == set_id:
-            set_name = name
+        elif obj in ("set", "集群") and set_id:
+            inst_id = safe_int(item.get("bk_inst_id"), dft=None)
+            # inst_id 缺失或无法解析时直接信任该条目（translation 中集群条目即为当前 set）
+            if inst_id is None or inst_id == set_id:
+                set_name = name
     if biz_name and set_name:
         return f"{biz_name}/{set_name}"
     return set_node

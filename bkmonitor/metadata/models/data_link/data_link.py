@@ -443,6 +443,7 @@ class DataLink(models.Model):
                         storage_keys=storage_option.storage_keys,
                         json_fields=storage_option.json_fields,
                         field_config_group=storage_option.field_config_group,
+                        original_json_fields=storage_option.original_json_fields,
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
                     )
@@ -538,12 +539,15 @@ class DataLink(models.Model):
 
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
+                defaults={
+                    "table_id": table_id,
+                    "bkbase_result_table_name": bkbase_vmrt_name,
+                    "vm_cluster_name": storage_cluster_name,
+                },
             )
 
             sink_item = {
@@ -580,6 +584,7 @@ class DataLink(models.Model):
         bk_biz_id: int,
         source: str,
         prefix: str | None = None,
+        extra_source: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成基础采集时序链路配置
@@ -587,6 +592,7 @@ class DataLink(models.Model):
         @param storage_cluster_name: 存储集群名称
         @param bk_biz_id: 业务id
         @param source: 数据来源
+        @param extra_source: 额外主机维度数据来源
         @return: config_list 配置列表
         """
         logger.info(
@@ -645,16 +651,18 @@ class DataLink(models.Model):
                 # 创建VM Storage绑定配置
                 vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                     name=usage_vmrt_name,
-                    vm_cluster_name=storage_cluster_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": usage_monitor_table_id, "bkbase_result_table_name": usage_vmrt_name},
+                    defaults={
+                        "table_id": usage_monitor_table_id,
+                        "bkbase_result_table_name": usage_vmrt_name,
+                        "vm_cluster_name": storage_cluster_name,
+                    },
                 )
                 vm_storage_ins_cmdb, _ = VMStorageBindingConfig.objects.update_or_create(
                     name=usage_cmdb_level_vmrt_name,
-                    vm_cluster_name=storage_cluster_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
@@ -662,6 +670,7 @@ class DataLink(models.Model):
                     defaults={
                         "table_id": usage_monitor_cmdb_table_id,
                         "bkbase_result_table_name": usage_cmdb_level_vmrt_name,
+                        "vm_cluster_name": storage_cluster_name,
                     },
                 )
 
@@ -758,6 +767,16 @@ class DataLink(models.Model):
         # 添加conditional sink和data bus配置到配置列表
         config_list.extend([vm_conditional_sink_config, data_bus_config])
 
+        if extra_source:
+            config_list.extend(
+                self._compose_basereport_time_series_extra_dimension_configs(
+                    data_source=data_source,
+                    storage_cluster_name=storage_cluster_name,
+                    bk_biz_id=bk_biz_id,
+                    extra_source=extra_source,
+                )
+            )
+
         logger.info(
             "compose_basereport_configs: data_link_name->[%s] composed %d configs successfully",
             self.data_link_name,
@@ -765,6 +784,128 @@ class DataLink(models.Model):
         )
 
         return config_list
+
+    def _compose_basereport_time_series_extra_dimension_configs(
+        self,
+        data_source: "DataSource",
+        storage_cluster_name: str,
+        bk_biz_id: int,
+        extra_source: str,
+    ) -> list[dict[str, Any]]:
+        """
+        生成基础采集额外主机维度链路配置。
+        BasereportSink 暂无本地模型，只在这里生成 raw config 一起下发。
+        """
+        logger.info(
+            "compose_basereport_extra_dimension_configs: data_link_name->[%s],bk_biz_id->[%s],"
+            "bk_data_id->[%s],vm_cluster_name->[%s],extra_source->[%s] start to compose configs",
+            self.data_link_name,
+            bk_biz_id,
+            data_source.bk_data_id,
+            storage_cluster_name,
+            extra_source,
+        )
+        extra_data_link_name = f"{self.data_link_name}_{extra_source}"
+        bkbase_vmrt_prefix = f"base_{bk_biz_id}_{extra_source}"
+        config_list = []
+
+        with transaction.atomic():
+            for usage in BASEREPORT_USAGES:
+                usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                usage_monitor_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{extra_source}.{usage}"
+
+                vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
+                    name=usage_vmrt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": usage_monitor_table_id},
+                )
+                vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
+                    name=usage_vmrt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={
+                        "table_id": usage_monitor_table_id,
+                        "bkbase_result_table_name": usage_vmrt_name,
+                        "vm_cluster_name": storage_cluster_name,
+                    },
+                )
+
+                config_list.extend([vm_table_id_ins.compose_config(), vm_storage_ins.compose_config()])
+
+            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+                name=extra_data_link_name,
+                data_id_name=self.data_link_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"BasereportSink:{extra_data_link_name}"],
+                },
+            )
+
+        basereport_sink_ref = {
+            "kind": "BasereportSink",
+            "name": extra_data_link_name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            basereport_sink_ref["tenant"] = self.bk_tenant_id
+
+        config_list.append(
+            self._compose_basereport_sink_config(
+                name=extra_data_link_name,
+                bk_biz_id=bk_biz_id,
+                extra_source=extra_source,
+            )
+        )
+        config_list.append(
+            data_bus_ins.compose_config(
+                sinks=[basereport_sink_ref],
+                transform_format=BASEREPORT_DATABUS_FORMAT,
+                transform_options={"extra_dims": True},
+            )
+        )
+
+        logger.info(
+            "compose_basereport_extra_dimension_configs: data_link_name->[%s],extra_source->[%s] composed %d configs",
+            self.data_link_name,
+            extra_source,
+            len(config_list),
+        )
+        return config_list
+
+    def _compose_basereport_sink_config(self, name: str, bk_biz_id: int, extra_source: str) -> dict[str, Any]:
+        """生成 BasereportSink raw config。"""
+        mappings = []
+        for usage in BASEREPORT_USAGES:
+            sink = {
+                "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                "name": f"base_{bk_biz_id}_{extra_source}_{usage}",
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            }
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                sink["tenant"] = self.bk_tenant_id
+            mappings.append({"metric_type": usage, "sinks": [sink]})
+
+        metadata = {
+            "name": name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+
+        return {
+            "kind": "BasereportSink",
+            "metadata": metadata,
+            "spec": {"mappings": mappings},
+        }
 
     def compose_base_event_configs(
         self, data_source: "DataSource", table_id: str, storage_cluster_name: str, bk_biz_id: int, timezone: int = 0
@@ -892,12 +1033,15 @@ class DataLink(models.Model):
             )
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
+                defaults={
+                    "table_id": table_id,
+                    "bkbase_result_table_name": bkbase_vmrt_name,
+                    "vm_cluster_name": storage_cluster_name,
+                },
             )
 
         configs = [
@@ -996,21 +1140,23 @@ class DataLink(models.Model):
         )
 
         with transaction.atomic():
-            vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(
+            vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                data_link_name=self.data_link_name,
                 namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "data_link_name": self.data_link_name,
+                    "bk_biz_id": bk_biz_id,
+                },
             )
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                data_id_name=bkbase_raw_data_name,
-                data_link_name=self.data_link_name,
                 namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
+                    "data_id_name": bkbase_raw_data_name,
+                    "data_link_name": self.data_link_name,
+                    "bk_biz_id": bk_biz_id,
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{bkbase_vmrt_name}"],
                 },
@@ -1069,12 +1215,15 @@ class DataLink(models.Model):
             )
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
+                defaults={
+                    "table_id": table_id,
+                    "bkbase_result_table_name": bkbase_vmrt_name,
+                    "vm_cluster_name": storage_cluster_name,
+                },
             )
             sinks = [
                 {
@@ -1146,12 +1295,15 @@ class DataLink(models.Model):
             )
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
-                vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
+                defaults={
+                    "table_id": table_id,
+                    "bkbase_result_table_name": bkbase_vmrt_name,
+                    "vm_cluster_name": storage_cluster_name,
+                },
             )
             sink_item = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
@@ -1280,9 +1432,8 @@ class DataLink(models.Model):
             with transaction.atomic():
                 BkBaseResultTable.objects.update_or_create(
                     data_link_name=self.data_link_name,
-                    monitor_table_id=table_id,
-                    storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
                     defaults={
+                        "monitor_table_id": table_id,
                         "bkbase_rt_name": bkbase_vmrt_name,
                         "bkbase_data_name": bkbase_data_name,
                         "bkbase_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
@@ -1295,7 +1446,7 @@ class DataLink(models.Model):
                 "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", self.data_link_name, e
             )
 
-    def sync_basereport_metadata(self, bk_biz_id, storage_cluster_name, source, datasource):
+    def sync_basereport_metadata(self, bk_biz_id, storage_cluster_name, source, datasource, extra_source=None):
         """
         同步元数据
         同步全套链路信息 AccessVMRecord,
@@ -1310,24 +1461,26 @@ class DataLink(models.Model):
             logger.error("sync_metadata: storage_cluster_name->[%s] not exist!", storage_cluster_name)
             return
 
-        bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
-
         try:
             with transaction.atomic():
                 # 创建11个ResultTableConfig和VMStorageBindingConfig
-                for usage in BASEREPORT_USAGES:
-                    vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
-                    result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
-                    vm_record, _ = AccessVMRecord.objects.update_or_create(
-                        bk_tenant_id=self.bk_tenant_id,
-                        result_table_id=result_table_id,
-                        bk_base_data_id=datasource.bk_data_id,
-                        bk_base_data_name=datasource.data_name,
-                        defaults={
-                            "vm_result_table_id": vm_result_table_id,
-                            "vm_cluster_id": storage_cluster_id,
-                            "storage_cluster_id": storage_cluster_id,
-                        },
-                    )
+                for source_item in [source, extra_source]:
+                    if not source_item:
+                        continue
+                    bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source_item}"
+                    for usage in BASEREPORT_USAGES:
+                        vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
+                        result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source_item}.{usage}"
+                        AccessVMRecord.objects.update_or_create(
+                            bk_tenant_id=self.bk_tenant_id,
+                            result_table_id=result_table_id,
+                            bk_base_data_id=datasource.bk_data_id,
+                            bk_base_data_name=datasource.data_name,
+                            defaults={
+                                "vm_result_table_id": vm_result_table_id,
+                                "vm_cluster_id": storage_cluster_id,
+                                "storage_cluster_id": storage_cluster_id,
+                            },
+                        )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("sync_basereport_metadata: failed to create access vm record! error message->%s", e)

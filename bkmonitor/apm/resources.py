@@ -33,7 +33,7 @@ from apm.constants import (
 )
 from apm.core.discover.instance import InstanceDiscover
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
-from apm.core.handlers.application_hepler import ApplicationHelper
+from apm.core.handlers.application_hepler import ApplicationHelper, SharedDatasourceRuleFactory
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.query.base import FilterOperator
@@ -130,6 +130,12 @@ class CreateApplicationResource(Resource):
         enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
+        # 共享数据源类型
+        shared_datasource_types = serializers.ListField(
+            label="共享数据源类型列表",
+            child=serializers.ChoiceField(choices=TelemetryDataType.choices()),
+            required=False,
+        )
 
     def perform_request(self, validated_data):
         datasource_options = validated_data.get("es_storage_config")
@@ -141,6 +147,14 @@ class CreateApplicationResource(Resource):
         bk_tenant_id = validated_data.get("bk_tenant_id")
         if not bk_tenant_id:
             bk_tenant_id = get_request_tenant_id()
+
+        # 共享数据源类型：若请求未显式指定，则按 settings.APM_SHARED_DATASOURCE_RULES 配置的规则工厂进行匹配
+        shared_datasource_types = validated_data.get(
+            "shared_datasource_types",
+            SharedDatasourceRuleFactory.list_shared_datasource_types(
+                validated_data["bk_biz_id"], validated_data["app_name"]
+            ),
+        )
 
         return ApmApplication.create_application(
             bk_tenant_id=bk_tenant_id,
@@ -154,6 +168,7 @@ class CreateApplicationResource(Resource):
                 "is_enabled_trace": validated_data.get("enabled_trace", False),
                 "is_enabled_metric": validated_data.get("enabled_metric", False),
                 "is_enabled_log": validated_data.get("enabled_log", False),
+                "shared_datasource_types": shared_datasource_types,
             },
         )
 
@@ -165,6 +180,12 @@ class ApplyDatasourceResource(Resource):
         application_id = serializers.IntegerField(label="应用id")
         trace_datasource_option = DatasourceConfigRequestSerializer(required=False, label="trace 存储配置")
         log_datasource_option = DatasourceConfigRequestSerializer(required=False, label="log 存储配置")
+        # 共享数据源类型（不传则表示保持当前数据源现有模式）
+        shared_datasource_types = serializers.ListField(
+            label="共享数据源类型列表",
+            child=serializers.ChoiceField(choices=TelemetryDataType.choices()),
+            required=False,
+        )
 
     def perform_request(self, validated_request_data):
         try:
@@ -172,9 +193,22 @@ class ApplyDatasourceResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
+        # 显式传入 shared_datasource_types 参数（含空列表）：以列表值作为本次 apply 的目标状态
+        if validated_request_data.get("shared_datasource_types") is not None:
+            shared_datasource_types = validated_request_data["shared_datasource_types"]
+        # 未传入：查询各数据源的共享配置后构造共享列表，以保持现状不触发迁移
+        else:
+            shared_datasource_types = []
+            trace_ds = TraceDataSource.objects.filter(
+                bk_biz_id=application.bk_biz_id, app_name=application.app_name
+            ).first()
+            if trace_ds and trace_ds.is_shared:
+                shared_datasource_types.append(ApmDataSourceConfigBase.TRACE_DATASOURCE)
+
         return application.apply_datasource(
             trace_storage_config=validated_request_data.get("trace_datasource_option"),
             log_storage_config=validated_request_data.get("log_datasource_option"),
+            options={"shared_datasource_types": shared_datasource_types},
         )
 
 
@@ -414,7 +448,7 @@ class ReleaseAppConfigResource(Resource):
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
         code_relabel_config = serializers.ListField(
-            label="返回码重定义配置", child=serializers.DictField(), required=False, default=list
+            label="返回码重定义配置", child=serializers.DictField(), required=False, allow_null=True
         )
 
         qps = serializers.IntegerField(label="qps", min_value=1, required=False)
@@ -447,7 +481,7 @@ class ReleaseAppConfigResource(Resource):
             app_name,
             app_name,
             ApdexConfig.APP_LEVEL,
-            validated_request_data.get("code_relabel_config", []),
+            validated_request_data.get("code_relabel_config"),
         )
 
         for service_config in service_configs:
@@ -558,8 +592,25 @@ class ReleaseAppConfigResource(Resource):
         )
 
     def set_code_relabel_config(self, bk_biz_id, app_name, config_key, config_level, code_relabel_list):
-        if not code_relabel_list:
+        if code_relabel_list is None:
+            # None：表示本次更新不涉及 code_relabel，直接跳过。
             return
+
+        if not code_relabel_list:
+            # []：表示规则清空，需要删除相应的配置项。
+            NormalTypeValueConfig.delete_config(
+                bk_biz_id,
+                app_name,
+                [
+                    {
+                        "config_level": config_level,
+                        "config_key": config_key,
+                        "type": ConfigTypes.CODE_RELABEL_CONFIG,
+                    }
+                ],
+            )
+            return
+
         type_value_config = {"type": ConfigTypes.CODE_RELABEL_CONFIG, "value": json.dumps(code_relabel_list)}
         NormalTypeValueConfig.refresh_config(
             bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
@@ -736,7 +787,9 @@ class QueryTopoNodeResource(Resource):
             return data
 
     def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
+        filter_params = DiscoverHandler.get_retention_filter_params(
+            data["bk_biz_id"], data["app_name"], TopoNode.EXPIRED_DAYS
+        )
 
         if data.get("topo_key"):
             filter_params["topo_key"] = data["topo_key"]
@@ -1987,9 +2040,15 @@ class OperateApmDataIdResource(Resource):
 
     def perform_request(self, validated_data):
         if validated_data["datasource_type"] == DataSamplingLogTypeChoices.TRACE:
-            data_id = TraceDataSource.objects.get(
+            datasource = TraceDataSource.objects.get(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-            ).bk_data_id
+            )
+            # 共享数据源的多个应用复用同一 bk_data_id，单个应用暂停或恢复会影响共享池内所有应用的上报，因此需拒绝该操作
+            if datasource.is_shared:
+                raise ValueError(
+                    f"应用 {validated_data['app_name']} 的 Trace 上报共享数据源，不支持单应用去暂停/恢复数据链路操作"
+                )
+            data_id = datasource.bk_data_id
         else:
             data_id = MetricDataSource.objects.get(
                 bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]

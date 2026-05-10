@@ -90,6 +90,7 @@ export default defineComponent({
     const increaseIsSubmit = ref(false);
 
     const bkBizId = computed(() => store.state.bkBizId);
+    const indexItemBizId = computed(() => store.state.indexItem.items[0]?.bk_biz_id ?? bkBizId.value);
 
     watch(alarmIsSubmit, () => {
       props.strategySubmitStatus?.(alarmIsSubmit.value);
@@ -165,7 +166,7 @@ export default defineComponent({
       <div class="strategy-container">
         <config-item
           configData={strategyConfigData.value}
-          bkBizId={bkBizId.value}
+          bkBizId={indexItemBizId.value}
           configured={alarmIsSubmit.value}
           indexId={props.indexId}
           labelName={labelName.value}
@@ -174,7 +175,7 @@ export default defineComponent({
         />
         <config-item
           configData={strategyConfigData.value}
-          bkBizId={bkBizId.value}
+          bkBizId={indexItemBizId.value}
           configured={increaseIsSubmit.value}
           indexId={props.indexId}
           labelName={labelName.value}

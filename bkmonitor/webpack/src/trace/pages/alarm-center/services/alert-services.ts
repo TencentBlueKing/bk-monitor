@@ -26,6 +26,7 @@
 
 import { isEn } from '@/i18n/i18n';
 
+import _ from 'lodash';
 import { alertTopN, editDataMeaning, searchAlert } from 'monitor-api/modules/alert_v2';
 import { getMethodIdForLowerCase } from 'monitor-pc/pages/query-template/components/utils/utils';
 import { MetricDetailV2, QueryConfig } from 'monitor-pc/pages/query-template/typings';
@@ -40,6 +41,7 @@ import {
   type QuickFilterItem,
   type TableColumnItem,
   AlarmLevelIconMap,
+  AlarmNoticeWayIconMap,
   AlarmStatusIconMap,
 } from '../typings';
 import { type RequestOptions, AlarmService } from './base';
@@ -50,7 +52,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('告警名称'),
     is_default: true,
     is_locked: true,
-    minWidth: 160,
+    width: 160,
     fixed: 'left',
     sorter: false,
   },
@@ -59,7 +61,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('创建时间'),
     is_default: true,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -67,14 +69,14 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('告警内容'),
     is_default: true,
     is_locked: false,
-    minWidth: 300,
+    width: 300,
   },
   {
     colKey: 'target_key',
     title: window.i18n.t('监控目标'),
     is_default: true,
     is_locked: false,
-    minWidth: 300,
+    width: 300,
   },
 
   {
@@ -82,21 +84,21 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('告警来源'),
     is_default: false,
     is_locked: false,
-    minWidth: 110,
+    width: 110,
   },
   {
     colKey: 'category_display',
     title: window.i18n.t('分类'),
     is_default: false,
     is_locked: false,
-    minWidth: 160,
+    width: 160,
   },
   {
     colKey: 'metric',
     title: window.i18n.t('告警指标'),
     is_default: false,
     is_locked: false,
-    minWidth: 240,
+    width: 240,
     sorter: true,
   },
   {
@@ -104,7 +106,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('关联事件'),
     is_default: false,
     is_locked: false,
-    minWidth: 140,
+    width: 140,
   },
 
   {
@@ -112,7 +114,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('开始时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -120,7 +122,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('结束时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -128,7 +130,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('最新事件时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -136,7 +138,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('首次异常时间'),
     is_default: false,
     is_locked: false,
-    minWidth: 150,
+    width: 150,
     sorter: true,
   },
   {
@@ -145,61 +147,63 @@ const ALERT_TABLE_COLUMNS = [
     is_default: false,
     is_locked: false,
     sorter: true,
+    width: 120,
   },
   {
     colKey: 'tags',
     title: window.i18n.t('维度'),
     is_default: false,
     is_locked: false,
-    minWidth: 240,
+    width: 240,
   },
   {
     colKey: 'extend_info',
     title: window.i18n.t('关联信息'),
     is_default: false,
     is_locked: false,
-    minWidth: 250,
+    width: 250,
   },
   {
     colKey: 'appointee',
     title: window.i18n.t('负责人'),
     is_default: false,
     is_locked: false,
-    minWidth: 200,
+    width: 200,
   },
   {
     colKey: 'assignee',
     title: window.i18n.t('通知人'),
     is_default: false,
     is_locked: false,
-    minWidth: 200,
+    width: 200,
   },
   {
     colKey: 'follower',
     title: window.i18n.t('关注人'),
     is_default: false,
     is_locked: false,
-    minWidth: 200,
+    width: 200,
   },
   {
     colKey: 'strategy_name',
     title: window.i18n.t('策略名称'),
     is_default: false,
     is_locked: false,
+    width: 160,
   },
   {
     colKey: 'labels',
     title: window.i18n.t('策略标签'),
     is_default: false,
     is_locked: false,
-    minWidth: 240,
+    width: 240,
   },
   {
     colKey: 'bk_biz_name',
     title: window.i18n.t('空间名'),
     is_default: true,
     is_locked: true,
-    minWidth: 100,
+    width: 100,
     sorter: false,
     fixed: 'right',
   },
@@ -209,7 +213,7 @@ const ALERT_TABLE_COLUMNS = [
     is_default: true,
     is_locked: false,
     fixed: 'right',
-    minWidth: 110,
+    width: 110,
   },
   {
     colKey: 'status',
@@ -217,7 +221,7 @@ const ALERT_TABLE_COLUMNS = [
     is_default: true,
     is_locked: true,
     fixed: 'right',
-    minWidth: isEn ? 120 : 80,
+    width: isEn ? 120 : 80,
     sorter: true,
   },
 ] as const;
@@ -253,11 +257,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -300,11 +304,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     type: EFieldType.text,
     methods: [
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -340,11 +344,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -364,11 +368,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -388,11 +392,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -412,11 +416,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -436,11 +440,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -460,11 +464,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -484,11 +488,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -508,11 +512,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -532,11 +536,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -555,11 +559,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -579,11 +583,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -603,31 +607,16 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
   },
-  {
-    name: 'tags',
-    alias: '维度',
-    type: EFieldType.keyword,
-    isEnableOptions: true,
-    methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
-    ],
-  },
+
   // tags 维度查询示例：
   // {
   //	"key": "tags.auto_instance_id_0",
@@ -650,11 +639,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -674,18 +663,18 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
   },
   {
     name: 'bk_topo_node',
-    alias: 'cmdb集群',
+    alias: 'cmdb拓扑',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
@@ -698,11 +687,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
         value: 'neq',
       },
       {
-        alias: '包含',
+        alias: window.i18n.t('包含'),
         value: 'include',
       },
       {
-        alias: '不包含',
+        alias: window.i18n.t('不包含'),
         value: 'exclude',
       },
     ],
@@ -722,11 +711,11 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
   //       value: 'neq',
   //     },
   //     {
-  //       alias: '包含',
+  //       alias: window.i18n.t('包含'),
   //       value: 'include',
   //     },
   //     {
-  //       alias: '不包含',
+  //       alias: window.i18n.t('不包含'),
   //       value: 'exclude',
   //     },
   //   ],
@@ -734,6 +723,22 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'action_id',
     alias: '处理记录ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'tags',
+    alias: '维度',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
@@ -802,9 +807,19 @@ export class AlertService extends AlarmService {
     isAll = false,
     options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await alertTopN(
       {
-        ...params,
+        ...paramsClone,
         size: isAll ? 100 : 10,
       },
       options
@@ -818,9 +833,19 @@ export class AlertService extends AlarmService {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await searchAlert(
       {
-        ...params,
+        ...paramsClone,
         show_overview: false, // 是否展示概览
         show_aggs: false, // 是否展示聚合
       },
@@ -829,7 +854,7 @@ export class AlertService extends AlarmService {
       .then(({ alerts, total }) => {
         // 将后端queryConfig相关数转换组装为前端定义统一的 QueryConfig 格式
         for (const alert of alerts || []) {
-          const sourceQueryConfigs = alert.items[0]?.query_configs || [];
+          const sourceQueryConfigs = alert.items?.[0]?.query_configs || [];
           const queryConfigs: QueryConfig[] = [];
           for (const source of sourceQueryConfigs) {
             const metricDetail = alert?.metric_display?.find?.(metric => metric.id === source.metric_id);
@@ -856,7 +881,9 @@ export class AlertService extends AlarmService {
               )
             );
           }
-          alert.items[0].query_configs = queryConfigs;
+          if (alert.items?.[0]?.query_configs) {
+            alert.items[0].query_configs = queryConfigs;
+          }
         }
         return {
           total,
@@ -871,9 +898,19 @@ export class AlertService extends AlarmService {
   }
 
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await searchAlert(
       {
-        ...params,
+        ...paramsClone,
         page_size: 0, // 不返回告警列表数据
         show_overview: true, // 是否展示概览
         show_aggs: true, // 是否展示聚合
@@ -901,7 +938,7 @@ export class AlertService extends AlarmService {
             continue;
           }
           // 告警状态
-          if (['NOT_SHIELDED_ABNORMAL', 'SHIELDED_ABNORMAL', 'RECOVERED'].includes(item.id)) {
+          if (['NOT_SHIELDED_ABNORMAL', 'SHIELDED_ABNORMAL', 'RECOVERED', 'CLOSED'].includes(item.id)) {
             alarmStatusList.push({
               ...item,
               ...AlarmStatusIconMap[item.id],
@@ -932,6 +969,15 @@ export class AlertService extends AlarmService {
                 })),
               };
             }
+            if (item.id === 'notice_way') {
+              return {
+                ...item,
+                children: item.children.map(child => ({
+                  ...child,
+                  ...AlarmNoticeWayIconMap[child.id],
+                })),
+              };
+            }
             return item;
           }),
         ];
@@ -940,9 +986,19 @@ export class AlertService extends AlarmService {
     return data;
   }
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const paramsClone = _.cloneDeep(params);
+    // #if IS_APM_MONITOR
+    if (paramsClone.query_string) {
+      // 语句模式
+      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
+    } else {
+      // ui 模式
+      paramsClone.query_string = window.APM_QUERY_STRING || '';
+    }
+    // #endif
     const data = await alertTopN(
       {
-        ...params,
+        ...paramsClone,
       },
       config
     ).catch(() => ({

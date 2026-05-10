@@ -1,0 +1,19 @@
+.issues-detail-sidesSlider {
+  .bk-sideslider-title {
+    padding-left: 8px;
+
+    .time-range-date-picker {
+      color: #4d4f56;
+    }
+
+    .refresh-rate-wrap {
+      margin-right: 12px;
+      color: #4d4f56;
+      font-size: 12px;
+    }
+  }
+
+  .issues-detail-side-slider-content {
+    height: calc(100vh - 52px);
+  }
+}

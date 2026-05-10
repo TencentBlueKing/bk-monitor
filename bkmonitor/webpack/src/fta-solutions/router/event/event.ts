@@ -23,15 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import * as eventCenterAuth from 'monitor-pc/pages/event-center/authority-map';
-
 import type { RouteConfig } from 'vue-router';
 
 const Event = () => import(/* webpackChunkName: "Event" */ '../../pages/event/event');
 const EventDetail = () => import(/* webpackChunkName: "EventDetail" */ '../../pages/event/event-detail/event-detail');
 const ActionDetail = () =>
   import(/* webpackChunkName: "ActionDetail" */ '../../pages/event/event-detail/action-detail');
-const isSpecEvent = location.search.indexOf('specEvent') > -1;
 
 export default [
   {
@@ -48,14 +45,6 @@ export default [
       navId: 'event-center',
       isFta: true,
       noNavBar: true,
-      ...(!isSpecEvent
-        ? {
-            authorityList: ['view_event_v2'],
-            authority: {
-              page: eventCenterAuth.VIEW_AUTH,
-            },
-          }
-        : {}),
     },
   },
   {
@@ -74,13 +63,6 @@ export default [
         parent: 'event-center',
       },
       noNavBar: true,
-      ...(!isSpecEvent
-        ? {
-            authority: {
-              page: eventCenterAuth.VIEW_AUTH,
-            },
-          }
-        : {}),
     },
   },
   {
@@ -99,13 +81,6 @@ export default [
       route: {
         parent: 'event-center',
       },
-      ...(!isSpecEvent
-        ? {
-            authority: {
-              page: eventCenterAuth.VIEW_AUTH,
-            },
-          }
-        : {}),
     },
   },
 ] as RouteConfig[];

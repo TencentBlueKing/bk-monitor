@@ -33,19 +33,21 @@ class AlertViewSet(ResourceViewSet):
             "alert/get_experience",
             "alert/log",
             "event/search",
-            "alert/event_count",
-            "alert/related_info",
             "alert/extend_fields",
             "alert/graph_query",
+            "alert/graph_drill_down",
             "event/date_histogram",
             "strategy_snapshot",
             "action/search",
+            "alert/dimension_drill_down",
+            "alert/list_feedback",
+            "alert/event_ts",
         ]
         write_actions = [
             "alert/save_experience",
             "alert/ack",
             "event/top_n",
-            "alert/feedback",
+            "alert/create_feedback",
         ]
         all_actions = read_actions + write_actions
         if self.action not in all_actions:
@@ -130,7 +132,13 @@ class AlertViewSet(ResourceViewSet):
         return True
 
     def check_permissions(self, request):
-        if self.action in ["search_history", "list_index_by_host", "validate_query_string", "allowed_biz"]:
+        if self.action in [
+            "search_history",
+            "list_index_by_host",
+            "validate_query_string",
+            "generate_query_string",
+            "allowed_biz",
+        ]:
             return
         elif self.action == "alert/search":
             permission = BusinessActionPermission([ActionEnum.VIEW_EVENT, ActionEnum.VIEW_BUSINESS])
@@ -153,6 +161,8 @@ class AlertViewSet(ResourceViewSet):
                     "alert/top_n",
                     "alert/export",
                     "alert/date_histogram",
+                    "alert/event_count",
+                    "alert/related_info",
                     "alert/tags",
                     "action/search",
                     "action/top_n",
@@ -191,6 +201,7 @@ class AlertViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.alert.export_action, endpoint="action/export"),
         ResourceRoute("POST", resource.alert.action_date_histogram, endpoint="action/date_histogram"),
         ResourceRoute("POST", resource.alert.validate_query_string, endpoint="validate_query_string"),
+        ResourceRoute("POST", resource.alert.generate_query_string, endpoint="generate_query_string"),
         # 策略配置快照详情
         ResourceRoute("GET", resource.alert.strategy_snapshot, endpoint="strategy_snapshot"),
         ResourceRoute("POST", resource.alert.alert_top_n, endpoint="alert/top_n"),

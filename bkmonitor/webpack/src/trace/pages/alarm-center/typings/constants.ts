@@ -29,6 +29,7 @@ export enum AlarmType {
   ACTION = 'action',
   ALERT = 'alert',
   INCIDENT = 'incident',
+  ISSUES = 'issues',
 }
 
 /** 告警场景中数据所有可操作的事件枚举 */
@@ -59,7 +60,6 @@ export enum AlertLevelEnum {
   /** 预警 */
   WARNING = 2,
 }
-
 /** 告警详情-容器tab图表特殊辅助线series颜色映射 */
 export const SpecialSeriesColorMap = {
   request: {
@@ -79,6 +79,16 @@ export const SpecialSeriesColorMap = {
   },
 };
 
+/** 告警状态 */
+export const AlarmStatusEnum = {
+  /** 未恢复 */
+  ABNORMAL: 'ABNORMAL',
+  /** 已恢复 */
+  RECOVERED: 'RECOVERED',
+  /** 已失效 */
+  CLOSED: 'CLOSED',
+} as const;
+
 export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {
     label: window.i18n.t('告警'),
@@ -89,6 +99,10 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
     value: AlarmType.INCIDENT,
   },
   {
+    label: 'Issues',
+    value: AlarmType.ISSUES,
+  },
+  {
     label: window.i18n.t('处理记录'),
     value: AlarmType.ACTION,
   },
@@ -96,7 +110,7 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
 
 /** 告警状态icon */
 export const AlarmStatusIconMap = {
-  ABNORMAL: {
+  [AlarmStatusEnum.ABNORMAL]: {
     icon: 'icon-mind-fill',
     iconColor: '#F59789',
     name: window.i18n.t('未恢复'),
@@ -111,14 +125,14 @@ export const AlarmStatusIconMap = {
     iconColor: '#F8B64F',
     name: window.i18n.t('未恢复（已屏蔽）'),
   },
-  RECOVERED: {
+  [AlarmStatusEnum.RECOVERED]: {
     icon: 'icon-mc-check-fill',
     iconColor: '#6FC5BF',
     name: window.i18n.t('已恢复'),
   },
-  CLOSED: {
-    icon: 'icon-mc-close-fill',
-    iconColor: '#DCDEE5',
+  [AlarmStatusEnum.CLOSED]: {
+    icon: 'icon-shixiao',
+    iconColor: '#8e9bb3',
     name: window.i18n.t('已失效'),
   },
 };
@@ -203,6 +217,53 @@ export const AlarmLevelIconMap = {
     iconColor: '#3A84FF',
     text: window.i18n.t('提醒'),
     textColor: '#3A84FF',
+  },
+};
+export const NoticeWayEnum = {
+  SMS: 'sms',
+  MAIL: 'mail',
+  WEIXIN: 'weixin',
+  QYWEIXIN: 'qy_weixin',
+  WXWORKBOT: 'wxwork-bot',
+  VOICE: 'voice',
+} as const;
+
+export const AlarmNoticeWayIconMap = {
+  [NoticeWayEnum.SMS]: {
+    icon: 'icon-mc-duanxin',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('短信'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.WEIXIN]: {
+    icon: 'icon-mc-weixin',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('微信'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.QYWEIXIN]: {
+    icon: 'icon-mc-enterprise-wechat',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('企业微信'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.WXWORKBOT]: {
+    icon: 'icon-mc-robot',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('群机器人'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.MAIL]: {
+    icon: 'icon-mc-youjian',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('邮件'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.VOICE]: {
+    icon: 'icon-mc-dianhua',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('语音'),
+    textColor: '#313238',
   },
 };
 
@@ -346,6 +407,10 @@ export const IncidentStatusIconMap = {
   closed: {
     alias: window.i18n.t('已解决'),
     prefixIcon: 'incident-status-icon icon-monitor icon-mc-solved',
+  },
+  merged: {
+    alias: window.i18n.t('已合并'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-yihebing',
   },
   ABNORMAL: {
     alias: window.i18n.t('未恢复'),

@@ -29,13 +29,13 @@ import { type PropType, defineComponent, onMounted, provide, shallowReactive, sh
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 
 import { getAuthorityMap, useAuthorityStore } from '../../../../store/modules/authority';
-import ChatGroup from '../../../failure/alarm-detail/chat-group/chat-group';
 import AlarmConfirmDialog from '../../common-detail/components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from '../../common-detail/components/alarm-alert/quick-shield-dialog';
 import AlarmDispatchDialog from '../../common-detail/components/alarm-info/alarm-dispatch-dialog';
 import ManualDebugStatusDialog from '../../common-detail/components/alarm-info/manual-debug-status-dialog';
 import ManualProcessDialog from '../../common-detail/components/alarm-info/manual-process-dialog';
 import { type AlertOperationDialogEvent, type AlertOperationDialogParams, AlertAllActionEnum } from '../../typings';
+import ChatGroup from '@/components/chat-group/chat-group';
 
 import type { IAuthority } from '../../../../typings/authority';
 
@@ -192,6 +192,7 @@ export default defineComponent({
           alarmEventName={this.dialogParam?.alertName ?? ''}
           alertIds={this.alarmIds}
           assignee={this.dialogParam?.assignee ?? []}
+          bizId={this.alarmBizId}
           show={this.dialogType === AlertAllActionEnum.CHAT && this.show}
           onShowChange={this.handleShowChange}
         />

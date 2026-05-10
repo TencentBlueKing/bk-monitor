@@ -27,14 +27,15 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "generation",
-                    models.BigIntegerField(default=1, help_text="跟踪资源规格变更次数", verbose_name="世代号"),
+                    models.BigIntegerField(default=1, help_text="跟踪资源规格变更次数", verbose_name="generation"),
                 ),
-                ("namespace", models.CharField(db_index=True, max_length=128, verbose_name="命名空间")),
+                ("namespace", models.CharField(blank=True, db_index=True, max_length=128, verbose_name="命名空间")),
                 ("name", models.CharField(max_length=128, verbose_name="资源名称")),
-                ("labels", models.JSONField(default=dict, verbose_name="资源标签")),
+                ("labels", models.JSONField(blank=True, default=dict, verbose_name="资源标签")),
                 (
                     "fields",
                     models.JSONField(
+                        blank=True,
                         default=list,
                         help_text="资源的字段定义，每个字段包含 namespace, name, required",
                         verbose_name="字段定义列表",
@@ -63,11 +64,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "generation",
-                    models.BigIntegerField(default=1, help_text="跟踪资源规格变更次数", verbose_name="世代号"),
+                    models.BigIntegerField(default=1, help_text="跟踪资源规格变更次数", verbose_name="generation"),
                 ),
-                ("namespace", models.CharField(db_index=True, max_length=128, verbose_name="命名空间")),
+                ("namespace", models.CharField(blank=True, db_index=True, max_length=128, verbose_name="命名空间")),
                 ("name", models.CharField(max_length=128, verbose_name="资源名称")),
-                ("labels", models.JSONField(default=dict, verbose_name="资源标签")),
+                ("labels", models.JSONField(blank=True, default=dict, verbose_name="资源标签")),
                 (
                     "from_resource",
                     models.CharField(help_text="关联的源资源类型名称", max_length=128, verbose_name="源资源类型"),

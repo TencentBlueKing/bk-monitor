@@ -25,14 +25,13 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL
+from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL, CallSide
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -46,8 +45,8 @@ def get_rpc_service_config_from_metric_or_none(
     bk_biz_id: int, app_name: str, table_id: str, service_name: str
 ) -> dict[str, Any] | None:
     metric_fields: list[str] = [
-        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
-        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[CallSide.CALLER.value]["rpc_handled_total"],
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[CallSide.CALLEE.value]["rpc_handled_total"],
     ]
     metric_exists: bool = MetricListCache.objects.filter(
         bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
@@ -68,7 +67,7 @@ def get_rpc_service_config_from_metric_or_none(
 
     discover_result: dict[str, dict[str, Any] | list[str]] = {}
     group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-        metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+        metric_group.GroupEnum.TRPC.value, bk_biz_id, app_name
     )
     run_threads([InheritParentThread(target=_fetch_server_list), InheritParentThread(target=_get_server_config)])
 
@@ -115,9 +114,11 @@ def discover_caller_callee(
         logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
         return discover_result
 
-    server_config: dict[str, Any] | None = ServiceHandler.get_rpc_service_config_or_none(
-        node
-    ) or get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
+    system: dict[str, Any] = ServiceHandler.get_system(node)
+    if system.get("is_support_call_analysis"):
+        server_config: dict[str, Any] | None = MetricTemporality.get_metric_config(system["temporality"])
+    else:
+        server_config = get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
     if not server_config:
         return discover_result
 
@@ -148,11 +149,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     filenames = [
         # ⬇️ APM观测场景视图
+        "apm_application-alarm_center",
         "apm_application-alarm_template",
         "apm_application-endpoint",
         "apm_application-error",
         "apm_application-overview",
         "apm_application-service",
+        "apm_application-trace",
         "apm_application-topo",
         "apm_service-component-default-error",
         "apm_service-component-default-instance",
@@ -167,6 +170,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-container",
         "apm_service-service-default-instance",
         "apm_service-service-default-log",
+        "apm_service-service-default-trace",
         "apm_service-service-default-event",
         "apm_service-service-default-overview",
         "apm_service-service-default-profiling",
@@ -174,6 +178,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-db",
         "apm_service-service-default-custom_metric",
         "apm_service-service-default-custom_metric_v2",
+        "apm_service-service-default-alarm_center",
         "apm_service-remote_service-http-overview",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
@@ -302,14 +307,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                 return cls._get_non_host_view_config(builtin_view, params)
             elif builtin_view == f"{cls.APM_TRACE_PREFIX}-log":
-                service_name = params.get("service_name")
                 span_id = params.get("span_id")
-                if not service_name or not span_id:
-                    raise ValueError(_("缺少ServiceName或者spanId参数"))
+                trace_id = params.get("trace_id")
+                service_name = params.get("service_name")
+
+                if not (service_name and span_id) and trace_id:
+                    # Trace 详情视角下的日志页面
+                    cls._walk_target_data(
+                        view_config, lambda data: [data.pop(k, None) for k in ("span_id", "service_name")]
+                    )
+                    view_config = cls._replace_variable(view_config, "${trace_id}", trace_id)
+                elif service_name and span_id:
+                    # Span 详情视角下的日志页面
+                    cls._walk_target_data(view_config, lambda data: data.pop("trace_id", None))
+                    view_config = cls._replace_variable(view_config, "${span_id}", span_id)
+                    view_config = cls._replace_variable(view_config, "${service_name}", service_name)
+                else:
+                    raise ValueError(_("缺少 TraceId 或 SpanId+ServiceName 参数"))
 
                 view_config = cls._replace_variable(view_config, "${app_name}", app_name)
-                view_config = cls._replace_variable(view_config, "${service_name}", service_name)
-                view_config = cls._replace_variable(view_config, "${span_id}", span_id)
             elif builtin_view == f"{cls.APM_TRACE_PREFIX}-container":
                 return cls.get_container_view(
                     params,
@@ -769,7 +785,19 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error", "alarm_template"]},
+                defaults={
+                    "config": [
+                        "overview",
+                        "topo",
+                        "service",
+                        "endpoint",
+                        "db",
+                        "error",
+                        "trace",
+                        "alarm_template",
+                        "alarm_center",
+                    ]
+                },
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(
@@ -789,8 +817,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "container",
                         "log",
                         "event",
+                        "trace",
                         "profiling",
                         "custom_metric",
+                        "custom_metric_v2",
+                        "alarm_center",
                     ]
                 },
             )
@@ -907,11 +938,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             2. apm_service_name
         APM Trace检索页面处:
             1. apm_span_id
+            2. apm_trace_id
         """
 
         if scene_id.startswith(cls.APM_TRACE_PREFIX):
             return {
                 "span_id": params.get("apm_span_id"),
+                "trace_id": params.get("apm_trace_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
                 "only_simple_info": params.get("only_simple_info") or False,

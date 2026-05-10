@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, provide, shallowRef } from 'vue';
+import { defineComponent, inject, provide, shallowRef } from 'vue';
 import { computed } from 'vue';
 
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -34,7 +34,7 @@ import IntervalSelect from '../../../../components/interval-select/interval-sele
 import ChartCollapse from '../../../../pages/trace-explore/components/explore-chart/chart-collapse';
 import ExploreChart from '../../../../pages/trace-explore/components/explore-chart/explore-chart';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
-import { AlarmStatusIconMap, AlarmType, IncidentIconMap } from '../../typings';
+import { AlarmStatusEnum, AlarmStatusIconMap, AlarmType, IncidentIconMap } from '../../typings';
 
 import './alarm-trend-chart.scss';
 
@@ -49,6 +49,10 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const store = useAlarmCenterStore();
+
+    // #if IS_APM_MONITOR
+    const handleAlarmTrendChartZoomChange = inject('handleAlarmTrendChartZoomChange', (_: [number, number]) => {});
+    // #endif
 
     /** 告警类型对应的直方图接口 */
     const apiMap = {
@@ -74,7 +78,7 @@ export default defineComponent({
       switch (store.alarmType) {
         case AlarmType.ALERT: {
           colorMap = Object.entries(AlarmStatusIconMap).reduce((pre, [key, value]) => {
-            pre[key] = value.iconColor;
+            pre[key] = key === AlarmStatusEnum.CLOSED ? '#DCDEE5' : value.iconColor;
             return pre;
           }, {});
           break;
@@ -172,6 +176,9 @@ export default defineComponent({
 
     /** 图表框选 */
     const handleDataZoomChange = dataZoom => {
+      // #if IS_APM_MONITOR
+      handleAlarmTrendChartZoomChange(dataZoom);
+      // #endif
       store.timeRange = dataZoom;
     };
 
@@ -202,7 +209,7 @@ export default defineComponent({
             default: () => (
               <div class='alarm-trend-chart-container'>
                 <ExploreChart
-                  customOptions={{ formatterData: this.formatterData }}
+                  customOptions={{ formatterData: this.formatterData, tooltips: { showTotal: true } }}
                   panel={this.panel}
                   params={this.params}
                   showTitle={false}
@@ -214,7 +221,7 @@ export default defineComponent({
             headerCustom: () => (
               <div class='header-custom'>
                 <i18n-t
-                  class='title-desc'
+                  class='title-description'
                   keypath='（找到 {0} 条结果，用时 {1} 毫秒）'
                   tag='div'
                 >

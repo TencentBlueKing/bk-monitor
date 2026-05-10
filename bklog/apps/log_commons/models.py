@@ -233,10 +233,15 @@ class ExternalPermission(OperateRecordModel):
         ):
             exist_authorized_users.add(permission_obj.authorized_user)
             all_resources = set(resources) | set(permission_obj.resources)
+            update_fields = []
             if all_resources - set(permission_obj.resources):
                 permission_obj.resources = list(all_resources)
+                update_fields.append("resources")
+            if expire_time and permission_obj.expire_time != expire_time:
                 permission_obj.expire_time = expire_time
-                permission_obj.save()
+                update_fields.append("expire_time")
+            if update_fields:
+                permission_obj.save(update_fields=update_fields)
         add_authorized_users = set(authorized_users) - exist_authorized_users
         cls.objects.bulk_create(
             cls(

@@ -9,12 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 import functools
+import json
 import logging
 import random
 import time
 
+from bk_monitor_base.infras.third_party_api.user.api import get_tenant_admin_username
 import jwt
-import json
 from blueapps.account.models import User
 from django.conf import settings
 from django.contrib import auth
@@ -36,6 +37,12 @@ logger = logging.getLogger(__name__)
 APP_CODE_TOKENS: dict[str, list[str]] = {}
 APP_CODE_UPDATE_TIME = None
 APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
+
+OPENCLAW_RECOVERING_MCP_TOOLS = {
+    "search_openclaw_spans",
+    "get_openclaw_trace_detail",
+    "search_openclaw_logs",
+}
 
 
 def is_match_api_token(request, bk_tenant_id: str, app_code: str) -> bool:
@@ -161,7 +168,7 @@ class AppWhiteListModelBackend(ModelBackend):
             # 如果确认用户属于当前租户下的虚拟管理用户或从当前租户下查询到了用户，则更新用户租户id为当前租户id
             if settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != bk_tenant_id:
                 if user.username == get_admin_username(bk_tenant_id) or api.bk_login.batch_query_user_display_info(
-                    bk_tenant_id=bk_tenant_id, bk_usernames=[user.username]
+                    bk_usernames=[user.username], bk_tenant_id=bk_tenant_id
                 ):
                     user.tenant_id = bk_tenant_id
                     user.save()
@@ -288,8 +295,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
         MCP请求已经通过API网关认证，这里只需要额外的MCP权限校验
         """
         # 导入放在这里避免循环依赖
-        from bkmonitor.iam.drf import MCPPermission
         from bkmonitor.iam.action import get_action_by_id
+        from bkmonitor.iam.drf import MCPPermission
         from constants.mcp import MCP_SERVER_NAME_TO_PERMISSION_ACTION
 
         logger.info("MCPAuthentication: Handling MCP authentication")
@@ -299,6 +306,29 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 提取工具名称，检查是否在豁免白名单中
         tool_name = self.extract_tool_name_from_path(request.path)
+
+        openclaw_mcp_server_name = getattr(settings, "OPENCLAW_RECOVERING_MCP_SERVER_NAME", "")
+        if openclaw_mcp_server_name and mcp_server_name == openclaw_mcp_server_name:
+            if not username:
+                return HttpResponseForbidden("Missing username in request")
+
+            if tool_name not in OPENCLAW_RECOVERING_MCP_TOOLS:
+                return HttpResponseForbidden("Invalid OpenClaw MCP tool")
+
+            # OpenClaw 数据统一上报到一个业务，入口只固定业务上下文；
+            # 用户级数据边界由 OpenClaw Resource 基于 username 继续收敛。
+            request.biz_id = int(getattr(settings, "OPENCLAW_RECOVERING_BK_BIZ_ID", 0) or 0)
+            request.skip_check = True
+            request.openclaw_identity_scoped = True
+            self._report_mcp_metric(
+                tool_name=tool_name,
+                bk_biz_id=request.biz_id,
+                username=username,
+                status="accessed",
+                permission_action="identity_scoped",
+                mcp_server_name=mcp_server_name,
+            )
+            return None
 
         # 获取权限动作ID
         # 优先从 MCP Server Name 映射中获取，如果没有则从旧的请求头中获取
@@ -562,9 +592,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 校验app_code权限范围
         if not app_code or is_match_api_token(request, bk_tenant_id, app_code):
+            if not username or username == "admin":
+                username = get_tenant_admin_username(bk_tenant_id)
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
-            if settings.ENABLE_MULTI_TENANT_MODE and request.user and request.user.tenant_id != bk_tenant_id:
-                return HttpResponseForbidden(f"user tenant_id is {request.user.tenant_id} not match {bk_tenant_id}")
+            user = request.user
+            if settings.ENABLE_MULTI_TENANT_MODE and user and user.tenant_id != bk_tenant_id:
+                return HttpResponseForbidden(
+                    f"user({user.username}) tenant_id is {user.tenant_id} not match {bk_tenant_id}"
+                )
             return
 
         return HttpResponseForbidden()

@@ -445,7 +445,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @transaction.atomic
-    def stop(self, **kwargs):
+    def stop(self, is_stop_index_set=True, **kwargs):
         """
         停止采集配置
         :return: task_id
@@ -453,10 +453,11 @@ class CollectorHandler:
         self.data.is_active = False
         self.data.save()
 
-        # 停止采集项
+        # 停止索引集
         if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.stop()
+            if is_stop_index_set:
+                index_set_handler = IndexSetHandler(self.data.index_set_id)
+                index_set_handler.stop()
 
         self._pre_stop()
 
@@ -496,6 +497,8 @@ class CollectorHandler:
             collector_config.update(
                 {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
             )
+            parent_index_set_ids = log_index_set_obj.get_parent_index_set_ids()
+            collector_config.update({"parent_index_set_ids": parent_index_set_ids})
         return collector_config
 
     def custom_update(
@@ -514,6 +517,10 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
+        parent_index_set_ids=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -546,7 +553,18 @@ class CollectorHandler:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
+        # 更新归属索引集
+        if self.data.index_set_id:
+            IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
+
         custom_config = get_custom(self.data.custom_type)
+
+        # otlp 上报自动补充 target_fields、sort_fields 默认值
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
+
         if etl_params and fields:
             # 1. 传递了清洗参数，则优先级最高
             etl_params, etl_config, fields = etl_params, etl_config, fields
@@ -590,6 +608,9 @@ class CollectorHandler:
                 "fields": fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "is_platform_index": is_platform_index,
+                "platform_index_visibility": platform_index_visibility,
+                "platform_index_filter": platform_index_filter,
             }
             etl_handler.update_or_create(**etl_params)
 
@@ -834,6 +855,20 @@ class CollectorHandler:
             cluster_infos = {}
 
         time_zone = get_local_param("time_zone")
+
+        index_set_ids = list(set([item.get("index_set_id") for item in data if item.get("index_set_id", None)]))
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+        index_set_obj_dict = {obj.index_set_id: obj for obj in index_set_objs}
+
+        abnormal_index_set_ids = set(
+            LogIndexSetData.objects.filter(
+                index_set_id__in=index_set_ids,
+            )
+            .exclude(apply_status="normal")
+            .values_list("index_set_id", flat=True)
+            .distinct()
+        )
+
         for _data in data:
             cluster_info = cluster_infos.get(
                 _data["table_id"],
@@ -841,7 +876,9 @@ class CollectorHandler:
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
             _data["storage_cluster_name"] = cluster_info["cluster_config"].get("cluster_name", "")
-            _data["storage_display_name"] = cluster_info["cluster_config"].get("display_name", "")
+            _data["storage_display_name"] = (
+                cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
+            )
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):
@@ -867,12 +904,13 @@ class CollectorHandler:
             )
 
             # 是否可以检索
-            if _data["is_active"] and _data["index_set_id"]:
-                _data["is_search"] = (
-                    not LogIndexSetData.objects.filter(index_set_id=_data["index_set_id"])
-                    .exclude(apply_status="normal")
-                    .exists()
-                )
+            if _data.get("index_set_id"):
+                index_set_obj = index_set_obj_dict.get(_data["index_set_id"])
+
+                if index_set_obj and index_set_obj.is_active:
+                    _data["is_search"] = _data["index_set_id"] not in abnormal_index_set_ids
+                else:
+                    _data["is_search"] = False
             else:
                 _data["is_search"] = False
 
@@ -1313,6 +1351,11 @@ class CollectorHandler:
         sort_fields=None,
         target_fields=None,
         collector_scenario_id=CollectorScenarioEnum.CUSTOM.value,
+        parent_index_set_ids=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
+        ignore_exists=False,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -1330,6 +1373,16 @@ class CollectorHandler:
         bkdata_biz_id = bkdata_biz_id or bk_biz_id
         # 判断是否已存在同英文名collector
         if self._pre_check_collector_config_en(model_fields=collector_config_params, bk_biz_id=bkdata_biz_id):
+            if ignore_exists:
+                existing = CollectorConfig.objects.get(
+                    collector_config_name_en=collector_config_name_en, bk_biz_id=bkdata_biz_id
+                )
+                return {
+                    "collector_config_id": existing.collector_config_id,
+                    "index_set_id": existing.index_set_id,
+                    "bk_data_id": existing.bk_data_id,
+                    "created": False,
+                }
             logger.error(f"collector_config_name_en {collector_config_name_en} already exists")
             raise CollectorConfigNameENDuplicateException(
                 CollectorConfigNameENDuplicateException.MESSAGE.format(
@@ -1372,6 +1425,11 @@ class CollectorHandler:
             )
             self.data.save()
 
+            # 创建索引集，并添加到归属索引集中
+            index_set = self.data.create_index_set()
+            if parent_index_set_ids:
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
+
         # add user_operation_record
         operation_record = {
             "username": get_request_username(),
@@ -1388,6 +1446,12 @@ class CollectorHandler:
         async_create_bkdata_data_id.delay(self.data.collector_config_id)
 
         custom_config = get_custom(custom_type)
+
+        # otlp 上报自动补充 target_fields、sort_fields 默认值
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
 
         # 仅在有集群ID时创建清洗
         if storage_cluster_id:
@@ -1406,6 +1470,9 @@ class CollectorHandler:
                 "fields": custom_config.fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "is_platform_index": is_platform_index,
+                "platform_index_visibility": platform_index_visibility,
+                "platform_index_filter": platform_index_filter,
             }
             if etl_params and fields:
                 # 如果传递了清洗参数，则优先使用
@@ -1419,6 +1486,7 @@ class CollectorHandler:
             "collector_config_id": self.data.collector_config_id,
             "index_set_id": self.data.index_set_id,
             "bk_data_id": self.data.bk_data_id,
+            "created": True,
         }
 
         # create custom Log Group

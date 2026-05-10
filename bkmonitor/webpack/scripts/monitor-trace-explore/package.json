@@ -1,0 +1,24 @@
+{
+  "name": "@blueking/monitor-trace-explore",
+  "version": "0.0.5",
+  "description": "蓝鲸监控 Trace 检索抽取出来的独立库，主要提供给 APM 等宿主使用",
+  "scripts": {},
+  "files": [
+    "*.js"
+  ],
+  "main": "index.js",
+  "author": "bkfe",
+  "license": "MIT",
+  "keywords": [
+    "@blueking",
+    "@blueking/monitor-trace-explore",
+    "monitor-trace-explore"
+  ],
+  "dependencies": {
+    "@blueking/tdesign-ui": "^0.0.1-beta.92",
+    "bkui-vue": "^2.0.2-beta.63",
+    "dayjs": "^1.11.18",
+    "vue": "^3.5.15",
+    "vue-tippy": "^6.3.7"
+  }
+}

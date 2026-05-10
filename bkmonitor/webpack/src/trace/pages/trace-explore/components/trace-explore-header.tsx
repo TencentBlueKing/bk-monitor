@@ -248,6 +248,7 @@ export default defineComponent({
               </div>
             </div>
           )}
+          {/* // #if !IS_APM_MONITOR */}
           {this.hideFeatures.includes('application') ? null : (
             <Select
               ref='applicationSelectRef'
@@ -312,7 +313,9 @@ export default defineComponent({
               }}
             </Select>
           )}
+          {/* // #endif */}
         </div>
+        {/* // #if !IS_APM_MONITOR */}
         {this.hideFeatures.includes('dateRange') ? null : (
           <div class='header-tools'>
             <span class='inquire-header-append-item'>
@@ -362,6 +365,7 @@ export default defineComponent({
             )}
           </div>
         </div>
+        {/* // #endif */}
       </div>
     );
   },

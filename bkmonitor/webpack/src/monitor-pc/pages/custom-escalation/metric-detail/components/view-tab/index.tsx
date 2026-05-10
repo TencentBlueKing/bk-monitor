@@ -90,12 +90,26 @@ export default class ViewTab extends tsc<IProps, IEmit> {
     if (optimizedDeepEqual(val, old)) {
       return;
     }
+    const newGraphConfigPayload = _.cloneDeep(val);
+    const viewPayload = this.$route.query?.viewPayload as string;
+    // 如果url中存在汇聚方法，刷新页面需要保留
+    if (viewPayload) {
+      const hasMethodMetric = JSON.parse(viewPayload).metrics.filter(item => item.method);
+      if (hasMethodMetric.length) {
+        for (const metric of hasMethodMetric) {
+          const result = newGraphConfigPayload.metrics.find(item => item.name === metric.name);
+          if (result) {
+            result.method = metric.method;
+          }
+        }
+      }
+    }
     this.$router.replace({
       query: {
         ...this.$route.query,
         key: `${Date.now()}`, // query 相同时 router.replace 会报错
         viewTab: this.viewTab,
-        viewPayload: JSON.stringify(this.graphConfigPayload),
+        viewPayload: JSON.stringify(newGraphConfigPayload),
       },
     });
   }
