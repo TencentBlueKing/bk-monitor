@@ -28,6 +28,7 @@ from metadata.models.data_link.data_link_configs import (
     ResultTableConfig,
     VMStorageBindingConfig,
 )
+from metadata.models.result_table import ResultTableOption
 
 
 def _pool_with(overrides: dict | None = None):
@@ -216,3 +217,59 @@ class TestIsReuseEnabledFor:
             del settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
         sample = next(iter(REUSE_ENABLED_STRATEGIES))
         assert is_reuse_enabled_for(sample) is False
+
+    @pytest.mark.django_db(databases="__all__")
+    def test_returns_true_when_result_table_option_enabled(self, settings):
+        """RT option=true 时，即使 strategy 灰度未开，也可以单表触发复用。"""
+        sample = next(iter(REUSE_ENABLED_STRATEGIES))
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
+        ResultTableOption.create_option(
+            table_id="1001_demo.__default__",
+            name=ResultTableOption.OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE,
+            value=True,
+            creator="pytest",
+            bk_tenant_id="system",
+        )
+
+        assert is_reuse_enabled_for(sample, table_id="1001_demo.__default__", bk_tenant_id="system") is True
+
+    @pytest.mark.django_db(databases="__all__")
+    def test_returns_false_when_result_table_option_missing_or_false(self, settings):
+        """单表开关不存在或不为 True 时，不影响原有默认关闭语义。"""
+        sample = next(iter(REUSE_ENABLED_STRATEGIES))
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
+        ResultTableOption.create_option(
+            table_id="1001_demo.__default__",
+            name=ResultTableOption.OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE,
+            value=False,
+            creator="pytest",
+            bk_tenant_id="system",
+        )
+
+        assert is_reuse_enabled_for(sample, table_id="1001_missing.__default__", bk_tenant_id="system") is False
+        assert is_reuse_enabled_for(sample, table_id="1001_demo.__default__", bk_tenant_id="system") is False
+        assert is_reuse_enabled_for(sample, table_id=None, bk_tenant_id="system") is False
+
+    @pytest.mark.django_db(databases="__all__")
+    def test_result_table_option_cannot_enable_unimplemented_strategy(self, settings, caplog):
+        """RT option 只能打开已接入复用的 strategy，不能绕过代码白名单。"""
+        settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
+        ResultTableOption.create_option(
+            table_id="1001_demo.__default__",
+            name=ResultTableOption.OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE,
+            value=True,
+            creator="pytest",
+            bk_tenant_id="system",
+        )
+
+        with caplog.at_level("WARNING", logger="metadata"):
+            assert (
+                is_reuse_enabled_for(
+                    "__not_implemented_strategy__", table_id="1001_demo.__default__", bk_tenant_id="system"
+                )
+                is False
+            )
+
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert warnings
+        assert "not been migrated yet" in warnings[0].getMessage()

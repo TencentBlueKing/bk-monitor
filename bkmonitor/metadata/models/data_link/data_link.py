@@ -33,6 +33,7 @@ from metadata.models.data_link.component_reuse import (
     ComponentReuseError,
     ExistingComponentContext,
     is_reuse_enabled_for,
+    is_reuse_supported_for,
 )
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
@@ -222,17 +223,9 @@ class DataLink(models.Model):
         """
         生成对应套餐的链路完整配置
 
-        ``existing_context`` 只会被透传给同时满足以下两个条件的 strategy：
-
-        1. 在 ``settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES`` 中显式开启灰度；
-        2. 对应的 compose 分支已在
-           ``metadata.models.data_link.component_reuse.REUSE_ENABLED_STRATEGIES``
-           里登记为"已接入 existing_context"。
-
-        当运维把尚未接入的 strategy 配进了灰度集合时，:func:`is_reuse_enabled_for`
-        会打一条 warning 并返回 False，这里直接走原有不带 ``existing_context`` 的
-        调用路径，避免让 ``method(existing_context=...)`` 抛
-        ``TypeError: unexpected keyword argument``，把链路 apply 直接打挂。
+        ``existing_context`` 由上层根据 strategy 灰度开关或 RT option 单表开关决定是否构造。
+        本层只负责确认当前 compose 分支已经接入 ``existing_context`` 形参，避免把该参数
+        透传给尚未改造的 strategy。
         """
 
         # 类似switch的形式，选择对应的组装方式
@@ -254,7 +247,7 @@ class DataLink(models.Model):
             DataLink.BK_STANDARD_V2_EVENT: self.compose_custom_event_configs,
         }
         method = switcher[self.data_link_strategy]
-        if is_reuse_enabled_for(self.data_link_strategy):
+        if existing_context is not None and is_reuse_supported_for(self.data_link_strategy):
             return method(*args, existing_context=existing_context, **kwargs)
         return method(*args, **kwargs)
 
@@ -1343,12 +1336,13 @@ class DataLink(models.Model):
             )
             raise e
 
-        # 组件复用灰度：仅当 strategy 同时出现在 settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
-        # 与 component_reuse.REUSE_ENABLED_STRATEGIES（代码侧已接入白名单）中时，才会
-        # 构造 existing_context 并把它交给 compose 分支。未命中时 ctx=None，compose 分支
-        # 走原有新建语义，保持与上线前行为一致；这样也能避免运维把尚未接入的 strategy
-        # 配进灰度集合时，compose 分支直接因 unexpected keyword argument 崩溃。
-        enable_reuse = is_reuse_enabled_for(self.data_link_strategy)
+        # 组件复用开关：strategy 级灰度或 RT option 单表开关任一命中，且代码侧已接入时，
+        # 才会构造 existing_context 并交给 compose 分支；table_id 为空时不查 RT option。
+        enable_reuse = is_reuse_enabled_for(
+            self.data_link_strategy,
+            table_id=kwargs.get("table_id"),
+            bk_tenant_id=self.bk_tenant_id,
+        )
         existing_context: ExistingComponentContext | None = (
             ExistingComponentContext.from_datalink(self) if enable_reuse else None
         )

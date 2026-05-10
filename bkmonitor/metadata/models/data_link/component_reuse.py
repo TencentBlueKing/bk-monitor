@@ -44,14 +44,16 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
 
 # 已在代码中真正接入 existing_context 参数的 data_link_strategy 白名单。
 #
-# 复用机制遵循两个闸门的"交集"语义：
+# 复用机制遵循"代码能力白名单 + 运行时开关"语义：
 #
 # - settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES：运维/灰度侧的开关，决定本次
 #   部署里哪些 strategy 允许尝试复用；
+# - ResultTableOption.OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE：单表开关，用于精准
+#   指定某张 RT 进入复用逻辑；
 # - REUSE_ENABLED_STRATEGIES：代码侧的实现声明，列出 compose_*_configs 已经改造
 #   完成、可以安全接收 existing_context 参数的 strategy。
 #
-# 只有两者都命中，才会为当前 datalink 构造 ExistingComponentContext 并把它下传到
+# 只有代码能力命中，且 strategy 灰度或单表开关任一命中，才会构造 ExistingComponentContext 并下传到
 # compose 分支。这样当运维在 settings 里误配了一个尚未接入复用的 strategy 时，
 # compose 层不会因为多出一个不认识的关键字参数而直接 ``TypeError``，而是带一条
 # warning 日志回退到原有新建路径，保证"只会影响复用能力，不会把链路 apply 打挂"。
@@ -67,20 +69,46 @@ REUSE_ENABLED_STRATEGIES: set[str] = {
 }
 
 
-def is_reuse_enabled_for(strategy: str) -> bool:
-    """判断某 strategy 当前是否应当启用组件复用（灰度开关 ∩ 代码白名单）。
+def is_reuse_supported_for(strategy: str) -> bool:
+    """判断某 strategy 的 compose 流程是否已接入组件复用。"""
+    return strategy in REUSE_ENABLED_STRATEGIES
+
+
+def _is_table_option_enabled(table_id: str | None, bk_tenant_id: str | None) -> bool:
+    if not table_id or not bk_tenant_id:
+        return False
+
+    from metadata.models.result_table import ResultTableOption
+
+    option = ResultTableOption.objects.filter(
+        table_id=table_id,
+        bk_tenant_id=bk_tenant_id,
+        name=ResultTableOption.OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE,
+    ).first()
+    return option is not None and option.get_value() is True
+
+
+def is_reuse_enabled_for(strategy: str, table_id: str | None = None, bk_tenant_id: str | None = None) -> bool:
+    """判断当前 datalink 是否应当启用组件复用。
+
+    开关来源包含 strategy 级灰度与 RT option 级单表开关；``table_id`` 为空时不查询
+    RT option，只保留原有 strategy 灰度语义。
 
     当 settings 中配置了该 strategy 但 :data:`REUSE_ENABLED_STRATEGIES` 未包含它时，
     打印一条 warning 提示"配了灰度但代码还没接入"，并返回 ``False`` 走老路径。
     """
-    if strategy not in getattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES", set()):
+    strategy_enabled = strategy in settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
+    table_enabled = _is_table_option_enabled(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    if not strategy_enabled and not table_enabled:
         return False
-    if strategy not in REUSE_ENABLED_STRATEGIES:
+    if not is_reuse_supported_for(strategy):
         logger.warning(
-            "component reuse: strategy=%s is configured in DATA_LINK_COMPONENT_REUSE_STRATEGIES "
-            "but its compose pipeline has not been migrated yet "
+            "component reuse: strategy=%s is enabled by runtime switch "
+            "(strategy_enabled=%s, table_enabled=%s) but its compose pipeline has not been migrated yet "
             "(REUSE_ENABLED_STRATEGIES=%s); falling back to the legacy create path.",
             strategy,
+            strategy_enabled,
+            table_enabled,
             sorted(REUSE_ENABLED_STRATEGIES),
         )
         return False

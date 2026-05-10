@@ -3132,6 +3132,70 @@ def test_bk_standard_v2_sync_metadata_respects_tenant_biz_id(
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_bk_standard_v2_result_table_option_enables_reuse(create_or_delete_records, settings, mocker):
+    """RT option=true 时，即使 strategy 灰度关闭，单表 apply 也应进入复用逻辑。"""
+    datalink, ds, rt = _prepare_bk_standard_v2_datalink()
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
+    models.ResultTableOption.create_option(
+        table_id=rt.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE,
+        value=True,
+        creator="pytest",
+        bk_tenant_id=datalink.bk_tenant_id,
+    )
+
+    ResultTableConfig.objects.create(
+        name="legacy_v2_rt_by_option",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+    VMStorageBindingConfig.objects.create(
+        name="legacy_v2_binding_by_option",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+        vm_cluster_name="vm-plat",
+        bkbase_result_table_name=bkbase_vmrt_name,
+    )
+    DataBusConfig.objects.create(
+        name="legacy_v2_databus_by_option",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        data_id_name=bkbase_data_name,
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as apply_mock:
+        datalink.apply_data_link(
+            bk_biz_id=1001,
+            data_source=ds,
+            table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+        )
+
+    configs = apply_mock.call_args.args[0]
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert DataBusConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert configs[0]["metadata"]["name"] == "legacy_v2_rt_by_option"
+    assert configs[1]["metadata"]["name"] == "legacy_v2_binding_by_option"
+    assert configs[1]["spec"]["data"]["name"] == "legacy_v2_rt_by_option"
+    assert configs[2]["metadata"]["name"] == "legacy_v2_databus_by_option"
+    assert configs[2]["spec"]["sinks"][0]["name"] == "legacy_v2_binding_by_option"
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_bk_standard_v2_reuse_off_uses_default_name(create_or_delete_records, mocker, settings):
     """V2 链路灰度未开启时：即便 DB 里已有 legacy 记录，compose 仍然按 bkbase_vmrt_name 新建。"""
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
