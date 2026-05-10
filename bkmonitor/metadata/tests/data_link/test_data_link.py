@@ -3263,6 +3263,79 @@ def test_bk_standard_v2_sync_metadata_respects_tenant_biz_id(
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_sync_metadata_records_partial_bkbase_result_table_when_databus_missing(create_or_delete_records):
+    """DataBusConfig 缺失时，sync_metadata 仍应尽量回填 ResultTableConfig 中已知的实名信息。"""
+    datalink, _, rt = _prepare_bk_standard_v2_datalink()
+
+    ResultTableConfig.objects.create(
+        name="partial_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+
+    datalink.sync_metadata(table_id=rt.table_id, storage_cluster_name="vm-plat")
+
+    brt = BkBaseResultTable.objects.get(data_link_name=datalink.data_link_name)
+    assert brt.monitor_table_id == rt.table_id
+    assert brt.bkbase_rt_name == "partial_rt"
+    assert brt.bkbase_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_partial_rt"
+    assert brt.bkbase_data_name is None
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_metadata_uses_filtered_latest_config_when_duplicates_exist(create_or_delete_records):
+    """存在重复配置时不直接放弃，选择最近更新的一条继续回填 BkBaseResultTable。"""
+    datalink, ds, rt = _prepare_bk_standard_v2_datalink()
+
+    ResultTableConfig.objects.create(
+        name="old_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+    ResultTableConfig.objects.create(
+        name="latest_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+    )
+    DataBusConfig.objects.create(
+        name="old_databus",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        data_id_name="old_data_name",
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+    DataBusConfig.objects.create(
+        name="latest_databus",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        data_id_name="latest_data_name",
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+
+    datalink.sync_metadata(table_id=rt.table_id, storage_cluster_name="vm-plat")
+
+    brt = BkBaseResultTable.objects.get(data_link_name=datalink.data_link_name)
+    assert brt.bkbase_rt_name == "latest_rt"
+    assert brt.bkbase_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_latest_rt"
+    assert brt.bkbase_data_name == "latest_data_name"
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_bk_standard_v2_result_table_option_enables_reuse(create_or_delete_records, settings, mocker):
     """RT option=true 时，即使 strategy 灰度关闭，单表 apply 也应进入复用逻辑。"""
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()

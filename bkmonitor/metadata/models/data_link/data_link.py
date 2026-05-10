@@ -1610,58 +1610,72 @@ class DataLink(models.Model):
             logger.error("sync_metadata: storage_cluster_name->[%s] not exist!", storage_cluster_name)
             return
 
-        try:
-            rt = ResultTableConfig.objects.get(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
-                table_id=table_id,
-            )
-        except ResultTableConfig.DoesNotExist:
+        rt_queryset = ResultTableConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+            table_id=table_id,
+        ).order_by("-last_modify_time", "-id")
+        rt_count = rt_queryset.count()
+        rt = rt_queryset.first()
+        if rt_count == 0:
             logger.warning(
-                "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, skip",
+                "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, "
+                "will record partial BkBaseResultTable",
                 self.data_link_name,
                 table_id,
             )
-            return
-        except ResultTableConfig.MultipleObjectsReturned:
+        elif rt_count > 1:
             logger.error(
-                "sync_metadata: data_link_name->[%s] table_id->[%s] got multiple ResultTableConfig, skip",
+                "sync_metadata: data_link_name->[%s] table_id->[%s] got multiple ResultTableConfig, "
+                "selected name->[%s] to record BkBaseResultTable",
                 self.data_link_name,
                 table_id,
+                rt.name if rt else "",
             )
-            return
 
-        try:
-            databus = DataBusConfig.objects.get(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
+        databus_queryset = DataBusConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+        ).order_by("-last_modify_time", "-id")
+        databus_count = databus_queryset.count()
+        databus = databus_queryset.first()
+        if databus_count == 0:
+            logger.warning(
+                "sync_metadata: data_link_name->[%s] DataBusConfig not found, will record partial BkBaseResultTable",
+                self.data_link_name,
             )
-        except DataBusConfig.DoesNotExist:
-            logger.warning("sync_metadata: data_link_name->[%s] DataBusConfig not found, skip", self.data_link_name)
-            return
-        except DataBusConfig.MultipleObjectsReturned:
-            logger.error("sync_metadata: data_link_name->[%s] got multiple DataBusConfig, skip", self.data_link_name)
-            return
+        elif databus_count > 1:
+            logger.error(
+                "sync_metadata: data_link_name->[%s] got multiple DataBusConfig, "
+                "selected name->[%s] to record BkBaseResultTable",
+                self.data_link_name,
+                databus.name if databus else "",
+            )
 
-        bkbase_rt_name = rt.name
-        bkbase_table_id = f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}"
-        bkbase_data_name = databus.data_id_name
+        defaults = {
+            "monitor_table_id": table_id,
+            "storage_type": ClusterInfo.TYPE_VM,
+            "storage_cluster_id": storage_cluster_id,
+        }
+        if rt:
+            bkbase_rt_name = rt.name
+            defaults.update(
+                {
+                    "bkbase_rt_name": bkbase_rt_name,
+                    "bkbase_table_id": f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
+                }
+            )
+        if databus:
+            defaults["bkbase_data_name"] = databus.data_id_name
 
         try:
             with transaction.atomic():
                 BkBaseResultTable.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     data_link_name=self.data_link_name,
-                    defaults={
-                        "monitor_table_id": table_id,
-                        "bkbase_rt_name": bkbase_rt_name,
-                        "bkbase_data_name": bkbase_data_name,
-                        "bkbase_table_id": bkbase_table_id,
-                        "storage_type": ClusterInfo.TYPE_VM,
-                        "storage_cluster_id": storage_cluster_id,
-                    },
+                    defaults=defaults,
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("sync_metadata: data_link_name->[%s],sync_metadata failed,error->[%s]", self.data_link_name, e)
