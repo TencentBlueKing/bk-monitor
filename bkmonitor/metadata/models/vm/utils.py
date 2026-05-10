@@ -755,6 +755,8 @@ def create_bkbase_data_link(
 
     try:
         vm_result_table_id = BkBaseResultTable.objects.get(data_link_name=data_link_ins.data_link_name).bkbase_table_id
+        if not vm_result_table_id:
+            raise BkBaseResultTable.DoesNotExist
     except BkBaseResultTable.DoesNotExist:
         datalink_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=data_source.bk_tenant_id, bk_biz_id=bk_biz_id)
         fallback_rt_name = compose_bkdata_table_id(table_id=monitor_table_id, strategy=data_link_strategy)
