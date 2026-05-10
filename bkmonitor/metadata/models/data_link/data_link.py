@@ -1652,6 +1652,7 @@ class DataLink(models.Model):
         try:
             with transaction.atomic():
                 BkBaseResultTable.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
                     data_link_name=self.data_link_name,
                     defaults={
                         "monitor_table_id": table_id,
