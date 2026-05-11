@@ -2,6 +2,13 @@
   display: flex;
   align-items: center;
 
+  .overflow-hidden-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
   /* 左侧用户图标 */
   .user-avatar {
     display: flex;
@@ -25,6 +32,7 @@
   .user-basic-info {
     flex-shrink: 0;
     min-width: 216px;
+    max-width: 542px;
     margin: 0 12px;
 
     .user-name {

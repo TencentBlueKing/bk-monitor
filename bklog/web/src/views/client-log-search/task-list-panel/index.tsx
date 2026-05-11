@@ -42,8 +42,28 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 任务列表数据 */
+    taskList: {
+      type: Array as () => LogItem[],
+      default: () => [],
+    },
+    /** 是否还有更多数据 */
+    hasMore: {
+      type: Boolean,
+      default: true,
+    },
+    /** 是否正在加载 */
+    isLoading: {
+      type: Boolean,
+      default: false,
+    },
+    /** 当前选中的日志条目 */
+    selectedLogItem: {
+      type: Object as () => LogItem | null,
+      default: null,
+    },
   },
-  emits: ['log-item-select', 'toggle'],
+  emits: ['log-item-select', 'toggle', 'load-more'],
   setup(props, { emit }) {
     /** 是否收起 */
     const isCollapsed = ref(false);
@@ -52,12 +72,6 @@ export default defineComponent({
     watch(() => props.collapsed, (val) => {
       isCollapsed.value = val;
     });
-
-    /** 当前选中的条目 ID */
-    const selectedItemId = ref<number | null>(null);
-
-    /** 日志条目列表数据 */
-    const logItemList: LogItem[] = [];
 
     /**
      * 切换收起/展开
@@ -68,11 +82,49 @@ export default defineComponent({
     };
 
     /**
+     * 触底加载检测
+     */
+    const handleScroll = (e: Event) => {
+      const el = e.target as HTMLElement;
+      if (el.scrollTop + el.clientHeight + 50 >= el.scrollHeight) {
+        if (!props.isLoading && props.hasMore) {
+          emit('load-more');
+        }
+      }
+    };
+
+    /**
      * 点击日志条目
      */
     const handleLogItemSelect = (item: LogItem) => {
-      selectedItemId.value = item.id;
+      if (item.file_name === props.selectedLogItem?.file_name) return;
       emit('log-item-select', item);
+    };
+
+    /**
+     * 将任务处理状态映射为采集状态
+     */
+    const mapToCollectionStatus = (status: ProcessStatus | null): string => {
+      const statusMap: Record<ProcessStatus, string> = {
+        init: 'uncollected',
+        pending: 'uncollected',
+        running: 'collecting',
+        success: 'collected',
+        failed: 'failed',
+      };
+      return status ? statusMap[status] : 'uncollected';
+    };
+
+    /** 采集状态对应的显示文本 */
+    const mapToCollectionStatusText = (status: ProcessStatus | null): string => {
+      const statusMap: Record<ProcessStatus, string> = {
+        init: '未采集',
+        pending: '未采集',
+        running: '采集中',
+        success: '已采集',
+        failed: '采集失败',
+      };
+      return status ? statusMap[status] : '未采集';
     };
 
     return () => (
@@ -87,30 +139,35 @@ export default defineComponent({
         </div>
 
         {/* 日志条目列表 */}
-        <div class='task-list'>
-          {logItemList.map(item => (
+        <div class='task-list' onScroll={handleScroll}>
+          {props.taskList.map(item => (
             <div
-              key={item.id ?? item.task_id}
-              class={['task-item', { active: selectedItemId.value === item.id }]}
+              key={item.file_name}
+              class={['task-item', { active: props.selectedLogItem?.file_name === item.file_name }]}
               onClick={() => handleLogItemSelect(item)}
             >
               {/* 第一行：时间 + 状态标签 */}
               <div class='task-header'>
                 <span class='task-time'>{item.report_time ?? item.processed_at}</span>
-                <span class={`task-status ${(item.process_status ?? '') as ProcessStatus}`}>
-                  <i class='status-dot'></i>
-                  {item.process_status}
+                <span class={`task-status ${mapToCollectionStatus(item.process_status)}`}>
+                  {item.process_status === 'running'
+                    ? <bk-spin size='mini'></bk-spin> : <i class='status-dot'></i>}
+                  {t(mapToCollectionStatusText(item.process_status))}
                 </span>
               </div>
 
-              {/* 第二行：文件名 + 来源 */}
+              {/* 第二行：文件名 + openid */}
               <div class='task-title-row'>
-                <span class='task-title'>{item.file_name}</span>
-                <span class='task-separator'></span>
-                <span class='task-id'>{item.source}</span>
+                <span class='task-title' v-bk-overflow-tips>{item.file_name}</span>
+                {item.openid && (
+                  <span class='task-id' v-bk-overflow-tips>{item.openid}</span>
+                )}
               </div>
             </div>
           ))}
+          {props.isLoading && props.hasMore && (
+            <div class='task-list-loading'>loading...</div>
+          )}
         </div>
       </div>
     );

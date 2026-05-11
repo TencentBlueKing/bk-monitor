@@ -908,3 +908,12 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-user-yonghu:before {
 	content: "\e26a";
 }
+.bklog-tracing:before {
+	content: "\e26b";
+}
+.bklog-celan:before {
+	content: "\e26d";
+}
+.bklog-file-wenjian:before {
+	content: "\e26c";
+}

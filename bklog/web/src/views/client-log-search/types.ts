@@ -67,5 +67,6 @@ export interface FileTreeNode {
 /** 搜索参数类型 */
 export interface SearchParams {
   openid: string;                    // openid（搜索关键词）
-  timeRange?: [string, string];      // 时间范围 [start, end]，可选
+  timeRange: [string, string];      // 时间范围 [start, end]
+  timezone: string;                  // 时区标识
 }

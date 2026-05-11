@@ -54,7 +54,7 @@
 
       .device-info {
         font-size: 13px;
-        color: #63656E;
+        color: #8F9FBD;
         line-height: 22px;
         position: relative;
         padding-left: 12px;
@@ -93,6 +93,42 @@
           font-size: 14px;
         }
       }
+    }
+  }
+
+  /* 未采集状态内容 */
+  .uncollected-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 80px;
+
+    .tip {
+      font-size: 14px;
+      color: #4D4F56;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+  }
+
+  /* 采集中状态内容 */
+  .collecting-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 80px;
+
+    .collecting-spin {
+      margin-bottom: 16px;
+    }
+
+    .collecting-title {
+      font-size: 14px;
+      color: #4D4F56;
+      text-align: center;
     }
   }
 
@@ -155,7 +191,6 @@
     display: flex;
     height: 100%;
     overflow: hidden;
-    padding-top: 8px;
     background-color: #212429;
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
@@ -165,11 +200,33 @@
       width: 240px;
       min-width: 240px;
       height: 100%;
+      padding-top: 8px;
       overflow-y: auto;
-      border-right: 1px solid #F0F1F5;
+      border-right: 1px solid #000;
+      transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease, border 0.2s ease;
+
+      &.is-collapsed {
+        width: 0;
+        min-width: 0;
+        padding: 0;
+        border-right: none;
+        overflow: hidden;
+      }
 
       .bk-big-tree {
         height: 100%;
+
+        .is-root {
+          padding-left: 8px;
+        }
+
+        .bk-big-tree-node:hover {
+          background-color: transparent;
+        }
+
+        .bk-big-tree-node:has(.tree-node-content.is-active) {
+          background-color: #2F4261;
+        }
       }
 
       .tree-node-content {
@@ -189,6 +246,16 @@
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+
+        &.is-active {
+          .node-name {
+            color: #FFFFFF;
+          }
+
+          .bklog-icon {
+            color: #FFFFFF;
+          }
+        }
       }
     }
 
@@ -199,19 +266,40 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      padding-top: 8px;
 
       .toolbar-wrapper {
         flex-shrink: 0;
+        background: #fff;
       }
 
       .log-content-scroll {
         flex: 1;
         min-height: 0;
-        overflow: hidden;
+        overflow-y: auto;
 
-        .log-viewer {
-          flex: 1;
-          min-height: 0;
+        &::-webkit-scrollbar {
+          width: 4px;
+          height: 8px;
+          background-color: #c4c6cc;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background-color: #aaa;
+          border-radius: 2px;
+        }
+
+        .client-log-viewer {
+          min-height: 100%;
+        }
+
+        .log-load-more {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 12px 0 16px;
+          font-size: 12px;
+          color: #979BA5;
         }
       }
     }
