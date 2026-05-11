@@ -677,6 +677,9 @@ class BizWithAlertStatisticsResource(Resource):
         }
         return business_data
 
+    # ES index.max_terms_count 限制，动态选择较小集合避免超限
+    MAX_TERMS_COUNT = 65536
+
     def perform_request(self, validated_request_data):
         business_info = self.get_all_business_list()
         unauthorized_biz_ids = business_info["unauthorized_biz_ids"]
@@ -697,7 +700,12 @@ class BizWithAlertStatisticsResource(Resource):
             search_object = search_object.filter(
                 Q("term", assignee=request_username) | Q("term", appointee=request_username)
             )
-            search_object = search_object.filter("terms", **{"event.bk_biz_id": list(unauthorized_biz_ids)})
+            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
+            authorized_biz_ids = [biz["bk_biz_id"] for biz in business_info["business_with_permission"]]
+            if len(unauthorized_biz_ids) <= len(authorized_biz_ids):
+                search_object = search_object.filter("terms", **{"event.bk_biz_id": list(unauthorized_biz_ids)})
+            else:
+                search_object = search_object.filter("must_not", Q("terms", **{"event.bk_biz_id": authorized_biz_ids}))
             search_object.aggs.bucket("biz_overview", "terms", field="event.bk_biz_id", size=10000)
             search_result = search_object.execute()
             business_with_alert = [
