@@ -1,0 +1,340 @@
+paths:
+  /mcp/list_apm_applications/:
+    get:
+      operationId: list_apm_applications
+      description: List APM applications in a business. Entry point for APM tracing workflow, used before get_apm_filter_fields and search_spans. Returns app_name list for subsequent queries. Similar to listing services in Jaeger. 获取业务下APM应用列表。APM链路追踪工作流的入口工具，在get_apm_filter_fields和search_spans前使用。返回app_name列表供后续查询。类似Jaeger的服务列表。
+      tags:
+      - apm_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        description: Business ID in BlueKing Monitor. 业务ID。
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/apm_mcp/list_apm_application/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_apm_filter_fields/:
+    get:
+      operationId: get_apm_filter_fields
+      description: Get available filter fields for an APM app. Use after list_apm_applications to understand what filters can be used in search_spans. Returns field names like attributes.http.method, resource.service.name, etc. Helps build valid filters parameter. 获取APM应用的可用过滤字段。在list_apm_applications后使用，了解search_spans中可用的过滤条件。返回如attributes.http.method、resource.service.name等字段名。帮助构建有效的filters参数。
+      tags:
+      - apm_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务ID。
+      - in: query
+        name: app_name
+        schema:
+          type: string
+          default: 'Must be obtained from list_apm_applications. '
+        required: true
+        description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/apm_mcp/get_apm_search_filters/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_spans/:
+    post:
+      operationId: search_spans
+      description: Search spans in an APM app with filters and time range. Use after list_apm_applications. Returns span_id, trace_id for detail queries. Timestamps must be calculated dynamically. ⚠️ Query time span must NOT exceed 1 day (86400s). filters uses key/operator/value structure, get valid keys from get_apm_filter_fields. 查询APM应用的Span列表。在list_apm_applications后使用。返回span_id、trace_id供详情查询。时间戳需动态计算。⚠️查询跨度不得超过1天。 filters使用key/operator/value结构，有效key从get_apm_filter_fields获取。
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - app_name
+              - end_time
+              - bk_biz_id
+              - start_time
+              properties:
+                sort:
+                  type: array
+                  default: '["-elapsed_time"]'
+                  description: 'Sort conditions array. Each item is a field name, prefix with - for descending. Default: []. 排序条件数组。每项为字段名，前缀-表示降序。默认: []。'
+                limit:
+                  type: string
+                  default: '10'
+                  description: 'Maximum number of spans to return. Default: 10. 返回的最大Span数量。默认: 10。'
+                query:
+                  type: string
+                  default: '""'
+                  description: 'Query string for full-text search. Default: "". 全文搜索查询字符串。默认: ""。'
+                offset:
+                  type: string
+                  default: '0'
+                  description: 'Offset for pagination. Default: 0. 分页偏移量。默认: 0。'
+                filters:
+                  type: array
+                  default: '// 示例 1：查询 POST 请求 {   "key": "attributes.http.method",   "operator": "equal",   "value": ["POST"],   "options": {"group_relation": "OR"} }  // 示例 2：查询 HTTP 状态码为 500 的请求 {   "key": "attributes.http.status_code",   "operator": "equal",   "value": ["500"] }'
+                  description: 'Filter conditions array. Each filter has: key (field name from get_apm_filter_fields), operator (equal/not_equal/like/etc), value (array of values), options (optional, e.g., group_relation). Default: []. 过滤条件数组。每个filter包含: key(字段名,从get_apm_filter_fields获取), operator(equal/not_equal/like等), value(值数组), options(可选)。默认: []。'
+                app_name:
+                  type: string
+                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+                end_time:
+                  type: string
+                  description: 'End timestamp in seconds (Unix). CRITICAL: Calculate current time dynamically! Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000). NEVER use historical timestamps. 结束时间戳(秒)。关键:动态计算当前时间！ Python: int(time.time())。绝不使用历史时间戳。'
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                start_time:
+                  type: string
+                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600. DO NOT use fixed historical values. 开始时间戳(秒)。必须动态计算！ Python: int(time.time()) - 3600。不要用固定历史值。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_mcp/list_apm_span/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_trace_detail/:
+    post:
+      operationId: get_trace_detail
+      description: Get complete trace detail including all spans in the call chain. trace_id must be obtained from search_spans. Returns full trace tree with parent-child relationships, timing, and attributes. Use to analyze complete request flow. 获取完整Trace详情，包含调用链中的所有Span。trace_id必须从search_spans获取。返回包含父子关系、时序和属性的完整Trace树。用于分析完整请求流程。
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - app_name
+              - trace_id
+              - bk_biz_id
+              properties:
+                app_name:
+                  type: string
+                  description: APM application name. APM应用名称。
+                trace_id:
+                  type: string
+                  description: Trace ID. Must be obtained from search_spans response. Trace ID。必须从 search_spans 返回结果获取。
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_mcp/query_apm_trace_detail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_span_detail/:
+    post:
+      operationId: get_span_detail
+      description: Get detailed information of a single span. span_id must be obtained from search_spans or get_trace_detail. Returns complete span attributes, events, links, and resource info. Use to analyze specific operation details. 获取单个Span的详细信息。span_id必须从search_spans或get_trace_detail获取。返回完整的Span属性、事件、链接和资源信息。用于分析特定操作详情。
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              - span_id
+              properties:
+                span_id:
+                  type: string
+                  description: Span ID. Must be obtained from search_spans or get_trace_detail. Span ID。必须从 search_spans 或 get_trace_detail 获取。
+                app_name:
+                  type: string
+                  description: APM application name. APM应用名称。
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_mcp/query_apm_span_detail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/calculate_by_range/:
+    post:
+      operationId: calculate_by_range
+      description: Calculate APM metrics by time range with comparison analysis. Supports request_total, success_rate, exception_rate, timeout_rate, avg/p50/p95/p99_duration. Enables multi-time-point comparison (e.g. day-over-day), group_by aggregation, growth rate and proportion calculation. app_name must be obtained from list_apm_applications. 按时间范围计算APM指标,支持多时间点对比(如日环比)、分组聚合、增长率和占比。app_name必须从list_apm_applications获取。
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              - metric_group_name
+              - metric_cal_type
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从list_apm_applications获取。
+                metric_group_name:
+                  type: string
+                  description: 'Metric group. Valid values: "trpc", "resource". 指标组。可选值:"trpc"、"resource"。'
+                metric_cal_type:
+                  type: string
+                  description: 'Metric calculation type. Valid values: "request_total" (request count), "success_rate", "timeout_rate", "exception_rate", "avg_duration", "p50_duration", "p95_duration", "p99_duration". 指标计算类型。'
+                start_time:
+                  type: string
+                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600. DO NOT use fixed values. 开始时间戳(秒)。必须动态计算！ Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600。不要用固定值。'
+                end_time:
+                  type: string
+                  description: 'End timestamp in seconds (Unix). CRITICAL: Calculate dynamically! Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000). NEVER use historical values. 结束时间戳(秒)。必须动态计算！ Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000)。绝不使用历史值。'
+                baseline:
+                  type: string
+                  default: 0s
+                  description: 'Baseline time shift for growth rate calculation. Format: "0s" (current), "1h", "1d", "1w", "1M". Default: "0s". 增长率计算的基准时间偏移。默认:"0s"。'
+                time_shifts:
+                  type: array
+                  default: '[]'
+                  description: Time shift list for comparison. Max 2 comparison points. E.g. ["0s","1d"] for day-over-day. "0s" is auto-added if missing. 时间偏移列表,最多2个对比点。如["0s","1d"]表示日环比。
+                filter_dict:
+                  type: object
+                  default: '{}'
+                  description: Filter conditions dict. Merged with where conditions. 过滤条件字典。与where合并生效。
+                where:
+                  type: array
+                  default: '[]'
+                  description: 'Filter conditions list. Each item: {"key":"field","value":["val"],"method":"eq","condition":"and"}. method: eq/neq/include/exclude/reg. 过滤条件列表。'
+                group_by:
+                  type: array
+                  default: '[]'
+                  description: Group-by fields for dimension aggregation. E.g. ["callee_method","service_name"]. 分组字段列表。如["callee_method"]。
+                options:
+                  type: object
+                  default: '{}'
+                  description: Extra options. For trpc metrics, set options.trpc with kind ("caller"/"callee") and temporality ("cumulative"/"delta"). 额外配置。trpc指标需设置options.trpc,含kind和temporality。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_metric_web/calculate_by_range/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/list_apm_services/:
+    post:
+      operationId: list_apm_services
+      description: List services under an APM application with service_language, observability system (SDK/temporality), log index-set relations, and optional Kubernetes workload links. Use after list_apm_applications. Optional service_names filters the result set; omit or empty for all real services (virtual nodes excluded). Helps correlate traces with logs and K8s. 查询APM应用下的服务列表，包含语言、系统信息（SDK与时间性）、日志索引集关联及可选K8s工作负载。在list_apm_applications后使用。可选service_names仅返回指定服务；不传或空列表返回应用下全部真实服务（不含虚拟节点）。用于关联链路与日志、K8s拓扑。
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+                service_names:
+                  type: array
+                  items:
+                    type: string
+                  default: '[]'
+                  description: Optional service name list; when empty or omitted, returns all services under the app. 可选服务名列表；为空或不传则返回该应用下全部服务。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/service_list/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true

@@ -1,0 +1,133 @@
+paths:
+  /mcp/find_relations/:
+    post:
+      operationId: find_relations
+      description: Query resource relations at a specific point in time to discover target resources (e.g., hosts, nodes) based on source resources (e.g., pods, containers). Supports batch queries for multiple resources in a single request. Typical use cases include Pod-to-host mapping, real-time topology construction, and troubleshooting. 查询某时刻的资源关联关系,根据源资源(如Pod、容器)发现目标资源(如主机、节点)。支持单次请求批量查询多个资源。典型场景包括Pod到主机映射、实时拓扑构建和故障定位。
+      tags:
+      - relation_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - query_list
+              properties:
+                bk_biz_id:
+                  type: number
+                  description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
+                query_list:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - timestamp
+                    - source_info
+                    properties:
+                      timestamp:
+                        type: number
+                        description: 'Timestamp in seconds (Unix). CRITICAL: MUST use real timestamp - avoid fixed values! If not specified, calculate current time dynamically. Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s. 时间戳(秒)。关键:必须使用真实时间戳！Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s。'
+                      source_info:
+                        type: object
+                        description: 'Source resource dimensional info (key-value mapping). For Pod: include bcs_cluster_id, namespace, pod. For Node: include bcs_cluster_id, node. 源资源维度信息(键值映射)。Pod需包含bcs_cluster_id、namespace、pod。Node需包含bcs_cluster_id、node。'
+                      target_type:
+                        type: string
+                        default: system
+                        description: 'Target resource type. Common values: "system" (host), "node" (K8s node), "service", "container". Default: system. 目标资源类型。常见值: "system"(主机)、"node"(K8s节点)、"service"、"container"。默认: system。'
+                      path_resource:
+                        type: array
+                        items:
+                          type: string
+                        default: '["node"]'
+                        description: 'Relation path resource types. For Pod-to-System: ["node"] (pod→node→system). Can be empty for direct relations. Default: ["node"]. 关联路径资源类型。Pod到System: ["node"](pod→node→system)。直接关联可为空。默认: ["node"]。'
+                  description: List of query items. Each item represents a source resource to query. Supports batch queries (multiple resources in one request). 查询列表。每个条目代表一个要查询的源资源。支持批量查询(单次请求查询多个资源)。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/relation/find_relations/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: None
+  /mcp/find_relations_range/:
+    post:
+      operationId: find_relations_range
+      description: Query resource relation changes over a time range with time-series results. Tracks how resource relations evolve over time, essential for analyzing container migrations, resource scheduling changes, and historical topology. Query time span should be reasonable (recommended ≤7 days). For longer periods, split into multiple queries. 查询时间范围内资源关联关系的变化,返回时间序列结果。追踪资源关联如何随时间演变,对于分析容器迁移、资源调度变化和历史拓扑至关重要。查询时间跨度应合理(建议≤7天)。更长时间段需拆分为多个查询。
+      tags:
+      - relation_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - query_list
+              properties:
+                bk_biz_id:
+                  type: number
+                  description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
+                query_list:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - start_time
+                    - end_time
+                    - step
+                    - source_info
+                    properties:
+                      step:
+                        type: string
+                        description: 'Query step interval. Format: "60s" (60 seconds), "5m" (5 minutes), "1h" (1 hour). Smaller steps provide finer granularity but return more data points. Recommended: "60s" for ≤1 hour, "5m" for ≤6 hours, "1h" for ≤7 days. 查询步长间隔。格式: "60s"(60秒)、"5m"(5分钟)、"1h"(1小时)。更小步长提供更细粒度但返回更多数据点。建议: ≤1小时用"60s",≤6小时用"5m",≤7天用"1h"。'
+                      end_time:
+                        type: number
+                        description: 'End timestamp in seconds (Unix). CRITICAL: MUST use current timestamp - NEVER use historical values! Calculate current time dynamically. Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s. 结束时间戳(秒)。关键:必须使用当前时间戳！Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s。'
+                      start_time:
+                        type: number
+                        description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! If user requests relative time (e.g., "last 1 hour"), calculate as: end_time - 3600. Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600. 开始时间戳(秒)。必须动态计算！如用户请求相对时间(如"最近1小时"),计算方式: end_time - 3600。'
+                      source_info:
+                        type: object
+                        description: 'Source resource dimensional info (key-value mapping). For Pod: include bcs_cluster_id, namespace, pod. For Node: include bcs_cluster_id, node. 源资源维度信息(键值映射)。Pod需包含bcs_cluster_id、namespace、pod。Node需包含bcs_cluster_id、node。'
+                      target_type:
+                        type: string
+                        default: system
+                        description: 'Target resource type. Common values: "system" (host), "node" (K8s node), "service", "container". Default: system. 目标资源类型。常见值: "system"(主机)、"node"(K8s节点)、"service"、"container"。默认: system。'
+                      path_resource:
+                        type: array
+                        items:
+                          type: string
+                        default: '["node"]'
+                        description: 'Relation path resource types. For Pod-to-System: ["node"] (pod→node→system). Can be empty for direct relations. Default: ["node"]. 关联路径资源类型。Pod到System: ["node"](pod→node→system)。直接关联可为空。默认: ["node"]。'
+                  description: List of query items. Each item represents a source resource to query over a time range. Supports batch queries. 查询列表。每个条目代表一个要在时间范围内查询的源资源。支持批量查询。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/relation/find_relations_range/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: None
