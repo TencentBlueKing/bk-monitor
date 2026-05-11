@@ -677,9 +677,6 @@ class BizWithAlertStatisticsResource(Resource):
         }
         return business_data
 
-    # ES index.max_terms_count 限制，动态选择较小集合避免超限
-    MAX_TERMS_COUNT = 65536
-
     def perform_request(self, validated_request_data):
         business_info = self.get_all_business_list()
         unauthorized_biz_ids = business_info["unauthorized_biz_ids"]
