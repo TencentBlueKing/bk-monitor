@@ -5732,7 +5732,59 @@ class DorisStorage(models.Model, StorageResultTable):
     def query_latest_physical_storage_records(
         self, limit: int = 1, order_field: str = "dtEventTimeStamp"
     ) -> dict[str, Any]:
-        """从 Doris 物理表按时间字段倒序拉取最新 N 条原始数据。"""
+        """
+        从 Doris 物理表按时间字段倒序拉取最新 N 条原始数据。
+
+        返回示例（已脱敏精简）::
+
+            {
+                "doris_storage": {
+                    "table_id": "2_bklog.xxx",
+                    "bk_tenant_id": "system",
+                    "bkbase_table_id": "2_bklog_xxx",
+                    "origin_table_id": None,
+                    "source_type": "log",
+                    "index_set": "2_bklog_xxx",
+                    "table_type": "primary_table",
+                    "field_config_mapping": None,
+                    "expire_days": 30,
+                    "storage_cluster_id": 43,
+                },
+                "request_table_id": "2_bklog.xxx",
+                "storage_cluster": {
+                    "cluster_id": 43,
+                    "cluster_name": "doris_xxx",
+                    "domain_name": "doris.example.db",
+                    "port": 9030,
+                    "version": None,
+                },
+                "doris_binding": {
+                    "name": "bklog_xxx",
+                    "namespace": "bklog",
+                    "status": {"phase": "Ok", "message": ""},
+                    "physical_table_name": "db_xxx.table_xxx",
+                    "physical_table_name_source": "metadata.annotations.PhysicalTableName",
+                    "storage_config": {
+                        "table_type": "primary_table",
+                        "db": "db_xxx",
+                        "table": "table_xxx",
+                        "storage_keys": ["dtEventTimeStamp", "serverIp"],
+                        "expires": "30d",
+                    },
+                },
+                "physical_table": {
+                    "physical_table_name": "db_xxx.table_xxx",
+                    "database": "db_xxx",
+                    "table": "table_xxx",
+                    "source": "metadata.annotations.PhysicalTableName",
+                },
+                "order_field": "dtEventTimeStamp",
+                "limit": 1,
+                "records": [{"dtEventTimeStamp": 1710000000000, "log": "..."}],
+                "warnings": [],
+                "errors": [],
+            }
+        """
         warnings: list[dict[str, Any]] = []
         errors: list[dict[str, Any]] = []
         normalized_limit = self._normalize_query_limit(limit)
@@ -5799,7 +5851,87 @@ class DorisStorage(models.Model, StorageResultTable):
         return result
 
     def query_physical_storage_metadata(self) -> dict[str, Any]:
-        """查询 DorisStorage 关联物理表的原始元信息。"""
+        """
+        查询 DorisStorage 关联物理表的原始元信息。
+
+        返回示例（已脱敏精简）::
+
+            {
+                "doris_storage": {
+                    "table_id": "2_bklog.xxx",
+                    "bk_tenant_id": "system",
+                    "bkbase_table_id": "2_bklog_xxx",
+                    "origin_table_id": None,
+                    "source_type": "log",
+                    "index_set": "2_bklog_xxx",
+                    "table_type": "primary_table",
+                    "field_config_mapping": None,
+                    "expire_days": 30,
+                    "storage_cluster_id": 43,
+                },
+                "request_table_id": "2_bklog.xxx",
+                "storage_cluster": {
+                    "cluster_id": 43,
+                    "cluster_name": "doris_xxx",
+                    "domain_name": "doris.example.db",
+                    "port": 9030,
+                    "version": None,
+                },
+                "doris_binding": {
+                    "name": "bklog_xxx",
+                    "namespace": "bklog",
+                    "status": {"phase": "Ok", "message": ""},
+                    "physical_table_name": "db_xxx.table_xxx",
+                    "physical_table_name_source": "metadata.annotations.PhysicalTableName",
+                    "storage_config": {
+                        "table_type": "primary_table",
+                        "db": "db_xxx",
+                        "table": "table_xxx",
+                        "storage_keys": ["dtEventTimeStamp", "serverIp"],
+                        "json_fields": [],
+                        "original_json_fields": [],
+                        "field_config_group": {},
+                        "expires": "30d",
+                        "unique_partition_table": True,
+                    },
+                },
+                "physical_metadata": {
+                    "tables": [
+                        {
+                            "TABLE_SCHEMA": "db_xxx",
+                            "TABLE_NAME": "table_xxx",
+                            "TABLE_TYPE": "BASE TABLE",
+                            "ENGINE": "Doris",
+                            "TABLE_ROWS": 0,
+                            "CREATE_TIME": "datetime",
+                            "UPDATE_TIME": "datetime",
+                        }
+                    ],
+                    "columns": [
+                        {
+                            "COLUMN_NAME": "dtEventTimeStamp",
+                            "ORDINAL_POSITION": 4,
+                            "IS_NULLABLE": "NO",
+                            "DATA_TYPE": "bigint",
+                            "COLUMN_TYPE": "bigint(20)",
+                            "COLUMN_KEY": "",
+                        }
+                    ],
+                    "partitions": [
+                        {
+                            "PARTITION_NAME": "p20260512",
+                            "PARTITION_METHOD": "RANGE",
+                            "PARTITION_EXPRESSION": "thedate",
+                            "PARTITION_DESCRIPTION": "[(...), (...))",
+                            "TABLE_ROWS": 0,
+                        }
+                    ],
+                    "show_create_table": [{"Table": "table_xxx", "Create Table": "CREATE TABLE `table_xxx` (...)"}],
+                },
+                "warnings": [],
+                "errors": [],
+            }
+        """
         warnings: list[dict[str, Any]] = []
         errors: list[dict[str, Any]] = []
         result: dict[str, Any] = {
