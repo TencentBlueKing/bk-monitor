@@ -53,6 +53,7 @@ export default defineComponent({
   emits: {
     applicationOperation: (_type: ApplicationOperationType) => true,
     applicationInfoChange: (_params: { app_alias: string; description: string }) => true,
+    showSdkGuide: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -372,7 +373,10 @@ export default defineComponent({
           </div>
         </div>
         <div class='app-basic-info__right'>
-          <span class='operation-btn'>
+          <span
+            class='operation-btn'
+            onClick={() => this.$emit('showSdkGuide')}
+          >
             <i class='icon-monitor icon-bangzhuwendang link-icon' />
             <span>{this.$t('SDK 接入指引')}</span>
           </span>
