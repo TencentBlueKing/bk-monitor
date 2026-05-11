@@ -720,7 +720,7 @@ export default defineComponent({
           <div class='filter-bar'>
             <bk-input
               value={searchValue.value}
-              placeholder={t('搜索 值')}
+              placeholder={t('搜索 值， Enter 检索')}
               right-icon='bk-icon icon-search'
               on-change={val => (searchValue.value = val)}
               onEnter={() => handleSearch()}
