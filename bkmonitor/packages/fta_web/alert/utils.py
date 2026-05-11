@@ -16,6 +16,17 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 
+# Lucene/ES 查询语法中的特殊字符，作为字面量出现在查询条件值里时需要转义
+_LUCENE_SPECIAL_CHARS_RE = re.compile(r'([+\-=&|><!(){}[\]^"~*?\\:/ ])')
+
+
+def escape_lucene_special_chars(value):
+    """转义 Lucene/ES 查询语法中的特殊字符，仅对字符串生效，其他类型原样返回"""
+    if not isinstance(value, str):
+        return value
+    return _LUCENE_SPECIAL_CHARS_RE.sub(r"\\\1", value)
+
+
 # 生成从 start 到 end 的每日时间段
 def generate_date_ranges(start, end):
     current = datetime.fromtimestamp(start)
@@ -123,17 +134,19 @@ def slice_time_interval(start_time: int, end_time: int) -> list:
     else:
         return [(start_time, end_time)]
 
-def search_time_init(new_interval:int,start_time:int, end_time:int):
-    '''
+
+def search_time_init(new_interval: int, start_time: int, end_time: int):
+    """
     :param new_interval:聚合步长时间间隔(秒)
     :param start_time: 查询的开始时间戳
     :param end_time: 查询的结束时间戳
     :return: 调整后的开始时间戳、结束时间戳、当前时间戳
-    '''
+    """
     start_time = start_time // new_interval * new_interval
     end_time = end_time // new_interval * new_interval + new_interval
     now_time = int(time.time()) // new_interval * new_interval + new_interval
     return start_time, end_time, now_time
+
 
 def add_overview(result: dict, sliced_result: dict):
     if "overview" not in result.keys():
