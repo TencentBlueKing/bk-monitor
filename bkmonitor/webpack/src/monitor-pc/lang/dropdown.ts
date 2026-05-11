@@ -145,4 +145,11 @@ export default {
   通知给我: 'Notify Me',
   自定义时间: 'Custom time',
   用户操作: 'User Operation',
+  语音: 'Voice',
+
+  'Issue 名称': 'Issue Name',
+  '策略 ID': 'Strategy ID',
+  是否回归: 'Whether to return',
+  最近告警时间: 'Recent alarm time',
+  解决时间: 'resolution time',
 };

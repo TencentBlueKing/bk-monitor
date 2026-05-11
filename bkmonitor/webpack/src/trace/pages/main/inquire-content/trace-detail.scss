@@ -8,8 +8,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   box-sizing: border-box !important;
   height: 100%;
   padding: 0 16px 12px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden auto;
 
   .header {
     position: relative;
@@ -193,8 +192,28 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       padding: 0 16px 16px;
       background-color: #fff;
 
+      .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .expand-view-wrapper::after {
+        display: none;
+      }
+
       .bk-nested-loading {
         height: 100%;
+
+        .monitor-trace-log {
+          padding: 0;
+
+          .v3-bklog-root {
+            background: #fff;
+
+            .v3-bklog-content {
+              padding: 0;
+
+              .v3-bklog-container {
+                margin-top: 0;
+              }
+            }
+          }
+        }
       }
 
       .statistics-container {
@@ -416,6 +435,20 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       .bk-tab-header-setting {
         flex: 1;
         overflow: hidden;
+
+        .quick-jump {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+
+          .icon-monitor {
+            margin-left: 4px;
+            font-size: 12px;
+            line-height: 15px;
+            transform: scale(0.85);
+          }
+        }
       }
     }
   }

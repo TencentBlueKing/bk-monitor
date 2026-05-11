@@ -63,7 +63,7 @@ const setMorePopoverRef = (el, index) => {
 };
 const inputValueLength = ref(0);
 
-const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+// const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
 
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
@@ -230,7 +230,7 @@ const {
 });
 
 const debounceShowInstance = () => {
-  const target = refSearchInput.value?.closest(".search-item");
+  const target = refSearchInput.value?.closest('.search-item');
   if (target) {
     delayShowInstance(target);
   }
@@ -411,18 +411,22 @@ const handleCancelClick = () => {
 
 let delayBlurTimer = null;
 
-const handleFullTextInputBlur = (e) => {
+const handleFullTextInputBlur = () => {
   delayBlurTimer && clearTimeout(delayBlurTimer);
   delayBlurTimer = setTimeout(() => {
+    const input = refSearchInput.value;
+    if (!input) return;
+
+    // 延时回调执行时，若 input 已重新获得焦点，则跳过清除逻辑
+    if (document.activeElement === input) return;
+
     setIsInputTextFocus(false);
     inputValueLength.value = 0;
-    e.target.style.setProperty('width', '12px');
-    e.target.value = '';
+    input.style.setProperty('width', '12px');
+    input.value = '';
     queryItem.value = '';
   }, 300);
 };
-
-
 
 const handleInputValueChange = (e) => {
   const currentLength = e.target.value.length;
@@ -524,7 +528,8 @@ const handleBatchInputChange = (isShow) => {
 const formatDateTimeField = (value, fieldType) => {
   const timezone = store.state.indexItem.timezone;
   return RetrieveHelper.formatTimeZoneValue(value, fieldType, timezone);
-}
+};
+
 </script>
 
 <template>

@@ -28,6 +28,7 @@ import {
   computed,
   ref as deepRef,
   defineComponent,
+  inject,
   onMounted,
   onUnmounted,
   shallowRef,
@@ -77,6 +78,7 @@ import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { useCandidateValue } from './hooks/use-candidate-value';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
+import { TRACE_EXPLORE_APM_HOOKS_KEY, BRIDGE_PROPS_KEY, type TraceExploreApmHooks } from './trace-explore-apm';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
@@ -116,6 +118,8 @@ export default defineComponent({
     const router = useRouter();
     const store = useTraceExploreStore();
     const appStore = useAppStore();
+    const apmHooks = inject<TraceExploreApmHooks | null>(TRACE_EXPLORE_APM_HOOKS_KEY, null);
+    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
     const bizId = computed(() => appStore.bizId);
     const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
     const isCollapsed = shallowRef(false);
@@ -254,7 +258,45 @@ export default defineComponent({
       }));
     });
     useIsEnabledProfilingProvider(enableProfiling);
-    console.log('store.refreshInterval', store.refreshInterval);
+
+    watch(
+      () => [bridgeProps?.viewOptions?.filters?.service_name, appName.value],
+      ([serviceName, appName]) => {
+        if (!serviceName || !appName) {
+          return;
+        }
+        setTimeout(() => {
+          where.value = [
+            {
+              key: 'resource.service.name',
+              operator: 'equal',
+              options: {
+                group_relation: 'OR',
+              },
+              value: [serviceName],
+            },
+          ];
+          cacheSceneQuery.set(
+            `trace_${appName}`,
+            structuredClone({
+              where: [
+                {
+                  key: 'collections.resource.service.name',
+                  operator: 'equal',
+                  options: { group_relation: 'OR' },
+                  value: [serviceName],
+                },
+              ],
+              query_string: queryString.value,
+              commonWhere: commonWhere.value,
+            })
+          );
+        });
+      },
+      {
+        immediate: true,
+      }
+    );
     watch(
       () => store.refreshInterval,
       val => {
@@ -305,6 +347,10 @@ export default defineComponent({
       applicationLoading.value = false;
       applicationList.value = data;
       store.updateAppList(data);
+      if (window.source_app === 'apm') {
+        store.updateAppName(bridgeProps.viewOptions.filters.app_name);
+        return;
+      }
       if (!store.appName || !data.find(item => item.app_name === store.appName)) {
         const defaultId = defaultApplication.value || thumbtackList.value?.[0];
         if (data.find(item => item.app_name === defaultId)) {
@@ -543,10 +589,12 @@ export default defineComponent({
     }
     function handleWhereChange(whereP: IWhereItem[]) {
       where.value = whereP;
+      apmHooks?.onConditionChange?.(whereP);
       handleQuery();
     }
     function handleQueryStringChange(val: string) {
       queryString.value = val;
+      apmHooks?.onQueryStringChange?.(val);
       handleQuery();
     }
     function handleQueryStringInputChange(val: string) {
@@ -558,6 +606,7 @@ export default defineComponent({
     }
     function handleFilterModeChange(filterModeP: EMode) {
       filterMode.value = filterModeP;
+      apmHooks?.onFilterModeChange?.(filterModeP);
       handleQuery();
     }
     function handleFilterSearch() {
@@ -859,6 +908,7 @@ export default defineComponent({
       return data;
     };
     return {
+      apmHooks,
       queryConfig,
       t,
       isCollapsed,
@@ -954,7 +1004,7 @@ export default defineComponent({
               onThumbtackChange={this.handleThumbtackChange}
             />
           </div>
-          <div class='trace-explore-content'>
+          <div class={['trace-explore-content', { 'is-apm-trace': window.source_app === 'apm' }]}>
             {this.loading ? (
               <div class='skeleton-element filter-skeleton' />
             ) : (

@@ -1,0 +1,31 @@
+.mini-bar-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .mini-bar-total {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #8f9fbd;
+    text-align: right;
+  }
+
+  .mini-bar-chart-container {
+    flex: 1;
+  }
+
+  .mini-bar-chart {
+    width: 100%;
+  }
+}
+
+/* tooltip appendToBody 挂载到 body，需用 !important 覆盖 ECharts 内联样式 */
+.mini-bar-chart-tooltip {
+  font-size: 12px !important;
+  line-height: 20px !important;
+  color: #fff !important;
+  background: #000c !important;
+  border-radius: 2px !important;
+}

@@ -1,0 +1,51 @@
+.issues-priority-dialog {
+  .bk-dialog-content {
+    margin-top: 24px;
+    margin-bottom: 37px;
+  }
+
+  .issues-priority-dialog-content {
+    .priority-field {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .priority-label {
+        color: #4d4f56;
+
+        .required {
+          margin-left: 2px;
+          color: #ea3636;
+        }
+      }
+
+      .priority-radio-group {
+        display: flex;
+        gap: 24px;
+
+        .bk-radio {
+          margin-left: 0;
+        }
+
+        .priority-tag {
+          display: inline-block;
+          padding: 0 6px;
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 20px;
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+
+  .issues-priority-dialog-footer {
+    display: flex;
+    column-gap: 8px;
+    justify-content: flex-end;
+
+    .bk-button {
+      width: 60px;
+    }
+  }
+}

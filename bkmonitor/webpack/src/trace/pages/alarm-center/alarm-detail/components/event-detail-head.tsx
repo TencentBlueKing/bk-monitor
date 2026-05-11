@@ -26,6 +26,11 @@
 
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
+import {
+  type ILegacyAlarmCenterQuery,
+  getAlarmCenterListHash,
+  getAlarmCenterUrl,
+} from 'monitor-common/utils/alarm-center-router';
 import { deepClone } from 'monitor-common/utils/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -36,7 +41,7 @@ import TemporaryShareNew from '../../../../components/temporary-share/temporary-
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
-import ChatGroup from '@/pages/failure/alarm-detail/chat-group/chat-group';
+import ChatGroup from '@/components/chat-group/chat-group';
 
 import type { IChatGroupDialogOptions } from '../../typings';
 
@@ -176,10 +181,13 @@ export default defineComponent({
         );
       } else if (alarmDetail.value.plugin_id) {
         // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
-        const query = deepClone(route.query);
+        const query: ILegacyAlarmCenterQuery = deepClone(route.query);
         query.queryString = `告警源 : "${alarmDetail.value.plugin_id}"`;
-        const queryString = new URLSearchParams(query).toString();
-        window.open(`${location.origin}${location.pathname}${location.search}/#/event-center?${queryString}`);
+        const url = getAlarmCenterUrl({
+          hash: getAlarmCenterListHash(query),
+          bizId: alarmDetail.value.bk_biz_id,
+        });
+        window.open(url);
       }
     };
     // 告警级别标签
@@ -343,6 +351,7 @@ export default defineComponent({
           alarmEventName={this.chatGroupDialog.alertName}
           alertIds={this.chatGroupDialog.alertIds}
           assignee={this.chatGroupDialog.assignee}
+          bizId={this.alarmDetail?.bk_biz_id}
           show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />

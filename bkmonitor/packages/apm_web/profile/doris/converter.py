@@ -10,7 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from dataclasses import dataclass
 
-import ujson as json
+import json
+from django.conf import settings
 
 from apm_web.profile.models import (
     Function,
@@ -32,13 +33,58 @@ class DorisProfileConverter(ProfileConverter):
     def _align_agg_interval(cls, t, interval):
         return int(t / interval) * interval
 
+    @staticmethod
+    def _resolve_agg_method(agg_method: str | None, sample_type: str) -> str:
+        supported = {"AVG", "SUM", "LAST"}
+        default_method = settings.APM_PROFILING_AGG_METHOD_MAPPING.get(sample_type.upper(), "SUM")
+        if agg_method in supported:
+            return agg_method
+        return default_method if default_method in supported else "SUM"
+
+    @staticmethod
+    def _normalize_json_text(value: str | None, default: str) -> str:
+        """Normalize JSON text while keeping list order unchanged."""
+        if not value:
+            return default
+        try:
+            normalized = json.dumps(json.loads(value), sort_keys=True)
+        except Exception:
+            normalized = value
+        return normalized
+
+    @classmethod
+    def _build_avg_samples(cls, samples_info: list[dict], agg_interval: int) -> list[dict]:
+        snapshot_len = len(
+            {cls._align_agg_interval(int(s["dtEventTimeStamp"]), agg_interval * 1000) for s in samples_info}
+        )
+        if snapshot_len <= 1:
+            return samples_info
+
+        grouped = {}
+        for sample_info in samples_info:
+            stacktrace_key = cls._normalize_json_text(sample_info.get("stacktrace"), "[]")
+            if stacktrace_key not in grouped:
+                sample = sample_info.copy()
+                sample["stacktrace"] = stacktrace_key
+                grouped[stacktrace_key] = {"sample": sample, "total": 0}
+            grouped[stacktrace_key]["total"] += int(sample_info["value"])
+
+        avg_samples = []
+        for item in grouped.values():
+            sample = item["sample"]
+            sample["value"] = str(int(round(item["total"] / snapshot_len)))
+            avg_samples.append(sample)
+        return avg_samples
+
     def convert(self, raw: dict, agg_method=None, agg_interval=60) -> Profile | None:
         """parse single raw json data to Profile object"""
         samples_info = raw["list"]
         if not samples_info:
             return
 
-        if agg_method == "LAST":
+        sample_type = samples_info[0]["sample_type"].split("/")[0]
+        effective_agg_method = self._resolve_agg_method(agg_method, sample_type)
+        if effective_agg_method == "LAST":
             # 只保留最后一个时间戳的所有 sample 数据
             interval = agg_interval * 1000
             last_snapshot = max({self._align_agg_interval(int(s["dtEventTimeStamp"]), interval) for s in samples_info})
@@ -47,6 +93,9 @@ class DorisProfileConverter(ProfileConverter):
                 for s in samples_info
                 if self._align_agg_interval(int(s["dtEventTimeStamp"]), interval) == last_snapshot
             ]
+            self.raw_data = samples_info
+        elif effective_agg_method == "AVG":
+            samples_info = self._build_avg_samples(samples_info, agg_interval)
             self.raw_data = samples_info
         else:
             self.raw_data = samples_info

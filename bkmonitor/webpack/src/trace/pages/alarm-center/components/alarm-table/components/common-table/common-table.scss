@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 @use '../../../../../trace-explore/components/trace-explore-table/theme/trace-table.scss' as tableCommonTheme;
 
 .common-table-wrapper {
@@ -61,19 +62,19 @@
       display: block;
     }
 
+    .common-table-skeleton-row {
+      margin-bottom: 10px;
+    }
+
     &.common-skeleton-show-body {
       .common-table-skeleton-row:nth-child(1) {
         display: none;
       }
     }
-
-    .common-table-skeleton-row {
-      margin-bottom: 10px;
-    }
   }
 
   .common-table-empty {
-    .exception-image {
+    .bk-exception-img {
       height: 180px;
     }
 

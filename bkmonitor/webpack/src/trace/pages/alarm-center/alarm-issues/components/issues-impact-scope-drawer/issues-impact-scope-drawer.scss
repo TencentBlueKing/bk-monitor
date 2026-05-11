@@ -1,0 +1,90 @@
+/* stylelint-disable selector-class-pattern */
+
+.issues-impact-scope-drawer {
+  .bk-modal-body {
+    background: #f2f6fc;
+  }
+
+  .impact-scope-drawer-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+
+    .header-title {
+      font-size: 16px;
+      line-height: 24px;
+      color: #313238;
+    }
+  }
+
+  .impact-scope-drawer-content {
+    padding: 24px 40px;
+
+    .instance-list {
+      display: flex;
+      flex-direction: column;
+      row-gap: 8px;
+
+      .instance-item {
+        display: flex;
+        align-items: center;
+        height: 48px;
+        padding: 12px 16px;
+        background-color: #fff;
+        border: 1px solid #e4e9f2;
+        border-radius: 8px;
+
+        .instance-item-main {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+
+          &.is-clickable {
+            color: #3974ff;
+
+            .instance-name {
+              cursor: pointer;
+            }
+
+            &:hover {
+              color: #5594fa;
+            }
+          }
+        }
+
+        .instance-item-operation {
+          display: flex;
+          column-gap: 12px;
+          align-items: center;
+          margin-left: 12px;
+
+          .icon-monitor {
+            font-size: 18px;
+            color: #8f9fbd;
+            cursor: pointer;
+
+            &:hover {
+              color: #3a84ff;
+            }
+          }
+        }
+      }
+    }
+
+    .empty-state {
+      .bk-exception-img {
+        width: 200px;
+        height: 180px;
+      }
+
+      .bk-exception-description {
+        font-size: 14px;
+      }
+    }
+  }
+}

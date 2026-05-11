@@ -27,7 +27,8 @@
 import { type PropType, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
-import { $bkPopover, Input } from 'bkui-vue';
+import { Input } from 'bkui-vue';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus, {
@@ -119,7 +120,13 @@ export default defineComponent({
             <FieldTypeIcon type={item.type} />
             <span
               class='dimension-name'
+              // #if IS_APM_MONITOR
+              v-overflow-tips={{
+                theme: 'dark dimension-filter-name-overflow',
+              }}
+              // #else
               v-overflow-tips
+              // #endif
             >
               {item.levelName}
               {item?.name && item.type !== 'object' ? <span class='subtitle'>({item.name})</span> : ''}
@@ -150,8 +157,8 @@ export default defineComponent({
     const showStatisticsPopover = shallowRef(false);
     const selectField = shallowRef<IDimensionField>(null);
     const activeFieldName = shallowRef('');
-    /** popover实例 */
-    const popoverInstance = shallowRef(null);
+    /** tippy 实例 */
+    const popoverInstance = shallowRef<Instance | null>(null);
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
@@ -162,25 +169,39 @@ export default defineComponent({
       } else {
         if (!item.is_dimensions) return;
         selectField.value = item;
-        popoverInstance.value = $bkPopover({
-          target: e.currentTarget as HTMLDivElement,
-          content: statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement,
-          trigger: 'click',
+        const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
+        if (!contentEl) return;
+        const tippyInst = tippy(e.currentTarget as SingleTarget, {
+          content: contentEl,
+          trigger: 'manual',
           placement: 'right',
-          theme: 'light',
+          theme: 'light statistics-dimension-popover-cls',
           arrow: true,
-          boundary: 'viewport',
-          extCls: 'statistics-dimension-popover-cls',
-          width: 405,
-          distance: -5,
-          onHide() {
+          interactive: true,
+          offset: [0, 8],
+          appendTo: () => document.body,
+          popperOptions: {
+            modifiers: [
+              {
+                name: 'preventOverflow',
+                options: {
+                  boundary: 'viewport',
+                },
+              },
+            ],
+          },
+          onHidden(instance) {
+            if (popoverInstance.value !== instance) return;
             showStatisticsPopover.value = false;
             activeFieldName.value = '';
+            popoverInstance.value = null;
           },
         });
+        popoverInstance.value = tippyInst;
         setTimeout(() => {
+          if (popoverInstance.value !== tippyInst) return;
           showStatisticsPopover.value = true;
-          popoverInstance.value.show();
+          tippyInst.show();
         }, 100);
       }
     }
@@ -188,9 +209,11 @@ export default defineComponent({
     function destroyPopover() {
       showStatisticsPopover.value = false;
       activeFieldName.value = '';
-      popoverInstance.value?.hide(0);
-      popoverInstance.value?.close();
-      popoverInstance.value = null;
+      const inst = popoverInstance.value;
+      if (inst) {
+        popoverInstance.value = null;
+        inst.destroy();
+      }
     }
 
     function handleConditionChange(value: ConditionChangeEvent) {

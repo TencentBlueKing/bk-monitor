@@ -33,19 +33,21 @@ class AlertViewSet(ResourceViewSet):
             "alert/get_experience",
             "alert/log",
             "event/search",
-            "alert/event_count",
-            "alert/related_info",
             "alert/extend_fields",
             "alert/graph_query",
+            "alert/graph_drill_down",
             "event/date_histogram",
             "strategy_snapshot",
             "action/search",
+            "alert/dimension_drill_down",
+            "alert/list_feedback",
+            "alert/event_ts",
         ]
         write_actions = [
             "alert/save_experience",
             "alert/ack",
             "event/top_n",
-            "alert/feedback",
+            "alert/create_feedback",
         ]
         all_actions = read_actions + write_actions
         if self.action not in all_actions:
@@ -159,6 +161,8 @@ class AlertViewSet(ResourceViewSet):
                     "alert/top_n",
                     "alert/export",
                     "alert/date_histogram",
+                    "alert/event_count",
+                    "alert/related_info",
                     "alert/tags",
                     "action/search",
                     "action/top_n",
