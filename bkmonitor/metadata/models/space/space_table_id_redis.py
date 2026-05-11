@@ -301,7 +301,7 @@ class SpaceTableIDRedis:
             item["table_id"]: {"data_label": item["data_label"], "labels": item.get("labels") or {}}
             for item in rt_meta_qs
         }
-        # 虚拟 Doris RT 通过 origin_table_id 关联实体 RT，db 需要复用实体 RT 的物理表名。
+        # 虚拟 Doris RT 通过 origin_table_id 关联实体 RT，用于当前 RT 未记录物理表名时兜底。
         origin_table_ids = {record.origin_table_id for record in doris_records if record.origin_table_id}
         origin_doris_map = {
             record.table_id: record
@@ -312,9 +312,9 @@ class SpaceTableIDRedis:
 
         data: dict[str, dict] = {}
         for record in doris_records:
-            # Redis key 仍使用当前 RT；仅 db 在 origin 存在时切到实体 DorisStorage。
+            # Redis key 仍使用当前 RT；db 优先使用当前记录，缺失时再回退到实体 DorisStorage。
             origin_record = origin_doris_map.get(record.origin_table_id)
-            db = origin_record.bkbase_table_id if origin_record else record.bkbase_table_id
+            db = record.bkbase_table_id or (origin_record.bkbase_table_id if origin_record else None)
             table_id = record.table_id
             rt_meta = rt_meta_map.get(table_id, {})
 

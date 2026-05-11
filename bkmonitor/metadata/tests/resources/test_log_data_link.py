@@ -130,7 +130,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             CreateOrUpdateLogRouter().request(**create_params)
             expected_space_router = {"bkcc__2": '{"2_bklog.test_doris_non_exists":{"filters":[]}}'}
             expected_rt_detail_router = {
-                non_exist_doris_table_id: '{"db":"2_bklog_origin_doris","measurement":"doris",'
+                non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
                 '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
@@ -211,7 +211,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
                 bk_tenant_id="system", table_id_list=[non_exist_doris_table_id], is_publish=True
             )
             expected_rt_detail_router = {
-                non_exist_doris_table_id: '{"db":"2_bklog_origin_doris","measurement":"doris",'
+                non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
                 '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
@@ -249,7 +249,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             )
             CreateOrUpdateLogRouter().request(**modify_params)
             expected_rt_detail_router = {
-                non_exist_doris_table_id: '{"db":"2_bklog_origin_doris_new","measurement":"doris",'
+                non_exist_doris_table_id: '{"db":"2_bklog_pure_doris","measurement":"doris",'
                 '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 

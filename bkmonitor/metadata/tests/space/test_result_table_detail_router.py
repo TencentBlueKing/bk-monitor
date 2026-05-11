@@ -71,7 +71,7 @@ def create_or_delete_records(mocker):
     )
     models.DorisStorage.objects.create(
         bk_tenant_id="riot",
-        bkbase_table_id="2_bklog_fake_should_not_use",
+        bkbase_table_id=None,
         origin_table_id="2_bklog.test_doris_non_exists",
         storage_cluster_id=10034,
         index_set="2_bklog_fake_doris",
@@ -232,7 +232,7 @@ def test_push_doris_table_id_detail(create_or_delete_records):
 def test_push_doris_table_id_detail_for_fake_rt(create_or_delete_records):
     settings.ENABLE_MULTI_TENANT_MODE = True
 
-    # 虚拟Doris RT的db来自origin_table_id对应的DorisStorage，其余元信息来自当前RT
+    # 虚拟Doris RT当前记录未保存物理表名时，db来自origin_table_id对应的DorisStorage，其余元信息来自当前RT
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
