@@ -52,15 +52,32 @@ def _list_ints(value: Any, field: str) -> list[int]:
 
 
 def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, bool | int | float | str):
+        return value
     if isinstance(value, datetime):
         return value.isoformat()
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
     if isinstance(value, dict):
         return {str(k): _json_safe(v) for k, v in value.items()}
-    if isinstance(value, set):
+    if isinstance(value, set | frozenset):
         return sorted((_json_safe(item) for item in value), key=repr)
     if isinstance(value, list | tuple):
         return [_json_safe(item) for item in value]
-    return value
+    # Decimal / UUID / enum — 显式转换，不依赖 json.dumps 测试
+    # （Django 环境 json 模块被 patch 为 ujson，行为与标准库不同）
+    from decimal import Decimal
+    from enum import Enum
+    from uuid import UUID
+
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, Enum):
+        return _json_safe(value.value)
+    # 其他未知类型 — str 兜底
+    return str(value)
 
 
 def _serialize_model(obj: Any, fields: list[str]) -> dict[str, Any]:

@@ -1309,4 +1309,13 @@ export default {
   前往日志检索: 'Go to Log Search',
   整体趋势: 'Overall Trend',
   相关样本: 'Related Samples',
+  '未找到与 "{keyword}" 匹配的用户或任务': 'No user or task matching "{keyword}" was found',
+  请检查任务ID和用户ID是否输入错误: 'Please check if the task ID and user ID are entered incorrectly',
+  '平台默认保存 90 天的任务记录，请检查 ID 是否过期': 'The platform keeps task records for 90 days by default, please check if the ID has expired',
+  '若检查均无问题，请联系': 'If no issues are found after checking, please contact',
+  蓝鲸助手: 'BlueKing Assistant',
+  未找到匹配的用户或任务: 'No matching user or task found',
+  '暂未采集，无法获取日志': 'No collection, unable to obtain logs',
+  '正在采集目标日志文件，预计2-3分钟': 'Collecting target log file, estimated 2-3 minutes',
+  '日志采集失败，请重新采集': 'Log collection failed, please collect again',
 };
