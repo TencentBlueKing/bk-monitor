@@ -253,7 +253,11 @@ class ActionQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 进行我有权限的告警过滤
-            queries.append(Q("terms", **{"bk_biz_id": self.authorized_bizs}))
+            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
+            if len(self.authorized_bizs) <= len(self.unauthorized_bizs):
+                queries.append(Q("terms", **{"bk_biz_id": self.authorized_bizs}))
+            else:
+                queries.append(~Q("terms", **{"bk_biz_id": self.unauthorized_bizs}))
 
         if self.bk_biz_ids == []:
             # 如果不带任何业务信息，表示获取跟自己相关的告警

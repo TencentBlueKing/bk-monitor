@@ -1022,7 +1022,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 进行我有权限的告警过滤
-            queries.append(Q("terms", **{"event.bk_biz_id": self.authorized_bizs}))
+            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
+            if len(self.authorized_bizs) <= len(self.unauthorized_bizs):
+                queries.append(Q("terms", **{"event.bk_biz_id": self.authorized_bizs}))
+            else:
+                queries.append(~Q("terms", **{"event.bk_biz_id": self.unauthorized_bizs}))
 
         user_condition = Q(
             Q("term", assignee=self.request_username)
@@ -1297,7 +1301,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
             action_search = action_search.filter("terms", alert_id=list(alert_ids))
 
         if self.authorized_bizs is not None and self.bk_biz_ids:
-            action_search = action_search.filter("terms", bk_biz_id=self.authorized_bizs)
+            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
+            if len(self.authorized_bizs) <= len(self.unauthorized_bizs):
+                action_search = action_search.filter("terms", bk_biz_id=self.authorized_bizs)
+            else:
+                action_search = action_search.filter("must_not", Q("terms", bk_biz_id=self.unauthorized_bizs))
 
         action_search = action_search.extra(size=0)
 
