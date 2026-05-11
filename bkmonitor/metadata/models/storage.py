@@ -26,6 +26,7 @@ import elasticsearch
 import elasticsearch5
 import elasticsearch6
 import influxdb
+import pymysql
 import requests
 from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.conf import settings
@@ -5483,6 +5484,379 @@ class DorisStorage(models.Model, StorageResultTable):
     class Meta:
         verbose_name = "Doris存储表"
         verbose_name_plural = "Doris存储表"
+
+    @classmethod
+    def get_by_table_id(cls, bk_tenant_id: str, table_id: str) -> "DorisStorage":
+        """按结果表 ID 获取 DorisStorage 记录。"""
+        storage = cls.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        return storage.get_effective_storage()
+
+    def get_effective_storage(self) -> "DorisStorage":
+        """虚拟 DorisStorage 通过 origin_table_id 关联到真实 DorisStorage。"""
+        if not self.origin_table_id:
+            return self
+        return DorisStorage.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=self.origin_table_id)
+
+    @staticmethod
+    def _load_json_config(value: Any, warnings: list[dict[str, Any]], field_name: str) -> Any:
+        if value in (None, "") or not isinstance(value, str):
+            return value
+        try:
+            return json.loads(value)
+        except (TypeError, json.JSONDecodeError) as error:
+            warnings.append(
+                {
+                    "code": "DORIS_STORAGE_JSON_PARSE_FAILED",
+                    "message": f"{field_name} 不是合法 JSON，已返回原始值",
+                    "details": {"field": field_name, "error": str(error)},
+                }
+            )
+            return value
+
+    @staticmethod
+    def _quote_doris_identifier(identifier: str) -> str:
+        return f"`{identifier.replace('`', '``')}`"
+
+    @staticmethod
+    def _normalize_query_limit(limit: int, max_limit: int = 100) -> int:
+        try:
+            normalized_limit = int(limit)
+        except (TypeError, ValueError) as error:
+            raise ValueError("limit 必须是整数") from error
+        if normalized_limit < 1:
+            raise ValueError("limit 必须大于 0")
+        return min(normalized_limit, max_limit)
+
+    @staticmethod
+    def _split_physical_table_name(physical_table_name: str) -> tuple[str, str]:
+        parts = physical_table_name.split(".", 1)
+        if len(parts) != 2 or not all(parts):
+            raise ValueError(f"PhysicalTableName 格式不合法: {physical_table_name}")
+        return parts[0], parts[1]
+
+    def _serialize_doris_storage(self, warnings: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "table_id": self.table_id,
+            "bk_tenant_id": self.bk_tenant_id,
+            "bkbase_table_id": self.bkbase_table_id,
+            "origin_table_id": self.origin_table_id,
+            "source_type": self.source_type,
+            "index_set": self.index_set,
+            "table_type": self.table_type,
+            "field_config_mapping": self._load_json_config(self.field_config_mapping, warnings, "field_config_mapping"),
+            "expire_days": self.expire_days,
+            "storage_cluster_id": self.storage_cluster_id,
+        }
+
+    def get_doris_binding_config(self):
+        """获取当前结果表关联的 DorisStorageBindingConfig。"""
+        from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig
+
+        effective_storage = self.get_effective_storage()
+        binding_config = (
+            DorisStorageBindingConfig.objects.filter(
+                bk_tenant_id=effective_storage.bk_tenant_id, table_id=effective_storage.table_id
+            )
+            .order_by("-last_modify_time")
+            .first()
+        )
+        if not binding_config:
+            raise ValueError(f"DorisStorageBindingConfig 不存在: table_id={effective_storage.table_id}")
+        return binding_config
+
+    def get_doris_binding_metadata(self) -> dict[str, Any]:
+        """通过本地 DorisStorageBindingConfig 获取 BKBase 侧最新 DorisBinding 配置。"""
+        binding_config = self.get_doris_binding_config()
+        component_config = binding_config.component_config
+        if not isinstance(component_config, dict):
+            raise ValueError(f"DorisBinding component_config 类型异常: table_id={self.table_id}")
+        if component_config.get("kind") != "DorisBinding":
+            raise ValueError(f"DorisBinding component_config kind 异常: table_id={self.table_id}")
+        return component_config
+
+    def get_physical_table_name(self, doris_binding: dict[str, Any] | None = None) -> dict[str, str]:
+        """获取 Doris 物理库表名，优先使用 DorisBinding annotations.PhysicalTableName。"""
+        doris_binding = doris_binding or self.get_doris_binding_metadata()
+        metadata = doris_binding.get("metadata") or {}
+        annotations = metadata.get("annotations") or {}
+        physical_table_name = annotations.get("PhysicalTableName")
+        source = "metadata.annotations.PhysicalTableName"
+
+        if physical_table_name:
+            database, table = self._split_physical_table_name(physical_table_name)
+        else:
+            storage_config = (doris_binding.get("spec") or {}).get("storage_config") or {}
+            database = storage_config.get("db")
+            table = storage_config.get("table")
+            if not (database and table):
+                raise ValueError("DorisBinding 缺少 PhysicalTableName 且 spec.storage_config.db/table 不完整")
+            physical_table_name = f"{database}.{table}"
+            source = "spec.storage_config.db_table"
+
+        return {
+            "physical_table_name": physical_table_name,
+            "database": database,
+            "table": table,
+            "source": source,
+        }
+
+    def get_doris_connection_config(self) -> dict[str, Any]:
+        """通过 storage_cluster_id 获取 Doris MySQL 协议连接信息。"""
+        cluster = self.get_effective_storage().storage_cluster
+        return {
+            "host": cluster.domain_name,
+            "port": cluster.port,
+            "username": cluster.username,
+            "password": cluster.password,
+            "cluster_id": cluster.cluster_id,
+            "cluster_name": cluster.cluster_name,
+            "version": cluster.version,
+        }
+
+    def _serialize_storage_cluster(self, connection_config: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "cluster_id": connection_config["cluster_id"],
+            "cluster_name": connection_config["cluster_name"],
+            "domain_name": connection_config["host"],
+            "port": connection_config["port"],
+            "version": connection_config["version"],
+        }
+
+    def _serialize_doris_binding(
+        self, doris_binding: dict[str, Any] | None, physical_table: dict[str, str] | None
+    ) -> dict[str, Any]:
+        if not doris_binding:
+            return {}
+        metadata = doris_binding.get("metadata") or {}
+        spec = doris_binding.get("spec") or {}
+        status = doris_binding.get("status") or {}
+        return {
+            "name": metadata.get("name"),
+            "namespace": metadata.get("namespace"),
+            "status": status,
+            "physical_table_name": physical_table.get("physical_table_name") if physical_table else None,
+            "physical_table_name_source": physical_table.get("source") if physical_table else None,
+            "storage_config": spec.get("storage_config") or {},
+        }
+
+    def _query_doris_physical_metadata(self, database: str, table: str, connection_config: dict[str, Any]) -> dict:
+        connection = pymysql.connect(
+            host=connection_config["host"],
+            port=int(connection_config["port"]),
+            user=connection_config["username"],
+            password=connection_config["password"],
+            database=database,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=10,
+            read_timeout=10,
+            write_timeout=10,
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT *
+                    FROM information_schema.tables
+                    WHERE table_schema = %s AND table_name = %s
+                    """,
+                    (database, table),
+                )
+                tables = cursor.fetchall()
+
+                cursor.execute(
+                    """
+                    SELECT *
+                    FROM information_schema.columns
+                    WHERE table_schema = %s AND table_name = %s
+                    ORDER BY ordinal_position
+                    """,
+                    (database, table),
+                )
+                columns = cursor.fetchall()
+
+                cursor.execute(
+                    """
+                    SELECT *
+                    FROM information_schema.partitions
+                    WHERE table_schema = %s AND table_name = %s
+                    ORDER BY partition_ordinal_position
+                    """,
+                    (database, table),
+                )
+                partitions = cursor.fetchall()
+
+                quoted_table = ".".join([self._quote_doris_identifier(database), self._quote_doris_identifier(table)])
+                cursor.execute(f"SHOW CREATE TABLE {quoted_table}")
+                create_table = cursor.fetchall()
+
+                return {
+                    "tables": tables,
+                    "columns": columns,
+                    "partitions": partitions,
+                    "show_create_table": create_table,
+                }
+        finally:
+            connection.close()
+
+    def _query_doris_latest_records(
+        self, database: str, table: str, connection_config: dict[str, Any], limit: int, order_field: str
+    ) -> list[dict[str, Any]]:
+        if not order_field:
+            raise ValueError("order_field 不能为空")
+        normalized_limit = self._normalize_query_limit(limit)
+        connection = pymysql.connect(
+            host=connection_config["host"],
+            port=int(connection_config["port"]),
+            user=connection_config["username"],
+            password=connection_config["password"],
+            database=database,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=10,
+            read_timeout=10,
+            write_timeout=10,
+        )
+        try:
+            with connection.cursor() as cursor:
+                quoted_table = ".".join([self._quote_doris_identifier(database), self._quote_doris_identifier(table)])
+                quoted_order_field = self._quote_doris_identifier(order_field)
+                cursor.execute(
+                    f"SELECT * FROM {quoted_table} ORDER BY {quoted_order_field} DESC LIMIT %s",
+                    (normalized_limit,),
+                )
+                return list(cursor.fetchall())
+        finally:
+            connection.close()
+
+    def query_latest_physical_storage_records(
+        self, limit: int = 1, order_field: str = "dtEventTimeStamp"
+    ) -> dict[str, Any]:
+        """从 Doris 物理表按时间字段倒序拉取最新 N 条原始数据。"""
+        warnings: list[dict[str, Any]] = []
+        errors: list[dict[str, Any]] = []
+        normalized_limit = self._normalize_query_limit(limit)
+        result: dict[str, Any] = {
+            "doris_storage": self.get_effective_storage()._serialize_doris_storage(warnings),
+            "request_table_id": self.table_id,
+            "storage_cluster": {},
+            "doris_binding": {},
+            "physical_table": {},
+            "order_field": order_field,
+            "limit": normalized_limit,
+            "records": [],
+            "warnings": warnings,
+            "errors": errors,
+        }
+
+        doris_binding = None
+        physical_table = None
+        try:
+            doris_binding = self.get_doris_binding_metadata()
+            physical_table = self.get_physical_table_name(doris_binding=doris_binding)
+            result["physical_table"] = physical_table
+        except Exception as error:  # pylint: disable=broad-except
+            errors.append(
+                {
+                    "code": "DORIS_BINDING_METADATA_QUERY_FAILED",
+                    "message": "获取 DorisBinding 或物理表名失败",
+                    "details": {"error": str(error)},
+                }
+            )
+        result["doris_binding"] = self._serialize_doris_binding(doris_binding, physical_table)
+
+        connection_config = None
+        try:
+            connection_config = self.get_doris_connection_config()
+            result["storage_cluster"] = self._serialize_storage_cluster(connection_config)
+        except Exception as error:  # pylint: disable=broad-except
+            errors.append(
+                {
+                    "code": "DORIS_CLUSTER_QUERY_FAILED",
+                    "message": "获取 Doris 集群连接信息失败",
+                    "details": {"error": str(error)},
+                }
+            )
+
+        if physical_table and connection_config:
+            try:
+                result["records"] = self._query_doris_latest_records(
+                    database=physical_table["database"],
+                    table=physical_table["table"],
+                    connection_config=connection_config,
+                    limit=normalized_limit,
+                    order_field=order_field,
+                )
+            except Exception as error:  # pylint: disable=broad-except
+                errors.append(
+                    {
+                        "code": "DORIS_LATEST_RECORDS_QUERY_FAILED",
+                        "message": "查询 Doris 物理表最新数据失败",
+                        "details": {"error": str(error)},
+                    }
+                )
+
+        return result
+
+    def query_physical_storage_metadata(self) -> dict[str, Any]:
+        """查询 DorisStorage 关联物理表的原始元信息。"""
+        warnings: list[dict[str, Any]] = []
+        errors: list[dict[str, Any]] = []
+        result: dict[str, Any] = {
+            "doris_storage": self.get_effective_storage()._serialize_doris_storage(warnings),
+            "request_table_id": self.table_id,
+            "storage_cluster": {},
+            "doris_binding": {},
+            "physical_metadata": {},
+            "warnings": warnings,
+            "errors": errors,
+        }
+
+        doris_binding = None
+        physical_table = None
+        try:
+            doris_binding = self.get_doris_binding_metadata()
+            physical_table = self.get_physical_table_name(doris_binding=doris_binding)
+        except Exception as error:  # pylint: disable=broad-except
+            errors.append(
+                {
+                    "code": "DORIS_BINDING_METADATA_QUERY_FAILED",
+                    "message": "获取 DorisBinding 或物理表名失败",
+                    "details": {"error": str(error)},
+                }
+            )
+        result["doris_binding"] = self._serialize_doris_binding(doris_binding, physical_table)
+
+        connection_config = None
+        try:
+            connection_config = self.get_doris_connection_config()
+            result["storage_cluster"] = self._serialize_storage_cluster(connection_config)
+        except Exception as error:  # pylint: disable=broad-except
+            errors.append(
+                {
+                    "code": "DORIS_CLUSTER_QUERY_FAILED",
+                    "message": "获取 Doris 集群连接信息失败",
+                    "details": {"error": str(error)},
+                }
+            )
+
+        if physical_table and connection_config:
+            try:
+                result["physical_metadata"] = self._query_doris_physical_metadata(
+                    database=physical_table["database"],
+                    table=physical_table["table"],
+                    connection_config=connection_config,
+                )
+            except Exception as error:  # pylint: disable=broad-except
+                errors.append(
+                    {
+                        "code": "DORIS_PHYSICAL_METADATA_QUERY_FAILED",
+                        "message": "查询 Doris 物理表元信息失败",
+                        "details": {"error": str(error)},
+                    }
+                )
+
+        return result
 
     @classmethod
     def create_table(
