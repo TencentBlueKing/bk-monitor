@@ -37,7 +37,7 @@ from apm.core.handlers.application_hepler import ApplicationHelper, SharedDataso
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.query.base import FilterOperator
-from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
+from apm.core.handlers.query.define import QueryMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
@@ -81,6 +81,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.common_utils import format_percent
+from bkmonitor.utils.data_query.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
@@ -1438,6 +1439,11 @@ class QueryEsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         query_body = serializers.DictField(required=True, label="查询内容")
+        bk_biz_id = serializers.IntegerField(
+            required=False,
+            label="业务id",
+        )
+        app_name = serializers.CharField(required=False, label="应用名称", max_length=50)
 
     def perform_request(self, validated_request_data):
         table_id = validated_request_data["table_id"].replace(".", "_")
@@ -1452,7 +1458,14 @@ class QueryEsResource(Resource):
                     datasource = trace_datasource
 
         if datasource:
-            return datasource.es_client.search(index=datasource.index_name, body=validated_request_data["query_body"])
+            # 接入 TraceQueryGuard 做共享数据源查询隔离改造
+            target: TraceDatasourceTarget = TraceDatasourceTarget.from_(
+                bk_biz_id=validated_request_data.get("bk_biz_id"),
+                app_name=validated_request_data.get("app_name"),
+                table_id=datasource.result_table_id,
+            )
+            query_body: dict[str, Any] = TraceQueryGuard.build_dsl(validated_request_data["query_body"], target)
+            return datasource.es_client.search(index=datasource.index_name, body=query_body)
 
         raise ValueError(_("未找到对应的结果表"))
 
@@ -1897,38 +1910,6 @@ class DeleteApplicationResource(Resource):
             raise ValueError(_("应用不存在"))
 
         delete_application_async.delay(app.bk_biz_id, app.app_name, get_request_username())
-
-
-class QuerySpanStatisticsListResource(Resource):
-    RequestSerializer = QuerySerializer
-
-    def perform_request(self, validated_data):
-        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_statistics(
-            QueryStatisticsMode.SPAN_NAME,
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["limit"],
-            validated_data["offset"],
-            validated_data.get("filters"),
-            validated_data.get("query_string"),
-            validated_data.get("sort"),
-        )
-
-
-class QueryServiceStatisticsListResource(Resource):
-    RequestSerializer = QuerySerializer
-
-    def perform_request(self, validated_data):
-        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_statistics(
-            QueryStatisticsMode.SERVICE,
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["limit"],
-            validated_data["offset"],
-            validated_data.get("filters"),
-            validated_data.get("query_string"),
-            validated_data.get("sort"),
-        )
 
 
 class QueryBuiltinProfileDatasourceResource(Resource):

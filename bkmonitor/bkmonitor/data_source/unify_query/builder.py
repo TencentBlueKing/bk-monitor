@@ -63,6 +63,7 @@ class QueryConfig(Query):
         self.dimension_fields: list[str] = []
         self.functions: list[dict[str, Any]] = []
         self.conditions: list[dict[str, Any]] = []
+        self.table_names: list[str] = []
 
     def clone(self) -> "QueryConfig":
         obj: QueryConfig = super().clone()
@@ -73,6 +74,7 @@ class QueryConfig(Query):
         obj.functions = self.functions[:]
         obj.conditions = self.conditions[:]
         obj.dimension_fields = self.dimension_fields[:]
+        obj.table_names = self.table_names[:]
         return obj
 
     def set_data_label(self, data_label: str | None):
@@ -147,8 +149,18 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
 
     """以下只是显示声明支持方法，同时供 IDE 补全"""
 
-    def table(self, table_name: str) -> "QueryConfigBuilder":
-        return super().table(table_name)
+    def table(self, *table_names: str) -> "QueryConfigBuilder":
+        """绑定结果表，支持单表或多表：
+        - 单表：`.table("x")`，等价于传统用法，向后兼容。
+        - 多表：`.table("x", "y")`，将多个结果表绑定到同一条查询。
+
+        当前阶段 `UnifyQueryCompiler.as_sql` 仅取首个 table 做编译输出，同时预留出多应用多表查询能力。
+        """
+        clone: QueryConfigBuilder = self._clone()
+        clone.query.table_names = list(table_names)
+        # 向后兼容：同步首个 table 到父类字段 table_name，保证既有消费者 query_config.table_name 的路径无需改动
+        clone.query.table_name = table_names[0] if table_names else None
+        return clone
 
     def values(self, *fields) -> "QueryConfigBuilder":
         return super().values(*fields)
@@ -277,12 +289,15 @@ class UnifyQueryCompiler(SQLCompiler):
     def as_sql(self) -> tuple[str, dict[str, Any]]:
         query_configs: list[dict[str, Any]] = []
         for query_config_obj in self.query.query_configs:
+            table: str = (
+                query_config_obj.table_names[0] if query_config_obj.table_names else query_config_obj.table_name
+            )
             query_config = {
                 "data_label": query_config_obj.data_label or "",
                 "data_type_label": query_config_obj.using[0],
                 "data_source_label": query_config_obj.using[1],
                 "reference_name": query_config_obj.reference_name or "a",
-                "table": query_config_obj.table_name,
+                "table": table,
                 "time_field": query_config_obj.time_field,
                 "select": query_config_obj.select,
                 "distinct": query_config_obj.distinct,
