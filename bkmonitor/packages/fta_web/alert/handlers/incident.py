@@ -178,6 +178,38 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         return result
 
+    @classmethod
+    def _quote_translated_query_string(cls, query_dsl):
+        """将枚举翻译生成的原始中文词改为短语查询，避免中文分词误命中。"""
+        if not isinstance(query_dsl, str):
+            return query_dsl
+
+        for field, choices in cls.query_transformer.VALUE_TRANSLATE_FIELDS.items():
+            for value, display in choices:
+                display = str(display)
+                query_dsl = query_dsl.replace(f"({display} OR {field}:{value})", f'("{display}" OR {field}:{value})')
+        return query_dsl
+
+    def parse_condition_item(self, condition: dict) -> Q:
+        if condition["key"] == "query_string":
+            con_q = None
+            for query_string in condition["value"]:
+                if query_string.strip():
+                    query_string = query_string.replace(":",r"\:")
+                    query_dsl = self.query_transformer.transform_query_string(query_string)
+                    query_dsl = self._quote_translated_query_string(query_dsl)
+                    if isinstance(query_dsl, str):
+                        temp_q = Q("query_string", query=query_dsl)
+                    else:
+                        temp_q = Q(query_dsl)
+
+                    if con_q is None:
+                        con_q = temp_q
+                    else:
+                        con_q = con_q | temp_q
+            return con_q
+        return super().parse_condition_item(condition)
+
     def add_biz_condition(self, search_object: Search) -> Search:
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
