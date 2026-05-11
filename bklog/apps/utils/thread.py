@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,8 +18,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Tuple
 
 import pytz
 from django.utils import timezone
@@ -78,12 +77,12 @@ class FuncThread:
                 self.results[self.result_key] = e
 
 
-def executor_wrap(params: List[Tuple[FuncThread, bool]]):
+def executor_wrap(params: list[tuple[FuncThread, bool]]):
     func_thread, return_exception = params
     func_thread.run(return_exception)
 
 
-class MultiExecuteFunc(object):
+class MultiExecuteFunc:
     """
     基于多线程的批量并发执行函数
     """
@@ -91,11 +90,13 @@ class MultiExecuteFunc(object):
     def __init__(self, max_workers=None):
         self.results = {}
         self.task_list = []
+        self._registered_keys = set()
         self.max_workers = max_workers
 
     def append(self, result_key, func, params=None, use_request=True, multi_func_params=False):
-        if result_key in self.results:
+        if result_key in self._registered_keys:
             raise ValueError(f"result_key: {result_key} is duplicate. Please rename it.")
+        self._registered_keys.add(result_key)
         task = FuncThread(
             func=func,
             params=params,
