@@ -54,9 +54,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 应用信息 */
     appInfo: {
       type: Object as PropType<Partial<IRumAppConfig>>,
       default: () => null,
+    },
+    /** 模式：report=SDK上报（显示创建成功提示），guide=SDK接入指引（隐藏提示） */
+    mode: {
+      type: String as PropType<'guide' | 'report'>,
+      default: 'report',
     },
   },
 
@@ -147,6 +153,11 @@ export default defineComponent({
       // operateType.value = type as EOperateType;
       // submitLoading.value = false;
     };
+    const handleGoAppDetail = () => {
+      const hash = `#/rum/app/${props.appInfo.app_name}/config`;
+      const url = `${location.origin}${location.pathname}?bizId=${props.appInfo.bk_biz_id}${hash}`;
+      window.open(url, '_blank');
+    };
     return {
       protocol,
       operateType,
@@ -160,6 +171,7 @@ export default defineComponent({
       handleSkip,
       handleCopyToken,
       handleResetToken,
+      handleGoAppDetail,
     };
   },
   render() {
@@ -251,18 +263,20 @@ export default defineComponent({
         width={800}
         class='rum-sdk-report-sideslider'
         isShow={this.show}
-        title={this.t('SDK 上报')}
+        title={this.mode === 'guide' ? this.t('SDK 接入指引') : this.t('SDK 上报')}
         onUpdate:isShow={this.handleShowChange}
       >
         {{
           default: () => (
             <div class='rum-sdk-report-content'>
-              <div class='create-success'>
-                <div class='icon-wrap'>
-                  <span class='icon-monitor icon-mc-check-small' />
+              {this.mode === 'report' && (
+                <div class='create-success'>
+                  <div class='icon-wrap'>
+                    <span class='icon-monitor icon-mc-check-small' />
+                  </div>
+                  <div class='success-text'>{this.t('应用创建成功，请根据指引完成上报')}</div>
                 </div>
-                <div class='success-text'>{this.t('应用创建成功，请根据指引完成上报')}</div>
-              </div>
+              )}
               <div class='rum-app-info-box'>
                 <div class='left-wrap'>
                   <i class='icon-monitor icon-mc-global' />
@@ -310,6 +324,7 @@ export default defineComponent({
               {stepListRender()}
             </div>
           ),
+
           footer: () => (
             <div class='bottom-submit-wrap'>
               <div class='tips-wrap'>
@@ -367,17 +382,20 @@ export default defineComponent({
                 >
                   {this.t('确认')}
                 </Button>
-                <i18n-t
-                  style='margin-left: 8px; font-size: 12px;'
-                  keypath='稍等几分钟后，前往{0}查看相关数据'
-                >
-                  <Button
-                    theme='primary'
-                    text
+                {this.mode === 'report' ? (
+                  <i18n-t
+                    style='margin-left: 8px; font-size: 12px;'
+                    keypath='稍等几分钟后，前往{0}查看相关数据'
                   >
-                    「RUM - {this.t('应用详情')}」
-                  </Button>
-                </i18n-t>
+                    <Button
+                      theme='primary'
+                      text
+                      onClick={this.handleGoAppDetail}
+                    >
+                      「RUM - {this.t('应用详情')}」
+                    </Button>
+                  </i18n-t>
+                ) : undefined}
               </div>
             </div>
           ),

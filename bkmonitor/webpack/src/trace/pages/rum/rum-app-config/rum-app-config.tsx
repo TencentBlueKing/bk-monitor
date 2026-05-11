@@ -29,6 +29,7 @@ import { Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import SDKReport from '../components/sdk-report/sdk-report';
 import { RUM_APP_CONFIG_TAB_ENUM, RUM_APP_CONFIG_TAB_MAP } from '../constants';
 import AppBasicInfo from './components/app-basic-info';
 import BasicConfig from './components/basic-config';
@@ -67,6 +68,9 @@ export default defineComponent({
 
     /** 当前选中的 Tab 面板 */
     const currentPanel = shallowRef<RumAppConfigTabType>(RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG);
+
+    /** 是否展示 SDK 接入指引侧栏 */
+    const sdkGuideShow = shallowRef(false);
 
     /** ES 集群列表 */
     const clusterList = shallowRef([]);
@@ -107,6 +111,11 @@ export default defineComponent({
       }
     };
 
+    /** 展示/隐藏 SDK 接入指引侧栏 */
+    const handleShowSdkGuide = (show: boolean) => {
+      sdkGuideShow.value = show;
+    };
+
     onMounted(() => {
       getRumAppConfig();
       getEsCluster();
@@ -138,11 +147,13 @@ export default defineComponent({
       navList,
       appInfo,
       currentPanel,
+      sdkGuideShow,
       handleCurrentPanelChange,
       handleBackPage,
       getPanelComponent,
       handleAppOperation,
       handleAppInfoChange,
+      handleShowSdkGuide,
     };
   },
 
@@ -161,6 +172,7 @@ export default defineComponent({
             data={this.appInfo}
             onApplicationInfoChange={this.handleAppInfoChange}
             onApplicationOperation={this.handleAppOperation}
+            onShowSdkGuide={() => this.handleShowSdkGuide(true)}
           />
         </div>
 
@@ -183,6 +195,12 @@ export default defineComponent({
             <KeepAlive>{this.getPanelComponent()}</KeepAlive>
           </div>
         </div>
+        <SDKReport
+          appInfo={this.appInfo}
+          mode='guide'
+          show={this.sdkGuideShow}
+          onShowChange={this.handleShowSdkGuide}
+        />
       </div>
     );
   },
