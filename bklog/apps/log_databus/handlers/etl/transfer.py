@@ -134,7 +134,7 @@ class TransferEtlHandler(EtlHandler):
         index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if sort_fields is None and index_set_obj:
             sort_fields = index_set_obj.sort_fields
-        if sort_fields is None and index_set_obj:
+        if target_fields is None and index_set_obj:
             target_fields = index_set_obj.target_fields
 
         # 1. meta-创建/修改结果表

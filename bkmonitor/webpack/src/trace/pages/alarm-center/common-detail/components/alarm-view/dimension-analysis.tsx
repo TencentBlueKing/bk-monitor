@@ -29,8 +29,8 @@ import { watch } from 'vue';
 
 import { Dialog, Exception, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { alertGraphDrillDown } from 'monitor-api/modules/alert_v2';
 import { getDrillDimensions } from 'monitor-api/modules/grafana';
-import { graphDrillDown } from 'monitor-api/modules/scene_view';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
 import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
@@ -171,7 +171,7 @@ export default defineComponent({
         return [];
       }
       const res = props.detail.graph_panel
-        ? await graphDrillDown({
+        ? await alertGraphDrillDown({
             bk_biz_id: props.detail.bk_biz_id,
             alert_id: props.detail.id,
             aggregation_method: 'avg',

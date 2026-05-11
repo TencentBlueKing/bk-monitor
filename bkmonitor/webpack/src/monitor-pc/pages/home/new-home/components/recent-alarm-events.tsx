@@ -27,6 +27,7 @@ import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deleteAlarmGraphConfig, getAlarmGraphConfig, saveAlarmGraphConfig } from 'monitor-api/modules/overview';
+import { getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
 import draggable from 'vuedraggable';
 
 import { shortcuts } from '../../../../components/time-range/utils';
@@ -212,7 +213,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         this.showDelDialog = true;
         break;
       case 'detail': {
-        // 跳转至事件中心
+        // 跳转至告警中心
         const baseUrl = window.location.href.split('#')[0];
         let queryString = '';
         for (const id of item.strategy_ids) {
@@ -221,7 +222,12 @@ export default class RecentAlarmEvents extends tsc<object> {
         queryString = queryString.slice(0, queryString.length - 3);
         const [from, to] = this.timeRange;
         const xAxis = data.xAxis;
-        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${xAxis ? xAxis : from}&to=${xAxis ? xAxis : to}&bizIds=${this.activeTabId}`;
+        const url = `${baseUrl}${getAlarmCenterListHash({
+          queryString,
+          from: xAxis ? xAxis : from,
+          to: xAxis ? xAxis : to,
+          bizIds: this.activeTabId,
+        })}`;
         window.open(url, '_blank');
         break;
       }

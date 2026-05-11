@@ -21,6 +21,7 @@ from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_w
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.constants import DEFAULT_APM_LOG_SEARCH_FIELD_NAME
 from apm_web.models import LogServiceRelation
+from apm_web.strategy.dispatch import EntitySet
 from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import Vendor, FIVE_MIN_SECONDS
 from core.drf_resource import Resource, api
@@ -190,6 +191,10 @@ def process_metric_relations(
 ):
     """根据应用关联指标反查关联日志索引集。"""
     if not service_name:
+        return []
+
+    # 服务没有关联容器时提前返回，减少非必要查询和缓存访问。
+    if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
         return []
 
     result = []

@@ -4727,9 +4727,9 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 检查快照是否可重试
         try:
-            snapshots = self.es_client.snapshot.get(
-                target_snapshot_repository_name, self.search_snapshot
-            ).get("snapshots", [])
+            snapshots = self.es_client.snapshot.get(target_snapshot_repository_name, self.search_snapshot).get(
+                "snapshots", []
+            )
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
             snapshots = []
 
@@ -5566,8 +5566,38 @@ class DorisStorage(models.Model, StorageResultTable):
     def add_field(self, field):
         pass
 
+    @property
     def consul_config(self):
-        pass
+        """返回一个实际存储的consul配置"""
+
+        try:
+            field_config_mapping = json.loads(self.field_config_mapping or "{}")
+        except (TypeError, json.JSONDecodeError):
+            logger.warning(
+                "DorisStorage.consul_config: table_id->[%s] field_config_mapping invalid, use empty config",
+                self.table_id,
+            )
+            field_config_mapping = {}
+        if field_config_mapping is None:
+            field_config_mapping = {}
+
+        consul_config = {
+            "storage_config": {
+                "bkbase_table_id": self.bkbase_table_id,
+                "source_type": self.source_type,
+                "index_set": self.index_set,
+                "table_type": self.table_type,
+                "field_config_mapping": field_config_mapping,
+                "expire_days": self.expire_days,
+                "bk_tenant_id": self.bk_tenant_id,
+            }
+        }
+        consul_config.update(self.storage_cluster.consul_config)
+
+        # 将存储的修改时间去掉，防止MD5命中失败
+        consul_config["cluster_config"].pop("last_modify_time")
+
+        return consul_config
 
     def get_client(self):
         pass

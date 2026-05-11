@@ -147,20 +147,12 @@ class PatternHandler:
         )
 
         signature_map_remark = {}
-        signature_map_remark_without_group = {}
-
         origin_pattern_map_remark = {}
-        origin_pattern_map_remark_without_group = {}
 
         for remark in clustering_remarks:
             signature_map_remark[(remark["signature"], remark["group_hash"])] = remark
-            if not remark["groups"]:
-                # 只有不带分组的备注才允许继承到带分组的 pattern 中
-                signature_map_remark_without_group[remark["signature"]] = remark
             if remark["origin_pattern"]:
                 origin_pattern_map_remark[(remark["origin_pattern"], remark["group_hash"])] = remark
-                if not remark["groups"]:
-                    origin_pattern_map_remark_without_group[remark["origin_pattern"]] = remark
 
         result = []
         for pattern in pattern_aggs:
@@ -185,7 +177,7 @@ class PatternHandler:
                 [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
             )
 
-            # 优先从带分组的记录中查找备注
+            # 严格按 (signature/origin_pattern, group_hash) 精确匹配，不再兼容空维度备注降级展示
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
                 owners = signature_map_remark[(signature, group_hash)]["owners"]
@@ -196,18 +188,6 @@ class PatternHandler:
                 owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
                 strategy_id = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_id"]
                 strategy_enabled = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_enabled"]
-            # 如果带分组的记录中没有找到备注，则退化为使用无分组的备注内容展示
-            elif signature in signature_map_remark_without_group:
-                remark = signature_map_remark_without_group[signature]["remark"]
-                owners = signature_map_remark_without_group[signature]["owners"]
-                strategy_id = signature_map_remark_without_group[signature]["strategy_id"]
-                strategy_enabled = signature_map_remark_without_group[signature]["strategy_enabled"]
-            elif signature_origin_pattern and signature_origin_pattern in origin_pattern_map_remark_without_group:
-                remark = origin_pattern_map_remark_without_group[signature_origin_pattern]["remark"]
-                owners = origin_pattern_map_remark_without_group[signature_origin_pattern]["owners"]
-                strategy_id = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_id"]
-                strategy_enabled = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_enabled"]
-            # 任意一种情况都不匹配
             else:
                 remark = []
                 owners = []

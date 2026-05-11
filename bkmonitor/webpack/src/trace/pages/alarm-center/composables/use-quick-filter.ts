@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { onScopeDispose, shallowRef, watch, watchEffect } from 'vue';
+import { onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
@@ -71,14 +71,6 @@ export function useQuickFilter() {
   };
   watchEffect(effectFunc, { flush: 'post' });
 
-  const unWatchAlarmType = watch(
-    () => alarmStore.alarmType,
-    () => {
-      /** 切换告警类型，重置状态以及缓存当前最后一次操作的分类以及数据 */
-      isFirstInit.value = true;
-    }
-  );
-
   const updateQuickFilterValue = (value: CommonCondition[]) => {
     alarmStore.quickFilterValue = value;
   };
@@ -97,7 +89,6 @@ export function useQuickFilter() {
   onScopeDispose(() => {
     quickFilterList.value = [];
     quickFilterLoading.value = false;
-    unWatchAlarmType?.();
   });
   return {
     isFirstInit,

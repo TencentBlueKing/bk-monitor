@@ -22,4 +22,5 @@ urlpatterns = [
     re_path(r"^action/", include("fta_web.action.urls")),
     re_path(r"^assign/", include("fta_web.assign.urls")),
     re_path(r"^home/", include("fta_web.home.urls")),
+    re_path(r"^issue/", include("fta_web.issue.urls")),
 ]

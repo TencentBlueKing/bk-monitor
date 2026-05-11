@@ -26,6 +26,12 @@
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  type ILegacyAlarmCenterQuery,
+  getAlarmCenterDetailUrl,
+  getAlarmCenterListHash,
+  getAlarmCenterUrl,
+} from 'monitor-common/utils/alarm-center-router';
 import { copyText } from 'monitor-common/utils/utils';
 import { deepClone } from 'monitor-common/utils/utils';
 import TemporaryShare from 'monitor-pc/components/temporary-share/temporary-share';
@@ -108,10 +114,13 @@ export default class EventDetailHead extends tsc<EventDetailHeadProps, IEvent> {
       );
     } else if (this.basicInfo.plugin_id) {
       // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
-      const query = deepClone(this.$route.query);
+      const query: ILegacyAlarmCenterQuery = deepClone(this.$route.query);
       query.queryString = `告警源 : "${this.basicInfo.plugin_id}"`;
-      const queryString = new URLSearchParams(query).toString();
-      window.open(`${location.origin}${location.pathname}${location.search}/#/event-center?${queryString}`);
+      const url = getAlarmCenterUrl({
+        hash: getAlarmCenterListHash(query),
+        bizId: this.bizId || this.$store.getters.bizId,
+      });
+      window.open(url);
     }
   }
   // 告警级别标签
@@ -132,9 +141,19 @@ export default class EventDetailHead extends tsc<EventDetailHeadProps, IEvent> {
   }
   // 复制事件详情连接
   handleToEventDetail(type: 'action-detail' | 'detail', isNewPage = false) {
-    let url = location.href.replace(location.hash, `#/event-center/${type}/${this.eventId}`);
     const { bizId } = this.$store.getters;
-    url = url.replace(location.search, `?bizId=${this.bizId || bizId}`);
+    const targetBizId = this.bizId || bizId;
+    const url =
+      type === 'action-detail'
+        ? getAlarmCenterUrl({
+            hash: getAlarmCenterListHash({
+              searchType: 'action',
+              alarmId: this.eventId,
+              showDetail: 'true',
+            }),
+            bizId: targetBizId,
+          })
+        : getAlarmCenterDetailUrl(this.eventId, undefined, targetBizId);
     if (isNewPage) {
       window.open(url);
       return;
@@ -192,7 +211,7 @@ export default class EventDetailHead extends tsc<EventDetailHeadProps, IEvent> {
               />
             ) : (
               <TemporaryShare
-                customData={{ eventId: this.eventId }}
+                customData={{ eventId: this.eventId, bizId: this.bizId }}
                 navMode={'share'}
                 pageInfo={{ alertName: alert_name }}
               />
