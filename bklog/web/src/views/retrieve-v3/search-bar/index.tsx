@@ -321,7 +321,13 @@ export default defineComponent({
     const handleRequestResponse = (resp?: any) => {
       const content = resp?.choices[0]?.delta?.content ?? '{}';
       try {
-        const contentObj: AiQueryContent = JSON.parse(content);
+        // 兼容 AI 响应内容被 markdown 代码块包裹的情况（如 ```json\n{...}\n```）
+        let jsonStr = content.trim();
+        const codeBlockMatch = jsonStr.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/i);
+        if (codeBlockMatch) {
+          jsonStr = codeBlockMatch[1].trim();
+        }
+        const contentObj: AiQueryContent = JSON.parse(jsonStr);
         const {
           end_time: endTime,
           start_time: startTime,
