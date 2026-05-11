@@ -47,7 +47,7 @@ from core.errors.export_import import (
     UploadPackageError,
 )
 from monitor_web.commons.cc.utils import CmdbUtil
-from monitor_web.commons.file_manager import ExportImportManager
+from monitor_web.commons.file_manager import ExportImportManager, FileManagerException
 from monitor_web.commons.report.resources import send_frontend_report_event
 from monitor_web.export_import.constant import (
     DIRECTORY_LIST,
@@ -439,7 +439,14 @@ class ExportPackageResource(Resource):
                 bk_tenant_id=bk_tenant_id, plugin=plugin, tmp_path=plugin_file_path
             )
             plugin_manager.version = plugin.current_version
-            plugin_manager.make_package(need_tar=False)
+            try:
+                plugin_manager.make_package(need_tar=False)
+            except FileManagerException:
+                logger.warning(
+                    "skip exporting associated plugin because plugin file is missing, plugin_id=%s",
+                    plugin_id,
+                    exc_info=True,
+                )
 
     def make_view_config_file(self):
         if not self.view_config_ids:

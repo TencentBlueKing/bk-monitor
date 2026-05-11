@@ -38,6 +38,6 @@ export const toUnixMilliseconds = (value: unknown): string => {
     const n = Number(s);
     return String(n).padEnd(13, '0');
   }
-  const d = dayjs.tz(s);
+  const d = dayjs(s);
   return d.isValid() ? String(d.valueOf()) : s;
 };

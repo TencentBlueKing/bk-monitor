@@ -48,6 +48,7 @@ import AlarmConfirm from '../alarm-detail/alarm-confirm';
 import AlarmDispatch from '../alarm-detail/alarm-dispatch';
 import ManualProcess from '../alarm-detail/manual-process';
 import QuickShield from '../alarm-detail/quick-shield';
+import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import { dialogConfig, EVENT_SEVERITY, TREE_SHOW_ICON_LIST } from '../constant';
 import { renderMap } from '../failure-process/process';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
@@ -170,6 +171,8 @@ export default defineComponent({
     const ratio = ref<number>(0);
     const processRef = ref<HTMLDivElement>();
     const activeName = inject<Ref>('activeName');
+
+    const { updateAlarmDetailData } = incidentAlarmDetailInject();
     const feedbackIncidentRootApi = (isCancel, data) => {
       const { bk_biz_id, id } = data;
       const params = {
@@ -515,7 +518,6 @@ export default defineComponent({
     onBeforeUnmount(() => {
       resizeObserver?.unobserve(timelineRef.value);
     });
-
     const getSeverity = severity => {
       const info = Object.values(EVENT_SEVERITY)[severity - 1];
       return (
@@ -530,20 +532,24 @@ export default defineComponent({
       const len = child.length;
       return (
         <span class='alert-name'>
-          {/* biome-ignore lint/a11y/noLabelWithoutControl: <explanation> */}
           <label
             class='blue'
             title={name}
             onClick={() => {
               tickPopoverRefs.value[`tick${ind}`]?.hide();
               showToolMenu.value = false;
-              window.__BK_WEWEB_DATA__?.showDetailSlider?.(JSON.parse(JSON.stringify({ ...currentSpan.value })));
+              console.info('currentSpan.value', currentSpan.value);
+              currentSpan.value.id &&
+                updateAlarmDetailData({
+                  bk_biz_id: currentSpan.value.bk_biz_id ?? window.cc_biz_id ?? window.bk_biz_id,
+                  id: currentSpan.value.id,
+                });
+              // window.__BK_WEWEB_DATA__?.showDetailSlider?.(JSON.parse(JSON.stringify({ ...currentSpan.value })));
             }}
           >
             {name}{' '}
           </label>
           {len > 1 && (
-            // biome-ignore lint/a11y/noLabelWithoutControl: <explanation>
             <label>
               {t('等共 ')}
               <b

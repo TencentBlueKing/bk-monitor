@@ -1,18 +1,20 @@
 import abc
 import ipaddress
 import logging
+import math
 import re
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Sequence
 from datetime import timedelta
 from multiprocessing.pool import IMapIterator
-from typing import Any
+from typing import Any, TypeVar
 
-from django.db.models import Q
+from django.db.models import Count, Q
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apm.models import DataLink
-from apm_web.models import Application
+from apm_web.models import Application, UserVisitRecord
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -25,12 +27,16 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
-from constants.apm import PreCalculateSpecificField
+from constants.apm import OtlpKey, PreCalculateSpecificField
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
+from monitor.models import UserConfig
 
 logger = logging.getLogger("monitor_web")
+
+_T = TypeVar("_T")
+_R = TypeVar("_R")
 
 
 class SearchItem(metaclass=abc.ABCMeta):
@@ -75,7 +81,9 @@ class SearchItem(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @classmethod
-    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(
+        cls, bk_tenant_id: str, username: str, query: str, limit: int = 5, current_bk_biz_id: int | None = None
+    ) -> list[dict] | None:
         """
         Search the query in the search item.
         数据格式:
@@ -108,7 +116,9 @@ class AlertSearchItem(SearchItem):
         return bool(cls.RE_ALERT_ID.match(query))
 
     @classmethod
-    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(
+        cls, bk_tenant_id: str, username: str, query: str, limit: int = 5, current_bk_biz_id: int | None = None
+    ) -> list[dict] | None:
         """
         Search the alert by alert id
         extended fields: alert_id, start_time, end_time
@@ -165,7 +175,9 @@ class StrategySearchItem(SearchItem):
         return not AlertSearchItem.match(query) and not TraceSearchItem.match(query)
 
     @classmethod
-    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(
+        cls, bk_tenant_id: str, username: str, query: str, limit: int = 5, current_bk_biz_id: int | None = None
+    ) -> list[dict] | None:
         """
         Search the strategy by strategy id
         extended fields: strategy_id
@@ -212,91 +224,278 @@ class StrategySearchItem(SearchItem):
 class TraceSearchItem(SearchItem):
     """
     Search item for trace.
+
+    实现两条互补查询路径并行竞速：
+    - Path A 预计算：复用 ``DataLink.pre_calculate_config`` 共享表，覆盖老数据广度。
+    - Path B 直查：按候选业务/应用打分取 TopN，直查 ``Application.trace_result_table_id``，
+      覆盖预计算分钟级写入延迟。
     """
 
     RE_TRACE_ID = re.compile(r"^[0-9a-z]{32}$")
+
+    _RAW_QUERY_TOP_N = 25
+    _CURRENT_BIZ_WEIGHT = 1  # 当前业务基础分
+    _DEFAULT_BIZ_WEIGHT = 1  # 默认业务基础分
+    _HAS_SERVICE_APP_WEIGHT = 0.5  # 有服务关联的应用加分，提升命中率较低但价值较高的应用
+    # 最近访问应用基础分：保证访问过的应用恒定优于未访问层最高分。
+    _CURRENT_APP_WEIGHT = _CURRENT_BIZ_WEIGHT + _DEFAULT_BIZ_WEIGHT + _HAS_SERVICE_APP_WEIGHT
 
     @classmethod
     def match(cls, query: str) -> bool:
         return bool(cls.RE_TRACE_ID.match(query))
 
-    @classmethod
-    def _query_apps_by_trace_id(cls, trace_id: str, table_id: str, limit: int = 5) -> list[dict[str, Any]]:
-        """Query app infos by TraceId"""
-        q: QueryConfigBuilder = (
-            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
-            .table(table_id)
-            .filter(trace_id__eq=trace_id)
-            .time_field(PreCalculateSpecificField.MIN_START_TIME)
-            .values(PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME)
-        )
+    @staticmethod
+    def _first_truthy_concurrent(items: Sequence[_T], fn: Callable[[_T], _R], max_workers: int) -> _R | None:
+        """并发执行 ``fn(item)``，返回首个 truthy 结果；剩余任务通过 ``terminate`` 取消调度。
 
+        ``fn`` 内部需自行吞掉异常并返回 falsy 值，否则首个抛错的任务会终结迭代。
+        """
+        if not items:
+            return None
+        pool = ThreadPool(min(len(items), max(1, max_workers)))
+        try:
+            for result in pool.imap_unordered(fn, items):
+                if result:
+                    return result
+        finally:
+            pool.terminate()
+        return None
+
+    @staticmethod
+    def _safe_call(fn: Callable[[], _R], err_msg: str) -> _R | None:
+        """调用 ``fn``，捕获并记录异常，返回 None。用于路径级隔离。"""
+        try:
+            return fn()
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(err_msg)
+            return None
+
+    @classmethod
+    def _build_item(cls, trace_id: str, app: Application) -> dict[str, Any]:
+        """根据 Application 实例装配单条搜索结果"""
+        return {
+            "bk_biz_id": app.bk_biz_id,
+            "bk_biz_name": cls._get_biz_name(app.bk_biz_id),
+            "name": trace_id,
+            "trace_id": trace_id,
+            "app_name": app.app_name,
+            "app_alias": app.app_alias,
+            "application_id": app.application_id,
+        }
+
+    @classmethod
+    def _fetch_data(
+        cls, trace_id: str, table_id: str, time_field: str, fields: list[str], limit: int
+    ) -> list[dict[str, Any]]:
         now: int = int(time.time())
         qs: UnifyQuerySet = (
             UnifyQuerySet()
-            .add_query(q)
+            .add_query(
+                QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
+                .table(table_id)
+                .filter(trace_id__eq=trace_id)
+                .time_field(time_field)
+                .values(*fields)
+            )
             .time_align(False)
             .start_time(int((now - timedelta(days=7).total_seconds()) * 1000))
             .end_time(now * 1000)
             .limit(limit)
         )
-
         return list(qs)
 
+    # ---------- Path A: 预计算 ----------
+
     @classmethod
-    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def _query_precalc_apps_by_trace_id(cls, trace_id: str, table_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        """单 cluster 预计算表查询，返回 ``[{bk_biz_id, app_name}, ...]``"""
+        return cls._fetch_data(
+            trace_id,
+            table_id,
+            PreCalculateSpecificField.MIN_START_TIME,
+            [PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME],
+            limit,
+        )
+
+    @classmethod
+    def _load_precalc_table_ids(cls) -> list[str]:
+        """读取 ``DataLink.pre_calculate_config.cluster`` 中的表名列表，缺失或异常时返回空列表"""
+        datalink = DataLink.objects.first()
+        if not datalink or not datalink.pre_calculate_config:
+            return []
+        try:
+            cluster_config = datalink.pre_calculate_config["cluster"] or []
+            return [t["table_name"] for t in cluster_config]
+        except (KeyError, TypeError):
+            return []
+
+    @classmethod
+    def _path_precalc(cls, bk_tenant_id: str, trace_id: str, limit: int) -> list[dict[str, Any]]:
+        """Path A：多 cluster 并发查询预计算表，装配 items 输出"""
+        table_ids: list[str] = cls._load_precalc_table_ids()
+        if not table_ids:
+            return []
+
+        app_infos: list[dict[str, Any]] = (
+            cls._first_truthy_concurrent(
+                table_ids,
+                lambda tid: cls._query_precalc_apps_by_trace_id(trace_id, tid, limit),
+                max_workers=5,
+            )
+            or []
+        )
+
+        items: list[dict[str, Any]] = []
+        for info in app_infos:
+            try:
+                bk_biz_id = int(info["bk_biz_id"])
+            except (TypeError, ValueError, KeyError):
+                continue
+            app_name: str | None = info.get("app_name")
+            if not app_name:
+                continue
+            app = Application.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, app_name=app_name).first()
+            if not app:
+                continue
+            items.append(cls._build_item(trace_id, app))
+        return items
+
+    # ---------- Path B: 直查 ----------
+
+    @classmethod
+    def _query_raw_apps_by_trace_id(cls, trace_id: str, table_id: str) -> bool:
+        """直查单应用原始 Trace 表，仅判断 trace_id 是否存在（``limit=1``）"""
+        return bool(cls._fetch_data(trace_id, table_id, OtlpKey.END_TIME, [OtlpKey.TRACE_ID], limit=1))
+
+    @classmethod
+    def _get_user_config(cls, username: str, key: str) -> Any:
+        """读取用户配置项"""
+        return UserConfig.objects.filter(username=username, key=key).first()
+
+    @classmethod
+    def _get_default_biz_id(cls, username: str) -> int | None:
+        """读取 ``UserConfig.DEFAULT_BIZ_ID`` 并尽量转换为 int"""
+        config: UserConfig | None = cls._get_user_config(username, key=UserConfig.Keys.DEFAULT_BIZ_ID)
+        try:
+            return int(config.value) if config else None
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _aggregate_user_visits(cls, username: str) -> dict[tuple[int, str], int]:
+        """聚合用户最近 N 天的 APM 应用访问次数，返回 ``(bk_biz_id, app_name) → count``"""
+        since = timezone.now() - timedelta(days=30)
+        rows = (
+            UserVisitRecord.objects.filter(created_by=username, created_at__gte=since)
+            .values("bk_biz_id", "app_name")
+            .annotate(visit_count=Count("id"))
+        )
+        return {(row["bk_biz_id"], row["app_name"]): row["visit_count"] for row in rows if row["app_name"]}
+
+    @classmethod
+    def _collect_candidate_apps(cls, bk_tenant_id: str, username: str, bk_biz_id: int | None) -> list[Application]:
+        """构造候选应用列表：候选业务并集 → 应用全量拉取 → 统一打分截 TopN
+
+        应用得分 ``score = VISITED_BONUS + log1p(visit) if visit > 0 else biz_boost + service_boost``，
+        同分按 ``application_id`` 升序保障稳定性。
+        """
+        biz_app_visit_count_map: dict[tuple[int, str], int] = cls._aggregate_user_visits(username)
+
+        default_biz_id = cls._get_default_biz_id(username)
+        biz_ids: set[int] = {biz for biz, _ in biz_app_visit_count_map}
+        biz_ids.update(cls._get_allowed_bk_biz_ids(bk_tenant_id, username, ActionEnum.VIEW_BUSINESS))
+        if bk_biz_id:
+            biz_ids.add(bk_biz_id)
+        if default_biz_id is not None:
+            biz_ids.add(default_biz_id)
+
+        if not biz_ids:
+            return []
+
+        apps = list(
+            Application.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=list(biz_ids)).exclude(
+                trace_result_table_id=""
+            )
+        )
+        if not apps:
+            return []
+
+        def _score(app: Application) -> float:
+            # Q：为什么使用 log1p？
+            # A：归一化：直接使用访问次数会导致该因素过于突出，log1p 可以将访问次数映射到一个更小的范围，避免极端值对得分的过度影响。
+            visit_count: int = biz_app_visit_count_map.get((app.bk_biz_id, app.app_name), 0)
+            if visit_count > 0:
+                return cls._CURRENT_APP_WEIGHT + math.log1p(visit_count)
+
+            has_service_score: float = cls._HAS_SERVICE_APP_WEIGHT * (app.service_count > 0)
+            current_biz_score: float = cls._CURRENT_BIZ_WEIGHT * (app.bk_biz_id == bk_biz_id)
+            default_biz_score: float = cls._DEFAULT_BIZ_WEIGHT * (app.bk_biz_id == default_biz_id)
+            return has_service_score + current_biz_score + default_biz_score
+
+        # 先按得分降序、再按 application_id 升序排序，最后截取 TopN 作为 Path B 的查询候选，保障结果稳定且兼顾访问频次和业务相关性。
+        return sorted(apps, key=lambda app: (-_score(app), app.application_id))[: cls._RAW_QUERY_TOP_N]
+
+    @classmethod
+    def _path_raw(
+        cls,
+        bk_tenant_id: str,
+        username: str,
+        trace_id: str,
+        bk_biz_id: int | None,
+    ) -> list[dict[str, Any]]:
+        """Path B：TopN 候选应用并发直查，首个命中即返回。"""
+        apps = cls._collect_candidate_apps(bk_tenant_id, username, bk_biz_id)
+        if not apps:
+            return []
+
+        logger.info(
+            "[TraceSearch] raw path candidate apps, trace_id=%s, bk_biz_id=%s, candidates=%s",
+            trace_id,
+            bk_biz_id,
+            ",".join([f"{app.bk_biz_id}-{app.app_name}" for app in apps]),
+        )
+
+        def _probe_app(app: Application) -> Application | None:
+            """探测单应用原始 Trace 表是否命中 trace_id；异常按 miss 处理"""
+            try:
+                if cls._query_raw_apps_by_trace_id(trace_id, app.trace_result_table_id):
+                    return app
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(
+                    "[TraceSearch] raw query failed, app=%s table=%s",
+                    app.application_id,
+                    app.trace_result_table_id,
+                )
+            return None
+
+        hit_app = cls._first_truthy_concurrent(apps, _probe_app, max_workers=min(len(apps), 8))
+        return [cls._build_item(trace_id, hit_app)] if hit_app else []
+
+    @classmethod
+    def search(
+        cls, bk_tenant_id: str, username: str, query: str, limit: int = 5, current_bk_biz_id: int | None = None
+    ) -> list[dict] | None:
         """
         Search the trace by trace id
         extended fields: trace_id, app_name, app_alias
         """
         trace_id = query
 
-        # 获取预计算表
-        datalink = DataLink.objects.first()
-        if not datalink or not datalink.pre_calculate_config:
-            return
-        table_ids = [table["table_name"] for table in datalink.pre_calculate_config["cluster"]]
+        # 路径级隔离：单条路径异常被吞掉并返回 None，让另一路仍有机会贡献结果
+        path_funcs: list[Callable[[], list[dict[str, Any]] | None]] = [
+            lambda: cls._safe_call(
+                lambda: cls._path_precalc(bk_tenant_id, trace_id, limit),
+                f"[TraceSearch] precalc path failed, trace_id={trace_id}",
+            ),
+            lambda: cls._safe_call(
+                lambda: cls._path_raw(bk_tenant_id, username, trace_id, current_bk_biz_id),
+                f"[TraceSearch] raw path failed, trace_id={trace_id}",
+            ),
+        ]
 
-        # 使用多线程查询预计算表
-        pool = ThreadPool(5)
-        results = pool.imap_unordered(lambda tid: cls._query_apps_by_trace_id(trace_id, tid, limit), table_ids)
-        pool.close()
-
-        # 获取第一个有数据的结果
-        app_infos = None
-        for result in results:
-            if result:
-                app_infos = result
-                pool.terminate()
-                break
-
-        if not app_infos:
-            return
-
-        items = []
-        for app_info in app_infos:
-            bk_biz_id = int(app_info["bk_biz_id"])
-            app_name = app_info["app_name"]
-
-            # 获取apm应用信息
-            apm_app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-            if not apm_app:
-                continue
-
-            items.append(
-                {
-                    "bk_biz_id": bk_biz_id,
-                    "bk_biz_name": cls._get_biz_name(bk_biz_id),
-                    "name": trace_id,
-                    "trace_id": trace_id,
-                    "app_name": app_name,
-                    "app_alias": apm_app.app_alias,
-                    "application_id": apm_app.application_id,
-                }
-            )
-
+        items = cls._first_truthy_concurrent(path_funcs, lambda fn: fn(), max_workers=len(path_funcs))
         if not items:
-            return
+            return None
 
         return [{"type": "trace", "name": "Trace", "items": items}]
 
@@ -316,7 +515,9 @@ class ApmApplicationSearchItem(SearchItem):
         return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.RE_TRACE_ID.match(query)
 
     @classmethod
-    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(
+        cls, bk_tenant_id: str, username: str, query: str, limit: int = 5, current_bk_biz_id: int | None = None
+    ) -> list[dict] | None:
         """
         Search the application by application name
         """
@@ -379,7 +580,9 @@ class HostSearchItem(SearchItem):
         return bool(cls.RE_IP.findall(query)) or ":" in query
 
     @classmethod
-    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(
+        cls, bk_tenant_id: str, username: str, query: str, limit: int = 5, current_bk_biz_id: int | None = None
+    ) -> list[dict] | None:
         """
         Search the host by host name
         """
@@ -454,7 +657,9 @@ class BCSClusterSearchItem(SearchItem):
         return not TraceSearchItem.match(query) and not AlertSearchItem.match(query) and not HostSearchItem.match(query)
 
     @classmethod
-    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(
+        cls, bk_tenant_id: str, username: str, query: str, limit: int = 5, current_bk_biz_id: int | None = None
+    ) -> list[dict] | None:
         """
         Search the bcs cluster by cluster name
         """
@@ -516,9 +721,10 @@ class Searcher:
         BCSClusterSearchItem,
     ]
 
-    def __init__(self, bk_tenant_id: str, username: str):
+    def __init__(self, bk_tenant_id: str, username: str, current_bk_biz_id: int | None = None):
         self.bk_tenant_id = bk_tenant_id
         self.username = username
+        self.current_bk_biz_id = current_bk_biz_id
 
     def search(self, query: str, timeout: int = 30, limit: int = 5) -> Generator[dict[str, Any], None, None]:
         """
@@ -528,7 +734,10 @@ class Searcher:
 
         with ThreadPool() as pool:
             results: IMapIterator = pool.imap_unordered(
-                lambda item: item.search(self.bk_tenant_id, self.username, query, limit=limit), search_items
+                lambda item: item.search(
+                    self.bk_tenant_id, self.username, query, limit=limit, current_bk_biz_id=self.current_bk_biz_id
+                ),
+                search_items,
             )
 
             start_time = time.time()

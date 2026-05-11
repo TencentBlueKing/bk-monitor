@@ -265,7 +265,7 @@ class PlaceholderAnalysisHandler:
             f"FROM (SELECT {extract_sql} AS val WHERE {signature_field} = '{signature}') t "
             f"WHERE val != ''{self._build_value_keyword_filter()} "
             "GROUP BY val "
-            "ORDER BY cnt DESC "
+            "ORDER BY cnt DESC, val ASC "
         )
         if limit is None:
             limit = self.params.get("limit", self.DEFAULT_LIMIT)

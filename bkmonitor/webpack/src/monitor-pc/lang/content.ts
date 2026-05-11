@@ -424,6 +424,13 @@ export default {
   正则表达式: 'Regular expression',
   '根据规则自动发现未来新指标，存量指标不生效。':
     'Automatically discover new metrics according to rules, existing metrics do not take effect.',
+
+  // Issues 活动内容
+  '拆分为 {0} 个 Issue:': 'Split into {0} Issues:',
+  '合并进 Issue:': 'Merged into Issue:',
+  未解决: 'Unresolved',
+  未分派: 'Unassigned',
+  分派给我: 'Assigned to me',
   告警关联: 'Alarm related',
   查看策略列表: 'View strategy list',
   本服务: 'This service',

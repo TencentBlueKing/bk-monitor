@@ -510,7 +510,9 @@ class QuickActionTokenResource(AlertPermissionResource):
     def redirect(bk_biz_id, action_id):
         request = get_request()
         mobile_url = f"/weixin/?bizId={bk_biz_id}&collectId={action_id}"
-        pc_url = f"/?bizId={bk_biz_id}&routeHash=event-center/?collectId={action_id}#/"
+        pc_url = (
+            f"/?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{action_id}&filterMode=queryString"
+        )
         redirect_url = mobile_url if request.is_mobile() else pc_url
         return HttpResponseRedirect(redirect_url)
 

@@ -269,6 +269,13 @@ export default defineComponent({
     };
 
     /**
+     * @description 表格高亮行发生变化时的回调
+     * @param {Array<string | number>} activeRowKeys 高亮行
+     */
+    const handleActiveChange = (rowKeys: Array<number | string>) => {
+      activeRowKeys.value = rowKeys;
+    };
+    /**
      * @description 表格列宽拖拽变化时的回调
      * @param {ColumnResizeContext} context 包含列宽映射的上下文对象
      * @returns {void}
@@ -334,6 +341,7 @@ export default defineComponent({
       handleColumnResizeChange,
       tableLastFullRowRender,
       tableEmptyRender,
+      handleActiveChange,
     };
   },
   render() {
@@ -342,10 +350,10 @@ export default defineComponent({
         <PrimaryTable
           ref='tableRef'
           class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
-          v-model:activeRowKeys={this.activeRowKeys}
           v-slots={{
             empty: this.tableEmptyRender,
           }}
+          activeRowKeys={this.activeRowKeys}
           activeRowType='single'
           bkUiSettings={this.tableSettings}
           columns={this.tableColumns}
@@ -365,6 +373,7 @@ export default defineComponent({
           size={this.tableSize}
           sort={this.tableSort}
           tableLayout='fixed'
+          onActiveChange={this.handleActiveChange}
           onColumnResizeChange={this.handleColumnResizeChange}
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
           onSelectChange={this.handleSelectChange}

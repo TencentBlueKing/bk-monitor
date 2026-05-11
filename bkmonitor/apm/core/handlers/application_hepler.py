@@ -15,6 +15,7 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 
+import abc
 import re
 from typing import Any
 
@@ -22,7 +23,7 @@ from django.conf import settings
 
 from apm.models import DataLink
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
+from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space, parse_space_uid
 from bkm_space.define import SpaceTypeEnum
 from core.drf_resource import resource
 from apm.core.handlers.serializers import ApplicationStorageRouteSerializer
@@ -105,3 +106,122 @@ class ApplicationHelper:
 
         CreateApplicationSimpleResource()(bk_biz_id=bk_biz_id, app_name=cls.DEFAULT_APPLICATION_NAME)
         return Application.objects.filter(bk_biz_id=bk_biz_id, app_name=cls.DEFAULT_APPLICATION_NAME).first()
+
+
+class SharedDatasourceRule(abc.ABC):
+    """共享数据源匹配规则抽象基类
+
+    子类通过 TYPE_KEY 声明规则类型，从 params 字典中按约定键名读取自身所需参数
+
+    :cvar TYPE_KEY: 规则类型标识，对应配置中 rules 列表每一项的 type 字段
+    """
+
+    TYPE_KEY: str = ""
+
+    def __init__(self, params: dict[str, Any]):
+        self.params = params or {}
+
+    @abc.abstractmethod
+    def match(self, bk_biz_id: int, app_name: str) -> bool:
+        """判断当前应用是否命中该规则"""
+
+
+class SpaceTypeRule(SharedDatasourceRule):
+    """空间类型规则
+
+    从 params.space_types 读取允许的空间类型列表（如 ["bksaas"]），业务所属空间类型命中任一即返回 True
+    """
+
+    TYPE_KEY = "SPACE_TYPE"
+
+    def match(self, bk_biz_id: int, app_name: str) -> bool:
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        if not space_uid:
+            return False
+        space_type, _ = parse_space_uid(space_uid)
+        return space_type in self.params.get("space_types", [])
+
+
+class AppNamePrefixRule(SharedDatasourceRule):
+    """应用名前缀规则
+
+    从 params.prefixes 读取允许的前缀列表，应用名以任一前缀开头即返回 True
+    """
+
+    TYPE_KEY = "APP_NAME_PREFIX"
+
+    def match(self, bk_biz_id: int, app_name: str) -> bool:
+        return any(app_name.startswith(prefix) for prefix in self.params.get("prefixes", []))
+
+
+class SharedDatasourceRuleFactory:
+    """共享数据源规则工厂
+
+    按 settings.APM_SHARED_DATASOURCE_RULES 配置逐个数据源类型进行求值。
+    注：每个数据源类型下的 group 之间为 OR 关系（任一命中即该类型需共享），单个 group 内的 rules 通过 connector(AND/OR) 组合
+    """
+
+    BUILDER_REGISTER: dict[str, type[SharedDatasourceRule]] = {
+        SpaceTypeRule.TYPE_KEY: SpaceTypeRule,
+        AppNamePrefixRule.TYPE_KEY: AppNamePrefixRule,
+    }
+
+    @classmethod
+    def list_shared_datasource_types(cls, bk_biz_id: int, app_name: str) -> list[str]:
+        """应用需共享的数据源类型
+
+        按配置逐个数据源类型独立求值，返回命中共享规则的数据源类型列表
+
+        :param bk_biz_id: 业务 ID
+        :param app_name: 应用名
+        :return: 命中共享规则的数据源类型列表（如 ["trace", "log"]）；全部未命中时返回空列表
+        """
+        rules_config: dict[str, Any] = settings.APM_SHARED_DATASOURCE_RULES or {}
+
+        shared_types: list[str] = []
+        for datasource_type, type_config in rules_config.items():
+            groups: list[dict[str, Any]] = type_config.get("list", [])
+            if cls._match_any_group(groups, bk_biz_id, app_name):
+                shared_types.append(datasource_type)
+        return shared_types
+
+    @classmethod
+    def _match_any_group(cls, groups: list[dict[str, Any]], bk_biz_id: int, app_name: str) -> bool:
+        """数据源类型级匹配
+
+        group 间为 OR 关系，任一 group 命中即返回 True
+        """
+        for group in groups:
+            if cls._match_group(group, bk_biz_id, app_name):
+                return True
+        return False
+
+    @classmethod
+    def _match_group(cls, group: dict[str, Any], bk_biz_id: int, app_name: str) -> bool:
+        """单 group 内匹配
+
+        根据 connector 对 rules 进行 AND / OR 组合；非法 connector 或空 rules 视为不命中
+        """
+        connector: str = group.get("connector", "AND")
+        rule_configs: list[dict[str, Any]] = group.get("rules", [])
+        if not rule_configs:
+            return False
+
+        rule_results = (cls._match_rule(rule_config, bk_biz_id, app_name) for rule_config in rule_configs)
+        if connector == "AND":
+            return all(rule_results)
+        if connector == "OR":
+            return any(rule_results)
+        return False
+
+    @classmethod
+    def _match_rule(cls, rule_config: dict[str, Any], bk_biz_id: int, app_name: str) -> bool:
+        """单规则匹配
+
+        未注册的规则类型视为不命中，避免误判
+        """
+        rule_cls = cls.BUILDER_REGISTER.get(rule_config.get("type"))
+        if not rule_cls:
+            return False
+        rule = rule_cls(params=rule_config.get("params", {}))
+        return rule.match(bk_biz_id, app_name)

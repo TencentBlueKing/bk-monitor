@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 // import { activated, loadApp, deactivated } from '../../../bk-weweb/src/index';
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
 import { getShareParams } from 'monitor-api/modules/share';
+import { getAlarmCenterDetailUrl } from 'monitor-common/utils/alarm-center-router';
 
 import './share.scss';
 
@@ -67,9 +68,11 @@ export default class SharePage extends tsc<object> {
     }
     this.emptyMessage = '';
     let url = '';
-    // 事件中心
+    // 事件中心：分享类型沿用旧名 event-center，新版告警中心承接跳转
     if (data.name === 'event-center') {
-      url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/event-center/detail/${data.eventId}`;
+      const bizId =
+        data?.bizId || (data.query?.bizIds?.[0] > 0 ? data.query?.bizIds?.[0] : undefined) || this.$store.getters.bizId;
+      url = getAlarmCenterDetailUrl(data.eventId, undefined, bizId);
     } else if (/^apm_/.test(String(data.query?.sceneId))) {
       // apm 处理
       const route = this.$router.resolve({
