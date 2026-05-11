@@ -453,3 +453,8 @@ class GrokPatternNotFoundException(BaseException):
 class DuplicateGrokPatternException(BaseException):
     ERROR_CODE = "915"
     MESSAGE = _("Grok 模式名称已存在")
+
+
+class GrokPatternCompileException(BaseException):
+    ERROR_CODE = "916"
+    MESSAGE = _("Grok 模式编译失败，正则表达式不合法：{error}")

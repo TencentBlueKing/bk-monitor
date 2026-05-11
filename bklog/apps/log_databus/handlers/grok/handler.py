@@ -28,6 +28,7 @@ from apps.log_databus.handlers.grok.base import Grok
 
 from apps.log_databus.exceptions import (
     GrokCircularReferenceException,
+    GrokPatternCompileException,
     GrokReferencedException,
     GrokPatternNotFoundException,
     DuplicateGrokPatternException,
@@ -221,6 +222,15 @@ class GrokHandler:
         total = len(grok_list)
         return {"total": total, "list": grok_list[: params["limit"]]}
 
+    def _compile_grok(self, pattern: str, custom_patterns: dict | None = None) -> Grok:
+        """
+        编译 Grok 模式，捕获正则表达式编译错误并转换为业务异常
+        """
+        try:
+            return Grok(pattern, custom_patterns)
+        except re.error as e:
+            raise GrokPatternCompileException(GrokPatternCompileException.MESSAGE.format(error=str(e)))
+
     def create_grok_info(self, params: dict) -> dict:
         """
         创建 Grok 模式
@@ -228,9 +238,11 @@ class GrokHandler:
         self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(params["name"], params["pattern"])
 
+        custom_patterns = self.get_custom_patterns_map()
+        grok = self._compile_grok(params["pattern"], custom_patterns)
+
         if params.get("sample"):
-            custom_patterns = self.get_custom_patterns_map()
-            sample_result = Grok(params["pattern"], custom_patterns).match(params["sample"])
+            sample_result = grok.match(params["sample"])
         else:
             sample_result = {}
 
@@ -259,9 +271,11 @@ class GrokHandler:
         self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(grok_info.name, params["pattern"])
 
+        custom_patterns = self.get_custom_patterns_map()
+        grok = self._compile_grok(params["pattern"], custom_patterns)
+
         if params.get("sample"):
-            custom_patterns = self.get_custom_patterns_map()
-            params["sample_result"] = Grok(params["pattern"], custom_patterns).match(params["sample"])
+            params["sample_result"] = grok.match(params["sample"])
         else:
             params["sample_result"] = {}
 
