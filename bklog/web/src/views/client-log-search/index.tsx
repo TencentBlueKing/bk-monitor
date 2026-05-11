@@ -323,7 +323,7 @@ export default defineComponent({
     const updateTaskStatus = (source: DataSource, id: number | string, status: ProcessStatus, processedAt?: string) => {
       const index = taskList.value.findIndex(item => {
         if (source === 'task') {
-          return item.source === 'task' && item.task_id === id;
+          return item.source === 'task' && String(item.task_id) === String(id);
         }
         return item.source === 'report' && item.file_name === id;
       });
@@ -336,7 +336,7 @@ export default defineComponent({
         taskList.value.splice(index, 1, updatedItem);
         // 同步更新 selectedLogItem
         if (selectedLogItem.value && selectedLogItem.value.source === source
-          && (source === 'task' ? selectedLogItem.value.task_id === id : selectedLogItem.value.file_name === id)) {
+          && (source === 'task' ? String(selectedLogItem.value.task_id) === String(id) : selectedLogItem.value.file_name === id)) {
           selectedLogItem.value = updatedItem;
         }
       }
@@ -438,7 +438,7 @@ export default defineComponent({
         taskList.value.splice(index, 1, updatedItem);
         // 如果当前选中项就是该项，同步更新选中状态
         if (selectedLogItem.value && selectedLogItem.value.source === item.source
-          && (item.source === 'task' ? selectedLogItem.value.id === item.id : selectedLogItem.value.file_name === item.file_name)) {
+          && (item.source === 'task' ? selectedLogItem.value.task_id === item.task_id : selectedLogItem.value.file_name === item.file_name)) {
           selectedLogItem.value = updatedItem;
         }
       }
@@ -450,7 +450,7 @@ export default defineComponent({
           await $http.request('clientLog/syncTask', {
             data: {
               bk_biz_id: bkBizId,
-              task_id_list: [item.id],
+              task_id_list: [item.task_id],
             },
           });
         } else {
