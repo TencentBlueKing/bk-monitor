@@ -278,8 +278,13 @@ export default defineComponent({
         // 正在检索中时不允许再次触发检索
         if (isSearching.value) return;
 
-        store.dispatch('requestIndexSetQuery');
-        RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+        // 场景化检索模式下，先请求字段列表数据，再执行查询
+        store.dispatch('requestIndexSetFieldInfo').then((resp: any) => {
+          if (resp?.data?.fields?.length) {
+            store.dispatch('requestIndexSetQuery');
+            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+          }
+        });
       }
     };
 
