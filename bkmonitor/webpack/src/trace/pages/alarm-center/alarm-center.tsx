@@ -199,10 +199,12 @@ export default defineComponent({
     const {
       legacyBatchAction,
       shouldAutoOpenFirstDetail,
+      shouldAutoOpenSingleAlertDetailFromActionIdQuery,
       showPermissionTips,
       applyLegacyQueryStringInjection,
       applyPromqlIfNeeded,
       setupAutoOpenFirstDetailFlag,
+      setupAutoOpenSingleAlertDetailFromActionIdQueryFlag,
       computeShowPermissionTips,
       dismissPermissionTips,
       handleApplyPermission,
@@ -864,6 +866,20 @@ export default defineComponent({
           handleShowAlertDetail(data.value[0] as AlertTableItem);
           return;
         }
+        /**
+         * 告警通知链接：queryString 以 action_id 检索且列表总数仅 1 条时自动打开告警详情
+         *（与旧版 `(^action_id)` 入口策略一致，见 useLegacyEventCenterCompat）
+         */
+        if (
+          shouldAutoOpenSingleAlertDetailFromActionIdQuery.value &&
+          alarmStore.alarmType === AlarmType.ALERT &&
+          total.value === 1 &&
+          data.value?.length === 1
+        ) {
+          shouldAutoOpenSingleAlertDetailFromActionIdQuery.value = false;
+          handleShowAlertDetail(data.value[0] as AlertTableItem);
+          return;
+        }
         // 如非自动打开dialog，则清空selectedRowKeys
         handleSelectedRowKeysChange();
       }
@@ -881,6 +897,8 @@ export default defineComponent({
       computeShowPermissionTips();
       /** PromQL 异步转换 queryString，需在首次表格请求触发前完成 */
       await applyPromqlIfNeeded();
+      /** 须在 PromQL 可能改写 queryString 之后再判定 action_id 单条自动展开 */
+      setupAutoOpenSingleAlertDetailFromActionIdQueryFlag();
       setUrlParams();
     });
     return {

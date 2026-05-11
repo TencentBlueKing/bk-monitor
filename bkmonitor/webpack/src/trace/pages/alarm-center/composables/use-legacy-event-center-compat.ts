@@ -33,7 +33,7 @@ import { docCookies, LANGUAGE_COOKIE_KEY, random } from 'monitor-common/utils';
 import { useRoute } from 'vue-router';
 
 import { EMode } from '../../../components/retrieval-filter/typing';
-import { AlertAllActionEnum, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings/constants';
+import { AlarmType, AlertAllActionEnum, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings/constants';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
@@ -53,6 +53,7 @@ const LEGACY_BATCH_ACTION_MAP: Record<string, AlertAllActionEnum> = {
  * - PromQL 异步转换为 queryString
  * - 旧 batchAction 映射为新版 autoShowAlertAction
  * - 通过 collectId/alertId + specEvent 标记自动展开第一条详情
+ * - 告警通知链接：URL 已带 `queryString` 且以 `action_id` 开头时，列表仅一条则自动展开详情（与旧版 `(^action_id)` 安全策略一致）
  * - 业务权限提示（无权限业务存在时显示申请权限横条）
  *
  * 必须在 alarm-center.tsx 的 getUrlParams() 解析完之后调用，
@@ -64,6 +65,11 @@ export function useLegacyEventCenterCompat() {
 
   /** 是否需要自动展开第一条数据的详情 */
   const shouldAutoOpenFirstDetail = shallowRef(false);
+  /**
+   * 告警通知等入口：queryString 模式且检索式以 action_id 开头时，若列表总数仅 1 条则自动打开告警详情侧栏
+   *（须在 applyPromqlIfNeeded 之后计算，避免 PromQL 改写 queryString 后误触发）
+   */
+  const shouldAutoOpenSingleAlertDetailFromActionIdQuery = shallowRef(false);
   /** 是否显示业务权限提示横条 */
   const showPermissionTips = shallowRef(false);
 
@@ -165,6 +171,33 @@ export function useLegacyEventCenterCompat() {
     shouldAutoOpenFirstDetail.value = hasLegacyDetailEntry && hasSpecEventFlag;
   }
 
+  function routeHasExplicitShowDetail(): boolean {
+    const v = route.query?.showDetail;
+    if (v == null || v === '' || v === 'false') return false;
+    if (v === true || v === 'true') return true;
+    try {
+      return JSON.parse(String(v)) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * @description 告警通知链接（如 `#/trace/alarm-center?queryString=action_id%20%3A%20xxx&filterMode=queryString`）进入时，
+   * 若 URL 未显式指定展开详情，且当前为告警列表 + queryString 模式 + 检索式以 action_id 开头，则在表格仅一条命中时自动打开侧栏
+   */
+  function setupAutoOpenSingleAlertDetailFromActionIdQueryFlag() {
+    if (routeHasExplicitShowDetail()) {
+      shouldAutoOpenSingleAlertDetailFromActionIdQuery.value = false;
+      return;
+    }
+    const qs = (alarmStore.queryString || '').trim();
+    /** 与旧版事件中心批量弹窗、告警中心 autoShowAlertDialog 的 action_id 入口校验一致 */
+    const isActionIdQueryEntry = /(^action_id).+/.test(qs);
+    shouldAutoOpenSingleAlertDetailFromActionIdQuery.value =
+      alarmStore.alarmType === AlarmType.ALERT && alarmStore.filterMode === EMode.queryString && isActionIdQueryEntry;
+  }
+
   /** 计算业务权限提示展示状态 */
   function computeShowPermissionTips() {
     const ids = alarmStore.bizIds || [];
@@ -206,10 +239,12 @@ export function useLegacyEventCenterCompat() {
   return {
     legacyBatchAction,
     shouldAutoOpenFirstDetail,
+    shouldAutoOpenSingleAlertDetailFromActionIdQuery,
     showPermissionTips,
     applyLegacyQueryStringInjection,
     applyPromqlIfNeeded,
     setupAutoOpenFirstDetailFlag,
+    setupAutoOpenSingleAlertDetailFromActionIdQueryFlag,
     computeShowPermissionTips,
     dismissPermissionTips,
     handleApplyPermission,
