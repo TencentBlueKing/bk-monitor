@@ -28,13 +28,15 @@ import { type MaybeRef, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { get } from '@vueuse/core';
 
-import { fetchNoDataStrategyInfo } from '../services/data-state';
+import { disableNoDataStrategy, enableNoDataStrategy, fetchNoDataStrategyInfo } from '../services/data-state';
 
 import type { AsyncDialogConfirmEvent, IRumAppBaseParams, IStrategyData } from '../../typings';
 
 export type UseNoDataStrategyReturn = ReturnType<typeof useNoDataStrategy>;
 
 interface UseNoDataStrategyOptions {
+  /** 应用 ID */
+  applicationId: MaybeRef<number>;
   /** 应用名称 */
   appName: MaybeRef<IRumAppBaseParams['app_name']>;
   /** 业务 ID */
@@ -48,7 +50,7 @@ interface UseNoDataStrategyOptions {
  * @returns {UseNoDataStrategyReturn} 策略状态与处理方法
  */
 export const useNoDataStrategy = (options: UseNoDataStrategyOptions) => {
-  const { bizId, appName } = options;
+  const { applicationId, bizId, appName } = options;
   /** 告警策略信息 */
   const strategyInfo = shallowRef<IStrategyData>(null);
   /** 数据加载状态 */
@@ -62,16 +64,14 @@ export const useNoDataStrategy = (options: UseNoDataStrategyOptions) => {
    * @returns {void}
    */
   const handleEnabledChange = (event: AsyncDialogConfirmEvent<{ is_enabled: boolean }>) => {
-    // TODO: 替换为真实接口调用
-    // 真实场景示例：
-    //   updateStrategyEnabled(strategyInfo.id, event.payload.is_enabled)
-    //     .then(() => {
-    //       strategyInfo.is_enabled = event.payload.is_enabled;
-    //       event.resolve();
-    //     })
-    //     .catch(() => event.reject());
-    event.resolve();
-    fetchStrategyInfo();
+    const action = event.payload.is_enabled ? enableNoDataStrategy : disableNoDataStrategy;
+    action({ application_id: get(applicationId) })
+      .then(() => {
+        strategyInfo.value = { ...strategyInfo.value, is_enabled: event.payload.is_enabled };
+        event.resolve();
+        fetchStrategyInfo();
+      })
+      .catch(() => event.reject());
   };
 
   /**
