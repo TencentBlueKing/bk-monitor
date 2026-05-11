@@ -12,6 +12,8 @@ export const getStorageInfo = request('POST', 'rum/meta/application/storage_info
 export const getIndicesInfo = request('POST', 'rum/meta/application/indices_info/');
 export const getDataSampling = request('POST', 'rum/meta/application/data_sampling/');
 export const getNoDataStrategyInfo = request('POST', 'rum/meta/application/nodata_strategy_info/');
+export const noDataStrategyEnable = request('POST', 'rum/meta/application/nodata_strategy_enable/');
+export const noDataStrategyDisable = request('POST', 'rum/meta/application/nodata_strategy_disable/');
 export const getDataViewConfig = request('POST', 'rum/meta/application/data_view_config/');
 export const listApplication = request('POST', 'rum/meta/application/list_application/');
 export const listApplicationAsync = request('POST', 'rum/meta/application/list_application_async/');
@@ -31,6 +33,8 @@ export default {
   getIndicesInfo,
   getDataSampling,
   getNoDataStrategyInfo,
+  noDataStrategyEnable,
+  noDataStrategyDisable,
   getDataViewConfig,
   listApplication,
   listApplicationAsync,
