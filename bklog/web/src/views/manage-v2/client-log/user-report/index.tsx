@@ -383,6 +383,10 @@ export default defineComponent({
     };
 
     const handleViewSDKDoc = () => {
+      const url = (window as any).TGPA_SDK_DOC_URL;
+      if (url) {
+        window.open(url, '_blank');
+      }
     };
 
     // 批量上传按钮点击事件

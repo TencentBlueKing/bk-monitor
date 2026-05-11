@@ -37,7 +37,8 @@ import {
 } from 'vue';
 
 import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
-import { $bkPopover, Loading } from 'bkui-vue';
+import { Loading } from 'bkui-vue';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
@@ -186,8 +187,8 @@ export default defineComponent({
     let scrollContainer: HTMLElement = null;
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
-    /** 统计弹窗实例 */
-    let statisticsPopoverInstance = null;
+    /** 统计弹窗 tippy 实例 */
+    let statisticsPopoverInstance: Instance | null = null;
 
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
     const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
@@ -320,8 +321,8 @@ export default defineComponent({
         return;
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
-      const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) <= 1;
-      const noScrollBar = scrollHeight <= clientHeight + 1;
+      const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) < 1;
+      const noScrollBar = scrollHeight < clientHeight + 1;
       const shouldRequest = noScrollBar || isEnd;
       if (!shouldRequest) return;
       if (
@@ -474,9 +475,11 @@ export default defineComponent({
      */
     const handleStatisticsPopoverHide = (resetActiveStatisticsField = true) => {
       showStatisticsPopover.value = false;
-      statisticsPopoverInstance?.hide(0);
-      statisticsPopoverInstance?.close();
-      statisticsPopoverInstance = null;
+      const inst = statisticsPopoverInstance;
+      if (inst) {
+        statisticsPopoverInstance = null;
+        inst.destroy();
+      }
       if (resetActiveStatisticsField) {
         activeStatisticsField.value = '';
       }
@@ -490,28 +493,42 @@ export default defineComponent({
       handleStatisticsPopoverHide();
       activeStatisticsField.value = item.name;
       if (!item.is_dimensions) return;
-      statisticsPopoverInstance = $bkPopover({
-        target: e.currentTarget as HTMLDivElement,
-        content: statisticsListRef.value.$refs.dimensionPopover as HTMLDivElement,
-        trigger: 'click',
+      const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
+      if (!contentEl) return;
+      const tippyInst = tippy(e.currentTarget as SingleTarget, {
+        content: contentEl,
+        trigger: 'manual',
         placement: 'right',
-        theme: 'light',
+        theme: 'light statistics-dimension-popover-cls',
         arrow: true,
-        boundary: 'viewport',
-        extCls: 'statistics-dimension-popover-cls',
-        width: 405,
-        // @ts-expect-error
-        distance: -5,
-        onHide() {
+        interactive: true,
+        maxWidth: 405,
+        offset: [0, 8],
+        appendTo: () => document.body,
+        popperOptions: {
+          modifiers: [
+            {
+              name: 'preventOverflow',
+              options: {
+                boundary: 'viewport',
+              },
+            },
+          ],
+        },
+        onHidden(instance) {
+          if (statisticsPopoverInstance !== instance) return;
           showStatisticsPopover.value = false;
           if (!statisticsSliderShow) {
             activeStatisticsField.value = '';
           }
+          statisticsPopoverInstance = null;
         },
       });
+      statisticsPopoverInstance = tippyInst;
       setTimeout(() => {
+        if (statisticsPopoverInstance !== tippyInst) return;
         showStatisticsPopover.value = true;
-        statisticsPopoverInstance.show();
+        tippyInst.show();
       }, 100);
     };
 
@@ -610,6 +627,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
       removeScrollListener();
+      handleStatisticsPopoverHide();
     });
 
     return {

@@ -7,6 +7,7 @@
   "license": "MIT",
   "scripts": {
     "build:alarm-center": "npx vite build -c ./scripts/monitor-alarm-center/build.ts",
+    "build:trace-explore": "npx vite build -c ./scripts/monitor-trace-explore/build.ts",
     "build:vue3-components": "npx vite build -c ./scripts/build.vue3.components.ts",
     "build:vue2-components": "npx vite build -c ./scripts/build.vue2.components.ts",
     "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",

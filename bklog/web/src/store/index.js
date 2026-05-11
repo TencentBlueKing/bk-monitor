@@ -687,7 +687,7 @@ const store = new Vuex.Store({
       if (hasFieldsUpdate) {
         const fieldAliasMap = new Map();
         state.indexFieldInfo.fields.forEach((field) => {
-          const fieldAlias = field.query_alias || field.field_alias;
+          const fieldAlias = field.query_alias;
 
           if (fieldAlias) {
             const existValue = fieldAliasMap.get(fieldAlias) ?? {

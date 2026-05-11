@@ -1,0 +1,41 @@
+.biz-permission-tips {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  margin: 0 8px 8px;
+  font-size: 12px;
+  color: #63656e;
+  background: #fff4e2;
+  border: 1px solid #ffdfac;
+  border-radius: 2px;
+
+  &__icon {
+    margin-right: 6px;
+    font-size: 14px;
+    color: #ff9c01;
+  }
+
+  &__text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__apply {
+    margin: 0 8px;
+    font-size: 12px;
+  }
+
+  &__close {
+    font-size: 14px;
+    color: #979ba5;
+    cursor: pointer;
+
+    &:hover {
+      color: #63656e;
+    }
+  }
+}

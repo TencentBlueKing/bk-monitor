@@ -28,6 +28,7 @@ import { getCurrentInstance } from 'vue';
 import { shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
@@ -35,7 +36,7 @@ import ChartSkeleton from '../../../../../../../components/skeleton/chart-skelet
 import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import ChartTitle from '../../../../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../../../../plugins/components/common-legend';
-import { commOpenUrl, getMetricId } from '../../../../../../../plugins/utls/menu';
+import { getMetricId } from '../../../../../../../plugins/utls/menu';
 import {
   type LegendCustomOptions,
   useChartLegend,
@@ -161,7 +162,7 @@ export default defineComponent({
         if (target.data?.query_configs?.length) {
           for (const item of target.data.query_configs) {
             if (item.promql) {
-              promqlSet.add(JSON.stringify(item.promql));
+              promqlSet.add(String(item.promql));
             } else {
               const metricId = getMetricId(
                 item.data_source_label,
@@ -181,13 +182,17 @@ export default defineComponent({
       for (const metricId of Object.keys(metricIdMap)) {
         queryString += `${queryString.length ? ' OR ' : ''}指标ID : ${metricId}`;
       }
-      let promqlString = '';
-      for (const promql of promqlSet) {
-        promqlString = `promql=${promql}`;
+      let promql = '';
+      for (const item of promqlSet) {
+        promql = item;
       }
-      queryString = promqlString ? promqlString : `queryString=${queryString}`;
-      queryString.length &&
-        window.open(commOpenUrl(`#/event-center?${queryString}&from=${timeRange[0]}&to=${timeRange[1]}`));
+      if (promql || queryString) {
+        openAlarmCenter({
+          ...(promql ? { promql } : { queryString }),
+          from: timeRange[0],
+          to: timeRange[1],
+        });
+      }
     };
 
     /**

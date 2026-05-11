@@ -28,7 +28,7 @@ import { DateRange } from '@blueking/date-picker';
 import type { DateValue } from '@blueking/date-picker/vue3';
 import type { Dayjs } from 'dayjs';
 
-export type TimeRangeType = string[];
+export type TimeRangeType = (number | string)[];
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
 

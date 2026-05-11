@@ -26,6 +26,10 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  ALARM_CENTER_LIST_HASH,
+  getAlarmCenterRouteLocation,
+} from 'monitor-common/utils/alarm-center-router';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -138,14 +142,15 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
 
     if (scene_id === 'apm') {
       // apm应用监控跳转需要通过hash方式 目前暂无跳转参数
-      const hash = toEvent ? '#/event-center' : '#/strategy-config';
+      const hash = toEvent ? ALARM_CENTER_LIST_HASH : '#/strategy-config';
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
+    } else if (toEvent) {
+      this.$router.push(getAlarmCenterRouteLocation(params));
     } else {
       this.$router.push({
-        name: toEvent ? 'event-center' : 'strategy-config',
-        params: toEvent ? {} : params,
-        query: toEvent ? params : {},
+        name: 'strategy-config',
+        params,
       });
     }
   }

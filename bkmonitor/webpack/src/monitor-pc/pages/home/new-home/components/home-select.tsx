@@ -26,6 +26,7 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
@@ -114,7 +115,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   }
   /** 获取业务类型列表 */
   get spaceTypeIdList() {
-    const spaceTypeMap: Record<string, any> = {};
+    const spaceTypeMap: Record<string, number> = {};
     for (const item of this.$store.getters.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
       if (item.space_type_id === 'bkci' && item.space_code) {
@@ -278,7 +279,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   /** 获取搜索结果 */
   getSearchList() {
-    this.fetchEventStream(`${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(this.searchValue)}`);
+    const query = encodeURIComponent(this.searchValue);
+    let url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${query}`;
+    const bizId = this.$store.getters.bizId;
+    if (bizId !== undefined && bizId !== null && bizId !== '') {
+      url += `&bk_biz_id=${encodeURIComponent(String(bizId))}`;
+    }
+    this.fetchEventStream(url);
   }
   /* 显示弹出层 */
   handleMousedown() {
@@ -535,10 +542,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       // 有换行符的情况
       const lines = text.split('\n');
       let totalLines = 0;
-      lines.map(line => {
+      for (const line of lines) {
         /** 连续有多个换行符的话，则默认每一个为一行 */
         totalLines += Math.ceil((line.length === 0 ? charsPerLine : line.length) / charsPerLine);
-      });
+      }
       return totalLines;
     }
     // 无换行符的情况
@@ -681,15 +688,18 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     if (this.searchValue) {
       this.setLocalHistory(this.searchValue);
     }
-    const baseParams = { bizId: item.bk_biz_id };
     const k8sV2EnableList = this.$store.getters.k8sV2EnableList;
     /** 是否需要跳转到新版的k8s */
     const isNewK8sV2List = k8sV2EnableList.some(id => (id === 0 ? true : +id === +item.bk_biz_id));
     const routeOptions = {
       /** 告警 */
       alert: {
-        name: 'event-center',
-        query: { alertId: String(item.alert_id) },
+        ...getAlarmCenterRouteLocation({
+          alertId: String(item.alert_id),
+          specEvent: 1,
+          bizIds: item.bk_biz_id,
+        }),
+        // specEvent 同时透传到 url search，供旧版详情自动展开兼容使用
         extraParams: { specEvent: 1 },
       },
       /** 告警策略 */
@@ -719,10 +729,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         query: item.compare_hosts?.length > 0 ? { compares: JSON.stringify({ targets: item.compare_hosts }) } : {},
       },
       /** 关联的告警 */
-      'strategy-alarm': {
-        name: 'event-center',
-        query: { queryString: `策略ID : ${item.strategy_id}` },
-      },
+      'strategy-alarm': getAlarmCenterRouteLocation({
+        queryString: `策略ID : ${item.strategy_id}`,
+      }),
       /** 关联的屏蔽策略 */
       'alarm-shield': {
         name: 'alarm-shield',
@@ -787,7 +796,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     const url = new URL(location.href.split('#')[0]);
     url.searchParams.set('bizId', String(item.bk_biz_id));
     if (option.extraParams) {
-      Object.keys(option.extraParams).forEach(key => url.searchParams.set(key, String(option.extraParams[key])));
+      for (const key of Object.keys(option.extraParams)) {
+        url.searchParams.set(key, String(option.extraParams[key]));
+      }
     }
     window.open(`${url.toString()}${routeData.href}`, '_blank');
   }
@@ -863,14 +874,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         <div class='item-list'>
           {this.isLoading ? (
             <div class='skeleton-loading'>
-              {Array(6)
-                .fill(null)
-                .map((_, index) => (
-                  <div
-                    key={index}
-                    class='skeleton-element'
-                  />
-                ))}
+              {(['sk1', 'sk2', 'sk3', 'sk4', 'sk5', 'sk6'] as const).map(id => (
+                <div
+                  key={id}
+                  class='skeleton-element'
+                />
+              ))}
             </div>
           ) : (
             this.renderGroupList()

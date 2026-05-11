@@ -75,7 +75,7 @@ const changeNoticeRouteList = [
 ];
 
 /** 顶部导航栏点击自身跳回对应首页特殊处理的路由路径 */
-const PATCH_ROUTES = ['event-center-detail', 'incident-detail'];
+const PATCH_ROUTES = ['event-center-detail', 'alarm-center-detail', 'incident-detail'];
 
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();

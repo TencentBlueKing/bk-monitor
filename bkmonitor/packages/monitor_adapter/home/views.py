@@ -50,6 +50,10 @@ from monitor_web.iam.resources import CallbackResource
 from packages.monitor_web.new_report.resources import ReportCallbackResource
 
 
+BATCH_ACTION_TO_AUTO_SHOW_ACTION = {"ack": "confirm", "shield": "shield"}
+AUTO_SHOW_ACTION_TO_BATCH_ACTION = {"confirm": "ack", "shield": "shield"}
+
+
 def user_exit(request):
     def add_logout_slug():
         return {"is_from_logout": "1"}
@@ -75,11 +79,12 @@ def home(request):
 
 def event_center_proxy(request):
     rio_url = "/weixin/?bizId={bk_biz_id}&collectId={collect_id}"
-    pc_url = "/?bizId={bk_biz_id}&routeHash=event-center/?collectId={collect_id}"
+    pc_url = "/?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString"
     collect_id = request.GET.get("collectId")
     bk_biz_id = request.GET.get("bizId")
     proxy_type = request.GET.get("type", "event")
     batch_action = request.GET.get("batchAction")
+    auto_show_alert_action = request.GET.get("autoShowAlertAction")
     if not (collect_id and bk_biz_id):
         return HttpResponseNotFound(_("无效的告警事件链接"))
 
@@ -103,8 +108,14 @@ def event_center_proxy(request):
             return redirect(explore_url)
 
     redirect_url = rio_url if request.is_mobile() else pc_url
-    if batch_action:
-        redirect_url = f"{redirect_url}&batchAction={batch_action}"
+    if request.is_mobile():
+        mobile_batch_action = batch_action or AUTO_SHOW_ACTION_TO_BATCH_ACTION.get(auto_show_alert_action, "")
+        if mobile_batch_action:
+            redirect_url = f"{redirect_url}&batchAction={mobile_batch_action}"
+    else:
+        pc_auto_show_alert_action = auto_show_alert_action or BATCH_ACTION_TO_AUTO_SHOW_ACTION.get(batch_action, "")
+        if pc_auto_show_alert_action:
+            redirect_url = f"{redirect_url}&autoShowAlertAction={pc_auto_show_alert_action}"
     return redirect(redirect_url.format(bk_biz_id=bk_biz_id, collect_id=collect_id))
 
 

@@ -1,0 +1,19 @@
+paths:
+  /app/bkm_cli/op/call/:
+    post:
+      operationId: bkm_cli_op_call
+      description: bkm-cli 服务桥 op 调用入口
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/bkm_cli/op/call/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: bkm-cli op call

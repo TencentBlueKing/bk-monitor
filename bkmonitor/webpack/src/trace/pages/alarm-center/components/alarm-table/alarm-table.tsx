@@ -23,30 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  computed,
-  defineComponent,
-  onBeforeUnmount,
-  onMounted,
-  toRef,
-  toValue,
-  useTemplateRef,
-} from 'vue';
+import { type PropType, computed, defineComponent, toRef, toValue, useTemplateRef } from 'vue';
 
 import { useRouter } from 'vue-router';
 
+import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
-import {
-  type ActionTableItem,
-  type AlertAllActionEnum,
-  type AlertContentNameEditInfo,
-  type AlertTableItem,
-  type ColumnResizeContext,
-  type TableColumnItem,
-  type TablePagination,
-  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
-} from '../../typings';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
 import { useActionHandlers } from './hooks/use-action-handlers';
@@ -54,10 +36,20 @@ import { useAlertHandlers } from './hooks/use-alert-handlers';
 import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 
+import type {
+  ActionTableItem,
+  AlertAllActionEnum,
+  AlertContentNameEditInfo,
+  AlertTableItem,
+  ColumnResizeContext,
+  TableColumnItem,
+  TablePagination,
+} from '../../typings';
 import type { AlertSavePromiseEvent } from './components/alert-content-detail/alert-content-detail';
 import type { ActionScenario } from './scenarios/action-scenario';
 import type { AlertScenario } from './scenarios/alert-scenario';
 import type { IncidentScenario } from './scenarios/incident-scenario';
+import type { TimeRangeType } from '@/components/time-range/utils';
 import type { BkUiSettings } from '@blueking/tdesign-ui/.';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
@@ -110,8 +102,18 @@ export default defineComponent({
     },
     /** 时间范围 [from, to] */
     timeRange: {
-      type: Array as PropType<string[]>,
+      type: Array as PropType<TimeRangeType>,
       default: () => [],
+    },
+    /** 滚动容器的 CSS 选择器（用于滚动优化及表头/滚动条吸附） */
+    scrollContainerSelector: {
+      type: String,
+    },
+    headerAffixedTop: {
+      type: Object as PropType<{ container: string }>,
+    },
+    horizontalScrollAffixedBottom: {
+      type: Object as PropType<{ container: string }>,
     },
   },
   emits: {
@@ -150,10 +152,15 @@ export default defineComponent({
       },
     });
 
-    /** 滚动容器元素 */
-    let scrollContainer: HTMLElement = null;
-    /** 滚动结束后回调逻辑执行计时器  */
-    let scrollPointerEventsTimer = null;
+    /** 表格滚动优化：滚动时禁用 pointerEvents 并隐藏 popover */
+    useTableScrollOptimize({
+      targetElement: tableRef,
+      scrollContainerSelector: props.scrollContainerSelector,
+      onScroll: () => {
+        hoverPopoverTools.hidePopover();
+        clickPopoverTools.hidePopover();
+      },
+    });
 
     /** 告警场景私有交互逻辑 */
     const {
@@ -200,47 +207,6 @@ export default defineComponent({
     }));
 
     /**
-     * @description 配置表格是否能够触发事件target
-     */
-    const updateTablePointEvents = (val: 'auto' | 'none') => {
-      const tableDom = tableRef?.value?.$el;
-      if (!tableDom) return;
-      tableDom.style.pointerEvents = val;
-    };
-
-    /**
-     * @description 滚动触发事件
-     */
-    const handleScroll = () => {
-      updateTablePointEvents('none');
-      hoverPopoverTools.hidePopover();
-      clickPopoverTools.hidePopover();
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      scrollPointerEventsTimer = setTimeout(() => {
-        updateTablePointEvents('auto');
-      }, 600);
-    };
-
-    /**
-     * @description 添加滚动监听
-     */
-    const addScrollListener = () => {
-      removeScrollListener();
-      scrollContainer = document.querySelector(`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`);
-      if (!scrollContainer) return;
-      scrollContainer.addEventListener('scroll', handleScroll);
-    };
-
-    /**
-     * @description 移除滚动监听
-     */
-    const removeScrollListener = () => {
-      if (!scrollContainer) return;
-      scrollContainer.removeEventListener('scroll', handleScroll);
-      scrollContainer = null;
-    };
-
-    /**
      * @description 处理行选择变化(不传参数则清空选择)
      */
     const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<any>) => {
@@ -248,15 +214,6 @@ export default defineComponent({
       if (keys?.length && toValue(currentScenario).name !== ALERT_STORAGE_KEY) return;
       emit('selectionChange', (keys ?? []) as string[], options);
     };
-
-    onMounted(() => {
-      addScrollListener();
-    });
-
-    onBeforeUnmount(() => {
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      removeScrollListener();
-    });
 
     return {
       transformedColumns,
@@ -288,17 +245,13 @@ export default defineComponent({
                   ) as unknown as SlotReturnValue
               : null
           }
-          headerAffixedTop={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
-          horizontalScrollAffixedBottom={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}
           defaultActiveRowKeys={this.defaultActiveRowKeys}
           empty={this.tableEmpty}
+          headerAffixedTop={this.headerAffixedTop}
+          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           loading={this.loading}
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}

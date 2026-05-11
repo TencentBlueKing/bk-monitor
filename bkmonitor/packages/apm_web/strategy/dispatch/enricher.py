@@ -68,7 +68,7 @@ class K8SSystemDiscoverer(RPCSystemDiscoverer):
 class LogSystemDiscoverer(BaseSystemDiscoverer):
     SYSTEM: str = StrategyTemplateSystem.LOG.value
 
-    def _get_index_set_id_or_none(self) -> str | None:
+    def _get_index_set_id_or_none(self) -> int | None:
         return self._entity_set.get_log_datasource_index_set_id_or_none()
 
     def discover(self) -> list[str]:
@@ -80,7 +80,7 @@ class LogSystemDiscoverer(BaseSystemDiscoverer):
 class TraceSystemDiscoverer(LogSystemDiscoverer):
     SYSTEM: str = StrategyTemplateSystem.TRACE.value
 
-    def _get_index_set_id_or_none(self) -> str | None:
+    def _get_index_set_id_or_none(self) -> int | None:
         return self._entity_set.get_trace_datasource_index_set_id_or_none()
 
 
@@ -106,7 +106,7 @@ class SystemChecker:
     def __init__(self, entity_set: EntitySet) -> None:
         self._entity_set: EntitySet = entity_set
 
-    def _check(self, discoverer_cls: type[BaseSystemDiscoverer]) -> dict[str, list[str] | str]:
+    def _check(self, discoverer_cls: type[BaseSystemDiscoverer]) -> dict[str, Any]:
         return {
             "system": discoverer_cls.SYSTEM,
             "service_names": discoverer_cls(self._entity_set).discover(),

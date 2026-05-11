@@ -9,6 +9,11 @@
       .lever-rect {
         margin-right: 8px;
       }
+
+      .lever-rect-link {
+        color: inherit;
+        text-decoration: none;
+      }
     }
 
     &.explore-prefix-icon-col {
@@ -31,6 +36,10 @@
 
         &.icon-mc-solved {
           color: #8e9bb3;
+        }
+
+        &.icon-yihebing {
+          color: rgb(226 77 66);
         }
       }
     }

@@ -1,0 +1,33 @@
+// ===================== 优先级下拉菜单（popover 内容，全局作用域） =====================
+.issues-priority-menu {
+  width: 68px;
+  padding: 4px 0;
+
+  .priority-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: #f5f7fa;
+    }
+
+    &.is-active {
+      background-color: #e1ecff;
+    }
+
+    .priority-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 22px;
+      padding: 0 6px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+    }
+  }
+}

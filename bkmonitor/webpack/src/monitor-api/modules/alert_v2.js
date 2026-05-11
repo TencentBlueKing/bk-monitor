@@ -16,6 +16,7 @@ export const alertRelatedInfo = request('POST', 'fta/alert/v2/alert/related_info
 export const alertExtendFields = request('POST', 'fta/alert/v2/alert/extend_fields/');
 export const ackAlert = request('POST', 'fta/alert/v2/alert/ack/');
 export const alertGraphQuery = request('POST', 'fta/alert/v2/alert/graph_query/');
+export const alertGraphDrillDown = request('POST', 'fta/alert/v2/alert/graph_drill_down/');
 export const eventDateHistogram = request('POST', 'fta/alert/v2/event/date_histogram/');
 export const searchAction = request('POST', 'fta/alert/v2/action/search/');
 export const actionDetail = request('GET', 'fta/alert/v2/action/detail/');
@@ -70,6 +71,7 @@ export default {
   alertExtendFields,
   ackAlert,
   alertGraphQuery,
+  alertGraphDrillDown,
   eventDateHistogram,
   searchAction,
   actionDetail,
