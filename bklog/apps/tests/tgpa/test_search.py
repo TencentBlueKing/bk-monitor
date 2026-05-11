@@ -112,7 +112,7 @@ class TestTGPASearchHandler(SimpleTestCase):
             "model": model,
             "xid": xid,
             "report_time": report_time,
-            "process_status": process_status,
+            "status": process_status,
             "processed_at": processed_at,
         }
 
