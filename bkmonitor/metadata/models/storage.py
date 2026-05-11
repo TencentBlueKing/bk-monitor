@@ -5469,6 +5469,7 @@ class DorisStorage(models.Model, StorageResultTable):
     table_id = models.CharField("结果表ID", max_length=128)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
+    origin_table_id = models.CharField("原始结果表名", max_length=128, blank=True, null=True)
     source_type = models.CharField("数据源类型", max_length=32, default="log")
 
     index_set = models.TextField("索引集", blank=True, null=True)
@@ -5491,6 +5492,7 @@ class DorisStorage(models.Model, StorageResultTable):
         bk_tenant_id="system",
         source_type="log",
         bkbase_table_id=None,
+        origin_table_id=None,
         index_set=None,
         table_type=PRIMARY_TABLE_TYPE,
         field_config_mapping=None,
@@ -5505,6 +5507,7 @@ class DorisStorage(models.Model, StorageResultTable):
         :param bk_tenant_id: 租户ID
         :param source_type: 数据源类型
         :param bkbase_table_id: bkbase表名
+        :param origin_table_id: 原始结果表ID
         :param index_set: 索引集
         :param table_type: 物理表存储模式类型
         :param field_config_mapping: 字段/分词配置
@@ -5540,6 +5543,7 @@ class DorisStorage(models.Model, StorageResultTable):
                     bk_tenant_id=bk_tenant_id,
                     source_type=source_type,
                     bkbase_table_id=bkbase_table_id,
+                    origin_table_id=origin_table_id,
                     index_set=index_set,
                     table_type=table_type,
                     field_config_mapping=json.dumps(field_config_mapping),
