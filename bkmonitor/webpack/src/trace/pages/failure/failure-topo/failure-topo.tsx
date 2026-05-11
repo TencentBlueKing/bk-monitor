@@ -1722,6 +1722,8 @@ export default defineComponent({
         const y = containerRect.top + canvasPoint.y;
 
         // 生成工具提示内容
+        const isAggNode = model.aggregated_nodes?.length > 0;
+        nodeInfoTooltip.className = `node-detail-tips${isAggNode ? ' node-detail-tips--aggregated' : ''}`;
         nodeInfoTooltip.innerHTML = handleNodeInfoTooltip(model);
         // 获取提示框渲染后尺寸
         const { offsetWidth, offsetHeight } = nodeInfoTooltip;
@@ -1920,10 +1922,14 @@ export default defineComponent({
 
     /** 处理节点详情info tooltip内部结构 */
     const handleNodeInfoTooltip = (model: ITopoNode) => {
-      let nodeDetailTips = [];
       const isShowRootText = model.is_feedback_root || checkIsRoot(model?.entity);
+      const isAggregatedNode = model.aggregated_nodes.length > 0;
+      const nodeDetailTips = [];
+
       // 节点名称
+      if (!isAggregatedNode) {
       nodeDetailTips.push({ label: t('名称'), value: model.entity.entity_name });
+      }
       // 节点告警信息
       if (model.alert_display?.alert_name) {
         nodeDetailTips.push({
@@ -1945,24 +1951,42 @@ export default defineComponent({
         { label: t('节点类型'), value: model.entity.properties?.entity_category || model.entity.rank_name },
         { label: t('所属业务'), value: `[#${model.bk_biz_id}] ${model.bk_biz_name}` },
       ];
-      nodeDetailTips = nodeDetailTips.concat(res);
+      nodeDetailTips.push(...res);
       // 节点服务信息
       if (model.entity?.tags?.BcsService) {
         nodeDetailTips.push({ label: t('所属服务'), value: model.entity?.tags?.BcsService?.name });
       }
 
-      return nodeDetailTips
+      // 聚合节点标题
+      let aggregateTitleHtml = '';
+      if (isAggregatedNode) {
+        const { total_count, anomaly_count, entity } = model;
+        const entityShowType = entity.properties.entity_show_type;
+        const hasAnomaly = (anomaly_count as number) > 0;
+        const titleText = hasAnomaly
+          ? t('共 {0} 个 {1} 节点，其中 {2} 个异常', [
+              `<span class="info-aggregate-title__weight">${total_count}</span>`,
+              entityShowType,
+              `<span class="info-aggregate-title__error-color">${anomaly_count}</span>`,
+            ])
+          : t('共 {0} 个 {1} 节点', [
+              `<span class="info-aggregate-title__weight">${total_count}</span>`,
+              entityShowType,
+            ]);
+        aggregateTitleHtml = `<div class='info-aggregate-title'>${titleText}</div>`;
+      }
+
+      const itemsHtml = nodeDetailTips
         .map(
           item =>
-            `<div
-              key=${item.label}
-              class='node-detail-tips_item'
-            >
+            `<div class='node-detail-tips_item'>
               <span class='item-label'>${item.label}：</span>
               <span class='item-value'>${item.value}</span>
             </div>`
         )
         .join('');
+
+      return aggregateTitleHtml + itemsHtml;
     };
 
     /** 处理单个边的公共逻辑*/
@@ -2436,8 +2460,8 @@ export default defineComponent({
       // 注意：isStart 参数在队列版本中不再使用，队列处理函数会根据 currentIndex 自动判断
 
       if ('timeline' in playOption) {
-        timelinePosition.value = 0;
-        // 重置时清空队列
+        // 重置时清空队列，不提前设置 timelinePosition，
+        // 让 processPlayQueue 从第0帧开始正常播放（避免跳帧逻辑跳过首帧）
         playQueue = [];
         isProcessingQueue = false;
       }
@@ -2447,6 +2471,8 @@ export default defineComponent({
       if (value) {
         // 开始播放
         const len = topoRawDataCache.value.diff.length;
+        // 判断是否需要从第0帧重新开始播放
+        const isStartFromBeginning = 'timeline' in playOption;
 
         // 如果队列为空，或者队列第一个帧不等于当前位置，需要重新构建队列
         // 这包括以下情况：
@@ -2454,9 +2480,9 @@ export default defineComponent({
         // 2. 暂停后恢复播放，但用户手动切换了帧（队列第一个帧 != 当前位置）
         // 3. 播放时用户点击了其他帧（已在 handleTimelineChange 中处理，但这里作为兜底）
         if (playQueue.length === 0 || (playQueue.length > 0 && playQueue[0] !== timelinePosition.value)) {
-          // 重新构建从当前位置到末尾的播放队列
           playQueue = [];
-          for (let i = timelinePosition.value; i < len; i++) {
+          const startIndex = isStartFromBeginning ? 0 : timelinePosition.value;
+          for (let i = startIndex; i < len; i++) {
             playQueue.push(i);
           }
         }
@@ -2497,9 +2523,15 @@ export default defineComponent({
         clearTimeout(playTime);
         isProcessingQueue = false;
         const len = topoRawDataCache.value.diff.length;
-        // 构建从新位置到末尾的播放队列
-        for (let i = value; i < len; i++) {
+        // 构建从新位置的下一帧到末尾的播放队列
+        // 当前帧会立即渲染，所以队列从下一帧开始
+        for (let i = value + 1; i < len; i++) {
           playQueue.push(i);
+        }
+        // 立即渲染当前帧
+        timelinePosition.value = value;
+        if (topoRawDataCache.value.diff[value]) {
+          handleRenderTimeline();
         }
         // 如果队列为空，停止播放
         if (playQueue.length === 0) {
@@ -2507,11 +2539,6 @@ export default defineComponent({
           emit('playing', false);
           handleChangeRefleshTime(refreshTime.value);
         } else {
-          // 立即渲染当前帧，然后继续播放队列
-          // 渲染当前帧
-          if (topoRawDataCache.value.diff[value]) {
-            handleRenderTimeline();
-          }
           // 继续处理队列
           processPlayQueue();
         }

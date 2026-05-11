@@ -211,9 +211,10 @@ export default {
   取消反馈根因: 'Cancel feedback root cause',
   反馈根因: 'Feedback root cause',
   '共 {slot0} 条边': 'There are {slot0} edges',
-  '共 {slot0} 个 {type}节点': 'There are {slot0} {type} nodes in total',
-  '共 {slot0} 个 {type}节点，其中 {slot1} 个异常':
+  '共 {slot0} 个 {type} 节点': 'There are {slot0} {type} nodes in total',
+  '共 {slot0} 个 {type} 节点，其中 {slot1} 个异常':
     'There are {slot0} {type} nodes in total, of which {slot1} are abnormal.',
+  '共 {0} 个 {1} 节点，其中 {2} 个异常': 'There are {0} {1} nodes in total, of which {2} are abnormal.',
   '10分钟内无数据': 'No data within 10 minutes',
   '直接进行 精准查询，定位到 Trace 详情': 'Directly perform precise queries and locate Trace details',
   '查看关联 Trace': 'View associated Trace',
