@@ -28,7 +28,7 @@ from bkmonitor.utils.time_tools import hms_string
 from constants.issue import ImpactScopeDimension, IssuePriority, IssueStatus
 from fta_web.alert.handlers.base import BaseBizQueryHandler, BaseQueryTransformer, QueryField
 from fta_web.alert.handlers.translator import BizTranslator, StrategyTranslator
-from fta_web.alert.utils import escape_lucene_special_chars
+from utils import escape_lucene_special_chars
 from fta_web.issue.handlers.translator import StatusTranslator, PriorityTranslator
 
 logger = logging.getLogger("fta_action.issue")

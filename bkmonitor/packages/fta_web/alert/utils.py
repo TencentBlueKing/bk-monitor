@@ -16,17 +16,6 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 
-# Lucene/ES 查询语法中的特殊字符，作为字面量出现在查询条件值里时需要转义
-_LUCENE_SPECIAL_CHARS_RE = re.compile(r'([+\-=&|><!(){}[\]^"~*?\\:/ ])')
-
-
-def escape_lucene_special_chars(value):
-    """转义 Lucene/ES 查询语法中的特殊字符，仅对字符串生效，其他类型原样返回"""
-    if not isinstance(value, str):
-        return value
-    return _LUCENE_SPECIAL_CHARS_RE.sub(r"\\\1", value)
-
-
 # 生成从 start 到 end 的每日时间段
 def generate_date_ranges(start, end):
     current = datetime.fromtimestamp(start)
