@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router/composables';
 
 import SearchBar from './search-bar';
 import UserInfoCard from './user-info-card';
@@ -36,6 +37,7 @@ import $http from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '@/common/authority-map';
+import { isFeatureToggleOn } from '@/store/helper';
 
 import './index.scss';
 
@@ -49,6 +51,30 @@ export default defineComponent({
   },
   setup() {
     const store = useStore();
+    const route = useRoute();
+    const router = useRouter();
+
+    /** 业务切换后检查功能开关，无权限则跳转回检索页 */
+    watch(
+      () => route.query.spaceUid,
+      (newSpaceUid, oldSpaceUid) => {
+        if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
+          const hasPermission = isFeatureToggleOn(
+            'tgpa_task',
+            [String(store.state.bkBizId), String(newSpaceUid)]
+          );
+          if (!hasPermission) {
+            router.replace({
+              name: 'retrieve',
+              query: {
+                spaceUid: String(newSpaceUid),
+                bizId: String(store.state.bkBizId),
+              },
+            });
+          }
+        }
+      }
+    );
 
     /** 是否有下载权限 */
     const isAllowedDownload = ref(false);
