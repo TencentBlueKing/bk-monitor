@@ -148,7 +148,7 @@ export default defineComponent({
     const handleViewToken = async () => {
       if (!isShowToken.value && !token.value) {
         tokenLoading.value = true;
-        token.value = await queryAppToken(props.data?.application_id);
+        token.value = await queryAppToken({ app_name: props.data?.app_name, bk_biz_id: props.data?.bk_biz_id });
         tokenLoading.value = false;
         if (!token.value) return;
       }

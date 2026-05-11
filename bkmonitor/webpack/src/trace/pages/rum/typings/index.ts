@@ -26,4 +26,5 @@
 
 export * from './constants';
 export * from './data-state';
+export * from './home';
 export * from './rum-app-config';

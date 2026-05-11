@@ -26,14 +26,14 @@
 
 import type {
   MetricTier,
-  RumApplication,
   RumApplicationAsyncItem,
   RumAppMetricView,
   RumAppRow,
   RumAsyncMetricKey,
-} from './rum-mock';
+  RumTableItem,
+} from './typings';
 
-type MetricMap = Partial<Record<RumAsyncMetricKey, RumApplicationAsyncItem[]>>;
+export type MetricMap = Partial<Record<RumAsyncMetricKey, RumApplicationAsyncItem[]>>;
 
 const EMPTY_METRIC: RumAppMetricView = {
   display: '--',
@@ -69,12 +69,12 @@ const buildMetricView = (
   };
 };
 
-const getDataStatusText = (dataStatus: RumApplication['data_status']) => {
+const getDataStatusText = (dataStatus: RumTableItem['data_status']) => {
   if (dataStatus === 'normal') return '正常';
   return '无数据';
 };
 
-export const buildRumAppRows = (applications: RumApplication[], metrics: MetricMap): RumAppRow[] =>
+export const buildRumAppRows = (applications: RumTableItem[], metrics: MetricMap): RumAppRow[] =>
   applications.map(app => {
     const lcpMetric = getMetricItem(metrics, 'lcp_p75', app.application_id);
     const jsErrorMetric = getMetricItem(metrics, 'js_error_rate', app.application_id);

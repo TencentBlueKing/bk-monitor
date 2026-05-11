@@ -24,9 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import type { RUM_APP_CONFIG_TAB_ENUM } from '../constants';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
-
 /** 应用操作类型 */
 export type ApplicationOperationType = 'delete' | 'start' | 'stop';
 
@@ -184,5 +181,3 @@ export interface IStorageInfo {
   /** 存储集群 ID */
   es_storage_cluster: number | string;
 }
-
-export type RumAppConfigTabType = GetEnumTypeTool<typeof RUM_APP_CONFIG_TAB_ENUM>;
