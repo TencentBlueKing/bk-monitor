@@ -24,27 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, shallowRef, watch } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
 
 import { Button, SearchSelect } from 'bkui-vue';
+import { listApplication, listApplicationAsync } from 'monitor-api/modules/rum_meta';
 import { random } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import CommonHeader from '../../components/common-header/common-header';
-import { getDefaultTimezone } from '../../i18n/dayjs';
+import { type TimeRangeType, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import CommonTable from '../alarm-center/components/alarm-table/components/common-table/common-table';
 import CreateApp from './components/create-app/create-app';
 import SDKReport from './components/sdk-report/sdk-report';
-import { buildRumAppRows } from './rum-controller';
-import {
-  type MetricTier,
-  type RumAppRow,
-  MOCK_APPLICATION_ASYNC_RESPONSES,
-  MOCK_APPLICATION_LIST_RESPONSE,
-} from './rum-mock';
+import { type MetricMap, buildRumAppRows } from './rum-controller';
 
-import type { TimeRangeType } from '../../components/time-range/utils';
 import type { BaseTableColumn } from '../trace-explore/components/trace-explore-table/typing';
+import type { MetricTier, RumApplicationAsyncItem, RumAppRow, RumTableItem } from './typings';
 import type { IRumAppConfig } from './typings/rum-app-config';
 import type { FilterValue } from '@blueking/tdesign-ui';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
@@ -61,8 +58,6 @@ const SEARCH_DIMENSION_KEYS: RumCriteriaKey[] = ['appName', 'appAlias', 'appStat
 
 /** 表头带筛选的列字段（含 dataStatus；与 criteriaToFilterValue 一致） */
 const TABLE_FILTER_KEYS: RumCriteriaKey[] = ['appName', 'appAlias', 'appStatus', 'dataStatus'];
-
-const MOCK_TABLE_DATA = buildRumAppRows(MOCK_APPLICATION_LIST_RESPONSE.data, MOCK_APPLICATION_ASYNC_RESPONSES);
 
 const uniqSorted = (arr: string[]) => [...new Set(arr)].sort((a, b) => a.localeCompare(b));
 
@@ -143,11 +138,14 @@ export default defineComponent({
   name: 'RumPage',
   setup() {
     const { t } = useI18n();
+    const router = useRouter();
     const timeRange = shallowRef<TimeRangeType>(RUM_TIME_RANGE);
     const timezone = shallowRef(getDefaultTimezone());
     const refreshImmediate = shallowRef('');
     const refreshInterval = shallowRef(-1);
     const rumCriteria = shallowRef<RumFilterCriteria>({});
+    const appListResource = shallowRef<RumTableItem[]>([]);
+    const appAsyncResource = shallowRef<MetricMap>({});
     const tableSort = shallowRef<string | undefined>(undefined);
     /** 与 CommonTable 一致：disableDataPage 下需自行按页切片 data，total 须与当前列表条数一致 */
     const pageState = shallowRef({ currentPage: 1, pageSize: 10 });
@@ -182,7 +180,7 @@ export default defineComponent({
           .map(d => ({ ...d }));
       }
       const rowKey = item.id as keyof RumAppRow;
-      const names = uniqSorted(MOCK_TABLE_DATA.map(r => String(r[rowKey])).filter(Boolean));
+      const names = uniqSorted(tableData.value.map(r => String(r[rowKey])).filter(Boolean));
       const children: ICommonItem[] = names
         .filter(n => !kw || n.toLowerCase().includes(kw))
         .map(n => ({ id: n, name: n }));
@@ -191,10 +189,14 @@ export default defineComponent({
       return [{ ...meta, children }];
     };
 
+    const tableData = computed(() => {
+      return buildRumAppRows(appListResource.value, appAsyncResource.value);
+    });
+
     const filteredTableData = computed(() => {
       const c = rumCriteria.value;
-      if (!Object.keys(c).length) return MOCK_TABLE_DATA;
-      return MOCK_TABLE_DATA.filter(r => rowMatchesCriteria(r, c));
+      if (!Object.keys(c).length) return tableData.value;
+      return tableData.value.filter(r => rowMatchesCriteria(r, c));
     });
 
     watch(
@@ -216,20 +218,57 @@ export default defineComponent({
       }
     );
 
-    const tablePageData = computed(() => {
-      const list = filteredTableData.value;
-      const total = list.length;
-      const { currentPage, pageSize } = pageState.value;
-      const start = (currentPage - 1) * pageSize;
-      return {
-        rows: list.slice(start, start + pageSize),
-        pagination: { currentPage, pageSize, total },
-      };
+    // const tablePageData = computed(() => {
+    //   const list = filteredTableData.value;
+    //   const total = list.length;
+    //   const { currentPage, pageSize } = pageState.value;
+    //   const start = (currentPage - 1) * pageSize;
+    //   return {
+    //     rows: list.slice(start, start + pageSize),
+    //     pagination: { currentPage, pageSize, total },
+    //   };
+    // });
+
+    const getRumList = async () => {
+      const { data } = await listApplication().catch(() => ({ columns: [], total: 0, data: [] }));
+      appListResource.value = data;
+      getRumAsyncResource();
+    };
+
+    const getRumAsyncResource = () => {
+      const [start, end] = handleTransformToTimestamp(timeRange.value);
+      const apis = ['lcp_p75', 'js_error_rate', 'api_fail_rate'].map(key => {
+        return listApplicationAsync({
+          column: key,
+          application_ids: appListResource.value.map(item => item.application_id),
+          start_time: start,
+          end_time: end,
+        }).then((data: RumApplicationAsyncItem[]) => {
+          return {
+            data,
+            key,
+          };
+        });
+      });
+      Promise.all(apis).then(res => {
+        appAsyncResource.value = res.reduce((pre, cur) => {
+          pre[cur.key] = cur.data;
+          return pre;
+        }, {});
+      });
+    };
+
+    onMounted(() => {
+      getRumList();
     });
 
     const handleConfigure = (row: RumAppRow) => {
-      /** 进入应用配置详情（接口联调时补充） */
-      void row;
+      router.push({
+        name: 'rumAppConfig',
+        params: {
+          appName: row.appName,
+        },
+      });
     };
 
     const handleSearchSelectUpdate = (v: ISearchValue[]) => {
@@ -241,9 +280,9 @@ export default defineComponent({
     };
 
     const columns = computed<BaseTableColumn[]>(() => {
-      const appNameFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.appName)).map(v => ({ label: v, value: v }));
-      const appAliasFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.appAlias)).map(v => ({ label: v, value: v }));
-      const appStatusFilters = uniqSorted(MOCK_TABLE_DATA.map(r => r.appStatus)).map(v => ({ label: v, value: v }));
+      const appNameFilters = uniqSorted(tableData.value.map(r => r.appName)).map(v => ({ label: v, value: v }));
+      const appAliasFilters = uniqSorted(tableData.value.map(r => r.appAlias)).map(v => ({ label: v, value: v }));
+      const appStatusFilters = uniqSorted(tableData.value.map(r => r.appStatus)).map(v => ({ label: v, value: v }));
       const dataStatusFilters = [
         { label: t('正常'), value: 'normal' },
         { label: t('无数据'), value: 'no_data' },
@@ -430,14 +469,17 @@ export default defineComponent({
 
     const handleTimeRangeChange = (value: TimeRangeType) => {
       timeRange.value = value;
+      getRumList();
     };
 
     const handleTimezoneChange = (value: string) => {
       timezone.value = value;
+      updateTimezone(value);
     };
 
     const handleImmediateRefreshChange = () => {
       refreshImmediate.value = random(5).toString();
+      getRumList();
     };
 
     const handleRefreshIntervalChange = (value: number) => {
@@ -521,9 +563,10 @@ export default defineComponent({
             <div class='rum-table-wrap'>
               <CommonTable
                 columns={columns.value}
-                data={tablePageData.value.rows as unknown as Record<string, unknown>[]}
+                // data={tablePageData.value.rows as unknown as Record<string, unknown>[]}
+                data={filteredTableData.value as unknown as Record<string, unknown>[]}
                 filterValue={criteriaToFilterValue(rumCriteria.value)}
-                pagination={tablePageData.value.pagination}
+                // pagination={tablePageData.value.pagination}
                 rowKey='id'
                 sort={tableSort.value}
                 tableSettings={tableSettings.value}

@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { listEsClusterGroups, queryBkDataToken } from 'monitor-api/modules/apm_meta';
+import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 import {
   deleteApplication,
   getApplicationInfoByAppName,
   getIndicesInfo,
   getStorageInfo,
+  queryRumTokenInfo,
   setupApplication,
   startDataSource,
   stopDataSource,
@@ -83,8 +84,8 @@ export const getEsClusterList = async () => {
  * 查询应用 TOKEN
  * @param applicationId 应用ID
  */
-export const queryAppToken = async (applicationId: number | string) => {
-  return queryBkDataToken(applicationId).catch(() => '');
+export const queryAppToken = async (params: { app_name: string; bk_biz_id: number }) => {
+  return queryRumTokenInfo(params).catch(() => '');
 };
 
 /**
