@@ -75,6 +75,7 @@ import {
   AlarmType,
   CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
+  getDefaultAlarmCenterBizIds,
 } from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
@@ -525,7 +526,9 @@ export default defineComponent({
         if (bizIds) {
           /** 兼容事件中心的bizIds */
           if (typeof bizIds === 'string') {
-            alarmStore.bizIds = Number.isNaN(Number(bizIds)) ? tryURLDecodeParse(bizIds, [-1]) : [Number(bizIds)];
+            alarmStore.bizIds = Number.isNaN(Number(bizIds))
+              ? tryURLDecodeParse(bizIds, getDefaultAlarmCenterBizIds())
+              : [Number(bizIds)];
           } else {
             alarmStore.bizIds = bizIds.map(item => Number(item));
           }
@@ -755,7 +758,7 @@ export default defineComponent({
         alarmStore.residentCondition = [];
         alarmStore.quickFilterValue = favoriteConfig?.componentData?.quickFilterValue || [];
         alarmStore.filterMode = favoriteConfig?.componentData?.filterMode || EMode.ui;
-        alarmStore.bizIds = favoriteConfig?.componentData?.bizIds || [-1];
+        alarmStore.bizIds = favoriteConfig?.componentData?.bizIds || getDefaultAlarmCenterBizIds();
       } else {
         alarmStore.conditions = [];
         alarmStore.residentCondition = [];
