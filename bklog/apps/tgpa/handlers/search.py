@@ -99,7 +99,7 @@ class TGPASearchHandler:
             "model": report.get("model", ""),
             "xid": report.get("xid", ""),
             "report_time": report.get("report_time", ""),
-            "process_status": report.get("process_status", ""),
+            "process_status": report.get("status", ""),
             "processed_at": report.get("processed_at", ""),
         }
 
