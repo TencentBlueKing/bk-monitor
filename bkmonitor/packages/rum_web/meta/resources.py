@@ -684,7 +684,7 @@ class GetNoDataStrategyInfoResource(Resource):
                 logger.warning(f"[GetNoDataStrategyInfo] query strategy({strategy_id}) failed: {e}")
 
         # 不存在则创建
-        return self._registry_strategy(app, strategy_config)
+        return self.registry_strategy(app, strategy_config)
 
     @classmethod
     def _get_notice_group(cls, bk_biz_id, strategy_config):
@@ -695,7 +695,7 @@ class GetNoDataStrategyInfoResource(Resource):
         return group_id
 
     @classmethod
-    def _registry_strategy(cls, app, strategy_config):
+    def registry_strategy(cls, app, strategy_config):
         """创建无数据告警策略"""
         group_id = cls._get_notice_group(app.bk_biz_id, strategy_config)
         if not group_id:
@@ -805,3 +805,54 @@ class GetNoDataStrategyInfoResource(Resource):
             "alert_graph": alert_graph,
             "strategy_id": strategy.get("id"),
         }
+
+
+class NoDataStrategyStatusResource(Resource):
+    is_enabled = None
+
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label=_("应用ID"))
+
+    def perform_request(self, validated_request_data):
+        # 获取请求信息
+        application_id = validated_request_data["application_id"]
+
+        # 获取应用及配置信息
+        try:
+            app = Application.objects.get(application_id=application_id)
+            config = RumAppConfig.objects.get(
+                config_level=RumAppConfig.APPLICATION_LEVEL,
+                level_key=app.application_id,
+                config_key=NODATA_ERROR_STRATEGY_CONFIG_KEY,
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+        except RumAppConfig.DoesNotExist:
+            raise ValueError(_("配置信息不存在"))
+        strategy_id = config.config_value["id"]
+        conditions = [{"key": "id", "value": [strategy_id]}]
+        # 已注册的策略
+        strategies = resource.strategies.get_strategy_list_v2(bk_biz_id=app.bk_biz_id, conditions=conditions).get(
+            "strategy_config_list", []
+        )
+        # 检测策略存在情况，不存在则创建
+        if not strategies:
+            new_strategy = GetNoDataStrategyInfoResource.registry_strategy(app, config)
+            if new_strategy:
+                strategy_id = new_strategy["id"]
+        # 更新策略状态
+        if strategy_id and self.is_enabled is not None:
+            resource.strategies.update_partial_strategy_v2(
+                bk_biz_id=app.bk_biz_id,
+                ids=[strategy_id],
+                edit_data={"is_enabled": self.is_enabled},
+            )
+        return
+
+
+class NoDataStrategyEnableResource(NoDataStrategyStatusResource):
+    is_enabled = True
+
+
+class NoDataStrategyDisableResource(NoDataStrategyStatusResource):
+    is_enabled = False

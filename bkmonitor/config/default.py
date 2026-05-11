@@ -365,6 +365,10 @@ ACTIVE_VIEWS = {
         "apm_container": "apm_web.container.views",
         "apm_strategy": "apm_web.strategy.views",
     },
+    "rum_web": {
+        "rum_meta": "rum_web.meta.views",
+        "rum_metric": "rum_web.metric.views",
+    },
 }
 
 # 是否使用动态配置特性
