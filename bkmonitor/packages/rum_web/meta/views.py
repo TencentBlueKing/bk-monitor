@@ -28,6 +28,7 @@ from rum_web.meta.resources import (
     StartDataSourceResource,
     StopDataSourceResource,
     StorageFieldInfoResource,
+    ListEsClusterGroupsResource,
 )
 from bkmonitor.iam.drf import ViewBusinessPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -69,4 +70,5 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", ListApplicationAsyncResource, endpoint="list_application_async"),
         ResourceRoute("POST", QueryRumTokenInfoResource, endpoint="query_rum_token"),
         ResourceRoute("POST", StorageFieldInfoResource, endpoint="storage_field_info"),
+        ResourceRoute("GET", ListEsClusterGroupsResource, endpoint="list_cluster_groups"),
     ]

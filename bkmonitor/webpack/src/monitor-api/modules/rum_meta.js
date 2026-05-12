@@ -19,6 +19,7 @@ export const listApplication = request('POST', 'rum/meta/application/list_applic
 export const listApplicationAsync = request('POST', 'rum/meta/application/list_application_async/');
 export const queryRumTokenInfo = request('POST', 'rum/meta/application/query_rum_token/');
 export const storageFieldInfo = request('POST', 'rum/meta/application/storage_field_info/');
+export const listEsClusterGroups = request('GET', 'rum/meta/application/list_cluster_groups/');
 
 export default {
   getMetaConfigInfo,
@@ -40,4 +41,5 @@ export default {
   listApplicationAsync,
   queryRumTokenInfo,
   storageFieldInfo,
+  listEsClusterGroups,
 };
