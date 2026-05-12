@@ -59,6 +59,7 @@ export default defineComponent({
       handleEnabledChange,
       loading: strategyLoading,
     } = useNoDataStrategy({
+      applicationId: toRef(props.detail.application_id),
       bizId: toRef(props.detail.bk_biz_id),
       appName: toRef(props.detail.app_name),
     });

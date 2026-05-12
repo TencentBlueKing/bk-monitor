@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { request } from 'monitor-api/base';
+
 import type { IDataSamplingResponse, IDataStatusResponse } from '../../../typings';
 import type { IStrategyData } from '../../../typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -491,6 +493,22 @@ export const fetchMockStrategyInfo = async (
     alert_graph: MOCK_STRATEGY_INFO.alert_graph ? { ...MOCK_STRATEGY_INFO.alert_graph } : null,
   };
 };
+
+// ===================== 1.18 无数据策略启/禁用 Mock =====================
+
+/**
+ * @description Mock 开启无数据告警策略
+ * @param {Record<string, unknown>} _params - 请求参数
+ * @returns {Promise<void>}
+ */
+export const noDataStrategyEnable = request('post', 'rum/meta/application/nodata_strategy_enable/');
+
+/**
+ * @description Mock 关闭无数据告警策略
+ * @param {Record<string, unknown>} _params - 请求参数
+ * @returns {Promise<void>}
+ */
+export const noDataStrategyDisable = request('post', 'rum/meta/application/nodata_strategy_disable/');
 
 /**
  * @description Mock 1.17 GetDataViewConfigResource — 获取数据视图配置

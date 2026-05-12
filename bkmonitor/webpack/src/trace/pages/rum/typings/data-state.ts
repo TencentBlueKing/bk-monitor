@@ -90,6 +90,12 @@ export interface IDataStatusResponse {
   span: DataStatusType;
 }
 
+/** 1.17-1.18 开启/关闭无数据告警策略参数 */
+export interface INoDataStrategyParams {
+  /** 应用 ID */
+  application_id: number;
+}
+
 /** 通知组项 */
 export interface INoticeGroupItem {
   /** 通知组 ID */

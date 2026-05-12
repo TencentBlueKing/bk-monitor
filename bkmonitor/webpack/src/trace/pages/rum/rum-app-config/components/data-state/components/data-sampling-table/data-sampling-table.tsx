@@ -92,11 +92,11 @@ export default defineComponent({
       <div class='data-sampling-table-wrapper'>
         <CommonTable
           class='sampling-table'
-          autoFillSpace={true}
+          autoFillSpace={!this.samplingList?.length}
           columns={this.columns}
           data={this.samplingList as unknown as Record<string, unknown>[]}
           loading={this.loading}
-          rowKey='sampling_time'
+          rowKey='raw_log'
         />
       </div>
     );
