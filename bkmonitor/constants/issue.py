@@ -131,7 +131,7 @@ class ImpactScopeDimension:
                 "keys": ["query_string"],
                 "value_tpl": (
                     "bk_service_instance_id:{bk_service_instance_id} "
-                    "OR tags.bk_service_instance_id:{bk_service_instance_id}"
+                    "OR tags.bk_service_instance_id:{bk_service_instance_id} "
                     "OR tags.bk_target_service_instance_id:{bk_service_instance_id}"
                 ),
                 "condition": "and",
