@@ -139,8 +139,6 @@ def get_core_context(request):
         # 用户管理站点（用于个人中心跳转等）
         "BK_USER_SITE_URL": settings.BK_USER_SITE_URL,
         "TAM_ID": settings.TAM_ID,
-        # BKFARA URL
-        "BKFARA_URL": settings.BKFARA_URL,
         # 用于切换中英文用户管理 cookie
         "BK_COMPONENT_API_URL": settings.BK_COMPONENT_API_URL_FRONTEND,
         "BK_DOMAIN": os.getenv("BK_DOMAIN", ""),
