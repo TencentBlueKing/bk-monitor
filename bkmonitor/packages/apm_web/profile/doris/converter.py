@@ -179,7 +179,15 @@ class DorisProfileConverter(ProfileConverter):
 
             mapping_id = mapping.id
 
-        location = self._location_mapping.get(stacktrace["address"])
+        location_key = "||".join(
+            [
+                str(mapping_id),
+                str(stacktrace["address"]),
+                str(stacktrace["isFolded"]),
+                json.dumps(stacktrace["lines"], sort_keys=True),
+            ]
+        )
+        location = self._location_mapping.get(location_key)
         if location is None:
             location = Location(
                 id=len(self.profile.location) + 1,
@@ -187,7 +195,7 @@ class DorisProfileConverter(ProfileConverter):
                 address=stacktrace["address"],
                 is_folded=stacktrace["isFolded"],
             )
-            self._location_mapping[stacktrace["address"]] = location
+            self._location_mapping[location_key] = location
             self._location_id_mapping[location.id] = location
             self.profile.location.append(location)
 
