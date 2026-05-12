@@ -682,7 +682,7 @@ class TestSearchGrok(TestCase):
 
     def test_empty_keyword_returns_all(self):
         """keyword 为空时，返回所有内置 + 当前业务模式，不做过滤"""
-        result = GrokHandler.search_grok({"keyword": "", "bk_biz_id": 200, "limit": 1000})
+        result = GrokHandler.search_grok({"keyword": "", "bk_biz_id": 200, "page": 1, "pagesize": 1000})
         names = [item["name"] for item in result["list"]]
         # 包含当前业务自定义模式
         self.assertIn("MYIP", names)
@@ -692,8 +692,8 @@ class TestSearchGrok(TestCase):
 
     def test_different_biz_sees_own_patterns(self):
         """不同业务只能看到自己的自定义模式"""
-        result_200 = GrokHandler.search_grok({"keyword": "", "bk_biz_id": 200, "limit": 1000})
-        result_300 = GrokHandler.search_grok({"keyword": "", "bk_biz_id": 300, "limit": 1000})
+        result_200 = GrokHandler.search_grok({"keyword": "", "bk_biz_id": 200, "page": 1, "pagesize": 1000})
+        result_300 = GrokHandler.search_grok({"keyword": "", "bk_biz_id": 300, "page": 1, "pagesize": 1000})
 
         names_200 = [item["name"] for item in result_200["list"]]
         names_300 = [item["name"] for item in result_300["list"]]
@@ -709,7 +709,7 @@ class TestSearchGrok(TestCase):
         GrokInfo.objects.create(bk_biz_id=200, name="MYIPADDR", pattern=r"\d+", is_builtin=False)
         GrokInfo.objects.create(bk_biz_id=200, name="MYIP_EXTRA", pattern=r"\d+", is_builtin=False)
 
-        result = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "limit": 10})
+        result = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "page": 1, "pagesize": 10})
         names = [item["name"] for item in result["list"]]
         self.assertGreater(len(names), 0)
         self.assertEqual(names[0], "MYIP")
@@ -718,7 +718,7 @@ class TestSearchGrok(TestCase):
         """前缀匹配应排在包含匹配之前"""
         # MYIP 是精确/前缀，XMYIP 是包含
         GrokInfo.objects.create(bk_biz_id=200, name="XMYIP", pattern=r"\d+", is_builtin=False)
-        result = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "limit": 10})
+        result = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "page": 1, "pagesize": 10})
         names = [item["name"] for item in result["list"]]
         self.assertIn("MYIP", names)
         self.assertIn("XMYIP", names)
@@ -727,7 +727,7 @@ class TestSearchGrok(TestCase):
     # ---- 包含匹配 ----
     def test_contains_match_included(self):
         """包含关键字的模式应出现在结果中"""
-        result = GrokHandler.search_grok({"keyword": "word", "bk_biz_id": 200, "limit": 10})
+        result = GrokHandler.search_grok({"keyword": "word", "bk_biz_id": 200, "page": 1, "pagesize": 10})
         names = [item["name"] for item in result["list"]]
         self.assertIn("MYWORD", names)
 
@@ -735,7 +735,7 @@ class TestSearchGrok(TestCase):
     def test_subsequence_match_included(self):
         """子序列匹配的模式应出现在结果中"""
         # "mwrd" 是 "myword" 的子序列
-        result = GrokHandler.search_grok({"keyword": "mwrd", "bk_biz_id": 200, "limit": 10})
+        result = GrokHandler.search_grok({"keyword": "mwrd", "bk_biz_id": 200, "page": 1, "pagesize": 10})
         names = [item["name"] for item in result["list"]]
         self.assertIn("MYWORD", names)
 
@@ -743,7 +743,7 @@ class TestSearchGrok(TestCase):
         """子序列匹配应排在包含匹配之后"""
         # "mwrd" 是 "myword" 的子序列，"word" 是 "myword" 的包含
         GrokInfo.objects.create(bk_biz_id=200, name="WORDONLY", pattern=r"\w+", is_builtin=False)
-        result = GrokHandler.search_grok({"keyword": "word", "bk_biz_id": 200, "limit": 10})
+        result = GrokHandler.search_grok({"keyword": "word", "bk_biz_id": 200, "page": 1, "pagesize": 10})
         names = [item["name"] for item in result["list"]]
         self.assertIn("MYWORD", names)
         self.assertIn("WORDONLY", names)
@@ -753,14 +753,14 @@ class TestSearchGrok(TestCase):
     # ---- keyword 大小写/空格归一化 ----
     def test_keyword_case_insensitive(self):
         """keyword 大小写不敏感"""
-        result_lower = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "limit": 10})
-        result_upper = GrokHandler.search_grok({"keyword": "MYIP", "bk_biz_id": 200, "limit": 10})
-        result_mixed = GrokHandler.search_grok({"keyword": "MyIp", "bk_biz_id": 200, "limit": 10})
+        result_lower = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "page": 1, "pagesize": 10})
+        result_upper = GrokHandler.search_grok({"keyword": "MYIP", "bk_biz_id": 200, "page": 1, "pagesize": 10})
+        result_mixed = GrokHandler.search_grok({"keyword": "MyIp", "bk_biz_id": 200, "page": 1, "pagesize": 10})
         self.assertEqual(result_lower["total"], result_upper["total"])
         self.assertEqual(result_lower["total"], result_mixed["total"])
 
     def test_keyword_with_spaces_normalized(self):
         """keyword 中的空格应被去除后再匹配"""
-        result_nospace = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "limit": 10})
-        result_spaces = GrokHandler.search_grok({"keyword": "my ip", "bk_biz_id": 200, "limit": 10})
+        result_nospace = GrokHandler.search_grok({"keyword": "myip", "bk_biz_id": 200, "page": 1, "pagesize": 10})
+        result_spaces = GrokHandler.search_grok({"keyword": "my ip", "bk_biz_id": 200, "page": 1, "pagesize": 10})
         self.assertEqual(result_nospace["total"], result_spaces["total"])
