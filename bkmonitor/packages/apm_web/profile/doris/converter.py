@@ -133,8 +133,13 @@ class DorisProfileConverter(ProfileConverter):
         self.profile.period_type = ValueType(self.add_string(period_type), self.add_string(period_unit))
         self.profile.period = first_sample["period"]
         sample_type, sample_unit = first_sample["sample_type"].split("/")
-        self.profile.sample_type = [ValueType(self.add_string(sample_type), self.add_string(sample_unit))]
-        self.profile.default_sample_type = 0
+        sample_type_id = self.add_string(sample_type)
+        self.profile.sample_type = [ValueType(sample_type_id, self.add_string(sample_unit))]
+        self.profile.default_sample_type = sample_type_id
+
+        sample_timestamps = [int(sample_info["dtEventTimeStamp"]) for sample_info in samples_info]
+        self.profile.time_nanos = min(sample_timestamps) * 1000 * 1000
+        self.profile.duration_nanos = (max(sample_timestamps) - min(sample_timestamps)) * 1000 * 1000
 
         for sample_info in samples_info:
             labels = self._build_sample_labels(sample_info.get("labels"))
@@ -199,7 +204,7 @@ class DorisProfileConverter(ProfileConverter):
             self._location_id_mapping[location.id] = location
             self.profile.location.append(location)
 
-            for line_info in stacktrace["lines"]:
+            for line_info in stacktrace["lines"] or []:
                 function_info = line_info["function"]
                 function_key = "||".join(
                     [
