@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.utils.user import get_global_user
+from bkmonitor.utils.user import get_global_user, get_backend_username
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.common import DEFAULT_TENANT_ID
@@ -856,3 +856,16 @@ class NoDataStrategyEnableResource(NoDataStrategyStatusResource):
 
 class NoDataStrategyDisableResource(NoDataStrategyStatusResource):
     is_enabled = False
+
+
+class ListEsClusterGroupsResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
+
+    def perform_request(self, data):
+        # 在 APM 处获取集群信息 使用后台用户权限获取 避免当前用户无权限报错
+        cluster_groups = api.log_search.bk_log_search_cluster_groups(
+            bk_biz_id=data["bk_biz_id"],
+            bk_username=get_backend_username(),
+        )
+        return cluster_groups
