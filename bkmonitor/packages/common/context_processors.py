@@ -139,6 +139,8 @@ def get_core_context(request):
         # 用户管理站点（用于个人中心跳转等）
         "BK_USER_SITE_URL": settings.BK_USER_SITE_URL,
         "TAM_ID": settings.TAM_ID,
+        # BKFARA URL
+        "BKFARA_URL": settings.BKFARA_URL,
         # 用于切换中英文用户管理 cookie
         "BK_COMPONENT_API_URL": settings.BK_COMPONENT_API_URL_FRONTEND,
         "BK_DOMAIN": os.getenv("BK_DOMAIN", ""),
@@ -242,6 +244,7 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             or {-1, safe_int(context["BK_BIZ_ID"])} & set(settings.AIOPS_INCIDENT_BIZ_WHITE_LIST)
         ):
             context["ENABLE_AIOPS_INCIDENT"] = "true"
+            context["BK_INCIDENT_SAAS_HOST"] = settings.BK_INCIDENT_SAAS_HOST
     except Exception as e:
         logger.error(f"Get AIOPS_INCIDENT_BIZ_WHITE_LIST Failed: {e}")
 
