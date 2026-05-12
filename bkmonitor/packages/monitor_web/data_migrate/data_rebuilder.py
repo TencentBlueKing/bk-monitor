@@ -69,6 +69,33 @@ DEFAULT_KAFKA_CLUSTER_NAMES = {
 DEFAULT_ES_CLUSTER_NAMES = {"log": "log-es-public-1", "event": "event-es-public-1"}
 
 
+def _delete_gse_route_with_fallback(delete_params: dict[str, Any]) -> None:
+    """删除 GSE 路由，失败后使用监控平台名重试一次。
+
+    Args:
+        delete_params: GSE ``delete_route`` 接口参数。
+    """
+
+    try:
+        api.gse.delete_route(**delete_params)
+    except BKAPIError as error:
+        retry_delete_params = {
+            **delete_params,
+            "condition": {
+                **delete_params["condition"],
+                "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
+            },
+        }
+        print(
+            "delete gse route failed, retry with plat_name "
+            f"{config.DEFAULT_GSE_API_PLAT_NAME}, data_id: {delete_params['condition']['channel_id']}, error: {error}"
+        )
+        try:
+            api.gse.delete_route(**retry_delete_params)
+        except BKAPIError as retry_error:
+            raise retry_error from error
+
+
 def _get_plugin_data_label(plugin: CollectorPluginMeta) -> str | None:
     qcloud_exporter_plugin_id = getattr(settings, "TENCENT_CLOUD_METRIC_PLUGIN_ID", "")
     if not qcloud_exporter_plugin_id:
@@ -141,7 +168,7 @@ def _register_data_source(bk_biz_id: int, data_source: DataSource, need_register
             "operation": {"operator_name": "admin", "method": "specification"},
             "specification": {"route": need_delete_route_names},
         }
-        api.gse.delete_route(**delete_params)
+        _delete_gse_route_with_fallback(delete_params)
 
 
 def init_global_plugin(bk_tenant_id: str):
