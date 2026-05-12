@@ -25,6 +25,10 @@ from kernel_api.rpc.functions.admin.query_route import (
     _resolve_space_identity,
 )
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
+from kernel_api.rpc.functions.admin.storage import (
+    _serialize_bkbase_item,
+    _serialize_doris_storage,
+)
 from kernel_api.rpc.registry import KernelRPCRegistry
 
 
@@ -49,6 +53,14 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.es_storage.sample",
         "admin.query_route.query",
         "admin.query_route.refresh",
+        "admin.doris_storage.list",
+        "admin.doris_storage.detail",
+        "admin.vm_storage.list",
+        "admin.vm_storage.detail",
+        "admin.kafka_storage.list",
+        "admin.kafka_storage.detail",
+        "admin.bkbase_result_table.list",
+        "admin.bkbase_result_table.detail",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -418,6 +430,79 @@ def test_es_storage_functions_registered():
     runtime_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.runtime_overview")
     assert "inspect" in runtime_detail["description"]
     assert "table_id" in runtime_detail["params_schema"]
+
+
+def test_storage_functions_registered():
+    for func_name in [
+        "admin.doris_storage.list",
+        "admin.doris_storage.detail",
+        "admin.vm_storage.list",
+        "admin.vm_storage.detail",
+        "admin.kafka_storage.list",
+        "admin.kafka_storage.detail",
+        "admin.bkbase_result_table.list",
+        "admin.bkbase_result_table.detail",
+    ]:
+        detail = KernelRPCRegistry.get_function_detail(func_name)
+        assert detail is not None
+        assert detail["func_name"] == func_name
+
+    assert "table_id" in KernelRPCRegistry.get_function_detail("admin.doris_storage.list")["params_schema"]
+    assert "id" in KernelRPCRegistry.get_function_detail("admin.vm_storage.detail")["params_schema"]
+    assert (
+        "data_link_name" in KernelRPCRegistry.get_function_detail("admin.bkbase_result_table.detail")["params_schema"]
+    )
+
+
+def test_doris_storage_serializer_parses_field_config_mapping():
+    warnings = []
+    item = _serialize_doris_storage(
+        SimpleNamespace(
+            table_id="3_bklog.demo",
+            bk_tenant_id="system",
+            bkbase_table_id="592_bklog_demo",
+            source_type="log",
+            index_set="3_bklog_demo",
+            table_type="primary_table",
+            field_config_mapping='{"ip": {"type": "keyword"}}',
+            expire_days=30,
+            storage_cluster_id=3,
+        ),
+        warnings,
+    )
+
+    assert item["field_config_mapping"]["ip"]["type"] == "keyword"
+    assert warnings == []
+
+
+def test_bkbase_result_table_serializer_keeps_model_fields():
+    item = _serialize_bkbase_item(
+        SimpleNamespace(
+            data_link_name="bk_log",
+            bkbase_data_name="bk_log",
+            storage_type="elasticsearch",
+            monitor_table_id="3_bklog.demo",
+            storage_cluster_id=3,
+            create_time=None,
+            last_modify_time=None,
+            status="Ok",
+            bkbase_table_id="592_bklog_demo",
+            bkbase_rt_name="bklog_demo",
+            bk_tenant_id="system",
+        ),
+        {"3_bklog.demo": SimpleNamespace(table_id="3_bklog.demo", bk_tenant_id="system")},
+        {
+            3: SimpleNamespace(
+                cluster_id=3, cluster_name="default-es", display_name="默认 ES", cluster_type="elasticsearch"
+            )
+        },
+    )
+
+    assert item["bkbase_result_table"]["data_link_name"] == "bk_log"
+    assert item["bkbase_result_table"]["monitor_table_id"] == "3_bklog.demo"
+    assert item["bkbase_result_table"]["status"] == "Ok"
+    assert item["result_table"]["table_id"] == "3_bklog.demo"
+    assert item["storage_cluster"]["cluster_id"] == 3
 
 
 def test_query_route_functions_registered():

@@ -31,6 +31,7 @@ import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import { useI18n } from 'vue-i18n';
 
 import VerifyInput from '../../../../../components/verify-input/verify-input';
+import { safeDeepClone } from '../../../../../utils';
 import DimensionTransfer from './dimension-transfer';
 import ShieldTreeComponent from './shield-tree-component';
 
@@ -38,6 +39,7 @@ import type { AlarmShieldDetail, IBkTopoNodeItem, IDimension } from '../../../ty
 import type { IAuthority } from '@/typings/authority';
 
 import './quick-shield-dialog.scss';
+
 export default defineComponent({
   name: 'QuickShieldDialog',
   props: {
@@ -148,11 +150,11 @@ export default defineComponent({
     watch(
       () => props.alarmShieldDetail,
       () => {
-        const data = structuredClone(props.alarmShieldDetail || []);
+        const data = safeDeepClone(props.alarmShieldDetail || []);
         backupDetails.value = data.map(detail => {
           return {
             ...detail,
-            shieldRadioData: structuredClone(shieldRadioData), // 屏蔽选择单选内容
+            shieldRadioData: safeDeepClone(shieldRadioData), // 屏蔽选择单选内容
             shieldCheckedId: shieldCheckedId, // 屏蔽选择单选框选中的值
             hideDimensionTagIndex: -1, // 开始隐藏维度屏蔽tag的索引
             hideBkTopoNodeTagIndex: -1, // 开始隐藏范围屏蔽tag的索引
@@ -408,6 +410,7 @@ export default defineComponent({
     };
 
     const getInfoComponent = () => {
+      console.info(backupDetails.value);
       return backupDetails.value.map((detail, idx) => (
         <div
           key={idx}
@@ -604,7 +607,7 @@ export default defineComponent({
     };
 
     const handleTransferConfirm = (selectedDimensionArr: IDimension[]) => {
-      const details = structuredClone(backupDetails.value);
+      const details = safeDeepClone(backupDetails.value);
       // 增删维度信息
       details[editIndex.value].dimension = props.alarmShieldDetail[editIndex.value].dimension.filter(dimensionItem =>
         selectedDimensionArr.some(targetItem => targetItem.key === dimensionItem.key)
@@ -647,7 +650,7 @@ export default defineComponent({
      * @param checkedIds 已满足后端格式的节点数据集合（node_name用于前端展示，提交后端时删除）
      */
     const handleShieldConfirm = (checkedIds: IBkTopoNodeItem[]) => {
-      const details = structuredClone(backupDetails.value);
+      const details = safeDeepClone(backupDetails.value);
       details[editIndex.value].bkTopoNode = checkedIds;
       shieldTreeDialogShow.value = false;
       details[editIndex.value].hideBkTopoNodeTagIndex = -1;
@@ -683,7 +686,7 @@ export default defineComponent({
             }
           }
         }
-        const details = structuredClone(backupDetails.value);
+        const details = safeDeepClone(backupDetails.value);
         if (hasHide && idx > 1) {
           const preItem = target.children[idx - 1] as any;
           if (preItem.offsetLeft + preItem.offsetWidth + 6 > target.offsetWidth - 53) {

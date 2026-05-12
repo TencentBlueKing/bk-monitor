@@ -1,0 +1,166 @@
+paths:
+  /mcp/query_datalink_metadata/:
+    get:
+      operationId: query_datalink_metadata
+      description: Query structured datalink metadata by bk_data_id, result_table_id, or vm_result_table_id. The response merges monitor-side DataSource, ResultTable, Kafka, storage, AccessVMRecord, BKBase V4 Databus declaration, and actual BKBase branches for operations troubleshooting. 查询结构化数据链路画像,支持通过bk_data_id、result_table_id或vm_result_table_id定位单个数据源,返回监控侧配置、Kafka、存储、VM记录、BKBase V4声明配置和远端真实branches,用于运维排障。
+      tags:
+      - ops_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+      - in: query
+        name: bk_data_id
+        schema:
+          type: string
+        required: false
+        description: Monitor-side data source ID. Highest priority if multiple identifiers are provided. 监控侧数据源ID。多个标识同时传入时优先级最高。
+      - in: query
+        name: result_table_id
+        schema:
+          type: string
+        required: false
+        description: Monitor-side result table ID, used to resolve bk_data_id. 监控侧结果表ID,用于反查数据源ID。
+      - in: query
+        name: vm_result_table_id
+        schema:
+          type: string
+        required: false
+        description: VM or BKBase result table ID, used to resolve bk_data_id. VM/BKBase侧结果表ID,用于反查数据源ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/query_data_link_metadata/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/query_data_link_info/:
+    get:
+      operationId: query_data_link_info
+      description: Query human-readable datalink details for manual operations troubleshooting. When is_complete=true, return richer health, route, storage, and diagnostic details. 查询人工排障可读的数据链路详情。is_complete=true时返回更完整的健康检查、路由、存储和诊断信息。
+      tags:
+      - ops_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+      - in: query
+        name: bk_data_id
+        schema:
+          type: string
+        required: true
+        description: Monitor-side data source ID. 监控侧数据源ID。
+      - in: query
+        name: is_complete
+        schema:
+          type: boolean
+          default: false
+        required: false
+        description: Whether to return complete health and route information. Default is false. 是否返回完整健康检查和路由信息,默认false。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/query_data_link_info/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/diagnose_metadata_datalink/:
+    get:
+      operationId: diagnose_metadata_datalink
+      description: Generate an intelligent metadata diagnosis report for a monitor data source. Use after query_datalink_metadata when an operational conclusion is needed. 为监控数据源生成元数据智能诊断报告。适合在query_datalink_metadata之后生成排障结论和下一步建议。
+      tags:
+      - ops_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+      - in: query
+        name: bk_data_id
+        schema:
+          type: string
+        required: true
+        description: Monitor-side data source ID to diagnose. 要诊断的监控侧数据源ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/intelligent_diagnosis_metadata/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_data_link_metadata/:
+    get:
+      operationId: get_data_link_metadata
+      description: Query raw BKBase V4 datalink metadata. Provide exactly one of bk_data_id or vm_result_table_id. Use this tool to verify actual BKBase runtime branches without monitor-side merging. 查询BKBase V4原始链路元数据。bk_data_id和vm_result_table_id必须二选一。用于脱离监控侧合并逻辑,直接确认BKBase真实运行branches。
+      tags:
+      - ops_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+      - in: query
+        name: bk_data_id
+        schema:
+          type: number
+        required: false
+        description: BKBase raw_data_id or bk_base_data_id. Must be mutually exclusive with vm_result_table_id. BKBase侧数据ID,与vm_result_table_id互斥。
+      - in: query
+        name: vm_result_table_id
+        schema:
+          type: string
+        required: false
+        description: BKBase or VM result table ID. Must be mutually exclusive with bk_data_id. BKBase/VM侧结果表ID,与bk_data_id互斥。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/get_data_link_metadata/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true

@@ -218,52 +218,54 @@ def _consume_with_kafka_python(
     return result
 
 
-def _consume_with_gse_config(datasource: models.DataSource, size: int) -> list[dict[str, Any]]:
+def _get_route_stream_to(route: Any) -> dict[str, Any]:
+    if isinstance(route, dict):
+        stream_to = route.get("stream_to")
+    else:
+        stream_to = getattr(route, "stream_to", None)
+    return stream_to if isinstance(stream_to, dict) else {}
+
+
+def _get_route_topic_name(route: Any) -> str | None:
+    kafka = _get_route_stream_to(route).get("kafka")
+    if not isinstance(kafka, dict):
+        return None
+    topic_name = kafka.get("topic_name")
+    return str(topic_name) if topic_name not in (None, "") else None
+
+
+def _iter_gse_routes(route_info_list: Any):
+    for route_group in route_info_list or []:
+        if isinstance(route_group, dict):
+            routes = route_group.get("route") or []
+        elif isinstance(route_group, list):
+            routes = route_group
+        else:
+            continue
+        yield from routes
+
+
+def _query_gse_route_topic(datasource: models.DataSource) -> str | None:
     route_params = {
         "condition": {"channel_id": datasource.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
         "operation": {"operator_name": getattr(settings, "COMMON_USERNAME", "system")},
     }
 
     route_info_list = api.gse.query_route(**route_params)
-    stream_to_id = None
-    topic = None
-    for route_list in route_info_list:
-        if route_list:
-            route = route_list["route"][0] if isinstance(route_list, list) and route_list else {}
-            if isinstance(route, dict):
-                stream_to = route.get("stream_to", {})
-            else:
-                stream_to = getattr(route, "stream_to", {}) if hasattr(route, "stream_to") else {}
-            if isinstance(stream_to, dict):
-                stream_to_id = stream_to.get("stream_to_id")
-                topic = stream_to.get("kafka", {}).get("topic_name")
-            if stream_to_id and topic:
-                break
+    for route in _iter_gse_routes(route_info_list):
+        topic = _get_route_topic_name(route)
+        if topic:
+            return topic
 
-    if not (stream_to_id and topic):
-        return []
+    return None
 
-    kafka_params = {
-        "condition": {
-            "stream_to_id": stream_to_id,
-            "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
-        },
-        "operation": {"operator_name": getattr(settings, "COMMON_USERNAME", "system")},
-    }
 
-    kafka_config_list = api.gse.query_stream_to(**kafka_params)
-
-    kafka_addr = None
-    for kafka_config in kafka_config_list:
-        kafka_addr_list = kafka_config.get("kafka", {}).get("storage_address", [])
-        if kafka_addr_list:
-            kafka_addr = kafka_addr_list[0]
-            break
-    if not (isinstance(kafka_addr, dict) and kafka_addr.get("ip") and kafka_addr.get("port")):
+def _consume_with_gse_config(mq_cluster: models.ClusterInfo, topic: str | None, size: int) -> list[dict[str, Any]]:
+    if not topic:
         return []
 
     consumer_config = {
-        "bootstrap_servers": f"{kafka_addr['ip']}:{kafka_addr['port']}",
+        "bootstrap_servers": f"{mq_cluster.domain_name}:{mq_cluster.port}",
         "request_timeout_ms": 1000,
         "consumer_timeout_ms": 1000,
     }
@@ -341,6 +343,17 @@ def kafka_sample(params: dict[str, Any]) -> dict[str, Any]:
 
     mq_cluster = datasource.mq_cluster
     topic = datasource.mq_config.topic
+    try:
+        route_topic = _query_gse_route_topic(datasource)
+    except Exception as error:
+        route_topic = None
+        logger.warning(
+            "Kafka Sample RPC: query GSE route failed, bk_data_id->[%s], error->[%s]",
+            datasource.bk_data_id,
+            error,
+        )
+    if route_topic:
+        topic = route_topic
 
     result_table = None
     dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).first()
@@ -405,7 +418,7 @@ def kafka_sample(params: dict[str, Any]) -> dict[str, Any]:
                 )
                 items = [json.loads(data) for data in res]
         else:
-            items = _consume_with_gse_config(datasource, size)
+            items = _consume_with_gse_config(mq_cluster, topic, size)
     else:
         items = _consume_with_kafka_python(mq_cluster, topic, datasource, size)
 

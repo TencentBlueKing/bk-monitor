@@ -585,6 +585,18 @@ class QueryDataLinkMetadataResource(Resource):
     2. result_table_id - 通过结果表ID查找对应的数据源ID
     3. vm_result_table_id - 通过VM结果表ID查找对应的数据源ID
 
+    返回结构（顶层）：
+    - query           解析信息（始终返回）：
+                      input / bk_data_id / resolved_from（bk_data_id|result_table_id|vm_result_table_id）
+    - data_source     数据源基础信息
+    - frontend_kafka  接入端 Kafka 配置（DataSource.mq_*，对应数据源上报入口）
+    - result_tables   结果表列表，每个结果表包含：
+                        * bk_biz_id            最终生效业务 ID（已做兜底解析，永远返回）
+                        * original_bk_biz_id   ResultTable 表中原始 bk_biz_id 值
+                                               （与 bk_biz_id 不一致时，说明经过了兜底解析）
+                        * backend_kafka        后端 Kafka（Transfer 转储，可选）
+                        * bkbase_v4_link       V4 链路信息（仅 V4 链路返回）
+
     V4 链路信息来源：
     - 本地：BkBaseResultTable + DataBusConfig，反映链路声明式配置
     - 远端：调用 BKBase V4 元数据 API（GetDataLinkMetadataResource）获取链路实际运行情况
@@ -621,29 +633,43 @@ class QueryDataLinkMetadataResource(Resource):
         result_table_id = validated_request_data.get("result_table_id")
         vm_result_table_id = validated_request_data.get("vm_result_table_id")
 
+        # 收敛非空入参，作为 query.input 返回，便于调用方追溯
+        query_input = {
+            k: v
+            for k, v in (
+                ("bk_data_id", bk_data_id),
+                ("result_table_id", result_table_id),
+                ("vm_result_table_id", vm_result_table_id),
+            )
+            if v
+        }
+
         # 解析bk_data_id
         resolved_info = self._resolve_bk_data_id(bk_tenant_id, bk_data_id, result_table_id, vm_result_table_id)
         bk_data_id = resolved_info["bk_data_id"]
 
+        # query 字段始终返回，包含原始入参与解析路径
+        query_section = {
+            "input": query_input,
+            "bk_data_id": bk_data_id,
+            "resolved_from": resolved_info.get("resolved_from", "bk_data_id"),
+        }
+        if resolved_info.get("result_table_id"):
+            query_section["result_table_id"] = resolved_info["result_table_id"]
+        if resolved_info.get("vm_result_table_id"):
+            query_section["vm_result_table_id"] = resolved_info["vm_result_table_id"]
+
         try:
-            # 获取数据源
             ds = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
 
-            # 判断是否为V4链路
             is_v4_link = ds.created_from == DataIdCreatedFromSystem.BKDATA.value
 
-            # 构建结构化响应
-            result = {
+            return {
+                "query": query_section,
                 "data_source": self._build_data_source_info(ds),
-                "kafka_config": self._build_kafka_config(ds),
+                "frontend_kafka": self._build_kafka_config(ds),
                 "result_tables": self._build_result_tables_info(bk_tenant_id, bk_data_id, is_v4_link=is_v4_link, ds=ds),
             }
-
-            # 如果是通过其他参数解析得到的bk_data_id，添加解析信息
-            if resolved_info.get("resolved_from"):
-                result["query_info"] = resolved_info
-
-            return result
 
         except models.DataSource.DoesNotExist:
             raise ValidationError(
@@ -671,7 +697,7 @@ class QueryDataLinkMetadataResource(Resource):
         """
         # 如果直接提供了bk_data_id，直接使用
         if bk_data_id:
-            return {"bk_data_id": bk_data_id}
+            return {"bk_data_id": bk_data_id, "resolved_from": "bk_data_id"}
 
         # 通过result_table_id查找bk_data_id
         if result_table_id:
@@ -785,31 +811,29 @@ class QueryDataLinkMetadataResource(Resource):
             try:
                 rt = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
 
-                # 获取bk_biz_id，如果为0则尝试解析真正的bk_biz_id
-                bk_biz_id = rt.bk_biz_id
-                resolved_bk_biz_id = None
-                if bk_biz_id == 0:
-                    resolved_bk_biz_id = self._resolve_real_bk_biz_id(bk_tenant_id, bk_data_id)
-                    if resolved_bk_biz_id:
-                        bk_biz_id = resolved_bk_biz_id
+                # bk_biz_id：
+                #   - bk_biz_id           最终生效值，永远存在（已做兜底解析）
+                #   - original_bk_biz_id  ResultTable 表中的原始值
+                # 调用方对比两者即可判断是否经过兜底解析。
+                original_bk_biz_id = rt.bk_biz_id
+                bk_biz_id = original_bk_biz_id
+                if original_bk_biz_id == 0:
+                    resolved = self._resolve_real_bk_biz_id(bk_tenant_id, bk_data_id)
+                    if resolved is not None:
+                        bk_biz_id = resolved
 
-                # 获取空间信息
                 space_info = self._get_space_info(bk_tenant_id, bk_biz_id)
 
-                # 构建基础结果表信息
                 rt_info = {
                     "table_id": table_id,
                     "storage_type": rt.default_storage,
-                    "bk_biz_id": rt.bk_biz_id,  # 保留原始值
+                    "bk_biz_id": bk_biz_id,
+                    "original_bk_biz_id": original_bk_biz_id,
                     "space_uid": space_info["space_uid"],
                     "space_name": space_info["space_name"],
                     "is_enabled": rt.is_enable,
                     "data_label": rt.data_label,
                 }
-
-                # 如果bk_biz_id被解析过，添加resolved_bk_biz_id字段
-                if resolved_bk_biz_id:
-                    rt_info["resolved_bk_biz_id"] = resolved_bk_biz_id
 
                 # 添加存储特定信息
                 if rt.default_storage == models.ClusterInfo.TYPE_ES:
@@ -848,37 +872,41 @@ class QueryDataLinkMetadataResource(Resource):
         """
         解析真正的bk_biz_id
 
-        当ResultTable的bk_biz_id为0时，尝试通过以下方式获取真正的bk_biz_id：
-        1. 首先通过bk_data_id查找TimeSeriesGroup，获取bk_biz_id
-        2. 如果仍为0，则通过SpaceDataSource查找space_id（from_authorization=False）
+        当ResultTable的bk_biz_id为0时，依次尝试通过以下方式获取真正的bk_biz_id：
+        1. 通过bk_data_id查找自定义分组（TimeSeriesGroup / EventGroup / LogGroup），取其bk_biz_id
+        2. 仍未找到时，通过SpaceDataSource查找space_id（from_authorization=False）
         """
+        # 自定义分组（自定义指标 / 自定义事件 / 自定义日志）兜底
+        custom_group_models = (
+            models.TimeSeriesGroup,
+            models.EventGroup,
+            models.LogGroup,
+        )
+        for group_model in custom_group_models:
+            try:
+                group = group_model.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).first()
+                if group and group.bk_biz_id != 0:
+                    return group.bk_biz_id
+            except Exception as e:
+                logger.warning(
+                    "Failed to resolve bk_biz_id from %s for bk_data_id %s: %s",
+                    group_model.__name__,
+                    bk_data_id,
+                    str(e),
+                )
+
+        # 从SpaceDataSource获取space_id
         try:
-            # 尝试从TimeSeriesGroup获取bk_biz_id
-            try:
-                ts_group = models.TimeSeriesGroup.objects.filter(
-                    bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id
-                ).first()
-                if ts_group and ts_group.bk_biz_id != 0:
-                    return ts_group.bk_biz_id
-            except Exception:
-                pass
-
-            # 从SpaceDataSource获取space_id
-            try:
-                space_ds = models.SpaceDataSource.objects.filter(
-                    bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id, from_authorization=False
-                ).first()
-                if space_ds and space_ds.space_type_id == SpaceTypes.BKCC.value:
-                    # space_id是字符串，需要转换为int
-                    return int(space_ds.space_id)
-            except Exception:
-                pass
-
-            return None
-
+            space_ds = models.SpaceDataSource.objects.filter(
+                bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id, from_authorization=False
+            ).first()
+            if space_ds and space_ds.space_type_id == SpaceTypes.BKCC.value:
+                # space_id是字符串，需要转换为int
+                return int(space_ds.space_id)
         except Exception as e:
-            logger.warning("Failed to resolve real bk_biz_id for bk_data_id %s: %s", bk_data_id, str(e))
-            return None
+            logger.warning("Failed to resolve bk_biz_id from SpaceDataSource for bk_data_id %s: %s", bk_data_id, str(e))
+
+        return None
 
     def _get_space_info(self, bk_tenant_id: str, bk_biz_id: int) -> dict[str, str]:
         """获取空间信息"""

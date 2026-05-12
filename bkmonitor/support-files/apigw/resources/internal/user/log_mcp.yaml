@@ -1,0 +1,329 @@
+paths:
+  /mcp/list_index_sets/:
+    get:
+      operationId: list_index_sets
+      description: List all available log index sets in BlueKing Monitor. An index set is a logical collection grouping related log data with shared configurations. This is the first step in the log query workflow, used before get_index_set_fields and search_logs to discover available log collections. Similar to Elasticsearch's list_indices. 列出所有可用日志索引集。索引集是将相关日志数据分组的逻辑集合。这是日志查询工作流的第一步,在使用其他工具前发现可用日志集合。类似ES的list_indices。
+      tags:
+      - log_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_search/get_index_set_list/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_index_set_fields/:
+    get:
+      operationId: get_index_set_fields
+      description: Get field mappings and schema for a specific log index set, including field names, types, and descriptions. The index_set_id parameter must be obtained from list_index_sets. Use this before building queries to understand available fields, essential for constructing valid query_string in search_logs. Similar to Elasticsearch's get_mappings. 获取索引集的字段映射和schema,包括字段名、类型和描述。index_set_id必须从list_index_sets获取。在构建查询前使用,了解可用字段,对构建有效查询至关重要。类似ES的get_mappings。
+      tags:
+      - log_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
+      - in: query
+        name: index_set_id
+        schema:
+          type: string
+        required: true
+        description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_search/get_index_set_field_list/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_logs/:
+    post:
+      operationId: search_logs
+      description: 'Execute log search with time range and filters, similar to ES search. Use after list_index_sets and get_index_set_fields. IMPORTANT: start_time/end_time are Unix timestamps (seconds). If not specified, use current timestamp (now()) as end_time, calculate start_time (e.g. last 1h). NOT historical timestamps. 执行日志查询。在list_index_sets和get_index_set_fields后使用。重要:如未指定时间,用当前时间戳作为end_time并计算start_time(如最近1h)。不用历史时间戳。'
+      tags:
+      - log_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - limit
+              - end_time
+              - bk_biz_id
+              - start_time
+              - index_set_id
+              - query_string
+              properties:
+                limit:
+                  type: string
+                  default: '5'
+                  description: 'Maximum number of log records to return. Used to control result size and prevent excessive data transfer. Default: 500. 返回的最大日志记录数。用于控制结果集大小，避免数据量过大。默认值: 500。'
+                end_time:
+                  type: string
+                  default: 请动态计算
+                  description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                start_time:
+                  type: string
+                  default: 请动态计算
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
+                index_set_id:
+                  type: string
+                  description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
+                query_string:
+                  type: string
+                  default: '"level:ERROR"'
+                  description: 'Log search query string. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Examples: level:ERROR, status:500 AND path:/api/*, exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645". 日志查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。示例:level:ERROR、status:500 AND path:/api/*、exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645"'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/search_log/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_index_set_context/:
+    post:
+      operationId: search_index_set_context
+      description: 'Get log context around a specific log entry for scrolling through adjacent logs. Identifies target by timestamp, server IP, GSE index, etc. Must be used after search_logs to obtain positioning info (dtEventTimeStamp, serverIp, gseIndex). Supports bidirectional scrolling: positive begin scrolls forward (newer), negative backward (older). 查询指定日志条目的上下文,支持滚动浏览相邻日志。通过时间戳、服务器IP、GSE索引等定位。必须在 search_logs 之后使用以获取定位信息。支持双向滚动:正数向前(较新),负数向后(较旧)。'
+      tags:
+      - log_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - index_set_id
+              - zero
+              - begin
+              - dtEventTimeStamp
+              - serverIp
+              - gseIndex
+              properties:
+                path:
+                  type: string
+                  description: Log file path. For BCS logs, use logfile field. Optional, can be omitted if not needed for positioning. 日志文件路径。对于BCS日志,使用logfile字段。可选,如果定位不需要可省略。
+                size:
+                  type: string
+                  default: '50'
+                  description: 'Number of log records to return. Controls how many context logs are retrieved. Default: 50. 返回的日志记录数。控制获取多少条上下文日志。默认值: 50。'
+                zero:
+                  type: boolean
+                  default: 'true'
+                  description: 'Context identifier. true: Get full log context; false: Get partial context only. 上下文标识。true: 获取完整日志上下文; false: 仅获取部分上下文。'
+                begin:
+                  type: string
+                  default: '0'
+                  description: 'Offset number for scrolling. Positive values scroll forward (newer logs), negative values scroll backward (older logs). Example: scrolling down 10 logs means begin=10; scrolling down another 10 means begin=20; scrolling up means negative values. 滚动偏移数。正数向前滚动(较新日志),负数向后滚动(较旧日志)。例如:向下滚动10条则begin=10;再向下滚动10条则begin=20;向上滚动则为负数。'
+                gseIndex:
+                  type: string
+                  description: GSE packet sequence number for log positioning. For BKData logs, use gseindex field. Must be obtained from search_logs response. 用于日志定位的GSE发包序号。对于计算平台清洗日志,使用gseindex字段。必须从 search_logs 响应中获取。
+                serverIp:
+                  type: string
+                  description: Server IP address of the log entry. For BCS logs, use container_id instead. Must be obtained from search_logs response. 日志条目的服务器IP。对于BCS日志,使用container_id代替。必须从 search_logs 响应中获取。
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                index_set_id:
+                  type: string
+                  description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
+                iterationIndex:
+                  type: string
+                  description: GSE packet iteration index. For BKData logs, use _iteration_idx field. Optional, can be omitted if not needed for positioning. GSE包迭代序号。对于计算平台清洗日志,使用_iteration_idx字段。可选,如果定位不需要可省略。
+                dtEventTimeStamp:
+                  type: string
+                  description: 'Log timestamp for context positioning. Must be obtained from search_logs response. Format: Unix timestamp in milliseconds as string. 用于上下文定位的日志时间戳。必须从 search_logs 响应中获取。格式:Unix时间戳(毫秒)字符串。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/search_index_set_context/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/analyze_field/:
+    post:
+      operationId: analyze_field
+      description: Analyze field distribution and statistics. Supports Top K (most frequent), time series, overall stats, and distribution analysis. Must be used after list_index_sets and get_index_set_fields. Timestamps must be calculated dynamically. ⚠️ Query span must NOT exceed 1 day (86400s). If >1 day, split into batch queries (each ≤24h), then merge. 分析字段分布和统计。支持Top K、时间序列、总体统计、分布分析。必须在 list_index_sets 和 get_index_set_fields 之后使用。时间戳需动态计算。⚠️ 查询跨度不得超过1天(86400秒),超过需分批查询(每批≤24h)后合并。
+      tags:
+      - log_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - index_set_id
+              - field_name
+              - start_time
+              - end_time
+              properties:
+                step:
+                  type: string
+                  description: 'Time step interval for time series analysis. Format: "1m", "5m", "1h", etc. Default: "1h". 时间序列分析的时间步长间隔。格式: "1m"、"5m"、"1h" 等。默认值: "1h"。'
+                limit:
+                  type: string
+                  default: '20'
+                  description: Maximum number of results to return. Used for Top K analysis to limit results. If not specified, returns all results (for distribution analysis). 返回的最大结果数。用于Top K分析限制结果数量。如未指定,返回所有结果(用于分布分析)。
+                end_time:
+                  type: string
+                  description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'
+                group_by:
+                  type: boolean
+                  default: 'true'
+                  description: 'Whether to group statistics by field values. true: Group by field values (for Top K, distribution analysis); false: Overall count without grouping (for total statistics). Default: true. 是否按字段值分组统计。true: 按字段值分组(用于Top K、分布分析); false: 整体计数不分组(用于总体统计)。默认值: true。'
+                order_by:
+                  type: string
+                  default: '"value"'
+                  description: 'Sort order for results. "value": Sort by aggregated value (descending, for Top K analysis); "time": Sort by time (for time series analysis). Default: "time". 结果排序方式。"value": 按聚合值排序(降序,用于Top K分析); "time": 按时间排序(用于时间序列分析)。默认值: "time"。'
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                conditions:
+                  type: string
+                  description: 'Additional filter conditions. Format: {"field_list": [{"field_name": "xxx", "value": ["xxx"], "op": "eq"}], "condition_list": []}. Optional, can be omitted if not needed. 额外的过滤条件。格式: {"field_list": [{"field_name": "xxx", "value": ["xxx"], "op": "eq"}], "condition_list": []}。可选,如不需要可省略。'
+                field_name:
+                  type: string
+                  description: Field name to analyze. Must be obtained from get_index_set_fields tool to ensure the field exists. 要分析的字段名。必须从 get_index_set_fields 工具获取以确保字段存在。
+                start_time:
+                  type: string
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
+                index_set_id:
+                  type: string
+                  description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取
+                query_string:
+                  type: string
+                  default: '"level:ERROR"'
+                  description: 'Log search query string to filter logs before analysis. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Default: "*" (all logs). 用于在分析前过滤日志的查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。默认值: "*"(所有日志)。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/field_analyze/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_log_clustering_pattern/:
+    post:
+      operationId: search_log_clustering_pattern
+      description: 'Search log clustering patterns by sensitivity level (pattern_level: 01/03/05/07/09, higher=more fine-grained). Groups similar log messages into patterns to identify templates and anomalies. Must use after list_index_sets to get index_set_id. Timestamps must be calculated dynamically. ⚠️ Time span ≤1 day (86400s). For >1 day, split into batch queries (each ≤24h) then merge. 按敏感度(01/03/05/07/09,数值越高越细粒度)查询日志聚类模式,识别日志模板和异常。必须在 list_index_sets 后使用获取 index_set_id。时间戳需动态计算。⚠️ 查询跨度≤1天(86400秒),超过需分批查询(每批≤24h)后合并。'
+      tags:
+      - log_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - keyword
+              properties:
+                size:
+                  type: string
+                  description: 'Maximum number of pattern records to return. Controls result size and prevents excessive data transfer. Default: 10. 返回的最大模式记录数。用于控制结果集大小,避免数据量过大。默认值: 10。'
+                begin:
+                  type: string
+                  description: 'Offset number for pagination. Starting position for result retrieval. Default: 0. 分页偏移数。结果检索的起始位置。默认值: 0。'
+                keyword:
+                  type: string
+                  default: '"*"'
+                  description: 'Search keyword for filtering patterns. Supports wildcard queries. Default: "*" (all patterns). 用于过滤模式的搜索关键字。支持通配符查询。默认值: "*"(所有模式)。'
+                end_time:
+                  type: string
+                  description: 'End timestamp in milliseconds (Unix timestamp as string). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = str(int(time.time() * 1000)). Example in JavaScript: String(Date.now()). Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(毫秒,Unix时间戳字符串)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = str(int(time.time() * 1000))。JavaScript示例: String(Date.now())。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
+                start_time:
+                  type: string
+                  description: 'Start timestamp in milliseconds (Unix timestamp as string). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600000 (for last 1 hour) or end_time - 86400000 (for last 24 hours). Example calculation in Python: import time; start_time = str(int(time.time() * 1000) - 3600000). Example in JavaScript: String(Date.now() - 3600000). 开始时间戳(毫秒,Unix时间戳字符串)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600000(最近1小时) 或 end_time - 86400000(最近24小时)。Python计算示例: import time; start_time = str(int(time.time() * 1000) - 3600000)。JavaScript示例: String(Date.now() - 3600000)。'
+                index_set_id:
+                  type: string
+                  description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
+                "pattern_level\t":
+                  type: string
+                  description: 'Clustering sensitivity level. Controls how fine-grained the clustering is. Valid values: "01" (coarsest), "03", "05", "07", "09" (finest). Higher values create more detailed pattern groups. 聚类敏感度级别。控制聚类的细粒度程度。有效值: "01"(最粗粒度)、"03"、"05"、"07"、"09"(最细粒度)。数值越高,创建的模式分组越详细。'
+                show_new_pattern:
+                  type: string
+                  description: 'Whether to show only newly discovered patterns. true: Return only new patterns that haven''t been reviewed; false: Return all patterns including reviewed ones. 是否只显示新发现的模式。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/search_log_clustering_pattern/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
