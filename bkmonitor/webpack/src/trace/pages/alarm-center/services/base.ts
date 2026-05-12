@@ -120,6 +120,7 @@ export abstract class AlarmService<S = AlarmType> {
     }
     const paramsClone = _.cloneDeep(params);
     // #if IS_APM_MONITOR
+    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
     if (paramsClone.query_string) {
       // 语句模式
       paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING}`;

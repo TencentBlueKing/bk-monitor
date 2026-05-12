@@ -181,7 +181,7 @@ export default defineComponent({
 
       const params = {
         bk_biz_id: props.detail.bk_biz_id,
-        bk_biz_ids: [props.detail.bk_biz_id],
+        bk_biz_ids: window.APM_QUERY_STRING ? [window.bk_biz_id] : [props.detail.bk_biz_id],
         ...commonParams.value,
         start_time: startTime,
         end_time: endTime,
