@@ -15,6 +15,7 @@ from django.conf import settings
 
 from apm_web.profile.models import (
     Function,
+    Label,
     Line,
     Location,
     Mapping,
@@ -51,6 +52,33 @@ class DorisProfileConverter(ProfileConverter):
         except Exception:
             normalized = value
         return normalized
+
+    def _build_sample_labels(self, labels_text: str | None) -> list[Label]:
+        if not labels_text:
+            return []
+
+        labels = json.loads(labels_text)
+        if not isinstance(labels, dict):
+            return []
+
+        result = []
+        for key, value in labels.items():
+            if value is None:
+                continue
+
+            values = value if isinstance(value, list) else [value]
+            for item in values:
+                if item is None:
+                    continue
+
+                if isinstance(item, int) and not isinstance(item, bool):
+                    result.append(Label(key=self.add_string(str(key)), num=item))
+                else:
+                    if isinstance(item, dict | list):
+                        item = json.dumps(item, sort_keys=True)
+                    result.append(Label(key=self.add_string(str(key)), str=self.add_string(str(item))))
+
+        return result
 
     @classmethod
     def _build_avg_samples(cls, samples_info: list[dict], agg_interval: int) -> list[dict]:
@@ -109,7 +137,7 @@ class DorisProfileConverter(ProfileConverter):
         self.profile.default_sample_type = 0
 
         for sample_info in samples_info:
-            labels = json.loads(sample_info.get("labels", "{}"))
+            labels = self._build_sample_labels(sample_info.get("labels"))
             sample = Sample(value=[int(sample_info["value"])], label=labels)
             for stacktrace in json.loads(sample_info["stacktrace"]):
                 location = self.stacktrace_to_location(stacktrace)
