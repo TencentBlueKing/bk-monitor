@@ -56,6 +56,16 @@ export default defineComponent({
     const hasMore = ref(true);
     const total = ref(0);
     const activeIndex = ref(-1);
+    let timer: NodeJS.Timeout | null = null;
+
+    const debounceFetchGrokList = (append = false) => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        fetchGrokList(append);
+      }, 300);
+    };
 
     // 获取 Grok 列表数据
     const fetchGrokList = async (append = false) => {
@@ -181,7 +191,7 @@ export default defineComponent({
       () => props.keyword,
       () => {
         if (props.visible) {
-          fetchGrokList();
+          debounceFetchGrokList();
         }
       },
     );

@@ -32,6 +32,8 @@ import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { useSidebarDiff } from '@/views/manage-v2/hooks/use-sidebar-diff';
 
+import GrokInput from './components/grok-input';
+import GrokModeSwitch from './components/grok-mode-switch';
 import { DebugStatus, IGrokItem } from './types';
 
 import './grok-slider.scss';
@@ -77,6 +79,8 @@ export default defineComponent({
     const debugResult = ref(''); // 调试结果
     const debugLoading = ref(false); // 调试加载状态
     const debugErrorMsg = ref(''); // 调试错误信息
+
+    const grokModeEnabled = ref(true);
 
     // 记录上次调试成功时的 pattern 和 sample
     const lastDebuggedPattern = ref('');
@@ -230,7 +234,7 @@ export default defineComponent({
         await (formRef.value as any)?.validate();
         emit('confirm', {
           ...formData,
-          sample: debugResult.value,
+          // sample: debugResult.value,
           id: props.editData?.id,
         });
       } catch (error) {
@@ -368,18 +372,22 @@ export default defineComponent({
 
               {/* Grok 定义 */}
               <bk-form-item
-                label={t('Grok 定义（可引用其他模式）')}
                 property='pattern'
                 required
               >
-                <bk-input
+                <div
+                  class='grok-pattern-label'
+                  slot='label'
+                >
+                  <span>{t('Grok 定义（可引用其他模式）')}</span>
+                </div>
+                <GrokInput
+                  grokMode={grokModeEnabled.value}
+                  popoverPosition='cursor'
                   value={formData.pattern}
                   type='textarea'
-                  rows={4}
                   placeholder={`${t('例如')} \\[%{IP:client_ip}\\] (?<http_method>[A-Z]+) %{URIPATH:path}`}
-                  maxlength={100}
-                  show-word-limit
-                  on-change={(val: string) => (formData.pattern = val)}
+                  on-input={(val: string) => (formData.pattern = val)}
                 />
               </bk-form-item>
 
@@ -398,7 +406,7 @@ export default defineComponent({
                     type='textarea'
                     rows={4}
                     placeholder={t('请输入需要调试的样例')}
-                    maxlength={100}
+                    maxlength={5000}
                     show-word-limit
                     on-change={(val: string) => (formData.sample = val)}
                   />

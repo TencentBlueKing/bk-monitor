@@ -131,7 +131,11 @@ export default defineComponent({
       }
 
       // 提取 {} 内的关键字
-      const keyword = text.substring(startPos + 2, endPos);
+      let keyword = text.substring(startPos + 2, endPos);
+
+      if (keyword.includes(':')) {
+        keyword = keyword.split(':')[0];
+      }
 
       return {
         start: startPos,

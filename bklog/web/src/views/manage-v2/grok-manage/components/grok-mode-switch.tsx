@@ -35,7 +35,7 @@ export default defineComponent({
   props: {
     value: {
       type: Boolean,
-      default: false,
+      default: true,
     },
   },
   emits: ['change', 'update:value'],
