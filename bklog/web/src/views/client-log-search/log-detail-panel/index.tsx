@@ -184,9 +184,6 @@ export default defineComponent({
     /** 日志内容列表 */
     const logList = ref<Record<string, any>[]>([]);
 
-    /** 日志总数 */
-    const logTotal = ref(0);
-
     /** 当前分页偏移 */
     const currentBegin = ref(0);
 
@@ -341,56 +338,6 @@ export default defineComponent({
     };
 
     /**
-     * 请求日志总数
-     * @param fileId 选中的文件路径
-     */
-    const fetchLogTotal = (fileId: string) => {
-      const indexSetIdVal = props.indexSetId;
-      if (!indexSetIdVal || !fileId) return;
-
-      const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
-
-      const data: Record<string, any> = {
-        addition: [
-          {
-            field: 'cos_file_name',
-            operator: '=',
-            value: props.selectedLogItem?.file_name ?? '',
-          },
-          {
-            field: 'file',
-            operator: '=',
-            value: [fileId],
-          },
-          ...getMessageAddition(),
-        ],
-        keyword: '*',
-        bk_biz_id: bkBizId,
-        index_set_ids: [indexSetIdVal],
-        time_zone: props.timezone,
-      };
-
-      if (startTime) {
-        data.start_time = startTime;
-      }
-      if (endTime) {
-        data.end_time = endTime;
-      }
-
-      $http
-        .request('retrieve/fieldStatisticsTotal', { data })
-        .then((res: any) => {
-          logTotal.value = res?.data?.total_count ?? 0;
-          hasMore.value = logList.value.length < logTotal.value;
-        })
-        .catch(() => {
-          logTotal.value = 0;
-          hasMore.value = false;
-        });
-    };
-
-    /**
      * 请求日志内容
      * @param fileId 选中的文件路径
      * @param isLoadMoreAction 是否为加载更多（追加模式）
@@ -456,7 +403,7 @@ export default defineComponent({
             logList.value = newList;
           }
           currentBegin.value += newList.length;
-          hasMore.value = logList.value.length < logTotal.value;
+          hasMore.value = newList.length >= pageSize;
         })
         .catch((_err: any) => {
           if (!isLoadMoreAction) {
@@ -478,14 +425,11 @@ export default defineComponent({
     watch(selectedFileId, (fileId) => {
       resetFilters();
       if (fileId) {
-        logTotal.value = 0;
         hasMore.value = false;
         skipFilterWatch = true;
-        fetchLogTotal(fileId);
         fetchLogList(fileId);
       } else {
         logList.value = [];
-        logTotal.value = 0;
         hasMore.value = false;
       }
     });
@@ -501,9 +445,7 @@ export default defineComponent({
         const fileId = selectedFileId.value;
         if (!fileId) return;
         logList.value = [];
-        logTotal.value = 0;
         hasMore.value = false;
-        fetchLogTotal(fileId);
         fetchLogList(fileId);
       },
       { deep: true },
