@@ -298,7 +298,7 @@ export default defineComponent({
 
     /** 更新 taskList 中指定任务的状态 */
     const updateTaskStatus = (source: DataSource, id: number | string, status: ProcessStatus, processedAt?: string) => {
-      const index = taskList.value.findIndex(item => {
+      const index = taskList.value.findIndex((item) => {
         if (source === 'task') {
           return item.source === 'task' && String(item.task_id) === String(id);
         }
@@ -348,13 +348,13 @@ export default defineComponent({
             },
           }).then((res) => {
             if (res?.data && Array.isArray(res.data)) {
-              res.data.forEach((statusItem) => {
-                if (statusItem.process_status !== 'running') {
+              res.data.forEach((statusItem: any) => {
+                if (statusItem.status !== 'pending' && statusItem.process_status !== 'running') {
                   updateTaskStatus('task', statusItem.task_id, statusItem.process_status, statusItem.processed_at);
                 }
               });
             }
-          })
+          }),
         );
       }
 
@@ -368,13 +368,12 @@ export default defineComponent({
           }).then((res) => {
             if (res?.data && Array.isArray(res.data)) {
               res.data.forEach((statusItem: any) => {
-                // report API 使用 status 字段；pending 和 running 都表示采集中
                 if (statusItem.status !== 'pending' && statusItem.status !== 'running') {
                   updateTaskStatus('report', statusItem.file_name, statusItem.status as ProcessStatus);
                 }
               });
             }
-          })
+          }),
         );
       }
 
@@ -404,7 +403,7 @@ export default defineComponent({
       stopPolling();
 
       // 先将任务状态修改为 running
-      const index = taskList.value.findIndex(t => {
+      const index = taskList.value.findIndex((t) => {
         if (item.source === 'task') {
           return t.source === 'task' && t.file_name === item.file_name;
         }
@@ -544,7 +543,11 @@ export default defineComponent({
 
     /** 渲染内容区域 */
     const renderContent = () => [
-      <UserInfoCard userInfo={selectedLogItem.value} userReportStats={userReportStats.value} taskList={taskList.value} />,
+      <UserInfoCard
+        userInfo={selectedLogItem.value}
+        userReportStats={userReportStats.value}
+        taskList={taskList.value}
+      />,
       <div class='task-content-area'>
         {/* 左侧：任务列表 */}
         <TaskListPanel
@@ -563,7 +566,6 @@ export default defineComponent({
           isTaskListCollapsed={isTaskListCollapsed.value}
           selectedLogItem={selectedLogItem.value}
           indexSetId={indexSetId.value}
-          timeRange={timeRange.value}
           timezone={timezone.value}
           isAllowedDownload={isAllowedDownload.value}
           on-expand={handleExpandTaskList}

@@ -118,11 +118,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 当前搜索的时间范围 */
-    timeRange: {
-      type: Array as unknown as () => [string, string] | undefined,
-      default: undefined,
-    },
     /** 时区 */
     timezone: {
       type: String,
@@ -227,7 +222,7 @@ export default defineComponent({
 
       isFileLoading.value = true;
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
+      const processedAt = props.selectedLogItem?.processed_at;
 
       const data: Record<string, any> = {
         fields: ['file'],
@@ -241,11 +236,14 @@ export default defineComponent({
         bk_biz_id: bkBizId,
       };
 
-      if (startTime) {
-        data.start_time = startTime;
-      }
-      if (endTime) {
-        data.end_time = endTime;
+      if (processedAt) {
+        const [startTime, endTime] = handleTransformToTimestamp([processedAt, 'now']);
+        if (startTime) {
+          data.start_time = startTime;
+        }
+        if (endTime) {
+          data.end_time = endTime;
+        }
       }
 
       $http
@@ -354,7 +352,7 @@ export default defineComponent({
       }
 
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
+      const processedAt = props.selectedLogItem?.processed_at;
 
       const data: Record<string, any> = {
         bk_biz_id: bkBizId,
@@ -383,11 +381,14 @@ export default defineComponent({
         time_zone: props.timezone,
       };
 
-      if (startTime) {
-        data.start_time = startTime;
-      }
-      if (endTime) {
-        data.end_time = endTime;
+      if (processedAt) {
+        const [startTime, endTime] = handleTransformToTimestamp([processedAt, 'now']);
+        if (startTime) {
+          data.start_time = startTime;
+        }
+        if (endTime) {
+          data.end_time = endTime;
+        }
       }
 
       $http
