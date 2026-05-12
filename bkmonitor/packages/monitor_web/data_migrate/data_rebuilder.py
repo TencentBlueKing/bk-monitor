@@ -736,13 +736,7 @@ def rebuild_k8s_data(
     event_kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=event_kafka_cluster_name)
     es_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=es_cluster_name)
 
-    clusters = BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).exclude(
-        status__in=[
-            BCSClusterInfo.CLUSTER_STATUS_DELETED,
-            BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
-            BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED,
-        ]
-    )
+    clusters = BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     metric_data_ids = [cluster.K8sMetricDataID for cluster in clusters if cluster.K8sMetricDataID] + [
         cluster.CustomMetricDataID for cluster in clusters if cluster.CustomMetricDataID
@@ -803,16 +797,8 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
 
     # K8S内置的指标上报
     k8s_ids: set[int] = set()
-    for dataids in (
-        BCSClusterInfo.objects.filter(bk_biz_id__in=bk_biz_ids)
-        .exclude(
-            status__in=[
-                BCSClusterInfo.CLUSTER_STATUS_DELETED,
-                BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
-                BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED,
-            ]
-        )
-        .values_list("K8sMetricDataID", "CustomMetricDataID", "K8sEventDataID", "CustomEventDataID")
+    for dataids in BCSClusterInfo.objects.filter(bk_biz_id__in=bk_biz_ids).values_list(
+        "K8sMetricDataID", "CustomMetricDataID", "K8sEventDataID", "CustomEventDataID"
     ):
         k8s_ids.update(dataid for dataid in dataids if dataid)
 
