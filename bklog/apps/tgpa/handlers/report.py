@@ -340,7 +340,7 @@ class TGPAReportHandler:
     @classmethod
     def get_file_process_info_map(cls, file_name_list) -> dict:
         reports = TGPAReport.objects.filter(file_name__in=file_name_list).values(
-            "file_name", "process_status", "processed_at"
+            "file_name", "process_status", "processed_at", "error_message"
         )
         process_info_map = {}
         for report in reports:
@@ -348,6 +348,7 @@ class TGPAReportHandler:
                 process_info_map[report["file_name"]] = {
                     "status": report["process_status"],
                     "processed_at": report["processed_at"],
+                    "error_message": report["error_message"],
                 }
 
         return process_info_map
@@ -362,6 +363,8 @@ class TGPAReportHandler:
             {
                 "file_name": file_name,
                 "status": process_info_map.get(file_name, {}).get("status", TGPAReportSyncStatusEnum.PENDING.value),
+                "processed_at": process_info_map.get(file_name, {}).get("processed_at"),
+                "error_message": process_info_map.get(file_name, {}).get("error_message", ""),
             }
             for file_name in file_name_list
         ]
