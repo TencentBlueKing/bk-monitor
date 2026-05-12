@@ -1928,7 +1928,8 @@ class SearchGrokSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     keyword = serializers.CharField(label=_("搜索关键字"), default="", allow_blank=True)
-    limit = serializers.IntegerField(label=_("返回数量"), default=10, min_value=1, max_value=100)
+    page = serializers.IntegerField(label=_("页码"), default=1, min_value=1)
+    pagesize = serializers.IntegerField(label=_("每页数量"), default=10, min_value=1, max_value=100)
 
 
 class GrokDebugSerializer(serializers.Serializer):

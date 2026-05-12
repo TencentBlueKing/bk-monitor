@@ -217,7 +217,8 @@ class GrokViewSet(ModelViewSet):
         @apiDescription 用户输入 Grok 名称时返回联想候选，仅匹配名称，按匹配类型、匹配位置和候选长度加权打分排序。
         @apiParam {Int} bk_biz_id 业务ID
         @apiParam {String} keyword 搜索关键字（允许为空，为空时返回全部）
-        @apiParam {Int} [limit=10] 返回数量，范围 1~100
+        @apiParam {Int} [page=1] 页码
+        @apiParam {Int} [pagesize=10] 每页数量，范围 1~100
         @apiSuccess {Int} total 匹配总数
         @apiSuccess {Object[]} list 联想列表
         @apiSuccess {Int} list.id Grok模式ID

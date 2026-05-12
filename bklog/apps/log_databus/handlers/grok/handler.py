@@ -220,7 +220,11 @@ class GrokHandler:
             grok_list = [grok for _, grok in scored_grok_list]
 
         total = len(grok_list)
-        return {"total": total, "list": grok_list[: params["limit"]]}
+        page = params["page"]
+        pagesize = params["pagesize"]
+        start = (page - 1) * pagesize
+        end = start + pagesize
+        return {"total": total, "list": grok_list[start:end]}
 
     def _compile_grok(self, pattern: str, custom_patterns: dict | None = None) -> Grok:
         """
