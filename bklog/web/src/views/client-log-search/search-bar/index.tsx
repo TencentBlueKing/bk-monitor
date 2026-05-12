@@ -174,7 +174,7 @@ export default defineComponent({
      * 执行搜索
      * @param allowEmpty 是否允许空 openid 搜索（挂载时首次搜索允许为空）
      */
-    const handleSearch = (allowEmpty = false) => {
+    const handleSearch = (allowEmpty = true) => {
       if (!allowEmpty && !openid.value.trim()) {
         return;
       }
