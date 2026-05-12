@@ -33,6 +33,7 @@ from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
+from apps.log_databus.utils.bkdata_rt_name import collapse_underscores
 from apps.utils.local import get_request_username
 
 
@@ -108,7 +109,7 @@ class BKBaseEtlHandler(EtlHandler):
 
         bkdata_params = {
             "raw_data_id": instance.bk_data_id,
-            "result_table_name": f"{settings.TABLE_ID_PREFIX}_{instance.get_en_name()}",
+            "result_table_name": collapse_underscores(f"{settings.TABLE_ID_PREFIX}_{instance.get_en_name()}"),
             "result_table_name_alias": instance.get_en_name(),
             "clean_config_name": instance.get_name(),
             "description": instance.description,
@@ -157,7 +158,7 @@ class BKBaseEtlHandler(EtlHandler):
             "bk_biz_id": instance.get_bk_biz_id(),
             "raw_data_id": instance.bk_data_id,
             "data_type": "clean",
-            "result_table_name": f"{settings.TABLE_ID_PREFIX}_{instance.get_en_name()}",
+            "result_table_name": collapse_underscores(f"{settings.TABLE_ID_PREFIX}_{instance.get_en_name()}"),
             "result_table_name_alias": instance.get_en_name(),
             "storage_type": "es",
             "storage_cluster": bkbase_cluster_id,

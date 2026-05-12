@@ -203,7 +203,14 @@ def push_and_publish_doris_table_id_detail(
         "measurement": models.ClusterInfo.TYPE_DORIS,
         "storage_type": "bk_sql",
         "data_label": result_table.data_label,
+        "labels": result_table.labels or {},
     }
+    if not values["db"] and doris_storage.origin_table_id:
+        origin_doris_storage = models.DorisStorage.objects.filter(
+            table_id=doris_storage.origin_table_id, bk_tenant_id=bk_tenant_id
+        ).first()
+        if origin_doris_storage and origin_doris_storage.bkbase_table_id:
+            values["db"] = origin_doris_storage.bkbase_table_id
 
     # 若开启多租户模式,则在table_id前拼接bk_tenant_id
     if settings.ENABLE_MULTI_TENANT_MODE:

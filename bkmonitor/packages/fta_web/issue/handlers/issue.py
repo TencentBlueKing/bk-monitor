@@ -440,7 +440,13 @@ class IssueQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 有权限的业务直接过滤
-            queries.append(Q("terms", bk_biz_id=[str(b) for b in self.authorized_bizs]))
+            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
+            authorized_biz_ids = [str(b) for b in self.authorized_bizs]
+            unauthorized_biz_ids = [str(b) for b in self.unauthorized_bizs]
+            if len(authorized_biz_ids) <= len(unauthorized_biz_ids):
+                queries.append(Q("terms", bk_biz_id=authorized_biz_ids))
+            else:
+                queries.append(~Q("terms", bk_biz_id=unauthorized_biz_ids))
 
         user_condition = Q("term", assignee=self.request_username)
 

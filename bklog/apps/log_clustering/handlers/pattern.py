@@ -55,6 +55,7 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringRemark,
 )
+from apps.log_clustering.utils.pattern import parse_pattern_placeholders
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
@@ -197,6 +198,7 @@ class PatternHandler:
             result.append(
                 {
                     "pattern": signature_pattern,
+                    "placeholders": parse_pattern_placeholders(signature_pattern),
                     "origin_pattern": signature_origin_pattern,
                     "origin_log": signature_origin_log,
                     "remark": remark,

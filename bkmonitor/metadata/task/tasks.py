@@ -722,107 +722,151 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     start_time = time.time()  # 记录开始时间
     bkbase_data_id_name = bkbase_rt_record.bkbase_data_name
     data_link_name = bkbase_rt_record.data_link_name
-    bkbase_rt_name = bkbase_rt_record.bkbase_rt_name
     logger.info(
-        "_refresh_data_link_status: data_link_name->[%s],bkbase_data_id_name->[%s],bkbase_rt_name->[%s]",
+        "_refresh_data_link_status: data_link_name->[%s],bkbase_data_id_name->[%s]",
         data_link_name,
         bkbase_data_id_name,
-        bkbase_rt_name,
     )
     data_link_ins = models.DataLink.objects.get(data_link_name=data_link_name)
     data_link_strategy = data_link_ins.data_link_strategy
+    bk_tenant_id = bkbase_rt_record.bk_tenant_id
+    namespace = data_link_ins.namespace
     logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s]",
+        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s] namespace->[%s]",
         data_link_name,
         data_link_strategy,
+        namespace,
     )
 
     # 2. 刷新数据源状态
+    # 优先按 bkbase_data_id_name 精确命中；考虑到复用场景 / 存量脏数据里 BkBaseResultTable.bkbase_data_name
+    # 可能记录的是旧生成名，这里再补一道按 DataLink.bk_data_id 的 fallback，最大程度兜住历史数据。
+    data_id_config = None
     try:
-        with transaction.atomic():
-            data_id_config = models.DataIdConfig.objects.get(name=bkbase_data_id_name)
-            data_id_status = get_data_link_component_status(
-                bk_tenant_id=bkbase_rt_record.bk_tenant_id,
-                kind=data_id_config.kind,
-                namespace=data_id_config.namespace,
-                component_name=data_id_config.name,
-            )
-            # 当和DB中的数据不一致时，才进行变更
-            if data_id_config.status != data_id_status:
-                logger.info(
-                    "_refresh_data_link_status:data_link_name->[%s],data_id_config status->[%s] is different "
-                    "with exist record,will change to->[%s]",
-                    data_link_name,
-                    data_id_config.status,
-                    data_id_status,
-                )
-                data_id_config.status = data_id_status
-                data_id_config.data_link_name = data_link_name
-                data_id_config.save()
-            report_metadata_data_link_status_info(
-                data_link_name=data_link_name,
-                biz_id=data_id_config.bk_biz_id,
-                kind=data_id_config.kind,
-                status=data_id_config.status,
-            )
-    except models.DataIdConfig.DoesNotExist:
-        logger.error(
-            "_refresh_data_link_status: data_link_name->[%s],data_id_config->[%s] does not exist",
-            data_link_name,
-            bkbase_data_id_name,
+        data_id_config = models.DataIdConfig.objects.get(
+            bk_tenant_id=bk_tenant_id, namespace=namespace, name=bkbase_data_id_name
         )
+    except models.DataIdConfig.DoesNotExist:
+        fallback_bk_data_id = data_link_ins.bk_data_id
+        if fallback_bk_data_id:
+            data_id_config = (
+                models.DataIdConfig.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    bk_data_id=fallback_bk_data_id,
+                )
+                .order_by("-id")
+                .first()
+            )
+        if data_id_config is None:
+            logger.warning(
+                "_refresh_data_link_status: data_link_name->[%s],data_id_config name->[%s] and bk_data_id->[%s] "
+                "both miss, skip data source status refresh",
+                data_link_name,
+                bkbase_data_id_name,
+                fallback_bk_data_id,
+            )
 
-    # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
-    components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy)
-    all_components_ok = True
-
-    # 4. 遍历链路关联的所有类型资源，查询并刷新其状态
-    for component in components:
+    if data_id_config is not None:
         try:
             with transaction.atomic():
-                component_ins = component.objects.get(name=bkbase_rt_name)
-                component_status = get_data_link_component_status(
-                    bk_tenant_id=bkbase_rt_record.bk_tenant_id,
-                    kind=component_ins.kind,
-                    namespace=component_ins.namespace,
-                    component_name=component_ins.name,
+                data_id_status = get_data_link_component_status(
+                    bk_tenant_id=bk_tenant_id,
+                    kind=data_id_config.kind,
+                    namespace=data_id_config.namespace,
+                    component_name=data_id_config.name,
                 )
-                logger.info(
-                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
+                if data_id_config.status != data_id_status:
+                    logger.info(
+                        "_refresh_data_link_status:data_link_name->[%s],data_id_config status->[%s] is different "
+                        "with exist record,will change to->[%s]",
+                        data_link_name,
+                        data_id_config.status,
+                        data_id_status,
+                    )
+                    data_id_config.status = data_id_status
+                    data_id_config.data_link_name = data_link_name
+                    data_id_config.save()
+                report_metadata_data_link_status_info(
+                    data_link_name=data_link_name,
+                    biz_id=data_id_config.bk_biz_id,
+                    kind=data_id_config.kind,
+                    status=data_id_config.status,
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "_refresh_data_link_status: data_link_name->[%s],refresh data_id_config->[%s] error->[%s]",
+                data_link_name,
+                data_id_config.name,
+                e,
+            )
+
+    # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
+    components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
+    all_components_ok = True
+
+    # 4. 遍历链路关联的所有类型资源；
+    # 历史写法按 ``name=bkbase_rt_name`` 查，默认 RT/Binding/DataBus 三者同名。组件复用之后三者可能
+    # 各自复用 legacy name、互不相同，此处改为按 (bk_tenant_id, namespace, data_link_name) 过滤该 kind
+    # 下属于本链路的所有实例并逐条刷新。非复用链路同样兼容：三者同名时按 data_link_name 过滤一样命中。
+    for component in components:
+        component_instances = list(
+            component.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace, data_link_name=data_link_name)
+        )
+        if not component_instances:
+            logger.warning(
+                "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
+                data_link_name,
+                component.kind,
+            )
+            all_components_ok = False
+            continue
+
+        for component_ins in component_instances:
+            try:
+                with transaction.atomic():
+                    component_status = get_data_link_component_status(
+                        bk_tenant_id=bk_tenant_id,
+                        kind=component_ins.kind,
+                        namespace=component_ins.namespace,
+                        component_name=component_ins.name,
+                    )
+                    logger.info(
+                        "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
+                        data_link_name,
+                        component_ins.name,
+                        component_ins.kind,
+                        component_status,
+                    )
+                    if component_status != DataLinkResourceStatus.OK.value:
+                        all_components_ok = False
+                    if component_ins.status != component_status:
+                        component_ins.status = component_status
+                        component_ins.save()
+                        logger.info(
+                            "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
+                            "status updated to->[%s]",
+                            data_link_name,
+                            component_ins.name,
+                            component_ins.kind,
+                            component_status,
+                        )
+
+                report_metadata_data_link_status_info(
+                    data_link_name=data_link_name,
+                    biz_id=component_ins.bk_biz_id,
+                    kind=component_ins.kind,
+                    status=component_ins.status,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
+                    "refresh failed,error->[%s]",
                     data_link_name,
                     component_ins.name,
                     component_ins.kind,
-                    component_status,
+                    e,
                 )
-                if component_status != DataLinkResourceStatus.OK.value:
-                    all_components_ok = False
-                # 和DB中数据不一致时，才进行更新操作
-                if component_ins.status != component_status:
-                    component_ins.status = component_status
-                    component_ins.save()
-                    logger.info(
-                        "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
-                        "status updated to->[%s]",
-                        data_link_name,
-                        component.name,
-                        component.kind,
-                        component_status,
-                    )
-
-            report_metadata_data_link_status_info(
-                data_link_name=data_link_name,
-                biz_id=component_ins.bk_biz_id,
-                kind=component_ins.kind,
-                status=component_ins.status,
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,error->[%s]",
-                data_link_name,
-                component.name,
-                component.kind,
-                e,
-            )
 
     # 5. 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
     if all_components_ok:
@@ -832,12 +876,13 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     with transaction.atomic():
         bkbase_rt_record.save()
 
-    report_metadata_data_link_status_info(
-        data_link_name=data_link_name,
-        biz_id=data_id_config.bk_biz_id,
-        kind=data_id_config.kind,
-        status=bkbase_rt_record.status,
-    )
+    if data_id_config is not None:
+        report_metadata_data_link_status_info(
+            data_link_name=data_link_name,
+            biz_id=data_id_config.bk_biz_id,
+            kind=data_id_config.kind,
+            status=bkbase_rt_record.status,
+        )
 
     cost_time = time.time() - start_time
 

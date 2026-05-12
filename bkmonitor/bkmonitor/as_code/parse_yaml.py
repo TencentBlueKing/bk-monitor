@@ -786,9 +786,13 @@ class StrategyConfigParser(BaseConfigParser):
                 code_query_config["alias"] = query_config["alias"]
 
             if query_config.get("functions"):
-                code_query_config["functions"] = [
-                    create_function_expression(function) for function in query_config["functions"]
+                function_expressions = [
+                    expression
+                    for function in query_config["functions"]
+                    if (expression := create_function_expression(function)) is not None
                 ]
+                if function_expressions:
+                    code_query_config["functions"] = function_expressions
 
             if query_config.get("agg_condition"):
                 code_query_config["where"] = create_conditions_expression(query_config["agg_condition"])
@@ -806,7 +810,13 @@ class StrategyConfigParser(BaseConfigParser):
 
         # 表达式
         if item["functions"]:
-            query["functions"] = [create_function_expression(function) for function in item["functions"]]
+            function_expressions = [
+                expression
+                for function in item["functions"]
+                if (expression := create_function_expression(function)) is not None
+            ]
+            if function_expressions:
+                query["functions"] = function_expressions
 
         self.update_target(item, query)
         code_config["query"] = query

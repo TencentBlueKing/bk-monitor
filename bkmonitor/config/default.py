@@ -1590,6 +1590,12 @@ ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "fa
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 
+# DataLink 组件复用机制灰度开关
+# 仅声明在此集合中的 data_link_strategy，在 apply_data_link 时才会构造
+# ExistingComponentContext 并做 claim / leftover 检查；未声明的 strategy 维持旧行为。
+# 取值范围与 metadata.models.data_link.data_link.DataLink.*_STRATEGY 常量一致。
+DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = set()
+
 # Kafka采样接口重试次数
 KAFKA_TAIL_API_RETRY_TIMES = 3
 # Kafka Consumer超时时间(秒)

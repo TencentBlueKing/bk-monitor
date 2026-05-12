@@ -52,15 +52,32 @@ def _list_ints(value: Any, field: str) -> list[int]:
 
 
 def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, bool | int | float | str):
+        return value
     if isinstance(value, datetime):
         return value.isoformat()
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
     if isinstance(value, dict):
         return {str(k): _json_safe(v) for k, v in value.items()}
-    if isinstance(value, set):
+    if isinstance(value, set | frozenset):
         return sorted((_json_safe(item) for item in value), key=repr)
     if isinstance(value, list | tuple):
         return [_json_safe(item) for item in value]
-    return value
+    # Decimal / UUID / enum — 显式转换，不依赖 json.dumps 测试
+    # （Django 环境 json 模块被 patch 为 ujson，行为与标准库不同）
+    from decimal import Decimal
+    from enum import Enum
+    from uuid import UUID
+
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, Enum):
+        return _json_safe(value.value)
+    # 其他未知类型 — str 兜底
+    return str(value)
 
 
 def _serialize_model(obj: Any, fields: list[str]) -> dict[str, Any]:
@@ -262,8 +279,10 @@ def inspect_notice_target(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def replay_assign_match(params: dict[str, Any]) -> dict[str, Any]:
+    from alarm_backends.core.cache.assign import AssignCacheManager
     from alarm_backends.service.fta_action.tasks.alert_assign import BackendAssignMatchManager
     from bkmonitor.documents import AlertDocument
+    from bkmonitor.utils.local import local
     from constants.action import AssignMode
 
     alert_id = str(params.get("alert_id") or "").strip()
@@ -284,28 +303,41 @@ def replay_assign_match(params: dict[str, Any]) -> dict[str, Any]:
             "next_actions": ["确认 alert_id 是否存在且未过期；如需历史 action，请用 action_id 查询。"],
         }
 
-    alert = alerts[0]
-    manager = BackendAssignMatchManager(
-        alert,
-        notice_users=getattr(alert, "assignee", None) or [],
-        assign_mode=assign_mode,
-    )
-    manager.run_match()
-    return {
-        "source_state": "current_runtime_state",
-        "history_guarantee": "current_cache_only_not_historical",
-        "alert_id": alert_id,
-        "exists": True,
-        "matched": bool(manager.matched_rules),
-        "matched_rule_ids": [rule.rule_id for rule in manager.matched_rules],
-        "matched_rule_info": _json_safe(manager.matched_rule_info),
-        "match_dimensions": _json_safe(manager.dimensions),
-        "assign_mode": assign_mode,
-        "next_actions": [
-            "此 replay 基于当前 DB/cache，不能证明历史 action 创建时也使用同一规则。",
-            "如需解释已发送通知，请用目标 action_id 调用 inspect-action-detail 查看 inputs.notify_info/notice_receiver。",
-        ],
-    }
+    # AssignCacheManager 依赖 local.assign_cache（threading.local），
+    # 但该属性仅在 alarm_backends 模块导入线程中通过 setattr 初始化。
+    # kernel_api 请求线程可能从未初始化过，访问时会 KeyError / AttributeError。
+    # 此处按需初始化，finally 中清理，不污染已有状态。
+    had_assign_cache = hasattr(local, "assign_cache")
+    if not had_assign_cache:
+        local.assign_cache = {}
+
+    try:
+        alert = alerts[0]
+        manager = BackendAssignMatchManager(
+            alert,
+            notice_users=getattr(alert, "assignee", None) or [],
+            assign_mode=assign_mode,
+        )
+        manager.run_match()
+        return {
+            "source_state": "current_runtime_state",
+            "history_guarantee": "current_cache_only_not_historical",
+            "alert_id": alert_id,
+            "exists": True,
+            "matched": bool(manager.matched_rules),
+            "matched_rule_ids": [rule.rule_id for rule in manager.matched_rules],
+            "matched_rule_info": _json_safe(manager.matched_rule_info),
+            "match_dimensions": _json_safe(manager.dimensions),
+            "assign_mode": assign_mode,
+            "next_actions": [
+                "此 replay 基于当前 DB/cache，不能证明历史 action 创建时也使用同一规则。",
+                "如需解释已发送通知，请用目标 action_id 调用 inspect-action-detail 查看 inputs.notify_info/notice_receiver。",
+            ],
+        }
+    finally:
+        if not had_assign_cache:
+            AssignCacheManager.clear()
+            del local.assign_cache
 
 
 def _register_op(
