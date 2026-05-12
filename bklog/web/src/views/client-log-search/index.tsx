@@ -51,30 +51,7 @@ export default defineComponent({
   },
   setup() {
     const store = useStore();
-    const route = useRoute();
     const router = useRouter();
-
-    /** 业务切换后检查功能开关，无权限则跳转回检索页 */
-    watch(
-      () => route.query.spaceUid,
-      (newSpaceUid, oldSpaceUid) => {
-        if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
-          const hasPermission = isFeatureToggleOn(
-            'tgpa_task',
-            [String(store.state.bkBizId), String(newSpaceUid)]
-          );
-          if (!hasPermission) {
-            router.replace({
-              name: 'retrieve',
-              query: {
-                spaceUid: String(newSpaceUid),
-                bizId: String(store.state.bkBizId),
-              },
-            });
-          }
-        }
-      }
-    );
 
     /** 是否有下载权限 */
     const isAllowedDownload = ref(false);
@@ -486,6 +463,39 @@ export default defineComponent({
         console.warn('获取索引集ID失败:', error);
       }
     };
+
+    /** 业务切换后检查功能开关，无权限则跳转回检索页；同时重新触发搜索 */
+    watch(
+      () => store.state.spaceUid,
+      (newSpaceUid, oldSpaceUid) => {
+        if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
+          const hasPermission = isFeatureToggleOn(
+            'tgpa_task',
+            [String(store.state.bkBizId), String(newSpaceUid)],
+          );
+          if (!hasPermission) {
+            router.replace({
+              name: 'retrieve',
+              query: {
+                spaceUid: String(newSpaceUid),
+                bizId: String(store.state.bkBizId),
+              },
+            });
+            return;
+          }
+          // 重新触发搜索
+          stopPolling();
+          taskList.value = [];
+          selectedLogItem.value = null;
+          userReportStats.value = null;
+          hasMore.value = true;
+          page.value = 1;
+          handleSearch(lastSearchParams.value);
+          getIndexSetId();
+          checkDownloadPermission();
+        }
+      },
+    );
 
     onMounted(() => {
       getIndexSetId();

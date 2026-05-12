@@ -215,6 +215,12 @@ export default defineComponent({
       return logList.value.length === 0;
     });
 
+    /** 文件列表加载状态 */
+    const isFileLoading = ref(false);
+
+    /** 日志内容加载状态 */
+    const isLogLoading = ref(false);
+
     /**
      * 请求文件列表
      */
@@ -280,6 +286,7 @@ export default defineComponent({
           fetchFileList();
         }
       },
+      { immediate: true },
     );
 
     /** 监听 fileList 变化，转换树形数据并收集文件夹 ID */
@@ -320,12 +327,6 @@ export default defineComponent({
       };
       selectedFileId.value = findFirstFile(fileTreeData.value);
     });
-
-    /** 文件列表加载状态 */
-    const isFileLoading = ref(false);
-
-    /** 日志内容加载状态 */
-    const isLogLoading = ref(false);
 
     /**
      * 构建消息过滤的 addition 条件
