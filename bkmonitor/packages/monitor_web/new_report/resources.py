@@ -637,13 +637,12 @@ class ReportCallbackResource(Resource):
         title = serializers.CharField(required=True, label="工单标题")
         updated_by = serializers.CharField(required=True, label="更新人")
         approve_result = serializers.BooleanField(required=True, label="审批结果")
-        token = serializers.CharField(required=False, label="校验token")
+        token = serializers.CharField(required=True, label="校验token")
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("token"):
-            verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
-            if not verify_data.get("is_passed", False):
-                return {"message": "Error Token", "result": False}
+        verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
+        if not verify_data.get("is_passed", False):
+            return {"message": "Error Token", "result": False}
         try:
             apply_record = ReportApplyRecord.objects.get(approval_sn=validated_request_data["sn"])
         except ReportApplyRecord.DoesNotExist:
