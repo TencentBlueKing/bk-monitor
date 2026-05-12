@@ -151,7 +151,15 @@ class DorisProfileConverter(ProfileConverter):
         mapping_id = 0
         mapping_info = stacktrace["mapping"]
         if mapping_info is not None:
-            mapping = self._mapping_mapping.get(mapping_info["fileName"])
+            mapping_key = "||".join(
+                [
+                    str(mapping_info["fileName"]),
+                    str(mapping_info["fileOffset"]),
+                    str(mapping_info["memoryStart"]),
+                    str(mapping_info["memoryLimit"]),
+                ]
+            )
+            mapping = self._mapping_mapping.get(mapping_key)
             if mapping is None:
                 mapping = Mapping(
                     id=len(self.profile.mapping) + 1,
@@ -165,7 +173,7 @@ class DorisProfileConverter(ProfileConverter):
                     has_line_numbers=mapping_info["hasLineNumbers"],
                     has_inline_frames=mapping_info["hasInlineFrames"],
                 )
-                self._mapping_mapping[mapping_info["fileName"]] = mapping
+                self._mapping_mapping[mapping_key] = mapping
                 self._mapping_id_mapping[mapping.id] = mapping
                 self.profile.mapping.append(mapping)
 
