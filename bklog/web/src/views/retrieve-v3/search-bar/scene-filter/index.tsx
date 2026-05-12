@@ -78,7 +78,7 @@ export default defineComponent({
     /** id→name 映射表：用于 tags 显示选中值的名称 */
     const filterLabels = ref<Record<string, Record<string, string>>>({});
 
-    const syncUrlParams = () => {
+    const syncUrlParams = (options?: { clearKeywordAndAddition?: boolean }) => {
       const { scene_active, scene_filter_values } = store.state.indexItem;
       const resolver = new RetrieveUrlResolver({
         scene_active,
@@ -86,9 +86,15 @@ export default defineComponent({
       });
 
       // 先清除所有可能的场景筛选字段，避免切换场景时残留旧字段
-      const cleanQuery = { ...route.query };
+      const cleanQuery: Record<string, any> = { ...route.query };
       for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
-        cleanQuery[key] = undefined;
+        delete cleanQuery[key];
+      }
+
+      // 场景切换时清除 keyword 和 addition
+      if (options?.clearKeywordAndAddition) {
+        delete cleanQuery.keyword;
+        delete cleanQuery.addition;
       }
 
       router.replace({
@@ -144,10 +150,13 @@ export default defineComponent({
       filterValues.value = {};
       filterLabels.value = {};
 
+      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+      store.commit('updateIndexItemParams', { keyword: '', addition: [] });
+
       // 清空检索数据
       resetRetrieveData(store);
 
-      syncUrlParams();
+      syncUrlParams({ clearKeywordAndAddition: true });
 
       updateQueryHint();
     };

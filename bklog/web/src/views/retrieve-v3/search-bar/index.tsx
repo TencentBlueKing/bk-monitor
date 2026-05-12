@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick } from 'vue';
+import { computed, defineComponent, ref, nextTick, watch, onBeforeUnmount } from 'vue';
 
 import useElementEvent from '@/hooks/use-element-event';
 import useLocale from '@/hooks/use-locale';
@@ -453,13 +453,33 @@ export default defineComponent({
     };
 
     const handleCloseAiParsedText = () => {
-      console.log('handleCloseAiParsedText');
       aiQueryResult.value.queryString = '';
       aiQueryResult.value.parseResult = undefined;
       aiQueryResult.value.explain = undefined;
       aiQueryResult.value.startTime = undefined;
       aiQueryResult.value.endTime = undefined;
     };
+
+    /** 清理 AI 相关状态 */
+    const clearAiState = () => {
+      store.commit('updateAiMode', {
+        active: false,
+        filterList: [],
+      });
+      handleCloseAiParsedText();
+      searchMode.value = 'normal';
+    };
+
+    // 切换场景时，清理 AI 相关状态
+    watch(() => store.state.indexItem.scene_active, (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        clearAiState();
+      }
+    });
+
+    onBeforeUnmount(() => {
+      clearAiState();
+    });
 
     /**
      * 切换到普通模式

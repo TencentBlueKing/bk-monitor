@@ -32,8 +32,10 @@ import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getAllSceneFieldOpKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
 import { cancelPendingRetrieveRequests, resetRetrieveData } from '../../retrieve-v3/search-bar/scene-filter/scene-retrieve-utils';
 import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import './retrieve-type-switch.scss';
 
+/* eslint-disable no-unused-vars */
 export enum RetrieveType {
   Normal = 'normal',
   Scene = 'scene',
@@ -57,6 +59,10 @@ export default defineComponent({
 
       // 先取消所有进行中的请求，防止旧请求返回覆盖新数据
       cancelPendingRetrieveRequests();
+
+      // 切换检索模式时，清空 keyword 和 addition
+      store.commit('updateIndexItemParams', { keyword: '', addition: [] });
+      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
 
       // 切换到常规检索时，清空场景化检索条件
       if (type === RetrieveType.Normal) {
@@ -83,9 +89,11 @@ export default defineComponent({
           }
         });
 
-        // 从 URL 中清除场景相关参数
+        // 从 URL 中清除场景相关参数及 keyword/addition
         const cleanQuery: Record<string, any> = { ...route.query, retrieve_type: type };
         delete cleanQuery.scene_active;
+        delete cleanQuery.keyword;
+        delete cleanQuery.addition;
         for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
           delete cleanQuery[key];
         }
@@ -105,6 +113,8 @@ export default defineComponent({
             ...route.query,
             retrieve_type: type,
             scene_active: SceneType.Container,
+            keyword: undefined,
+            addition: undefined,
           },
         });
       }
