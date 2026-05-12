@@ -426,6 +426,12 @@ export default defineComponent({
           },
           ...getMessageAddition(),
         ],
+        sort_list: [
+          [
+            'lineno',
+            'asc',
+          ],
+        ],
         time_zone: props.timezone,
       };
 
