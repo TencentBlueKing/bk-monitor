@@ -237,6 +237,7 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
 
     # 根因故障定位页面渲染
     context["ENABLE_AIOPS_INCIDENT"] = "false"
+    context["BK_INCIDENT_SAAS_HOST"] = settings.BK_INCIDENT_SAAS_HOST
     try:
         # 判断是否在白名单中
         if settings.IS_ACCESS_BK_DATA and (
@@ -244,7 +245,6 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             or {-1, safe_int(context["BK_BIZ_ID"])} & set(settings.AIOPS_INCIDENT_BIZ_WHITE_LIST)
         ):
             context["ENABLE_AIOPS_INCIDENT"] = "true"
-            context["BK_INCIDENT_SAAS_HOST"] = settings.BK_INCIDENT_SAAS_HOST
     except Exception as e:
         logger.error(f"Get AIOPS_INCIDENT_BIZ_WHITE_LIST Failed: {e}")
 
