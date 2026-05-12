@@ -8,9 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import operator
 import time
 from abc import ABC
 from collections.abc import Callable, Iterable
+from functools import reduce
 
 from django.utils import translation as dj_translation
 from django.utils.translation import gettext as _
@@ -34,6 +36,16 @@ from fta_web.alert.handlers.translator import AbstractTranslator
 # 模块级字段映射缓存，key 为 Transformer 类对象，保证每个子类独立缓存。
 # 构建时覆盖所有支持语言的 display name，使字段解析与当前线程语言无关。
 _FIELD_MAP_CACHE: dict[type, dict[str, "QueryField"]] = {}
+ES_TERMS_QUERY_MAX_SIZE = 65536
+
+
+def build_es_terms_query(field: str, values: list, chunk_size: int = ES_TERMS_QUERY_MAX_SIZE):
+    values = list(values or [])
+    if not values:
+        return None
+
+    queries = [Q("terms", **{field: values[index : index + chunk_size]}) for index in range(0, len(values), chunk_size)]
+    return reduce(operator.or_, queries)
 
 
 class QueryField:
@@ -702,6 +714,8 @@ class BaseQueryHandler:
 
 
 class BaseBizQueryHandler(BaseQueryHandler, ABC):
+    ES_TERMS_QUERY_MAX_SIZE = ES_TERMS_QUERY_MAX_SIZE
+
     def __init__(
         self,
         bk_biz_ids: list[int] = None,
@@ -720,8 +734,8 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
     @classmethod
     def parse_biz_item(self, bk_biz_ids, **kwargs):
         if "authorized_bizs" in kwargs:
-            authorized_bizs = kwargs["authorized_bizs"] or bk_biz_ids
-            unauthorized_bizs = kwargs["unauthorized_bizs"] or []
+            authorized_bizs = kwargs["authorized_bizs"] if kwargs["authorized_bizs"] is not None else bk_biz_ids
+            unauthorized_bizs = kwargs["unauthorized_bizs"] if kwargs["unauthorized_bizs"] is not None else []
         else:
             try:
                 req = get_request()
@@ -732,6 +746,9 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
                 authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
         return authorized_bizs, unauthorized_bizs
+
+    def build_es_terms_query(self, field: str, values: list):
+        return build_es_terms_query(field, values, chunk_size=self.ES_TERMS_QUERY_MAX_SIZE)
 
 
 class QueryBuilder(ElasticsearchQueryBuilder):

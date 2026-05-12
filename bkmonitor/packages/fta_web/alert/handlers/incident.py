@@ -182,11 +182,9 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 进行我有权限的告警过滤
-            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
-            if len(self.authorized_bizs) <= len(self.unauthorized_bizs):
-                queries.append(Q("terms", **{"bk_biz_id": self.authorized_bizs}))
-            else:
-                queries.append(~Q("terms", **{"bk_biz_id": self.unauthorized_bizs}))
+            authorized_query = self.build_es_terms_query("bk_biz_id", self.authorized_bizs)
+            if authorized_query is not None:
+                queries.append(authorized_query)
 
         user_condition = Q(
             Q("term", assignee=self.request_username)
@@ -198,7 +196,9 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             queries.append(user_condition)
 
         if self.unauthorized_bizs and self.request_username:
-            queries.append(Q(Q("terms", **{"bk_biz_id": self.unauthorized_bizs}) & user_condition))
+            unauthorized_query = self.build_es_terms_query("bk_biz_id", self.unauthorized_bizs)
+            if unauthorized_query is not None:
+                queries.append(unauthorized_query & user_condition)
 
         if queries:
             return search_object.filter(reduce(operator.or_, queries))
