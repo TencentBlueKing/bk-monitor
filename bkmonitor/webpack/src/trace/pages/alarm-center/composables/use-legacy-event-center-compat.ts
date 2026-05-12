@@ -111,9 +111,9 @@ export function useLegacyEventCenterCompat() {
 
     /**
      * 兼容新版首页搜索：?alertId=xxx 时拼成 `id : xxx` 检索条件
-     * 但需避免与新版「展开详情」语义冲突——仅当 URL 没有显式带 alarmId 时才做注入
+     * 但需避免与新版「展开详情」语义冲突——仅当 URL 没有显式带 detailId 时才做注入
      */
-    if (legacyAlertId && !query.alarmId) {
+    if (legacyAlertId && !query.detailId) {
       append(`id : ${legacyAlertId}`);
     }
 
@@ -125,7 +125,7 @@ export function useLegacyEventCenterCompat() {
     const hasLegacyInjection = !!(
       (actionId && String(actionId).length > 10) ||
       collectId ||
-      (legacyAlertId && !query.alarmId) ||
+      (legacyAlertId && !query.detailId) ||
       metricIds.length
     );
 
