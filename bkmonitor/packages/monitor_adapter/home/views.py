@@ -56,6 +56,16 @@ AUTO_SHOW_ACTION_TO_BATCH_ACTION = {"confirm": "ack", "shield": "shield"}
 EXTERNAL_PROXY_TOKEN_HEADER = "HTTP_BKMONITOR_EXTERNAL_TOKEN"
 
 
+def is_external_proxy_token_valid(request, log_prefix):
+    expected_token = getattr(settings, "BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
+    request_token = request.META.get(EXTERNAL_PROXY_TOKEN_HEADER, "")
+    if expected_token and secrets.compare_digest(request_token, expected_token):
+        return True
+
+    logger.warning("%s: invalid external proxy token", log_prefix)
+    return False
+
+
 def user_exit(request):
     def add_logout_slug():
         return {"is_from_logout": "1"}
@@ -142,10 +152,7 @@ def manifest(request):
 @login_exempt
 def external(request):
     """外部监控入口 ."""
-    expected_token = getattr(settings, "BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
-    request_token = request.META.get(EXTERNAL_PROXY_TOKEN_HEADER, "")
-    if not expected_token or not secrets.compare_digest(request_token, expected_token):
-        logger.warning("external: invalid external proxy token")
+    if not is_external_proxy_token_valid(request, "external"):
         return HttpResponseForbidden("invalid external proxy token")
 
     cc_biz_id = 0
@@ -212,10 +219,7 @@ def dispatch_external_proxy(request):
     }
     """
 
-    expected_token = getattr(settings, "BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
-    request_token = request.META.get(EXTERNAL_PROXY_TOKEN_HEADER, "")
-    if not expected_token or not secrets.compare_digest(request_token, expected_token):
-        logger.warning("dispatch_plugin_query: invalid external proxy token")
+    if not is_external_proxy_token_valid(request, "dispatch_plugin_query"):
         return JsonResponse({"result": False, "message": "invalid external proxy token"}, status=403)
 
     try:
