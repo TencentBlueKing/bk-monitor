@@ -62,7 +62,7 @@ from apps.log_databus.exceptions import (
     StorageNotPermissionException,
     StorageUnKnowEsVersionException,
 )
-from apps.log_databus.models import StorageCapacity, StorageUsed
+from apps.log_databus.models import CollectorConfig, StorageCapacity, StorageUsed
 from apps.log_databus.utils.es_config import get_es_config
 from apps.log_esquery.utils.es_client import (
     es_client_ping,
@@ -210,7 +210,8 @@ class StorageHandler:
                 "biz_count": i["biz_count"],
                 "storage_cluster_id": i["cluster_config"].get("cluster_id"),
                 "storage_cluster_name": i["cluster_config"].get("cluster_name"),
-                "storage_display_name": i["cluster_config"].get("display_name") or i["cluster_config"].get("cluster_name"),
+                "storage_display_name": i["cluster_config"].get("display_name")
+                or i["cluster_config"].get("cluster_name"),
                 "storage_version": i["cluster_config"].get("version"),
                 "storage_type": i["cluster_type"],
                 "priority": i["priority"],
@@ -1290,8 +1291,9 @@ class StorageHandler:
         根据result_table_id查询集群信息
         :return:
         """
+        storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(table_id)
         cluster_info = TransferApi.get_result_table_storage(
-            {"result_table_list": table_id, "storage_type": STORAGE_CLUSTER_TYPE}
+            {"result_table_list": table_id, "storage_type": storage_cluster_type}
         )
         if not cluster_info.get(table_id):
             raise StorageNotExistException()

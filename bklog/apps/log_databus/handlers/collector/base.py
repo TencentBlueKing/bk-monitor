@@ -131,10 +131,12 @@ class CollectorHandler:
     def __init__(self, collector_config_id=None, data=None):
         self.collector_config_id = collector_config_id
         self.data = data if data else None
+        self.storage_cluster_type = STORAGE_CLUSTER_TYPE
 
         if collector_config_id and not data:
             try:
                 self.data = CollectorConfig.objects.get(collector_config_id=self.collector_config_id)
+                self.storage_cluster_type = self.data.storage_cluster_type
             except CollectorConfig.DoesNotExist:
                 raise CollectorConfigNotExistException()
 
@@ -187,7 +189,7 @@ class CollectorHandler:
             multi_execute_func.append(
                 "result_table_storage",
                 TransferApi.get_result_table_storage,
-                params={"result_table_list": self.data.table_id, "storage_type": "elasticsearch"},
+                params={"result_table_list": self.data.table_id, "storage_type": self.storage_cluster_type},
                 use_request=use_request,
             )
         if self.data.subscription_id:
@@ -1659,17 +1661,19 @@ class CollectorHandler:
             table_id = self.data.table_id
             # 更新场景，需要把之前的存储设置拿出来，和更新的配置合并一下
             result_table_info = TransferApi.get_result_table_storage(
-                {"result_table_list": table_id, "storage_type": "elasticsearch"}
+                {"result_table_list": table_id, "storage_type": self.storage_cluster_type}
             )
             result_table = result_table_info.get(table_id, {})
             if not result_table:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
 
             default_etl_params = {
-                "es_shards": result_table["storage_config"]["index_settings"]["number_of_shards"],
-                "storage_replies": result_table["storage_config"]["index_settings"]["number_of_replicas"],
+                "es_shards": result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1),
+                "storage_replies": (
+                    result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
+                ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
-                "retention": result_table["storage_config"]["retention"],
+                "retention": result_table["storage_config"].get("retention", 0),
                 "allocation_min_days": params.get("allocation_min_days", 0),
                 "etl_config": self.data.etl_config,
             }

@@ -35,6 +35,7 @@ from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import (
     ETL_PARAMS,
     REGISTERED_SYSTEM_DEFAULT,
+    STORAGE_CLUSTER_TYPE,
     EtlConfig,
     ETLProcessorChoices,
 )
@@ -75,9 +76,11 @@ class EtlHandler:
         self.collector_config_id = collector_config_id
         self.data = None
         self.etl_processor = etl_processor
+        self.storage_cluster_type = STORAGE_CLUSTER_TYPE
         if collector_config_id:
             self.data = self._get_collect_config(collector_config_id)
             self.etl_processor = self.data.etl_processor
+            self.storage_cluster_type = self.data.storage_cluster_type
 
     @staticmethod
     def _get_collect_config(collector_config_id):
@@ -387,12 +390,12 @@ class EtlHandler:
 
     def close_clean(self):
         storage = TransferApi.get_result_table_storage(
-            params={"result_table_list": self.data.table_id, "storage_type": "elasticsearch"}
+            params={"result_table_list": self.data.table_id, "storage_type": self.storage_cluster_type}
         )[self.data.table_id]
         storage_cluster_id = storage["cluster_config"]["cluster_id"]
         retention = storage["storage_config"].get("retention")
         allocation_min_days = storage["storage_config"].get("warm_phase_days")
-        storage_replies = storage["storage_config"]["index_settings"]["number_of_replicas"]
+        storage_replies = storage["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
         _, table_id = self.data.table_id.split(".")
         self.update_or_create(
             etl_config=EtlConfig.BK_LOG_TEXT,

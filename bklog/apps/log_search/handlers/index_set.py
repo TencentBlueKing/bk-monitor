@@ -37,7 +37,6 @@ from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.constants import (
@@ -1107,9 +1106,7 @@ class IndexSetHandler(APIModel):
         """
         获取受保护（不可由用户操作）的标签 ID 列表，包括系统内置标签和场景维度标签
         """
-        return list(
-            IndexSetTag.objects.filter(tag_type__in=["inner", "scene"]).values_list("tag_id", flat=True)
-        )
+        return list(IndexSetTag.objects.filter(tag_type__in=["inner", "scene"]).values_list("tag_id", flat=True))
 
     @staticmethod
     def get_desensitize_config_state(index_set_ids: list):
@@ -1208,8 +1205,14 @@ class IndexSetHandler(APIModel):
 
         # 调用接口查询结果表集群信息
         table_str = ",".join(table_list)
+        table_str_map = CollectorConfig.get_table_str_map_by_storage_cluster_type(table_str)
+
+        if len(table_str_map) != 1:
+            return None
+
+        storage_cluster_type, group_table_str = next(iter(table_str_map.items()))
         storage_info = TransferApi.get_result_table_storage(
-            {"result_table_list": table_str, "storage_type": STORAGE_CLUSTER_TYPE}
+            {"result_table_list": group_table_str, "storage_type": storage_cluster_type}
         )
 
         # 校验所有结果表查询出的集群是否一致

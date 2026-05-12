@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.db.transaction import atomic
 from django.forms import model_to_dict
 from django.utils import timezone
@@ -382,9 +383,10 @@ class ArchiveHandler:
                 }
                 for table_id in table_ids
             ]
+            storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(table_ids[0])
             # 索引集下所包含的物理索引一定存在一个集群 所以取第一个result_table_id去获取集群信息
             cluster_infos = TransferApi.get_result_table_storage(
-                {"result_table_list": table_ids[0], "storage_type": "elasticsearch"}
+                {"result_table_list": table_ids[0], "storage_type": storage_cluster_type}
             )
             cluster_info = cluster_infos.get(table_ids[0])
         else:
@@ -396,9 +398,9 @@ class ArchiveHandler:
                     "time_field": DEFAULT_TIME_FIELD,
                 }
             ]
-
+            storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(self.archive.table_id)
             cluster_infos = TransferApi.get_result_table_storage(
-                {"result_table_list": self.archive.table_id, "storage_type": "elasticsearch"}
+                {"result_table_list": self.archive.table_id, "storage_type": storage_cluster_type}
             )
             cluster_info = cluster_infos.get(self.archive.table_id)
         storage_cluster_id = cluster_info["cluster_config"]["cluster_id"]
