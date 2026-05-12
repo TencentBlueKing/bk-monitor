@@ -35,6 +35,7 @@ from apps.log_databus.constants import (
     CLUSTER_NAME_EN_REGEX,
     COLLECTOR_CONFIG_NAME_EN_REGEX,
     ArchiveInstanceType,
+    ClusterTypeEnum,
     CollectorBatchOperationType,
     ContainerCollectorType,
     Environment,
@@ -644,6 +645,9 @@ class RetrySerializer(serializers.Serializer):
 
 class StorageListSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    cluster_type = serializers.ChoiceField(
+        label=_("集群类型"), default=ClusterTypeEnum.ES, choices=ClusterTypeEnum.get_choices()
+    )
     enable_archive = serializers.BooleanField(label=_("是否启用归档"), required=False)
 
 
