@@ -1921,6 +1921,16 @@ class GrokUpdatedByListSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
 
 
+class SearchGrokSerializer(serializers.Serializer):
+    """
+    Grok模式名称联想
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    keyword = serializers.CharField(label=_("搜索关键字"), default="", allow_blank=True)
+    limit = serializers.IntegerField(label=_("返回数量"), default=10, min_value=1, max_value=100)
+
+
 class GrokDebugSerializer(serializers.Serializer):
     """
     Grok模式调试

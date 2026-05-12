@@ -23,6 +23,7 @@ class Migration(migrations.Migration):
                 ("is_builtin", models.BooleanField(default=False, verbose_name="是否内置")),
                 ("sample", models.TextField(blank=True, null=True, verbose_name="样例")),
                 ("description", models.TextField(blank=True, null=True, verbose_name="描述")),
+                ("sample_result", models.JSONField(blank=True, null=True, verbose_name="样例匹配结果")),
             ],
             options={
                 "verbose_name": "Grok规则",
