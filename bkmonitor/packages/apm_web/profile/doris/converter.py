@@ -200,16 +200,25 @@ class DorisProfileConverter(ProfileConverter):
             self.profile.location.append(location)
 
             for line_info in stacktrace["lines"]:
-                function = self._function_mapping.get(line_info["function"]["name"])
+                function_info = line_info["function"]
+                function_key = "||".join(
+                    [
+                        str(function_info["name"]),
+                        str(function_info["systemName"]),
+                        str(function_info["fileName"]),
+                        str(function_info["startLine"]),
+                    ]
+                )
+                function = self._function_mapping.get(function_key)
                 if function is None:
                     function = Function(
                         id=len(self.profile.function) + 1,
-                        name=self.add_string(line_info["function"]["name"]),
-                        system_name=self.add_string(line_info["function"]["systemName"]),
-                        filename=self.add_string(line_info["function"]["fileName"]),
-                        start_line=line_info["function"]["startLine"],
+                        name=self.add_string(function_info["name"]),
+                        system_name=self.add_string(function_info["systemName"]),
+                        filename=self.add_string(function_info["fileName"]),
+                        start_line=function_info["startLine"],
                     )
-                    self._function_mapping[line_info["function"]["name"]] = function
+                    self._function_mapping[function_key] = function
                     self._function_id_mapping[function.id] = function
                     self.profile.function.append(function)
 
