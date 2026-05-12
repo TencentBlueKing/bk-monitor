@@ -287,34 +287,44 @@ class SpaceTableIDRedis:
             table_id_list,
         )
         if table_id_list:
-            doris_records = models.DorisStorage.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id)
-            data_label_map = models.ResultTable.objects.filter(
-                table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
-            ).values("table_id", "data_label")
-            # 构建字段别名map
-            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
-        else:
-            doris_records = models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id)
-            tids = list(doris_records.values_list("table_id", flat=True))
-            data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
-                "table_id", "data_label"
+            doris_records = list(
+                models.DorisStorage.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id)
             )
-            # 构建字段别名map
-            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
+        else:
+            doris_records = list(models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id))
 
-        data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
+        tids = [record.table_id for record in doris_records]
+        rt_meta_qs = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
+            "table_id", "data_label", "labels"
+        )
+        rt_meta_map = {
+            item["table_id"]: {"data_label": item["data_label"], "labels": item.get("labels") or {}}
+            for item in rt_meta_qs
+        }
+        # 虚拟 Doris RT 通过 origin_table_id 关联实体 RT，用于当前 RT 未记录物理表名时兜底。
+        origin_table_ids = {record.origin_table_id for record in doris_records if record.origin_table_id}
+        origin_doris_map = {
+            record.table_id: record
+            for record in models.DorisStorage.objects.filter(table_id__in=origin_table_ids, bk_tenant_id=bk_tenant_id)
+        }
+        # 构建字段别名map
+        field_alias_map = self._get_field_alias_map(tids, bk_tenant_id)
 
         data: dict[str, dict] = {}
         for record in doris_records:
-            db = record.bkbase_table_id
+            # Redis key 仍使用当前 RT；db 优先使用当前记录，缺失时再回退到实体 DorisStorage。
+            origin_record = origin_doris_map.get(record.origin_table_id)
+            db = record.bkbase_table_id or (origin_record.bkbase_table_id if origin_record else None)
             table_id = record.table_id
-            data_label = data_label_map_dict.get(table_id, "")
+            rt_meta = rt_meta_map.get(table_id, {})
 
             data[table_id] = {
                 "db": db,
                 "measurement": models.ClusterInfo.TYPE_DORIS,
                 "storage_type": "bk_sql",
-                "data_label": data_label,
+                # data_label、labels、field_alias 始终归属当前 RT，避免虚拟 RT 丢失自身路由元信息。
+                "data_label": rt_meta.get("data_label", ""),
+                "labels": rt_meta.get("labels", {}),
                 "field_alias": field_alias_map.get(table_id, {}),  # 字段查询别名
             }
         return data

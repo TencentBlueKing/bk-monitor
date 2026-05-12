@@ -8,34 +8,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from . import (
-    apm,
-    ascode_import_task,
-    bcs_cluster,
-    cluster_info,
-    custom_report,
-    datalink,
-    datasource,
-    es_storage,
-    kafka_sample,
-    query_route,
-    result_table,
-    storage,
-    tenant,
-)
+import pytest
 
-__all__ = [
-    "apm",
-    "ascode_import_task",
-    "bcs_cluster",
-    "cluster_info",
-    "custom_report",
-    "datalink",
-    "datasource",
-    "es_storage",
-    "kafka_sample",
-    "query_route",
-    "result_table",
-    "storage",
-    "tenant",
-]
+from bkmonitor.as_code.utils import create_function_expression
+
+
+@pytest.mark.parametrize(
+    "function",
+    [
+        {"id": "time_shift", "params": [{"id": "n"}]},
+        {"id": "time_shift", "params": [{"id": "n", "value": ""}]},
+        {"id": "time_shift", "params": [{"id": "n", "value": None}]},
+    ],
+)
+def test_create_function_expression_ignores_empty_time_shift(function: dict) -> None:
+    assert create_function_expression(function) is None

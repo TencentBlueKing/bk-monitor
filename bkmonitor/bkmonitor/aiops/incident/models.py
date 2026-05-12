@@ -526,6 +526,8 @@ class IncidentSnapshot:
         self,
         incident: IncidentDocument,
         aggregate_config: dict = None,
+        aggregate_dependency: bool = True,
+        aggregate_version: bool = False,
         aggregate_cluster: bool = False,
         entities_orders: dict = None,
     ) -> None:
@@ -537,9 +539,13 @@ class IncidentSnapshot:
         """
         entities_orders = entities_orders or {}
 
-        # 根据从属关系进行聚合
-        groups_by_configs = self.generate_groups_by_aggregate_configs(incident, aggregate_config)
-        self.aggregate_by_groups(groups_by_configs, entities_orders)
+        if aggregate_dependency:
+            # 根据从属关系进行聚合
+            groups_by_configs = self.generate_groups_by_aggregate_configs(incident, aggregate_config)
+            self.aggregate_by_groups(groups_by_configs, entities_orders)
+
+        if aggregate_version:
+            self.aggregate_by_resource_version(incident, entities_orders)
 
         if aggregate_cluster:
             # 根据调用关系聚类结果进行聚合
@@ -774,6 +780,52 @@ class IncidentSnapshot:
                 # 默认用entity_id字典序进行排序
                 sorted_entities = sorted(list(entity_ids), key=lambda x: (entities_orders.get(x, x), x))
                 self.merge_entities(sorted_entities)
+
+    def aggregate_by_resource_version(self, incident: IncidentDocument, entities_orders: dict = None):
+        """按部署版本聚合 BcsPod 节点.
+
+        说明：
+        - 仅对 BcsPod 生效
+        - resource_version 取自 entity.properties.resource_version
+        - 版本缺失时不参与聚合
+        - 保留根因节点与反馈根因节点，不参与版本聚合
+        """
+        entities_orders = entities_orders or {}
+        groups_by_versions = defaultdict(set)
+
+        for entity_id, entity in self.incident_graph_entities.items():
+            if entity.entity_type != "BcsPod":
+                continue
+
+            resource_version = self.get_resource_version(entity)
+            if resource_version is None:
+                continue
+
+            if entity.is_root or getattr(incident.feedback, "incident_root", None) == entity.entity_id:
+                continue
+
+            logic_dimensions = frozenset((entity.logic_dimensions() or {}).items())
+            groups_by_versions[(logic_dimensions, resource_version)].add(entity_id)
+
+        for (_, resource_version), entity_ids in groups_by_versions.items():
+            if len(entity_ids) < 2:
+                continue
+
+            sorted_entities = sorted(list(entity_ids), key=lambda x: (entities_orders.get(x, x), x))
+            self.merge_entities(sorted_entities)
+
+            main_entity = self.incident_graph_entities[sorted_entities[0]]
+            main_entity.properties["aggregate_type"] = "resource_version"
+            main_entity.properties["resource_version"] = resource_version
+            main_entity.properties["original_entity_name"] = main_entity.entity_name
+            main_entity.entity_name = f"部署版本: {resource_version}"
+
+    @staticmethod
+    def get_resource_version(entity: IncidentGraphEntity):
+        resource_version = entity.properties.get("resource_version")
+        if resource_version in ("", None):
+            return None
+        return str(resource_version)
 
     def generate_aggregate_key(self, entity: IncidentGraphEntity, aggregate_config: dict) -> frozenset:
         """根据聚合配置生成用于聚合的key

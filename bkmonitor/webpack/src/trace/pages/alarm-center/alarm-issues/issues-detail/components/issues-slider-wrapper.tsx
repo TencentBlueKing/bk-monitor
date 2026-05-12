@@ -129,7 +129,7 @@ export default defineComponent({
     const commonParams = computed<Record<string, unknown>>(oldValue => {
       const issueIdCondition = { key: 'issue_id', value: [props.detail.id], method: 'eq' };
       const newValue = {
-        bk_biz_ids: [props.detail.bk_biz_id],
+        bk_biz_ids: window.APM_QUERY_STRING ? [window.bk_biz_id] : [props.detail.bk_biz_id],
         query_string: props.filterMode === EMode.ui ? '' : props.queryString,
         conditions: [
           issueIdCondition,
