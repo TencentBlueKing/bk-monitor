@@ -218,7 +218,7 @@ paths:
           resourcePermissionRequired: true
   /mcp/calculate_by_range/:
     post:
-      operationId: calculate_by_range
+      operationId: apm_mcp_calculate_by_range
       description: Calculate APM metrics by time range with comparison analysis. Supports request_total, success_rate, exception_rate, timeout_rate, avg/p50/p95/p99_duration. Enables multi-time-point comparison (e.g. day-over-day), group_by aggregation, growth rate and proportion calculation. app_name must be obtained from list_apm_applications. 按时间范围计算APM指标,支持多时间点对比(如日环比)、分组聚合、增长率和占比。app_name必须从list_apm_applications获取。
       tags:
       - apm_mcp
