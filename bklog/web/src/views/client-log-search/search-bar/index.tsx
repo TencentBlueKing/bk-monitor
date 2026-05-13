@@ -78,6 +78,8 @@ export default defineComponent({
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     /** 取消上一个请求的执行函数 */
     let cancelExecutor: (() => void) | null = null;
+    /** 上次请求 openid 列表时使用的关键词 */
+    let lastKeyword: string | null = null;
 
     /**
      * 请求 openid 列表
@@ -87,6 +89,14 @@ export default defineComponent({
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
+      }
+
+      // 如果关键词没变，且不是「空值+空列表」的情况，直接复用上次列表
+      if (keyword === lastKeyword && !(keyword.trim() === '' && openidList.value.length === 0)) {
+        if (isFocused.value) {
+          isOpenidListVisible.value = true;
+        }
+        return;
       }
 
       // 取消上一个未完成的请求
@@ -131,12 +141,14 @@ export default defineComponent({
           })
           .then((res: any) => {
             openidList.value = res.data ?? [];
+            lastKeyword = keyword;
           })
           .catch((err: any) => {
             if (axios.isCancel(err)) {
               return;
             }
             openidList.value = [];
+            lastKeyword = null;
           })
           .finally(() => {
             isRequesting.value = false;
@@ -149,6 +161,7 @@ export default defineComponent({
       openid.value = item;
       isOpenidListVisible.value = false;
       openidList.value = [];
+      lastKeyword = null;
     };
 
     /** 输入框聚焦 */
