@@ -210,6 +210,10 @@ $rum-filter-icon-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
     &--warn {
       color: $rum-status-warning;
     }
+
+    &--danger {
+      color: $rum-status-danger;
+    }
   }
 
   .rum-data-status-text {
@@ -223,6 +227,10 @@ $rum-filter-icon-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 
     &--warn {
       color: $rum-status-warning;
+    }
+
+    &--danger {
+      color: $rum-status-danger;
     }
   }
 

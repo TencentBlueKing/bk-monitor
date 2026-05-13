@@ -271,7 +271,12 @@ export default defineComponent({
           </div>
           <div class='app-content'>
             <div class='content-row'>
-              <span class='app-domain'>{this.data.app_name}</span>
+              <span
+                class='app-name'
+                v-overflow-tips
+              >
+                {this.data.app_name}
+              </span>
               <span class={['app-status', { 'is-enabled': this.data.is_enabled }]}>
                 {this.data.is_enabled ? this.$t('启用中') : this.$t('已停用')}
               </span>
@@ -304,10 +309,20 @@ export default defineComponent({
               </div>
             </div>
             <div class='content-row'>
-              <span class='app-alias'>{this.data.app_alias}</span>
+              <span
+                class='app-alias'
+                v-overflow-tips
+              >
+                {this.data.app_alias}
+              </span>
               <div class='separator' />
               <div class='app-desc'>
-                <span class='desc-text'>{this.data.description}</span>
+                <span
+                  class='desc-text'
+                  v-overflow-tips
+                >
+                  {this.data.description}
+                </span>
                 {/* 编辑弹窗 */}
                 <Popover
                   ref='editDescPopover'

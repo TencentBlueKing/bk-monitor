@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 import {
   deleteApplication,
   getApplicationInfoByAppName,
   getIndicesInfo,
   getStorageInfo,
+  listEsClusterGroups,
   queryRumTokenInfo,
   setupApplication,
   startDataSource,

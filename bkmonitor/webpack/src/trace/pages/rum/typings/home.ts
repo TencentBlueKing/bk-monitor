@@ -120,7 +120,7 @@ export interface RumTableItem {
   /** 前端类型 */
   client_type: string;
   /** span 数据状态镜像值 */
-  data_status: 'no_data' | 'normal';
+  data_status: 'disabled' | 'no_data' | 'normal';
   /** 描述 */
   description: string;
   /** 是否建链完成 */
