@@ -184,6 +184,12 @@ export default defineComponent({
         pagesize: computedPagesize.value,
       };
 
+      // URL 回填时加上 file_name 过滤
+      const urlFileName = initialUrlState?.fileName;
+      if (urlFileName) {
+        query.file_name = urlFileName;
+      }
+
       // openid 是纯数字时作为 task_id，否则作为 openid
       const openidVal = params.openid.trim();
       if (openidVal) {
@@ -212,7 +218,6 @@ export default defineComponent({
             taskList.value = list;
             // 首次加载默认选中第一项
             if (list.length > 0) {
-              const urlFileName = initialUrlState?.fileName;
               const matchedItem = urlFileName
                 ? list.find((item: LogItem) => item.file_name === urlFileName)
                 : null;
