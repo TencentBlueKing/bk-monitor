@@ -2010,4 +2010,8 @@ export default {
   数据后保留小数位: 'Data decimal places',
   '{0} 位': '{0} decimal places',
   Y轴最小值自适应: 'Y-axis minimum value adaptive',
+
+  // RUM
+  页面加载: 'Page load',
+  'API 请求': 'API request',
 };

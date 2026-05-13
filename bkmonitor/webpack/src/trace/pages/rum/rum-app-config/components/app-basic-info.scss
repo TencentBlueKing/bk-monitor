@@ -1,5 +1,12 @@
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-basic-info {
   display: flex;
+  gap: 50px;
   align-items: center;
   justify-content: space-between;
   width: 100%;
@@ -7,8 +14,10 @@
   /* 左侧：图标和基本信息区域 */
   &__left {
     display: flex;
+    flex: 1;
     gap: 12px;
     align-items: flex-start;
+    overflow: hidden;
 
     /* 应用图标容器 */
     .app-icon-wrapper {
@@ -32,25 +41,31 @@
     /* 应用内容区域 */
     .app-content {
       display: flex;
+      flex: 1;
+      flex-shrink: 0;
       flex-direction: column;
       gap: 6px;
+      overflow: hidden;
 
       /* 内容行 */
       .content-row {
         display: flex;
         align-items: center;
 
-        /* 应用域名 */
-        .app-domain {
+        /* 应用名 */
+        .app-name {
           font-size: 18px;
           font-weight: 700;
           line-height: 24px;
           color: #111214;
+
+          @include ellipsis;
         }
 
         /* 应用状态标签 */
         .app-status {
           display: flex;
+          flex-shrink: 0;
           align-items: center;
           height: 24px;
           padding: 0 12px;
@@ -69,6 +84,7 @@
         /* TOKEN 区域 */
         .app-token {
           display: flex;
+          flex-shrink: 0;
           align-items: center;
           height: 24px;
           padding: 0 12px;
@@ -115,6 +131,8 @@
           font-weight: 500;
           line-height: 20px;
           color: #4e5e7a;
+
+          @include ellipsis;
         }
 
         /* 分隔线 */
@@ -129,11 +147,14 @@
         .app-desc {
           display: flex;
           align-items: center;
+          overflow: hidden;
 
           .desc-text {
             font-size: 12px;
             line-height: 20px;
             color: #8896b3;
+
+            @include ellipsis;
           }
 
           /* 编辑图标 */
@@ -155,6 +176,7 @@
   /* 右侧：操作按钮区域 */
   &__right {
     display: flex;
+    flex-shrink: 0;
     gap: 24px;
     align-items: center;
 

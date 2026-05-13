@@ -186,7 +186,7 @@ export default defineComponent({
         .map(n => ({ id: n, name: n }));
       const meta = list.find(d => d.id === item.id);
       if (!meta) return [];
-      return [{ ...meta, children }];
+      return children;
     };
 
     const tableData = computed(() => {
@@ -286,6 +286,7 @@ export default defineComponent({
       const dataStatusFilters = [
         { label: t('正常'), value: 'normal' },
         { label: t('无数据'), value: 'no_data' },
+        { label: t('已禁用'), value: 'disabled' },
       ];
       return [
         {
@@ -413,9 +414,17 @@ export default defineComponent({
                 </span>
               );
             }
+            if (r.dataStatus === 'no_data') {
+              return (
+                <span class='rum-data-status-text rum-data-status-text--warn'>
+                  <i class='icon-monitor icon-warning rum-data-status rum-data-status--warn' />
+                  {r.dataStatusText}
+                </span>
+              );
+            }
             return (
-              <span class='rum-data-status-text rum-data-status-text--warn'>
-                <i class='icon-monitor icon-warning rum-data-status rum-data-status--warn' />
+              <span class='rum-data-status-text rum-data-status-text--danger'>
+                <i class='icon-monitor icon-remind rum-data-status rum-data-status--danger' />
                 {r.dataStatusText}
               </span>
             );

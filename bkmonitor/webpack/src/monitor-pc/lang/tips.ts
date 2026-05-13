@@ -452,4 +452,11 @@ export default {
   当前业务时区: 'Current business time zone',
   '输入 $ 可以插入变量': 'Input $ to insert variables',
   '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies',
+
+  '启用后数据将重新上报至该应用，若无数据，请检查上报配置':
+    'After enabling, the data will be reported to this application. If there is no data, please check the reporting configuration',
+  '停用后将不会有数据上报，请谨慎操作': 'After disabling, there will be no data reporting. Please operate carefully.',
+  '删除后无法恢复，请谨慎操作！': 'After deletion, it cannot be recovered. Please operate carefully!',
+  '设置系统可承受的 qps 峰值，每秒最多处理 X 条请求，超出可以造成数据丢弃。':
+    'Set the system-acceptable qps peak value, which can process up to X requests per second, and exceeding which can cause data to be discarded.',
 };

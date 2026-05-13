@@ -70,8 +70,12 @@ const buildMetricView = (
 };
 
 const getDataStatusText = (dataStatus: RumTableItem['data_status']) => {
-  if (dataStatus === 'normal') return '正常';
-  return '无数据';
+  const textMap = {
+    normal: window.i18n.t('正常'),
+    no_data: window.i18n.t('无数据'),
+    disabled: window.i18n.t('已禁用'),
+  };
+  return textMap[dataStatus] || '--';
 };
 
 export const buildRumAppRows = (applications: RumTableItem[], metrics: MetricMap): RumAppRow[] =>
@@ -89,7 +93,7 @@ export const buildRumAppRows = (applications: RumTableItem[], metrics: MetricMap
       description: app.description,
       clientType: app.client_type,
       isEnabled: app.is_enabled,
-      appStatus: app.is_enabled ? '启用' : '停用',
+      appStatus: app.is_enabled ? window.i18n.t('启用') : window.i18n.t('停用'),
       dataStatus: app.data_status,
       dataStatusText: getDataStatusText(app.data_status),
       spanResultTableId: app.span_result_table_id,
