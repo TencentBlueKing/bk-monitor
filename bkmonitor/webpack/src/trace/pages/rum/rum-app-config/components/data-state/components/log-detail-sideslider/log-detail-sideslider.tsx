@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, nextTick, onMounted, onUnmounted, shallowRef, watch } from 'vue';
 
 import { Button, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -33,6 +33,7 @@ import VueJsonPretty from 'vue-json-pretty';
 import './log-detail-sideslider.scss';
 import 'vue-json-pretty/lib/styles.css';
 
+/** 日志详情侧边栏组件 */
 export default defineComponent({
   name: 'LogDetailSideslider',
   props: {
@@ -54,6 +55,11 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
+    /** JSON 容器的 ref */
+    const jsonContainerRef = shallowRef<HTMLElement | null>(null);
+    /** VueJsonPretty 的高度（由 jsonContainerRef.offsetHeight 计算得出） */
+    const jsonContainerHeight = shallowRef(0);
+
     /**
      * @description 触发复制事件
      * @returns {void}
@@ -64,7 +70,42 @@ export default defineComponent({
       }
     };
 
-    return { handleCopy, t };
+    /**
+     * @description 计算容器高度
+     * @returns {void}
+     */
+    const calculateHeight = (): void => {
+      nextTick(() => {
+        if (jsonContainerRef.value) {
+          jsonContainerHeight.value = jsonContainerRef.value.offsetHeight;
+        }
+      });
+    };
+
+    /**
+     * @description 监听 sideslider 显示状态与日志数据变化，触发高度重算
+     * @returns {void}
+     */
+    watch(
+      () => [props.isShow, props.log] as const,
+      ([isShow]) => {
+        if (isShow) {
+          // 等待 sideslider 展开动画完成后再计算高度
+          setTimeout(calculateHeight, 300);
+        }
+      }
+    );
+
+    onMounted(() => {
+      window.addEventListener('resize', calculateHeight);
+      calculateHeight();
+    });
+
+    onUnmounted(() => {
+      window.removeEventListener('resize', calculateHeight);
+    });
+
+    return { handleCopy, t, jsonContainerRef, jsonContainerHeight };
   },
   render() {
     return (
@@ -83,9 +124,12 @@ export default defineComponent({
             </div>
           ),
           default: () => (
-            <div class='json-text-style'>
+            <div
+              ref='jsonContainerRef'
+              class='json-text-style'
+            >
               <VueJsonPretty
-                height={document.documentElement.clientHeight - 52}
+                height={this.jsonContainerHeight}
                 data={this.log}
                 deep={5}
                 itemHeight={20}
