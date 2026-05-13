@@ -17,7 +17,8 @@ from apm.models import DataLink
 from apm_web.models import Application, UserVisitRecord
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
-from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source.unify_query.builder import UnifyQuerySet
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import Permission
 from bkmonitor.iam.action import ActionEnum, ActionMeta
@@ -28,7 +29,6 @@ from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import OtlpKey, PreCalculateSpecificField
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 from monitor.models import UserConfig
@@ -285,17 +285,13 @@ class TraceSearchItem(SearchItem):
 
     @classmethod
     def _fetch_data(
-        cls, trace_id: str, table_id: str, time_field: str, fields: list[str], limit: int
+        cls, trace_id: str, target: TraceDatasourceTarget, time_field: str, fields: list[str], limit: int
     ) -> list[dict[str, Any]]:
         now: int = int(time.time())
         qs: UnifyQuerySet = (
             UnifyQuerySet()
             .add_query(
-                QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
-                .table(table_id)
-                .filter(trace_id__eq=trace_id)
-                .time_field(time_field)
-                .values(*fields)
+                TraceQueryGuard.get_q([target]).filter(trace_id__eq=trace_id).time_field(time_field).values(*fields)
             )
             .time_align(False)
             .start_time(int((now - timedelta(days=7).total_seconds()) * 1000))
@@ -309,9 +305,11 @@ class TraceSearchItem(SearchItem):
     @classmethod
     def _query_precalc_apps_by_trace_id(cls, trace_id: str, table_id: str, limit: int = 5) -> list[dict[str, Any]]:
         """单 cluster 预计算表查询，返回 ``[{bk_biz_id, app_name}, ...]``"""
+        # 预计算表不是共享 Trace 结果表，无需追加 bk_biz_id / app_name 隔离条件，target.app 留空即可
+        target: TraceDatasourceTarget = TraceDatasourceTarget.build(None, None, table_id)
         return cls._fetch_data(
             trace_id,
-            table_id,
+            target,
             PreCalculateSpecificField.MIN_START_TIME,
             [PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME],
             limit,
@@ -363,9 +361,14 @@ class TraceSearchItem(SearchItem):
     # ---------- Path B: 直查 ----------
 
     @classmethod
-    def _query_raw_apps_by_trace_id(cls, trace_id: str, table_id: str) -> bool:
-        """直查单应用原始 Trace 表，仅判断 trace_id 是否存在（``limit=1``）"""
-        return bool(cls._fetch_data(trace_id, table_id, OtlpKey.END_TIME, [OtlpKey.TRACE_ID], limit=1))
+    def _query_raw_apps_by_trace_id(cls, trace_id: str, app: Application) -> bool:
+        """直查单应用原始 Trace 表，仅判断 trace_id 是否存在（``limit=1``）
+        共享 Trace 结果表场景下，TraceQueryGuard 会自动追加 bk_biz_id / app_name 隔离条件；独占表走原有行为，不追加过滤。
+        """
+        target: TraceDatasourceTarget = TraceDatasourceTarget.build(
+            app.bk_biz_id, app.app_name, app.trace_result_table_id
+        )
+        return bool(cls._fetch_data(trace_id, target, OtlpKey.END_TIME, [OtlpKey.TRACE_ID], limit=1))
 
     @classmethod
     def _get_user_config(cls, username: str, key: str) -> Any:
@@ -458,7 +461,7 @@ class TraceSearchItem(SearchItem):
         def _probe_app(app: Application) -> Application | None:
             """探测单应用原始 Trace 表是否命中 trace_id；异常按 miss 处理"""
             try:
-                if cls._query_raw_apps_by_trace_id(trace_id, app.trace_result_table_id):
+                if cls._query_raw_apps_by_trace_id(trace_id, app):
                     return app
             except Exception:  # pylint: disable=broad-except
                 logger.exception(

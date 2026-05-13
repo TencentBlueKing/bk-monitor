@@ -36,29 +36,25 @@ class TestListDbSystem(django.test.TestCase):
         正常查询
         """
 
-        request_data = {"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME, "group_by_key": "attributes.db.system"}
-
-        return_value = {
-            "took": 58,
-            "timed_out": False,
-            "_shards": {"total": 6, "successful": 6, "skipped": 0, "failed": 0},
-            "hits": {"total": {"value": 10000, "relation": "gte"}, "max_score": None, "hits": []},
-            "aggregations": {
-                "attributes.db.system": {
-                    "doc_count_error_upper_bound": 0,
-                    "sum_other_doc_count": 0,
-                    "buckets": [
-                        {"key": "mysql", "doc_count": 200761},
-                        {"key": "elasticsearch", "doc_count": 6777},
-                        {"key": "redis", "doc_count": 9},
-                    ],
-                }
-            },
+        request_data = {
+            "bk_biz_id": BK_BIZ_ID,
+            "app_name": APP_NAME,
+            "group_by_key": "attributes.db.system",
+            "start_time": 1778664253,
+            "end_time": 1778667853,
         }
-        mock.patch("core.drf_resource.api.apm_api.query_es", return_value=return_value).start()
 
-        obj = ListDbSystemResource()
-
-        res = obj.perform_request(request_data)
+        with (
+            mock.patch(
+                "apm_web.db.resources.ServiceHandler.get_node",
+                return_value={"extra_data": {"predicate_value": "bk_monitorv3_web"}},
+            ),
+            mock.patch(
+                "apm_web.db.resources.api.apm_api.query_span_option_values",
+                return_value={"attributes.db.system": ["mysql", "elasticsearch", "redis"]},
+            ),
+        ):
+            obj = ListDbSystemResource()
+            res = obj.perform_request(request_data)
 
         assert len(res) == 3

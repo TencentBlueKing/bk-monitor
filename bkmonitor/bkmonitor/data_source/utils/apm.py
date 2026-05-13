@@ -37,7 +37,7 @@ class TraceDatasourceTarget:
     app: APMAppTarget
 
     @classmethod
-    def from_(cls, bk_biz_id: int | None, app_name: str | None, table_id: str) -> "TraceDatasourceTarget":
+    def build(cls, bk_biz_id: int | None, app_name: str | None, table_id: str) -> "TraceDatasourceTarget":
         return cls(table_id=table_id, app=APMAppTarget(bk_biz_id=bk_biz_id, app_name=app_name))
 
 
@@ -67,48 +67,60 @@ class TraceQueryGuard:
         for target in targets:
             if not cls.is_shared_table(target.table_id):
                 continue
-            if not target.app.bk_biz_id or not target.app.app_name:
+            if target.app.bk_biz_id is None or not target.app.app_name:
                 raise ValueError(
                     _("TraceQueryGuard: 共享 Trace 结果表 {table_id} 查询必须携带 bk_biz_id 与 app_name").format(
                         table_id=target.table_id
                     )
                 )
 
+    @staticmethod
+    def _normalize_bool_clause(raw_clause: Any) -> list[Any]:
+        """将 ES bool 子句统一规整为 list 结构"""
+        if raw_clause is None:
+            return []
+        if isinstance(raw_clause, list):
+            return raw_clause
+        return [raw_clause]
+
     @classmethod
     def get_q(cls, targets: Sequence[TraceDatasourceTarget]) -> QueryConfigBuilder:
-        """基于 targets 构造标准 APM Trace 查询，内部自动完成共享表隔离"""
-        q: QueryConfigBuilder = QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM)).table(
-            *[target.table_id for target in targets]
-        )
+        """基于 targets 构造标准 APM Trace 查询，内部自动完成共享表隔离
+        当前阶段仅支持单 target：取首个元素作为查询目标，预留多 target 入参形态以便后续扩展。
+        """
+        cls._validate_targets(targets)
+
+        target: TraceDatasourceTarget = targets[0]
+        q: QueryConfigBuilder = QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM)).table(target.table_id)
         return cls.apply_q(q, targets)
 
     @classmethod
     def apply_q(cls, q: QueryConfigBuilder, targets: Sequence[TraceDatasourceTarget]) -> QueryConfigBuilder:
         """给已有 QueryConfigBuilder 追加共享表隔离条件
         独占 / 预计算 / 历史表对应的 target 不会被追加任何过滤。
-        共享 Trace 数据源的查询模型为"单 target"：
-            一次查询只会针对某业务某应用在共享表中的数据，因此命中共享 Trace 结果表时直接取首个补充 bk_biz_id / app_name 过滤。
+        当前阶段仅支持单 target：取首个共享 target 追加 bk_biz_id / app_name 过滤。
         """
         cls._validate_targets(targets)
 
-        shared_targets: list[TraceDatasourceTarget] = [
-            target for target in targets if cls.is_shared_table(target.table_id)
-        ]
-        if not shared_targets:
+        target: TraceDatasourceTarget = targets[0]
+        if not cls.is_shared_table(target.table_id):
             return q
 
-        shared_target: TraceDatasourceTarget = shared_targets[0]
         return q.filter(
             **{
-                f"{cls.BK_BIZ_ID_FIELD}__eq": shared_target.app.bk_biz_id,
-                f"{cls.APP_NAME_FIELD}__eq": shared_target.app.app_name,
+                f"{cls.BK_BIZ_ID_FIELD}__eq": target.app.bk_biz_id,
+                f"{cls.APP_NAME_FIELD}__eq": target.app.app_name,
             }
         )
 
     @classmethod
     def build_dsl(cls, body: dict[str, Any], target: TraceDatasourceTarget) -> dict[str, Any]:
         """给 ES DSL 查询体追加共享表隔离条件
-        仅当 target.table_id 命中共享结果表前缀时在 bool.filter 追加 term 条件；否则原样返回
+        仅当 target.table_id 命中共享结果表前缀时生效；否则原样返回。
+
+        合并策略：
+            将原有 `query` 子树整体包进 `bool.must`，隔离条件追加到 `bool.filter`
+            兼容调用方传入任意顶层 query clause（如 `bool` / `match_all` / `range` / `terms` 等）
         """
         cls._validate_targets([target])
 
@@ -116,16 +128,35 @@ class TraceQueryGuard:
             return body
 
         new_body: dict[str, Any] = copy.deepcopy(body)
-        bool_node: dict[str, Any] = new_body.setdefault("query", {}).setdefault("bool", {})
+        isolation_filters: list[dict[str, Any]] = [
+            {"term": {cls.BK_BIZ_ID_FIELD: target.app.bk_biz_id}},
+            {"term": {cls.APP_NAME_FIELD: target.app.app_name}},
+        ]
 
-        # bool.filter 在 ES DSL 中既可为单个 query 对象（dict）也可为 query 数组（list），统一规整为 list 后再追加隔离条件
-        raw_filter: list[dict[str, Any]] | dict[str, Any] = bool_node.get("filter", [])
-        filter_node: list[dict[str, Any]] = raw_filter if isinstance(raw_filter, list) else [raw_filter]
-        filter_node.extend(
-            [
-                {"term": {cls.BK_BIZ_ID_FIELD: target.app.bk_biz_id}},
-                {"term": {cls.APP_NAME_FIELD: target.app.app_name}},
-            ]
-        )
-        bool_node["filter"] = filter_node
+        original_query: dict[str, Any] | None = new_body.get("query")
+        # 场景1：调用方未声明 query，仅用隔离条件构造 bool.filter 即可
+        if not original_query:
+            new_body["query"] = {"bool": {"filter": isolation_filters}}
+            return new_body
+
+        # 场景2：原 query 已是 bool 结构，直接合并隔离条件到 bool.filter，避免多套一层
+        if "bool" in original_query and len(original_query) == 1:
+            bool_node: dict[str, Any] = original_query["bool"]
+            for clause_name in ("must", "filter", "should", "must_not"):
+                if clause_name not in bool_node:
+                    continue
+                bool_node[clause_name] = cls._normalize_bool_clause(bool_node[clause_name])
+
+            filter_node: list[dict[str, Any]] = bool_node.get("filter", [])
+            filter_node.extend(isolation_filters)
+            bool_node["filter"] = filter_node
+            return new_body
+
+        # 场景3：原 query 是其他顶层 query clause（match_all / range / terms 等），整体放入新 bool.must，隔离条件放入 bool.filter
+        new_body["query"] = {
+            "bool": {
+                "must": [original_query],
+                "filter": isolation_filters,
+            }
+        }
         return new_body

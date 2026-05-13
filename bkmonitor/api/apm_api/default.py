@@ -170,15 +170,6 @@ class UpdateMetricFieldsResource(ApmAPIGWResource):
     method = "POST"
 
 
-class QueryEsResource(ApmAPIGWResource):
-    """
-    查询应用入口接口
-    """
-
-    action = "/app/apm/query_apm_es/"
-    method = "POST"
-
-
 class QueryTraceListResource(ApmAPIGWResource):
     """
     Trace查询

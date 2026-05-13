@@ -28,7 +28,7 @@ from apm.core.discover.instance_data import BaseInstanceData
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
-from bkmonitor.utils.data_query.apm import TraceDatasourceTarget, TraceQueryGuard
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
@@ -357,7 +357,7 @@ class TopoHandler:
     @property
     def _trace_target(self) -> TraceDatasourceTarget:
         """当前应用的 Trace 数据源查询目标，用于 TraceQueryGuard 识别共享表并追加隔离条件"""
-        return TraceDatasourceTarget.from_(self.bk_biz_id, self.app_name, self.datasource.result_table_id)
+        return TraceDatasourceTarget.build(self.bk_biz_id, self.app_name, self.datasource.result_table_id)
 
     def is_valid(self) -> bool:
         """Topo Instance validator"""

@@ -81,7 +81,6 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.common_utils import format_percent
-from bkmonitor.utils.data_query.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
@@ -1433,41 +1432,6 @@ class UpdateMetricFieldsResource(Resource):
         if not application:
             raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
-
-
-class QueryEsResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        table_id = serializers.CharField(required=True, label="结果表ID")
-        query_body = serializers.DictField(required=True, label="查询内容")
-        bk_biz_id = serializers.IntegerField(
-            required=False,
-            label="业务id",
-        )
-        app_name = serializers.CharField(required=False, label="应用名称", max_length=50)
-
-    def perform_request(self, validated_request_data):
-        table_id = validated_request_data["table_id"].replace(".", "_")
-        datasource = None
-        try:
-            datasource = TraceDataSource.objects.get(result_table_id=validated_request_data["table_id"])
-        except TraceDataSource.DoesNotExist:
-            logger.info(f"trace data source not found [{validated_request_data['table_id']}]")
-        if not datasource:
-            for trace_datasource in TraceDataSource.objects.all():
-                if trace_datasource.result_table_id.replace(".", "_") == table_id:
-                    datasource = trace_datasource
-
-        if datasource:
-            # 接入 TraceQueryGuard 做共享数据源查询隔离改造
-            target: TraceDatasourceTarget = TraceDatasourceTarget.from_(
-                bk_biz_id=validated_request_data.get("bk_biz_id"),
-                app_name=validated_request_data.get("app_name"),
-                table_id=datasource.result_table_id,
-            )
-            query_body: dict[str, Any] = TraceQueryGuard.build_dsl(validated_request_data["query_body"], target)
-            return datasource.es_client.search(index=datasource.index_name, body=query_body)
-
-        raise ValueError(_("未找到对应的结果表"))
 
 
 class QueryEsMappingResource(Resource):
