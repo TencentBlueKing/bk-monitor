@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import axios from 'axios';
 
 import { t } from '@/hooks/use-locale';
@@ -33,24 +33,41 @@ import $http from '@/api';
 import TimeRange from '@/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { SearchParams } from '../types';
+import type { SearchParams, SearchValueType, UrlState } from '../types';
 
 import './index.scss';
 
 export default defineComponent({
   name: 'SearchBar',
+  props: {
+    /** 初始 URL 状态（用于回填搜索条件） */
+    initialUrlState: {
+      type: Object as unknown as () => Partial<UrlState>,
+      default: undefined,
+    },
+    /** 面板是否正在加载（加载中时禁用搜索按钮） */
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
   emits: ['search'],
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const store = useStore();
 
-    /** 搜索 openid */
-    const openid = ref('');
+    /** 搜索 openid — 优先使用 URL 回填值 */
+    const urlState = props.initialUrlState ?? {};
+    const openid = ref(urlState.keyword || '');
 
-    /** 时间范围 */
-    const timeRange = ref<[string, string]>(DEFAULT_TIME_RANGE as [string, string]);
+    /** 时间范围 — 优先使用 URL 回填值 */
+    const timeRange = ref<[string, string]>(
+      urlState.startTime && urlState.endTime
+        ? [urlState.startTime, urlState.endTime]
+        : DEFAULT_TIME_RANGE as [string, string],
+    );
 
-    /** 时区 */
-    const timezone = ref(window.timezone);
+    /** 时区 — 优先使用 URL 回填值 */
+    const timezone = ref(urlState.timezone || window.timezone);
 
     // ---- 字段列表弹窗相关 ----
     /** 接口返回的 openid 列表 */
@@ -66,6 +83,15 @@ export default defineComponent({
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     /** 取消上一个请求的执行函数 */
     let cancelExecutor: (() => void) | null = null;
+    /** 上次请求 openid 列表时使用的关键词 */
+    let lastKeyword: string | null = null;
+
+    // ---- openid/task_id 类型判断相关 ----
+    /** 当前值的类型（openid 或 task_id），从列表选择时为 'openid'，手动输入时待联想结果判断 */
+    const currentValueType = ref<SearchValueType | undefined>(undefined);
+
+    /** 搜索按钮是否禁用（联想请求进行中且类型未确定，或面板加载中时禁用） */
+    const isSearchDisabled = computed(() => props.loading || (isRequesting.value && openid.value.trim() !== '' && !currentValueType.value));
 
     /**
      * 请求 openid 列表
@@ -75,6 +101,14 @@ export default defineComponent({
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
+      }
+
+      // 如果关键词没变，且不是「空值+空列表」的情况，直接复用上次列表
+      if (keyword === lastKeyword && !(keyword.trim() === '' && openidList.value.length === 0)) {
+        if (isFocused.value) {
+          isOpenidListVisible.value = true;
+        }
+        return;
       }
 
       // 取消上一个未完成的请求
@@ -119,12 +153,25 @@ export default defineComponent({
           })
           .then((res: any) => {
             openidList.value = res.data ?? [];
+            lastKeyword = keyword;
+            // 如果当前值是手动输入的（非列表选择），根据返回结果判断类型
+            if (!currentValueType.value && openid.value.trim()) {
+              const trimmedVal = openid.value.trim();
+              const isNumeric = !Number.isNaN(Number(trimmedVal));
+              currentValueType.value = (openidList.value.includes(trimmedVal) || !isNumeric) ? 'openid' : 'task_id';
+            }
           })
           .catch((err: any) => {
             if (axios.isCancel(err)) {
               return;
             }
             openidList.value = [];
+            lastKeyword = null;
+            // 请求失败时，根据输入内容判断类型：数字按 task_id，非数字按 openid
+            if (!currentValueType.value && openid.value.trim()) {
+              const isNumeric = !Number.isNaN(Number(openid.value.trim()));
+              currentValueType.value = isNumeric ? 'task_id' : 'openid';
+            }
           })
           .finally(() => {
             isRequesting.value = false;
@@ -137,6 +184,8 @@ export default defineComponent({
       openid.value = item;
       isOpenidListVisible.value = false;
       openidList.value = [];
+      lastKeyword = null;
+      currentValueType.value = 'openid';
     };
 
     /** 输入框聚焦 */
@@ -174,14 +223,16 @@ export default defineComponent({
      * 执行搜索
      * @param allowEmpty 是否允许空 openid 搜索（挂载时首次搜索允许为空）
      */
-    const handleSearch = (allowEmpty = false) => {
+    const handleSearch = (allowEmpty = true) => {
       if (!allowEmpty && !openid.value.trim()) {
         return;
       }
+
       const params: SearchParams = {
         openid: openid.value,
         timeRange: timeRange.value,
         timezone: timezone.value,
+        valueType: currentValueType.value,
       };
       emit('search', params);
     };
@@ -204,12 +255,16 @@ export default defineComponent({
             value={openid.value}
             onChange={(val: string) => {
               openid.value = val;
+              // 手动输入时重置类型，等待联想结果判断
+              currentValueType.value = undefined;
               fetchOpenidList(val);
             }}
             right-icon='bk-icon icon-search'
             onFocus={handleFocus}
             onBlur={handleBlur}
-            on-right-icon-click={() => handleSearch()}
+            on-right-icon-click={() => {
+              if (!isSearchDisabled.value) handleSearch();
+            }}
             clearable
           />
           {/* 字段列表弹窗 */}
@@ -254,6 +309,7 @@ export default defineComponent({
           theme='primary'
           ext-cls='search-bar-btn'
           icon=' bklog-icon bklog-shoudongchaxun'
+          disabled={isSearchDisabled.value}
           onClick={() => handleSearch()}
         >
           {t('查询')}

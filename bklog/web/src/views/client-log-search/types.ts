@@ -64,9 +64,26 @@ export interface FileTreeNode {
   children?: FileTreeNode[];         // 子节点
 }
 
+/** 搜索值的类型 */
+export type SearchValueType = 'openid' | 'task_id';
+
 /** 搜索参数类型 */
 export interface SearchParams {
   openid: string;                    // openid（搜索关键词）
   timeRange: [string, string];      // 时间范围 [start, end]
   timezone: string;                  // 时区标识
+  valueType?: SearchValueType;      // 搜索值的类型：openid 或 task_id
+}
+
+/** URL 同步的状态类型 */
+export interface UrlState {
+  keyword?: string;                  // 搜索关键词
+  startTime?: string;                // 时间范围-开始
+  endTime?: string;                  // 时间范围-结束
+  timezone?: string;                 // 时区
+  fileName?: string;                 // 选中的任务文件名
+  fileId?: string;                   // 选中的文件路径
+  filterKey?: string[];              // 关键词过滤列表
+  filterType?: string;               // 过滤条件 include/uninclude
+  highlightList?: string[];          // 高亮配置列表
 }

@@ -31,7 +31,8 @@ import SearchBar from './search-bar';
 import UserInfoCard from './user-info-card';
 import TaskListPanel from './task-list-panel';
 import LogDetailPanel from './log-detail-panel';
-import type { SearchParams, LogItem, UserReportStats, ProcessStatus, DataSource } from './types';
+import type { SearchParams, LogItem, UserReportStats, ProcessStatus, DataSource, UrlState } from './types';
+import useUrlSync from './use-url-sync';
 import useStore from '@/hooks/use-store';
 import $http from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -51,30 +52,18 @@ export default defineComponent({
   },
   setup() {
     const store = useStore();
-    const route = useRoute();
     const router = useRouter();
 
-    /** 业务切换后检查功能开关，无权限则跳转回检索页 */
-    watch(
-      () => route.query.spaceUid,
-      (newSpaceUid, oldSpaceUid) => {
-        if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
-          const hasPermission = isFeatureToggleOn(
-            'tgpa_task',
-            [String(store.state.bkBizId), String(newSpaceUid)]
-          );
-          if (!hasPermission) {
-            router.replace({
-              name: 'retrieve',
-              query: {
-                spaceUid: String(newSpaceUid),
-                bizId: String(store.state.bkBizId),
-              },
-            });
-          }
-        }
-      }
-    );
+    // ---- URL 参数同步 ----
+    const { getUrlState, syncUrlParams, clearUrlParams } = useUrlSync();
+    const initialUrlState = getUrlState();
+
+    // ---- 从 URL 回填 spaceUid 到 store ----
+    const route = useRoute();
+    const urlSpaceUid = route.query.spaceUid as string;
+    if (urlSpaceUid && urlSpaceUid !== store.state.spaceUid) {
+      store.commit('updateSpace', urlSpaceUid);
+    }
 
     /** 是否有下载权限 */
     const isAllowedDownload = ref(false);
@@ -195,11 +184,20 @@ export default defineComponent({
         pagesize: computedPagesize.value,
       };
 
-      // openid 是纯数字时作为 task_id，否则作为 openid
+      // URL 回填时加上 file_name 过滤
+      const urlFileName = initialUrlState?.fileName;
+      if (urlFileName) {
+        query.file_name = urlFileName;
+      }
+
+      // 根据 valueType 决定将搜索值作为 openid 还是 task_id
       const openidVal = params.openid.trim();
       if (openidVal) {
-        if (/^\d+$/.test(openidVal)) {
-          query.task_id = Number(openidVal);
+        if (params.valueType === 'task_id') {
+          const numVal = Number(openidVal);
+          if (!Number.isNaN(numVal)) {
+            query.task_id = numVal;
+          }
         } else {
           query.openid = openidVal;
         }
@@ -221,10 +219,20 @@ export default defineComponent({
             taskList.value = [...taskList.value, ...list];
           } else {
             taskList.value = list;
+            // 重新查询时重置滚动位置到顶部
+            taskListPanelRef.value?.resetScroll?.();
             // 首次加载默认选中第一项
             if (list.length > 0) {
-              selectedLogItem.value = list[0];
-              fetchClientInfo(list[0]);
+              const matchedItem = urlFileName
+                ? list.find((item: LogItem) => item.file_name === urlFileName)
+                : null;
+              if (urlFileName) {
+                delete initialUrlState.fileName;
+              }
+              selectedLogItem.value = matchedItem || list[0];
+              fetchClientInfo(selectedLogItem.value);
+              // 任务列表返回后同步 URL（选中的任务文件名）
+              syncUrlParams({ fileName: selectedLogItem?.value?.file_name });
             }
           }
           hasMore.value = taskList.value.length < total;
@@ -252,6 +260,13 @@ export default defineComponent({
       timeRange.value = params.timeRange;
       timezone.value = params.timezone;
       lastSearchParams.value = params;
+      // 搜索时同步 URL（关键词、时间范围、时区）
+      syncUrlParams({
+        keyword: params.openid,
+        startTime: params.timeRange[0],
+        endTime: params.timeRange[1],
+        timezone: params.timezone,
+      });
       fetchTaskList(params);
     };
 
@@ -272,10 +287,23 @@ export default defineComponent({
       isTaskListCollapsed.value = false;
     };
 
+    /** LogDetailPanel URL 同步回调 */
+    const handleUrlSync = (state: Partial<UrlState>) => {
+      syncUrlParams(state);
+    };
+
     /** 点击日志条目 */
     const handleLogItemSelect = (item: LogItem) => {
       selectedLogItem.value = item;
       fetchClientInfo(item);
+      // 手动切换任务时同步 URL（选中的任务文件名，同时清除文件和过滤/高亮状态）
+      syncUrlParams({
+        fileName: item.file_name,
+        fileId: undefined,
+        filterKey: [],
+        filterType: undefined,
+        highlightList: [],
+      });
     };
 
     /**
@@ -321,7 +349,7 @@ export default defineComponent({
 
     /** 更新 taskList 中指定任务的状态 */
     const updateTaskStatus = (source: DataSource, id: number | string, status: ProcessStatus, processedAt?: string) => {
-      const index = taskList.value.findIndex(item => {
+      const index = taskList.value.findIndex((item) => {
         if (source === 'task') {
           return item.source === 'task' && String(item.task_id) === String(id);
         }
@@ -346,7 +374,7 @@ export default defineComponent({
     const checkTaskStatus = async () => {
       if (isComponentDestroyed.value) return;
 
-      const pendingItems = taskList.value.filter(item => item.process_status === 'running' || item.process_status === 'pending');
+      const pendingItems = taskList.value.filter(item => item.process_status === 'running');
       if (pendingItems.length === 0) {
         stopPolling();
         return;
@@ -371,13 +399,13 @@ export default defineComponent({
             },
           }).then((res) => {
             if (res?.data && Array.isArray(res.data)) {
-              res.data.forEach((statusItem) => {
-                if (statusItem.process_status !== 'running') {
+              res.data.forEach((statusItem: any) => {
+                if (statusItem.status !== 'pending' && statusItem.process_status !== 'running') {
                   updateTaskStatus('task', statusItem.task_id, statusItem.process_status, statusItem.processed_at);
                 }
               });
             }
-          })
+          }),
         );
       }
 
@@ -391,13 +419,12 @@ export default defineComponent({
           }).then((res) => {
             if (res?.data && Array.isArray(res.data)) {
               res.data.forEach((statusItem: any) => {
-                // report API 使用 status 字段；pending 和 running 都表示采集中
                 if (statusItem.status !== 'pending' && statusItem.status !== 'running') {
                   updateTaskStatus('report', statusItem.file_name, statusItem.status as ProcessStatus);
                 }
               });
             }
-          })
+          }),
         );
       }
 
@@ -427,7 +454,7 @@ export default defineComponent({
       stopPolling();
 
       // 先将任务状态修改为 running
-      const index = taskList.value.findIndex(t => {
+      const index = taskList.value.findIndex((t) => {
         if (item.source === 'task') {
           return t.source === 'task' && t.file_name === item.file_name;
         }
@@ -487,6 +514,41 @@ export default defineComponent({
       }
     };
 
+    /** 业务切换后检查功能开关，无权限则跳转回检索页；同时重新触发搜索 */
+    watch(
+      () => store.state.spaceUid,
+      (newSpaceUid, oldSpaceUid) => {
+        if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
+          // 业务切换时清空 URL 中的条件
+          clearUrlParams();
+          const hasPermission = isFeatureToggleOn(
+            'tgpa_task',
+            [String(store.state.bkBizId), String(newSpaceUid)],
+          );
+          if (!hasPermission) {
+            router.replace({
+              name: 'retrieve',
+              query: {
+                spaceUid: String(newSpaceUid),
+                bizId: String(store.state.bkBizId),
+              },
+            });
+            return;
+          }
+          // 重新触发搜索
+          stopPolling();
+          taskList.value = [];
+          selectedLogItem.value = null;
+          userReportStats.value = null;
+          hasMore.value = true;
+          page.value = 1;
+          handleSearch(lastSearchParams.value);
+          getIndexSetId();
+          checkDownloadPermission();
+        }
+      },
+    );
+
     onMounted(() => {
       getIndexSetId();
       checkDownloadPermission();
@@ -534,7 +596,11 @@ export default defineComponent({
 
     /** 渲染内容区域 */
     const renderContent = () => [
-      <UserInfoCard userInfo={selectedLogItem.value} userReportStats={userReportStats.value} taskList={taskList.value} />,
+      <UserInfoCard
+        userInfo={selectedLogItem.value}
+        userReportStats={userReportStats.value}
+        taskList={taskList.value}
+      />,
       <div class='task-content-area'>
         {/* 左侧：任务列表 */}
         <TaskListPanel
@@ -553,11 +619,12 @@ export default defineComponent({
           isTaskListCollapsed={isTaskListCollapsed.value}
           selectedLogItem={selectedLogItem.value}
           indexSetId={indexSetId.value}
-          timeRange={timeRange.value}
           timezone={timezone.value}
           isAllowedDownload={isAllowedDownload.value}
+          initialUrlState={initialUrlState}
           on-expand={handleExpandTaskList}
           on-collect={handleCollectNow}
+          on-url-sync={handleUrlSync}
         />
       </div>,
     ];
@@ -565,7 +632,11 @@ export default defineComponent({
     return () => (
       <div class='client-log-search-root'>
         {/* 搜索区域 */}
-        <SearchBar on-search={handleSearch} />
+        <SearchBar
+          initialUrlState={initialUrlState}
+          loading={isPanelLoading.value}
+          on-search={handleSearch}
+        />
 
         {/* 用户信息展示区域 + 任务内容区域 */}
         <div

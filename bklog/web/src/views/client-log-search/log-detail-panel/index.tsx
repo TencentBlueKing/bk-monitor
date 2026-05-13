@@ -33,7 +33,7 @@ import $http from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useDownloadFile } from '../../manage-v2/client-log/hooks/use-download-file';
 
-import type { LogItem } from '../types';
+import type { LogItem, UrlState } from '../types';
 import ClientLogViewer from './log-viewer';
 import ClientLogToolbar from './toolbar';
 
@@ -118,11 +118,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 当前搜索的时间范围 */
-    timeRange: {
-      type: Array as unknown as () => [string, string] | undefined,
-      default: undefined,
-    },
     /** 时区 */
     timezone: {
       type: String,
@@ -133,10 +128,18 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** URL 回填的初始状态 */
+    initialUrlState: {
+      type: Object as () => Partial<UrlState>,
+      default: () => ({}),
+    },
   },
-  emits: ['expand', 'collect'],
+  emits: ['expand', 'collect', 'url-sync'],
   setup(props, { emit }) {
     const store = useStore();
+
+    /** URL 初始状态 */
+    const urlState = (props.initialUrlState ?? {}) as Partial<UrlState>;
 
     /** 使用文件下载 Hook */
     const { downloadFile: download } = useDownloadFile();
@@ -178,14 +181,33 @@ export default defineComponent({
       toolbarRef.value?.reset?.();
     };
 
-    /** 跳过过滤条件 watcher 的标记 */
-    let skipFilterWatch = false;
+    let skipNextResetFilters = false;
+
+    let skipNextFilterWatch = false;
+
+    /** 向父组件同步 URL 状态 */
+    const emitUrlSync = () => {
+      const state: Partial<UrlState> = {};
+      if (selectedFileId.value) {
+        state.fileId = selectedFileId.value;
+      }
+      if (filterKey.value.length) {
+        state.filterKey = [...filterKey.value];
+        state.filterType = filterType.value;
+      } else {
+        state.filterKey = [];
+        delete state.filterType;
+      }
+      if (highlightList.value.length) {
+        state.highlightList = highlightList.value.map((item: any) => item.heightKey ?? item);
+      } else {
+        state.highlightList = [];
+      }
+      emit('url-sync', state);
+    };
 
     /** 日志内容列表 */
     const logList = ref<Record<string, any>[]>([]);
-
-    /** 日志总数 */
-    const logTotal = ref(0);
 
     /** 当前分页偏移 */
     const currentBegin = ref(0);
@@ -215,6 +237,12 @@ export default defineComponent({
       return logList.value.length === 0;
     });
 
+    /** 文件列表加载状态 */
+    const isFileLoading = ref(false);
+
+    /** 日志内容加载状态 */
+    const isLogLoading = ref(false);
+
     /**
      * 请求文件列表
      */
@@ -224,7 +252,7 @@ export default defineComponent({
 
       isFileLoading.value = true;
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
+      const processedAt = props.selectedLogItem?.processed_at;
 
       const data: Record<string, any> = {
         fields: ['file'],
@@ -238,11 +266,14 @@ export default defineComponent({
         bk_biz_id: bkBizId,
       };
 
-      if (startTime) {
-        data.start_time = startTime;
-      }
-      if (endTime) {
-        data.end_time = endTime;
+      if (processedAt) {
+        const [startTime, endTime] = handleTransformToTimestamp([processedAt, 'now']);
+        if (startTime) {
+          data.start_time = startTime;
+        }
+        if (endTime) {
+          data.end_time = endTime;
+        }
       }
 
       $http
@@ -280,6 +311,7 @@ export default defineComponent({
           fetchFileList();
         }
       },
+      { immediate: true },
     );
 
     /** 监听 fileList 变化，转换树形数据并收集文件夹 ID */
@@ -307,7 +339,7 @@ export default defineComponent({
       allFolderIds.value = folderIds;
       expandedNodeIds.value = new Set(folderIds);
 
-      // 默认选中第一个叶子节点（文件）
+      // 查找第一个叶子节点（文件）
       const findFirstFile = (nodes: FileTreeNode[]): string | null => {
         for (const node of nodes) {
           if (!node.children || node.children.length === 0) {
@@ -318,14 +350,46 @@ export default defineComponent({
         }
         return null;
       };
-      selectedFileId.value = findFirstFile(fileTreeData.value);
+
+      // 首次加载时优先使用 URL 中的 fileId，否则选中第一个文件
+      if (urlState?.fileId) {
+        const urlFileId = urlState.fileId;
+        const fileExists = list.includes(urlFileId);
+
+        skipNextResetFilters = true;
+        // 跳过 setFilters 触发 handleFilter 导致的 filterKey/filterType watcher
+        skipNextFilterWatch = true;
+
+        //  通过 setFilters 设置过滤条件和高亮配置
+        const toolbarFilters: { filterKey?: string[]; filterType?: string; highlightList?: string[] } = {};
+        if (urlState.filterKey?.length) {
+          toolbarFilters.filterKey = [...urlState.filterKey];
+        }
+        if (urlState.filterType && toolbarFilters.filterKey?.length) {
+          toolbarFilters.filterType = urlState.filterType;
+        }
+        if (urlState.highlightList?.length) {
+          toolbarFilters.highlightList = [...urlState.highlightList];
+        }
+        if (Object.keys(toolbarFilters).length) {
+          toolbarRef.value?.setFilters?.(toolbarFilters);
+        }
+
+        // 过滤条件已就绪，再设置 selectedFileId 触发 fetchLogList
+        if (fileExists) {
+          selectedFileId.value = urlFileId;
+        } else {
+          selectedFileId.value = findFirstFile(fileTreeData.value);
+        }
+
+        delete urlState.fileId;
+      } else {
+        selectedFileId.value = findFirstFile(fileTreeData.value);
+      }
+
+      // 选中文件后同步 URL
+      emitUrlSync();
     });
-
-    /** 文件列表加载状态 */
-    const isFileLoading = ref(false);
-
-    /** 日志内容加载状态 */
-    const isLogLoading = ref(false);
 
     /**
      * 构建消息过滤的 addition 条件
@@ -337,56 +401,6 @@ export default defineComponent({
         operator: filterType.value === 'include' ? 'all contains match phrase' : 'all not contains match phrase',
         value: filterKey.value,
       }];
-    };
-
-    /**
-     * 请求日志总数
-     * @param fileId 选中的文件路径
-     */
-    const fetchLogTotal = (fileId: string) => {
-      const indexSetIdVal = props.indexSetId;
-      if (!indexSetIdVal || !fileId) return;
-
-      const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
-
-      const data: Record<string, any> = {
-        addition: [
-          {
-            field: 'cos_file_name',
-            operator: '=',
-            value: props.selectedLogItem?.file_name ?? '',
-          },
-          {
-            field: 'file',
-            operator: '=',
-            value: [fileId],
-          },
-          ...getMessageAddition(),
-        ],
-        keyword: '*',
-        bk_biz_id: bkBizId,
-        index_set_ids: [indexSetIdVal],
-        time_zone: props.timezone,
-      };
-
-      if (startTime) {
-        data.start_time = startTime;
-      }
-      if (endTime) {
-        data.end_time = endTime;
-      }
-
-      $http
-        .request('retrieve/fieldStatisticsTotal', { data })
-        .then((res: any) => {
-          logTotal.value = res?.data?.total_count ?? 0;
-          hasMore.value = logList.value.length < logTotal.value;
-        })
-        .catch(() => {
-          logTotal.value = 0;
-          hasMore.value = false;
-        });
     };
 
     /**
@@ -406,7 +420,7 @@ export default defineComponent({
       }
 
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
+      const processedAt = props.selectedLogItem?.processed_at;
 
       const data: Record<string, any> = {
         bk_biz_id: bkBizId,
@@ -426,14 +440,23 @@ export default defineComponent({
           },
           ...getMessageAddition(),
         ],
+        sort_list: [
+          [
+            'lineno',
+            'asc',
+          ],
+        ],
         time_zone: props.timezone,
       };
 
-      if (startTime) {
-        data.start_time = startTime;
-      }
-      if (endTime) {
-        data.end_time = endTime;
+      if (processedAt) {
+        const [startTime, endTime] = handleTransformToTimestamp([processedAt, 'now']);
+        if (startTime) {
+          data.start_time = startTime;
+        }
+        if (endTime) {
+          data.end_time = endTime;
+        }
       }
 
       $http
@@ -449,7 +472,7 @@ export default defineComponent({
             logList.value = newList;
           }
           currentBegin.value += newList.length;
-          hasMore.value = logList.value.length < logTotal.value;
+          hasMore.value = newList.length >= pageSize;
         })
         .catch((_err: any) => {
           if (!isLoadMoreAction) {
@@ -469,16 +492,19 @@ export default defineComponent({
 
     /** 监听选中文件变化，加载对应日志内容 */
     watch(selectedFileId, (fileId) => {
-      resetFilters();
+      if (skipNextResetFilters) {
+        // URL 回填阶段跳过 resetFilters，保留已设置的过滤/高亮值
+        skipNextResetFilters = false;
+      } else {
+        // resetFilters 会修改 filterKey/filterType 从而触发 filter watcher，需跳过
+        skipNextFilterWatch = true;
+        resetFilters();
+      }
       if (fileId) {
-        logTotal.value = 0;
         hasMore.value = false;
-        skipFilterWatch = true;
-        fetchLogTotal(fileId);
         fetchLogList(fileId);
       } else {
         logList.value = [];
-        logTotal.value = 0;
         hasMore.value = false;
       }
     });
@@ -487,16 +513,14 @@ export default defineComponent({
     watch(
       [filterKey, filterType],
       () => {
-        if (skipFilterWatch) {
-          skipFilterWatch = false;
+        if (skipNextFilterWatch) {
+          skipNextFilterWatch = false;
           return;
         }
         const fileId = selectedFileId.value;
         if (!fileId) return;
         logList.value = [];
-        logTotal.value = 0;
         hasMore.value = false;
-        fetchLogTotal(fileId);
         fetchLogList(fileId);
       },
       { deep: true },
@@ -535,6 +559,8 @@ export default defineComponent({
         default:
           break;
       }
+      // 手动更改过滤/高亮配置时同步 URL
+      emitUrlSync();
     };
 
     /** 标签页列表 */
@@ -583,6 +609,8 @@ export default defineComponent({
     const handleNodeClick = (node: any) => {
       if (!node.children || !node.children.length) {
         selectedFileId.value = node.id;
+        // 手动切换文件时同步 URL
+        emitUrlSync();
       }
     };
 
