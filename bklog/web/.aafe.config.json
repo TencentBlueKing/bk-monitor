@@ -1,6 +1,6 @@
 {
   "runtime": ".ai-agent",
-  "template": "default",
+  "template": "complex",
   "memory": {
     "enabled": true,
     "path": ".ai-agent/memory",
@@ -20,26 +20,30 @@
     "vue"
   ],
   "scenarios": [
-    "dashboard"
+    "complex",
+    "patterns",
+    "ddd"
   ],
   "editors": [
-    "cursor",
-    "codebuddy"
+    "cursor"
   ],
   "packs": {
     "frameworks": [
       "vue"
     ],
     "scenarios": [
-      "dashboard"
+      "complex",
+      "patterns",
+      "ddd"
     ]
   },
   "recommendedPackages": [
     "@aafe/core",
     "@aafe/vue",
-    "@aafe/dashboard",
-    "@aafe/adapter-cursor",
-    "@aafe/adapter-codebuddy"
+    "@aafe/complex",
+    "@aafe/patterns",
+    "@aafe/ddd",
+    "@aafe/adapter-cursor"
   ],
   "rerun": {
     "enabled": true,
@@ -49,8 +53,15 @@
       "merge_gate:fail"
     ]
   },
+  "hooks": {
+    "enabled": true,
+    "sessionStart": ".cursor/hooks/aafe-session-start",
+    "failClosed": false
+  },
   "gates": [
+    "ddd_gate",
     "architecture_gate",
+    "pattern_gate",
     "implementation_gate",
     "merge_gate"
   ]

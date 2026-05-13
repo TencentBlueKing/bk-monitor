@@ -1,6 +1,8 @@
 routes:
   feature:
     pipeline: feature
+  domainFeature:
+    pipeline: domain-feature
   refactor:
     pipeline: refactor
   bugfix:
@@ -9,3 +11,5 @@ routes:
     pipeline: performance
   graphFeature:
     pipeline: graph-feature
+  patternFeature:
+    pipeline: pattern-feature
