@@ -49,6 +49,13 @@
     flex-shrink: 0;
   }
 
+  // 工具栏（时间选择器）
+  .run-config-data-state-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+  }
+
   // 数据量趋势容器
   .run-config-data-state-chart-container {
     flex-shrink: 0;
