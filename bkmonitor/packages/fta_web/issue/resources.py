@@ -812,3 +812,48 @@ class ExportIssueResource(Resource):
             raise ValueError("未找到符合条件的 Issue，无法导出")
 
         return resource.export_import.export_package(json_list_data=issue_list)
+
+
+class ListRecentAssigneesResource(Resource):
+    """获取最近使用的负责人列表（基于 ES 聚合）"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(
+            label="业务ID列表", child=serializers.IntegerField(), required=True, allow_empty=False
+        )
+        recent_days = serializers.IntegerField(label="最近天数", min_value=1, max_value=30, default=7)
+
+    def perform_request(self, validated_request_data):
+        """
+        对当前用户有权限看到的 Issue 做 assignee 字段 terms 聚合，
+        按出现频次降序返回负责人列表。
+
+        参数:
+            bk_biz_ids: 业务ID列表，用于权限过滤及数据范围限定
+            recent_days: 统计最近 N 天内的 Issue，默认 7 天
+
+        """
+        bk_biz_ids = validated_request_data["bk_biz_ids"]
+        recent_days = validated_request_data["recent_days"]
+
+        end_time = int(time.time())
+        one_day = 60 * 60 * 24
+        start_time = end_time - recent_days * one_day
+
+        handler = IssueQueryHandler(
+            bk_biz_ids=bk_biz_ids,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        search = handler.get_search_object()
+
+        # terms 聚合：按 assignee 分组，按频次降序
+        search.aggs.bucket("assignees", "terms", field="assignee", size=100, order={"_count": "desc"})
+
+        # 仅取聚合结果，不返回文档数据
+        search = search.params(size=0, track_total_hits=False)
+        result = search.execute()
+
+        assignees = [bucket.key for bucket in result.aggs.assignees.buckets]
+
+        return assignees
