@@ -52,7 +52,7 @@
 </template>
 <script>
 import { renderNoticeTemplate } from 'monitor-api/modules/action';
-import { xssFilter } from 'monitor-common/utils/xss';
+import { sanitizeMailHtml, xssFilter } from 'monitor-common/utils/xss';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 import { createNamespacedHelpers } from 'vuex';
 
@@ -95,15 +95,8 @@ export default {
         data?.messages.map(item => ({
           ...item,
           tabActive: this.tabActive,
-          message: (() => {
-            let sanitizedMessage = item.message;
-            let previousMessage;
-            do {
-              previousMessage = sanitizedMessage;
-              sanitizedMessage = sanitizedMessage.replace(/<style[^>]*>[^<]*<\/style>/gim, '');
-            } while (sanitizedMessage !== previousMessage);
-            return sanitizedMessage;
-          })(),
+          // 邮件通道需要走 HTML 过滤；其它通道（短信/企业微信等）由展示层用 <pre>{{ ... }} 转义
+          message: data.type === 'mail' ? sanitizeMailHtml(item.message) : item.message,
           type: data.type || '',
         })) || []
       );

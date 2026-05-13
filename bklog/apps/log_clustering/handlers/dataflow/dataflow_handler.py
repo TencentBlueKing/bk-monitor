@@ -27,7 +27,8 @@ from dataclasses import asdict
 import arrow
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from retrying import retry
 
 from apps.api import (
