@@ -104,7 +104,6 @@ export default {
         data?.messages.map(item => ({
           ...item,
           tabActive: this.tabActive,
-          // 邮件通道走完整 HTML 过滤；其它通道维持历史的 <style> 剥离（展示层用 <pre>{{ ... }} 转义已防注入）
           message: data.type === 'mail' ? sanitizeMailHtml(item.message) : stripStyleTag(item.message),
           type: data.type || '',
         })) || []

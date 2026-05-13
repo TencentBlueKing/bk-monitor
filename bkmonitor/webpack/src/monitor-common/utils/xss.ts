@@ -49,7 +49,6 @@ export const xssFilter = (str: string) => {
   }
 };
 
-// 允许通过的 data URI 协议（仅图片，限制 base64 编码）
 const SAFE_DATA_IMAGE_REGEXP = /^data:image\/(png|jpe?g|gif|svg\+xml|webp);base64,[a-z0-9+/=]+$/i;
 const COMMON_ATTRS = ['style', 'class', 'id'];
 const TABLE_ATTRS = ['width', 'height', 'border', 'cellspacing', 'cellpadding', 'bgcolor', 'align', 'valign'];
@@ -70,16 +69,13 @@ const getMailFilter = () => {
   const extend = (tag: string, attrs: string[]) => {
     whiteList[tag] = Array.from(new Set([...(whiteList[tag] || []), ...attrs]));
   };
-  // 邮件布局常用块级 / 行内标签
   ['div', 'span', 'p', 'br', 'hr', 'a', 'img', 'small', 'strong', 'em', 'b', 'i', 'u'].forEach(tag =>
     extend(tag, COMMON_ATTRS),
   );
-  // 表格相关
   extend('table', [...COMMON_ATTRS, ...TABLE_ATTRS]);
   ['tbody', 'thead', 'tfoot', 'tr', 'td', 'th', 'col', 'colgroup'].forEach(tag =>
     extend(tag, [...COMMON_ATTRS, ...TABLE_ATTRS, ...CELL_EXTRAS]),
   );
-  // 链接与图片
   extend('a', ['target', 'rel', 'href', 'title']);
   extend('img', ['src', 'alt', 'title', 'width', 'height']);
 
@@ -88,11 +84,9 @@ const getMailFilter = () => {
     stripIgnoreTag: false,
     stripIgnoreTagBody: ['script', 'style'],
     onTagAttr(tag: string, name: string, value: string) {
-      // 允许 <img src="data:image/...;base64,..."> 这一图片内嵌资源
       if (tag === 'img' && name === 'src' && SAFE_DATA_IMAGE_REGEXP.test(value)) {
         return `${name}="${value}"`;
       }
-      // 禁止链接 javascript: 等危险协议
       if (name === 'href' && /^\s*(javascript|vbscript|data):/i.test(value)) {
         return `${name}=""`;
       }
@@ -101,7 +95,6 @@ const getMailFilter = () => {
   }));
 };
 
-// 邮件通知模板预览专用：保留表格布局 / inline style / base64 内嵌图，过滤脚本与危险事件
 export const sanitizeMailHtml = (html: string): string => {
   if (!html) return html;
   const filter = getMailFilter();
