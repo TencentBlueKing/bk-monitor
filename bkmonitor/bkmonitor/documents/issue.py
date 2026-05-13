@@ -66,6 +66,17 @@ class IssueDocument(BaseDocument):
 
     aggregate_config = field.Object(enabled=False)
 
+    # 指纹：唯一活跃 Issue 的标识（按 strategy_id + aggregate_dimensions 取值组合算出）
+    # 创建时写入，后续不变。空仅会出现在迁移函数运行前的 legacy 数据；
+    # 部署 post_migrate hook 会自动 RESOLVE 所有 fingerprint=null 的活跃 Issue，
+    # 运行期 processor 仅在部署窗口期短暂遇到（read-only 兜底，见 _find_active_issue Step 2）。
+    fingerprint = field.Keyword()
+    # 维度取值快照：与 fingerprint 一对一。形如 {"bk_host_id": "9185731", "service": "order"}；
+    # aggregate_dimensions=[] 时为 {}。
+    # 使用 Flattened（与 impact_scope 同款）：动态 key 但需要按子字段查询，
+    # 支持前端按 dimension_values.bk_host_id="X" 直接过滤 Issue 列表 / 做 TopN 聚合。
+    dimension_values = Flattened()
+
     create_time = Date(format=BaseDocument.DATE_FORMAT)
     update_time = Date(format=BaseDocument.DATE_FORMAT)
     resolved_time = Date(format=BaseDocument.DATE_FORMAT)
@@ -444,21 +455,37 @@ class IssueDocument(BaseDocument):
             self._delete_redis_cache()
 
     def _update_redis_cache(self) -> None:
-        """写回 Redis 热缓存（活跃 Issue）"""
+        """写回 Redis 热缓存（活跃 Issue）。
+
+        防御性 guard：迁移函数已保证活跃 Issue 都有 fingerprint，但用户主动 reopen
+        一个 fingerprint=null 的 legacy RESOLVED Issue 仍会走到这里。此时跳过缓存
+        写入避免污染 "None" key；warning 日志暴露非预期路径。
+        """
+        if not self.fingerprint:
+            logger.warning(
+                "[issue] _update_redis_cache called on legacy issue without fingerprint, issue_id=%s",
+                self.id,
+            )
+            return
         import json
 
         from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY
 
-        cache_key = ISSUE_ACTIVE_CONTENT_KEY.get_key(strategy_id=self.strategy_id)
+        cache_key = ISSUE_ACTIVE_CONTENT_KEY.get_key(fingerprint=self.fingerprint)
         ISSUE_ACTIVE_CONTENT_KEY.client.set(
             cache_key, json.dumps(self.to_cache_dict()), ex=ISSUE_ACTIVE_CONTENT_KEY.ttl
         )
 
     def _delete_redis_cache(self) -> None:
-        """删除 Redis 热缓存（Issue 变为非活跃后）"""
+        """删除 Redis 热缓存（Issue 变为非活跃后）。
+
+        防御性 guard 同 _update_redis_cache：legacy Issue 跳过删除（无对应 key）。
+        """
+        if not self.fingerprint:
+            return
         from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY
 
-        cache_key = ISSUE_ACTIVE_CONTENT_KEY.get_key(strategy_id=self.strategy_id)
+        cache_key = ISSUE_ACTIVE_CONTENT_KEY.get_key(fingerprint=self.fingerprint)
         ISSUE_ACTIVE_CONTENT_KEY.client.delete(cache_key)
 
     def _write_activities(self, activity_tuples: list, now: int | None = None) -> list:
@@ -574,3 +601,166 @@ class IssueActivityDocument(BaseDocument):
         if self.create_time:
             return int(self.create_time)
         return int(str(self.id)[:10])
+
+
+class IssueMigrationError(Exception):
+    """Issue legacy migration 失败（mapping 未 ready / bulk_update 残留失败等）"""
+
+
+def migrate_legacy_active_issues(batch_size: int = 500) -> int:
+    """一次性迁移：把 fingerprint 缺失的活跃 Issue 全部 RESOLVE。
+
+    fingerprint 改造从 1:1（strategy ↔ 活跃 Issue）升级为按维度组合切分。存量
+    fingerprint=null 的活跃 Issue 在新模型下无法可靠归属，必须在新代码生效前强制关闭。
+
+    设计要点：
+    - **mapping guard**：先调 IssueDocument.rollover() / IssueActivityDocument.rollover()
+      ensure mapping 已同步（rollover 失败 → raise，避免 mapping 缺失时
+      `exclude exists fingerprint` 在 ES 7.x 行为未定义导致全表误删）
+    - **two-pass scan**：先收集 issue_id + meta，再 bulk_update。避免 scroll 与并行
+      bulk_update 的 segment 一致性问题，杜绝同一 Issue 重复写活动日志
+    - **失败 raise**：bulk_create 异常时不静默吞，让 post_migrate hook 报错
+    - **幂等**：仅扫描 fingerprint 不存在的 ACTIVE 文档，重跑 noop
+
+    回滚兼容：旧代码按 strategy_id 查活跃，已 RESOLVED 的旧 Issue 不会被命中，无冲突。
+
+    Returns: 本次迁移的 Issue 数量
+    Raises: IssueMigrationError（mapping 未 ready / bulk 失败重试仍失败）
+    """
+    # Step 0: mapping guard —— 显式触发 rollover ensure mapping 已同步，rollover 是幂等的
+    # 避免运行顺序：fta_web post_migrate hook 先调 rollover_es_indices，但万一失败被吞掉，
+    # 此处再做一次保险 ensure；rollover 失败时 raise，阻断后续扫描，防止误删
+    try:
+        IssueDocument.rollover()
+        IssueActivityDocument.rollover()
+    except Exception as e:
+        raise IssueMigrationError(f"[issue migration] rollover failed before scan, mapping may be stale: {e}") from e
+
+    # Step 1: scan-only —— 收集 issue_id + meta，不修改任何文档
+    legacy_meta: dict[str, dict] = {}
+    search = (
+        IssueDocument.search(all_indices=True)
+        .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+        .exclude("exists", field="fingerprint")
+        .params(size=batch_size)
+    )
+    for hit in search.scan():
+        legacy_meta[hit.meta.id] = {
+            "bk_biz_id": getattr(hit, "bk_biz_id", ""),
+            "status": getattr(hit, "status", ""),
+        }
+
+    if not legacy_meta:
+        # noop 路径同样要 set 哨兵：表明全系统当前已无 fingerprint=null 活跃 Issue，
+        # processor 据此跳过 legacy fallback ES 查询
+        _mark_legacy_migration_done()
+        return 0
+
+    # Step 2: 分批 bulk_update + 写活动日志；任一批次失败 → 重试 1 次 → 仍失败 raise
+    now = int(time.time())
+    legacy_ids = list(legacy_meta.keys())
+    total = 0
+    for batch_start in range(0, len(legacy_ids), batch_size):
+        batch_ids = legacy_ids[batch_start : batch_start + batch_size]
+        update_docs = [
+            IssueDocument(
+                id=iid,
+                status=IssueStatus.RESOLVED,
+                resolved_time=now,
+                update_time=now,
+            )
+            for iid in batch_ids
+        ]
+        activity_docs = [
+            IssueActivityDocument(
+                issue_id=iid,
+                bk_biz_id=legacy_meta[iid]["bk_biz_id"],
+                activity_type=IssueActivityType.STATUS_CHANGE,
+                from_value=str(legacy_meta[iid]["status"]) if legacy_meta[iid]["status"] else "",
+                to_value=IssueStatus.RESOLVED,
+                operator="system",
+                content="legacy_fingerprint_migration",
+                time=now,
+                create_time=now,
+            )
+            for iid in batch_ids
+        ]
+        _bulk_update_with_retry(update_docs, activity_docs, batch_start)
+        total += len(batch_ids)
+
+    logger.info("[issue migration] resolved %d legacy active issues (fingerprint=null)", total)
+
+    # Step 3: 设置全局哨兵 cache，processor 据此跳过 legacy fallback ES 查询
+    # 即便本次扫描 total=0（已无 legacy）也设置：标记"全系统已无 fingerprint=null 活跃 Issue"
+    _mark_legacy_migration_done()
+
+    return total
+
+
+def _mark_legacy_migration_done() -> None:
+    """设置全局哨兵 cache，processor 据此跳过 legacy fallback。
+
+    Redis 故障时仅 warning，不阻塞迁移成功——processor fail-open 退化到走 legacy fallback。
+    """
+    from alarm_backends.core.cache.key import ISSUE_LEGACY_MIGRATION_DONE_KEY
+
+    try:
+        cache_key = ISSUE_LEGACY_MIGRATION_DONE_KEY.get_key()
+        ISSUE_LEGACY_MIGRATION_DONE_KEY.client.set(cache_key, "1", ex=ISSUE_LEGACY_MIGRATION_DONE_KEY.ttl)
+        logger.info("[issue migration] legacy migration done sentinel set, processor will skip legacy fallback")
+    except Exception:
+        logger.warning(
+            "[issue migration] set legacy migration done sentinel failed; "
+            "processor will keep doing legacy fallback queries (safe but extra ES load)",
+            exc_info=True,
+        )
+
+
+def _bulk_update_with_retry(
+    update_docs: list,
+    activity_docs: list,
+    batch_offset: int,
+) -> None:
+    """update_docs 与 activity_docs 解耦的重试包装。
+
+    设计要点：
+    - update_docs 走 UPSERT，幂等可安全 retry；retry 1 次仍失败 → raise IssueMigrationError
+    - activity_docs 在 update 成功后**单独写**：失败仅 warning（不阻塞 migration 主成功）
+    - 不在同一 try 中 retry update + activity，避免 retry 时 activity 的 doc id 已存在
+      导致 BulkIndexError → migration 整批 raise 的伪失败
+    - activity 缺失会让 STATUS_CHANGE 审计有空缺，但 Issue 已 RESOLVED 是事实，
+      运维通过 metric / 日志可发现这种情况
+    """
+    last_exc: Exception | None = None
+    update_succeeded = False
+    for attempt in (1, 2):
+        try:
+            IssueDocument.bulk_create(update_docs, action=BulkActionType.UPSERT)
+            update_succeeded = True
+            break
+        except Exception as e:
+            last_exc = e
+            logger.warning(
+                "[issue migration] update bulk attempt %d failed (offset=%d, batch_size=%d): %s",
+                attempt,
+                batch_offset,
+                len(update_docs),
+                e,
+            )
+
+    if not update_succeeded:
+        raise IssueMigrationError(
+            f"[issue migration] update bulk failed permanently at offset={batch_offset} "
+            f"(batch_size={len(update_docs)}): {last_exc}"
+        ) from last_exc
+
+    # update 成功后单独写 activity；失败 warning 但不 raise（迁移主成功优先）
+    try:
+        IssueActivityDocument.bulk_create(activity_docs)
+    except Exception as e:
+        logger.warning(
+            "[issue migration] activity write failed (migration update already succeeded), offset=%d batch_size=%d: %s",
+            batch_offset,
+            len(activity_docs),
+            e,
+        )

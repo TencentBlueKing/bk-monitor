@@ -346,6 +346,12 @@ class IssueTopNResource(Resource):
             elif actual_field == "bk_biz_id" and hasattr(handler, "authorized_bizs"):
                 authorized_bizs = set(handler.authorized_bizs)
                 result[actual_field] = {"bucket_count": len(authorized_bizs), "authorized_bizs": authorized_bizs}
+            elif actual_field.startswith("dimension_values."):
+                # dimension_values.{key}：cardinality agg name 经 sanitize（"." → "__"），
+                # 与 IssueQueryHandler.add_cardinality_bucket 保持一致
+                agg_name = actual_field.replace(".", "__") + bucket_count_suffix
+                agg = getattr(search_result.aggs, agg_name, None)
+                result[actual_field] = {"bucket_count": agg.value if agg else 0}
             else:
                 agg = getattr(search_result.aggs, f"{field}{bucket_count_suffix}", None)
                 result[actual_field] = {"bucket_count": agg.value if agg else 0}
@@ -796,11 +802,18 @@ class ListIssueHistoryResource(Resource):
         # 校验当前 Issue 存在且归属当前业务
         current_issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
 
-        # 查询同策略下所有已解决的历史 Issue（排除当前 Issue 自身），按解决时间降序排列，最多返回 200 条
+        # fingerprint 为空：legacy 1:1 数据（迁移函数已自动 RESOLVE，但用户仍可能查 RESOLVED 列表里的旧 Issue）
+        # 新模型下"同问题历史"按 fingerprint 切分，旧 1:1 数据无法对齐到新模型语义，直接返回空列表。
+        # 真正的"同策略相关 Issue"用户可通过列表页 strategy_id 过滤获得。
+        # 前端可通过 issue.fingerprint 字段判断是否为 legacy（响应 schema 保持 list 不变以兼容现有前端）
+        if not current_issue.fingerprint:
+            return []
+
+        # 按 fingerprint 查"同一具体问题"已解决历史，排除当前 Issue 自身，按解决时间降序，最多 200 条
         search = (
             IssueDocument.search(all_indices=True)
             .filter("term", bk_biz_id=str(bk_biz_id))
-            .filter("term", strategy_id=current_issue.strategy_id)
+            .filter("term", fingerprint=current_issue.fingerprint)
             .filter("term", status=IssueStatus.RESOLVED)
             .exclude("term", **{"_id": issue_id})
             .sort("-resolved_time")

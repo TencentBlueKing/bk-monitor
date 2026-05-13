@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import re
 import time
+from collections import defaultdict
 from typing import Any
 
 from alarm_backends.core.cache.cmdb import BusinessManager, SetManager
@@ -40,11 +41,20 @@ def sync_issue_alert_stats():
       2) 统计 alert_count / last_alert_time
       3) 重算 impact_scope
       4) 检测 orphan issue 并触发监控告警
+      5) 续命 legacy 迁移哨兵（避免 30 天 TTL 失效后 processor 退化到 fallback ES 查询）
     """
     start_ts = time.time()
     processed = 0
     failed = 0
     total = 0
+    # 同一周期内同 strategy 仅做一次批量 backfill（O(N×M) → O(N+M) 性能优化）；
+    # 详见 _backfill_unlinked_alerts_for_strategy。set 用 str 化的 strategy_id 做 key 防止 int/str 混淆。
+    backfilled_strategies: set[str] = set()
+
+    # 续命 legacy 迁移哨兵：30 天 TTL 内若无 deploy 触发 migrate，哨兵会过期 → processor 退化到
+    # 走 fallback ES 查询。本周期任务定期检查，若哨兵不存在 + 当前确实无 fingerprint=null 活跃 Issue,
+    # 主动续命避免性能退化。失败 fail-safe（不阻塞周期任务主流程）。
+    _renew_legacy_migration_done_sentinel_if_needed()
 
     for hit, total in _iter_issue_hits_with_total():
         issue = IssueDocument(**hit.to_dict())
@@ -70,7 +80,7 @@ def sync_issue_alert_stats():
             )
 
         try:
-            _process_single_issue(issue)
+            _process_single_issue(issue, backfilled_strategies)
         except Exception:
             failed += 1
             logger.exception(
@@ -81,16 +91,78 @@ def sync_issue_alert_stats():
 
     elapsed = time.time() - start_ts
     logger.info(
-        "[issue] sync_issue_alert_stats: done, processed=%d/%d, failed=%d, elapsed=%.1fs",
+        "[issue] sync_issue_alert_stats: done, processed=%d/%d, failed=%d, strategies_backfilled=%d, elapsed=%.1fs",
         processed,
         total,
         failed,
+        len(backfilled_strategies),
         elapsed,
     )
 
 
-def _process_single_issue(issue: IssueDocument):
-    _backfill_unlinked_alerts(issue)
+def _renew_legacy_migration_done_sentinel_if_needed():
+    """续命 legacy 迁移哨兵：cache 过期 + 当前确实无 legacy → 主动 set。
+
+    避免 30 天 TTL 失效后 processor 永久走 fallback ES 查询（性能退化）。
+    任一环节失败仅 warning，不阻塞周期任务主流程。
+    """
+    from alarm_backends.core.cache.key import ISSUE_LEGACY_MIGRATION_DONE_KEY
+    from bkmonitor.documents.issue import _mark_legacy_migration_done
+
+    try:
+        cache_key = ISSUE_LEGACY_MIGRATION_DONE_KEY.get_key()
+        if ISSUE_LEGACY_MIGRATION_DONE_KEY.client.exists(cache_key):
+            return  # 哨兵在，无需续命
+    except Exception:
+        # Redis 故障不阻塞，下个周期再试
+        return
+
+    # 哨兵不存在：探查当前是否真无 legacy
+    try:
+        legacy_count = (
+            IssueDocument.search(all_indices=True)
+            .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+            .exclude("exists", field="fingerprint")
+            .params(size=0, track_total_hits=True)
+            .execute()
+            .hits.total.value
+        )
+    except Exception:
+        logger.warning("[issue] sentinel renew: probe legacy count failed, skip", exc_info=True)
+        return
+
+    if legacy_count == 0:
+        _mark_legacy_migration_done()
+        logger.info("[issue] sentinel renew: legacy=0 confirmed, sentinel re-set")
+    else:
+        # 仍有 legacy（极罕见：deploy 后又有人手工导入旧数据），交给下次 deploy 的 migrate 处理
+        logger.warning(
+            "[issue] sentinel renew: still %d legacy active issues, "
+            "skip renew (will be picked up by next deploy migrate)",
+            legacy_count,
+        )
+
+
+def _process_single_issue(issue: IssueDocument, backfilled_strategies: set[str]):
+    # legacy Issue（部署窗口期短期存在，由 post_migrate 切割为 RESOLVED）周期任务直接跳过：
+    # 避免在 read-only 兜底分支承接多 fingerprint 告警时持续污染 alert_count / impact_scope / update_time
+    if not issue.fingerprint:
+        logger.debug(
+            "[issue] sync_issue_alert_stats: skip legacy issue (no fingerprint), strategy(%s) issue(%s)",
+            issue.strategy_id,
+            issue.id,
+        )
+        return
+
+    # 漏关联补偿：每个 strategy 在一个周期内只跑一次（去重 set 由调用方维护），
+    # 避免高基数策略下"每个 fingerprint Issue 都重复扫同策略 unlinked alerts"的 O(N×M) 放大
+    strategy_key = str(issue.strategy_id) if issue.strategy_id else ""
+    if strategy_key and strategy_key not in backfilled_strategies:
+        try:
+            _backfill_unlinked_alerts_for_strategy(strategy_key)
+        finally:
+            # 即使本次失败也加入 set，避免本周期内重复尝试（下一周期会重试）
+            backfilled_strategies.add(strategy_key)
 
     alert_search = AlertDocument.search(all_indices=True).filter("term", issue_id=issue.id).params(size=0)
     alert_search.aggs.metric("alert_count", "value_count", field="id")
@@ -105,7 +177,9 @@ def _process_single_issue(issue: IssueDocument):
     agg_config = issue.aggregate_config
     if hasattr(agg_config, "to_dict"):
         agg_config = agg_config.to_dict()
-    agg_dims: list[str] = (agg_config or {}).get("aggregate_dimensions", [])
+    # None 与 [] 等价处理（与 processor / _backfill_unlinked_alerts 保持一致），
+    # 避免快照中 aggregate_dimensions=None 时下游收窄逻辑收到非预期类型
+    agg_dims: list[str] = (agg_config or {}).get("aggregate_dimensions") or []
     impact_scope = _build_impact_scope(issue.id, aggregate_dimensions=agg_dims)
 
     now = int(time.time())
@@ -143,36 +217,166 @@ def _process_single_issue(issue: IssueDocument):
         raise
 
 
-def _backfill_unlinked_alerts(issue: IssueDocument):
-    """回填创建窗口期及其后的同策略未关联 Alert 的 issue_id（1:1 模型）"""
-    issue_create_time = issue.create_time
-    if not issue_create_time:
-        return
+_BACKFILL_ALERT_SCAN_MAX_LOOKBACK_SEC = 7 * 86400  # 7 天，避免高基数+长生命周期策略下 alert scan 范围爆炸
+
+
+def _backfill_unlinked_alerts_for_strategy(strategy_id: str):
+    """按 strategy 批处理 unlinked alerts 回填（O(N×M) → O(N+M) 性能优化）。
+
+    旧实现：对每个活跃 Issue 单独调 `_backfill_unlinked_alerts(issue)`，每次都扫一遍同策略
+    unlinked alerts、对每条 alert 反算 fingerprint。高基数策略（N 个 fingerprint Issue）下
+    ES alert scan 被放大 N 倍，且同一条 alert 被反算 fingerprint N 次。
+
+    新实现：按 strategy 批处理一次：
+      1. 一次 scan 该策略所有活跃 Issue，按 (agg_dims_tuple → {fingerprint: (issue_id, create_time)})
+         分组建 map（配置变更窗口期不同 Issue 的 aggregate_config snapshot 可能不同）
+      2. 一次 scan 该策略 unlinked alerts（since 最早 Issue create_time，但不超过 7 天）
+      3. 匹配优先级：先尝试 **live config** 对应的 group → 没命中再按 len 降序回退（具体优先 catch-all）；
+         避免 catch-all 必中特性把本应归具体 fingerprint 的 alert 错绑到旧 [] 维度 Issue
+      4. 命中后判断 `alert.begin_time >= issue.create_time`，否则跳过（保留旧实现"alert 必须晚于
+         Issue 出生才能归属"语义，避免 first_alert_time 与 alert 列表时间线断裂）
+
+    复杂度：O(N issues + M alerts × G groups)，G 通常为 1（同策略 Issue 共享 agg_dims）。
+    """
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+    from alarm_backends.service.fta_action.issue_processor import gen_issue_fingerprint
 
     try:
-        issue_create_time = int(issue_create_time)
+        strategy_id_int = int(strategy_id)
     except (TypeError, ValueError):
         return
+    if not strategy_id_int:
+        return
 
+    # Step 0: 取 live issue_config 作为优先匹配 group（避免 catch-all 误绑、维度替换错位）
+    # 三种 None 退化场景，全部按 len 降序匹配：
+    #   (a) 策略缓存 miss / Redis 异常
+    #   (b) issue_config 缺失（策略已禁用 Issue 聚合，但仍有历史活跃 Issue）—— 此处 None 而非 ()，
+    #       否则空 tuple 会被当作"live=catch-all"让 catch-all group 永远优先（v1.6 review 发现的 bug）
+    #   (c) 任何其他异常
+    live_agg_dims_tuple: tuple | None = None
+    try:
+        strategy_cache = StrategyCacheManager.get_strategy_by_id(strategy_id_int) or {}
+        live_issue_config = strategy_cache.get("issue_config")
+        if live_issue_config is not None:
+            # 仅当 issue_config 显式存在时才生成 live_agg_dims_tuple；缺失时保持 None 走 fallback
+            live_agg_dims = live_issue_config.get("aggregate_dimensions") or []
+            live_agg_dims_tuple = tuple(sorted(live_agg_dims))
+    except Exception:
+        # 策略缓存不可用 fail-open：退化为不优先 live 路径，按 len 降序匹配
+        logger.warning("[issue] strategy(%s) backfill: load live config failed, fallback to len-desc", strategy_id)
+        live_agg_dims_tuple = None
+
+    # Step 1: 加载该策略所有活跃 Issue → {fingerprint: (issue_id, create_time)} 分组 map
+    grouped_fp_map: dict[tuple, dict[str, tuple[str, int]]] = defaultdict(dict)
+    earliest_create_time: int | None = None
+    issues_search = (
+        IssueDocument.search(all_indices=True)
+        .filter("term", strategy_id=strategy_id)
+        .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+        .params(size=500)
+    )
+    for issue_hit in issues_search.scan():
+        fp = getattr(issue_hit, "fingerprint", "") or ""
+        if not fp:
+            # legacy Issue 已由 _process_single_issue 入口跳过；此处再防御一次
+            continue
+        agg_config = getattr(issue_hit, "aggregate_config", None)
+        if hasattr(agg_config, "to_dict"):
+            agg_config = agg_config.to_dict()
+        agg_dims_tuple = tuple(sorted((agg_config or {}).get("aggregate_dimensions") or []))
+        try:
+            ct = int(issue_hit.create_time) if issue_hit.create_time else 0
+        except (TypeError, ValueError):
+            ct = 0
+        grouped_fp_map[agg_dims_tuple][fp] = (issue_hit.meta.id, ct)
+        if ct and (earliest_create_time is None or ct < earliest_create_time):
+            earliest_create_time = ct
+
+    if not grouped_fp_map or earliest_create_time is None:
+        return
+
+    # 匹配优先级排序：live config 对应 group 排第一，其余按 len 降序（具体优先 catch-all）
+    def _match_order_key(item):
+        agg_tuple, _fp_map = item
+        is_live = 0 if (live_agg_dims_tuple is not None and agg_tuple == live_agg_dims_tuple) else 1
+        return (is_live, -len(agg_tuple))
+
+    sorted_groups = sorted(grouped_fp_map.items(), key=_match_order_key)
+
+    # Step 2: 扫该策略 unlinked alerts，scan 下界 = max(earliest_create_time, now - 7 天)
+    # 上限 7 天避免长生命周期策略下扫描范围爆炸；6 个月前漏写 alert 不会被周期任务回填，由 process 主路径兜底
+    scan_lower_bound = max(earliest_create_time, int(time.time()) - _BACKFILL_ALERT_SCAN_MAX_LOOKBACK_SEC)
     base_search = (
         AlertDocument.search(all_indices=True)
-        .filter("term", strategy_id=str(issue.strategy_id))
-        .filter("range", begin_time={"gte": issue_create_time})
+        .filter("term", strategy_id=strategy_id)
+        .filter("range", begin_time={"gte": scan_lower_bound})
         .exclude("exists", field="issue_id")
     )
 
+    # Step 3: 内存分发（live 优先 + 时间边界 + len 降序 fallback）
     total = 0
+    skipped_time = 0
     for hits in _iter_alert_hit_batches(base_search):
-        update_docs = [AlertDocument(id=hit.id, issue_id=issue.id) for hit in hits]
+        update_docs = []
+        for hit in hits:
+            alert_dims = _extract_alert_dimensions(hit)
+            try:
+                alert_begin = int(getattr(hit, "begin_time", 0) or 0)
+            except (TypeError, ValueError):
+                alert_begin = 0
+
+            for agg_dims_tuple, fp_map in sorted_groups:
+                fp = gen_issue_fingerprint(strategy_id_int, list(agg_dims_tuple), alert_dims)
+                if not fp or fp not in fp_map:
+                    continue
+                issue_id, issue_ct = fp_map[fp]
+                # 时间边界：alert 必须晚于 Issue 出生，否则跳过（即使 break——避免回退到更通用 group 错绑）
+                if alert_begin and issue_ct and alert_begin < issue_ct:
+                    skipped_time += 1
+                    break
+                update_docs.append(AlertDocument(id=hit.id, issue_id=issue_id))
+                break
+
+        if not update_docs:
+            continue
         try:
             AlertDocument.bulk_create(update_docs, action=BulkActionType.UPSERT)
             total += len(update_docs)
         except Exception:
-            logger.exception("[issue] backfill failed, strategy(%s) issue(%s)", issue.strategy_id, issue.id)
+            logger.exception("[issue] backfill failed, strategy(%s)", strategy_id)
             return
 
-    if total:
-        logger.info("[issue] backfilled %d unlinked alerts, strategy(%s) issue(%s)", total, issue.strategy_id, issue.id)
+    if total or skipped_time:
+        logger.info(
+            "[issue] strategy(%s) backfilled %d unlinked alerts, skipped_time=%d "
+            "(%d active issues, %d agg-dim groups, live_priority=%s)",
+            strategy_id,
+            total,
+            skipped_time,
+            sum(len(m) for m in grouped_fp_map.values()),
+            len(grouped_fp_map),
+            live_agg_dims_tuple is not None,
+        )
+
+
+def _extract_alert_dimensions(hit) -> dict:
+    """从 ES hit 提取 AlertDocument.dimensions 为 {key: value} dict。
+
+    与 IssueAggregationProcessor._get_alert_dimensions 对齐，保证两侧 fingerprint 计算一致。
+    """
+    result: dict = {}
+    raw = hit.to_dict().get("dimensions") or []
+    for dim in raw:
+        if isinstance(dim, dict):
+            key = dim.get("key", "")
+            value = dim.get("value", "")
+        else:
+            key = getattr(dim, "key", "")
+            value = getattr(dim, "value", "")
+        if key:
+            result[key] = value
+    return result
 
 
 def _allowed_scope_keys(aggregate_dimensions: list[str]) -> set[str] | None:
