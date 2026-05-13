@@ -1222,7 +1222,7 @@ class SpaceTableIDRedis:
             for data in _filter_data
         }
 
-        other_filter = {"is_enable": True, "is_deleted": False}
+        other_filter = {}
         if settings.ENABLE_MULTI_TENANT_MODE:
             other_filter.update({"bk_tenant_id": bk_tenant_id})
 
@@ -1232,9 +1232,18 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias"],
+            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias", "default_storage"],
             other_filter=other_filter,
         )  # 新增bk_biz_id_alias,部分业务存在自定义过滤规则别名需求，如bk_biz_id -> appid
+
+        # ES / Doris 路由由后续独立流程处理，这里仅按 default_storage 排除，不再根据 RT 启用或删除状态过滤。
+        _table_list = [
+            data
+            for data in _table_list
+            if data["default_storage"] not in [models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS]
+        ]
+        table_ids = {data["table_id"] for data in _table_list}
+        table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}
 
         # 获取结果表对应的类型
         measurement_type_dict = get_measurement_type_by_table_id(
