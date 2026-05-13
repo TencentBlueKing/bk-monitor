@@ -378,8 +378,6 @@ class IssueDocument(BaseDocument):
     def rename(self, new_name: str, operator: str) -> list:
         """重命名 Issue"""
         new_name = new_name.strip()
-        if not new_name:
-            raise ValueError("Issue name cannot be empty")
         old_name = self.name
         # 内容未变化时直接返回当前活动列表，不写 ES
         if new_name == old_name:

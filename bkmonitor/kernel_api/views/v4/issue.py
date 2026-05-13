@@ -13,7 +13,7 @@ from rest_framework import serializers
 from constants.issue import IssuePriority, IssueStatus
 from core.drf_resource import Resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from bkmonitor.documents.issue import IssueDocument, IssueNameDuplicatedError
+from bkmonitor.documents.issue import IssueActivityNotFoundError, IssueDocument, IssueNameDuplicatedError
 from fta_web.issue.resources import IssueIDField
 
 
@@ -173,6 +173,12 @@ class RenameResource(Resource):
         new_name = serializers.CharField(label="Issue 名称", min_length=1, max_length=256)
         operator = serializers.CharField(label="操作人")
 
+        def validate_new_name(self, value: str) -> str:
+            stripped = value.strip()
+            if not stripped:
+                raise serializers.ValidationError("Issue name cannot be empty")
+            return stripped
+
     def perform_request(self, validated_request_data):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
@@ -239,6 +245,9 @@ class EditFollowUpResource(Resource):
                 content=validated_request_data["content"],
                 operator=validated_request_data["operator"],
             )
+        except IssueActivityNotFoundError as e:
+            # 评论不存在或不属于当前 Issue（含传入非 comment 类型 activity_id 的情况）
+            raise serializers.ValidationError(str(e))
         except PermissionError as e:
             # 非原作者尝试编辑评论
             raise serializers.ValidationError(str(e))
