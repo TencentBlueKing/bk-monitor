@@ -217,6 +217,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "pagesize": 4,
                 "openid": "openid_1",
                 "task_id": None,
+                "file_name": None,
                 "start_time": 1716000000000,
                 "end_time": 1716600000000,
                 "ordering": "-created_at",
@@ -227,6 +228,7 @@ class TestTGPASearchHandler(SimpleTestCase):
             {
                 "bk_biz_id": 2,
                 "openid": "openid_1",
+                "file_name": None,
                 "start_time": 1716000000000,
                 "end_time": 1716600000000,
                 "page": 1,
@@ -260,6 +262,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "pagesize": 10,
                 "openid": None,
                 "task_id": "12345",
+                "file_name": None,
                 "start_time": None,
                 "end_time": None,
                 "ordering": "-created_at",
