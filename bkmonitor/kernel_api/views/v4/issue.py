@@ -246,6 +246,7 @@ class EditFollowUpResource(Resource):
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
             "status": issue.status,
+            "content": validated_request_data["content"],
             "update_time": issue.update_time,
             "activities": activities or [],
         }
