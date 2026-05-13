@@ -31,7 +31,8 @@ import SearchBar from './search-bar';
 import UserInfoCard from './user-info-card';
 import TaskListPanel from './task-list-panel';
 import LogDetailPanel from './log-detail-panel';
-import type { SearchParams, LogItem, UserReportStats, ProcessStatus, DataSource } from './types';
+import type { SearchParams, LogItem, UserReportStats, ProcessStatus, DataSource, UrlState } from './types';
+import useUrlSync from './use-url-sync';
 import useStore from '@/hooks/use-store';
 import $http from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -52,6 +53,17 @@ export default defineComponent({
   setup() {
     const store = useStore();
     const router = useRouter();
+
+    // ---- URL 参数同步 ----
+    const { getUrlState, syncUrlParams, clearUrlParams } = useUrlSync();
+    const initialUrlState = getUrlState();
+
+    // ---- 从 URL 回填 spaceUid 到 store ----
+    const route = useRoute();
+    const urlSpaceUid = route.query.spaceUid as string;
+    if (urlSpaceUid && urlSpaceUid !== store.state.spaceUid) {
+      store.commit('updateSpace', urlSpaceUid);
+    }
 
     /** 是否有下载权限 */
     const isAllowedDownload = ref(false);
@@ -200,8 +212,17 @@ export default defineComponent({
             taskList.value = list;
             // 首次加载默认选中第一项
             if (list.length > 0) {
-              selectedLogItem.value = list[0];
-              fetchClientInfo(list[0]);
+              const urlFileName = initialUrlState?.fileName;
+              const matchedItem = urlFileName
+                ? list.find((item: LogItem) => item.file_name === urlFileName)
+                : null;
+              if (urlFileName) {
+                delete initialUrlState.fileName;
+              }
+              selectedLogItem.value = matchedItem || list[0];
+              fetchClientInfo(selectedLogItem.value);
+              // 任务列表返回后同步 URL（选中的任务文件名）
+              syncUrlParams({ fileName: selectedLogItem?.value?.file_name });
             }
           }
           hasMore.value = taskList.value.length < total;
@@ -229,6 +250,13 @@ export default defineComponent({
       timeRange.value = params.timeRange;
       timezone.value = params.timezone;
       lastSearchParams.value = params;
+      // 搜索时同步 URL（关键词、时间范围、时区）
+      syncUrlParams({
+        keyword: params.openid,
+        startTime: params.timeRange[0],
+        endTime: params.timeRange[1],
+        timezone: params.timezone,
+      });
       fetchTaskList(params);
     };
 
@@ -249,10 +277,23 @@ export default defineComponent({
       isTaskListCollapsed.value = false;
     };
 
+    /** LogDetailPanel URL 同步回调 */
+    const handleUrlSync = (state: Partial<UrlState>) => {
+      syncUrlParams(state);
+    };
+
     /** 点击日志条目 */
     const handleLogItemSelect = (item: LogItem) => {
       selectedLogItem.value = item;
       fetchClientInfo(item);
+      // 手动切换任务时同步 URL（选中的任务文件名，同时清除文件和过滤/高亮状态）
+      syncUrlParams({
+        fileName: item.file_name,
+        fileId: undefined,
+        filterKey: [],
+        filterType: undefined,
+        highlightList: [],
+      });
     };
 
     /**
@@ -468,6 +509,8 @@ export default defineComponent({
       () => store.state.spaceUid,
       (newSpaceUid, oldSpaceUid) => {
         if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
+          // 业务切换时清空 URL 中的条件
+          clearUrlParams();
           const hasPermission = isFeatureToggleOn(
             'tgpa_task',
             [String(store.state.bkBizId), String(newSpaceUid)],
@@ -568,8 +611,10 @@ export default defineComponent({
           indexSetId={indexSetId.value}
           timezone={timezone.value}
           isAllowedDownload={isAllowedDownload.value}
+          initialUrlState={initialUrlState}
           on-expand={handleExpandTaskList}
           on-collect={handleCollectNow}
+          on-url-sync={handleUrlSync}
         />
       </div>,
     ];
@@ -577,7 +622,10 @@ export default defineComponent({
     return () => (
       <div class='client-log-search-root'>
         {/* 搜索区域 */}
-        <SearchBar on-search={handleSearch} />
+        <SearchBar
+          initialUrlState={initialUrlState}
+          on-search={handleSearch}
+        />
 
         {/* 用户信息展示区域 + 任务内容区域 */}
         <div

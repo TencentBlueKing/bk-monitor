@@ -33,7 +33,7 @@ import $http from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useDownloadFile } from '../../manage-v2/client-log/hooks/use-download-file';
 
-import type { LogItem } from '../types';
+import type { LogItem, UrlState } from '../types';
 import ClientLogViewer from './log-viewer';
 import ClientLogToolbar from './toolbar';
 
@@ -128,10 +128,18 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** URL 回填的初始状态 */
+    initialUrlState: {
+      type: Object as () => Partial<UrlState>,
+      default: () => ({}),
+    },
   },
-  emits: ['expand', 'collect'],
+  emits: ['expand', 'collect', 'url-sync'],
   setup(props, { emit }) {
     const store = useStore();
+
+    /** URL 初始状态 */
+    const urlState = (props.initialUrlState ?? {}) as Partial<UrlState>;
 
     /** 使用文件下载 Hook */
     const { downloadFile: download } = useDownloadFile();
@@ -173,8 +181,30 @@ export default defineComponent({
       toolbarRef.value?.reset?.();
     };
 
-    /** 跳过过滤条件 watcher 的标记 */
-    let skipFilterWatch = false;
+    let skipNextResetFilters = false;
+
+    let skipNextFilterWatch = false;
+
+    /** 向父组件同步 URL 状态 */
+    const emitUrlSync = () => {
+      const state: Partial<UrlState> = {};
+      if (selectedFileId.value) {
+        state.fileId = selectedFileId.value;
+      }
+      if (filterKey.value.length) {
+        state.filterKey = [...filterKey.value];
+        state.filterType = filterType.value;
+      } else {
+        state.filterKey = [];
+        delete state.filterType;
+      }
+      if (highlightList.value.length) {
+        state.highlightList = highlightList.value.map((item: any) => item.heightKey ?? item);
+      } else {
+        state.highlightList = [];
+      }
+      emit('url-sync', state);
+    };
 
     /** 日志内容列表 */
     const logList = ref<Record<string, any>[]>([]);
@@ -309,7 +339,7 @@ export default defineComponent({
       allFolderIds.value = folderIds;
       expandedNodeIds.value = new Set(folderIds);
 
-      // 默认选中第一个叶子节点（文件）
+      // 查找第一个叶子节点（文件）
       const findFirstFile = (nodes: FileTreeNode[]): string | null => {
         for (const node of nodes) {
           if (!node.children || node.children.length === 0) {
@@ -320,7 +350,45 @@ export default defineComponent({
         }
         return null;
       };
-      selectedFileId.value = findFirstFile(fileTreeData.value);
+
+      // 首次加载时优先使用 URL 中的 fileId，否则选中第一个文件
+      if (urlState?.fileId) {
+        const urlFileId = urlState.fileId;
+        const fileExists = list.includes(urlFileId);
+
+        skipNextResetFilters = true;
+        // 跳过 setFilters 触发 handleFilter 导致的 filterKey/filterType watcher
+        skipNextFilterWatch = true;
+
+        //  通过 setFilters 设置过滤条件和高亮配置
+        const toolbarFilters: { filterKey?: string[]; filterType?: string; highlightList?: string[] } = {};
+        if (urlState.filterKey?.length) {
+          toolbarFilters.filterKey = [...urlState.filterKey];
+        }
+        if (urlState.filterType && toolbarFilters.filterKey?.length) {
+          toolbarFilters.filterType = urlState.filterType;
+        }
+        if (urlState.highlightList?.length) {
+          toolbarFilters.highlightList = [...urlState.highlightList];
+        }
+        if (Object.keys(toolbarFilters).length) {
+          toolbarRef.value?.setFilters?.(toolbarFilters);
+        }
+
+        // 过滤条件已就绪，再设置 selectedFileId 触发 fetchLogList
+        if (fileExists) {
+          selectedFileId.value = urlFileId;
+        } else {
+          selectedFileId.value = findFirstFile(fileTreeData.value);
+        }
+
+        delete urlState.fileId;
+      } else {
+        selectedFileId.value = findFirstFile(fileTreeData.value);
+      }
+
+      // 选中文件后同步 URL
+      emitUrlSync();
     });
 
     /**
@@ -424,10 +492,16 @@ export default defineComponent({
 
     /** 监听选中文件变化，加载对应日志内容 */
     watch(selectedFileId, (fileId) => {
-      resetFilters();
+      if (skipNextResetFilters) {
+        // URL 回填阶段跳过 resetFilters，保留已设置的过滤/高亮值
+        skipNextResetFilters = false;
+      } else {
+        // resetFilters 会修改 filterKey/filterType 从而触发 filter watcher，需跳过
+        skipNextFilterWatch = true;
+        resetFilters();
+      }
       if (fileId) {
         hasMore.value = false;
-        skipFilterWatch = true;
         fetchLogList(fileId);
       } else {
         logList.value = [];
@@ -439,8 +513,8 @@ export default defineComponent({
     watch(
       [filterKey, filterType],
       () => {
-        if (skipFilterWatch) {
-          skipFilterWatch = false;
+        if (skipNextFilterWatch) {
+          skipNextFilterWatch = false;
           return;
         }
         const fileId = selectedFileId.value;
@@ -485,6 +559,8 @@ export default defineComponent({
         default:
           break;
       }
+      // 手动更改过滤/高亮配置时同步 URL
+      emitUrlSync();
     };
 
     /** 标签页列表 */
@@ -533,6 +609,8 @@ export default defineComponent({
     const handleNodeClick = (node: any) => {
       if (!node.children || !node.children.length) {
         selectedFileId.value = node.id;
+        // 手动切换文件时同步 URL
+        emitUrlSync();
       }
     };
 

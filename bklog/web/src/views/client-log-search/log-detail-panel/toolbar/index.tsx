@@ -151,8 +151,31 @@ export default defineComponent({
       filterType.value = 'include';
     };
 
+    /** 从外部设置过滤和高亮状态 */
+    const setFilters = (params: {
+      filterKey?: string[];
+      filterType?: string;
+      highlightList?: string[];
+    }) => {
+      if (params.filterKey) {
+        filterKey.value = [...params.filterKey];
+        catchFilterKey.value = [...params.filterKey];
+        emit('handle-filter', 'filterKey', filterKey.value);
+      }
+      if (params.filterType) {
+        filterType.value = params.filterType;
+        emit('handle-filter', 'filterType', filterType.value);
+      }
+      if (params.highlightList) {
+        highlightList.value = [...params.highlightList];
+        // 触发 changeLightList 生成 colorHighlightList
+        changeLightList();
+      }
+    };
+
     expose({
       reset,
+      setFilters,
       getHighlightControl: () => highlightControlRef.value,
     });
 

@@ -33,24 +33,36 @@ import $http from '@/api';
 import TimeRange from '@/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { SearchParams } from '../types';
+import type { SearchParams, UrlState } from '../types';
 
 import './index.scss';
 
 export default defineComponent({
   name: 'SearchBar',
+  props: {
+    /** 初始 URL 状态（用于回填搜索条件） */
+    initialUrlState: {
+      type: Object as unknown as () => Partial<UrlState>,
+      default: undefined,
+    },
+  },
   emits: ['search'],
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const store = useStore();
 
-    /** 搜索 openid */
-    const openid = ref('');
+    /** 搜索 openid — 优先使用 URL 回填值 */
+    const urlState = props.initialUrlState ?? {};
+    const openid = ref(urlState.keyword || '');
 
-    /** 时间范围 */
-    const timeRange = ref<[string, string]>(DEFAULT_TIME_RANGE as [string, string]);
+    /** 时间范围 — 优先使用 URL 回填值 */
+    const timeRange = ref<[string, string]>(
+      urlState.startTime && urlState.endTime
+        ? [urlState.startTime, urlState.endTime]
+        : DEFAULT_TIME_RANGE as [string, string],
+    );
 
-    /** 时区 */
-    const timezone = ref(window.timezone);
+    /** 时区 — 优先使用 URL 回填值 */
+    const timezone = ref(urlState.timezone || window.timezone);
 
     // ---- 字段列表弹窗相关 ----
     /** 接口返回的 openid 列表 */
