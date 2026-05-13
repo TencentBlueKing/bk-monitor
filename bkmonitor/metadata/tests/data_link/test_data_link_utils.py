@@ -66,7 +66,7 @@ def test_compose_bkdata_data_id_name():
     """
     # Case1. 常规情况，未超长
     data_name = "bcs_BCS-K8S-00000_custom_metric"
-    expected = "bkm_bcs_BCS-K8S-00000_custom_metric"
+    expected = "bkm_bcs_BCS_K8S_00000_custom_metric"
     assert compose_bkdata_data_id_name(data_name) == expected
 
     # Case2. 超长情况，截断

@@ -688,7 +688,10 @@ def create_bkbase_data_link(
         data_link_name=bkbase_data_name,
         namespace=namespace,
         data_link_strategy=data_link_strategy,
-        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [monitor_table_id]},
+        defaults={
+            "bk_data_id": data_source.bk_data_id,
+            "table_ids": [monitor_table_id],
+        },
     )
     try:
         # 2. 尝试根据套餐，申请创建链路

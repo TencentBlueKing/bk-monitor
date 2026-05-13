@@ -1619,6 +1619,8 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
+# ResourceDefinition / RelationDefinition 变更后，是否自动触发 BKBase graph relation 链路增量 apply
+ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE = os.getenv("ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE", "false").lower() == "true"
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []

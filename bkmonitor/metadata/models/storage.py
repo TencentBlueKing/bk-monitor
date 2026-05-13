@@ -114,6 +114,7 @@ class ClusterInfo(models.Model):
     TYPE_ARGUS = "argus"
     TYPE_VM = "victoria_metrics"
     TYPE_DORIS = "doris"
+    TYPE_SURREALDB = "surrealdb"
 
     CLUSTER_TYPE_CHOICES = (
         (TYPE_INFLUXDB, "influxDB"),
@@ -124,6 +125,7 @@ class ClusterInfo(models.Model):
         (TYPE_VM, "victoria_metrics"),
         (TYPE_DORIS, "doris"),
         (TYPE_BKDATA, "bkdata"),
+        (TYPE_SURREALDB, "surrealdb"),
     )
 
     # 默认注册系统名
@@ -6063,7 +6065,7 @@ class DorisStorage(models.Model, StorageResultTable):
                     table_id=table_id,
                     cluster_id=storage_cluster_id,
                     defaults={
-                        "enable_time": datetime.datetime(1970, 1, 1),
+                        "enable_time": django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
                         "is_current": True,
                     },
                 )
@@ -6108,6 +6110,102 @@ class DorisStorage(models.Model, StorageResultTable):
         consul_config["cluster_config"].pop("last_modify_time")
 
         return consul_config
+
+    def get_client(self):
+        pass
+
+
+class SurrealDBStorage(models.Model, StorageResultTable):
+    """
+    SurrealDB 图数据库存储表
+    用于存储关联关系数据（顶点 + 边），通过 BKBase SurrealDBBinding 链路写入
+    """
+
+    STORAGE_TYPE = ClusterInfo.TYPE_SURREALDB
+
+    TEMPORARY_TABLE_TYPE = "temporary"  # 图能力表，支持顶点/边写入，支持指标入图
+    NORMAL_TABLE_TYPE = "normal"  # 基础表，无图能力
+
+    table_id = models.CharField("结果表ID", max_length=128)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+    table_type = models.CharField("图表类型", max_length=32, default=TEMPORARY_TABLE_TYPE)
+    vertices = models.JSONField("顶点定义", default=list)
+    relations = models.JSONField("关系定义", default=list)
+    storage_cluster_id = models.IntegerField("存储集群")
+
+    class Meta:
+        verbose_name = "SurrealDB存储表"
+        verbose_name_plural = "SurrealDB存储表"
+        unique_together = (("table_id", "bk_tenant_id"),)
+
+    @classmethod
+    def create_table(
+        cls,
+        table_id,
+        is_sync_db=True,
+        bk_tenant_id="system",
+        table_type=TEMPORARY_TABLE_TYPE,
+        vertices=None,
+        relations=None,
+        storage_cluster_id=None,
+        **kwargs,
+    ):
+        """
+        创建/更新 SurrealDB 存储表记录（幂等，多次调用不会报错）
+        :param table_id: 结果表ID
+        :param is_sync_db: 是否同步创建（保留参数，SurrealDB 侧由 BKBase 负责实际建表）
+        :param bk_tenant_id: 租户ID
+        :param table_type: 图表类型，temporary=图能力表，normal=基础表
+        :param vertices: 顶点定义列表
+        :param relations: 关系定义列表
+        :param storage_cluster_id: SurrealDB 集群ID
+        """
+        if storage_cluster_id is None:
+            storage_cluster_id = ClusterInfo.objects.get(
+                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_SURREALDB, is_default_cluster=True
+            ).cluster_id
+            logger.info("CreateSurrealDBStorage: use default SurrealDB cluster->[%s]", storage_cluster_id)
+        else:
+            if not ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_SURREALDB, cluster_id=storage_cluster_id
+            ).exists():
+                logger.error("CreateSurrealDBStorage: storage cluster[%s] not exist", storage_cluster_id)
+                raise ValueError("SurrealDB存储集群配置有误，请确认或联系管理员处理")
+
+        try:
+            with transaction.atomic():
+                record, created = cls.objects.update_or_create(
+                    table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    defaults={
+                        "table_type": table_type,
+                        "vertices": vertices or [],
+                        "relations": relations or [],
+                        "storage_cluster_id": storage_cluster_id,
+                    },
+                )
+                StorageClusterRecord.objects.update_or_create(
+                    bk_tenant_id=bk_tenant_id,
+                    table_id=table_id,
+                    cluster_id=storage_cluster_id,
+                    defaults={
+                        "enable_time": django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
+                        "is_current": True,
+                    },
+                )
+                action = "created" if created else "updated"
+                logger.info("CreateSurrealDBStorage: %s SurrealDB storage table[%s] success", action, record.table_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("CreateSurrealDBStorage: create SurrealDB storage table[%s] failed, error[%s]", table_id, e)
+            raise
+
+        logger.info("CreateSurrealDBStorage: ensure SurrealDB storage table->[%s] successfully", table_id)
+
+    def add_field(self, field):
+        pass
+
+    def consul_config(self):
+        pass
 
     def get_client(self):
         pass

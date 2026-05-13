@@ -38,7 +38,9 @@ from metadata.models.data_link.data_link_configs import (
     DataLinkResourceConfigBase,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
+    GraphRelationBindingConfig,
     ResultTableConfig,
+    SurrealDBBindingConfig,
     VMStorageBindingConfig,
 )
 
@@ -49,6 +51,7 @@ SINK_KIND_TO_MODEL: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.VMSTORAGEBINDING.value: VMStorageBindingConfig,
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
+    DataLinkKind.SURREALDBBINDING.value: SurrealDBBindingConfig,
     DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
 }
 
@@ -57,6 +60,7 @@ STORAGE_BINDING_MODELS = (
     VMStorageBindingConfig,
     ESStorageBindingConfig,
     DorisStorageBindingConfig,
+    SurrealDBBindingConfig,
 )
 
 # 重建链路名称前缀，便于与正常创建的链路区分，支持回溯和回滚
@@ -261,7 +265,8 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
     }
     result_table_name_to_table_id = {}
     for rt_instance in rt_instances:
-        rt_instance.table_id = vmrt_to_table_id.get(rt_instance.bkbase_table_id, "")
+        binding_instance = rt_name_map[rt_instance.name]
+        rt_instance.table_id = binding_instance.table_id or vmrt_to_table_id.get(rt_instance.bkbase_table_id, "")
         if not rt_instance.table_id:
             logger.warning(
                 "rebuild_databus_relation: databus->[%s] ResultTableConfig name->[%s] has empty table_id, skip",
@@ -295,6 +300,8 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
     has_doris = DataLinkKind.DORISBINDING.value in sink_map
     if has_es and has_doris:
         strategy = DataLink.BK_LOG
+    elif DataLinkKind.SURREALDBBINDING.value in sink_map:
+        strategy = DataLink.GRAPH_RELATION_TIME_SERIES
     else:
         strategy = ETL_CONFIG_TO_STRATEGY.get(data_source.etl_config)
         if strategy is None:
@@ -352,6 +359,35 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             rt.data_link_name = data_link_name
         ResultTableConfig.objects.bulk_update(rt_instances, ["data_link_name", "table_id"])
 
+        if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+            vm_binding = next((i for i in sink_instances if isinstance(i, VMStorageBindingConfig)), None)
+            surrealdb_binding = next((i for i in sink_instances if isinstance(i, SurrealDBBindingConfig)), None)
+            write_mode = GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+            if vm_binding and not surrealdb_binding:
+                write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
+            elif surrealdb_binding and not vm_binding:
+                write_mode = GraphRelationBindingConfig.WRITE_MODE_SURREALDB
+
+            GraphRelationBindingConfig.objects.update_or_create(
+                bk_tenant_id=databus.bk_tenant_id,
+                namespace=databus.namespace,
+                name=data_link_name,
+                defaults={
+                    "data_link_name": data_link_name,
+                    "bk_biz_id": databus.bk_biz_id,
+                    "status": databus.status,
+                    "write_mode": write_mode,
+                    "vm_cluster_name": getattr(vm_binding, "vm_cluster_name", ""),
+                    "surrealdb_cluster_name": getattr(surrealdb_binding, "surrealdb_cluster_name", ""),
+                    "table_id": table_ids[0] if table_ids else "",
+                    "bkbase_result_table_name": getattr(vm_binding, "bkbase_result_table_name", ""),
+                    "graph_result_table_name": getattr(surrealdb_binding, "bkbase_result_table_name", ""),
+                    "table_type": getattr(surrealdb_binding, "table_type", "temporary"),
+                    "vertices": getattr(surrealdb_binding, "vertices", []),
+                    "relations": getattr(surrealdb_binding, "relations", []),
+                },
+            )
+
     logger.info(
         "rebuild_databus_relation: databus->[%s] relation rebuilt successfully, "
         "strategy->[%s], table_ids->[%s], created->[%s]",
@@ -385,6 +421,11 @@ def _bulk_update_data_link_name(instances: Sequence[DataLinkResourceConfigBase])
         elif model_cls is DorisStorageBindingConfig:
             DorisStorageBindingConfig.objects.bulk_update(
                 cast(list[DorisStorageBindingConfig], group),
+                ["data_link_name", "table_id"],
+            )
+        elif model_cls is SurrealDBBindingConfig:
+            SurrealDBBindingConfig.objects.bulk_update(
+                cast(list[SurrealDBBindingConfig], group),
                 ["data_link_name", "table_id"],
             )
         else:

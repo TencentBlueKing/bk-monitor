@@ -568,6 +568,12 @@ def _get_bkbase_components_config(
         case DataLinkKind.DORISBINDING.value:
             extra_config["doris_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.SURREALDBBINDING.value:
+            extra_config["surrealdb_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_type"] = spec.get("table_type", "temporary")
+            extra_config["vertices"] = spec.get("vertices", [])
+            extra_config["relations"] = spec.get("relations", [])
         case DataLinkKind.DATABUS.value:
             sink_names = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["data_id_name"] = spec["sources"][0]["name"]
@@ -651,6 +657,7 @@ def sync_bkbase_v4_datalink_components():
         DataLinkKind.VMSTORAGEBINDING.value,
         DataLinkKind.ESSTORAGEBINDING.value,
         DataLinkKind.DORISBINDING.value,
+        DataLinkKind.SURREALDBBINDING.value,
         DataLinkKind.DATABUS.value,
         DataLinkKind.DATAID.value,
         DataLinkKind.RESULTTABLE.value,

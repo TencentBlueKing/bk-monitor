@@ -236,7 +236,7 @@ def get_bkdata_status(bk_tenant_id: str, data_link_name: str, with_detail: bool 
 
     # 检查组件配置
     status_ok = True
-    for component_cls in datalink.STRATEGY_RELATED_COMPONENTS[datalink.data_link_strategy]:
+    for component_cls in datalink.get_related_component_classes():
         components = component_cls.objects.filter(data_link_name=data_link_name, bk_tenant_id=bk_tenant_id)
         for component in components:
             component_status = DataLinkComponentStatus(name=component.name, kind=component.kind)

@@ -56,6 +56,11 @@ from metadata.task.tasks import (
 from metadata.tests.common_utils import consul_client
 
 
+@pytest.fixture(autouse=True)
+def disable_prometheus_report_all(mocker):
+    mocker.patch("core.prometheus.metrics.report_all")
+
+
 @pytest.fixture
 def create_or_delete_records(mocker):
     models.Space.objects.create(space_type_id="bkcc", space_id=1, space_name="bkcc_1", bk_tenant_id="system")
@@ -588,9 +593,9 @@ def test_compose_configs_transaction_failure(create_or_delete_records):
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
 
-    # 模拟 ResultTableConfig 的 get_or_create 操作抛出异常
+    # 模拟 ResultTableConfig 的 update_or_create 操作抛出异常
     with patch(
-        "metadata.models.data_link.data_link_configs.ResultTableConfig.objects.get_or_create",
+        "metadata.models.data_link.data_link_configs.ResultTableConfig.objects.update_or_create",
         side_effect=IntegrityError("Simulated error"),
     ):
         with pytest.raises(IntegrityError):
@@ -601,7 +606,7 @@ def test_compose_configs_transaction_failure(create_or_delete_records):
                 data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
             )
 
-            # 调用 compose_configs 方法，该方法内部会调用 get_or_create
+            # 调用 compose_configs 方法，该方法内部会调用 update_or_create
             data_link_ins.compose_configs(
                 bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
             )
@@ -2235,7 +2240,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
             "spec": {
                 "alias": "base_1_agent_event",
                 "bizId": 1,
-                "dataType": "log",
+                "dataType": "metric",
                 "description": "base_1_agent_event",
                 "fields": [
                     {
@@ -2727,6 +2732,251 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert data_link_ins.bk_tenant_id == bk_tenant_id
     assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PORT
     assert data_link_ins.namespace == "bkmonitor"
+
+
+# ============================================================================
+# 测试 relation 图定义自动查询与转换功能
+# ============================================================================
+
+
+@pytest.fixture
+def setup_entity_definitions():
+    """准备测试用的 ResourceDefinition 和 RelationDefinition 数据"""
+    from metadata.models.entity_relation import NAMESPACE_ALL, RelationDefinition, ResourceDefinition
+
+    # 清理测试数据
+    ResourceDefinition.objects.filter(namespace__startswith="test_").delete()
+    ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name__startswith="test_").delete()
+    RelationDefinition.objects.filter(namespace__startswith="test_").delete()
+    RelationDefinition.objects.filter(namespace=NAMESPACE_ALL, name__startswith="test_").delete()
+
+    # 创建业务级定义 (namespace="bk_biz:2")
+    biz_pod = ResourceDefinition.objects.create(
+        namespace="bk_biz:2",
+        name="pod",
+        fields=[
+            {"namespace": "k8s", "name": "pod_name", "required": True},
+            {"namespace": "k8s", "name": "namespace", "required": True},
+        ],
+        creator="test",
+        updater="test",
+    )
+
+    biz_service = ResourceDefinition.objects.create(
+        namespace="bk_biz:2",
+        name="service",
+        fields=[
+            {"namespace": "k8s", "name": "service_name", "required": True},
+        ],
+        creator="test",
+        updater="test",
+    )
+
+    # 创建全局级定义 (namespace="__all__")
+    global_node = ResourceDefinition.objects.create(
+        namespace=NAMESPACE_ALL,
+        name="node",
+        fields=[
+            {"namespace": "k8s", "name": "node_name", "required": True},
+        ],
+        creator="test",
+        updater="test",
+    )
+
+    # 创建业务级关系定义
+    biz_pod_node = RelationDefinition.objects.create(
+        namespace="bk_biz:2",
+        name="pod_node",
+        from_resource="pod",
+        to_resource="node",
+        category="static",
+        is_directional=False,
+        is_belongs_to=True,
+        creator="test",
+        updater="test",
+    )
+
+    # 创建全局级关系定义 (与业务级同名，用于测试优先级)
+    global_pod_node_fallback = RelationDefinition.objects.create(
+        namespace=NAMESPACE_ALL,
+        name="pod_node_fallback",
+        from_resource="pod",
+        to_resource="service",
+        category="dynamic",
+        is_directional=False,
+        is_belongs_to=False,
+        creator="test",
+        updater="test",
+    )
+
+    return {
+        "biz_resources": [biz_pod, biz_service],
+        "global_resources": [global_node],
+        "biz_relations": [biz_pod_node],
+        "global_relations": [global_pod_node_fallback],
+    }
+
+
+@pytest.mark.django_db(databases="__all__")
+class TestRelationGraphAutoQuery:
+    """测试 relation 图定义自动查询功能（调用 entity_relation 层方法）"""
+
+    def test_auto_query_when_vertices_empty(self, setup_entity_definitions):
+        """当 vertices 为空时，应自动查询 ResourceDefinition"""
+        from metadata.models.entity_relation import EntityMeta
+
+        # 不传 vertices 和 relations，触发自动查询
+        with patch("bkm_space.utils.bk_biz_id_to_space_uid", return_value="bk_biz:2"):
+            vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=2)
+
+        # 验证查询结果包含业务级和全局级的资源
+        vertex_names = [v["name"] for v in vertices]
+        assert "pod" in vertex_names
+        assert "service" in vertex_names
+        assert "node" in vertex_names  # 来自全局级 fallback
+
+        relation_names = [r["name"] for r in relations]
+        assert "pod_node" in relation_names
+        assert "pod_node_fallback" in relation_names
+
+    def test_auto_query_when_relations_none(self, setup_entity_definitions):
+        """当 relations 为 None 时，应自动查询 RelationDefinition"""
+        from metadata.models.entity_relation import EntityMeta
+
+        with patch("bkm_space.utils.bk_biz_id_to_space_uid", return_value="bk_biz:2"):
+            vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=2)
+
+        assert len(relations) > 0
+        assert all("name" in r and "from" in r and "to" in r for r in relations)
+
+    def test_fallback_to_all_namespace(self, setup_entity_definitions):
+        """当业务级无定义时，应 fallback 到 __all__ 全局定义"""
+        from metadata.models.entity_relation import EntityMeta
+
+        # 模拟业务级无定义的情况（使用一个不存在的 namespace）
+        with patch("bkm_space.utils.bk_biz_id_to_space_uid", return_value="bk_biz:999"):
+            vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=999)
+
+        # 应该只包含全局级定义
+        vertex_names = [v["name"] for v in vertices]
+        assert "node" in vertex_names  # 只有全局级有 node 定义
+        assert "pod" not in vertex_names  # 业务级无此定义
+
+    def test_auto_query_returns_empty_when_no_definitions(self):
+        """无任何定义时返回空图定义，允许下游同步清空 BKBase binding。"""
+        from metadata.models.entity_relation import EntityMeta
+
+        with patch("bkm_space.utils.bk_biz_id_to_space_uid", return_value="bk_biz:empty"):
+            vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=10000)
+
+        assert vertices == []
+        assert relations == []
+
+    def test_biz_priority_over_global(self, setup_entity_definitions):
+        """业务级定义应优先于全局级定义（同名覆盖）"""
+        from metadata.models.entity_relation import EntityMeta, ResourceDefinition
+
+        with patch("bkm_space.utils.bk_biz_id_to_space_uid", return_value="bk_biz:2"):
+            resource_defs = EntityMeta.query_with_fallback(
+                model_class=ResourceDefinition,
+                biz_namespace="bk_biz:2",
+            )
+
+        # 验证业务级定义在列表前面（优先）
+        names = [r.name for r in resource_defs]
+        assert "pod" in names  # 业务级
+        assert "node" in names  # 全局级
+        # 验证没有重复
+        assert len(names) == len(set(names))
+
+    def test_conversion_resource_definition_to_vertex(self, setup_entity_definitions):
+        """验证 ResourceDefinition -> vertex 的字段转换正确性"""
+        from metadata.models.entity_relation import GraphDelimiter, convert_to_vertices_and_relations
+
+        vertices, _ = convert_to_vertices_and_relations(
+            resource_defs=setup_entity_definitions["biz_resources"],
+            relation_defs=[],
+        )
+
+        # 验证 pod 资源的转换
+        pod_vertex = next((v for v in vertices if v["name"] == "pod"), None)
+        assert pod_vertex is not None
+        assert pod_vertex["id_fields"] == ["pod_name", "namespace"]
+        assert pod_vertex["delimiter"] == GraphDelimiter.default().value
+
+        # 验证 service 资源的转换
+        service_vertex = next((v for v in vertices if v["name"] == "service"), None)
+        assert service_vertex is not None
+        assert service_vertex["id_fields"] == ["service_name"]
+
+    def test_conversion_relation_definition_to_relation(self, setup_entity_definitions):
+        """验证 RelationDefinition -> relation 的字段转换正确性"""
+        from metadata.models.entity_relation import GraphDelimiter, convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            resource_defs=[],
+            relation_defs=setup_entity_definitions["biz_relations"],
+        )
+
+        # 验证 pod_node 关系的转换
+        pod_node_rel = next((r for r in relations if r["name"] == "pod_node"), None)
+        assert pod_node_rel is not None
+        assert pod_node_rel["from"] == "pod"
+        assert pod_node_rel["to"] == "node"
+        assert pod_node_rel["metric"] == "pod_node_metric"
+        assert pod_node_rel["delimiter"] == GraphDelimiter.default().value
+
+    def test_invalid_bk_biz_id_raises_error(self, setup_entity_definitions):
+        """无效的 bk_biz_id 应抛出异常"""
+        from metadata.models.entity_relation import EntityMeta
+
+        # 模拟 bk_biz_id_to_space_uid 抛异常
+        with patch("bkm_space.utils.bk_biz_id_to_space_uid", side_effect=ValueError("Invalid bk_biz_id")):
+            with pytest.raises(ValueError, match="无法查询资源关联定义"):
+                EntityMeta.auto_query_graph_definitions(bk_biz_id=-1)
+
+    def test_backward_compatibility_with_explicit_params(self):
+        """传入显式 vertices/relations 时，不应触发自动查询（向后兼容）"""
+        from metadata.models.entity_relation import GraphDelimiter
+
+        explicit_vertices = [{"name": "custom_pod", "id_fields": ["id"], "delimiter": GraphDelimiter.default().value}]
+        explicit_relations = [
+            {"name": "custom_relation", "from": "pod", "to": "node", "metric": "custom_metric", "delimiter": GraphDelimiter.default().value}
+        ]
+
+        # 验证显式参数不会被覆盖
+        assert explicit_vertices is not None
+        assert explicit_relations is not None
+        assert len(explicit_vertices) == 1
+        assert explicit_vertices[0]["name"] == "custom_pod"
+
+    def test_merge_entities_by_name_deduplication(self):
+        """验证按 name 去重合并逻辑的正确性"""
+        from metadata.models.entity_relation import EntityMeta
+
+        class MockEntity:
+            def __init__(self, name: str):
+                self.name = name
+
+        primary = [MockEntity("a"), MockEntity("b")]
+        fallback = [MockEntity("b"), MockEntity("c")]  # b 与 primary 重复
+
+        merged = EntityMeta.merge_entities_by_name(primary, fallback)
+
+        names = [e.name for e in merged]
+        assert names == ["a", "b", "c"]  # b 只出现一次，且来自 primary
+        assert len(merged) == 3
+
+    def test_query_with_fallback_empty_result(self):
+        """当业务级和全局级都无数据时，应返回空列表"""
+        from metadata.models.entity_relation import EntityMeta, NAMESPACE_ALL, ResourceDefinition
+
+        result = EntityMeta.query_with_fallback(
+            model_class=ResourceDefinition,
+            biz_namespace="nonexistent_namespace_12345",
+        )
+
+        assert result == []
 
 
 # ============================================================

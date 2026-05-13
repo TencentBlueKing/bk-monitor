@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from unittest.mock import call, patch
+from datetime import datetime, timezone
+from unittest.mock import Mock, call, patch
 
 import pytest
 from django.conf import settings
@@ -27,6 +28,31 @@ mock_redis_hgetall_return_value = {
 @pytest.fixture
 def create_and_delete_records(mocker):
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    models.Label.objects.update_or_create(
+        label_id="bk_monitor",
+        defaults={"label_name": "蓝鲸监控", "label_type": models.Label.LABEL_TYPE_SOURCE},
+    )
+    models.Label.objects.update_or_create(
+        label_id="time_series",
+        defaults={"label_name": "时序数据", "label_type": models.Label.LABEL_TYPE_TYPE},
+    )
+    models.Label.objects.update_or_create(
+        label_id=models.Label.RESULT_TABLE_LABEL_OTHER,
+        defaults={"label_name": "其他", "label_type": models.Label.LABEL_TYPE_RESULT_TABLE},
+    )
+    models.ClusterInfo.objects.update_or_create(
+        cluster_id=900001,
+        defaults={
+            "cluster_name": "default_kafka",
+            "cluster_type": models.ClusterInfo.TYPE_KAFKA,
+            "domain_name": "kafka.service",
+            "port": 9092,
+            "description": "",
+            "is_default_cluster": True,
+            "bk_tenant_id": "system",
+            "registered_to_bkbase": True,
+        },
+    )
     data_source = models.DataSource.objects.create(
         bk_data_id=50010,
         data_name="2_bkcc_built_in_time_series",
@@ -62,14 +88,16 @@ def test_sync_relation_redis_data(create_and_delete_records):
     1. Token和DB中不一致，更新并回写
     2. 不存在对应内置RT和数据源，创建之
     """
+    created_group = Mock(last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0) as mock_hset_to_redis,
-        patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011),
+        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
         patch("time.time", return_value=1733198214),
+        patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
         patch(
             "metadata.models.TimeSeriesGroup.create_time_series_group",
-            return_value=models.TimeSeriesGroup.objects.first(),
+            return_value=created_group,
         ),
     ):
         sync_relation_redis_data()
@@ -90,7 +118,7 @@ def test_sync_relation_redis_data(create_and_delete_records):
         assert mock_hset_to_redis.call_count == 2
 
         # 预期参数
-        expected_bkcc_3_timestamp = int(models.TimeSeriesGroup.objects.first().last_modify_time.timestamp())
+        expected_bkcc_3_timestamp = int(created_group.last_modify_time.timestamp())
 
         expected_calls = [
             call(

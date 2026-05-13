@@ -1338,7 +1338,6 @@ class DataSourceOption(OptionBase):
     OPTION_ALIGN_TIME_UNIT = "align_time_unit"
     # 允许指标为空时，丢弃记录选项, 值为 bool 型
     OPTION_DROP_METRICS_ETL_CONFIGS = "drop_metrics_etl_configs"
-
     # 增加option标记内容
     bk_data_id = models.IntegerField("数据源ID", db_index=True)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")

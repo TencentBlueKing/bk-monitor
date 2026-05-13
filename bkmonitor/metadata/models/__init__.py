@@ -36,7 +36,10 @@ from .data_link import (  # noqa
     ESStorageBindingConfig,
     LogDataBusConfig,
     LogResultTableConfig,
+    GraphDataBusConfig,
+    GraphRelationBindingConfig,
     ResultTableConfig,
+    SurrealDBBindingConfig,
     VMStorageBindingConfig,
     DorisStorageBindingConfig,
 )
@@ -91,6 +94,7 @@ from .storage import (
     SpaceRelatedStorageInfo,
     StorageClusterRecord,
     StorageResultTable,
+    SurrealDBStorage,
 )
 from .vm import AccessVMRecord, SpaceVMInfo
 
@@ -121,6 +125,7 @@ __all__ = [
     "StorageResultTable",
     "ESStorage",
     "DorisStorage",
+    "SurrealDBStorage",
     "BkDataStorage",
     "ArgusStorage",
     "StorageClusterRecord",
@@ -163,6 +168,9 @@ __all__ = [
     "RecordRule",
     "ResultTableFlow",
     "BkBaseResultTable",
+    "GraphDataBusConfig",
+    "GraphRelationBindingConfig",
+    "SurrealDBBindingConfig",
     # resource relation
     "EntityMeta",
     "CustomRelationStatus",

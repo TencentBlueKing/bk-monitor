@@ -40,17 +40,30 @@ from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
+    ExpandableGroup,
+    GraphDataBusConfig,
+    GraphRelationBindingConfig,
+    GraphRelationConfig,
     ResultTableConfig,
+    SurrealDBBindingConfig,
     VMStorageBindingConfig,
 )
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
-from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
+from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
+from metadata.models.entity_relation import (
+    EntityMeta,
+    NAMESPACE_ALL,
+    RelationDefinition,
+    ResourceDefinition,
+)
 
 if TYPE_CHECKING:
     from metadata.models import DataSource
     from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
+
+SURREALDB_RT_SUFFIX = "_graph"
 
 
 CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
@@ -129,11 +142,11 @@ class DataLink(models.Model):
     BCS_FEDERAL_PROXY_TIME_SERIES = "bcs_federal_proxy_time_series"  # 联邦代理集群（父集群）时序链路
     BCS_FEDERAL_SUBSET_TIME_SERIES = "bcs_federal_subset_time_series"  # 联邦集群（子集群）时序链路
     BASEREPORT_TIME_SERIES_V1 = "basereport_time_series_v1"  # 主机基础数据上报时序链路
+    GRAPH_RELATION_TIME_SERIES = "graph_relation_time_series"  # 图关系时序链路
     SYSTEM_PROC_PERF = "system_proc_perf"  # 系统进程性能链路
     SYSTEM_PROC_PORT = "system_proc_port"  # 系统进程端口链路
     BASE_EVENT_V1 = "base_event_v1"  # 基础事件链路
     BK_LOG = "bk_log"  # 日志链路
-
     DATA_LINK_STRATEGY_CHOICES = (
         (BK_STANDARD_V2_EVENT, "标准自定义事件链路"),
         (BK_STANDARD_V2_TIME_SERIES, "标准单指标单表时序数据链路"),
@@ -142,6 +155,7 @@ class DataLink(models.Model):
         (BCS_FEDERAL_PROXY_TIME_SERIES, "联邦代理时序数据链路"),
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
         (BASEREPORT_TIME_SERIES_V1, "主机基础采集时序数据链路"),
+        (GRAPH_RELATION_TIME_SERIES, "图关系时序数据链路"),
         (BASE_EVENT_V1, "基础事件链路"),
         (SYSTEM_PROC_PERF, "系统进程性能链路"),
         (SYSTEM_PROC_PORT, "系统进程端口链路"),
@@ -161,11 +175,21 @@ class DataLink(models.Model):
             DataBusConfig,
         ],
         BASEREPORT_TIME_SERIES_V1: [ResultTableConfig, VMStorageBindingConfig, ConditionalSinkConfig, DataBusConfig],
+        GRAPH_RELATION_TIME_SERIES: [
+            GraphRelationConfig,
+            GraphRelationBindingConfig,
+        ],
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
+    }
+
+    # 删除链路时使用的入口组件。
+    # 图关系链路的实际子资源由 GraphRelationBindingConfig.delete_config 按写入模式清理。
+    STRATEGY_DELETE_COMPONENTS: dict[str, list[type["DataLinkResourceConfigBase"]]] = {
+        GRAPH_RELATION_TIME_SERIES: [GraphRelationBindingConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -175,6 +199,7 @@ class DataLink(models.Model):
         BCS_FEDERAL_PROXY_TIME_SERIES: ClusterInfo.TYPE_VM,
         BCS_FEDERAL_SUBSET_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASEREPORT_TIME_SERIES_V1: ClusterInfo.TYPE_VM,
+        GRAPH_RELATION_TIME_SERIES: ClusterInfo.TYPE_SURREALDB,
         BASE_EVENT_V1: ClusterInfo.TYPE_ES,
         SYSTEM_PROC_PERF: ClusterInfo.TYPE_VM,
         SYSTEM_PROC_PORT: ClusterInfo.TYPE_VM,
@@ -212,12 +237,31 @@ class DataLink(models.Model):
 
     def delete_data_link(self):
         """删除数据链路"""
-        component_classes = self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
+        component_classes = self.get_delete_component_classes()
         for component_class in reversed(component_classes):
             components = component_class.objects.filter(data_link_name=self.data_link_name)
             for component in components:
                 component.delete_config()
         self.delete()
+
+    def get_related_component_classes(
+        self, write_mode: str | None = None
+    ) -> list[type["DataLinkResourceConfigBase"]]:
+        if write_mode is None and self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            graph_binding = self._get_graph_relation_binding()
+            if graph_binding:
+                write_mode = graph_binding.write_mode
+
+        component_classes: list[type["DataLinkResourceConfigBase"]] = []
+        for cls in self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]:
+            if isinstance(cls, type) and issubclass(cls, ExpandableGroup):
+                component_classes.extend(cls.expand(write_mode))
+            else:
+                component_classes.append(cls)
+        return list(dict.fromkeys(component_classes))
+
+    def get_delete_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
+        return self.STRATEGY_DELETE_COMPONENTS.get(self.data_link_strategy) or self.get_related_component_classes()
 
     def compose_configs(self, *args, existing_context: "ExistingComponentContext | None" = None, **kwargs):
         """
@@ -236,6 +280,7 @@ class DataLink(models.Model):
             DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: self.compose_bcs_federal_proxy_time_series_configs,
             DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES: self.compose_bcs_federal_subset_time_series_configs,
             DataLink.BASEREPORT_TIME_SERIES_V1: self.compose_basereport_time_series_configs,
+            DataLink.GRAPH_RELATION_TIME_SERIES: self.compose_graph_relation_time_series_configs,
             DataLink.BASE_EVENT_V1: self.compose_base_event_configs,
             DataLink.SYSTEM_PROC_PERF: partial(
                 self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PERF
@@ -351,6 +396,246 @@ class DataLink(models.Model):
             config_list,
         )
         return config_list
+
+    @classmethod
+    def compose_surrealdb_table_name(cls, table_id: str) -> str:
+        graph_table_id = table_id.replace(".__default__", f"{SURREALDB_RT_SUFFIX}.__default__", 1)
+        if graph_table_id == table_id:
+            graph_table_id = f"{table_id}{SURREALDB_RT_SUFFIX}"
+        return utils.compose_bkdata_table_id(graph_table_id)
+
+    def _compose_graph_relation_surrealdb_configs(
+        self,
+        graph_binding_ins: GraphRelationBindingConfig,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+    ) -> list[dict[str, Any]]:
+        if not graph_binding_ins.surrealdb_cluster_name:
+            raise ValueError("compose_graph_relation_surrealdb_configs: surrealdb cluster name is empty")
+        if not graph_binding_ins.vertices and not graph_binding_ins.relations:
+            raise ValueError(
+                "compose_graph_relation_surrealdb_configs: graph definitions are empty, skip SurrealDB binding"
+            )
+
+        surrealdb_rt_name = self.compose_surrealdb_table_name(table_id)
+        surreal_sinks = [
+            {
+                "kind": DataLinkKind.SURREALDBBINDING.value,
+                "name": surrealdb_rt_name,
+                "namespace": self.namespace,
+            }
+        ]
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            surreal_sinks[0]["tenant"] = self.bk_tenant_id
+
+        with transaction.atomic():
+            rt_surreal_ins, _ = ResultTableConfig.objects.update_or_create(
+                name=surrealdb_rt_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id, "data_type": "graph"},
+            )
+            SurrealDBStorage.create_table(
+                table_id=table_id,
+                is_sync_db=False,
+                bk_tenant_id=self.bk_tenant_id,
+                table_type=graph_binding_ins.table_type,
+                vertices=graph_binding_ins.vertices,
+                relations=graph_binding_ins.relations,
+                storage_cluster_id=ClusterInfo.objects.get(
+                    bk_tenant_id=self.bk_tenant_id,
+                    cluster_name=graph_binding_ins.surrealdb_cluster_name,
+                    cluster_type=ClusterInfo.TYPE_SURREALDB,
+                ).cluster_id,
+            )
+            surrealdb_binding_ins, _ = SurrealDBBindingConfig.objects.update_or_create(
+                name=surrealdb_rt_name,
+                surrealdb_cluster_name=graph_binding_ins.surrealdb_cluster_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "table_id": table_id,
+                    "bkbase_result_table_name": surrealdb_rt_name,
+                    "table_type": graph_binding_ins.table_type,
+                    "vertices": graph_binding_ins.vertices,
+                    "relations": graph_binding_ins.relations,
+                },
+            )
+            graph_databus_ins, _ = GraphDataBusConfig.objects.update_or_create(
+                name=surrealdb_rt_name,
+                data_id_name=utils.compose_bkdata_data_id_name(data_source.data_name),
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.SURREALDBBINDING.value}:{surrealdb_rt_name}"],
+                },
+            )
+
+        return [
+            rt_surreal_ins.compose_config(),
+            surrealdb_binding_ins.compose_config(),
+            graph_databus_ins.compose_config(surreal_sinks),
+        ]
+
+    def compose_graph_relation_time_series_configs(
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+        storage_cluster_name: str = "",
+        write_mode: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        生成图关系时序链路配置。
+
+        GraphRelationBindingConfig 负责声明 relation 数据写入目标：
+        - vm: 仅下发 VM ResultTable/VmStorageBinding/Databus
+        - surrealdb: 仅下发 SurrealDB ResultTable/SurrealDBBinding/GraphDatabus
+        - vm_and_surrealdb: 两边都下发
+        """
+        logger.info(
+            "compose_graph_relation_time_series_configs: data_link_name->[%s],bk_data_id->[%s],table_id->[%s],"
+            "storage_cluster_name->[%s],write_mode->[%s]",
+            self.data_link_name,
+            data_source.bk_data_id,
+            table_id,
+            storage_cluster_name,
+            write_mode,
+        )
+
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
+        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+        surrealdb_rt_name = self.compose_surrealdb_table_name(table_id)
+
+        existed_graph_binding = self._get_graph_relation_binding()
+        effective_write_mode = (
+            GraphRelationBindingConfig.normalize_write_mode(write_mode)
+            if write_mode is not None
+            else (
+                existed_graph_binding.write_mode
+                if existed_graph_binding
+                else GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+            )
+        )
+        should_write_surrealdb = effective_write_mode in (
+            GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
+            GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        )
+
+        surrealdb_cluster_name = existed_graph_binding.surrealdb_cluster_name if existed_graph_binding else ""
+        if should_write_surrealdb:
+            surrealdb_cluster = ClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+                is_default_cluster=True,
+            ).first()
+            if not surrealdb_cluster:
+                raise ValueError("compose_graph_relation_time_series_configs: not found surrealdb default cluster")
+            surrealdb_cluster_name = surrealdb_cluster.cluster_name
+
+        queried_vertices, queried_relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
+        if should_write_surrealdb and not queried_vertices and not queried_relations:
+            raise ValueError(
+                "compose_graph_relation_time_series_configs: graph definitions are empty, skip SurrealDB binding"
+            )
+        vm_cluster_name = storage_cluster_name or (existed_graph_binding.vm_cluster_name if existed_graph_binding else "")
+        graph_binding_defaults = {
+            "table_id": table_id,
+            "vm_cluster_name": vm_cluster_name,
+            "surrealdb_cluster_name": surrealdb_cluster_name,
+            "bkbase_result_table_name": bkbase_vmrt_name,
+            "graph_result_table_name": surrealdb_rt_name,
+            "table_type": "temporary",
+            "vertices": queried_vertices,
+            "relations": queried_relations,
+            "write_mode": effective_write_mode,
+        }
+
+        if existed_graph_binding:
+            existed_graph_binding.transition_write_mode(effective_write_mode)
+
+        with transaction.atomic():
+            graph_binding_ins, _ = GraphRelationBindingConfig.objects.update_or_create(
+                name=self.data_link_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults=graph_binding_defaults,
+            )
+            graph_binding_ins.status = DataLinkResourceStatus.INITIALIZING.value
+            graph_binding_ins.save(update_fields=["status"])
+
+        configs: list[dict[str, Any]] = []
+        if graph_binding_ins.should_write_vm:
+            if not graph_binding_ins.vm_cluster_name:
+                raise ValueError("compose_graph_relation_time_series_configs: vm cluster name is empty")
+            with transaction.atomic():
+                vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
+                    name=bkbase_vmrt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": table_id},
+                )
+                vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
+                    name=bkbase_vmrt_name,
+                    vm_cluster_name=vm_cluster_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": table_id, "bkbase_result_table_name": bkbase_vmrt_name},
+                )
+                sinks = [
+                    {
+                        "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                        "name": bkbase_vmrt_name,
+                        "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                    }
+                ]
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    sinks[0]["tenant"] = self.bk_tenant_id
+
+                data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+                    name=bkbase_vmrt_name,
+                    data_id_name=bkbase_data_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={
+                        "bk_data_id": data_source.bk_data_id,
+                        "sink_names": [f"{DataLinkKind.VMSTORAGEBINDING.value}:{bkbase_vmrt_name}"],
+                    },
+                )
+            configs.extend(
+                [
+                    vm_table_id_ins.compose_config(),
+                    vm_storage_ins.compose_config(bk_data_id=data_source.bk_data_id),
+                    data_bus_ins.compose_config(sinks),
+                ]
+            )
+
+        if graph_binding_ins.should_write_surrealdb:
+            configs.extend(
+                self._compose_graph_relation_surrealdb_configs(
+                    graph_binding_ins=graph_binding_ins,
+                    bk_biz_id=bk_biz_id,
+                    data_source=data_source,
+                    table_id=table_id,
+                )
+            )
+        return configs
 
     def compose_log_configs(
         self,
@@ -1461,20 +1746,27 @@ class DataLink(models.Model):
         """
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
+        storage_type = self.STORAGE_TYPE_MAP[self.data_link_strategy]
+        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            storage_type = self._resolve_graph_relation_storage_type(kwargs.get("write_mode"))
+
         try:
             # NOTE:新链路下，data_link_name和bkbase_data_name一致
-            BkBaseResultTable.objects.get_or_create(
+            bkbase_rt_record, _ = BkBaseResultTable.objects.get_or_create(
                 data_link_name=self.data_link_name,
-                monitor_table_id=kwargs.get("table_id")
-                if self.data_link_strategy != self.BASEREPORT_TIME_SERIES_V1
-                else self.data_link_name,
-                bkbase_data_name=self.data_link_name,
-                storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
                 defaults={
+                    "monitor_table_id": kwargs.get("table_id")
+                    if self.data_link_strategy != self.BASEREPORT_TIME_SERIES_V1
+                    else self.data_link_name,
+                    "bkbase_data_name": self.data_link_name,
+                    "storage_type": storage_type,
                     "status": DataLinkResourceStatus.INITIALIZING.value,
+                    "bk_tenant_id": self.bk_tenant_id,
                 },
-                bk_tenant_id=self.bk_tenant_id,
             )
+            if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES and bkbase_rt_record.storage_type != storage_type:
+                bkbase_rt_record.storage_type = storage_type
+                bkbase_rt_record.save(update_fields=["storage_type"])
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "apply_data_link: data_link_name->[%s] create BkBaseResultTable error->[%s]", self.data_link_name, e
@@ -1614,6 +1906,21 @@ class DataLink(models.Model):
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
+        rt_name: str | None = None
+        databus_class: type[DataBusConfig | GraphDataBusConfig] = DataBusConfig
+        if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
+            graph_binding = self._get_graph_relation_binding()
+            if graph_binding:
+                if graph_binding.should_write_vm:
+                    rt_name = graph_binding.bkbase_result_table_name
+                    storage_cluster_name = graph_binding.vm_cluster_name or storage_cluster_name
+                    storage_type = ClusterInfo.TYPE_VM
+                elif graph_binding.should_write_surrealdb:
+                    rt_name = graph_binding.graph_result_table_name or self.compose_surrealdb_table_name(table_id)
+                    storage_cluster_name = graph_binding.surrealdb_cluster_name or storage_cluster_name
+                    storage_type = ClusterInfo.TYPE_SURREALDB
+                    databus_class = GraphDataBusConfig
+
         try:
             if storage_cluster_id is not None:
                 cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=storage_cluster_id)
@@ -1641,7 +1948,10 @@ class DataLink(models.Model):
             namespace=self.namespace,
             data_link_name=self.data_link_name,
             table_id=table_id,
-        ).order_by("-last_modify_time", "-id")
+        )
+        if rt_name:
+            rt_queryset = rt_queryset.filter(name=rt_name)
+        rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
         rt_count = rt_queryset.count()
         rt = rt_queryset.first()
         if rt_count == 0:
@@ -1660,11 +1970,14 @@ class DataLink(models.Model):
                 rt.name if rt else "",
             )
 
-        databus_queryset = DataBusConfig.objects.filter(
+        databus_queryset = databus_class.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
             namespace=self.namespace,
             data_link_name=self.data_link_name,
-        ).order_by("-last_modify_time", "-id")
+        )
+        if rt_name:
+            databus_queryset = databus_queryset.filter(name=rt_name)
+        databus_queryset = databus_queryset.order_by("-last_modify_time", "-id")
         databus_count = databus_queryset.count()
         databus = databus_queryset.first()
         if databus_count == 0:
@@ -1705,6 +2018,25 @@ class DataLink(models.Model):
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("sync_metadata: data_link_name->[%s],sync_metadata failed,error->[%s]", self.data_link_name, e)
+
+    def _get_graph_relation_binding(self) -> GraphRelationBindingConfig | None:
+        return GraphRelationBindingConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+        ).first()
+
+    def _resolve_graph_relation_storage_type(self, write_mode: str | None) -> str:
+        if write_mode is None:
+            graph_binding = self._get_graph_relation_binding()
+            write_mode = graph_binding.write_mode if graph_binding else GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+
+        return (
+            ClusterInfo.TYPE_SURREALDB
+            if GraphRelationBindingConfig.normalize_write_mode(write_mode)
+            == GraphRelationBindingConfig.WRITE_MODE_SURREALDB
+            else ClusterInfo.TYPE_VM
+        )
 
     def sync_basereport_metadata(self, bk_biz_id, storage_cluster_name, source, datasource, extra_source=None):
         """
