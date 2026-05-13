@@ -108,15 +108,23 @@ export default defineComponent({
     const handleSubmit = async () => {
       if (submitLoading.value) return; // 防重复点击
       submitLoading.value = true;
-      if (formData.app_name) {
-        const isDuplicate = await checkAppDuplicate(formData.app_name);
+      appNameErr.value = '';
+      const valid = await formRef.value?.validate().catch(() => false);
+
+      let isDuplicate = false;
+      if (valid) {
+        isDuplicate = await checkAppDuplicate(formData.app_name).catch(() => true);
         if (isDuplicate) {
           appNameErr.value = t('应用名称已存在');
         } else {
           appNameErr.value = '';
         }
       }
-      const valid = await formRef.value?.validate().catch(() => false);
+      if (isDuplicate) {
+        await formRef.value?.validate().catch(() => false);
+        submitLoading.value = false;
+        return;
+      }
       if (valid) {
         const params = {
           app_name: formData.app_name,
