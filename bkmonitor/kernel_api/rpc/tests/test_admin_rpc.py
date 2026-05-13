@@ -576,4 +576,5 @@ def test_cluster_info_list_params_schema():
 def test_bcs_cluster_list_params_schema():
     detail = KernelRPCRegistry.get_function_detail("admin.bcs_cluster.list")
     assert detail is not None
+    assert "bk_data_id" in detail["params_schema"]
     assert "status" in detail["params_schema"]
