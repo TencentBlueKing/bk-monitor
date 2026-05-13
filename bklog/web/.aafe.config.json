@@ -22,7 +22,8 @@
   "scenarios": [
     "complex",
     "patterns",
-    "ddd"
+    "ddd",
+    "graph"
   ],
   "editors": [
     "cursor"
@@ -34,7 +35,8 @@
     "scenarios": [
       "complex",
       "patterns",
-      "ddd"
+      "ddd",
+      "graph"
     ]
   },
   "recommendedPackages": [
@@ -43,6 +45,7 @@
     "@aafe/complex",
     "@aafe/patterns",
     "@aafe/ddd",
+    "@aafe/graph",
     "@aafe/adapter-cursor"
   ],
   "rerun": {
