@@ -93,6 +93,8 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.restore_issue, endpoint="issue/restore"),
         # 修改优先级（支持批量）
         ResourceRoute("POST", resource.issue.update_issue_priority, endpoint="issue/update_priority"),
+        # 重命名 Issue
+        ResourceRoute("POST", resource.issue.rename_issue, endpoint="issue/rename"),
         # 添加跟进信息（支持批量）
         ResourceRoute("POST", resource.issue.add_issue_follow_up, endpoint="issue/add_follow_up"),
         # 查询变更记录(活动日志)

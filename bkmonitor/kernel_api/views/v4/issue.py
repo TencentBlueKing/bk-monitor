@@ -13,7 +13,7 @@ from rest_framework import serializers
 from constants.issue import IssuePriority, IssueStatus
 from core.drf_resource import Resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from bkmonitor.documents.issue import IssueDocument
+from bkmonitor.documents.issue import IssueDocument, IssueNameDuplicatedError
 from fta_web.issue.resources import IssueIDField
 
 
@@ -164,6 +164,36 @@ class UpdatePriorityResource(Resource):
         }
 
 
+class RenameResource(Resource):
+    """重命名 Issue"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_id = IssueIDField(label="Issue ID")
+        new_name = serializers.CharField(label="Issue 名称", min_length=1, max_length=256)
+        operator = serializers.CharField(label="操作人")
+
+    def perform_request(self, validated_request_data):
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
+        try:
+            activities = issue.rename(
+                new_name=validated_request_data["new_name"], operator=validated_request_data["operator"]
+            )
+        except IssueNameDuplicatedError as e:
+            # 同业务下已存在同名 Issue
+            raise serializers.ValidationError(str(e))
+        return {
+            "bk_biz_id": issue.bk_biz_id,
+            "issue_id": issue.id,
+            "status": issue.status,
+            "name": issue.name,
+            "update_time": issue.update_time,
+            "activities": activities or [],
+        }
+
+
 class AddFollowUpResource(Resource):
     """向 Issue 添加跟进评论"""
 
@@ -207,6 +237,8 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", RestoreResource(), endpoint="restore"),
         # 修改 issue 优先级
         ResourceRoute("POST", UpdatePriorityResource(), endpoint="update_priority"),
+        # 重命名 issue
+        ResourceRoute("POST", RenameResource(), endpoint="rename"),
         # 向 Issue 添加跟进评论
         ResourceRoute("POST", AddFollowUpResource(), endpoint="add_follow_up"),
     ]

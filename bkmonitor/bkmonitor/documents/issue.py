@@ -30,6 +30,10 @@ class IssueNotFoundError(Exception):
     """Issue 不存在或业务归属不匹配"""
 
 
+class IssueNameDuplicatedError(Exception):
+    """同业务下已存在同名 Issue"""
+
+
 @registry.register_document
 class IssueDocument(BaseDocument):
     """Issue 主体文档（唯一持久化存储，对齐 AlertDocument）"""
@@ -258,6 +262,34 @@ class IssueDocument(BaseDocument):
         self.update_time = int(time.time())
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(activities)
+
+    def rename(self, new_name: str, operator: str) -> list:
+        """重命名 Issue"""
+        new_name = new_name.strip()
+        if not new_name:
+            raise ValueError("Issue name cannot be empty")
+        old_name = self.name
+        if new_name == old_name:
+            return []
+
+        dup_search = (
+            IssueDocument.search(all_indices=True)
+            .filter("term", bk_biz_id=str(self.bk_biz_id))
+            .filter("term", **{"name.raw": new_name})
+            .exclude("term", **{"_id": self.id})
+            .params(size=1)
+        )
+        if dup_search.execute().hits:
+            raise IssueNameDuplicatedError(f"Issue name already exists, bk_biz_id={self.bk_biz_id}, name={new_name}")
+
+        self.name = new_name
+        self.update_time = int(time.time())
+        self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
+        return self._write_activities(
+            [
+                (IssueActivityType.NAME_CHANGE, old_name, new_name, operator, None),
+            ]
+        )
 
     def _get_pre_archive_status(self) -> str:
         """

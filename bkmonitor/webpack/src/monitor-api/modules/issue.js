@@ -6,6 +6,7 @@ export const reopenIssue = request('POST', 'fta/issue/issue/reopen/');
 export const archiveIssue = request('POST', 'fta/issue/issue/archive/');
 export const restoreIssue = request('POST', 'fta/issue/issue/restore/');
 export const updateIssuePriority = request('POST', 'fta/issue/issue/update_priority/');
+export const renameIssue = request('POST', 'fta/issue/issue/rename/');
 export const addIssueFollowUp = request('POST', 'fta/issue/issue/add_follow_up/');
 export const listIssueActivities = request('GET', 'fta/issue/issue/activities/');
 export const listIssueHistory = request('GET', 'fta/issue/issue/history/');
@@ -21,6 +22,7 @@ export default {
   restoreIssue,
   archiveIssue,
   updateIssuePriority,
+  renameIssue,
   addIssueFollowUp,
   listIssueActivities,
   listIssueHistory,
