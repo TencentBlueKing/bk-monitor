@@ -48,10 +48,10 @@ export default defineComponent({
     batchAction: {
       type: Function as PropType<(action: IssuesBatchActionType) => boolean | undefined>,
     },
-    /* 导出异步回调，返回 Promise 以便内部自动管理 loading 状态 */
-    /* onExport: {
+    /** 导出异步回调，返回 Promise 以便内部自动管理 loading 状态 */
+    onExport: {
       type: Function as PropType<() => Promise<void>>,
-    }, */
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -59,8 +59,8 @@ export default defineComponent({
     /** 批量操作下拉菜单是否展开 */
     const dropdownShow = shallowRef(false);
 
-    /* 导出按钮 loading 状态 */
-    /* const exportLoading = shallowRef(false); */
+    /** 导出按钮 loading 状态 */
+    const exportLoading = shallowRef(false);
 
     /** 是否有选中行 */
     const hasSelection = computed(() => props.issuesIds.length > 0);
@@ -100,7 +100,7 @@ export default defineComponent({
      * @description 处理导出按钮点击，内部管理 loading 状态，通过 prop callback 将业务逻辑委托给父组件
      * @returns {Promise<void>}
      */
-    /* const handleExport = async () => {
+    const handleExport = async () => {
       if (exportLoading.value) return;
       exportLoading.value = true;
       try {
@@ -108,15 +108,15 @@ export default defineComponent({
       } finally {
         exportLoading.value = false;
       }
-    }; */
+    };
 
     return {
       dropdownShow,
-      /* exportLoading, */
+      exportLoading,
       hasSelection,
       batchActions,
       handleBatchAction,
-      /* handleExport, */
+      handleExport,
     };
   },
   render() {
@@ -161,14 +161,14 @@ export default defineComponent({
               ),
             }}
           </BkDropdown>
-          {/* <BkButton
+          <BkButton
             class='issues-toolbar-export-btn'
             disabled={!this.hasSelection}
             loading={this.exportLoading}
             onClick={this.handleExport}
           >
             <span class='toolbar-btn-text'>{this.$t('导出')}</span>
-          </BkButton> */}
+          </BkButton>
         </div>
 
         {/* 表格区域：通过 default slot 注入 */}

@@ -25,6 +25,7 @@
  */
 
 import type { ImpactScopeResourceKeyType, IssuePriorityType, IssueStatusType } from './constants';
+import type { IssueIdentifier } from './dialog';
 
 /** 聚合配置 */
 export interface AggregateConfig {
@@ -34,6 +35,16 @@ export interface AggregateConfig {
   alert_levels: number[];
   /** 条件 */
   conditions: unknown[];
+}
+
+/** 导出 Issues 的参数 */
+export interface ExportIssuesParams {
+  /** Issue 标识列表 */
+  issues: IssueIdentifier[];
+  /** 趋势结束时间 */
+  trend_end_time?: number;
+  /** 趋势开始时间 */
+  trend_start_time?: number;
 }
 
 /** 影响范围（动态资源类型字典） */
