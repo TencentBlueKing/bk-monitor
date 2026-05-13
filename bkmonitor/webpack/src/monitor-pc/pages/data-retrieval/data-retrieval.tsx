@@ -1089,6 +1089,12 @@ export default class DataRetrieval extends tsc<object> {
     this.handleQuery();
   }
   /**
+   * @description: 顶部工具栏自动刷新间隔变更（需同步到 compareValue，图表 reflesh-interval 依赖该值）
+   */
+  handleRefleshIntervalChange(val: number) {
+    this.compareValue.tools.refleshInterval = val;
+  }
+  /**
    * @description: 合并视图
    * @param {boolean} val
    */
@@ -3352,6 +3358,7 @@ export default class DataRetrieval extends tsc<object> {
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
+                  onRefleshIntervalChange={this.handleRefleshIntervalChange}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
