@@ -191,6 +191,7 @@ class TGPAReportHandler:
         es_query = cls._build_es_query(
             bk_biz_id=params["bk_biz_id"],
             keyword=params.get("keyword"),
+            file_name_list=[params["file_name"]] if params.get("file_name") else None,
             openid=params.get("openid"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),
