@@ -39,6 +39,7 @@ from bkmonitor.utils.alert_drilling import (
     get_alert_query_config_or_none,
     get_log_clustering_filter_dict,
     get_log_clustering_info,
+    get_log_clustering_time_range,
 )
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
 from constants.data_source import DataSourceLabel
@@ -369,12 +370,11 @@ class DefaultTarget(BaseTarget):
         extra_filter_dict: dict[str, list[str]] = {}
         exclude_fields: set[str] | None = None
         if clustering_type and clustering_index_set_id:
-            interval = query_config.get("agg_interval", 60)
-            start_time = self._alert.begin_time - 60 * 60
-            # 不额外延伸 1 小时，避免日志示例时间远落后于告警时间；降序查询时可取到最近一次异常时刻的日志
-            end_time: int = max(self._alert.begin_time + interval, self._alert.latest_time)
-            extra_filter_dict = get_log_clustering_filter_dict(self._alert, clustering_type, start_time, end_time)
-            exclude_fields = {"sensitivity", "signature", "__dist_05"}
+            time_range: tuple[int, int] | None = get_log_clustering_time_range(self._alert, clustering_type)
+            if time_range:
+                start_time, end_time = time_range
+                extra_filter_dict = get_log_clustering_filter_dict(self._alert, clustering_type, start_time, end_time)
+                exclude_fields = {"sensitivity", "signature", "__dist_05"}
 
         # 构造日志查询过滤条件
         log_search_condition: dict[str, Any] = build_log_search_condition(

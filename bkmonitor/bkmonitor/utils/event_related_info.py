@@ -22,10 +22,11 @@ from bkmonitor.data_source import load_data_source, DataSource, UnifyQuery
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import Event, QueryConfigModel
 from bkmonitor.utils.alert_drilling import (
+    ClusteringType,
     get_alert_query_config_or_none,
     get_log_clustering_filter_dict,
     get_log_clustering_info,
-    ClusteringType,
+    get_log_clustering_time_range,
 )
 from bkmonitor.utils import time_tools
 from constants.data_source import DataSourceLabel, DataTypeLabel, GrayUnifyQueryDataSources
@@ -113,11 +114,12 @@ def get_alert_relation_info(alert: AlertDocument, length_limit=True):
 
 
 def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: str):
-    query_config = alert.strategy["items"][0]["query_configs"][0]
-    interval = query_config.get("agg_interval", 60)
-    start_time = alert.begin_time - 60 * 60
-    # 不额外延伸 1 小时，避免日志示例时间远落后于告警时间；降序查询时可取到最近一次异常时刻的日志
-    end_time: int = max(alert.begin_time + interval, alert.latest_time)
+    query_config: dict[str, Any] | None = get_alert_query_config_or_none(alert)
+    time_range: tuple[int, int] | None = get_log_clustering_time_range(alert, ClusteringType.COUNT)
+    if query_config is None or time_range is None:
+        return ""
+
+    start_time, end_time = time_range
     group_by = query_config.get("agg_dimension", [])
 
     try:
@@ -143,9 +145,11 @@ def get_alert_info_for_log_clustering_new_class(alert: AlertDocument, index_set_
     if not query_config:
         return ""
 
-    interval = query_config.get("agg_interval", 60)
-    start_time = alert.begin_time
-    end_time: int = max(alert.begin_time + interval, alert.latest_time)
+    time_range: tuple[int, int] | None = get_log_clustering_time_range(alert, ClusteringType.NEW_CLASS)
+    if not time_range:
+        return ""
+
+    start_time, end_time = time_range
     group_by = query_config.get("agg_dimension", [])
     try:
         dimensions = alert.origin_alarm["data"]["dimensions"]

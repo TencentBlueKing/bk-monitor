@@ -103,6 +103,24 @@ def get_log_clustering_info(strategy: dict[str, Any]) -> tuple[str | None, str |
     return None, None
 
 
+def get_log_clustering_time_range(alert: AlertDocument, clustering_type: str) -> tuple[int, int] | None:
+    """获取日志聚类告警关联日志检索的时间范围。"""
+    query_config: dict[str, Any] | None = get_alert_query_config_or_none(alert)
+    if query_config is None:
+        return None
+
+    interval: int = query_config.get("agg_interval", 60)
+    if clustering_type == ClusteringType.COUNT:
+        start_time: int = alert.begin_time - 60 * 60
+    elif clustering_type == ClusteringType.NEW_CLASS:
+        start_time = alert.begin_time
+    else:
+        return None
+
+    end_time: int = max(alert.begin_time + interval, alert.latest_time)
+    return start_time, end_time
+
+
 def get_log_clustering_filter_dict(
     alert: AlertDocument, clustering_type: str, start_time: int | None = None, end_time: int | None = None
 ) -> dict[str, list[str]]:
