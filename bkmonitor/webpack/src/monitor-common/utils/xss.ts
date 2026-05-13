@@ -59,11 +59,14 @@ let mailFilterInstance: any = null;
 
 const getMailFilter = () => {
   if (mailFilterInstance) return mailFilterInstance;
-  const xssGlobal: any = (window as any).xss || {};
-  const FilterXSSCtor: any = (window as any).FilterXSS || xssGlobal.FilterXSS;
-  if (!FilterXSSCtor || !xssGlobal.getDefaultWhiteList) return null;
+  // xss 浏览器 build (xss/dist/xss) 把 FilterXSS 类、getDefaultWhiteList 等 API 都挂在
+  // window.filterXSS 这个函数对象上。
+  const xssLib: any = window.filterXSS;
+  const FilterXSSCtor: any = xssLib?.FilterXSS;
+  const getDefaultWhiteList: any = xssLib?.getDefaultWhiteList;
+  if (!FilterXSSCtor || !getDefaultWhiteList) return null;
 
-  const whiteList = xssGlobal.getDefaultWhiteList();
+  const whiteList = getDefaultWhiteList();
   const extend = (tag: string, attrs: string[]) => {
     whiteList[tag] = Array.from(new Set([...(whiteList[tag] || []), ...attrs]));
   };
