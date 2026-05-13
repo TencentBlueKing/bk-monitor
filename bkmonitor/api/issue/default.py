@@ -71,8 +71,22 @@ class UpdatePriorityResource(IssueAPIResource):
     method = "POST"
 
 
+class RenameResource(IssueAPIResource):
+    """重命名 Issue"""
+
+    action = "/app/issue/rename/"
+    method = "POST"
+
+
 class AddFollowUpResource(IssueAPIResource):
     """向 Issue 添加跟进评论"""
 
     action = "/app/issue/add_follow_up/"
+    method = "POST"
+
+
+class EditFollowUpResource(IssueAPIResource):
+    """编辑 Issue 跟进评论"""
+
+    action = "/app/issue/edit_follow_up/"
     method = "POST"

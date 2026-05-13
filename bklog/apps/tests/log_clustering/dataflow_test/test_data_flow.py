@@ -165,6 +165,57 @@ TEST_CASES = [
             "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` NOT LIKE '%ERROR%' and `log` NOT LIKE '%INFO%' ) and ( `serverIp` <> 'server_ip_a' and `serverIp` <> 'server_ip_b' ) ) )",
         ),
     },
+    # 嵌套 JSON 字段 + != (单值) -> null-safe, 缺 key 时不被误过滤
+    {
+        "filters": [{"op": "!=", "value": "false", "fields_name": "log.alarm", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'false' ) )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'false' ) ) )",
+        ),
+    },
+    # 嵌套 JSON 字段 + not contains (单值) -> null-safe
+    {
+        "filters": [{"op": "not contains", "value": "false", "fields_name": "log.alarm", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') NOT LIKE '%false%' ) )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') NOT LIKE '%false%' ) ) )",
+        ),
+    },
+    # 嵌套 JSON 字段 + != 多值 -> 每个值都 null-safe, 多值之间 and 连接
+    {
+        "filters": [{"op": "!=", "value": ["false", "off"], "fields_name": "log.alarm", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'false' ) and ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'off' ) )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'false' ) and ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'off' ) ) )",
+        ),
+    },
+    # 嵌套 JSON 字段 + 正向 = (回归测试: 保持现状, 不加 NULL guard, key 缺失不放行)
+    {
+        "filters": [{"op": "=", "value": "true", "fields_name": "log.alarm", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.alarm') = 'true' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.alarm') = 'true' ) )",
+        ),
+    },
+    # 嵌套 JSON 字段 + 正向 contains (回归测试: 保持现状)
+    {
+        "filters": [{"op": "contains", "value": "abc", "fields_name": "log.alarm", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.alarm') LIKE '%abc%' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.alarm') LIKE '%abc%' ) )",
+        ),
+    },
+    # 嵌套字段负向 + 非嵌套字段负向混合: 仅嵌套部分加 NULL guard, 非嵌套保持原 SQL
+    {
+        "filters": [
+            {"op": "!=", "value": "false", "fields_name": "log.alarm", "logic_operator": None},
+            {"op": "!=", "value": "server_ip_a", "fields_name": "serverIp", "logic_operator": "and"},
+        ],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'false' ) and `serverIp` <> 'server_ip_a' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( JSON_VALUE(`log`, '$.alarm') IS NULL OR JSON_VALUE(`log`, '$.alarm') <> 'false' ) and `serverIp` <> 'server_ip_a' ) )",
+        ),
+    },
 ]
 
 
@@ -184,6 +235,19 @@ class TestPatternSearch(TestCase):
                 clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
             )
             self.assertEqual(result, case["result"])
+
+    def test_quote_sql_literal_escapes_special_chars(self):
+        # 普通字符串: 仅加单引号
+        self.assertEqual(DataFlowHandler._quote_sql_literal("simple"), "'simple'")
+        # 空字符串
+        self.assertEqual(DataFlowHandler._quote_sql_literal(""), "''")
+        # 单引号: 转义为 \\' 避免把 SQL 写坏
+        self.assertEqual(DataFlowHandler._quote_sql_literal("it's"), "'it\\'s'")
+        # 反斜杠: 转义为 \\\\
+        self.assertEqual(DataFlowHandler._quote_sql_literal("a\\b"), "'a\\\\b'")
+        # 百分号 / 下划线 (LIKE 通配符) 透传, 由调用方决定语义
+        self.assertEqual(DataFlowHandler._quote_sql_literal("50%"), "'50%'")
+        self.assertEqual(DataFlowHandler._quote_sql_literal("a_b"), "'a_b'")
 
     def test_build_doris_fields(self):
         all_fields = [

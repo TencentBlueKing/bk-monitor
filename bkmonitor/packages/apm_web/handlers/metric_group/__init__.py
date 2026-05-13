@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,16 +8,17 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from .base import BaseMetricGroup, MetricGroupRegistry
 from .define import CalculationType, GroupEnum
 from .groups.resource import ResourceMetricGroup
+from .groups.span import SpanMetricGroup
 from .groups.trpc import TrpcMetricGroup
 from .helper import MetricHelper, PreCalculateHelper
 
 __all__ = [
     MetricGroupRegistry,
     ResourceMetricGroup,
+    SpanMetricGroup,
     TrpcMetricGroup,
     GroupEnum,
     CalculationType,

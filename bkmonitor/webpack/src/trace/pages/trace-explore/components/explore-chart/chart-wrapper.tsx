@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, provide, shallowRef, watch } from 'vue';
+import { computed, defineComponent, inject, provide, shallowRef, watch } from 'vue';
 
 import { traceChats } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
@@ -34,6 +34,7 @@ import { storeToRefs } from 'pinia';
 import ChartCollapse from './chart-collapse';
 import ExploreChart from './explore-chart';
 import { useTraceExploreStore } from '@/store/modules/explore';
+import { BRIDGE_PROPS_KEY } from '../../trace-explore-apm';
 
 import type { IViewOptions } from './types';
 
@@ -68,6 +69,7 @@ export default defineComponent({
   },
   setup() {
     const store = useTraceExploreStore();
+    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
     const panelModels = shallowRef<PanelModel[]>([]);
     const dashboardId = random(10);
     const params = computed<IViewOptions>(() => {
@@ -80,12 +82,23 @@ export default defineComponent({
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
 
+    const handleExploreChartZoomChange = inject(
+      'handleExploreChartZoomChange',
+      (_: [number, number]) => {}
+    );
+
     const getChartPanels = async () => {
+      const params = {
+        app_name: store.appName,
+      };
+      if (window.source_app === 'apm') {
+        Object.assign(params, {
+          service_name: bridgeProps.viewOptions.filters.service_name,
+        });
+      }
       const list =
         store.appName && store.mode
-          ? await traceChats({
-              app_name: store.appName,
-            }).catch(() => [])
+          ? await traceChats(params).catch(() => [])
           : [];
       panelModels.value = list.map(
         item =>
@@ -99,6 +112,7 @@ export default defineComponent({
     };
 
     const handleDataZoomChange = val => {
+      handleExploreChartZoomChange(val);
       store.updateTimeRange(val);
     };
 

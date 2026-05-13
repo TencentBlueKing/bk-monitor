@@ -830,8 +830,8 @@ export default {
   正则不匹配: 'Regular expression mismatch',
   路径黑名单: 'Path blacklist',
   '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
-  '过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本':
-    'The filter supports filtering non-conforming log content during collection, please ensure that the collector has been upgraded to the latest version.',
+  '仅保留命中以下规则的日志，未命中将被丢弃。':
+    'Only logs that match the following rules will be retained; logs that do not match will be discarded.',
   操作符: 'Operator',
   新增过滤组: 'Add filter group',
   请输入列数: 'Please enter the number of columns',
@@ -1131,6 +1131,7 @@ export default {
   '只展示新类 Pattern': 'Only show the new class Pattern',
   当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals',
   '搜索 占位符': 'Search placeholder',
+  '搜索 值': 'Search value',
   '只能基于 1 个字段进行聚类，并且字段是为 text 的分词类型，默认为 log 字段':
     'Clustering can only be performed based on one field, and the field must be of the text type. The default is the log field.',
   '配置有调整，请重新预览': 'The configuration has been adjusted, please preview again',
@@ -1298,4 +1299,14 @@ export default {
   至少需要配置一个排序字段: 'At least one sorting field needs to be configured',
   文件不存在: 'File does not exist',
   热数据天数不能大于过期时间: 'The number of days for hot data cannot exceed the expiration time',
+  'Pattern 标签分析': 'Pattern Tag Analysis',
+  唯一值数量: 'Unique Value Count',
+  总出现次数: 'Total Occurrences',
+  '出现次数 - 降序': 'Occurrences - Descending',
+  '出现次数 - 升序': 'Occurrences - Ascending',
+  值分布表: 'Value Distribution',
+  '出现次数 & 占比': 'Occurrences & Proportion',
+  前往日志检索: 'Go to Log Search',
+  整体趋势: 'Overall Trend',
+  相关样本: 'Related Samples',
 };

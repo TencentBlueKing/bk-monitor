@@ -1,0 +1,204 @@
+paths:
+  /mcp/list_events/:
+    post:
+      operationId: list_events
+      description: List all event sources in BlueKing Monitor. First step in event query workflow, used before get_event_view_config and search_event_log. Returns custom events (data_source_label="custom", data_type_label="event") and log keyword events (data_source_label="bk_monitor", data_type_label="log"). 列出所有事件源。事件查询工作流第一步,在其他工具前使用。返回自定义事件和日志关键字事件。
+      tags:
+      - event_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - data_source_label
+              - data_type_label
+              properties:
+                bk_biz_id:
+                  type: string
+                  default: “2”
+                  description: Business ID in BlueKing Monitor. Identifies the business space (similar to tenant or project). 业务ID,用于标识业务空间(类似租户或项目)。
+                data_type_label:
+                  type: string
+                  default: '"event"'
+                  description: Data type label. "event" for custom events, "log" for log keyword events. 数据类型标签。自定义事件为"event",日志关键字事件为"log"。
+                data_source_label:
+                  type: string
+                  default: '"custom"'
+                  description: Data source label. "custom" for custom events, "bk_monitor" for log keyword events. 数据来源标签。自定义事件为"custom",日志关键字事件为"bk_monitor"。
+                return_dimensions:
+                  type: boolean
+                  default: 'true'
+                  description: 'Whether to return dimension information. Default: true. Set to false to reduce response size when dimension details are not needed. 是否返回维度信息。默认值:true。当不需要维度详情时可设为false以减少响应大小。'
+                app_name:
+                  type: string
+                  description: APM application name. Optional filter to narrow event sources to a specific APM application. Must be obtained from list_apm_applications. APM应用名称。可选过滤条件,将事件源限定到特定APM应用。必须从 list_apm_applications 获取。
+                service_name:
+                  type: string
+                  description: Service name within the APM application. Optional filter to narrow event sources to a specific service. Must be used together with app_name. APM应用下的服务名称。可选过滤条件,将事件源限定到特定服务。需与 app_name 配合使用。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/event/list_events/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_event_view_config/:
+    post:
+      operationId: get_event_view_config
+      description: Get event view config including field schema, types, and operations. The table must be from list_events. Use before search_event_log to understand available fields. Returns field schema, display config, and entities. 获取事件视图配置,包括字段schema、类型和操作。table必须从list_events获取。在search_event_log前使用,了解可用字段。返回字段schema、显示配置和实体定义。
+      tags:
+      - event_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - table
+              - end_time
+              - bk_biz_id
+              - start_time
+              - data_type_label
+              - data_source_label
+              properties:
+                table:
+                  type: string
+                  default: '"gse_system_event"'
+                  description: Event source table name. Must be obtained from list_events tool. 事件源表名,必须从 list_events 工具获取。
+                end_time:
+                  type: string
+                  default: 请动态计算
+                  description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'
+                bk_biz_id:
+                  type: string
+                  default: '"2"'
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                start_time:
+                  type: string
+                  default: 请动态计算
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
+                data_type_label:
+                  type: string
+                  default: '"event"'
+                  description: 'Data type label. Valid values: "event" (custom events), "log" (log keyword events). 数据类型标签。有效值:"event"(自定义事件)、"log"(日志关键字事件)。'
+                data_source_label:
+                  type: string
+                  default: '"custom"'
+                  description: 'Data source label. Valid values: "custom" (custom events), "bk_monitor" (log keyword events). 数据来源标签。有效值:"custom"(自定义事件)、"bk_monitor"(日志关键字事件)。'
+                app_name:
+                  type: string
+                  description: APM application name. Optional filter to scope event view config to a specific APM application. Must be obtained from list_apm_applications. APM应用名称。可选过滤条件,将事件视图配置限定到特定APM应用。必须从 list_apm_applications 获取。
+                service_name:
+                  type: string
+                  description: Service name within the APM application. Optional filter to scope event view config to a specific service. Must be used together with app_name. APM应用下的服务名称。可选过滤条件,将事件视图配置限定到特定服务。需与 app_name 配合使用。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/event/get_event_view_config/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_event_log/:
+    post:
+      operationId: search_event_log
+      description: Execute event search with time range and filters. Use after list_events and get_event_view_config. Timestamps must be dynamic. ⚠️ Time span ≤1 day (86400s). If >1 day, split into batches (≤24h), merge results. Supports pagination and sorting. 执行事件查询,时间戳需动态计算。**⚠️ 跨度≤1天(86400秒)。若>1天,需分批查询(≤24h),合并结果。**支持分页和排序。
+      tags:
+      - event_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - table
+              - end_time
+              - bk_biz_id
+              - start_time
+              - query_string
+              - data_type_label
+              - data_source_label
+              properties:
+                sort:
+                  type: array
+                  items:
+                    type: string
+                  default: '["-time"]'
+                  description: 'Sort field list: - Type: Array of String - Rule: Each item is a field name string. Prefix with - for descending order (e.g. ["-time"]), no prefix for ascending order (e.g. ["event_name"]) - Default: ["-time"] (used if not provided) - Example: ["-time", "event_name"] means sort by time descending first, then by event_name ascending 排序字段列表： - 类型：字符串数组（Array of String） - 规则：每个元素为字段名字符串，以 - 开头表示降序（如 ["-time"]），无前缀表示升序（如 ["event_name"]） - 默认值：["-time"]（未传参时自动使用） - 示例：["-time", "event_name"] 表示先按 time 降序，再按 event_name 升序'
+                limit:
+                  type: string
+                  default: '100'
+                  description: 'Maximum number of event records to return. Used to control result size and prevent excessive data transfer. Default: 100. 返回的最大事件记录数。用于控制结果集大小,避免数据量过大。默认值:100。'
+                table:
+                  type: string
+                  default: '"gse_system_event"'
+                  description: Event source table name. Must be obtained from list_events tool. 事件源表名,必须从 list_events 工具获取。
+                offset:
+                  type: string
+                  default: '0'
+                  description: 'Offset for pagination. Starting position for result retrieval. Default: 0. 分页偏移。结果检索的起始位置。默认值:0。'
+                end_time:
+                  type: string
+                  default: 请动态计算
+                  description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'
+                bk_biz_id:
+                  type: string
+                  default: '"2"'
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                start_time:
+                  type: string
+                  default: 请动态计算
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
+                query_string:
+                  type: string
+                  default: '"OOM"'
+                  description: 'Event search query string. Supports keyword searches and field-based queries. Use field mappings from get_event_view_config to construct valid queries. Examples: "OOM", "error", "type:warning". Default: "*" (all events). 事件查询字符串。支持关键字搜索和基于字段的查询。使用get_event_view_config中的字段映射构建有效查询。示例:"OOM"、"error"、"type:warning"。默认值:"*"(所有事件)。'
+                data_type_label:
+                  type: string
+                  default: '"event"'
+                  description: 'Data type label. Valid values: "event" (custom events), "log" (log keyword events). 数据类型标签。有效值:"event"(自定义事件)、"log"(日志关键字事件)。'
+                data_source_label:
+                  type: string
+                  default: '"custom"'
+                  description: 'Data source label. Valid values: "custom" (custom events), "bk_monitor" (log keyword events). 数据来源标签。有效值:"custom"(自定义事件)、"bk_monitor"(日志关键字事件)。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/event/search_event_log/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true

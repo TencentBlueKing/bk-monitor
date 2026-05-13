@@ -625,6 +625,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         self.is_time_partitioned = is_time_partitioned
         self.is_finaly_partition = is_finaly_partition
         self.need_bucket_count = need_bucket_count
+        self._notice_ways_cache: dict[str, set] | None = None
         self.query_context = kwargs.get("context", {})
         self.query_context.update(
             {
@@ -719,7 +720,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         if show_aggs:
             search_object = self.add_aggs(search_object)
 
-        search_result = search_object.params(track_total_hits=True).execute()
+        search_result = search_object.params(track_total_hits=10000).execute()
 
         if show_dsl:
             return search_result, search_object.to_dict()
@@ -1347,6 +1348,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 return []
 
             alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+            self._notice_ways_cache = alert_notice_ways
 
             for alert_id, ways in alert_notice_ways.items():
                 if ways & target_ways:
@@ -1375,7 +1377,16 @@ class AlertQueryHandler(BaseBizQueryHandler):
         result = search_object.execute()
 
         if result.aggs:
-            return set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+            ids = set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+            if len(ids) >= 10000:
+                logger.warning(
+                    "_collect_current_alert_ids: reached 10000 limit, notice_way filter may be incomplete. "
+                    "bk_biz_ids=%s, start_time=%s, end_time=%s",
+                    self.bk_biz_ids,
+                    self.start_time,
+                    self.end_time,
+                )
+            return ids
         return set()
 
     def handle_aggs_notice_way(self, alert_ids):
@@ -1408,8 +1419,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     ],
                 }
 
-            # 调用公共方法获取每个告警的通知方式
-            alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+            # 优先复用 notice_way 过滤阶段已查询的缓存，避免重复查询 action 索引
+            if self._notice_ways_cache is not None:
+                alert_notice_ways = {k: v for k, v in self._notice_ways_cache.items() if k in alert_ids}
+            else:
+                alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
 
             # 统计每种通知方式的告警数量
             for ways in alert_notice_ways.values():
@@ -1439,6 +1453,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             cls.SHIELD_ABNORMAL_STATUS_NAME: 0,
             cls.NOT_SHIELD_ABNORMAL_STATUS_NAME: 0,
             EventStatus.RECOVERED: 0,
+            EventStatus.CLOSED: 0,
         }
 
         if search_result.aggs:
@@ -1493,6 +1508,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "id": EventStatus.RECOVERED,
                     "name": _("已恢复"),
                     "count": agg_result[EventStatus.RECOVERED],
+                },
+                {
+                    "id": EventStatus.CLOSED,
+                    "name": _("已失效"),
+                    "count": agg_result[EventStatus.CLOSED],
                 },
             ],
         }
@@ -1657,7 +1677,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             "strategy_id": StrategyTranslator(),
             "category": CategoryTranslator(),
             "plugin_id": PluginTranslator(),
-            "bk_topo_node": TopoNodeTranslator(bk_biz_ids=bk_biz_ids), # noqa
+            "bk_topo_node": TopoNodeTranslator(bk_biz_ids=bk_biz_ids),  # noqa
         }
 
         result = super().top_n(fields, size, translators, char_add_quotes)

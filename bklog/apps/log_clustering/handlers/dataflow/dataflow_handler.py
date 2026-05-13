@@ -238,6 +238,19 @@ class DataFlowHandler(BaseAiopsHandler):
         not_clustering_rule_list = ["where", "NOT", "(", default_filter_rule, rules_str, ")"]
         return " ".join(filter_rule_list), " ".join(not_clustering_rule_list)
 
+    # SQL 字符串字面量转义: 至少处理反斜杠和单引号, 避免值里含 ' 时把 SQL 写坏
+    _SQL_STR_ESCAPE_MAP = str.maketrans({"\\": "\\\\", "'": "\\'"})
+
+    @classmethod
+    def _quote_sql_literal(cls, value) -> str:
+        """把任意 filter rule 的 value 转成可直接拼进 Flink SQL 的字符串字面量.
+
+        - 反斜杠 \\  -> \\\\
+        - 单引号 '   -> \\'
+        - 其余字符(含 %, _) 透传, LIKE 通配符由调用方在外层自行追加
+        """
+        return "'" + str(value).translate(cls._SQL_STR_ESCAPE_MAP) + "'"
+
     @classmethod
     def build_condition_list(cls, all_fields_dict, field_name, filter_rule, filter_rules, nested_field_name=None):
         if not isinstance(filter_rule.get("value"), list):
@@ -266,7 +279,14 @@ class DataFlowHandler(BaseAiopsHandler):
                     result.append("and")
                 else:
                     result.append("or")
-            result.extend([query_field_name, op, f"'{val}'"])
+            literal = cls._quote_sql_literal(val)
+            # 嵌套 JSON 字段 + 负向条件 (<> / NOT LIKE) 必须 null-safe:
+            # JSON_VALUE 在 key 缺失时返回 NULL, NULL <> 'xxx' 在 Flink SQL 下不为 TRUE,
+            # 会把本该参与聚类的日志(没填该 key 的)误过滤掉.
+            if nested_field_name and op in ("<>", "NOT LIKE"):
+                result.append(f"( {query_field_name} IS NULL OR {query_field_name} {op} {literal} )")
+            else:
+                result.extend([query_field_name, op, literal])
         if len(filter_rule.get("value")) > 1 and len(filter_rules) > 1:
             result.append(")")
             result.insert(0, "(")

@@ -1705,7 +1705,7 @@ class SearchAlertResource(Resource):
             return request_data
 
         # 提取出所有的时间戳
-        timestamps = [int(match[1][:timestamp_length]) for match in id_matches]
+        timestamps = [int(match[:timestamp_length]) for match in id_matches]
 
         min_timestamp = min(timestamps)  # 最小时间戳
         max_timestamp = max(timestamps)  # 最大时间戳

@@ -97,6 +97,8 @@ export interface IDataQuery {
   fields?: Record<string, string>;
   /** 排序后的fields, 用于前端id拼接 */
   fieldsSort?: FieldsSortType;
+  /** 是否延迟渲染：标记为 true 的 target 不会阻塞首屏图表渲染，请求完成后再合并到现有图表 */
+  lazyRender?: boolean;
   /** 查询的单独配置 */
   options?: DataQueryOptions;
   handleCreateFilterDictValue?: (
@@ -410,6 +412,8 @@ export class DataQuery implements IDataQuery {
   // 用于主机ipv6 去除不需要的group_by字段
   ignore_group_by?: string[];
   isMultiple?: boolean;
+  /** 是否延迟渲染：标记为 true 的 target 不会阻塞首屏图表渲染 */
+  lazyRender?: boolean;
   options?: DataQueryOptions;
   // 主键参数
   primary_key?: string;
