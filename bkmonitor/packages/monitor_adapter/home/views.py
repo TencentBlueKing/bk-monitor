@@ -35,6 +35,7 @@ from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
+from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
 from monitor_web.iam.resources import CallbackResource
@@ -256,12 +257,19 @@ def external_callback(request):
     except Exception:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
-    logger.info(
-        "[{}]: dispatch_grafana with header({}) and params({})".format("external_callback", request.META, params)
-    )
-    result = CallbackResource().perform_request(params)
-    if result["result"]:
+    # HTTP 入口必须携带 token，由 Resource 内部调 ITSM token_verify 校验
+    if not params.get("token"):
+        logger.warning("[external_callback]: missing token")
+        return JsonResponse({"result": False, "message": "missing token"}, status=401)
+
+    logger.info("[external_callback]: dispatch with params keys=%s", sorted(params.keys()))
+    try:
+        result = CallbackResource().request(params)
+    except CustomException as exc:
+        return JsonResponse({"result": False, "message": str(exc)}, status=400)
+    if result.get("result"):
         return JsonResponse(result, status=200)
+    return JsonResponse(result, status=400)
 
 
 @login_exempt
@@ -273,6 +281,15 @@ def report_callback(request):
     except Exception:  # pylint: disable=broad-except
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
-    result = ReportCallbackResource().perform_request(params)
-    if result["result"]:
+    # HTTP 入口必须携带 token，由 Resource 内部调 ITSM token_verify 校验
+    if not params.get("token"):
+        logger.warning("[report_callback]: missing token")
+        return JsonResponse({"result": False, "message": "missing token"}, status=401)
+
+    try:
+        result = ReportCallbackResource().request(params)
+    except CustomException as exc:
+        return JsonResponse({"result": False, "message": str(exc)}, status=400)
+    if result.get("result"):
         return JsonResponse(result, status=200)
+    return JsonResponse(result, status=400)

@@ -637,16 +637,20 @@ class ReportCallbackResource(Resource):
         title = serializers.CharField(required=True, label="工单标题")
         updated_by = serializers.CharField(required=True, label="更新人")
         approve_result = serializers.BooleanField(required=True, label="审批结果")
-        token = serializers.CharField(required=True, label="校验token")
+        token = serializers.CharField(required=False, label="校验token")
 
     def perform_request(self, validated_request_data):
-        verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
-        if not verify_data.get("is_passed", False):
-            return {"message": "Error Token", "result": False}
+        # token 校验仅在请求中带 token 时执行；HTTP 入口由 view 层统一强制要求 token。
+        if validated_request_data.get("token"):
+            verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
+            if not verify_data.get("is_passed", False):
+                return {"message": "Error Token", "result": False}
         try:
             apply_record = ReportApplyRecord.objects.get(approval_sn=validated_request_data["sn"])
         except ReportApplyRecord.DoesNotExist:
-            raise Exception("approval_sn: %s apply record not found", validated_request_data["sn"])
+            error_msg = f"approval_sn: {validated_request_data['sn']} apply record not found"
+            logger.error(error_msg)
+            return dict(result=False, message=error_msg)
         # 审批
         if not validated_request_data["approve_result"]:
             apply_record.status = ApprovalStatusEnum.FAILED.value
