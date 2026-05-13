@@ -431,6 +431,12 @@ export default defineComponent({
       editorView.focus();
     };
 
+    // 处理取消 Grok 弹窗
+    const handleGrokCancel = () => {
+      hidePopover();
+      editorView?.focus();
+    };
+
     // 初始化编辑器
     const initEditor = () => {
       if (!editorRef.value) return;
@@ -524,6 +530,7 @@ export default defineComponent({
             keyword={currentKeyword.value}
             visible={popoverVisible.value}
             on-select={handleGrokSelect}
+            on-cancel={handleGrokCancel}
           />
         );
 
@@ -539,6 +546,9 @@ export default defineComponent({
                 appendTo: document.body,
                 theme: 'bklog-basic-light',
                 arrow: false,
+                offset: [0, 4],
+                maxWidth: 'none',
+                zIndex: 9999,
                 ...(props.popoverPosition === 'cursor'
                   ? {
                     popperOptions: {
