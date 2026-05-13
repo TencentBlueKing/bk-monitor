@@ -216,6 +216,8 @@ export default defineComponent({
             taskList.value = [...taskList.value, ...list];
           } else {
             taskList.value = list;
+            // 重新查询时重置滚动位置到顶部
+            taskListPanelRef.value?.resetScroll?.();
             // 首次加载默认选中第一项
             if (list.length > 0) {
               const matchedItem = urlFileName

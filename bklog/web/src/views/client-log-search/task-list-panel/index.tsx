@@ -64,9 +64,23 @@ export default defineComponent({
     },
   },
   emits: ['log-item-select', 'toggle', 'load-more'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     /** 是否收起 */
     const isCollapsed = ref(false);
+
+    /** 滚动容器引用 */
+    const scrollContainerRef = ref<HTMLElement | null>(null);
+
+    /** 重置滚动位置到顶部，供父组件在重新查询时调用 */
+    const resetScroll = () => {
+      scrollContainerRef.value?.scrollTo({
+        top: 0,
+        behavior: 'auto',
+      });
+    };
+
+    // 暴露 resetScroll 方法供父组件调用
+    expose({ resetScroll });
 
     /** 监听外部 collapsed 变化，同步内部状态 */
     watch(() => props.collapsed, (val) => {
@@ -139,7 +153,7 @@ export default defineComponent({
         </div>
 
         {/* 日志条目列表 */}
-        <div class='task-list' onScroll={handleScroll}>
+        <div class='task-list' ref={scrollContainerRef} onScroll={handleScroll}>
           {props.taskList.map(item => (
             <div
               key={item.file_name}
