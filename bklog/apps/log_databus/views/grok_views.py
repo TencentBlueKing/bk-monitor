@@ -31,6 +31,7 @@ from apps.log_databus.serializers import (
     GrokListSerializer,
     GrokUpdateSerializer,
     GrokUpdatedByListSerializer,
+    SearchGrokSerializer,
 )
 from apps.utils.drf import list_route
 
@@ -206,6 +207,48 @@ class GrokViewSet(ModelViewSet):
         """
         params = self.params_valid(GrokUpdatedByListSerializer)
         return Response(GrokHandler.get_updated_by_list(params["bk_biz_id"]))
+
+    @list_route(methods=["GET"], url_path="search")
+    def search_grok(self, request, *args, **kwargs):
+        """
+        @api {get} /log_databus/grok/search/ Grok模式-名称联想
+        @apiName search_grok
+        @apiGroup Grok
+        @apiDescription 用户输入 Grok 名称时返回联想候选，仅匹配名称，按匹配类型、匹配位置和候选长度加权打分排序。
+        @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {String} keyword 搜索关键字（允许为空，为空时返回全部）
+        @apiParam {Int} [page=1] 页码
+        @apiParam {Int} [pagesize=10] 每页数量，范围 1~100
+        @apiSuccess {Int} total 匹配总数
+        @apiSuccess {Object[]} list 联想列表
+        @apiSuccess {Int} list.id Grok模式ID
+        @apiSuccess {String} list.name 规则名称
+        @apiSuccess {String} list.pattern Grok表达式
+        @apiSuccess {String} list.description 描述
+        @apiSuccess {String} list.sample 样例
+        @apiSuccess {Object} list.sample_result 样例匹配结果
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "total": 1,
+                "list": [
+                    {
+                        "id": 1,
+                        "name": "CUSTOM_LOG",
+                        "pattern": "%{WORD:level}",
+                        "description": "自定义日志级别",
+                        "sample": "INFO",
+                        "sample_result": {"level": "INFO"}
+                    }
+                ]
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(SearchGrokSerializer)
+        return Response(GrokHandler.search_grok(params))
 
     @list_route(methods=["POST"], url_path="debug")
     def debug(self, request, *args, **kwargs):
