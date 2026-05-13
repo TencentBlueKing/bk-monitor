@@ -34,6 +34,10 @@ class IssueNameDuplicatedError(Exception):
     """同业务下已存在同名 Issue"""
 
 
+class IssueActivityNotFoundError(Exception):
+    """Issue 活动记录不存在"""
+
+
 @registry.register_document
 class IssueDocument(BaseDocument):
     """Issue 主体文档（唯一持久化存储，对齐 AlertDocument）"""
@@ -242,6 +246,105 @@ class IssueDocument(BaseDocument):
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(activities)
 
+    def edit_comment(self, activity_id: str, content: str, operator: str) -> list:
+        """
+        编辑已有评论
+
+        Args:
+            activity_id: 待编辑的评论文档 ID
+            content: 新的评论内容。
+            operator: 操作人，必须等于原评论作者。
+
+        Returns:
+            该 Issue 全部活动日志列表（含本次更新与新追加的 COMMENT_EDIT 记录），按时间降序排列。
+
+        Raises:
+            IssueActivityNotFoundError: 指定 activity_id 的 IssueActivityDocument不存在。
+            PermissionError: operator 不是原评论操作者
+        """
+        # 1) 查询原评论信息
+        search = (
+            IssueActivityDocument.search(all_indices=True)
+            .filter("term", **{"_id": activity_id})
+            .filter("term", issue_id=self.id)
+            .filter("term", activity_type=IssueActivityType.COMMENT)
+            .params(size=1)
+        )
+        hits = search.execute().hits
+        if not hits:
+            raise IssueActivityNotFoundError(f"IssueActivity not found, issue_id={self.id}, activity_id={activity_id}")
+        original = hits[0]
+
+        # 2) 权限校验：仅原作者可编辑
+        if original.operator != operator:
+            raise PermissionError(f"Only the original author can edit this comment, activity_id={activity_id}")
+
+        old_content = original.content or ""
+        # 内容未变化时直接返回当前活动列表，不写 ES
+        if old_content == content:
+            return self._read_activities()
+
+        # 仅当 Issue 处于活跃状态时推进 update_time 并回写主文档与缓存，
+        self.update_time = int(time.time())
+        self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
+
+        # 4) 写入前先查询历史活动日志，避免写后读 ES 刷新延迟带来的"漏读最新写入"问题
+        existing_activities = self._read_activities()
+
+        # 5) 评论编辑内容和评论编辑活动记录写入
+        edited_comment = IssueActivityDocument(
+            issue_id=self.id,
+            bk_biz_id=self.bk_biz_id,
+            activity_type=IssueActivityType.COMMENT,
+            from_value=None,
+            to_value=None,
+            operator=operator,
+            content=content,
+            time=int(original.time),
+            create_time=int(original.create_time),
+        )
+        edited_comment.meta.id = activity_id
+        edited_comment.id = activity_id
+
+        edit_activity = IssueActivityDocument(
+            issue_id=self.id,
+            bk_biz_id=self.bk_biz_id,
+            activity_type=IssueActivityType.COMMENT_EDIT,
+            from_value=old_content,
+            to_value=content,
+            operator=operator,
+            content=None,
+            time=self.update_time,
+            create_time=self.update_time,
+        )
+
+        try:
+            IssueActivityDocument.bulk_create([edited_comment, edit_activity], action=BulkActionType.UPSERT)
+        except Exception:
+            logger.exception(
+                "IssueActivityDocument edit bulk_create failed, issue_id=%s, activity_id=%s",
+                self.id,
+                activity_id,
+            )
+
+        # 6) 拼接返回：新增的 COMMENT_EDIT 在最前，历史列表中那条原 COMMENT 用最新内容覆盖
+        new_records = [
+            {
+                "bk_biz_id": edit_activity.bk_biz_id,
+                "activity_id": edit_activity.id,
+                "activity_type": edit_activity.activity_type,
+                "operator": edit_activity.operator or "",
+                "from_value": edit_activity.from_value,
+                "to_value": edit_activity.to_value,
+                "content": edit_activity.content,
+                "time": edit_activity.time,
+            },
+        ]
+        merged_existing = [
+            {**act, "content": content} if act["activity_id"] == activity_id else act for act in existing_activities
+        ]
+        return new_records + merged_existing
+
     def update_priority(self, priority: str, operator: str) -> list:
         """修改优先级（任意状态均可）"""
         old_priority = self.priority
@@ -269,8 +372,9 @@ class IssueDocument(BaseDocument):
         if not new_name:
             raise ValueError("Issue name cannot be empty")
         old_name = self.name
+        # 内容未变化时直接返回当前活动列表，不写 ES
         if new_name == old_name:
-            return []
+            return self._read_activities()
 
         dup_search = (
             IssueDocument.search(all_indices=True)
@@ -360,30 +464,7 @@ class IssueDocument(BaseDocument):
         if now is None:
             now = int(time.time())
         # 写入前先查询历史活动日志，避免写后读的 ES 延迟问题
-        existing_activities = []
-        try:
-            search = (
-                IssueActivityDocument.search(all_indices=True)
-                .filter("term", issue_id=self.id)
-                .sort("-time")
-                .extra(size=500)
-            )
-            hits = search.execute().hits
-            existing_activities = [
-                {
-                    "bk_biz_id": hit.bk_biz_id,
-                    "activity_id": hit.meta.id,
-                    "activity_type": hit.activity_type,
-                    "operator": hit.operator or "",
-                    "from_value": hit.from_value,
-                    "to_value": hit.to_value,
-                    "content": hit.content,
-                    "time": int(hit.time) if hit.time else 0,
-                }
-                for hit in hits
-            ]
-        except Exception:
-            logger.exception("Failed to query existing activities before write, issue_id=%s", self.id)
+        existing_activities = self._read_activities()
 
         new_activities = [
             IssueActivityDocument(
@@ -419,6 +500,33 @@ class IssueDocument(BaseDocument):
             for act in new_activities
         ]
         return new_activity_records + existing_activities
+
+    def _read_activities(self) -> list:
+        """读取当前 Issue 全部活动日志（按时间降序）"""
+        try:
+            search = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=self.id)
+                .sort("-time")
+                .extra(size=500)
+            )
+            hits = search.execute().hits
+            return [
+                {
+                    "bk_biz_id": hit.bk_biz_id,
+                    "activity_id": hit.meta.id,
+                    "activity_type": hit.activity_type,
+                    "operator": hit.operator or "",
+                    "from_value": hit.from_value,
+                    "to_value": hit.to_value,
+                    "content": hit.content,
+                    "time": int(hit.time) if hit.time else 0,
+                }
+                for hit in hits
+            ]
+        except Exception:
+            logger.exception("Failed to read activities, issue_id=%s", self.id)
+            return []
 
 
 @registry.register_document

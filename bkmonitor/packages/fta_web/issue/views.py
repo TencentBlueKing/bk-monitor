@@ -97,6 +97,8 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.rename_issue, endpoint="issue/rename"),
         # 添加跟进信息（支持批量）
         ResourceRoute("POST", resource.issue.add_issue_follow_up, endpoint="issue/add_follow_up"),
+        # 编辑跟进评论
+        ResourceRoute("POST", resource.issue.edit_issue_follow_up, endpoint="issue/edit_follow_up"),
         # 查询变更记录(活动日志)
         ResourceRoute("GET", resource.issue.list_issue_activities, endpoint="issue/activities"),
         # 查询历史 Issue（同策略下已解决的历史 Issue 列表）

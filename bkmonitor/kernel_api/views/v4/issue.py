@@ -219,6 +219,34 @@ class AddFollowUpResource(Resource):
         }
 
 
+class EditFollowUpResource(Resource):
+    """编辑 Issue 跟进评论"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_id = IssueIDField(label="Issue ID")
+        activity_id = serializers.CharField(label="评论活动 ID", min_length=1)
+        content = serializers.CharField(label="编辑后的内容", min_length=1)
+        operator = serializers.CharField(label="操作人")
+
+    def perform_request(self, validated_request_data):
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
+        activities = issue.edit_comment(
+            activity_id=validated_request_data["activity_id"],
+            content=validated_request_data["content"],
+            operator=validated_request_data["operator"],
+        )
+        return {
+            "bk_biz_id": issue.bk_biz_id,
+            "issue_id": issue.id,
+            "status": issue.status,
+            "update_time": issue.update_time,
+            "activities": activities or [],
+        }
+
+
 class IssueViewSet(ResourceViewSet):
     """
     Issue 接口
@@ -241,4 +269,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", RenameResource(), endpoint="rename"),
         # 向 Issue 添加跟进评论
         ResourceRoute("POST", AddFollowUpResource(), endpoint="add_follow_up"),
+        # 编辑 Issue 跟进评论
+        ResourceRoute("POST", EditFollowUpResource(), endpoint="edit_follow_up"),
     ]
