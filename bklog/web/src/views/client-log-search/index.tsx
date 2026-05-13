@@ -190,11 +190,14 @@ export default defineComponent({
         query.file_name = urlFileName;
       }
 
-      // openid 是纯数字时作为 task_id，否则作为 openid
+      // 根据 valueType 决定将搜索值作为 openid 还是 task_id
       const openidVal = params.openid.trim();
       if (openidVal) {
-        if (/^\d+$/.test(openidVal)) {
-          query.task_id = Number(openidVal);
+        if (params.valueType === 'task_id') {
+          const numVal = Number(openidVal);
+          if (!Number.isNaN(numVal)) {
+            query.task_id = numVal;
+          }
         } else {
           query.openid = openidVal;
         }
@@ -371,7 +374,7 @@ export default defineComponent({
     const checkTaskStatus = async () => {
       if (isComponentDestroyed.value) return;
 
-      const pendingItems = taskList.value.filter(item => item.process_status === 'running' || item.process_status === 'pending');
+      const pendingItems = taskList.value.filter(item => item.process_status === 'running');
       if (pendingItems.length === 0) {
         stopPolling();
         return;
@@ -631,6 +634,7 @@ export default defineComponent({
         {/* 搜索区域 */}
         <SearchBar
           initialUrlState={initialUrlState}
+          loading={isPanelLoading.value}
           on-search={handleSearch}
         />
 

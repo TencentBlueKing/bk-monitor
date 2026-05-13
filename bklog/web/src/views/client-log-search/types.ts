@@ -64,11 +64,15 @@ export interface FileTreeNode {
   children?: FileTreeNode[];         // 子节点
 }
 
+/** 搜索值的类型 */
+export type SearchValueType = 'openid' | 'task_id';
+
 /** 搜索参数类型 */
 export interface SearchParams {
   openid: string;                    // openid（搜索关键词）
   timeRange: [string, string];      // 时间范围 [start, end]
   timezone: string;                  // 时区标识
+  valueType?: SearchValueType;      // 搜索值的类型：openid 或 task_id
 }
 
 /** URL 同步的状态类型 */

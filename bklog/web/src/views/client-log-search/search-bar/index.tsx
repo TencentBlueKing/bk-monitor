@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import axios from 'axios';
 
 import { t } from '@/hooks/use-locale';
@@ -33,7 +33,7 @@ import $http from '@/api';
 import TimeRange from '@/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { SearchParams, UrlState } from '../types';
+import type { SearchParams, SearchValueType, UrlState } from '../types';
 
 import './index.scss';
 
@@ -44,6 +44,11 @@ export default defineComponent({
     initialUrlState: {
       type: Object as unknown as () => Partial<UrlState>,
       default: undefined,
+    },
+    /** 面板是否正在加载（加载中时禁用搜索按钮） */
+    loading: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['search'],
@@ -80,6 +85,13 @@ export default defineComponent({
     let cancelExecutor: (() => void) | null = null;
     /** 上次请求 openid 列表时使用的关键词 */
     let lastKeyword: string | null = null;
+
+    // ---- openid/task_id 类型判断相关 ----
+    /** 当前值的类型（openid 或 task_id），从列表选择时为 'openid'，手动输入时待联想结果判断 */
+    const currentValueType = ref<SearchValueType | undefined>(undefined);
+
+    /** 搜索按钮是否禁用（联想请求进行中且类型未确定，或面板加载中时禁用） */
+    const isSearchDisabled = computed(() => props.loading || (isRequesting.value && openid.value.trim() !== '' && !currentValueType.value));
 
     /**
      * 请求 openid 列表
@@ -142,6 +154,12 @@ export default defineComponent({
           .then((res: any) => {
             openidList.value = res.data ?? [];
             lastKeyword = keyword;
+            // 如果当前值是手动输入的（非列表选择），根据返回结果判断类型
+            if (!currentValueType.value && openid.value.trim()) {
+              const trimmedVal = openid.value.trim();
+              const isNumeric = !Number.isNaN(Number(trimmedVal));
+              currentValueType.value = (openidList.value.includes(trimmedVal) || !isNumeric) ? 'openid' : 'task_id';
+            }
           })
           .catch((err: any) => {
             if (axios.isCancel(err)) {
@@ -149,6 +167,11 @@ export default defineComponent({
             }
             openidList.value = [];
             lastKeyword = null;
+            // 请求失败时，根据输入内容判断类型：数字按 task_id，非数字按 openid
+            if (!currentValueType.value && openid.value.trim()) {
+              const isNumeric = !Number.isNaN(Number(openid.value.trim()));
+              currentValueType.value = isNumeric ? 'task_id' : 'openid';
+            }
           })
           .finally(() => {
             isRequesting.value = false;
@@ -162,6 +185,7 @@ export default defineComponent({
       isOpenidListVisible.value = false;
       openidList.value = [];
       lastKeyword = null;
+      currentValueType.value = 'openid';
     };
 
     /** 输入框聚焦 */
@@ -203,10 +227,12 @@ export default defineComponent({
       if (!allowEmpty && !openid.value.trim()) {
         return;
       }
+
       const params: SearchParams = {
         openid: openid.value,
         timeRange: timeRange.value,
         timezone: timezone.value,
+        valueType: currentValueType.value,
       };
       emit('search', params);
     };
@@ -229,12 +255,16 @@ export default defineComponent({
             value={openid.value}
             onChange={(val: string) => {
               openid.value = val;
+              // 手动输入时重置类型，等待联想结果判断
+              currentValueType.value = undefined;
               fetchOpenidList(val);
             }}
             right-icon='bk-icon icon-search'
             onFocus={handleFocus}
             onBlur={handleBlur}
-            on-right-icon-click={() => handleSearch()}
+            on-right-icon-click={() => {
+              if (!isSearchDisabled.value) handleSearch();
+            }}
             clearable
           />
           {/* 字段列表弹窗 */}
@@ -279,6 +309,7 @@ export default defineComponent({
           theme='primary'
           ext-cls='search-bar-btn'
           icon=' bklog-icon bklog-shoudongchaxun'
+          disabled={isSearchDisabled.value}
           onClick={() => handleSearch()}
         >
           {t('查询')}
