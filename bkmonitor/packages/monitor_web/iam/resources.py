@@ -573,6 +573,8 @@ class CallbackResource(Resource):
         token = serializers.CharField(required=False, label="校验token")
 
     def perform_request(self, validated_request_data):
+        # token 校验仅在请求中带 token 时执行；HTTP 入口由 view 层统一强制要求 token，
+        # 内部定时任务（update_external_approval_status）直接调本 Resource 时无需 token。
         if validated_request_data.get("token"):
             verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
             if not verify_data.get("is_passed", False):
