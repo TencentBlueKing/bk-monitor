@@ -262,7 +262,7 @@ class IssueDocument(BaseDocument):
             IssueActivityNotFoundError: 指定 activity_id 的 IssueActivityDocument不存在。
             PermissionError: operator 不是原评论操作者
         """
-        # 1) 查询原评论信息
+        # 查询原评论信息
         search = (
             IssueActivityDocument.search(all_indices=True)
             .filter("term", **{"_id": activity_id})
@@ -275,7 +275,7 @@ class IssueDocument(BaseDocument):
             raise IssueActivityNotFoundError(f"IssueActivity not found, issue_id={self.id}, activity_id={activity_id}")
         original = hits[0]
 
-        # 2) 权限校验：仅原作者可编辑
+        # 权限校验：仅原作者可编辑
         if original.operator != operator:
             raise PermissionError(f"Only the original author can edit this comment, activity_id={activity_id}")
 
@@ -284,14 +284,13 @@ class IssueDocument(BaseDocument):
         if old_content == content:
             return self._read_activities()
 
-        # 仅当 Issue 处于活跃状态时推进 update_time 并回写主文档与缓存，
         self.update_time = int(time.time())
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
 
-        # 4) 写入前先查询历史活动日志，避免写后读 ES 刷新延迟带来的"漏读最新写入"问题
+        # 写入前先查询历史活动日志，避免写后读 ES 刷新延迟带来的"漏读最新写入"问题
         existing_activities = self._read_activities()
 
-        # 5) 评论编辑内容和评论编辑活动记录写入
+        # 评论编辑内容和评论编辑活动记录写入
         edited_comment = IssueActivityDocument(
             issue_id=self.id,
             bk_biz_id=self.bk_biz_id,
@@ -320,14 +319,24 @@ class IssueDocument(BaseDocument):
 
         try:
             IssueActivityDocument.bulk_create([edited_comment, edit_activity], action=BulkActionType.UPSERT)
-        except Exception:
-            logger.exception(
-                "IssueActivityDocument edit bulk_create failed, issue_id=%s, activity_id=%s",
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument edit bulk_create failed, retrying once, issue_id=%s, activity_id=%s: %s",
                 self.id,
                 activity_id,
+                e,
             )
+            try:
+                IssueActivityDocument.bulk_create([edited_comment, edit_activity], action=BulkActionType.UPSERT)
+            except Exception as e2:
+                logger.error(
+                    "IssueActivityDocument edit bulk_create retry failed, issue_id=%s, activity_id=%s: %s",
+                    self.id,
+                    activity_id,
+                    e2,
+                )
 
-        # 6) 拼接返回：新增的 COMMENT_EDIT 在最前，历史列表中那条原 COMMENT 用最新内容覆盖
+        # 拼接返回：新增的 COMMENT_EDIT 在最前，历史列表中那条原 COMMENT 用最新内容覆盖
         new_records = [
             {
                 "bk_biz_id": edit_activity.bk_biz_id,
@@ -482,8 +491,12 @@ class IssueDocument(BaseDocument):
         ]
         try:
             IssueActivityDocument.bulk_create(new_activities)
-        except Exception:
-            logger.exception("IssueActivityDocument bulk_create failed, issue_id=%s", self.id)
+        except Exception as e:
+            logger.warning("IssueActivityDocument bulk_create failed, retrying once, issue_id=%s: %s", self.id, e)
+            try:
+                IssueActivityDocument.bulk_create(new_activities)
+            except Exception as e2:
+                logger.error("IssueActivityDocument bulk_create retry failed, issue_id=%s: %s", self.id, e2)
 
         # 将本次新增的活动拼到历史记录头部（新活动时间最新，排在最前）
         new_activity_records = [

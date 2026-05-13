@@ -233,11 +233,15 @@ class EditFollowUpResource(Resource):
         issue = IssueDocument.get_issue_or_raise(
             validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
         )
-        activities = issue.edit_comment(
-            activity_id=validated_request_data["activity_id"],
-            content=validated_request_data["content"],
-            operator=validated_request_data["operator"],
-        )
+        try:
+            activities = issue.edit_comment(
+                activity_id=validated_request_data["activity_id"],
+                content=validated_request_data["content"],
+                operator=validated_request_data["operator"],
+            )
+        except PermissionError as e:
+            # 非原作者尝试编辑评论
+            raise serializers.ValidationError(str(e))
         return {
             "bk_biz_id": issue.bk_biz_id,
             "issue_id": issue.id,
