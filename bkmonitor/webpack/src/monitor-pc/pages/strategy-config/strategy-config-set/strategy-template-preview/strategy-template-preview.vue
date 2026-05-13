@@ -91,12 +91,21 @@ export default {
   computed: {
     renderTemplate() {
       const data = this.renderData[this.tabActive];
+      const stripStyleTag = (message = '') => {
+        let next = message;
+        let prev;
+        do {
+          prev = next;
+          next = next.replace(/<style[^>]*>[^<]*<\/style>/gim, '');
+        } while (next !== prev);
+        return next;
+      };
       return (
         data?.messages.map(item => ({
           ...item,
           tabActive: this.tabActive,
-          // 邮件通道需要走 HTML 过滤；其它通道（短信/企业微信等）由展示层用 <pre>{{ ... }} 转义
-          message: data.type === 'mail' ? sanitizeMailHtml(item.message) : item.message,
+          // 邮件通道走完整 HTML 过滤；其它通道维持历史的 <style> 剥离（展示层用 <pre>{{ ... }} 转义已防注入）
+          message: data.type === 'mail' ? sanitizeMailHtml(item.message) : stripStyleTag(item.message),
           type: data.type || '',
         })) || []
       );
