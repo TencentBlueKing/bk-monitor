@@ -1,6 +1,6 @@
 {
   "name": "@blueking/monitor-trace-explore",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "description": "蓝鲸监控 Trace 检索抽取出来的独立库，主要提供给 APM 等宿主使用",
   "scripts": {},
   "files": [
