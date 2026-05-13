@@ -112,6 +112,7 @@ class TGPASearchHandler:
         bk_biz_id = params["bk_biz_id"]
         task_id = params.get("task_id")
         openid = params.get("openid")
+        file_name = params.get("file_name")
         if task_id is not None:
             task_id = str(task_id)
         start_time = params.get("start_time")
@@ -134,6 +135,7 @@ class TGPASearchHandler:
                     "pagesize": fetch_size,
                     "openid": openid,
                     "task_id": task_id,
+                    "file_name": file_name,
                     "start_time": start_time,
                     "end_time": end_time,
                     "ordering": "-created_at",
@@ -149,6 +151,7 @@ class TGPASearchHandler:
                 params={
                     "bk_biz_id": bk_biz_id,
                     "openid": openid,
+                    "file_name": file_name,
                     "start_time": start_time,
                     "end_time": end_time,
                     "page": 1,

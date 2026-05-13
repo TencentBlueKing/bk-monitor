@@ -181,6 +181,7 @@ class GetMergedTaskListSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     task_id = serializers.IntegerField(label=_("后台任务ID"), required=False, allow_null=True)
     openid = serializers.CharField(label=_("openid"), required=False, allow_null=True, allow_blank=True)
+    file_name = serializers.CharField(label=_("文件名（精确匹配）"), required=False, allow_null=True, allow_blank=True)
     start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
     end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
     page = serializers.IntegerField(label=_("页码"), default=1, min_value=1)
