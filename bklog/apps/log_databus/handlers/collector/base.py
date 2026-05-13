@@ -128,11 +128,7 @@ class CollectorHandler:
     def __init__(self, collector_config_id=None, data=None):
         self.collector_config_id = collector_config_id
         self.data = data if data else None
-
-        if data:
-            self.storage_cluster_type = data.storage_cluster_type
-        else:
-            self.storage_cluster_type = STORAGE_CLUSTER_TYPE
+        self.storage_cluster_type = data.storage_cluster_type if data else STORAGE_CLUSTER_TYPE
 
         if collector_config_id and not data:
             try:
