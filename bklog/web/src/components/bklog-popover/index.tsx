@@ -38,7 +38,7 @@ export default defineComponent({
       default: () => ({}),
     },
     trigger: {
-      type: String as PropType<'click' | 'hover'>,
+      type: String as PropType<'click' | 'hover' | 'manual'>,
       default: 'click',
     },
     delegateTarget: {

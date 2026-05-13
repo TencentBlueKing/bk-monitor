@@ -194,6 +194,26 @@ export default defineComponent({
               return false;
             },
           },
+          {
+            key: 'Mod-Enter',
+            run: () => {
+              if (props.grokMode && popoverVisible.value && grokListRef.value) {
+                grokListRef.value.handleKeydown(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, metaKey: true }));
+                return true;
+              }
+              return false;
+            },
+          },
+          {
+            key: 'Escape',
+            run: () => {
+              if (props.grokMode && popoverVisible.value) {
+                hidePopover();
+                return true;
+              }
+              return false;
+            },
+          },
           // Grok 模式下启用括号闭合和自动补全的键盘映射
           ...(props.grokMode ? closeBracketsKeymap : []),
           ...defaultKeymap,
@@ -387,6 +407,12 @@ export default defineComponent({
       editorView.focus();
     };
 
+    // 处理取消 Grok 弹窗
+    const handleGrokCancel = () => {
+      hidePopover();
+      editorView?.focus();
+    };
+
     // 初始化编辑器
     const initEditor = () => {
       if (!editorRef.value) return;
@@ -480,6 +506,7 @@ export default defineComponent({
             keyword={currentKeyword.value}
             visible={popoverVisible.value}
             on-select={handleGrokSelect}
+            on-cancel={handleGrokCancel}
           />
         );
 
@@ -495,6 +522,9 @@ export default defineComponent({
                 appendTo: document.body,
                 theme: 'bklog-basic-light',
                 arrow: false,
+                offset: [0, 4],
+                maxWidth: 'none',
+                zIndex: 9999,
                 ...(props.popoverPosition === 'cursor'
                   ? {
                     popperOptions: {
