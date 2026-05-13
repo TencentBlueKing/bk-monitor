@@ -658,7 +658,7 @@ export default defineComponent({
         <div class='bklog-v3-content-filter'>
           <div class='bklog-v3-search-input'>
             <bk-input
-              style='width: 650px; margin-right: 12px;'
+              style='width: 100%; margin-right: 12px;'
               placeholder={$t('请输入 索引集、采集项 搜索')}
               right-icon="'bk-icon icon-search'"
               value={searchText.value}
