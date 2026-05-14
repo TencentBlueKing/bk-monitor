@@ -446,6 +446,13 @@ def external_callback(request):
         logger.warning("[external_callback]: missing token")
         return JsonResponse({"result": False, "message": "missing token"}, status=401)
 
+    missing = [key for key in ("sn", "title", "updated_by") if not params.get(key)]
+    if missing or "approve_result" not in params:
+        if "approve_result" not in params:
+            missing.append("approve_result")
+        logger.warning("[external_callback]: missing required fields: %s", missing)
+        return JsonResponse({"result": False, "message": f"missing required fields: {','.join(missing)}"}, status=400)
+
     result = ExternalPermissionApplyRecord.callback(params)
     if result.get("result"):
         return JsonResponse(result, status=200)

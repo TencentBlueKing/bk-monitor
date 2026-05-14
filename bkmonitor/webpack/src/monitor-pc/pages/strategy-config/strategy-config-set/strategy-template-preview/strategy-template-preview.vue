@@ -52,7 +52,7 @@
 </template>
 <script>
 import { renderNoticeTemplate } from 'monitor-api/modules/action';
-import { sanitizeMailHtml, xssFilter } from 'monitor-common/utils/xss';
+import { sanitizeMailHtml } from 'monitor-common/utils/xss';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 import { createNamespacedHelpers } from 'vuex';
 
@@ -132,13 +132,7 @@ export default {
               this.loading = false;
             });
           }
-          this.renderData =
-            data?.filter(item => {
-              if (item.type === 'mail') {
-                return this.template === xssFilter(this.template);
-              }
-              return true;
-            }) || [];
+          this.renderData = data || [];
         }
       },
       immediate: true,
