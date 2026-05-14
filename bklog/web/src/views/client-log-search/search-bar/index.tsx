@@ -240,6 +240,7 @@ export default defineComponent({
     /** 时间范围变化 */
     const handleTimeChange = (val: [string, string]) => {
       timeRange.value = val;
+      handleSearch();
     };
 
     /** 时区变化 */
