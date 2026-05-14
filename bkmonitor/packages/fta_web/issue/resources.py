@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
@@ -18,7 +19,7 @@ from rest_framework import serializers
 from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument, IssueDocumentWriteError, IssueNotFoundError
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.issue import IssuePriority, IssueStatus
+from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
@@ -815,7 +816,7 @@ class ExportIssueResource(Resource):
 
 
 class ListRecentAssigneesResource(Resource):
-    """获取最近使用的负责人列表（基于 ES 聚合）"""
+    """获取最近经常指派的负责人列表（基于指派事件聚合，无记录时回退到当前 Issue 负责人）"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_ids = serializers.ListField(
@@ -825,35 +826,56 @@ class ListRecentAssigneesResource(Resource):
 
     def perform_request(self, validated_request_data):
         """
-        对当前用户有权限看到的 Issue 做 assignee 字段 terms 聚合，
-        按出现频次降序返回负责人列表。
+        基于 IssueActivityDocument 的指派事件（assignee_change）做负责人聚合，
+        按被指派频次降序返回负责人列表；若时间窗口内无指派事件，则回退到当前
+        活跃 Issue 的负责人列表。
 
-        参数:
-            bk_biz_ids: 业务ID列表，用于权限过滤及数据范围限定
-            recent_days: 统计最近 N 天内的 Issue，默认 7 天
-
+        该方法实现：
+        1. 业务权限校验，仅查询当前用户有权限的业务
+        2. 按 activity_type=assignee_change 和时间范围过滤活动日志
+        3. 对 to_value 字段做 terms 聚合
+        4. 在 Python 层拆分逗号，用 Counter 统计每个负责人的指派频次
+        5. 若聚合结果为空，回退查询当前活跃 Issue 的 assignee 字段
+        6. 按频次降序返回结果
         """
         bk_biz_ids = validated_request_data["bk_biz_ids"]
         recent_days = validated_request_data["recent_days"]
 
+        # 业务权限校验：仅保留当前用户有权限的业务
+        authorized_bizs = IssueQueryHandler.parse_biz_item(bk_biz_ids)[0]
+        if not authorized_bizs:
+            return []
+        authorized_biz_ids = [str(b) for b in authorized_bizs]
+
         end_time = int(time.time())
-        one_day = 60 * 60 * 24
-        start_time = end_time - recent_days * one_day
+        start_time = end_time - recent_days * 86400
 
-        handler = IssueQueryHandler(
-            bk_biz_ids=bk_biz_ids,
-            start_time=start_time,
-            end_time=end_time,
+        # 基于活动日志查询指派事件
+        search = (
+            IssueActivityDocument.search(start_time=start_time, end_time=end_time)
+            .filter("term", activity_type=IssueActivityType.ASSIGNEE_CHANGE)
+            .filter("terms", bk_biz_id=authorized_biz_ids)
         )
-        search = handler.get_search_object()
 
-        # terms 聚合：按 assignee 分组，按频次降序
-        search.aggs.bucket("assignees", "terms", field="assignee", size=100, order={"_count": "desc"})
-
-        # 仅取聚合结果，不返回文档数据
+        # terms 聚合：按 to_value 分组（to_value 存储逗号分隔的负责人列表）
+        search.aggs.bucket("assignees", "terms", field="to_value", size=500, order={"_count": "desc"})
         search = search.params(size=0, track_total_hits=False)
-        result = search.execute()
 
-        assignees = [bucket.key for bucket in result.aggs.assignees.buckets]
+        try:
+            result = search.execute()
+        except Exception:
+            logger.exception("ListRecentAssigneesResource ES query failed, bk_biz_ids=%s", authorized_biz_ids)
+            return []
 
-        return assignees
+        # to_value 是逗号分隔的字符串（如 "user1,user2"），拆分后重新统计频次
+        counter = Counter()
+        if result.aggs:
+            for bucket in result.aggs.assignees.buckets:
+                if not bucket.key:
+                    continue
+                for assignee in bucket.key.split(","):
+                    assignee = assignee.strip()
+                    if assignee:
+                        counter[assignee] += bucket.doc_count
+
+        return [username for username, _ in counter.most_common(100)]
