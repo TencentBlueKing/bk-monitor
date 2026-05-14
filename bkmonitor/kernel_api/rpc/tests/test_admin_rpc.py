@@ -11,10 +11,10 @@ specific language governing permissions and limitations under the License.
 from datetime import datetime
 from decimal import Decimal
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
-from kernel_api.rpc.functions.admin.cluster_info import _serialize_cluster_info
+from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin.es_storage import (
     _contains_index_wildcard,
@@ -275,6 +275,63 @@ def test_cluster_info_serializer_empty_sensitive_fields():
     assert item["has_ssl_certificate_authorities"] is False
     assert item["has_ssl_certificate"] is False
     assert item["has_ssl_certificate_key"] is False
+
+
+def test_es_cluster_overview_uses_lightweight_alias_count_query():
+    client = SimpleNamespace(
+        cluster=SimpleNamespace(
+            health=Mock(
+                return_value={
+                    "status": "green",
+                    "timed_out": False,
+                    "number_of_nodes": "3",
+                    "number_of_data_nodes": "2",
+                    "active_shards": "10",
+                    "initializing_shards": "0",
+                    "relocating_shards": "0",
+                    "unassigned_shards": "0",
+                }
+            ),
+            stats=Mock(
+                return_value={
+                    "nodes": {"count": {"total": 3}},
+                    "indices": {
+                        "count": 5,
+                        "store": {"size_in_bytes": 1024},
+                        "docs": {"count": 100, "deleted": 2},
+                        "shards": {"total": 10},
+                    },
+                }
+            ),
+            get_settings=Mock(return_value={"defaults": {"cluster": {"max_shards_per_node": "1000"}}}),
+        ),
+        cat=SimpleNamespace(
+            allocation=Mock(return_value=[{"disk.total": "100", "disk.used": "40", "disk.avail": "60"}]),
+            aliases=Mock(
+                return_value=[
+                    {"alias": "write_20260514_system_cpu", "index": "v2_system_cpu_20260514_0"},
+                    {"alias": "system_cpu_read", "index": "v2_system_cpu_20260514_0"},
+                    {"alias": "system_cpu_read", "index": "v2_system_cpu_20260513_0"},
+                ]
+            ),
+        ),
+        indices=SimpleNamespace(get_alias=Mock(side_effect=AssertionError("indices.get_alias should not be called"))),
+    )
+    cluster = SimpleNamespace(
+        cluster_id=3,
+        cluster_name="default-es",
+        display_name="默认 ES",
+        cluster_type="elasticsearch",
+    )
+
+    with patch("kernel_api.rpc.functions.admin.cluster_info.es_tools.get_client", return_value=client):
+        data, warnings = _build_es_cluster_overview(cluster, "system")
+
+    assert warnings == []
+    assert data["aliases"] == {"count": 2, "relation_count": 3, "index_count": 2}
+    client.cat.allocation.assert_called_once()
+    client.cat.aliases.assert_called_once_with(format="json", params={"h": "alias,index", "request_timeout": 10})
+    client.indices.get_alias.assert_not_called()
 
 
 def test_bcs_cluster_serializer_masks_sensitive_fields():

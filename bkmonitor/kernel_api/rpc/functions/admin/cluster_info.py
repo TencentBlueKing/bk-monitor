@@ -175,37 +175,18 @@ def _extract_shard_limit(settings: dict[str, Any] | None) -> int | None:
     return None
 
 
-def _build_alias_summary(client: Any, warnings: list[dict[str, Any]]) -> dict[str, Any]:
+def _build_alias_count_summary(client: Any, warnings: list[dict[str, Any]]) -> dict[str, Any]:
     aliases = _run_es_overview_query(
-        "aliases",
+        "alias count",
         warnings,
-        lambda: client.cat.aliases(format="json", params={"request_timeout": 10}),
+        lambda: client.cat.aliases(format="json", params={"h": "alias,index", "request_timeout": 10}),
     )
-    if isinstance(aliases, list):
-        alias_names = {str(alias.get("alias")) for alias in aliases if alias.get("alias")}
-        index_names = {str(alias.get("index")) for alias in aliases if alias.get("index")}
-        return {"count": len(alias_names), "relation_count": len(aliases), "index_count": len(index_names)}
-
-    alias_map = _run_es_overview_query(
-        "alias map",
-        warnings,
-        lambda: client.indices.get_alias(index="*"),
-    )
-    if not isinstance(alias_map, dict):
+    if not isinstance(aliases, list):
         return {"count": None, "relation_count": None, "index_count": None}
 
-    alias_names: set[str] = set()
-    relation_count = 0
-    for detail in alias_map.values():
-        if not isinstance(detail, dict):
-            continue
-        aliases_obj = detail.get("aliases")
-        if not isinstance(aliases_obj, dict):
-            continue
-        alias_names.update(str(alias_name) for alias_name in aliases_obj)
-        relation_count += len(aliases_obj)
-
-    return {"count": len(alias_names), "relation_count": relation_count, "index_count": len(alias_map)}
+    alias_names = {str(alias.get("alias")) for alias in aliases if isinstance(alias, dict) and alias.get("alias")}
+    index_names = {str(alias.get("index")) for alias in aliases if isinstance(alias, dict) and alias.get("index")}
+    return {"count": len(alias_names), "relation_count": len(aliases), "index_count": len(index_names)}
 
 
 def _build_es_cluster_overview(
@@ -287,7 +268,7 @@ def _build_es_cluster_overview(
                 "docs_count": docs_count,
                 "deleted_docs_count": deleted_docs_count,
             },
-            "aliases": _build_alias_summary(client, warnings),
+            "aliases": _build_alias_count_summary(client, warnings),
             "shards": {
                 "current": total_shards_from_stats or current_shards,
                 "active": active_shards,
@@ -593,7 +574,7 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_CLUSTER_INFO_ES_OVERVIEW,
     summary="Admin 查询 ES ClusterInfo 运行时大盘",
-    description="inspect 级别能力，访问目标 ES 集群读取健康状态、存储使用量、索引/别名数量和 shard 使用情况。",
+    description="inspect 级别能力，访问目标 ES 集群读取健康状态、存储使用量、索引数量、别名数量和 shard 使用情况；只用轻量 alias 列计数，不读取详细 alias map。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "cluster_id": "必填，ClusterInfo.cluster_id，必须是 elasticsearch 集群",
