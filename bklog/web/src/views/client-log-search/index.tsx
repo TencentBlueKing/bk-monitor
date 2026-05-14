@@ -131,12 +131,6 @@ export default defineComponent({
     /** 任务列表是否正在加载（含首次和加载更多） */
     const isTaskListLoading = ref(false);
 
-    /** 当前搜索的时间范围 */
-    const timeRange = ref<[string, string] | undefined>(undefined);
-
-    /** 当前搜索的时区 */
-    const timezone = ref<string>(window.timezone);
-
     /** 分页参数 */
     const page = ref(1);
     const computedPagesize = ref(10);
@@ -144,6 +138,7 @@ export default defineComponent({
 
     /** task-list-panel 组件实例引用，用于初始计算 pagesize */
     const taskListPanelRef = ref<any>(null);
+    const searchBarRef = ref<any>(null);
 
     /**
      * 根据面板可用高度计算分页大小
@@ -161,7 +156,7 @@ export default defineComponent({
     };
 
     /** 上一次搜索参数，供触底加载更多使用 */
-    const lastSearchParams = ref<SearchParams>({ openid: '', timeRange: ['', ''], timezone: window.timezone });
+    const lastSearchParams = ref<SearchParams>({ keyword: '', timeRange: ['', ''], timezone: window.timezone });
 
     /**
      * 请求任务列表
@@ -176,7 +171,7 @@ export default defineComponent({
       isTaskListLoading.value = true;
 
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(params.timeRange);
+      const [startTime, endTime] = params.timeRange;
 
       const query: Record<string, any> = {
         bk_biz_id: bkBizId,
@@ -191,7 +186,7 @@ export default defineComponent({
       }
 
       // 根据 valueType 决定将搜索值作为 openid 还是 task_id
-      const openidVal = params.openid.trim();
+      const openidVal = params.keyword.trim();
       if (openidVal) {
         if (params.valueType === 'task_id') {
           const numVal = Number(openidVal);
@@ -257,17 +252,17 @@ export default defineComponent({
     /** 搜索回调 */
     const handleSearch = (params: SearchParams) => {
       stopPolling();
-      timeRange.value = params.timeRange;
-      timezone.value = params.timezone;
-      lastSearchParams.value = params;
+      const [startTime, endTime] = params.timeRange;
+      const [startTs, endTs] = handleTransformToTimestamp([String(startTime), String(endTime)]);
+      lastSearchParams.value = { ...params, timeRange: [startTs, endTs] };
       // 搜索时同步 URL（关键词、时间范围、时区）
       syncUrlParams({
-        keyword: params.openid,
-        startTime: params.timeRange[0],
-        endTime: params.timeRange[1],
+        keyword: params.keyword,
+        startTime: String(startTime),
+        endTime: String(endTime),
         timezone: params.timezone,
       });
-      fetchTaskList(params);
+      fetchTaskList(lastSearchParams.value);
     };
 
     /** 触底加载更多 */
@@ -315,7 +310,7 @@ export default defineComponent({
         return;
       }
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      const [startTime, endTime] = lastSearchParams.value.timeRange;
 
       const query: Record<string, any> = {
         bk_biz_id: bkBizId,
@@ -542,7 +537,7 @@ export default defineComponent({
           userReportStats.value = null;
           hasMore.value = true;
           page.value = 1;
-          handleSearch(lastSearchParams.value);
+          searchBarRef.value?.reSearch();
           getIndexSetId();
           checkDownloadPermission();
         }
@@ -572,8 +567,8 @@ export default defineComponent({
           <div class='empty-state-content'>
             <div class='empty-state-title'>{t('检索无数据')}</div>
             <div class='empty-state-subtitle'>
-              {lastSearchParams.value.openid
-                ? t('未找到与 "{keyword}" 匹配的用户或任务', { keyword: lastSearchParams.value.openid })
+              {lastSearchParams.value.keyword
+                ? t('未找到与 "{keyword}" 匹配的用户或任务', { keyword: lastSearchParams.value.keyword })
                 : t('未找到匹配的用户或任务')}
             </div>
             <div class='empty-state-tips'>
@@ -619,9 +614,10 @@ export default defineComponent({
           isTaskListCollapsed={isTaskListCollapsed.value}
           selectedLogItem={selectedLogItem.value}
           indexSetId={indexSetId.value}
-          timezone={timezone.value}
+          timezone={lastSearchParams.value.timezone}
           isAllowedDownload={isAllowedDownload.value}
           initialUrlState={initialUrlState}
+          searchTimeRange={lastSearchParams.value.timeRange}
           on-expand={handleExpandTaskList}
           on-collect={handleCollectNow}
           on-url-sync={handleUrlSync}
@@ -633,6 +629,7 @@ export default defineComponent({
       <div class='client-log-search-root'>
         {/* 搜索区域 */}
         <SearchBar
+          ref={searchBarRef}
           initialUrlState={initialUrlState}
           loading={isPanelLoading.value}
           on-search={handleSearch}

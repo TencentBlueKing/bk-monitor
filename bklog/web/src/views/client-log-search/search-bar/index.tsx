@@ -52,12 +52,12 @@ export default defineComponent({
     },
   },
   emits: ['search'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const store = useStore();
 
-    /** 搜索 openid — 优先使用 URL 回填值 */
+    /** 搜索关键词 — 优先使用 URL 回填值 */
     const urlState = props.initialUrlState ?? {};
-    const openid = ref(urlState.keyword || '');
+    const keyword = ref(urlState.keyword || '');
 
     /** 时间范围 — 优先使用 URL 回填值 */
     const timeRange = ref<[string, string]>(
@@ -91,12 +91,12 @@ export default defineComponent({
     const currentValueType = ref<SearchValueType | undefined>(undefined);
 
     /** 搜索按钮是否禁用（联想请求进行中且类型未确定，或面板加载中时禁用） */
-    const isSearchDisabled = computed(() => props.loading || (isRequesting.value && openid.value.trim() !== '' && !currentValueType.value));
+    const isSearchDisabled = computed(() => props.loading || (isRequesting.value && keyword.value.trim() !== '' && !currentValueType.value));
 
     /**
      * 请求 openid 列表
      */
-    const fetchOpenidList = (keyword: string) => {
+    const fetchOpenidList = (searchVal: string) => {
       // 清除防抖定时器
       if (debounceTimer) {
         clearTimeout(debounceTimer);
@@ -104,7 +104,7 @@ export default defineComponent({
       }
 
       // 如果关键词没变，且不是「空值+空列表」的情况，直接复用上次列表
-      if (keyword === lastKeyword && !(keyword.trim() === '' && openidList.value.length === 0)) {
+      if (searchVal === lastKeyword && !(searchVal.trim() === '' && openidList.value.length === 0)) {
         if (isFocused.value) {
           isOpenidListVisible.value = true;
         }
@@ -134,8 +134,8 @@ export default defineComponent({
           bk_biz_id: store.state.bkBizId,
         };
 
-        if (keyword.trim()) {
-          query.keyword = keyword.trim();
+        if (keyword.value.trim()) {
+          query.keyword = keyword.value.trim();
         }
 
         if (startTime) {
@@ -153,10 +153,10 @@ export default defineComponent({
           })
           .then((res: any) => {
             openidList.value = res.data ?? [];
-            lastKeyword = keyword;
+            lastKeyword = searchVal;
             // 如果当前值是手动输入的（非列表选择），根据返回结果判断类型
-            if (!currentValueType.value && openid.value.trim()) {
-              const trimmedVal = openid.value.trim();
+            if (!currentValueType.value && keyword.value.trim()) {
+              const trimmedVal = keyword.value.trim();
               const isNumeric = !Number.isNaN(Number(trimmedVal));
               currentValueType.value = (openidList.value.includes(trimmedVal) || !isNumeric) ? 'openid' : 'task_id';
             }
@@ -168,8 +168,8 @@ export default defineComponent({
             openidList.value = [];
             lastKeyword = null;
             // 请求失败时，根据输入内容判断类型：数字按 task_id，非数字按 openid
-            if (!currentValueType.value && openid.value.trim()) {
-              const isNumeric = !Number.isNaN(Number(openid.value.trim()));
+            if (!currentValueType.value && keyword.value.trim()) {
+              const isNumeric = !Number.isNaN(Number(keyword.value.trim()));
               currentValueType.value = isNumeric ? 'task_id' : 'openid';
             }
           })
@@ -181,7 +181,7 @@ export default defineComponent({
 
     /** 选中某个 openid 项 */
     const handleSelectOpenid = (item: string) => {
-      openid.value = item;
+      keyword.value = item;
       isOpenidListVisible.value = false;
       openidList.value = [];
       lastKeyword = null;
@@ -191,7 +191,7 @@ export default defineComponent({
     /** 输入框聚焦 */
     const handleFocus = () => {
       isFocused.value = true;
-      fetchOpenidList(openid.value);
+      fetchOpenidList(keyword.value);
     };
 
     /** 输入框失焦（延迟关闭，允许点击弹窗项） */
@@ -221,15 +221,15 @@ export default defineComponent({
 
     /**
      * 执行搜索
-     * @param allowEmpty 是否允许空 openid 搜索（挂载时首次搜索允许为空）
+     * @param allowEmpty 是否允许空关键词搜索
      */
     const handleSearch = (allowEmpty = true) => {
-      if (!allowEmpty && !openid.value.trim()) {
+      if (!allowEmpty && !keyword.value.trim()) {
         return;
       }
 
       const params: SearchParams = {
-        openid: openid.value,
+        keyword: keyword.value,
         timeRange: timeRange.value,
         timezone: timezone.value,
         valueType: currentValueType.value,
@@ -248,14 +248,22 @@ export default defineComponent({
       timezone.value = val;
     };
 
+    /** 重新搜索（清空关键词） */
+    const reSearch = () => {
+      keyword.value = '';
+      handleSearch();
+    };
+
+    expose({ reSearch });
+
     return () => (
       <div class='search-bar card-base'>
         {/* 搜索输入框 */}
         <div class='search-bar-input'>
           <bk-input
-            value={openid.value}
+            value={keyword.value}
             onChange={(val: string) => {
-              openid.value = val;
+              keyword.value = val;
               // 手动输入时重置类型，等待联想结果判断
               currentValueType.value = undefined;
               fetchOpenidList(val);
