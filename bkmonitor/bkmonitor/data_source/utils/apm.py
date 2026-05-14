@@ -13,20 +13,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from django.utils.translation import gettext_lazy as _
-
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 @dataclass(frozen=True)
 class APMAppTarget:
-    """APM 应用维度目标，承载业务 ID 与应用名称
-    独占表、预计算表、历史表对应的 target 可不携带应用上下文（下面两个字段均为 None）
-    """
+    """APM 应用维度目标，承载业务 ID 与应用名称"""
 
-    bk_biz_id: int | None
-    app_name: str | None
+    bk_biz_id: int
+    app_name: str
 
 
 @dataclass(frozen=True)
@@ -37,7 +33,7 @@ class TraceDatasourceTarget:
     app: APMAppTarget
 
     @classmethod
-    def build(cls, bk_biz_id: int | None, app_name: str | None, table_id: str) -> "TraceDatasourceTarget":
+    def build(cls, bk_biz_id: int, app_name: str, table_id: str) -> "TraceDatasourceTarget":
         return cls(table_id=table_id, app=APMAppTarget(bk_biz_id=bk_biz_id, app_name=app_name))
 
 
@@ -58,22 +54,6 @@ class TraceQueryGuard:
         """判断 table_id 是否命中共享 Trace 结果表前缀"""
         return table_id.startswith(cls.SHARED_TRACE_TABLE_PREFIXES)
 
-    @classmethod
-    def _validate_targets(cls, targets: Sequence[TraceDatasourceTarget]):
-        """校验 targets 合法性，共享 Trace 结果表必须携带完整应用上下文"""
-        if not targets:
-            raise ValueError(_("TraceQueryGuard: targets 不能为空"))
-
-        for target in targets:
-            if not cls.is_shared_table(target.table_id):
-                continue
-            if target.app.bk_biz_id is None or not target.app.app_name:
-                raise ValueError(
-                    _("TraceQueryGuard: 共享 Trace 结果表 {table_id} 查询必须携带 bk_biz_id 与 app_name").format(
-                        table_id=target.table_id
-                    )
-                )
-
     @staticmethod
     def _normalize_bool_clause(raw_clause: Any) -> list[Any]:
         """将 ES bool 子句统一规整为 list 结构"""
@@ -88,8 +68,6 @@ class TraceQueryGuard:
         """基于 targets 构造标准 APM Trace 查询，内部自动完成共享表隔离
         当前阶段仅支持单 target：取首个元素作为查询目标，预留多 target 入参形态以便后续扩展。
         """
-        cls._validate_targets(targets)
-
         target: TraceDatasourceTarget = targets[0]
         q: QueryConfigBuilder = QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM)).table(target.table_id)
         return cls.apply_q(q, targets)
@@ -97,11 +75,9 @@ class TraceQueryGuard:
     @classmethod
     def apply_q(cls, q: QueryConfigBuilder, targets: Sequence[TraceDatasourceTarget]) -> QueryConfigBuilder:
         """给已有 QueryConfigBuilder 追加共享表隔离条件
-        独占 / 预计算 / 历史表对应的 target 不会被追加任何过滤。
-        当前阶段仅支持单 target：取首个共享 target 追加 bk_biz_id / app_name 过滤。
+        针对共享 Trace 数据源的查询为单 target：
+            一次查询只会针对某业务某应用在共享表中的数据，因此命中共享 Trace 结果表时直接取首个补充 bk_biz_id / app_name 过滤。
         """
-        cls._validate_targets(targets)
-
         target: TraceDatasourceTarget = targets[0]
         if not cls.is_shared_table(target.table_id):
             return q
@@ -122,8 +98,6 @@ class TraceQueryGuard:
             将原有 `query` 子树整体包进 `bool.must`，隔离条件追加到 `bool.filter`
             兼容调用方传入任意顶层 query clause（如 `bool` / `match_all` / `range` / `terms` 等）
         """
-        cls._validate_targets([target])
-
         if not cls.is_shared_table(target.table_id):
             return body
 

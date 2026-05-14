@@ -188,24 +188,6 @@ class QuerySpanListResource(ApmAPIGWResource):
     method = "POST"
 
 
-class QuerySpanStatisticsResource(ApmAPIGWResource):
-    """
-    接口统计查询
-    """
-
-    action = "/app/apm/query_apm_span_statistics/"
-    method = "POST"
-
-
-class QueryServiceStatisticsResource(ApmAPIGWResource):
-    """
-    服务统计查询
-    """
-
-    action = "/app/apm/query_apm_service_statistics/"
-    method = "POST"
-
-
 class QueryTraceOptionValuesResource(ApmAPIGWResource):
     """
     Trace候选值查询
