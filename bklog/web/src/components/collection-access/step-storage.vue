@@ -567,6 +567,12 @@ import { mapGetters } from 'vuex';
     async mounted() {
       this.operateType === 'add' && (this.isChangeSelect = true);
       this.checkDorisAccess();
+      // 编辑模式下，从详情数据中确定集群类型，确保获取正确的集群列表
+      if (this.operateType !== 'add' && this.isDorisEnabled && this.curCollect?.storage_cluster_type === 'doris') {
+        this.clusterType = 'doris';
+        this.isDorisMode = true;
+        this.updateRouteClusterType('doris');
+      }
       await this.getStorage();
       await this.getCleanStash();
       this.getDetail();

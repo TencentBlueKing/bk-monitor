@@ -626,13 +626,19 @@
     mounted() {
       this.containerLoading = true;
       this.checkDorisAccess();
-      Promise.all([this.getLinkData(), this.getStorage()])
-        .then(async () => {
-          await this.initFormData();
-        })
-        .finally(() => {
-          this.containerLoading = false;
-        });
+      if (this.isEdit) {
+        // 编辑模式：先获取详情确定集群类型，再获取对应集群列表，最后回填表单
+        this.initEditFlow();
+      } else {
+        // 新建模式：原有逻辑不变
+        Promise.all([this.getLinkData(), this.getStorage()])
+          .then(async () => {
+            await this.initFormData();
+          })
+          .finally(() => {
+            this.containerLoading = false;
+          });
+      }
       this.$nextTick(() => {
         this.maxIntroWidth = this.$refs.addNewCustomBoxRef.clientWidth - 380;
       });
@@ -737,57 +743,85 @@
         }
       },
       async initFormData() {
-        if (this.isEdit) {
-          const res = await this.$http.request('collect/details', {
+        // 仅用于新建模式
+        const { retention } = this.formData;
+        Object.assign(this.formData, {
+          retention: retention ? `${retention}` : this.defaultRetention,
+        });
+      },
+      async initEditFlow() {
+        try {
+          // 第一步：先获取详情，拿到 storage_cluster_type 确定集群类型
+          const detailRes = await this.$http.request('collect/details', {
             params: {
               collector_config_id: this.collectorId,
             },
           });
-          const {
-            index_set_id,
-            collector_config_name,
-            collector_config_name_en,
-            custom_type,
-            data_link_id,
-            storage_cluster_id,
-            retention,
-            allocation_min_days,
-            storage_replies,
-            category_id,
-            description,
-            bk_data_id,
-            target_fields,
-            sort_fields,
-            storage_shards_nums: storageShardsNums,
-          } = res?.data;
-          Object.assign(this.formData, {
-            collector_config_name,
-            collector_config_name_en,
-            custom_type,
-            data_link_id,
-            storage_cluster_id,
-            retention: retention ? `${retention}` : this.defaultRetention,
-            allocation_min_days,
-            storage_replies,
-            category_id,
-            description,
-            bk_data_id,
-            es_shards: storageShardsNums,
-          });
-          // 缓存编辑时的集群ID
+          const detailData = detailRes?.data;
 
-          this.editStorageClusterID = storage_cluster_id;
-          this.fieldSettingData = {
-            indexSetId: index_set_id || 0,
-            targetFields: target_fields || [],
-            sortFields: sort_fields || [],
-          };
-        } else {
-          const { retention } = this.formData;
-          Object.assign(this.formData, {
-            retention: retention ? `${retention}` : this.defaultRetention,
-          });
+          // 第二步：根据详情中的 storage_cluster_type 设置集群类型
+          if (this.isDorisEnabled && detailData?.storage_cluster_type === 'doris') {
+            this.clusterType = 'doris';
+            this.isDorisMode = true;
+          } else {
+            this.clusterType = 'elasticsearch';
+            this.isDorisMode = false;
+          }
+          this.updateRouteClusterType(this.clusterType);
+
+          // 第三步：用正确的集群类型获取集群列表和数据链路
+          this.clusterList = [];
+          this.exclusiveList = [];
+          await Promise.all([this.getLinkData(), this.getStorage()]);
+
+          // 第四步：集群列表已就绪，回填表单数据
+          this.fillEditFormData(detailData);
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          this.containerLoading = false;
         }
+      },
+      fillEditFormData(detailData) {
+        const {
+          index_set_id,
+          collector_config_name,
+          collector_config_name_en,
+          custom_type,
+          data_link_id,
+          storage_cluster_id,
+          retention,
+          allocation_min_days,
+          storage_replies,
+          category_id,
+          description,
+          bk_data_id,
+          target_fields,
+          sort_fields,
+          storage_shards_nums: storageShardsNums,
+        } = detailData;
+
+        Object.assign(this.formData, {
+          collector_config_name,
+          collector_config_name_en,
+          custom_type,
+          data_link_id,
+          storage_cluster_id,
+          retention: retention ? `${retention}` : this.defaultRetention,
+          allocation_min_days,
+          storage_replies,
+          category_id,
+          description,
+          bk_data_id,
+          es_shards: storageShardsNums,
+        });
+        // 缓存编辑时的集群ID
+        this.editStorageClusterID = storage_cluster_id;
+        this.fieldSettingData = {
+          indexSetId: index_set_id || 0,
+          targetFields: target_fields || [],
+          sortFields: sort_fields || [],
+        };
       },
       cancel() {
         let routeName;
