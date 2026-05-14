@@ -642,18 +642,26 @@ export function createShootingModule(
               class='table-content-item'
             >
               <span class='item-label'>{value.label}</span>
-              {renderCommonPopover(content, traceFieldIndex, 'trace_field', {
-                contentCls: 'overflow-popover-content__trace-field',
-                renderDefault: onMouseenter => (
-                  <span
-                    class={['item-value', { 'item-value-link': value.url }]}
-                    onClick={value.url ? () => handleFieldClick(key, value) : undefined}
-                    onMouseenter={onMouseenter}
-                  >
-                    {item[key]}
-                  </span>
-                ),
-              })}
+              {key === 'demo_log' ? (
+                renderCommonPopover(content, traceFieldIndex, 'trace_field', {
+                  contentCls: 'overflow-popover-content__trace-field',
+                  renderDefault: onMouseenter => (
+                    <span
+                      class='item-value'
+                      onMouseenter={onMouseenter}
+                    >
+                      {item[key]}
+                    </span>
+                  ),
+                })
+              ) : (
+                <span
+                  class={['item-value', { 'item-value-link': value.url }]}
+                  onClick={value.url ? () => handleFieldClick(key, value) : undefined}
+                >
+                  {item[key]}
+                </span>
+              )}
             </span>
           );
         })}
