@@ -96,9 +96,22 @@ export default defineComponent({
     };
 
     /**
+     * 隐藏滚动区域内的 overflow-tips tooltip，
+     * 防止滚动后 tooltip 不消失并随滚动偏移
+     */
+    const hideOverflowTips = () => {
+      scrollContainerRef.value?.querySelectorAll('.task-title, .task-id').forEach((el: any) => {
+        if (el._tippy) {
+          el._tippy.hide();
+        }
+      });
+    };
+
+    /**
      * 触底加载检测
      */
     const handleScroll = (e: Event) => {
+      hideOverflowTips();
       const el = e.target as HTMLElement;
       if (el.scrollTop + el.clientHeight + 50 >= el.scrollHeight) {
         if (!props.isLoading && props.hasMore) {
