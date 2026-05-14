@@ -216,10 +216,49 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: true
           resourcePermissionRequired: true
-  /mcp/query_apm_profiling/:
+  /mcp/get_profile_application_service/:
     post:
-      operationId: query_apm_profiling
-      description: 'Query continuous Profiling (performance profile) for an APM service, returning a function-level table aggregated by stack frame. PREREQUISITES: (1) call list_apm_applications first and pick an app where is_enabled_profiling=true (NOT every app supports profiling); (2) call list_apm_services to obtain service_name. By default returns a "table" view (top function self/total cost & sample count); flamegraph/callgraph are optional. Useful for analyzing hotspots (CPU/alloc/inuse), comparing service performance, or grounding root-cause analysis of latency/memory issues. ⚠️ Query time span must NOT exceed 30 minutes (1800s) — profiling samples at second-level granularity, larger windows cause payload explosion / LLM context overflow / downstream query timeout. UI default is 15 minutes; recommended 5-30 minutes. 查询APM服务的持续性能剖析(Profiling)数据，返回按函数栈帧聚合的函数级表格。前置依赖: (1) 先调用 list_apm_applications 并仅选 is_enabled_profiling=true 的应用(并非所有应用都开启 profiling); (2) 调用 list_apm_services 获取 service_name。默认仅返回table视图(各函数自身/累计耗时及采样数)，避免火焰图巨型JSON撑爆LLM上下文；如需调用图/火焰图可显式指定diagram_types。用于分析CPU/内存等热点函数、对比服务性能、辅助定位延迟/内存问题根因。⚠️查询时间跨度不得超过30分钟(1800秒) - Profiling为秒级采样,跨度过大会导致数据爆炸/LLM上下文超限/下游查询超时。前端默认15分钟,推荐5-30分钟。'
+      operationId: get_profile_application_service
+      description: 'STEP 1 of the Profiling workflow. List APM applications & services that have continuous-profiling data under a business. Returns {normal: [{app_name, app_alias, application_id, services: [{name, sample_type, last_check_time, ...}]}], no_data: [...]}. Use BEFORE get_profile_type / get_profile_label / query_graph_profile to discover which (app_name, service_name) pairs actually have profile samples. Only items in "normal" with non-empty services have data; items in "no_data" do NOT. Profile 工作流第 1 步: 列出业务下已上报 Profile 数据的 APM 应用与服务。返回 normal(有数据)与 no_data(无数据)两个分组。在调用 get_profile_type / get_profile_label / query_graph_profile 之前必须先用本接口确定可用的 (app_name, service_name) 组合; 仅 normal 中且 services 非空的项才真正有 profile 样本。'
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                is_get_ebpf:
+                  type: boolean
+                  default: false
+                  description: Whether to additionally include eBPF (DeepFlow) profile services. Default false. 是否同时查询 eBPF (DeepFlow) Profile 服务, 默认 false。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_mcp/get_profile_application_service/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_profile_type/:
+    post:
+      operationId: get_profile_type
+      description: 'STEP 2 of the Profiling workflow. Given an (app_name, service_name) pair, return the available profile data_types for that service plus the recommended default aggregation method. Response: {data_types: [{key, name, default_agg_method, is_large}], last_check_time, last_report_time, ...}. Use the returned data_types[].key as the data_type parameter for query_graph_profile, and default_agg_method as agg_method. PREREQUISITE: bk_biz_id/app_name/service_name must come from get_profile_application_service. Profile 工作流第 2 步: 查询某 (app_name, service_name) 的可用 profile 数据类型(如 cpu/nanoseconds、alloc_space/bytes 等)及其推荐聚合方法; 返回的 data_types[].key 用于后续 query_graph_profile 的 data_type 入参, default_agg_method 用作 agg_method。前置: bk_biz_id / app_name / service_name 必须来自 get_profile_application_service。'
       tags:
       - apm_mcp
       requestBody:
@@ -235,50 +274,24 @@ paths:
               - end_time
               properties:
                 bk_biz_id:
-                  type: string
+                  type: integer
                   description: Business ID in BlueKing Monitor. 业务ID。
                 app_name:
                   type: string
-                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+                  description: APM application name. Must come from get_profile_application_service. APM 应用名称, 必须来自 get_profile_application_service。
                 service_name:
                   type: string
-                  description: Service name under the APM application. Must be obtained from list_apm_services. 服务名称。必须从 list_apm_services 获取。
+                  description: Service name under the application. Must come from get_profile_application_service. 服务名称, 必须来自 get_profile_application_service。
                 start_time:
-                  type: string
-                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 900 (15 min ago). ⚠️ end_time - start_time MUST be <= 1800 seconds (30 min). 开始时间戳(秒)。必须动态计算!Python: int(time.time()) - 900(近15分钟)。⚠️ end_time - start_time 必须 <= 1800 秒(30分钟)。'
-                end_time:
-                  type: string
-                  description: 'End timestamp in seconds (Unix). CRITICAL: Calculate dynamically! Python: int(time.time()). ⚠️ Time span end_time - start_time MUST be <= 1800 seconds (30 min). 结束时间戳(秒)。必须动态计算!Python: int(time.time())。⚠️ end_time - start_time 必须 <= 1800 秒(30分钟)。'
-                data_type:
-                  type: string
-                  default: cpu/nanoseconds
-                  description: 'Profiling sample type. Common values: "cpu/nanoseconds" (CPU time), "alloc_space/bytes" (heap allocation size), "alloc_objects/count" (alloc count), "inuse_space/bytes" (in-use memory), "inuse_objects/count" (in-use objects), "goroutine/count" (goroutine count). Default: cpu/nanoseconds. 采样类型，常用: cpu/nanoseconds(CPU耗时)、alloc_space/bytes(堆分配字节)、alloc_objects/count(分配次数)、inuse_space/bytes(在用内存)、inuse_objects/count(在用对象数)、goroutine/count(协程数)。默认cpu/nanoseconds。'
-                agg_method:
-                  type: string
-                  default: AVG
-                  description: 'Aggregation method across samples. "AVG" (average across the time window), "SUM" (sum across the time window), or "LAST" (keep only samples in the most recent aggregation interval, useful for instantaneous metrics like goroutine count / inuse_*). Default: AVG. 跨样本聚合方法: AVG(时间窗内平均)、SUM(时间窗内求和)、LAST(仅保留最近一个时间窗的样本, 适用于 goroutine / inuse_* 等瞬时型指标)。默认AVG。'
-                diagram_types:
-                  type: array
-                  items:
-                    type: string
-                  default: '["table"]'
-                  description: 'View types to return. Recommend leaving as ["table"] for LLM consumption (function-level aggregation table). Other values: "flamegraph"/"callgraph"/"tendency" — may produce very large payloads. 返回的视图类型。建议保持["table"](函数级聚合表)以适配LLM上下文；其他值如flamegraph/callgraph/tendency返回体可能极大。'
-                filter_labels:
-                  type: object
-                  default: '{}'
-                  description: 'Profile label filters (e.g. {"profile_id": "xxx"} to inspect a specific span/trace profile). Default: {}. profile标签过滤(如指定profile_id定位某次span的profile)。默认{}。'
-                slim:
-                  type: boolean
-                  default: true
-                  description: 'Whether to apply LLM-friendly slimming to the "table" view: drop redundant items[].id, truncate to top_n functions, add self_pct/total_pct and truncation meta (truncated/original_item_count/returned_item_count). Set false to get the raw payload identical to the frontend samples() endpoint. Default: true. 是否对table视图做LLM友好精简: 移除冗余id字段、按top_n截断、补充百分比和截断元信息。传false则完全透传与前端samples接口一致的原始数据。默认true。'
-                top_n:
                   type: integer
-                  default: 100
-                  description: 'Only effective when slim=true. Keep top-N functions sorted by total (descending). Each returned item: {name, self, total, self_pct, total_pct}. 0 means no truncation. Default: 100 (empirically covers 95%+ of cumulative cost). 仅在slim=true时生效。按total降序保留前N个函数, 每项含{name, self, total, self_pct, total_pct}。传0返回全量。默认100(经验上可覆盖95%+累计占用)。'
-                global_query:
-                  type: boolean
-                  default: false
-                  description: 'Whether to query the platform-level global storage (uploaded profiles) instead of the application storage. Default: false. 是否查询平台全局存储(上传的profile文件)而非应用存储。默认false。'
+                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 900 (15 min ago). 开始时间戳(秒), 必须动态计算, 例如 int(time.time())-900 表示近 15 分钟。'
+                end_time:
+                  type: integer
+                  description: 'End timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()). 结束时间戳(秒), 必须动态计算, 例如 int(time.time())。'
+                view_mode:
+                  type: string
+                  default: default
+                  description: View mode, "default" returns full detail object, "sidebar" returns a flattened list for UI sidebar. Default "default". 返回模式, default(默认)返回完整详情对象, sidebar 返回侧边栏扁平列表。
         required: false
         description: ''
       x-bk-apigateway-resource:
@@ -289,7 +302,146 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/apm_mcp/query_apm_profiling/
+          path: /api/v4/apm_mcp/get_profile_type/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_profile_label/:
+    post:
+      operationId: get_profile_label
+      description: 'STEP 3 (OPTIONAL) of the Profiling workflow. Returns the available profile label keys for a given service. Response: {label_keys: [...]}. Use these keys to construct the filter_labels parameter for query_graph_profile (e.g. {"profile_id": "xxx"}, {"endpoint": "/api/foo"}). Skip this step if you do not need to filter by label. PREREQUISITE: bk_biz_id/app_name/service_name must come from get_profile_application_service. Profile 工作流第 3 步(可选): 查询服务的 profile label keys, 返回 {label_keys:[...]}, 用于构造 query_graph_profile 的 filter_labels (如 {"profile_id":"xxx"} 定位某次 span 的 profile, 或 {"endpoint":"/api/foo"} 按接口过滤)。如不需要按 label 过滤可跳过此步骤。前置: bk_biz_id / app_name / service_name 必须来自 get_profile_application_service。'
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              - service_name
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must come from get_profile_application_service. APM 应用名称, 必须来自 get_profile_application_service。
+                service_name:
+                  type: string
+                  description: Service name under the application. Must come from get_profile_application_service. 服务名称, 必须来自 get_profile_application_service。
+                start_time:
+                  type: integer
+                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 900 (15 min ago). 开始时间戳(秒), 必须动态计算, 例如 int(time.time())-900。'
+                end_time:
+                  type: integer
+                  description: 'End timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()). 结束时间戳(秒), 必须动态计算, 例如 int(time.time())。'
+                data_type:
+                  type: string
+                  default: cpu/nanoseconds
+                  description: 'Profile sample type, e.g. cpu/nanoseconds, alloc_space/bytes. Default cpu/nanoseconds. Recommended to use a data_types[].key returned by get_profile_type. 采样类型, 默认 cpu/nanoseconds, 建议使用 get_profile_type 返回的 data_types[].key。'
+                global_query:
+                  type: boolean
+                  default: false
+                  description: Whether to query platform-level global storage (uploaded profiles). Default false. 是否查询平台全局存储 (上传的 profile 文件), 默认 false。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_mcp/get_profile_label/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/query_graph_profile/:
+    post:
+      operationId: query_graph_profile
+      description: 'STEP 4 (FINAL) of the Profiling workflow. Query continuous-profiling flame-graph data in Grafana flame-graph (frame_data) format for an APM service. Response is a flat array of stack frames (level/value/self/label/...) directly consumable by Grafana flame-graph panels and easy for an LLM to walk to find hotspots. PREREQUISITES: (1) bk_biz_id/app_name/service_name must come from get_profile_application_service; (2) data_type & default agg_method should come from get_profile_type; (3) optionally use get_profile_label to discover label keys for filter_labels. ⚠️ Time span end_time - start_time MUST be <= 1800 seconds (30 min) — profiling is second-level sampling, larger windows cause payload explosion / LLM context overflow / downstream query timeout. UI default 15 min, recommended 5-30 min. Profile 工作流第 4 步(终结步骤): 查询 APM 服务的持续 Profile 火焰图数据, 返回 Grafana flame-graph 标准 frame_data 格式 (扁平的 level/value/self/label 帧数组), 可直接用于 Grafana 火焰图面板, 也便于 LLM 逐帧定位热点。前置: (1) bk_biz_id/app_name/service_name 来自 get_profile_application_service; (2) data_type 与 agg_method 建议来自 get_profile_type; (3) 如需按 label 过滤可先调 get_profile_label。⚠️查询时间跨度 end_time - start_time 必须 <= 1800 秒(30 分钟) — Profile 为秒级采样, 跨度过大会导致数据爆炸/LLM 上下文超限/下游查询超时。前端默认 15 分钟, 推荐 5-30 分钟。'
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              - service_name
+              - start_time
+              - end_time
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must come from get_profile_application_service. APM 应用名称, 必须来自 get_profile_application_service。
+                service_name:
+                  type: string
+                  description: Service name under the application. Must come from get_profile_application_service. 服务名称, 必须来自 get_profile_application_service。
+                start_time:
+                  type: integer
+                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 900. ⚠️ end_time - start_time MUST be <= 1800 (30 min). 开始时间戳(秒), 必须动态计算, 例如 int(time.time())-900。⚠️ end_time - start_time 必须 <= 1800 秒(30 分钟)。'
+                end_time:
+                  type: integer
+                  description: 'End timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()). ⚠️ end_time - start_time MUST be <= 1800 (30 min). 结束时间戳(秒), 必须动态计算, 例如 int(time.time())。⚠️ end_time - start_time 必须 <= 1800 秒(30 分钟)。'
+                data_type:
+                  type: string
+                  default: cpu/nanoseconds
+                  description: 'Profile sample type. Recommended to use a data_types[].key returned by get_profile_type. Common values: cpu/nanoseconds (CPU time), alloc_space/bytes (heap alloc size), alloc_objects/count, inuse_space/bytes (in-use memory), inuse_objects/count, goroutine/count. Default cpu/nanoseconds. 采样类型, 建议使用 get_profile_type 返回的 data_types[].key。常用: cpu/nanoseconds(CPU耗时)、alloc_space/bytes(堆分配字节)、alloc_objects/count(分配次数)、inuse_space/bytes(在用内存)、inuse_objects/count(在用对象数)、goroutine/count(协程数)。默认 cpu/nanoseconds。'
+                agg_method:
+                  type: string
+                  description: 'Aggregation method across samples. "AVG" (average across the time window), "SUM" (sum across the time window), or "LAST" (keep only samples in the most recent aggregation interval, useful for instantaneous metrics like goroutine count / inuse_*). Recommended to use the default_agg_method returned by get_profile_type for the chosen data_type. If omitted, the backend picks a sensible default. 跨样本聚合方法: AVG(平均)/SUM(求和)/LAST(只保留最近一个聚合窗口, 适用于 goroutine、inuse_* 等瞬时型指标)。建议使用 get_profile_type 返回的 default_agg_method; 不传则后端按数据类型自动选择。'
+                filter_labels:
+                  type: object
+                  default: '{}'
+                  description: 'Profile label filters, e.g. {"profile_id":"xxx"} to inspect the profile of a specific span/trace, {"endpoint":"/api/foo"} to filter by endpoint. Use get_profile_label to discover available label keys. Default {}. profile 标签过滤, 例如 {"profile_id":"xxx"} 定位某次 span 的 profile, {"endpoint":"/api/foo"} 按接口过滤。可用的 label key 通过 get_profile_label 获取。默认 {}。'
+                profile_id:
+                  type: string
+                  default: ''
+                  description: Optional profile_id; convenience shortcut for filter_labels.profile_id, used to view the profile of a specific trace/span. 可选 profile_id, 等价于 filter_labels.profile_id, 用于查看某条 trace/span 对应的 profile。
+                global_query:
+                  type: boolean
+                  default: false
+                  description: Whether to query the platform-level global storage (uploaded profiles) instead of the application storage. Default false. 是否查询平台全局存储 (上传的 profile 文件) 而非应用存储, 默认 false。
+                is_compared:
+                  type: boolean
+                  default: false
+                  description: Whether to enable diff/compare mode (compare current window with another profile / label set). Default false. 是否开启对比模式 (与另一段 profile / label 进行 diff), 默认 false。
+                diff_profile_id:
+                  type: string
+                  default: ''
+                  description: Only used when is_compared=true. The other profile_id to compare against. 仅在 is_compared=true 时生效, 指定对比的另一个 profile_id。
+                diff_filter_labels:
+                  type: object
+                  default: '{}'
+                  description: Only used when is_compared=true. The other label-filter set to compare against. 仅在 is_compared=true 时生效, 对比侧的 label 过滤条件。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_mcp/query_graph_profile/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
