@@ -498,6 +498,9 @@ export const useEcharts = ({
       }
       // #if IS_APM_MONITOR
       if (target.apiFunc === 'alertDateHistogram') {
+        if (resultParams.bk_biz_ids) {
+          resultParams.bk_biz_ids = [window.bk_biz_id];
+        }
         if (resultParams.query_string) {
           // 语句模式
           resultParams.query_string = `(${resultParams.query_string}) AND ${window.APM_QUERY_STRING || ''}`;

@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from decimal import Decimal
 from typing import Any
 
 from django.db.models import Q
@@ -22,17 +23,21 @@ from kernel_api.rpc.functions.admin.common import (
     normalize_pagination,
     paginate_queryset,
     serialize_model,
+    serialize_value,
 )
 from metadata import models
 
 FUNC_DORIS_STORAGE_LIST = "admin.doris_storage.list"
 FUNC_DORIS_STORAGE_DETAIL = "admin.doris_storage.detail"
+FUNC_DORIS_STORAGE_PHYSICAL_METADATA = "admin.doris_storage.physical_metadata"
+FUNC_DORIS_STORAGE_LATEST_RECORDS = "admin.doris_storage.latest_records"
 FUNC_VM_STORAGE_LIST = "admin.vm_storage.list"
 FUNC_VM_STORAGE_DETAIL = "admin.vm_storage.detail"
 FUNC_KAFKA_STORAGE_LIST = "admin.kafka_storage.list"
 FUNC_KAFKA_STORAGE_DETAIL = "admin.kafka_storage.detail"
 FUNC_BKBASE_RESULT_TABLE_LIST = "admin.bkbase_result_table.list"
 FUNC_BKBASE_RESULT_TABLE_DETAIL = "admin.bkbase_result_table.detail"
+INSPECT_SAFETY_LEVEL = "inspect"
 
 RESULT_TABLE_SUMMARY_FIELDS = [
     "table_id",
@@ -99,6 +104,19 @@ def _parse_int_param(params: dict[str, Any], field: str) -> int | None:
         raise CustomException(message=f"{field} 必须是整数") from error
 
 
+def _parse_positive_int_param(params: dict[str, Any], field: str, *, default: int, maximum: int) -> int:
+    value = params.get(field)
+    if value in (None, ""):
+        return default
+    try:
+        normalized_value = int(value)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message=f"{field} 必须是整数") from error
+    if normalized_value < 1:
+        raise CustomException(message=f"{field} 必须大于等于 1")
+    return min(normalized_value, maximum)
+
+
 def _parse_json_field(value: Any, warnings: list[dict[str, Any]], *, field: str, table_id: str) -> Any:
     if value in (None, "") or not isinstance(value, str):
         return value
@@ -113,6 +131,36 @@ def _parse_json_field(value: Any, warnings: list[dict[str, Any]], *, field: str,
             }
         )
         return value
+
+
+def _mark_inspect_response(response: dict[str, Any]) -> dict[str, Any]:
+    response["meta"]["safety_level"] = INSPECT_SAFETY_LEVEL
+    response["meta"]["requested_safety_level"] = INSPECT_SAFETY_LEVEL
+    return response
+
+
+def _serialize_runtime_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _serialize_runtime_payload(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_serialize_runtime_payload(item) for item in value]
+    if isinstance(value, Decimal):
+        return str(value)
+    return serialize_value(value)
+
+
+def _require_doris_table_id(params: dict[str, Any]) -> str:
+    table_id = str(params.get("table_id") or "").strip()
+    if not table_id:
+        raise CustomException(message="table_id 为必填项")
+    return table_id
+
+
+def _get_doris_storage_or_raise(bk_tenant_id: str, table_id: str) -> Any:
+    try:
+        return models.DorisStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+    except models.DorisStorage.DoesNotExist as error:
+        raise CustomException(message=f"未找到 DorisStorage: table_id={table_id}") from error
 
 
 def _table_ids_by_data_filters(params: dict[str, Any], bk_tenant_id: str) -> set[str] | None:
@@ -300,13 +348,8 @@ def list_doris_storages(params: dict[str, Any]) -> dict[str, Any]:
 )
 def get_doris_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
-    table_id = str(params.get("table_id") or "").strip()
-    if not table_id:
-        raise CustomException(message="table_id 为必填项")
-    try:
-        storage = models.DorisStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
-    except models.DorisStorage.DoesNotExist as error:
-        raise CustomException(message=f"未找到 DorisStorage: table_id={table_id}") from error
+    table_id = _require_doris_table_id(params)
+    storage = _get_doris_storage_or_raise(bk_tenant_id, table_id)
     warnings: list[dict[str, Any]] = []
     data = _serialize_doris_item(
         storage,
@@ -321,6 +364,61 @@ def get_doris_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         data=data,
         warnings=warnings,
     )
+
+
+@KernelRPCRegistry.register(
+    FUNC_DORIS_STORAGE_PHYSICAL_METADATA,
+    summary="Admin 查询 DorisStorage 物理表元信息",
+    description="inspect 级别能力，查询 DorisStorage 关联 DorisBinding 和真实 Doris 物理表 information_schema / SHOW CREATE TABLE。",
+    params_schema={"bk_tenant_id": "可选，租户 ID", "table_id": "必填，DorisStorage.table_id"},
+    example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo"},
+)
+def get_doris_storage_physical_metadata(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    table_id = _require_doris_table_id(params)
+    storage = _get_doris_storage_or_raise(bk_tenant_id, table_id)
+    data = _serialize_runtime_payload(storage.query_physical_storage_metadata())
+    response = build_response(
+        operation="doris_storage.physical_metadata",
+        func_name=FUNC_DORIS_STORAGE_PHYSICAL_METADATA,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+        warnings=data.get("warnings") if isinstance(data, dict) else [],
+    )
+    return _mark_inspect_response(response)
+
+
+@KernelRPCRegistry.register(
+    FUNC_DORIS_STORAGE_LATEST_RECORDS,
+    summary="Admin 查询 DorisStorage 物理表最新样例数据",
+    description="inspect 级别能力，按指定排序字段从 DorisStorage 关联真实 Doris 物理表抽样最新记录。",
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "table_id": "必填，DorisStorage.table_id",
+        "limit": "可选，默认 1，最大 100",
+        "order_field": "可选，默认 dtEventTimeStamp",
+    },
+    example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo", "limit": 1},
+)
+def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    table_id = _require_doris_table_id(params)
+    limit = _parse_positive_int_param(params, "limit", default=1, maximum=100)
+    order_field = str(params.get("order_field") or "dtEventTimeStamp").strip()
+    if not order_field:
+        raise CustomException(message="order_field 不能为空")
+    storage = _get_doris_storage_or_raise(bk_tenant_id, table_id)
+    data = _serialize_runtime_payload(
+        storage.query_latest_physical_storage_records(limit=limit, order_field=order_field)
+    )
+    response = build_response(
+        operation="doris_storage.latest_records",
+        func_name=FUNC_DORIS_STORAGE_LATEST_RECORDS,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+        warnings=data.get("warnings") if isinstance(data, dict) else [],
+    )
+    return _mark_inspect_response(response)
 
 
 @KernelRPCRegistry.register(

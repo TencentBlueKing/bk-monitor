@@ -121,7 +121,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         ? getAlarmCenterUrl({
             hash: getAlarmCenterListHash({
               searchType: 'action',
-              alarmId: this.eventId,
+              detailId: this.eventId,
+              detailBizId: targetBizId,
               showDetail: 'true',
             }),
             bizId: targetBizId,

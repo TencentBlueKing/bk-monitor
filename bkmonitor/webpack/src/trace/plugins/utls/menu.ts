@@ -31,6 +31,7 @@ import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { downFile, reviewInterval, VariablesService } from '../../utils';
+import { toUnixMilliseconds } from '@/utils/date';
 
 import type { IExtendMetricData, ILogUrlParams, IViewOptions, PanelModel } from '../typings';
 import type { IIableTdArrItem } from 'monitor-pc/pages/view-detail/utils';
@@ -181,8 +182,8 @@ export function handleExplore(
       bizId: window.cc_biz_id.toString(),
       keyword: queryConfig.query_string, // 搜索关键字
       addition: queryConfig.where || [],
-      start_time: startTime,
-      end_time: endTime,
+      start_time: toUnixMilliseconds(startTime),
+      end_time: toUnixMilliseconds(endTime),
       time_range: 'customized',
     };
     const indexSetId = queryConfig.index_set_id;
@@ -191,9 +192,9 @@ export function handleExplore(
     window.open(url);
   } else {
     window.open(
-      `${commOpenUrl('#/data-retrieval/')}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${
+      `${commOpenUrl('#/data-retrieval/')}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${toUnixMilliseconds(
         timeRange[0]
-      }&to=${timeRange[1]}`
+      )}&to=${toUnixMilliseconds(timeRange[1])}`
     );
   }
 }
@@ -254,8 +255,8 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
   if (queryString.length) {
     openAlarmCenter({
       queryString,
-      from: timeRange[0],
-      to: timeRange[1],
+      from: toUnixMilliseconds(timeRange[0]),
+      to: toUnixMilliseconds(timeRange[1]),
     });
   }
 };

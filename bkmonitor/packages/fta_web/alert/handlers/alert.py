@@ -625,6 +625,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         self.is_time_partitioned = is_time_partitioned
         self.is_finaly_partition = is_finaly_partition
         self.need_bucket_count = need_bucket_count
+        self._notice_ways_cache: dict[str, set] | None = None
         self.query_context = kwargs.get("context", {})
         self.query_context.update(
             {
@@ -719,7 +720,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         if show_aggs:
             search_object = self.add_aggs(search_object)
 
-        search_result = search_object.params(track_total_hits=True).execute()
+        search_result = search_object.params(track_total_hits=10000).execute()
 
         if show_dsl:
             return search_result, search_object.to_dict()
@@ -1022,11 +1023,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 进行我有权限的告警过滤
-            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
-            if len(self.authorized_bizs) <= len(self.unauthorized_bizs):
-                queries.append(Q("terms", **{"event.bk_biz_id": self.authorized_bizs}))
-            else:
-                queries.append(~Q("terms", **{"event.bk_biz_id": self.unauthorized_bizs}))
+            authorized_query = self.build_es_terms_query("event.bk_biz_id", self.authorized_bizs)
+            if authorized_query is not None:
+                queries.append(authorized_query)
 
         user_condition = Q(
             Q("term", assignee=self.request_username)
@@ -1038,7 +1037,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
             queries.append(user_condition)
 
         if self.unauthorized_bizs and self.request_username:
-            queries.append(Q(Q("terms", **{"event.bk_biz_id": self.unauthorized_bizs}) & user_condition))
+            unauthorized_query = self.build_es_terms_query("event.bk_biz_id", self.unauthorized_bizs)
+            if unauthorized_query is not None:
+                queries.append(unauthorized_query & user_condition)
 
         if queries:
             return search_object.filter(reduce(operator.or_, queries))
@@ -1301,11 +1302,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
             action_search = action_search.filter("terms", alert_id=list(alert_ids))
 
         if self.authorized_bizs is not None and self.bk_biz_ids:
-            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
-            if len(self.authorized_bizs) <= len(self.unauthorized_bizs):
-                action_search = action_search.filter("terms", bk_biz_id=self.authorized_bizs)
-            else:
-                action_search = action_search.filter("must_not", Q("terms", bk_biz_id=self.unauthorized_bizs))
+            authorized_query = self.build_es_terms_query("bk_biz_id", self.authorized_bizs)
+            if authorized_query is not None:
+                action_search = action_search.filter(authorized_query)
 
         action_search = action_search.extra(size=0)
 
@@ -1349,6 +1348,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 return []
 
             alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+            self._notice_ways_cache = alert_notice_ways
 
             for alert_id, ways in alert_notice_ways.items():
                 if ways & target_ways:
@@ -1377,7 +1377,16 @@ class AlertQueryHandler(BaseBizQueryHandler):
         result = search_object.execute()
 
         if result.aggs:
-            return set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+            ids = set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+            if len(ids) >= 10000:
+                logger.warning(
+                    "_collect_current_alert_ids: reached 10000 limit, notice_way filter may be incomplete. "
+                    "bk_biz_ids=%s, start_time=%s, end_time=%s",
+                    self.bk_biz_ids,
+                    self.start_time,
+                    self.end_time,
+                )
+            return ids
         return set()
 
     def handle_aggs_notice_way(self, alert_ids):
@@ -1410,8 +1419,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     ],
                 }
 
-            # 调用公共方法获取每个告警的通知方式
-            alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+            # 优先复用 notice_way 过滤阶段已查询的缓存，避免重复查询 action 索引
+            if self._notice_ways_cache is not None:
+                alert_notice_ways = {k: v for k, v in self._notice_ways_cache.items() if k in alert_ids}
+            else:
+                alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
 
             # 统计每种通知方式的告警数量
             for ways in alert_notice_ways.values():

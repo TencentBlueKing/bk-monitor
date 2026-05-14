@@ -353,7 +353,8 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
   },
 ];
 
-export const INCIDENT_STORAGE_KEY = '__INCIDENT_EVENT_COLUMN__';
+/** 告警中心故障表列配置（与事件中心旧版 `__INCIDENT_EVENT_COLUMN__` 隔离，避免互相覆盖） */
+export const INCIDENT_STORAGE_KEY = '__ALARM_CENTER_INCIDENT_TABLE_COLUMN__';
 export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
   readonly storageAnalysisKey = '__INCIDENT_ANALYZE_STORAGE_KEY__';
   readonly storageKey = INCIDENT_STORAGE_KEY;

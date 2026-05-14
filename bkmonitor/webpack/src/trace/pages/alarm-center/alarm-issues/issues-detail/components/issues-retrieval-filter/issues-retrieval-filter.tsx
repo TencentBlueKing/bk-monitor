@@ -90,7 +90,7 @@ export default defineComponent({
       return {
         alarmType: AlarmType.ALERT,
         commonFilterParams: {
-          bk_biz_ids: props.bizIds,
+          bk_biz_ids: window.APM_QUERY_STRING ? [window.bk_biz_id] : props.bizIds,
           start_time: start,
           end_time: end,
           conditions: props.conditions,

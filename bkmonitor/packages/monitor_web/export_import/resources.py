@@ -261,10 +261,11 @@ class ExportPackageRequestSerializer(serializers.Serializer):
     strategy_config_ids = serializers.ListField(required=False, allow_empty=True, label="需要导出的策略配置ID列表")
     view_config_ids = serializers.ListField(required=False, allow_empty=True, label="需要导出的视图配置ID列表")
     list_data = serializers.ListField(required=False, allow_empty=True, label="需转为csv的列表数据")
+    json_list_data = serializers.ListField(required=False, allow_empty=True, label="需转为json的列表数据")
 
     def validate(self, attrs):
-        # 如果不是需要列表转csv，则必须传业务ID
-        if not attrs.get("list_data") and not attrs.get("bk_biz_id"):
+        # 如果不是需要列表转csv/json，则必须传业务ID
+        if not (attrs.get("list_data") or attrs.get("json_list_data")) and not attrs.get("bk_biz_id"):
             raise ValidationError(_("业务ID不可为空"))
         return attrs
 
@@ -282,6 +283,7 @@ class ExportPackageResource(Resource):
         self.associated_plugin_list = []
         self.associated_collect_config_list = []
         self.list_data = []
+        self.json_list_data = []
         self.bk_biz_id = None
         self.username = ""
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "export_import", "tmp")
@@ -291,14 +293,27 @@ class ExportPackageResource(Resource):
         self.RequestSerializer = ExportPackageRequestSerializer
 
     def perform_request(self, validated_request_data):
-        self.bk_biz_id = validated_request_data["bk_biz_id"]
+        # bk_biz_id 为可选参数：
+        # - 当导出采集配置/策略/仪表盘（collect_config_ids / strategy_config_ids / view_config_ids）时，
+        #   prepare_file 中会按 bk_biz_id 查询关联资源，因此需要调用方传入；
+        # - 当仅导出 json_list_data（如 Issue 列表）时，数据已在外层准备好，不需要按 bk_biz_id 查库，因此可以为空。
+        self.bk_biz_id = validated_request_data.get("bk_biz_id")
         self.package_name = "bk_monitor_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         self.package_path = os.path.join(self.tmp_path, self.package_name)
         self.collect_config_ids = validated_request_data.get("collect_config_ids", [])
         self.strategy_config_ids = validated_request_data.get("strategy_config_ids", [])
         self.view_config_ids = validated_request_data.get("view_config_ids", [])
         self.list_data = validated_request_data.get("list_data", [])
-        if not any([self.collect_config_ids, self.strategy_config_ids, self.view_config_ids, self.list_data]):
+        self.json_list_data = validated_request_data.get("json_list_data", [])
+        if not any(
+            [
+                self.collect_config_ids,
+                self.strategy_config_ids,
+                self.view_config_ids,
+                self.list_data,
+                self.json_list_data,
+            ]
+        ):
             raise ValidationError(_("未选择任何配置"))
 
         self.file_msg = self.prepare_file()
@@ -328,7 +343,8 @@ class ExportPackageResource(Resource):
                 + f"{len(self.strategy_config_ids)}个策略配置,"
                 + f"{len(self.view_config_ids)}个仪表盘"
             )
-            send_frontend_report_event(self, self.bk_biz_id, username, event_content)
+            if self.bk_biz_id:
+                send_frontend_report_event(self, self.bk_biz_id, username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event error: {e}")
 
@@ -336,6 +352,9 @@ class ExportPackageResource(Resource):
 
     @step(state="PREPARE_FILE", message=_("准备文件中..."))
     def prepare_file(self):
+        if not any([self.collect_config_ids, self.strategy_config_ids, self.view_config_ids]):
+            return {}
+
         collect_config_file = len(self.collect_config_ids)
         strategy_config_file = len(self.strategy_config_ids)
         view_config_file = len(self.view_config_ids)
@@ -427,6 +446,20 @@ class ExportPackageResource(Resource):
             for data in self.list_data:
                 writer.writerow(data)
 
+    def make_list_to_json_file(self):
+        """将 json_list_data 写入 JSON 文件"""
+        if not self.json_list_data:
+            return
+        os.makedirs(os.path.join(self.package_path, "issue_directory"))
+        for data in self.json_list_data:
+            issue_file_path = os.path.join(
+                self.package_path,
+                "issue_directory",
+                f"{convert_filename(data['name'])}_{data['id']}.json",
+            )
+            with open(issue_file_path, "w", encoding="utf-8") as fs:
+                fs.write(json.dumps(data, indent=2))
+
     def make_plugin_file(self):
         if not self.associated_plugin_list:
             return
@@ -504,6 +537,7 @@ class ExportPackageResource(Resource):
         self.make_strategy_config_file()
         self.make_view_config_file()
         self.make_list_to_csv_file()
+        self.make_list_to_json_file()
         t = tarfile.open(os.path.join(self.package_path, self.package_name + ".tar.gz"), "w:gz")
         for root, dirs, files in os.walk(self.package_path):
             for filename in files:

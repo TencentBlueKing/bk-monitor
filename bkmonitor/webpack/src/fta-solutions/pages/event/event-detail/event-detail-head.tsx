@@ -148,7 +148,8 @@ export default class EventDetailHead extends tsc<EventDetailHeadProps, IEvent> {
         ? getAlarmCenterUrl({
             hash: getAlarmCenterListHash({
               searchType: 'action',
-              alarmId: this.eventId,
+              detailId: this.eventId,
+              detailBizId: targetBizId,
               showDetail: 'true',
             }),
             bizId: targetBizId,

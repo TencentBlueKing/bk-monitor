@@ -1,6 +1,6 @@
 {
   "name": "@blueking/monitor-alarm-center",
-  "version": "0.0.5",
+  "version": "0.0.8",
   "description": "蓝鲸监控告警中心抽取出来的独立库，主要提供给APM等宿主使用",
   "scripts": {},
   "files": [

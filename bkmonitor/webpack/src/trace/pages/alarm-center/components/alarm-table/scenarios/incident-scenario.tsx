@@ -27,6 +27,8 @@
 import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
+import { bkMessage } from 'monitor-api/utils';
+import { copyText } from 'monitor-common/utils';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import {
@@ -42,6 +44,7 @@ import type { IUsePopoverTools } from '../hooks/use-popover';
 import type { TimeRangeType } from '@/components/time-range/utils';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 import type { Router } from 'vue-router';
+import type { TippyContent } from 'vue-tippy';
 /**
  * @class IncidentScenario
  * @classdesc 故障场景表格特殊列渲染配置类
@@ -125,12 +128,16 @@ export class IncidentScenario extends BaseScenario {
           style={{ '--lever-rect-color': rectColor }}
           class='lever-rect'
         />
-        <div class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}>
+        <div
+          class={`lever-rect-text ellipsis-text ${renderCtx.isEnabledCellEllipsis(column)}`}
+          onMouseenter={e => this.handleIncidentNameHover(e, row)}
+          onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
+        >
           <a
             class='lever-rect-link'
             href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
           >
-            {row?.incident_name}
+            <span>{row?.incident_name}</span>
           </a>
         </div>
       </div>
@@ -173,6 +180,41 @@ export class IncidentScenario extends BaseScenario {
         </div>
       </div>
     ) as unknown as SlotReturnValue;
+  }
+
+  /**
+   * @description 故障名称列 hover：与告警名称列同款布局，仅展示故障 ID（不含告警策略）
+   */
+  private handleIncidentNameHover(e: MouseEvent, row: IncidentTableItem) {
+    const content = (
+      <div class='alert-name-popover-container'>
+        <div class='alert-name-item'>
+          <span class='alert-name-item-label'>{window.i18n.t('故障ID')} : </span>
+          <div
+            class='alert-name-item-value'
+            onClick={() => this.handleCopyIncidentField(row?.id)}
+          >
+            <span class='item-text'>{row?.id || '--'}</span>
+            <i class='icon-monitor icon-mc-copy' />
+          </div>
+        </div>
+      </div>
+    ) as unknown as TippyContent;
+    this.context.hoverPopoverTools.showPopover(e, content);
+  }
+
+  private handleCopyIncidentField(text: string) {
+    copyText(text || '--', msg => {
+      bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+    bkMessage({
+      message: window.i18n.t('复制成功'),
+      theme: 'success',
+    });
   }
 
   // ----------------- 故障场景私有逻辑方法 -----------------

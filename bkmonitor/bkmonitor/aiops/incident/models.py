@@ -817,8 +817,6 @@ class IncidentSnapshot:
             main_entity = self.incident_graph_entities[sorted_entities[0]]
             main_entity.properties["aggregate_type"] = "resource_version"
             main_entity.properties["resource_version"] = resource_version
-            main_entity.properties["original_entity_name"] = main_entity.entity_name
-            main_entity.entity_name = f"部署版本: {resource_version}"
 
     @staticmethod
     def get_resource_version(entity: IncidentGraphEntity):

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import json
+import secrets
 from urllib import parse
 from urllib.parse import urlsplit
 
@@ -52,6 +53,17 @@ from packages.monitor_web.new_report.resources import ReportCallbackResource
 
 BATCH_ACTION_TO_AUTO_SHOW_ACTION = {"ack": "confirm", "shield": "shield"}
 AUTO_SHOW_ACTION_TO_BATCH_ACTION = {"confirm": "ack", "shield": "shield"}
+EXTERNAL_PROXY_TOKEN_HEADER = "HTTP_BKMONITOR_EXTERNAL_TOKEN"
+
+
+def is_external_proxy_token_valid(request, log_prefix):
+    expected_token = getattr(settings, "BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
+    request_token = request.META.get(EXTERNAL_PROXY_TOKEN_HEADER, "")
+    if expected_token and secrets.compare_digest(request_token, expected_token):
+        return True
+
+    logger.warning("%s: invalid external proxy token", log_prefix)
+    return False
 
 
 def user_exit(request):
@@ -140,6 +152,9 @@ def manifest(request):
 @login_exempt
 def external(request):
     """外部监控入口 ."""
+    if not is_external_proxy_token_valid(request, "external"):
+        return HttpResponseForbidden("invalid external proxy token")
+
     cc_biz_id = 0
     external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
     biz_id_list = (
@@ -203,6 +218,9 @@ def dispatch_external_proxy(request):
         "data": data, POST请求的数据
     }
     """
+
+    if not is_external_proxy_token_valid(request, "dispatch_plugin_query"):
+        return JsonResponse({"result": False, "message": "invalid external proxy token"}, status=403)
 
     try:
         params = json.loads(request.body)

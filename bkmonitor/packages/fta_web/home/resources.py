@@ -16,6 +16,7 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.action import ActionDisplayStatus, ActionPluginType
 from constants.alert import EventSeverity, EventStatus
 from core.drf_resource import CacheResource, Resource, api, resource
+from fta_web.alert.handlers.base import build_es_terms_query
 from monitor.models import GlobalConfig, UserConfig
 
 FAVORITE_CONFIG_KEY = "fta_overview:favorite_biz"
@@ -697,12 +698,9 @@ class BizWithAlertStatisticsResource(Resource):
             search_object = search_object.filter(
                 Q("term", assignee=request_username) | Q("term", appointee=request_username)
             )
-            # 动态选择较小的集合作为过滤条件，避免超过 ES max_terms_count 限制
-            authorized_biz_ids = [biz["bk_biz_id"] for biz in business_info["business_with_permission"]]
-            if len(unauthorized_biz_ids) <= len(authorized_biz_ids):
-                search_object = search_object.filter("terms", **{"event.bk_biz_id": list(unauthorized_biz_ids)})
-            else:
-                search_object = search_object.filter("must_not", Q("terms", **{"event.bk_biz_id": authorized_biz_ids}))
+            unauthorized_query = build_es_terms_query("event.bk_biz_id", list(unauthorized_biz_ids))
+            if unauthorized_query is not None:
+                search_object = search_object.filter(unauthorized_query)
             search_object.aggs.bucket("biz_overview", "terms", field="event.bk_biz_id", size=10000)
             search_result = search_object.execute()
             business_with_alert = [
