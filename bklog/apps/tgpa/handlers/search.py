@@ -48,7 +48,7 @@ class TGPASearchHandler:
         multi_execute.append(
             result_key="task_openid_list",
             func=TGPATaskHandler.get_openid_list,
-            params={"bk_biz_id": bk_biz_id, "keyword": keyword},
+            params={"bk_biz_id": bk_biz_id, "keyword": keyword, "start_time": start_time, "end_time": end_time},
             multi_func_params=True,
         )
         multi_execute.append(
