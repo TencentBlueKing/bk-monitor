@@ -734,7 +734,6 @@ class TestBackfillMatchPriority:
             _backfill_unlinked_alerts_for_strategy,
         )
 
-        # earliest 为 30 天前
         old_create_time = int(_time.time()) - 30 * 86400
         i = self._make_issue_hit("I_old", "fp_x", ["host"], old_create_time)
 
@@ -756,20 +755,122 @@ class TestBackfillMatchPriority:
 
             _backfill_unlinked_alerts_for_strategy("100")
 
-            # 验证 AlertDocument.search().filter("term").filter("range") 调用中 begin_time gte 是 7 天前
-            # 链式调用：search() → filter(term strategy_id) → filter(range begin_time)
             range_call = mock_alert_search.return_value.filter.return_value.filter.call_args
             range_kwargs = range_call.kwargs
-            # filter("range", begin_time={"gte": ...})
             begin_time_filter = range_kwargs.get("begin_time", {})
             now = int(_time.time())
             expected_lower = now - _BACKFILL_ALERT_SCAN_MAX_LOOKBACK_SEC
             actual_lower = begin_time_filter.get("gte")
-            # 允许 ±5s 误差（测试执行间隔）
             assert abs(actual_lower - expected_lower) < 5, (
                 f"expected scan lower bound ≈ now-7d ({expected_lower}), got {actual_lower}; "
                 f"earliest_create_time was {old_create_time} (30d ago)"
             )
+
+
+class TestActiveCountCacheStampedeProtection:
+    """`_check_active_issue_count` 防 cache stampede（性能 review M1）：
+    cache miss 时 SET NX EX 短锁让一个 worker 探 ES，其他 worker 跳过本次观测；
+    cache 写回 TTL 加 ±20% jitter 打散周期性同步失效。
+    """
+
+    def _make_proc(self):
+        from unittest.mock import MagicMock
+
+        from alarm_backends.service.fta_action.issue_processor import IssueAggregationProcessor
+
+        proc = IssueAggregationProcessor.__new__(IssueAggregationProcessor)
+        proc.strategy_id = 100
+        proc.strategy = {"bk_biz_id": 2}
+        proc.alert = MagicMock()
+        proc.alert.id = "a1"
+        return proc
+
+    def test_cache_miss_acquires_probe_lock_then_writes_jittered_ttl(self):
+        """cache miss + 抢到 probe_lock → 走 ES count + jittered TTL 写回。"""
+        from unittest.mock import MagicMock, patch
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = None  # cache miss
+        mock_client.set.return_value = True  # probe_lock 抢到 + cache set 都成功
+
+        proc = self._make_proc()
+
+        with (
+            patch("alarm_backends.service.fta_action.issue_processor.ISSUE_ACTIVE_COUNT_KEY") as mock_key,
+            patch("alarm_backends.service.fta_action.issue_processor.IssueDocument") as mock_doc,
+            patch("alarm_backends.service.fta_action.issue_processor.settings") as mock_settings,
+        ):
+            mock_key.client = mock_client
+            mock_key.get_key.return_value = "ck"
+            mock_key.ttl = 300
+            mock_settings.ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
+            mock_doc.search.return_value.filter.return_value.filter.return_value.count.return_value = 100
+
+            proc._check_active_issue_count()
+
+            set_calls = mock_client.set.call_args_list
+            # 第 1 次 set 是 probe_lock：nx=True, ex=10
+            assert set_calls[0].kwargs.get("nx") is True
+            assert set_calls[0].kwargs.get("ex") == 10
+            # 第 2 次 set 是 cache 写回：jittered TTL ∈ [240, 360]
+            cache_ttl = set_calls[1].kwargs.get("ex")
+            assert 240 <= cache_ttl <= 360, f"jittered TTL {cache_ttl} 不在 [240, 360]"
+
+    def test_cache_miss_probe_lock_failed_skips_es_count(self):
+        """cache miss + probe_lock 抢不到（其他 worker 已抢）→ 跳过 ES count（防穿透核心）。"""
+        from unittest.mock import MagicMock, patch
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = None
+        mock_client.set.return_value = False  # probe_lock 抢不到
+
+        proc = self._make_proc()
+
+        with (
+            patch("alarm_backends.service.fta_action.issue_processor.ISSUE_ACTIVE_COUNT_KEY") as mock_key,
+            patch("alarm_backends.service.fta_action.issue_processor.IssueDocument") as mock_doc,
+            patch("alarm_backends.service.fta_action.issue_processor.settings") as mock_settings,
+            patch("alarm_backends.service.fta_action.issue_processor.metrics") as mock_metrics,
+        ):
+            mock_key.client = mock_client
+            mock_key.get_key.return_value = "ck"
+            mock_key.ttl = 300
+            mock_settings.ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
+
+            proc._check_active_issue_count()
+
+            mock_doc.search.assert_not_called()
+            mock_metrics.ISSUE_FINGERPRINT_BLOCKED.labels.assert_not_called()
+
+    def test_jittered_ttl_distributes_within_range(self):
+        """统计性验证：20 次采样 TTL 都在 [240, 360]，且至少有 2 个不同值（真随机）。"""
+        from unittest.mock import MagicMock, patch
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = None
+        mock_client.set.return_value = True
+
+        proc = self._make_proc()
+
+        with (
+            patch("alarm_backends.service.fta_action.issue_processor.ISSUE_ACTIVE_COUNT_KEY") as mock_key,
+            patch("alarm_backends.service.fta_action.issue_processor.IssueDocument") as mock_doc,
+            patch("alarm_backends.service.fta_action.issue_processor.settings") as mock_settings,
+        ):
+            mock_key.client = mock_client
+            mock_key.get_key.return_value = "ck"
+            mock_key.ttl = 300
+            mock_settings.ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
+            mock_doc.search.return_value.filter.return_value.filter.return_value.count.return_value = 50
+
+            ttl_samples = []
+            for _ in range(20):
+                mock_client.reset_mock()
+                proc._check_active_issue_count()
+                ttl_samples.append(mock_client.set.call_args_list[1].kwargs.get("ex"))
+
+            assert all(240 <= t <= 360 for t in ttl_samples), f"out-of-range TTL: {ttl_samples}"
+            assert len(set(ttl_samples)) > 1, "TTL not jittered"
 
 
 class TestBuildIssueDefaultName:

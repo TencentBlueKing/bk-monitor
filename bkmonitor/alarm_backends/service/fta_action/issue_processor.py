@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import json
 import logging
+import random
 import time
 
 from django.conf import settings
@@ -430,6 +431,18 @@ class IssueAggregationProcessor:
                 count = -1
 
         if count < 0:
+            # cache miss thundering herd 防护（review M1）：高基数策略 5min TTL 失效瞬间会有
+            # 多 worker 同时 miss → 同时打 ES count（峰值 ~1000 QPS）。
+            # 用 SET NX EX 10s 短锁让一个 worker 探 ES，其他 worker 跳过本次观测；
+            # warn-only 路径单次观测丢弃无副作用，下个周期重试。
+            probe_lock_key = f"{cache_key}.probe_lock"
+            try:
+                acquired = client.set(probe_lock_key, "1", nx=True, ex=10)
+            except Exception:
+                return
+            if not acquired:
+                return  # 其他 worker 正在探 ES，本 worker 跳过；不主动 release（10s TTL 自然过期）
+
             count = (
                 IssueDocument.search(all_indices=True)
                 .filter("term", strategy_id=str(self.strategy_id))
@@ -437,7 +450,10 @@ class IssueAggregationProcessor:
                 .count()
             )
             try:
-                client.set(cache_key, str(count), ex=ISSUE_ACTIVE_COUNT_KEY.ttl)
+                # jittered TTL（±20%）打散多 worker 同时失效引发的下一次穿透：
+                # 5min ±20% = 4-6 min 随机，避免周期性同步失效
+                jittered_ttl = int(ISSUE_ACTIVE_COUNT_KEY.ttl * (0.8 + random.random() * 0.4))
+                client.set(cache_key, str(count), ex=jittered_ttl)
             except Exception:
                 # cache set 失败不影响本次观测（已经查到 ES count），下次重新查
                 pass
