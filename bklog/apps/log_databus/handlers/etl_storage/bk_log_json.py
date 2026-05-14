@@ -121,13 +121,22 @@ class BkLogJsonEtlStorage(EtlStorage):
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
             result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
-                fields, etl_params, built_in_config, storage_cluster_type=storage_cluster_type
+                fields,
+                etl_params,
+                built_in_config,
+                result_table_config["field_list"],
+                storage_cluster_type=storage_cluster_type,
             )
 
         return result_table_config
 
     def build_log_v4_data_link(
-        self, fields: list, etl_params: dict, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE
+        self,
+        fields: list,
+        etl_params: dict,
+        built_in_config: dict,
+        field_list: list,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
     ) -> dict:
         """
         构建JSON类型的V4 clean_rules配置
@@ -244,10 +253,15 @@ class BkLogJsonEtlStorage(EtlStorage):
                 if check_rule["operator"].get("output_type") == self._get_output_type("object"):
                     json_fields.add(check_rule["output_id"])
 
+            need_config_group = set()
+            for check_field in field_list:
+                if check_field["option"]["es_type"] == "text":
+                    need_config_group.add(check_field["field_name"])
+
             data_link_config["doris_storage_config"] = {
                 "storage_keys": built_in_config["option"]["es_unique_field_list"],
                 "json_fields": list(json_fields),
-                "field_config_group": {"search_zh": ["log"]},
+                "field_config_group": {"search_zh": list(need_config_group)},
                 # "flush_timeout": None
             }
 
