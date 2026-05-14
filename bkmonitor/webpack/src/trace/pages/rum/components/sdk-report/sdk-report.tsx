@@ -218,14 +218,18 @@ export default defineComponent({
                     <span class='card-header-title'>{item.name}</span>
                     <span class='card-header-labels'>
                       {item.labels.map(l => (
-                        <span key={l}>{l}</span>
+                        <span key={l}>
+                          <span>{l}</span>
+                        </span>
                       ))}
                     </span>
                   </div>
                   <div class='card-desc'>{item.desc}</div>
                   <div class='card-tags'>
                     {item.tags.map(t => (
-                      <span key={t}>{t}</span>
+                      <span key={t}>
+                        <span>{t}</span>
+                      </span>
                     ))}
                   </div>
                 </div>

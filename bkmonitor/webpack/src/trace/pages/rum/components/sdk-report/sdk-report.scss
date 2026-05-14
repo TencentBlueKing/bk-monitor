@@ -196,6 +196,7 @@
 
               .icon-monitor {
                 color: #3974ff;
+                font-size: 20px;
               }
 
               .card-header-title {
@@ -219,6 +220,9 @@
                   color: #3a84ff;
                   background: #e6edff;
                   border-radius: 10px;
+                  & > span {
+                    scale: 0.9;
+                  }
                 }
               }
             }
@@ -227,6 +231,8 @@
               display: flex;
               align-items: center;
               margin: 16px 0;
+              flex-wrap: wrap;
+              row-gap: 4px;
 
               & > span {
                 display: inline-flex;
@@ -239,6 +245,9 @@
                 color: #4e5e7a;
                 background: #f0f4fa;
                 border-radius: 10px;
+                & > span {
+                  scale: 0.9;
+                }
               }
             }
 
