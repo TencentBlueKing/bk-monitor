@@ -32,6 +32,7 @@ MCP_SERVER_NAME_TO_PERMISSION_ACTION = {
     "bkmonitorv3-prod-log-query": "using_log_mcp",
     "bkmonitorv3-prod-tracing": "using_apm_mcp",
     "bkmonitorv3-prod-profiling": "using_apm_mcp",
+    "bk-monitor-prod-profiling-query": "using_apm_mcp",
     "bkmonitorv3-prod-metadata-query": "using_metadata_mcp",
     "bkmonitorv3-prod-metrics-query": "using_metrics_mcp",
     "bkmonitorv3-prod-event-query": "using_log_mcp",
