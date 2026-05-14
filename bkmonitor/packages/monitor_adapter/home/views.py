@@ -320,6 +320,9 @@ def external_callback(request):
     except Exception:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
+    if not isinstance(params, dict):
+        return JsonResponse({"result": False, "message": "invalid payload"}, status=400)
+
     if not params.get("token"):
         logger.warning("[external_callback]: missing token")
         return JsonResponse({"result": False, "message": "missing token"}, status=401)
@@ -342,6 +345,9 @@ def report_callback(request):
         params = json.loads(request.body)
     except Exception:  # pylint: disable=broad-except
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
+
+    if not isinstance(params, dict):
+        return JsonResponse({"result": False, "message": "invalid payload"}, status=400)
 
     if not params.get("token"):
         logger.warning("[report_callback]: missing token")
