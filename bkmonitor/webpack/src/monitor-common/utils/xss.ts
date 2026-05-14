@@ -49,7 +49,7 @@ export const xssFilter = (str: string) => {
   }
 };
 
-const SAFE_DATA_IMAGE_REGEXP = /^data:image\/(png|jpe?g|gif|svg\+xml|webp);base64,[a-z0-9+/=]+$/i;
+const SAFE_DATA_IMAGE_REGEXP = /^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=]+$/i;
 const COMMON_ATTRS = ['style', 'class', 'id'];
 const TABLE_ATTRS = ['width', 'height', 'border', 'cellspacing', 'cellpadding', 'bgcolor', 'align', 'valign'];
 const CELL_EXTRAS = ['rowspan', 'colspan'];
