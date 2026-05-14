@@ -2879,6 +2879,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
+    OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
 
     # 选项类型
@@ -2904,6 +2905,7 @@ class ResultTableOption(OptionBase):
             (OPTION_SEGMENTED_QUERY_ENABLE, _("分段查询开关")),
             (OPTION_IS_SPLIT_MEASUREMENT, _("是否为单指标单表")),
             (OPTION_ENABLE_FIELD_BLACK_LIST, _("是否开启指标黑名单")),
+            (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
         ),
         max_length=128,

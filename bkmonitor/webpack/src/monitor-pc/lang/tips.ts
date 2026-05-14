@@ -409,7 +409,7 @@ export default {
 
   // 告警中心
   'PromQL 策略暂时不支持维度分析': 'PromQL strategies do not support dimension analysis',
-  异常检测点: 'Abnormal detection point',
+  异常点: 'Abnormal point',
 
   // APM-告警模板
   查看各服务告警情况: 'View alarm situation of each service',

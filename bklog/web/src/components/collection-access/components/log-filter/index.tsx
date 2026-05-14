@@ -416,7 +416,7 @@ export default class LogFilter extends tsc<object> {
           />
           <div class='switcher-tips'>
             <i class='bk-icon icon-info-circle' />
-            <span>{this.$t('过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本')}</span>
+            <span>{this.$t('仅保留命中以下规则的日志，未命中将被丢弃。')}</span>
           </div>
         </div>
         {this.filterSwitcher && (

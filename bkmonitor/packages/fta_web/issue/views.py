@@ -19,7 +19,14 @@ class IssueViewSet(ResourceViewSet):
     """Issues 功能接口 ViewSet"""
 
     # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
-    READ_ONLY_ENDPOINTS = ["issue/search", "issue/detail", "issue/activities", "issue/history", "issue/top_n"]
+    READ_ONLY_ENDPOINTS = [
+        "issue/search",
+        "issue/detail",
+        "issue/activities",
+        "issue/history",
+        "issue/top_n",
+        "issue/export",
+    ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
     # 新增支持「无业务 ID」的接口时，只需在此处追加 endpoint 名称即可
@@ -93,10 +100,16 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.restore_issue, endpoint="issue/restore"),
         # 修改优先级（支持批量）
         ResourceRoute("POST", resource.issue.update_issue_priority, endpoint="issue/update_priority"),
+        # 重命名 Issue
+        ResourceRoute("POST", resource.issue.rename_issue, endpoint="issue/rename"),
         # 添加跟进信息（支持批量）
         ResourceRoute("POST", resource.issue.add_issue_follow_up, endpoint="issue/add_follow_up"),
+        # 编辑跟进评论
+        ResourceRoute("POST", resource.issue.edit_issue_follow_up, endpoint="issue/edit_follow_up"),
         # 查询变更记录(活动日志)
         ResourceRoute("GET", resource.issue.list_issue_activities, endpoint="issue/activities"),
         # 查询历史 Issue（同策略下已解决的历史 Issue 列表）
         ResourceRoute("GET", resource.issue.list_issue_history, endpoint="issue/history"),
+        # 导出 Issue 列表
+        ResourceRoute("POST", resource.issue.export_issue, endpoint="issue/export"),
     ]

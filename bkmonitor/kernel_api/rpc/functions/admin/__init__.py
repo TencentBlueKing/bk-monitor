@@ -20,6 +20,7 @@ from . import (
     kafka_sample,
     query_route,
     result_table,
+    storage,
     tenant,
 )
 
@@ -35,5 +36,6 @@ __all__ = [
     "kafka_sample",
     "query_route",
     "result_table",
+    "storage",
     "tenant",
 ]

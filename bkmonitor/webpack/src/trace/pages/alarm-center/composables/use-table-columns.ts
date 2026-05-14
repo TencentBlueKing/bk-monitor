@@ -36,6 +36,11 @@ import type { BkUiSettings } from '@blueking/tdesign-ui';
 /** 业务名称/空间名称 字段 */
 const BK_BIZ_NAME_FIELD = 'bk_biz_name';
 
+/** 与表格渲染一致：单空间（非「与我相关」聚合）不展示空间名列，默认勾选也不应包含 */
+function shouldOmitBkBizNameColumn(bizIds: number[]) {
+  return bizIds.length < 2 && ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(bizIds[0]);
+}
+
 /** 表格列配置存储版本号 */
 const TABLE_STORAGE_VERSION = '1.0.0';
 
@@ -64,12 +69,22 @@ export function useAlarmTableColumns() {
   let validColumnKeys = new Set<string>();
 
   watch(
-    () => alarmStore.alarmService.storageKey,
-    val => {
-      storageKey.value = val;
+    () => ({
+      key: alarmStore.alarmService.storageKey,
+      bizIdsKey: alarmStore.bizIds.join(','),
+    }),
+    () => {
+      const key = alarmStore.alarmService.storageKey;
+      storageKey.value = key;
       validColumnKeys = new Set(alarmStore.alarmService.allTableColumns.map(col => col.colKey));
+      let displayFields = alarmStore.alarmService.allTableColumns
+        .filter(item => item.is_default)
+        .map(item => item.colKey);
+      if (shouldOmitBkBizNameColumn(alarmStore.bizIds)) {
+        displayFields = displayFields.filter(f => f !== BK_BIZ_NAME_FIELD);
+      }
       defaultTableStorageConfig.value = {
-        displayFields: alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey),
+        displayFields,
         fieldsWidth: {},
         version: TABLE_STORAGE_VERSION,
       };
@@ -146,11 +161,7 @@ export function useAlarmTableColumns() {
         if (field === 'row-select') {
           return { colKey: 'row-select', type: 'multiple' as const, width: 50, minWidth: 50, fixed: 'left' as const };
         }
-        if (
-          field === BK_BIZ_NAME_FIELD &&
-          alarmStore.bizIds.length < 2 &&
-          ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(alarmStore.bizIds[0])
-        ) {
+        if (field === BK_BIZ_NAME_FIELD && shouldOmitBkBizNameColumn(alarmStore.bizIds)) {
           return undefined;
         }
         const column = alarmStore.alarmService.allTableColumns.find(col => col.colKey === field);
@@ -170,7 +181,11 @@ export function useAlarmTableColumns() {
         field: item.colKey,
       }));
     }
-    return alarmStore.alarmService.allTableColumns.map(item => ({
+    let cols = alarmStore.alarmService.allTableColumns;
+    if (shouldOmitBkBizNameColumn(alarmStore.bizIds)) {
+      cols = cols.filter(c => c.colKey !== BK_BIZ_NAME_FIELD);
+    }
+    return cols.map(item => ({
       label: item.title.toString(),
       field: item.colKey,
     }));

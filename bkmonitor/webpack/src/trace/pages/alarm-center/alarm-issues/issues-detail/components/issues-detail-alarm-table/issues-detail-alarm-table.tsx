@@ -48,6 +48,7 @@ import {
   type CommonCondition,
   AlarmType,
 } from '../../../../typings';
+import { conditionAlertQueryFieldReplace } from '../../utils';
 import { useAlarmTableColumns } from './use-table-columns';
 import { saveAlertContentName } from '@/pages/alarm-center/services/alert-services';
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
@@ -152,7 +153,9 @@ export default defineComponent({
       const newValue = {
         conditions: [
           { key: 'issue_id', value: [props.detail.id], method: 'eq' },
-          ...(props.filterMode === EMode.ui ? props.conditions : []),
+          ...(props.filterMode === EMode.ui
+            ? conditionAlertQueryFieldReplace(props.conditions, props.detail?.impact_scope || {})
+            : []),
         ],
         query_string: props.filterMode === EMode.queryString ? props.queryString : '',
       };
@@ -178,7 +181,7 @@ export default defineComponent({
 
       const params = {
         bk_biz_id: props.detail.bk_biz_id,
-        bk_biz_ids: [props.detail.bk_biz_id],
+        bk_biz_ids: window.APM_QUERY_STRING ? [window.bk_biz_id] : [props.detail.bk_biz_id],
         ...commonParams.value,
         start_time: startTime,
         end_time: endTime,

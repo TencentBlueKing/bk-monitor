@@ -16,10 +16,13 @@ NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
+
 from rest_framework import serializers
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.utils.drf import detail_route
 
@@ -27,6 +30,9 @@ from apps.utils.drf import detail_route
 class BcsViewSet(APIViewSet):
     lookup_field = "bk_biz_id"
     serializer_class = serializers.Serializer
+
+    def get_permissions(self):
+        return [InstanceActionPermission([ActionEnum.VIEW_BUSINESS], ResourceEnum.BUSINESS)]
 
     @detail_route(methods=["GET"])
     def list_cluster(self, request, bk_biz_id):

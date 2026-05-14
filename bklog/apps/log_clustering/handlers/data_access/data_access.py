@@ -37,6 +37,7 @@ from apps.log_databus.constants import BKDATA_ES_TYPE_MAP, PARSE_FAILURE_FIELD
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
+from apps.log_databus.utils.bkdata_rt_name import collapse_underscores
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
@@ -137,7 +138,8 @@ class DataAccessHandler(BaseAiopsHandler):
         fields_config.append({"alias_name": "time", "field_name": "time", "option": {"es_type": "long"}})
 
         # 结果表统一添加 bklog 前缀，避免同名冲突
-        result_table_name = f"bklog_{collector_config.collector_config_name_en}"
+        # BKData 不接受连续下划线 (1500001), 调用前合并; 其它字符 / 大小写 / 截断 保持原行为
+        result_table_name = collapse_underscores(f"bklog_{collector_config.collector_config_name_en}")
 
         # 当用户使用了自定义字段作为时间字段，则会产生同名字段，需要去重
         fields_names = set()

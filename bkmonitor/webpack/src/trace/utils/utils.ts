@@ -345,3 +345,15 @@ export const formatTime = (time: number) => {
   const timeRes = dayjs.tz(time2).format('YYYY-MM-DD HH:mm:ssZZ');
   return timeRes;
 };
+
+/** 仅用于可 JSON 序列化的纯数据深拷贝（避免 structuredClone 对 Vue Proxy 等抛出 DataCloneError） */
+export const safeDeepClone = <T>(value: T): T => {
+  if (typeof value !== 'object' || value === null) {
+    return value;
+  }
+  try {
+    return JSON.parse(JSON.stringify(value)) as T;
+  } catch {
+    return value;
+  }
+};

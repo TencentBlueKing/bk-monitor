@@ -558,6 +558,13 @@ class CollectorHandler:
             IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         custom_config = get_custom(self.data.custom_type)
+
+        # otlp 上报自动补充 target_fields、sort_fields 默认值
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
+
         if etl_params and fields:
             # 1. 传递了清洗参数，则优先级最高
             etl_params, etl_config, fields = etl_params, etl_config, fields
@@ -1439,6 +1446,12 @@ class CollectorHandler:
         async_create_bkdata_data_id.delay(self.data.collector_config_id)
 
         custom_config = get_custom(custom_type)
+
+        # otlp 上报自动补充 target_fields、sort_fields 默认值
+        if not target_fields and custom_config.default_target_fields:
+            target_fields = custom_config.default_target_fields.copy()
+        if not sort_fields and custom_config.default_sort_fields:
+            sort_fields = custom_config.default_sort_fields.copy()
 
         # 仅在有集群ID时创建清洗
         if storage_cluster_id:

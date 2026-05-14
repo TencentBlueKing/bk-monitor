@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, provide, shallowRef, inject } from 'vue';
+import { defineComponent, inject, provide, shallowRef } from 'vue';
 import { computed } from 'vue';
 
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -34,7 +34,7 @@ import IntervalSelect from '../../../../components/interval-select/interval-sele
 import ChartCollapse from '../../../../pages/trace-explore/components/explore-chart/chart-collapse';
 import ExploreChart from '../../../../pages/trace-explore/components/explore-chart/explore-chart';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
-import { AlarmStatusIconMap, AlarmType, IncidentIconMap } from '../../typings';
+import { AlarmStatusEnum, AlarmStatusIconMap, AlarmType, IncidentIconMap } from '../../typings';
 
 import './alarm-trend-chart.scss';
 
@@ -78,7 +78,7 @@ export default defineComponent({
       switch (store.alarmType) {
         case AlarmType.ALERT: {
           colorMap = Object.entries(AlarmStatusIconMap).reduce((pre, [key, value]) => {
-            pre[key] = value.iconColor;
+            pre[key] = key === AlarmStatusEnum.CLOSED ? '#DCDEE5' : value.iconColor;
             return pre;
           }, {});
           break;
@@ -209,7 +209,7 @@ export default defineComponent({
             default: () => (
               <div class='alarm-trend-chart-container'>
                 <ExploreChart
-                  customOptions={{ formatterData: this.formatterData }}
+                  customOptions={{ formatterData: this.formatterData, tooltips: { showTotal: true } }}
                   panel={this.panel}
                   params={this.params}
                   showTitle={false}

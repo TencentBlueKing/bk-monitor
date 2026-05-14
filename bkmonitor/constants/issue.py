@@ -44,16 +44,20 @@ class IssuePriority:
 class IssueActivityType:
     CREATE = "create"
     COMMENT = "comment"
+    COMMENT_EDIT = "comment_edit"
     STATUS_CHANGE = "status_change"
     ASSIGNEE_CHANGE = "assignee_change"
     PRIORITY_CHANGE = "priority_change"
+    NAME_CHANGE = "name_change"
 
     CHOICES = (
         (CREATE, _("创建")),
         (COMMENT, _("评论")),
+        (COMMENT_EDIT, _("评论编辑")),
         (STATUS_CHANGE, _("状态变更")),
         (ASSIGNEE_CHANGE, _("负责人变更")),
         (PRIORITY_CHANGE, _("优先级变更")),
+        (NAME_CHANGE, _("名称变更")),
     )
 
 

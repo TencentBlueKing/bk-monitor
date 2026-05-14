@@ -233,6 +233,7 @@ export default defineComponent({
               return item;
             }),
             ...(conditions.value.length > 1 ? { condition: 'and' } : {}),
+            ...(condition?.condition ? { condition: condition.condition } : {}),
           }))
         );
       } else {

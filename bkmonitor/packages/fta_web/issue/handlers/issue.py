@@ -440,7 +440,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 有权限的业务直接过滤
-            queries.append(Q("terms", bk_biz_id=[str(b) for b in self.authorized_bizs]))
+            authorized_biz_ids = [str(b) for b in self.authorized_bizs]
+            authorized_query = self.build_es_terms_query("bk_biz_id", authorized_biz_ids)
+            if authorized_query is not None:
+                queries.append(authorized_query)
 
         user_condition = Q("term", assignee=self.request_username)
 
@@ -450,7 +453,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         if self.unauthorized_bizs and self.request_username:
             # 无权限的业务，需要同时是负责人才能看到
-            queries.append(Q("terms", bk_biz_id=[str(b) for b in self.unauthorized_bizs]) & user_condition)
+            unauthorized_query = self.build_es_terms_query("bk_biz_id", [str(b) for b in self.unauthorized_bizs])
+            if unauthorized_query is not None:
+                queries.append(unauthorized_query & user_condition)
 
         if queries:
             return search_object.filter(reduce(operator.or_, queries))

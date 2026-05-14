@@ -11,6 +11,7 @@ from kernel_api.resource.apm import (
     ListApmSpanResource,
     QueryApmTraceDetailResource,
     QueryApmSpanDetailResource,
+    QueryApmProfilingResource,
 )
 
 
@@ -61,4 +62,5 @@ class ApmMcpViewSet(ResourceViewSet):
         ResourceRoute("POST", ListApmSpanResource, endpoint="list_apm_span"),
         ResourceRoute("POST", QueryApmTraceDetailResource, endpoint="query_apm_trace_detail"),
         ResourceRoute("POST", QueryApmSpanDetailResource, endpoint="query_apm_span_detail"),
+        ResourceRoute("POST", QueryApmProfilingResource, endpoint="query_apm_profiling"),
     ]

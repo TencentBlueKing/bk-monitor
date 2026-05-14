@@ -24,15 +24,15 @@ def parse_function(text: str) -> dict:
     func_name, param_list = function_parser.parse(text, lexer=function_lexer)
 
     params = []
-    if func_name in Functions or func_name in GrafanaFunctions:
-        function = Functions.get(func_name, GrafanaFunctions.get(func_name))
-        if len(param_list) != len(function.params):
-            raise ValueError(_("{}参数数量不对").format(func_name))
-
-        for param, param_info in zip(param_list, function.params):
-            params.append({"id": param_info.id, "value": param})
-    else:
+    function = Functions.get(func_name) or GrafanaFunctions.get(func_name)
+    if function is None:
         raise ValueError(_("{}函数不存在").format(func_name))
+
+    if len(param_list) != len(function.params):
+        raise ValueError(_("{}参数数量不对").format(func_name))
+
+    for param, param_info in zip(param_list, function.params):
+        params.append({"id": param_info.id, "value": param})
 
     return {"id": func_name, "params": params}
 
@@ -50,10 +50,15 @@ def parse_threshold(text: str) -> list[list[dict]]:
     return threshold_parser.parse(text, lexer=threshold_lexer)
 
 
-def create_function_expression(config: dict):
+def create_function_expression(config: dict) -> str | None:
     """
     生成函数表达式
     """
+    if config["id"] == "time_shift" and (
+        not config.get("params") or any("value" not in p or p["value"] in (None, "") for p in config.get("params", []))
+    ):
+        return None
+
     params = []
     for p in config.get("params", []):
         params.append(str(p["value"]))

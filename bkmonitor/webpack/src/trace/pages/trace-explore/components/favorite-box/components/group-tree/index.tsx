@@ -193,7 +193,6 @@ export default defineComponent({
           <div
             class={{
               'favorite-create': true,
-              'is-active': !activeFavoriteId.value,
             }}
             onClick={handleSelectCreateGroup}
           >

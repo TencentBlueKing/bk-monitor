@@ -56,10 +56,6 @@ export interface ILegacyAlarmCenterQuery {
    * 与 alarmType 同名时（即旧版 overview 总览项）不下发任何快捷筛选。
    */
   activeFilterId?: string;
-  /** 透传到新版告警中心：列表当前选中告警业务 ID */
-  alarmBizId?: number | string;
-  /** 透传到新版告警中心：列表当前选中告警 ID（用于侧栏详情） */
-  alarmId?: number | string;
   /** 新版：alarmType */
   alarmType?: 'action' | 'alert' | 'incident';
   /** 旧版：告警 ID（会被转成 queryString=id : ${alertId}） */
@@ -80,6 +76,10 @@ export interface ILegacyAlarmCenterQuery {
   conditions?: string;
   /** 透传到新版告警中心：当前页 */
   currentPage?: number | string;
+  /** 透传到新版告警中心：列表当前选中告警业务 ID（用于侧栏详情 */
+  detailBizId?: number | string;
+  /** 透传到新版告警中心：列表当前选中告警 ID（用于侧栏详情） */
+  detailId?: number | string;
   /** 透传到新版告警中心：默认收藏 ID */
   favorite_id?: number | string;
   /** 通用：检索模式 ui | queryString */
@@ -106,7 +106,7 @@ export interface ILegacyAlarmCenterQuery {
   showResidentBtn?: boolean | string;
   /** 通用：表格排序 */
   sortOrder?: string;
-  /** 旧版：specEvent 用于自动展开告警详情侧栏；新版改成 alarmId+showDetail */
+  /** 旧版：specEvent 用于自动展开告警详情侧栏；新版改成 detailId + detailBizId + showDetail */
   specEvent?: boolean | number | string;
   /** 通用：时区 */
   timezone?: string;
@@ -353,14 +353,14 @@ function applyActiveFilterIdCompat(raw: ILegacyAlarmCenterQuery, result: Record<
   result.quickFilterValue = [{ key, value: [activeFilterId] }];
 }
 
-/** 同时存在 specEvent + (alertId | collectId) 时，新版改用 alarmId + showDetail 表达 */
+/** 同时存在 specEvent + (alertId | collectId) 时，新版改用 detailId + detailBizId + showDetail 表达 */
 function applySpecEventCompat(raw: ILegacyAlarmCenterQuery, result: Record<string, any>): void {
   if (!raw.specEvent) return;
   const targetId = raw.alertId ?? raw.collectId;
   if (targetId == null) return;
-  if (result.alarmId == null) result.alarmId = String(targetId);
-  if (raw.bizIds != null && result.alarmBizId == null) {
-    result.alarmBizId = Array.isArray(raw.bizIds) ? raw.bizIds[0] : raw.bizIds;
+  if (result.detailId == null) result.detailId = String(targetId);
+  if (raw.bizIds != null && result.detailBizId == null) {
+    result.detailBizId = Array.isArray(raw.bizIds) ? raw.bizIds[0] : raw.bizIds;
   }
   if (result.showDetail == null) result.showDetail = 'true';
 }

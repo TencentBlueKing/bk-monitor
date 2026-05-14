@@ -107,6 +107,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: update issue priority
+  /app/issue/rename/:
+    post:
+      operationId: issue_rename
+      description: 重命名 Issue
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/issue/rename/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: rename issue
   /app/issue/add_follow_up/:
     post:
       operationId: issue_add_follow_up
@@ -125,3 +143,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: add follow up to issue
+  /app/issue/edit_follow_up/:
+    post:
+      operationId: issue_edit_follow_up
+      description: 编辑 Issue 跟进评论
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/issue/edit_follow_up/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit follow up of issue

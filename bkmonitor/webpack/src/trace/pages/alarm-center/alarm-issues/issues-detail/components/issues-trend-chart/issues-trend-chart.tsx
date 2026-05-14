@@ -51,6 +51,10 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
+    refreshKey: {
+      type: String,
+      default: '',
+    },
   },
   setup(props) {
     provide('timeRange', toRef(props, 'timeRange'));
@@ -65,6 +69,7 @@ export default defineComponent({
       return {
         ...props.commonParams,
         interval: 'auto',
+        ...(props.refreshKey ? {} : {}),
       };
     });
 

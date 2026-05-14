@@ -8,7 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from datetime import datetime
+from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import _serialize_cluster_info
@@ -25,7 +28,18 @@ from kernel_api.rpc.functions.admin.query_route import (
     _resolve_space_identity,
 )
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
+from kernel_api.rpc.functions.admin import storage as admin_storage
+from kernel_api.rpc.functions.admin.storage import (
+    get_doris_storage_latest_records,
+    get_doris_storage_physical_metadata,
+    _serialize_bkbase_item,
+    _serialize_doris_storage,
+)
 from kernel_api.rpc.registry import KernelRPCRegistry
+
+
+def _doris_storage_manager():
+    return admin_storage.models.DorisStorage.objects
 
 
 def test_admin_rpc_functions_registered_by_builtin_loader():
@@ -49,11 +63,60 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.es_storage.sample",
         "admin.query_route.query",
         "admin.query_route.refresh",
+        "admin.doris_storage.list",
+        "admin.doris_storage.detail",
+        "admin.doris_storage.physical_metadata",
+        "admin.doris_storage.latest_records",
+        "admin.vm_storage.list",
+        "admin.vm_storage.detail",
+        "admin.kafka_storage.list",
+        "admin.kafka_storage.detail",
+        "admin.bkbase_result_table.list",
+        "admin.bkbase_result_table.detail",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
     assert detail is not None
     assert detail["params_schema"]["include"].find("fields") != -1
+
+
+def test_doris_storage_physical_metadata_rpc_marks_inspect_and_serializes_runtime_values():
+    storage = SimpleNamespace(
+        query_physical_storage_metadata=lambda: {
+            "physical_metadata": {
+                "tables": [{"CREATE_TIME": datetime(2026, 5, 12, 10, 30, 0), "TABLE_ROWS": Decimal("3")}]
+            },
+            "warnings": [],
+            "errors": [],
+        }
+    )
+
+    with patch.object(_doris_storage_manager(), "get", return_value=storage):
+        response = get_doris_storage_physical_metadata({"bk_tenant_id": "system", "table_id": "2_bklog.demo"})
+
+    assert response["meta"]["safety_level"] == "inspect"
+    assert response["meta"]["requested_safety_level"] == "inspect"
+    assert response["data"]["physical_metadata"]["tables"][0]["CREATE_TIME"] == "2026-05-12 10:30:00"
+    assert response["data"]["physical_metadata"]["tables"][0]["TABLE_ROWS"] == "3"
+
+
+def test_doris_storage_latest_records_rpc_passes_limit_and_order_field():
+    calls = []
+
+    def query_latest_physical_storage_records(*, limit, order_field):
+        calls.append({"limit": limit, "order_field": order_field})
+        return {"records": [{"value": "latest"}], "warnings": [], "errors": []}
+
+    storage = SimpleNamespace(query_latest_physical_storage_records=query_latest_physical_storage_records)
+
+    with patch.object(_doris_storage_manager(), "get", return_value=storage):
+        response = get_doris_storage_latest_records(
+            {"bk_tenant_id": "system", "table_id": "2_bklog.demo", "limit": "200", "order_field": "time"}
+        )
+
+    assert calls == [{"limit": 100, "order_field": "time"}]
+    assert response["meta"]["safety_level"] == "inspect"
+    assert response["data"]["records"] == [{"value": "latest"}]
 
 
 def test_datasource_serializer_masks_token():
@@ -420,6 +483,79 @@ def test_es_storage_functions_registered():
     assert "table_id" in runtime_detail["params_schema"]
 
 
+def test_storage_functions_registered():
+    for func_name in [
+        "admin.doris_storage.list",
+        "admin.doris_storage.detail",
+        "admin.vm_storage.list",
+        "admin.vm_storage.detail",
+        "admin.kafka_storage.list",
+        "admin.kafka_storage.detail",
+        "admin.bkbase_result_table.list",
+        "admin.bkbase_result_table.detail",
+    ]:
+        detail = KernelRPCRegistry.get_function_detail(func_name)
+        assert detail is not None
+        assert detail["func_name"] == func_name
+
+    assert "table_id" in KernelRPCRegistry.get_function_detail("admin.doris_storage.list")["params_schema"]
+    assert "id" in KernelRPCRegistry.get_function_detail("admin.vm_storage.detail")["params_schema"]
+    assert (
+        "data_link_name" in KernelRPCRegistry.get_function_detail("admin.bkbase_result_table.detail")["params_schema"]
+    )
+
+
+def test_doris_storage_serializer_parses_field_config_mapping():
+    warnings = []
+    item = _serialize_doris_storage(
+        SimpleNamespace(
+            table_id="3_bklog.demo",
+            bk_tenant_id="system",
+            bkbase_table_id="592_bklog_demo",
+            source_type="log",
+            index_set="3_bklog_demo",
+            table_type="primary_table",
+            field_config_mapping='{"ip": {"type": "keyword"}}',
+            expire_days=30,
+            storage_cluster_id=3,
+        ),
+        warnings,
+    )
+
+    assert item["field_config_mapping"]["ip"]["type"] == "keyword"
+    assert warnings == []
+
+
+def test_bkbase_result_table_serializer_keeps_model_fields():
+    item = _serialize_bkbase_item(
+        SimpleNamespace(
+            data_link_name="bk_log",
+            bkbase_data_name="bk_log",
+            storage_type="elasticsearch",
+            monitor_table_id="3_bklog.demo",
+            storage_cluster_id=3,
+            create_time=None,
+            last_modify_time=None,
+            status="Ok",
+            bkbase_table_id="592_bklog_demo",
+            bkbase_rt_name="bklog_demo",
+            bk_tenant_id="system",
+        ),
+        {"3_bklog.demo": SimpleNamespace(table_id="3_bklog.demo", bk_tenant_id="system")},
+        {
+            3: SimpleNamespace(
+                cluster_id=3, cluster_name="default-es", display_name="默认 ES", cluster_type="elasticsearch"
+            )
+        },
+    )
+
+    assert item["bkbase_result_table"]["data_link_name"] == "bk_log"
+    assert item["bkbase_result_table"]["monitor_table_id"] == "3_bklog.demo"
+    assert item["bkbase_result_table"]["status"] == "Ok"
+    assert item["result_table"]["table_id"] == "3_bklog.demo"
+    assert item["storage_cluster"]["cluster_id"] == 3
+
+
 def test_query_route_functions_registered():
     for func_name in ["admin.query_route.query", "admin.query_route.refresh"]:
         detail = KernelRPCRegistry.get_function_detail(func_name)
@@ -440,4 +576,5 @@ def test_cluster_info_list_params_schema():
 def test_bcs_cluster_list_params_schema():
     detail = KernelRPCRegistry.get_function_detail("admin.bcs_cluster.list")
     assert detail is not None
+    assert "bk_data_id" in detail["params_schema"]
     assert "status" in detail["params_schema"]

@@ -1,0 +1,72 @@
+paths:
+  /mcp/search_bcs_clusters/:
+    get:
+      operationId: list_bcs_clusters
+      description: List BCS (BlueKing Container Service) clusters in a business. bk_biz_id can be provided directly or calculated from search_spaces (BKCC→space_id; BKCI/BKSAAS→-id). 查询业务下的BCS集群列表。bk_biz_id可直接指定或从search_spaces计算获取。
+      tags:
+      - metadata_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: 'Business ID in BlueKing Monitor. Can be provided directly by user if known, or calculated from search_spaces results: for BKCC type, use space_id; for BKCI/BKSAAS types, negate the id field. 业务ID。可以由用户直接指定（如果已知），或根据 search_spaces 结果计算：BKCC类型使用 space_id；BKCI/BKSAAS类型将 id 取反。'
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/list_bcs_cluster_info_by_biz/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_spaces/:
+    get:
+      operationId: search_spaces
+      description: 'Fuzzy search spaces by name to get bk_biz_id for other MCP tools. Calculate bk_biz_id by space_type_id: BKCC(业务/Business)→use space_id; BKCI(研发项目/DevOps)→negate id; BKSAAS(蓝鲸应用/SaaS App)→negate id (e.g., id=131→"-131"). 模糊搜索业务/空间以获取bk_biz_id。计算规则:BKCC(业务)用space_id;BKCI(研发项目)和BKSAAS(蓝鲸应用)将id取反。'
+      tags:
+      - metadata_mcp
+      parameters:
+      - in: query
+        name: space_name
+        schema:
+          type: string
+          default: demo
+        required: true
+        description: Search keyword for fuzzy matching space/business names. Supports partial matching. 用于模糊匹配空间/业务名称的搜索关键字。支持部分匹配。
+      - in: query
+        name: page
+        schema:
+          type: string
+          default: '1'
+        description: 'Page number, starts from 1. Default: 1. 页码，从1开始。默认: 1。'
+      - in: query
+        name: page_size
+        schema:
+          type: string
+          default: '10'
+        description: 'Items per page. Default: 10. 每页条数。默认: 10。'
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/list_spaces/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
