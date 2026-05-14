@@ -14,7 +14,7 @@ from collections import defaultdict
 import json
 from typing import Any
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
@@ -219,24 +219,39 @@ def _serialize_custom_metric_group(group: Any, metric_count: int) -> dict[str, A
     }
 
 
-def _filter_applications_by_datasource_params(applications: list[Any], params: dict[str, Any]):
+def _load_datasource_application_keys_by_filter(**filters: Any) -> set[tuple[int, str]]:
+    keys: set[tuple[int, str]] = set()
+    for datasource_type in DATASOURCE_TYPES:
+        queryset = _datasource_model(datasource_type).objects.filter(**filters)
+        keys.update(queryset.values_list("bk_biz_id", "app_name"))
+    return keys
+
+
+def _load_datasource_application_keys(params: dict[str, Any]) -> set[tuple[int, str]] | None:
     bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
     table_id = str(params.get("table_id") or "").strip()
     if bk_data_id is None and not table_id:
-        return applications
+        return None
 
-    datasource_maps = _load_apm_datasource_maps(applications)
-    filtered = []
-    for application in applications:
-        key = _app_key(application)
-        datasources = [datasource_maps[datasource_type].get(key) for datasource_type in DATASOURCE_TYPES]
-        datasources = [datasource for datasource in datasources if datasource]
-        if bk_data_id is not None and not any(datasource.bk_data_id == bk_data_id for datasource in datasources):
-            continue
-        if table_id and not any(table_id in datasource.result_table_id for datasource in datasources):
-            continue
-        filtered.append(application)
-    return filtered
+    key_sets = []
+    if bk_data_id is not None:
+        key_sets.append(_load_datasource_application_keys_by_filter(bk_data_id=bk_data_id))
+    if table_id:
+        key_sets.append(_load_datasource_application_keys_by_filter(result_table_id__contains=table_id))
+    return set.intersection(*key_sets) if key_sets else set()
+
+
+def _filter_application_queryset_by_datasource_params(queryset: Any, params: dict[str, Any]) -> Any:
+    keys = _load_datasource_application_keys(params)
+    if keys is None:
+        return queryset
+    if not keys:
+        return queryset.none()
+
+    key_filter = Q()
+    for bk_biz_id, app_name in keys:
+        key_filter |= Q(bk_biz_id=bk_biz_id, app_name=app_name)
+    return queryset.filter(key_filter)
 
 
 def _get_application(application_id: Any, bk_tenant_id: str) -> Any:
@@ -332,10 +347,10 @@ def list_apm_applications(params: dict[str, Any]) -> dict[str, Any]:
     if app_name:
         queryset = queryset.filter(app_name__icontains=app_name)
 
-    applications = _filter_applications_by_datasource_params(list(queryset), params)
-    total = len(applications)
+    queryset = _filter_application_queryset_by_datasource_params(queryset, params)
+    total = queryset.count()
     offset = (page - 1) * page_size
-    page_applications = applications[offset : offset + page_size]
+    page_applications = list(queryset[offset : offset + page_size])
     datasource_maps = _load_apm_datasource_maps(page_applications)
     service_count_map = _load_service_count_map(page_applications)
     items = [
