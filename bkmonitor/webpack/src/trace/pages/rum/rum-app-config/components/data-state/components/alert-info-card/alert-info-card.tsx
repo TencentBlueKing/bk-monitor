@@ -34,6 +34,7 @@ import { usePopover } from '../../../../../../alarm-center/components/alarm-tabl
 import AlertTrendMiniChart from '../alert-trend-mini-chart/alert-trend-mini-chart';
 import ConfirmActionBar from '../confirm-action-bar/confirm-action-bar';
 
+import type { TimeRangeType } from '../../../../../../../components/time-range/utils';
 import type { AsyncDialogConfirmEvent, IStrategyData } from '../../../../../typings';
 
 import './alert-info-card.scss';
@@ -59,6 +60,11 @@ export default defineComponent({
     loading: {
       type: Boolean,
       default: false,
+    },
+    /** 时间范围 */
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: () => [],
     },
   },
   emits: {
@@ -192,7 +198,10 @@ export default defineComponent({
             <div class='alert-info-card-right'>
               <div class='alert-history'>
                 <span class='history-label'>{this.t('告警历史')} ：</span>
-                <AlertTrendMiniChart alertGraph={this.strategyInfo?.alert_graph} />
+                <AlertTrendMiniChart
+                  alertGraph={this.strategyInfo?.alert_graph}
+                  timeRange={this.timeRange}
+                />
               </div>
               <Button
                 class='action-link'

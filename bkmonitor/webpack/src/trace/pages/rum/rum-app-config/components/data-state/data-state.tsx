@@ -180,6 +180,7 @@ export default defineComponent({
           class='run-config-data-state-card'
           loading={this.strategyLoading}
           strategyInfo={this.strategyInfo}
+          timeRange={this.timeRange}
           onEnabledChange={this.handleEnabledChange}
         />
         <div class='run-config-data-state-chart-container'>
