@@ -357,7 +357,7 @@ export default defineComponent({
       const setList = new Set();
       const filterList = [];
       for (const item of list) {
-        if (!setList.has(item.field_type)) {
+        if (!setList.has(item.field_type) && item.field_type) {
           setList.add(item.field_type);
           filterList.push({
             label: item.field_type,
