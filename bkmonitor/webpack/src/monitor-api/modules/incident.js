@@ -29,6 +29,7 @@ export const incidentHistogram = request('POST', 'rest/v2/incident/date_histogra
 export const getIncidentDocId = request('GET', 'rest/v2/incident/get_incident_doc_id/');
 export const fetchConfigList = request('POST', 'rest/v2/incident/get_config/');
 export const fetchGlobalVariables = request('GET', 'rest/v2/incident/fetch_global_variables/');
+export const createListConfig = request('GET', 'rest/v2/incident/create_list_config/');
 
 export default {
   incidentMetricsSearch,
@@ -59,5 +60,6 @@ export default {
   incidentHistogram,
   getIncidentDocId,
   fetchConfigList,
-  fetchGlobalVariables
+  fetchGlobalVariables,
+  createListConfig
 };
