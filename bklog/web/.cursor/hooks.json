@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/run-hook.cmd aafe-session-start",
+        "timeout": 30,
+        "failClosed": false
+      }
+    ]
+  }
+}
