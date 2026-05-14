@@ -198,6 +198,109 @@ def test_inspect_strategy_config_rejects_missing_required_params():
     assert "strategy_id" in str(exc.value)
 
 
+def test_inspect_strategy_config_detail_default_injects_strategy_group_key(monkeypatch):
+    """detail 默认基于 StrategyCacheManager.get_query_md5 给每个 item 注入 strategy_group_key。
+
+    DB 不存这个字段，但 access 拉数 / TokenBucket 流控诊断必需。get_query_md5 是纯计算函数。
+    """
+    from kernel_api.rpc.functions.bkm_cli import strategy
+
+    model = SimpleNamespace(id=148631, bk_biz_id=100864)
+    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    strategy_obj = FakeStrategyObject(
+        {
+            "id": 148631,
+            "bk_biz_id": 100864,
+            "name": "access pull demo",
+            "scenario": "os",
+            "type": "monitor",
+            "source": "bkmonitorv3",
+            "is_enabled": True,
+            "is_invalid": False,
+            "invalid_type": "",
+            "priority": 1,
+            "priority_group_key": "PGK:demo",
+            "items": [
+                {"id": 1, "query_configs": [{"metric_field": "pro_exist"}]},
+                {"id": 2, "query_configs": [{"metric_field": "fd_num"}]},
+            ],
+            "detects": [],
+            "actions": [],
+            "notice": {},
+            "issue_config": {},
+        }
+    )
+
+    captured_calls = []
+
+    def fake_get_query_md5(bk_biz_id, item):
+        captured_calls.append((bk_biz_id, item["id"]))
+        return f"md5-{item['id']}"
+
+    monkeypatch.setattr(strategy.Strategy, "from_models", lambda rows: [strategy_obj])
+    monkeypatch.setattr(strategy.Strategy, "fill_user_groups", lambda configs: None)
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    monkeypatch.setattr(StrategyCacheManager, "get_query_md5", classmethod(lambda cls, b, i: fake_get_query_md5(b, i)))
+
+    result = BkmCliOpCallResource().perform_request(
+        {
+            "op_id": "inspect-strategy-config",
+            "params": {"operation": "detail", "strategy_id": 148631},
+        }
+    )
+
+    items = result["result"]["strategy"]["items"]
+    assert items[0]["strategy_group_key"] == "md5-1"
+    assert items[1]["strategy_group_key"] == "md5-2"
+    assert captured_calls == [(100864, 1), (100864, 2)]
+
+
+def test_inspect_strategy_config_detail_silent_on_group_key_failure(monkeypatch):
+    """注入 strategy_group_key 失败不应阻塞 detail 主路径。"""
+    from kernel_api.rpc.functions.bkm_cli import strategy
+
+    model = SimpleNamespace(id=999, bk_biz_id=7)
+    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    strategy_obj = FakeStrategyObject(
+        {
+            "id": 999,
+            "bk_biz_id": 7,
+            "name": "edge",
+            "scenario": "os",
+            "type": "monitor",
+            "source": "bkmonitorv3",
+            "is_enabled": True,
+            "is_invalid": False,
+            "invalid_type": "",
+            "priority": 0,
+            "priority_group_key": "",
+            "items": [{"id": 1, "query_configs": [{"metric_field": "x"}]}],
+            "detects": [],
+            "actions": [],
+            "notice": {},
+            "issue_config": {},
+        }
+    )
+
+    monkeypatch.setattr(strategy.Strategy, "from_models", lambda rows: [strategy_obj])
+    monkeypatch.setattr(strategy.Strategy, "fill_user_groups", lambda configs: None)
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    def boom(cls, bk_biz_id, item):
+        raise RuntimeError("simulated md5 failure")
+
+    monkeypatch.setattr(StrategyCacheManager, "get_query_md5", classmethod(boom))
+
+    result = BkmCliOpCallResource().perform_request(
+        {"op_id": "inspect-strategy-config", "params": {"operation": "detail", "strategy_id": 999}}
+    )
+
+    # 主路径仍然返回成功，item 上没有 strategy_group_key 字段
+    assert result["result"]["operation"] == "detail"
+    assert "strategy_group_key" not in result["result"]["strategy"]["items"][0]
+
+
 def test_inspect_strategy_config_detail_without_bk_biz_id(monkeypatch):
     """strategy_id is globally unique — bk_biz_id should be optional for detail."""
     from kernel_api.rpc.functions.bkm_cli import strategy

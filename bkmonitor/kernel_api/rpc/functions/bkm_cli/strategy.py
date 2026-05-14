@@ -93,6 +93,8 @@ def _build_strategy_config(strategy_model: StrategyModel, *, include_user_groups
     except Exception as error:
         raise CustomException(message=f"策略配置解析失败: strategy_id={strategy_model.id}, 原因: {error}") from error
 
+    _inject_strategy_group_key(strategy_model.bk_biz_id, config)
+
     if include_user_groups:
         try:
             Strategy.fill_user_groups([config])
@@ -101,6 +103,27 @@ def _build_strategy_config(strategy_model: StrategyModel, *, include_user_groups
                 message=f"策略通知组填充失败: strategy_id={strategy_model.id}, 原因: {error}"
             ) from error
     return config
+
+
+def _inject_strategy_group_key(bk_biz_id: int, config: dict[str, Any]) -> None:
+    """给 config.items[i] 默认补 ``strategy_group_key``（即 alarm_backends 的 ``query_md5``）。
+
+    DB 不存这个字段；它由 alarm_backends 运行时基于 query_configs 计算并写入 Redis
+    ``STRATEGY_GROUP_CACHE_KEY`` hash。但它是 access 拉数共享 / TokenBucket 流控诊断
+    必需的关键证据，agent 在排障时常需要它，因此 detail 默认补全。
+
+    ``StrategyCacheManager.get_query_md5`` 是纯计算函数（deepcopy + 字段规范化 + MD5），
+    不访问 Redis / DB，开销可忽略。补强字段任何失败都不阻塞 detail 主流程。
+    """
+    try:
+        from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+        for item in config.get("items") or []:
+            if isinstance(item, dict) and item.get("query_configs"):
+                item.setdefault("strategy_group_key", StrategyCacheManager.get_query_md5(bk_biz_id, item))
+    except Exception:
+        # 补强字段；不阻塞 detail 主路径。
+        pass
 
 
 def _select_strategy_config(config: dict[str, Any], *, include_raw_model_ids: bool) -> dict[str, Any]:
