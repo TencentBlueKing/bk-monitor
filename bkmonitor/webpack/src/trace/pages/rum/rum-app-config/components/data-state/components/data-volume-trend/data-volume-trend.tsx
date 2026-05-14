@@ -94,9 +94,6 @@ export default defineComponent({
               customOptions={{
                 formatterData: this.formatterData,
               }}
-              params={{
-                is_mock: true,
-              }}
               gridCol={this.gridCol}
               panelModels={this.dashboardPanels}
               showHeader={false}
