@@ -49,7 +49,7 @@ export function useAlarmTable() {
   const loading = shallowRef(false);
   /** 灰度空间列表（incident 场景专用） */
   const greyedSpaces = shallowRef<number[]>([]);
-  /** BK助手链接（incident 场景专用） */
+  /** BK助手链接 */
   const wxCsLink = shallowRef('');
   /** 请求中止控制器 */
   let abortController: AbortController | null = null;

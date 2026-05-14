@@ -26,11 +26,12 @@
 
 import { type PropType, defineComponent, onMounted, reactive, shallowRef, watch } from 'vue';
 
-import { Exception, Loading, Popover } from 'bkui-vue';
+import { Exception, Loading, Popover, Select } from 'bkui-vue';
 import { fetchConfigList, fetchGlobalVariables } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 
 import { useAppStore } from '../../store/modules/app';
+import DataAccessEmpty from '../data-access-empty';
 
 import type {
   ConfigListData,
@@ -41,8 +42,14 @@ import type {
 
 import './index.scss';
 
+/** 空间信息 */
+export interface SpaceInfo {
+  space_id: number;
+  space_name: string;
+}
 type ConnectStatus = 'connect' | 'empty' | 'unconnect';
 type RequirementType = 'at_least_one' | 'optional' | 'required';
+
 interface StatusConfig {
   connectStatus: ConnectStatus;
   requirement: RequirementType;
@@ -57,16 +64,43 @@ const STATUS_MAP: Record<string, RequirementType> = {
 export default defineComponent({
   name: 'DataAccess',
   props: {
-    bkBizId: {
-      type: [Number, String] as PropType<number | string>,
-      default: undefined,
+    /** 空间列表 */
+    spaceList: {
+      type: Array as PropType<SpaceInfo[]>,
+      required: true as const,
+    },
+    /** 展示模式：empty-空状态（默认），guide-接入指引 */
+    mode: {
+      type: String as PropType<'empty' | 'guide'>,
+      default: 'empty',
+    },
+    /** 所选空间总数（guide 模式下用于展示 count） */
+    totalCount: {
+      type: Number,
+      default: 0,
+    },
+    /** 是否暗色背景 */
+    isDarkTheme: {
+      type: Boolean,
+      default: false,
+    },
+    /** 是否展示"全部开启"按钮 */
+    showEnableButton: {
+      type: Boolean,
+      default: false,
+    },
+    /** bk助手链接 */
+    wxCsLink: {
+      type: String,
+      default: '',
     },
   },
-  setup(props) {
+  emits: ['enabled'],
+  setup(props, { emit }) {
     const { t } = useI18n();
     const appStore = useAppStore();
     const REQUIREMENT_TEXT_MAP: Record<RequirementType, string> = {
-      required: t('必须项'),
+      required: t('必选项'),
       optional: t('可选项'),
       at_least_one: t('至少必须有一项'),
     };
@@ -76,9 +110,15 @@ export default defineComponent({
       { label: t('红色：未接入'), cls: 'disconnected' },
     ];
 
+    /** 当前选中的空间 ID（v-model 绑定） */
+    const selectedSpace = shallowRef<number>(props.spaceList[0].space_id);
+    /** 数据类型列表 */
     const dataTypes = shallowRef<{ id: string; name: string }[]>([]);
+    /** 模块列表 */
     const moduleList = shallowRef<{ id: string; name: string }[]>([]);
+    /** 状态数据，key 为 "数据类型-模块" 的组合 */
     const statusData = reactive<Record<string, null | StatusConfig>>({});
+    /** 表格加载状态 */
     const tableLoading = shallowRef(false);
     /** 接口返回的全局变量 */
     const globalVariables = shallowRef<Record<string, { category: string; desc: string; name: string; value: string }>>(
@@ -117,7 +157,7 @@ export default defineComponent({
         if (config.requirement === 'at_least_one') {
           const atLeastOneMet = dataTypes.value.some(dt2 => {
             const c2 = getStatusConfig(moduleId, dt2.id);
-            return c2 && c2.requirement === 'at_least_one' && c2.connectStatus === 'connect';
+            return c2?.requirement === 'at_least_one' && c2.connectStatus === 'connect';
           });
           if (!atLeastOneMet) return true;
         }
@@ -161,7 +201,6 @@ export default defineComponent({
     };
 
     const loadStatusData = async () => {
-      tableLoading.value = true;
       // 清空旧数据，避免切换空间时残留
       dataTypes.value = [];
       moduleList.value = [];
@@ -172,7 +211,7 @@ export default defineComponent({
         const res = await fetchConfigList<FetchConfigListParams, ConfigListData<DataSourceContent>>({
           config_type: 'data_source',
           scope_type: 'bkcc',
-          ...(props.bkBizId != null ? { bk_biz_id: Number(props.bkBizId) } : {}),
+          bk_biz_id: selectedSpace.value,
         });
         const list = res.objects || [];
         if (list[0]?.content) {
@@ -180,14 +219,12 @@ export default defineComponent({
         }
       } catch (e) {
         console.error(e);
-      } finally {
-        tableLoading.value = false;
       }
     };
 
     const loadLinkMap = async () => {
       try {
-        const res = await fetchGlobalVariables(props.bkBizId != null ? { bk_biz_id: props.bkBizId } : undefined);
+        const res = await fetchGlobalVariables({ bk_biz_id: selectedSpace.value });
         globalVariables.value = res?.variables || {};
         buildDataTypeLinks();
       } catch (e) {
@@ -197,10 +234,10 @@ export default defineComponent({
 
     /** 根据接口返回的平台 URL 拼接各数据类型的跳转链接 */
     const buildDataTypeLinks = () => {
-      const bizId = String(props.bkBizId ?? '');
+      const bizId = String(selectedSpace.value);
       const vars = globalVariables.value;
       const resolve = (key: string, path: string) => (vars[key]?.value ? vars[key].value + path : '');
-      const currentSpace = appStore.bizList?.find(item => item.bk_biz_id === props.bkBizId);
+      const currentSpace = appStore.bizList?.find(item => item.bk_biz_id === selectedSpace.value);
       const spaceUid = currentSpace ? `${currentSpace.space_type_id}_${currentSpace.space_id}` : '';
       dataTypeLinks.value = {
         alert: resolve('bkmonitor_url', `?bizId=${bizId}#/strategy-config`),
@@ -224,7 +261,7 @@ export default defineComponent({
 
     /** 点击数据列表头，跳转到该数据的接入页 */
     const handleDataHeaderClick = (dataTypeId: string) => {
-      const url = dataTypeLinks.value[dataTypeId];      
+      const url = dataTypeLinks.value[dataTypeId];
       if (!url) return;
       window.open(url, '_blank');
     };
@@ -237,136 +274,197 @@ export default defineComponent({
       }
     };
 
+    /** 加载数据接入表格 */
+    const loadTableData = async () => {
+      tableLoading.value = true;
+      dataTypes.value = [];
+      moduleList.value = [];
+      for (const key of Object.keys(statusData)) {
+        delete statusData[key];
+      }
+      try {
+        await loadStatusData();
+        await loadLinkMap();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        tableLoading.value = false;
+      }
+    };
+
     onMounted(() => {
-      loadStatusData();
-      loadLinkMap();
+      loadTableData();
     });
 
-    watch(
-      () => props.bkBizId,
-      () => {
-        loadStatusData();
-        loadLinkMap();
-      }
-    );
+    /** 切换空间时重新加载表格数据 */
+    watch(selectedSpace, () => {
+      loadTableData();
+    });
 
-    return () => (
-      <div class='data-access-container'>
+    /** 渲染空状态 */
+    const renderEmptyStatus = () => {
+      return (
+        <DataAccessEmpty
+          class='incident-empty-status'
+          isDarkTheme={props.isDarkTheme}
+          mode={props.mode}
+          showEnableButton={props.showEnableButton}
+          spaceList={props.spaceList}
+          totalCount={props.totalCount}
+          wxCsLink={props.wxCsLink}
+          onEnabled={() => emit('enabled')}
+        />
+      );
+    };
+
+    return () => {
+      return (
         <Loading
-          class='table-wrapper'
+          class='data-access-container'
+          color={props.isDarkTheme ? '#292A2B' : undefined}
           loading={tableLoading.value}
         >
-          <table class='status-table'>
-            <thead>
-              <tr>
-                <th class='module-col diagonal-header-cell'>
-                  <div class='diagonal-header'>
-                    <span class='label-bottom'>{t('功能模块')}</span>
-                    <span class='label-top'>{t('数据')}</span>
+          {renderEmptyStatus()}
+          <div class={['data-access-table', { 'data-access-table-dark': props.isDarkTheme }]}>
+            <div class='legend-area'>
+              {props.spaceList.length > 1 ? (
+                <div class='legend-select-wrapper'>
+                  <Select
+                    class='legend-select'
+                    v-model={selectedSpace.value}
+                    behavior='simplicity'
+                    clearable={false}
+                  >
+                    {props.spaceList.map(space => (
+                      <Select.Option
+                        id={space.space_id}
+                        key={space.space_id}
+                        name={`${space.space_name} (#${space.space_id})`}
+                      />
+                    ))}
+                  </Select>
+                  <div class='legend-select-desc'>
+                    <i class='icon-monitor icon-hint' />
+                    {t('可以切换查看不同空间的接入数据情况')}
                   </div>
-                </th>
-                {dataTypes.value.map(dt => (
-                  <th
-                    key={dt.id}
-                    class={['data-col', { clickable: !!dataTypeLinks.value[dt.id] }]}
-                    onClick={() => handleDataHeaderClick(dt.id)}
-                  >
-                    {dt.id === 'metric_ebpf' ? (
-                      <Popover
-                        content={t('尚未开放自主接入，请联系管理员')}
-                        placement='top'
-                        theme='dark'
-                      >
-                        <span class='data-header-text'>{dt.name}</span>
-                      </Popover>
-                    ) : (
-                      <span class='data-header-text'>{dt.name}</span>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {moduleList.value.length === 0 && !tableLoading.value && (
-                <tr>
-                  <td
-                    class='empty-cell'
-                    colspan={dataTypes.value.length + 1}
-                  >
-                    <Exception
-                      scene='part'
-                      title={t('暂无数据')}
-                      type='empty'
-                    />
-                  </td>
-                </tr>
+                </div>
+              ) : (
+                <span class='legend-space-name'>
+                  {`${props.spaceList[0].space_name} (#${props.spaceList[0].space_id})`}
+                </span>
               )}
-              {moduleList.value.map(mod => (
-                <tr key={mod.id}>
-                  <td
-                    class={[
-                      'module-cell',
-                      { 'module-disabled': getModuleUnmetTip(mod.id), clickable: !!getModuleDocUrl(mod.id) },
-                    ]}
-                    onClick={() => getModuleDocUrl(mod.id) && handleModuleClick(mod.id)}
+              <div class='legend-item-wrapper'>
+                {LEGEND_COLORS.map(item => (
+                  <div
+                    key={item.label}
+                    class='legend-item'
                   >
-                    {getModuleUnmetTip(mod.id) ? (
-                      <Popover
-                        v-slots={{
-                          content: () => <span>{getModuleUnmetTip(mod.id)}</span>,
-                        }}
-                        offset={{ mainAxis: 6, crossAxis: 0 }}
-                        placement='right'
-                        popover-delay={[100, 0]}
-                        theme='dark'
-                        trigger='hover'
-                      >
-                        <span class='module-inner'>
-                          <span class='module-name'>{mod.name}</span>
-                          <i class='icon-monitor bk-incident-icon icon-zhongzhi module-tip-icon' />
-                        </span>
-                      </Popover>
-                    ) : (
-                      <span class='module-inner'>
-                        <span class='module-name'>{mod.name}</span>
-                      </span>
-                    )}
-                  </td>
+                    <span class={['color-block', item.cls]}></span>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <table
+              class={['status-table', { 'status-table--empty': moduleList.value.length === 0 && !tableLoading.value }]}
+            >
+              <thead>
+                <tr>
+                  <th class='data-col'>
+                    <span>{t('功能模块')}</span>
+                  </th>
                   {dataTypes.value.map(dt => (
-                    <td
+                    <th
                       key={dt.id}
-                      class={['status-cell', getCellBgClass(mod.id, dt.id)]}
+                      class={['data-col', { clickable: !!dataTypeLinks.value[dt.id] }]}
+                      onClick={() => handleDataHeaderClick(dt.id)}
                     >
-                      {getStatusConfig(mod.id, dt.id) ? (
-                        getStatusConfig(mod.id, dt.id)!.connectStatus === 'empty' ? (
-                          <i class='icon-monitor bk-incident-icon icon-minus-line' />
-                        ) : (
-                          <span class={['cell-text', getCellTextClass(mod.id, dt.id)]}>
-                            {getRequirementText(mod.id, dt.id)}
-                          </span>
-                        )
+                      {dt.id === 'metric_ebpf' ? (
+                        <Popover
+                          content={t('尚未开放自主接入，请联系管理员')}
+                          placement='top'
+                          theme='dark'
+                        >
+                          <span class='data-header-text'>{dt.name}</span>
+                        </Popover>
                       ) : (
-                        <span class='cell-dash'>-</span>
+                        <span class='data-header-text'>{dt.name}</span>
                       )}
-                    </td>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {moduleList.value.length === 0 && !tableLoading.value && (
+                  <tr>
+                    <td
+                      class='empty-no-data'
+                      colspan={dataTypes.value.length + 1}
+                    >
+                      <Exception
+                        scene='part'
+                        title={t('暂无数据')}
+                        type='empty'
+                      />
+                    </td>
+                  </tr>
+                )}
+                {moduleList.value.map(mod => (
+                  <tr key={mod.id}>
+                    <td
+                      class={[
+                        'module-cell',
+                        { 'module-disabled': getModuleUnmetTip(mod.id), clickable: !!getModuleDocUrl(mod.id) },
+                      ]}
+                      onClick={() => getModuleDocUrl(mod.id) && handleModuleClick(mod.id)}
+                    >
+                      {getModuleUnmetTip(mod.id) ? (
+                        <Popover
+                          v-slots={{
+                            content: () => <span>{getModuleUnmetTip(mod.id)}</span>,
+                          }}
+                          offset={{ mainAxis: 6, crossAxis: 0 }}
+                          placement='right'
+                          popover-delay={[100, 0]}
+                          theme='dark'
+                          trigger='hover'
+                        >
+                          <span class='module-inner'>
+                            <span class='module-name'>{mod.name}</span>
+                            <i class='icon-monitor icon-zhongzhi module-tip-icon' />
+                          </span>
+                        </Popover>
+                      ) : (
+                        <span class='module-inner'>
+                          <span class='module-name'>{mod.name}</span>
+                        </span>
+                      )}
+                    </td>
+                    {dataTypes.value.map(dt => (
+                      <td
+                        key={dt.id}
+                        class={['status-cell', getCellBgClass(mod.id, dt.id)]}
+                      >
+                        {getStatusConfig(mod.id, dt.id) ? (
+                          getStatusConfig(mod.id, dt.id)!.connectStatus === 'empty' ? (
+                            <i class='icon-monitor bk-incident-icon icon-minus-line' />
+                          ) : (
+                            <span class={['cell-text', getCellTextClass(mod.id, dt.id)]}>
+                              {getRequirementText(mod.id, dt.id)}
+                            </span>
+                          )
+                        ) : (
+                          <span class='cell-dash'>-</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Loading>
-        <div class='legend-area'>
-          {LEGEND_COLORS.map(item => (
-            <div
-              key={item.label}
-              class='legend-item'
-            >
-              <span class={['color-block', item.cls]}></span>
-              <span>{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+      );
+    };
   },
 });

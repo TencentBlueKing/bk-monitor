@@ -479,7 +479,7 @@ export default {
   当前暂无拓扑分析结果: 'Current incident has no topology analysis result',
   管理员: 'administrator',
   产品文档: 'product documentation',
-  必须项: 'Required',
+  必选项: 'Required',
   可选项: 'Optional',
   未接入: 'Not connected',
   已接入: 'Connected',
@@ -488,6 +488,9 @@ export default {
   '红色：未接入': 'Red: Not connected',
   当前功能不满足数据接入要求: 'Current function does not meet data access requirements',
   功能模块: 'Function Module',
-  数据: 'Data',
   暂无数据: 'No data',
+  可以切换查看不同空间的接入数据情况: 'You can switch to view the access data situation of different spaces',
+  '当前业务暂无 图谱RCA 分析结果': 'Current business has no Topology RCA analysis result',
+  '参考下表接入数据，如有疑问请联系 {link}':
+    'Refer to the following table for data access, if you have any questions, please contact {link}',
 };

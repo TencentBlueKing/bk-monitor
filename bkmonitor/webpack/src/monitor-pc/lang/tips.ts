@@ -160,6 +160,7 @@ export default {
     'The current space does not support this function. If you need to use it, please contact the administrator',
   '当前空间未开启故障诊断功能, 请联系': 'The current space does not support this function. please contact',
   BK助手: 'BK Assistant',
+  'BK 助手': 'BK Assistant',
   当前告警关联故障: 'Current alarm associated fault',
   当前告警无关联故障: 'The current alarm has no associated faults',
   当前无异常事件: 'Currently no abnormal events',
@@ -387,6 +388,10 @@ export default {
   调试数据范围取当前时间窗口前1000条数据:
     'The debugging data range takes the previous 1000 entries from the current time window',
   只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
+  '尚未开放自主接入，请联系管理员': 'Self-service access is not yet open, please contact the administrator',
+  '当前选择，包含 {0} 个空间未开启故障分析功能，':
+    'The currently selected {0} spaces have not enabled the fault analysis function,',
+  查看相关接入指引: 'View related access guidelines',
 
   // 查询模板
   无法删除: 'Cannot delete',

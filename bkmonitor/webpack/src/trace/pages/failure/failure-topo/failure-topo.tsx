@@ -56,7 +56,7 @@ import { deepClone, random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
-import DataAccess from '../../../components/data-access';
+import DataAccess, { type SpaceInfo } from '../../../components/data-access';
 import ExceptionComp from '../../../components/exception';
 import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import ResourceGraph from '../resource-graph/resource-graph';
@@ -104,6 +104,18 @@ export default defineComponent({
   emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh', 'closeCollapse'],
   setup(props, { emit }) {
     const bkzIds = inject<Ref<string[]>>('bkzIds');
+
+    /** 根据 bkzIds 构建空间列表 */
+    const dataAccessSpaceList = computed<SpaceInfo[]>(() => {
+      const bizId = bkzIds?.value?.[0];
+      if (!bizId) return [];
+      // bizList 中找不到时，从故障详情中获取 bk_biz_name 作为 fallback
+      const bizName = incidentDetailData.value?.current_snapshot?.bk_biz_ids?.find(
+        ({ bk_biz_id }) => String(bk_biz_id) === String(bizId)
+      )?.bk_biz_name;
+      return [{ space_name: bizName || String(bizId), space_id: Number(bizId) }];
+    });
+
     /** 缓存resize render后执行的回调函数，主要用于点击播放之前收起右侧资源图时的回调 */
     const resizeCacheCallback = ref(null);
     const detailInfo = ref({});
@@ -2847,6 +2859,7 @@ export default defineComponent({
       showViewResource,
       topoStatus,
       bkzIds,
+      dataAccessSpaceList,
       handleToDetail,
       handleHideToolTips,
       handleRootToSpan,
@@ -2881,15 +2894,17 @@ export default defineComponent({
       <div
         id='failure-topo'
         ref='wrapRef'
-        style={{ background: this.topoStatus !== 'normal' && this.topoStatus !== 'nodata' ? '#fff' : '#2c2d30' }}
         class={[
           'failure-topo',
           this.isPlay && 'failure-topo-play',
           this.topoStatus === 'empty' && 'failure-topo-empty',
         ]}
       >
-        {this.topoStatus === null ? null : this.topoStatus === 'empty' ? (
-          <DataAccess bkBizId={this.bkzIds[0]} />
+        {this.topoStatus === null ? null : this.topoStatus === 'empty' && this.dataAccessSpaceList?.length ? (
+          <DataAccess
+            spaceList={this.dataAccessSpaceList}
+            isDarkTheme
+          />
         ) : (
           <>
             {this.topoStatus === 'normal' ? (

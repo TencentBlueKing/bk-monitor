@@ -44,7 +44,7 @@ import FavoriteBox, {
 import VueJsonPretty from 'vue-json-pretty';
 import { useRoute, useRouter } from 'vue-router';
 
-import DataAccess from '../../components/data-access';
+import DataAccess, { type SpaceInfo } from '../../components/data-access';
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
@@ -87,7 +87,7 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
-import { Message } from 'bkui-vue';
+import { Alert, Message, Sideslider } from 'bkui-vue';
 import dayjs from 'dayjs';
 import difference from 'lodash/difference';
 import intersection from 'lodash/intersection';
@@ -128,7 +128,6 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
-
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
 
     const {
@@ -154,61 +153,101 @@ export default defineComponent({
       total: total.value,
     }));
 
-    /** 是否展示 DataAccess（数据未接入引导组件），仅 incident 场景 + 单业务 + 无灰度空间 + 表格无数据 + 非加载中时判断 */
-    const showDataAccess = computed(() => {
-      if (alarmStore.alarmType !== AlarmType.INCIDENT || data.value.length || loading.value) return false;
-      const bizIds = alarmStore.bizIds;
-      if (!bizIds?.length || bizIds.length > 1) return false;
-      const greyedSpacesVal = greyedSpaces.value;
-      if ([MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(bizIds[0])) {
-        return !greyedSpacesVal?.length;
-      }
-      const diffBizIds = difference(bizIds, greyedSpacesVal);
-      return !!diffBizIds?.length;
+    /** 故障模式下是否满足基础展示条件：incident 场景 + 有业务 + 无数据 + 非加载中 */
+    const isIncidentEmpty = computed(
+      () =>
+        alarmStore.alarmType === AlarmType.INCIDENT &&
+        !!alarmStore.bizIds?.length &&
+        !data.value.length &&
+        !loading.value
+    );
+
+    /** 是否为"我有权限/我有故障"虚拟业务 */
+    const isVirtualBiz = computed(() => alarmStore.bizIds?.some(id => [MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(id)));
+
+    /** 已选空间中已开启故障分析功能的 bizId 列表（与 greyedSpaces 取交集） */
+    const connectedBizIds = computed(() => intersection(alarmStore.bizIds, greyedSpaces.value));
+
+    /** 已选空间中未开启故障分析功能的 bizId 列表（与 greyedSpaces 取差集） */
+    const unconnectedBizIds = computed(() => difference(alarmStore.bizIds, greyedSpaces.value));
+
+    /** 将 bizList 转换为 SpaceInfo[]，可按 bizId 过滤 */
+    const toSpaceInfoList = (filterFn?: (bk_biz_id: number) => boolean): SpaceInfo[] =>
+      appStore.bizList
+        .filter(({ bk_biz_id }) => !filterFn || filterFn(bk_biz_id))
+        .map(({ space_name, space_id }) => ({ space_name, space_id: Number(space_id) }));
+
+    /** 未开启故障分析功能的空间列表 */
+    const unconnectedSpaceList = computed(() => {
+      if (!unconnectedBizIds.value?.length) return null;
+      const result = toSpaceInfoList(id => unconnectedBizIds.value.includes(id));
+      return result.length ? result : null;
     });
 
-    /** 故障模式下的空状态信息（主文案 + 附加文案同时展示） */
-    const incidentEmptyInfo = computed(() => {
-      const bizIds = alarmStore.bizIds;
-      const greyedSpacesVal = greyedSpaces.value;
-      const isMyAuthOrAlarm = bizIds?.some(id => [MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(id));
-      if (isMyAuthOrAlarm) {
-        return {
-          type: 'incidentEmpty' as const,
-          textMap: { incidentEmpty: t('当前空间下暂无故障') },
-          noDataString: greyedSpacesVal?.length
-            ? t('你当前有 {0} 个空间权限，暂无您负责的故障', [window.space_list?.length ?? 0])
-            : '',
-          incidentEmptyData: {
-            path: '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}',
-            text: String(window.space_list?.length ?? 0),
-          },
-        };
+    /** ============ 页面展示逻辑（接入指引提示 / 数据接入组件） ============ */
+
+    /** 是否展示接入指引提示：1. 虚拟业务并且不是全部都有权限；2. 混合选择（部分有权限，部分无权限） */
+    const showAccessGuideTip = computed(
+      () =>
+        alarmStore.alarmType === AlarmType.INCIDENT &&
+        !!alarmStore.bizIds?.length &&
+        !loading.value &&
+        ((isVirtualBiz.value &&
+          intersection(
+            appStore.bizList.map(({ bk_biz_id }) => bk_biz_id),
+            greyedSpaces.value
+          ).length < appStore.bizList.length) ||
+          (connectedBizIds.value.length > 0 && unconnectedBizIds.value.length > 0 && !!unconnectedSpaceList.value))
+    );
+
+    /** 是否直接展示数据接入组件（非侧滑）：1. 单选无权限；2. 多选（全部无权限） */
+    const showDataAccessDirect = computed(
+      () =>
+        isIncidentEmpty.value &&
+        !isVirtualBiz.value &&
+        connectedBizIds.value.length === 0 &&
+        unconnectedBizIds.value.length > 0 &&
+        !!unconnectedSpaceList.value
+    );
+
+    /** 接入指引提示中的未接入空间数量 */
+    const accessGuideTipCount = computed(() => {
+      if (isVirtualBiz.value) {
+        return appStore.bizList.length - greyedSpaces.value.length;
       }
-      const diffBizIds = difference(bizIds, greyedSpacesVal);
-      if (diffBizIds?.length) {
-        const intersectionBizIds = intersection(bizIds, greyedSpacesVal);
-        const spaces = appStore.bizList
-          .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
-          .map(({ space_name, space_id }) => `${space_name} (#${space_id})`);
-        return {
-          type: intersectionBizIds.length === 0 ? ('incidentNotEnabled' as const) : ('incidentEmpty' as const),
-          textMap: { incidentNotEnabled: '', incidentEmpty: t('当前空间下暂无故障') },
-          noDataString: 'incidentRenderAssistant' as const,
-          incidentEmptyData: {
-            path: '{count} 空间未开启故障分析功能，请联系 {link}',
-            text: spaces.join(','),
-          },
-        };
-      }
-      return null;
+      return unconnectedSpaceList.value?.length ?? 0;
     });
 
-    /** 是否展示故障模式空状态，仅 incident 场景 + 表格无数据 + 非加载中 + 非DataAccess时判断 */
-    const showIncidentEmpty = computed(() => {
-      if (alarmStore.alarmType !== AlarmType.INCIDENT || data.value.length || loading.value) return false;
-      if (showDataAccess.value) return false;
-      return !!incidentEmptyInfo.value;
+    /** ============ 侧滑数据接入 ============ */
+
+    /** 接入指引侧滑是否显示 */
+    const showAccessGuide = shallowRef(false);
+    /** 侧滑打开次数，用于强制重新渲染 DataAccess 组件 */
+    const dataAccessKey = shallowRef(0);
+    /** 接入指引来源：'tip'-来自告警提示点击，'header'-来自头部点击 */
+    const accessGuideFrom = shallowRef<'header' | 'tip'>('tip');
+
+    /** 侧滑数据接入的空间列表（根据来源和业务类型区分） */
+    const sidesliderSpaceList = computed(() => {
+      // 来源为 header：展示全部空间
+      if (accessGuideFrom.value === 'header') {
+        return toSpaceInfoList();
+      }
+      // 虚拟业务：展示全部无权限空间
+      if (isVirtualBiz.value) {
+        const result = toSpaceInfoList(id => !greyedSpaces.value.includes(id));
+        return result.length ? result : null;
+      }
+      // 混合选择：展示已选无权限空间
+      return unconnectedSpaceList.value;
+    });
+
+    /** 侧滑数据接入的所选空间总数 */
+    const sidesliderTotal = computed(() => {
+      if (isVirtualBiz.value) {
+        return sidesliderSpaceList.value?.length ?? 0;
+      }
+      return accessGuideFrom.value === 'header' ? appStore.bizList.length : alarmStore.bizIds.length;
     });
     const {
       tableColumns: tableSourceColumns,
@@ -1023,9 +1062,15 @@ export default defineComponent({
       page,
       pageSize,
       ordering,
-      showDataAccess,
-      showIncidentEmpty,
-      incidentEmptyInfo,
+      showDataAccessDirect,
+      showAccessGuideTip,
+      showAccessGuide,
+      dataAccessKey,
+      accessGuideTipCount,
+      accessGuideFrom,
+      sidesliderSpaceList,
+      sidesliderTotal,
+      unconnectedSpaceList,
       greyedSpaces,
       wxCsLink,
       tableSourceColumns,
@@ -1161,6 +1206,11 @@ export default defineComponent({
             <AlarmCenterHeader
               class='alarm-center-header'
               isShowFavorite={this.isShowFavorite}
+              onAccessGuideClick={() => {
+                this.accessGuideFrom = 'header';
+                this.dataAccessKey += 1;
+                this.showAccessGuide = true;
+              }}
               onAlarmTypeChange={this.handleAlarmTypeChange}
               onFavoriteShowChange={this.handleFavoriteShowChange}
             />
@@ -1197,179 +1247,182 @@ export default defineComponent({
             onApply={this.handleApplyPermission}
             onClose={this.dismissPermissionTips}
           />
-          <div class='alarm-center-main'>
-            <TraceExploreLayout
-              class='alarm-center-layout'
+          {this.showAccessGuideTip && (
+            <Alert
+              class='access-guide-tip'
               v-slots={{
-                aside: () => {
-                  return (
-                    <div class='quick-filtering'>
-                      <QuickFiltering
-                        filterList={this.quickFilterList}
-                        filterValue={this.alarmStore.quickFilterValue}
-                        isFilterEmptyItem={false}
-                        isFirstInit={this.isFirstInit}
-                        loading={this.quickFilterLoading}
-                        onClose={this.updateIsCollapsed}
-                        onUpdate:filterValue={this.handleFilterValueChange}
-                      >
-                        {{
-                          empty: () => (
-                            <EmptyStatus
-                              type={this.quickFilterEmptyStatusType}
-                              onOperation={this.handleQuickFilteringOperation}
-                            />
-                          ),
-                        }}
-                      </QuickFiltering>
-                    </div>
-                  );
-                },
-                default: () => {
-                  return (
-                    <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
-                      {this.alarmStore.alarmType !== AlarmType.ISSUES && (
-                        <div class='chart-trend'>
-                          <AlarmTrendChart total={this.total} />
-                        </div>
-                      )}
-                      {![AlarmType.INCIDENT, AlarmType.ISSUES].includes(this.alarmStore.alarmType) && (
-                        <div class='alarm-analysis'>
-                          <AlarmAnalysis onConditionChange={this.handleAddCondition} />
-                        </div>
-                      )}
-                      <div class='alarm-center-table'>
-                        {this.alarmStore.alarmType === AlarmType.ISSUES ? (
-                          <IssuesToolbar
-                            batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
-                            issuesIds={this.selectedRowKeys}
-                            onExport={this.handleExportIssues}
-                          >
-                            <IssuesTable
-                              showEmptyOperation={
-                                this.alarmStore.filterMode === EMode.ui
-                                  ? this.alarmStore.conditions.length > 0 ||
-                                    this.alarmStore.residentCondition.length > 0
-                                  : this.alarmStore.queryString !== ''
-                              }
+                title: () => (
+                  <span class='tip-text'>
+                    {this.$t('当前选择，包含 {0} 个空间未开启故障分析功能，', [this.accessGuideTipCount])}
+                    <span
+                      class='tip-link'
+                      onClick={() => {
+                        this.accessGuideFrom = 'tip';
+                        this.dataAccessKey += 1;
+                        this.showAccessGuide = true;
+                      }}
+                    >
+                      {this.$t('查看相关接入指引')}
+                    </span>
+                  </span>
+                ),
+              }}
+              theme='info'
+              closable
+            />
+          )}
+
+          {this.showDataAccessDirect ? (
+            <div class='alarm-center-data-access'>
+              <DataAccess
+                showEnableButton={this.showDataAccessDirect}
+                spaceList={this.unconnectedSpaceList}
+                wxCsLink={this.wxCsLink}
+                onEnabled={() => this.handleBizIdsChange(this.alarmStore.bizIds)}
+              />
+            </div>
+          ) : (
+            <div class='alarm-center-main'>
+              <TraceExploreLayout
+                class='alarm-center-layout'
+                v-slots={{
+                  aside: () => {
+                    return (
+                      <div class='quick-filtering'>
+                        <QuickFiltering
+                          filterList={this.quickFilterList}
+                          filterValue={this.alarmStore.quickFilterValue}
+                          isFilterEmptyItem={false}
+                          isFirstInit={this.isFirstInit}
+                          loading={this.quickFilterLoading}
+                          onClose={this.updateIsCollapsed}
+                          onUpdate:filterValue={this.handleFilterValueChange}
+                        >
+                          {{
+                            empty: () => (
+                              <EmptyStatus
+                                type={this.quickFilterEmptyStatusType}
+                                onOperation={this.handleQuickFilteringOperation}
+                              />
+                            ),
+                          }}
+                        </QuickFiltering>
+                      </div>
+                    );
+                  },
+                  default: () => {
+                    return (
+                      <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
+                        {this.alarmStore.alarmType !== AlarmType.ISSUES && (
+                          <div class='chart-trend'>
+                            <AlarmTrendChart total={this.total} />
+                          </div>
+                        )}
+                        {![AlarmType.INCIDENT, AlarmType.ISSUES].includes(this.alarmStore.alarmType) && (
+                          <div class='alarm-analysis'>
+                            <AlarmAnalysis onConditionChange={this.handleAddCondition} />
+                          </div>
+                        )}
+                        <div class='alarm-center-table'>
+                          {this.alarmStore.alarmType === AlarmType.ISSUES ? (
+                            <IssuesToolbar
+                              batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
+                              issuesIds={this.selectedRowKeys}
+                              onExport={this.handleExportIssues}
+                            >
+                              <IssuesTable
+                                showEmptyOperation={
+                                  this.alarmStore.filterMode === EMode.ui
+                                    ? this.alarmStore.conditions.length > 0 ||
+                                      this.alarmStore.residentCondition.length > 0
+                                    : this.alarmStore.queryString !== ''
+                                }
+                                columns={this.tableSourceColumns}
+                                data={this.data as IssueItem[]}
+                                headerAffixedTop={tableAffixed}
+                                horizontalScrollAffixedBottom={tableAffixed}
+                                loading={this.loading}
+                                nameChange={this.handleIssuesNameChange}
+                                pagination={this.pagination}
+                                scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
+                                selectedRowKeys={this.selectedRowKeys}
+                                sort={this.ordering}
+                                onAction={(type: IssuesBatchActionType, id: string) =>
+                                  this.handleIssuesDialogShow(type, id)
+                                }
+                                onAssignClick={(id, data) =>
+                                  this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
+                                }
+                                onClearFilter={() => {
+                                  if (this.alarmStore.filterMode === EMode.ui) {
+                                    this.handleConditionChange([]);
+                                    this.handleResidentConditionChange([]);
+                                    return;
+                                  }
+                                  this.handleQueryStringChange('');
+                                }}
+                                onCurrentPageChange={this.handleCurrentPageChange}
+                                onImpactScopeClick={this.handleImpactScopeClick}
+                                onPageSizeChange={this.handlePageSizeChange}
+                                onPriorityChange={this.handleIssuesPriorityChange}
+                                onSelectionChange={this.handleSelectedRowKeysChange}
+                                onShowDetail={this.handleIssuesShowDetail}
+                                onSortChange={sort => this.handleSortChange(sort as string)}
+                              />
+                            </IssuesToolbar>
+                          ) : (
+                            <AlarmTable
+                              tableSettings={{
+                                checked: this.storageColumns,
+                                fields: this.allTableFields,
+                                disabled: this.lockedTableFields,
+                              }}
                               columns={this.tableSourceColumns}
-                              data={this.data as IssueItem[]}
+                              data={this.data}
+                              defaultActiveRowKeys={this.defaultActiveRowKeys}
                               headerAffixedTop={tableAffixed}
                               horizontalScrollAffixedBottom={tableAffixed}
+                              isSelectedFollower={this.isSelectedFollower}
                               loading={this.loading}
-                              nameChange={this.handleIssuesNameChange}
                               pagination={this.pagination}
                               scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                               selectedRowKeys={this.selectedRowKeys}
                               sort={this.ordering}
-                              onAction={(type: IssuesBatchActionType, id: string) =>
-                                this.handleIssuesDialogShow(type, id)
-                              }
-                              onAssignClick={(id, data) =>
-                                this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
-                              }
-                              onClearFilter={() => {
-                                if (this.alarmStore.filterMode === EMode.ui) {
-                                  this.handleConditionChange([]);
-                                  this.handleResidentConditionChange([]);
-                                  return;
-                                }
-                                this.handleQueryStringChange('');
+                              timeRange={this.alarmStore.timeRange}
+                              onColumnResizeChange={(ctx: ColumnResizeContext) => {
+                                if (ctx?.columnsWidth)
+                                  this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
                               }}
                               onColumnResizeChange={(ctx: ColumnResizeContext) => {
                                 if (ctx?.columnsWidth)
                                   this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
                               }}
                               onCurrentPageChange={this.handleCurrentPageChange}
-                              onImpactScopeClick={this.handleImpactScopeClick}
+                              onDisplayColFieldsChange={displayColFields => {
+                                this.storageColumns = displayColFields;
+                              }}
+                              onOpenAlertDialog={this.handleAlertDialogShow}
                               onPageSizeChange={this.handlePageSizeChange}
-                              onPriorityChange={this.handleIssuesPriorityChange}
+                              onSaveAlertContentName={this.handleSaveAlertContentName}
                               onSelectionChange={this.handleSelectedRowKeysChange}
-                              onShowDetail={this.handleIssuesShowDetail}
+                              onShowActionDetail={this.handleShowActionDetail}
+                              onShowAlertDetail={this.handleShowAlertDetail}
                               onSortChange={sort => this.handleSortChange(sort as string)}
                             />
-                          </IssuesToolbar>
-                        ) : this.showDataAccess ? (
-                          <DataAccess
-                            class='data-access-wrapper'
-                            bkBizId={this.alarmStore.bizIds[0]}
-                          />
-                        ) : this.showIncidentEmpty ? (
-                          <EmptyStatus
-                            class='incident-empty-status'
-                            textMap={this.incidentEmptyInfo.textMap}
-                            type={this.incidentEmptyInfo.type}
-                          >
-                            {this.incidentEmptyInfo.noDataString === 'incidentRenderAssistant' ? (
-                              <i18n-t
-                                keypath={this.incidentEmptyInfo.incidentEmptyData.path}
-                                tag='span'
-                              >
-                                {{
-                                  count: () => <span>{this.incidentEmptyInfo.incidentEmptyData.text}</span>,
-                                  link: () => (
-                                    <span
-                                      style='color: #3a84ff; cursor: pointer;'
-                                      class='bk-assistant-link'
-                                      onClick={() => this.wxCsLink && window.open(this.wxCsLink, '__blank')}
-                                    >
-                                      {this.$t('BK助手')}
-                                    </span>
-                                  ),
-                                }}
-                              </i18n-t>
-                            ) : (
-                              this.incidentEmptyInfo.noDataString
-                            )}
-                          </EmptyStatus>
-                        ) : (
-                          <AlarmTable
-                            tableSettings={{
-                              checked: this.storageColumns,
-                              fields: this.allTableFields,
-                              disabled: this.lockedTableFields,
-                            }}
-                            columns={this.tableSourceColumns}
-                            data={this.data}
-                            defaultActiveRowKeys={this.defaultActiveRowKeys}
-                            headerAffixedTop={tableAffixed}
-                            horizontalScrollAffixedBottom={tableAffixed}
-                            isSelectedFollower={this.isSelectedFollower}
-                            loading={this.loading}
-                            pagination={this.pagination}
-                            scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
-                            selectedRowKeys={this.selectedRowKeys}
-                            sort={this.ordering}
-                            timeRange={this.alarmStore.timeRange}
-                            onColumnResizeChange={(ctx: ColumnResizeContext) => {
-                              if (ctx?.columnsWidth)
-                                this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
-                            }}
-                            onCurrentPageChange={this.handleCurrentPageChange}
-                            onDisplayColFieldsChange={displayColFields => {
-                              this.storageColumns = displayColFields;
-                            }}
-                            onOpenAlertDialog={this.handleAlertDialogShow}
-                            onPageSizeChange={this.handlePageSizeChange}
-                            onSaveAlertContentName={this.handleSaveAlertContentName}
-                            onSelectionChange={this.handleSelectedRowKeysChange}
-                            onShowActionDetail={this.handleShowActionDetail}
-                            onShowAlertDetail={this.handleShowAlertDetail}
-                            onSortChange={sort => this.handleSortChange(sort as string)}
-                          />
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                },
-              }}
-              initialDivide={208}
-              isCollapsed={this.isCollapsed}
-              maxWidth={500}
-              minWidth={160}
-              onUpdate:isCollapsed={this.updateIsCollapsed}
-            />
-          </div>
+                    );
+                  },
+                }}
+                initialDivide={208}
+                isCollapsed={this.isCollapsed}
+                maxWidth={500}
+                minWidth={160}
+                onUpdate:isCollapsed={this.updateIsCollapsed}
+              />
+            </div>
+          )}
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
             <IssuesDetailSideSlider
               firstAlarmTime={this.issueFirstAlarmTime}
@@ -1432,6 +1485,21 @@ export default defineComponent({
             }}
           />
         </div>
+        <Sideslider
+          width={1018}
+          extCls='data-access-sideSlider'
+          isShow={this.showAccessGuide}
+          title={this.$t('接入指引')}
+          onUpdate:isShow={(v: boolean) => (this.showAccessGuide = v)}
+        >
+          <DataAccess
+            key={this.dataAccessKey}
+            mode='guide'
+            spaceList={this.sidesliderSpaceList}
+            totalCount={this.sidesliderTotal}
+            wxCsLink={this.wxCsLink}
+          />
+        </Sideslider>
         <EditFavorite
           key={this.favoriteType}
           data={this.editFavoriteData}
