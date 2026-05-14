@@ -1309,4 +1309,5 @@ export default {
   前往日志检索: 'Go to Log Search',
   整体趋势: 'Overall Trend',
   相关样本: 'Related Samples',
+  '当前选中日志暂无trace字段，请检查日志内容': 'The currently selected log has no trace field. Please check the log content',
 };
