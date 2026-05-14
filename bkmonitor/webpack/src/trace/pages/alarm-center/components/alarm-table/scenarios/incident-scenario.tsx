@@ -129,7 +129,7 @@ export class IncidentScenario extends BaseScenario {
           class='lever-rect'
         />
         <div
-          class={`lever-rect-text ellipsis-text ${renderCtx.isEnabledCellEllipsis(column)}`}
+          class={'lever-rect-text'}
           onMouseenter={e => this.handleIncidentNameHover(e, row)}
           onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
         >
@@ -197,6 +197,10 @@ export class IncidentScenario extends BaseScenario {
             <span class='item-text'>{row?.id || '--'}</span>
             <i class='icon-monitor icon-mc-copy' />
           </div>
+        </div>
+        <div class='alert-name-item'>
+          <span class='alert-name-item-label'>{window.i18n.t('故障名称')} : </span>
+          <span>{row?.incident_name || '--'}</span>
         </div>
       </div>
     ) as unknown as TippyContent;
