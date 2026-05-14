@@ -24,6 +24,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from rest_framework.fields import BooleanField
 from rest_framework.response import Response
 
 from apps.constants import (
@@ -441,6 +442,9 @@ def external_callback(request):
     except json.decoder.JSONDecodeError:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
+    if not isinstance(params, dict):
+        return JsonResponse({"result": False, "message": "invalid payload"}, status=400)
+
     if not params.get("token"):
         logger.warning("[external_callback]: missing token")
         return JsonResponse({"result": False, "message": "missing token"}, status=401)
@@ -451,6 +455,11 @@ def external_callback(request):
             missing.append("approve_result")
         logger.warning("[external_callback]: missing required fields: %s", missing)
         return JsonResponse({"result": False, "message": f"missing required fields: {','.join(missing)}"}, status=400)
+
+    try:
+        params["approve_result"] = BooleanField().to_internal_value(params["approve_result"])
+    except Exception:
+        return JsonResponse({"result": False, "message": "invalid approve_result"}, status=400)
 
     result = ExternalPermissionApplyRecord.callback(params)
     if result.get("result"):
