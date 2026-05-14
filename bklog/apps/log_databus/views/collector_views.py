@@ -1928,6 +1928,7 @@ class CollectorViewSet(ModelViewSet):
             request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
 
         response = super().list(request, *args, **kwargs)
+        response.data = response.data["list"]
         response.data = CollectorHandler.add_cluster_info(response.data)
         response.data = CollectorHandler.add_tags_info(response.data)
         return response

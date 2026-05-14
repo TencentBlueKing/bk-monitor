@@ -181,7 +181,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
         )
 
         # 2. 提取内置字段（从json_data提取内置字段）
-        built_in_rules = self._build_built_in_fields_v4(built_in_config)
+        built_in_rules = self._build_built_in_fields_v4(built_in_config, storage_cluster_type)
         rules.extend(built_in_rules)
 
         # 3. 提取items数组并迭代
@@ -267,10 +267,15 @@ class BkLogRegexpEtlStorage(EtlStorage):
                 "timezone": 8,
             }
         elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+            json_fields = set()
+            for check_rule in rules:
+                if check_rule["operator"].get("output_type") == self._get_output_type("object"):
+                    json_fields.add(check_rule["output_id"])
+
             data_link_config["doris_storage_config"] = {
                 "storage_keys": built_in_config["option"]["es_unique_field_list"],
-                # "json_fields": [],
-                # "field_config_group": {},
+                "json_fields": list(json_fields),
+                "field_config_group": {"search_zh": ["log"]},
                 # "flush_timeout": None
             }
 

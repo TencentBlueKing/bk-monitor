@@ -157,9 +157,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(
-                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
-                )
+                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -323,7 +321,7 @@ class EtlStorage:
             "now_if_parse_failed": True,
         }
 
-    def _build_built_in_fields_v4(self, built_in_config: dict) -> list:
+    def _build_built_in_fields_v4(self, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE) -> list:
         """
         构建V4版本的内置字段规则
         :param built_in_config: 内置配置，包含fields和time_field
@@ -401,25 +399,31 @@ class EtlStorage:
                 }
             else:
                 # 默认：从json_data.utctime提取（GSE上报的采集时间）
-                rules.append(
-                    {
-                        "input_id": "json_data",
-                        "output_id": time_field_name,
-                        "operator": {
-                            "type": "assign",
-                            "key_index": time_alias_name,
-                            "alias": time_field_name,
-                            "desc": time_field.get("description"),
-                            "input_type": None,
-                            "output_type": self._get_output_type(time_field_type),
-                            "fixed_value": None,
-                            "is_time_field": None,
-                            "time_format": None,
-                            "in_place_time_parsing": v4_time_parsing,
-                            "default_value": None,
-                        },
-                    }
-                )
+                main_time_rules = {
+                    "input_id": "json_data",
+                    "output_id": time_field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": time_alias_name,
+                        "alias": time_field_name,
+                        "desc": time_field.get("description"),
+                        "input_type": None,
+                        "fixed_value": None,
+                        "default_value": None,
+                    },
+                }
+
+                if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                    main_time_rules["operator"]["output_type"] = self._get_output_type(time_field_type)
+                    main_time_rules["operator"]["is_time_field"] = None
+                    main_time_rules["operator"]["time_format"] = None
+                    main_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
+                elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+                    main_time_rules["operator"]["output_type"] = "string"
+                    main_time_rules["operator"]["is_time_field"] = True
+                    main_time_rules["operator"]["time_format"] = {"format": "%Y-%m-%d %H:%M:%S", "zone": 8}
+
+                rules.append(main_time_rules)
 
                 # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
                 rules.append(
@@ -1180,7 +1184,7 @@ class EtlStorage:
 
             index_set_obj = LogIndexSet.objects.filter(index_set_id=instance.index_set_id).first()
 
-        tf_name = (index_set_obj.time_field if index_set_obj and index_set_obj.time_field else DEFAULT_TIME_FIELD)
+        tf_name = index_set_obj.time_field if index_set_obj and index_set_obj.time_field else DEFAULT_TIME_FIELD
         tf_type = (
             index_set_obj.time_field_type
             if index_set_obj and index_set_obj.time_field_type
