@@ -182,7 +182,8 @@ class TestOsRestartQueryHistoryPoints:
             index["i"] += 1
             fp = mock.Mock()
             fp.timestamp = r["_time_"]
-            fp.record_id = f"md5_127.0.0.1.{r['_time_']}"
+            # 用不含点的 fake md5：生产代码以 record_id.split(".")[0] 取桶 key
+            fp.record_id = f"md5host1.{r['_time_']}"
             fp.as_dict = mock.Mock(return_value={"value": r["_result_"], "time": r["_time_"]})
             return fp
 
@@ -194,12 +195,12 @@ class TestOsRestartQueryHistoryPoints:
         # 1) 应当只发 1 次 query_record，O(1) RPC
         item.query_record.assert_called_once_with(ts - 1500, ts + 60)
 
-        # 2) 所有 records 对应的 timestamp 都应有 127.0.0.1 的 dimensions_md5 entry
+        # 2) 所有 records 对应的 timestamp 都应有目标机器的 dimensions_md5 entry
         for r in records:
             hkey = cache_key.HISTORY_DATA_KEY.get_key(strategy_id=67515, item_id=67493, timestamp=r["_time_"])
             assert hkey in detector._local_history_storage, f"timestamp={r['_time_']} 未被占位"
-            assert "md5_127.0.0.1" in detector._local_history_storage[hkey], (
-                f"timestamp={r['_time_']} 缺少 127.0.0.1 的 dimensions_md5 entry，"
+            assert "md5host1" in detector._local_history_storage[hkey], (
+                f"timestamp={r['_time_']} 缺少目标机器的 dimensions_md5 entry，"
                 f"会让 fetch_history_point 返回 None 导致漏报"
             )
 
