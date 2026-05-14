@@ -196,4 +196,8 @@ export default {
   // 告警中心-告警详情-调用链
   '根 Span 接口': 'Root Span Interface',
   入口服务接口: 'Entry Service Interface',
+
+  // RUM
+  展示名称: 'Display Name',
+  应用状态: 'Application Status',
 };
