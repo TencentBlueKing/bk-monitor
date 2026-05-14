@@ -131,7 +131,9 @@ class TestTGPASearchHandler(SimpleTestCase):
         result = TGPASearchHandler.get_openid_list(params)
 
         self.assertCountEqual(result, ["openid_1", "openid_2", "openid_3"])
-        mock_task_get_openid_list.assert_called_once_with(bk_biz_id=2, keyword="open")
+        mock_task_get_openid_list.assert_called_once_with(
+            bk_biz_id=2, keyword="open", start_time=1716000000000, end_time=1716600000000
+        )
         mock_report_get_openid_list.assert_called_once_with(
             bk_biz_id=2,
             keyword="open",
@@ -217,6 +219,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "pagesize": 4,
                 "openid": "openid_1",
                 "task_id": None,
+                "file_name": None,
                 "start_time": 1716000000000,
                 "end_time": 1716600000000,
                 "ordering": "-created_at",
@@ -227,6 +230,7 @@ class TestTGPASearchHandler(SimpleTestCase):
             {
                 "bk_biz_id": 2,
                 "openid": "openid_1",
+                "file_name": None,
                 "start_time": 1716000000000,
                 "end_time": 1716600000000,
                 "page": 1,
@@ -260,6 +264,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "pagesize": 10,
                 "openid": None,
                 "task_id": "12345",
+                "file_name": None,
                 "start_time": None,
                 "end_time": None,
                 "ordering": "-created_at",
