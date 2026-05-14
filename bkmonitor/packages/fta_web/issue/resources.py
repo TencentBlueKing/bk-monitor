@@ -816,7 +816,7 @@ class ExportIssueResource(Resource):
 
 
 class ListRecentAssigneesResource(Resource):
-    """获取最近经常指派的负责人列表（基于指派事件聚合，无记录时回退到当前 Issue 负责人）"""
+    """获取最近经常指派的负责人列表（基于指派事件聚合）"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_ids = serializers.ListField(
@@ -825,19 +825,6 @@ class ListRecentAssigneesResource(Resource):
         recent_days = serializers.IntegerField(label="最近天数", min_value=1, max_value=30, default=7)
 
     def perform_request(self, validated_request_data):
-        """
-        基于 IssueActivityDocument 的指派事件（assignee_change）做负责人聚合，
-        按被指派频次降序返回负责人列表；若时间窗口内无指派事件，则回退到当前
-        活跃 Issue 的负责人列表。
-
-        该方法实现：
-        1. 业务权限校验，仅查询当前用户有权限的业务
-        2. 按 activity_type=assignee_change 和时间范围过滤活动日志
-        3. 对 to_value 字段做 terms 聚合
-        4. 在 Python 层拆分逗号，用 Counter 统计每个负责人的指派频次
-        5. 若聚合结果为空，回退查询当前活跃 Issue 的 assignee 字段
-        6. 按频次降序返回结果
-        """
         bk_biz_ids = validated_request_data["bk_biz_ids"]
         recent_days = validated_request_data["recent_days"]
 
@@ -853,6 +840,7 @@ class ListRecentAssigneesResource(Resource):
         # 基于活动日志查询指派事件
         search = (
             IssueActivityDocument.search(start_time=start_time, end_time=end_time)
+            .filter("range", time={"gte": start_time, "lte": end_time})
             .filter("term", activity_type=IssueActivityType.ASSIGNEE_CHANGE)
             .filter("terms", bk_biz_id=authorized_biz_ids)
         )
@@ -861,11 +849,7 @@ class ListRecentAssigneesResource(Resource):
         search.aggs.bucket("assignees", "terms", field="to_value", size=500, order={"_count": "desc"})
         search = search.params(size=0, track_total_hits=False)
 
-        try:
-            result = search.execute()
-        except Exception:
-            logger.exception("ListRecentAssigneesResource ES query failed, bk_biz_ids=%s", authorized_biz_ids)
-            return []
+        result = search.execute()
 
         # to_value 是逗号分隔的字符串（如 "user1,user2"），拆分后重新统计频次
         counter = Counter()
