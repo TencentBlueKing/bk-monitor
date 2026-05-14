@@ -88,48 +88,65 @@ class OsRestart(SimpleRingRatio):
         本方法一次性发起单次 unify-query，覆盖 [min_ts - 25min, max_ts + 1m] 的完整窗口，
         并把 expression 改写为 "a"（去掉 a <= 3600 过滤），把真实历史填充到本地
         _local_history_storage。多机器并发场景天然合并为一次 promql 多 series，RPC 数 O(1)。
+
+        关键不变量：窗口内每个 history_timestamp 必须在 _local_history_storage 中存在对应的
+        entry（即使是空 dict）。否则基类 fetch_history_point 会因 `history_key not in
+        _local_history_storage` 而 fallback 到 client.hgetall(history_key)，再次取到被"持续
+        ≤ 3600 的机器"刷新进 Redis 的旧 hash，原 bug 会复现。
         """
         if not data_points:
             return
         item = data_points[0].item
-        # 改写 expression 拿真实 uptime（access 侧 a <= 3600 过滤的逆操作）
+        original_expression = item.query.expression
+        # 改写 expression 拿真实 uptime（access 侧 a <= 3600 过滤的逆操作）；try/finally 保证还原，
+        # 避免改动 access 与 detect 共享的 item.query 实例后泄漏到后续调用。
         item.query.expression = "a"
+        try:
+            sorted_data_points = sorted(data_points, key=lambda x: x.timestamp)
+            agg_interval = item.query_configs[0]["agg_interval"]
+            offsets = self.get_history_offsets(item)
+            max_offset = max((o[1] if isinstance(o, tuple) else o) for o in offsets)
+            from_timestamp = sorted_data_points[0].timestamp - max_offset
+            until_timestamp = sorted_data_points[-1].timestamp + agg_interval
 
-        sorted_data_points = sorted(data_points, key=lambda x: x.timestamp)
-        agg_interval = item.query_configs[0]["agg_interval"]
-        offsets = self.get_history_offsets(item)
-        max_offset = max((o[1] if isinstance(o, tuple) else o) for o in offsets)
-        from_timestamp = sorted_data_points[0].timestamp - max_offset
-        until_timestamp = sorted_data_points[-1].timestamp + agg_interval
-
-        item_records = item.query_record(from_timestamp, until_timestamp)
-        if item.query.is_partial:
-            logger.warning(
-                "strategy(%s) item(%s) os_restart history query is partial, skip prefetch, time_range(%s, %s)",
-                item.strategy.id,
-                item.id,
-                from_timestamp,
-                until_timestamp,
+            history_key_maker = functools.partial(
+                key.HISTORY_DATA_KEY.get_key,
+                strategy_id=item.strategy.id,
+                item_id=item.id,
             )
-            self._local_history_storage = {}
-            return
 
-        # 直接按 (history_key, dimensions_md5) 结构填本地索引，bypass 通用 Redis cache 短路逻辑。
-        # fetch_history_point 在 _local_history_storage 命中时直接返回，不再回退到 Redis hgetall。
-        self._local_history_storage = {}
-        history_key_maker = functools.partial(
-            key.HISTORY_DATA_KEY.get_key,
-            strategy_id=item.strategy.id,
-            item_id=item.id,
-        )
-        for record in item_records:
-            point = DataRecord(item, record)
-            if not point.value:
-                continue
-            detect_point = adapter_data_access_2_detect(point, item)
-            history_key = history_key_maker(timestamp=detect_point.timestamp)
-            bucket = self._local_history_storage.setdefault(history_key, {})
-            bucket[detect_point.record_id.split(".")[0]] = json.dumps(detect_point.as_dict())
+            # 预占位：保证窗口内每个 history_timestamp 都在 _local_history_storage 中存在 entry，
+            # 阻断基类 fetch_history_point 回退到 Redis hgetall 的路径。
+            self._local_history_storage = {
+                history_key_maker(timestamp=ts): {} for ts in range(from_timestamp, until_timestamp, agg_interval)
+            }
+
+            item_records = item.query_record(from_timestamp, until_timestamp)
+            if item.query.is_partial:
+                # VM vmstorage 节点临时不可用。保持已占位的空 entry，让本周期 is_ok_*_ago=False，
+                # 漏报 1 个周期但避免误用旧 cache 数据；下个周期 unify-query 恢复后自动回正。
+                logger.warning(
+                    "strategy(%s) item(%s) os_restart history query is partial, "
+                    "fallback to no-history mode, time_range(%s, %s)",
+                    item.strategy.id,
+                    item.id,
+                    from_timestamp,
+                    until_timestamp,
+                )
+                return
+
+            # 直接按 (history_key, dimensions_md5) 结构填本地索引，bypass 通用 Redis cache 短路逻辑。
+            for record in item_records:
+                point = DataRecord(item, record)
+                if not point.value:
+                    continue
+                detect_point = adapter_data_access_2_detect(point, item)
+                history_key = history_key_maker(timestamp=detect_point.timestamp)
+                # 已被预占位的 key 直接取到 dict；超出预占位范围的（理论上不会发生，防御性处理）则补建。
+                bucket = self._local_history_storage.setdefault(history_key, {})
+                bucket[detect_point.record_id.split(".")[0]] = json.dumps(detect_point.as_dict())
+        finally:
+            item.query.expression = original_expression
 
     def gen_anomaly_point(self, data_point, detect_result, level, auto_format=True):
         ap = super().gen_anomaly_point(data_point, detect_result, level)
