@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, provide, toRef } from 'vue';
 
+import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../../../../../../alarm-center/components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 
+import type { TimeRangeType } from '../../../../../../../components/time-range/utils';
 import type { IDataQuery } from '../../../../../../../plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -46,10 +48,17 @@ export default defineComponent({
       type: Boolean as PropType<boolean>,
       default: false,
     },
+    /** 时间范围 */
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: () => DEFAULT_TIME_RANGE,
+    },
   },
-  setup() {
+  setup(props) {
     /** 图表列数 */
     const gridCol = 2;
+    /** 注入时间范围给图表组件使用 */
+    provide('timeRange', toRef(props, 'timeRange'));
     /**
      * @description 格式化图表数据
      */

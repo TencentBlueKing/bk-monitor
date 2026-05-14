@@ -36,9 +36,6 @@ export interface AsyncDialogConfirmEvent<T extends Record<string, unknown> = Rec
   resolve: () => void;
 }
 
-/** 数据状态枚举值 */
-export type DataStatusType = 'DISABLED' | 'NO_DATA' | 'NORMAL';
-
 /** 告警色块数据项 — 每个时间点的告警级别和数值 */
 export interface IAlertBarItem {
   /** 告警级别，来自 AlertLevelEnum */
@@ -79,15 +76,6 @@ export interface IDataSamplingItem {
   raw_log: Record<string, unknown>;
   /** 采样时间 */
   sampling_time: string;
-}
-
-/** 1.15 GetDataSamplingResource 响应 */
-export type IDataSamplingResponse = IDataSamplingItem[];
-
-/** 1.14 GetDataStatusResource 响应 */
-export interface IDataStatusResponse {
-  /** 数据状态：NORMAL-正常 / NO_DATA-无数据 / DISABLED-已停用 */
-  span: DataStatusType;
 }
 
 /** 1.17-1.18 开启/关闭无数据告警策略参数 */

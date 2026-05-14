@@ -28,8 +28,11 @@ import { type PropType, defineComponent, shallowRef, toRef } from 'vue';
 
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils/utils';
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import { useI18n } from 'vue-i18n';
 
+import TimeRange from '../../../../../components/time-range/time-range';
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
 import { useDataSampling } from '../../hooks/use-data-sampling';
 import { useDataVolumeTrend } from '../../hooks/use-data-volume-trend';
 import { useNoDataStrategy } from '../../hooks/use-no-data-strategy';
@@ -53,6 +56,10 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    /** 时间范围 */
+    const timeRange = shallowRef<TimeRangeType>(DEFAULT_TIME_RANGE);
+    /** 时区 */
+    const timezone = shallowRef<string>(getDefaultTimezone());
     /** 无数据告警策略状态与处理 */
     const {
       strategyInfo,
@@ -98,6 +105,24 @@ export default defineComponent({
     };
 
     /**
+     * @description 时间范围改变处理
+     * @param {TimeRangeType} date - 新的时间范围
+     * @returns {void}
+     */
+    const handleTimeRangeChange = (date: TimeRangeType): void => {
+      timeRange.value = date;
+    };
+
+    /**
+     * @description 时区变化处理
+     * @param {string} tz - 新的时区
+     * @returns {void}
+     */
+    const handleTimezoneChange = (tz: string): void => {
+      timezone.value = tz;
+    };
+
+    /**
      * @description 复制原始日志 JSON 文本
      * @param {Record<string, unknown>} log - 原始日志对象
      * @returns {void}
@@ -121,10 +146,14 @@ export default defineComponent({
     };
 
     return {
+      timeRange,
+      timezone,
       activeLog,
       dashboardPanels,
       handleCloseSideslider,
       handleCopyLog,
+      handleTimeRangeChange,
+      handleTimezoneChange,
       handleEnabledChange,
       handleViewDetail,
       dashboardLoading,
@@ -138,10 +167,20 @@ export default defineComponent({
   render() {
     return (
       <div class='run-config-data-state'>
+        <div class='run-config-data-state-toolbar'>
+          <TimeRange
+            class='data-state-time'
+            modelValue={this.timeRange}
+            timezone={this.timezone}
+            onUpdate:modelValue={this.handleTimeRangeChange}
+            onUpdate:timezone={this.handleTimezoneChange}
+          />
+        </div>
         <AlertInfoCard
           class='run-config-data-state-card'
           loading={this.strategyLoading}
           strategyInfo={this.strategyInfo}
+          timeRange={this.timeRange}
           onEnabledChange={this.handleEnabledChange}
         />
         <div class='run-config-data-state-chart-container'>
@@ -153,6 +192,7 @@ export default defineComponent({
               class='run-config-data-state-chart'
               dashboardPanels={this.dashboardPanels}
               loading={this.dashboardLoading}
+              timeRange={this.timeRange}
             />
           </div>
         </div>
