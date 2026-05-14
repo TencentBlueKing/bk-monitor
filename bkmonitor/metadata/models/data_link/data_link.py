@@ -19,6 +19,12 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata.models.data_link import utils
+from metadata.models.data_link.component_reuse import (
+    ComponentReuseError,
+    ExistingComponentContext,
+    is_reuse_enabled_for,
+    is_reuse_supported_for,
+)
 from metadata.models.data_link.constants import (
     BASEREPORT_DATABUS_FORMAT,
     BASEREPORT_USAGES,
@@ -28,12 +34,6 @@ from metadata.models.data_link.constants import (
     SYSTEM_PROC_PORT_DATABUS_FORMAT,
     DataLinkKind,
     DataLinkResourceStatus,
-)
-from metadata.models.data_link.component_reuse import (
-    ComponentReuseError,
-    ExistingComponentContext,
-    is_reuse_enabled_for,
-    is_reuse_supported_for,
 )
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
@@ -1462,18 +1462,19 @@ class DataLink(models.Model):
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
         try:
-            # NOTE:新链路下，data_link_name和bkbase_data_name一致
-            BkBaseResultTable.objects.get_or_create(
-                data_link_name=self.data_link_name,
-                monitor_table_id=kwargs.get("table_id")
+            monitor_table_id: str | None = (
+                kwargs.get("table_id")
                 if self.data_link_strategy != self.BASEREPORT_TIME_SERIES_V1
-                else self.data_link_name,
-                bkbase_data_name=self.data_link_name,
-                storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
+                else self.data_link_name
+            )
+            BkBaseResultTable.objects.get_or_create(
+                bk_tenant_id=self.bk_tenant_id,
+                data_link_name=self.data_link_name,
                 defaults={
                     "status": DataLinkResourceStatus.INITIALIZING.value,
+                    "monitor_table_id": monitor_table_id,
+                    "storage_type": self.STORAGE_TYPE_MAP[self.data_link_strategy],
                 },
-                bk_tenant_id=self.bk_tenant_id,
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
