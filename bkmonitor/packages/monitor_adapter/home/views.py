@@ -276,7 +276,9 @@ def external_callback(request):
     except Exception:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
-    # HTTP 入口必须携带 token，由 Resource 内部调 ITSM token_verify 校验
+    if not isinstance(params, dict):
+        return JsonResponse({"result": False, "message": "invalid payload"}, status=400)
+
     if not params.get("token"):
         logger.warning("[external_callback]: missing token")
         return JsonResponse({"result": False, "message": "missing token"}, status=401)
@@ -300,7 +302,9 @@ def report_callback(request):
     except Exception:  # pylint: disable=broad-except
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
-    # HTTP 入口必须携带 token，由 Resource 内部调 ITSM token_verify 校验
+    if not isinstance(params, dict):
+        return JsonResponse({"result": False, "message": "invalid payload"}, status=400)
+
     if not params.get("token"):
         logger.warning("[report_callback]: missing token")
         return JsonResponse({"result": False, "message": "missing token"}, status=401)
