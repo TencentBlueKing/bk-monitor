@@ -117,7 +117,7 @@ class TGPASearchHandler:
         file_name = params.get("file_name")
 
         # tgpa_task 接口不支持 file_name 查询，如果匹配该格式，则提取 task_id 用于查询，并去掉 file_name
-        if file_name:
+        if not task_id and file_name:
             match = re.match(r"^ENQ_file_(\d+)\.zip$", file_name)
             if match:
                 task_id = match.group(1)

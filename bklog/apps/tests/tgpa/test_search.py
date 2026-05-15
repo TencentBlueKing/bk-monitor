@@ -399,3 +399,41 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "pagesize": 10,
             }
         )
+
+    @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
+    @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
+    def test_get_merged_task_list_task_id_not_overridden_by_enq_file_name(
+        self, mock_get_task_page, mock_get_report_list
+    ):
+        """task_id 已显式传入时，不应被 ENQ_file_{id}.zip 格式的 file_name 覆盖"""
+        params = {
+            "bk_biz_id": 2,
+            "task_id": 111,
+            "file_name": "ENQ_file_222.zip",
+            "page": 1,
+            "pagesize": 10,
+        }
+        mock_get_task_page.return_value = {
+            "total": 1,
+            "list": [self._build_task(1, "111", "openid_1", "ENQ_file_111.zip", "2026-04-24 12:00:00")],
+        }
+
+        result = TGPASearchHandler.get_merged_task_list(params)
+
+        # task_id 应保持为调用方传入的 111，而非从 file_name 提取的 222
+        self.assertEqual(result["list"][0]["task_id"], "111")
+        mock_get_task_page.assert_called_once_with(
+            params={
+                "bk_biz_id": 2,
+                "page": 1,
+                "pagesize": 10,
+                "openid": None,
+                "task_id": "111",
+                "start_time": None,
+                "end_time": None,
+                "ordering": "-created_at",
+            },
+            need_format=False,
+        )
+        # task_id 非空，不查 report
+        mock_get_report_list.assert_not_called()
