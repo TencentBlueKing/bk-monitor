@@ -36,7 +36,7 @@ logger = logging.getLogger("fta_action.issue")
 
 
 def gen_issue_fingerprint(strategy_id: int, aggregate_dimensions: list[str], data_dimensions: dict) -> str | None:
-    """生成 Issue 唯一指纹，与 Event.cal_dedupe_md5 复用同款 count_md5 算法。
+    """生成 Issue 唯一指纹（count_md5 形态，每个元素带 prefix 防错位 / 跨策略碰撞）。
 
     入参 data_dimensions 取自 ``alert.event.extra_info.origin_alarm.data.dimensions``——
     adapter 收编前的原始维度集合，命名层级与 issue_config.aggregate_dimensions（即
@@ -50,16 +50,22 @@ def gen_issue_fingerprint(strategy_id: int, aggregate_dimensions: list[str], dat
       bk_target_cloud_id 等关键字段，event 顶层不再保留这些维度
     - origin_alarm.data 来自 adapter 收编前的原始 record，dimensions 字段保留完整原始命名
 
+    payload 形态选型说明：
+    - count_md5 内部默认 list_sort=True，对 list 元素 sorted 后再 hash。若 payload 形如
+      ``["123", "X", "Y"]``，则 ``{a:X,b:Y}`` 与 ``{a:Y,b:X}`` 排序后相同 → 同一指纹
+      （维度键值错位错合并）；strategy_id 与某个 dim 值字面相等时还会跨策略碰撞
+    - 解决方案：每个元素带不可重叠的 prefix——``f"strategy:{id}"`` 与 ``f"{key}={value}"``
+      永不字面相同，sorted 后顺序虽变但元素本身无歧义，hash 稳定且唯一
+
     规则：
-    - aggregate_dimensions 为空 → ``count_md5([str(strategy_id)])``，含 strategy_id 入参
-      避免不同策略空 dims 退化到相同指纹
+    - aggregate_dimensions 为空 → ``count_md5([f"strategy:{id}"])``，仅含策略前缀
+      （catch-all 退化路径，仍按 strategy 隔离）
     - 任一维度在 data_dimensions 中缺失 / None / "" / 全空白 → 返回 None，调用方据此
       跳过该告警（同策略下"维度凑不齐"的告警不进入任何 Issue 池，避免污染聚合）
     - 维度按 key 排序后参与，保证配置项顺序不影响指纹稳定性
     - 值统一 str(...).strip() 归一化，与 dimension_values 快照口径完全一致
-    - count_md5 内部默认对 list 排序后递归 hash，与 Event.cal_dedupe_md5 同款
     """
-    values = [str(strategy_id)]
+    values = [f"strategy:{strategy_id}"]
     for key in sorted(aggregate_dimensions):
         value = data_dimensions.get(key)
         if value is None or value == "":
@@ -67,7 +73,7 @@ def gen_issue_fingerprint(strategy_id: int, aggregate_dimensions: list[str], dat
         normalized = str(value).strip()
         if not normalized:
             return None
-        values.append(normalized)
+        values.append(f"{key}={normalized}")
     return count_md5(values)
 
 
@@ -307,10 +313,13 @@ class IssueAggregationProcessor:
             except Exception:
                 pass
 
-        # Step 1: 标准路径 — 按 fingerprint 查 ES 活跃 Issue
+        # Step 1: 标准路径 — 按 fingerprint + strategy_id 查 ES 活跃 Issue。
+        # strategy_id 过滤是防御性双保险：fingerprint payload 已含 ``strategy:{id}`` prefix
+        # 应保证唯一性，但加索引侧过滤可防御未来 fingerprint 算法回归 / hash 碰撞 / 误绑事故。
         search = (
             IssueDocument.search(all_indices=True)
             .filter("term", fingerprint=fingerprint)
+            .filter("term", strategy_id=str(self.strategy_id))
             .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
             .sort("-create_time")
             .params(size=1)

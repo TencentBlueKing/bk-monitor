@@ -22,25 +22,44 @@ class TestGenIssueFingerprint:
     """
 
     def test_empty_dimensions_returns_strategy_only_fingerprint(self):
-        """aggregate_dimensions 为空时退化到 ``count_md5([str(strategy_id)])``。
-
-        含 strategy_id 入参避免不同策略空 dims 退化到相同指纹（误并 issue 池）。
-        """
+        """aggregate_dimensions 为空时退化到 ``count_md5(["strategy:{id}"])``。"""
         fp = gen_issue_fingerprint(123, [], {"any": "dim"})
-        assert fp == count_md5(["123"])
+        assert fp == count_md5(["strategy:123"])
         # data_dimensions 内容不影响（aggregate_dimensions=[] 时不读取）
-        assert gen_issue_fingerprint(123, [], {}) == count_md5(["123"])
+        assert gen_issue_fingerprint(123, [], {}) == count_md5(["strategy:123"])
 
     def test_empty_dimensions_strategy_isolation(self):
-        """退化路径下不同 strategy_id 仍得到不同指纹（含 str(strategy_id) 入参的核心目的）。"""
+        """退化路径下不同 strategy_id 仍得到不同指纹（strategy prefix 区分）。"""
         assert gen_issue_fingerprint(123, [], {}) != gen_issue_fingerprint(456, [], {})
 
-    def test_with_dimensions_returns_count_md5(self):
-        """非空 aggregate_dimensions 时返回 count_md5([str(strategy_id), v1, v2, ...])。"""
+    def test_with_dimensions_returns_count_md5_with_kv_prefix(self):
+        """非空 aggregate_dimensions 时返回 count_md5([f"strategy:{id}", f"{k}={v}", ...])。"""
         fp = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731"})
         assert fp is not None
-        # 与 count_md5 公式手算一致
-        assert fp == count_md5(["123", "9185731"])
+        # 与 count_md5 公式手算一致：每个元素带 prefix 防错位 / 跨策略碰撞
+        assert fp == count_md5(["strategy:123", "bk_host_id=9185731"])
+
+    def test_dim_value_swap_must_not_collide(self):
+        """{a:X, b:Y} 与 {a:Y, b:X} 必须算出不同 fingerprint（防键值错位错合并）。
+
+        若 payload 形如 ["123", "X", "Y"]，count_md5 内部 list_sort=True 排序后
+        ["X","Y"] 与 ["Y","X"] 相同 → 同一指纹。带 ``f"{k}={v}"`` prefix 后
+        ["a=X","b=Y"] 与 ["a=Y","b=X"] 排序后元素不同 → 不同指纹。
+        """
+        fp1 = gen_issue_fingerprint(123, ["a", "b"], {"a": "X", "b": "Y"})
+        fp2 = gen_issue_fingerprint(123, ["a", "b"], {"a": "Y", "b": "X"})
+        assert fp1 != fp2
+
+    def test_cross_strategy_dim_value_no_collision(self):
+        """strategy_id=123 + a="456" 与 strategy_id=456 + a="123" 必须算出不同 fingerprint。
+
+        若 payload 形如 [str(id), v]，sorted(["123","456"]) == sorted(["456","123"])
+        → 同一指纹（跨策略碰撞）。带 ``f"strategy:{id}"`` / ``f"{k}={v}"`` prefix 后
+        元素本身有结构区分，不可能字面相等。
+        """
+        fp1 = gen_issue_fingerprint(123, ["a"], {"a": "456"})
+        fp2 = gen_issue_fingerprint(456, ["a"], {"a": "123"})
+        assert fp1 != fp2
 
     def test_missing_dimension_returns_none(self):
         """data_dimensions 缺 aggregate_dimensions 中某个 key → 返回 None。"""
@@ -149,7 +168,7 @@ class TestGenIssueFingerprint:
 
         # 配置纯 key + data_dimensions 含该 key → 命中
         fp = gen_issue_fingerprint(123, ["mount_point"], data_dims)
-        assert fp == count_md5(["123", "/data"])
+        assert fp == count_md5(["strategy:123", "mount_point=/data"])
 
 
 @pytest.mark.parametrize(
@@ -832,8 +851,8 @@ class TestBackfillMatchPriority:
             # live=None 退化按 len 降序，具体 I_new (len=1) 优先于 catch-all I_old (len=0)
             assert update_docs[0].issue_id == "I_new"
 
-    def test_alert_missing_origin_alarm_skipped(self):
-        """第三方告警 / FTA 告警可能没有 origin_alarm 结构 → backfill 跳过该条 alert。
+    def test_alert_missing_origin_alarm_skipped_when_no_catch_all_group(self):
+        """无 catch-all group 时，alert 缺 origin_alarm → backfill 跳过该条 alert。
 
         与 process 主路径"维度凑不齐 → fingerprint=None → 跳过"语义一致，
         backfill 不应错绑到任何 Issue。
@@ -870,6 +889,51 @@ class TestBackfillMatchPriority:
             _backfill_unlinked_alerts_for_strategy("100")
 
             mock_bulk.assert_not_called()
+
+    def test_catch_all_group_backfills_alert_without_origin_alarm(self):
+        """有 catch-all Issue (snapshot=[]) 时，alert 即使缺 origin_alarm 也应被 backfill 到 catch-all。
+
+        catch-all group 不读 data_dimensions（aggregate_dimensions=[] 时直接 ``count_md5(["strategy:{id}"])``），
+        与 process 主路径语义一致：catch-all Issue 必中策略下任何告警，无论维度是否齐全。
+        """
+        from unittest.mock import MagicMock, patch
+
+        from alarm_backends.service.fta_action.tasks.issue_tasks import (
+            _backfill_unlinked_alerts_for_strategy,
+        )
+
+        # 仅一个 catch-all Issue
+        i_catch_all = self._make_issue_hit("I_catch_all", "fp_catch_all", [], 1000)
+        # alert 完全没有 origin_alarm 结构
+        alert_hit = MagicMock()
+        alert_hit.id = "alert_no_dim"
+        alert_hit.begin_time = 3000
+        alert_hit.to_dict.return_value = {"event": {}}
+
+        with (
+            patch("alarm_backends.service.fta_action.tasks.issue_tasks.IssueDocument.search") as mock_search,
+            patch(
+                "alarm_backends.service.fta_action.tasks.issue_tasks._iter_alert_hit_batches",
+                return_value=iter([[alert_hit]]),
+            ),
+            patch("alarm_backends.service.fta_action.tasks.issue_tasks.AlertDocument.bulk_create") as mock_bulk,
+            patch(
+                "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id",
+                return_value={"issue_config": {"aggregate_dimensions": []}},
+            ),
+            patch("alarm_backends.service.fta_action.issue_processor.gen_issue_fingerprint") as mock_fp,
+        ):
+            mock_fp.side_effect = lambda sid, ad, dims: "fp_catch_all" if not ad else None
+            mock_search.return_value.filter.return_value.filter.return_value.params.return_value.scan.return_value = (
+                iter([i_catch_all])
+            )
+
+            _backfill_unlinked_alerts_for_strategy("100")
+
+            assert mock_bulk.called, "catch-all Issue 应能 backfill 缺 origin_alarm 的 alert"
+            update_docs = mock_bulk.call_args[0][0]
+            assert len(update_docs) == 1
+            assert update_docs[0].issue_id == "I_catch_all"
 
     def test_scan_range_capped_to_7_days(self):
         """earliest_create_time 早于 7 天前 → scan 下界缩窄为 now - 7 天，避免范围爆炸。"""
