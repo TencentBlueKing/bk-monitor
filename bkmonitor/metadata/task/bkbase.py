@@ -572,6 +572,13 @@ def _get_bkbase_components_config(
             sink_names = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["data_id_name"] = spec["sources"][0]["name"]
             extra_config["sink_names"] = sink_names
+        case DataLinkKind.BASEREPORTSINK.value:
+            vm_storage_binding_names = []
+            for mapping in spec.get("mappings", []):
+                for sink in mapping.get("sinks", []):
+                    if sink.get("kind") == DataLinkKind.VMSTORAGEBINDING.value and sink.get("name"):
+                        vm_storage_binding_names.append(sink["name"])
+            extra_config["vm_storage_binding_names"] = list(dict.fromkeys(vm_storage_binding_names))
     return base_config, extra_config
 
 
@@ -655,6 +662,7 @@ def sync_bkbase_v4_datalink_components():
         DataLinkKind.DATAID.value,
         DataLinkKind.RESULTTABLE.value,
         DataLinkKind.CONDITIONALSINK.value,
+        DataLinkKind.BASEREPORTSINK.value,
     ]
     for tenant, namespace, kind in itertools.product(tenants, namespaces, kinds):
         _sync_bkbase_v4_datalink_components(bk_tenant_id=tenant["id"], namespace=namespace, kind=kind)

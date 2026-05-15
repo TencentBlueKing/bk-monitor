@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 from django.conf import settings
 
 from metadata.models.data_link.data_link_configs import (
+    BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
     DataLinkResourceConfigBase,
@@ -37,6 +38,7 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
     VMStorageBindingConfig,
     ESStorageBindingConfig,
     DorisStorageBindingConfig,
+    BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
 ]

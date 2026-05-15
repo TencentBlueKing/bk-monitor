@@ -32,6 +32,7 @@ from metadata.models import AccessVMRecord, DataSourceResultTable
 from metadata.models.data_link.constants import DataLinkKind
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
+    BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
     DataIdConfig,
@@ -50,6 +51,7 @@ SINK_KIND_TO_MODEL: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
     DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
+    DataLinkKind.BASEREPORTSINK.value: BasereportSinkConfig,
 }
 
 # 存储绑定类型（需要关联 ResultTableConfig，ConditionalSink 不需要）
@@ -208,6 +210,32 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             return None
         sink_instances.extend(instances_by_name[name] for name in names)
 
+    # BasereportSink 是二级路由组件，需要继续从已记录的 VMStorageBinding 名称展开下游绑定。
+    basereport_sink_instances = [instance for instance in sink_instances if isinstance(instance, BasereportSinkConfig)]
+    if basereport_sink_instances:
+        vm_binding_names = []
+        for basereport_sink in basereport_sink_instances:
+            vm_binding_names.extend(basereport_sink.vm_storage_binding_names)
+        vm_binding_names = list(dict.fromkeys(vm_binding_names))
+        vm_bindings_by_name = {
+            binding.name: binding
+            for binding in VMStorageBindingConfig.objects.filter(
+                bk_tenant_id=databus.bk_tenant_id,
+                namespace=databus.namespace,
+                name__in=vm_binding_names,
+            )
+        }
+        missing_vm_bindings = [name for name in vm_binding_names if name not in vm_bindings_by_name]
+        if missing_vm_bindings:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] BasereportSink referenced VmStorageBinding name->[%s] "
+                "not found in DB, skip",
+                databus_name,
+                ", ".join(missing_vm_bindings),
+            )
+            return None
+        sink_instances.extend(vm_bindings_by_name[name] for name in vm_binding_names)
+
     # Step 4: 冲突检测 —— 若任意 sink 组件已有 data_link_name，说明已属于其他链路，跳过
     for instance in sink_instances:
         if instance.data_link_name:
@@ -276,6 +304,14 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         if not isinstance(sink_instance, STORAGE_BINDING_MODELS):
             continue
         sink_instance.table_id = result_table_name_to_table_id[sink_instance.bkbase_result_table_name]
+    for basereport_sink in basereport_sink_instances:
+        basereport_sink.result_table_ids = [
+            result_table_name_to_table_id[binding.bkbase_result_table_name]
+            for binding in sink_instances
+            if isinstance(binding, VMStorageBindingConfig)
+            and binding.name in basereport_sink.vm_storage_binding_names
+            and binding.bkbase_result_table_name in result_table_name_to_table_id
+        ]
 
     # Step 6: 冲突检测 —— 若任意 ResultTableConfig 已有 data_link_name，跳过
     for rt in rt_instances:
@@ -386,6 +422,11 @@ def _bulk_update_data_link_name(instances: Sequence[DataLinkResourceConfigBase])
             DorisStorageBindingConfig.objects.bulk_update(
                 cast(list[DorisStorageBindingConfig], group),
                 ["data_link_name", "table_id"],
+            )
+        elif model_cls is BasereportSinkConfig:
+            BasereportSinkConfig.objects.bulk_update(
+                cast(list[BasereportSinkConfig], group),
+                ["data_link_name", "result_table_ids"],
             )
         else:
             ConditionalSinkConfig.objects.bulk_update(

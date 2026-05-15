@@ -22,6 +22,7 @@ class DataLinkKind(Enum):
     DATABUS = "Databus"
     KAFKACHANNEL = "KafkaChannel"
     CONDITIONALSINK = "ConditionalSink"
+    BASEREPORTSINK = "BasereportSink"
     SINK = "Sink"
     VMSTORAGE = "VmStorage"
     ELASTICSEARCH = "ElasticSearch"
@@ -35,6 +36,7 @@ class DataLinkKind(Enum):
         (DORISBINDING, "dorisbindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
+        (BASEREPORTSINK, "basereportsinks"),
         (SINK, "sinks"),
         (VMSTORAGE, "vmstorages"),
         (ELASTICSEARCH, "elasticsearchs"),
