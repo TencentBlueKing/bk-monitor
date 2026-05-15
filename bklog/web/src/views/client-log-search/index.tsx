@@ -522,9 +522,9 @@ export default defineComponent({
       }
     };
 
-    /** 业务切换后检查功能开关，无权限则跳转回检索页；同时重新触发搜索 */
+    /** 业务切换后检查功能开关，无权限则跳转回检索页/重新触发搜索 */
     watch(
-      () => store.state.spaceUid,
+      () => route.query.spaceUid as string,
       (newSpaceUid, oldSpaceUid) => {
         if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
           // 业务切换时清空 URL 中的条件
@@ -588,8 +588,24 @@ export default defineComponent({
       return false;
     };
 
-    onMounted(() => {
-      getIndexSetId();
+    onMounted(async () => {
+      // 页面挂载时检查功能开关，无权限则跳转回检索页
+      const hasPermission = isFeatureToggleOn(
+        'tgpa_task',
+        [String(store.state.bkBizId), String(store.state.spaceUid)],
+      );
+      if (!hasPermission) {
+        router.replace({
+          name: 'retrieve',
+          query: {
+            spaceUid: String(store.state.spaceUid),
+            bizId: String(store.state.bkBizId),
+          },
+        });
+        return;
+      }
+
+      await getIndexSetId();
       checkDownloadPermission();
 
       // 使用 ResizeObserver 监听 content-wrapper 高度变化
