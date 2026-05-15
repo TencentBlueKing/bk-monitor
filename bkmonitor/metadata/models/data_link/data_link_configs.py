@@ -834,6 +834,7 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
         metadata = {
             "name": self.name,
             "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            "labels": {"bk_biz_id": str(self.datalink_biz_ids.label_biz_id)},
         }
         if settings.ENABLE_MULTI_TENANT_MODE:
             metadata["tenant"] = self.bk_tenant_id

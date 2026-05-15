@@ -2083,6 +2083,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         table_id for usage in BASEREPORT_USAGES for table_id in (f"system_1_sys.{usage}", f"system_1_sys.{usage}_cmdb")
     ]
     assert basereport_sink["metadata"] == {
+        "labels": {"bk_biz_id": "1"},
         "name": "system_1_sys_base",
         "namespace": "bkmonitor",
         "tenant": "system",
@@ -2161,6 +2162,7 @@ def test_create_basereport_datalink_for_bkcc_extra_source_bkbase_v4_part(create_
         f"system_1_{extra_source}.{usage}" for usage in BASEREPORT_USAGES
     ]
     assert basereport_sink["metadata"] == {
+        "labels": {"bk_biz_id": "1"},
         "name": f"system_1_sys_base_{extra_source}",
         "namespace": "bkmonitor",
         "tenant": "system",
