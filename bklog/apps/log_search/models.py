@@ -54,6 +54,7 @@ from apps.log_search.constants import (
     EtlConfigEnum,
     FavoriteGroupType,
     FavoriteListOrderType,
+    FavoriteSourceType,
     FavoriteType,
     FavoriteVisibleType,
     FieldBuiltInEnum,
@@ -893,6 +894,20 @@ class Favorite(OperateRecordModel):
     favorite_type = models.CharField(
         _("收藏类型"), max_length=32, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
     )
+    # 收藏来源类型：index_set / scene；用于区分索引集检索与场景化检索的收藏，老数据默认 index_set。
+    source_type = models.CharField(
+        _("收藏来源类型"),
+        max_length=16,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+        db_index=True,
+    )
+    # 场景化收藏专属：场景标识（如 k8s / host / bk_paas），与 /search/scene/scenes/ 的 id 对齐。
+    scene_id = models.CharField(_("场景ID"), max_length=64, null=True, blank=True, default=None, db_index=True)
+    # 场景化收藏专属：数据范围路由，与 /search/scene/search 的 table_id_conditions 同结构。
+    table_id_conditions = models.JSONField(_("场景路由条件"), null=True, blank=True, default=None)
+    # 场景化收藏专属：场景维度筛选值（可空），与前端 scene_filter_values 同结构。
+    scene_filter_values = models.JSONField(_("场景维度筛选"), null=True, blank=True, default=None)
 
     class Meta:
         verbose_name = _("检索收藏")
@@ -907,8 +922,12 @@ class Favorite(OperateRecordModel):
         username: str,
         order_type: str = FavoriteListOrderType.NAME_ASC.value,
         public_group_ids: list = None,
+        source_type: str = None,
     ):
-        """获取用户所有能看到的收藏"""
+        """获取用户所有能看到的收藏
+
+        :param source_type: 可选过滤；不传则全返，传 "scene" 仅场景化、"index_set" 仅索引集。
+        """
         source_app_code = get_request_app_code()
         favorites = []
         public_query = Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
@@ -923,6 +942,8 @@ class Favorite(OperateRecordModel):
             | public_query
         )
         qs = qs.filter(source_app_code=source_app_code)
+        if source_type:
+            qs = qs.filter(source_type=source_type)
         if order_type == FavoriteListOrderType.NAME_ASC.value:
             qs = qs.order_by("name")
         elif order_type == FavoriteListOrderType.NAME_DESC.value:
@@ -930,8 +951,11 @@ class Favorite(OperateRecordModel):
         else:
             qs = qs.order_by("-updated_at")
 
+        # scene 收藏不挂 index_set，避免查询 LogIndexSet 与处理 is_active 字段
         index_set_id_list = list()
         for obj in qs.all():
+            if (obj.source_type or FavoriteSourceType.INDEX_SET.value) == FavoriteSourceType.SCENE.value:
+                continue
             obj_index_set_type = obj.index_set_type or IndexSetType.SINGLE.value
             if obj_index_set_type == IndexSetType.SINGLE.value:
                 index_set_id_list.append(obj.index_set_id)
@@ -947,6 +971,10 @@ class Favorite(OperateRecordModel):
         }
         for fi in qs.all():
             fi_dict = model_to_dict(fi)
+            if (fi.source_type or FavoriteSourceType.INDEX_SET.value) == FavoriteSourceType.SCENE.value:
+                # 场景化收藏：跳过索引集回显，保留 scene_id / table_id_conditions / scene_filter_values
+                favorites.append(fi_dict)
+                continue
             index_set_type = fi.index_set_type or IndexSetType.SINGLE.value
             if index_set_type == IndexSetType.SINGLE.value:
                 if active_index_set_id_dict.get(fi.index_set_id):
@@ -967,8 +995,6 @@ class Favorite(OperateRecordModel):
                         index_set_names.append(INDEX_SET_NOT_EXISTED)
                 fi_dict["is_actives"] = is_actives
                 fi_dict["index_set_names"] = index_set_names
-            fi_dict["created_at"] = fi_dict["created_at"]
-            fi_dict["updated_at"] = fi_dict["updated_at"]
             favorites.append(fi_dict)
 
         return favorites
@@ -1688,3 +1714,28 @@ class IndexSetCustomConfig(models.Model):
     @classmethod
     def get_index_set_hash(cls, index_set_id: list | int):
         return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
+
+
+class UserSceneFieldsConfig(models.Model):
+    """场景化检索：按 业务-用户-场景-范围 持久化字段展示配置（单层，无模板分层）。"""
+
+    bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
+    username = models.CharField(_("用户名"), max_length=64, db_index=True)
+    scene_id = models.CharField(_("场景ID"), max_length=64, db_index=True)
+    scope = models.CharField(
+        _("检索范围"),
+        max_length=16,
+        default=SearchScopeEnum.DEFAULT.value,
+    )
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
+    display_fields = JsonField(_("显示字段"), default=list)
+    sort_list = JsonField(_("排序规则"), default=list)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("场景化检索-用户字段展示配置")
+        verbose_name_plural = _("场景化检索-用户字段展示配置")
+        unique_together = [("bk_biz_id", "username", "scene_id", "scope", "source_app_code")]
