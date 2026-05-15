@@ -317,17 +317,22 @@ def _backfill_unlinked_alerts_for_strategy(strategy_id: str):
     # Step 3: 内存分发（live 优先 + 时间边界 + len 降序 fallback）
     total = 0
     skipped_time = 0
+    skipped_no_event = 0
     for hits in _iter_alert_hit_batches(base_search):
         update_docs = []
         for hit in hits:
-            alert_dims = _extract_alert_dimensions(hit)
+            event_data = _extract_event_data(hit)
+            if event_data is None:
+                # 防御兜底：理论上 AlertDocument.event 是 _source 必有字段
+                skipped_no_event += 1
+                continue
             try:
                 alert_begin = int(getattr(hit, "begin_time", 0) or 0)
             except (TypeError, ValueError):
                 alert_begin = 0
 
             for agg_dims_tuple, fp_map in sorted_groups:
-                fp = gen_issue_fingerprint(strategy_id_int, list(agg_dims_tuple), alert_dims)
+                fp = gen_issue_fingerprint(strategy_id_int, list(agg_dims_tuple), event_data)
                 if not fp or fp not in fp_map:
                     continue
                 issue_id, issue_ct = fp_map[fp]
@@ -347,36 +352,36 @@ def _backfill_unlinked_alerts_for_strategy(strategy_id: str):
             logger.exception("[issue] backfill failed, strategy(%s)", strategy_id)
             return
 
-    if total or skipped_time:
+    if total or skipped_time or skipped_no_event:
         logger.info(
-            "[issue] strategy(%s) backfilled %d unlinked alerts, skipped_time=%d "
+            "[issue] strategy(%s) backfilled %d unlinked alerts, skipped_time=%d skipped_no_event=%d "
             "(%d active issues, %d agg-dim groups, live_priority=%s)",
             strategy_id,
             total,
             skipped_time,
+            skipped_no_event,
             sum(len(m) for m in grouped_fp_map.values()),
             len(grouped_fp_map),
             live_agg_dims_tuple is not None,
         )
 
 
-def _extract_alert_dimensions(hit) -> dict:
-    """从 ES hit 提取 AlertDocument.dimensions 为 {key: value} dict。
+def _extract_event_data(hit) -> dict | None:
+    """从 ES alert hit 提取 event 数据 dict（用于 fingerprint 反算）。
 
-    与 IssueAggregationProcessor._get_alert_dimensions 对齐，保证两侧 fingerprint 计算一致。
+    与 IssueAggregationProcessor._get_event_data 对齐，保证 backfill 反算与 process 主路径
+    使用同源 event 数据 + 同款 get_field 取值算法。返回 None 表示 hit 缺 event 字段
+    （理论上不应发生，AlertDocument.event mapping 是 field.Object，默认在 _source）。
     """
-    result: dict = {}
-    raw = hit.to_dict().get("dimensions") or []
-    for dim in raw:
-        if isinstance(dim, dict):
-            key = dim.get("key", "")
-            value = dim.get("value", "")
-        else:
-            key = getattr(dim, "key", "")
-            value = getattr(dim, "value", "")
-        if key:
-            result[key] = value
-    return result
+    raw = hit.to_dict()
+    event_data = raw.get("event")
+    if not event_data:
+        return None
+    if hasattr(event_data, "to_dict"):
+        return event_data.to_dict()
+    if isinstance(event_data, dict):
+        return event_data
+    return None
 
 
 def _allowed_scope_keys(aggregate_dimensions: list[str]) -> set[str] | None:
