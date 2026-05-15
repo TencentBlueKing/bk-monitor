@@ -252,7 +252,7 @@ def _backfill_unlinked_alerts_for_strategy(strategy_id: str):
     # 三种 None 退化场景，全部按 len 降序匹配：
     #   (a) 策略缓存 miss / Redis 异常
     #   (b) issue_config 缺失（策略已禁用 Issue 聚合，但仍有历史活跃 Issue）—— 此处 None 而非 ()，
-    #       否则空 tuple 会被当作"live=catch-all"让 catch-all group 永远优先（v1.6 review 发现的 bug）
+    #       否则空 tuple 会被当作"live=catch-all"让 catch-all group 永远优先错绑
     #   (c) 任何其他异常
     live_agg_dims_tuple: tuple | None = None
     try:

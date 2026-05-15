@@ -36,7 +36,7 @@ class TestGenIssueFingerprint:
         # 完全缺失
         assert gen_issue_fingerprint(123, ["bk_host_id"], {"other": "value"}) is None
         # 部分缺失
-        assert gen_issue_fingerprint(123, ["ip", "service"], {"ip": "1.1.1.1"}) is None
+        assert gen_issue_fingerprint(123, ["ip", "service"], {"ip": "<ip>"}) is None
 
     def test_none_value_returns_none(self):
         """维度值为 None → 返回 None。"""
@@ -48,7 +48,7 @@ class TestGenIssueFingerprint:
 
     def test_dimension_order_stable(self):
         """aggregate_dimensions 配置项顺序变化不应影响指纹（按 key 排序后参与）。"""
-        dims = {"ip": "1.1.1.1", "service": "order"}
+        dims = {"ip": "<ip>", "service": "order"}
         fp1 = gen_issue_fingerprint(123, ["ip", "service"], dims)
         fp2 = gen_issue_fingerprint(123, ["service", "ip"], dims)
         assert fp1 == fp2
@@ -74,7 +74,7 @@ class TestGenIssueFingerprint:
     def test_alert_dims_extra_keys_ignored(self):
         """告警 dimensions 带额外 key（不在 aggregate_dimensions 中）不影响指纹。"""
         fp1 = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731"})
-        fp2 = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731", "service": "order", "ip": "1.1.1.1"})
+        fp2 = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731", "service": "order", "ip": "<ip>"})
         assert fp1 == fp2
 
     def test_value_with_leading_trailing_whitespace_normalized(self):
@@ -108,13 +108,13 @@ class TestGenIssueFingerprint:
         assert all(v == v.strip() for v in dimension_values.values())
         assert dimension_values == {"bk_host_id": "9185731", "service": "order"}
 
-    # ---------- v1.8 改造：fingerprint 取值源切换到 event 数据 ----------
+    # ---------- fingerprint 从 event 取值（覆盖 tags. 前缀 + 策略层命名）----------
 
-    def test_v18_event_tags_prefix_lookup(self):
-        """v1.8 改造：复用 Event.get_field 处理 tags. 前缀，从 event.tags 取值。
+    def test_event_tags_prefix_lookup(self):
+        """复用 Event.get_field 处理 tags. 前缀，从 event.tags 取值。
 
-        策略 issue_config.aggregate_dimensions 含 'tags.mount_point'（query_configs.agg_dimension
-        的 tags. 命名形式）时，必须能从 event.tags 数组中正确 lookup 到 mount_point 字段。
+        issue_config.aggregate_dimensions 含 'tags.mount_point' 时，必须能从 event.tags
+        数组中正确 lookup 到 mount_point 字段。
         """
         event_data = {
             "tags": [{"key": "mount_point", "value": "/data"}, {"key": "fstype", "value": "ext4"}],
@@ -125,44 +125,41 @@ class TestGenIssueFingerprint:
         event_data2 = {"tags": [{"key": "mount_point", "value": "/data"}, {"key": "fstype", "value": "xfs"}]}
         assert fp == gen_issue_fingerprint(123, ["tags.mount_point"], event_data2)
 
-    def test_v18_bk_target_dimensions_from_event_top_level(self):
-        """v1.8 改造：策略 10313 类型 case — issue_config.aggregate_dimensions=[bk_target_ip,
-        bk_target_cloud_id]，event 数据顶层含这俩字段（trigger 阶段写入），fingerprint 算成功。
+    def test_bk_target_dimensions_from_event_top_level(self):
+        """主机型策略：issue_config.aggregate_dimensions=[bk_target_ip, bk_target_cloud_id]，
+        event 数据顶层含这俩字段（trigger 阶段写入），fingerprint 算成功。
 
-        v1.7 死锁现象：从 alert.dimensions（被 trigger 收编为 target_type/target + enricher 补 ip/
-        bk_cloud_id）取值导致 lookup 失败 → fingerprint=None → process 永不创建 Issue。
-        v1.8 修复：从 event 数据取值，bk_target_* 命名直接在 event 顶层，lookup 成功。
+        必须从 event 取值——不能从 alert.dimensions（被 trigger 收编为 target_type/target +
+        enricher 补 ip / bk_cloud_id）取，跨层命名不一致 lookup 必失败。
         """
         event_data = {
             "bk_target_ip": "<ip-1>",
             "bk_target_cloud_id": "0",
             "tags": [{"key": "mount_point", "value": "/"}],
         }
-        fp = gen_issue_fingerprint(10313, ["bk_target_ip", "bk_target_cloud_id"], event_data)
+        fp = gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], event_data)
         assert fp is not None and len(fp) == 32  # md5 hex
 
         # 不同 ip → 不同 fingerprint（按主机切分 issue 的预期效果）
         event_data2 = {**event_data, "bk_target_ip": "<ip-2>"}
-        fp2 = gen_issue_fingerprint(10313, ["bk_target_ip", "bk_target_cloud_id"], event_data2)
+        fp2 = gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], event_data2)
         assert fp != fp2
 
-    def test_v18_alert_dimensions_no_longer_consulted(self):
-        """v1.8 锁定数据源：fingerprint 仅从 event 取值，不再 fallback 到 alert.dimensions。
+    def test_alert_dimensions_no_longer_consulted(self):
+        """fingerprint 仅从 event 取值，不再 fallback 到 alert.dimensions。
 
-        如果 event 缺 bk_target_ip 但 alert.dimensions（外层）含 ip——v1.7 之前会从 alert.dimensions
-        取值导致命名错位错绑；v1.8 必须严格只查 event，event 缺 → 直接 None。
+        即使 event 缺 bk_target_ip 而 alert.dimensions 外层含 ip，新签名是 event_data，
+        不会 fallback 到任何外部数据 → event 缺直接 None。
         """
         # event 完全没有 bk_target_ip / bk_target_cloud_id
         event_data = {"tags": [{"key": "mount_point", "value": "/"}]}
-        # 即使外层模拟传入含 ip 的 alert_dims（理论不会发生，仅为测试隔离），fingerprint 也是 None
-        # 因为新签名是 event_data 而非 alert_dims，且不会 fallback 到任何外部数据
-        assert gen_issue_fingerprint(10313, ["bk_target_ip", "bk_target_cloud_id"], event_data) is None
+        assert gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], event_data) is None
 
-    def test_v18_event_get_field_ignores_clean_side_effects(self):
-        """v1.8 用 do_clean=False 实例化 Event 避免触发 clean() 修改入参 data。
+    def test_event_get_field_ignores_clean_side_effects(self):
+        """do_clean=False 实例化 Event 避免触发 clean() 修改入参 data。
 
         Event.clean() 会覆盖 create_time / target_type / target / dedupe_keys 等字段，
-        如果 fingerprint 计算时触发 clean，会污染调用方传入的 event_data 引用 + 拖慢性能。
+        fingerprint 计算时若触发 clean 会污染调用方传入的 event_data 引用 + 拖慢性能。
         """
         original_event = {
             "bk_target_ip": "<ip-1>",
@@ -171,7 +168,7 @@ class TestGenIssueFingerprint:
             "target_type": "USER_PROVIDED",  # 同上
         }
         snapshot = dict(original_event)
-        gen_issue_fingerprint(10313, ["bk_target_ip", "bk_target_cloud_id"], original_event)
+        gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], original_event)
         # 入参未被 clean 副作用修改
         assert original_event["create_time"] == 1000
         assert original_event["target_type"] == "USER_PROVIDED"
@@ -606,7 +603,7 @@ class TestBackfillMatchPriority:
         alert_hit = MagicMock()
         alert_hit.id = "alert_1"
         alert_hit.begin_time = 3000
-        # event 字段是 fingerprint 取值源（v1.8 改造后）；保留 dimensions 不影响逻辑
+        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
         alert_hit.to_dict.return_value = {
             "event": {"tags": [{"key": "host", "value": "X"}]},
             "dimensions": [{"key": "host", "value": "X"}],
@@ -661,7 +658,7 @@ class TestBackfillMatchPriority:
         alert_hit = MagicMock()
         alert_hit.id = "alert_early"
         alert_hit.begin_time = 1500
-        # event 字段是 fingerprint 取值源（v1.8 改造后）；保留 dimensions 不影响逻辑
+        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
         alert_hit.to_dict.return_value = {
             "event": {"tags": [{"key": "host", "value": "X"}]},
             "dimensions": [{"key": "host", "value": "X"}],
@@ -708,7 +705,7 @@ class TestBackfillMatchPriority:
         alert_hit = MagicMock()
         alert_hit.id = "alert_ab"
         alert_hit.begin_time = 3000
-        # event 字段是 fingerprint 取值源（v1.8 改造后）
+        # event 字段是 fingerprint 取值源
         alert_hit.to_dict.return_value = {
             "event": {"tags": [{"key": "a", "value": "X"}, {"key": "b", "value": "Y"}]},
             "dimensions": [
@@ -765,7 +762,7 @@ class TestBackfillMatchPriority:
         alert_hit = MagicMock()
         alert_hit.id = "alert_mid"
         alert_hit.begin_time = 1000  # 早于 I_new (2000) 但晚于 I_old (500)
-        # event 字段是 fingerprint 取值源（v1.8 改造后）；保留 dimensions 不影响逻辑
+        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
         alert_hit.to_dict.return_value = {
             "event": {"tags": [{"key": "host", "value": "X"}]},
             "dimensions": [{"key": "host", "value": "X"}],
@@ -797,7 +794,7 @@ class TestBackfillMatchPriority:
     def test_issue_config_missing_falls_back_to_len_desc(self):
         """策略禁用 Issue 聚合（issue_config 缺失）但仍有历史活跃 Issue：live=None 退化按 len 降序。
 
-        修复 v1.6 review Minor-1：注释与代码偏差——issue_config 缺失时不应让 catch-all 永远优先。
+        当 issue_config 缺失时不应让 catch-all 永远优先（live_agg_dims_tuple = None 走 fallback）。
         """
         from unittest.mock import MagicMock, patch
 
@@ -811,7 +808,7 @@ class TestBackfillMatchPriority:
         alert_hit = MagicMock()
         alert_hit.id = "alert_legacy"
         alert_hit.begin_time = 3000
-        # event 字段是 fingerprint 取值源（v1.8 改造后）；保留 dimensions 不影响逻辑
+        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
         alert_hit.to_dict.return_value = {
             "event": {"tags": [{"key": "host", "value": "X"}]},
             "dimensions": [{"key": "host", "value": "X"}],

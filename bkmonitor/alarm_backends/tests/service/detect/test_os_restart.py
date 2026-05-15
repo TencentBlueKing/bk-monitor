@@ -95,7 +95,7 @@ class TestOsRestart:
 
 
 class TestOsRestartQueryHistoryPoints:
-    """覆盖 OsRestart.query_history_points 自治预取路径（PR #10636）。
+    """覆盖 OsRestart.query_history_points 自治预取路径。
 
     核心修复：long-running 机器 (uptime > 3600) 重启进入 ≤ 3600 时，必须能拿到该机器
     自己的真实历史 entry。修复点：

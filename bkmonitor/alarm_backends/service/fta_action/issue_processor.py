@@ -39,11 +39,11 @@ def gen_issue_fingerprint(strategy_id: int, aggregate_dimensions: list[str], eve
     """生成 Issue 唯一指纹，与 Event.cal_dedupe_md5 复用同款 get_field 取值算法。
 
     入参 issue_config.aggregate_dimensions 是 query_configs.agg_dimension 子集（命名层级一致，
-    含 bk_target_* 等策略层原始命名），从 event 数据取值——不能从 alert.dimensions 取，原因：
+    含 bk_target_* 等策略层原始命名），必须从 event 数据取值——不能从 alert.dimensions 取，原因：
     - alert.dimensions 是 trigger 收编 + enricher 补充后的命名（主机被收编为 target_type/target，
       enricher 单独补 ip / bk_cloud_id / bk_host_id）
     - 与 issue_config.aggregate_dimensions（策略层 bk_target_*）跨层不一致 → lookup 永久失败 →
-      fingerprint=None → process 永不创建 Issue（v1.7 trade-off #12 死锁根因）
+      fingerprint=None → process 永不创建 Issue
 
     规则：
     - aggregate_dimensions 为空 → 退化为 ``strategy:{strategy_id}``，与旧版本 1:1 行为兼容
@@ -150,9 +150,7 @@ class IssueAggregationProcessor:
 
         # dimension_values 与 fingerprint 一对一同源。复用 Event.get_field 取值保证两者完全一致：
         # 相同的 tags. 前缀解析、相同的 sorted(aggregate_dimensions) 排序口径、相同的 str(...).strip() 归一化。
-        # 命名形态使用策略层命名（如 bk_target_ip）与 fingerprint 一致；与 v1.7 之前 alert.dimensions 形态
-        # （ip / bk_cloud_id）不同。v1.8 上线后所有新建 Issue 用新命名，存量 v1.7 之前 Issue 已全部 RESOLVE
-        # 不存在新老混合（PR #10614 上线后由于 fingerprint=None 死锁未产生任何新 fingerprint Issue）。
+        # 命名形态使用策略层命名（如 bk_target_ip）与 fingerprint 一致。
         from alarm_backends.core.alert.event import Event
 
         event_for_dim = Event(event_data, do_clean=False)
@@ -380,7 +378,7 @@ class IssueAggregationProcessor:
 
         strategy_name = self.strategy.get("name", "")
         # 默认名称含 dimension_values 后缀，提高列表辨识度（同策略下 N 个 Issue 不会同名）
-        # 用户后续可手工编辑覆盖（spec.md FR-01）
+        # 用户后续可手工编辑覆盖
         name = build_issue_default_name(strategy_name, dimension_values, is_regression)
 
         labels = []
