@@ -1,0 +1,75 @@
+.collapse-tags-multi-rows {
+  --multi-rows-tag-height: 22px;
+  --multi-rows-tag-max-width: 180px;
+
+  position: relative;
+  width: 100%;
+  padding: 6px 0;
+
+  // 可见标签区域：max-height + overflow:hidden 限制在此层
+  .multi-rows-tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tag-gap, 4px);
+    align-content: flex-start;
+    // 计算最大高度：行数 * tag高度 + (行数-1) * 行间距（padding 在外层容器上）
+    max-height: calc(
+      var(--multi-rows-tag-height) * var(--max-rows, 4) + (var(--max-rows, 4) - 1) * var(--tag-gap, 4px)
+    );
+    overflow: hidden;
+  }
+
+  // 测量层：始终渲染全部 tag，用于位置计算
+  .multi-rows-tags-measure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    pointer-events: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tag-gap, 4px);
+    align-content: flex-start;
+    width: 100%;
+  }
+
+  .multi-rows-tag-item {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    max-width: var(--multi-rows-tag-max-width);
+    height: var(--multi-rows-tag-height);
+    padding: 0 8px;
+    overflow: hidden;
+    font-size: 12px;
+    color: var(--tag-color);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-color: var(--tag-bg-color);
+    border-radius: 2px;
+
+    &:hover {
+      color: var(--tag-hover-color);
+      background-color: var(--tag-hover-bg-color);
+    }
+  }
+
+  .multi-rows-collapse-tag {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: var(--multi-rows-tag-height);
+    padding: 0 5px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: default;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .multi-rows-collapse-tag-measure {
+    position: absolute;
+    top: -9999px;
+    visibility: hidden;
+  }
+}
