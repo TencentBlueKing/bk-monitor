@@ -361,7 +361,7 @@ class TestTGPASearchHandler(SimpleTestCase):
     @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
     @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
     def test_get_merged_task_list_non_enq_file_name_not_converted(self, mock_get_task_page, mock_get_report_list):
-        """file_name 不匹配 ENQ_file_{task_id}.zip 格式时，不传给 task 接口，仅传给 report 接口"""
+        """file_name 不匹配 ENQ_file_{task_id}.zip 格式时，不查 task 接口，仅查 report 接口"""
         params = {
             "bk_biz_id": 2,
             "file_name": "some_other_file.zip",
@@ -373,20 +373,8 @@ class TestTGPASearchHandler(SimpleTestCase):
 
         TGPASearchHandler.get_merged_task_list(params)
 
-        # file_name 不匹配格式时，task 接口不传 file_name，task_id 仍为 None
-        mock_get_task_page.assert_called_once_with(
-            params={
-                "bk_biz_id": 2,
-                "page": 1,
-                "pagesize": 10,
-                "openid": None,
-                "task_id": None,
-                "start_time": None,
-                "end_time": None,
-                "ordering": "-created_at",
-            },
-            need_format=False,
-        )
+        # file_name 不匹配格式时，tgpa_task 接口不支持 file_name 过滤，不应被调用
+        mock_get_task_page.assert_not_called()
         # task_id 为 None，report 应该被查询，且 file_name 传给 report 接口
         mock_get_report_list.assert_called_once_with(
             {
