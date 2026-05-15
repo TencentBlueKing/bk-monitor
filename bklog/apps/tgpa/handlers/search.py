@@ -135,24 +135,25 @@ class TGPASearchHandler:
 
         # 并行查询 task 和 report（没有 task_id 时才查 report）
         multi_execute = MultiExecuteFunc()
-        multi_execute.append(
-            result_key="task_result",
-            func=TGPATaskHandler.get_task_page,
-            params={
-                "params": {
-                    "bk_biz_id": bk_biz_id,
-                    "page": 1,
-                    "pagesize": fetch_size,
-                    "openid": openid,
-                    "task_id": task_id,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "ordering": "-created_at",
+        if not file_name or task_id:
+            multi_execute.append(
+                result_key="task_result",
+                func=TGPATaskHandler.get_task_page,
+                params={
+                    "params": {
+                        "bk_biz_id": bk_biz_id,
+                        "page": 1,
+                        "pagesize": fetch_size,
+                        "openid": openid,
+                        "task_id": task_id,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "ordering": "-created_at",
+                    },
+                    "need_format": False,
                 },
-                "need_format": False,
-            },
-            multi_func_params=True,
-        )
+                multi_func_params=True,
+            )
         if not task_id:
             multi_execute.append(
                 result_key="report_result",
