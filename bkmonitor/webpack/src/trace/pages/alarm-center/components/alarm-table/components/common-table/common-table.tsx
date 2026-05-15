@@ -130,6 +130,20 @@ export default defineComponent({
     rowClassName: {
       type: [String, Function] as PropType<TdBaseTableProps['rowClassName']>,
     },
+    /** 表格滚动配置，可用于开启虚拟滚动 */
+    scroll: {
+      type: Object as PropType<{
+        bufferSize?: number;
+        isFixedRowHeight?: boolean;
+        rowHeight?: number;
+        threshold?: number;
+        type: 'lazy' | 'virtual';
+      }>,
+    },
+    /** 表格最大高度，超出后出现滚动条 */
+    maxHeight: {
+      type: [String, Number] as PropType<number | string>,
+    },
   },
   emits: {
     /** 当前页变化回调 */
@@ -164,10 +178,10 @@ export default defineComponent({
     /** 处理后的表格列配置 */
     const tableColumns = computed(() =>
       props.columns.map(column => ({
-        // @ts-expect-error
+        // @ts-expect-error cellEllipsis 不在 BaseTableColumn 类型中，但 TDesign 运行时支持
         cellEllipsis: column?.ellipsis != null ? column?.ellipsis : true,
         ellipsis: false,
-        // @ts-expect-error
+        // @ts-expect-error ellipsisTitle 不在 BaseTableColumn 类型中，但 TDesign 运行时支持
         ellipsisTitle: column?.ellipsisTitle != null ? column?.ellipsisTitle : true,
         ...column,
         cell: (_, cellParams) =>
@@ -368,11 +382,13 @@ export default defineComponent({
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           hover={true}
           lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
+          maxHeight={this.maxHeight}
           needCustomScroll={false}
           reserveSelectedRowOnPaginate={false}
           resizable={true}
           rowClassName={this.rowClassName}
           rowKey={this.rowKey}
+          scroll={this.scroll}
           selectedRowKeys={this.selectedRowKeys}
           showSortColumnBgColor={true}
           size={this.tableSize}
