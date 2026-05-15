@@ -300,3 +300,61 @@ def test_inspect_issue_limit_non_positive_raises():
         issue_module.inspect_issue(
             {"operation": "list_by_strategy", "strategy_id": "10313", "bk_biz_id": 2, "limit": 0}
         )
+
+
+# ---------- JSON-safe（lazy / datetime 等转换）----------
+
+
+def test_to_json_safe_converts_gettext_lazy_to_str():
+    """
+    锁定契约：_to_json_safe 必须把 gettext_lazy 转成 str，
+    避免 BkmCliOpCallResource.result (JSONField) 校验报错。
+    """
+    from django.utils.translation import gettext_lazy as _
+
+    payload = {
+        "display_name": _("目标IP"),
+        "nested": {"label": _("业务ID"), "list": [_("挂载点"), "已是 str"]},
+    }
+    safe = issue_module._to_json_safe(payload)
+
+    # gettext_lazy 实例本身不是 str（是 __proxy__），转换后必须是 str
+    assert isinstance(safe["display_name"], str) and safe["display_name"] == "目标IP"
+    assert isinstance(safe["nested"]["label"], str) and safe["nested"]["label"] == "业务ID"
+    assert isinstance(safe["nested"]["list"][0], str) and safe["nested"]["list"][0] == "挂载点"
+
+
+def test_inspect_issue_list_by_strategy_returns_json_safe_payload(monkeypatch):
+    """
+    端到端：clean_document 返回含 gettext_lazy 的 dict 时，inspect_issue 整体
+    返回值必须能通过 BkmCliOpCallResource.ResponseSerializer 校验（即 JSON-safe）。
+    """
+    from django.utils.translation import gettext_lazy as _
+
+    hits = [SimpleNamespace(id="i-1", bk_biz_id="2", status="ABNORMAL")]
+    stub = StubSearch(hits=hits, total=1)
+
+    monkeypatch.setattr("bkmonitor.documents.issue.IssueDocument.search", staticmethod(lambda **kw: stub))
+    monkeypatch.setattr(
+        "fta_web.issue.handlers.issue.IssueQueryHandler.clean_document",
+        # 模拟真实 enrich_aggregate_dimensions 输出含 gettext_lazy 的场景
+        classmethod(
+            lambda cls, doc: {
+                "id": doc.id,
+                "aggregate_config": {"aggregate_dimensions": [{"field": "bk_target_ip", "display_name": _("目标IP")}]},
+            }
+        ),
+    )
+
+    result = BkmCliOpCallResource().perform_request(
+        {"op_id": "inspect-issue", "params": {"operation": "list_by_strategy", "strategy_id": "10313", "bk_biz_id": 2}}
+    )
+
+    # 关键断言：lazy 已转 str，JSONField 校验不会报错
+    issue = result["result"]["issues"][0]
+    assert issue["aggregate_config"]["aggregate_dimensions"][0]["display_name"] == "目标IP"
+    assert isinstance(issue["aggregate_config"]["aggregate_dimensions"][0]["display_name"], str)
+
+    # 通过 ResponseSerializer 完整序列化一次（模拟真实 HTTP 返回路径），不应抛任何异常
+    serialized = BkmCliOpCallResource.ResponseSerializer(result).data
+    assert serialized["op_id"] == "inspect-issue"

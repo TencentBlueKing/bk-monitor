@@ -17,7 +17,10 @@ bkm-cli `inspect-issue` 后端：只读访问 IssueDocument / IssueActivityDocum
 
 from __future__ import annotations
 
+import json
 from typing import Any
+
+from django.core.serializers.json import DjangoJSONEncoder
 
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
@@ -46,12 +49,30 @@ def inspect_issue(params: dict[str, Any]) -> dict[str, Any]:
         )
 
     if operation == OPERATION_DETAIL:
-        return _inspect_issue_detail(params)
-    if operation == OPERATION_LIST_BY_STRATEGY:
-        return _list_issues_by_strategy(params)
-    if operation == OPERATION_LIST_BY_FINGERPRINT:
-        return _list_issues_by_fingerprint(params)
-    return _list_issue_activities(params)
+        result = _inspect_issue_detail(params)
+    elif operation == OPERATION_LIST_BY_STRATEGY:
+        result = _list_issues_by_strategy(params)
+    elif operation == OPERATION_LIST_BY_FINGERPRINT:
+        result = _list_issues_by_fingerprint(params)
+    else:
+        result = _list_issue_activities(params)
+
+    return _to_json_safe(result)
+
+
+def _to_json_safe(obj: Any) -> Any:
+    """递归把 Django gettext_lazy / datetime / Decimal 等转成 JSON-safe。
+
+    BkmCliOpCallResource.result 是 serializers.JSONField，to_representation 时
+    json.dumps 不认 __proxy__ (gettext_lazy) 等类型，会抛 TypeError →
+    "返回参数格式错误：(result) 值必须是有效的 JSON 数据"。
+
+    IssueQueryHandler.enrich_aggregate_dimensions / enrich_impact_scope 返回的
+    display_name 字段是 _("xxx") = gettext_lazy，是常见触发点。这里用
+    DjangoJSONEncoder 兜底（自带 lazy / datetime / Decimal 处理）+ json.loads
+    回到 Python dict，保证 JSONField 校验通过。
+    """
+    return json.loads(json.dumps(obj, cls=DjangoJSONEncoder, ensure_ascii=False))
 
 
 # ---------- operations ----------
