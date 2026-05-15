@@ -188,7 +188,8 @@ def test_inspect_issue_list_by_strategy_filters_and_returns_total(monkeypatch):
     filter_lookups = [lookup for lookup, _ in stub.filter_calls]
     assert filter_lookups == ["term", "term", "terms", "range", "range"]
     assert stub.filter_calls[0][1] == {"strategy_id": "10313"}
-    assert stub.filter_calls[1][1] == {"bk_biz_id": 2}
+    # bk_biz_id 必须以 string 形式 filter（IssueDocument.bk_biz_id 是 Keyword）
+    assert stub.filter_calls[1][1] == {"bk_biz_id": "2"}
     assert stub.filter_calls[2][1] == {"status": ["ABNORMAL"]}
     assert stub.params_kwargs == {"size": 50, "track_total_hits": True}
 

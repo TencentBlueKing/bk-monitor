@@ -130,7 +130,9 @@ def _list_issues(
     search = IssueDocument.search(all_indices=True)
     for field_name, value in filter_kwargs.items():
         search = search.filter("term", **{field_name: value})
-    search = search.filter("term", bk_biz_id=bk_biz_id)
+    # IssueDocument.bk_biz_id 是 Keyword 字段（documents/issue.py:49），
+    # 必须显式转 str 才能精确命中——对齐 fta_web/issue/resources.py:816 模式。
+    search = search.filter("term", bk_biz_id=str(bk_biz_id))
     if statuses:
         search = search.filter("terms", status=statuses)
     if start_time is not None:
