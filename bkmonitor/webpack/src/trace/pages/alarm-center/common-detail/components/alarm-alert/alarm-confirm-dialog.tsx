@@ -37,7 +37,7 @@ export default defineComponent({
   name: 'AlarmConfirm',
   props: {
     alarmBizId: {
-      type: Number,
+      type: [Number, String],
     },
     alarmIds: {
       type: Array as PropType<string[]>,

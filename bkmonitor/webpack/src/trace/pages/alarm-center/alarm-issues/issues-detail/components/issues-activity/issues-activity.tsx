@@ -27,6 +27,8 @@ import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef } 
 
 import { Button, Dialog, Input, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { editIssueFollowUp } from 'monitor-api/modules/issue';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import MarkdownEditor from '../../../../../../components/markdown-editor/editor';
@@ -39,6 +41,7 @@ import {
 } from '../../../constant';
 import { followUpIssues } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
+import { useAppStore } from '@/store/modules/app';
 
 import type { IssueActivityItem, IssueDetail } from '../../../typing';
 
@@ -65,7 +68,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-
+    const appStore = useAppStore();
+    const { userName } = storeToRefs(appStore);
     const commonInput = useTemplateRef<InstanceType<typeof Input>>('commonInput');
     const activeNodeMap = ISSUES_ACTIVE_NODE_ICON_MAP;
 
@@ -74,8 +78,9 @@ export default defineComponent({
     /** 评论内容 */
     const commentContent = shallowRef('');
     /** 富文本编辑弹窗显示 */
-    const isMarkdownDialogShow = shallowRef(false);
-    const isEditMarkdown = shallowRef(false);
+    const markdownDialogShow = shallowRef(false);
+    /** 评论操作类型 */
+    const commentOperation = shallowRef<'create' | 'edit' | 'view'>('create');
     /** 富文本内容 */
     const markdownContent = shallowRef('');
     /** 评论loading */
@@ -93,7 +98,7 @@ export default defineComponent({
     const handleCommentInputBlur = () => {
       // 延迟失焦，以便点击工具栏按钮
       setTimeout(() => {
-        if (!commentContent.value && !isMarkdownDialogShow.value) {
+        if (!commentContent.value && !markdownDialogShow.value) {
           isCommentInputFocus.value = false;
         }
       }, 200);
@@ -104,32 +109,34 @@ export default defineComponent({
       commentContent.value = value;
     };
 
-    /** 创建评论 */
-    const handleCreateComment = () => {
-      handleOpenMarkdownDialog(commentContent.value);
-    };
-
-    /** 查看评论 */
-    const handleViewComment = (content: string) => {
-      handleOpenMarkdownDialog(content, false);
+    /** 编辑评论Id */
+    const editCommentId = shallowRef('');
+    /** 编辑评论 */
+    const handleOpenEditCommentDialog = (activity: IssueActivityItem) => {
+      editCommentId.value = activity.activity_id;
+      handleOpenMarkdownDialog(activity.content, 'edit');
     };
 
     /** 打开富文本编辑弹窗 */
-    const handleOpenMarkdownDialog = (content: string, isEdit = true) => {
-      isMarkdownDialogShow.value = true;
+    const handleOpenMarkdownDialog = (content: string, type: 'create' | 'edit' | 'view') => {
+      markdownDialogShow.value = true;
       markdownContent.value = content;
-      isEditMarkdown.value = isEdit;
+      commentOperation.value = type;
     };
 
     /** 关闭富文本编辑弹窗 */
     const handleCloseMarkdownDialog = () => {
-      isMarkdownDialogShow.value = false;
+      markdownDialogShow.value = false;
     };
 
     /** 确认富文本编辑 */
     const handleConfirmMarkdown = () => {
-      commentContent.value = markdownContent.value;
-      isMarkdownDialogShow.value = false;
+      if (commentOperation.value === 'create') {
+        commentContent.value = markdownContent.value;
+        markdownDialogShow.value = false;
+        return;
+      }
+      handleEditComment();
     };
 
     /** 发送评论 */
@@ -163,6 +170,30 @@ export default defineComponent({
         });
     };
 
+    /** 编辑评论 */
+    const handleEditComment = () => {
+      commentLoading.value = true;
+      editIssueFollowUp({
+        bk_biz_id: props.detail?.bk_biz_id,
+        issue_id: props.detail?.id,
+        activity_id: editCommentId.value,
+        content: markdownContent.value,
+      })
+        .then(data => {
+          markdownContent.value = '';
+          isCommentInputFocus.value = false;
+          markdownDialogShow.value = false;
+          emit('commentChange', data.activities);
+          Message({
+            message: t('评论编辑成功'),
+            theme: 'success',
+          });
+        })
+        .finally(() => {
+          commentLoading.value = false;
+        });
+    };
+
     /**
      * 渲染评论输入框
      */
@@ -187,7 +218,9 @@ export default defineComponent({
                 <div class='comment-input-toolbar'>
                   <div
                     class='rich-text-btn'
-                    onClick={handleCreateComment}
+                    onClick={() => {
+                      handleOpenMarkdownDialog(commentContent.value, 'create');
+                    }}
                   >
                     <i class='icon-monitor icon-switch1 switch-icon' />
                     <span>{t('button-富文本编辑')}</span>
@@ -228,14 +261,20 @@ export default defineComponent({
         <Dialog
           width={800}
           class='comment-markdown-dialog'
-          v-model:isShow={isMarkdownDialogShow.value}
-          title={t(isEditMarkdown.value ? '输入评论' : '查看完整评论')}
+          v-model:isShow={markdownDialogShow.value}
+          title={t(
+            commentOperation.value === 'create'
+              ? '输入评论'
+              : commentOperation.value === 'edit'
+                ? '编辑评论'
+                : '查看完整评论'
+          )}
           onClosed={handleCloseMarkdownDialog}
         >
           {{
             default: () => (
               <div class='markdown-editor-wrapper'>
-                {isEditMarkdown.value ? (
+                {commentOperation.value !== 'view' ? (
                   <MarkdownEditor
                     height='420px'
                     value={markdownContent.value}
@@ -254,9 +293,10 @@ export default defineComponent({
             ),
             footer: () => (
               <div class='dialog-footer'>
-                {isEditMarkdown.value && (
+                {commentOperation.value !== 'view' && (
                   <>
                     <Button
+                      loading={commentLoading.value}
                       theme='primary'
                       onClick={handleConfirmMarkdown}
                     >
@@ -421,12 +461,23 @@ export default defineComponent({
               class='comment-view-markdown'
               value={item.content}
             />
-            <i
-              class='icon-monitor icon-xiangqing1 detail-icon'
-              onClick={() => {
-                handleViewComment(item.content);
-              }}
-            />
+
+            <div class='comment-actions'>
+              <i
+                class='icon-monitor icon-xiangqing1 detail-icon action-btn'
+                onClick={() => {
+                  handleOpenMarkdownDialog(item.content, 'view');
+                }}
+              />
+              {userName.value === item.operator && (
+                <i
+                  class='icon-monitor icon-bianji edit-icon action-btn'
+                  onClick={() => {
+                    handleOpenEditCommentDialog(item);
+                  }}
+                />
+              )}
+            </div>
           </div>
         ),
         showLine,
