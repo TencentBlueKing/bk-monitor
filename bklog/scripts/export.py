@@ -42,7 +42,7 @@ class Config:
     @staticmethod
     def _load_config(config_path: str):
         with open(config_path, "r") as f:
-            return yaml.load(f, Loader=yaml.FullLoader)
+            return yaml.safe_load(f)
 
     def __getitem__(self, item):
         return self.config[item]
@@ -210,7 +210,6 @@ class LogDatabusCollectorConfig(Table):
 
 
 class LogSearchLogIndexSetData(Table):
-
     FIELDS = [
         "bk_biz_id",
         "index_set_id",

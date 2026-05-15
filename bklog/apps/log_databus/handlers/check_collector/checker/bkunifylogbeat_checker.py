@@ -24,6 +24,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 import yaml
+from django.conf import settings
+from django.utils.translation import ugettext as _
+from kubernetes.client.models import v1_pod
+
 from apps.api import CCApi
 from apps.log_commons.adapt_ipv6 import get_ip_field
 from apps.log_databus.constants import (
@@ -41,9 +45,6 @@ from apps.log_databus.handlers.check_collector.checker.base_checker import Check
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.utils.bcs import Bcs
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from kubernetes.client.models import v1_pod
 
 
 @dataclass
@@ -344,7 +345,7 @@ class BkunifylogbeatChecker(Checker):
         if not result or "No such file or directory" in result:
             self.append_error_info(_("采集器主配置不存在"))
             return
-        main_config = yaml.load(result, Loader=yaml.FullLoader)
+        main_config = yaml.safe_load(result)
         # 检查endpoint
         endpoint = main_config.get("output.bkpipe", {}).get("endpoint", "")
         if endpoint != self.endpoint:
@@ -378,7 +379,7 @@ class BkunifylogbeatChecker(Checker):
         sub_config_content = self.k8s_client.exec_command(
             pod_name=pod_name, namespace=self.namespace, command=command, container_name=self.container_name
         )
-        sub_config_content = yaml.load(sub_config_content, Loader=yaml.FullLoader)
+        sub_config_content = yaml.safe_load(sub_config_content)
         local_content = sub_config_content.get("local", [])
         if not local_content:
             self.append_error_info(_("子配置文件中local为空"))

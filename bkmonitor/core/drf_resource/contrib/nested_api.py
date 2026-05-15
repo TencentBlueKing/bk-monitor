@@ -130,7 +130,7 @@ def load_api_yaml():
 
     with open(yaml_file_path, encoding="utf8") as yaml_fd:
         try:
-            api_list = yaml.load(yaml_fd, Loader=yaml.FullLoader)
+            api_list = yaml.safe_load(yaml_fd)
         except ParserError:
             logger.error("api configfile is invalid. [{}]".format(yaml_file_path))
             api_list = []

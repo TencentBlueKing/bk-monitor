@@ -15,11 +15,11 @@ import os
 
 import yaml
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginParseError, SNMPMetricNumberError
 from monitor_web.plugin.constant import SNMP_MAX_METRIC_NUM
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import SNMPSerializer
-
-from core.errors.plugin import PluginParseError, SNMPMetricNumberError
 
 
 class SNMPPluginManager(PluginManager):
@@ -137,7 +137,7 @@ class SNMPPluginManager(PluginManager):
         if not config_yaml_path:
             raise PluginParseError({"msg": _("无法获取SNMP对应的配置文件")})
 
-        content = yaml.load(self.read_file(config_yaml_path), Loader=yaml.FullLoader)
+        content = yaml.safe_load(self.read_file(config_yaml_path))
         content["if_mib"].pop("auth")
         snmp_collector_json = {
             "snmp_version": content["if_mib"].pop("version"),
@@ -155,7 +155,7 @@ class SNMPPluginManager(PluginManager):
                 "table_desc": _("默认分类"),
             }
         ]
-        for group, item in yaml.load(config_yaml, Loader=yaml.FullLoader).items():
+        for group, item in yaml.safe_load(config_yaml).items():
             metrics_list = item["metrics"]
             dimension_set = []
             for metric in metrics_list:
@@ -193,7 +193,7 @@ class SNMPPluginManager(PluginManager):
         return super(SNMPPluginManager, self).create_version(data)
 
     def parse_snmp_yaml_to_metric(self, config_yaml):
-        config = yaml.load(config_yaml, Loader=yaml.FullLoader)
+        config = yaml.safe_load(config_yaml)
         metric_json = []
         for item in config:
             metrics = config[item]["metrics"]

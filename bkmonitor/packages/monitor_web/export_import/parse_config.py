@@ -15,13 +15,13 @@ import os
 
 import yaml
 from django.utils.translation import ugettext as _
-from monitor_web.export_import.constant import ImportDetailStatus
-from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
-from monitor_web.plugin.manager import PluginManagerFactory
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from bkmonitor.strategy.new_strategy import Strategy
 from core.errors.plugin import PluginParseError
+from monitor_web.export_import.constant import ImportDetailStatus
+from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
+from monitor_web.plugin.manager import PluginManagerFactory
 
 
 class BaseParse(object):
@@ -131,7 +131,7 @@ class CollectConfigParse(BaseParse):
         try:
             with open(meta_path) as f:
                 meta_content = f.read()
-            meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
+            meta_dict = yaml.safe_load(meta_content)
             plugin_type_display = meta_dict.get("plugin_type")
             for name, display_name in CollectorPluginMeta.PLUGIN_TYPE_CHOICES:
                 if display_name == plugin_type_display:

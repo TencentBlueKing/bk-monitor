@@ -104,7 +104,7 @@ paths:"""
         output = open(os.path.join(target, "{}.{}".format(name, format)), "w")
         output.write(template_header)
         with open(source, "rb") as f:
-            apis = yaml.load(f, Loader=yaml.FullLoader)
+            apis = yaml.safe_load(f)
             for api in apis:
                 resource = each_resource_template.format(
                     resource_name=api["name"],
@@ -121,7 +121,7 @@ paths:"""
         exit(0)
 
     with open(source, "rb") as f:
-        apis = yaml.load(f, Loader=yaml.FullLoader)
+        apis = yaml.safe_load(f)
         data = [
             {
                 "resource_classification": parse_fenlei(api["dest_path"]),

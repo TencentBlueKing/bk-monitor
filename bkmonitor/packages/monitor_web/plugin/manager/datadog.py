@@ -20,12 +20,12 @@ from django.conf import settings
 from django.template import engines
 from django.template.base import VariableNode
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginParseError
 from monitor_web.commons.file_manager import PluginFileManager
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import DataDogSerializer
-
-from core.errors.plugin import PluginParseError
 
 
 class DataDogPluginManager(PluginManager):
@@ -95,7 +95,7 @@ class DataDogPluginManager(PluginManager):
         return deploy_steps
 
     def get_collector_json(self, plugin_params):
-        meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
+        meta_dict = yaml.safe_load(plugin_params["meta.yaml"])
 
         if not meta_dict.get("datadog_check_name"):
             raise PluginParseError({"msg": _("meta.yaml 缺少 datadog_check_name")})
