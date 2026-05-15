@@ -133,12 +133,24 @@ export default defineComponent({
 
     /** 分页参数 */
     const page = ref(1);
-    const computedPagesize = ref(10);
+    const computedPagesize = ref(20);
     const hasMore = ref(true);
 
     /** task-list-panel 组件实例引用，用于初始计算 pagesize */
     const taskListPanelRef = ref<any>(null);
     const searchBarRef = ref<any>(null);
+
+    /** content-wrapper 元素引用，用于 ResizeObserver */
+    const contentWrapperRef = ref<HTMLElement | null>(null);
+
+    /** ResizeObserver 实例 */
+    let resizeObserver: ResizeObserver | null = null;
+
+    /** 空状态区域比 taskListPanel 高出的像素差值 */
+    const EMPTY_STATE_HEIGHT_OFFSET = 91;
+
+    /** 是否已经执行过搜索 */
+    const hasSearched = ref(false);
 
     /**
      * 根据面板可用高度计算分页大小
@@ -167,6 +179,7 @@ export default defineComponent({
         page.value = 1;
         hasMore.value = true;
         isPanelLoading.value = true;
+        hasSearched.value = true;
       }
       isTaskListLoading.value = true;
 
@@ -544,20 +557,68 @@ export default defineComponent({
       },
     );
 
+    /**
+     * 重新计算分页大小，若变化则用上次搜索条件从第一页重新查询
+     * @param useTaskPanel 是否使用 taskListPanelRef 的高度（否则用 contentWrapperRef 高度减去偏移量）
+     * @returns 是否发生了 pagesize 变化
+     */
+    const recalcPagesizeAndSearch = (useTaskPanel = false) => {
+      let panelHeight = 0;
+      if (useTaskPanel) {
+        const el = taskListPanelRef.value?.$el;
+        if (el) {
+          panelHeight = el.clientHeight;
+        }
+      } else {
+        // 使用 contentWrapperRef 高度减去空状态区域多出的偏移量
+        if (contentWrapperRef.value) {
+          panelHeight = contentWrapperRef.value.clientHeight - EMPTY_STATE_HEIGHT_OFFSET;
+        }
+      }
+      if (panelHeight <= 0) return false;
+      const newPagesize = calcPagesize(panelHeight);
+      if (newPagesize !== computedPagesize.value) {
+        computedPagesize.value = newPagesize;
+        // pagesize 变化时，如果已有搜索条件，从第一页重新查询
+        if (hasSearched.value) {
+          fetchTaskList(lastSearchParams.value);
+        }
+        return true;
+      }
+      return false;
+    };
+
     onMounted(() => {
       getIndexSetId();
       checkDownloadPermission();
 
-      // 初始计算一次 pagesize
-      const el = taskListPanelRef.value?.$el;
-      if (el) {
-        computedPagesize.value = calcPagesize(el.clientHeight);
+      // 使用 ResizeObserver 监听 content-wrapper 高度变化
+      if (contentWrapperRef.value) {
+        let resizeTimer: number | null = null;
+        resizeObserver = new ResizeObserver(() => {
+          if (resizeTimer) clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(() => {
+            if (!isEmptyState.value && hasSearched.value) {
+              recalcPagesizeAndSearch(true);
+            } else if (isEmptyState.value) {
+              recalcPagesizeAndSearch(false);
+            }
+          }, 300);
+        });
+        resizeObserver.observe(contentWrapperRef.value);
       }
+
+      recalcPagesizeAndSearch(false);
+      searchBarRef.value?.reSearch(false);
     });
 
     onUnmounted(() => {
       isComponentDestroyed.value = true;
       stopPolling();
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
     });
 
     /** 渲染空状态 */
@@ -637,6 +698,7 @@ export default defineComponent({
 
         {/* 用户信息展示区域 + 任务内容区域 */}
         <div
+          ref={contentWrapperRef}
           class='content-wrapper'
           v-bkloading={{ isLoading: isPanelLoading.value }}
         >

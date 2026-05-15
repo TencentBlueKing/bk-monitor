@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, ref } from 'vue';
 import axios from 'axios';
 
 import { t } from '@/hooks/use-locale';
@@ -214,10 +214,6 @@ export default defineComponent({
       }
     });
 
-    /** 挂载时自动触发一次搜索 */
-    onMounted(() => {
-      handleSearch(true);
-    });
 
     /**
      * 执行搜索
@@ -248,9 +244,9 @@ export default defineComponent({
       timezone.value = val;
     };
 
-    /** 重新搜索（清空关键词） */
-    const reSearch = () => {
-      keyword.value = '';
+    /** 重新搜索 */
+    const reSearch = (clearKeyword = true) => {
+      if (clearKeyword) keyword.value = '';
       handleSearch();
     };
 
