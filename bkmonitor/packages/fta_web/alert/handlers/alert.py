@@ -1628,22 +1628,29 @@ class AlertQueryHandler(BaseBizQueryHandler):
             )
 
         # 额外字段
+        # tags 字段修复：列表"维度"列展示与详情同源，取 alert.dimensions（enricher 补充后）
+        # 而非 event.tags（Trigger 原始 tags，enricher 不会回写）。
+        # 触发 bug 场景：CMDB/系统类告警（如主机重启/Corefile/OOM）的 event.tags 原本为空，
+        # 但 StandardTranslateEnricher 会向 alert.dimensions 补充 ip/bk_host_id/bk_topo_node 等 CMDB 维度。
+        # 历史链路：QueryField("tags", es_field="event.tags") 仍保留供 query_string 检索（向后兼容
+        # SavedSearch / 通知模板等），仅修改列表 row 的展示值。
+        # 兼容回退：dimensions 为空时回退 event.tags（极少数旧数据可能仅有 tags 没 dimensions）。
+        dimensions_value = data.get("dimensions") or []
         cleaned_data.update(
             {
                 # "strategy_name": doc.strategy.get("name") if doc.strategy else None,
                 "stage_display": doc.stage_display,
                 "duration": hms_string(doc.duration),
                 "shield_left_time": hms_string(doc.shield_left_time or 0),
-                "dimensions": data.get("dimensions", []),
+                "dimensions": dimensions_value,
+                "tags": dimensions_value or data.get("event", {}).get("tags") or [],
                 "seq_id": data.get("seq_id"),
                 "dedupe_md5": data.get("dedupe_md5"),
                 "dedupe_keys": data.get("event", {}).get("dedupe_keys"),
                 "extra_info": data.get("extra_info"),
-                "dimension_message": AlertDimensionFormatter.get_dimensions_str(data.get("dimensions", [])),
+                "dimension_message": AlertDimensionFormatter.get_dimensions_str(dimensions_value),
                 "metric_display": [{"id": metric, "name": metric} for metric in cleaned_data.get("metric") or []],
-                "target_key": AlertDimensionFormatter.get_target_key(
-                    cleaned_data.get("target_type"), data.get("dimensions")
-                ),
+                "target_key": AlertDimensionFormatter.get_target_key(cleaned_data.get("target_type"), dimensions_value),
                 "items": items,
             }
         )
