@@ -29,6 +29,7 @@ from .custom_report import (
     TimeSeriesTag,
 )
 from .data_link import (  # noqa
+    BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
     DataIdConfig,

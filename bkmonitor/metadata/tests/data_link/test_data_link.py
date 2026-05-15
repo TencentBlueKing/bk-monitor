@@ -43,7 +43,9 @@ from metadata.models.data_link.data_link_configs import (
     ResultTableConfig,
     VMStorageBindingConfig,
 )
+from metadata.models.data_link.relation import rebuild_databus_relation
 from metadata.models.space.constants import EtlConfigs
+from metadata.task.bkbase import _get_bkbase_components_config
 from metadata.models.vm.utils import (
     create_bkbase_data_link,
     create_fed_bkbase_data_link,
@@ -2070,6 +2072,16 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
     basereport_sink = next(
         c for c in actual_configs if c["kind"] == "BasereportSink" and c["metadata"]["name"] == "system_1_sys_base"
     )
+    basereport_sink_config = models.BasereportSinkConfig.objects.get(name="system_1_sys_base")
+    assert basereport_sink_config.data_link_name == "system_1_sys_base"
+    assert basereport_sink_config.vm_storage_binding_names == [
+        binding_name
+        for usage in BASEREPORT_USAGES
+        for binding_name in (f"base_1_sys_{usage}", f"base_1_sys_{usage}_cmdb")
+    ]
+    assert basereport_sink_config.result_table_ids == [
+        table_id for usage in BASEREPORT_USAGES for table_id in (f"system_1_sys.{usage}", f"system_1_sys.{usage}_cmdb")
+    ]
     assert basereport_sink["metadata"] == {
         "name": "system_1_sys_base",
         "namespace": "bkmonitor",
@@ -2140,6 +2152,14 @@ def test_create_basereport_datalink_for_bkcc_extra_source_bkbase_v4_part(create_
         for c in actual_configs
         if c["kind"] == "BasereportSink" and c["metadata"]["name"] == f"system_1_sys_base_{extra_source}"
     )
+    basereport_sink_config = models.BasereportSinkConfig.objects.get(name=f"system_1_sys_base_{extra_source}")
+    assert basereport_sink_config.data_link_name == "system_1_sys_base"
+    assert basereport_sink_config.vm_storage_binding_names == [
+        f"base_1_{extra_source}_{usage}" for usage in BASEREPORT_USAGES
+    ]
+    assert basereport_sink_config.result_table_ids == [
+        f"system_1_{extra_source}.{usage}" for usage in BASEREPORT_USAGES
+    ]
     assert basereport_sink["metadata"] == {
         "name": f"system_1_sys_base_{extra_source}",
         "namespace": "bkmonitor",
@@ -2191,6 +2211,117 @@ def test_create_basereport_datalink_for_bkcc_extra_source_bkbase_v4_part(create_
         if c["kind"] == "ResultTable" and c["metadata"]["name"] == f"base_1_{extra_source}_cpu_summary"
     )
     assert extra_result_table["spec"]["alias"] == f"base_1_{extra_source}_cpu_summary"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rebuild_databus_relation_supports_basereport_sink(create_or_delete_records):
+    """反向重建 basereport databus 时，应能从 BasereportSink 记录展开 VMStorageBinding。"""
+    models.DataSource.objects.create(
+        bk_data_id=60010,
+        data_name="reverse_basereport",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_multi_tenancy_basereport",
+        is_custom_source=False,
+        bk_tenant_id="system",
+    )
+    models.DataIdConfig.objects.create(
+        name="reverse_basereport",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1,
+        bk_data_id=60010,
+    )
+    databus = models.DataBusConfig.objects.create(
+        name="reverse_basereport",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1,
+        data_id_name="reverse_basereport",
+        bk_data_id=60010,
+        sink_names=[f"{DataLinkKind.BASEREPORTSINK.value}:reverse_basereport"],
+    )
+    models.BasereportSinkConfig.objects.create(
+        name="reverse_basereport",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1,
+        vm_storage_binding_names=["base_1_sys_cpu_summary"],
+    )
+    models.ResultTableConfig.objects.create(
+        name="base_1_sys_cpu_summary",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1,
+        bkbase_table_id="1_base_1_sys_cpu_summary",
+    )
+    models.VMStorageBindingConfig.objects.create(
+        name="base_1_sys_cpu_summary",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1,
+        bkbase_result_table_name="base_1_sys_cpu_summary",
+        vm_cluster_name="vm-default",
+    )
+    models.AccessVMRecord.objects.create(
+        result_table_id="system_1_sys.cpu_summary",
+        bk_base_data_id=60010,
+        bk_base_data_name="reverse_basereport",
+        vm_result_table_id="1_base_1_sys_cpu_summary",
+        vm_cluster_id=1,
+        storage_cluster_id=1,
+        bk_tenant_id="system",
+    )
+
+    relation = rebuild_databus_relation(databus, dry_run=True)
+
+    assert relation is not None
+    assert relation["strategy"] == DataLink.BASEREPORT_TIME_SERIES_V1
+    assert relation["table_ids"] == ["system_1_sys.cpu_summary"]
+    assert relation["sinks"] == [
+        {"kind": DataLinkKind.BASEREPORTSINK.value, "name": "reverse_basereport", "table_id": ""},
+        {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            "name": "base_1_sys_cpu_summary",
+            "table_id": "system_1_sys.cpu_summary",
+        },
+    ]
+
+    data_link = rebuild_databus_relation(databus, dry_run=False)
+    assert data_link is not None
+    basereport_sink = models.BasereportSinkConfig.objects.get(name="reverse_basereport")
+    assert basereport_sink.data_link_name == data_link.data_link_name
+    assert basereport_sink.result_table_ids == ["system_1_sys.cpu_summary"]
+
+
+def test_get_bkbase_components_config_supports_basereport_sink():
+    """BKBase 组件反向同步时，应只持久化 BasereportSink 实际关联的 VMStorageBinding。"""
+    config = {
+        "kind": "BasereportSink",
+        "metadata": {"name": "basereport", "namespace": "bkmonitor", "labels": {}},
+        "spec": {
+            "mappings": [
+                {
+                    "metric_type": "cpu_summary_cmdb",
+                    "sinks": [{"kind": "VmStorageBinding", "name": "vm_system_cpu_summary_cmdb"}],
+                }
+            ]
+        },
+        "status": {"phase": "Ok"},
+    }
+
+    base_config, extra_config = _get_bkbase_components_config(
+        bk_tenant_id="system",
+        kind=DataLinkKind.BASEREPORTSINK.value,
+        namespace="bkmonitor",
+        config=config,
+    )
+
+    assert base_config["name"] == "basereport"
+    assert base_config["bk_biz_id"] == 0
+    assert extra_config["status"] == "Ok"
+    assert extra_config["vm_storage_binding_names"] == ["vm_system_cpu_summary_cmdb"]
+    assert "mappings" not in extra_config
 
 
 @pytest.mark.django_db(databases="__all__")
