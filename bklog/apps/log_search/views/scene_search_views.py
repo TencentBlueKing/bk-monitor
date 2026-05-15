@@ -27,14 +27,18 @@ from apps.log_search.constants import (
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.handlers.scene_search import AllConditionsBuilder
-from apps.log_search.models import AsyncTask, UserIndexSetSearchHistory
+from apps.log_search.models import AsyncTask, UserIndexSetSearchHistory, UserSceneFieldsConfig
+from apps.log_search.serializers import (
+    SceneFieldsConfigGetSerializer,
+    SceneFieldsConfigUpsertSerializer,
+)
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
 from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
 from apps.utils.drf import list_route
-from apps.utils.local import get_request_external_username, get_request_username
+from apps.utils.local import get_request_app_code, get_request_external_username, get_request_username
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -566,6 +570,66 @@ class SceneSearchViewSet(APIViewSet):
             filters=data.get("filters") or None,
         )
         return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})
+
+    # ------------------------------------------------------------------
+    # User scene fields config endpoints
+    # ------------------------------------------------------------------
+
+    @list_route(methods=["GET", "POST", "DELETE"], url_path="fields_config")
+    def fields_config(self, request):
+        """
+        @api {get|post|delete} /search/scene/fields_config/ 场景化检索-用户字段展示配置
+        @apiName scene_fields_config
+        @apiGroup 14_SceneSearch
+        @apiDescription 按 业务-用户-场景-范围 持久化字段展示配置（单层，不做模板分层）。
+            - GET: 读取当前用户配置；无记录时返回 display_fields=[] / sort_list=[]
+            - POST: upsert
+            - DELETE: 重置（删除记录），随后前端可按默认值渲染
+        """
+        username = get_request_external_username() or get_request_username()
+        source_app_code = get_request_app_code()
+
+        if request.method.upper() == "POST":
+            data = self.params_valid(SceneFieldsConfigUpsertSerializer)
+            obj, _ = UserSceneFieldsConfig.objects.update_or_create(
+                bk_biz_id=data["bk_biz_id"],
+                username=username,
+                scene_id=data["scene_id"],
+                scope=data["scope"],
+                source_app_code=source_app_code,
+                defaults={
+                    "display_fields": data["display_fields"],
+                    "sort_list": data.get("sort_list") or [],
+                },
+            )
+            return Response({
+                "display_fields": obj.display_fields,
+                "sort_list": obj.sort_list,
+                "updated_at": obj.updated_at,
+            })
+
+        # GET / DELETE 都从 query 取参数，避免 DELETE 走到 request.data 拿不到值
+        data = self.params_valid(SceneFieldsConfigGetSerializer, params=request.query_params)
+        qs = UserSceneFieldsConfig.objects.filter(
+            bk_biz_id=data["bk_biz_id"],
+            username=username,
+            scene_id=data["scene_id"],
+            scope=data["scope"],
+            source_app_code=source_app_code,
+        )
+
+        if request.method.upper() == "DELETE":
+            qs.delete()
+            return Response({})
+
+        obj = qs.first()
+        if not obj:
+            return Response({"display_fields": [], "sort_list": [], "updated_at": None})
+        return Response({
+            "display_fields": obj.display_fields,
+            "sort_list": obj.sort_list,
+            "updated_at": obj.updated_at,
+        })
 
     # ------------------------------------------------------------------
     # Aggs endpoints

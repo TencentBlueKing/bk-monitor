@@ -36,6 +36,7 @@ from apps.log_search.constants import (
     AlertStatusEnum,
     ExportFileType,
     FavoriteListOrderType,
+    FavoriteSourceType,
     FavoriteType,
     FavoriteVisibleType,
     IndexSetType,
@@ -687,11 +688,40 @@ class CreateFavoriteSerializer(serializers.Serializer):
         label=_("收藏类型"), required=False, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
     )
     chart_params = serializers.JSONField(label=_("图表相关参数"), default=dict, required=False)
+    # 收藏来源类型：index_set / scene。老前端不传 → 默认 index_set，行为零变更；
+    # 场景化收藏必须显式传 "scene"，并配合 scene_id + table_id_conditions。
+    source_type = serializers.ChoiceField(
+        label=_("收藏来源类型"),
+        required=False,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+    )
+    scene_id = serializers.CharField(
+        label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None
+    )
+    table_id_conditions = serializers.ListField(
+        label=_("场景路由条件"),
+        required=False,
+        allow_empty=True,
+        default=list,
+        child=serializers.ListField(child=serializers.DictField()),
+    )
+    scene_filter_values = serializers.ListField(
+        label=_("场景维度筛选"), required=False, allow_empty=True, default=list
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if attrs["is_enable_display_fields"] and not attrs["display_fields"]:
             raise serializers.ValidationError(_("同时显示字段开启时, 显示字段不能为空"))
+
+        # 场景化收藏：放宽 index_set_* 校验，强校验 scene_id + table_id_conditions
+        if attrs.get("source_type") == FavoriteSourceType.SCENE.value:
+            if not attrs.get("scene_id"):
+                raise serializers.ValidationError(_("场景化收藏 scene_id 不能为空"))
+            if not attrs.get("table_id_conditions"):
+                raise serializers.ValidationError(_("场景化收藏 table_id_conditions 不能为空"))
+            return attrs
 
         if attrs["index_set_type"] == IndexSetType.SINGLE.value and not attrs.get("index_set_id"):
             raise serializers.ValidationError(_("索引集ID不能为空"))
@@ -728,6 +758,28 @@ class UpdateFavoriteSerializer(serializers.Serializer):
     index_set_type = serializers.ChoiceField(
         label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    # 场景化收藏更新使用，可选；未传时按现有 source_type 处理
+    source_type = serializers.ChoiceField(
+        label=_("收藏来源类型"),
+        required=False,
+        choices=FavoriteSourceType.get_choices(),
+        default=None,
+        allow_null=True,
+    )
+    scene_id = serializers.CharField(
+        label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None
+    )
+    table_id_conditions = serializers.ListField(
+        label=_("场景路由条件"),
+        required=False,
+        allow_empty=True,
+        default=None,
+        allow_null=True,
+        child=serializers.ListField(child=serializers.DictField()),
+    )
+    scene_filter_values = serializers.ListField(
+        label=_("场景维度筛选"), required=False, allow_empty=True, default=None, allow_null=True
+    )
 
 
 class BatchUpdateFavoriteChildSerializer(UpdateFavoriteSerializer):
@@ -761,6 +813,14 @@ class FavoriteListSerializer(serializers.Serializer):
         choices=FavoriteListOrderType.get_choices(),
         required=False,
         default=FavoriteListOrderType.UPDATED_AT_DESC.value,
+    )
+    # 可选过滤：不传 → 返回所有；传 "scene" → 仅场景化；传 "index_set" → 仅索引集
+    source_type = serializers.ChoiceField(
+        label=_("收藏来源类型"),
+        required=False,
+        allow_null=True,
+        choices=FavoriteSourceType.get_choices(),
+        default=None,
     )
 
 
@@ -1265,4 +1325,32 @@ class RemoveChildIndexSetsSerializer(serializers.Serializer):
 
     child_index_set_ids = serializers.ListField(
         label=_("子索引集ID列表"), child=serializers.IntegerField(), min_length=1
+    )
+
+
+class SceneFieldsConfigGetSerializer(serializers.Serializer):
+    """场景化检索 - 用户字段展示配置 GET / DELETE 入参"""
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    scene_id = serializers.CharField(label=_("场景ID"), required=True, max_length=64)
+    scope = serializers.ChoiceField(
+        label=_("检索范围"),
+        required=False,
+        choices=SearchScopeEnum.get_choices(),
+        default=SearchScopeEnum.DEFAULT.value,
+    )
+
+
+class SceneFieldsConfigUpsertSerializer(SceneFieldsConfigGetSerializer):
+    """场景化检索 - 用户字段展示配置 POST 入参"""
+
+    display_fields = serializers.ListField(
+        label=_("显示字段"), child=serializers.CharField(), allow_empty=False, required=True
+    )
+    sort_list = serializers.ListField(
+        label=_("排序规则"),
+        required=False,
+        default=list,
+        allow_empty=True,
+        child=serializers.ListField(child=serializers.CharField()),
     )

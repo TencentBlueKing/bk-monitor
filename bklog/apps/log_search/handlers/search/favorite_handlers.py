@@ -29,6 +29,7 @@ from apps.log_search.constants import (
     INDEX_SET_NOT_EXISTED,
     FavoriteGroupType,
     FavoriteListOrderType,
+    FavoriteSourceType,
     FavoriteType,
     FavoriteVisibleType,
     IndexSetType,
@@ -84,6 +85,11 @@ class FavoriteHandler:
     def retrieve(self) -> dict:
         """收藏详情"""
         result = model_to_dict(self.data)
+        source_type = self.data.source_type or FavoriteSourceType.INDEX_SET.value
+        if source_type == FavoriteSourceType.SCENE.value:
+            # 场景化收藏与索引集解耦：不查 LogIndexSet，直接回显 scene 元信息
+            result["query_string"] = generate_query_string(self.data.params)
+            return result
         if result["index_set_type"] == IndexSetType.UNION.value:
             active_index_set_id_dict = {
                 i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
@@ -111,13 +117,14 @@ class FavoriteHandler:
                 result["index_set_name"] = INDEX_SET_NOT_EXISTED
 
         result["query_string"] = generate_query_string(self.data.params)
-        result["created_at"] = result["created_at"]
-        result["updated_at"] = result["updated_at"]
         return result
 
-    def list_group_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
+    def list_group_favorites(
+        self,
+        order_type: str = FavoriteListOrderType.NAME_ASC.value,
+        source_type: str = None,
+    ) -> list:
         """收藏栏分组后且排序后的收藏列表"""
-        # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         public_group_ids = []
         group_info = {}
@@ -126,9 +133,12 @@ class FavoriteHandler:
             if i["group_type"] in [FavoriteGroupType.PUBLIC.value, FavoriteGroupType.UNGROUPED.value]:
                 # UNGROUPED在favorites表中也是public
                 public_group_ids.append(i["id"])
-        # 将收藏分组
         favorites = Favorite.get_user_favorite(
-            space_uid=self.space_uid, username=self.username, order_type=order_type, public_group_ids=public_group_ids
+            space_uid=self.space_uid,
+            username=self.username,
+            order_type=order_type,
+            public_group_ids=public_group_ids,
+            source_type=source_type,
         )
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
@@ -143,9 +153,12 @@ class FavoriteHandler:
             for group in groups
         ]
 
-    def list_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
+    def list_favorites(
+        self,
+        order_type: str = FavoriteListOrderType.NAME_ASC.value,
+        source_type: str = None,
+    ) -> list:
         """管理界面列出根据name A-Z排序的所有收藏"""
-        # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         public_group_ids = []
         group_info = {}
@@ -159,10 +172,12 @@ class FavoriteHandler:
             username=self.username,
             order_type=order_type,
             public_group_ids=public_group_ids,
+            source_type=source_type,
         )
 
         ret = list()
         for fi in favorites:
+            fi_source = fi.get("source_type") or FavoriteSourceType.INDEX_SET.value
             data = {
                 "id": fi["id"],
                 "name": fi["name"],
@@ -172,15 +187,20 @@ class FavoriteHandler:
                 "visible_type": fi["visible_type"],
                 "search_mode": fi["search_mode"],
                 "params": fi["params"],
-                "search_fields": fi["params"].get("search_fields", []),
-                "keyword": fi["params"].get("keyword", ""),
+                "search_fields": fi["params"].get("search_fields", []) if fi.get("params") else [],
+                "keyword": fi["params"].get("keyword", "") if fi.get("params") else "",
                 "is_enable_display_fields": fi["is_enable_display_fields"],
                 "display_fields": fi["display_fields"],
+                "source_type": fi_source,
                 "created_by": fi["created_by"],
                 "updated_by": fi["updated_by"],
                 "updated_at": fi["updated_at"],
             }
-            if fi["index_set_type"] == IndexSetType.SINGLE.value:
+            if fi_source == FavoriteSourceType.SCENE.value:
+                data["scene_id"] = fi.get("scene_id")
+                data["table_id_conditions"] = fi.get("table_id_conditions") or []
+                data["scene_filter_values"] = fi.get("scene_filter_values") or []
+            elif fi["index_set_type"] == IndexSetType.SINGLE.value:
                 data["index_set_id"] = fi["index_set_id"]
                 data["index_set_name"] = fi["index_set_name"]
                 data["is_active"] = fi["is_active"]
@@ -211,9 +231,13 @@ class FavoriteHandler:
         index_set_ids: list = None,
         index_set_type: str = IndexSetType.SINGLE.value,
         favorite_type: str = FavoriteType.SEARCH.value,
+        source_type: str = None,
+        scene_id: str = None,
+        table_id_conditions: list = None,
+        scene_filter_values: list = None,
     ) -> dict:
         chart_params = chart_params or {}
-        # 构建params
+        # 构建params（场景化收藏沿用同一份结构，便于复用 generate_query / get_search_fields 等）
         params = {
             "ip_chooser": ip_chooser,
             "addition": addition,
@@ -224,14 +248,17 @@ class FavoriteHandler:
         space_uid = self.space_uid if self.space_uid else self.data.space_uid
         search_mode = search_mode if search_mode else self.data.search_mode
 
-        # 如果传入了收藏组ID，则根据收藏组判断可见类型
+        # 收藏来源类型：更新时若未传则沿用既有值；新建时默认 index_set
+        if source_type is None:
+            source_type = (self.data.source_type if self.data else FavoriteSourceType.INDEX_SET.value)
+        is_scene = source_type == FavoriteSourceType.SCENE.value
+
         if group_id:
             favorite_group = FavoriteGroup.objects.get(id=group_id)
             if favorite_group.group_type == FavoriteGroupType.PRIVATE.value:
                 visible_type = FavoriteVisibleType.PRIVATE.value
             else:
                 visible_type = FavoriteVisibleType.PUBLIC.value
-        # 未传组ID的时候, 可见为个人的时候设置为个人组，可见为公开的时候将组置为未分组
         else:
             if visible_type == FavoriteVisibleType.PRIVATE.value:
                 favorite_group = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username)
@@ -244,7 +271,6 @@ class FavoriteHandler:
             if favorite_group.group_type == FavoriteGroupType.PRIVATE.value:
                 if self.data.created_by != self.username:
                     raise FavoriteVisibleTypeNotAllowedModifyException()
-            # 名称检查
             if (self.data.name != name or self.data.group_id != group_id) and Favorite.objects.filter(
                 name=name,
                 space_uid=space_uid,
@@ -261,15 +287,22 @@ class FavoriteHandler:
                 "search_mode": search_mode,
                 "is_enable_display_fields": is_enable_display_fields,
                 "display_fields": display_fields,
+                "source_type": source_type,
             }
-            # 单索引
-            if index_set_id:
-                update_model_fields.update({"index_set_id": index_set_id})
-                update_model_fields.update({"index_set_type": index_set_type})
-            # 联合索引
-            if index_set_ids:
-                update_model_fields.update({"index_set_ids": index_set_ids})
-                update_model_fields.update({"index_set_type": index_set_type})
+            if is_scene:
+                if scene_id is not None:
+                    update_model_fields["scene_id"] = scene_id
+                if table_id_conditions is not None:
+                    update_model_fields["table_id_conditions"] = table_id_conditions
+                if scene_filter_values is not None:
+                    update_model_fields["scene_filter_values"] = scene_filter_values
+            else:
+                if index_set_id:
+                    update_model_fields["index_set_id"] = index_set_id
+                    update_model_fields["index_set_type"] = index_set_type
+                if index_set_ids:
+                    update_model_fields["index_set_ids"] = index_set_ids
+                    update_model_fields["index_set_type"] = index_set_type
 
             for key, value in update_model_fields.items():
                 setattr(self.data, key, value)
@@ -280,9 +313,8 @@ class FavoriteHandler:
                 name=name, space_uid=space_uid, group_id=group_id, created_by=self.username
             ).exists():
                 raise FavoriteAlreadyExistException()
-            self.data = Favorite.objects.create(
+            create_kwargs = dict(
                 space_uid=space_uid,
-                index_set_id=index_set_id,
                 name=name,
                 group_id=group_id,
                 params=params,
@@ -290,11 +322,27 @@ class FavoriteHandler:
                 search_mode=search_mode,
                 is_enable_display_fields=is_enable_display_fields,
                 display_fields=display_fields,
-                index_set_ids=index_set_ids,
-                index_set_type=index_set_type,
                 favorite_type=favorite_type,
+                source_type=source_type,
                 created_by=self.username,
             )
+            if is_scene:
+                create_kwargs.update(
+                    {
+                        "scene_id": scene_id,
+                        "table_id_conditions": table_id_conditions or [],
+                        "scene_filter_values": scene_filter_values or [],
+                    }
+                )
+            else:
+                create_kwargs.update(
+                    {
+                        "index_set_id": index_set_id,
+                        "index_set_ids": index_set_ids,
+                        "index_set_type": index_set_type,
+                    }
+                )
+            self.data = Favorite.objects.create(**create_kwargs)
 
         return model_to_dict(self.data)
 
