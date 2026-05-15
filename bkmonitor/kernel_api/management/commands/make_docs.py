@@ -239,7 +239,7 @@ class Command(BaseCommand):
         yml_path = os.path.join(self.yaml_output, self.yaml_name)
         if os.path.exists(yml_path):
             with open(yml_path, "rt") as fp:
-                config = {i["dest_path"]: i for i in yaml.load(fp.read(), Loader=yaml.FullLoader) or []}
+                config = {i["dest_path"]: i for i in yaml.safe_load(fp.read()) or []}
                 for i in yml:
                     config.setdefault(i["dest_path"], i)
                 yml = list(config.values())

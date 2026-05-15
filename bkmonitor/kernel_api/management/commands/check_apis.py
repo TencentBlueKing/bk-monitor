@@ -58,7 +58,7 @@ class Command(BaseCommand):
             setattr(self, key, value)
 
         with open(self.config, "rt") as fp:
-            config = yaml.load(fp.read(), Loader=yaml.FullLoader)
+            config = yaml.safe_load(fp.read())
 
         if not config:
             return

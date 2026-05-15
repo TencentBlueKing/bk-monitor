@@ -23,6 +23,10 @@ the project delivered to anyone in the future.
 import os
 
 import yaml
+from django.conf import settings
+from django.core.management.base import BaseCommand
+from django.utils.translation import ugettext as _
+
 from apps.api import TransferApi
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import (
@@ -37,9 +41,6 @@ from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
 from apps.log_search.constants import CollectorScenarioEnum, EncodingsEnum
-from django.conf import settings
-from django.core.management.base import BaseCommand
-from django.utils.translation import ugettext as _
 
 
 class Command(BaseCommand):
@@ -73,7 +74,7 @@ class Command(BaseCommand):
         #    - dataid: 11000002
         #      name: bk-log-search-api
         with open(builtin_collect_file_path, encoding="utf-8") as f:
-            config = yaml.load(f.read(), Loader=yaml.FullLoader)
+            config = yaml.safe_load(f.read())
         config = config or {}
 
         for built_in_info in config.get("builtin_collect") or []:

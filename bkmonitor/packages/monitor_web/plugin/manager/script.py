@@ -15,11 +15,11 @@ import os
 
 import yaml
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginParseError
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME, ParamMode
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import ScriptSerializer
-
-from core.errors.plugin import PluginParseError
 
 
 class ScriptPluginManager(PluginManager):
@@ -195,7 +195,7 @@ class ScriptPluginManager(PluginManager):
         return deploy_steps
 
     def get_collector_json(self, plugin_params):
-        meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
+        meta_dict = yaml.safe_load(plugin_params["meta.yaml"])
 
         if "scripts" not in meta_dict:
             raise PluginParseError({"msg": _("无法解析脚本内容")})

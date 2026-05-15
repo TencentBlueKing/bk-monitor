@@ -938,7 +938,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         self.parse_plugin_version_str()
 
     def get_meta_info(self, plugin_params):
-        meta_dict = yaml.load(plugin_params["meta.yaml"])
+        meta_dict = yaml.safe_load(plugin_params["meta.yaml"])
         self.plugin.tag = meta_dict.get("tag") if meta_dict.get("tag") else ""
         self.plugin.label = meta_dict.get("label", "other_rt")
         self.version.config.is_support_remote = self.get_remote_stage(meta_dict)

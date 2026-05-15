@@ -72,7 +72,7 @@ class PackageHandler:
     def _parse_yaml_file(self, filename, ignore_error=False):
         content = self.read_file(filename, ignore_error)
         try:
-            return yaml.load(content, Loader=yaml.FullLoader)
+            return yaml.safe_load(content)
         except Exception as e:
             if ignore_error:
                 return None

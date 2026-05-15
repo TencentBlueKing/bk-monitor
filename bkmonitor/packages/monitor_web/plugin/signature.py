@@ -9,8 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import yaml
-from monitor_web.plugin.constant import PluginType
-from utils import count_md5
 
 from bkmonitor.utils.rsa.signature import Verification
 from core.errors.plugin import (
@@ -18,13 +16,14 @@ from core.errors.plugin import (
     SignatureNotSupported,
     SignatureProtocolNotExist,
 )
+from monitor_web.plugin.constant import PluginType
+from utils import count_md5
 
 __all__ = ["load_plugin_signature_manager", "Signature"]
 
 
 class PluginSignatureManager(object):
     def __init__(self, plugin_version):
-
         if not plugin_version.version:
             raise PluginVersionNotExist
 
@@ -126,7 +125,7 @@ class SignatureObjCollections(object):
         return self
 
     def load_from_yaml(self, yaml_content):
-        signature_dict = yaml.load(yaml_content, Loader=yaml.FullLoader)
+        signature_dict = yaml.safe_load(yaml_content)
         self.load_from_python(signature_dict)
         return self
 
