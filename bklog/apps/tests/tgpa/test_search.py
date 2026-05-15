@@ -219,7 +219,6 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "pagesize": 4,
                 "openid": "openid_1",
                 "task_id": None,
-                "file_name": None,
                 "start_time": 1716000000000,
                 "end_time": 1716600000000,
                 "ordering": "-created_at",
@@ -264,7 +263,6 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "pagesize": 10,
                 "openid": None,
                 "task_id": "12345",
-                "file_name": None,
                 "start_time": None,
                 "end_time": None,
                 "ordering": "-created_at",
@@ -322,3 +320,82 @@ class TestTGPASearchHandler(SimpleTestCase):
             }
         )
         self.assertEqual(result, {"total_count": 7, "range_count": 3})
+
+    @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
+    @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
+    def test_get_merged_task_list_converts_enq_file_name_to_task_id(self, mock_get_task_page, mock_get_report_list):
+        """file_name 为 ENQ_file_{task_id}.zip 格式时，应提取 task_id 并去掉 file_name"""
+        params = {
+            "bk_biz_id": 2,
+            "file_name": "ENQ_file_3025221.zip",
+            "page": 1,
+            "pagesize": 10,
+        }
+        mock_get_task_page.return_value = {
+            "total": 1,
+            "list": [self._build_task(1, "3025221", "openid_1", "ENQ_file_3025221.zip", "2026-04-24 12:00:00")],
+        }
+
+        result = TGPASearchHandler.get_merged_task_list(params)
+
+        # 验证结果正确返回
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["list"][0]["task_id"], "3025221")
+        # 验证 task_id 被正确提取，file_name 不传给 task 接口
+        mock_get_task_page.assert_called_once_with(
+            params={
+                "bk_biz_id": 2,
+                "page": 1,
+                "pagesize": 10,
+                "openid": None,
+                "task_id": "3025221",
+                "start_time": None,
+                "end_time": None,
+                "ordering": "-created_at",
+            },
+            need_format=False,
+        )
+        # task_id 不为空时不查 report
+        mock_get_report_list.assert_not_called()
+
+    @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
+    @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
+    def test_get_merged_task_list_non_enq_file_name_not_converted(self, mock_get_task_page, mock_get_report_list):
+        """file_name 不匹配 ENQ_file_{task_id}.zip 格式时，不传给 task 接口，仅传给 report 接口"""
+        params = {
+            "bk_biz_id": 2,
+            "file_name": "some_other_file.zip",
+            "page": 1,
+            "pagesize": 10,
+        }
+        mock_get_task_page.return_value = {"total": 0, "list": []}
+        mock_get_report_list.return_value = {"total": 0, "list": []}
+
+        TGPASearchHandler.get_merged_task_list(params)
+
+        # file_name 不匹配格式时，task 接口不传 file_name，task_id 仍为 None
+        mock_get_task_page.assert_called_once_with(
+            params={
+                "bk_biz_id": 2,
+                "page": 1,
+                "pagesize": 10,
+                "openid": None,
+                "task_id": None,
+                "start_time": None,
+                "end_time": None,
+                "ordering": "-created_at",
+            },
+            need_format=False,
+        )
+        # task_id 为 None，report 应该被查询，且 file_name 传给 report 接口
+        mock_get_report_list.assert_called_once_with(
+            {
+                "bk_biz_id": 2,
+                "openid": None,
+                "file_name": "some_other_file.zip",
+                "start_time": None,
+                "end_time": None,
+                "page": 1,
+                "pagesize": 10,
+            }
+        )

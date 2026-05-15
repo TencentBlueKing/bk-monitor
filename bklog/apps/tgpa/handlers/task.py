@@ -217,8 +217,6 @@ class TGPATaskHandler:
             condition_list.append(f"openid={params['openid']}")
         if params.get("task_id"):
             condition_list.append(f"task_id={params['task_id']}")
-        if params.get("file_name"):
-            condition_list.append(f"file_name={params['file_name']}")
 
         if condition_list:
             request_params["search"] = ";".join(condition_list)

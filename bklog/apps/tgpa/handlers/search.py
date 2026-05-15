@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import re
+
 import arrow
 
 from apps.tgpa.constants import TGPA_MERGED_LIST_MAX_RESULT_WINDOW, TGPA_REPORT_TOTAL_COUNT_DAYS
@@ -113,6 +115,14 @@ class TGPASearchHandler:
         task_id = params.get("task_id")
         openid = params.get("openid")
         file_name = params.get("file_name")
+
+        # tgpa_task 接口不支持 file_name 查询，如果匹配该格式，则提取 task_id 用于查询，并去掉 file_name
+        if file_name:
+            match = re.match(r"^ENQ_file_(\d+)\.zip$", file_name)
+            if match:
+                task_id = match.group(1)
+                file_name = None
+
         if task_id is not None:
             task_id = str(task_id)
         start_time = params.get("start_time")
@@ -135,7 +145,6 @@ class TGPASearchHandler:
                     "pagesize": fetch_size,
                     "openid": openid,
                     "task_id": task_id,
-                    "file_name": file_name,
                     "start_time": start_time,
                     "end_time": end_time,
                     "ordering": "-created_at",
