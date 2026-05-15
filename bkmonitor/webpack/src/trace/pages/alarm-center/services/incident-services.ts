@@ -104,7 +104,7 @@ const INCIDENT_TABLE_COLUMNS = [
   {
     colKey: 'assignees',
     title: window.i18n.t('负责人'),
-    is_default: true,
+    is_default: false,
     width: 150,
   },
   {
