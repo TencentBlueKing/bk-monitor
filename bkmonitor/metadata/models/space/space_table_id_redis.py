@@ -12,6 +12,7 @@ import datetime
 import itertools
 import json
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Q
@@ -911,7 +912,7 @@ class SpaceTableIDRedis:
 
     def _compose_vm_short_link_table_ids(
         self, space_type: str, space_id: str, bk_tenant_id: str = DEFAULT_TENANT_ID
-    ) -> dict:
+    ) -> dict[str, dict[str, list[dict[str, Any]]]]:
         """组装 VM 短链路结果表。
 
         单业务短链路只进入归属空间；全局短链路按 query_router_config.space_type 进入目标空间。
@@ -931,7 +932,7 @@ class SpaceTableIDRedis:
         if not records:
             return {}
 
-        values = {}
+        values: dict[str, dict[str, list[dict[str, Any]]]] = {}
         for record in records:
             table_id = record.table_id
             # 单业务表只会命中归属空间；全局表在归属空间也不需要额外业务过滤。

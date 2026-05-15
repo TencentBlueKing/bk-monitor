@@ -137,7 +137,7 @@ class ApplyVMShortLinkResource(Resource):
                 raise ValidationError("vmrts cannot be empty")
             return value
 
-    def perform_request(self, validated_request_data: OrderedDict) -> list[dict]:
+    def perform_request(self, validated_request_data: OrderedDict[str, Any]) -> list[dict[str, Any]]:
         space_id = validated_request_data.get("space_id") or None
         return apply_vm_short_links(
             vmrts=validated_request_data["vmrts"],
@@ -158,12 +158,12 @@ class DeleteVMShortLinkResource(Resource):
         operator = serializers.CharField(required=False, label="操作者", default="system")
         refresh_router = serializers.BooleanField(required=False, label="是否刷新路由", default=True)
 
-        def validate(self, attrs: OrderedDict) -> OrderedDict:
+        def validate(self, attrs: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
             if not attrs.get("table_ids") and not attrs.get("vmrts"):
                 raise ValidationError("table_ids and vmrts cannot both be empty")
             return attrs
 
-    def perform_request(self, validated_request_data: OrderedDict) -> dict:
+    def perform_request(self, validated_request_data: OrderedDict[str, Any]) -> dict[str, Any]:
         return delete_vm_short_links(
             bk_tenant_id=get_request_tenant_id(),
             table_ids=validated_request_data.get("table_ids"),

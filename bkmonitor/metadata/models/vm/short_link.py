@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 from django.db import models
 
 from metadata.models.common import BaseModel
@@ -21,6 +23,7 @@ class VMShortLinkRecord(BaseModel):
     FILTER_VALUE_BK_BIZ_ID = "bk_biz_id"
     FILTER_VALUE_CHOICES = {FILTER_VALUE_SPACE_ID, FILTER_VALUE_BK_BIZ_ID}
     DEFAULT_FILTER_KEY = "bk_biz_id"
+    DEFAULT_FILTER_VALUE = FILTER_VALUE_BK_BIZ_ID
     QUERY_ROUTER_SPACE_TYPE = "space_type"
     QUERY_ROUTER_FILTER_KEY = "filter_key"
     QUERY_ROUTER_FILTER_VALUE = "filter_value"
@@ -43,7 +46,7 @@ class VMShortLinkRecord(BaseModel):
         unique_together = (("bk_tenant_id", "table_id"), ("bk_tenant_id", "vm_result_table_id"))
 
     @classmethod
-    def normalize_query_router_config(cls, config: dict | None, default_space_type: str) -> dict:
+    def normalize_query_router_config(cls, config: dict[str, Any] | None, default_space_type: str) -> dict[str, Any]:
         """标准化查询路由配置，确保只落库当前支持的 filter_value。"""
         config = config or {}
         space_type = config.get(cls.QUERY_ROUTER_SPACE_TYPE) or default_space_type
@@ -51,7 +54,7 @@ class VMShortLinkRecord(BaseModel):
         if space_type not in valid_space_types:
             raise ValueError(f"query_router_config.space_type: {space_type} is invalid")
 
-        filter_value = config.get(cls.QUERY_ROUTER_FILTER_VALUE) or cls.FILTER_VALUE_SPACE_ID
+        filter_value = config.get(cls.QUERY_ROUTER_FILTER_VALUE) or cls.DEFAULT_FILTER_VALUE
         if filter_value not in cls.FILTER_VALUE_CHOICES:
             raise ValueError(f"query_router_config.filter_value: {filter_value} is invalid")
 
@@ -62,14 +65,14 @@ class VMShortLinkRecord(BaseModel):
         }
 
     @property
-    def normalized_query_router_config(self) -> dict:
+    def normalized_query_router_config(self) -> dict[str, Any]:
         return self.normalize_query_router_config(self.query_router_config, self.space_type)
 
     def match_query_router_space_type(self, space_type: str) -> bool:
         router_space_type = self.normalized_query_router_config[self.QUERY_ROUTER_SPACE_TYPE]
         return router_space_type in [SpaceTypes.ALL.value, space_type]
 
-    def get_query_router_filter(self, space_type: str, space_id: str) -> dict | None:
+    def get_query_router_filter(self, space_type: str, space_id: str) -> dict[str, Any] | None:
         """按配置生成非归属空间访问全局短链路时的过滤条件。"""
         config = self.normalized_query_router_config
         filter_value_type = config[self.QUERY_ROUTER_FILTER_VALUE]

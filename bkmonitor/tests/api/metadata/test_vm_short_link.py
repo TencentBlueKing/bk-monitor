@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 import pytest
 
 import metadata.service.vm_short_link as short_link_service
@@ -23,7 +25,7 @@ VMRT = "315_idip_fail_cnt_for_bkmonitor_v1"
 TABLE_ID = f"{VMRT}.__default__"
 
 
-def create_space(space_id: str):
+def create_space(space_id: str) -> models.Space:
     return models.Space.objects.create(
         creator="system",
         updater="system",
@@ -34,7 +36,7 @@ def create_space(space_id: str):
     )
 
 
-def create_vm_cluster(cluster_name: str = "vm_cluster", cluster_id: int = 10001):
+def create_vm_cluster(cluster_name: str = "vm_cluster", cluster_id: int = 10001) -> models.ClusterInfo:
     return models.ClusterInfo.objects.create(
         bk_tenant_id=BK_TENANT_ID,
         cluster_id=cluster_id,
@@ -77,7 +79,7 @@ def test_apply_vm_short_link_without_datasource(monkeypatch):
     assert short_link.query_router_config == {
         "space_type": SpaceTypes.BKCC.value,
         "filter_key": "bk_biz_id",
-        "filter_value": "space_id",
+        "filter_value": "bk_biz_id",
     }
     vm_record = models.AccessVMRecord.objects.get(result_table_id=TABLE_ID)
     assert vm_record.bk_base_data_id == 0
@@ -254,8 +256,8 @@ def test_delete_vm_short_link_soft_delete_and_clean_detail(monkeypatch):
         vm_cluster_id=10001,
     )
 
-    hdel_calls = []
-    push_calls = []
+    hdel_calls: list[dict[str, Any]] = []
+    push_calls: list[tuple[str, str, bool]] = []
     monkeypatch.setattr(
         short_link_service.RedisTools,
         "hdel",

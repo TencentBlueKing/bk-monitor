@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
@@ -34,7 +35,7 @@ def make_short_link_table_id(vmrt: str) -> str:
     return f"{vmrt}.__default__".lower()
 
 
-def get_vm_result_table_name(table_info: dict, vmrt: str) -> str:
+def get_vm_result_table_name(table_info: dict[str, Any], vmrt: str) -> str:
     """优先使用 BKBase 返回的别名作为展示名，避免从 VMRT 字符串反推。"""
     return table_info.get("result_table_name_alias") or table_info.get("result_table_name") or vmrt
 
@@ -78,7 +79,9 @@ def _upsert_result_table_option(table_id: str, bk_tenant_id: str, name: str, val
     )
 
 
-def _upsert_result_table(table_id: str, vm_result_table_name: str, space_id: str, bk_tenant_id: str, operator: str):
+def _upsert_result_table(
+    table_id: str, vm_result_table_name: str, space_id: str, bk_tenant_id: str, operator: str
+) -> tuple[models.ResultTable, bool]:
     """创建短链路虚拟 RT；它只参与查询路由和指标发现，不对应监控侧 DataSource。"""
     return models.ResultTable.objects.update_or_create(
         table_id=table_id,
@@ -97,7 +100,7 @@ def _upsert_result_table(table_id: str, vm_result_table_name: str, space_id: str
     )
 
 
-def _get_router_space_types(bk_tenant_id: str, query_router_config: dict) -> set[str]:
+def _get_router_space_types(bk_tenant_id: str, query_router_config: dict[str, Any]) -> set[str]:
     """根据查询路由配置计算需要刷新的空间类型集合。"""
     router_space_type = query_router_config[models.VMShortLinkRecord.QUERY_ROUTER_SPACE_TYPE]
     if router_space_type != SpaceTypes.ALL.value:
@@ -116,7 +119,7 @@ def _refresh_short_link_router(
     space_ids: set[str],
     table_ids: list[str],
     is_global: bool,
-    query_router_config: dict,
+    query_router_config: dict[str, Any],
 ) -> None:
     """刷新短链路相关查询路由；全局短链路会影响 query_router_config 命中的空间。"""
     redis = SpaceTableIDRedis()
@@ -143,11 +146,11 @@ def apply_vm_short_links(
     space_type: str = DEFAULT_SPACE_TYPE,
     space_id: str | None = None,
     is_global: bool = False,
-    query_router_config: dict | None = None,
+    query_router_config: dict[str, Any] | None = None,
     operator: str = DEFAULT_OPERATOR,
     refresh_router: bool = True,
-) -> list[dict]:
-    results = []
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
     refreshed_space_ids: set[str] = set()
     refreshed_table_ids: list[str] = []
     normalized_query_router_config = models.VMShortLinkRecord.normalize_query_router_config(
@@ -276,7 +279,7 @@ def delete_vm_short_links(
     vmrts: list[str] | None = None,
     operator: str = DEFAULT_OPERATOR,
     refresh_router: bool = True,
-) -> dict:
+) -> dict[str, Any]:
     if not table_ids and not vmrts:
         raise ValueError("table_ids and vmrts cannot both be empty")
 
@@ -289,7 +292,7 @@ def delete_vm_short_links(
     records = list(qs)
     deleted_table_ids = [record.table_id for record in records]
     # 删除全局短链路时，需要额外刷新 query_router_config 命中的空间，否则非归属空间会残留旧路由。
-    refresh_spaces = set()
+    refresh_spaces: set[tuple[str, str]] = set()
     for record in records:
         refresh_spaces.add((record.space_type, record.space_id))
         if record.is_global:
