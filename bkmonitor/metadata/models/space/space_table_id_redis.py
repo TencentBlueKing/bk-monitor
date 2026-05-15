@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
+from constants.apm import ApmGlobalTablePrefix
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
@@ -1073,7 +1074,7 @@ class SpaceTableIDRedis:
             return {}
 
         result_tables = models.ResultTable.objects.filter(
-            table_id__contains="apm_global.precalculate_storage", bk_tenant_id=space.bk_tenant_id
+            table_id__startswith=ApmGlobalTablePrefix.COMMON, bk_tenant_id=space.bk_tenant_id
         )
         return {rt.table_id: {"filters": [{rt.bk_biz_id_alias: str(-space.id)}]} for rt in result_tables}
 

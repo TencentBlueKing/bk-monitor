@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
+from constants.apm import ApmGlobalTablePrefix
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -42,9 +43,6 @@ class TraceQueryGuard:
     只对共享 Trace 数据源的结果表追加 bk_biz_id 和 app_name 过滤；独占表、预计算表、历史表不追加过滤，避免存量数据缺字段导致查询不到数据
     """
 
-    # 共享 Trace 数据源的结果表前缀，命中该前缀的 table_id 的查询必须携带应用上下文
-    SHARED_TRACE_TABLE_PREFIXES: tuple[str, ...] = ("apm_global.shared",)
-
     # 共享表上用于应用隔离的字段
     BK_BIZ_ID_FIELD: str = "bk_biz_id"
     APP_NAME_FIELD: str = "app_name"
@@ -52,7 +50,7 @@ class TraceQueryGuard:
     @classmethod
     def is_shared_table(cls, table_id: str) -> bool:
         """判断 table_id 是否命中共享 Trace 结果表前缀"""
-        return table_id.startswith(cls.SHARED_TRACE_TABLE_PREFIXES)
+        return table_id.startswith(ApmGlobalTablePrefix.SHARED)
 
     @staticmethod
     def _normalize_bool_clause(raw_clause: Any) -> list[Any]:
