@@ -18,12 +18,12 @@ import tempfile
 import yaml
 from django.core.management import BaseCommand
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginParseError
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.signature import load_plugin_signature_manager
-
-from core.errors.plugin import PluginParseError
 
 
 class Command(BaseCommand):
@@ -82,7 +82,7 @@ class Command(BaseCommand):
         except IOError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
-        meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
+        meta_dict = yaml.safe_load(meta_content)
         # 检验plugin_type
         plugin_type_display = meta_dict.get("plugin_type")
         for name, display_name in CollectorPluginMeta.PLUGIN_TYPE_CHOICES:

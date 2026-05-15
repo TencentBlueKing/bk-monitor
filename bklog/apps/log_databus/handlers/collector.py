@@ -4075,7 +4075,7 @@ class CollectorHandler(object):
         解析容器日志yaml配置
         """
 
-        class PatchedFullLoader(yaml.FullLoader):
+        class PatchedFullLoader(yaml.SafeLoader):
             """
             yaml里面如果有 = 字符串会导致解析失败：https://github.com/yaml/pyyaml/issues/89
             例如:
@@ -4087,7 +4087,7 @@ class CollectorHandler(object):
             需要通过这个 loader 去 patch 掉
             """
 
-            yaml_implicit_resolvers = yaml.FullLoader.yaml_implicit_resolvers.copy()
+            yaml_implicit_resolvers = yaml.SafeLoader.yaml_implicit_resolvers.copy()
             yaml_implicit_resolvers.pop("=")
 
         try:

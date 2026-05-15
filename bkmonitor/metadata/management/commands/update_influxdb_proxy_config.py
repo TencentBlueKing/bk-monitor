@@ -64,7 +64,7 @@ class Command(BaseCommand):
             return
         # 否则从配置文件写入
         with open(file_path) as f:
-            data = yaml.load(f, Loader=yaml.FullLoader)
+            data = yaml.safe_load(f)
             host_info = data.get("host_info", None)
             if host_info is not None and isinstance(host_info, list):
                 InfluxDBHostInfo.import_data(host_info)

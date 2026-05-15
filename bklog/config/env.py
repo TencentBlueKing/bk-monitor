@@ -23,7 +23,6 @@ import os
 
 import yaml
 
-
 # V3判断环境的环境变量为BKPAAS_ENVIRONMENT
 if "BKPAAS_ENVIRONMENT" in os.environ:
     ENVIRONMENT = os.getenv("BKPAAS_ENVIRONMENT", "dev")
@@ -76,7 +75,7 @@ def load_env():
     env = os.path.join(project_path, f"{ENVIRONMENT}.env.yml" if not env else f"{env}.{ENVIRONMENT}.env.yml")
     assert os.path.exists(env), f"{env} not exists"
     with open(env, encoding="utf-8") as f:
-        content = yaml.load(f, Loader=yaml.FullLoader)
+        content = yaml.safe_load(f)
     assert content, f"{env} must have content"
     return content
 

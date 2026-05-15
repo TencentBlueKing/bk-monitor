@@ -16,6 +16,8 @@ import logging
 import yaml
 from django.conf import settings
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginIDNotExist
 from monitor_web.plugin.constant import (
     DEFAULT_TRAP_CONFIG,
     DEFAULT_TRAP_V3_CONFIG,
@@ -23,8 +25,6 @@ from monitor_web.plugin.constant import (
 )
 from monitor_web.plugin.manager.log import LogPluginManager
 from monitor_web.plugin.serializers import SNMPTrapSerializer
-
-from core.errors.plugin import PluginIDNotExist
 
 logger = logging.getLogger("monitor_web")
 
@@ -108,7 +108,7 @@ class SNMPTrapPluginManager(LogPluginManager):
 
     # 组装snmp trap参数
     def get_deploy_steps_params(self, plugin_version, param, target_nodes):
-        data = yaml.load(param["snmp_trap"]["yaml"]["value"], Loader=yaml.FullLoader)
+        data = yaml.safe_load(param["snmp_trap"]["yaml"]["value"])
         oids_list = []
         report_oid_dimensions = []
         raw_byte_oids = []

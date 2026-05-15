@@ -120,7 +120,7 @@ def main():
 
         # 复制init.yaml并修改projectPath
         with open(f"{os.path.expanduser('~')}/PreCI/projects/{project_hash}/init.yaml") as f:
-            preci_config = yaml.load(f.read(), Loader=yaml.FullLoader)
+            preci_config = yaml.safe_load(f.read())
         preci_config["projectPath"] = temp_dir
         with open(f"{temp_preci_path}/init.yaml", "w") as f:
             f.write(yaml.dump(preci_config))
