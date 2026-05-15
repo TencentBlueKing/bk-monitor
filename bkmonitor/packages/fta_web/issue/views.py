@@ -31,7 +31,7 @@ class IssueViewSet(ResourceViewSet):
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
     # 新增支持「无业务 ID」的接口时，只需在此处追加 endpoint 名称即可
-    NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search", "issue/top_n"]
+    NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search", "issue/top_n", "issue/recent_assignees"]
 
     class IssueBusinessActionPermission(IAMPermission):
         """
