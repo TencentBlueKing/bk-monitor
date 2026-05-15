@@ -39,9 +39,10 @@ class Command(BaseCommand):
 
     回填策略：
       - 仅扫描 status in ACTIVE_STATUSES 且 fingerprint 不存在的 Issue
-      - 每个 Issue 取最新 1 条关联 alert 的 dimensions
-      - 用 issue.aggregate_config.aggregate_dimensions + alert.dimensions 算指纹
-      - 缺维度的告警跳过该 Issue（保留 fingerprint=null）
+      - 每个 Issue 取最新 1 条关联 alert 的 ``event.extra_info.origin_alarm.data.dimensions``
+        （adapter 收编前的原始维度，与 issue_config.aggregate_dimensions 同层级命名）
+      - 用 issue.aggregate_config.aggregate_dimensions + 上述 dimensions 算指纹
+      - 缺维度 / 第三方告警无 origin_alarm 的告警跳过该 Issue（保留 fingerprint=null）
 
     可选参数：
       --dry-run            仅打印将回填的 Issue 列表，不写入 ES
@@ -101,29 +102,29 @@ class Command(BaseCommand):
                 failed += 1
                 continue
 
-            # 取该 Issue 关联的最新 1 条 alert 提取维度
-            alert_dims = self._fetch_alert_dimensions(issue.id)
-            if alert_dims is None:
+            # 取该 Issue 关联的最新 1 条 alert 提取原始维度（adapter 收编前）
+            data_dimensions = self._fetch_alert_origin_data_dimensions(issue.id)
+            if data_dimensions is None:
                 # 没有任何关联 alert：aggregate_dimensions=[] 时仍可回填（指纹仅含 strategy_id）
                 if aggregate_dimensions:
                     skipped_no_alert += 1
                     continue
-                alert_dims = {}
+                data_dimensions = {}
 
-            fingerprint = gen_issue_fingerprint(strategy_id_int, aggregate_dimensions, alert_dims)
+            fingerprint = gen_issue_fingerprint(strategy_id_int, aggregate_dimensions, data_dimensions)
             if fingerprint is None:
                 skipped_missing_dim += 1
                 self.stdout.write(
                     self.style.WARNING(
                         f"skip: issue({issue.id}) strategy({strategy_id_int}) "
-                        f"missing dim, required={aggregate_dimensions} got={list(alert_dims.keys())}"
+                        f"missing dim, required={aggregate_dimensions} got={list(data_dimensions.keys())}"
                     )
                 )
                 continue
 
             # 与 processor 完全一致：按 sorted(aggregate_dimensions) 构建 + str(...).strip() 归一化，
             # 保证回填的 fingerprint 与展示快照字符串严格对应，避免精确过滤/TopN/名称展示分裂
-            dimension_values = {key: str(alert_dims[key]).strip() for key in sorted(aggregate_dimensions)}
+            dimension_values = {key: str(data_dimensions[key]).strip() for key in sorted(aggregate_dimensions)}
             update_doc = IssueDocument(
                 id=issue.id,
                 fingerprint=fingerprint,
@@ -168,26 +169,22 @@ class Command(BaseCommand):
             )
 
     @staticmethod
-    def _fetch_alert_dimensions(issue_id: str) -> dict | None:
-        """取该 Issue 关联的最新 1 条 alert.dimensions。无关联返回 None。"""
+    def _fetch_alert_origin_data_dimensions(issue_id: str) -> dict | None:
+        """取该 Issue 关联的最新 1 条 alert 的 ``event.extra_info.origin_alarm.data.dimensions``。
+
+        无关联返回 None，与下游 aggregate_dimensions=[] 退化路径区分；
+        有关联但 origin_alarm 结构缺失（第三方告警）返回空 dict，
+        让 gen_issue_fingerprint 自然返回 None 进入 skipped_missing_dim 分支。
+        """
+        from alarm_backends.service.fta_action.tasks.issue_tasks import _extract_origin_data_dimensions
+
         search = (
             AlertDocument.search(all_indices=True).filter("term", issue_id=issue_id).sort("-begin_time").params(size=1)
         )
         hits = search.execute().hits
         if not hits:
             return None
-        raw = hits[0].to_dict().get("dimensions") or []
-        result: dict = {}
-        for dim in raw:
-            if isinstance(dim, dict):
-                key = dim.get("key", "")
-                value = dim.get("value", "")
-            else:
-                key = getattr(dim, "key", "")
-                value = getattr(dim, "value", "")
-            if key:
-                result[key] = value
-        return result
+        return _extract_origin_data_dimensions(hits[0])
 
     def _flush(self, pending: list[IssueDocument]) -> int:
         """批量 UPSERT；失败计数返回。"""

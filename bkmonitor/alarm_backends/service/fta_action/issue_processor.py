@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import hashlib
 import json
 import logging
 import random
@@ -29,51 +28,47 @@ from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
 )
+from bkmonitor.utils.common_utils import count_md5
 from constants.issue import IssueActivityType, IssuePriority, IssueStatus
 from core.prometheus import metrics
 
 logger = logging.getLogger("fta_action.issue")
 
 
-def gen_issue_fingerprint(strategy_id: int, aggregate_dimensions: list[str], event_data: dict) -> str | None:
-    """生成 Issue 唯一指纹，与 Event.cal_dedupe_md5 复用同款 get_field 取值算法。
+def gen_issue_fingerprint(strategy_id: int, aggregate_dimensions: list[str], data_dimensions: dict) -> str | None:
+    """生成 Issue 唯一指纹，与 Event.cal_dedupe_md5 复用同款 count_md5 算法。
 
-    入参 issue_config.aggregate_dimensions 是 query_configs.agg_dimension 子集（命名层级一致，
-    含 bk_target_* 等策略层原始命名），必须从 event 数据取值——不能从 alert.dimensions 取，原因：
-    - alert.dimensions 是 trigger 收编 + enricher 补充后的命名（主机被收编为 target_type/target，
-      enricher 单独补 ip / bk_cloud_id / bk_host_id）
-    - 与 issue_config.aggregate_dimensions（策略层 bk_target_*）跨层不一致 → lookup 永久失败 →
-      fingerprint=None → process 永不创建 Issue
+    入参 data_dimensions 取自 ``alert.event.extra_info.origin_alarm.data.dimensions``——
+    adapter 收编前的原始维度集合，命名层级与 issue_config.aggregate_dimensions（即
+    query_configs.agg_dimension 的子集，含 bk_target_ip / bk_target_cloud_id 等策略层
+    原始命名）严格一致。
+
+    取值源选型说明：
+    - 不能用 alert.dimensions：trigger 阶段会把主机维度收编为 target_type/target、并由
+      enricher 单独补 ip / bk_cloud_id / bk_host_id，命名层级错位会导致 lookup 永久失败
+    - 不能用 event 顶层：adapter.extract_target 已 pop 走 bk_host_id / bk_target_ip /
+      bk_target_cloud_id 等关键字段，event 顶层不再保留这些维度
+    - origin_alarm.data 来自 adapter 收编前的原始 record，dimensions 字段保留完整原始命名
 
     规则：
-    - aggregate_dimensions 为空 → 退化为 ``strategy:{strategy_id}``，与旧版本 1:1 行为兼容
-    - 任一维度在 event 中缺失 / None / "" → 返回 None，调用方据此跳过该告警
-      （决策：同策略下"维度凑不齐"的告警不进入任何 Issue 池，避免污染聚合）
-    - 复用 Event.get_field 处理 tags. 前缀；do_clean=False 避免副作用
+    - aggregate_dimensions 为空 → ``count_md5([str(strategy_id)])``，含 strategy_id 入参
+      避免不同策略空 dims 退化到相同指纹
+    - 任一维度在 data_dimensions 中缺失 / None / "" / 全空白 → 返回 None，调用方据此
+      跳过该告警（同策略下"维度凑不齐"的告警不进入任何 Issue 池，避免污染聚合）
     - 维度按 key 排序后参与，保证配置项顺序不影响指纹稳定性
-    - 值统一 str(...).strip() 归一化；md5 收口避免 Redis key 过长 / 维度值含特殊字符
+    - 值统一 str(...).strip() 归一化，与 dimension_values 快照口径完全一致
+    - count_md5 内部默认对 list 排序后递归 hash，与 Event.cal_dedupe_md5 同款
     """
-    if not aggregate_dimensions:
-        return f"strategy:{strategy_id}"
-
-    from alarm_backends.core.alert.event import Event
-
-    event = Event(event_data, do_clean=False)
-
-    parts = []
+    values = [str(strategy_id)]
     for key in sorted(aggregate_dimensions):
-        value = event.get_field(key)
+        value = data_dimensions.get(key)
         if value is None or value == "":
             return None
-        # 类型归一化：event 上游应稳定，但跨数据源 / 升级窗口可能出现 int vs str 差异，
-        # 统一 str(...).strip() 避免同一具体问题被切分。bool 等罕见类型由 str() 决定形态
         normalized = str(value).strip()
         if not normalized:
             return None
-        parts.append(f"{key}={normalized}")
-
-    payload = f"strategy:{strategy_id}|{'|'.join(parts)}"
-    return hashlib.md5(payload.encode("utf-8")).hexdigest()
+        values.append(normalized)
+    return count_md5(values)
 
 
 # 维度值过长时截断阈值（避免列表展示拉宽），保留前 N 个字符 + "..."
@@ -130,31 +125,27 @@ class IssueAggregationProcessor:
         if not self._check_conditions(config):
             return False
 
-        # 指纹生成：从 event 数据取值（与 Event.cal_dedupe_md5 同款算法 + 同源数据），
-        # 不能从 alert.dimensions 取——见 gen_issue_fingerprint docstring 关于跨层命名错位
-        event_data = self._get_event_data()
+        # 指纹生成：从 origin_alarm.data.dimensions 取值（adapter 收编前的原始维度，
+        # 命名层级与 issue_config.aggregate_dimensions 一致），与 gen_issue_fingerprint 同源
+        data_dimensions = self._get_origin_data_dimensions()
         aggregate_dimensions = config.get("aggregate_dimensions") or []
-        fingerprint = gen_issue_fingerprint(self.strategy_id, aggregate_dimensions, event_data)
+        fingerprint = gen_issue_fingerprint(self.strategy_id, aggregate_dimensions, data_dimensions)
         if fingerprint is None:
             metrics.ISSUE_FINGERPRINT_BLOCKED.labels(
                 bk_biz_id=str(self.strategy.get("bk_biz_id", 0) or 0), reason="missing_dim"
             ).inc()
             logger.debug(
-                "[issue] missing aggregate dimension, skip, strategy(%s) alert(%s) event_keys=%s required=%s",
+                "[issue] missing aggregate dimension, skip, strategy(%s) alert(%s) data_dim_keys=%s required=%s",
                 self.strategy_id,
                 self.alert.id,
-                sorted(event_data.keys()) if isinstance(event_data, dict) else None,
+                sorted(data_dimensions.keys()) if isinstance(data_dimensions, dict) else None,
                 aggregate_dimensions,
             )
             return False
 
-        # dimension_values 与 fingerprint 一对一同源。复用 Event.get_field 取值保证两者完全一致：
-        # 相同的 tags. 前缀解析、相同的 sorted(aggregate_dimensions) 排序口径、相同的 str(...).strip() 归一化。
-        # 命名形态使用策略层命名（如 bk_target_ip）与 fingerprint 一致。
-        from alarm_backends.core.alert.event import Event
-
-        event_for_dim = Event(event_data, do_clean=False)
-        dimension_values = {key: str(event_for_dim.get_field(key)).strip() for key in sorted(aggregate_dimensions)}
+        # dimension_values 与 fingerprint 同源同口径：相同的 sorted(aggregate_dimensions) 排序、
+        # 相同的 str(...).strip() 归一化。命名形态使用策略层命名（如 bk_target_ip）与 fingerprint 一致。
+        dimension_values = {key: str(data_dimensions[key]).strip() for key in sorted(aggregate_dimensions)}
 
         issue = self._find_active_issue(fingerprint)
 
@@ -202,13 +193,14 @@ class IssueAggregationProcessor:
         """复用 access 模块 gen_condition_matcher 匹配告警维度。
 
         conditions.key 来自 issue_config（与 aggregate_dimensions 同层级，含 bk_target_* 命名），
-        必须从 event 数据取值匹配——不能用 alert.dimensions（命名层级不一致，永远不命中）。
+        必须从 origin_alarm.data.dimensions 取值匹配——不能用 alert.dimensions（命名层级不一致，
+        永远不命中）。
         """
         conditions = config.get("conditions", [])
         if not conditions:
             return True
 
-        event_data = self._get_event_data()
+        data_dimensions = self._get_origin_data_dimensions()
         agg_condition = []
         for cond in conditions:
             if not isinstance(cond, dict):
@@ -249,12 +241,9 @@ class IssueAggregationProcessor:
             return False
 
         try:
-            from alarm_backends.core.alert.event import Event
-
-            event = Event(event_data, do_clean=False)
-            # 仅提取 conditions 涉及的字段构造 matcher 字典（与 fingerprint 同源 get_field 取值）
+            # 仅提取 conditions 涉及的字段构造 matcher 字典（与 fingerprint 同源同口径）
             condition_dims = {
-                cond["key"]: event.get_field(cond["key"])
+                cond["key"]: data_dimensions.get(cond["key"])
                 for cond in conditions
                 if isinstance(cond, dict) and cond.get("key")
             }
@@ -269,20 +258,33 @@ class IssueAggregationProcessor:
             )
             return False
 
-    def _get_event_data(self) -> dict:
-        """从 self.alert.event 提取 event 数据为 dict（兼容 InnerDoc / dict）。
+    def _get_origin_data_dimensions(self) -> dict:
+        """从 ``self.alert.event.extra_info.origin_alarm.data.dimensions`` 提取原始维度。
+
+        来自 adapter 收编前的原始 record（adapter.py: ``extra_info.origin_alarm.data =
+        self.record["data"]``），命名层级与策略 query_configs.agg_dimension / issue_config
+        .aggregate_dimensions 一致，含 bk_target_ip / bk_target_cloud_id 等关键字段。
 
         用于 fingerprint 计算 + dimension_values 快照 + conditions 匹配，所有 issue 路径
-        使用同源 event 数据保证语义一致。返回值必为 dict（缺 event 时返回空 dict 让 lookup 失败）。
+        使用同源 dimensions 保证语义一致。任一层缺失返回空 dict，让下游的 lookup 失败语义
+        统一为"维度凑不齐 → fingerprint=None → 跳过该告警"。
+
+        第三方告警（FTA / 自定义事件等）若 origin_alarm 结构缺失也走空 dict 兜底。
         """
-        event = self.alert.event
-        if event is None:
-            return {}
-        if hasattr(event, "to_dict"):
-            return event.to_dict()
-        if isinstance(event, dict):
-            return event
-        return {}
+
+        def _to_dict(node):
+            if node is None:
+                return {}
+            if hasattr(node, "to_dict"):
+                node = node.to_dict()
+            return node if isinstance(node, dict) else {}
+
+        event = _to_dict(self.alert.event)
+        extra_info = _to_dict(event.get("extra_info"))
+        origin_alarm = _to_dict(extra_info.get("origin_alarm"))
+        data = _to_dict(origin_alarm.get("data"))
+        dimensions = _to_dict(data.get("dimensions"))
+        return dimensions
 
     def _find_active_issue(self, fingerprint: str) -> IssueDocument | None:
         """按 fingerprint 查找活跃 Issue：Redis → ES → 部署窗口期 legacy 兜底。

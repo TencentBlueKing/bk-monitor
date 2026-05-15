@@ -8,31 +8,42 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import hashlib
-
 import pytest
 
 from alarm_backends.service.fta_action.issue_processor import build_issue_default_name, gen_issue_fingerprint
+from bkmonitor.utils.common_utils import count_md5
 
 
 class TestGenIssueFingerprint:
-    """gen_issue_fingerprint 函数单测：覆盖空维度 / 缺失 / 排序稳定性 / 区分性。"""
+    """gen_issue_fingerprint 函数单测：覆盖空维度退化 / 缺失 / 排序稳定性 / 跨策略区分性。
 
-    def test_empty_dimensions_returns_strategy_id_fingerprint(self):
-        """aggregate_dimensions 为空时退化到 strategy:{id} 形式（兼容旧 1:1 行为）。"""
-        assert gen_issue_fingerprint(123, [], {"any": "dim"}) == "strategy:123"
-        assert gen_issue_fingerprint(123, [], {}) == "strategy:123"
+    入参 data_dimensions 取自 alert.event.extra_info.origin_alarm.data.dimensions
+    （adapter 收编前的原始维度集合，命名与 issue_config.aggregate_dimensions 一致）。
+    """
 
-    def test_with_dimensions_returns_md5(self):
-        """非空 aggregate_dimensions 时返回 md5。"""
+    def test_empty_dimensions_returns_strategy_only_fingerprint(self):
+        """aggregate_dimensions 为空时退化到 ``count_md5([str(strategy_id)])``。
+
+        含 strategy_id 入参避免不同策略空 dims 退化到相同指纹（误并 issue 池）。
+        """
+        fp = gen_issue_fingerprint(123, [], {"any": "dim"})
+        assert fp == count_md5(["123"])
+        # data_dimensions 内容不影响（aggregate_dimensions=[] 时不读取）
+        assert gen_issue_fingerprint(123, [], {}) == count_md5(["123"])
+
+    def test_empty_dimensions_strategy_isolation(self):
+        """退化路径下不同 strategy_id 仍得到不同指纹（含 str(strategy_id) 入参的核心目的）。"""
+        assert gen_issue_fingerprint(123, [], {}) != gen_issue_fingerprint(456, [], {})
+
+    def test_with_dimensions_returns_count_md5(self):
+        """非空 aggregate_dimensions 时返回 count_md5([str(strategy_id), v1, v2, ...])。"""
         fp = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731"})
         assert fp is not None
-        # 与公式手算一致
-        expected = hashlib.md5(b"strategy:123|bk_host_id=9185731").hexdigest()
-        assert fp == expected
+        # 与 count_md5 公式手算一致
+        assert fp == count_md5(["123", "9185731"])
 
     def test_missing_dimension_returns_none(self):
-        """告警 dimensions 缺 aggregate_dimensions 中某个 key → 返回 None。"""
+        """data_dimensions 缺 aggregate_dimensions 中某个 key → 返回 None。"""
         # 完全缺失
         assert gen_issue_fingerprint(123, ["bk_host_id"], {"other": "value"}) is None
         # 部分缺失
@@ -54,7 +65,7 @@ class TestGenIssueFingerprint:
         assert fp1 == fp2
 
     def test_different_strategies_produce_different_fingerprints(self):
-        """同维度值、不同策略 → 指纹不同。"""
+        """同维度值、不同策略 → 指纹不同（验证 strategy_id 隔离）。"""
         fp1 = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731"})
         fp2 = gen_issue_fingerprint(456, ["bk_host_id"], {"bk_host_id": "9185731"})
         assert fp1 != fp2
@@ -71,8 +82,8 @@ class TestGenIssueFingerprint:
         fp_str = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731"})
         assert fp_int == fp_str
 
-    def test_alert_dims_extra_keys_ignored(self):
-        """告警 dimensions 带额外 key（不在 aggregate_dimensions 中）不影响指纹。"""
+    def test_data_dimensions_extra_keys_ignored(self):
+        """data_dimensions 带额外 key（不在 aggregate_dimensions 中）不影响指纹。"""
         fp1 = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731"})
         fp2 = gen_issue_fingerprint(123, ["bk_host_id"], {"bk_host_id": "9185731", "service": "order", "ip": "<ip>"})
         assert fp1 == fp2
@@ -91,16 +102,16 @@ class TestGenIssueFingerprint:
         """dimension_values 快照构造（processor / backfill 同款逻辑）必须与 fingerprint 输入严格归一化对应。
 
         契约：含空白的 dim 值算同 fingerprint 时，dimension_values 快照也必须是 strip 后形态，
-        否则前端 `dimension_values.bk_host_id="9185731"` 精确过滤会因快照存为 " 9185731 " 不命中。
+        否则前端 ``dimension_values.bk_host_id="9185731"`` 精确过滤会因快照存为 " 9185731 " 不命中。
         """
-        alert_dims = {"bk_host_id": "  9185731  ", "service": " order "}
+        data_dims = {"bk_host_id": "  9185731  ", "service": " order "}
         agg_dims = ["bk_host_id", "service"]
 
         # processor / backfill 构造 dimension_values 的同款代码
-        dimension_values = {key: str(alert_dims[key]).strip() for key in sorted(agg_dims)}
+        dimension_values = {key: str(data_dims[key]).strip() for key in sorted(agg_dims)}
 
         # 同 fingerprint：原始带空白 vs strip 后值再算 fingerprint
-        fp_raw = gen_issue_fingerprint(123, agg_dims, alert_dims)
+        fp_raw = gen_issue_fingerprint(123, agg_dims, data_dims)
         fp_normalized = gen_issue_fingerprint(123, agg_dims, dimension_values)
         assert fp_raw == fp_normalized
 
@@ -108,77 +119,43 @@ class TestGenIssueFingerprint:
         assert all(v == v.strip() for v in dimension_values.values())
         assert dimension_values == {"bk_host_id": "9185731", "service": "order"}
 
-    # ---------- fingerprint 从 event 取值（覆盖 tags. 前缀 + 策略层命名）----------
-
-    def test_event_tags_prefix_lookup(self):
-        """复用 Event.get_field 处理 tags. 前缀，从 event.tags 取值。
-
-        issue_config.aggregate_dimensions 含 'tags.mount_point' 时，必须能从 event.tags
-        数组中正确 lookup 到 mount_point 字段。
-        """
-        event_data = {
-            "tags": [{"key": "mount_point", "value": "/data"}, {"key": "fstype", "value": "ext4"}],
-        }
-        fp = gen_issue_fingerprint(123, ["tags.mount_point"], event_data)
-        assert fp is not None
-        # 同 mount_point 不同 fstype 应同 fingerprint（fstype 不在 aggregate_dimensions）
-        event_data2 = {"tags": [{"key": "mount_point", "value": "/data"}, {"key": "fstype", "value": "xfs"}]}
-        assert fp == gen_issue_fingerprint(123, ["tags.mount_point"], event_data2)
-
-    def test_bk_target_dimensions_from_event_top_level(self):
+    def test_bk_target_dimensions_from_data_dimensions(self):
         """主机型策略：issue_config.aggregate_dimensions=[bk_target_ip, bk_target_cloud_id]，
-        event 数据顶层含这俩字段（trigger 阶段写入），fingerprint 算成功。
+        data_dimensions（来自 origin_alarm.data.dimensions）含这俩字段，fingerprint 算成功。
 
-        必须从 event 取值——不能从 alert.dimensions（被 trigger 收编为 target_type/target +
-        enricher 补 ip / bk_cloud_id）取，跨层命名不一致 lookup 必失败。
+        必须从 data_dimensions（adapter 收编前的原始命名）取——不能从 alert.dimensions
+        （主机已被收编为 target_type/target + enricher 单独补 ip / bk_cloud_id）取，跨层
+        命名不一致 lookup 必失败。
         """
-        event_data = {
-            "bk_target_ip": "<ip-1>",
-            "bk_target_cloud_id": "0",
-            "tags": [{"key": "mount_point", "value": "/"}],
-        }
-        fp = gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], event_data)
+        data_dims = {"bk_target_ip": "<ip-1>", "bk_target_cloud_id": "0", "mount_point": "/"}
+        fp = gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], data_dims)
         assert fp is not None and len(fp) == 32  # md5 hex
 
         # 不同 ip → 不同 fingerprint（按主机切分 issue 的预期效果）
-        event_data2 = {**event_data, "bk_target_ip": "<ip-2>"}
-        fp2 = gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], event_data2)
+        data_dims2 = {**data_dims, "bk_target_ip": "<ip-2>"}
+        fp2 = gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], data_dims2)
         assert fp != fp2
 
-    def test_alert_dimensions_no_longer_consulted(self):
-        """fingerprint 仅从 event 取值，不再 fallback 到 alert.dimensions。
+    def test_pure_dict_lookup_no_event_field_resolution(self):
+        """fingerprint 仅按 dict.get(key) 在 data_dimensions 内查找，不做任何字段解析。
 
-        即使 event 缺 bk_target_ip 而 alert.dimensions 外层含 ip，新签名是 event_data，
-        不会 fallback 到任何外部数据 → event 缺直接 None。
+        例如 'tags.mount_point' 必须在 data_dimensions 顶层有该 key 才能命中——
+        adapter 已把 tags. 前缀剥离写入 origin_alarm.data.dimensions（adapter.py
+        line 207-213），所以策略层若配 ``mount_point`` 直接命中。
         """
-        # event 完全没有 bk_target_ip / bk_target_cloud_id
-        event_data = {"tags": [{"key": "mount_point", "value": "/"}]}
-        assert gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], event_data) is None
+        # 配置带 tags. 前缀 + data_dimensions 没这个 key → None
+        data_dims = {"mount_point": "/data"}
+        assert gen_issue_fingerprint(123, ["tags.mount_point"], data_dims) is None
 
-    def test_event_get_field_ignores_clean_side_effects(self):
-        """do_clean=False 实例化 Event 避免触发 clean() 修改入参 data。
-
-        Event.clean() 会覆盖 create_time / target_type / target / dedupe_keys 等字段，
-        fingerprint 计算时若触发 clean 会污染调用方传入的 event_data 引用 + 拖慢性能。
-        """
-        original_event = {
-            "bk_target_ip": "<ip-1>",
-            "bk_target_cloud_id": "0",
-            "create_time": 1000,  # 明确设值，verify 不被 clean() 覆盖
-            "target_type": "USER_PROVIDED",  # 同上
-        }
-        snapshot = dict(original_event)
-        gen_issue_fingerprint(999999, ["bk_target_ip", "bk_target_cloud_id"], original_event)
-        # 入参未被 clean 副作用修改
-        assert original_event["create_time"] == 1000
-        assert original_event["target_type"] == "USER_PROVIDED"
-        assert original_event == snapshot
+        # 配置纯 key + data_dimensions 含该 key → 命中
+        fp = gen_issue_fingerprint(123, ["mount_point"], data_dims)
+        assert fp == count_md5(["123", "/data"])
 
 
 @pytest.mark.parametrize(
-    "strategy_id,aggregate_dimensions,alert_dims,expected_none",
+    "strategy_id,aggregate_dimensions,data_dims,expected_none",
     [
-        (1, [], {}, False),  # 退化路径，永不为 None
+        (1, [], {}, False),  # 退化路径，永不为 None（count_md5([str(id)])）
         (1, ["a"], {"a": "v"}, False),
         (1, ["a"], {}, True),  # 缺维度
         (1, ["a"], {"a": None}, True),
@@ -187,10 +164,79 @@ class TestGenIssueFingerprint:
         (1, ["a", "b"], {"a": "v"}, True),  # 部分缺
     ],
 )
-def test_gen_fingerprint_none_semantics(strategy_id, aggregate_dimensions, alert_dims, expected_none):
+def test_gen_fingerprint_none_semantics(strategy_id, aggregate_dimensions, data_dims, expected_none):
     """参数化覆盖 None 返回值边界。"""
-    result = gen_issue_fingerprint(strategy_id, aggregate_dimensions, alert_dims)
+    result = gen_issue_fingerprint(strategy_id, aggregate_dimensions, data_dims)
     assert (result is None) == expected_none
+
+
+class TestProcessorOriginDataDimensions:
+    """IssueAggregationProcessor._get_origin_data_dimensions 取值路径单测：
+    覆盖正常路径 + 各层缺失兜底（第三方告警 / FTA 告警 origin_alarm 缺失场景）。
+    """
+
+    def _make_proc_with_event(self, event):
+        from unittest.mock import MagicMock
+
+        from alarm_backends.service.fta_action.issue_processor import IssueAggregationProcessor
+
+        proc = IssueAggregationProcessor.__new__(IssueAggregationProcessor)
+        proc.alert = MagicMock()
+        proc.alert.event = event
+        return proc
+
+    def test_full_path_extracts_dimensions(self):
+        """正常链路：event.extra_info.origin_alarm.data.dimensions 完整 → 返回 dict。"""
+        event = {
+            "extra_info": {
+                "origin_alarm": {
+                    "data": {"dimensions": {"bk_target_ip": "<ip>", "bk_target_cloud_id": "0", "mount_point": "/"}}
+                }
+            }
+        }
+        proc = self._make_proc_with_event(event)
+        assert proc._get_origin_data_dimensions() == {
+            "bk_target_ip": "<ip>",
+            "bk_target_cloud_id": "0",
+            "mount_point": "/",
+        }
+
+    def test_alert_event_none_returns_empty(self):
+        """alert.event=None（理论不发生，防御兜底）→ 空 dict。"""
+        proc = self._make_proc_with_event(None)
+        assert proc._get_origin_data_dimensions() == {}
+
+    def test_extra_info_missing_returns_empty(self):
+        """event 缺 extra_info → 空 dict（兜底）。"""
+        proc = self._make_proc_with_event({})
+        assert proc._get_origin_data_dimensions() == {}
+
+    def test_origin_alarm_missing_returns_empty(self):
+        """第三方告警 / FTA 告警可能没有 origin_alarm → 空 dict（兜底）。"""
+        proc = self._make_proc_with_event({"extra_info": {}})
+        assert proc._get_origin_data_dimensions() == {}
+
+    def test_data_dimensions_missing_returns_empty(self):
+        """origin_alarm 存在但缺 data.dimensions → 空 dict（兜底）。"""
+        proc = self._make_proc_with_event({"extra_info": {"origin_alarm": {"data": {}}}})
+        assert proc._get_origin_data_dimensions() == {}
+
+    def test_inner_doc_to_dict_unwrap(self):
+        """alert.event 是 InnerDoc 形态（带 to_dict 方法）→ 递归解包成功。"""
+        from unittest.mock import MagicMock
+
+        # 模拟 ES InnerDoc：每层都暴露 to_dict
+        inner_data = MagicMock()
+        inner_data.to_dict.return_value = {"dimensions": {"bk_host_id": "1804751"}}
+        inner_origin = MagicMock()
+        inner_origin.to_dict.return_value = {"data": inner_data}
+        inner_extra = MagicMock()
+        inner_extra.to_dict.return_value = {"origin_alarm": inner_origin}
+        inner_event = MagicMock()
+        inner_event.to_dict.return_value = {"extra_info": inner_extra}
+
+        proc = self._make_proc_with_event(inner_event)
+        assert proc._get_origin_data_dimensions() == {"bk_host_id": "1804751"}
 
 
 class TestMigrateLegacyActiveIssues:
@@ -398,7 +444,7 @@ class TestBackfillPerStrategy:
     def test_strategy_processed_only_once_per_cycle(self):
         """同一周期内多个同 strategy Issue 只触发一次批量 backfill 调用。
 
-        测试策略：把 `_process_single_issue` 内 backfill 之后的 ES 链路（AlertDocument.search）
+        测试策略：把 ``_process_single_issue`` 内 backfill 之后的 ES 链路（AlertDocument.search）
         强制抛异常，外层 try/except 吃掉，仅断言 backfill 调用次数与 set 状态——
         避免 mock fluent 链路不全导致 ES connection 泄漏（实测会让 pytest 进程占 13GB+）。
         """
@@ -548,9 +594,10 @@ class TestRenewLegacyMigrationDoneSentinel:
 
 
 class TestBackfillMatchPriority:
-    """`_backfill_unlinked_alerts_for_strategy` 匹配优先级 + 时间边界 + scan 范围上限。
+    """``_backfill_unlinked_alerts_for_strategy`` 匹配优先级 + 时间边界 + scan 范围上限。
 
-    覆盖第 8 轮用户 review 提出的 P1+P2 + 自查新发现 #3/#6 修复。
+    alert_hit.to_dict 形态对齐生产链路：``event.extra_info.origin_alarm.data.dimensions``
+    含策略层原始命名（与 issue_config.aggregate_dimensions 同层级）。
     """
 
     def _make_issue_hit(self, issue_id, fingerprint, agg_dims, create_time):
@@ -565,49 +612,32 @@ class TestBackfillMatchPriority:
         h.aggregate_config = {"aggregate_dimensions": agg_dims}
         return h
 
-    def _patch_es_chain(self, issue_hits, alert_hits):
-        """构造 mock：IssueDocument.search().filter().filter().params().scan() 返回 issue_hits；
-        AlertDocument scan 返回 alert_hits。
-        """
-        from unittest.mock import patch
+    def _make_alert_hit(self, alert_id, begin_time, dimensions: dict):
+        """构造模拟 AlertDocument scan hit，其 to_dict 含 origin_alarm.data.dimensions。"""
+        from unittest.mock import MagicMock
 
-        return [
-            patch("alarm_backends.service.fta_action.tasks.issue_tasks.IssueDocument.search"),
-            patch(
-                "alarm_backends.service.fta_action.tasks.issue_tasks._iter_alert_hit_batches",
-                return_value=iter([alert_hits]),
-            ),
-            patch("alarm_backends.service.fta_action.tasks.issue_tasks.AlertDocument.bulk_create"),
-        ]
+        hit = MagicMock()
+        hit.id = alert_id
+        hit.begin_time = begin_time
+        hit.to_dict.return_value = {
+            "event": {
+                "extra_info": {"origin_alarm": {"data": {"dimensions": dimensions}}},
+            }
+        }
+        return hit
 
     def test_specific_dims_priority_over_catch_all(self):
-        """配置变更后 catch-all I_old 与具体 I_new 共存：alert 应归具体而非 catch-all。
-
-        修复 P1：默认按 dict 顺序 catch-all 必中导致永久错绑；按 (live, len 降序) 排序后具体优先。
-        """
-        from unittest.mock import MagicMock, patch
+        """配置变更后 catch-all I_old 与具体 I_new 共存：alert 应归具体而非 catch-all。"""
+        from unittest.mock import patch
 
         from alarm_backends.service.fta_action.tasks.issue_tasks import (
             _backfill_unlinked_alerts_for_strategy,
         )
 
         # 旧 catch-all I_old (snapshot=[])，新具体 I_new (snapshot=["host"])
-        i_old = self._make_issue_hit("I_old", "strategy:100", [], 1000)
-        i_new = self._make_issue_hit(
-            "I_new",
-            "fp_new_md5",
-            ["host"],
-            2000,
-        )
-        # alert 含 host 维度
-        alert_hit = MagicMock()
-        alert_hit.id = "alert_1"
-        alert_hit.begin_time = 3000
-        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
-        alert_hit.to_dict.return_value = {
-            "event": {"tags": [{"key": "host", "value": "X"}]},
-            "dimensions": [{"key": "host", "value": "X"}],
-        }
+        i_old = self._make_issue_hit("I_old", "fp_old_catch_all", [], 1000)
+        i_new = self._make_issue_hit("I_new", "fp_new_md5", ["host"], 2000)
+        alert_hit = self._make_alert_hit("alert_1", 3000, {"host": "X"})
 
         # mock live config 为 ["host"]（用户已配新），优先匹配新 group
         live_strategy_cache = {"issue_config": {"aggregate_dimensions": ["host"]}}
@@ -630,7 +660,7 @@ class TestBackfillMatchPriority:
                 iter([i_old, i_new])
             )
             # gen_issue_fingerprint：按 agg_dims 算
-            mock_fp.side_effect = lambda sid, ad, dims: (f"strategy:{sid}" if not ad else "fp_new_md5")
+            mock_fp.side_effect = lambda sid, ad, dims: ("fp_old_catch_all" if not ad else "fp_new_md5")
 
             _backfill_unlinked_alerts_for_strategy("100")
 
@@ -642,11 +672,8 @@ class TestBackfillMatchPriority:
             assert update_docs[0].issue_id == "I_new"
 
     def test_alert_earlier_than_issue_create_time_skipped(self):
-        """alert.begin_time < issue.create_time → 跳过回填，保留 first_alert_time 时间线一致性。
-
-        修复 P2：旧实现按 issue.create_time 边界过滤；新批处理改 earliest 边界后丢失此语义。
-        """
-        from unittest.mock import MagicMock, patch
+        """alert.begin_time < issue.create_time → 跳过回填，保留 first_alert_time 时间线一致性。"""
+        from unittest.mock import patch
 
         from alarm_backends.service.fta_action.tasks.issue_tasks import (
             _backfill_unlinked_alerts_for_strategy,
@@ -655,14 +682,7 @@ class TestBackfillMatchPriority:
         # 单个 Issue create_time=2000
         i = self._make_issue_hit("I_x", "fp_x", ["host"], 2000)
         # alert begin_time=1500 < I.create_time
-        alert_hit = MagicMock()
-        alert_hit.id = "alert_early"
-        alert_hit.begin_time = 1500
-        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
-        alert_hit.to_dict.return_value = {
-            "event": {"tags": [{"key": "host", "value": "X"}]},
-            "dimensions": [{"key": "host", "value": "X"}],
-        }
+        alert_hit = self._make_alert_hit("alert_early", 1500, {"host": "X"})
 
         with (
             patch("alarm_backends.service.fta_action.tasks.issue_tasks.IssueDocument.search") as mock_search,
@@ -690,11 +710,8 @@ class TestBackfillMatchPriority:
             mock_bulk.assert_not_called()
 
     def test_dim_replacement_live_config_priority(self):
-        """维度替换 ["a"] → ["b"]，alert 同时含 a/b 维度：按 live config 优先归到新 ["b"] Issue。
-
-        修复 #3：同长度组按 dict 顺序可能错绑；live 优先确保归到当前正确语义。
-        """
-        from unittest.mock import MagicMock, patch
+        """维度替换 ["a"] → ["b"]，alert 同时含 a/b 维度：按 live config 优先归到新 ["b"] Issue。"""
+        from unittest.mock import patch
 
         from alarm_backends.service.fta_action.tasks.issue_tasks import (
             _backfill_unlinked_alerts_for_strategy,
@@ -702,17 +719,7 @@ class TestBackfillMatchPriority:
 
         i_old = self._make_issue_hit("I_a", "fp_a", ["a"], 1000)
         i_new = self._make_issue_hit("I_b", "fp_b", ["b"], 2000)
-        alert_hit = MagicMock()
-        alert_hit.id = "alert_ab"
-        alert_hit.begin_time = 3000
-        # event 字段是 fingerprint 取值源
-        alert_hit.to_dict.return_value = {
-            "event": {"tags": [{"key": "a", "value": "X"}, {"key": "b", "value": "Y"}]},
-            "dimensions": [
-                {"key": "a", "value": "X"},
-                {"key": "b", "value": "Y"},
-            ],
-        }
+        alert_hit = self._make_alert_hit("alert_ab", 3000, {"a": "X", "b": "Y"})
 
         with (
             patch("alarm_backends.service.fta_action.tasks.issue_tasks.IssueDocument.search") as mock_search,
@@ -751,22 +758,15 @@ class TestBackfillMatchPriority:
           - alert (host=X, begin_time=1000) — 晚于 I_old 但早于 I_new
         预期：live 优先匹配 I_new → 时间不符 → break，**不回退**到 catch-all I_old；alert 保持 unlinked
         """
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
 
         from alarm_backends.service.fta_action.tasks.issue_tasks import (
             _backfill_unlinked_alerts_for_strategy,
         )
 
-        i_old = self._make_issue_hit("I_old", "strategy:100", [], 500)
+        i_old = self._make_issue_hit("I_old", "fp_old", [], 500)
         i_new = self._make_issue_hit("I_new", "fp_new", ["host"], 2000)
-        alert_hit = MagicMock()
-        alert_hit.id = "alert_mid"
-        alert_hit.begin_time = 1000  # 早于 I_new (2000) 但晚于 I_old (500)
-        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
-        alert_hit.to_dict.return_value = {
-            "event": {"tags": [{"key": "host", "value": "X"}]},
-            "dimensions": [{"key": "host", "value": "X"}],
-        }
+        alert_hit = self._make_alert_hit("alert_mid", 1000, {"host": "X"})  # 早于 I_new (2000) 但晚于 I_old (500)
 
         with (
             patch("alarm_backends.service.fta_action.tasks.issue_tasks.IssueDocument.search") as mock_search,
@@ -781,7 +781,7 @@ class TestBackfillMatchPriority:
             ),
             patch("alarm_backends.service.fta_action.issue_processor.gen_issue_fingerprint") as mock_fp,
         ):
-            mock_fp.side_effect = lambda sid, ad, dims: "fp_new" if ad == ["host"] else "strategy:100"
+            mock_fp.side_effect = lambda sid, ad, dims: "fp_new" if ad == ["host"] else "fp_old"
             mock_search.return_value.filter.return_value.filter.return_value.params.return_value.scan.return_value = (
                 iter([i_old, i_new])
             )
@@ -796,23 +796,16 @@ class TestBackfillMatchPriority:
 
         当 issue_config 缺失时不应让 catch-all 永远优先（live_agg_dims_tuple = None 走 fallback）。
         """
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
 
         from alarm_backends.service.fta_action.tasks.issue_tasks import (
             _backfill_unlinked_alerts_for_strategy,
         )
 
         # 历史 catch-all I_old + 历史具体 I_new；live 策略已无 issue_config
-        i_old = self._make_issue_hit("I_old", "strategy:100", [], 1000)
+        i_old = self._make_issue_hit("I_old", "fp_old", [], 1000)
         i_new = self._make_issue_hit("I_new", "fp_new", ["host"], 2000)
-        alert_hit = MagicMock()
-        alert_hit.id = "alert_legacy"
-        alert_hit.begin_time = 3000
-        # event 字段是 fingerprint 取值源；保留 dimensions 不影响逻辑
-        alert_hit.to_dict.return_value = {
-            "event": {"tags": [{"key": "host", "value": "X"}]},
-            "dimensions": [{"key": "host", "value": "X"}],
-        }
+        alert_hit = self._make_alert_hit("alert_legacy", 3000, {"host": "X"})
 
         with (
             patch("alarm_backends.service.fta_action.tasks.issue_tasks.IssueDocument.search") as mock_search,
@@ -827,7 +820,7 @@ class TestBackfillMatchPriority:
             ),
             patch("alarm_backends.service.fta_action.issue_processor.gen_issue_fingerprint") as mock_fp,
         ):
-            mock_fp.side_effect = lambda sid, ad, dims: "fp_new" if ad == ["host"] else "strategy:100"
+            mock_fp.side_effect = lambda sid, ad, dims: "fp_new" if ad == ["host"] else "fp_old"
             mock_search.return_value.filter.return_value.filter.return_value.params.return_value.scan.return_value = (
                 iter([i_old, i_new])
             )
@@ -838,6 +831,45 @@ class TestBackfillMatchPriority:
             update_docs = mock_bulk.call_args[0][0]
             # live=None 退化按 len 降序，具体 I_new (len=1) 优先于 catch-all I_old (len=0)
             assert update_docs[0].issue_id == "I_new"
+
+    def test_alert_missing_origin_alarm_skipped(self):
+        """第三方告警 / FTA 告警可能没有 origin_alarm 结构 → backfill 跳过该条 alert。
+
+        与 process 主路径"维度凑不齐 → fingerprint=None → 跳过"语义一致，
+        backfill 不应错绑到任何 Issue。
+        """
+        from unittest.mock import MagicMock, patch
+
+        from alarm_backends.service.fta_action.tasks.issue_tasks import (
+            _backfill_unlinked_alerts_for_strategy,
+        )
+
+        i = self._make_issue_hit("I_x", "fp_x", ["host"], 1000)
+        # alert 完全没有 event.extra_info.origin_alarm 结构（典型第三方告警）
+        alert_hit = MagicMock()
+        alert_hit.id = "alert_third_party"
+        alert_hit.begin_time = 3000
+        alert_hit.to_dict.return_value = {"event": {}}
+
+        with (
+            patch("alarm_backends.service.fta_action.tasks.issue_tasks.IssueDocument.search") as mock_search,
+            patch(
+                "alarm_backends.service.fta_action.tasks.issue_tasks._iter_alert_hit_batches",
+                return_value=iter([[alert_hit]]),
+            ),
+            patch("alarm_backends.service.fta_action.tasks.issue_tasks.AlertDocument.bulk_create") as mock_bulk,
+            patch(
+                "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id",
+                return_value={"issue_config": {"aggregate_dimensions": ["host"]}},
+            ),
+        ):
+            mock_search.return_value.filter.return_value.filter.return_value.params.return_value.scan.return_value = (
+                iter([i])
+            )
+
+            _backfill_unlinked_alerts_for_strategy("100")
+
+            mock_bulk.assert_not_called()
 
     def test_scan_range_capped_to_7_days(self):
         """earliest_create_time 早于 7 天前 → scan 下界缩窄为 now - 7 天，避免范围爆炸。"""
@@ -883,7 +915,7 @@ class TestBackfillMatchPriority:
 
 
 class TestActiveCountCacheStampedeProtection:
-    """`_check_active_issue_count` 防 cache stampede（性能 review M1）：
+    """``_check_active_issue_count`` 防 cache stampede（性能 review M1）：
     cache miss 时 SET NX EX 短锁让一个 worker 探 ES，其他 worker 跳过本次观测；
     cache 写回 TTL 加 ±20% jitter 打散周期性同步失效。
     """
