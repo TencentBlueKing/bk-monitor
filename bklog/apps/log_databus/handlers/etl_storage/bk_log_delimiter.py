@@ -303,15 +303,15 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                 if check_rule["operator"].get("output_type") == self._get_output_type("object"):
                     json_fields.add(check_rule["output_id"])
 
-            need_config_group = set()
+            text_fields = set()
             for check_field in field_list:
                 if check_field["option"]["es_type"] == "text":
-                    need_config_group.add(check_field["field_name"])
+                    text_fields.add(check_field["field_name"])
 
             data_link_config["doris_storage_config"] = {
                 "storage_keys": built_in_config["option"]["es_unique_field_list"],
                 "json_fields": list(json_fields),
-                "field_config_group": {"search_zh": list(need_config_group)},
+                "field_config_group": {"search_zh": list(text_fields)},
                 # "flush_timeout": None
             }
 
