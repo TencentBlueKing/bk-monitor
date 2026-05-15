@@ -130,7 +130,10 @@ export default defineComponent({
               </div>
             ))
           ) : (
-            <EmptyStatus type='empty' />
+            <EmptyStatus
+              textMap={{ empty: this.$t('暂无历史 Issue') }}
+              type='empty'
+            />
           )}
         </div>
       </BasicCard>
