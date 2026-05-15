@@ -133,6 +133,11 @@ export default defineComponent({
       type: Object as () => Partial<UrlState>,
       default: () => ({}),
     },
+    /** 上次搜索的时间范围（时间戳格式，用于分享链接） */
+    searchTimeRange: {
+      type: Array as unknown as () => [string, string] | [number, number],
+      default: () => [0, 0],
+    },
   },
   emits: ['expand', 'collect', 'url-sync'],
   setup(props, { emit }) {
@@ -605,6 +610,29 @@ export default defineComponent({
       download(item.file_name, props.isAllowedDownload);
     };
 
+    /** 点击分享按钮，将时间参数转为时间戳后复制链接 */
+    const handleShare = () => {
+      const [startTs, endTs] = props.searchTimeRange;
+      const url = new URL(window.location.href);
+      // 取出 hash 路由部分
+      const [hashPath, hashQuery = ''] = url.hash.split('?');
+      const hashSearchParams = new URLSearchParams(hashQuery);
+      if (startTs) {
+        hashSearchParams.set('startTime', String(startTs));
+      }
+      if (endTs) {
+        hashSearchParams.set('endTime', String(endTs));
+      }
+      // 重新拼接 hash
+      url.hash = `${hashPath}?${hashSearchParams.toString()}`;
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        bkMessage({
+          message: t('复制成功'),
+          theme: 'success',
+        });
+      });
+    };
+
     /** 文件树节点点击 */
     const handleNodeClick = (node: any) => {
       if (!node.children || !node.children.length) {
@@ -847,11 +875,7 @@ export default defineComponent({
                     {t('下载')}
                   </bk-button>
                 </span>
-                <bk-button onClick={() => {
-                  navigator.clipboard.writeText(window.location.href).then(() => {
-                    bkMessage({ message: t('复制成功'), theme: 'success' });
-                  });
-                }}>
+                <bk-button onClick={handleShare}>
                   <i class='bklog-icon bklog-share-fenxiang'></i>
                   {t('分享')}
                 </bk-button>

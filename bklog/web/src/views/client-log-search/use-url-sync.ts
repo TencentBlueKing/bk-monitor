@@ -29,7 +29,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import type { UrlState } from './types';
 
 /** URL 条件参数的 key 列表 */
-const URL_PARAM_KEYS = ['keyword', 'startTime', 'endTime', 'timezone', 'fileName', 'fileId', 'filterKey', 'filterType', 'highlightList'];
+const URL_PARAM_KEYS = ['keyword', 'startTime', 'endTime', 'timezone', 'valueType', 'fileName', 'fileId', 'filterKey', 'filterType', 'highlightList'];
 
 /** 将 URL query 中的值解析为字符串数组（单值包装为数组） */
 const parseQueryArray = (
@@ -62,6 +62,7 @@ export default () => {
     if (query.filterKey) state.filterKey = parseQueryArray(query.filterKey);
     if (query.filterType) state.filterType = String(query.filterType);
     if (query.highlightList) state.highlightList = parseQueryArray(query.highlightList);
+    if (query.valueType) state.valueType = String(query.valueType) as UrlState['valueType'];
     return state;
   };
 

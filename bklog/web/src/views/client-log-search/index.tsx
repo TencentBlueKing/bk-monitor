@@ -131,19 +131,26 @@ export default defineComponent({
     /** 任务列表是否正在加载（含首次和加载更多） */
     const isTaskListLoading = ref(false);
 
-    /** 当前搜索的时间范围 */
-    const timeRange = ref<[string, string] | undefined>(undefined);
-
-    /** 当前搜索的时区 */
-    const timezone = ref<string>(window.timezone);
-
     /** 分页参数 */
     const page = ref(1);
-    const computedPagesize = ref(10);
+    const computedPagesize = ref(20);
     const hasMore = ref(true);
 
     /** task-list-panel 组件实例引用，用于初始计算 pagesize */
     const taskListPanelRef = ref<any>(null);
+    const searchBarRef = ref<any>(null);
+
+    /** content-wrapper 元素引用，用于 ResizeObserver */
+    const contentWrapperRef = ref<HTMLElement | null>(null);
+
+    /** ResizeObserver 实例 */
+    let resizeObserver: ResizeObserver | null = null;
+
+    /** 空状态区域比 taskListPanel 高出的像素差值 */
+    const EMPTY_STATE_HEIGHT_OFFSET = 91;
+
+    /** 是否已经执行过搜索 */
+    const hasSearched = ref(false);
 
     /**
      * 根据面板可用高度计算分页大小
@@ -161,7 +168,7 @@ export default defineComponent({
     };
 
     /** 上一次搜索参数，供触底加载更多使用 */
-    const lastSearchParams = ref<SearchParams>({ openid: '', timeRange: ['', ''], timezone: window.timezone });
+    const lastSearchParams = ref<SearchParams>({ keyword: '', timeRange: ['', ''], timezone: window.timezone });
 
     /**
      * 请求任务列表
@@ -172,11 +179,12 @@ export default defineComponent({
         page.value = 1;
         hasMore.value = true;
         isPanelLoading.value = true;
+        hasSearched.value = true;
       }
       isTaskListLoading.value = true;
 
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(params.timeRange);
+      const [startTime, endTime] = params.timeRange;
 
       const query: Record<string, any> = {
         bk_biz_id: bkBizId,
@@ -184,20 +192,22 @@ export default defineComponent({
         pagesize: computedPagesize.value,
       };
 
-      // URL 回填时加上 file_name 过滤
+      // URL 回填时加上 file_name 过滤（有 keyword 时不设置，避免同时传递 file_name 和 openid/task_id）
       const urlFileName = initialUrlState?.fileName;
-      if (urlFileName) {
+      if (urlFileName && !params.keyword.trim()) {
         query.file_name = urlFileName;
       }
 
       // 根据 valueType 决定将搜索值作为 openid 还是 task_id
-      const openidVal = params.openid.trim();
+      const openidVal = params.keyword.trim();
       if (openidVal) {
         if (params.valueType === 'task_id') {
           const numVal = Number(openidVal);
           if (!Number.isNaN(numVal)) {
             query.task_id = numVal;
           }
+        } else if (params.valueType === 'file_name') {
+          query.file_name = openidVal;
         } else {
           query.openid = openidVal;
         }
@@ -257,17 +267,18 @@ export default defineComponent({
     /** 搜索回调 */
     const handleSearch = (params: SearchParams) => {
       stopPolling();
-      timeRange.value = params.timeRange;
-      timezone.value = params.timezone;
-      lastSearchParams.value = params;
-      // 搜索时同步 URL（关键词、时间范围、时区）
+      const [startTime, endTime] = params.timeRange;
+      const [startTs, endTs] = handleTransformToTimestamp([String(startTime), String(endTime)]);
+      lastSearchParams.value = { ...params, timeRange: [startTs, endTs] };
+      // 搜索时同步 URL（关键词、时间范围、时区、类型）
       syncUrlParams({
-        keyword: params.openid,
-        startTime: params.timeRange[0],
-        endTime: params.timeRange[1],
+        keyword: params.keyword,
+        startTime: String(startTime),
+        endTime: String(endTime),
         timezone: params.timezone,
+        valueType: params.valueType,
       });
-      fetchTaskList(params);
+      fetchTaskList(lastSearchParams.value);
     };
 
     /** 触底加载更多 */
@@ -315,7 +326,7 @@ export default defineComponent({
         return;
       }
       const bkBizId = store.state.bkBizId;
-      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      const [startTime, endTime] = lastSearchParams.value.timeRange;
 
       const query: Record<string, any> = {
         bk_biz_id: bkBizId,
@@ -514,9 +525,9 @@ export default defineComponent({
       }
     };
 
-    /** 业务切换后检查功能开关，无权限则跳转回检索页；同时重新触发搜索 */
+    /** 业务切换后检查功能开关，无权限则跳转回检索页/重新触发搜索 */
     watch(
-      () => store.state.spaceUid,
+      () => route.query.spaceUid as string,
       (newSpaceUid, oldSpaceUid) => {
         if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
           // 业务切换时清空 URL 中的条件
@@ -542,27 +553,91 @@ export default defineComponent({
           userReportStats.value = null;
           hasMore.value = true;
           page.value = 1;
-          handleSearch(lastSearchParams.value);
+          searchBarRef.value?.reSearch();
           getIndexSetId();
           checkDownloadPermission();
         }
       },
     );
 
-    onMounted(() => {
-      getIndexSetId();
+    /**
+     * 重新计算分页大小，若变化则用上次搜索条件从第一页重新查询
+     * @param useTaskPanel 是否使用 taskListPanelRef 的高度（否则用 contentWrapperRef 高度减去偏移量）
+     * @returns 是否发生了 pagesize 变化
+     */
+    const recalcPagesizeAndSearch = (useTaskPanel = false) => {
+      let panelHeight = 0;
+      if (useTaskPanel) {
+        const el = taskListPanelRef.value?.$el;
+        if (el) {
+          panelHeight = el.clientHeight;
+        }
+      } else {
+        // 使用 contentWrapperRef 高度减去空状态区域多出的偏移量
+        if (contentWrapperRef.value) {
+          panelHeight = contentWrapperRef.value.clientHeight - EMPTY_STATE_HEIGHT_OFFSET;
+        }
+      }
+      if (panelHeight <= 0) return false;
+      const newPagesize = calcPagesize(panelHeight);
+      if (newPagesize !== computedPagesize.value) {
+        computedPagesize.value = newPagesize;
+        // pagesize 变化时，如果已有搜索条件，从第一页重新查询
+        if (hasSearched.value) {
+          fetchTaskList(lastSearchParams.value);
+        }
+        return true;
+      }
+      return false;
+    };
+
+    onMounted(async () => {
+      // 页面挂载时检查功能开关，无权限则跳转回检索页
+      const hasPermission = isFeatureToggleOn(
+        'tgpa_task',
+        [String(store.state.bkBizId), String(store.state.spaceUid)],
+      );
+      if (!hasPermission) {
+        router.replace({
+          name: 'retrieve',
+          query: {
+            spaceUid: String(store.state.spaceUid),
+            bizId: String(store.state.bkBizId),
+          },
+        });
+        return;
+      }
+
+      await getIndexSetId();
       checkDownloadPermission();
 
-      // 初始计算一次 pagesize
-      const el = taskListPanelRef.value?.$el;
-      if (el) {
-        computedPagesize.value = calcPagesize(el.clientHeight);
+      // 使用 ResizeObserver 监听 content-wrapper 高度变化
+      if (contentWrapperRef.value) {
+        let resizeTimer: number | null = null;
+        resizeObserver = new ResizeObserver(() => {
+          if (resizeTimer) clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(() => {
+            if (!isEmptyState.value && hasSearched.value) {
+              recalcPagesizeAndSearch(true);
+            } else if (isEmptyState.value) {
+              recalcPagesizeAndSearch(false);
+            }
+          }, 300);
+        });
+        resizeObserver.observe(contentWrapperRef.value);
       }
+
+      recalcPagesizeAndSearch(false);
+      searchBarRef.value?.reSearch(false);
     });
 
     onUnmounted(() => {
       isComponentDestroyed.value = true;
       stopPolling();
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
     });
 
     /** 渲染空状态 */
@@ -572,8 +647,8 @@ export default defineComponent({
           <div class='empty-state-content'>
             <div class='empty-state-title'>{t('检索无数据')}</div>
             <div class='empty-state-subtitle'>
-              {lastSearchParams.value.openid
-                ? t('未找到与 "{keyword}" 匹配的用户或任务', { keyword: lastSearchParams.value.openid })
+              {lastSearchParams.value.keyword
+                ? t('未找到与 "{keyword}" 匹配的用户或任务', { keyword: lastSearchParams.value.keyword })
                 : t('未找到匹配的用户或任务')}
             </div>
             <div class='empty-state-tips'>
@@ -619,9 +694,10 @@ export default defineComponent({
           isTaskListCollapsed={isTaskListCollapsed.value}
           selectedLogItem={selectedLogItem.value}
           indexSetId={indexSetId.value}
-          timezone={timezone.value}
+          timezone={lastSearchParams.value.timezone}
           isAllowedDownload={isAllowedDownload.value}
           initialUrlState={initialUrlState}
+          searchTimeRange={lastSearchParams.value.timeRange}
           on-expand={handleExpandTaskList}
           on-collect={handleCollectNow}
           on-url-sync={handleUrlSync}
@@ -633,6 +709,7 @@ export default defineComponent({
       <div class='client-log-search-root'>
         {/* 搜索区域 */}
         <SearchBar
+          ref={searchBarRef}
           initialUrlState={initialUrlState}
           loading={isPanelLoading.value}
           on-search={handleSearch}
@@ -640,6 +717,7 @@ export default defineComponent({
 
         {/* 用户信息展示区域 + 任务内容区域 */}
         <div
+          ref={contentWrapperRef}
           class='content-wrapper'
           v-bkloading={{ isLoading: isPanelLoading.value }}
         >
