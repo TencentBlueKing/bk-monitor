@@ -105,7 +105,7 @@ class TestOsRestartQueryHistoryPoints:
     """
 
     @staticmethod
-    def _make_item(records=None, is_partial=False, original_expression="a <= 3600"):
+    def _make_item(records=None, is_partial=False, original_expression="a <= 3600", n_data_sources=1):
         item = mock.Mock()
         item.id = 67493
         item.strategy = mock.Mock()
@@ -115,14 +115,21 @@ class TestOsRestartQueryHistoryPoints:
         item.query.expression = original_expression
         item.query.is_partial = is_partial
         item.query_record = mock.Mock(return_value=records or [])
+        # 模拟 data_sources：每个含独立的 filter_dict，用真实 dict 而非 Mock，便于断言其 in-place 修改
+        item.data_sources = []
+        for _ in range(n_data_sources):
+            ds = mock.Mock()
+            ds.filter_dict = {}
+            item.data_sources.append(ds)
         return item
 
     @staticmethod
-    def _make_dp(ts, value, item):
+    def _make_dp(ts, value, item, ip=None):
         dp = mock.Mock()
         dp.timestamp = ts
         dp.value = value
         dp.item = item
+        dp.dimensions = {"bk_target_ip": ip} if ip else {}
         return dp
 
     def test_empty_data_points_is_noop(self):
@@ -206,3 +213,128 @@ class TestOsRestartQueryHistoryPoints:
 
         # 3) expression 已还原
         assert item.query.expression == "a <= 3600"
+
+
+class TestOsRestartIPFilterOptimization:
+    """覆盖 OsRestart.query_history_points 按 IP 维度收敛 unify-query 的优化路径。
+
+    优化点：在调用 unify-query 前，把本批次 data_points 的 bk_target_ip 收集成 list，
+    临时塞进 data_source.filter_dict["bk_target_ip__eq"]，让 vmselect 端只扫描这 K 台机器，
+    typical 业务下降 1-2 个数量级。K > MAX_PREFETCH_IP_FILTER（默认 100）时回退到不加 filter 的全量查询。
+    """
+
+    _make_item = staticmethod(TestOsRestartQueryHistoryPoints._make_item)
+    _make_dp = staticmethod(TestOsRestartQueryHistoryPoints._make_dp)
+
+    def test_small_batch_applies_ip_filter(self):
+        """K=2 的小批次应当在 data_source.filter_dict 中加入 bk_target_ip__eq。"""
+        item = self._make_item(records=[])
+        dp1 = self._make_dp(1700000000, 23, item, ip="fakehostA")
+        dp2 = self._make_dp(1700000000, 31, item, ip="fakehostB")
+        detector = OsRestart(config={})
+        # capture：在 query_record 被调用的瞬间记录 filter_dict 状态
+        observed_filter: dict = {}
+
+        def _capture(start, end):
+            observed_filter.update(item.data_sources[0].filter_dict)
+            return []
+
+        item.query_record.side_effect = _capture
+        detector.query_history_points([dp1, dp2])
+        # 调用 query_record 时 filter_dict 应当含 IP 列表（已排序）
+        assert "bk_target_ip__eq" in observed_filter
+        assert observed_filter["bk_target_ip__eq"] == ["fakehostA", "fakehostB"]
+
+    def test_large_batch_falls_back_to_target_scope(self):
+        """K = MAX_PREFETCH_IP_FILTER + 1（默认 101）超出上限应当不加 IP filter，回退到全量查询。"""
+        from alarm_backends.service.detect.strategy.os_restart import MAX_PREFETCH_IP_FILTER
+
+        item = self._make_item(records=[])
+        ts = 1700000000
+        # 构造 K = MAX_PREFETCH_IP_FILTER + 1 个 data_point
+        dps = [self._make_dp(ts, 100, item, ip=f"fakehost{i:04d}") for i in range(MAX_PREFETCH_IP_FILTER + 1)]
+        detector = OsRestart(config={})
+        observed_filter: dict = {}
+
+        def _capture(start, end):
+            observed_filter.update(item.data_sources[0].filter_dict)
+            return []
+
+        item.query_record.side_effect = _capture
+        detector.query_history_points(dps)
+        # K 过大，不应加 IP filter
+        assert "bk_target_ip__eq" not in observed_filter
+
+    def test_filter_dict_restored_after_normal_path(self):
+        """正常路径下 filter_dict 必须 try/finally 还原（避免污染共享 data_source 实例）。"""
+        item = self._make_item(records=[])
+        # 预置一条 data_source 已有的 filter（模拟 access 阶段或别处加的）
+        item.data_sources[0].filter_dict["existing_field__eq"] = "preserved_value"
+        original_snapshot = dict(item.data_sources[0].filter_dict)
+
+        dp = self._make_dp(1700000000, 23, item, ip="fakehostA")
+        detector = OsRestart(config={})
+        detector.query_history_points([dp])
+
+        # 还原后 filter_dict 应当与原始快照一致，不含 IP filter 残留
+        assert item.data_sources[0].filter_dict == original_snapshot
+        assert "bk_target_ip__eq" not in item.data_sources[0].filter_dict
+
+    def test_filter_dict_restored_after_partial_path(self):
+        """partial 路径下 filter_dict 同样必须还原。"""
+        item = self._make_item(records=[], is_partial=True)
+        item.data_sources[0].filter_dict["existing_field__eq"] = "preserved_value"
+        original_snapshot = dict(item.data_sources[0].filter_dict)
+
+        dp = self._make_dp(1700000000, 23, item, ip="fakehostA")
+        detector = OsRestart(config={})
+        detector.query_history_points([dp])
+
+        assert item.data_sources[0].filter_dict == original_snapshot
+        assert "bk_target_ip__eq" not in item.data_sources[0].filter_dict
+
+    def test_no_filter_when_data_points_have_no_ip(self):
+        """data_points 全无 bk_target_ip 时，不加 IP filter 且 filter_dict 不变。"""
+        item = self._make_item(records=[])
+        original_snapshot = dict(item.data_sources[0].filter_dict)
+
+        dp = self._make_dp(1700000000, 23, item)  # 无 ip
+        detector = OsRestart(config={})
+        observed_filter: dict = {}
+
+        def _capture(start, end):
+            observed_filter.update(item.data_sources[0].filter_dict)
+            return []
+
+        item.query_record.side_effect = _capture
+        detector.query_history_points([dp])
+
+        assert "bk_target_ip__eq" not in observed_filter
+        assert item.data_sources[0].filter_dict == original_snapshot
+
+    def test_multi_data_sources_all_get_filter(self):
+        """item 含多个 data_sources 时，每个都应当加 IP filter 并独立还原。"""
+        item = self._make_item(records=[], n_data_sources=2)
+        item.data_sources[0].filter_dict["ds0_existing__eq"] = "ds0"
+        item.data_sources[1].filter_dict["ds1_existing__eq"] = "ds1"
+        snap0 = dict(item.data_sources[0].filter_dict)
+        snap1 = dict(item.data_sources[1].filter_dict)
+
+        dp = self._make_dp(1700000000, 23, item, ip="fakehostA")
+        detector = OsRestart(config={})
+        captured: list = []
+
+        def _capture(start, end):
+            captured.append(dict(item.data_sources[0].filter_dict))
+            captured.append(dict(item.data_sources[1].filter_dict))
+            return []
+
+        item.query_record.side_effect = _capture
+        detector.query_history_points([dp])
+
+        # 调用瞬间两个 data_sources 都被注入了 IP filter
+        assert captured[0].get("bk_target_ip__eq") == ["fakehostA"]
+        assert captured[1].get("bk_target_ip__eq") == ["fakehostA"]
+        # 还原后均回到原始 filter
+        assert item.data_sources[0].filter_dict == snap0
+        assert item.data_sources[1].filter_dict == snap1
