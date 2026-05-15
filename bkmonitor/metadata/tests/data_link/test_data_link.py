@@ -2062,7 +2062,49 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
     ]
-    assert actual_configs == expected_config
+    actual_resource_configs = [c for c in actual_configs if c["kind"] not in {"BasereportSink", "Databus"}]
+    assert actual_resource_configs == expected_config[:-2]
+    assert not any(c["kind"] == "ConditionalSink" for c in actual_configs)
+    assert not models.ConditionalSinkConfig.objects.filter(data_link_name="system_1_sys_base").exists()
+
+    basereport_sink = next(
+        c for c in actual_configs if c["kind"] == "BasereportSink" and c["metadata"]["name"] == "system_1_sys_base"
+    )
+    assert basereport_sink["metadata"] == {
+        "name": "system_1_sys_base",
+        "namespace": "bkmonitor",
+        "tenant": "system",
+    }
+    mapping_by_metric = {m["metric_type"]: m["sinks"] for m in basereport_sink["spec"]["mappings"]}
+    expected_metric_types = set(BASEREPORT_USAGES) | {f"{usage}_cmdb" for usage in BASEREPORT_USAGES}
+    assert set(mapping_by_metric) == expected_metric_types
+    for usage in BASEREPORT_USAGES:
+        assert mapping_by_metric[usage] == [
+            {
+                "kind": "VmStorageBinding",
+                "name": f"base_1_sys_{usage}",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+        ]
+        assert mapping_by_metric[f"{usage}_cmdb"] == [
+            {
+                "kind": "VmStorageBinding",
+                "name": f"base_1_sys_{usage}_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+        ]
+
+    databus = next(c for c in actual_configs if c["kind"] == "Databus" and c["metadata"]["name"] == "system_1_sys_base")
+    databus_config = models.DataBusConfig.objects.get(name="system_1_sys_base")
+    assert databus_config.sink_names == ["BasereportSink:system_1_sys_base"]
+    assert databus["spec"]["sinks"] == [
+        {"kind": "BasereportSink", "name": "system_1_sys_base", "namespace": "bkmonitor", "tenant": "system"}
+    ]
+    assert databus["spec"]["transforms"] == [
+        {"format": "bkmonitor_basereport_v1", "kind": "PreDefinedLogic", "name": "log_to_metric"}
+    ]
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -2093,7 +2135,11 @@ def test_create_basereport_datalink_for_bkcc_extra_source_bkbase_v4_part(create_
         extra_source=extra_source,
     )
 
-    basereport_sink = next(c for c in actual_configs if c["kind"] == "BasereportSink")
+    basereport_sink = next(
+        c
+        for c in actual_configs
+        if c["kind"] == "BasereportSink" and c["metadata"]["name"] == f"system_1_sys_base_{extra_source}"
+    )
     assert basereport_sink["metadata"] == {
         "name": f"system_1_sys_base_{extra_source}",
         "namespace": "bkmonitor",
@@ -2116,6 +2162,8 @@ def test_create_basereport_datalink_for_bkcc_extra_source_bkbase_v4_part(create_
         for c in actual_configs
         if c["kind"] == "Databus" and c["metadata"]["name"] == f"system_1_sys_base_{extra_source}"
     )
+    extra_databus_config = models.DataBusConfig.objects.get(name=f"system_1_sys_base_{extra_source}")
+    assert extra_databus_config.sink_names == [f"BasereportSink:system_1_sys_base_{extra_source}"]
     assert extra_databus["spec"]["sinks"] == [
         {
             "kind": "BasereportSink",

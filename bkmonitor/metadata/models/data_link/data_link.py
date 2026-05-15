@@ -631,8 +631,6 @@ class DataLink(models.Model):
             bkbase_vmrt_prefix = prefix
 
         config_list = []
-        conditions = []
-
         with transaction.atomic():
             # 创建11个ResultTableConfig和VMStorageBindingConfig
             for usage in BASEREPORT_USAGES:
@@ -704,47 +702,6 @@ class DataLink(models.Model):
                     ]
                 )
 
-                # 为每个usage创建conditional sink条件
-                sink_item = {
-                    "kind": "VmStorageBinding",
-                    "name": usage_vmrt_name,
-                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                }
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    sink_item["tenant"] = self.bk_tenant_id
-
-                sinks = [sink_item]
-
-                sink_item_cmdb = {
-                    "kind": "VmStorageBinding",
-                    "name": usage_cmdb_level_vmrt_name,
-                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                }
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    sink_item_cmdb["tenant"] = self.bk_tenant_id
-
-                sinks_cmdb = [sink_item_cmdb]
-
-                condition = {
-                    "match_labels": [{"name": "__result_table", "any": [usage]}],
-                    "sinks": sinks,
-                }
-                cmdb_condition = {
-                    "match_labels": [{"name": "__result_table", "any": [f"{usage}_cmdb"]}],
-                    "sinks": sinks_cmdb,
-                }
-                conditions.append(condition)
-                conditions.append(cmdb_condition)
-
-            # 创建ConditionalSinkConfig
-            vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(
-                name=self.data_link_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=self.bk_tenant_id,
-            )
-
             # 创建DataBusConfig
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=self.data_link_name,
@@ -755,37 +712,33 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{self.data_link_name}"],
+                    "sink_names": [f"BasereportSink:{self.data_link_name}"],
                 },
             )
 
-        logger.info(
-            "compose_basereport_configs: data_link_name->[%s] will use conditions->[%s] to compose configs",
-            self.data_link_name,
-            conditions,
-        )
-
-        # 组装conditional sink配置
-        vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
-
-        # 创建conditional sink引用
-        conditional_sink_item = {
-            "kind": DataLinkKind.CONDITIONALSINK.value,
+        basereport_sink_ref = {
+            "kind": "BasereportSink",
             "name": self.data_link_name,
             "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
         }
         if settings.ENABLE_MULTI_TENANT_MODE:
-            conditional_sink_item["tenant"] = self.bk_tenant_id
-
-        conditional_sink = [conditional_sink_item]
+            basereport_sink_ref["tenant"] = self.bk_tenant_id
 
         # 组装data bus配置
         data_bus_config = data_bus_ins.compose_config(
-            sinks=conditional_sink, transform_format=BASEREPORT_DATABUS_FORMAT
+            sinks=[basereport_sink_ref], transform_format=BASEREPORT_DATABUS_FORMAT
         )
 
-        # 添加conditional sink和data bus配置到配置列表
-        config_list.extend([vm_conditional_sink_config, data_bus_config])
+        config_list.extend(
+            [
+                self._compose_basereport_sink_config(
+                    name=self.data_link_name,
+                    vmrt_prefix=bkbase_vmrt_prefix,
+                    include_cmdb=True,
+                ),
+                data_bus_config,
+            ]
+        )
 
         if extra_source:
             config_list.extend(
@@ -881,8 +834,7 @@ class DataLink(models.Model):
         config_list.append(
             self._compose_basereport_sink_config(
                 name=extra_data_link_name,
-                bk_biz_id=bk_biz_id,
-                extra_source=extra_source,
+                vmrt_prefix=bkbase_vmrt_prefix,
             )
         )
         config_list.append(
@@ -901,18 +853,31 @@ class DataLink(models.Model):
         )
         return config_list
 
-    def _compose_basereport_sink_config(self, name: str, bk_biz_id: int, extra_source: str) -> dict[str, Any]:
+    def _compose_basereport_sink_config(
+        self, name: str, vmrt_prefix: str, include_cmdb: bool = False
+    ) -> dict[str, Any]:
         """生成 BasereportSink raw config。"""
         mappings = []
         for usage in BASEREPORT_USAGES:
+            vmrt_name = f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage
             sink = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                "name": f"base_{bk_biz_id}_{extra_source}_{usage}",
+                "name": vmrt_name,
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
             }
             if settings.ENABLE_MULTI_TENANT_MODE:
                 sink["tenant"] = self.bk_tenant_id
+
             mappings.append({"metric_type": usage, "sinks": [sink]})
+            if include_cmdb:
+                cmdb_sink = {
+                    "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                    "name": f"{vmrt_name}_cmdb",
+                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                }
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    cmdb_sink["tenant"] = self.bk_tenant_id
+                mappings.append({"metric_type": f"{usage}_cmdb", "sinks": [cmdb_sink]})
 
         metadata = {
             "name": name,
