@@ -12,7 +12,7 @@ from apps.tests.log_databus.v4_clean.helpers import (
     assert_rule_exists,
     assert_rule_absent,
 )
-from apps.tests.log_databus.v4_clean.testdata.built_in_configs import get_fresh_config
+from apps.tests.log_databus.v4_clean.testdata.built_in_configs import build_test_field_list, get_fresh_config
 from apps.tests.log_databus.v4_clean.testdata.field_fixtures import make_field
 
 
@@ -26,7 +26,8 @@ class TestJsonRetainOriginalText(TestCase):
         """retain_original_text=True 时应生成 log assign 规则"""
         etl_params = {"retain_original_text": True}
         fields = [make_field("level")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         log_rules = find_rules_by_output(rules, "log")
         self.assertEqual(len(log_rules), 1)
@@ -37,7 +38,8 @@ class TestJsonRetainOriginalText(TestCase):
         """retain_original_text=False 且 enable_retain_content 未设置时不应生成 log 规则"""
         etl_params = {"retain_original_text": False}
         fields = [make_field("level")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         assert_rule_absent(self, rules, "log")
 
@@ -52,7 +54,8 @@ class TestJsonEnableRetainContent(TestCase):
         """enable_retain_content=True 时应生成 log assign 规则"""
         etl_params = {"retain_original_text": False, "enable_retain_content": True}
         fields = [make_field("level")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         log_rules = find_rules_by_output(rules, "log")
         self.assertEqual(len(log_rules), 1)
@@ -61,7 +64,8 @@ class TestJsonEnableRetainContent(TestCase):
         """enable_retain_content=True 时 bk_separator_object 的 json_de 应使用 null 策略"""
         etl_params = {"enable_retain_content": True}
         fields = [make_field("level")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         sep_rules = find_rules_by_output(rules, "bk_separator_object")
         self.assertEqual(len(sep_rules), 1)
@@ -71,7 +75,8 @@ class TestJsonEnableRetainContent(TestCase):
         """enable_retain_content 未设置时 json_de 应使用 drop 策略"""
         etl_params = {"retain_original_text": True}
         fields = [make_field("level")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         sep_rules = find_rules_by_output(rules, "bk_separator_object")
         self.assertEqual(len(sep_rules), 1)
@@ -88,7 +93,8 @@ class TestJsonRetainExtraJson(TestCase):
         """retain_extra_json=True 时应生成 delete + __ext_json assign 规则"""
         etl_params = {"retain_original_text": False, "retain_extra_json": True}
         fields = [make_field("level")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
 
         # delete 规则
@@ -109,7 +115,8 @@ class TestJsonRetainExtraJson(TestCase):
         """retain_extra_json=False 时不应生成 __ext_json"""
         etl_params = {"retain_original_text": False, "retain_extra_json": False}
         fields = [make_field("level")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         assert_rule_absent(self, rules, "__ext_json")
 
@@ -117,7 +124,8 @@ class TestJsonRetainExtraJson(TestCase):
         """有 alias 的字段应使用 alias 作为 exclude key"""
         etl_params = {"retain_original_text": False, "retain_extra_json": True}
         fields = [make_field("src_ip", alias="client_ip")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         delete_rules = find_rules_by_type(rules, "delete")
         exclude_values = [k["value"] for k in delete_rules[0]["operator"]["key_index"]]
@@ -128,7 +136,8 @@ class TestJsonRetainExtraJson(TestCase):
         """is_delete=True 的字段不应出现在 exclude keys 中"""
         etl_params = {"retain_original_text": False, "retain_extra_json": True}
         fields = [make_field("level"), make_field("debug", is_delete=True)]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         delete_rules = find_rules_by_type(rules, "delete")
         exclude_values = [k["value"] for k in delete_rules[0]["operator"]["key_index"]]
@@ -146,7 +155,8 @@ class TestJsonAliasAndDelete(TestCase):
         """有 alias 的字段应使用 alias 作为 output_id 和 alias"""
         etl_params = {"retain_original_text": False}
         fields = [make_field("src_ip", alias="client_ip")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         matched = find_rules_by_output(rules, "client_ip")
         self.assertEqual(len(matched), 1)
@@ -157,7 +167,8 @@ class TestJsonAliasAndDelete(TestCase):
         """is_delete=True 的字段不应生成 assign 规则"""
         etl_params = {"retain_original_text": False}
         fields = [make_field("level"), make_field("debug", is_delete=True)]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         assert_rule_absent(self, rules, "debug")
         assert_rule_exists(self, rules, "level")
@@ -173,7 +184,8 @@ class TestJsonFieldTypes(TestCase):
         """object 类型字段 output_type 应为 dict"""
         etl_params = {"retain_original_text": False}
         fields = [make_field("meta", "object")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         matched = find_rules_by_output(rules, "meta")
         self.assertEqual(matched[0]["operator"]["output_type"], "dict")
@@ -182,7 +194,8 @@ class TestJsonFieldTypes(TestCase):
         """bool 类型字段 output_type 应为 boolean"""
         etl_params = {"retain_original_text": False}
         fields = [make_field("active", "bool")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         matched = find_rules_by_output(rules, "active")
         self.assertEqual(matched[0]["operator"]["output_type"], "boolean")
@@ -191,7 +204,8 @@ class TestJsonFieldTypes(TestCase):
         """int 类型字段 output_type 应为 long"""
         etl_params = {"retain_original_text": False}
         fields = [make_field("count", "int")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         matched = find_rules_by_output(rules, "count")
         self.assertEqual(matched[0]["operator"]["output_type"], "long")
@@ -210,7 +224,7 @@ class TestJsonTimeField(TestCase):
         etl_params = {"retain_original_text": False}
         fields = [make_field("level")]
         config = make_nanos_config("yyyy-MM-dd HH:mm:ss.SSSSSS")
-        result = self.storage.build_log_v4_data_link(fields, etl_params, config)
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         nanos_rules = find_rules_by_output(rules, "dtEventTimeStampNanos")
         self.assertEqual(len(nanos_rules), 1)
@@ -223,7 +237,7 @@ class TestJsonTimeField(TestCase):
             make_field("log_time", is_time=True, option={"time_zone": 8, "time_format": "yyyy-MM-dd HH:mm:ss.SSSSSS"}),
         ]
         config = get_fresh_config()  # 标准 built_in: yyyy-MM-dd HH:mm:ss (非 nanos)
-        result = self.storage.build_log_v4_data_link(fields, etl_params, config)
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         nanos_rules = find_rules_by_output(rules, "dtEventTimeStampNanos")
         self.assertEqual(len(nanos_rules), 0)
@@ -237,8 +251,10 @@ class TestJsonStructure(TestCase):
 
     def test_first_rule_is_json_de(self):
         """第一条规则应为 __raw_data → json_data 的 json_de"""
+        fields = [make_field("level")]
+        config = get_fresh_config()
         result = self.storage.build_log_v4_data_link(
-            [make_field("level")], {"retain_original_text": False}, get_fresh_config()
+            fields, {"retain_original_text": False}, config, build_test_field_list(fields, config)
         )
         rules = result["clean_rules"]
         self.assertEqual(rules[0]["input_id"], "__raw_data")
@@ -247,8 +263,10 @@ class TestJsonStructure(TestCase):
 
     def test_iter_pipeline(self):
         """应包含 items get → iter → iter_string get 管道"""
+        fields = [make_field("level")]
+        config = get_fresh_config()
         result = self.storage.build_log_v4_data_link(
-            [make_field("level")], {"retain_original_text": False}, get_fresh_config()
+            fields, {"retain_original_text": False}, config, build_test_field_list(fields, config)
         )
         rules = result["clean_rules"]
         items_rules = find_rules_by_output(rules, "items")
@@ -265,7 +283,10 @@ class TestJsonStructure(TestCase):
     def test_user_field_assigns_from_separator_object(self):
         """用户字段 assign 规则的 input_id 应为 bk_separator_object"""
         fields = [make_field("level"), make_field("count", "int")]
-        result = self.storage.build_log_v4_data_link(fields, {"retain_original_text": False}, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(
+            fields, {"retain_original_text": False}, config, build_test_field_list(fields, config)
+        )
         rules = result["clean_rules"]
         for field_name in ["level", "count"]:
             matched = find_rules_by_output(rules, field_name)
@@ -274,7 +295,10 @@ class TestJsonStructure(TestCase):
 
     def test_es_storage_config(self):
         """es_storage_config 应包含 unique_field_list 和 timezone"""
-        result = self.storage.build_log_v4_data_link([], {"retain_original_text": False}, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(
+            [], {"retain_original_text": False}, config, build_test_field_list([], config)
+        )
         es_config = result["es_storage_config"]
         self.assertIn("unique_field_list", es_config)
         self.assertEqual(es_config["timezone"], 8)
