@@ -217,8 +217,6 @@ class TGPATaskHandler:
             condition_list.append(f"openid={params['openid']}")
         if params.get("task_id"):
             condition_list.append(f"task_id={params['task_id']}")
-        if params.get("file_name"):
-            condition_list.append(f"file_name={params['file_name']}")
 
         if condition_list:
             request_params["search"] = ";".join(condition_list)
@@ -245,12 +243,14 @@ class TGPATaskHandler:
         }
 
     @staticmethod
-    def get_openid_list(bk_biz_id, keyword=None, limit=TGPA_OPENID_SUGGEST_LIMIT):
+    def get_openid_list(bk_biz_id, keyword=None, start_time=None, end_time=None, limit=TGPA_OPENID_SUGGEST_LIMIT):
         """
         获取 openid 列表（从 task 数据源中查询）
         查询有限数量的任务并从中提取去重的 openid，用于联想场景，无需全量扫描。
         :param bk_biz_id: 业务ID
         :param keyword: 搜索关键字，用于过滤 openid
+        :param start_time: 开始时间（毫秒时间戳）
+        :param end_time: 结束时间（毫秒时间戳）
         :param limit: 最多返回的 openid 数量
         :return: 去重后的 openid 列表
         """
@@ -263,6 +263,14 @@ class TGPATaskHandler:
         }
         if keyword:
             request_params["search"] = f"openid:{keyword}"
+
+        # 限制时间范围，与 get_task_page 保持一致
+        start_str = (
+            arrow.get(start_time / 1000).to(settings.TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S") if start_time else ""
+        )
+        end_str = arrow.get(end_time / 1000).to(settings.TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S") if end_time else ""
+        if start_str or end_str:
+            request_params["time_range"] = ",".join([start_str, end_str])
 
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
         openid_set = set()
