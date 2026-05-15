@@ -123,7 +123,7 @@ export default defineComponent({
           query: restQuery,
         });
       },
-      onTabChange: async type => {
+      onTabChange: async (type, _previousType, isInitial) => {
         const currentQuery = { ...route.query };
         currentQuery.tab = type === CLUSTER_TYPES.DORIS ? 'doris' : 'es';
         router.replace({
@@ -132,8 +132,10 @@ export default defineComponent({
           query: currentQuery,
         });
 
-        storageList.value = [];
-        resetClusterSelection();
+        if (!isInitial) {
+          storageList.value = [];
+          resetClusterSelection();
+        }
         await getStorage();
       },
     });
@@ -342,6 +344,10 @@ export default defineComponent({
       initData();
       loading.value = true;
       checkDorisAccess();
+      let clusterType: ClusterType | undefined;
+      if (props.configData?.storage_cluster_type) {
+        clusterType = props.configData.storage_cluster_type;
+      }
       const isStorageEdit = ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
       if (isStorageEdit) {
         await $http
@@ -350,7 +356,10 @@ export default defineComponent({
           })
           .then(res => {
             if (res?.data) {
-              const { storage_cluster_id, storage_shards_nums } = res.data;
+              const { storage_cluster_id, storage_shards_nums, storage_cluster_type } = res.data;
+              if (storage_cluster_type) {
+                clusterType = storage_cluster_type;
+              }
               formData.value = {
                 ...formData.value,
                 ...res.data,
@@ -360,7 +369,7 @@ export default defineComponent({
             }
           });
       }
-      await getStorage();
+      await handleTabClick(clusterType ?? activeTab.value, true);
       if (!isCustomReport.value) {
         getCleanStash();
       }
