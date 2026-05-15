@@ -1,0 +1,225 @@
+/* stylelint-disable selector-class-pattern */
+@use 'mixins';
+
+.alarm-table.incident-alert-table {
+  .alert-status-col {
+    height: 0;
+    padding-top: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+
+    .explore-col {
+      position: relative;
+      height: 100%;
+
+      .operate-panel {
+        position: absolute;
+        top: 0;
+        right: -40px;
+        display: none;
+        column-gap: 14px;
+        align-items: center;
+        height: 100%;
+        padding: 0 16px;
+        color: #313238;
+        background: #eaebf0;
+
+        &.more-menu-active {
+          display: flex;
+        }
+
+        &-item {
+          --icon-container-size: 18px;
+
+          width: var(--icon-container-size);
+          height: var(--icon-container-size);
+
+          @include mixins.icon-size(18px, true);
+
+          &.icon-we-com {
+            width: var(--icon-container-size);
+            height: var(--icon-container-size);
+
+            @include mixins.icon-size(16px, true);
+          }
+
+          &.icon-chuli {
+            width: var(--icon-container-size);
+            height: var(--icon-container-size);
+
+            @include mixins.icon-size(16px, true);
+          }
+
+          &.is-disable {
+            color: #c4c6cc;
+            cursor: not-allowed;
+
+            &:hover {
+              color: #c4c6cc;
+              cursor: not-allowed;
+            }
+          }
+        }
+
+        .operate-more {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+
+          .icon-mc-more {
+            font-size: 18px;
+          }
+
+          &:hover {
+            cursor: pointer;
+            background: #e1ecff;
+          }
+        }
+      }
+    }
+  }
+
+  .explore-col {
+    &.alert-extend-info-col {
+      & > div {
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: center;
+        max-width: 100%;
+        line-height: 18px;
+
+        .extend-content {
+          display: flex;
+          height: 18px;
+
+          @include mixins.text-ellipsis;
+
+          &-message {
+            @include mixins.text-ellipsis;
+          }
+
+          &-link {
+            color: #3a84ff;
+            cursor: pointer;
+
+            &.link-more {
+              float: right;
+              margin-left: 6px;
+            }
+          }
+        }
+      }
+    }
+
+    &.alert-description-col {
+      .description-click {
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    &.explore-prefix-icon-col {
+      .alert-status-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+
+        &.icon-mind-fill {
+          color: #f59789;
+        }
+
+        &.icon-mc-check-fill {
+          color: #6fc5bf;
+        }
+
+        &.icon-shixiao {
+          font-size: 14px;
+          color: #8e9bb3;
+        }
+      }
+
+      .alert-description-icon {
+        &.icon-monitor {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          font-size: 14px;
+          color: #8e9bb3;
+          background-color: #f0f2f7;
+        }
+      }
+
+      .alert-target-icon {
+        &.icon-monitor {
+          color: #8e9bb3;
+        }
+      }
+    }
+  }
+
+  .t-table {
+    .t-table__content {
+      .t-table__body {
+        tr:not(.t-table__row--full) {
+          // 让 setting 列的 td body 不截断相邻列的溢出内容
+          td:last-child {
+            overflow: visible;
+          }
+
+          // hover 或"更多"菜单激活时，确保 setting 列 td 不遮挡操作面板，并显示操作面板
+          &:hover,
+          &:has(.more-menu-active) {
+            td:last-child {
+              pointer-events: none;
+              z-index: 0;
+            }
+
+            .alert-status-col {
+              .explore-col {
+                .operate-panel {
+                  display: flex;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* 故障详情特有：根因标签样式 */
+  .lever-rect-col {
+    .root-cause,
+    .root-feed {
+      display: inline-block;
+      flex-shrink: 0;
+      height: 16px;
+      padding: 0 4px;
+      margin-left: 6px;
+      font-size: 10px;
+      line-height: 16px;
+      color: #fff;
+      border-radius: 8px;
+    }
+
+    .root-cause {
+      background: #f55555;
+    }
+
+    .root-feed {
+      background: #ff9c01;
+    }
+  }
+}
