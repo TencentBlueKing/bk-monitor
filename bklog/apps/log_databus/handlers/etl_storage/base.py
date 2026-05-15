@@ -417,7 +417,7 @@ class EtlStorage:
                 elif storage_cluster_type == DORIS_CLUSTER_TYPE:
                     main_time_rules["operator"]["output_type"] = "string"
                     main_time_rules["operator"]["is_time_field"] = True
-                    main_time_rules["operator"]["time_format"] = {"format": "%Y-%m-%d %H:%M:%S", "zone": 8}
+                    main_time_rules["operator"]["time_format"] = v4_time_parsing
 
                 rules.append(main_time_rules)
 
