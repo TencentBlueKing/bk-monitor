@@ -86,15 +86,15 @@ export default defineComponent({
     /** 上次请求 openid 列表时使用的关键词 */
     let lastKeyword: string | null = null;
 
-    // ---- openid/task_id 类型判断相关 ----
-    /** 当前值的类型（openid 或 task_id），从列表选择时为 'openid'，手动输入时待联想结果判断 */
-    const currentValueType = ref<SearchValueType | undefined>(undefined);
+    /** 当前值的类型 */
+    const currentValueType = ref<SearchValueType | undefined>(urlState.valueType || undefined);
 
     /** 搜索按钮是否禁用（联想请求进行中且类型未确定，或面板加载中时禁用） */
     const isSearchDisabled = computed(() => props.loading || (isRequesting.value && keyword.value.trim() !== '' && !currentValueType.value));
 
     /**
      * 请求 openid 列表
+     * @param searchVal 搜索关键词
      */
     const fetchOpenidList = (searchVal: string) => {
       // 清除防抖定时器
@@ -191,6 +191,8 @@ export default defineComponent({
     /** 输入框聚焦 */
     const handleFocus = () => {
       isFocused.value = true;
+      // 以 .zip 为后缀时不请求 openid 列表、不显示弹窗
+      if (keyword.value.trim().endsWith('.zip')) return;
       fetchOpenidList(keyword.value);
     };
 
@@ -214,13 +216,15 @@ export default defineComponent({
       }
     });
 
-
     /**
      * 执行搜索
      * @param allowEmpty 是否允许空关键词搜索
      */
     const handleSearch = (allowEmpty = true) => {
       if (!allowEmpty && !keyword.value.trim()) {
+        return;
+      }
+      if (isSearchDisabled.value) {
         return;
       }
 
@@ -250,6 +254,29 @@ export default defineComponent({
       handleSearch();
     };
 
+    /** 输入框内容变化 */
+    const handleChange = (val: string) => {
+      keyword.value = val;
+      // 手动输入时重置类型，等待联想结果判断
+      currentValueType.value = undefined;
+      // 如果输入内容以 .zip 为后缀，则类型为 file_name
+      if (val.trim().endsWith('.zip')) {
+        currentValueType.value = 'file_name';
+        isOpenidListVisible.value = false;
+        isRequesting.value = false;
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        if (cancelExecutor) {
+          cancelExecutor();
+          cancelExecutor = null;
+        }
+      } else {
+        fetchOpenidList(val);
+      }
+    };
+
     expose({ reSearch });
 
     return () => (
@@ -258,18 +285,12 @@ export default defineComponent({
         <div class='search-bar-input'>
           <bk-input
             value={keyword.value}
-            onChange={(val: string) => {
-              keyword.value = val;
-              // 手动输入时重置类型，等待联想结果判断
-              currentValueType.value = undefined;
-              fetchOpenidList(val);
-            }}
+            onChange={handleChange}
             right-icon='bk-icon icon-search'
             onFocus={handleFocus}
             onBlur={handleBlur}
-            on-right-icon-click={() => {
-              if (!isSearchDisabled.value) handleSearch();
-            }}
+            onEnter={handleSearch}
+            on-right-icon-click={handleSearch}
             clearable
           />
           {/* 字段列表弹窗 */}

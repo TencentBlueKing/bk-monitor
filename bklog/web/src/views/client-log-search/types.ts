@@ -65,7 +65,7 @@ export interface FileTreeNode {
 }
 
 /** 搜索值的类型 */
-export type SearchValueType = 'openid' | 'task_id';
+export type SearchValueType = 'openid' | 'task_id' | 'file_name';
 
 /** 搜索参数类型 */
 export interface SearchParams {
@@ -81,6 +81,7 @@ export interface UrlState {
   startTime?: string;                // 时间范围-开始
   endTime?: string;                  // 时间范围-结束
   timezone?: string;                 // 时区
+  valueType?: SearchValueType;       // 搜索值的类型：openid / task_id / file_name
   fileName?: string;                 // 选中的任务文件名
   fileId?: string;                   // 选中的文件路径
   filterKey?: string[];              // 关键词过滤列表
