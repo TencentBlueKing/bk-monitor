@@ -25,19 +25,21 @@
  */
 export const PROTOCOLS = [
   {
-    icon: 'icon-mc-service-unknown',
+    icon: 'icon-Opentelemetry',
     id: 'OT',
-    name: 'OT 协议',
+    name: window.i18n.t('OT 协议'),
     labels: ['OpenTelemetry'],
-    desc: '遵循 OpenTelemetry 标准，数据通过 OTLP 格式上报，兼容可观测平台生态，适合已有 OTel 基础设施的团队。',
-    tags: ['标准格式', '生态兼容', 'Trace 关联'],
+    desc: window.i18n.t(
+      '遵循 OpenTelemetry 标准，数据通过 OTLP 格式上报，兼容可观测平台生态，适合已有 OTel 基础设施的团队。'
+    ),
+    tags: [window.i18n.t('标准格式'), window.i18n.t('生态兼容'), window.i18n.t('Trace 关联')],
   },
   {
-    icon: 'icon-mc-service-unknown',
+    icon: 'icon-Aegis',
     id: 'Aegis',
-    name: 'Aegis 协议',
-    labels: ['蓝鲸原生'],
-    desc: '蓝鲸监控原生上报协议，接入成本低，数据结构针对 RUM 场景深度优化，适合新项目快速接入',
-    tags: ['轻量接入', '深度优化', '配置简单'],
+    name: window.i18n.t('Aegis 协议'),
+    labels: [window.i18n.t('蓝鲸原生')],
+    desc: window.i18n.t('蓝鲸监控原生上报协议，接入成本低，数据结构针对 RUM 场景深度优化，适合新项目快速接入'),
+    tags: [window.i18n.t('轻量接入'), window.i18n.t('深度优化'), window.i18n.t('配置简单')],
   },
 ];

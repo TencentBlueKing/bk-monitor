@@ -1,8 +1,8 @@
 @font-face {
   font-family: icon-monitor; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1776736648709') format('woff2'),
-       url('monitor-icons.woff?t=1776736648709') format('woff'),
-       url('monitor-icons.ttf?t=1776736648709') format('truetype');
+  src: url('monitor-icons.woff2?t=1778748117388') format('woff2'),
+       url('monitor-icons.woff?t=1778748117388') format('woff'),
+       url('monitor-icons.ttf?t=1778748117388') format('truetype');
 }
 
 .icon-monitor {
@@ -11,6 +11,26 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-Opentelemetry::before {
+  content: "\e862";
+}
+
+.icon-CDN::before {
+  content: "\e863";
+}
+
+.icon-npm::before {
+  content: "\e864";
+}
+
+.icon-Aegis::before {
+  content: "\e865";
+}
+
+.icon-alert-line::before {
+  content: "\e861";
 }
 
 .icon-web::before {
