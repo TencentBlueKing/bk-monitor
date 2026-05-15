@@ -30,7 +30,12 @@ from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
-from apps.utils.local import get_local_param, get_request_external_username, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_app_code,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 
 
@@ -457,7 +462,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "extra": bcs_extra,
         })
 
-        return {
+        result = {
             "fields": field_list,
             "display_fields": ["dtEventTimeStamp", "log"],
             "sort_list": sort_list,
@@ -467,6 +472,36 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "time_field_unit": "millisecond",
             "config": config_list,
         }
+
+        # 合入当前用户在该业务-场景-范围下的字段展示配置（与 index-set 的 user_custom_config 形态对齐）
+        scene_id = self._extract_scene_id()
+        if self.bk_biz_id and scene_id:
+            from apps.log_search.models import UserSceneFieldsConfig
+
+            user_cfg = UserSceneFieldsConfig.objects.filter(
+                bk_biz_id=self.bk_biz_id,
+                username=self.request_username,
+                scene_id=scene_id,
+                scope=scope,
+                source_app_code=get_request_app_code(),
+            ).first()
+            if user_cfg:
+                result["user_fields_config"] = {
+                    "display_fields": user_cfg.display_fields,
+                    "sort_list": user_cfg.sort_list,
+                    "updated_at": user_cfg.updated_at,
+                }
+        return result
+
+    def _extract_scene_id(self) -> str:
+        """从 table_id_conditions 中提取 scene 维度值；任一 AND 组命中即返回。"""
+        for and_group in self.table_id_conditions or []:
+            for c in and_group:
+                if c.get("field_name") == "scene":
+                    values = c.get("value") or []
+                    if values:
+                        return values[0]
+        return ""
 
     def date_histogram(self, interval: str = "auto") -> dict:
         conditions = self._transform_scene_additions()

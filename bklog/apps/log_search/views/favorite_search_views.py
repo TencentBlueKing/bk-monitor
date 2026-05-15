@@ -145,7 +145,12 @@ class FavoriteViewSet(APIViewSet):
         }
         """
         data = self.params_valid(FavoriteListSerializer)
-        return Response(FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(order_type=data["order_type"]))
+        return Response(
+            FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(
+                order_type=data["order_type"],
+                source_type=data.get("source_type"),
+            )
+        )
 
     @list_route(methods=["GET"])
     def list_by_group(self, request, *args, **kwargs):
@@ -200,7 +205,10 @@ class FavoriteViewSet(APIViewSet):
         """
         data = self.params_valid(FavoriteListSerializer)
         return Response(
-            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(order_type=data["order_type"])
+            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(
+                order_type=data["order_type"],
+                source_type=data.get("source_type"),
+            )
         )
 
     def create(self, request, *args, **kwargs):
@@ -288,6 +296,10 @@ class FavoriteViewSet(APIViewSet):
             index_set_ids=data["index_set_ids"],
             index_set_type=data["index_set_type"],
             favorite_type=data["favorite_type"],
+            source_type=data.get("source_type"),
+            scene_id=data.get("scene_id"),
+            table_id_conditions=data.get("table_id_conditions"),
+            scene_filter_values=data.get("scene_filter_values"),
         )
         return Response(favorite_search)
 
@@ -372,6 +384,10 @@ class FavoriteViewSet(APIViewSet):
             index_set_id=data.get("index_set_id"),
             index_set_ids=data["index_set_ids"],
             index_set_type=data["index_set_type"],
+            source_type=data.get("source_type"),
+            scene_id=data.get("scene_id"),
+            table_id_conditions=data.get("table_id_conditions"),
+            scene_filter_values=data.get("scene_filter_values"),
         )
         return Response(favorite_search)
 

@@ -1608,6 +1608,20 @@ class FavoriteType(ChoicesEnum):
     _choices_labels = ((SEARCH, _("检索")), (CHART, _("图表")))
 
 
+class FavoriteSourceType(ChoicesEnum):
+    """
+    收藏来源类型：用于区分索引集场景收藏与场景化检索收藏。
+    """
+
+    INDEX_SET = "index_set"
+    SCENE = "scene"
+
+    _choices_labels = (
+        (INDEX_SET, _("索引集检索")),
+        (SCENE, _("场景化检索")),
+    )
+
+
 # 用户指引步骤
 USER_GUIDE_STEP_LIST = [
     {"title": _("业务选择框"), "target": "#bizSelectorGuide", "content": _("业务选择框的位置全部换到左侧导航")},
