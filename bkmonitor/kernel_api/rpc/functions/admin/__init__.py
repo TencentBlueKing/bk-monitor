@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from . import (
     apm,
+    api_auth_token,
     ascode_import_task,
     bcs_cluster,
     cluster_info,
@@ -26,6 +27,7 @@ from . import (
 
 __all__ = [
     "apm",
+    "api_auth_token",
     "ascode_import_task",
     "bcs_cluster",
     "cluster_info",

@@ -14,6 +14,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
+from kernel_api.rpc.functions.admin.api_auth_token import (
+    _normalize_biz_ids,
+    _normalize_namespaces,
+    _serialize_api_auth_token,
+)
 from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin.es_storage import (
@@ -61,6 +66,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.es_storage.detail",
         "admin.es_storage.runtime_overview",
         "admin.es_storage.sample",
+        "admin.es_storage.rotate_aliases",
         "admin.query_route.query",
         "admin.query_route.refresh",
         "admin.doris_storage.list",
@@ -73,11 +79,57 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.kafka_storage.detail",
         "admin.bkbase_result_table.list",
         "admin.bkbase_result_table.detail",
+        "admin.custom_report.list",
+        "admin.custom_report.detail",
+        "admin.custom_report.metric_list",
+        "admin.custom_report.refresh_metrics",
+        "admin.api_auth_token.list",
+        "admin.api_auth_token.detail",
+        "admin.api_auth_token.create",
+        "admin.api_auth_token.update",
+        "admin.api_auth_token.delete",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
     assert detail is not None
     assert detail["params_schema"]["include"].find("fields") != -1
+
+
+def test_api_auth_token_serializer_keeps_api_token_fields():
+    token = SimpleNamespace(
+        id=1,
+        bk_tenant_id="system",
+        name="demo-api-token",
+        token="secret-token",
+        namespaces=["biz#2", "biz#-4779"],
+        type="api",
+        params={"app_code": "demo-app", "scope": "demo"},
+        expire_time=None,
+        is_enabled=True,
+        is_deleted=False,
+        create_user="admin",
+        create_time=None,
+        update_user="admin",
+        update_time=None,
+    )
+
+    item = _serialize_api_auth_token(token)
+
+    assert item["type"] == "api"
+    assert item["token"] == "secret-token"
+    assert item["namespaces"] == ["biz#2", "biz#-4779"]
+    assert item["app_code"] == "demo-app"
+    assert item["applicant"] == "admin"
+    assert item["biz_ids"] == [2, -4779]
+
+
+def test_api_auth_token_namespaces_accepts_json_and_csv():
+    assert _normalize_namespaces('["biz#2", "project#5"]') == ["biz#2", "project#5"]
+    assert _normalize_namespaces("biz#2, project#5") == ["biz#2", "project#5"]
+
+
+def test_api_auth_token_biz_ids_accepts_negative_biz_id():
+    assert _normalize_biz_ids([2, "-4779"]) == [2, -4779]
 
 
 def test_doris_storage_physical_metadata_rpc_marks_inspect_and_serializes_runtime_values():
@@ -524,12 +576,21 @@ def test_kafka_sample_function_registered():
     assert "bk_data_id" in detail["params_schema"]
 
 
+def test_custom_report_refresh_metrics_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.custom_report.refresh_metrics")
+    assert detail is not None
+    assert detail["func_name"] == "admin.custom_report.refresh_metrics"
+    assert "write" in detail["description"]
+    assert "expired_time" in detail["params_schema"]
+
+
 def test_es_storage_functions_registered():
     for func_name in [
         "admin.es_storage.list",
         "admin.es_storage.detail",
         "admin.es_storage.runtime_overview",
         "admin.es_storage.sample",
+        "admin.es_storage.rotate_aliases",
     ]:
         detail = KernelRPCRegistry.get_function_detail(func_name)
         assert detail is not None
@@ -538,6 +599,9 @@ def test_es_storage_functions_registered():
     runtime_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.runtime_overview")
     assert "inspect" in runtime_detail["description"]
     assert "table_id" in runtime_detail["params_schema"]
+    rotate_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.rotate_aliases")
+    assert "write" in rotate_detail["description"]
+    assert "traceback" in rotate_detail["description"]
 
 
 def test_storage_functions_registered():

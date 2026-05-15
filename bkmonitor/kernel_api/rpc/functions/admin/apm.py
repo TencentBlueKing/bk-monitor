@@ -213,7 +213,6 @@ def _serialize_custom_metric_group(group: Any, metric_count: int) -> dict[str, A
         "is_enable": group.is_enable,
         "metric_count": metric_count,
         "field_count": 0,
-        "monitor_web_source": None,
         "apm_application_count": 1,
         "last_modify_time": serialize_value(group.last_modify_time),
     }

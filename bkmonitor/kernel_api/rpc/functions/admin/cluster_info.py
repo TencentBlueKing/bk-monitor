@@ -421,7 +421,8 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
 
     effective_cluster_type = _resolve_cluster_type(params, cluster)
 
-    data: dict[str, Any] = {"cluster": _serialize_cluster_info(cluster)}
+    cluster_item = _serialize_cluster_info(cluster)
+    data: dict[str, Any] = {"cluster": cluster_item}
     warnings: list[dict[str, Any]] = []
 
     from metadata.models.data_link.data_link_configs import ClusterConfig
@@ -478,14 +479,14 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
     if effective_cluster_type == models.ClusterInfo.TYPE_KAFKA:
         datasource_count = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, mq_cluster_id=cluster_id).count()
     data["related_datasources"] = datasource_count
+    cluster_item["associated_datasources"] = datasource_count
 
+    storage_count = 0
     storage_model = _get_storage_model_for_cluster_type(effective_cluster_type)
     if storage_model is not None:
-        data["related_result_tables"] = storage_model.objects.filter(
-            bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id
-        ).count()
-    else:
-        data["related_result_tables"] = 0
+        storage_count = storage_model.objects.filter(bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id).count()
+    data["related_result_tables"] = storage_count
+    cluster_item["associated_storages"] = storage_count
 
     return build_response(
         operation="cluster_info.detail",
