@@ -876,12 +876,12 @@ class ListRecentAssigneesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_ids = serializers.ListField(
-            label="业务ID列表", child=serializers.IntegerField(), required=True, allow_empty=False
+            label="业务ID", default=None, allow_null=True, child=serializers.IntegerField()
         )
         recent_days = serializers.IntegerField(label="最近天数", min_value=1, max_value=30, default=7)
 
     def perform_request(self, validated_request_data):
-        bk_biz_ids = validated_request_data["bk_biz_ids"]
+        bk_biz_ids = validated_request_data.get("bk_biz_ids") or []
         recent_days = validated_request_data["recent_days"]
 
         # 业务权限校验：仅保留当前用户有权限的业务

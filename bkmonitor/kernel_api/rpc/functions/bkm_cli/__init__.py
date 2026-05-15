@@ -8,6 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from . import assignment, bcs_metadata, cache, commands, db, platform_source, strategy  # noqa
+from . import assignment, bcs_metadata, cache, commands, db, issue, platform_source, strategy  # noqa
 
-__all__ = ["assignment", "bcs_metadata", "cache", "commands", "db", "platform_source", "strategy"]
+__all__ = ["assignment", "bcs_metadata", "cache", "commands", "db", "issue", "platform_source", "strategy"]

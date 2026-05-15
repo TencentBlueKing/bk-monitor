@@ -40,7 +40,7 @@ export const useChartTooltips = (
     options,
     customTooltipsOptions,
   }: {
-    customTooltipsOptions: CustomOptions['tooltips'];
+    customTooltipsOptions?: CustomOptions['tooltips'];
     hoverAllTooltips: MaybeRef<boolean>;
     isMouseOver: MaybeRef<boolean>;
     options: MaybeRef<any>;

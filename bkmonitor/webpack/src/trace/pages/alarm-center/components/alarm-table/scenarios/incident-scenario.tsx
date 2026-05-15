@@ -189,20 +189,30 @@ export class IncidentScenario extends BaseScenario {
    */
   private handleIncidentNameHover(e: MouseEvent, row: IncidentTableItem) {
     const content = (
-      <div class='alert-name-popover-container'>
-        <div class='alert-name-item'>
-          <span class='alert-name-item-label'>{window.i18n.t('故障ID')} : </span>
+      <div class='alarm-name-popover-container'>
+        <div class='alarm-name-popover-item'>
+          <span class='alarm-name-popover-item-label'>{window.i18n.t('故障ID')} : </span>
           <div
-            class='alert-name-item-value'
+            class='alarm-name-popover-item-value'
             onClick={() => this.handleCopyIncidentField(row?.id)}
           >
             <span class='item-text'>{row?.id || '--'}</span>
             <i class='icon-monitor icon-mc-copy' />
           </div>
         </div>
-        <div class='alert-name-item'>
-          <span class='alert-name-item-label'>{window.i18n.t('故障名称')} : </span>
-          <span>{row?.incident_name || '--'}</span>
+        <div class='alarm-name-popover-item'>
+          <span class='alarm-name-popover-item-label'>{window.i18n.t('故障名称')} : </span>
+          <div class='alarm-name-popover-item-value'>
+            <a
+              style='color: inherit'
+              href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
+              rel='noopener noreferrer'
+              target='_blank'
+            >
+              <span class='alarm-name-popover-item-value'>{row?.incident_name || '--'}</span>
+              <i class='icon-monitor icon-mc-goto' />
+            </a>
+          </div>
         </div>
       </div>
     ) as unknown as TippyContent;

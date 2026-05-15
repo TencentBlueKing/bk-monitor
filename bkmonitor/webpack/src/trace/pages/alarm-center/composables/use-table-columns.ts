@@ -74,8 +74,6 @@ export function useAlarmTableColumns() {
       bizIdsKey: alarmStore.bizIds.join(','),
     }),
     () => {
-      const key = alarmStore.alarmService.storageKey;
-      storageKey.value = key;
       validColumnKeys = new Set(alarmStore.alarmService.allTableColumns.map(col => col.colKey));
       let displayFields = alarmStore.alarmService.allTableColumns
         .filter(item => item.is_default)
@@ -88,6 +86,8 @@ export function useAlarmTableColumns() {
         fieldsWidth: {},
         version: TABLE_STORAGE_VERSION,
       };
+      const key = alarmStore.alarmService.storageKey;
+      storageKey.value = key;
     },
     { immediate: true }
   );

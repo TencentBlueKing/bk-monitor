@@ -233,15 +233,26 @@ class TestMigrateLegacyActiveIssues:
             with _pytest.raises(IssueMigrationError, match="update bulk failed permanently"):
                 migrate_legacy_active_issues()
 
-    def test_migration_done_sentinel_set_after_success(self):
-        """migrate 成功（含 noop 0 legacy）后必须 set 哨兵 cache。"""
-        from unittest.mock import patch
+    def test_migrate_does_not_set_sentinel_directly(self):
+        """migrate 在 post_migrate 路径下不直接 set 哨兵，避免 web/saas role 缺
+        REDIS_*_CONF 触发 alarm_backends.core.storage.redis 模块加载期 AttributeError。
+        哨兵由 worker 周期任务 _renew_legacy_migration_done_sentinel_if_needed 异步 set。
 
-        from bkmonitor.documents.issue import IssueDocument, migrate_legacy_active_issues
+        覆盖：noop 路径 + 有 legacy 被 RESOLVE 的成功路径，两条都不应调
+        _mark_legacy_migration_done。
+        """
+        from unittest.mock import MagicMock, patch
 
+        from bkmonitor.documents.issue import (
+            IssueActivityDocument,
+            IssueDocument,
+            migrate_legacy_active_issues,
+        )
+
+        # 场景 1：noop 路径（无 legacy）
         with (
             patch.object(IssueDocument, "rollover"),
-            patch("bkmonitor.documents.issue.IssueActivityDocument.rollover"),
+            patch.object(IssueActivityDocument, "rollover"),
             patch.object(IssueDocument, "search") as mock_search,
             patch("bkmonitor.documents.issue._mark_legacy_migration_done") as mock_mark,
         ):
@@ -249,7 +260,27 @@ class TestMigrateLegacyActiveIssues:
                 iter([])
             )
             assert migrate_legacy_active_issues() == 0
-            mock_mark.assert_called_once()
+            mock_mark.assert_not_called()
+
+        # 场景 2：成功路径（1 条 legacy 被 RESOLVE）
+        fake_hit = MagicMock()
+        fake_hit.meta.id = "legacy_issue_x"
+        fake_hit.bk_biz_id = "2"
+        fake_hit.status = "unresolved"
+
+        with (
+            patch.object(IssueDocument, "rollover"),
+            patch.object(IssueActivityDocument, "rollover"),
+            patch.object(IssueDocument, "search") as mock_search,
+            patch.object(IssueDocument, "bulk_create"),
+            patch.object(IssueActivityDocument, "bulk_create"),
+            patch("bkmonitor.documents.issue._mark_legacy_migration_done") as mock_mark,
+        ):
+            mock_search.return_value.filter.return_value.exclude.return_value.params.return_value.scan.return_value = (
+                iter([fake_hit])
+            )
+            assert migrate_legacy_active_issues() == 1
+            mock_mark.assert_not_called()
 
 
 class TestLegacyMigrationDoneSentinel:

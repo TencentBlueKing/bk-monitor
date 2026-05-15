@@ -446,3 +446,93 @@ def test_read_cache_key_set_missing_param_raises():
                 "params": {"strategy_group_key": "abc"},
             }
         )
+
+
+# ---------- issue fingerprint keys (B10) ----------
+
+
+def test_read_cache_key_issue_active_content_hit(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.issue.active.content.fp-abc"] = b'{"issue_id":"i-1","status":"ABNORMAL"}'
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.issue.active.content.{fingerprint}"),
+    )
+
+    result = read_cache_key({"key_name": "ISSUE_ACTIVE_CONTENT_KEY", "params": {"fingerprint": "fp-abc"}})
+
+    assert result["key_type"] == "string"
+    assert result["exists"] is True
+    assert result["value"] == {"issue_id": "i-1", "status": "ABNORMAL"}
+
+
+def test_read_cache_key_issue_active_content_requires_fingerprint():
+    with pytest.raises(CustomException, match="缺少必填参数"):
+        read_cache_key({"key_name": "ISSUE_ACTIVE_CONTENT_KEY", "params": {}})
+
+
+def test_read_cache_key_issue_fingerprint_lock_held(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.issue.fingerprint.lock.fp-xyz"] = b"locked"
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.issue.fingerprint.lock.{fingerprint}"),
+    )
+
+    result = read_cache_key({"key_name": "ISSUE_FINGERPRINT_LOCK", "params": {"fingerprint": "fp-xyz"}})
+
+    assert result["exists"] is True
+    assert result["value"] == "locked"
+
+
+def test_read_cache_key_issue_active_count_hit(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.issue.active_count.10313"] = b"42"
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.issue.active_count.{strategy_id}"),
+    )
+
+    result = read_cache_key({"key_name": "ISSUE_ACTIVE_COUNT_KEY", "params": {"strategy_id": 10313}})
+
+    assert result["exists"] is True
+    assert result["value"] == 42
+
+
+def test_read_cache_key_issue_active_count_requires_strategy_id():
+    with pytest.raises(CustomException, match="缺少必填参数"):
+        read_cache_key({"key_name": "ISSUE_ACTIVE_COUNT_KEY", "params": {}})
+
+
+def test_read_cache_key_issue_legacy_migration_done_sentinel(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.issue.legacy_migration.done"] = b"1"
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.issue.legacy_migration.done"),
+    )
+
+    # 无必填参数；params 可为空
+    result = read_cache_key({"key_name": "ISSUE_LEGACY_MIGRATION_DONE_KEY", "params": {}})
+
+    assert result["exists"] is True
+    assert result["value"] == 1
+
+
+def test_read_cache_key_issue_legacy_migration_done_missing(mocker):
+    """legacy 迁移哨兵不存在时返回 exists=False，agent 判定为"未完成或被清理"。"""
+    fake = FakeRedisClient()
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.issue.legacy_migration.done"),
+    )
+
+    result = read_cache_key({"key_name": "ISSUE_LEGACY_MIGRATION_DONE_KEY", "params": {}})
+
+    assert result["exists"] is False
+    assert result["value"] is None

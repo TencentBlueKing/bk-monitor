@@ -41,6 +41,7 @@ DATASOURCE_FIELDS = [
     "bk_tenant_id",
     "data_name",
     "data_description",
+    "etl_config",
     "type_label",
     "source_label",
     "custom_label",
@@ -82,6 +83,7 @@ DATASOURCE_DETAIL_FIELDS = DATASOURCE_FIELDS[:4] + [
 ORDERING_FIELDS = {
     "bk_data_id",
     "data_name",
+    "etl_config",
     "created_from",
     "source_label",
     "type_label",
@@ -306,6 +308,8 @@ def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str):
         queryset = queryset.filter(bk_data_id=_normalize_bk_data_id(params.get("bk_data_id")))
     if params.get("data_name"):
         queryset = queryset.filter(data_name__contains=str(params["data_name"]).strip())
+    if params.get("etl_config"):
+        queryset = queryset.filter(etl_config=str(params["etl_config"]).strip())
     for field in ["created_from", "source_label", "type_label", "space_uid"]:
         if params.get(field) not in (None, ""):
             queryset = queryset.filter(**{field: params[field]})
@@ -337,6 +341,7 @@ def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str):
         "bk_tenant_id": "可选，租户 ID",
         "bk_data_id": "可选，数据源 ID",
         "data_name": "可选，数据源名称包含匹配",
+        "etl_config": "可选，清洗配置精确匹配",
         "created_from": "可选，数据源来源",
         "source_label": "可选，数据源标签",
         "type_label": "可选，数据类型标签",

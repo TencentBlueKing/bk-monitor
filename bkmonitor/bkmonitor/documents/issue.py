@@ -624,6 +624,15 @@ def migrate_legacy_active_issues(batch_size: int = 500) -> int:
 
     回滚兼容：旧代码按 strategy_id 查活跃，已 RESOLVED 的旧 Issue 不会被命中，无冲突。
 
+    **本函数不直接 set legacy 迁移完成哨兵**：post_migrate hook 实际跑在 web/saas role
+    下，该 role 的 settings 不含 ``REDIS_*_CONF``（仅 worker role 有），调用
+    ``_mark_legacy_migration_done()`` 会触发 ``alarm_backends.core.storage.redis`` 在
+    模块加载时解析 ``settings.REDIS_CELERY_CONF`` 而抛 AttributeError，导致 migrate
+    命令以非 0 退出。哨兵改由 worker role 周期任务 ``sync_issue_alert_stats`` →
+    ``_renew_legacy_migration_done_sentinel_if_needed`` 在探查到 legacy=0 时异步 set；
+    哨兵未 set 期间 processor 仅多走 fallback ES 查询，不影响功能正确性，最大窗口
+    = 一个周期任务 interval（默认 5min）。
+
     Returns: 本次迁移的 Issue 数量
     Raises: IssueMigrationError（mapping 未 ready / bulk 失败重试仍失败）
     """
@@ -651,9 +660,9 @@ def migrate_legacy_active_issues(batch_size: int = 500) -> int:
         }
 
     if not legacy_meta:
-        # noop 路径同样要 set 哨兵：表明全系统当前已无 fingerprint=null 活跃 Issue，
-        # processor 据此跳过 legacy fallback ES 查询
-        _mark_legacy_migration_done()
+        # noop 路径：全系统当前已无 fingerprint=null 活跃 Issue。
+        # 哨兵由 worker 周期任务 _renew_legacy_migration_done_sentinel_if_needed 异步 set；
+        # 不在此处调用 _mark_legacy_migration_done()，避免 web/saas role 缺 REDIS_*_CONF 触发 AttributeError。
         return 0
 
     # Step 2: 分批 bulk_update + 写活动日志；任一批次失败 → 重试 1 次 → 仍失败 raise
@@ -690,10 +699,8 @@ def migrate_legacy_active_issues(batch_size: int = 500) -> int:
 
     logger.info("[issue migration] resolved %d legacy active issues (fingerprint=null)", total)
 
-    # Step 3: 设置全局哨兵 cache，processor 据此跳过 legacy fallback ES 查询
-    # 即便本次扫描 total=0（已无 legacy）也设置：标记"全系统已无 fingerprint=null 活跃 Issue"
-    _mark_legacy_migration_done()
-
+    # 哨兵由 worker 周期任务异步 set（见 docstring 与 _mark_legacy_migration_done 说明）；
+    # 此处不直接调用，避免 web/saas role 缺 REDIS_*_CONF 触发模块加载期 AttributeError。
     return total
 
 
@@ -701,6 +708,14 @@ def _mark_legacy_migration_done() -> None:
     """设置全局哨兵 cache，processor 据此跳过 legacy fallback。
 
     Redis 故障时仅 warning，不阻塞迁移成功——processor fail-open 退化到走 legacy fallback。
+
+    **仅供 worker role 调用**（如 ``_renew_legacy_migration_done_sentinel_if_needed``
+    在周期任务 ``sync_issue_alert_stats`` 里调用）。
+    ``alarm_backends.core.cache.key`` 在模块加载时 ``import RedisProxy`` 会触发
+    ``alarm_backends.core.storage.redis`` 在模块加载时解析 ``settings.REDIS_CELERY_CONF``，
+    web/saas role 的 settings 不含 ``REDIS_*_CONF``（仅 ``bkmonitor/config/role/worker.py``
+    定义），此时调用会抛 AttributeError。``migrate_legacy_active_issues`` 因此不调用本函数；
+    legacy=0 的初始 set 由 worker 周期任务异步接管。
     """
     from alarm_backends.core.cache.key import ISSUE_LEGACY_MIGRATION_DONE_KEY
 
