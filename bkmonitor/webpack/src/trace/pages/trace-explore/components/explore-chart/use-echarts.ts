@@ -550,6 +550,7 @@ export const useEcharts = ({
         isMouseOver: interactionState?.isMouseOver ?? true,
         hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
         options: echartOptions,
+        customTooltipsOptions: customOptions.tooltips,
       });
       return {
         ...echartOptions,
