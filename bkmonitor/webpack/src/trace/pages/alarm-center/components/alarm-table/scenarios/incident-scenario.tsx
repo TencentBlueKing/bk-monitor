@@ -112,14 +112,14 @@ export class IncidentScenario extends BaseScenario {
   /**
    * @description 故障名称(incident_name) 列渲染方法
    * @param {IncidentTableItem} row 故障项
-   * @param {BaseTableColumn} column 触发列的列配置项
-   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @param {BaseTableColumn} _column 触发列的列配置项（未使用）
+   * @param {TableCellRenderContext} _renderCtx 列渲染上下文（未使用）
    * @returns {SlotReturnValue} 渲染dom
    */
   private renderActionId(
     row: IncidentTableItem,
-    column: BaseTableColumn,
-    renderCtx: TableCellRenderContext
+    _column: BaseTableColumn,
+    _renderCtx: TableCellRenderContext
   ): SlotReturnValue {
     const rectColor = IncidentLevelIconMap?.[row?.level]?.iconColor;
     return (
@@ -136,6 +136,8 @@ export class IncidentScenario extends BaseScenario {
           <a
             class='lever-rect-link'
             href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
+            rel='noopener noreferrer'
+            target='_blank'
           >
             <span>{row?.incident_name}</span>
           </a>
