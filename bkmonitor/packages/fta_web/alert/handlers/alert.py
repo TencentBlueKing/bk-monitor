@@ -232,6 +232,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("is_handled", _lazy("是否已处理")),
         QueryField("is_blocked", _lazy("是否熔断")),
         QueryField("strategy_id", _lazy("策略ID")),
+        QueryField("issue_id", _lazy("Issue ID")),
         QueryField("create_time", _lazy("创建时间")),
         QueryField("update_time", _lazy("更新时间")),
         QueryField("begin_time", _lazy("开始时间")),
