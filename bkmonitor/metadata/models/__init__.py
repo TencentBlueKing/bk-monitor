@@ -55,7 +55,7 @@ from .influxdb_cluster import (
     InfluxDBTagInfo,
 )
 from .ping_server import PingServerSubscriptionConfig
-from .record_rule import RecordRule, ResultTableFlow
+from .record_rule import RecordRule, RecordRuleV4, ResultTableFlow
 from .entity_relation import (
     CustomRelationStatus,
     EntityMeta,
@@ -163,6 +163,7 @@ __all__ = [
     "SpaceRelatedStorageInfo",
     # record rule
     "RecordRule",
+    "RecordRuleV4",
     "ResultTableFlow",
     "BkBaseResultTable",
     # resource relation

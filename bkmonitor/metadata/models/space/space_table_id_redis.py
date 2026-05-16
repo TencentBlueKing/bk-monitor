@@ -22,6 +22,7 @@ from constants.apm import ApmGlobalTablePrefix
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
+from metadata.models.record_rule.constants import RECORD_RULE_V4_DELETED_RETENTION_DAYS
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -1374,6 +1375,32 @@ class SpaceTableIDRedis:
             bk_tenant_id,
         )
         objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
+        values = {obj.table_id: {"filters": []} for obj in objs}
+        values.update(
+            self._compose_record_rule_v4_table_ids(
+                space_type=space_type,
+                space_id=space_id,
+                bk_tenant_id=bk_tenant_id,
+            )
+        )
+        return values
+
+    def _compose_record_rule_v4_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+        """组装 V4 预计算输出结果表。
+
+        V4 输出 RT 没有普通 DataSourceResultTable 链路，空间可查询表索引
+        需要显式追加。停用只停止后续写入，不影响历史数据查询；删除完成
+        后也保留半年查询窗口，超过窗口后才从空间路由中移除。
+        """
+
+        from metadata.models.record_rule.v4 import RecordRuleV4
+
+        queryable_deleted_at = tz_now() - datetime.timedelta(days=RECORD_RULE_V4_DELETED_RETENTION_DAYS)
+        objs = RecordRuleV4.objects.filter(
+            space_type=space_type,
+            space_id=space_id,
+            bk_tenant_id=bk_tenant_id,
+        ).filter(Q(deleted_at__isnull=True) | Q(deleted_at__gt=queryable_deleted_at))
         return {obj.table_id: {"filters": []} for obj in objs}
 
     def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
