@@ -93,7 +93,7 @@ from .storage import (
     StorageClusterRecord,
     StorageResultTable,
 )
-from .vm import AccessVMRecord, SpaceVMInfo
+from .vm import AccessVMRecord, SpaceVMInfo, VMShortLinkRecord
 
 __all__ = [
     # datasource
@@ -159,6 +159,7 @@ __all__ = [
     "BkAppSpaceRecord",
     "AccessVMRecord",
     "SpaceVMInfo",
+    "VMShortLinkRecord",
     "SpaceRelatedStorageInfo",
     # record rule
     "RecordRule",

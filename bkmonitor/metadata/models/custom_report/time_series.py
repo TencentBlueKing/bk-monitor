@@ -529,6 +529,8 @@ class TimeSeriesGroup(CustomGroupBase):
         返回一个结果表的数据源
         :return: DataSource object
         """
+        if self.bk_data_id == 0:
+            return None
         return DataSource.objects.get(bk_data_id=self.bk_data_id)
 
     @property
@@ -621,7 +623,12 @@ class TimeSeriesGroup(CustomGroupBase):
         # 从 bkdata 获取指标数据
         data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
         # 默认开启单指标单表后，需要根据数据源的来源决定从哪里获取指标数据（redis/bkdata）
-        if self.table_id in data or self.data_source.created_from == DataIdCreatedFromSystem.BKDATA.value:
+        data_source = self.data_source
+        if (
+            self.table_id in data
+            or data_source is None
+            or data_source.created_from == DataIdCreatedFromSystem.BKDATA.value
+        ):
             return self.get_metric_from_bkdata()
 
         # 获取redis中数据
