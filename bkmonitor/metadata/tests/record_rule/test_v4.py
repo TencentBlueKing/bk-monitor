@@ -46,10 +46,10 @@ def create_rule(**overrides) -> RecordRuleV4:
         "bk_tenant_id": "tenant_v4_unit",
         "space_type": "bkcc",
         "space_id": "2",
-        "group_name": "cpu-group",
-        "flow_name": f"rrv4_cpu_group_group_{suffix}",
-        "table_id": f"bkprecal_cpu_group_{suffix}.__default__",
-        "dst_vm_table_id": f"vm_bkprecal_cpu_group_{suffix}",
+        "name": "cpu-group",
+        "flow_name": f"bkm_rr_1_cpu_group_{suffix}",
+        "table_id": f"bkm_rr_1_cpu_group_{suffix}.__default__",
+        "dst_vm_table_id": f"vm_bkm_rr_1_cpu_group_{suffix}",
         "dst_vm_storage_name": "monitor-opsystem",
         "creator": "pytest",
         "updater": "pytest",
@@ -123,29 +123,42 @@ def test_stable_hash_is_independent_from_dict_key_order():
 
 def test_compose_names_keep_hint_random_suffix_and_short_length():
     table_id = RecordRuleV4.compose_table_id(
-        group_name="cpu-usage.with/slashes-and-very-long-name",
+        pk=123,
+        name="cpu-usage.with/slashes-and-very-long-name",
         random_suffix="abcdef12",
     )
     result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
     flow_name = RecordRuleV4.compose_flow_name(
-        group_name="cpu-usage.with/slashes-and-very-long-name",
-        flow_hint="record:cpu-total",
+        pk=123,
+        name="cpu-usage.with/slashes-and-very-long-name",
         random_suffix="abcdef12",
     )
     group_flow_name = RecordRuleV4.compose_group_flow_name(
-        group_name="cpu-usage.with/slashes-and-very-long-name",
+        pk=123,
+        name="cpu-usage.with/slashes-and-very-long-name",
         table_id=table_id,
     )
+    table_base_name = table_id.split(".__default__")[0]
 
-    assert len(table_id) <= 50
+    assert len(table_base_name) <= 50
     assert len(result_table_config_name) <= 40
     assert len(flow_name) <= 50
     assert len(group_flow_name) <= 50
-    assert table_id.startswith("bkprecal_cpu_usage")
+    assert table_base_name.startswith("bkm_rr_123_cpu_usage")
     assert table_id.endswith("_abcdef12.__default__")
-    assert result_table_config_name.startswith("bkm_bkprecal_cpu_usage")
+    assert result_table_config_name.startswith("bkm_bkm_rr_123_cpu_usage")
     assert "abcdef12" in flow_name
     assert "abcdef12" in group_flow_name
+
+
+def test_compose_names_accept_any_display_name():
+    table_id = RecordRuleV4.compose_table_id(pk=456, name="<测试任务>", random_suffix="abcdef12")
+    fallback_table_id = RecordRuleV4.compose_table_id(pk=789, name="🔥<>", random_suffix="abcdef12")
+    long_table_id = RecordRuleV4.compose_table_id(pk=987, name="测试任务" * 80, random_suffix="abcdef12")
+
+    assert table_id.startswith("bkm_rr_456_ceshirenwu_")
+    assert fallback_table_id.startswith("bkm_rr_789_group_")
+    assert len(long_table_id.split(".__default__")[0]) <= 50
 
 
 def test_flow_bkbase_tenant_follows_multi_tenant_mode(settings):

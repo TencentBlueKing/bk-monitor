@@ -45,7 +45,7 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 TENANT_ID = "tenant_v4_pytest"
 SPACE_TYPE = "bkcc"
 SPACE_ID = "2"
-GROUP_NAME = "rr_cpu_group"
+RULE_NAME = "rr_cpu_group"
 SOURCE_TABLE_ID = "system.cpu_summary"
 SOURCE_VM_TABLE_ID = "2_system_cpu_summary"
 SOURCE_BKBASE_TABLE_NAME = "bkbase_system_cpu_summary"
@@ -255,6 +255,9 @@ def build_record(
 def create_rule(
     *,
     records: list[dict] | None = None,
+    name: str = RULE_NAME,
+    description: str = "",
+    data_label: str = "",
     interval: str = "1min",
     labels: list[dict] | None = None,
     auto_refresh: bool = True,
@@ -266,9 +269,17 @@ def create_rule(
         bk_tenant_id=TENANT_ID,
         space_type=SPACE_TYPE,
         space_id=SPACE_ID,
-        group_name=GROUP_NAME,
+        name=name,
         records=records,
-        raw_config={"records": records, "interval": interval, "labels": group_labels},
+        description=description,
+        data_label=data_label,
+        raw_config={
+            "records": records,
+            "interval": interval,
+            "labels": group_labels,
+            "description": description,
+            "data_label": data_label,
+        },
         interval=interval,
         labels=group_labels,
         auto_refresh=auto_refresh,
@@ -319,10 +330,14 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     rule.refresh_from_db()
     flow = get_latest_flow(rule)
     resolved = get_latest_resolved(rule)
-    assert len(rule.table_id) <= 50
+    table_base_name = rule.table_id.split(".__default__")[0]
+    assert len(table_base_name) <= 50
     assert len(rule.dst_vm_table_id) <= 50
-    assert rule.table_id.startswith("bkprecal_rr_cpu_group_")
+    assert table_base_name.startswith(f"bkm_rr_{rule.pk}_rr_cpu_group_")
+    assert rule.flow_name == table_base_name
     assert rule.flow_name == flow.flow_name
+    assert rule.description == ""
+    assert rule.data_label == ""
     assert rule.dst_vm_storage_name == "monitor-opsystem"
     assert resolved.records.count() == 2
     assert resolved.flow.pk == flow.pk
@@ -361,7 +376,7 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     }
     assert flow.flow_config["metadata"]["annotations"] == {
         "record-rule.bkmonitor/space-uid": f"{SPACE_TYPE}__{SPACE_ID}",
-        "record-rule.bkmonitor/group-name": GROUP_NAME,
+        "record-rule.bkmonitor/name": RULE_NAME,
         "record-rule.bkmonitor/generation": str(resolved.generation),
         "record-rule.bkmonitor/resolved-version": str(resolved.resolve_version),
     }
@@ -383,6 +398,9 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     assert output_config.name == RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
     assert rule.dst_vm_table_id == f"{output_config.datalink_biz_ids.data_biz_id}_{output_config.name}"
     assert output_config.bkbase_table_id == rule.dst_vm_table_id
+    output_table = models.ResultTable.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
+    assert output_table.table_name_zh == RULE_NAME
+    assert output_table.data_label == ""
     assert models.ResultTableField.objects.filter(
         table_id=rule.table_id,
         bk_tenant_id=TENANT_ID,
@@ -409,6 +427,17 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
         is_publish=True,
         bk_tenant_id=TENANT_ID,
     )
+
+
+def test_create_supports_description_and_data_label(v4_base_data, external_api):
+    rule = create_rule(description="record rule output", data_label="rr_cpu")
+
+    output_table = models.ResultTable.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
+    assert rule.description == "record rule output"
+    assert rule.data_label == "rr_cpu"
+    assert rule.to_dict()["description"] == "record rule output"
+    assert output_table.table_name_zh == RULE_NAME
+    assert output_table.data_label == "rr_cpu"
 
 
 def test_group_interval_and_labels_merge_into_resolved_and_flow(v4_base_data, external_api):
@@ -447,13 +476,56 @@ def test_update_raw_config_alone_does_not_create_spec(v4_base_data, external_api
     external_api.check_query_ts.assert_not_called()
 
 
-def test_create_allows_duplicate_group_name_with_random_output_names(v4_base_data, external_api):
+def test_update_metadata_refreshes_result_table_without_new_spec_or_flow(v4_base_data, external_api):
+    rule = create_rule(apply_immediately=False)
+    current_spec_id = rule.current_spec_id
+    current_resolved_id = get_latest_resolved(rule).pk
+    current_flow_id = get_latest_flow(rule).pk
+    external_api.check_query_ts.reset_mock()
+    external_api.apply_data_link.reset_mock()
+    external_api.space_redis.push_table_id_detail.reset_mock()
+
+    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
+        description="更新输出表展示信息",
+        data_label="rr_cpu",
+        apply_immediately=True,
+    )
+
+    updated.refresh_from_db()
+    output_table = models.ResultTable.objects.get(table_id=updated.table_id, bk_tenant_id=TENANT_ID)
+    assert updated.current_spec_id == current_spec_id
+    assert get_latest_resolved(updated).pk == current_resolved_id
+    assert get_latest_flow(updated).pk == current_flow_id
+    assert updated.description == "更新输出表展示信息"
+    assert updated.data_label == "rr_cpu"
+    assert output_table.table_name_zh == RULE_NAME
+    assert output_table.data_label == "rr_cpu"
+    external_api.check_query_ts.assert_not_called()
+    external_api.apply_data_link.assert_not_called()
+    external_api.space_redis.push_table_id_detail.assert_called_once_with(
+        table_id_list=[updated.table_id],
+        is_publish=True,
+        bk_tenant_id=TENANT_ID,
+    )
+    assert updated.events.filter(event_type="user.metadata_changed").exists()
+
+
+def test_create_allows_duplicate_name_with_random_output_names(v4_base_data, external_api):
     first = create_rule(apply_immediately=False)
     second = create_rule(apply_immediately=False)
 
-    assert first.group_name == second.group_name == GROUP_NAME
+    assert first.name == second.name == RULE_NAME
     assert first.table_id != second.table_id
     assert first.dst_vm_table_id != second.dst_vm_table_id
+
+
+def test_create_name_hint_accepts_chinese(v4_base_data, external_api):
+    chinese_rule = create_rule(name="<测试任务>", apply_immediately=False)
+
+    chinese_base_name = chinese_rule.table_id.split(".__default__")[0]
+    assert chinese_base_name.startswith(f"bkm_rr_{chinese_rule.pk}_ceshirenwu_")
+    assert len(chinese_base_name) <= 50
+    assert chinese_rule.flow_name == chinese_base_name
 
 
 def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api):

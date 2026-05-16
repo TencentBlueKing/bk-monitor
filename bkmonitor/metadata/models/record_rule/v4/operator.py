@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 from collections.abc import Callable
 from typing import Any, TypeVar
+from uuid import uuid4
 
 from django.db import transaction
 
@@ -22,6 +23,8 @@ from metadata.models.record_rule.constants import (
     RecordRuleV4FlowStatus,
 )
 from metadata.models.record_rule.v4.models import (
+    RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH,
+    RECORD_RULE_V4_TABLE_ID_SUFFIX,
     RecordRuleV4,
     RecordRuleV4Event,
     RecordRuleV4Resolved,
@@ -72,6 +75,8 @@ class RecordRuleV4Operator:
         records: list[RecordRuleV4RecordInput],
         interval: str,
         labels: list[dict[str, Any]],
+        description: str = "",
+        data_label: str = "",
         raw_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """生成 spec.raw_config 快照。
@@ -86,6 +91,8 @@ class RecordRuleV4Operator:
             "records": copy.deepcopy(records),
             "interval": interval,
             "labels": copy.deepcopy(labels),
+            "description": description,
+            "data_label": data_label,
         }
 
     def reload_rule(self, for_update: bool = False) -> RecordRuleV4:
@@ -134,9 +141,11 @@ class RecordRuleV4Operator:
         *,
         space_type: str,
         space_id: str,
-        group_name: str,
+        name: str,
         records: list[RecordRuleV4RecordInput],
         raw_config: dict[str, Any] | None = None,
+        description: str = "",
+        data_label: str = "",
         interval: str = "1min",
         labels: list[dict[str, Any]] | None = None,
         bk_tenant_id: str | None = None,
@@ -153,31 +162,41 @@ class RecordRuleV4Operator:
 
         RecordRuleV4.validate_interval(interval)
         group_labels = normalize_labels(labels)
+        name = str(name or "")
+        description = str(description or "")
+        data_label = str(data_label or "")
         bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(f"{space_type}__{space_id}")
-        table_id = RecordRuleV4.compose_table_id(group_name)
-        flow_name = RecordRuleV4.compose_group_flow_name(group_name, table_id)
-        result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
-        dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
-            bk_tenant_id=bk_tenant_id,
-            bk_biz_id=RecordRuleV4.resolve_bk_biz_id(space_type, space_id),
-            result_table_config_name=result_table_config_name,
-        )
         output_created = False
         metric_fields_created = False
 
         with transaction.atomic():
+            temp_suffix = uuid4().hex[:RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH]
             rule = RecordRuleV4.objects.create(
                 bk_tenant_id=bk_tenant_id,
                 space_type=space_type,
                 space_id=space_id,
-                group_name=group_name,
-                flow_name=flow_name,
-                table_id=table_id,
-                dst_vm_table_id=dst_vm_table_id,
+                name=name,
+                description=description,
+                data_label=data_label,
+                flow_name=f"pending_rr_{temp_suffix}",
+                table_id=f"pending_rr_{temp_suffix}{RECORD_RULE_V4_TABLE_ID_SUFFIX}",
+                dst_vm_table_id=f"pending_rr_{temp_suffix}",
                 auto_refresh=auto_refresh,
                 creator=operator or source,
                 updater=operator or source,
             )
+            table_id = RecordRuleV4.compose_table_id(pk=rule.pk, name=name)
+            flow_name = RecordRuleV4.compose_group_flow_name(pk=rule.pk, name=name, table_id=table_id)
+            result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
+            dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=RecordRuleV4.resolve_bk_biz_id(space_type, space_id),
+                result_table_config_name=result_table_config_name,
+            )
+            rule.table_id = table_id
+            rule.flow_name = flow_name
+            rule.dst_vm_table_id = dst_vm_table_id
+            rule.save(update_fields=["table_id", "flow_name", "dst_vm_table_id", "updated_at"])
             # 输出 RT / VM 映射是 group 级资源，创建 rule 后立刻准备，
             # 避免等到第一次 apply 才补 metadata。
             output_created = RecordRuleV4OutputResources.ensure_group_output(rule)
@@ -190,6 +209,8 @@ class RecordRuleV4Operator:
                     records=records,
                     interval=interval,
                     labels=group_labels,
+                    description=description,
+                    data_label=data_label,
                     raw_config=raw_config,
                 ),
                 interval=interval,
@@ -218,6 +239,8 @@ class RecordRuleV4Operator:
         *,
         records: list[RecordRuleV4RecordInput] | None = None,
         raw_config: dict[str, Any] | None = None,
+        description: str | None = None,
+        data_label: str | None = None,
         interval: str | None = None,
         labels: list[dict[str, Any]] | None = None,
         desired_status: str | None = None,
@@ -239,6 +262,7 @@ class RecordRuleV4Operator:
         requested_desired_status: str | None = None
         previous_resolved_id: int | None = None
         output_created = False
+        output_detail_changed = False
         metric_fields_created = False
 
         with transaction.atomic():
@@ -258,6 +282,14 @@ class RecordRuleV4Operator:
             if requested_desired_status is not None:
                 RecordRuleV4.validate_desired_status(requested_desired_status)
 
+            metadata_changed_fields: list[str] = []
+            if description is not None and str(description) != self.rule.description:
+                self.rule.description = str(description)
+                metadata_changed_fields.append("description")
+            if data_label is not None and str(data_label) != self.rule.data_label:
+                self.rule.data_label = str(data_label)
+                metadata_changed_fields.append("data_label")
+
             auto_refresh_changed = auto_refresh is not None and bool(auto_refresh) != self.rule.auto_refresh
             if auto_refresh_changed:
                 self.rule.auto_refresh = bool(auto_refresh)
@@ -275,6 +307,17 @@ class RecordRuleV4Operator:
                     self.rule, source=self.source, operator=self.operator
                 )
 
+            result_table_metadata_changed = bool("data_label" in metadata_changed_fields and self.rule.data_label)
+            if metadata_changed_fields:
+                self.rule.sync_phase()
+                self.rule.save(update_fields=[*metadata_changed_fields, "status", "updated_at"])
+                RecordRuleV4Event.record_user_metadata_changed(
+                    self.rule,
+                    source=self.source,
+                    operator=self.operator,
+                    changed_fields=metadata_changed_fields,
+                )
+
             changed_fields: list[str] = []
             if records_changed:
                 changed_fields.append("records")
@@ -290,7 +333,10 @@ class RecordRuleV4Operator:
                     RecordRuleV4Event.record_user_auto_refresh_changed(
                         self.rule, source=self.source, operator=self.operator
                     )
-                if not desired_status_changed:
+                if result_table_metadata_changed:
+                    RecordRuleV4OutputResources.ensure_group_output(self.rule)
+                    output_detail_changed = True
+                if not desired_status_changed and not metadata_changed_fields:
                     return self.rule
             else:
                 if auto_refresh_changed:
@@ -306,6 +352,8 @@ class RecordRuleV4Operator:
                         records=next_records,
                         interval=next_interval,
                         labels=next_labels,
+                        description=self.rule.description,
+                        data_label=self.rule.data_label,
                         raw_config=raw_config,
                     ),
                     interval=next_interval,
@@ -313,6 +361,7 @@ class RecordRuleV4Operator:
                 )
                 self.rule.use_spec(spec)
                 output_created = RecordRuleV4OutputResources.ensure_group_output(self.rule)
+                output_detail_changed = result_table_metadata_changed
                 metric_fields_created = RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, spec)
                 RecordRuleV4Event.record_user_spec_changed(
                     self.rule,
@@ -325,7 +374,7 @@ class RecordRuleV4Operator:
         # 路由刷新放到事务外，保证 Redis 使用的是已提交后的 metadata。
         if output_created:
             RecordRuleV4OutputResources.push_output_route(self.rule)
-        elif metric_fields_created:
+        elif metric_fields_created or output_detail_changed:
             RecordRuleV4OutputResources.push_table_id_detail(self.rule)
 
         # 事务外执行外部 check / flow 准备，避免长时间持有数据库行锁。
@@ -336,7 +385,7 @@ class RecordRuleV4Operator:
                 self.runner.prepare_flow(resolved=resolved)
 
         self.reload_rule()
-        if apply_immediately:
+        if apply_immediately and (spec or desired_status_changed):
             if self.rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value or self.has_unapplied_resolved():
                 self.apply()
             elif desired_status_changed and requested_desired_status:

@@ -65,17 +65,33 @@ class RecordRuleV4OutputResources:
         from metadata import models as metadata_models
 
         biz_id = metadata_models.Space.objects.get_biz_id_by_space(rule.space_type, rule.space_id)
-        _, created = metadata_models.ResultTable.objects.get_or_create(
+        table_name_zh = rule.name or rule.table_id
+        defaults = {
+            "table_name_zh": table_name_zh,
+            "is_custom_table": True,
+            "default_storage": metadata_models.ClusterInfo.TYPE_VM,
+            "creator": "system",
+            "bk_biz_id": biz_id,
+        }
+        if rule.data_label:
+            defaults["data_label"] = rule.data_label
+        result_table, created = metadata_models.ResultTable.objects.get_or_create(
             bk_tenant_id=rule.bk_tenant_id,
             table_id=rule.table_id,
-            defaults={
-                "table_name_zh": rule.table_id,
-                "is_custom_table": True,
-                "default_storage": metadata_models.ClusterInfo.TYPE_VM,
-                "creator": "system",
-                "bk_biz_id": biz_id,
-            },
+            defaults=defaults,
         )
+        if not created:
+            update_fields: list[str] = []
+            if result_table.table_name_zh != table_name_zh:
+                result_table.table_name_zh = table_name_zh
+                update_fields.append("table_name_zh")
+            # data_label 为空时不主动清空已有 ResultTable，仅在用户显式配置有效值时刷新。
+            if rule.data_label and result_table.data_label != rule.data_label:
+                result_table.data_label = rule.data_label
+                update_fields.append("data_label")
+            if update_fields:
+                update_fields.append("last_modify_time")
+                result_table.save(update_fields=update_fields)
         return created
 
     @staticmethod

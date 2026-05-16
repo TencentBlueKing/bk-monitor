@@ -14,6 +14,7 @@ import copy
 import hashlib
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -21,10 +22,10 @@ from uuid import uuid4
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from pypinyin import lazy_pinyin
 
 from bkm_space.utils import space_uid_to_bk_biz_id
 from metadata.models.common import BaseModelWithTime
-from metadata.models.record_rule import utils
 from metadata.models.record_rule.constants import (
     RECORD_RULE_V4_BKBASE_NAMESPACE,
     RECORD_RULE_V4_BKMONITOR_NAMESPACE,
@@ -60,6 +61,7 @@ EVENT_STATUS_SKIPPED = "skipped"
 
 EVENT_TYPE_USER_CREATE = "user.create"
 EVENT_TYPE_USER_SPEC_CHANGED = "user.spec_changed"
+EVENT_TYPE_USER_METADATA_CHANGED = "user.metadata_changed"
 EVENT_TYPE_USER_AUTO_REFRESH_CHANGED = "user.auto_refresh_changed"
 EVENT_TYPE_USER_DESIRED_STATUS_CHANGED = "user.desired_status_changed"
 EVENT_TYPE_OPERATION_SKIPPED = "operation.skipped"
@@ -100,6 +102,14 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
     EVENT_TYPE_USER_SPEC_CHANGED: {
         "statuses": {EVENT_STATUS_SUCCEEDED},
         "spec": EVENT_RELATION_REQUIRED,
+        "resolved": EVENT_RELATION_FORBIDDEN,
+        "flow": EVENT_RELATION_FORBIDDEN,
+        "reasons": {""},
+        "detail_keys": {"changed_fields"},
+    },
+    EVENT_TYPE_USER_METADATA_CHANGED: {
+        "statuses": {EVENT_STATUS_SUCCEEDED},
+        "spec": EVENT_RELATION_FORBIDDEN,
         "resolved": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {""},
@@ -264,24 +274,30 @@ def generate_record_key() -> str:
     return f"{SPEC_RECORD_KEY_PREFIX}_{uuid4().hex[:12]}"
 
 
-def _safe_component(value: str, max_length: int, fallback: str) -> str:
-    """把用户输入裁剪成可用于 table / flow name 的安全片段。"""
+def _safe_name_hint(value: str, max_length: int, fallback: str = "group") -> str:
+    """把任意用户名称转换成可用于 table / flow name 的弱提示片段。
 
-    raw = str(value or "").strip()
+    group name 是用户可自由输入的展示名，不能反向约束资源创建。这里尽量把
+    中文转换成拼音、把其他非法字符折成下划线；如果最终不可用，则退回到
+    fallback，保证任何输入都不会让名称生成失败。
+    """
+
+    raw = str(value or "").strip().lower()
     if not raw:
-        return fallback
+        return fallback[:max_length] or fallback
 
-    prefixed = f"{fallback}_{raw}"
-    try:
-        sanitized = utils.sanitize(prefixed, max_length=len(fallback) + 1 + max_length)
-    except ValueError:
-        sanitized = fallback
-
-    prefix = f"{fallback}_"
-    if sanitized.startswith(prefix):
-        sanitized = sanitized[len(prefix) :]
-    sanitized = sanitized.strip("_")
-    return sanitized[:max_length] or fallback
+    chars: list[str] = []
+    for char in raw:
+        if "\u4e00" <= char <= "\u9fff":
+            chars.extend(lazy_pinyin(char))
+        else:
+            chars.append(char)
+    hint = "".join(chars)
+    hint = re.sub(r"[^a-z0-9_]+", "_", hint)
+    hint = re.sub(r"_+", "_", hint).strip("_")
+    if not hint:
+        hint = fallback
+    return hint[:max_length].strip("_") or fallback[:max_length] or fallback
 
 
 def _extract_random_suffix_from_table(table_id: str) -> str:
@@ -313,7 +329,9 @@ class RecordRuleV4(BaseModelWithTime):
     space_id = models.CharField("空间ID", max_length=128)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
-    group_name = models.CharField("预计算组名称", max_length=128)
+    name = models.CharField("预计算组名称", max_length=128)
+    description = models.TextField("描述", blank=True, default="")
+    data_label = models.CharField("数据标签", max_length=128, blank=True, default="")
     flow_name = models.CharField("V4 Flow 名称", max_length=128)
     table_id = models.CharField("结果表名", max_length=128)
     dst_vm_table_id = models.CharField("VM 结果表RT", max_length=128)
@@ -376,38 +394,37 @@ class RecordRuleV4(BaseModelWithTime):
         return space_uid_to_bk_biz_id(f"{space_type}__{space_id}")
 
     @classmethod
-    def compose_table_id(cls, group_name: str, random_suffix: str | None = None) -> str:
-        """生成 group 级输出结果表，保留名称提示和随机段，总长度不超过 50。"""
+    def compose_name_base(cls, pk: int, name: str, random_suffix: str | None = None, max_length: int = 50) -> str:
+        """生成 table / flow 共用的稳定基础名称。
 
-        suffix = (random_suffix or uuid4().hex[:RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH])[
-            :RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH
-        ]
-        prefix = "bkprecal"
-        reserved = len(prefix) + len(suffix) + len(RECORD_RULE_V4_TABLE_ID_SUFFIX) + 2
-        component_length = max(1, RECORD_RULE_V4_MAX_GENERATED_NAME_LENGTH - reserved)
-        group_slug = _safe_component(group_name, component_length, "group")
-        return f"{prefix}_{group_slug}_{suffix}{RECORD_RULE_V4_TABLE_ID_SUFFIX}"
-
-    @classmethod
-    def compose_flow_name(
-        cls, group_name: str, flow_hint: str, random_suffix: str | None = None, max_length: int = 50
-    ) -> str:
-        """生成目标 Flow 名称。
-
-        Flow 名称跟 group/record 有可读关联，同时通过稳定随机段避免把 group_name 做成唯一约束。
+        生成后会保存到主表，不随用户展示名变化重算。`pk` 放在固定前缀里，
+        随机段用于进一步避免同名和并发场景下的碰撞。
         """
 
         suffix = (random_suffix or uuid4().hex[:RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH])[
             :RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH
         ]
-        group_slug = _safe_component(group_name, 12, "group")
-        reserved = len("rrv4") + len(group_slug) + len(suffix) + 3
+        prefix = f"bkm_rr_{pk}"
+        reserved = len(prefix) + len(suffix) + 2
         hint_length = max(1, max_length - reserved)
-        hint_slug = _safe_component(flow_hint, hint_length, "flow")
-        return f"rrv4_{group_slug}_{hint_slug}_{suffix}"[:max_length].rstrip("_")
+        hint = _safe_name_hint(name, hint_length, "group")
+        return f"{prefix}_{hint}_{suffix}"[:max_length].rstrip("_")
 
     @classmethod
-    def compose_group_flow_name(cls, group_name: str, table_id: str) -> str:
+    def compose_table_id(cls, pk: int, name: str, random_suffix: str | None = None) -> str:
+        """生成 group 级输出结果表，`.__default__` 不计入 50 字符基础名约束。"""
+
+        base_name = cls.compose_name_base(pk=pk, name=name, random_suffix=random_suffix)
+        return f"{base_name}{RECORD_RULE_V4_TABLE_ID_SUFFIX}"
+
+    @classmethod
+    def compose_flow_name(cls, pk: int, name: str, random_suffix: str | None = None, max_length: int = 50) -> str:
+        """生成目标 Flow 名称，与 table_id 基础名保持同一规则。"""
+
+        return cls.compose_name_base(pk=pk, name=name, random_suffix=random_suffix, max_length=max_length)
+
+    @classmethod
+    def compose_group_flow_name(cls, pk: int, name: str, table_id: str) -> str:
         """根据已生成的 table_id 派生稳定 Flow 名称。
 
         table_id 在 group 创建时已经带随机段；Flow 名称复用这个随机段，
@@ -415,8 +432,8 @@ class RecordRuleV4(BaseModelWithTime):
         """
 
         return cls.compose_flow_name(
-            group_name,
-            "group",
+            pk=pk,
+            name=name,
             random_suffix=_extract_random_suffix_from_table(table_id),
         )
 
@@ -701,7 +718,9 @@ class RecordRuleV4(BaseModelWithTime):
             "space_uid": self.space_uid,
             "space_type": self.space_type,
             "space_id": self.space_id,
-            "group_name": self.group_name,
+            "name": self.name,
+            "description": self.description,
+            "data_label": self.data_label,
             "flow_name": self.flow_name,
             "table_id": self.table_id,
             "dst_vm_table_id": self.dst_vm_table_id,
@@ -1052,7 +1071,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
         prefix = FLOW_METADATA_ANNOTATION_PREFIX
         return {
             f"{prefix}/space-uid": rule.space_uid,
-            f"{prefix}/group-name": rule.group_name,
+            f"{prefix}/name": rule.name,
             f"{prefix}/generation": str(resolved.generation),
             f"{prefix}/resolved-version": str(resolved.resolve_version),
         }
@@ -1143,6 +1162,19 @@ class RecordRuleV4Event(BaseModelWithTime):
             rule=rule,
             spec=spec,
             event_type=EVENT_TYPE_USER_SPEC_CHANGED,
+            status=EVENT_STATUS_SUCCEEDED,
+            source=source,
+            operator=operator,
+            detail={"changed_fields": changed_fields},
+        )
+
+    @classmethod
+    def record_user_metadata_changed(
+        cls, rule: RecordRuleV4, source: str, operator: str, changed_fields: list[str]
+    ) -> RecordRuleV4Event:
+        return cls.record(
+            rule=rule,
+            event_type=EVENT_TYPE_USER_METADATA_CHANGED,
             status=EVENT_STATUS_SUCCEEDED,
             source=source,
             operator=operator,
