@@ -29,7 +29,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import { getAllSceneFieldKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
+import { getAllSceneFieldOpKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
 import { cancelPendingRetrieveRequests, resetRetrieveData } from '../../retrieve-v3/search-bar/scene-filter/scene-retrieve-utils';
 import { SceneType } from '../../retrieve-v3/search-bar/scene-filter/types';
 import './retrieve-type-switch.scss';
@@ -86,7 +86,7 @@ export default defineComponent({
         // 从 URL 中清除场景相关参数
         const cleanQuery: Record<string, any> = { ...route.query, retrieve_type: type };
         delete cleanQuery.scene_active;
-        for (const key of getAllSceneFieldKeys(sceneConfigs.value)) {
+        for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
           delete cleanQuery[key];
         }
         router.replace({ query: cleanQuery });

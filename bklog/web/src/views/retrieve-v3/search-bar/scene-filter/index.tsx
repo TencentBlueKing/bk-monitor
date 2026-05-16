@@ -39,7 +39,7 @@ import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import SceneFilterTags from '../../../retrieve-v2/sub-bar/scene-filter-tags';
 import V3Searchbar from '../index';
 import FilterPanel from './filter-panel';
-import { getAllSceneFieldKeys } from './scene-config';
+import { getAllSceneFieldOpKeys } from './scene-config';
 import { cancelPendingRetrieveRequests, resetRetrieveData } from './scene-retrieve-utils';
 import { SceneType } from './types';
 import type { FilterValues, SceneDisplayFields } from './types';
@@ -87,7 +87,7 @@ export default defineComponent({
 
       // 先清除所有可能的场景筛选字段，避免切换场景时残留旧字段
       const cleanQuery = { ...route.query };
-      for (const key of getAllSceneFieldKeys(sceneConfigs.value)) {
+      for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
         cleanQuery[key] = undefined;
       }
 
@@ -111,8 +111,10 @@ export default defineComponent({
     const normalizeFilterValues = (values: FilterValues): FilterValues => {
       const result: FilterValues = {};
       for (const [key, val] of Object.entries(values)) {
-        if (Array.isArray(val) && val.length === 0) continue;
-        result[key] = val;
+        if (val?.value !== undefined) {
+          if (Array.isArray(val.value) && val.value.length === 0) continue;
+          result[key] = val;
+        }
       }
       return result;
     };
@@ -151,11 +153,26 @@ export default defineComponent({
     };
 
     const handleFilterChange = (
-      payload: { values: FilterValues; labels?: { fieldName: string; labels: Record<string, string> } },
+      payload: {
+        values: FilterValues;
+        labels?: { fieldName: string; labels: Record<string, string> };
+        operatorChange?: { fieldKey: string; op: string };
+      },
     ) => {
       filterValues.value = payload.values;
       if (payload.labels) {
         filterLabels.value = { ...filterLabels.value, [payload.labels.fieldName]: payload.labels.labels };
+      }
+      // 操作符变更时，同步更新本地显示字段配置中的操作符
+      if (payload.operatorChange) {
+        const { fieldKey, op } = payload.operatorChange;
+        const currentFields = currentDisplayFields.value;
+        if (currentFields) {
+          const updated = currentFields.map(
+            ([k, o]) => (k === fieldKey ? [k, op] as [string, string] : [k, o] as [string, string]),
+          );
+          handleDisplayFieldsChange(updated);
+        }
       }
       updateQueryHint();
     };
@@ -187,18 +204,18 @@ export default defineComponent({
 
     const sceneDisplayFields = ref<SceneDisplayFields>(getLocalSceneDisplayFields());
 
-    const currentDisplayFields = computed<string[] | null>(() => {
+    const currentDisplayFields = computed<Array<[string, string]> | null>(() => {
       const fields = sceneDisplayFields.value[activeScene.value];
       if (!fields) return null;
       // 从全部字段中过滤出缓存中也存在的字段，得到显示字段
       const allFieldKeys = new Set(
         (sceneConfigs.value.find((s: any) => s.type === activeScene.value)?.fields ?? []).map((f: any) => f.key),
       );
-      const filtered = fields.filter(key => allFieldKeys.has(key));
+      const filtered = fields.filter(([key]) => allFieldKeys.has(key));
       return filtered.length > 0 ? filtered : null;
     });
 
-    const handleDisplayFieldsChange = (fields: string[] | null) => {
+    const handleDisplayFieldsChange = (fields: Array<[string, string]> | null) => {
       sceneDisplayFields.value = {
         ...sceneDisplayFields.value,
         [activeScene.value]: fields,

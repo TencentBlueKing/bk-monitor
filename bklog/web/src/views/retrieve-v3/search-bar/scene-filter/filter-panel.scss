@@ -132,11 +132,36 @@
         font-size: 12px;
         color: #63656e;
         line-height: 20px;
-        margin-bottom: 4px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         max-width: 100%;
+      }
+
+      .field-label-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+
+        .field-label {
+          margin-bottom: 0;
+        }
+      }
+
+      .field-operator-trigger {
+        display: flex;
+        align-items: center;
+        padding: 0 4px;
+        margin-left: 4px;
+        font-size: 12px;
+        color: #3A84FF;
+        cursor: pointer;
+        border-radius: 2px;
+        line-height: 20px;
+
+        &:hover {
+          background: #E1ECFF;
+        }
       }
 
       .field-input {
@@ -318,6 +343,44 @@
         }
       }
 
+      .field-operator-trigger {
+        display: inline-flex;
+        align-items: center;
+        font-size: 12px;
+        color: #3A84FF;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        border-radius: 2px;
+
+        .operator-label {
+          color: #8F9FBD;
+        }
+
+        .operator-value {
+          width: 14px;
+        }
+
+        &:hover {
+          color: #699df4;
+          background: #f0f5ff;
+        }
+      }
+
+      .remove-icon-placeholder {
+        display: none;
+      }
+
+      .setting-field-operator {
+        margin-left: auto;
+        margin-right: 26px;
+        flex-shrink: 0;
+      }
+
+      &:hover .setting-field-operator {
+        margin-right: 4px;
+      }
+
       .remove-icon {
         font-size: 16px;
         color: #c4c6cc;
@@ -351,6 +414,36 @@
       justify-content: flex-end;
       gap: 8px;
       padding: 8px 0 0;
+    }
+  }
+}
+
+
+// 操作符弹窗样式
+.operator-popover-content {
+  .operator-popover-list {
+    padding: 4px 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .operator-popover-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12px;
+
+    &:hover {
+      background: #f0f5ff;
+    }
+
+    &.is-active {
+      color: #3a84ff;
+    }
+
+    .op-symbol {
+      font-weight: 600;
     }
   }
 }

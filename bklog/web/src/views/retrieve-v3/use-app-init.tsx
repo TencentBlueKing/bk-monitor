@@ -35,7 +35,7 @@ import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { getSceneFieldKeys } from './search-bar/scene-filter/scene-config';
+import { getSceneFieldKeys, getDefaultOp, getSceneConfig } from './search-bar/scene-filter/scene-config';
 
 import $http from '@/api';
 
@@ -578,15 +578,29 @@ export default () => {
     // 读取当前业务的场景显示字段配置，以显示字段为主过滤回填值
     const allDisplayFields = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
     const bizDisplayFields = allDisplayFields[bkBizId.value] ?? {};
-    const sceneDisplayFields: string[] | null | undefined = bizDisplayFields[sceneActive];
+    // 格式: Array<[fieldKey, op]> | null
+    const sceneDisplayFields: Array<[string, string]> | null | undefined = bizDisplayFields[sceneActive];
+    const displayFieldKeys = sceneDisplayFields?.map(([k]) => k);
+
+    const sceneConfig = getSceneConfig(configs, sceneActive);
+    const fieldOpsMap = new Map<string, string[]>();
+    sceneConfig?.fields.forEach(f => fieldOpsMap.set(f.key, f.ops ?? []));
 
     const result: Record<string, any> = {};
     for (const fieldKey of sceneFieldKeys) {
       const val = route.query[fieldKey];
       if (val === undefined || val === null || val === '') continue;
       // 显示字段为 null/undefined/空数组 表示全部显示，否则只回填显示字段中的值
-      if (sceneDisplayFields && sceneDisplayFields.length > 0 && !sceneDisplayFields.includes(fieldKey)) continue;
-      result[fieldKey] = val;
+      if (displayFieldKeys && displayFieldKeys.length > 0 && !displayFieldKeys.includes(fieldKey)) continue;
+
+      // 读取 URL 中的操作符参数: field[op]=op，无则使用本地存储中的 op，再无则从字段配置取默认操作符
+      const opFromUrl = route.query[`${fieldKey}[op]`];
+      const storedTuple = sceneDisplayFields?.find(([k]) => k === fieldKey);
+      const opFromStorage = (Array.isArray(storedTuple) && storedTuple.length >= 2) ? storedTuple[1] : undefined;
+      const defaultOp = getDefaultOp(fieldOpsMap.get(fieldKey));
+      const op = opFromUrl || opFromStorage || defaultOp;
+
+      result[fieldKey] = { op, value: val };
     }
 
     if (Object.keys(result).length) {
