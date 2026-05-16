@@ -21,6 +21,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
@@ -294,7 +295,7 @@ class CheckQueryTsResource(UnifyQueryAPIResource):
         step = serializers.CharField(required=False)
         order_by = serializers.ListField(child=serializers.CharField(), required=False, default=list)
         space_uid = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-        bk_tenant_id = serializers.CharField(allow_blank=True, required=False)
+        bk_tenant_id = TenantIdField(label="租户ID", prefer_request_tenant=False)
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False, default=False)
         reference = serializers.BooleanField(required=False, default=False)
@@ -322,7 +323,7 @@ class CheckQueryTsByPromqlResource(UnifyQueryAPIResource):
         not_time_align = serializers.BooleanField(required=False, default=False)
         down_sample_range = serializers.CharField(allow_blank=True, required=False)
         space_uid = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-        bk_tenant_id = serializers.CharField(allow_blank=True, required=False)
+        bk_tenant_id = TenantIdField(label="租户ID", prefer_request_tenant=False)
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         limit = serializers.IntegerField(required=False, default=0)
         slimit = serializers.IntegerField(required=False, default=0)
