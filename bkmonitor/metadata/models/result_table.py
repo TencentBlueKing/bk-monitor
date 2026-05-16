@@ -2874,6 +2874,7 @@ class ResultTableOption(OptionBase):
     OPTION_SEGMENTED_QUERY_ENABLE = "segmented_query_enable"
     OPTION_IS_SPLIT_MEASUREMENT = "is_split_measurement"
     OPTION_ENABLE_FIELD_BLACK_LIST = "enable_field_black_list"
+    OPTION_IS_VIRTUAL_TABLE = "is_virtual_table"
 
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
@@ -2905,6 +2906,7 @@ class ResultTableOption(OptionBase):
             (OPTION_SEGMENTED_QUERY_ENABLE, _("分段查询开关")),
             (OPTION_IS_SPLIT_MEASUREMENT, _("是否为单指标单表")),
             (OPTION_ENABLE_FIELD_BLACK_LIST, _("是否开启指标黑名单")),
+            (OPTION_IS_VIRTUAL_TABLE, _("是否为虚拟结果表")),
             (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
         ),
