@@ -33,7 +33,10 @@ class RecordRuleV4OutputResources:
 
         cls.ensure_result_table(rule)
         cls.ensure_result_table_config(rule)
-        cls.ensure_vm_record(rule)
+        vm_storage_name = cls.ensure_vm_record(rule)
+        if rule.dst_vm_storage_name != vm_storage_name:
+            rule.dst_vm_storage_name = vm_storage_name
+            rule.save(update_fields=["dst_vm_storage_name", "updated_at"])
 
     @staticmethod
     def compose_result_table_config_name(table_id: str) -> str:
@@ -87,7 +90,7 @@ class RecordRuleV4OutputResources:
         )
 
     @staticmethod
-    def ensure_vm_record(rule: RecordRuleV4) -> None:
+    def ensure_vm_record(rule: RecordRuleV4) -> str:
         """创建输出 RT 到 VM RT 的映射。"""
 
         from metadata import models as metadata_models
@@ -107,6 +110,7 @@ class RecordRuleV4OutputResources:
                 "vm_cluster_id": vm_cluster_info["cluster_id"],
             },
         )
+        return str(vm_cluster_info["cluster_name"])
 
     @staticmethod
     def ensure_metric_fields(rule: RecordRuleV4, metric_names: list[str]) -> None:

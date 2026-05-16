@@ -25,6 +25,10 @@ class Migration(migrations.Migration):
                 ("group_name", models.CharField(max_length=128, verbose_name="预计算组名称")),
                 ("table_id", models.CharField(max_length=128, verbose_name="结果表名")),
                 ("dst_vm_table_id", models.CharField(max_length=128, verbose_name="VM 结果表RT")),
+                (
+                    "dst_vm_storage_name",
+                    models.CharField(blank=True, default="", max_length=128, verbose_name="目标 VM 存储名称"),
+                ),
                 ("generation", models.IntegerField(default=0, verbose_name="用户声明版本")),
                 ("observed_generation", models.IntegerField(default=0, verbose_name="已成功下发的声明版本")),
                 ("desired_status", models.CharField(default="running", max_length=32, verbose_name="期望状态")),
@@ -71,7 +75,6 @@ class Migration(migrations.Migration):
                 ("raw_config", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="用户原始完整配置")),
                 ("interval", models.CharField(default="1min", max_length=16, verbose_name="计算周期")),
                 ("labels", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="组级附加标签")),
-                ("deployment_strategy", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="部署策略配置")),
                 ("desired_status", models.CharField(default="running", max_length=32, verbose_name="期望状态")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="配置内容指纹")),
                 ("source", models.CharField(default="user", max_length=32, verbose_name="来源")),
@@ -172,7 +175,6 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True, verbose_name="更新时间")),
                 ("record_key", models.CharField(max_length=64, verbose_name="内部稳定记录ID")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="解析记录内容指纹")),
-                ("source_index", models.IntegerField(default=0, verbose_name="原始顺序")),
                 ("metricql", models.TextField(verbose_name="MetricQL")),
                 ("labels", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="合并附加标签")),
                 (
@@ -182,10 +184,6 @@ class Migration(migrations.Migration):
                 (
                     "src_result_table_configs",
                     bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="源结果表配置列表"),
-                ),
-                (
-                    "dst_vm_storage_name",
-                    models.CharField(blank=True, default="", max_length=128, verbose_name="目标 VM 存储名称"),
                 ),
                 (
                     "resolved",
@@ -209,59 +207,8 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "V4 预计算解析记录",
                 "verbose_name_plural": "V4 预计算解析记录",
-                "ordering": ("source_index", "id"),
+                "ordering": ("spec_record__source_index", "id"),
                 "unique_together": {("resolved", "record_key")},
-            },
-        ),
-        migrations.CreateModel(
-            name="RecordRuleV4Deployment",
-            fields=[
-                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("creator", models.CharField(max_length=64, verbose_name="创建者")),
-                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="创建时间")),
-                ("updater", models.CharField(max_length=64, verbose_name="更新者")),
-                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="更新时间")),
-                ("generation", models.IntegerField(verbose_name="用户声明版本")),
-                ("deployment_version", models.IntegerField(verbose_name="同解析下部署版本")),
-                ("strategy", models.CharField(default="per_record", max_length=32, verbose_name="部署策略")),
-                ("content_hash", models.CharField(max_length=64, verbose_name="部署语义指纹")),
-                ("plan_config", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="部署计划摘要")),
-                ("source", models.CharField(default="scheduler", max_length=32, verbose_name="来源")),
-                ("apply_status", models.CharField(default="pending", max_length=32, verbose_name="下发状态")),
-                ("applied_at", models.DateTimeField(blank=True, null=True, verbose_name="下发时间")),
-                ("apply_error", models.TextField(blank=True, default="", verbose_name="下发错误")),
-                (
-                    "resolved",
-                    models.ForeignKey(
-                        on_delete=models.deletion.CASCADE,
-                        related_name="deployments",
-                        to="metadata.recordrulev4resolved",
-                        verbose_name="解析快照",
-                    ),
-                ),
-                (
-                    "rule",
-                    models.ForeignKey(
-                        on_delete=models.deletion.CASCADE,
-                        related_name="deployments",
-                        to="metadata.recordrulev4",
-                        verbose_name="预计算规则组",
-                    ),
-                ),
-                (
-                    "spec",
-                    models.ForeignKey(
-                        on_delete=models.deletion.CASCADE,
-                        related_name="deployments",
-                        to="metadata.recordrulev4spec",
-                        verbose_name="用户声明快照",
-                    ),
-                ),
-            ],
-            options={
-                "verbose_name": "V4 预计算部署计划",
-                "verbose_name_plural": "V4 预计算部署计划",
-                "unique_together": {("rule", "resolved", "deployment_version")},
             },
         ),
         migrations.CreateModel(
@@ -274,9 +221,6 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True, verbose_name="更新时间")),
                 ("flow_key", models.CharField(max_length=64, verbose_name="Flow 稳定ID")),
                 ("flow_name", models.CharField(max_length=128, verbose_name="V4 Flow 名称")),
-                ("strategy", models.CharField(default="per_record", max_length=32, verbose_name="部署策略")),
-                ("table_id", models.CharField(max_length=128, verbose_name="输出结果表")),
-                ("dst_vm_table_id", models.CharField(max_length=128, verbose_name="输出 VM RT")),
                 ("flow_config", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="V4 Flow 配置")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="Flow 内容指纹")),
                 ("desired_status", models.CharField(default="running", max_length=32, verbose_name="期望状态")),
@@ -308,18 +252,6 @@ class Migration(migrations.Migration):
                 "unique_together": {("resolved", "flow_key")},
             },
         ),
-        migrations.AddField(
-            model_name="recordrulev4resolvedrecord",
-            name="flow",
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=models.deletion.SET_NULL,
-                related_name="records",
-                to="metadata.recordrulev4flow",
-                verbose_name="归属 Flow",
-            ),
-        ),
         migrations.CreateModel(
             name="RecordRuleV4Event",
             fields=[
@@ -336,16 +268,6 @@ class Migration(migrations.Migration):
                 ("reason", models.CharField(blank=True, default="", max_length=128, verbose_name="原因")),
                 ("message", models.TextField(blank=True, default="", verbose_name="消息")),
                 ("detail", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="详情")),
-                (
-                    "deployment",
-                    models.ForeignKey(
-                        blank=True,
-                        null=True,
-                        on_delete=models.deletion.SET_NULL,
-                        to="metadata.recordrulev4deployment",
-                        verbose_name="部署计划",
-                    ),
-                ),
                 (
                     "flow",
                     models.ForeignKey(
@@ -394,14 +316,14 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="recordrulev4",
-            name="applied_deployment",
+            name="applied_flow",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=models.deletion.SET_NULL,
                 related_name="+",
-                to="metadata.recordrulev4deployment",
-                verbose_name="最近成功下发的部署计划",
+                to="metadata.recordrulev4flow",
+                verbose_name="最近成功下发的 Flow",
             ),
         ),
         migrations.AddField(
@@ -418,14 +340,14 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="recordrulev4",
-            name="latest_deployment",
+            name="latest_flow",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=models.deletion.SET_NULL,
                 related_name="+",
-                to="metadata.recordrulev4deployment",
-                verbose_name="最近部署计划",
+                to="metadata.recordrulev4flow",
+                verbose_name="最近目标 Flow",
             ),
         ),
         migrations.AddField(

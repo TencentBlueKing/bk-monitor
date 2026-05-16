@@ -17,8 +17,6 @@ from metadata.models.record_rule.constants import (
     RECORD_RULE_V4_BKBASE_NAMESPACE,
     RECORD_RULE_V4_BKMONITOR_NAMESPACE,
     RECORD_RULE_V4_DEFAULT_TENANT,
-    RecordRuleV4ApplyStatus,
-    RecordRuleV4DeploymentStrategy,
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowActionType,
     RecordRuleV4FlowStatus,
@@ -34,12 +32,12 @@ from metadata.models.record_rule.v4 import (
     EVENT_STATUS_SKIPPED,
     EVENT_TYPE_OPERATION_SKIPPED,
     RecordRuleV4,
-    RecordRuleV4Deployment,
     RecordRuleV4Event,
 )
 from metadata.models.record_rule.v4.operator import RecordRuleV4Operator
 from metadata.models.record_rule.v4.output import RecordRuleV4OutputResources
 from metadata.models.record_rule.v4.resolver import RecordRuleV4Resolver
+from metadata.models.record_rule.v4.runner import RecordRuleV4Runner
 from metadata.models.record_rule.v4.source import resolve_vm_result_table_configs
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -78,20 +76,11 @@ def v4_base_data(settings):
         description="default vm",
         is_default_cluster=True,
     )
-    models.AccessVMRecord.objects.create(
-        bk_tenant_id=TENANT_ID,
-        result_table_id=SOURCE_TABLE_ID,
-        bk_base_data_id=100,
-        vm_result_table_id=SOURCE_VM_TABLE_ID,
-        vm_cluster_id=cluster.cluster_id,
-    )
-    models.ResultTableConfig.objects.create(
-        bk_tenant_id=TENANT_ID,
-        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-        name=SOURCE_BKBASE_TABLE_NAME,
-        data_link_name=SOURCE_BKBASE_TABLE_NAME,
+    create_source_vm_mapping(
         table_id=SOURCE_TABLE_ID,
-        bk_biz_id=int(SPACE_ID),
+        vm_table_id=SOURCE_VM_TABLE_ID,
+        bkbase_table_name=SOURCE_BKBASE_TABLE_NAME,
+        cluster_id=cluster.cluster_id,
     )
     return SimpleNamespace(cluster=cluster)
 
@@ -107,15 +96,15 @@ def external_api(mocker):
         return_value=build_check_result(metricql="promql_metricql"),
     )
     apply_data_link = mocker.patch(
-        "metadata.models.record_rule.v4.deployment.runner.api.bkdata.apply_data_link",
+        "metadata.models.record_rule.v4.runner.api.bkdata.apply_data_link",
         return_value={"status": "ok"},
     )
     delete_data_link = mocker.patch(
-        "metadata.models.record_rule.v4.deployment.runner.api.bkdata.delete_data_link",
+        "metadata.models.record_rule.v4.runner.api.bkdata.delete_data_link",
         return_value={"status": "deleted"},
     )
     get_data_link = mocker.patch(
-        "metadata.models.record_rule.v4.deployment.runner.api.bkdata.get_data_link",
+        "metadata.models.record_rule.v4.runner.api.bkdata.get_data_link",
         return_value={"status": {"state": "ok"}},
     )
     return SimpleNamespace(
@@ -258,7 +247,6 @@ def build_record(
 def create_rule(
     *,
     records: list[dict] | None = None,
-    strategy: str | dict | None = None,
     interval: str = "1min",
     labels: list[dict] | None = None,
     auto_refresh: bool = True,
@@ -266,7 +254,6 @@ def create_rule(
 ) -> RecordRuleV4:
     records = records or [build_record()]
     group_labels = labels or []
-    strategy = strategy or RecordRuleV4DeploymentStrategy.PER_RECORD.value
     return RecordRuleV4Operator.create(
         bk_tenant_id=TENANT_ID,
         space_type=SPACE_TYPE,
@@ -276,7 +263,6 @@ def create_rule(
         raw_config={"records": records, "interval": interval, "labels": group_labels},
         interval=interval,
         labels=group_labels,
-        deployment_strategy=strategy,
         auto_refresh=auto_refresh,
         source="pytest",
         operator="tester",
@@ -295,7 +281,7 @@ def get_source_nodes(flow_config: dict) -> list[dict]:
     return [node for node in flow_config["spec"]["nodes"] if node["kind"] == "VmSourceNode"]
 
 
-def test_create_group_with_two_records_applies_per_record_flows(v4_base_data, external_api):
+def test_create_group_with_two_records_applies_single_flow(v4_base_data, external_api):
     records = [
         build_record(metric_name="cpu_usage_avg"),
         build_record(metric_name="cpu_total_sum"),
@@ -304,42 +290,39 @@ def test_create_group_with_two_records_applies_per_record_flows(v4_base_data, ex
     rule = create_rule(records=records)
 
     rule.refresh_from_db()
+    flow = rule.latest_flow
+    assert flow is not None
     assert len(rule.table_id) <= 50
     assert len(rule.dst_vm_table_id) <= 50
     assert rule.table_id.startswith("bkprecal_rr_cpu_group_")
+    assert rule.dst_vm_storage_name == "monitor-opsystem"
     assert rule.latest_resolved.records.count() == 2
-    assert rule.latest_resolved.flows.count() == 2
-    assert len(rule.latest_deployment.plan_config["actions"]) == 2
-    assert rule.latest_deployment_id == rule.applied_deployment_id
+    assert rule.latest_resolved.flows.count() == 1
+    assert rule.latest_flow_id == rule.applied_flow_id
     assert rule.status == RecordRuleV4Status.RUNNING.value
     assert rule.update_available is False
+    assert flow.flow_key == "group"
+    assert len(flow.flow_name) <= 50
 
-    flows = list(rule.latest_resolved.flows.order_by("id"))
-    assert {flow.table_id for flow in flows} == {rule.table_id}
-    assert {flow.dst_vm_table_id for flow in flows} == {rule.dst_vm_table_id}
-    assert len({flow.flow_name for flow in flows}) == 2
-    assert all(len(flow.flow_name) <= 50 for flow in flows)
-    assert all(flow.records.count() == 1 for flow in flows)
-    assert set(rule.latest_resolved.records.values_list("flow_id", flat=True)) == {flow.pk for flow in flows}
-
-    first_source_node = get_source_nodes(flows[0].flow_config)[0]
-    assert first_source_node["data"]["name"] == SOURCE_BKBASE_TABLE_NAME
-    first_node = get_recording_rule_node(flows[0].flow_config)
-    assert first_node["inputs"] == ["vm_source"]
-    assert first_node["output"] == rule.dst_vm_table_id
-    assert first_node["config"][0]["interval"] == rule.current_spec.interval
-    assert first_node["config"][0]["labels"] == [{"scenario": "pytest"}]
-    assert first_node["storage"] == {
+    source_node = get_source_nodes(flow.flow_config)[0]
+    recording_rule_node = get_recording_rule_node(flow.flow_config)
+    assert source_node["data"]["name"] == SOURCE_BKBASE_TABLE_NAME
+    assert recording_rule_node["inputs"] == ["vm_source"]
+    assert recording_rule_node["output"] == rule.dst_vm_table_id
+    assert [item["metric_name"] for item in recording_rule_node["config"]] == ["cpu_usage_avg", "cpu_total_sum"]
+    assert recording_rule_node["config"][0]["interval"] == rule.current_spec.interval
+    assert recording_rule_node["config"][0]["labels"] == [{"scenario": "pytest"}]
+    assert recording_rule_node["storage"] == {
         "kind": "VmStorage",
         "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
         "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
         "name": "monitor-opsystem",
     }
-    assert flows[0].flow_config["metadata"]["namespace"] == RECORD_RULE_V4_BKBASE_NAMESPACE
+    assert flow.flow_config["metadata"]["namespace"] == RECORD_RULE_V4_BKBASE_NAMESPACE
 
     assert external_api.check_query_ts.call_count == 2
-    assert external_api.apply_data_link.call_count == 2
-    first_resolved_record = rule.latest_resolved.records.order_by("id").first()
+    external_api.apply_data_link.assert_called_once()
+    first_resolved_record = rule.latest_resolved.get_records()[0]
     assert first_resolved_record.labels == [{"scenario": "pytest"}]
     assert first_resolved_record.src_result_table_configs == [
         {
@@ -372,33 +355,6 @@ def test_create_group_with_two_records_applies_per_record_flows(v4_base_data, ex
     ).exists()
 
 
-def test_single_flow_strategy_groups_records_into_one_flow(v4_base_data, external_api):
-    records = [
-        build_record(metric_name="cpu_usage_avg"),
-        build_record(metric_name="cpu_total_sum"),
-    ]
-    strategy_config = {
-        "strategy": RecordRuleV4DeploymentStrategy.SINGLE_FLOW.value,
-        "options": {"unit": "pytest"},
-    }
-
-    rule = create_rule(records=records, strategy=strategy_config)
-
-    flow = rule.latest_resolved.flows.get()
-    source_node = get_source_nodes(flow.flow_config)[0]
-    recording_rule_node = get_recording_rule_node(flow.flow_config)
-    assert rule.current_spec.deployment_strategy == strategy_config
-    assert rule.latest_deployment.plan_config["strategy"] == strategy_config
-    assert rule.latest_resolved.records.count() == 2
-    assert flow.flow_key == "group"
-    assert flow.strategy == RecordRuleV4DeploymentStrategy.SINGLE_FLOW.value
-    assert rule.latest_deployment.strategy == RecordRuleV4DeploymentStrategy.SINGLE_FLOW.value
-    assert flow.records.count() == 2
-    assert source_node["data"]["name"] == SOURCE_BKBASE_TABLE_NAME
-    assert [item["metric_name"] for item in recording_rule_node["config"]] == ["cpu_usage_avg", "cpu_total_sum"]
-    assert external_api.apply_data_link.call_count == 1
-
-
 def test_group_interval_and_labels_merge_into_resolved_and_flow(v4_base_data, external_api):
     record = build_record(labels=[{"scenario": "record"}, {"owner": "record"}])
 
@@ -409,45 +365,13 @@ def test_group_interval_and_labels_merge_into_resolved_and_flow(v4_base_data, ex
     )
 
     resolved_record = rule.latest_resolved.records.get()
-    recording_rule_node = get_recording_rule_node(rule.latest_resolved.flows.get().flow_config)
+    recording_rule_node = get_recording_rule_node(rule.latest_flow.flow_config)
     expected_labels = [{"scenario": "record"}, {"env": "prod"}, {"owner": "record"}]
     assert rule.current_spec.interval == "5min"
     assert rule.current_spec.labels == [{"scenario": "group"}, {"env": "prod"}]
     assert resolved_record.labels == expected_labels
     assert recording_rule_node["config"][0]["interval"] == "5min"
     assert recording_rule_node["config"][0]["labels"] == expected_labels
-
-
-def test_update_deployment_strategy_replans_without_resolve(v4_base_data, external_api):
-    records = [
-        build_record(metric_name="cpu_usage_avg"),
-        build_record(metric_name="cpu_total_sum"),
-    ]
-    rule = create_rule(records=records)
-    previous_resolved_id = rule.latest_resolved_id
-    strategy_config = {"strategy": RecordRuleV4DeploymentStrategy.SINGLE_FLOW.value, "options": {"unit": "pytest"}}
-    external_api.check_query_ts.reset_mock()
-    external_api.apply_data_link.reset_mock()
-
-    RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
-        deployment_strategy=strategy_config,
-        apply_immediately=False,
-    )
-
-    rule.refresh_from_db()
-    action_types = sorted(action["action_type"] for action in rule.latest_deployment.plan_config["actions"])
-    assert rule.latest_resolved_id == previous_resolved_id
-    assert rule.current_spec.deployment_strategy == strategy_config
-    assert rule.latest_deployment.strategy == RecordRuleV4DeploymentStrategy.SINGLE_FLOW.value
-    assert rule.latest_deployment.plan_config["strategy"] == strategy_config
-    assert action_types == [
-        RecordRuleV4FlowActionType.CREATE.value,
-        RecordRuleV4FlowActionType.DELETE.value,
-        RecordRuleV4FlowActionType.DELETE.value,
-    ]
-    assert rule.update_available is True
-    external_api.check_query_ts.assert_not_called()
-    external_api.apply_data_link.assert_not_called()
 
 
 def test_update_raw_config_alone_does_not_create_spec(v4_base_data, external_api):
@@ -485,6 +409,7 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
     assert output_config.data_link_name == output_config.name
     assert output_config.bkbase_table_id == rule.dst_vm_table_id
     assert rule.dst_vm_table_id == f"{output_config.datalink_biz_ids.data_biz_id}_{output_config.name}"
+    assert rule.dst_vm_storage_name == "monitor-opsystem"
     assert models.AccessVMRecord.objects.filter(
         result_table_id=rule.table_id,
         vm_result_table_id=rule.dst_vm_table_id,
@@ -522,7 +447,7 @@ def test_resolve_vm_result_table_configs_prefers_bkbase_table_id(v4_base_data):
         namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
         name=direct_bkbase_table_name,
         data_link_name=direct_bkbase_table_name,
-        table_id=SOURCE_TABLE_ID,
+        table_id="direct.system.cpu_summary",
         bkbase_table_id=SOURCE_VM_TABLE_ID,
         bk_biz_id=int(SPACE_ID),
     )
@@ -532,20 +457,20 @@ def test_resolve_vm_result_table_configs_prefers_bkbase_table_id(v4_base_data):
         vm_result_table_ids=[SOURCE_VM_TABLE_ID],
     )
 
+    assert configs[0]["result_table_id"] == "direct.system.cpu_summary"
     assert configs[0]["bkbase_result_table_name"] == direct_bkbase_table_name
-    assert configs[0]["result_table_id"] == SOURCE_TABLE_ID
     assert configs[0]["vm_storage_name"] == "monitor-opsystem"
 
 
-def test_resolve_vm_result_table_configs_keeps_order_and_source_storage(v4_base_data):
+def test_resolve_vm_result_table_configs_keeps_input_order_and_each_storage(v4_base_data):
     second_cluster = models.ClusterInfo.objects.create(
         bk_tenant_id=TENANT_ID,
-        cluster_id=1002,
-        cluster_name="monitor-secondary",
+        cluster_id=2002,
+        cluster_name="monitor-second",
         cluster_type=models.ClusterInfo.TYPE_VM,
-        domain_name="vm-secondary.service.local",
+        domain_name="vm-second.service.local",
         port=9090,
-        description="secondary vm",
+        description="second vm",
         is_default_cluster=False,
     )
     create_source_vm_mapping(
@@ -560,88 +485,8 @@ def test_resolve_vm_result_table_configs_keeps_order_and_source_storage(v4_base_
         vm_result_table_ids=[SECOND_SOURCE_VM_TABLE_ID, SOURCE_VM_TABLE_ID, SECOND_SOURCE_VM_TABLE_ID],
     )
 
-    assert configs == [
-        {
-            "result_table_id": SECOND_SOURCE_TABLE_ID,
-            "vm_result_table_id": SECOND_SOURCE_VM_TABLE_ID,
-            "bkbase_result_table_name": SECOND_SOURCE_BKBASE_TABLE_NAME,
-            "vm_storage_name": "monitor-secondary",
-        },
-        {
-            "result_table_id": SOURCE_TABLE_ID,
-            "vm_result_table_id": SOURCE_VM_TABLE_ID,
-            "bkbase_result_table_name": SOURCE_BKBASE_TABLE_NAME,
-            "vm_storage_name": "monitor-opsystem",
-        },
-    ]
-
-
-def test_spec_record_key_falls_back_to_metric_name_when_input_key_is_hidden(v4_base_data, external_api):
-    rule = create_rule(apply_immediately=False)
-    original_record = rule.current_spec.records.get()
-
-    changed_record = build_record(input_config={**build_query_config(), "step": "5m"})
-    RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
-        records=[changed_record],
-        raw_config={"records": [changed_record]},
-        apply_immediately=False,
-    )
-
-    rule.refresh_from_db()
-    next_record = rule.current_spec.records.get()
-    assert next_record.record_key == original_record.record_key
-    assert next_record.input_type == original_record.input_type
-    assert next_record.metric_name == original_record.metric_name
-    assert next_record.content_hash != original_record.content_hash
-
-
-def test_spec_record_key_prefers_input_config_when_metric_name_repeats(v4_base_data, external_api):
-    config_a = build_query_config()
-    config_b = {**build_query_config(), "step": "5m"}
-    records = [
-        build_record(metric_name="cpu_usage_avg", input_config=config_a),
-        build_record(metric_name="cpu_usage_avg", input_config=config_b),
-    ]
-    rule = create_rule(records=records, apply_immediately=False)
-    original_records = list(rule.current_spec.records.order_by("source_index"))
-
-    swapped_records = [
-        build_record(metric_name="cpu_usage_avg", input_config=config_b),
-        build_record(metric_name="cpu_usage_avg", input_config=config_a),
-    ]
-    RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
-        records=swapped_records,
-        raw_config={"records": swapped_records},
-        apply_immediately=False,
-    )
-
-    rule.refresh_from_db()
-    next_records = list(rule.current_spec.records.order_by("source_index"))
-    assert next_records[0].record_key == original_records[1].record_key
-    assert next_records[1].record_key == original_records[0].record_key
-
-
-def test_run_check_dispatches_promql_input_to_promql_api(v4_base_data, external_api):
-    record = build_record(
-        input_type=RecordRuleV4InputType.PROMQL.value,
-        input_config={"promql": "sum(cpu_usage)", "start": "1", "end": "2"},
-        metric_name="cpu_usage_sum",
-    )
-    rule = create_rule(records=[record], apply_immediately=False)
-    spec_record = rule.current_spec.records.get()
-    external_api.check_query_ts.reset_mock()
-    external_api.check_promql.reset_mock()
-
-    result = RecordRuleV4Resolver(rule, source="manual").run_check(spec_record)
-
-    assert result["data"][0]["metricql"] == "promql_metricql"
-    external_api.check_promql.assert_called_once_with(
-        bk_tenant_id=TENANT_ID,
-        promql="sum(cpu_usage)",
-        start="1",
-        end="2",
-    )
-    external_api.check_query_ts.assert_not_called()
+    assert [config["vm_result_table_id"] for config in configs] == [SECOND_SOURCE_VM_TABLE_ID, SOURCE_VM_TABLE_ID]
+    assert [config["vm_storage_name"] for config in configs] == ["monitor-second", "monitor-opsystem"]
 
 
 def test_promql_resolve_uses_actual_multi_vmrt_data(v4_base_data, external_api):
@@ -668,9 +513,7 @@ def test_promql_resolve_uses_actual_multi_vmrt_data(v4_base_data, external_api):
     rule = create_rule(records=[record])
 
     resolved_record = rule.latest_resolved.records.get()
-    source_node_names = {
-        node["data"]["name"] for node in get_source_nodes(rule.latest_resolved.flows.get().flow_config)
-    }
+    source_node_names = {node["data"]["name"] for node in get_source_nodes(rule.latest_flow.flow_config)}
     assert resolved_record.metricql == metricql
     assert resolved_record.src_vm_table_ids == [SOURCE_VM_TABLE_ID, SECOND_SOURCE_VM_TABLE_ID]
     assert source_node_names == {SOURCE_BKBASE_TABLE_NAME, SECOND_SOURCE_BKBASE_TABLE_NAME}
@@ -762,7 +605,7 @@ def test_query_ts_resolve_uses_actual_vmrt_data(v4_base_data, external_api):
     rule = create_rule(records=[build_record(input_config=build_structured_query_config())])
 
     resolved_record = rule.latest_resolved.records.get()
-    source_node = get_source_nodes(rule.latest_resolved.flows.get().flow_config)[0]
+    source_node = get_source_nodes(rule.latest_flow.flow_config)[0]
     assert resolved_record.metricql == disk_metricql
     assert resolved_record.src_vm_table_ids == [disk_vm_table_id]
     assert resolved_record.src_result_table_configs == [
@@ -793,7 +636,7 @@ def test_structured_query_config_uses_default_check_time_range(v4_base_data, ext
 
 def test_manual_refresh_only_marks_update_available(v4_base_data, external_api):
     rule = create_rule()
-    applied_deployment_id = rule.applied_deployment_id
+    applied_flow_id = rule.applied_flow_id
     external_api.apply_data_link.reset_mock()
     external_api.check_query_ts.return_value = build_check_result(metricql=CHANGED_METRICQL)
 
@@ -802,14 +645,14 @@ def test_manual_refresh_only_marks_update_available(v4_base_data, external_api):
     rule.refresh_from_db()
     assert resolved is not None
     assert rule.latest_resolved_id == resolved.pk
-    assert rule.applied_deployment_id == applied_deployment_id
-    assert rule.latest_deployment_id != applied_deployment_id
+    assert rule.applied_flow_id == applied_flow_id
+    assert rule.latest_flow_id != applied_flow_id
     assert rule.update_available is True
     assert rule.status == RecordRuleV4Status.PENDING.value
     external_api.apply_data_link.assert_not_called()
 
 
-def test_update_group_interval_and_labels_replans_without_record_changes(v4_base_data, external_api):
+def test_update_group_interval_and_labels_prepares_single_flow(v4_base_data, external_api):
     rule = create_rule()
     previous_spec_id = rule.current_spec_id
     previous_resolved_id = rule.latest_resolved_id
@@ -827,26 +670,24 @@ def test_update_group_interval_and_labels_replans_without_record_changes(v4_base
     assert rule.current_spec.interval == "5min"
     assert rule.current_spec.labels == [{"env": "prod"}]
     assert rule.latest_resolved.records.get().labels == [{"env": "prod"}, {"scenario": "pytest"}]
-    assert rule.latest_deployment.plan_config["actions"][0]["action_type"] == RecordRuleV4FlowActionType.UPDATE.value
+    assert rule.latest_flow.resolved_id == rule.latest_resolved_id
     assert rule.update_available is True
     external_api.apply_data_link.assert_not_called()
 
 
-def test_resolved_unchanged_does_not_replan_because_flow_template_is_not_the_comparison_source(
-    v4_base_data, external_api
-):
+def test_resolved_unchanged_does_not_prepare_new_flow(v4_base_data, external_api):
     rule = create_rule(auto_refresh=True)
     latest_resolved_id = rule.latest_resolved_id
-    latest_deployment_id = rule.latest_deployment_id
+    latest_flow_id = rule.latest_flow_id
     external_api.apply_data_link.reset_mock()
 
     resolved = RecordRuleV4Operator(rule, source="scheduler").manual_refresh()
 
     rule.refresh_from_db()
     assert resolved.pk == latest_resolved_id
-    assert rule.latest_deployment_id == latest_deployment_id
+    assert rule.latest_flow_id == latest_flow_id
     assert rule.update_available is False
-    assert external_api.apply_data_link.call_count == 0
+    external_api.apply_data_link.assert_not_called()
 
 
 def test_manual_refresh_skips_when_operation_lock_is_held(v4_base_data, external_api):
@@ -881,7 +722,7 @@ def test_reconcile_does_not_apply_when_auto_refresh_is_disabled(v4_base_data, ex
     rule.refresh_from_db()
     assert changed is True
     assert rule.update_available is True
-    assert rule.applied_deployment_id != rule.latest_deployment_id
+    assert rule.applied_flow_id != rule.latest_flow_id
     assert rule.status == RecordRuleV4Status.OUTDATED.value
     external_api.apply_data_link.assert_not_called()
 
@@ -896,16 +737,17 @@ def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base
     rule.refresh_from_db()
     assert changed is True
     assert rule.update_available is False
-    assert rule.applied_deployment_id == rule.latest_deployment_id
+    assert rule.applied_flow_id == rule.latest_flow_id
     assert rule.latest_resolved.records.get().metricql == CHANGED_METRICQL
     external_api.apply_data_link.assert_called_once()
 
 
-def test_stop_updates_runtime_status_without_new_spec_resolved_or_plan(v4_base_data, external_api):
+def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_data, external_api):
     rule = create_rule()
     previous_spec_id = rule.current_spec_id
     previous_resolved_id = rule.latest_resolved_id
-    previous_deployment_id = rule.latest_deployment_id
+    previous_flow_id = rule.latest_flow_id
+    previous_flow_hash = rule.latest_flow.content_hash
     external_api.check_query_ts.reset_mock()
     external_api.apply_data_link.reset_mock()
 
@@ -914,13 +756,14 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_plan(v4_base_d
     )
 
     rule.refresh_from_db()
-    flow = rule.latest_resolved.flows.get()
+    flow = rule.applied_flow
     assert rule.generation == 1
     assert rule.observed_generation == 1
     assert rule.current_spec_id == previous_spec_id
     assert rule.latest_resolved_id == previous_resolved_id
-    assert rule.latest_deployment_id == previous_deployment_id
+    assert rule.latest_flow_id == previous_flow_id
     assert rule.desired_status == RecordRuleV4DesiredStatus.STOPPED.value
+    assert flow.content_hash == previous_flow_hash
     assert flow.desired_status == RecordRuleV4DesiredStatus.STOPPED.value
     assert flow.flow_config["spec"]["desired_status"] == RecordRuleV4DesiredStatus.STOPPED.value
     assert rule.status == RecordRuleV4Status.STOPPED.value
@@ -928,66 +771,64 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_plan(v4_base_d
     external_api.apply_data_link.assert_called_once()
 
 
-def test_delete_creates_delete_actions_for_applied_flows(v4_base_data, external_api):
-    records = [
-        build_record(metric_name="cpu_usage_avg"),
-        build_record(metric_name="cpu_total_sum"),
-    ]
-    rule = create_rule(records=records)
-    applied_flow_names = sorted(rule.applied_deployment.resolved.flows.values_list("flow_name", flat=True))
+def test_delete_removes_applied_flow(v4_base_data, external_api):
+    rule = create_rule()
+    applied_flow_name = rule.applied_flow.flow_name
 
     RecordRuleV4Operator(rule, source="manual", operator="admin").delete()
 
     rule.refresh_from_db()
-    delete_actions = sorted(rule.latest_deployment.plan_config["actions"], key=lambda action: action["flow_name"])
     assert rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value
     assert rule.status == RecordRuleV4Status.DELETED.value
     assert rule.deleted_at is not None
-    assert [action["flow_name"] for action in delete_actions] == applied_flow_names
-    assert all(action["action_type"] == RecordRuleV4FlowActionType.DELETE.value for action in delete_actions)
-    assert external_api.delete_data_link.call_count == 2
+    assert rule.latest_flow_id is None
+    assert rule.applied_flow_id is None
+    external_api.delete_data_link.assert_called_once()
+    _, kwargs = external_api.delete_data_link.call_args
+    assert kwargs["name"] == applied_flow_name
 
 
 def test_apply_failure_keeps_update_available_and_records_action_error(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
+    flow = rule.latest_flow
     external_api.apply_data_link.side_effect = RuntimeError("bkbase unavailable")
 
     ok = RecordRuleV4Operator(rule, source="manual", operator="admin").apply()
 
     rule.refresh_from_db()
-    deployment = RecordRuleV4Deployment.objects.get(pk=rule.latest_deployment_id)
     assert ok is False
-    assert deployment.apply_status == RecordRuleV4ApplyStatus.FAILED.value
+    assert rule.applied_flow_id is None
     assert rule.update_available is True
     assert rule.last_error == "bkbase unavailable"
     assert rule.get_condition(CONDITION_RECONCILED)["status"] == CONDITION_FALSE
-    assert RecordRuleV4Event.objects.filter(deployment=deployment, event_type="flow_action.failed").exists()
+    event = RecordRuleV4Event.objects.get(flow=flow, event_type="flow_action.failed")
+    assert event.detail == {
+        "action_type": RecordRuleV4FlowActionType.CREATE.value,
+        "flow_key": flow.flow_key,
+        "flow_id": flow.pk,
+        "flow_content_hash": flow.content_hash,
+    }
 
 
-def test_apply_skips_stale_deployment_before_calling_bkbase(v4_base_data, external_api):
+def test_apply_skips_stale_flow_before_calling_bkbase(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
-    stale_deployment = rule.latest_deployment
+    stale_flow = rule.latest_flow
     RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
         records=[build_record(metric_name="cpu_usage_v2")],
         raw_config={"records": [build_record(metric_name="cpu_usage_v2")]},
         apply_immediately=False,
     )
-    assert models.ResultTableField.objects.filter(
-        table_id=rule.table_id,
-        bk_tenant_id=TENANT_ID,
-        field_name="cpu_usage_v2",
-    ).exists()
     external_api.apply_data_link.reset_mock()
 
-    ok = RecordRuleV4Operator(rule, source="manual", operator="admin").apply(stale_deployment)
+    is_current = RecordRuleV4Runner(rule, source="manual", operator="admin").is_flow_current(stale_flow)
 
-    assert ok is False
+    assert is_current is False
     external_api.apply_data_link.assert_not_called()
 
 
-def test_resolve_failure_keeps_last_applied_deployment(v4_base_data, external_api):
+def test_resolve_failure_keeps_last_applied_flow(v4_base_data, external_api):
     rule = create_rule()
-    applied_deployment_id = rule.applied_deployment_id
+    applied_flow_id = rule.applied_flow_id
     latest_resolved_id = rule.latest_resolved_id
     external_api.check_query_ts.side_effect = RuntimeError("unify-query unavailable")
 
@@ -995,7 +836,7 @@ def test_resolve_failure_keeps_last_applied_deployment(v4_base_data, external_ap
 
     rule.refresh_from_db()
     assert resolved is None
-    assert rule.applied_deployment_id == applied_deployment_id
+    assert rule.applied_flow_id == applied_flow_id
     assert rule.latest_resolved_id == latest_resolved_id
     assert rule.last_error == "unify-query unavailable"
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
@@ -1034,6 +875,7 @@ def test_resolve_fails_when_check_data_is_invalid(v4_base_data, external_api, ch
 
     rule.refresh_from_db()
     assert rule.latest_resolved_id is None
+    assert rule.latest_flow_id is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
     assert error_text in rule.last_error
     external_api.apply_data_link.assert_not_called()
@@ -1050,7 +892,7 @@ def test_resolve_fails_when_source_result_table_config_missing(v4_base_data, ext
 
     rule.refresh_from_db()
     assert rule.latest_resolved_id is None
-    assert rule.latest_deployment_id is None
+    assert rule.latest_flow_id is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
     assert "ResultTableConfig" in rule.last_error
     external_api.apply_data_link.assert_not_called()
@@ -1086,7 +928,7 @@ def test_self_referenced_precalculated_vm_table_is_excluded_from_source(v4_base_
     assert src_vm_table_ids == [SOURCE_VM_TABLE_ID]
 
 
-def test_refresh_flow_health_maps_each_flow_status_to_group_condition(v4_base_data, external_api):
+def test_refresh_flow_health_maps_flow_status_to_group_condition(v4_base_data, external_api):
     rule = create_rule()
     external_api.get_data_link.return_value = {"status": {"state": "not-ok"}}
 
@@ -1096,7 +938,7 @@ def test_refresh_flow_health_maps_each_flow_status_to_group_condition(v4_base_da
     assert status == RecordRuleV4FlowStatus.ABNORMAL.value
     assert rule.get_condition(CONDITION_FLOW_HEALTHY)["status"] == CONDITION_FALSE
     assert rule.status == RecordRuleV4Status.FAILED.value
-    assert rule.applied_deployment.resolved.flows.get().flow_status == RecordRuleV4FlowStatus.ABNORMAL.value
+    assert rule.applied_flow.flow_status == RecordRuleV4FlowStatus.ABNORMAL.value
 
     external_api.get_data_link.side_effect = RuntimeError("404 not found")
     status = RecordRuleV4Operator(rule, source="scheduler").refresh_flow_health()

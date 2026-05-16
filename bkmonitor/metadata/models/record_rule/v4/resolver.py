@@ -36,7 +36,7 @@ from metadata.models.record_rule.v4.models import (
     now,
     stable_hash,
 )
-from metadata.models.record_rule.v4.source import resolve_vm_result_table_configs
+from metadata.models.record_rule.v4.source import ResolvedVmResultTableConfig, resolve_vm_result_table_configs
 from metadata.models.record_rule.v4.types import (
     CheckQueryPromQLInput,
     CheckQueryTsInput,
@@ -132,10 +132,7 @@ class RecordRuleV4Resolver:
                 # 解析语义未变时只更新时间和 condition，不推进 resolved 版本。
                 self.rule.last_error = ""
                 self.rule.last_check_time = now()
-                if (
-                    self.rule.applied_deployment_id
-                    and self.rule.applied_deployment_id == self.rule.latest_deployment_id
-                ):
+                if self.rule.applied_flow_id and self.rule.applied_flow_id == self.rule.latest_flow_id:
                     self.rule.observed_generation = max(self.rule.observed_generation, spec.generation)
                     self.rule.update_available = False
                     self.rule.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_FALSE, "ResolvedUnchanged")
@@ -172,12 +169,10 @@ class RecordRuleV4Resolver:
                     spec_record=spec_record,
                     record_key=spec_record.record_key,
                     content_hash=runtime_record["content_hash"],
-                    source_index=spec_record.source_index,
                     metricql=runtime_record["metricql"],
                     labels=runtime_record["labels"],
                     src_vm_table_ids=runtime_record["src_vm_table_ids"],
                     src_result_table_configs=runtime_record["src_result_table_configs"],
-                    dst_vm_storage_name=runtime_record["dst_vm_storage_name"],
                     creator=self.actor,
                     updater=self.actor,
                 )
@@ -211,8 +206,6 @@ class RecordRuleV4Resolver:
         src_result_table_configs = self.resolve_src_result_table_configs(src_vm_table_ids)
         labels = merge_labels(spec_record.spec.labels, spec_record.labels)
 
-        # 输出 VM storage 跟当前空间相关，而不是从单条查询结果里推导。
-        vm_storage_info = self.get_vm_storage_info()
         resolved_payload = {
             "record_key": spec_record.record_key,
             "metricql": metricql,
@@ -220,7 +213,6 @@ class RecordRuleV4Resolver:
             "interval": spec_record.spec.interval,
             "src_vm_table_ids": src_vm_table_ids,
             "src_result_table_configs": src_result_table_configs,
-            "dst_vm_storage_name": vm_storage_info["cluster_name"],
         }
         return {
             "spec_record": spec_record,
@@ -228,7 +220,6 @@ class RecordRuleV4Resolver:
             "labels": labels,
             "src_vm_table_ids": src_vm_table_ids,
             "src_result_table_configs": src_result_table_configs,
-            "dst_vm_storage_name": vm_storage_info["cluster_name"],
             "resolved_payload": resolved_payload,
             "content_hash": stable_hash(resolved_payload),
         }
@@ -488,21 +479,10 @@ class RecordRuleV4Resolver:
             raise ValueError(f"source result tables are not access vm storage: {missing}")
         return result
 
-    def resolve_src_result_table_configs(self, vm_table_ids: list[str]) -> list[dict[str, str]]:
+    def resolve_src_result_table_configs(self, vm_table_ids: list[str]) -> list[ResolvedVmResultTableConfig]:
         """把源 VMRT 固化成 bkbase ResultTableConfig.name 快照。"""
 
         return resolve_vm_result_table_configs(
             bk_tenant_id=self.rule.bk_tenant_id,
             vm_result_table_ids=vm_table_ids,
-        )
-
-    def get_vm_storage_info(self) -> dict[str, Any]:
-        """获取当前空间 recording rule 输出要写入的 VM storage。"""
-
-        from metadata.models.vm import utils as vm_utils
-
-        return vm_utils.get_vm_cluster_id_name(
-            bk_tenant_id=self.rule.bk_tenant_id,
-            space_type=self.rule.space_type,
-            space_id=self.rule.space_id,
         )

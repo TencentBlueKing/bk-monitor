@@ -13,13 +13,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from metadata.models.record_rule.constants import (
-    RecordRuleV4ApplyStatus,
-    RecordRuleV4DeploymentStrategy,
-    RecordRuleV4DesiredStatus,
-    RecordRuleV4FlowStatus,
-    RecordRuleV4Status,
-)
+from metadata.models.record_rule.constants import RecordRuleV4DesiredStatus, RecordRuleV4FlowStatus, RecordRuleV4Status
 from metadata.models.record_rule.v4 import (
     CONDITION_FALSE,
     CONDITION_FLOW_HEALTHY,
@@ -30,7 +24,6 @@ from metadata.models.record_rule.v4 import (
     EVENT_TYPE_APPLY_FAILED,
     EVENT_TYPE_FLOW_ACTION_FAILED,
     RecordRuleV4,
-    RecordRuleV4Deployment,
     RecordRuleV4Event,
     RecordRuleV4Flow,
     RecordRuleV4Resolved,
@@ -50,6 +43,7 @@ def create_rule(**overrides) -> RecordRuleV4:
         "group_name": "cpu-group",
         "table_id": "bkprecal_cpu_group_abcd1234.__default__",
         "dst_vm_table_id": "vm_bkprecal_cpu_group_abcd1234",
+        "dst_vm_storage_name": "monitor-opsystem",
         "creator": "pytest",
         "updater": "pytest",
     }
@@ -64,14 +58,13 @@ def create_spec(rule: RecordRuleV4, **overrides) -> RecordRuleV4Spec:
         "raw_config": {"records": []},
         "interval": "1min",
         "labels": [],
-        "deployment_strategy": {"strategy": RecordRuleV4DeploymentStrategy.PER_RECORD.value, "options": {}},
         "desired_status": RecordRuleV4DesiredStatus.RUNNING.value,
         "content_hash": stable_hash(
             {
                 "records": [],
                 "interval": "1min",
                 "labels": [],
-                "deployment_strategy": {"strategy": RecordRuleV4DeploymentStrategy.PER_RECORD.value, "options": {}},
+                "desired_status": RecordRuleV4DesiredStatus.RUNNING.value,
             }
         ),
         "source": "pytest",
@@ -99,35 +92,12 @@ def create_resolved(rule: RecordRuleV4, spec: RecordRuleV4Spec, **overrides) -> 
     return RecordRuleV4Resolved.objects.create(**defaults)
 
 
-def create_deployment(
-    rule: RecordRuleV4, spec: RecordRuleV4Spec, resolved: RecordRuleV4Resolved, **overrides
-) -> RecordRuleV4Deployment:
-    defaults = {
-        "rule": rule,
-        "spec": spec,
-        "resolved": resolved,
-        "generation": spec.generation,
-        "deployment_version": 1,
-        "strategy": spec.deployment_strategy_name,
-        "content_hash": "deployment-hash",
-        "plan_config": {"actions": []},
-        "source": "pytest",
-        "creator": "pytest",
-        "updater": "pytest",
-    }
-    defaults.update(overrides)
-    return RecordRuleV4Deployment.objects.create(**defaults)
-
-
 def create_flow(rule: RecordRuleV4, resolved: RecordRuleV4Resolved, **overrides) -> RecordRuleV4Flow:
     defaults = {
         "rule": rule,
         "resolved": resolved,
-        "flow_key": "rr_abcd1234",
-        "flow_name": "rrv4_cpu_group_cpu_abcd1234",
-        "strategy": RecordRuleV4DeploymentStrategy.PER_RECORD.value,
-        "table_id": rule.table_id,
-        "dst_vm_table_id": rule.dst_vm_table_id,
+        "flow_key": "group",
+        "flow_name": "rrv4_cpu_group_group_abcd1234",
         "flow_config": {"kind": "Flow"},
         "content_hash": "flow-hash",
         "desired_status": RecordRuleV4DesiredStatus.RUNNING.value,
@@ -208,64 +178,71 @@ def test_sync_phase_distinguishes_main_states():
     assert rule.status == RecordRuleV4Status.DELETED.value
 
 
-def test_use_spec_resolved_deployment_updates_group_pointers_and_update_flag():
+def test_use_spec_resolved_flow_updates_group_pointers_and_update_flag():
     rule = create_rule()
     spec = create_spec(rule)
     resolved = create_resolved(rule, spec)
-    deployment = create_deployment(rule, spec, resolved)
+    flow = create_flow(rule, resolved)
 
     rule.use_spec(spec)
     rule.use_resolved(resolved)
-    rule.use_deployment(deployment)
+    rule.use_flow(flow)
 
     rule.refresh_from_db()
     assert rule.current_spec_id == spec.pk
     assert rule.latest_resolved_id == resolved.pk
-    assert rule.latest_deployment_id == deployment.pk
+    assert rule.latest_flow_id == flow.pk
     assert rule.update_available is True
     assert rule.get_condition(CONDITION_UPDATE_AVAILABLE)["status"] == CONDITION_TRUE
 
-    rule.mark_deployment_applied(deployment)
+    rule.mark_flow_applied(flow)
     rule.refresh_from_db()
-    assert rule.applied_deployment_id == deployment.pk
-    assert rule.observed_generation == deployment.generation
+    assert rule.applied_flow_id == flow.pk
+    assert rule.observed_generation == resolved.generation
     assert rule.update_available is False
     assert rule.status == RecordRuleV4Status.RUNNING.value
 
 
-def test_deployment_and_flow_mark_runtime_result():
+def test_mark_delete_applied_clears_flow_pointers():
+    rule = create_rule(desired_status=RecordRuleV4DesiredStatus.DELETED.value, generation=2)
+    spec = create_spec(rule, generation=2, desired_status=RecordRuleV4DesiredStatus.DELETED.value)
+    resolved = create_resolved(rule, spec)
+    flow = create_flow(rule, resolved)
+    rule.latest_flow = flow
+    rule.applied_flow = flow
+    rule.save()
+
+    rule.mark_delete_applied()
+
+    rule.refresh_from_db()
+    assert rule.latest_flow_id is None
+    assert rule.applied_flow_id is None
+    assert rule.deleted_at is not None
+    assert rule.update_available is False
+    assert rule.status == RecordRuleV4Status.DELETED.value
+
+
+def test_flow_mark_runtime_observe_result():
     rule = create_rule()
     spec = create_spec(rule)
     resolved = create_resolved(rule, spec)
-    deployment = create_deployment(rule, spec, resolved)
     flow = create_flow(rule, resolved)
 
     flow.mark_flow_observed(RecordRuleV4FlowStatus.ABNORMAL.value)
-    deployment.mark_apply_failed("deployment failed")
 
     flow.refresh_from_db()
-    deployment.refresh_from_db()
     assert flow.flow_status == RecordRuleV4FlowStatus.ABNORMAL.value
     assert flow.last_observed_at is not None
-    assert deployment.apply_status == RecordRuleV4ApplyStatus.FAILED.value
-    assert deployment.apply_error == "deployment failed"
-
-    deployment.mark_apply_succeeded()
-    deployment.refresh_from_db()
-    assert deployment.apply_status == RecordRuleV4ApplyStatus.SUCCEEDED.value
-    assert deployment.apply_error == ""
 
 
 def test_event_methods_persist_structured_context_and_validate_payload():
     rule = create_rule()
     spec = create_spec(rule)
     resolved = create_resolved(rule, spec)
-    deployment = create_deployment(rule, spec, resolved)
     flow = create_flow(rule, resolved)
 
     event = RecordRuleV4Event.record_apply_failed(
         rule,
-        deployment,
         flow=flow,
         source="manual",
         operator="admin",
@@ -276,14 +253,12 @@ def test_event_methods_persist_structured_context_and_validate_payload():
     assert event.reason == EVENT_REASON_APPLY_FAILED
     assert event.spec_id == spec.pk
     assert event.resolved_id == resolved.pk
-    assert event.deployment_id == deployment.pk
     assert event.flow_id == flow.pk
     assert event.message == "bkbase unavailable"
 
     with pytest.raises(ValueError):
         RecordRuleV4Event.objects.create(
             rule=rule,
-            deployment=deployment,
             flow=flow,
             event_type=EVENT_TYPE_FLOW_ACTION_FAILED,
             status="unknown",
@@ -295,12 +270,12 @@ def test_event_methods_persist_structured_context_and_validate_payload():
     with pytest.raises(ValueError):
         RecordRuleV4Event.record(
             rule=rule,
-            deployment=deployment,
             flow=flow,
             event_type=EVENT_TYPE_FLOW_ACTION_FAILED,
-            status="unknown",
+            status="failed",
             source="manual",
             operator="admin",
+            detail={"unexpected": True},
         )
     with pytest.raises(ValueError):
         RecordRuleV4Event.record(

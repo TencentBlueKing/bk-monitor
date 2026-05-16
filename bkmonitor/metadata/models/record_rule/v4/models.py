@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
@@ -17,6 +18,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -25,16 +27,20 @@ from bkmonitor.utils.db import JsonField
 from metadata.models.common import BaseModelWithTime
 from metadata.models.record_rule import utils
 from metadata.models.record_rule.constants import (
+    RECORD_RULE_V4_BKBASE_NAMESPACE,
+    RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+    RECORD_RULE_V4_DEFAULT_TENANT,
     RECORD_RULE_V4_DEFAULT_REFRESH_INTERVAL,
     RECORD_RULE_V4_INTERVAL_CHOICES,
-    RecordRuleV4ApplyStatus,
-    RecordRuleV4DeploymentStrategy,
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowStatus,
     RecordRuleV4InputType,
     RecordRuleV4Status,
 )
 from metadata.models.space.constants import SpaceTypes
+
+if TYPE_CHECKING:
+    from metadata.models.record_rule.v4.source import ResolvedVmResultTableConfig
 
 logger = logging.getLogger("metadata")
 
@@ -45,7 +51,7 @@ CONDITION_UNKNOWN = "Unknown"
 
 CONDITION_RECONCILED = "Reconciled"
 CONDITION_RESOLVED = "Resolved"
-CONDITION_DEPLOYMENT_READY = "DeploymentReady"
+CONDITION_FLOW_READY = "FlowReady"
 CONDITION_FLOW_HEALTHY = "FlowHealthy"
 CONDITION_UPDATE_AVAILABLE = "UpdateAvailable"
 
@@ -62,8 +68,6 @@ EVENT_TYPE_OPERATION_SKIPPED = "operation.skipped"
 EVENT_TYPE_RESOLVE_CHANGED = "resolve.changed"
 EVENT_TYPE_RESOLVE_UNCHANGED = "resolve.unchanged"
 EVENT_TYPE_RESOLVE_FAILED = "resolve.failed"
-EVENT_TYPE_DEPLOYMENT_PLANNED = "deployment.planned"
-EVENT_TYPE_DEPLOYMENT_UNCHANGED = "deployment.unchanged"
 EVENT_TYPE_APPLY_STARTED = "apply.started"
 EVENT_TYPE_APPLY_SUCCEEDED = "apply.succeeded"
 EVENT_TYPE_APPLY_FAILED = "apply.failed"
@@ -74,11 +78,10 @@ EVENT_TYPE_FLOW_ACTION_FAILED = "flow_action.failed"
 EVENT_TYPE_FLOW_OBSERVED = "flow.observed"
 
 EVENT_REASON_OPERATION_LOCKED = "OperationLocked"
-EVENT_REASON_STALE_SPEC = "StaleSpec"
-EVENT_REASON_STALE_DEPLOYMENT = "StaleDeployment"
+EVENT_REASON_STALE_FLOW = "StaleFlow"
 EVENT_REASON_SPEC_MISSING = "SpecMissing"
 EVENT_REASON_RESOLVE_FAILED = "ResolveFailed"
-EVENT_REASON_DEPLOYMENT_MISSING = "DeploymentMissing"
+EVENT_REASON_FLOW_MISSING = "FlowMissing"
 EVENT_REASON_APPLY_FAILED = "ApplyFailed"
 
 EVENT_RELATION_REQUIRED = "required"
@@ -90,7 +93,6 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_SUCCEEDED},
         "spec": EVENT_RELATION_REQUIRED,
         "resolved": EVENT_RELATION_FORBIDDEN,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {""},
     },
@@ -98,7 +100,6 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_SUCCEEDED},
         "spec": EVENT_RELATION_REQUIRED,
         "resolved": EVENT_RELATION_FORBIDDEN,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {""},
         "detail_keys": {"changed_fields"},
@@ -107,7 +108,6 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_SUCCEEDED},
         "spec": EVENT_RELATION_FORBIDDEN,
         "resolved": EVENT_RELATION_FORBIDDEN,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {""},
         "detail_keys": {"auto_refresh"},
@@ -116,7 +116,6 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_SUCCEEDED},
         "spec": EVENT_RELATION_FORBIDDEN,
         "resolved": EVENT_RELATION_FORBIDDEN,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {""},
         "detail_keys": {"desired_status"},
@@ -125,7 +124,6 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_SKIPPED},
         "spec": EVENT_RELATION_FORBIDDEN,
         "resolved": EVENT_RELATION_FORBIDDEN,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {EVENT_REASON_OPERATION_LOCKED},
         "detail_keys": {"owner", "reason", "expires_at", "operation"},
@@ -134,7 +132,6 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_SUCCEEDED},
         "spec": EVENT_RELATION_REQUIRED,
         "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {""},
     },
@@ -142,7 +139,6 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_SKIPPED},
         "spec": EVENT_RELATION_REQUIRED,
         "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {""},
     },
@@ -150,91 +146,66 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "statuses": {EVENT_STATUS_FAILED},
         "spec": EVENT_RELATION_OPTIONAL,
         "resolved": EVENT_RELATION_FORBIDDEN,
-        "deployment": EVENT_RELATION_FORBIDDEN,
         "flow": EVENT_RELATION_FORBIDDEN,
         "reasons": {EVENT_REASON_SPEC_MISSING, EVENT_REASON_RESOLVE_FAILED},
     },
-    EVENT_TYPE_DEPLOYMENT_PLANNED: {
-        "statuses": {EVENT_STATUS_SUCCEEDED},
-        "spec": EVENT_RELATION_REQUIRED,
-        "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_REQUIRED,
-        "flow": EVENT_RELATION_FORBIDDEN,
-        "reasons": {""},
-    },
-    EVENT_TYPE_DEPLOYMENT_UNCHANGED: {
-        "statuses": {EVENT_STATUS_SKIPPED},
-        "spec": EVENT_RELATION_REQUIRED,
-        "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_REQUIRED,
-        "flow": EVENT_RELATION_FORBIDDEN,
-        "reasons": {""},
-    },
     EVENT_TYPE_APPLY_STARTED: {
         "statuses": {EVENT_STATUS_STARTED},
-        "spec": EVENT_RELATION_REQUIRED,
-        "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_REQUIRED,
-        "flow": EVENT_RELATION_FORBIDDEN,
+        "spec": EVENT_RELATION_OPTIONAL,
+        "resolved": EVENT_RELATION_OPTIONAL,
+        "flow": EVENT_RELATION_OPTIONAL,
         "reasons": {""},
     },
     EVENT_TYPE_APPLY_SUCCEEDED: {
         "statuses": {EVENT_STATUS_SUCCEEDED},
-        "spec": EVENT_RELATION_REQUIRED,
-        "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_REQUIRED,
-        "flow": EVENT_RELATION_FORBIDDEN,
+        "spec": EVENT_RELATION_OPTIONAL,
+        "resolved": EVENT_RELATION_OPTIONAL,
+        "flow": EVENT_RELATION_OPTIONAL,
         "reasons": {""},
     },
     EVENT_TYPE_APPLY_FAILED: {
         "statuses": {EVENT_STATUS_FAILED},
         "spec": EVENT_RELATION_OPTIONAL,
         "resolved": EVENT_RELATION_OPTIONAL,
-        "deployment": EVENT_RELATION_OPTIONAL,
         "flow": EVENT_RELATION_OPTIONAL,
-        "reasons": {EVENT_REASON_DEPLOYMENT_MISSING, EVENT_REASON_APPLY_FAILED, EVENT_REASON_STALE_DEPLOYMENT},
+        "reasons": {EVENT_REASON_FLOW_MISSING, EVENT_REASON_APPLY_FAILED, EVENT_REASON_STALE_FLOW},
     },
     EVENT_TYPE_APPLY_SKIPPED: {
         "statuses": {EVENT_STATUS_SKIPPED},
         "spec": EVENT_RELATION_OPTIONAL,
         "resolved": EVENT_RELATION_OPTIONAL,
-        "deployment": EVENT_RELATION_OPTIONAL,
-        "flow": EVENT_RELATION_FORBIDDEN,
-        "reasons": {EVENT_REASON_STALE_DEPLOYMENT},
-        "detail_keys": {"deployment_id", "latest_deployment_id", "current_generation", "deployment_generation"},
+        "flow": EVENT_RELATION_OPTIONAL,
+        "reasons": {EVENT_REASON_STALE_FLOW},
+        "detail_keys": {"flow_id", "latest_flow_id", "current_generation", "flow_generation"},
     },
     EVENT_TYPE_FLOW_ACTION_STARTED: {
         "statuses": {EVENT_STATUS_STARTED},
         "spec": EVENT_RELATION_REQUIRED,
         "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_REQUIRED,
         "flow": EVENT_RELATION_REQUIRED,
         "reasons": {""},
-        "detail_keys": {"action_key", "action_type"},
+        "detail_keys": {"action_type", "flow_key", "flow_id", "flow_content_hash"},
     },
     EVENT_TYPE_FLOW_ACTION_SUCCEEDED: {
         "statuses": {EVENT_STATUS_SUCCEEDED},
         "spec": EVENT_RELATION_REQUIRED,
         "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_REQUIRED,
         "flow": EVENT_RELATION_REQUIRED,
         "reasons": {""},
-        "detail_keys": {"action_key", "action_type"},
+        "detail_keys": {"action_type", "flow_key", "flow_id", "flow_content_hash"},
     },
     EVENT_TYPE_FLOW_ACTION_FAILED: {
         "statuses": {EVENT_STATUS_FAILED},
         "spec": EVENT_RELATION_REQUIRED,
         "resolved": EVENT_RELATION_REQUIRED,
-        "deployment": EVENT_RELATION_REQUIRED,
         "flow": EVENT_RELATION_REQUIRED,
         "reasons": {EVENT_REASON_APPLY_FAILED},
-        "detail_keys": {"action_key", "action_type"},
+        "detail_keys": {"action_type", "flow_key", "flow_id", "flow_content_hash"},
     },
     EVENT_TYPE_FLOW_OBSERVED: {
         "statuses": {EVENT_STATUS_SUCCEEDED, EVENT_STATUS_FAILED},
         "spec": EVENT_RELATION_FORBIDDEN,
         "resolved": EVENT_RELATION_FORBIDDEN,
-        "deployment": EVENT_RELATION_OPTIONAL,
         "flow": EVENT_RELATION_OPTIONAL,
         "reasons": {
             RecordRuleV4FlowStatus.OK.value,
@@ -278,36 +249,6 @@ def merge_labels(group_labels: list[dict[str, Any]], record_labels: list[dict[st
         for key, value in label.items():
             merged[str(key)] = value
     return [{key: value} for key, value in merged.items()]
-
-
-def get_deployment_strategy_name(deployment_strategy: str | dict[str, Any] | None) -> str:
-    """从部署策略配置中取出策略名称。"""
-
-    if deployment_strategy is None:
-        return RecordRuleV4DeploymentStrategy.PER_RECORD.value
-    if isinstance(deployment_strategy, str):
-        return deployment_strategy
-    if isinstance(deployment_strategy, dict):
-        return str(deployment_strategy.get("strategy") or RecordRuleV4DeploymentStrategy.PER_RECORD.value)
-    raise ValueError("deployment_strategy must be string or dict")
-
-
-def normalize_deployment_strategy(deployment_strategy: str | dict[str, Any] | None) -> dict[str, Any]:
-    """归一化部署策略配置，预留 options 结构给后续策略参数。"""
-
-    strategy = get_deployment_strategy_name(deployment_strategy)
-    if strategy not in {item.value for item in RecordRuleV4DeploymentStrategy}:
-        raise ValueError(f"unsupported deployment_strategy: {strategy}")
-
-    if isinstance(deployment_strategy, dict):
-        options = deployment_strategy.get("options") or {}
-        if not isinstance(options, dict):
-            raise ValueError("deployment_strategy.options must be dict")
-        result = dict(deployment_strategy)
-        result["strategy"] = strategy
-        result["options"] = dict(options)
-        return result
-    return {"strategy": strategy, "options": {}}
 
 
 def now() -> datetime:
@@ -354,17 +295,16 @@ class RecordRuleV4(BaseModelWithTime):
     """V4 Recording Rule group 声明。
 
     主对象只代表用户眼中的一组预计算配置。用户输入、实时解析结果、最终部署计划分别拆到
-    Spec / Resolved / Deployment；因此 flow 模板变化不会直接影响 group 是否可更新。
+    Spec / Resolved / Flow；因此 flow 模板变化不会直接影响 group 是否可更新。
     """
 
     if TYPE_CHECKING:
         current_spec_id: int | None
         latest_resolved_id: int | None
-        latest_deployment_id: int | None
-        applied_deployment_id: int | None
+        latest_flow_id: int | None
+        applied_flow_id: int | None
         specs: models.QuerySet[RecordRuleV4Spec]
         resolved: models.QuerySet[RecordRuleV4Resolved]
-        deployments: models.QuerySet[RecordRuleV4Deployment]
         flows: models.QuerySet[RecordRuleV4Flow]
         events: models.QuerySet[RecordRuleV4Event]
 
@@ -375,6 +315,7 @@ class RecordRuleV4(BaseModelWithTime):
     group_name = models.CharField("预计算组名称", max_length=128)
     table_id = models.CharField("结果表名", max_length=128)
     dst_vm_table_id = models.CharField("VM 结果表RT", max_length=128)
+    dst_vm_storage_name = models.CharField("目标 VM 存储名称", max_length=128, blank=True, default="")
 
     generation = models.IntegerField("用户声明版本", default=0)
     observed_generation = models.IntegerField("已成功下发的声明版本", default=0)
@@ -394,17 +335,17 @@ class RecordRuleV4(BaseModelWithTime):
         on_delete=models.SET_NULL,
         related_name="+",
     )
-    latest_deployment = models.ForeignKey(
-        "RecordRuleV4Deployment",
-        verbose_name="最近部署计划",
+    latest_flow = models.ForeignKey(
+        "RecordRuleV4Flow",
+        verbose_name="最近目标 Flow",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="+",
     )
-    applied_deployment = models.ForeignKey(
-        "RecordRuleV4Deployment",
-        verbose_name="最近成功下发的部署计划",
+    applied_flow = models.ForeignKey(
+        "RecordRuleV4Flow",
+        verbose_name="最近成功下发的 Flow",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -523,7 +464,7 @@ class RecordRuleV4(BaseModelWithTime):
             for condition_type in [
                 CONDITION_RECONCILED,
                 CONDITION_RESOLVED,
-                CONDITION_DEPLOYMENT_READY,
+                CONDITION_FLOW_READY,
                 CONDITION_FLOW_HEALTHY,
             ]
         ):
@@ -575,8 +516,8 @@ class RecordRuleV4(BaseModelWithTime):
         self.latest_resolved = resolved
         self.last_error = ""
         self.last_check_time = now()
-        self.update_available = self.applied_deployment_id is None or (
-            self.applied_deployment is not None and self.applied_deployment.resolved_id != resolved.pk
+        self.update_available = self.applied_flow_id is None or (
+            self.applied_flow is not None and self.applied_flow.resolved_id != resolved.pk
         )
         self.set_condition(CONDITION_RESOLVED, CONDITION_TRUE, "Changed")
         self.set_condition(
@@ -597,21 +538,23 @@ class RecordRuleV4(BaseModelWithTime):
             ]
         )
 
-    def use_deployment(self, deployment: RecordRuleV4Deployment) -> None:
-        """切换最近部署计划，并根据 applied 指针标记是否需要下发。"""
+    def use_flow(self, flow: RecordRuleV4Flow) -> None:
+        """切换最近目标 Flow，并根据 applied 指针标记是否需要下发。"""
 
-        self.latest_deployment = deployment
-        self.update_available = self.applied_deployment_id != deployment.pk
-        self.set_condition(CONDITION_DEPLOYMENT_READY, CONDITION_TRUE, "Planned")
+        self.latest_flow = flow
+        self.update_available = self.applied_flow_id is None or (
+            self.applied_flow is not None and self.applied_flow.resolved_id != flow.resolved_id
+        )
+        self.set_condition(CONDITION_FLOW_READY, CONDITION_TRUE, "Prepared")
         self.set_condition(
             CONDITION_UPDATE_AVAILABLE,
             CONDITION_TRUE if self.update_available else CONDITION_FALSE,
-            "DeploymentChanged" if self.update_available else "DeploymentApplied",
+            "FlowChanged" if self.update_available else "FlowApplied",
         )
         self.sync_phase()
         self.save(
             update_fields=[
-                "latest_deployment",
+                "latest_flow",
                 "update_available",
                 "conditions",
                 "status",
@@ -632,19 +575,32 @@ class RecordRuleV4(BaseModelWithTime):
         self.sync_phase()
         self.save(update_fields=["desired_status", "deleted_at", "status", "updated_at"])
 
-    def mark_deployment_applied(self, deployment: RecordRuleV4Deployment) -> None:
-        """标记一次 deployment 已完整下发成功。"""
+    def mark_flow_applied(self, flow: RecordRuleV4Flow) -> None:
+        """标记目标 Flow 已成功下发。"""
 
-        self.applied_deployment = deployment
-        self.observed_generation = deployment.generation
+        self.applied_flow = flow
+        self.observed_generation = flow.resolved.generation
         self.last_refresh_time = now()
         self.last_error = ""
         self.update_available = False
         self.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "ApplySucceeded")
-        self.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_FALSE, "DeploymentApplied")
+        self.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_FALSE, "FlowApplied")
         self.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_UNKNOWN, "ApplySubmitted")
-        if deployment.spec.desired_status == RecordRuleV4DesiredStatus.DELETED.value:
-            self.deleted_at = now()
+        self.sync_phase()
+        self.save()
+
+    def mark_delete_applied(self) -> None:
+        """标记外部 Flow 已删除，清空当前期望的外部 Flow 指针。"""
+
+        self.applied_flow = None
+        self.latest_flow = None
+        self.observed_generation = self.generation
+        self.deleted_at = now()
+        self.last_refresh_time = now()
+        self.last_error = ""
+        self.update_available = False
+        self.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "DeleteSucceeded")
+        self.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_FALSE, "FlowDeleted")
         self.sync_phase()
         self.save()
 
@@ -718,12 +674,13 @@ class RecordRuleV4(BaseModelWithTime):
             "group_name": self.group_name,
             "table_id": self.table_id,
             "dst_vm_table_id": self.dst_vm_table_id,
+            "dst_vm_storage_name": self.dst_vm_storage_name,
             "generation": self.generation,
             "observed_generation": self.observed_generation,
             "current_spec_id": self.current_spec_id,
             "latest_resolved_id": self.latest_resolved_id,
-            "latest_deployment_id": self.latest_deployment_id,
-            "applied_deployment_id": self.applied_deployment_id,
+            "latest_flow_id": self.latest_flow_id,
+            "applied_flow_id": self.applied_flow_id,
             "desired_status": self.desired_status,
             "status": self.status,
             "conditions": self.conditions,
@@ -746,10 +703,6 @@ class RecordRuleV4(BaseModelWithTime):
         if desired_status not in {item.value for item in RecordRuleV4DesiredStatus}:
             raise ValueError(f"unsupported desired_status: {desired_status}")
 
-    @staticmethod
-    def validate_deployment_strategy(strategy: str | dict[str, Any] | None) -> None:
-        normalize_deployment_strategy(strategy)
-
 
 class RecordRuleV4Spec(BaseModelWithTime):
     """用户提交的 group 原始配置快照。"""
@@ -758,14 +711,12 @@ class RecordRuleV4Spec(BaseModelWithTime):
         rule_id: int
         records: models.QuerySet[RecordRuleV4SpecRecord]
         resolved: models.QuerySet[RecordRuleV4Resolved]
-        deployments: models.QuerySet[RecordRuleV4Deployment]
 
     rule = models.ForeignKey(RecordRuleV4, verbose_name="预计算规则组", related_name="specs", on_delete=models.CASCADE)
     generation = models.IntegerField("用户声明版本")
     raw_config = JsonField("用户原始完整配置", default=dict)
     interval = models.CharField("计算周期", max_length=16, default="1min")
     labels = JsonField("组级附加标签", default=list)
-    deployment_strategy = JsonField("部署策略配置", default=dict)
     desired_status = models.CharField("期望状态", max_length=32, default=RecordRuleV4DesiredStatus.RUNNING.value)
     content_hash = models.CharField("配置内容指纹", max_length=64)
     source = models.CharField("来源", max_length=32, default="user")
@@ -780,12 +731,6 @@ class RecordRuleV4Spec(BaseModelWithTime):
         """按用户输入顺序返回 spec records。"""
 
         return list(self.records.order_by("source_index", "id"))
-
-    @property
-    def deployment_strategy_name(self) -> str:
-        """返回当前 spec 的部署策略名称。"""
-
-        return get_deployment_strategy_name(self.deployment_strategy)
 
 
 class RecordRuleV4SpecRecord(BaseModelWithTime):
@@ -839,7 +784,6 @@ class RecordRuleV4Resolved(BaseModelWithTime):
         rule_id: int
         spec_id: int
         records: models.QuerySet[RecordRuleV4ResolvedRecord]
-        deployments: models.QuerySet[RecordRuleV4Deployment]
         flows: models.QuerySet[RecordRuleV4Flow]
 
     rule = models.ForeignKey(
@@ -862,7 +806,7 @@ class RecordRuleV4Resolved(BaseModelWithTime):
     def get_records(self) -> list[RecordRuleV4ResolvedRecord]:
         """按用户输入顺序返回 resolved records，并预加载 spec record。"""
 
-        return list(self.records.select_related("spec_record").order_by("source_index", "id"))
+        return list(self.records.select_related("spec_record").order_by("spec_record__source_index", "id"))
 
 
 class RecordRuleV4ResolvedRecord(BaseModelWithTime):
@@ -871,7 +815,8 @@ class RecordRuleV4ResolvedRecord(BaseModelWithTime):
     if TYPE_CHECKING:
         resolved_id: int
         spec_record_id: int
-        flow_id: int | None
+        src_vm_table_ids: list[str]
+        src_result_table_configs: list[ResolvedVmResultTableConfig]
 
     resolved = models.ForeignKey(
         RecordRuleV4Resolved, verbose_name="解析快照", related_name="records", on_delete=models.CASCADE
@@ -879,77 +824,19 @@ class RecordRuleV4ResolvedRecord(BaseModelWithTime):
     spec_record = models.ForeignKey(
         RecordRuleV4SpecRecord, verbose_name="用户声明记录", related_name="resolved_records", on_delete=models.CASCADE
     )
-    flow = models.ForeignKey(
-        "RecordRuleV4Flow",
-        verbose_name="归属 Flow",
-        related_name="records",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-    )
     record_key = models.CharField("内部稳定记录ID", max_length=64)
     content_hash = models.CharField("解析记录内容指纹", max_length=64)
-    source_index = models.IntegerField("原始顺序", default=0)
 
     metricql = models.TextField("MetricQL")
     labels = JsonField("合并附加标签", default=list)
-    src_vm_table_ids = JsonField("源 VM 结果表列表", default=list)
-    src_result_table_configs = JsonField("源结果表配置列表", default=list)
-    dst_vm_storage_name = models.CharField("目标 VM 存储名称", max_length=128, blank=True, default="")
+    src_vm_table_ids = JsonField("源 VM 结果表列表", default=list)  # pyright: ignore[reportAssignmentType]
+    src_result_table_configs = JsonField("源结果表配置列表", default=list)  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         verbose_name = "V4 预计算解析记录"
         verbose_name_plural = "V4 预计算解析记录"
         unique_together = (("resolved", "record_key"),)
-        ordering = ("source_index", "id")
-
-
-class RecordRuleV4Deployment(BaseModelWithTime):
-    """将 resolved 语义快照展开成可下发的物理部署计划。"""
-
-    if TYPE_CHECKING:
-        rule_id: int
-        spec_id: int
-        resolved_id: int
-
-    rule = models.ForeignKey(
-        RecordRuleV4, verbose_name="预计算规则组", related_name="deployments", on_delete=models.CASCADE
-    )
-    spec = models.ForeignKey(
-        RecordRuleV4Spec, verbose_name="用户声明快照", related_name="deployments", on_delete=models.CASCADE
-    )
-    resolved = models.ForeignKey(
-        RecordRuleV4Resolved, verbose_name="解析快照", related_name="deployments", on_delete=models.CASCADE
-    )
-    generation = models.IntegerField("用户声明版本")
-    deployment_version = models.IntegerField("同解析下部署版本")
-    strategy = models.CharField("部署策略", max_length=32, default=RecordRuleV4DeploymentStrategy.PER_RECORD.value)
-    content_hash = models.CharField("部署语义指纹", max_length=64)
-    plan_config = JsonField("部署计划摘要", default=dict)
-    source = models.CharField("来源", max_length=32, default="scheduler")
-    apply_status = models.CharField("下发状态", max_length=32, default=RecordRuleV4ApplyStatus.PENDING.value)
-    applied_at = models.DateTimeField("下发时间", null=True, blank=True)
-    apply_error = models.TextField("下发错误", blank=True, default="")
-
-    class Meta:
-        verbose_name = "V4 预计算部署计划"
-        verbose_name_plural = "V4 预计算部署计划"
-        unique_together = (("rule", "resolved", "deployment_version"),)
-
-    def mark_apply_succeeded(self) -> None:
-        """记录 deployment 已成功执行。"""
-
-        self.apply_status = RecordRuleV4ApplyStatus.SUCCEEDED.value
-        self.applied_at = now()
-        self.apply_error = ""
-        self.save(update_fields=["apply_status", "applied_at", "apply_error", "updated_at"])
-
-    def mark_apply_failed(self, err: Exception | str) -> None:
-        """记录 deployment 执行失败及错误信息。"""
-
-        self.apply_status = RecordRuleV4ApplyStatus.FAILED.value
-        self.apply_error = str(err)
-        self.save(update_fields=["apply_status", "apply_error", "updated_at"])
+        ordering = ("spec_record__source_index", "id")
 
 
 class RecordRuleV4Flow(BaseModelWithTime):
@@ -958,7 +845,6 @@ class RecordRuleV4Flow(BaseModelWithTime):
     if TYPE_CHECKING:
         rule_id: int
         resolved_id: int
-        records: models.QuerySet[RecordRuleV4ResolvedRecord]
 
     rule = models.ForeignKey(RecordRuleV4, verbose_name="预计算规则组", related_name="flows", on_delete=models.CASCADE)
     resolved = models.ForeignKey(
@@ -966,9 +852,6 @@ class RecordRuleV4Flow(BaseModelWithTime):
     )
     flow_key = models.CharField("Flow 稳定ID", max_length=64)
     flow_name = models.CharField("V4 Flow 名称", max_length=128)
-    strategy = models.CharField("部署策略", max_length=32, default=RecordRuleV4DeploymentStrategy.PER_RECORD.value)
-    table_id = models.CharField("输出结果表", max_length=128)
-    dst_vm_table_id = models.CharField("输出 VM RT", max_length=128)
     flow_config = JsonField("V4 Flow 配置", default=dict)
     content_hash = models.CharField("Flow 内容指纹", max_length=64)
     desired_status = models.CharField("期望状态", max_length=32, default=RecordRuleV4DesiredStatus.RUNNING.value)
@@ -980,6 +863,127 @@ class RecordRuleV4Flow(BaseModelWithTime):
         verbose_name_plural = "V4 预计算 Flow"
         unique_together = (("resolved", "flow_key"),)
         ordering = ("id",)
+
+    @classmethod
+    def compose_for_resolved(cls, *, rule: RecordRuleV4, resolved: RecordRuleV4Resolved) -> dict[str, Any]:
+        """把 resolved 快照展开成单个 group Flow 的持久化字段。"""
+
+        flow_key = "group"
+        suffix = _extract_random_suffix_from_table(rule.table_id)
+        flow_name = RecordRuleV4.compose_flow_name(rule.group_name, "group", random_suffix=suffix)
+        records = resolved.get_records()
+        flow_config = cls.compose_flow_config(rule=rule, flow_name=flow_name, records=records)
+        content_hash = stable_hash(
+            {
+                "flow_key": flow_key,
+                "flow_name": flow_name,
+                "resolved_hash": resolved.content_hash,
+                "flow_config": cls.strip_runtime_status(flow_config),
+            }
+        )
+        return {
+            "flow_key": flow_key,
+            "flow_name": flow_name,
+            "flow_config": flow_config,
+            "content_hash": content_hash,
+        }
+
+    @staticmethod
+    def compose_flow_config(
+        *, rule: RecordRuleV4, flow_name: str, records: list[RecordRuleV4ResolvedRecord]
+    ) -> dict[str, Any]:
+        """拼装 bkbase V4 Flow 配置。
+
+        当前版本只支持一个 group 对应一个 Flow，因此这里会把所有
+        resolved records 合并到同一个 RecordingRuleNode。
+        """
+
+        src_result_table_names = sorted(
+            {
+                config["bkbase_result_table_name"]
+                for record in records
+                for config in record.src_result_table_configs
+                if config.get("bkbase_result_table_name")
+            }
+        )
+        if not src_result_table_names:
+            raise ValueError("resolved record src_result_table_configs is empty")
+        if not rule.dst_vm_storage_name:
+            raise ValueError("record rule dst_vm_storage_name is empty")
+
+        source_nodes: list[dict[str, Any]] = []
+        source_names: list[str] = []
+        for index, result_table_name in enumerate(src_result_table_names):
+            name = "vm_source" if len(src_result_table_names) == 1 else f"vm_source_{index + 1}"
+            source_names.append(name)
+            source_nodes.append(
+                {
+                    "kind": "VmSourceNode",
+                    "name": name,
+                    "data": {
+                        "kind": "ResultTable",
+                        "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
+                        "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+                        "name": result_table_name,
+                    },
+                }
+            )
+
+        recording_rule_config = [
+            {
+                "expr": resolved_record.metricql,
+                "interval": resolved_record.resolved.spec.interval,
+                "metric_name": resolved_record.spec_record.metric_name,
+                "labels": resolved_record.labels,
+            }
+            for resolved_record in records
+        ]
+
+        return {
+            "kind": "Flow",
+            "metadata": {
+                "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
+                "namespace": RECORD_RULE_V4_BKBASE_NAMESPACE,
+                "name": flow_name,
+                "labels": {},
+                "annotations": {},
+            },
+            "spec": {
+                "nodes": [
+                    *source_nodes,
+                    {
+                        "kind": "RecordingRuleNode",
+                        "name": flow_name,
+                        "inputs": source_names,
+                        "output": rule.dst_vm_table_id,
+                        "config": recording_rule_config,
+                        "storage": {
+                            "kind": "VmStorage",
+                            "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
+                            "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+                            "name": rule.dst_vm_storage_name,
+                        },
+                    },
+                ],
+                "operation_config": {
+                    "start_position": "from_head",
+                    "stream_cluster": None,
+                    "batch_cluster": None,
+                    "deploy_mode": None,
+                },
+                "maintainers": [settings.BK_DATA_PROJECT_MAINTAINER],
+                "desired_status": rule.desired_status,
+            },
+            "status": None,
+        }
+
+    @staticmethod
+    def strip_runtime_status(flow_config: dict[str, Any]) -> dict[str, Any]:
+        """移除运行态字段，避免启停影响 Flow 内容指纹。"""
+
+        pure_config = copy.deepcopy(flow_config)
+        pure_config.get("spec", {}).pop("desired_status", None)
+        return pure_config
 
     def mark_flow_observed(self, flow_status: str) -> None:
         """写入最近一次从 bkbase 观测到的 Flow 实际状态。"""
@@ -996,7 +1000,6 @@ class RecordRuleV4Event(BaseModelWithTime):
         rule_id: int
         spec_id: int | None
         resolved_id: int | None
-        deployment_id: int | None
         flow_id: int | None
 
     rule = models.ForeignKey(RecordRuleV4, verbose_name="预计算规则组", related_name="events", on_delete=models.CASCADE)
@@ -1005,9 +1008,6 @@ class RecordRuleV4Event(BaseModelWithTime):
     )
     resolved = models.ForeignKey(
         RecordRuleV4Resolved, verbose_name="解析快照", null=True, blank=True, on_delete=models.SET_NULL
-    )
-    deployment = models.ForeignKey(
-        RecordRuleV4Deployment, verbose_name="部署计划", null=True, blank=True, on_delete=models.SET_NULL
     )
     flow = models.ForeignKey(RecordRuleV4Flow, verbose_name="Flow", null=True, blank=True, on_delete=models.SET_NULL)
     generation = models.IntegerField("用户声明版本", default=0)
@@ -1033,7 +1033,6 @@ class RecordRuleV4Event(BaseModelWithTime):
             reason=self.reason,
             spec=self.spec,
             resolved=self.resolved,
-            deployment=self.deployment,
             flow=self.flow,
             detail=self.detail or {},
         )
@@ -1169,34 +1168,14 @@ class RecordRuleV4Event(BaseModelWithTime):
         )
 
     @classmethod
-    def record_deployment_planned(
-        cls,
-        rule: RecordRuleV4,
-        deployment: RecordRuleV4Deployment,
-        source: str,
-        operator: str,
-        unchanged: bool = False,
-    ) -> RecordRuleV4Event:
-        return cls.record(
-            rule=rule,
-            spec=deployment.spec,
-            resolved=deployment.resolved,
-            deployment=deployment,
-            event_type=EVENT_TYPE_DEPLOYMENT_UNCHANGED if unchanged else EVENT_TYPE_DEPLOYMENT_PLANNED,
-            status=EVENT_STATUS_SKIPPED if unchanged else EVENT_STATUS_SUCCEEDED,
-            source=source,
-            operator=operator,
-        )
-
-    @classmethod
     def record_apply_started(
-        cls, rule: RecordRuleV4, deployment: RecordRuleV4Deployment, source: str, operator: str
+        cls, rule: RecordRuleV4, flow: RecordRuleV4Flow | None, source: str, operator: str
     ) -> RecordRuleV4Event:
         return cls.record(
             rule=rule,
-            spec=deployment.spec,
-            resolved=deployment.resolved,
-            deployment=deployment,
+            spec=flow.resolved.spec if flow else rule.current_spec,
+            resolved=flow.resolved if flow else rule.latest_resolved,
+            flow=flow,
             event_type=EVENT_TYPE_APPLY_STARTED,
             status=EVENT_STATUS_STARTED,
             source=source,
@@ -1205,13 +1184,13 @@ class RecordRuleV4Event(BaseModelWithTime):
 
     @classmethod
     def record_apply_succeeded(
-        cls, rule: RecordRuleV4, deployment: RecordRuleV4Deployment, source: str, operator: str
+        cls, rule: RecordRuleV4, flow: RecordRuleV4Flow | None, source: str, operator: str
     ) -> RecordRuleV4Event:
         return cls.record(
             rule=rule,
-            spec=deployment.spec,
-            resolved=deployment.resolved,
-            deployment=deployment,
+            spec=flow.resolved.spec if flow else rule.current_spec,
+            resolved=flow.resolved if flow else rule.latest_resolved,
+            flow=flow,
             event_type=EVENT_TYPE_APPLY_SUCCEEDED,
             status=EVENT_STATUS_SUCCEEDED,
             source=source,
@@ -1222,7 +1201,6 @@ class RecordRuleV4Event(BaseModelWithTime):
     def record_apply_failed(
         cls,
         rule: RecordRuleV4,
-        deployment: RecordRuleV4Deployment | None,
         source: str,
         operator: str,
         message: str,
@@ -1231,51 +1209,48 @@ class RecordRuleV4Event(BaseModelWithTime):
     ) -> RecordRuleV4Event:
         return cls.record(
             rule=rule,
-            spec=deployment.spec if deployment else None,
-            resolved=deployment.resolved if deployment else None,
-            deployment=deployment,
+            spec=flow.resolved.spec if flow else rule.current_spec,
+            resolved=flow.resolved if flow else rule.latest_resolved,
             flow=flow,
             event_type=EVENT_TYPE_APPLY_FAILED,
             status=EVENT_STATUS_FAILED,
             source=source,
             operator=operator,
-            reason=EVENT_REASON_STALE_DEPLOYMENT if stale else EVENT_REASON_APPLY_FAILED,
+            reason=EVENT_REASON_STALE_FLOW if stale else EVENT_REASON_APPLY_FAILED,
             message=message,
         )
 
     @classmethod
-    def record_apply_failed_missing_deployment(
-        cls, rule: RecordRuleV4, source: str, operator: str
-    ) -> RecordRuleV4Event:
+    def record_apply_failed_missing_flow(cls, rule: RecordRuleV4, source: str, operator: str) -> RecordRuleV4Event:
         return cls.record(
             rule=rule,
             event_type=EVENT_TYPE_APPLY_FAILED,
             status=EVENT_STATUS_FAILED,
             source=source,
             operator=operator,
-            reason=EVENT_REASON_DEPLOYMENT_MISSING,
-            message="latest deployment is missing",
+            reason=EVENT_REASON_FLOW_MISSING,
+            message="latest flow is missing",
         )
 
     @classmethod
-    def record_apply_skipped_stale_deployment(
-        cls, rule: RecordRuleV4, deployment: RecordRuleV4Deployment, source: str, operator: str
+    def record_apply_skipped_stale_flow(
+        cls, rule: RecordRuleV4, flow: RecordRuleV4Flow, source: str, operator: str
     ) -> RecordRuleV4Event:
         return cls.record(
             rule=rule,
-            spec=deployment.spec,
-            resolved=deployment.resolved,
-            deployment=deployment,
+            spec=flow.resolved.spec,
+            resolved=flow.resolved,
+            flow=flow,
             event_type=EVENT_TYPE_APPLY_SKIPPED,
             status=EVENT_STATUS_SKIPPED,
             source=source,
             operator=operator,
-            reason=EVENT_REASON_STALE_DEPLOYMENT,
+            reason=EVENT_REASON_STALE_FLOW,
             detail={
-                "deployment_id": deployment.pk,
-                "latest_deployment_id": rule.latest_deployment_id,
+                "flow_id": flow.pk,
+                "latest_flow_id": rule.latest_flow_id,
                 "current_generation": rule.generation,
-                "deployment_generation": deployment.generation,
+                "flow_generation": flow.resolved.generation,
             },
         )
 
@@ -1283,33 +1258,28 @@ class RecordRuleV4Event(BaseModelWithTime):
     def record_flow_action_started(
         cls,
         rule: RecordRuleV4,
-        deployment: RecordRuleV4Deployment,
         flow: RecordRuleV4Flow,
-        action_key: str,
         action_type: str,
         source: str,
         operator: str,
     ) -> RecordRuleV4Event:
         return cls.record(
             rule=rule,
-            spec=deployment.spec,
-            resolved=deployment.resolved,
-            deployment=deployment,
+            spec=flow.resolved.spec,
+            resolved=flow.resolved,
             flow=flow,
             event_type=EVENT_TYPE_FLOW_ACTION_STARTED,
             status=EVENT_STATUS_STARTED,
             source=source,
             operator=operator,
-            detail={"action_key": action_key, "action_type": action_type},
+            detail=cls.build_flow_action_detail(flow, action_type),
         )
 
     @classmethod
     def record_flow_action_result(
         cls,
         rule: RecordRuleV4,
-        deployment: RecordRuleV4Deployment,
         flow: RecordRuleV4Flow,
-        action_key: str,
         action_type: str,
         succeeded: bool,
         source: str,
@@ -1318,9 +1288,8 @@ class RecordRuleV4Event(BaseModelWithTime):
     ) -> RecordRuleV4Event:
         return cls.record(
             rule=rule,
-            spec=deployment.spec,
-            resolved=deployment.resolved,
-            deployment=deployment,
+            spec=flow.resolved.spec,
+            resolved=flow.resolved,
             flow=flow,
             event_type=EVENT_TYPE_FLOW_ACTION_SUCCEEDED if succeeded else EVENT_TYPE_FLOW_ACTION_FAILED,
             status=EVENT_STATUS_SUCCEEDED if succeeded else EVENT_STATUS_FAILED,
@@ -1328,8 +1297,19 @@ class RecordRuleV4Event(BaseModelWithTime):
             operator=operator,
             reason="" if succeeded else EVENT_REASON_APPLY_FAILED,
             message=message,
-            detail={"action_key": action_key, "action_type": action_type},
+            detail=cls.build_flow_action_detail(flow, action_type),
         )
+
+    @staticmethod
+    def build_flow_action_detail(flow: RecordRuleV4Flow, action_type: str) -> dict[str, Any]:
+        """生成固定结构的 Flow action detail。"""
+
+        return {
+            "action_type": action_type,
+            "flow_key": flow.flow_key,
+            "flow_id": flow.pk,
+            "flow_content_hash": flow.content_hash,
+        }
 
     @classmethod
     def record_flow_observed(
@@ -1346,7 +1326,6 @@ class RecordRuleV4Event(BaseModelWithTime):
             observe_succeeded = flow_status == RecordRuleV4FlowStatus.OK.value
         return cls.record(
             rule=rule,
-            deployment=rule.applied_deployment,
             flow=flow,
             event_type=EVENT_TYPE_FLOW_OBSERVED,
             status=EVENT_STATUS_SUCCEEDED if observe_succeeded else EVENT_STATUS_FAILED,
@@ -1367,7 +1346,6 @@ class RecordRuleV4Event(BaseModelWithTime):
         operator: str,
         spec: RecordRuleV4Spec | None = None,
         resolved: RecordRuleV4Resolved | None = None,
-        deployment: RecordRuleV4Deployment | None = None,
         flow: RecordRuleV4Flow | None = None,
         reason: str = "",
         message: str = "",
@@ -1386,7 +1364,6 @@ class RecordRuleV4Event(BaseModelWithTime):
             reason=reason,
             spec=spec,
             resolved=resolved,
-            deployment=deployment,
             flow=flow,
             detail=detail,
         )
@@ -1395,15 +1372,14 @@ class RecordRuleV4Event(BaseModelWithTime):
             if spec
             else resolved.generation
             if resolved
-            else deployment.generation
-            if deployment
+            else flow.resolved.generation
+            if flow
             else rule.generation
         )
         return cls.objects.create(
             rule=rule,
             spec=spec,
             resolved=resolved,
-            deployment=deployment,
             flow=flow,
             generation=generation,
             event_type=event_type,
@@ -1426,7 +1402,6 @@ class RecordRuleV4Event(BaseModelWithTime):
         reason: str,
         spec: RecordRuleV4Spec | None,
         resolved: RecordRuleV4Resolved | None,
-        deployment: RecordRuleV4Deployment | None,
         flow: RecordRuleV4Flow | None,
         detail: dict[str, Any],
     ) -> None:
@@ -1444,7 +1419,6 @@ class RecordRuleV4Event(BaseModelWithTime):
         for relation_name, value in [
             ("spec", spec),
             ("resolved", resolved),
-            ("deployment", deployment),
             ("flow", flow),
         ]:
             # 每类事件都明确声明允许挂载哪些上下文对象，避免排查时语义混乱。

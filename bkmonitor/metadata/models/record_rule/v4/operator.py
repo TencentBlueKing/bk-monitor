@@ -21,18 +21,16 @@ from metadata.models.record_rule.constants import (
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowStatus,
 )
-from metadata.models.record_rule.v4.deployment.runner import DeploymentRunner
 from metadata.models.record_rule.v4.models import (
     RecordRuleV4,
-    RecordRuleV4Deployment,
     RecordRuleV4Event,
     RecordRuleV4Resolved,
     RecordRuleV4Spec,
-    normalize_deployment_strategy,
     normalize_labels,
 )
 from metadata.models.record_rule.v4.output import RecordRuleV4OutputResources
 from metadata.models.record_rule.v4.resolver import RecordRuleV4Resolver
+from metadata.models.record_rule.v4.runner import RecordRuleV4Runner
 from metadata.models.record_rule.v4.spec import RecordRuleV4SpecBuilder
 from metadata.models.record_rule.v4.types import RecordRuleV4RecordInput
 
@@ -44,7 +42,7 @@ class RecordRuleV4Operator:
 
     Operator 只负责流程编排和操作锁，不直接拼 Flow 配置，也不直接解释
     unify-query 响应。具体解析与部署细节分别交给 Resolver 和
-    DeploymentRunner。
+    RecordRuleV4Runner。
     """
 
     def __init__(self, rule: RecordRuleV4, source: str = "system", operator: str = "") -> None:
@@ -65,8 +63,8 @@ class RecordRuleV4Operator:
         return RecordRuleV4Resolver(self.rule, source=self.source, operator=self.operator)
 
     @property
-    def deployment_runner(self) -> DeploymentRunner:
-        return DeploymentRunner(self.rule, source=self.source, operator=self.operator)
+    def runner(self) -> RecordRuleV4Runner:
+        return RecordRuleV4Runner(self.rule, source=self.source, operator=self.operator)
 
     @staticmethod
     def compose_raw_config_snapshot(
@@ -74,7 +72,6 @@ class RecordRuleV4Operator:
         records: list[RecordRuleV4RecordInput],
         interval: str,
         labels: list[dict[str, Any]],
-        deployment_strategy: dict[str, Any],
         desired_status: str,
         raw_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -90,7 +87,6 @@ class RecordRuleV4Operator:
             "records": copy.deepcopy(records),
             "interval": interval,
             "labels": copy.deepcopy(labels),
-            "deployment_strategy": copy.deepcopy(deployment_strategy),
             "desired_status": desired_status,
         }
 
@@ -141,19 +137,16 @@ class RecordRuleV4Operator:
         labels: list[dict[str, Any]] | None = None,
         bk_tenant_id: str | None = None,
         auto_refresh: bool = True,
-        deployment_strategy: str | dict[str, Any] | None = None,
         source: str = "user",
         operator: str = "",
         apply_immediately: bool = True,
     ) -> RecordRuleV4:
-        """创建 group，并按 create -> resolve -> plan -> apply 的顺序初始化。
+        """创建 group，并按 create -> resolve -> flow -> apply 的顺序初始化。
 
         raw_config 是调用方提交的完整原始配置快照，主要用于审计、回显和
-        排查；执行链路只消费 records / interval / labels /
-        deployment_strategy 这些规范字段。
+        排查；执行链路只消费 records / interval / labels 这些规范字段。
         """
 
-        deployment_strategy_config = normalize_deployment_strategy(deployment_strategy)
         RecordRuleV4.validate_interval(interval)
         group_labels = normalize_labels(labels)
         bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(f"{space_type}__{space_id}")
@@ -189,13 +182,11 @@ class RecordRuleV4Operator:
                     records=records,
                     interval=interval,
                     labels=group_labels,
-                    deployment_strategy=deployment_strategy_config,
                     desired_status=RecordRuleV4DesiredStatus.RUNNING.value,
                     raw_config=raw_config,
                 ),
                 interval=interval,
                 labels=group_labels,
-                deployment_strategy=deployment_strategy_config,
                 desired_status=RecordRuleV4DesiredStatus.RUNNING.value,
             )
             rule.use_spec(spec)
@@ -204,7 +195,7 @@ class RecordRuleV4Operator:
 
         resolved = instance.resolver.resolve_current(force=True)
         if resolved:
-            instance.deployment_runner.plan_for_spec(spec=spec, resolved=resolved)
+            instance.runner.prepare_flow(resolved=resolved)
         if apply_immediately and resolved:
             instance.apply()
         instance.rule.refresh_from_db()
@@ -217,15 +208,14 @@ class RecordRuleV4Operator:
         raw_config: dict[str, Any] | None = None,
         interval: str | None = None,
         labels: list[dict[str, Any]] | None = None,
-        deployment_strategy: str | dict[str, Any] | None = None,
         desired_status: str | None = None,
         auto_refresh: bool | None = None,
         apply_immediately: bool = True,
     ) -> RecordRuleV4:
         """更新用户声明或运行态。
 
-        records/interval/labels/deployment_strategy/delete 会进入新的
-        spec/resolved/plan 链路；running/stopped 只改变运行态 desired_status，
+        records/interval/labels/delete 会进入新的 spec/resolved/flow 链路；
+        running/stopped 只改变运行态 desired_status，
         并直接下发到已 applied 的 Flow，不推进 generation。
         raw_config 本身不是 resolver 的输入真值源，只在创建新 spec 时
         作为原始配置快照保存；单独传 raw_config 不会推进 generation。
@@ -233,7 +223,6 @@ class RecordRuleV4Operator:
 
         spec: RecordRuleV4Spec | None = None
         records_changed = False
-        definition_changed = False
         runtime_desired_status: str | None = None
         runtime_desired_status_changed = False
 
@@ -249,11 +238,6 @@ class RecordRuleV4Operator:
             if interval is not None:
                 RecordRuleV4.validate_interval(next_interval)
             next_labels = copy.deepcopy(current_spec.labels) if labels is None else normalize_labels(labels)
-            next_deployment_strategy = (
-                copy.deepcopy(current_spec.deployment_strategy)
-                if deployment_strategy is None
-                else normalize_deployment_strategy(deployment_strategy)
-            )
             requested_desired_status = None if desired_status is None else str(desired_status)
             if requested_desired_status is not None:
                 RecordRuleV4.validate_desired_status(requested_desired_status)
@@ -278,15 +262,11 @@ class RecordRuleV4Operator:
             records_changed = records is not None
             interval_changed = interval is not None and next_interval != current_spec.interval
             labels_changed = labels is not None and next_labels != current_spec.labels
-            deployment_strategy_changed = (
-                deployment_strategy is not None and next_deployment_strategy != current_spec.deployment_strategy
-            )
-            definition_changed = next_desired_status != current_spec.desired_status or deployment_strategy_changed
             runtime_desired_status_changed = (
                 runtime_desired_status is not None and runtime_desired_status != self.rule.desired_status
             )
             if runtime_desired_status_changed and runtime_desired_status:
-                # 启停不生成 spec，因此事件也不挂 spec/resolved/deployment。
+                # 启停不生成 spec，因此事件也不挂 spec/resolved/flow。
                 self.rule.set_desired_status(runtime_desired_status)
                 RecordRuleV4Event.record_user_desired_status_changed(
                     self.rule, source=self.source, operator=self.operator
@@ -299,8 +279,6 @@ class RecordRuleV4Operator:
                 changed_fields.append("interval")
             if labels_changed:
                 changed_fields.append("labels")
-            if deployment_strategy_changed:
-                changed_fields.append("deployment_strategy")
             if requested_desired_status == RecordRuleV4DesiredStatus.DELETED.value:
                 changed_fields.append("desired_status")
 
@@ -322,16 +300,15 @@ class RecordRuleV4Operator:
                         records=next_records,
                         interval=next_interval,
                         labels=next_labels,
-                        deployment_strategy=next_deployment_strategy,
                         desired_status=next_desired_status,
                         raw_config=raw_config,
                     ),
                     interval=next_interval,
                     labels=next_labels,
-                    deployment_strategy=next_deployment_strategy,
                     desired_status=next_desired_status,
                 )
                 self.rule.use_spec(spec)
+                RecordRuleV4OutputResources.ensure_group_output(self.rule)
                 RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, spec)
                 RecordRuleV4Event.record_user_spec_changed(
                     self.rule,
@@ -341,7 +318,7 @@ class RecordRuleV4Operator:
                     changed_fields=changed_fields,
                 )
 
-        # 事务外执行外部 check / plan，避免长时间持有数据库行锁。
+        # 事务外执行外部 check / flow 准备，避免长时间持有数据库行锁。
         if (
             spec
             and (records_changed or interval_changed or labels_changed)
@@ -351,22 +328,20 @@ class RecordRuleV4Operator:
             resolved = self.refresh_resolved(force=False)
             self.reload_rule()
             if resolved and resolved.pk != previous_resolved_id:
-                self.deployment_runner.plan_for_spec(spec=spec, resolved=resolved)
-        elif spec and definition_changed:
-            self.deployment_runner.plan_for_spec(spec=spec, resolved=self.rule.latest_resolved)
+                self.runner.prepare_flow(resolved=resolved)
 
         self.reload_rule()
         if apply_immediately and self.rule.update_available:
             self.apply()
         elif apply_immediately and runtime_desired_status_changed and runtime_desired_status:
-            # Runtime-only 的启停没有 deployment plan，直接把 desired_status
+            # Runtime-only 的启停没有新 Flow，直接把 desired_status
             # 注入已落地的 Flow 配置并下发。
-            self.deployment_runner.apply_desired_status(runtime_desired_status)
+            self.runner.apply_desired_status(runtime_desired_status)
         self.reload_rule()
         return self.rule
 
     def delete(self, apply_immediately: bool = True) -> RecordRuleV4:
-        """声明删除 group，并通过 plan 删除已落地 Flow。"""
+        """声明删除 group，并删除已落地 Flow。"""
 
         return self.update_spec(
             desired_status=RecordRuleV4DesiredStatus.DELETED.value,
@@ -389,7 +364,7 @@ class RecordRuleV4Operator:
         resolved = self.refresh_resolved(force=False)
         if resolved and resolved.pk != previous_resolved_id:
             self.reload_rule()
-            self.deployment_runner.plan_for_spec(spec=self.rule.current_spec, resolved=resolved)
+            self.runner.prepare_flow(resolved=resolved)
         return resolved
 
     def reconcile(self, auto_apply: bool | None = None) -> bool:
@@ -409,11 +384,11 @@ class RecordRuleV4Operator:
         changed = bool(resolved and resolved.pk != previous_resolved_id)
         if changed and resolved:
             self.reload_rule()
-            self.deployment_runner.plan_for_spec(spec=self.rule.current_spec, resolved=resolved)
+            self.runner.prepare_flow(resolved=resolved)
         self.reload_rule()
         should_apply = self.rule.auto_refresh if auto_apply is None else auto_apply
-        if should_apply and self.rule.update_available and self.rule.latest_deployment_id:
-            self.deployment_runner.apply(self.rule.latest_deployment)
+        if should_apply and self.rule.update_available:
+            self.runner.apply()
         return changed
 
     def refresh_resolved(self, force: bool = False) -> RecordRuleV4Resolved | None:
@@ -421,20 +396,20 @@ class RecordRuleV4Operator:
 
         return self.resolver.resolve_current(force=force)
 
-    def apply(self, deployment: RecordRuleV4Deployment | None = None) -> bool:
-        """下发 latest deployment，或重试指定 deployment。"""
+    def apply(self) -> bool:
+        """下发 latest flow，或按删除声明删除 applied flow。"""
 
         return self.run_with_operation_lock(
             "apply",
-            lambda: self.deployment_runner.apply(deployment=deployment),
+            self.runner.apply,
             False,
         )
 
     def refresh_flow_health(self) -> str:
-        """观测 applied deployment 对应的实际 Flow 状态。"""
+        """观测 applied flow 对应的实际状态。"""
 
         return self.run_with_operation_lock(
             "refresh_flow_health",
-            self.deployment_runner.refresh_flow_health,
+            self.runner.refresh_flow_health,
             RecordRuleV4FlowStatus.ABNORMAL.value,
         )

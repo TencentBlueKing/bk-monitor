@@ -57,25 +57,10 @@ class RecordRuleV4DesiredStatus(Enum):
     DELETED = "deleted"
 
 
-class RecordRuleV4ApplyStatus(Enum):
-    """V4 预计算配置下发状态"""
-
-    PENDING = "pending"
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-
-
-class RecordRuleV4DeploymentStrategy(Enum):
-    """V4 预计算物理下发策略"""
-
-    PER_RECORD = "per_record"
-    SINGLE_FLOW = "single_flow"
-
-
 class RecordRuleV4FlowActionType(Enum):
     """V4 预计算 Flow 执行动作类型。
 
-    动作本身不独立成表，只作为 deployment plan 和 event detail 中的结构化枚举。
+    动作本身不独立成表，只作为 event detail 中的结构化枚举。
     """
 
     CREATE = "create"
