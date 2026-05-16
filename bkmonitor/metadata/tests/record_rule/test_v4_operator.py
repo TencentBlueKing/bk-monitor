@@ -679,7 +679,7 @@ def test_promql_resolve_uses_actual_multi_vmrt_data(v4_base_data, external_api):
 def test_promql_check_uses_default_time_range(v4_base_data, external_api):
     record = build_record(
         input_type=RecordRuleV4InputType.PROMQL.value,
-        input_config={"promql": "sum(cpu_usage)", "bk_biz_ids": ["10", "11"]},
+        input_config={"promql": "sum(cpu_usage)", "bk_biz_ids": ["10", "11"], "bk_tenant_id": "wrong_tenant"},
         metric_name="cpu_usage_sum",
     )
     rule = create_rule(records=[record], apply_immediately=False)
@@ -694,6 +694,21 @@ def test_promql_check_uses_default_time_range(v4_base_data, external_api):
     assert kwargs["space_uid"] == "bkcc__2"
     assert kwargs["bk_biz_ids"] == ["10", "11"]
     assert int(kwargs["end"]) - int(kwargs["start"]) == 3600
+
+
+def test_query_ts_check_uses_rule_tenant_when_input_config_has_tenant(v4_base_data, external_api):
+    input_config = build_query_config()
+    input_config["bk_tenant_id"] = "wrong_tenant"
+    record = build_record(input_config=input_config)
+    rule = create_rule(records=[record], apply_immediately=False)
+    spec_record = rule.current_spec.records.get()
+    external_api.check_query_ts.reset_mock()
+
+    RecordRuleV4Resolver(rule, source="manual").run_check(spec_record)
+
+    _, kwargs = external_api.check_query_ts.call_args
+    assert kwargs["bk_tenant_id"] == TENANT_ID
+    assert kwargs["space_uid"] == "bkcc__2"
 
 
 def test_check_resources_keep_scope_fields_for_headers():

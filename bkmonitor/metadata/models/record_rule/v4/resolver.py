@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import logging
+from collections.abc import Mapping
 from typing import Any, cast
 
 from django.db import models, transaction
@@ -227,14 +228,33 @@ class RecordRuleV4Resolver:
                 cast(RecordRuleV4QueryTsInputConfig, spec_record.input_config or {})
             )
             params.setdefault("space_uid", self.rule.space_uid)
-            result = api.unify_query.check_query_ts(bk_tenant_id=self.rule.bk_tenant_id, **params)
+            result = api.unify_query.check_query_ts(
+                bk_tenant_id=self.rule.bk_tenant_id,
+                **self.clean_check_body_params(params),
+            )
         elif spec_record.input_type == RecordRuleV4InputType.PROMQL.value:
             params = self.build_check_promql_params(cast(CheckQueryPromQLInput, spec_record.input_config or {}))
             params.setdefault("space_uid", self.rule.space_uid)
-            result = api.unify_query.check_query_ts_by_promql(bk_tenant_id=self.rule.bk_tenant_id, **params)
+            result = api.unify_query.check_query_ts_by_promql(
+                bk_tenant_id=self.rule.bk_tenant_id,
+                **self.clean_check_body_params(params),
+            )
         else:
             raise ValueError(f"unsupported input_type: {spec_record.input_type}")
         return result or {}
+
+    @staticmethod
+    def clean_check_body_params(params: Mapping[str, Any]) -> dict[str, Any]:
+        """清理 check 请求 body 参数。
+
+        bk_tenant_id 来自 rule，并作为 Resource 调用上下文显式传入。这里从
+        body 中移除同名字段，避免 TypedDict 展开触发静态告警，也避免用户
+        原始 input_config 携带 bk_tenant_id 时造成运行时重复关键字。
+        """
+
+        body_params = dict(params)
+        body_params.pop("bk_tenant_id", None)
+        return body_params
 
     def build_check_promql_params(self, input_config: CheckQueryPromQLInput) -> CheckQueryPromQLInput:
         """补齐 /check/query/ts/promql 需要的最小参数。
