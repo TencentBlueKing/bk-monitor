@@ -213,3 +213,5 @@ worktrees/
 .codecc
 
 .codebuddy
+.claude/
+bkmonitor-files/

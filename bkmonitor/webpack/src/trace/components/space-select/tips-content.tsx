@@ -25,9 +25,31 @@ import { SPACE_TYPE_MAP } from './utils';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { ILocalSpaceList } from './typing';
+import type { IValueStrListItem } from './typing';
 
-export const tipsContent = (list: { id: string; name: string; tags: ILocalSpaceList['tags'] }[]) => {
+export const spaceTypeTag = (type: string, theme: 'dark' | 'light' = 'light', otherStyle = {}) => {
+  return (
+    <span
+      key={type}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '22px',
+        padding: '0 10px',
+        whiteSpace: 'nowrap',
+        border: '1px solid transparent',
+        borderRadius: '2px',
+        ...(SPACE_TYPE_MAP[type]?.[theme] || SPACE_TYPE_MAP.default[theme]),
+        ...otherStyle,
+      }}
+    >
+      {SPACE_TYPE_MAP[type]?.name || window.i18n.t('未知')}
+    </span>
+  );
+};
+
+export const tipsContent = (list: IValueStrListItem[]) => {
   return (
     <div
       style={{
@@ -45,26 +67,7 @@ export const tipsContent = (list: { id: string; name: string; tags: ILocalSpaceL
             key={index}
             style={{ marginRight: '4px' }}
           >
-            <span>{`${item.name}${item.id ? `(${item.id})` : ''}`}</span>
-            {item.tags?.map?.(tag => (
-              <span
-                key={tag.id}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '22px',
-                  padding: '0 10px',
-                  marginLeft: '4px',
-                  whiteSpace: 'nowrap',
-                  border: '1px solid transparent',
-                  borderRadius: '2px',
-                  ...(SPACE_TYPE_MAP[tag.id]?.dark || SPACE_TYPE_MAP.default.dark),
-                }}
-              >
-                {SPACE_TYPE_MAP[tag.id]?.name || window.i18n.t('未知')}
-              </span>
-            ))}
+            <span>{`${item.name}${item.idDisplayName ? `(${item.idDisplayName})` : ''}`}</span>
             {index !== list.length - 1 && ','}
           </span>
         );

@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import ast
 import ipaddress
 from datetime import timedelta
-from typing import List
 
 from django.conf import settings
 from django.utils import timezone
@@ -40,6 +39,8 @@ from apps.log_extract.constants import (
     TASK_HOST_ID_INDEX,
     TASK_IP_INDEX,
     ExtractLinkType,
+    LogExtractNodeInstanceType,
+    LogExtractTargetNodeTypeEnum,
 )
 from apps.log_extract.handlers.explorer import ExplorerHandler
 from apps.log_extract.handlers.extract import ExtractLinkBase
@@ -54,9 +55,10 @@ from apps.utils.local import (
 )
 from apps.utils.log import logger
 from apps.utils.time_handler import format_user_time_zone
+import builtins
 
 
-class TasksHandler(object):
+class TasksHandler:
     def __init__(self):
         self.is_external = bool(get_request_external_username())
         self.request_user = get_request_external_username() or get_request_username()
@@ -86,6 +88,7 @@ class TasksHandler(object):
             response = tasks_views.get_paginated_response(serializer.data)
             response.data["list"] = cls.post_list(response.data["list"])
             response.data["list"] = cls.get_ip_and_bk_cloud_id(response.data["list"])
+            response.data["list"] = cls.get_target_nodes_by_ip_list(response.data["list"])
             response.data["timeout"] = constants.POLLING_TIMEOUT
             return response
 
@@ -100,12 +103,24 @@ class TasksHandler(object):
         if task.created_by != self.request_user:
             raise exceptions.TasksRecreateFailed
 
+        ip_list = [after_format_ip for ip in task.ip_list if (after_format_ip := self.format_ip(ip)) is not None]
+
         return self.create(
             bk_biz_id=task.bk_biz_id,
-            ip_list=task.ip_list,
+            ip_list=ip_list,
             request_file_list=task.file_path,
             filter_type=task.filter_type,
+            remark=task.remark,
             filter_content=task.filter_content,
+            preview_directory=task.preview_directory,
+            preview_ip_list=task.preview_ip_list or [],
+            preview_time_range=task.preview_time_range,
+            preview_is_search_child=task.preview_is_search_child,
+            preview_start_time=task.preview_start_time,
+            preview_end_time=task.preview_end_time,
+            link_id=task.link_id,
+            target_node_type=task.target_node_type,
+            target_nodes=task.target_nodes,
         )
 
     def create(
@@ -123,6 +138,8 @@ class TasksHandler(object):
         preview_start_time,
         preview_end_time,
         link_id,
+        target_node_type=LogExtractTargetNodeTypeEnum.INSTANCE.value,
+        target_nodes=[],
     ):
         request_user = get_request_external_username() or get_request_username()
         # K8S部署情况下禁止使用内网链路, 所以已有的内网链路不能创建任务
@@ -131,7 +148,8 @@ class TasksHandler(object):
             raise exceptions.TaskCannotCreateByCommonLink
 
         # step 2：用户任务鉴权
-        list_strategies_dict = ExplorerHandler().get_strategies(bk_biz_id, ip_list)
+        list_strategies_dict = ExplorerHandler().get_strategies(bk_biz_id, ip_list, target_node_type, target_nodes)
+        ip_list = list_strategies_dict.get("ip_list")
         allowed_dir_file_list = list_strategies_dict.get("allowed_dir_file_list")
         allowed_download_file_list = []
         for request_file in request_file_list:
@@ -162,7 +180,9 @@ class TasksHandler(object):
 
         params = {
             "bk_biz_id": bk_biz_id,
+            "target_node_type": target_node_type,
             "ip_list": formatted_ip_list,
+            "target_nodes": target_nodes,
             "file_path": request_file_list,
             "filter_type": filter_type,
             "filter_content": {} if not filter_type else filter_content,
@@ -194,6 +214,8 @@ class TasksHandler(object):
             "preview_end_time",
             "link_id",
             "created_by",
+            "target_node_type",
+            "target_nodes",
         ]:
             params.pop(pop_field)
 
@@ -209,7 +231,9 @@ class TasksHandler(object):
         extract_link: ExtractLink = ExtractLink.objects.filter(link_id=task.link_id).first()
         # bkrepo时为worker调用
         if extract_link.link_type == ExtractLinkType.BK_REPO.value:
-            log_extract_task.delay(task_id=task.task_id, **params)
+            # 将当前请求上下文的 time_zone 传入 Celery 任务
+            time_zone = get_local_param("time_zone", settings.TIME_ZONE)
+            log_extract_task.delay(task_id=task.task_id, time_zone=time_zone, **params)
         else:
             self.run_pipeline(task=task, **params)
 
@@ -249,7 +273,7 @@ class TasksHandler(object):
             task_status = task_service.get_state(pipeline_id)
         except Exception:  # pylint: disable=broad-except
             # 存在多主机，单主机日志下载的情况，因此有可能有些pipeline节点未执行
-            logger.info("pipeline任务不存在，pipeline_id=>[{}]".format(pipeline_id))
+            logger.info("pipeline任务不存在，pipeline_id=>[%s]", pipeline_id)
             task["task_step_status"] = []
             return Response(task)
 
@@ -318,7 +342,7 @@ class TasksHandler(object):
         return res
 
     @staticmethod
-    def pipeline_failure_to_task_status(task_list: List[Tasks]):
+    def pipeline_failure_to_task_status(task_list: builtins.list[Tasks]):
         task_have_failed_component = []
         skip_status = [
             constants.DownloadStatus.FAILED,
@@ -354,6 +378,13 @@ class TasksHandler(object):
         new_task_list = []
         for task in task_list:
             new_task_list.append(TasksHandler.format_task_ip_details(task))
+        return new_task_list
+
+    @staticmethod
+    def get_target_nodes_by_ip_list(task_list):
+        new_task_list = []
+        for task in task_list:
+            new_task_list.append(TasksHandler.ip_list_convert_into_target_nodes(task))
         return new_task_list
 
     @staticmethod
@@ -394,7 +425,7 @@ class TasksHandler(object):
                 task["message"] = _("缺少bk_cloud_id")
                 break
             ip_list.append(new_ip)
-            task["ip_list"] = ip_list
+        task["ip_list"] = ip_list
 
         preview_ip_list = []
         # 兼容历史数据
@@ -409,6 +440,122 @@ class TasksHandler(object):
         else:
             task["preview_ip_list"] = ast.literal_eval(task["preview_ip_list"])
         return task
+
+    @staticmethod
+    def ip_list_convert_into_target_nodes(task):
+        """
+        静态拓补转换 ip_list 为 target_nodes
+        """
+        # 如果不是静态拓补节点类型, 或者已经有 target_nodes, 则直接返回
+        if task["target_node_type"] != LogExtractTargetNodeTypeEnum.INSTANCE.value or task["target_nodes"]:
+            return task
+
+        target_nodes = []
+        need_query_topo_ip_list = []
+
+        for ip in task["ip_list"]:
+            if not isinstance(ip, dict):
+                continue
+            bk_host_id = ip.get("bk_host_id")
+            if bk_host_id is not None:
+                target_nodes.append(
+                    {
+                        "bk_obj_id": LogExtractNodeInstanceType.HOST.value,
+                        "bk_inst_id": bk_host_id,
+                    }
+                )
+            else:
+                need_query_topo_ip_list.append(ip)
+
+        if need_query_topo_ip_list:
+            topo_list = ExplorerHandler.get_module_by_ip(
+                task["bk_biz_id"], need_query_topo_ip_list, is_allowed_topo_list_null=True
+            )
+            for topo in topo_list:
+                target_nodes.append(
+                    {
+                        "bk_obj_id": LogExtractNodeInstanceType.HOST.value,
+                        "bk_inst_id": topo["host"]["bk_host_id"],
+                    }
+                )
+
+        task["target_nodes"] = target_nodes
+
+        return task
+
+    @staticmethod
+    def _deduplicate_ip_list(ip_list):
+        """
+        对 ip_list 进行去重，返回去重后的字典列表
+        :param ip_list: [{"ip": ..., "bk_cloud_id": ..., "bk_host_id": ...}, ...]
+        :return: 去重后的 ip_list
+        """
+        after_deduplicate_ip_list = []
+        seen = set()
+        for ip_info in ip_list:
+            key = (ip_info["ip"], ip_info["bk_cloud_id"])
+            if key not in seen:
+                seen.add(key)
+                after_deduplicate_ip_list.append(
+                    {"ip": ip_info["ip"], "bk_cloud_id": ip_info["bk_cloud_id"], "bk_host_id": ip_info["bk_host_id"]}
+                )
+        return after_deduplicate_ip_list
+
+    @classmethod
+    def get_new_ip_list_from_target_nodes(cls, task_id):
+        """
+        通过 target_nodes 动态获取最新 ip_list
+        """
+        task = Tasks.objects.filter(task_id=task_id).first()
+
+        if not task:
+            return None
+
+        target_node_type = task.target_node_type
+        target_nodes = task.target_nodes
+
+        if target_node_type == LogExtractTargetNodeTypeEnum.INSTANCE.value or not target_nodes:
+            return None
+
+        raw_ip_list = []
+
+        # 服务模板获取原始 ip_list
+        if target_node_type == LogExtractTargetNodeTypeEnum.SERVICE_TEMPLATE.value:
+            raw_ip_list = ExplorerHandler.get_ip_list_by_service_template(
+                task.bk_biz_id, target_nodes, is_allowed_topo_list_null=True
+            )
+
+        # 动态拓补获取原始 ip_list
+        elif target_node_type == LogExtractTargetNodeTypeEnum.TOPO.value:
+            topo_list = ExplorerHandler.get_topo_list_by_nodes(
+                task.bk_biz_id, target_nodes, is_allowed_topo_list_null=True
+            )
+            raw_ip_list = [
+                {
+                    "ip": topo["host"]["bk_host_innerip"],
+                    "bk_cloud_id": topo["host"]["bk_cloud_id"],
+                    "bk_host_id": topo["host"]["bk_host_id"],
+                }
+                for topo in (topo_list or [])
+            ]
+
+        if not raw_ip_list:
+            return None
+
+        new_ip_list = cls._deduplicate_ip_list(raw_ip_list)
+
+        # 将最新的 ip_list 格式化为字符串后更新至数据库
+        formatted_new_ip_list = []
+        for ip in new_ip_list:
+            ip_key = f"{ip['bk_cloud_id']}:{ip['ip']}"
+            if ip.get("bk_host_id"):
+                ip_key = f"{ip_key}:{ip['bk_host_id']}"
+            formatted_new_ip_list.append(ip_key)
+
+        task.ip_list = formatted_new_ip_list
+        task.save(update_fields=["ip_list"])
+
+        return new_ip_list
 
     @classmethod
     def run_pipeline(

@@ -1,0 +1,73 @@
+{
+  "runtime": ".ai-agent",
+  "template": "complex",
+  "memory": {
+    "enabled": true,
+    "path": ".ai-agent/memory",
+    "categories": [
+      "design",
+      "component",
+      "habit",
+      "convention",
+      "decision",
+      "learning"
+    ],
+    "dedupe": true,
+    "summary": true
+  },
+  "framework": "vue",
+  "frameworks": [
+    "vue"
+  ],
+  "scenarios": [
+    "complex",
+    "patterns",
+    "ddd",
+    "graph"
+  ],
+  "editors": [
+    "cursor",
+    "codebuddy"
+  ],
+  "packs": {
+    "frameworks": [
+      "vue"
+    ],
+    "scenarios": [
+      "complex",
+      "patterns",
+      "ddd",
+      "graph"
+    ]
+  },
+  "recommendedPackages": [
+    "@aafe/core",
+    "@aafe/vue",
+    "@aafe/complex",
+    "@aafe/patterns",
+    "@aafe/ddd",
+    "@aafe/graph",
+    "@aafe/adapter-cursor"
+  ],
+  "rerun": {
+    "enabled": true,
+    "maxReruns": 1,
+    "triggers": [
+      "refactor-critic:fail",
+      "merge_gate:fail"
+    ]
+  },
+  "hooks": {
+    "enabled": true,
+    "sessionStart": ".cursor/hooks/aafe-session-start",
+    "sessionStartCodebuddy": ".codebuddy/hooks/aafe-session-start",
+    "failClosed": false
+  },
+  "gates": [
+    "ddd_gate",
+    "architecture_gate",
+    "pattern_gate",
+    "implementation_gate",
+    "merge_gate"
+  ]
+}

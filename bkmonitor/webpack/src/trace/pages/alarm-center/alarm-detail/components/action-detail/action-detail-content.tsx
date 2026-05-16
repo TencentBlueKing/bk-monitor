@@ -25,7 +25,6 @@
  */
 
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
-
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Message, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -73,15 +72,23 @@ export default defineComponent({
         show_aggs: false,
         show_overview: false,
         start_time: props.detail.create_time - oneDay,
-        bk_biz_ids: [props.detail.bk_biz_id],
+        bk_biz_ids: window.APM_QUERY_STRING ? [window.bk_biz_id] : [props.detail.bk_biz_id],
       };
       const triggerData = await searchAlert({
         ...params,
+        // #if IS_APM_MONITOR
+        query_string: `(${queryString('trigger', props.detail.id)}) AND ${window.APM_QUERY_STRING || ''}`,
+        // #else
         query_string: `${queryString('trigger', props.detail.id)}`,
+        // #endif
       }).catch(() => []);
       const defense = await searchAlert({
         ...params,
+        // #if IS_APM_MONITOR
+        query_string: `(${queryString('defense', props.detail.id)}) AND ${window.APM_QUERY_STRING || ''}`,
+        // #else
         query_string: `${queryString('defense', props.detail.id)}`,
+        // #endif
       }).catch(() => []);
       triggerTableData.value = triggerData.alerts;
       defenseTableData.value = defense.alerts;

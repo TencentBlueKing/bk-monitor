@@ -44,25 +44,6 @@ class QuerySerializer(serializers.Serializer):
     filters = serializers.ListSerializer(label=_("查询条件"), child=FilterSerializer(), default=[])
 
 
-class QueryStatisticsSerializer(serializers.Serializer):
-    class FilterSerializer(serializers.Serializer):
-        key = serializers.CharField(label=_("查询键"))
-        operator = serializers.CharField(label=_("操作符"))
-        value = serializers.ListSerializer(
-            label=_("查询值"), child=serializers.CharField(allow_blank=True), allow_empty=True
-        )
-
-    bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-    app_name = serializers.CharField(label=_("应用名称"))
-    offset = serializers.IntegerField(label=_("偏移量"), required=False, default=0)
-    limit = serializers.IntegerField(label=_("每页数量"), required=False, default=10)
-    start_time = serializers.IntegerField(label=_("开始时间"))
-    end_time = serializers.IntegerField(label=_("结束时间"))
-
-    query = serializers.CharField(label=_("查询语句"), default="", allow_blank=True, allow_null=True)
-    filters = serializers.ListSerializer(label=_("查询条件"), child=FilterSerializer(), default=[])
-
-
 class SpanIdInputSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     app_name = serializers.CharField(label=_("应用名称"))

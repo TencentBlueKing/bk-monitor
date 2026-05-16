@@ -28,6 +28,7 @@ import { AlarmType } from '../typings';
 import { ActionService } from './action-services';
 import { AlertService } from './alert-services';
 import { IncidentService } from './incident-services';
+import { IssuesService } from './issues-services';
 
 export type AlarmServiceType<T = AlarmType> = T extends AlarmType.ACTION
   ? ActionService
@@ -72,6 +73,9 @@ export function AlarmServiceFactory(type: AlarmType) {
   }
   if (type === AlarmType.INCIDENT) {
     return new IncidentService(AlarmType.INCIDENT);
+  }
+  if (type === AlarmType.ISSUES) {
+    return new IssuesService(AlarmType.ISSUES);
   }
   return new AlertService(AlarmType.ALERT);
 }

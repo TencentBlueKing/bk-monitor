@@ -182,17 +182,16 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 ON
                     s.space_type_id = t.type_id
             """
+            sql_params: list[object] = []
             if filters:
-                sql += " WHERE "
                 where_conditions = []
                 for field, value in filters.items():
-                    if isinstance(value, str):
-                        where_conditions.append(f" s.{field} = '{value}'")
-                    elif isinstance(value, int):
-                        where_conditions.append(f" s.{field} = {value}")
-                sql += " AND ".join(where_conditions)
+                    where_conditions.append(f"s.{field} = %s")
+                    sql_params.append(value)
+                if where_conditions:
+                    sql += " WHERE " + " AND ".join(where_conditions)
 
-            cursor.execute(sql)
+            cursor.execute(sql, sql_params)
             columns = [col[0] for col in cursor.description]
             spaces: list[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
 

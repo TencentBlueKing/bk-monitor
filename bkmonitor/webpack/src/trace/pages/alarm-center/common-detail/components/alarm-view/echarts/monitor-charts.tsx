@@ -102,7 +102,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick', 'zrClick'],
+  emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick', 'zrClick', 'mouseover', 'mouseout'],
   setup(props, { emit }) {
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
@@ -127,18 +127,18 @@ export default defineComponent({
       return props.downSampleRange;
     };
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts({
       panel,
       chartRef,
-      instance.appContext.config.globalProperties.$api,
+      $api: instance.appContext.config.globalProperties.$api,
       params,
-      props.customOptions,
-      {
+      customOptions: props.customOptions,
+      interactionState: {
         isMouseOver: mouseIn,
         hoverAllTooltips: toRef(props, 'hoverAllTooltips'),
       },
-      downSampleRangeComputed
-    );
+      downSampleRangeComputed: props.downSampleRange ? downSampleRangeComputed : undefined,
+    });
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
       targets,
@@ -181,6 +181,20 @@ export default defineComponent({
      */
     const handleClick = params => {
       emit('click', params);
+    };
+
+    /**
+     * @description 处理鼠标移入事件
+     */
+    const handleMouseover = (params: Record<string, any>) => {
+      emit('mouseover', params);
+    };
+
+    /**
+     * @description 处理鼠标移出事件
+     */
+    const handleMouseout = (params: Record<string, any>) => {
+      emit('mouseout', params);
     };
 
     /**
@@ -255,6 +269,8 @@ export default defineComponent({
       handleClick,
       handleZrClick,
       handleMouseInChange,
+      handleMouseover,
+      handleMouseout,
     };
   },
   render() {
@@ -303,6 +319,8 @@ export default defineComponent({
                 autoresize
                 onClick={this.handleClick}
                 onDatazoom={e => this.handleDataZoom(e, this.options)}
+                onMouseout={this.handleMouseout}
+                onMouseover={this.handleMouseover}
                 onZr:click={this.handleZrClick}
               />
 

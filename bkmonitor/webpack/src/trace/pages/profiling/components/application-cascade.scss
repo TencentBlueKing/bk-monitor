@@ -1,6 +1,11 @@
 .application-cascade-component {
   width: 100%;
 
+  span[style*='display: inline-block'] {
+    display: block !important;
+    width: 100% !important;
+  }
+
   .trigger-wrap {
     .bk-input {
       background-color: #fff;

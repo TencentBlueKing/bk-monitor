@@ -130,6 +130,12 @@ export interface ITriggerSlotOptions {
   error: boolean;
   multiple: boolean;
   valueStr: string;
-  valueStrList: { id: string; name: string; tags: ILocalSpaceList['tags'] }[];
+  valueStrList: IValueStrListItem[];
   clear: () => void;
+}
+export interface IValueStrListItem {
+  id: string;
+  idDisplayName: string;
+  name: string;
+  tags: ILocalSpaceList['tags'];
 }

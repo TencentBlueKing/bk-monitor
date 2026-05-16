@@ -23,6 +23,8 @@ from io import StringIO
 from itertools import chain
 from typing import Any
 
+import arrow
+from bk_monitor_base.strategy import StrategyNotExistError, get_strategy, parse_metric_id
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
@@ -59,7 +61,6 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.alert_drilling import clean_where_conditions, normalize_histogram_quantile_group_by
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
@@ -129,6 +130,7 @@ from monitor_web.aiops.metric_recommend.constant import (
 )
 from monitor_web.constants import AlgorithmType
 from monitor_web.models import CustomEventGroup
+from utils.strategy import fill_user_groups
 
 logger = logging.getLogger("root")
 
@@ -508,7 +510,9 @@ class QuickActionTokenResource(AlertPermissionResource):
     def redirect(bk_biz_id, action_id):
         request = get_request()
         mobile_url = f"/weixin/?bizId={bk_biz_id}&collectId={action_id}"
-        pc_url = f"/?bizId={bk_biz_id}&routeHash=event-center/?collectId={action_id}#/"
+        pc_url = (
+            f"/?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{action_id}&filterMode=queryString"
+        )
         redirect_url = mobile_url if request.is_mobile() else pc_url
         return HttpResponseRedirect(redirect_url)
 
@@ -671,7 +675,10 @@ class AlertDetailResource(Resource):
         return result
 
     @staticmethod
-    def clean_graph_panel_where(graph_panel: dict) -> None:
+    def clean_graph_panel_where(graph_panel: dict | None) -> None:
+        if not graph_panel:
+            return
+
         for target in graph_panel.get("targets", []):
             for query_config in target.get("data", {}).get("query_configs", []):
                 query_config["where"] = clean_where_conditions(query_config.get("where", []))
@@ -1488,19 +1495,18 @@ class AlertGraphQueryResource(ApiAuthResource):
 
             current_series_list.append(series)
 
-        # 以最长的 series 的时间戳为基准，对短的 series 尾部补齐 null 值
+        # 以最长的 series 的时间戳为基准，对所有 series 按时间戳对齐补齐 null 值
+        # 确保每条 series 的 datapoints 时间戳序列完全一致，避免 ECharts 按索引渲染时出现时间偏移
+        # 原逻辑按索引截断仅仅尾部补齐，但稀疏 series 点数少、时间跨度大，会导致补充的时间戳与已有数据点重叠
         if current_series_list and longest_series["datapoints"]:
-            max_len = len(longest_series["datapoints"])
-            tail_timestamps = [point[1] for point in longest_series["datapoints"]]
+            all_timestamps = [data_point[1] for data_point in longest_series["datapoints"]]
             for series in current_series_list:
-                # 从后往前找到最后一个有效数值的位置，作为有效长度
-                cur_len = len(series["datapoints"])
-                while cur_len > 0 and not isinstance(series["datapoints"][cur_len - 1][0], int | float):
-                    cur_len -= 1
-                if cur_len < max_len:
-                    # 截断尾部 None 点，再按基准时间戳补齐
-                    series["datapoints"] = series["datapoints"][:cur_len]
-                    series["datapoints"].extend([[None, ts] for ts in tail_timestamps[cur_len:]])
+                if series is longest_series:
+                    continue
+                # 构建当前 series 的时间戳到值的映射
+                ts_to_value = {d_point[1]: d_point[0] for d_point in series["datapoints"]}
+                # 按基准时间戳序列重建 datapoints，缺失的时间点补 null
+                series["datapoints"] = [[ts_to_value.get(ts, None), ts] for ts in all_timestamps]
 
         return result
 
@@ -1698,7 +1704,7 @@ class SearchAlertResource(Resource):
             return request_data
 
         # 提取出所有的时间戳
-        timestamps = [int(match[1][:timestamp_length]) for match in id_matches]
+        timestamps = [int(match[:timestamp_length]) for match in id_matches]
 
         min_timestamp = min(timestamps)  # 最小时间戳
         max_timestamp = max(timestamps)  # 最大时间戳
@@ -2376,25 +2382,25 @@ class StrategySnapshotResource(Resource):
         changed_status = self.ConfigChangedStatus.UNCHANGED
         current_strategy = None
         try:
-            strategy = StrategyModel.objects.get(id=strategy_config["id"])
-            is_enabled = strategy.is_enabled
-            current_strategy = Strategy.from_models([strategy])[0]
-        except StrategyModel.DoesNotExist:
-            changed_status = self.ConfigChangedStatus.DELETED
-        else:
-            if int(strategy.update_time.timestamp()) != strategy_config["update_time"]:
+            current_strategy = get_strategy(bk_biz_id=alert.event.bk_biz_id, strategy_id=strategy_config["id"])
+            is_enabled = current_strategy["is_enabled"]
+            current_update_time = arrow.get(current_strategy["update_time"])
+            strategy_update_time = arrow.get(strategy_config["update_time"])
+            if current_update_time.timestamp != strategy_update_time.timestamp:
                 changed_status = self.ConfigChangedStatus.UPDATED
+        except StrategyNotExistError:
+            changed_status = self.ConfigChangedStatus.DELETED
 
         if current_strategy and "intelligent_detect" in strategy_config["items"][0]["query_configs"][0]:
             if not strategy_config["items"][0]["query_configs"][0]["intelligent_detect"].get("use_sdk", False):
                 # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
-                strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
+                strategy_config["items"][0]["query_configs"][0] = current_strategy["items"][0]["query_configs"][0]
 
         strategy_config.update(strategy_status=changed_status)
         strategy_config["create_time"] = utc2datetime(strategy_config["create_time"])
         strategy_config["update_time"] = utc2datetime(strategy_config["update_time"])
         strategy_config["is_enabled"] = is_enabled
-        Strategy.fill_user_groups([strategy_config])
+        fill_user_groups([strategy_config])
         return strategy_config
 
 

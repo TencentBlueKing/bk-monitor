@@ -687,12 +687,15 @@ class TimeSeriesGroup(CustomGroupBase):
                 )
         return metrics_info
 
-    def update_time_series_metrics(self) -> bool:
+    def update_time_series_metrics(self, expired_time: int | None = None) -> bool:
         """从远端存储中同步TS的指标和维度对应关系
 
+        :param expired_time: 从 redis 拉取指标的有效窗口，单位秒
         :return: 返回是否有更新指标
         """
-        metrics_info = self.get_metrics_from_redis(expired_time=settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS)
+        metrics_info = self.get_metrics_from_redis(
+            expired_time=expired_time or settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS
+        )
         # 如果为空，直接返回
         if not metrics_info:
             return False

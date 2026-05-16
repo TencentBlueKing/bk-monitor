@@ -44,6 +44,7 @@ import {
   type IFilterField,
   type IFilterItem,
   type INormalWhere,
+  CONDITION_MAP,
   ECondition,
   EMode,
   METHOD_MAP,
@@ -275,7 +276,7 @@ export default defineComponent({
         if (!item?.hide) {
           where.push({
             key: item.key.id,
-            condition: ECondition.and,
+            condition: item?.condition?.id || ECondition.and,
             value: item.value.map(v => v.id),
             ...(Object.keys(item?.options || {}).length ? { options: item.options } : {}),
             method: item.method.id,
@@ -321,9 +322,11 @@ export default defineComponent({
           for (const v of cacheItem.value) {
             cacheValueMap.set(v.id, v.name);
           }
+          const condition = w?.condition || ECondition.and;
+          const conditionName = CONDITION_MAP?.[condition] || w?.condition || 'AND';
           localValue.push({
             key: cacheItem.key,
-            condition: { id: ECondition.and, name: 'AND' },
+            condition: { id: condition, name: conditionName },
             method: { id: w.method as EMethod, name: methodName || w.method },
             options: w.options || {},
             value: w.value.map(v => ({
@@ -336,9 +339,11 @@ export default defineComponent({
             id: w.key,
             name: fieldsMap.get(w.key)?.alias || w.key,
           };
+          const condition = w?.condition || ECondition.and;
+          const conditionName = CONDITION_MAP?.[condition] || w?.condition || 'AND';
           localValue.push({
             key: keyItem,
-            condition: { id: ECondition.and, name: 'AND' },
+            condition: { id: condition, name: conditionName },
             method: { id: w.method as EMethod, name: methodName || w.method },
             options: w.options || {},
             value: w.value.map(v => ({

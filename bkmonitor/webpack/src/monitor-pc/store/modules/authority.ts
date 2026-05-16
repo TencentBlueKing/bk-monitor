@@ -105,12 +105,12 @@ class Authority extends VuexModule {
   }
   @Action
   public showAuthorityDetail(res: any) {
-    if (!Array.isArray(res) && !res?.data && !res.permission) return;
+    if (!Array.isArray(res) && !res?.data && !res?.permission) return;
     this.setDialogLoading(true);
     this.setShowAuthortyDialog(true);
     const data = transformDataKey(res);
-    this.setApplyUrl(data.data.applyUrl);
-    this.setAuthorityDetail(data.permission);
+    this.setApplyUrl(data.data?.applyUrl ?? '');
+    this.setAuthorityDetail(data.permission ?? {});
     this.setDialogLoading(false);
   }
 }

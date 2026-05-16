@@ -449,12 +449,14 @@ export default class AlarmDetail extends Vue {
         });
         const params = new URLSearchParams(window.location.search);
         const batchAction = params.get('batchAction');
-        if (!batchAction) {
+        const autoShowAlertAction = params.get('autoShowAlertAction');
+        if (!batchAction && !autoShowAlertAction) {
           this.$router.back();
           return;
         }
         const url = new URL(window.location.href);
         url.searchParams.delete('batchAction');
+        url.searchParams.delete('autoShowAlertAction');
         url.hash = '#/alarm-info';
         location.href = url.toString();
       })

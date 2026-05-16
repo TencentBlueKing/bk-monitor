@@ -432,6 +432,9 @@ class IndexSetHandler(APIModel):
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -458,6 +461,9 @@ class IndexSetHandler(APIModel):
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
             parent_index_set_ids=parent_index_set_ids,
+            is_platform_index=is_platform_index,
+            platform_index_visibility=platform_index_visibility,
+            platform_index_filter=platform_index_filter,
         ).create_index_set()
 
         # add user_operation_record
@@ -508,6 +514,9 @@ class IndexSetHandler(APIModel):
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -528,6 +537,9 @@ class IndexSetHandler(APIModel):
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
             parent_index_set_ids=parent_index_set_ids,
+            is_platform_index=is_platform_index,
+            platform_index_visibility=platform_index_visibility,
+            platform_index_filter=platform_index_filter,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -1670,6 +1682,9 @@ class BaseIndexSetHandler:
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         super().__init__()
 
@@ -1708,6 +1723,11 @@ class BaseIndexSetHandler:
         self.sort_fields = sort_fields if sort_fields else []
         self.target_fields_raw = target_fields
         self.sort_fields_raw = sort_fields
+
+        # 平台级索引集
+        self.is_platform_index = is_platform_index
+        self.platform_index_visibility = platform_index_visibility
+        self.platform_index_filter = platform_index_filter
 
     @staticmethod
     def init_time_field(scenario_id, time_field, time_field_type, time_field_unit, action=None):
@@ -1805,6 +1825,9 @@ class BaseIndexSetHandler:
             target_fields=self.target_fields,
             sort_fields=self.sort_fields,
             tag_ids=tag_ids if tag_ids else "",
+            is_platform_index=True if self.is_platform_index else False,
+            platform_index_visibility=self.platform_index_visibility if self.is_platform_index else None,
+            platform_index_filter=self.platform_index_filter if self.is_platform_index else None,
         )
         logger.info(
             f"[create_index_set][{self.index_set_obj.index_set_id}]index_set_name => {self.index_set_name}, indexes => {len(self.indexes)}"
@@ -1856,6 +1879,15 @@ class BaseIndexSetHandler:
         )
         self.sync_router(index_set)
         return True
+
+    @staticmethod
+    def _set_table_info_is_enabled(router_params: dict):
+        """bulk_create_or_update_log_router 要求每个 table_info 项显式声明 is_enable。"""
+        if not router_params:
+            return
+        for item in router_params.get("table_info") or []:
+            if isinstance(item, dict):
+                item["is_enable"] = True
 
     @classmethod
     def get_index_set_table_info_list(
@@ -2019,6 +2051,7 @@ class BaseIndexSetHandler:
                             "space_type": index_set.space_uid.split("__")[0],
                             "table_info": table_info_list,
                         }
+                        cls._set_table_info_is_enabled(request_params)
                         multi_execute_func.append(
                             result_key=data_label,
                             func=TransferApi.bulk_create_or_update_log_router,
@@ -2068,6 +2101,14 @@ class BaseIndexSetHandler:
             if str(tag_id) not in tag_ids:
                 tag_ids.append(str(tag_id))
                 self.index_set_obj.tag_ids = tag_ids
+
+        # 平台级索引集
+        if self.is_platform_index is not None:
+            self.index_set_obj.is_platform_index = self.is_platform_index
+            self.index_set_obj.platform_index_visibility = (
+                self.platform_index_visibility if self.is_platform_index else None
+            )
+            self.index_set_obj.platform_index_filter = self.platform_index_filter if self.is_platform_index else None
 
         self.index_set_obj.save()
 

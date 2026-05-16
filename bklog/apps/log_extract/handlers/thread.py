@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
@@ -86,7 +86,8 @@ class ThreadPool(_ThreadPool):
 
     @staticmethod
     def get_func_with_local(func):
-        tz = timezone.get_current_timezone().zone
+        _current_tz = timezone.get_current_timezone()
+        tz = getattr(_current_tz, "zone", None) or str(_current_tz)
         lang = translation.get_language()
         items = [item for item in local]
         request = get_request()
@@ -98,7 +99,7 @@ class ThreadPool(_ThreadPool):
         """
         futures = []
         for params in iterable:
-            if not isinstance(params, (tuple, list)):
+            if not isinstance(params, tuple | list):
                 params = (params,)
             futures.append(self.apply_async(func, args=params))
 
@@ -114,18 +115,14 @@ class ThreadPool(_ThreadPool):
         return results
 
     def map_async(self, func, iterable, chunksize=None, callback=None):
-        return super(ThreadPool, self).map_async(
-            self.get_func_with_local(func), iterable, chunksize=chunksize, callback=callback
-        )
+        return super().map_async(self.get_func_with_local(func), iterable, chunksize=chunksize, callback=callback)
 
     def apply_async(self, func, args=(), kwds={}, callback=None):  # pylint: disable=dangerous-default-value
-        return super(ThreadPool, self).apply_async(
-            self.get_func_with_local(func), args=args, kwds=kwds, callback=callback
-        )
+        return super().apply_async(self.get_func_with_local(func), args=args, kwds=kwds, callback=callback)
 
     def imap(self, func, iterable, chunksize=1):
-        return super(ThreadPool, self).imap(self.get_func_with_local(func), iterable, chunksize)
+        return super().imap(self.get_func_with_local(func), iterable, chunksize)
 
     def imap_unordered(self, func, iterable, chunksize=1):
         func = partial(run_func_with_local, func, local)
-        return super(ThreadPool, self).imap_unordered(self.get_func_with_local(func), iterable, chunksize=chunksize)
+        return super().imap_unordered(self.get_func_with_local(func), iterable, chunksize=chunksize)

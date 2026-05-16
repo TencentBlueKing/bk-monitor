@@ -72,6 +72,7 @@ export default {
     flatIndexSetList: [],
     isIndexSetLoading: false,
     isTrendDataLoading: false,
+    isTotalCountLoaded: false,
     trendDataCount: 0,
     catchFieldCustomConfig: {
       fieldsWidth: {},
@@ -89,6 +90,9 @@ export default {
     },
     updateTrendDataLoading(state, payload) {
       state.isTrendDataLoading = payload;
+    },
+    updateTotalCountLoaded(state, payload) {
+      state.isTotalCountLoaded = payload;
     },
     updateTrendDataCount(state, payload) {
       state.trendDataCount = payload;

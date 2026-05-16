@@ -353,11 +353,17 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-alert:before {
 	content: "\e235";
 }
+.bklog-arrow-right:before {
+	content: "\e257";
+}
 .bklog-back2:before {
 	content: "\e1ec";
 }
 .bklog-circle-add:before {
 	content: "\e20c";
+}
+.bklog-circle-correct:before {
+	content: "\e266";
 }
 .bklog-close:before {
 	content: "\e1e9";
@@ -407,8 +413,14 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-circle-correct-filled:before {
 	content: "\e1d9";
 }
+.bklog-circle-help-filled:before {
+	content: "\e269";
+}
 .bklog-circle-minus-filled:before {
 	content: "\e1ea";
+}
+.bklog-circle-wrong-filled:before {
+	content: "\e268";
 }
 .bklog-import:before {
 	content: "\e206";
@@ -805,4 +817,97 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-tingyongwenjianjia:before {
 	content: "\e242";
+}
+.bklog-grok:before {
+	content: "\e246";
+}
+.bklog-business:before {
+	content: "\e250";
+}
+.bklog-version:before {
+	content: "\e24f";
+}
+.bklog-kehuduan:before {
+	content: "\e24c";
+}
+.bklog-container-2:before {
+	content: "\e24a";
+}
+.bklog-host:before {
+	content: "\e248";
+}
+.bklog-paas:before {
+	content: "\e249";
+}
+.bklog-service:before {
+	content: "\e24b";
+}
+.bklog-trpc:before {
+	content: "\e247";
+}
+.bklog-wangluo-line:before {
+	content: "\e24d";
+}
+.bklog-os:before {
+	content: "\e24e";
+}
+.bklog-share-fenxiang:before {
+	content: "\e251";
+}
+.bklog-miaoshu:before {
+	content: "\e252";
+}
+.bklog-log:before {
+	content: "\e253";
+}
+.bklog-log-mode:before {
+	content: "\e254";
+}
+.bklog-ai-3:before {
+	content: "\e256";
+}
+.bklog-new-3:before {
+	content: "\e258";
+}
+.bklog-xingnengwenti:before {
+	content: "\e25a";
+}
+.bklog-daichuli:before {
+	content: "\e25b";
+}
+.bklog-count:before {
+	content: "\e25d";
+}
+.bklog-user-group:before {
+	content: "\e25c";
+}
+.bklog-chulijingyan:before {
+	content: "\e25f";
+}
+.bklog-yingxiangfanwei:before {
+	content: "\e25e";
+}
+.bklog-dimension-weidu:before {
+	content: "\e260";
+}
+.bklog-link-guanlian:before {
+	content: "\e261";
+}
+.bklog-shop:before {
+	content: "\e262";
+}
+.bklog-device:before {
+	content: "\e264";
+}
+.bklog-events:before {
+	content: "\e265";
+}
+.bklog-repeat:before {
+	content: "\e267";
+}
+.bklog-user-yonghu:before {
+	content: "\e26a";
+}
+.bklog-tracing:before {
+	content: "\e26b";
 }

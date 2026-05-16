@@ -80,7 +80,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['dataZoomChange', 'durationChange', 'restore'],
+  emits: ['dataZoomChange', 'durationChange', 'restore', 'mouseover', 'mouseout'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
@@ -91,17 +91,17 @@ export default defineComponent({
     const panel = computed(() => props.panel);
     const params = computed(() => props.params);
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts({
       panel,
-      chartMainRef,
-      instance.appContext.config.globalProperties.$api,
+      chartRef: chartMainRef,
+      $api: instance.appContext.config.globalProperties.$api,
       params,
-      props.customOptions,
-      {
+      customOptions: props.customOptions,
+      interactionState: {
         isMouseOver: mouseIn,
         hoverAllTooltips: toRef(props, 'hoverAllTooltips'),
-      }
-    );
+      },
+    });
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
       targets,
@@ -135,6 +135,20 @@ export default defineComponent({
     };
     const handleMouseInChange = (v: boolean) => {
       mouseIn.value = v;
+    };
+
+    /**
+     * @description 处理鼠标移入事件
+     */
+    const handleMouseover = (params: Record<string, any>) => {
+      emit('mouseover', params);
+    };
+
+    /**
+     * @description 处理鼠标移出事件
+     */
+    const handleMouseout = (params: Record<string, any>) => {
+      emit('mouseout', params);
     };
 
     watch(
@@ -173,6 +187,8 @@ export default defineComponent({
       handleSelectLegend,
       handleDataZoom,
       handleMouseInChange,
+      handleMouseover,
+      handleMouseout,
       t,
     };
   },
@@ -184,7 +200,7 @@ export default defineComponent({
       >
         {this.panel && this.showTitle && (
           <ChartTitle
-            class='draggable-handle'
+            class='trace-home-draggable-handle'
             dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             menuList={['more', 'explore', 'area', 'drill-down', 'relate-alert']}
@@ -216,6 +232,8 @@ export default defineComponent({
                 option={this.options}
                 autoresize
                 onDatazoom={e => this.handleDataZoom(e, this.options)}
+                onMouseout={this.handleMouseout}
+                onMouseover={this.handleMouseover}
               />
 
               {this.showRestore && (

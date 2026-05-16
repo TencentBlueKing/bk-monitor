@@ -60,6 +60,7 @@ from fta_web.alert.handlers.translator import (
     MetricTranslator,
     PluginTranslator,
     StrategyTranslator,
+    TopoNodeTranslator,
 )
 from fta_web.alert.utils import is_include_promql
 
@@ -231,6 +232,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("is_handled", _lazy("是否已处理")),
         QueryField("is_blocked", _lazy("是否熔断")),
         QueryField("strategy_id", _lazy("策略ID")),
+        QueryField("issue_id", _lazy("Issue ID")),
         QueryField("create_time", _lazy("创建时间")),
         QueryField("update_time", _lazy("更新时间")),
         QueryField("begin_time", _lazy("开始时间")),
@@ -624,6 +626,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         self.is_time_partitioned = is_time_partitioned
         self.is_finaly_partition = is_finaly_partition
         self.need_bucket_count = need_bucket_count
+        self._notice_ways_cache: dict[str, set] | None = None
         self.query_context = kwargs.get("context", {})
         self.query_context.update(
             {
@@ -718,7 +721,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         if show_aggs:
             search_object = self.add_aggs(search_object)
 
-        search_result = search_object.params(track_total_hits=True).execute()
+        search_result = search_object.params(track_total_hits=10000).execute()
 
         if show_dsl:
             return search_result, search_object.to_dict()
@@ -988,6 +991,17 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
             return Q("ids", values=list(set(alert_ids)))
 
+        elif condition["origin_key"] == "action_id" and condition["key"] == "id":
+            # 处理记录ID查询：通过 action_id 获取关联的告警ID列表
+            alert_ids, _ = get_alert_ids_by_action_id(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("ids", values=alert_ids)
+
+        elif condition["key"] == "event.ipv6":
+            # IPv6 地址查询：将缩写的 IPv6 地址展开为完整格式
+            condition["value"] = [exploded_ip(v) for v in condition["value"]]
+
         elif condition["key"] == "query_string":
             con_q = None
             for query_string in condition["value"]:
@@ -1010,7 +1024,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 进行我有权限的告警过滤
-            queries.append(Q("terms", **{"event.bk_biz_id": self.authorized_bizs}))
+            authorized_query = self.build_es_terms_query("event.bk_biz_id", self.authorized_bizs)
+            if authorized_query is not None:
+                queries.append(authorized_query)
 
         user_condition = Q(
             Q("term", assignee=self.request_username)
@@ -1022,7 +1038,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
             queries.append(user_condition)
 
         if self.unauthorized_bizs and self.request_username:
-            queries.append(Q(Q("terms", **{"event.bk_biz_id": self.unauthorized_bizs}) & user_condition))
+            unauthorized_query = self.build_es_terms_query("event.bk_biz_id", self.unauthorized_bizs)
+            if unauthorized_query is not None:
+                queries.append(unauthorized_query & user_condition)
 
         if queries:
             return search_object.filter(reduce(operator.or_, queries))
@@ -1285,7 +1303,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
             action_search = action_search.filter("terms", alert_id=list(alert_ids))
 
         if self.authorized_bizs is not None and self.bk_biz_ids:
-            action_search = action_search.filter("terms", bk_biz_id=self.authorized_bizs)
+            authorized_query = self.build_es_terms_query("bk_biz_id", self.authorized_bizs)
+            if authorized_query is not None:
+                action_search = action_search.filter(authorized_query)
 
         action_search = action_search.extra(size=0)
 
@@ -1329,6 +1349,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 return []
 
             alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+            self._notice_ways_cache = alert_notice_ways
 
             for alert_id, ways in alert_notice_ways.items():
                 if ways & target_ways:
@@ -1357,18 +1378,29 @@ class AlertQueryHandler(BaseBizQueryHandler):
         result = search_object.execute()
 
         if result.aggs:
-            return set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+            ids = set(bucket.key for bucket in result.aggs.alert_ids.buckets)
+            if len(ids) >= 10000:
+                logger.warning(
+                    "_collect_current_alert_ids: reached 10000 limit, notice_way filter may be incomplete. "
+                    "bk_biz_ids=%s, start_time=%s, end_time=%s",
+                    self.bk_biz_ids,
+                    self.start_time,
+                    self.end_time,
+                )
+            return ids
         return set()
 
     def handle_aggs_notice_way(self, alert_ids):
         """通过ES聚合统计告警通知类型分布"""
-        notice_way_mapping = {
-            NoticeWay.SMS: _lazy("短信"),
-            NoticeWay.MAIL: _lazy("邮件"),
-            NoticeWay.WEIXIN: _lazy("微信"),
-            NoticeWay.QY_WEIXIN: _lazy("企业微信"),
-            NoticeWay.WX_BOT: _lazy("企业微信机器人"),
-        }
+        # 需要聚合的通知方式
+        notice_ways = [
+            NoticeWay.SMS,  # 短信
+            NoticeWay.MAIL,  # 邮件
+            NoticeWay.WEIXIN,  # 微信
+            NoticeWay.QY_WEIXIN,  # 企微
+            NoticeWay.VOICE,  # 语音
+            NoticeWay.WX_BOT,  # 群机器人
+        ]
         notice_way_count = defaultdict(int)
         alert_notice_ways = {}
 
@@ -1384,16 +1416,19 @@ class AlertQueryHandler(BaseBizQueryHandler):
                             "name": str(NoticeWay.NOTICE_WAY_MAPPING.get(way_key, way_key)),
                             "count": 0,
                         }
-                        for way_key in notice_way_mapping
+                        for way_key in notice_ways
                     ],
                 }
 
-            # 调用公共方法获取每个告警的通知方式
-            alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
+            # 优先复用 notice_way 过滤阶段已查询的缓存，避免重复查询 action 索引
+            if self._notice_ways_cache is not None:
+                alert_notice_ways = {k: v for k, v in self._notice_ways_cache.items() if k in alert_ids}
+            else:
+                alert_notice_ways = self._query_alert_notice_ways(alert_ids=alert_ids)
 
             # 统计每种通知方式的告警数量
-            for notice_ways in alert_notice_ways.values():
-                for way in notice_ways:
+            for ways in alert_notice_ways.values():
+                for way in ways:
                     notice_way_count[way] += 1
 
         except Exception as e:  # noqa: BLE001
@@ -1409,7 +1444,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "name": str(NoticeWay.NOTICE_WAY_MAPPING.get(way_key, way_key)),
                     "count": notice_way_count.get(way_key, 0),
                 }
-                for way_key in notice_way_mapping
+                for way_key in notice_ways
             ],
         }
 
@@ -1419,6 +1454,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             cls.SHIELD_ABNORMAL_STATUS_NAME: 0,
             cls.NOT_SHIELD_ABNORMAL_STATUS_NAME: 0,
             EventStatus.RECOVERED: 0,
+            EventStatus.CLOSED: 0,
         }
 
         if search_result.aggs:
@@ -1473,6 +1509,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "id": EventStatus.RECOVERED,
                     "name": _("已恢复"),
                     "count": agg_result[EventStatus.RECOVERED],
+                },
+                {
+                    "id": EventStatus.CLOSED,
+                    "name": _("已失效"),
+                    "count": agg_result[EventStatus.CLOSED],
                 },
             ],
         }
@@ -1588,22 +1629,29 @@ class AlertQueryHandler(BaseBizQueryHandler):
             )
 
         # 额外字段
+        # tags 字段修复：列表"维度"列展示与详情同源，取 alert.dimensions（enricher 补充后）
+        # 而非 event.tags（Trigger 原始 tags，enricher 不会回写）。
+        # 触发 bug 场景：CMDB/系统类告警（如主机重启/Corefile/OOM）的 event.tags 原本为空，
+        # 但 StandardTranslateEnricher 会向 alert.dimensions 补充 ip/bk_host_id/bk_topo_node 等 CMDB 维度。
+        # 历史链路：QueryField("tags", es_field="event.tags") 仍保留供 query_string 检索（向后兼容
+        # SavedSearch / 通知模板等），仅修改列表 row 的展示值。
+        # 兼容回退：dimensions 为空时回退 event.tags（极少数旧数据可能仅有 tags 没 dimensions）。
+        dimensions_value = data.get("dimensions") or []
         cleaned_data.update(
             {
                 # "strategy_name": doc.strategy.get("name") if doc.strategy else None,
                 "stage_display": doc.stage_display,
                 "duration": hms_string(doc.duration),
                 "shield_left_time": hms_string(doc.shield_left_time or 0),
-                "dimensions": data.get("dimensions", []),
+                "dimensions": dimensions_value,
+                "tags": dimensions_value or data.get("event", {}).get("tags") or [],
                 "seq_id": data.get("seq_id"),
                 "dedupe_md5": data.get("dedupe_md5"),
                 "dedupe_keys": data.get("event", {}).get("dedupe_keys"),
                 "extra_info": data.get("extra_info"),
-                "dimension_message": AlertDimensionFormatter.get_dimensions_str(data.get("dimensions", [])),
+                "dimension_message": AlertDimensionFormatter.get_dimensions_str(dimensions_value),
                 "metric_display": [{"id": metric, "name": metric} for metric in cleaned_data.get("metric") or []],
-                "target_key": AlertDimensionFormatter.get_target_key(
-                    cleaned_data.get("target_type"), data.get("dimensions")
-                ),
+                "target_key": AlertDimensionFormatter.get_target_key(cleaned_data.get("target_type"), dimensions_value),
                 "items": items,
             }
         )
@@ -1626,12 +1674,18 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return event
 
     def top_n(self, fields: list, size=10, translators: dict = None, char_add_quotes=True):
+        if self.authorized_bizs is not None:
+            bk_biz_ids = self.authorized_bizs
+        else:
+            bk_biz_ids = self.bk_biz_ids
+
         translators = {
-            "metric": MetricTranslator(name_format="{name} ({id})", bk_biz_ids=self.bk_biz_ids),
+            "metric": MetricTranslator(name_format="{name} ({id})", bk_biz_ids=bk_biz_ids),
             "bk_biz_id": BizTranslator(),
             "strategy_id": StrategyTranslator(),
             "category": CategoryTranslator(),
             "plugin_id": PluginTranslator(),
+            "bk_topo_node": TopoNodeTranslator(bk_biz_ids=bk_biz_ids),  # noqa
         }
 
         result = super().top_n(fields, size, translators, char_add_quotes)

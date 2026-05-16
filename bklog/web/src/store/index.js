@@ -687,7 +687,7 @@ const store = new Vuex.Store({
       if (hasFieldsUpdate) {
         const fieldAliasMap = new Map();
         state.indexFieldInfo.fields.forEach((field) => {
-          const fieldAlias = field.query_alias || field.field_alias;
+          const fieldAlias = field.query_alias;
 
           if (fieldAlias) {
             const existValue = fieldAliasMap.get(fieldAlias) ?? {
@@ -744,6 +744,17 @@ const store = new Vuex.Store({
           }
           return 0;
         });
+
+        const fieldNameIndex = {};
+        const queryAliasIndex = {};
+        state.indexFieldInfo.fields.forEach((f) => {
+          fieldNameIndex[f.field_name] = f;
+          if (f.query_alias) {
+            queryAliasIndex[f.query_alias] = f;
+          }
+        });
+        set(state.indexFieldInfo, 'fieldNameIndex', fieldNameIndex);
+        set(state.indexFieldInfo, 'queryAliasIndex', queryAliasIndex);
       }
     },
     updateIndexFieldEggsItems(state, payload) {

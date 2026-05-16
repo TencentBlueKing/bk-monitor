@@ -61,11 +61,13 @@ const HostTargetFieldMap = {
   INSTANCE: 'ip',
   SERVICE_TEMPLATE: 'host_service_template',
   SET_TEMPLATE: 'host_set_template',
+  DYNAMIC_GROUP: 'dynamic_group',
 };
 const ServiceTargetFieldMap = {
   TOPO: 'service_topo_node',
   SERVICE_TEMPLATE: 'service_service_template',
   SET_TEMPLATE: 'service_set_template',
+  DYNAMIC_GROUP: 'dynamic_group',
 };
 @Component
 export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6Events> {
@@ -156,6 +158,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
     if (this.hasStrategy) {
       const data = transformValueToMonitor(v, this.ipNodeType);
       const nodeType = !data.length ? this.nodeType : this.ipNodeType;
+      console.info(nodeType, this.ipObjectType, '==============');
       const success = await bulkEditStrategy({
         id_list: this.strategyIds,
         edit_data: {

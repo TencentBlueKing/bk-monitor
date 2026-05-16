@@ -8,10 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import operator
 import time
 from abc import ABC
 from collections.abc import Callable, Iterable
+from functools import reduce
 
+from django.utils import translation as dj_translation
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
 from elasticsearch_dsl.aggs import Bucket
@@ -29,6 +32,20 @@ from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
+
+# 模块级字段映射缓存，key 为 Transformer 类对象，保证每个子类独立缓存。
+# 构建时覆盖所有支持语言的 display name，使字段解析与当前线程语言无关。
+_FIELD_MAP_CACHE: dict[type, dict[str, "QueryField"]] = {}
+ES_TERMS_QUERY_MAX_SIZE = 65536
+
+
+def build_es_terms_query(field: str, values: list, chunk_size: int = ES_TERMS_QUERY_MAX_SIZE):
+    values = list(values or [])
+    if not values:
+        return None
+
+    queries = [Q("terms", **{field: values[index : index + chunk_size]}) for index in range(0, len(values), chunk_size)]
+    return reduce(operator.or_, queries)
 
 
 class QueryField:
@@ -161,11 +178,50 @@ class BaseQueryTransformer(BaseTreeTransformer):
         return str(query_tree)
 
     @classmethod
-    def get_field_info(cls, field: str) -> QueryField | None:
-        """查询 QueryField"""
+    def _build_field_map(cls) -> dict[str, "QueryField"]:
+        """
+        构建字段名 → QueryField 的全语言映射表，首次使用时构建一次。
+
+        对每个 QueryField 写入三类 key（首次匹配优先，与原始循环语义一致）：
+          1. field_info.field        —— ES 底层字段名（英文），始终有效
+          2. override(None)          —— NullTranslations 返回原始 msgid
+          3. override(lang_code)     —— 枚举 settings.LANGUAGES 中所有语言的翻译
+
+        这样无论 ApiLanguageMiddleware 将线程语言切换到何种语言，
+        前端传入的字段名（中文/英文/ES字段名）均能正确命中对应 QueryField。
+        """
+        from django.conf import settings
+
+        field_map: dict[str, QueryField] = {}
         for field_info in cls.query_fields:
-            if field_info.searchable and field in [field_info.field, str(field_info.display), _(field_info.display)]:
-                return field_info
+            if not field_info.searchable:
+                continue
+
+            # 1. ES 底层字段名
+            if field_info.field not in field_map:
+                field_map[field_info.field] = field_info
+
+            # 2. 原始 msgid（NullTranslations 不做任何翻译，直接返回 msgid）
+            with dj_translation.override(None):
+                name = str(field_info.display)
+                if name not in field_map:
+                    field_map[name] = field_info
+
+            # 3. 各支持语言的翻译版本（含 zh-hans 中文、en 英文等）
+            for lang_code, _lang_name in settings.LANGUAGES:
+                with dj_translation.override(lang_code):
+                    name = str(field_info.display)
+                    if name not in field_map:
+                        field_map[name] = field_info
+
+        return field_map
+
+    @classmethod
+    def get_field_info(cls, field: str) -> QueryField | None:
+        """查询 QueryField（与当前线程语言无关）"""
+        if cls not in _FIELD_MAP_CACHE:
+            _FIELD_MAP_CACHE[cls] = cls._build_field_map()
+        return _FIELD_MAP_CACHE[cls].get(field)
 
     @classmethod
     def transform_field_to_es_field(cls, field: str, for_agg=False):
@@ -658,6 +714,8 @@ class BaseQueryHandler:
 
 
 class BaseBizQueryHandler(BaseQueryHandler, ABC):
+    ES_TERMS_QUERY_MAX_SIZE = ES_TERMS_QUERY_MAX_SIZE
+
     def __init__(
         self,
         bk_biz_ids: list[int] = None,
@@ -676,8 +734,8 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
     @classmethod
     def parse_biz_item(self, bk_biz_ids, **kwargs):
         if "authorized_bizs" in kwargs:
-            authorized_bizs = kwargs["authorized_bizs"] or bk_biz_ids
-            unauthorized_bizs = kwargs["unauthorized_bizs"] or []
+            authorized_bizs = kwargs["authorized_bizs"] if kwargs["authorized_bizs"] is not None else bk_biz_ids
+            unauthorized_bizs = kwargs["unauthorized_bizs"] if kwargs["unauthorized_bizs"] is not None else []
         else:
             try:
                 req = get_request()
@@ -688,6 +746,9 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
                 authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
         return authorized_bizs, unauthorized_bizs
+
+    def build_es_terms_query(self, field: str, values: list):
+        return build_es_terms_query(field, values, chunk_size=self.ES_TERMS_QUERY_MAX_SIZE)
 
 
 class QueryBuilder(ElasticsearchQueryBuilder):

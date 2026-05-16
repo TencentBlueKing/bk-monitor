@@ -35,6 +35,7 @@ import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmAlarmCenter from '../plugins/apm-alarm-center';
 import ApmCustomGraphV2 from '../plugins/apm-custom-graph-v2/apm-custom-graph-v2';
 import ApmCustomGraph from '../plugins/apm-custom-graph/apm-custom-graph';
 import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
@@ -73,6 +74,7 @@ import TextUnit from '../plugins/text-unit/text-unit';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 import LineEcharts from '../plugins/time-series/time-series';
+import ApmTraceExplore from '../plugins/apm-trace-explore';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
@@ -180,6 +182,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get needWaterMask() {
     return !['log-retrieve', 'event-explore'].includes(this.panel?.type);
   }
+
   beforeCreate() {
     initLogRetrieveWindowsFields();
   }
@@ -627,6 +630,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return <apm-event-explore />;
       case 'alarm_template':
         return <AlarmTemplate />;
+      case 'alarm_center':
+        return <ApmAlarmCenter />;
+      case 'trace':
+        return <ApmTraceExplore />;
       // 不需要报错显示
       // case 'graph':
       default:

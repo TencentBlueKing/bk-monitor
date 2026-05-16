@@ -43,6 +43,8 @@ interface IEvents {
 }
 interface IProps {
   id?: number;
+  /** 外链跳转带入的模板名（与 URL query template_name 对应），与模板列表中的 name 匹配后自动选中 */
+  initialTemplateName?: string;
   isEdit?: boolean;
   isInit?: boolean;
   peripheralData?: IPeripheral;
@@ -55,6 +57,7 @@ type PageType = 'add' | 'edit';
 })
 export default class PeripheralSystem extends tsc<IProps, IEvents> {
   @Prop({ default: 0, type: Number }) id: number;
+  @Prop({ type: String, default: '' }) initialTemplateName: string;
   @Prop({ default: () => ({}), type: Object }) peripheralData: IPeripheral;
   @Prop({ default: false, type: Boolean }) isEdit: boolean;
   @Prop({ type: String, default: 'add' }) type: PageType;
@@ -119,6 +122,21 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
     });
   }
 
+  /** 根据路由参数 template_name 与模板 name 对齐并选中（仅新建） */
+  applyInitialTemplateNameSelection() {
+    if (this.type !== 'add' || !this.initialTemplateName?.trim() || !this.templates?.length) return;
+    let decoded = this.initialTemplateName.trim();
+    try {
+      decoded = decodeURIComponent(decoded);
+    } catch {
+      // 保持原字符串
+    }
+    const match = this.templates.find(item => item.name === decoded);
+    if (match) {
+      this.handleFormDataChange(match.id);
+    }
+  }
+
   // 获取作业平台数据
   async getPluginTemplates(id: number) {
     this.isLoading = true;
@@ -128,6 +146,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
     this.label = data.name;
     this.templates = data.templates;
     this.newInfo = data.new_info;
+    this.applyInitialTemplateNameSelection();
   }
 
   // 获取动态form表单数据

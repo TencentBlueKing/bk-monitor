@@ -2512,6 +2512,7 @@ class ResultTableField(models.Model):
         table_id_list: list[str],
         is_consul_config: bool | None = False,
         bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        lite_mode: bool | None = None,
     ) -> dict:
         table_field_option_dict = ResultTableFieldOption.batch_field_option(
             table_id_list=table_id_list, bk_tenant_id=bk_tenant_id
@@ -2540,7 +2541,11 @@ class ResultTableField(models.Model):
                 item["field_name"] = i.alias_name
                 item["alias_name"] = i.field_name
 
-            if settings.ENABLE_CONSUL_LITE_MODE and is_consul_config:
+            # 如果 lite_mode 为 None，则使用默认值
+            if lite_mode is None:
+                lite_mode = settings.ENABLE_CONSUL_LITE_MODE
+
+            if lite_mode and is_consul_config:
                 logger.debug("Consul Lite Mode Enabled, remove unnecessary fields")
                 if item["default_value"] is None:
                     item.pop("default_value")
@@ -2834,8 +2839,9 @@ class LogV4DataLinkOption(pydantic.BaseModel):
 
         storage_keys: list[str] = pydantic.Field(description="存储键")
         json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
+        original_json_fields: list[str] = pydantic.Field(description="原始JSON字段列表", default_factory=list)
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
-        flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒")
+        flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
 
     class CleanRule(pydantic.BaseModel):
         """清洗规则"""
@@ -2845,8 +2851,8 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         operator: dict[str, Any] = pydantic.Field(description="操作符")
 
     clean_rules: list[CleanRule] = pydantic.Field(min_length=1, description="清洗规则")
-    es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置")
-    doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置")
+    es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置", default=None)
+    doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置", default=None)
 
     @pydantic.model_validator(mode="after")
     def validate_config(self) -> Self:
@@ -2873,6 +2879,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
+    OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
 
     # 选项类型
@@ -2898,6 +2905,7 @@ class ResultTableOption(OptionBase):
             (OPTION_SEGMENTED_QUERY_ENABLE, _("分段查询开关")),
             (OPTION_IS_SPLIT_MEASUREMENT, _("是否为单指标单表")),
             (OPTION_ENABLE_FIELD_BLACK_LIST, _("是否开启指标黑名单")),
+            (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
         ),
         max_length=128,

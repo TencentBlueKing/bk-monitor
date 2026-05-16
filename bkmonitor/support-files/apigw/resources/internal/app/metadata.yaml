@@ -1927,6 +1927,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: list bkbase rt meta by biz_id
+  /app/metadata/biz_has_data_id/:
+    get:
+      operationId: metadata_biz_has_data_id
+      description: 判断业务下是否存在关联的数据源（仅返回是否存在，不返回具体 DataId）
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/biz_has_data_id/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: check whether biz has linked data sources
   /app/metadata/create_or_update_log_router/:
     post:
       operationId: metadata_create_or_update_log_router
@@ -2067,3 +2087,23 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query datalink metadata
+  /app/metadata/get_data_link_metadata/:
+    get:
+      operationId: metadata_get_data_link_metadata
+      description: 查询数据链路元数据（计算平台 v4 meta API）
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_data_link_metadata/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get data link metadata via bkdata v4 meta API

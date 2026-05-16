@@ -15,10 +15,9 @@ from collections.abc import Callable
 from django.db.models import Q
 from django.utils.functional import cached_property
 
-from apm_web.metric.constants import SeriesAliasType
 from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from constants.apm import MetricTemporality, RPCMetricTag
+from constants.apm import MetricTemporality, RPCMetricTag, CallSide
 
 from .. import base, define
 
@@ -58,13 +57,13 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     PANIC_METRIC_FIELD: str = "trpc_PanicNum"
 
     METRIC_FIELDS: dict[str, dict[str, str]] = {
-        SeriesAliasType.CALLER.value: {
+        CallSide.CALLER.value: {
             "rpc_handled_total": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
             "rpc_handled_seconds_sum": TRPCMetricField.RPC_CLIENT_HANDLED_SECONDS_SUM,
             "rpc_handled_seconds_count": TRPCMetricField.RPC_CLIENT_HANDLED_SECONDS_COUNT,
             "rpc_handled_seconds_bucket": TRPCMetricField.RPC_CLIENT_HANDLED_SECONDS_BUCKET,
         },
-        SeriesAliasType.CALLEE.value: {
+        CallSide.CALLEE.value: {
             "rpc_handled_total": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
             "rpc_handled_seconds_sum": TRPCMetricField.RPC_SERVER_HANDLED_SECONDS_SUM,
             "rpc_handled_seconds_count": TRPCMetricField.RPC_SERVER_HANDLED_SECONDS_COUNT,
@@ -83,7 +82,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         **kwargs,
     ):
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
-        self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
+        self.kind: str = kwargs.get("kind") or CallSide.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
         self.time_shift: str | None = kwargs.get("time_shift")
         # 预留 interval 可配置入口
@@ -97,24 +96,24 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:
         return self.get_calculation_method(calculation_type)(**kwargs)
 
-    def query_config(self, calculation_type: str, **kwargs) -> dict[str, Any]:
-        return self._get_qs(calculation_type).query_config
+    def query_config(self, calculation_type: str, raw: bool = False, **kwargs) -> dict[str, Any]:
+        return self._export_qs(self._get_qs(calculation_type), raw=raw)
 
     class Meta:
-        name = define.GroupEnum.TRPC
+        name = define.GroupEnum.TRPC.value
 
     def get_calculation_method(self, calculation_type: str) -> Callable[..., list[dict[str, Any]]]:
         support_calculation_methods: dict[str, Callable[..., list[dict[str, Any]]]] = {
-            define.CalculationType.REQUEST_TOTAL: self._request_total,
-            define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate, CodeType.SUCCESS),
-            define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate, CodeType.TIMEOUT),
-            define.CalculationType.EXCEPTION_RATE: functools.partial(self._request_code_rate, CodeType.EXCEPTION),
-            define.CalculationType.AVG_DURATION: self._avg_duration,
-            define.CalculationType.P50_DURATION: functools.partial(self._histogram_quantile_duration, 0.50),
-            define.CalculationType.P95_DURATION: functools.partial(self._histogram_quantile_duration, 0.95),
-            define.CalculationType.P99_DURATION: functools.partial(self._histogram_quantile_duration, 0.99),
-            define.CalculationType.TOP_N: self._top_n,
-            define.CalculationType.BOTTOM_N: self._bottom_n,
+            define.CalculationType.REQUEST_TOTAL.value: self._request_total,
+            define.CalculationType.SUCCESS_RATE.value: functools.partial(self._request_code_rate, CodeType.SUCCESS),
+            define.CalculationType.TIMEOUT_RATE.value: functools.partial(self._request_code_rate, CodeType.TIMEOUT),
+            define.CalculationType.EXCEPTION_RATE.value: functools.partial(self._request_code_rate, CodeType.EXCEPTION),
+            define.CalculationType.AVG_DURATION.value: self._avg_duration,
+            define.CalculationType.P50_DURATION.value: functools.partial(self._histogram_quantile_duration, 0.50),
+            define.CalculationType.P95_DURATION.value: functools.partial(self._histogram_quantile_duration, 0.95),
+            define.CalculationType.P99_DURATION.value: functools.partial(self._histogram_quantile_duration, 0.99),
+            define.CalculationType.TOP_N.value: self._top_n,
+            define.CalculationType.BOTTOM_N.value: self._bottom_n,
         }
         if calculation_type not in support_calculation_methods:
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")
@@ -297,13 +296,15 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
     def _get_qs(self, qs_type: str, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         return {
-            define.CalculationType.REQUEST_TOTAL: self._request_total_qs,
-            define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate_qs, CodeType.SUCCESS),
-            define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate_qs, CodeType.TIMEOUT),
-            define.CalculationType.EXCEPTION_RATE: functools.partial(self._request_code_rate_qs, CodeType.EXCEPTION),
-            define.CalculationType.AVG_DURATION: self._avg_duration_qs,
-            define.CalculationType.P99_DURATION: functools.partial(self._histogram_quantile_duration_qs, 0.99),
-            define.CalculationType.PANIC: self._panic_qs,
+            define.CalculationType.REQUEST_TOTAL.value: self._request_total_qs,
+            define.CalculationType.SUCCESS_RATE.value: functools.partial(self._request_code_rate_qs, CodeType.SUCCESS),
+            define.CalculationType.TIMEOUT_RATE.value: functools.partial(self._request_code_rate_qs, CodeType.TIMEOUT),
+            define.CalculationType.EXCEPTION_RATE.value: functools.partial(
+                self._request_code_rate_qs, CodeType.EXCEPTION
+            ),
+            define.CalculationType.AVG_DURATION.value: self._avg_duration_qs,
+            define.CalculationType.P99_DURATION.value: functools.partial(self._histogram_quantile_duration_qs, 0.99),
+            define.CalculationType.PANIC.value: self._panic_qs,
         }[qs_type](start_time, end_time)
 
     def _top_n(

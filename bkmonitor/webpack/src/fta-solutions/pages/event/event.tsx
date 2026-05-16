@@ -763,7 +763,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         : `action_id : ${defaultData.actionId}`;
       const time = +defaultData.actionId.toString().slice(0, 10) * 1000;
       defaultData.timeRange = [
-        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(time).add(-7, 'd').format('YYYY-MM-DD HH:mm:ssZZ'),
         dayjs.tz(time).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
     }
@@ -772,8 +772,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       defaultData.queryString = defaultData.queryString
         ? `${defaultData.queryString} AND action_id : ${defaultData.collectId}`
         : `action_id : ${defaultData.collectId}`;
-      /* 带collectId是事件范围设为近15天 */
-      defaultData.timeRange = ['now-30d', 'now'];
+      defaultData.timeRange = ['now-7d', 'now'];
     }
 
     /** 新版首页带alertId跳转事件中心 */
@@ -792,8 +791,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
 
   handleGotoNew() {
-    const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${this.$store.getters.bizId}#/trace/alarm-center`;
-    window.location.href = url;
+    this.$router.push({
+      name: 'alarm-center',
+      query: {
+        ...this.$route.query,
+        filterMode: this.$route.query.queryString ? 'queryString' : 'ui',
+      },
+    });
   }
 
   /**
@@ -1292,17 +1296,23 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         }
       }
     } else if (this.searchType === 'incident') {
-      const { fields, doc_count } = await incidentTopN({ ...topNParams }, { needCancel: true }).catch(() => ({
-        doc_count: 0,
-        fields: [],
-      }));
+      const { fields, doc_count } = await incidentTopN(
+        {
+          ...topNParams,
+          fields: !isDetail ? [...allFieldList] : [this.detailField],
+        },
+        { needCancel: true }
+      ).catch(() => ({ doc_count: 0, fields: [] }));
       fieldList = fields;
       count = doc_count;
     } else {
-      const { fields, doc_count } = await actionTopN({ ...topNParams }, { needCancel: true }).catch(() => ({
-        doc_count: 0,
-        fields: [],
-      }));
+      const { fields, doc_count } = await actionTopN(
+        {
+          ...topNParams,
+          fields: !isDetail ? [...allFieldList] : [this.detailField],
+        },
+        { needCancel: true }
+      ).catch(() => ({ doc_count: 0, fields: [] }));
       fieldList = fields;
       count = doc_count;
     }
@@ -1749,8 +1759,15 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           activeTab,
           from: this.timeRange[0],
           to: this.timeRange[1],
+          fromPage: 'event',
         },
       });
+      // 同步更新地址栏中的bizId为故障对应的bk_biz_id
+      const url = new URL(window.location.href);
+      url.searchParams.set('bizId', String(bizId));
+      window.history.replaceState({}, '', url.toString());
+      window.bk_biz_id = +bizId;
+      window.cc_biz_id = +bizId;
     } else {
       this.detailInfo.id = id;
       this.detailInfo.type = type;
@@ -2677,7 +2694,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               class='header-tools'
               isSplitPanel={this.isSplitPanel}
               refreshInterval={this.refreshInterval}
-              showGotoNew={false}
+              showGotoNew={true}
               showListMenu={false}
               timeRange={this.timeRange}
               timezone={this.timezone}

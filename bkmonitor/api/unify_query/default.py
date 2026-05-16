@@ -448,3 +448,21 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
 
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
+
+
+class QueryMultiResource(UnifyQueryAPIResource):
+    """查询某时间点的关联资源实体（query_list 风格，与 QueryMultiResourceRange 对称）"""
+
+    method = "POST"
+    path = "/api/v1/relation/multi_resource"
+
+    class RequestSerializer(serializers.Serializer):
+        class QueryListSerializer(serializers.Serializer):
+            timestamp = serializers.IntegerField()
+            target_type = serializers.CharField()
+            source_type = serializers.CharField(required=False)
+            source_info = serializers.DictField()
+            path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+
+        bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
+        query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)

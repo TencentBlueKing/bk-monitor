@@ -21,6 +21,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -31,9 +32,11 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
-from apm.models.doris import BkDataDorisProvider
+from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose_profile_data_id_name
+from apm.models.shared_datasource import BaseSharedDataSource, SHARED_DS_REGISTRY
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -43,10 +46,12 @@ from constants.apm import (
     FlowType,
     OtlpKey,
     SpanKind,
+    TelemetryDataType,
     TRACE_RESULT_TABLE_OPTION,
     TraceDataSourceConfig,
     DEFAULT_DATA_LABEL,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -54,28 +59,15 @@ from metadata import models as metadata_models
 
 
 class ApmDataSourceConfigBase(models.Model):
-    LOG_DATASOURCE = "log"
-    TRACE_DATASOURCE = "trace"
-    METRIC_DATASOURCE = "metric"
+    LOG_DATASOURCE = TelemetryDataType.LOG.value
+    TRACE_DATASOURCE = TelemetryDataType.TRACE.value
+    METRIC_DATASOURCE = TelemetryDataType.METRIC.value
+    # 注：TelemetryDataType.PROFILING.value 为 "profiling"，无法直接使用
     PROFILE_DATASOURCE = "profile"
 
     TABLE_SPACE_PREFIX = "space"
 
-    DATASOURCE_CHOICE = (
-        (TRACE_DATASOURCE, "Log"),
-        (TRACE_DATASOURCE, "Trace"),
-        (METRIC_DATASOURCE, "Metric"),
-        (PROFILE_DATASOURCE, "Profile"),
-    )
-
     DATA_NAME_PREFIX = "bkapm"
-
-    DATASOURCE_TYPE_MAP = {
-        METRIC_DATASOURCE: "metric",
-        LOG_DATASOURCE: "log",
-        TRACE_DATASOURCE: "trace",
-        PROFILE_DATASOURCE: "profile",
-    }
 
     # target字段配置
     DATA_ID_PARAM: ClassVar[dict[str, Any]]
@@ -85,6 +77,7 @@ class ApmDataSourceConfigBase(models.Model):
     app_name = models.CharField("所属应用", max_length=255)
     bk_data_id = models.IntegerField("数据id", default=-1)
     result_table_id = models.CharField("结果表id", max_length=128, default="")
+    shared_datasource_id = models.IntegerField("共享数据源 ID", null=True, default=None)
 
     class Meta:
         abstract = True
@@ -111,15 +104,36 @@ class ApmDataSourceConfigBase(models.Model):
 
     @classmethod
     def start(cls, bk_biz_id, app_name):
-        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        if instance:
-            instance.switch_result_table(True)
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not instance:
+            return
+
+        # 共享模式：结果表由共享池统一管理，单应用启停仅变更共享池计数
+        if instance.is_shared and (shared_ds := instance._get_shared_datasource()):
+            if not shared_ds.acquire():
+                raise ValueError(_("当前所分配的共享池已达容量上限，请增加容量后再执行此操作"))
+            return
+
+        instance.switch_result_table(True)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if instance:
-            instance.switch_result_table(False)
+        if not instance:
+            return
+
+        # 共享模式：结果表由共享池统一管理，单应用启停仅变更共享池计数
+        if instance.is_shared and (shared_ds := instance._get_shared_datasource()):
+            shared_ds.release()
+            return
+
+        instance.switch_result_table(False)
+
+    def _get_shared_datasource(self) -> Optional["BaseSharedDataSource"]:
+        shared_cls = SHARED_DS_REGISTRY.get(self.DATASOURCE_TYPE)
+        if not shared_cls or not self.shared_datasource_id:
+            return None
+        return shared_cls.objects.filter(pk=self.shared_datasource_id).first()
 
     def switch_result_table(self, is_enable=True):
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
@@ -132,15 +146,27 @@ class ApmDataSourceConfigBase(models.Model):
             }
         )
 
-    def create_data_id(self):
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+    def create_data_id(self, global_mode: bool = False, data_name: str | None = None) -> int:
+        """创建 DataID。
+
+        :param global_mode: 全局模式，使用特权业务 ID 和 DEFAULT_TENANT_ID，在全局公共空间注册共享数据源。
+        :param data_name: 可指定 data_name，若不指定则使用 self.data_name。
+        """
+        if global_mode:
+            bk_biz_id = settings.BKAPP_ADMIN_BIZ_ID
+            bk_tenant_id = DEFAULT_TENANT_ID
+        else:
+            bk_biz_id = self.bk_biz_id
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        actual_data_name = data_name or self.data_name
+
         if self.bk_data_id != -1:
             return self.bk_data_id
         try:
-            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
+            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=actual_data_name)
         except metadata_models.DataSource.DoesNotExist:
             # 临时支持数据链路
-            data_link = DataLink.get_data_link(self.bk_biz_id)
+            data_link = DataLink.get_data_link(bk_biz_id)
             data_link_param = {}
             if data_link and data_link.kafka_cluster_id:
                 data_link_param["mq_cluster"] = data_link.kafka_cluster_id
@@ -153,10 +179,10 @@ class ApmDataSourceConfigBase(models.Model):
             data_id_info = resource.metadata.create_data_id(
                 {
                     "bk_tenant_id": bk_tenant_id,
-                    "bk_biz_id": self.bk_biz_id,
-                    "data_name": self.data_name,
+                    "bk_biz_id": bk_biz_id,
+                    "data_name": actual_data_name,
                     "operator": get_global_user(bk_tenant_id=bk_tenant_id),
-                    "data_description": self.data_name,
+                    "data_description": actual_data_name,
                     **self.DATA_ID_PARAM,
                     **data_link_param,
                 }
@@ -169,24 +195,117 @@ class ApmDataSourceConfigBase(models.Model):
     def create_or_update_result_table(self, **option):
         pass
 
+    @property
+    def is_shared(self) -> bool:
+        """判断是否为共享数据源"""
+        return self.shared_datasource_id is not None
+
+    def to_link_info(self) -> dict[str, Any]:
+        """导出链路元数据字典。
+
+        子类可覆写以追加特有字段
+        """
+        return {
+            "bk_data_id": self.bk_data_id,
+            "result_table_id": self.result_table_id,
+        }
+
+    def set_from_shared(self, shared_info: dict[str, Any]) -> None:
+        """从共享链路信息字典提取字段并赋值。
+
+        子类可覆写以处理扩展字段
+        """
+        self.bk_data_id = shared_info["bk_data_id"]
+        self.result_table_id = shared_info["result_table_id"]
+        self.shared_datasource_id = shared_info["shared_datasource_id"]
+
+    def reset_link_info(self) -> None:
+        """重置当前数据源链路信息为未创建状态。
+
+        子类可覆写以重置扩展字段
+        """
+        self.bk_data_id = -1
+        self.result_table_id = ""
+        self.shared_datasource_id = None
+
     def to_json(self):
         return {"bk_data_id": self.bk_data_id, "result_table_id": self.result_table_id}
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def apply_datasource(cls, bk_biz_id, app_name, **options):
+    def apply_datasource(cls, bk_biz_id: int, app_name: str, **options) -> None:
+        """创建/更新应用的数据源（支持独占和共享两种模式）"""
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
-        # 创建data_id
-        obj.create_data_id()
-        # 创建结果表
-        obj.create_or_update_result_table(**options)
+
+        is_shared: bool = options.get("is_shared", False)
+
+        # 更新应用时判断模式变化：迁入（独占 → 共享，停用独占资源）或迁出（共享 → 独占，释放共享池占用），随后 reset_link_info，再复用既有创建流程
+        if obj.result_table_id != "" and obj.is_shared != is_shared:
+            cls.stop(bk_biz_id, app_name)
+            obj.reset_link_info()
+
+        if is_shared:
+            obj._apply_shared_datasource(**options)
+        else:
+            obj._apply_exclusive_datasource(**options)
 
         option = options["option"]
         if not option:
             # 关闭
             obj.stop(bk_biz_id, app_name)
+
+    def _apply_exclusive_datasource(self, **options) -> None:
+        """独占模式"""
+        # 创建data_id
+        self.create_data_id()
+        # 创建结果表
+        self.create_or_update_result_table(**options)
+
+    def _apply_shared_datasource(self, **options) -> None:
+        """共享模式。
+
+        流程：allocate(分配) → [reserve → create → activate] → set_from_shared
+        """
+        # 幂等保护：已完成共享分配的数据源，重复调用直接返回，防止 allocate 被重复触发导致 usage_count 重复计数
+        if self.is_shared:
+            return
+
+        shared_cls = SHARED_DS_REGISTRY.get(self.DATASOURCE_TYPE)
+        if not shared_cls:
+            # 该数据类型不支持共享，降级为独占
+            self._apply_exclusive_datasource(**options)
+            return
+
+        # 尝试从池中分配
+        shared_info = shared_cls.allocate()
+        if not shared_info:
+            # 无可用共享源，创建新的
+            shared_info = self._create_shared_datasource(shared_cls, **options)
+
+        # 将共享链路信息写回到当前数据源
+        self.set_from_shared(shared_info)
+        self.save()
+
+    def _create_shared_datasource(self, shared_cls: type[BaseSharedDataSource], **options) -> dict[str, Any]:
+        """创建新的共享数据源。
+
+        流程：reserve(草稿) → create_data_id → create_or_update_result_table → activate(激活)
+        """
+        reserved = shared_cls.reserve()
+
+        try:
+            self.create_data_id(global_mode=True, data_name=reserved.data_name)
+            self.create_or_update_result_table(global_mode=True, table_id=reserved.table_id, **options)
+        except Exception:
+            reserved.delete()
+            raise
+
+        link_info = self.to_link_info()
+        reserved.activate(link_info)
+
+        return {**reserved.to_shared_info(), "shared_datasource_id": reserved.pk}
 
 
 class MetricDataSource(ApmDataSourceConfigBase):
@@ -407,6 +526,7 @@ class LogDataSource(ApmDataSourceConfigBase):
 class TraceDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.TRACE_DATASOURCE
     CONCURRENT_NUMBER = 5
+    GROUP_AGGREGATE_METHODS: ClassVar[tuple[str, ...]] = ("avg", "max", "min", "sum", "count")
     DATA_ID_PARAM = {
         "etl_config": "bk_flat_batch",
         "type_label": DataTypeLabel.LOG,
@@ -553,6 +673,25 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def to_json(self):
         return {**super().to_json(), "index_set_id": self.index_set_id}
 
+    def to_link_info(self) -> dict[str, Any]:
+        """导出链路元数据字典（含 Trace 特有字段）。"""
+        info = super().to_link_info()
+        info["index_set_id"] = self.index_set_id
+        info["index_set_name"] = self.index_set_name
+        return info
+
+    def set_from_shared(self, shared_info: dict[str, Any]) -> None:
+        """从共享链路信息字典提取字段并赋值（含 Trace 特有字段）。"""
+        super().set_from_shared(shared_info)
+        self.index_set_id = shared_info.get("index_set_id")
+        self.index_set_name = shared_info.get("index_set_name")
+
+    def reset_link_info(self) -> None:
+        """重置当前数据源链路信息为未创建状态（含 Trace 特有字段）。"""
+        super().reset_link_info()
+        self.index_set_id = None
+        self.index_set_name = None
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
@@ -564,12 +703,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
         else:
             return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
-    def create_or_update_result_table(self, **option):
-        table_id = self.table_id
-        if self.result_table_id:
-            table_id = self.result_table_id
+    def create_or_update_result_table(self, global_mode: bool = False, table_id: str | None = None, **option) -> None:
+        """创建或更新结果表。
 
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        :param global_mode: 全局模式，使用 GLOBAL_CONFIG_BK_BIZ_ID 和 DEFAULT_TENANT_ID。
+        :param table_id: 指定 table_id，用于共享模式传入 SharedTraceDataSource.table_id。
+        """
+        table_id = table_id or self.result_table_id or self.table_id
+
+        if global_mode:
+            bk_biz_id = GLOBAL_CONFIG_BK_BIZ_ID
+            bk_tenant_id = DEFAULT_TENANT_ID
+        else:
+            bk_biz_id = self.bk_biz_id
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
@@ -585,7 +733,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 "cluster_id": option["es_storage_cluster"],
                 "storage_cluster_id": option["es_storage_cluster"],
                 # 指定 UnifyQuery 查询索引。
-                "index_set": self.table_id.replace(".", "_"),
+                "index_set": table_id.replace(".", "_"),
                 "slice_size": option.get("es_slice_size", settings.APM_APP_DEFAULT_ES_SLICE_LIMIT),
                 "retention": option.get("es_retention", settings.APM_APP_DEFAULT_ES_RETENTION),
                 # 默认1天区分一个index
@@ -599,7 +747,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             },
             "field_list": TraceDataSourceConfig.TRACE_FIELD_LIST,
             "is_time_field_only": True,
-            "bk_biz_id": self.bk_biz_id,
+            "bk_biz_id": bk_biz_id,
             "label": "application_check",
             "option": TRACE_RESULT_TABLE_OPTION,
             "time_option": {
@@ -609,6 +757,10 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 "time_zone": 0,
             },
         }
+
+        # 全局模式下添加 bk_biz_id_alias 以支持 UnifyQuery 实现业务级别的数据隔离查询
+        if global_mode:
+            params["bk_biz_id_alias"] = "bk_biz_id"
 
         # 获取集群信息
         try:
@@ -649,7 +801,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 }
             )
 
-        index_set_id, index_set_name = self.update_or_create_index_set(option["es_storage_cluster"], self.index_set_id)
+        index_set_id, index_set_name = self.update_or_create_index_set(
+            option["es_storage_cluster"],
+            bk_biz_id=settings.BKAPP_ADMIN_BIZ_ID if global_mode else self.bk_biz_id,
+            table_id=table_id,
+            index_set_id=self.index_set_id,
+        )
 
         if self.result_table_id != "":
             # 更新存储
@@ -663,25 +820,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
         params["is_sync_db"] = False
         resource.metadata.create_result_table(params)
 
-        self.result_table_id = self.table_id
+        self.result_table_id = table_id
         self.index_set_name = index_set_name
         self.index_set_id = index_set_id
         self.save()
 
-    def update_or_create_index_set(self, storage_id, index_set_id=None):
-        table_id = self.table_id
-        if self.result_table_id:
-            table_id = self.result_table_id
-
+    def update_or_create_index_set(self, storage_id, bk_biz_id: int, table_id: str, index_set_id=None):
         params = {
-            "index_set_name": self.index_set,
-            "bk_biz_id": self.bk_biz_id,
+            "index_set_name": f"{table_id.replace('.', '_')}_index_set",
+            "bk_biz_id": bk_biz_id,
             "category_id": "application_check",
             "scenario_id": "es",
             "view_roles": [],
             "indexes": [
                 {
-                    "bk_biz_id": self.bk_biz_id,
+                    "bk_biz_id": bk_biz_id,
                     "result_table_id": f"{table_id.replace('.', '_')}_*",
                 }
             ],
@@ -803,9 +956,10 @@ class TraceDataSource(ApmDataSourceConfigBase):
         fields: list[str] | None = None,
     ):
         """根据过滤条件（filter_params）、节点类别（category）、字段列表（fields）构建 QueryConfig"""
+        # 接入 TraceQueryGuard 做共享数据源查询隔离改造
+        target: TraceDatasourceTarget = TraceDatasourceTarget.build(self.bk_biz_id, self.app_name, self.result_table_id)
         return (
-            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
-            .table(self.result_table_id)
+            TraceQueryGuard.get_q([target])
             .filter(self.build_filter_params(filter_params, category))
             .time_field("end_time")
             .values(*(fields or []))
@@ -917,6 +1071,49 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         return aggregated_records
 
+    @classmethod
+    def _get_group_metric_key(cls, agg_method: str) -> str:
+        return "doc_count" if agg_method == "count" else f"{agg_method}_duration"
+
+    @classmethod
+    def _get_missing_group_metric_keys(cls, group_bucket: dict[str, Any]) -> list[str]:
+        missing_keys: list[str] = []
+        for agg_method in cls.GROUP_AGGREGATE_METHODS:
+            metric_key = cls._get_group_metric_key(agg_method)
+            value = group_bucket.get(metric_key)
+            if agg_method == "count":
+                if value is None:
+                    missing_keys.append(metric_key)
+                continue
+
+            if not isinstance(value, dict) or value.get("value") is None:
+                missing_keys.append(metric_key)
+
+        return missing_keys
+
+    def _filter_complete_group_buckets(self, group_buckets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        complete_buckets: list[dict[str, Any]] = []
+        filtered_buckets: list[dict[str, Any]] = []
+        for group_bucket in group_buckets:
+            if self._get_missing_group_metric_keys(group_bucket):
+                # 热窗口（查询结束时间为「当前」）并发多次查询的场景下，存在部分稀疏 group_key 仅能统计到部分指标。
+                # 例如请求发起顺序为 sum -- 1ms --> count，请求间隔期间写入一条新数据，此时 sum 无数据，count=1。
+                # 为避免这种情况，过滤掉统计指标不全的数据。
+                filtered_buckets.append(group_bucket)
+                continue
+            complete_buckets.append(group_bucket)
+
+        if filtered_buckets:
+            sample_bucket = filtered_buckets[0]
+            logger.warning(
+                "[APM][query_span_with_group_keys][filtered_incomplete_group_bucket] "
+                f"bk_biz_id={self.bk_biz_id} app_name={self.app_name} "
+                f"filtered_count={len(filtered_buckets)} sample_key={sample_bucket.get('key', {})} "
+                f"missing_metric_keys={self._get_missing_group_metric_keys(sample_bucket)}",
+            )
+
+        return complete_buckets
+
     def query_span_with_group_keys(
         self,
         start_time: int,
@@ -942,12 +1139,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
         q: QueryConfigBuilder = self.get_q(filter_params, category).group_by(*group_by).filter(or_query)
         qs: UnifyQuerySet = self.get_qs(start_time, end_time).limit(self.DEFAULT_LIMIT_MAX_SIZE)
 
-        pool = ThreadPool(5)
+        pool = ThreadPool(len(self.GROUP_AGGREGATE_METHODS))
         field_aggregated_records_list = pool.imap_unordered(
             lambda _agg_method: self._query_field_aggregated_records(
                 q, qs, group_by, OtlpKey.ELAPSED_TIME, _agg_method
             ),
-            ["avg", "max", "min", "sum", "count"],
+            self.GROUP_AGGREGATE_METHODS,
         )
         pool.close()
 
@@ -957,21 +1154,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
             for record in field_aggregated_records:
                 # 将 GroupBy 字段转为 GroupKey，构建 SpanGroup 作为聚合唯一 Key。
                 span_group: dict[str, str] = {
-                    field_group_key_map.get(field, field): field_value
+                    field_group_key_map.get(field) or field: field_value
                     for field, field_value in record["dimensions"].items()
                 }
 
-                if record["agg_method"] == "count":
-                    construct_value = {"doc_count": record["value"]}
-                else:
-                    construct_value = {f"{record['agg_method']}_duration": {"value": record["value"]}}
+                metric_key = self._get_group_metric_key(record["agg_method"])
+                construct_value = {
+                    metric_key: record["value"] if record["agg_method"] == "count" else {"value": record["value"]}
+                }
 
                 # 按 SpanGroup 将不同聚合方法的聚合结果进行合并。
                 span_group_aggregated_result_map.setdefault(frozenset(span_group.items()), {"key": span_group}).update(
                     construct_value
                 )
 
-        return list(span_group_aggregated_result_map.values())
+        return self._filter_complete_group_buckets(list(span_group_aggregated_result_map.values()))
 
     def query_exists_trace_ids(self, trace_ids: list[str], start_time: int, end_time: int) -> list[str]:
         """过滤出存在的 TraceID 列表"""
@@ -1077,15 +1274,26 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
+        """停用 Trace 数据源。
+
+        共享模式由父类统一处理释放；独占模式额外删除关联的索引集。
+        """
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not instance:
+            return
+
+        # 共享模式：由父类执行释放逻辑，子类无需做额外操作
         super().stop(bk_biz_id, app_name)
-        # 删除关联的索引集
-        ins = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if ins:
+
+        # 独占模式：额外删除关联的索引集
+        if not instance.is_shared:
             try:
-                api.log_search.delete_index_set(index_set_id=ins.index_set_id)
-                logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
+                api.log_search.delete_index_set(index_set_id=instance.index_set_id)
+                logger.info(
+                    f"[StopTraceDatasource] delete index_set_id: {instance.index_set_id} of ({bk_biz_id}){app_name}"
+                )
             except BKAPIError as e:
-                logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
+                logger.error(f"[StopTraceDatasource] delete index_set_id: {instance.index_set_id} failed, error: {e}")
 
 
 class ProfileDataSource(ApmDataSourceConfigBase):
@@ -1096,6 +1304,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional["ProfileDataSource"] = None
 
+    bkdata_datalink_config = models.JSONField("BkData链路配置", default=dict)
     profile_bk_biz_id = models.IntegerField(
         "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
         null=True,
@@ -1112,8 +1321,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
+    def is_bkbase_v4_link(self) -> bool:
+        return (self.bkdata_datalink_config.get("version") or 3) == 4
+
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
         profile_bk_biz_id = bk_biz_id
@@ -1134,24 +1345,69 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
-        essentials = BkDataDorisProvider.from_datasource_instance(
-            obj,
-            maintainer=global_user if not apm_maintainers else f"{global_user},{apm_maintainers}",
-            operator=global_user,
-            name_stuffix=bk_biz_id,
-        ).provider()
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
+        maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+
+        # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
+        use_v4 = profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST
+
+        if use_v4:
+            # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
+            # 先生成 DataId 名称并持久化，防止 provider() 中途失败后重试时生成不同随机后缀导致孤儿资源
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                obj,
+                bk_tenant_id=bk_tenant_id,
+                maintainer=maintainer,
+                operator=global_user,
+            )
+            data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
+            obj.bkdata_datalink_config = {
+                "version": 4,
+                "v4_resource_names": {
+                    "data_id_name": data_id_name,
+                    "result_table_name": None,
+                    "doris_binding_name": None,
+                    "databus_name": None,
+                },
+            }
+            obj.save()
+
+            essentials = provider.provider()
+            # provider() 成功后，补全 resource_name
+            resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
+            bkdata_datalink_config = {
+                "version": 4,
+                "v4_resource_names": {
+                    "data_id_name": resource_names["data_id_name"],
+                    "result_table_name": resource_names["result_table_name"],
+                    "doris_binding_name": resource_names["doris_binding_name"],
+                    "databus_name": resource_names["databus_name"],
+                },
+            }
+        else:
+            # V3 命令式链路（原有逻辑）
+            essentials = BkDataDorisProvider.from_datasource_instance(
+                obj,
+                maintainer=maintainer,
+                operator=global_user,
+                name_stuffix=bk_biz_id,
+            ).provider()
+            bkdata_datalink_config = {}
+
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
+        obj.bkdata_datalink_config = bkdata_datalink_config
         obj.save()
 
         return
 
     @classmethod
-    @atomic(using=DATABASE_CONNECTION_NAME)
     def create_builtin_source(cls):
         # datasource is enough, no real app created.
+        # 注意：不使用 @atomic，因为 apply_datasource 内部已自行管理事务
+        # （V4 链路含轮询，不可放在长事务内）
         cls.apply_datasource(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME, option=True)
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(
             bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME
@@ -1170,12 +1426,39 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def start(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
+        if instance.is_bkbase_v4_link():
+            # V4 声明式链路：没有启停接口，通过 apply 重新声明资源（等价于启动）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
+            global_user = get_global_user(bk_tenant_id=bk_tenant_id)
+            maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance, bk_tenant_id=bk_tenant_id, maintainer=maintainer, operator=global_user
+            )
+            provider.apply()
+        else:
+            api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if instance:
+        if not instance:
+            return
+        if instance.is_bkbase_v4_link():
+            # V4 声明式链路：没有启停接口，通过 delete 删除资源（等价于停止）
+            from apm.models.doris import BkDataDorisV4Provider
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            provider = BkDataDorisV4Provider.from_datasource_instance(
+                instance,
+                bk_tenant_id=bk_tenant_id,
+                maintainer="",
+                operator="",
+            )
+            provider.delete()
+        else:
             api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 

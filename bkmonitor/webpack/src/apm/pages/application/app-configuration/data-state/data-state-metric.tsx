@@ -35,6 +35,7 @@ import {
   noDataStrategyEnable,
   noDataStrategyInfo,
 } from 'monitor-api/modules/apm_meta';
+import { getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
 import { copyText } from 'monitor-common/utils/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -271,7 +272,9 @@ export default class DataStatusMetric extends tsc<IProps> {
       hash = `#/strategy-config/edit/${String(id)}`;
     } else {
       const isEn = isEnFn();
-      hash = `#/event-center?queryString=${isEn ? 'strategy_id' : this.$t('策略ID')} : ${id}`;
+      hash = getAlarmCenterListHash({
+        queryString: `${isEn ? 'strategy_id' : this.$t('策略ID')} : ${id}`,
+      });
     }
 
     const url = location.href.replace(location.hash, hash);

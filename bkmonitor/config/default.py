@@ -433,6 +433,10 @@ WXWORK_BOT_WEBHOOK_URL = ""
 WXWORK_BOT_NAME = ""
 WXWORK_BOT_SEND_IMAGE = True
 
+# 是否启用 CMSI 专用 send_rtx 接口（通过 ENABLE_CMSI_SEND_RTX 环境变量开启）
+# 开启后，Sender.send_rtx 在走 rtx 通道时会调用 api.cmsi.send_rtx，而不再走通用 send_msg 接口
+ENABLE_CMSI_SEND_RTX = os.getenv("ENABLE_CMSI_SEND_RTX", "false").lower() == "true"
+
 # 执行流控的 APP 白名单
 THROTTLE_APP_WHITE_LIST = []
 
@@ -498,6 +502,11 @@ CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
 CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}  # 自定义上报 K8S 集群中 Secrets 分配逻辑默认配置
 
+# 外部监控页面资源转发接口鉴权 Token，由网关注入 BKMONITOR-EXTERNAL-TOKEN 请求头
+BKMONITOR_EXTERNAL_PROXY_TOKEN = os.getenv(
+    "BKAPP_BKMONITOR_EXTERNAL_PROXY_TOKEN", os.getenv("BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
+)
+
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 集群内上报固定域名
@@ -548,6 +557,12 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
 # 是否下发平台级别字段标准化配置
 APM_FIELD_NORMALIZER_ENABLED = True
 
+# 监控管理业务，用于全局资源的注册或初始化等场景
+BKAPP_ADMIN_BIZ_ID = int(os.environ.get("BKAPP_ADMIN_BIZ_ID", 2))
+
+# APM 共享数据源匹配规则配置
+APM_SHARED_DATASOURCE_RULES = {}
+
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
@@ -570,6 +585,10 @@ APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 15
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 1
 APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
+# APM profile v4接入配置
+APM_PROFILE_V4_BIZ_WHITE_LIST = []
+APM_PROFILE_V4_DORIS_BINDING_CLUSTER = ""
+APM_PROFILE_V4_DATABUS_PREFER_CLUSTER = ""
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
@@ -1267,7 +1286,7 @@ BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PA
 ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
-    "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}",
+    "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
@@ -1466,11 +1485,22 @@ AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "bkm-mcp-client")
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# OpenClaw 自愈分析 MCP 配置
+OPENCLAW_RECOVERING_BK_BIZ_ID = 0
+OPENCLAW_RECOVERING_APM_APP_NAME = ""
+OPENCLAW_RECOVERING_TRACE_OWNER_FIELD = "attributes.agent.session.executor"
+OPENCLAW_RECOVERING_LOG_OWNER_FIELD = "__ext.owner"
+OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP = {}
+OPENCLAW_RECOVERING_ADMIN_USERS = []
+OPENCLAW_RECOVERING_MCP_SERVER_NAME = ""
 # 是否开启AI RENAME
 ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
+# APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
+# 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
+APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
@@ -1564,13 +1594,15 @@ ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
 ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "false").lower() == "true"
-# 是否开启dataid注册时能够指定集群名称，默认关闭
-ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = (
-    os.getenv("ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME", "false").lower() == "true"
-)
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
+
+# DataLink 组件复用机制灰度开关
+# 仅声明在此集合中的 data_link_strategy，在 apply_data_link 时才会构造
+# ExistingComponentContext 并做 claim / leftover 检查；未声明的 strategy 维持旧行为。
+# 取值范围与 metadata.models.data_link.data_link.DataLink.*_STRATEGY 常量一致。
+DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = set()
 
 # Kafka采样接口重试次数
 KAFKA_TAIL_API_RETRY_TIMES = 3
@@ -1604,6 +1636,18 @@ SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
 
 # BCS集群自动发现任务周期
 BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
+# BCS集群自动发现任务的起始集群ID（严格大于，不包含该ID本身）。
+# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的新增与删除；
+# 阈值以下（含阈值）的集群不会被本任务新增，也不会被标记为删除，但已存在集群的状态/业务/项目仍会正常更新。
+# 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
+BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
+
+# BKCC 业务同步任务的起始业务 ID（严格大于，不包含该 ID 本身）。
+# 取值示例: "1000" 表示仅接管 bk_biz_id > 1000 的 CMDB 业务的新增、删除及 V4 内置链路检查；
+# 阈值以下（含阈值）的业务不会被本任务新增，也不会因 CMDB 缺失而被删除，且不会触发 V4 内置链路检查，
+# 交由其它任务/链路管理，但冲突空间软禁用等保护性逻辑仍对全量业务生效。
+# 留空表示禁用阈值过滤，全部业务均由本任务接管（保持历史行为）。
+SYNC_BKCC_SPACE_START_BIZ_ID = os.getenv("SYNC_BKCC_SPACE_START_BIZ_ID", "")
 
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []

@@ -32,9 +32,9 @@ import { random } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
 import { EMode } from '../../components/retrieval-filter/typing';
-import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { type TimeRangeType, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
-import { AlarmType } from '../../pages/alarm-center/typings';
+import { AlarmType, getDefaultAlarmCenterBizIds } from '../../pages/alarm-center/typings';
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 
 import type { AlarmService } from '@/pages/alarm-center/services/base';
@@ -53,13 +53,13 @@ export interface IAlarmCenterState {
 }
 
 export const useAlarmCenterStore = defineStore('alarmCenter', () => {
-  const timeRange = deepRef(DEFAULT_TIME_RANGE);
+  const timeRange = deepRef(['now-7d', 'now']);
   const timezone = shallowRef(getDefaultTimezone());
   const innerRefreshInterval = shallowRef(-1);
 
   const refreshImmediate = shallowRef('');
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
-  const bizIds = deepRef([-1]);
+  const bizIds = deepRef(getDefaultAlarmCenterBizIds());
   // 上层搜索条件
   const conditions = deepRef<CommonCondition[]>([]);
   // 常驻筛选条件
@@ -130,6 +130,11 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
         }
       } else if (alarmType.value === AlarmType.INCIDENT) {
         if (filter.key === 'INCIDENT_LEVEL' || filter.key === 'MINE') {
+          statusQuickFilter.push(...filter.value);
+          isStatus = true;
+        }
+      } else if (alarmType.value === AlarmType.ISSUES) {
+        if (filter.key === 'assignee') {
           statusQuickFilter.push(...filter.value);
           isStatus = true;
         }
@@ -235,10 +240,10 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
 
   onScopeDispose(() => {
     alarmService.value = undefined;
-    bizIds.value = [+window.bk_biz_id];
+    bizIds.value = getDefaultAlarmCenterBizIds();
     conditions.value = [];
     queryString.value = '';
-    timeRange.value = DEFAULT_TIME_RANGE;
+    timeRange.value = ['now-7d', 'now'];
     timezone.value = getDefaultTimezone();
     refreshInterval.value = -1;
     refreshImmediate.value = '';

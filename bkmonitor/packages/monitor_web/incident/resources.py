@@ -1706,3 +1706,12 @@ class IncidentDateHistogramResultResource(Resource):
             data = {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}
             return data
         return datas[0]
+
+class GetConfigResource(Resource):
+    def perform_request(self, validated_request_data):
+        return api.bk_incident.get_config(validated_request_data)
+
+
+class FetchGlobalVariablesResource(Resource):
+    def perform_request(self, validated_request_data):
+        return api.bk_incident.fetch_global_variables(validated_request_data)

@@ -30,6 +30,7 @@ import Big from 'big.js';
 import dayjs from 'dayjs';
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { statistics } from 'monitor-api/modules/home';
+import { getAlarmCenterUrl } from 'monitor-common/utils/alarm-center-router';
 import { throttle } from 'throttle-debounce';
 
 import BusinessItem, { type IData } from './business-item';
@@ -415,17 +416,16 @@ export default class Home extends tsc<IHomeProps> {
     this.businessOverview.data[index].isFavorite = value;
   }
 
-  // 跳转至事件中心
+  // 跳转至告警中心
   handleToEvent(params: { activeFilterId: any; id: string }) {
     if (params.id) {
-      // const timeRange = 86400000 * this.dataOverview.timeChecked;
-      if (params.activeFilterId) {
-        window.open(
-          `${location.origin}${location.pathname}?bizId=${params.id}#/event-center?activeFilterId=${params.activeFilterId}`
-        );
-      } else {
-        window.open(`${location.origin}${location.pathname}?bizId=${params.id}#/event-center`);
-      }
+      const url = getAlarmCenterUrl({
+        hash: params.activeFilterId
+          ? `#/trace/alarm-center?activeFilterId=${params.activeFilterId}`
+          : '#/trace/alarm-center',
+        bizId: params.id,
+      });
+      window.open(url);
     }
   }
 
