@@ -83,6 +83,9 @@ EVENT_REASON_RESOLVE_FAILED = "ResolveFailed"
 EVENT_REASON_FLOW_MISSING = "FlowMissing"
 EVENT_REASON_APPLY_FAILED = "ApplyFailed"
 
+FLOW_TYPE_RECORD_RULE = "recording-rule"
+FLOW_METADATA_ANNOTATION_PREFIX = "record-rule.bkmonitor"
+
 EVENT_RELATION_REQUIRED = "required"
 EVENT_RELATION_OPTIONAL = "optional"
 EVENT_RELATION_FORBIDDEN = "forbidden"
@@ -914,7 +917,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
 
         flow_name = rule.flow_name
         records = resolved.get_records()
-        flow_config = cls.compose_flow_config(rule=rule, flow_name=flow_name, records=records)
+        flow_config = cls.compose_flow_config(rule=rule, resolved=resolved, flow_name=flow_name, records=records)
         content_hash = stable_hash(
             {
                 "flow_name": flow_name,
@@ -930,7 +933,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
 
     @staticmethod
     def compose_flow_config(
-        *, rule: RecordRuleV4, flow_name: str, records: list[RecordRuleV4ResolvedRecord]
+        *, rule: RecordRuleV4, resolved: RecordRuleV4Resolved, flow_name: str, records: list[RecordRuleV4ResolvedRecord]
     ) -> dict[str, Any]:
         """拼装 bkbase V4 Flow 配置。
 
@@ -951,6 +954,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
         if not rule.dst_vm_storage_name:
             raise ValueError("record rule dst_vm_storage_name is empty")
 
+        bkbase_tenant = RecordRuleV4Flow.compose_bkbase_tenant(rule)
         source_nodes: list[dict[str, Any]] = []
         source_names: list[str] = []
         for index, result_table_name in enumerate(src_result_table_names):
@@ -962,7 +966,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
                     "name": name,
                     "data": {
                         "kind": "ResultTable",
-                        "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
+                        "tenant": bkbase_tenant,
                         "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
                         "name": result_table_name,
                     },
@@ -982,11 +986,11 @@ class RecordRuleV4Flow(BaseModelWithTime):
         return {
             "kind": "Flow",
             "metadata": {
-                "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
+                "tenant": bkbase_tenant,
                 "namespace": RECORD_RULE_V4_BKBASE_NAMESPACE,
                 "name": flow_name,
-                "labels": {},
-                "annotations": {},
+                "labels": RecordRuleV4Flow.compose_metadata_labels(rule),
+                "annotations": RecordRuleV4Flow.compose_metadata_annotations(rule=rule, resolved=resolved),
             },
             "spec": {
                 "nodes": [
@@ -999,7 +1003,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
                         "config": recording_rule_config,
                         "storage": {
                             "kind": "VmStorage",
-                            "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
+                            "tenant": bkbase_tenant,
                             "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
                             "name": rule.dst_vm_storage_name,
                         },
@@ -1015,6 +1019,43 @@ class RecordRuleV4Flow(BaseModelWithTime):
                 "desired_status": rule.desired_status,
             },
             "status": None,
+        }
+
+    @staticmethod
+    def compose_bkbase_tenant(rule: RecordRuleV4) -> str:
+        """生成 bkbase V4 资源 tenant。
+
+        计算平台单租户模式仍使用历史默认租户；开启多租户后，Flow、source、storage
+        需要跟随当前规则组所属的实际 bk_tenant_id。
+        """
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return rule.bk_tenant_id or RECORD_RULE_V4_DEFAULT_TENANT
+        return RECORD_RULE_V4_DEFAULT_TENANT
+
+    @staticmethod
+    def compose_metadata_labels(rule: RecordRuleV4) -> dict[str, str]:
+        """生成 Flow metadata labels，只保留平台当前需要检索的业务标签。"""
+
+        return {
+            "bk_biz_id": str(rule.bk_biz_id),
+            "flow_type": FLOW_TYPE_RECORD_RULE,
+        }
+
+    @staticmethod
+    def compose_metadata_annotations(*, rule: RecordRuleV4, resolved: RecordRuleV4Resolved) -> dict[str, str]:
+        """生成 Flow 的业务 annotation。
+
+        annotation key 使用 DNS 前缀和 kebab-case，值统一保存为字符串，便于后续在 bkbase
+        或排查工具里按 K8s 风格读取。
+        """
+
+        prefix = FLOW_METADATA_ANNOTATION_PREFIX
+        return {
+            f"{prefix}/space-uid": rule.space_uid,
+            f"{prefix}/group-name": rule.group_name,
+            f"{prefix}/generation": str(resolved.generation),
+            f"{prefix}/resolved-version": str(resolved.resolve_version),
         }
 
     @staticmethod

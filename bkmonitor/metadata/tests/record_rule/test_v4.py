@@ -14,7 +14,12 @@ from uuid import uuid4
 import pytest
 from django.utils import timezone
 
-from metadata.models.record_rule.constants import RecordRuleV4DesiredStatus, RecordRuleV4FlowStatus, RecordRuleV4Status
+from metadata.models.record_rule.constants import (
+    RECORD_RULE_V4_DEFAULT_TENANT,
+    RecordRuleV4DesiredStatus,
+    RecordRuleV4FlowStatus,
+    RecordRuleV4Status,
+)
 from metadata.models.record_rule.v4 import (
     CONDITION_FALSE,
     CONDITION_FLOW_HEALTHY,
@@ -141,6 +146,16 @@ def test_compose_names_keep_hint_random_suffix_and_short_length():
     assert result_table_config_name.startswith("bkm_bkprecal_cpu_usage")
     assert "abcdef12" in flow_name
     assert "abcdef12" in group_flow_name
+
+
+def test_flow_bkbase_tenant_follows_multi_tenant_mode(settings):
+    rule = create_rule()
+
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    assert RecordRuleV4Flow.compose_bkbase_tenant(rule) == RECORD_RULE_V4_DEFAULT_TENANT
+
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    assert RecordRuleV4Flow.compose_bkbase_tenant(rule) == rule.bk_tenant_id
 
 
 def test_conditions_are_updated_by_type_instead_of_accumulated():

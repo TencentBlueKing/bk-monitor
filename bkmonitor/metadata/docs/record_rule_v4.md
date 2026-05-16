@@ -170,6 +170,9 @@ V4 recording rule flow 使用 `POST /v4/apply/` 创建，删除时使用：
 DELETE /v4/namespaces/bkbase/flows/{flow_name}/
 ```
 
+`<BKBASE_TENANT>` 在单租户模式下固定为 `default`；`settings.ENABLE_MULTI_TENANT_MODE=True`
+时使用规则组实际 `bk_tenant_id`。
+
 典型 flow 配置：
 
 ```json
@@ -178,11 +181,19 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
     {
       "kind": "Flow",
       "metadata": {
-        "tenant": "default",
+        "tenant": "<BKBASE_TENANT>",
         "namespace": "bkbase",
         "name": "<FLOW_NAME>",
-        "labels": {},
-        "annotations": {}
+        "labels": {
+          "bk_biz_id": "<BK_BIZ_ID>",
+          "flow_type": "recording-rule"
+        },
+        "annotations": {
+          "record-rule.bkmonitor/space-uid": "<SPACE_UID>",
+          "record-rule.bkmonitor/group-name": "<GROUP_NAME>",
+          "record-rule.bkmonitor/generation": "<RESOLVED_GENERATION>",
+          "record-rule.bkmonitor/resolved-version": "<RESOLVED_VERSION>"
+        }
       },
       "spec": {
         "nodes": [
@@ -191,7 +202,7 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
             "name": "vm_source",
             "data": {
               "kind": "ResultTable",
-              "tenant": "default",
+              "tenant": "<BKBASE_TENANT>",
               "namespace": "bkmonitor",
               "name": "<SOURCE_BKBASE_RESULT_TABLE_NAME>"
             }
@@ -215,7 +226,7 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
             ],
             "storage": {
               "kind": "VmStorage",
-              "tenant": "default",
+              "tenant": "<BKBASE_TENANT>",
               "namespace": "bkmonitor",
               "name": "<VM_STORAGE_NAME>"
             }

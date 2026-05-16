@@ -12,11 +12,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from bkmonitor.utils.tenant import DatalinkBizIds
 from metadata import models
 from metadata.models.record_rule.constants import (
     RECORD_RULE_V4_BKBASE_NAMESPACE,
     RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-    RECORD_RULE_V4_DEFAULT_TENANT,
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowActionType,
     RecordRuleV4FlowStatus,
@@ -57,9 +57,15 @@ CHANGED_METRICQL = f"sum({METRICQL})"
 
 
 @pytest.fixture
-def v4_base_data(settings):
+def v4_base_data(settings, mocker):
     settings.DEFAULT_BKDATA_BIZ_ID = 2
     settings.BK_DATA_PROJECT_MAINTAINER = "admin"
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    datalink_biz_ids = DatalinkBizIds(label_biz_id=int(SPACE_ID), data_biz_id=int(SPACE_ID))
+    mocker.patch("metadata.models.record_rule.v4.output.get_tenant_datalink_biz_id", return_value=datalink_biz_ids)
+    mocker.patch(
+        "metadata.models.data_link.data_link_configs.get_tenant_datalink_biz_id", return_value=datalink_biz_ids
+    )
     models.Space.objects.create(
         bk_tenant_id=TENANT_ID,
         space_type_id=SPACE_TYPE,
@@ -334,7 +340,9 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
 
     source_node = get_source_nodes(flow.flow_config)[0]
     recording_rule_node = get_recording_rule_node(flow.flow_config)
+    assert flow.flow_config["metadata"]["tenant"] == TENANT_ID
     assert source_node["data"]["name"] == SOURCE_BKBASE_TABLE_NAME
+    assert source_node["data"]["tenant"] == TENANT_ID
     assert recording_rule_node["inputs"] == ["vm_source"]
     assert recording_rule_node["output"] == rule.dst_vm_table_id
     assert [item["metric_name"] for item in recording_rule_node["config"]] == ["cpu_usage_avg", "cpu_total_sum"]
@@ -342,11 +350,21 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     assert recording_rule_node["config"][0]["labels"] == [{"scenario": "pytest"}]
     assert recording_rule_node["storage"] == {
         "kind": "VmStorage",
-        "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
+        "tenant": TENANT_ID,
         "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
         "name": "monitor-opsystem",
     }
     assert flow.flow_config["metadata"]["namespace"] == RECORD_RULE_V4_BKBASE_NAMESPACE
+    assert flow.flow_config["metadata"]["labels"] == {
+        "bk_biz_id": SPACE_ID,
+        "flow_type": "recording-rule",
+    }
+    assert flow.flow_config["metadata"]["annotations"] == {
+        "record-rule.bkmonitor/space-uid": f"{SPACE_TYPE}__{SPACE_ID}",
+        "record-rule.bkmonitor/group-name": GROUP_NAME,
+        "record-rule.bkmonitor/generation": str(resolved.generation),
+        "record-rule.bkmonitor/resolved-version": str(resolved.resolve_version),
+    }
 
     assert external_api.check_query_ts.call_count == 2
     external_api.apply_data_link.assert_called_once()
