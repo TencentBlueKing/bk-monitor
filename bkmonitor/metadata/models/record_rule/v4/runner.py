@@ -26,7 +26,6 @@ from metadata.models.record_rule.v4.models import (
     CONDITION_FLOW_HEALTHY,
     CONDITION_RECONCILED,
     CONDITION_TRUE,
-    CONDITION_UNKNOWN,
     RecordRuleV4,
     RecordRuleV4Event,
     RecordRuleV4Flow,
@@ -66,25 +65,24 @@ class RecordRuleV4Runner:
         """将 resolved 快照持久化成唯一目标 Flow。"""
 
         self.reload_rule()
-        resolved = resolved or self.rule.latest_resolved
-        if resolved is None or resolved.spec.desired_status == RecordRuleV4DesiredStatus.DELETED.value:
+        resolved = resolved or self.rule.get_latest_resolved()
+        if resolved is None:
             return None
 
         flow_payload = RecordRuleV4Flow.compose_for_resolved(rule=self.rule, resolved=resolved)
         flow, _ = RecordRuleV4Flow.objects.update_or_create(
             resolved=resolved,
-            flow_key=flow_payload["flow_key"],
             defaults={
                 "rule": self.rule,
+                "bk_tenant_id": self.rule.bk_tenant_id,
                 "flow_name": flow_payload["flow_name"],
                 "flow_config": self.with_desired_status(flow_payload["flow_config"], self.rule.desired_status),
                 "content_hash": flow_payload["content_hash"],
-                "desired_status": self.rule.desired_status,
                 "creator": self.actor,
                 "updater": self.actor,
             },
         )
-        self.rule.use_flow(flow)
+        self.rule.mark_flow_ready(flow)
         return flow
 
     def apply(self) -> bool:
@@ -94,7 +92,10 @@ class RecordRuleV4Runner:
         if self.rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value:
             return self.delete_applied_flow()
 
-        flow = self.rule.latest_flow
+        flow = self.rule.get_latest_flow()
+        resolved = self.rule.get_latest_resolved()
+        if flow is None and resolved:
+            flow = self.prepare_flow(resolved)
         if flow is None:
             self.rule.set_condition(CONDITION_RECONCILED, CONDITION_FALSE, "FlowMissing")
             self.rule.sync_phase()
@@ -107,9 +108,11 @@ class RecordRuleV4Runner:
             )
             return False
 
-        applied_flow = self.rule.applied_flow
+        applied_resolved = self.rule.applied_resolved
         action_type = (
-            RecordRuleV4FlowActionType.CREATE.value if applied_flow is None else RecordRuleV4FlowActionType.UPDATE.value
+            RecordRuleV4FlowActionType.CREATE.value
+            if applied_resolved is None
+            else RecordRuleV4FlowActionType.UPDATE.value
         )
         return self.apply_target_flow(flow=flow, action_type=action_type)
 
@@ -123,9 +126,8 @@ class RecordRuleV4Runner:
         try:
             flow_config = self.with_desired_status(flow.flow_config, self.rule.desired_status)
             self.apply_flow(flow_config)
-            flow.desired_status = self.rule.desired_status
             flow.flow_config = flow_config
-            flow.save(update_fields=["desired_status", "flow_config", "updated_at"])
+            flow.save(update_fields=["flow_config", "updated_at"])
         except Exception as err:
             self.mark_apply_failed(flow=flow, err=err)
             RecordRuleV4Event.record_flow_action_result(
@@ -155,7 +157,7 @@ class RecordRuleV4Runner:
     def delete_applied_flow(self) -> bool:
         """删除当前已经成功下发的 Flow。"""
 
-        flow = self.rule.applied_flow
+        flow = self.rule.get_applied_flow()
         RecordRuleV4Event.record_apply_started(self.rule, flow, source=self.source, operator=self.operator)
         if flow is None:
             self.rule.mark_delete_applied()
@@ -167,9 +169,7 @@ class RecordRuleV4Runner:
             self.rule, flow, action_type=action_type, source=self.source, operator=self.operator
         )
         try:
-            self.delete_flow(flow.flow_name, ignore_not_found=True)
-            flow.desired_status = RecordRuleV4DesiredStatus.DELETED.value
-            flow.save(update_fields=["desired_status", "updated_at"])
+            self.delete_flow(self.rule.flow_name, ignore_not_found=True)
         except Exception as err:
             self.mark_apply_failed(flow=flow, err=err)
             RecordRuleV4Event.record_flow_action_result(
@@ -199,11 +199,9 @@ class RecordRuleV4Runner:
     def mark_apply_failed(self, *, flow: RecordRuleV4Flow | None, err: Exception | str) -> None:
         """把下发失败同步到 group 当前状态。"""
 
-        self.rule.last_error = str(err)
-        self.rule.update_available = True
         self.rule.set_condition(CONDITION_RECONCILED, CONDITION_FALSE, "ApplyFailed", str(err))
         self.rule.sync_phase()
-        self.rule.save(update_fields=["last_error", "update_available", "conditions", "status", "updated_at"])
+        self.rule.save(update_fields=["conditions", "status", "updated_at"])
         RecordRuleV4Event.record_apply_failed(
             self.rule,
             source=self.source,
@@ -216,7 +214,7 @@ class RecordRuleV4Runner:
         """直接下发 running/stopped 运行态，不生成新的 resolved/flow。"""
 
         self.reload_rule()
-        flow = self.rule.applied_flow
+        flow = self.rule.get_applied_flow()
         if flow is None:
             self.rule.sync_phase()
             self.rule.save(update_fields=["status", "updated_at"])
@@ -225,19 +223,14 @@ class RecordRuleV4Runner:
         try:
             flow_config = self.with_desired_status(flow.flow_config, desired_status)
             self.apply_flow(flow_config)
-            flow.desired_status = desired_status
             flow.flow_config = flow_config
-            flow.save(update_fields=["desired_status", "flow_config", "updated_at"])
+            flow.save(update_fields=["flow_config", "updated_at"])
         except Exception as err:
             self.mark_apply_failed(flow=flow, err=err)
             logger.exception("RecordRuleV4 apply desired status failed, id: %s", self.rule.pk)
             return False
 
-        self.rule.last_error = ""
-        self.rule.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "DesiredStatusApplied")
-        self.rule.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_UNKNOWN, "ApplySubmitted")
-        self.rule.sync_phase()
-        self.rule.save(update_fields=["last_error", "conditions", "status", "updated_at"])
+        self.rule.mark_desired_status_applied(desired_status)
         return True
 
     @staticmethod
@@ -252,9 +245,12 @@ class RecordRuleV4Runner:
         """确认待下发 Flow 仍是当前声明对应的 latest flow。"""
 
         self.reload_rule()
+        current_spec = self.rule.current_spec
+        if current_spec is None:
+            return False
         return (
-            self.rule.latest_flow_id == flow.pk
-            and self.rule.current_spec_id == flow.resolved.spec_id
+            self.rule.current_spec_id == flow.resolved.spec_id
+            and current_spec.latest_resolved_id == flow.resolved_id
             and self.rule.generation == flow.resolved.generation
         )
 
@@ -284,7 +280,7 @@ class RecordRuleV4Runner:
         """观测 applied Flow 的实际状态并同步到 group condition。"""
 
         self.reload_rule()
-        flow = self.rule.applied_flow
+        flow = self.rule.get_applied_flow()
         if flow is None:
             self.rule.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_FALSE, "FlowMissing")
             self.rule.sync_phase()

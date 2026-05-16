@@ -72,7 +72,6 @@ class RecordRuleV4Operator:
         records: list[RecordRuleV4RecordInput],
         interval: str,
         labels: list[dict[str, Any]],
-        desired_status: str,
         raw_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """生成 spec.raw_config 快照。
@@ -87,7 +86,6 @@ class RecordRuleV4Operator:
             "records": copy.deepcopy(records),
             "interval": interval,
             "labels": copy.deepcopy(labels),
-            "desired_status": desired_status,
         }
 
     def reload_rule(self, for_update: bool = False) -> RecordRuleV4:
@@ -106,6 +104,12 @@ class RecordRuleV4Operator:
         if spec is None:
             raise ValueError("current spec is missing")
         return spec
+
+    def has_unapplied_resolved(self) -> bool:
+        """内部判断当前 latest resolved 是否尚未成功下发。"""
+
+        latest_resolved = self.rule.get_latest_resolved()
+        return bool(latest_resolved and latest_resolved.pk != self.rule.applied_resolved_id)
 
     def run_with_operation_lock(self, reason: str, callback: Callable[[], T], locked_result: T) -> T:
         """围绕关键下发 / 刷新操作加轻量操作锁，避免后台与手动操作竞态。"""
@@ -151,12 +155,15 @@ class RecordRuleV4Operator:
         group_labels = normalize_labels(labels)
         bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(f"{space_type}__{space_id}")
         table_id = RecordRuleV4.compose_table_id(group_name)
+        flow_name = RecordRuleV4.compose_group_flow_name(group_name, table_id)
         result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
         dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=RecordRuleV4.resolve_bk_biz_id(space_type, space_id),
             result_table_config_name=result_table_config_name,
         )
+        output_created = False
+        metric_fields_created = False
 
         with transaction.atomic():
             rule = RecordRuleV4.objects.create(
@@ -164,6 +171,7 @@ class RecordRuleV4Operator:
                 space_type=space_type,
                 space_id=space_id,
                 group_name=group_name,
+                flow_name=flow_name,
                 table_id=table_id,
                 dst_vm_table_id=dst_vm_table_id,
                 auto_refresh=auto_refresh,
@@ -172,7 +180,7 @@ class RecordRuleV4Operator:
             )
             # 输出 RT / VM 映射是 group 级资源，创建 rule 后立刻准备，
             # 避免等到第一次 apply 才补 metadata。
-            RecordRuleV4OutputResources.ensure_group_output(rule)
+            output_created = RecordRuleV4OutputResources.ensure_group_output(rule)
             instance = cls(rule, source=source, operator=operator)
             # 调用方不传 raw_config 时，保存一份由规范字段组成的最小快照；
             # 这样 spec.raw_config 永远可用于回看“用户当时提交了什么”。
@@ -182,16 +190,20 @@ class RecordRuleV4Operator:
                     records=records,
                     interval=interval,
                     labels=group_labels,
-                    desired_status=RecordRuleV4DesiredStatus.RUNNING.value,
                     raw_config=raw_config,
                 ),
                 interval=interval,
                 labels=group_labels,
-                desired_status=RecordRuleV4DesiredStatus.RUNNING.value,
             )
             rule.use_spec(spec)
-            RecordRuleV4OutputResources.ensure_spec_metric_fields(rule, spec)
+            metric_fields_created = RecordRuleV4OutputResources.ensure_spec_metric_fields(rule, spec)
             RecordRuleV4Event.record_user_create(rule, spec, source=source, operator=operator)
+
+        # 路由刷新必须在事务提交后执行，避免 Redis 读取到未提交或回滚的数据。
+        if output_created:
+            RecordRuleV4OutputResources.push_output_route(rule)
+        elif metric_fields_created:
+            RecordRuleV4OutputResources.push_table_id_detail(rule)
 
         resolved = instance.resolver.resolve_current(force=True)
         if resolved:
@@ -214,21 +226,25 @@ class RecordRuleV4Operator:
     ) -> RecordRuleV4:
         """更新用户声明或运行态。
 
-        records/interval/labels/delete 会进入新的 spec/resolved/flow 链路；
-        running/stopped 只改变运行态 desired_status，
-        并直接下发到已 applied 的 Flow，不推进 generation。
+        records/interval/labels 会进入新的 spec/resolved/flow 链路；
+        running/stopped/deleted 只改变 group 运行态 desired_status，
+        不推进 generation。删除通过 runner 直接删除当前 applied Flow。
         raw_config 本身不是 resolver 的输入真值源，只在创建新 spec 时
         作为原始配置快照保存；单独传 raw_config 不会推进 generation。
         """
 
         spec: RecordRuleV4Spec | None = None
         records_changed = False
-        runtime_desired_status: str | None = None
-        runtime_desired_status_changed = False
+        desired_status_changed = False
+        requested_desired_status: str | None = None
+        previous_resolved_id: int | None = None
+        output_created = False
+        metric_fields_created = False
 
         with transaction.atomic():
             self.reload_rule(for_update=True)
             current_spec = self.require_current_spec()
+            previous_resolved_id = current_spec.latest_resolved_id
             # 先把所有输入归一成下一份声明需要的候选值，后面再判断哪些是真正
             # 的定义态变更，哪些只是运行态启停。
             next_records: list[RecordRuleV4RecordInput] = (
@@ -241,19 +257,6 @@ class RecordRuleV4Operator:
             requested_desired_status = None if desired_status is None else str(desired_status)
             if requested_desired_status is not None:
                 RecordRuleV4.validate_desired_status(requested_desired_status)
-            # running/stopped 只属于运行态；deleted 会进入声明态，用来生成
-            # delete action 并确保外部 Flow 被真正删除。
-            runtime_desired_status = (
-                requested_desired_status
-                if requested_desired_status
-                in {RecordRuleV4DesiredStatus.RUNNING.value, RecordRuleV4DesiredStatus.STOPPED.value}
-                else None
-            )
-            next_desired_status = (
-                RecordRuleV4DesiredStatus.DELETED.value
-                if requested_desired_status == RecordRuleV4DesiredStatus.DELETED.value
-                else current_spec.desired_status
-            )
 
             auto_refresh_changed = auto_refresh is not None and bool(auto_refresh) != self.rule.auto_refresh
             if auto_refresh_changed:
@@ -262,12 +265,12 @@ class RecordRuleV4Operator:
             records_changed = records is not None
             interval_changed = interval is not None and next_interval != current_spec.interval
             labels_changed = labels is not None and next_labels != current_spec.labels
-            runtime_desired_status_changed = (
-                runtime_desired_status is not None and runtime_desired_status != self.rule.desired_status
+            desired_status_changed = (
+                requested_desired_status is not None and requested_desired_status != self.rule.desired_status
             )
-            if runtime_desired_status_changed and runtime_desired_status:
-                # 启停不生成 spec，因此事件也不挂 spec/resolved/flow。
-                self.rule.set_desired_status(runtime_desired_status)
+            if desired_status_changed and requested_desired_status:
+                # 运行态不生成 spec，因此事件也不挂 spec/resolved/flow。
+                self.rule.set_desired_status(requested_desired_status)
                 RecordRuleV4Event.record_user_desired_status_changed(
                     self.rule, source=self.source, operator=self.operator
                 )
@@ -279,8 +282,6 @@ class RecordRuleV4Operator:
                 changed_fields.append("interval")
             if labels_changed:
                 changed_fields.append("labels")
-            if requested_desired_status == RecordRuleV4DesiredStatus.DELETED.value:
-                changed_fields.append("desired_status")
 
             if not changed_fields:
                 if auto_refresh_changed:
@@ -289,9 +290,14 @@ class RecordRuleV4Operator:
                     RecordRuleV4Event.record_user_auto_refresh_changed(
                         self.rule, source=self.source, operator=self.operator
                     )
-                if not runtime_desired_status_changed:
+                if not desired_status_changed:
                     return self.rule
             else:
+                if auto_refresh_changed:
+                    self.rule.save(update_fields=["auto_refresh", "updated_at"])
+                    RecordRuleV4Event.record_user_auto_refresh_changed(
+                        self.rule, source=self.source, operator=self.operator
+                    )
                 # 只有计算定义变化才创建新 spec。这样 stop/start 不会污染
                 # generation 和后续 resolved 对比。
                 spec = self.spec_builder.create_spec(
@@ -300,16 +306,14 @@ class RecordRuleV4Operator:
                         records=next_records,
                         interval=next_interval,
                         labels=next_labels,
-                        desired_status=next_desired_status,
                         raw_config=raw_config,
                     ),
                     interval=next_interval,
                     labels=next_labels,
-                    desired_status=next_desired_status,
                 )
                 self.rule.use_spec(spec)
-                RecordRuleV4OutputResources.ensure_group_output(self.rule)
-                RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, spec)
+                output_created = RecordRuleV4OutputResources.ensure_group_output(self.rule)
+                metric_fields_created = RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, spec)
                 RecordRuleV4Event.record_user_spec_changed(
                     self.rule,
                     spec,
@@ -318,25 +322,27 @@ class RecordRuleV4Operator:
                     changed_fields=changed_fields,
                 )
 
+        # 路由刷新放到事务外，保证 Redis 使用的是已提交后的 metadata。
+        if output_created:
+            RecordRuleV4OutputResources.push_output_route(self.rule)
+        elif metric_fields_created:
+            RecordRuleV4OutputResources.push_table_id_detail(self.rule)
+
         # 事务外执行外部 check / flow 准备，避免长时间持有数据库行锁。
-        if (
-            spec
-            and (records_changed or interval_changed or labels_changed)
-            and spec.desired_status != RecordRuleV4DesiredStatus.DELETED.value
-        ):
-            previous_resolved_id = self.rule.latest_resolved_id
+        if spec and (records_changed or interval_changed or labels_changed):
             resolved = self.refresh_resolved(force=False)
             self.reload_rule()
             if resolved and resolved.pk != previous_resolved_id:
                 self.runner.prepare_flow(resolved=resolved)
 
         self.reload_rule()
-        if apply_immediately and self.rule.update_available:
-            self.apply()
-        elif apply_immediately and runtime_desired_status_changed and runtime_desired_status:
-            # Runtime-only 的启停没有新 Flow，直接把 desired_status
-            # 注入已落地的 Flow 配置并下发。
-            self.runner.apply_desired_status(runtime_desired_status)
+        if apply_immediately:
+            if self.rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value or self.has_unapplied_resolved():
+                self.apply()
+            elif desired_status_changed and requested_desired_status:
+                # Runtime-only 的启停没有新 Flow，直接把 desired_status
+                # 注入已落地的 Flow 配置并下发。
+                self.runner.apply_desired_status(requested_desired_status)
         self.reload_rule()
         return self.rule
 
@@ -360,7 +366,8 @@ class RecordRuleV4Operator:
     def manual_refresh_unlocked(self) -> RecordRuleV4Resolved | None:
         """不带操作锁的手动刷新实现，便于 reconcile 复用相同语义。"""
 
-        previous_resolved_id = self.rule.latest_resolved_id
+        current_spec = self.require_current_spec()
+        previous_resolved_id = current_spec.latest_resolved_id
         resolved = self.refresh_resolved(force=False)
         if resolved and resolved.pk != previous_resolved_id:
             self.reload_rule()
@@ -379,7 +386,8 @@ class RecordRuleV4Operator:
     def reconcile_unlocked(self, auto_apply: bool | None = None) -> bool:
         """不带操作锁的 reconcile 主流程。"""
 
-        previous_resolved_id = self.rule.latest_resolved_id
+        current_spec = self.require_current_spec()
+        previous_resolved_id = current_spec.latest_resolved_id
         resolved = self.refresh_resolved(force=False)
         changed = bool(resolved and resolved.pk != previous_resolved_id)
         if changed and resolved:
@@ -387,7 +395,7 @@ class RecordRuleV4Operator:
             self.runner.prepare_flow(resolved=resolved)
         self.reload_rule()
         should_apply = self.rule.auto_refresh if auto_apply is None else auto_apply
-        if should_apply and self.rule.update_available:
+        if should_apply and self.has_unapplied_resolved():
             self.runner.apply()
         return changed
 

@@ -42,7 +42,7 @@ from metadata.models.record_rule.v4.source import resolve_vm_result_table_config
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
-TENANT_ID = "system"
+TENANT_ID = "tenant_v4_pytest"
 SPACE_TYPE = "bkcc"
 SPACE_ID = "2"
 GROUP_NAME = "rr_cpu_group"
@@ -107,12 +107,14 @@ def external_api(mocker):
         "metadata.models.record_rule.v4.runner.api.bkdata.get_data_link",
         return_value={"status": {"state": "ok"}},
     )
+    space_redis = mocker.patch("metadata.models.record_rule.v4.output.SpaceTableIDRedis").return_value
     return SimpleNamespace(
         check_query_ts=check_query_ts,
         check_promql=check_promql,
         apply_data_link=apply_data_link,
         delete_data_link=delete_data_link,
         get_data_link=get_data_link,
+        space_redis=space_redis,
     )
 
 
@@ -281,6 +283,25 @@ def get_source_nodes(flow_config: dict) -> list[dict]:
     return [node for node in flow_config["spec"]["nodes"] if node["kind"] == "VmSourceNode"]
 
 
+def get_latest_resolved(rule: RecordRuleV4):
+    return rule.current_spec.latest_resolved
+
+
+def get_latest_flow(rule: RecordRuleV4):
+    return get_latest_resolved(rule).flow
+
+
+def get_applied_flow(rule: RecordRuleV4):
+    flow = rule.get_applied_flow()
+    assert flow is not None
+    return flow
+
+
+def has_unapplied_resolved(rule: RecordRuleV4) -> bool:
+    latest_resolved = get_latest_resolved(rule)
+    return bool(latest_resolved and latest_resolved.pk != rule.applied_resolved_id)
+
+
 def test_create_group_with_two_records_applies_single_flow(v4_base_data, external_api):
     records = [
         build_record(metric_name="cpu_usage_avg"),
@@ -290,18 +311,25 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     rule = create_rule(records=records)
 
     rule.refresh_from_db()
-    flow = rule.latest_flow
-    assert flow is not None
+    flow = get_latest_flow(rule)
+    resolved = get_latest_resolved(rule)
     assert len(rule.table_id) <= 50
     assert len(rule.dst_vm_table_id) <= 50
     assert rule.table_id.startswith("bkprecal_rr_cpu_group_")
+    assert rule.flow_name == flow.flow_name
     assert rule.dst_vm_storage_name == "monitor-opsystem"
-    assert rule.latest_resolved.records.count() == 2
-    assert rule.latest_resolved.flows.count() == 1
-    assert rule.latest_flow_id == rule.applied_flow_id
+    assert resolved.records.count() == 2
+    assert resolved.flow.pk == flow.pk
+    assert rule.current_spec.bk_tenant_id == TENANT_ID
+    assert rule.current_spec.records.filter(bk_tenant_id=TENANT_ID).count() == 2
+    assert resolved.bk_tenant_id == TENANT_ID
+    assert resolved.records.filter(bk_tenant_id=TENANT_ID).count() == 2
+    assert flow.bk_tenant_id == TENANT_ID
+    assert rule.events.filter(bk_tenant_id=TENANT_ID).exists()
+    assert rule.applied_resolved_id == resolved.pk
+    assert rule.applied_desired_status == RecordRuleV4DesiredStatus.RUNNING.value
     assert rule.status == RecordRuleV4Status.RUNNING.value
-    assert rule.update_available is False
-    assert flow.flow_key == "group"
+    assert has_unapplied_resolved(rule) is False
     assert len(flow.flow_name) <= 50
 
     source_node = get_source_nodes(flow.flow_config)[0]
@@ -322,7 +350,7 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
 
     assert external_api.check_query_ts.call_count == 2
     external_api.apply_data_link.assert_called_once()
-    first_resolved_record = rule.latest_resolved.get_records()[0]
+    first_resolved_record = resolved.get_records()[0]
     assert first_resolved_record.labels == [{"scenario": "pytest"}]
     assert first_resolved_record.src_result_table_configs == [
         {
@@ -353,6 +381,16 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
         bk_tenant_id=TENANT_ID,
         vm_cluster_id=v4_base_data.cluster.cluster_id,
     ).exists()
+    external_api.space_redis.push_space_table_ids.assert_called_once_with(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        is_publish=True,
+    )
+    external_api.space_redis.push_table_id_detail.assert_called_once_with(
+        table_id_list=[rule.table_id],
+        is_publish=True,
+        bk_tenant_id=TENANT_ID,
+    )
 
 
 def test_group_interval_and_labels_merge_into_resolved_and_flow(v4_base_data, external_api):
@@ -364,8 +402,8 @@ def test_group_interval_and_labels_merge_into_resolved_and_flow(v4_base_data, ex
         labels=[{"scenario": "group"}, {"env": "prod"}],
     )
 
-    resolved_record = rule.latest_resolved.records.get()
-    recording_rule_node = get_recording_rule_node(rule.latest_flow.flow_config)
+    resolved_record = get_latest_resolved(rule).records.get()
+    recording_rule_node = get_recording_rule_node(get_latest_flow(rule).flow_config)
     expected_labels = [{"scenario": "record"}, {"env": "prod"}, {"owner": "record"}]
     assert rule.current_spec.interval == "5min"
     assert rule.current_spec.labels == [{"scenario": "group"}, {"env": "prod"}]
@@ -416,11 +454,29 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
         bk_tenant_id=TENANT_ID,
         vm_cluster_id=v4_base_data.cluster.cluster_id,
     ).exists()
+    output_options = {
+        option.name: option.get_value()
+        for option in models.ResultTableOption.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
+    }
+    assert output_options == {
+        models.ResultTableOption.OPTION_IS_SPLIT_MEASUREMENT: True,
+        models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST: False,
+    }
     assert models.ResultTableField.objects.filter(
         table_id=rule.table_id,
         bk_tenant_id=TENANT_ID,
         field_name="cpu_usage_avg",
     ).exists()
+    external_api.space_redis.push_space_table_ids.assert_called_once_with(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        is_publish=True,
+    )
+    external_api.space_redis.push_table_id_detail.assert_called_once_with(
+        table_id_list=[rule.table_id],
+        is_publish=True,
+        bk_tenant_id=TENANT_ID,
+    )
     external_api.apply_data_link.assert_not_called()
 
 
@@ -512,8 +568,8 @@ def test_promql_resolve_uses_actual_multi_vmrt_data(v4_base_data, external_api):
 
     rule = create_rule(records=[record])
 
-    resolved_record = rule.latest_resolved.records.get()
-    source_node_names = {node["data"]["name"] for node in get_source_nodes(rule.latest_flow.flow_config)}
+    resolved_record = get_latest_resolved(rule).records.get()
+    source_node_names = {node["data"]["name"] for node in get_source_nodes(get_latest_flow(rule).flow_config)}
     assert resolved_record.metricql == metricql
     assert resolved_record.src_vm_table_ids == [SOURCE_VM_TABLE_ID, SECOND_SOURCE_VM_TABLE_ID]
     assert source_node_names == {SOURCE_BKBASE_TABLE_NAME, SECOND_SOURCE_BKBASE_TABLE_NAME}
@@ -604,8 +660,8 @@ def test_query_ts_resolve_uses_actual_vmrt_data(v4_base_data, external_api):
 
     rule = create_rule(records=[build_record(input_config=build_structured_query_config())])
 
-    resolved_record = rule.latest_resolved.records.get()
-    source_node = get_source_nodes(rule.latest_flow.flow_config)[0]
+    resolved_record = get_latest_resolved(rule).records.get()
+    source_node = get_source_nodes(get_latest_flow(rule).flow_config)[0]
     assert resolved_record.metricql == disk_metricql
     assert resolved_record.src_vm_table_ids == [disk_vm_table_id]
     assert resolved_record.src_result_table_configs == [
@@ -634,9 +690,9 @@ def test_structured_query_config_uses_default_check_time_range(v4_base_data, ext
     assert int(kwargs["end_time"]) - int(kwargs["start_time"]) == 3600
 
 
-def test_manual_refresh_only_marks_update_available(v4_base_data, external_api):
+def test_manual_refresh_only_prepares_latest_resolved(v4_base_data, external_api):
     rule = create_rule()
-    applied_flow_id = rule.applied_flow_id
+    applied_resolved_id = rule.applied_resolved_id
     external_api.apply_data_link.reset_mock()
     external_api.check_query_ts.return_value = build_check_result(metricql=CHANGED_METRICQL)
 
@@ -644,10 +700,10 @@ def test_manual_refresh_only_marks_update_available(v4_base_data, external_api):
 
     rule.refresh_from_db()
     assert resolved is not None
-    assert rule.latest_resolved_id == resolved.pk
-    assert rule.applied_flow_id == applied_flow_id
-    assert rule.latest_flow_id != applied_flow_id
-    assert rule.update_available is True
+    assert rule.current_spec.latest_resolved_id == resolved.pk
+    assert rule.applied_resolved_id == applied_resolved_id
+    assert rule.current_spec.latest_resolved_id != applied_resolved_id
+    assert has_unapplied_resolved(rule) is True
     assert rule.status == RecordRuleV4Status.PENDING.value
     external_api.apply_data_link.assert_not_called()
 
@@ -655,7 +711,8 @@ def test_manual_refresh_only_marks_update_available(v4_base_data, external_api):
 def test_update_group_interval_and_labels_prepares_single_flow(v4_base_data, external_api):
     rule = create_rule()
     previous_spec_id = rule.current_spec_id
-    previous_resolved_id = rule.latest_resolved_id
+    previous_resolved_id = rule.current_spec.latest_resolved_id
+    previous_flow_name = rule.flow_name
     external_api.apply_data_link.reset_mock()
 
     RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
@@ -666,27 +723,29 @@ def test_update_group_interval_and_labels_prepares_single_flow(v4_base_data, ext
 
     rule.refresh_from_db()
     assert rule.current_spec_id != previous_spec_id
-    assert rule.latest_resolved_id != previous_resolved_id
+    assert rule.current_spec.latest_resolved_id != previous_resolved_id
     assert rule.current_spec.interval == "5min"
     assert rule.current_spec.labels == [{"env": "prod"}]
-    assert rule.latest_resolved.records.get().labels == [{"env": "prod"}, {"scenario": "pytest"}]
-    assert rule.latest_flow.resolved_id == rule.latest_resolved_id
-    assert rule.update_available is True
+    assert get_latest_resolved(rule).records.get().labels == [{"env": "prod"}, {"scenario": "pytest"}]
+    assert get_latest_flow(rule).resolved_id == rule.current_spec.latest_resolved_id
+    assert rule.flow_name == previous_flow_name
+    assert get_latest_flow(rule).flow_name == previous_flow_name
+    assert has_unapplied_resolved(rule) is True
     external_api.apply_data_link.assert_not_called()
 
 
 def test_resolved_unchanged_does_not_prepare_new_flow(v4_base_data, external_api):
     rule = create_rule(auto_refresh=True)
-    latest_resolved_id = rule.latest_resolved_id
-    latest_flow_id = rule.latest_flow_id
+    latest_resolved_id = rule.current_spec.latest_resolved_id
+    latest_flow_id = get_latest_flow(rule).pk
     external_api.apply_data_link.reset_mock()
 
     resolved = RecordRuleV4Operator(rule, source="scheduler").manual_refresh()
 
     rule.refresh_from_db()
     assert resolved.pk == latest_resolved_id
-    assert rule.latest_flow_id == latest_flow_id
-    assert rule.update_available is False
+    assert get_latest_flow(rule).pk == latest_flow_id
+    assert has_unapplied_resolved(rule) is False
     external_api.apply_data_link.assert_not_called()
 
 
@@ -721,8 +780,8 @@ def test_reconcile_does_not_apply_when_auto_refresh_is_disabled(v4_base_data, ex
 
     rule.refresh_from_db()
     assert changed is True
-    assert rule.update_available is True
-    assert rule.applied_flow_id != rule.latest_flow_id
+    assert has_unapplied_resolved(rule) is True
+    assert rule.applied_resolved_id != rule.current_spec.latest_resolved_id
     assert rule.status == RecordRuleV4Status.OUTDATED.value
     external_api.apply_data_link.assert_not_called()
 
@@ -736,18 +795,18 @@ def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base
 
     rule.refresh_from_db()
     assert changed is True
-    assert rule.update_available is False
-    assert rule.applied_flow_id == rule.latest_flow_id
-    assert rule.latest_resolved.records.get().metricql == CHANGED_METRICQL
+    assert has_unapplied_resolved(rule) is False
+    assert rule.applied_resolved_id == rule.current_spec.latest_resolved_id
+    assert get_latest_resolved(rule).records.get().metricql == CHANGED_METRICQL
     external_api.apply_data_link.assert_called_once()
 
 
 def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_data, external_api):
     rule = create_rule()
     previous_spec_id = rule.current_spec_id
-    previous_resolved_id = rule.latest_resolved_id
-    previous_flow_id = rule.latest_flow_id
-    previous_flow_hash = rule.latest_flow.content_hash
+    previous_resolved_id = rule.current_spec.latest_resolved_id
+    previous_flow_id = get_latest_flow(rule).pk
+    previous_flow_hash = get_latest_flow(rule).content_hash
     external_api.check_query_ts.reset_mock()
     external_api.apply_data_link.reset_mock()
 
@@ -756,15 +815,14 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
     )
 
     rule.refresh_from_db()
-    flow = rule.applied_flow
+    flow = get_applied_flow(rule)
     assert rule.generation == 1
-    assert rule.observed_generation == 1
     assert rule.current_spec_id == previous_spec_id
-    assert rule.latest_resolved_id == previous_resolved_id
-    assert rule.latest_flow_id == previous_flow_id
+    assert rule.current_spec.latest_resolved_id == previous_resolved_id
+    assert get_latest_flow(rule).pk == previous_flow_id
     assert rule.desired_status == RecordRuleV4DesiredStatus.STOPPED.value
+    assert rule.applied_desired_status == RecordRuleV4DesiredStatus.STOPPED.value
     assert flow.content_hash == previous_flow_hash
-    assert flow.desired_status == RecordRuleV4DesiredStatus.STOPPED.value
     assert flow.flow_config["spec"]["desired_status"] == RecordRuleV4DesiredStatus.STOPPED.value
     assert rule.status == RecordRuleV4Status.STOPPED.value
     external_api.check_query_ts.assert_not_called()
@@ -773,7 +831,7 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
 
 def test_delete_removes_applied_flow(v4_base_data, external_api):
     rule = create_rule()
-    applied_flow_name = rule.applied_flow.flow_name
+    applied_flow_name = get_applied_flow(rule).flow_name
 
     RecordRuleV4Operator(rule, source="manual", operator="admin").delete()
 
@@ -781,38 +839,39 @@ def test_delete_removes_applied_flow(v4_base_data, external_api):
     assert rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value
     assert rule.status == RecordRuleV4Status.DELETED.value
     assert rule.deleted_at is not None
-    assert rule.latest_flow_id is None
-    assert rule.applied_flow_id is None
+    assert rule.applied_resolved_id is None
+    assert rule.applied_desired_status == RecordRuleV4DesiredStatus.DELETED.value
     external_api.delete_data_link.assert_called_once()
     _, kwargs = external_api.delete_data_link.call_args
     assert kwargs["name"] == applied_flow_name
 
 
-def test_apply_failure_keeps_update_available_and_records_action_error(v4_base_data, external_api):
+def test_apply_failure_keeps_unapplied_resolved_and_records_action_error(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
-    flow = rule.latest_flow
+    flow = get_latest_flow(rule)
     external_api.apply_data_link.side_effect = RuntimeError("bkbase unavailable")
 
     ok = RecordRuleV4Operator(rule, source="manual", operator="admin").apply()
 
     rule.refresh_from_db()
     assert ok is False
-    assert rule.applied_flow_id is None
-    assert rule.update_available is True
-    assert rule.last_error == "bkbase unavailable"
+    assert rule.applied_resolved_id is None
+    assert has_unapplied_resolved(rule) is True
     assert rule.get_condition(CONDITION_RECONCILED)["status"] == CONDITION_FALSE
+    assert rule.get_condition(CONDITION_RECONCILED)["message"] == "bkbase unavailable"
     event = RecordRuleV4Event.objects.get(flow=flow, event_type="flow_action.failed")
     assert event.detail == {
         "action_type": RecordRuleV4FlowActionType.CREATE.value,
-        "flow_key": flow.flow_key,
         "flow_id": flow.pk,
+        "flow_name": flow.flow_name,
         "flow_content_hash": flow.content_hash,
     }
 
 
 def test_apply_skips_stale_flow_before_calling_bkbase(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
-    stale_flow = rule.latest_flow
+    stale_flow = get_latest_flow(rule)
+    external_api.space_redis.reset_mock()
     RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
         records=[build_record(metric_name="cpu_usage_v2")],
         raw_config={"records": [build_record(metric_name="cpu_usage_v2")]},
@@ -823,23 +882,29 @@ def test_apply_skips_stale_flow_before_calling_bkbase(v4_base_data, external_api
     is_current = RecordRuleV4Runner(rule, source="manual", operator="admin").is_flow_current(stale_flow)
 
     assert is_current is False
+    external_api.space_redis.push_space_table_ids.assert_not_called()
+    external_api.space_redis.push_table_id_detail.assert_called_once_with(
+        table_id_list=[rule.table_id],
+        is_publish=True,
+        bk_tenant_id=TENANT_ID,
+    )
     external_api.apply_data_link.assert_not_called()
 
 
 def test_resolve_failure_keeps_last_applied_flow(v4_base_data, external_api):
     rule = create_rule()
-    applied_flow_id = rule.applied_flow_id
-    latest_resolved_id = rule.latest_resolved_id
+    applied_resolved_id = rule.applied_resolved_id
+    latest_resolved_id = rule.current_spec.latest_resolved_id
     external_api.check_query_ts.side_effect = RuntimeError("unify-query unavailable")
 
     resolved = RecordRuleV4Operator(rule, source="scheduler").manual_refresh()
 
     rule.refresh_from_db()
     assert resolved is None
-    assert rule.applied_flow_id == applied_flow_id
-    assert rule.latest_resolved_id == latest_resolved_id
-    assert rule.last_error == "unify-query unavailable"
+    assert rule.applied_resolved_id == applied_resolved_id
+    assert rule.current_spec.latest_resolved_id == latest_resolved_id
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
+    assert rule.get_condition(CONDITION_RESOLVED)["message"] == "unify-query unavailable"
     assert rule.status == RecordRuleV4Status.FAILED.value
 
 
@@ -874,10 +939,10 @@ def test_resolve_fails_when_check_data_is_invalid(v4_base_data, external_api, ch
     rule = create_rule(apply_immediately=False)
 
     rule.refresh_from_db()
-    assert rule.latest_resolved_id is None
-    assert rule.latest_flow_id is None
+    assert rule.current_spec.latest_resolved_id is None
+    assert rule.get_latest_flow() is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
-    assert error_text in rule.last_error
+    assert error_text in rule.get_condition(CONDITION_RESOLVED)["message"]
     external_api.apply_data_link.assert_not_called()
 
 
@@ -891,10 +956,10 @@ def test_resolve_fails_when_source_result_table_config_missing(v4_base_data, ext
     rule = create_rule(apply_immediately=False)
 
     rule.refresh_from_db()
-    assert rule.latest_resolved_id is None
-    assert rule.latest_flow_id is None
+    assert rule.current_spec.latest_resolved_id is None
+    assert rule.get_latest_flow() is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
-    assert "ResultTableConfig" in rule.last_error
+    assert "ResultTableConfig" in rule.get_condition(CONDITION_RESOLVED)["message"]
     external_api.apply_data_link.assert_not_called()
 
 
@@ -911,9 +976,9 @@ def test_resolve_fails_when_source_vm_cluster_missing(v4_base_data, external_api
     rule = create_rule(apply_immediately=False)
 
     rule.refresh_from_db()
-    assert rule.latest_resolved_id is None
+    assert rule.current_spec.latest_resolved_id is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
-    assert "ClusterInfo" in rule.last_error
+    assert "ClusterInfo" in rule.get_condition(CONDITION_RESOLVED)["message"]
     external_api.apply_data_link.assert_not_called()
 
 
@@ -938,7 +1003,7 @@ def test_refresh_flow_health_maps_flow_status_to_group_condition(v4_base_data, e
     assert status == RecordRuleV4FlowStatus.ABNORMAL.value
     assert rule.get_condition(CONDITION_FLOW_HEALTHY)["status"] == CONDITION_FALSE
     assert rule.status == RecordRuleV4Status.FAILED.value
-    assert rule.applied_flow.flow_status == RecordRuleV4FlowStatus.ABNORMAL.value
+    assert get_applied_flow(rule).flow_status == RecordRuleV4FlowStatus.ABNORMAL.value
 
     external_api.get_data_link.side_effect = RuntimeError("404 not found")
     status = RecordRuleV4Operator(rule, source="scheduler").refresh_flow_health()

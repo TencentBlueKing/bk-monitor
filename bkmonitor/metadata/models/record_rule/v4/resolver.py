@@ -17,15 +17,11 @@ from typing import Any, cast
 from django.db import models, transaction
 
 from core.drf_resource import api
-from metadata.models.record_rule.constants import (
-    RecordRuleV4DesiredStatus,
-    RecordRuleV4InputType,
-)
+from metadata.models.record_rule.constants import RecordRuleV4InputType
 from metadata.models.record_rule.v4.models import (
     CONDITION_FALSE,
     CONDITION_RESOLVED,
     CONDITION_TRUE,
-    CONDITION_UPDATE_AVAILABLE,
     RecordRuleV4,
     RecordRuleV4Event,
     RecordRuleV4Resolved,
@@ -80,15 +76,11 @@ class RecordRuleV4Resolver:
         spec = self.rule.current_spec
         if spec is None:
             self.rule.set_condition(CONDITION_RESOLVED, CONDITION_FALSE, "SpecMissing", "current spec is missing")
-            self.rule.last_error = "current spec is missing"
             self.rule.sync_phase()
             self.rule.save()
             RecordRuleV4Event.record_resolve_failed(
-                self.rule, source=self.source, operator=self.operator, message=self.rule.last_error
+                self.rule, source=self.source, operator=self.operator, message="current spec is missing"
             )
-            return None
-
-        if spec.desired_status == RecordRuleV4DesiredStatus.DELETED.value:
             return None
 
         try:
@@ -100,11 +92,10 @@ class RecordRuleV4Resolver:
             if not self.is_spec_current(spec):
                 # 用户在 check 过程中更新了 spec，本次结果已经过期，直接丢弃。
                 return None
-            self.rule.last_error = str(err)
             self.rule.last_check_time = now()
             self.rule.set_condition(CONDITION_RESOLVED, CONDITION_FALSE, "ResolveFailed", str(err))
             self.rule.sync_phase()
-            self.rule.save()
+            self.rule.save(update_fields=["last_check_time", "conditions", "status", "updated_at"])
             RecordRuleV4Event.record_resolve_failed(
                 self.rule,
                 spec=spec,
@@ -127,18 +118,20 @@ class RecordRuleV4Resolver:
             if self.rule.current_spec_id != spec.pk or self.rule.generation != spec.generation:
                 return None
 
-            latest_resolved = self.rule.latest_resolved
+            latest_resolved = spec.latest_resolved
             if not force and latest_resolved and latest_resolved.content_hash == content_hash:
                 # 解析语义未变时只更新时间和 condition，不推进 resolved 版本。
-                self.rule.last_error = ""
                 self.rule.last_check_time = now()
-                if self.rule.applied_flow_id and self.rule.applied_flow_id == self.rule.latest_flow_id:
-                    self.rule.observed_generation = max(self.rule.observed_generation, spec.generation)
-                    self.rule.update_available = False
-                    self.rule.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_FALSE, "ResolvedUnchanged")
                 self.rule.set_condition(CONDITION_RESOLVED, CONDITION_TRUE, "Unchanged")
                 self.rule.sync_phase()
-                self.rule.save()
+                self.rule.save(
+                    update_fields=[
+                        "last_check_time",
+                        "conditions",
+                        "status",
+                        "updated_at",
+                    ]
+                )
                 RecordRuleV4Event.record_resolve_unchanged(
                     self.rule,
                     spec,
@@ -152,6 +145,7 @@ class RecordRuleV4Resolver:
             resolved = RecordRuleV4Resolved.objects.create(
                 rule=self.rule,
                 spec=spec,
+                bk_tenant_id=self.rule.bk_tenant_id,
                 generation=spec.generation,
                 resolve_version=self.next_resolve_version(spec),
                 resolved_config=resolved_config,
@@ -167,6 +161,7 @@ class RecordRuleV4Resolver:
                 RecordRuleV4ResolvedRecord.objects.create(
                     resolved=resolved,
                     spec_record=spec_record,
+                    bk_tenant_id=self.rule.bk_tenant_id,
                     record_key=spec_record.record_key,
                     content_hash=runtime_record["content_hash"],
                     metricql=runtime_record["metricql"],

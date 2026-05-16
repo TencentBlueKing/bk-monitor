@@ -53,7 +53,6 @@ CONDITION_RECONCILED = "Reconciled"
 CONDITION_RESOLVED = "Resolved"
 CONDITION_FLOW_READY = "FlowReady"
 CONDITION_FLOW_HEALTHY = "FlowHealthy"
-CONDITION_UPDATE_AVAILABLE = "UpdateAvailable"
 
 EVENT_STATUS_STARTED = "started"
 EVENT_STATUS_SUCCEEDED = "succeeded"
@@ -176,7 +175,7 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "resolved": EVENT_RELATION_OPTIONAL,
         "flow": EVENT_RELATION_OPTIONAL,
         "reasons": {EVENT_REASON_STALE_FLOW},
-        "detail_keys": {"flow_id", "latest_flow_id", "current_generation", "flow_generation"},
+        "detail_keys": {"flow_id", "latest_resolved_id", "current_generation", "flow_generation"},
     },
     EVENT_TYPE_FLOW_ACTION_STARTED: {
         "statuses": {EVENT_STATUS_STARTED},
@@ -184,7 +183,7 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "resolved": EVENT_RELATION_REQUIRED,
         "flow": EVENT_RELATION_REQUIRED,
         "reasons": {""},
-        "detail_keys": {"action_type", "flow_key", "flow_id", "flow_content_hash"},
+        "detail_keys": {"action_type", "flow_id", "flow_name", "flow_content_hash"},
     },
     EVENT_TYPE_FLOW_ACTION_SUCCEEDED: {
         "statuses": {EVENT_STATUS_SUCCEEDED},
@@ -192,7 +191,7 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "resolved": EVENT_RELATION_REQUIRED,
         "flow": EVENT_RELATION_REQUIRED,
         "reasons": {""},
-        "detail_keys": {"action_type", "flow_key", "flow_id", "flow_content_hash"},
+        "detail_keys": {"action_type", "flow_id", "flow_name", "flow_content_hash"},
     },
     EVENT_TYPE_FLOW_ACTION_FAILED: {
         "statuses": {EVENT_STATUS_FAILED},
@@ -200,7 +199,7 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "resolved": EVENT_RELATION_REQUIRED,
         "flow": EVENT_RELATION_REQUIRED,
         "reasons": {EVENT_REASON_APPLY_FAILED},
-        "detail_keys": {"action_type", "flow_key", "flow_id", "flow_content_hash"},
+        "detail_keys": {"action_type", "flow_id", "flow_name", "flow_content_hash"},
     },
     EVENT_TYPE_FLOW_OBSERVED: {
         "statuses": {EVENT_STATUS_SUCCEEDED, EVENT_STATUS_FAILED},
@@ -299,10 +298,10 @@ class RecordRuleV4(BaseModelWithTime):
     """
 
     if TYPE_CHECKING:
+        current_spec: RecordRuleV4Spec | None
         current_spec_id: int | None
-        latest_resolved_id: int | None
-        latest_flow_id: int | None
-        applied_flow_id: int | None
+        applied_resolved: RecordRuleV4Resolved | None
+        applied_resolved_id: int | None
         specs: models.QuerySet[RecordRuleV4Spec]
         resolved: models.QuerySet[RecordRuleV4Resolved]
         flows: models.QuerySet[RecordRuleV4Flow]
@@ -313,13 +312,13 @@ class RecordRuleV4(BaseModelWithTime):
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     group_name = models.CharField("预计算组名称", max_length=128)
+    flow_name = models.CharField("V4 Flow 名称", max_length=128)
     table_id = models.CharField("结果表名", max_length=128)
     dst_vm_table_id = models.CharField("VM 结果表RT", max_length=128)
     dst_vm_storage_name = models.CharField("目标 VM 存储名称", max_length=128, blank=True, default="")
 
     generation = models.IntegerField("用户声明版本", default=0)
-    observed_generation = models.IntegerField("已成功下发的声明版本", default=0)
-    current_spec = models.ForeignKey(
+    current_spec = models.ForeignKey(  # pyright: ignore[reportAssignmentType]
         "RecordRuleV4Spec",
         verbose_name="当前用户声明快照",
         null=True,
@@ -327,25 +326,9 @@ class RecordRuleV4(BaseModelWithTime):
         on_delete=models.SET_NULL,
         related_name="+",
     )
-    latest_resolved = models.ForeignKey(
+    applied_resolved = models.ForeignKey(  # pyright: ignore[reportAssignmentType]
         "RecordRuleV4Resolved",
-        verbose_name="最近解析快照",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
-    )
-    latest_flow = models.ForeignKey(
-        "RecordRuleV4Flow",
-        verbose_name="最近目标 Flow",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
-    )
-    applied_flow = models.ForeignKey(
-        "RecordRuleV4Flow",
-        verbose_name="最近成功下发的 Flow",
+        verbose_name="最近成功生效的解析快照",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -353,12 +336,13 @@ class RecordRuleV4(BaseModelWithTime):
     )
 
     desired_status = models.CharField("期望状态", max_length=32, default=RecordRuleV4DesiredStatus.RUNNING.value)
+    applied_desired_status = models.CharField(
+        "最近成功生效的期望状态", max_length=32, default=RecordRuleV4DesiredStatus.RUNNING.value
+    )
     status = models.CharField("聚合阶段", max_length=32, default=RecordRuleV4Status.CREATED.value)
     conditions = JsonField("当前状态条件", default=dict)
-    update_available = models.BooleanField("是否存在可更新配置", default=False)
 
     auto_refresh = models.BooleanField("是否自动刷新", default=True)
-    last_error = models.TextField("最近错误", blank=True, default="")
     last_check_time = models.DateTimeField("最近检查时间", null=True, blank=True)
     last_refresh_time = models.DateTimeField("最近刷新时间", null=True, blank=True)
     deleted_at = models.DateTimeField("删除完成时间", null=True, blank=True)
@@ -420,6 +404,61 @@ class RecordRuleV4(BaseModelWithTime):
         hint_slug = _safe_component(flow_hint, hint_length, "flow")
         return f"rrv4_{group_slug}_{hint_slug}_{suffix}"[:max_length].rstrip("_")
 
+    @classmethod
+    def compose_group_flow_name(cls, group_name: str, table_id: str) -> str:
+        """根据已生成的 table_id 派生稳定 Flow 名称。
+
+        table_id 在 group 创建时已经带随机段；Flow 名称复用这个随机段，
+        因此同一个 group 后续更新 spec / resolved 时不会改名。
+        """
+
+        return cls.compose_flow_name(
+            group_name,
+            "group",
+            random_suffix=_extract_random_suffix_from_table(table_id),
+        )
+
+    def get_latest_resolved(self) -> RecordRuleV4Resolved | None:
+        """返回当前 spec 最近一次解析结果。
+
+        latest resolved 属于 spec 维度的解析状态，不再冗余刷新到 group 主表。
+        group 主表只保存 applied_resolved，用于表达“哪份配置已生效”。
+        """
+
+        current_spec = self.current_spec
+        if current_spec is None:
+            return None
+        return current_spec.latest_resolved
+
+    @property
+    def is_resolve_pending(self) -> bool:
+        """当前 spec 尚未产生 latest resolved 时，配置仍处于解析等待态。"""
+
+        current_spec = self.current_spec
+        return bool(current_spec and current_spec.latest_resolved_id is None)
+
+    def get_latest_flow(self) -> RecordRuleV4Flow | None:
+        """返回当前 spec latest resolved 对应的目标 Flow 快照。"""
+
+        latest_resolved = self.get_latest_resolved()
+        if not latest_resolved:
+            return None
+        try:
+            return latest_resolved.flow
+        except RecordRuleV4Flow.DoesNotExist:
+            return None
+
+    def get_applied_flow(self) -> RecordRuleV4Flow | None:
+        """返回当前已生效 resolved 对应的 Flow 快照。"""
+
+        applied_resolved = self.applied_resolved
+        if applied_resolved is None:
+            return None
+        try:
+            return applied_resolved.flow
+        except RecordRuleV4Flow.DoesNotExist:
+            return None
+
     def get_condition(self, condition_type: str) -> dict[str, Any]:
         """按 condition type 获取当前状态。
 
@@ -471,14 +510,20 @@ class RecordRuleV4(BaseModelWithTime):
             self.status = RecordRuleV4Status.FAILED.value
             return
 
-        # generation 表达用户声明变更，observed_generation 表达成功下发到外部的版本。
-        if self.generation > self.observed_generation:
+        # spec 已切换但还没有解析结果时，用户看到的是“正在等待解析/下发”。
+        if self.is_resolve_pending:
             self.status = RecordRuleV4Status.PENDING.value
             return
 
         # resolved 漂移但未下发时，用 auto_refresh 区分“待自动执行”和“需要人工更新”。
-        if self.update_available:
+        latest_resolved = self.get_latest_resolved()
+        if latest_resolved and latest_resolved.pk != self.applied_resolved_id:
             self.status = RecordRuleV4Status.PENDING.value if self.auto_refresh else RecordRuleV4Status.OUTDATED.value
+            return
+
+        # 启停不推进 generation；单独比较 desired/applied desired 表达运行态是否已经生效。
+        if self.desired_status != self.applied_desired_status:
+            self.status = RecordRuleV4Status.PENDING.value
             return
 
         if self.desired_status == RecordRuleV4DesiredStatus.STOPPED.value:
@@ -492,18 +537,11 @@ class RecordRuleV4(BaseModelWithTime):
 
         self.current_spec = spec
         self.generation = spec.generation
-        if spec.desired_status == RecordRuleV4DesiredStatus.DELETED.value:
-            # running/stopped 是运行态，不走 use_spec；只有 deleted 会进入声明快照。
-            self.desired_status = spec.desired_status
-        self.update_available = True
-        self.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_TRUE, "SpecChanged")
         self.sync_phase()
         self.save(
             update_fields=[
                 "current_spec",
                 "generation",
-                "desired_status",
-                "update_available",
                 "conditions",
                 "status",
                 "updated_at",
@@ -511,61 +549,40 @@ class RecordRuleV4(BaseModelWithTime):
         )
 
     def use_resolved(self, resolved: RecordRuleV4Resolved) -> None:
-        """切换最近解析快照，并根据 applied 指针标记是否可更新。"""
+        """把解析结果挂到其 spec，并据此更新 group 的可更新状态。"""
 
-        self.latest_resolved = resolved
-        self.last_error = ""
+        resolved.spec.latest_resolved = resolved
+        resolved.spec.save(update_fields=["latest_resolved", "updated_at"])
+        if self.current_spec_id == resolved.spec_id and self.current_spec:
+            self.current_spec.latest_resolved = resolved
+            self.current_spec.latest_resolved_id = resolved.pk
         self.last_check_time = now()
-        self.update_available = self.applied_flow_id is None or (
-            self.applied_flow is not None and self.applied_flow.resolved_id != resolved.pk
-        )
         self.set_condition(CONDITION_RESOLVED, CONDITION_TRUE, "Changed")
-        self.set_condition(
-            CONDITION_UPDATE_AVAILABLE,
-            CONDITION_TRUE if self.update_available else CONDITION_FALSE,
-            "ResolvedChanged" if self.update_available else "ResolvedApplied",
-        )
         self.sync_phase()
         self.save(
             update_fields=[
-                "latest_resolved",
-                "last_error",
                 "last_check_time",
-                "update_available",
                 "conditions",
                 "status",
                 "updated_at",
             ]
         )
 
-    def use_flow(self, flow: RecordRuleV4Flow) -> None:
-        """切换最近目标 Flow，并根据 applied 指针标记是否需要下发。"""
+    def mark_flow_ready(self, flow: RecordRuleV4Flow) -> None:
+        """标记当前 latest resolved 已经生成目标 Flow。
 
-        self.latest_flow = flow
-        self.update_available = self.applied_flow_id is None or (
-            self.applied_flow is not None and self.applied_flow.resolved_id != flow.resolved_id
-        )
+        Flow 不是 group 主表事实源；这里仅更新 condition，方便用户知道
+        resolved 已经具备可下发的目标配置。
+        """
+
         self.set_condition(CONDITION_FLOW_READY, CONDITION_TRUE, "Prepared")
-        self.set_condition(
-            CONDITION_UPDATE_AVAILABLE,
-            CONDITION_TRUE if self.update_available else CONDITION_FALSE,
-            "FlowChanged" if self.update_available else "FlowApplied",
-        )
         self.sync_phase()
-        self.save(
-            update_fields=[
-                "latest_flow",
-                "update_available",
-                "conditions",
-                "status",
-                "updated_at",
-            ]
-        )
+        self.save(update_fields=["conditions", "status", "updated_at"])
 
     def set_desired_status(self, desired_status: str) -> None:
         """更新 group 运行态期望状态。
 
-        running/stopped 不生成 spec；deleted 会由 use_spec 统一处理。
+        running/stopped/deleted 都不生成 spec；配置定义和运行状态保持隔离。
         """
 
         self.validate_desired_status(desired_status)
@@ -576,33 +593,44 @@ class RecordRuleV4(BaseModelWithTime):
         self.save(update_fields=["desired_status", "deleted_at", "status", "updated_at"])
 
     def mark_flow_applied(self, flow: RecordRuleV4Flow) -> None:
-        """标记目标 Flow 已成功下发。"""
+        """标记目标 Flow 对应的 resolved 和运行态都已成功生效。"""
 
-        self.applied_flow = flow
-        self.observed_generation = flow.resolved.generation
+        self.applied_resolved = flow.resolved
+        self.applied_desired_status = self.desired_status
         self.last_refresh_time = now()
-        self.last_error = ""
-        self.update_available = False
         self.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "ApplySucceeded")
-        self.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_FALSE, "FlowApplied")
         self.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_UNKNOWN, "ApplySubmitted")
         self.sync_phase()
         self.save()
 
     def mark_delete_applied(self) -> None:
-        """标记外部 Flow 已删除，清空当前期望的外部 Flow 指针。"""
+        """标记外部 Flow 已删除，并清空当前生效配置。"""
 
-        self.applied_flow = None
-        self.latest_flow = None
-        self.observed_generation = self.generation
+        self.applied_resolved = None
+        self.applied_desired_status = RecordRuleV4DesiredStatus.DELETED.value
         self.deleted_at = now()
         self.last_refresh_time = now()
-        self.last_error = ""
-        self.update_available = False
         self.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "DeleteSucceeded")
-        self.set_condition(CONDITION_UPDATE_AVAILABLE, CONDITION_FALSE, "FlowDeleted")
         self.sync_phase()
         self.save()
+
+    def mark_desired_status_applied(self, desired_status: str) -> None:
+        """标记 running/stopped 运行态已经成功下发。"""
+
+        self.applied_desired_status = desired_status
+        self.last_refresh_time = now()
+        self.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "DesiredStatusApplied")
+        self.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_UNKNOWN, "ApplySubmitted")
+        self.sync_phase()
+        self.save(
+            update_fields=[
+                "applied_desired_status",
+                "last_refresh_time",
+                "conditions",
+                "status",
+                "updated_at",
+            ]
+        )
 
     def acquire_operation_lock(
         self, owner: str, reason: str, ttl_seconds: int = DEFAULT_OPERATION_LOCK_TTL_SECONDS
@@ -672,19 +700,18 @@ class RecordRuleV4(BaseModelWithTime):
             "space_type": self.space_type,
             "space_id": self.space_id,
             "group_name": self.group_name,
+            "flow_name": self.flow_name,
             "table_id": self.table_id,
             "dst_vm_table_id": self.dst_vm_table_id,
             "dst_vm_storage_name": self.dst_vm_storage_name,
             "generation": self.generation,
-            "observed_generation": self.observed_generation,
             "current_spec_id": self.current_spec_id,
-            "latest_resolved_id": self.latest_resolved_id,
-            "latest_flow_id": self.latest_flow_id,
-            "applied_flow_id": self.applied_flow_id,
+            "latest_resolved_id": self.current_spec.latest_resolved_id if self.current_spec else None,
+            "applied_resolved_id": self.applied_resolved_id,
             "desired_status": self.desired_status,
+            "applied_desired_status": self.applied_desired_status,
             "status": self.status,
             "conditions": self.conditions,
-            "update_available": self.update_available,
             "auto_refresh": self.auto_refresh,
         }
 
@@ -709,18 +736,28 @@ class RecordRuleV4Spec(BaseModelWithTime):
 
     if TYPE_CHECKING:
         rule_id: int
+        latest_resolved: RecordRuleV4Resolved | None
+        latest_resolved_id: int | None
         records: models.QuerySet[RecordRuleV4SpecRecord]
         resolved: models.QuerySet[RecordRuleV4Resolved]
 
     rule = models.ForeignKey(RecordRuleV4, verbose_name="预计算规则组", related_name="specs", on_delete=models.CASCADE)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     generation = models.IntegerField("用户声明版本")
     raw_config = JsonField("用户原始完整配置", default=dict)
     interval = models.CharField("计算周期", max_length=16, default="1min")
     labels = JsonField("组级附加标签", default=list)
-    desired_status = models.CharField("期望状态", max_length=32, default=RecordRuleV4DesiredStatus.RUNNING.value)
     content_hash = models.CharField("配置内容指纹", max_length=64)
     source = models.CharField("来源", max_length=32, default="user")
     operator = models.CharField("操作人", max_length=128, blank=True, default="")
+    latest_resolved = models.ForeignKey(  # pyright: ignore[reportAssignmentType]
+        "RecordRuleV4Resolved",
+        verbose_name="最近解析快照",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     class Meta:
         verbose_name = "V4 预计算用户声明快照"
@@ -746,6 +783,7 @@ class RecordRuleV4SpecRecord(BaseModelWithTime):
     spec = models.ForeignKey(
         RecordRuleV4Spec, verbose_name="用户声明快照", related_name="records", on_delete=models.CASCADE
     )
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     record_key = models.CharField("内部稳定记录ID", max_length=64)
     content_hash = models.CharField("记录内容指纹", max_length=64)
     source_index = models.IntegerField("原始顺序", default=0)
@@ -781,17 +819,20 @@ class RecordRuleV4Resolved(BaseModelWithTime):
     """
 
     if TYPE_CHECKING:
+        rule: RecordRuleV4
         rule_id: int
+        spec: RecordRuleV4Spec
         spec_id: int
         records: models.QuerySet[RecordRuleV4ResolvedRecord]
-        flows: models.QuerySet[RecordRuleV4Flow]
+        flow: RecordRuleV4Flow
 
-    rule = models.ForeignKey(
+    rule = models.ForeignKey(  # pyright: ignore[reportAssignmentType]
         RecordRuleV4, verbose_name="预计算规则组", related_name="resolved", on_delete=models.CASCADE
     )
-    spec = models.ForeignKey(
+    spec = models.ForeignKey(  # pyright: ignore[reportAssignmentType]
         RecordRuleV4Spec, verbose_name="用户声明快照", related_name="resolved", on_delete=models.CASCADE
     )
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     generation = models.IntegerField("用户声明版本")
     resolve_version = models.IntegerField("同声明下解析版本")
     resolved_config = JsonField("解析完整配置", default=dict)
@@ -824,6 +865,7 @@ class RecordRuleV4ResolvedRecord(BaseModelWithTime):
     spec_record = models.ForeignKey(
         RecordRuleV4SpecRecord, verbose_name="用户声明记录", related_name="resolved_records", on_delete=models.CASCADE
     )
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     record_key = models.CharField("内部稳定记录ID", max_length=64)
     content_hash = models.CharField("解析记录内容指纹", max_length=64)
 
@@ -843,46 +885,44 @@ class RecordRuleV4Flow(BaseModelWithTime):
     """某份 resolved 下的目标 Flow 实体。"""
 
     if TYPE_CHECKING:
+        rule: RecordRuleV4
         rule_id: int
+        resolved: RecordRuleV4Resolved
         resolved_id: int
 
-    rule = models.ForeignKey(RecordRuleV4, verbose_name="预计算规则组", related_name="flows", on_delete=models.CASCADE)
-    resolved = models.ForeignKey(
-        RecordRuleV4Resolved, verbose_name="解析快照", related_name="flows", on_delete=models.CASCADE
+    rule = models.ForeignKey(  # pyright: ignore[reportAssignmentType]
+        RecordRuleV4, verbose_name="预计算规则组", related_name="flows", on_delete=models.CASCADE
     )
-    flow_key = models.CharField("Flow 稳定ID", max_length=64)
+    resolved = models.OneToOneField(  # pyright: ignore[reportAssignmentType]
+        RecordRuleV4Resolved, verbose_name="解析快照", related_name="flow", on_delete=models.CASCADE
+    )
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     flow_name = models.CharField("V4 Flow 名称", max_length=128)
     flow_config = JsonField("V4 Flow 配置", default=dict)
     content_hash = models.CharField("Flow 内容指纹", max_length=64)
-    desired_status = models.CharField("期望状态", max_length=32, default=RecordRuleV4DesiredStatus.RUNNING.value)
     flow_status = models.CharField("Flow 实际状态", max_length=32, blank=True, default="")
     last_observed_at = models.DateTimeField("最近观测时间", null=True, blank=True)
 
     class Meta:
         verbose_name = "V4 预计算 Flow"
         verbose_name_plural = "V4 预计算 Flow"
-        unique_together = (("resolved", "flow_key"),)
         ordering = ("id",)
 
     @classmethod
     def compose_for_resolved(cls, *, rule: RecordRuleV4, resolved: RecordRuleV4Resolved) -> dict[str, Any]:
         """把 resolved 快照展开成单个 group Flow 的持久化字段。"""
 
-        flow_key = "group"
-        suffix = _extract_random_suffix_from_table(rule.table_id)
-        flow_name = RecordRuleV4.compose_flow_name(rule.group_name, "group", random_suffix=suffix)
+        flow_name = rule.flow_name
         records = resolved.get_records()
         flow_config = cls.compose_flow_config(rule=rule, flow_name=flow_name, records=records)
         content_hash = stable_hash(
             {
-                "flow_key": flow_key,
                 "flow_name": flow_name,
                 "resolved_hash": resolved.content_hash,
                 "flow_config": cls.strip_runtime_status(flow_config),
             }
         )
         return {
-            "flow_key": flow_key,
             "flow_name": flow_name,
             "flow_config": flow_config,
             "content_hash": content_hash,
@@ -1003,6 +1043,7 @@ class RecordRuleV4Event(BaseModelWithTime):
         flow_id: int | None
 
     rule = models.ForeignKey(RecordRuleV4, verbose_name="预计算规则组", related_name="events", on_delete=models.CASCADE)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     spec = models.ForeignKey(
         RecordRuleV4Spec, verbose_name="用户声明快照", null=True, blank=True, on_delete=models.SET_NULL
     )
@@ -1174,7 +1215,7 @@ class RecordRuleV4Event(BaseModelWithTime):
         return cls.record(
             rule=rule,
             spec=flow.resolved.spec if flow else rule.current_spec,
-            resolved=flow.resolved if flow else rule.latest_resolved,
+            resolved=flow.resolved if flow else rule.get_latest_resolved(),
             flow=flow,
             event_type=EVENT_TYPE_APPLY_STARTED,
             status=EVENT_STATUS_STARTED,
@@ -1189,7 +1230,7 @@ class RecordRuleV4Event(BaseModelWithTime):
         return cls.record(
             rule=rule,
             spec=flow.resolved.spec if flow else rule.current_spec,
-            resolved=flow.resolved if flow else rule.latest_resolved,
+            resolved=flow.resolved if flow else rule.get_latest_resolved(),
             flow=flow,
             event_type=EVENT_TYPE_APPLY_SUCCEEDED,
             status=EVENT_STATUS_SUCCEEDED,
@@ -1210,7 +1251,7 @@ class RecordRuleV4Event(BaseModelWithTime):
         return cls.record(
             rule=rule,
             spec=flow.resolved.spec if flow else rule.current_spec,
-            resolved=flow.resolved if flow else rule.latest_resolved,
+            resolved=flow.resolved if flow else rule.get_latest_resolved(),
             flow=flow,
             event_type=EVENT_TYPE_APPLY_FAILED,
             status=EVENT_STATUS_FAILED,
@@ -1248,7 +1289,7 @@ class RecordRuleV4Event(BaseModelWithTime):
             reason=EVENT_REASON_STALE_FLOW,
             detail={
                 "flow_id": flow.pk,
-                "latest_flow_id": rule.latest_flow_id,
+                "latest_resolved_id": rule.current_spec.latest_resolved_id if rule.current_spec else None,
                 "current_generation": rule.generation,
                 "flow_generation": flow.resolved.generation,
             },
@@ -1306,8 +1347,8 @@ class RecordRuleV4Event(BaseModelWithTime):
 
         return {
             "action_type": action_type,
-            "flow_key": flow.flow_key,
             "flow_id": flow.pk,
+            "flow_name": flow.flow_name,
             "flow_content_hash": flow.content_hash,
         }
 
@@ -1378,6 +1419,7 @@ class RecordRuleV4Event(BaseModelWithTime):
         )
         return cls.objects.create(
             rule=rule,
+            bk_tenant_id=rule.bk_tenant_id,
             spec=spec,
             resolved=resolved,
             flow=flow,

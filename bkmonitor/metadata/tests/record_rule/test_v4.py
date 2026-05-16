@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from datetime import timedelta
+from uuid import uuid4
 
 import pytest
 from django.utils import timezone
@@ -19,7 +20,6 @@ from metadata.models.record_rule.v4 import (
     CONDITION_FLOW_HEALTHY,
     CONDITION_RECONCILED,
     CONDITION_TRUE,
-    CONDITION_UPDATE_AVAILABLE,
     EVENT_REASON_APPLY_FAILED,
     EVENT_TYPE_APPLY_FAILED,
     EVENT_TYPE_FLOW_ACTION_FAILED,
@@ -36,13 +36,15 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 def create_rule(**overrides) -> RecordRuleV4:
+    suffix = overrides.pop("suffix", uuid4().hex[:8])
     defaults = {
-        "bk_tenant_id": "system",
+        "bk_tenant_id": "tenant_v4_unit",
         "space_type": "bkcc",
         "space_id": "2",
         "group_name": "cpu-group",
-        "table_id": "bkprecal_cpu_group_abcd1234.__default__",
-        "dst_vm_table_id": "vm_bkprecal_cpu_group_abcd1234",
+        "flow_name": f"rrv4_cpu_group_group_{suffix}",
+        "table_id": f"bkprecal_cpu_group_{suffix}.__default__",
+        "dst_vm_table_id": f"vm_bkprecal_cpu_group_{suffix}",
         "dst_vm_storage_name": "monitor-opsystem",
         "creator": "pytest",
         "updater": "pytest",
@@ -54,17 +56,16 @@ def create_rule(**overrides) -> RecordRuleV4:
 def create_spec(rule: RecordRuleV4, **overrides) -> RecordRuleV4Spec:
     defaults = {
         "rule": rule,
+        "bk_tenant_id": rule.bk_tenant_id,
         "generation": rule.generation + 1,
         "raw_config": {"records": []},
         "interval": "1min",
         "labels": [],
-        "desired_status": RecordRuleV4DesiredStatus.RUNNING.value,
         "content_hash": stable_hash(
             {
                 "records": [],
                 "interval": "1min",
                 "labels": [],
-                "desired_status": RecordRuleV4DesiredStatus.RUNNING.value,
             }
         ),
         "source": "pytest",
@@ -80,6 +81,7 @@ def create_resolved(rule: RecordRuleV4, spec: RecordRuleV4Spec, **overrides) -> 
     defaults = {
         "rule": rule,
         "spec": spec,
+        "bk_tenant_id": rule.bk_tenant_id,
         "generation": spec.generation,
         "resolve_version": 1,
         "resolved_config": {"records": []},
@@ -96,11 +98,10 @@ def create_flow(rule: RecordRuleV4, resolved: RecordRuleV4Resolved, **overrides)
     defaults = {
         "rule": rule,
         "resolved": resolved,
-        "flow_key": "group",
-        "flow_name": "rrv4_cpu_group_group_abcd1234",
+        "bk_tenant_id": rule.bk_tenant_id,
+        "flow_name": rule.flow_name,
         "flow_config": {"kind": "Flow"},
         "content_hash": "flow-hash",
-        "desired_status": RecordRuleV4DesiredStatus.RUNNING.value,
         "creator": "pytest",
         "updater": "pytest",
     }
@@ -126,14 +127,20 @@ def test_compose_names_keep_hint_random_suffix_and_short_length():
         flow_hint="record:cpu-total",
         random_suffix="abcdef12",
     )
+    group_flow_name = RecordRuleV4.compose_group_flow_name(
+        group_name="cpu-usage.with/slashes-and-very-long-name",
+        table_id=table_id,
+    )
 
     assert len(table_id) <= 50
     assert len(result_table_config_name) <= 40
     assert len(flow_name) <= 50
+    assert len(group_flow_name) <= 50
     assert table_id.startswith("bkprecal_cpu_usage")
     assert table_id.endswith("_abcdef12.__default__")
     assert result_table_config_name.startswith("bkm_bkprecal_cpu_usage")
     assert "abcdef12" in flow_name
+    assert "abcdef12" in group_flow_name
 
 
 def test_conditions_are_updated_by_type_instead_of_accumulated():
@@ -148,37 +155,52 @@ def test_conditions_are_updated_by_type_instead_of_accumulated():
 
 
 def test_sync_phase_distinguishes_main_states():
-    rule = create_rule(generation=2, observed_generation=1)
+    pending_rule = create_rule()
+    pending_rule.use_spec(create_spec(pending_rule))
+    pending_rule.refresh_from_db()
+    pending_rule.sync_phase()
+    assert pending_rule.status == RecordRuleV4Status.PENDING.value
 
-    rule.sync_phase()
-    assert rule.status == RecordRuleV4Status.PENDING.value
+    outdated_rule = create_rule(auto_refresh=False)
+    spec = create_spec(outdated_rule)
+    resolved = create_resolved(outdated_rule, spec)
+    outdated_rule.use_spec(spec)
+    outdated_rule.use_resolved(resolved)
+    outdated_rule.refresh_from_db()
+    outdated_rule.sync_phase()
+    assert outdated_rule.status == RecordRuleV4Status.OUTDATED.value
 
-    rule.observed_generation = 2
-    rule.update_available = True
-    rule.auto_refresh = False
-    rule.sync_phase()
-    assert rule.status == RecordRuleV4Status.OUTDATED.value
+    outdated_rule.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_FALSE, "not_found")
+    outdated_rule.sync_phase()
+    assert outdated_rule.status == RecordRuleV4Status.FAILED.value
 
-    rule.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_FALSE, "not_found")
-    rule.sync_phase()
-    assert rule.status == RecordRuleV4Status.FAILED.value
+    stopped_rule = create_rule()
+    spec = create_spec(stopped_rule)
+    resolved = create_resolved(stopped_rule, spec)
+    flow = create_flow(stopped_rule, resolved)
+    stopped_rule.use_spec(spec)
+    stopped_rule.use_resolved(resolved)
+    stopped_rule.mark_flow_applied(flow)
+    stopped_rule.desired_status = RecordRuleV4DesiredStatus.STOPPED.value
+    stopped_rule.applied_desired_status = RecordRuleV4DesiredStatus.RUNNING.value
+    stopped_rule.sync_phase()
+    assert stopped_rule.status == RecordRuleV4Status.PENDING.value
 
-    rule.conditions = {}
-    rule.update_available = False
-    rule.desired_status = RecordRuleV4DesiredStatus.STOPPED.value
-    rule.sync_phase()
-    assert rule.status == RecordRuleV4Status.STOPPED.value
+    stopped_rule.applied_desired_status = RecordRuleV4DesiredStatus.STOPPED.value
+    stopped_rule.desired_status = RecordRuleV4DesiredStatus.STOPPED.value
+    stopped_rule.sync_phase()
+    assert stopped_rule.status == RecordRuleV4Status.STOPPED.value
 
-    rule.desired_status = RecordRuleV4DesiredStatus.DELETED.value
-    rule.sync_phase()
-    assert rule.status == RecordRuleV4Status.DELETING.value
+    deleted_rule = create_rule(desired_status=RecordRuleV4DesiredStatus.DELETED.value)
+    deleted_rule.sync_phase()
+    assert deleted_rule.status == RecordRuleV4Status.DELETING.value
 
-    rule.deleted_at = timezone.now()
-    rule.sync_phase()
-    assert rule.status == RecordRuleV4Status.DELETED.value
+    deleted_rule.deleted_at = timezone.now()
+    deleted_rule.sync_phase()
+    assert deleted_rule.status == RecordRuleV4Status.DELETED.value
 
 
-def test_use_spec_resolved_flow_updates_group_pointers_and_update_flag():
+def test_use_spec_resolved_flow_tracks_latest_on_spec_and_applied_on_group():
     rule = create_rule()
     spec = create_spec(rule)
     resolved = create_resolved(rule, spec)
@@ -186,39 +208,39 @@ def test_use_spec_resolved_flow_updates_group_pointers_and_update_flag():
 
     rule.use_spec(spec)
     rule.use_resolved(resolved)
-    rule.use_flow(flow)
+    rule.mark_flow_ready(flow)
 
     rule.refresh_from_db()
+    spec.refresh_from_db()
     assert rule.current_spec_id == spec.pk
-    assert rule.latest_resolved_id == resolved.pk
-    assert rule.latest_flow_id == flow.pk
-    assert rule.update_available is True
-    assert rule.get_condition(CONDITION_UPDATE_AVAILABLE)["status"] == CONDITION_TRUE
+    assert spec.latest_resolved_id == resolved.pk
+    assert rule.get_latest_flow().pk == flow.pk
+    assert spec.latest_resolved_id != rule.applied_resolved_id
+    assert spec.bk_tenant_id == rule.bk_tenant_id
+    assert resolved.bk_tenant_id == rule.bk_tenant_id
+    assert flow.bk_tenant_id == rule.bk_tenant_id
 
     rule.mark_flow_applied(flow)
     rule.refresh_from_db()
-    assert rule.applied_flow_id == flow.pk
-    assert rule.observed_generation == resolved.generation
-    assert rule.update_available is False
+    assert rule.applied_resolved_id == resolved.pk
+    assert rule.applied_desired_status == RecordRuleV4DesiredStatus.RUNNING.value
+    assert rule.current_spec.latest_resolved_id == rule.applied_resolved_id
     assert rule.status == RecordRuleV4Status.RUNNING.value
 
 
-def test_mark_delete_applied_clears_flow_pointers():
+def test_mark_delete_applied_clears_effective_resolved():
     rule = create_rule(desired_status=RecordRuleV4DesiredStatus.DELETED.value, generation=2)
-    spec = create_spec(rule, generation=2, desired_status=RecordRuleV4DesiredStatus.DELETED.value)
+    spec = create_spec(rule, generation=2)
     resolved = create_resolved(rule, spec)
-    flow = create_flow(rule, resolved)
-    rule.latest_flow = flow
-    rule.applied_flow = flow
+    rule.applied_resolved = resolved
     rule.save()
 
     rule.mark_delete_applied()
 
     rule.refresh_from_db()
-    assert rule.latest_flow_id is None
-    assert rule.applied_flow_id is None
+    assert rule.applied_resolved_id is None
+    assert rule.applied_desired_status == RecordRuleV4DesiredStatus.DELETED.value
     assert rule.deleted_at is not None
-    assert rule.update_available is False
     assert rule.status == RecordRuleV4Status.DELETED.value
 
 
@@ -254,6 +276,7 @@ def test_event_methods_persist_structured_context_and_validate_payload():
     assert event.spec_id == spec.pk
     assert event.resolved_id == resolved.pk
     assert event.flow_id == flow.pk
+    assert event.bk_tenant_id == rule.bk_tenant_id
     assert event.message == "bkbase unavailable"
 
     with pytest.raises(ValueError):

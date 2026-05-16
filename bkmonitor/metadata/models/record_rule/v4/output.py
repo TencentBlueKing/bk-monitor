@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.record_rule.constants import RECORD_RULE_V4_BKMONITOR_NAMESPACE
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 if TYPE_CHECKING:
     from metadata.models.record_rule.v4.models import RecordRuleV4, RecordRuleV4Spec
@@ -28,15 +29,21 @@ class RecordRuleV4OutputResources:
     """
 
     @classmethod
-    def ensure_group_output(cls, rule: RecordRuleV4) -> None:
-        """创建 group 输出 RT、ResultTableConfig 及对应 VM 写入映射。"""
+    def ensure_group_output(cls, rule: RecordRuleV4) -> bool:
+        """创建 group 输出 RT、ResultTableConfig、RT option 及对应 VM 写入映射。
 
-        cls.ensure_result_table(rule)
+        返回值表示输出 ResultTable 是否首次创建，用于调用方决定是否刷新
+        space -> table_id 路由。
+        """
+
+        result_table_created = cls.ensure_result_table(rule)
+        cls.ensure_result_table_options(rule)
         cls.ensure_result_table_config(rule)
         vm_storage_name = cls.ensure_vm_record(rule)
         if rule.dst_vm_storage_name != vm_storage_name:
             rule.dst_vm_storage_name = vm_storage_name
             rule.save(update_fields=["dst_vm_storage_name", "updated_at"])
+        return result_table_created
 
     @staticmethod
     def compose_result_table_config_name(table_id: str) -> str:
@@ -52,13 +59,13 @@ class RecordRuleV4OutputResources:
         return f"{data_link_biz_ids.data_biz_id}_{result_table_config_name}"
 
     @staticmethod
-    def ensure_result_table(rule: RecordRuleV4) -> None:
+    def ensure_result_table(rule: RecordRuleV4) -> bool:
         """创建输出 ResultTable，供后续 Flow output 引用。"""
 
         from metadata import models as metadata_models
 
         biz_id = metadata_models.Space.objects.get_biz_id_by_space(rule.space_type, rule.space_id)
-        metadata_models.ResultTable.objects.get_or_create(
+        _, created = metadata_models.ResultTable.objects.get_or_create(
             bk_tenant_id=rule.bk_tenant_id,
             table_id=rule.table_id,
             defaults={
@@ -69,6 +76,30 @@ class RecordRuleV4OutputResources:
                 "bk_biz_id": biz_id,
             },
         )
+        return created
+
+    @staticmethod
+    def ensure_result_table_options(rule: RecordRuleV4) -> None:
+        """补齐输出 RT 查询依赖的固定 option。"""
+
+        from metadata import models as metadata_models
+
+        option_data = {
+            metadata_models.ResultTableOption.OPTION_IS_SPLIT_MEASUREMENT: True,
+            metadata_models.ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST: False,
+        }
+        for name, value in option_data.items():
+            option_value, value_type = metadata_models.ResultTableOption._parse_value(value)
+            metadata_models.ResultTableOption.objects.update_or_create(
+                bk_tenant_id=rule.bk_tenant_id,
+                table_id=rule.table_id,
+                name=name,
+                defaults={
+                    "value": option_value,
+                    "value_type": value_type,
+                    "creator": "system",
+                },
+            )
 
     @staticmethod
     def ensure_result_table_config(rule: RecordRuleV4) -> None:
@@ -113,13 +144,17 @@ class RecordRuleV4OutputResources:
         return str(vm_cluster_info["cluster_name"])
 
     @staticmethod
-    def ensure_metric_fields(rule: RecordRuleV4, metric_names: list[str]) -> None:
-        """补齐输出指标字段；字段删除不在这里处理。"""
+    def ensure_metric_fields(rule: RecordRuleV4, metric_names: list[str]) -> bool:
+        """补齐输出指标字段；字段删除不在这里处理。
+
+        返回值表示是否有新字段被创建。
+        """
 
         from metadata import models as metadata_models
 
+        has_created = False
         for metric_name in metric_names:
-            metadata_models.ResultTableField.objects.get_or_create(
+            _, created = metadata_models.ResultTableField.objects.get_or_create(
                 bk_tenant_id=rule.bk_tenant_id,
                 table_id=rule.table_id,
                 field_name=metric_name,
@@ -130,10 +165,37 @@ class RecordRuleV4OutputResources:
                     "is_config_by_user": True,
                 },
             )
+            has_created = has_created or created
+        return has_created
 
     @classmethod
-    def ensure_spec_metric_fields(cls, rule: RecordRuleV4, spec: RecordRuleV4Spec) -> None:
-        """按 spec records 的 metric_name 补齐输出字段。"""
+    def ensure_spec_metric_fields(cls, rule: RecordRuleV4, spec: RecordRuleV4Spec) -> bool:
+        """按 spec records 的 metric_name 补齐输出字段。
+
+        路由刷新由 operator 在事务外统一触发，避免 Redis 看到未提交数据。
+        """
 
         metric_names = list(spec.records.order_by("source_index", "id").values_list("metric_name", flat=True))
-        cls.ensure_metric_fields(rule, metric_names)
+        return cls.ensure_metric_fields(rule, metric_names)
+
+    @staticmethod
+    def push_output_route(rule: RecordRuleV4) -> None:
+        """首次创建输出表后刷新空间索引和结果表详情。"""
+
+        redis_client = SpaceTableIDRedis()
+        redis_client.push_space_table_ids(space_type=rule.space_type, space_id=rule.space_id, is_publish=True)
+        redis_client.push_table_id_detail(
+            table_id_list=[rule.table_id],
+            is_publish=True,
+            bk_tenant_id=rule.bk_tenant_id,
+        )
+
+    @staticmethod
+    def push_table_id_detail(rule: RecordRuleV4) -> None:
+        """输出指标字段变化后刷新结果表详情。"""
+
+        SpaceTableIDRedis().push_table_id_detail(
+            table_id_list=[rule.table_id],
+            is_publish=True,
+            bk_tenant_id=rule.bk_tenant_id,
+        )

@@ -47,7 +47,6 @@ class RecordRuleV4SpecBuilder:
         records: list[RecordRuleV4RecordInput],
         raw_config: dict[str, Any],
         interval: str,
-        desired_status: str,
         labels: list[dict[str, Any]] | None = None,
     ) -> RecordRuleV4Spec:
         """创建一份新的 spec 快照和对应的 spec records。
@@ -57,7 +56,6 @@ class RecordRuleV4SpecBuilder:
         避免同一层存在两份执行真值源。
         """
 
-        RecordRuleV4.validate_desired_status(desired_status)
         RecordRuleV4.validate_interval(interval)
         group_labels = normalize_labels(labels)
         normalized_records = [self.normalize_record_payload(record) for record in records]
@@ -68,17 +66,16 @@ class RecordRuleV4SpecBuilder:
             "records": [self.record_content_payload(record) for record in normalized_records],
             "interval": interval,
             "labels": group_labels,
-            "desired_status": desired_status,
         }
 
         with transaction.atomic():
             spec = RecordRuleV4Spec.objects.create(
                 rule=self.rule,
+                bk_tenant_id=self.rule.bk_tenant_id,
                 generation=generation,
                 raw_config=copy.deepcopy(raw_config),
                 interval=interval,
                 labels=copy.deepcopy(group_labels),
-                desired_status=desired_status,
                 content_hash=stable_hash(content_payload),
                 source=self.source,
                 operator=self.operator,
@@ -88,6 +85,7 @@ class RecordRuleV4SpecBuilder:
             for source_index, record in enumerate(self.assign_record_keys(normalized_records)):
                 RecordRuleV4SpecRecord.objects.create(
                     spec=spec,
+                    bk_tenant_id=self.rule.bk_tenant_id,
                     source_index=source_index,
                     record_key=record["record_key"],
                     content_hash=record["content_hash"],
@@ -128,8 +126,8 @@ class RecordRuleV4SpecBuilder:
         """
 
         previous_records = []
-        if self.rule.current_spec_id:
-            previous_records = list(self.rule.current_spec.records.all())
+        if current_spec := self.rule.current_spec:
+            previous_records = list(current_spec.records.all())
 
         seen_keys: set[str] = set()
         result: list[dict[str, Any]] = []
