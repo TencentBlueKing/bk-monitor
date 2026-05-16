@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0260_basereportsinkconfig"),
+        ("metadata", "0261_vmshortlinkrecord"),
     ]
 
     operations = [
