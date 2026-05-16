@@ -166,6 +166,7 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "resolved": EVENT_RELATION_OPTIONAL,
         "flow": EVENT_RELATION_OPTIONAL,
         "reasons": {""},
+        "detail_keys": set(),
     },
     EVENT_TYPE_APPLY_SUCCEEDED: {
         "statuses": {EVENT_STATUS_SUCCEEDED},
@@ -173,6 +174,7 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "resolved": EVENT_RELATION_OPTIONAL,
         "flow": EVENT_RELATION_OPTIONAL,
         "reasons": {""},
+        "detail_keys": set(),
     },
     EVENT_TYPE_APPLY_FAILED: {
         "statuses": {EVENT_STATUS_FAILED},
@@ -180,6 +182,7 @@ EVENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "resolved": EVENT_RELATION_OPTIONAL,
         "flow": EVENT_RELATION_OPTIONAL,
         "reasons": {EVENT_REASON_FLOW_MISSING, EVENT_REASON_APPLY_FAILED, EVENT_REASON_STALE_FLOW},
+        "detail_keys": set(),
     },
     EVENT_TYPE_APPLY_SKIPPED: {
         "statuses": {EVENT_STATUS_SKIPPED},
@@ -376,6 +379,10 @@ class RecordRuleV4(BaseModelWithTime):
         verbose_name = "V4 预计算规则组"
         verbose_name_plural = "V4 预计算规则组"
         unique_together = (("bk_tenant_id", "table_id"), ("bk_tenant_id", "dst_vm_table_id"))
+        indexes = [
+            models.Index(fields=["space_type", "space_id", "bk_tenant_id", "deleted_at"], name="rrv4_space_del_idx"),
+            models.Index(fields=["desired_status", "last_check_time"], name="rrv4_refresh_idx"),
+        ]
 
     @property
     def space_uid(self) -> str:
@@ -620,7 +627,16 @@ class RecordRuleV4(BaseModelWithTime):
         self.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "ApplySucceeded")
         self.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_UNKNOWN, "ApplySubmitted")
         self.sync_phase()
-        self.save()
+        self.save(
+            update_fields=[
+                "applied_resolved",
+                "applied_desired_status",
+                "last_refresh_time",
+                "conditions",
+                "status",
+                "updated_at",
+            ]
+        )
 
     def mark_delete_applied(self) -> None:
         """标记外部 Flow 已删除，并清空当前生效配置。"""
@@ -631,7 +647,17 @@ class RecordRuleV4(BaseModelWithTime):
         self.last_refresh_time = now()
         self.set_condition(CONDITION_RECONCILED, CONDITION_TRUE, "DeleteSucceeded")
         self.sync_phase()
-        self.save()
+        self.save(
+            update_fields=[
+                "applied_resolved",
+                "applied_desired_status",
+                "deleted_at",
+                "last_refresh_time",
+                "conditions",
+                "status",
+                "updated_at",
+            ]
+        )
 
     def mark_desired_status_applied(self, desired_status: str) -> None:
         """标记 running/stopped 运行态已经成功下发。"""
@@ -928,6 +954,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
         verbose_name = "V4 预计算 Flow"
         verbose_name_plural = "V4 预计算 Flow"
         ordering = ("id",)
+        indexes = [models.Index(fields=["rule", "content_hash"], name="rrv4flow_rule_hash_idx")]
 
     @classmethod
     def compose_for_resolved(cls, *, rule: RecordRuleV4, resolved: RecordRuleV4Resolved) -> dict[str, Any]:
@@ -1122,7 +1149,10 @@ class RecordRuleV4Event(BaseModelWithTime):
     class Meta:
         verbose_name = "V4 预计算事件"
         verbose_name_plural = "V4 预计算事件"
-        index_together = (("rule", "generation"), ("rule", "event_type"))
+        indexes = [
+            models.Index(fields=["rule", "generation"], name="rrv4event_rule_gen_idx"),
+            models.Index(fields=["rule", "event_type"], name="rrv4event_rule_type_idx"),
+        ]
 
     def clean(self) -> None:
         """保存前统一校验事件类型、状态、关联对象和 detail 字段。"""

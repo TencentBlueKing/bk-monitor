@@ -227,14 +227,12 @@ class RecordRuleV4Resolver:
             params = self.build_check_query_ts_params(
                 cast(RecordRuleV4QueryTsInputConfig, spec_record.input_config or {})
             )
-            params.setdefault("space_uid", self.rule.space_uid)
             result = api.unify_query.check_query_ts(
                 bk_tenant_id=self.rule.bk_tenant_id,
                 **self.clean_check_body_params(params),
             )
         elif spec_record.input_type == RecordRuleV4InputType.PROMQL.value:
             params = self.build_check_promql_params(cast(CheckQueryPromQLInput, spec_record.input_config or {}))
-            params.setdefault("space_uid", self.rule.space_uid)
             result = api.unify_query.check_query_ts_by_promql(
                 bk_tenant_id=self.rule.bk_tenant_id,
                 **self.clean_check_body_params(params),
@@ -268,6 +266,7 @@ class RecordRuleV4Resolver:
             start, end = self.resolve_default_check_time_range_seconds()
             params["start"] = str(start)
             params["end"] = str(end)
+        params.setdefault("space_uid", self.rule.space_uid)
         return params
 
     def build_check_query_ts_params(self, input_config: RecordRuleV4QueryTsInputConfig) -> CheckQueryTsInput:
@@ -462,7 +461,8 @@ class RecordRuleV4Resolver:
 
         from metadata import models as metadata_models
 
-        exclude_table_ids = {self.rule.table_id, self.rule.dst_vm_table_id}
+        rule_table_base = self.rule.table_id.split(".", 1)[0]
+        exclude_table_ids = {self.rule.table_id, rule_table_base, self.rule.dst_vm_table_id}
         vm_records = metadata_models.AccessVMRecord.objects.filter(bk_tenant_id=self.rule.bk_tenant_id).filter(
             models.Q(vm_result_table_id__in=table_ids) | models.Q(result_table_id__in=table_ids)
         )
@@ -474,11 +474,18 @@ class RecordRuleV4Resolver:
         result: list[str] = []
         missing: list[str] = []
         for table_id in table_ids:
+            if table_id in exclude_table_ids:
+                logger.info(
+                    "RecordRuleV4 normalize_src_vm_table_ids: skip self reference table_id->[%s], rule_table_id->[%s]",
+                    table_id,
+                    self.rule.table_id,
+                )
+                continue
             vm_table_id = vm_map.get(table_id)
             if not vm_table_id:
                 missing.append(table_id)
                 continue
-            if table_id in exclude_table_ids or vm_table_id in exclude_table_ids:
+            if vm_table_id in exclude_table_ids:
                 # 解析结果可能因为已有预计算链路而包含自身输出；这里必须跳过，
                 # 否则会生成自引用的 VmSourceNode。
                 logger.info(

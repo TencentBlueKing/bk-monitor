@@ -62,6 +62,13 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "V4 预计算规则组",
                 "verbose_name_plural": "V4 预计算规则组",
+                "indexes": [
+                    models.Index(
+                        fields=["space_type", "space_id", "bk_tenant_id", "deleted_at"],
+                        name="rrv4_space_del_idx",
+                    ),
+                    models.Index(fields=["desired_status", "last_check_time"], name="rrv4_refresh_idx"),
+                ],
                 "unique_together": {("bk_tenant_id", "table_id"), ("bk_tenant_id", "dst_vm_table_id")},
             },
         ),
@@ -268,6 +275,7 @@ class Migration(migrations.Migration):
                 "verbose_name": "V4 预计算 Flow",
                 "verbose_name_plural": "V4 预计算 Flow",
                 "ordering": ("id",),
+                "indexes": [models.Index(fields=["rule", "content_hash"], name="rrv4flow_rule_hash_idx")],
             },
         ),
         migrations.CreateModel(
@@ -333,7 +341,10 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "V4 预计算事件",
                 "verbose_name_plural": "V4 预计算事件",
-                "index_together": {("rule", "generation"), ("rule", "event_type")},
+                "indexes": [
+                    models.Index(fields=["rule", "generation"], name="rrv4event_rule_gen_idx"),
+                    models.Index(fields=["rule", "event_type"], name="rrv4event_rule_type_idx"),
+                ],
             },
         ),
         migrations.AddField(

@@ -222,6 +222,11 @@ class RecordRuleV4Runner:
             RecordRuleV4Event.record_apply_failed_missing_flow(self.rule, source=self.source, operator=self.operator)
             return False
 
+        action_type = self.compose_runtime_action_type(desired_status)
+        RecordRuleV4Event.record_apply_started(self.rule, flow, source=self.source, operator=self.operator)
+        RecordRuleV4Event.record_flow_action_started(
+            self.rule, flow, action_type=action_type, source=self.source, operator=self.operator
+        )
         try:
             flow_config = self.with_desired_status(flow.flow_config, desired_status)
             self.apply_flow(flow_config)
@@ -229,11 +234,37 @@ class RecordRuleV4Runner:
             flow.save(update_fields=["flow_config", "updated_at"])
         except Exception as err:
             self.mark_apply_failed(flow=flow, err=err)
+            RecordRuleV4Event.record_flow_action_result(
+                self.rule,
+                flow,
+                action_type=action_type,
+                succeeded=False,
+                source=self.source,
+                operator=self.operator,
+                message=str(err),
+            )
             logger.exception("RecordRuleV4 apply desired status failed, id: %s", self.rule.pk)
             return False
 
+        RecordRuleV4Event.record_flow_action_result(
+            self.rule,
+            flow,
+            action_type=action_type,
+            succeeded=True,
+            source=self.source,
+            operator=self.operator,
+        )
         self.rule.mark_desired_status_applied(desired_status)
+        RecordRuleV4Event.record_apply_succeeded(self.rule, flow, source=self.source, operator=self.operator)
         return True
+
+    @staticmethod
+    def compose_runtime_action_type(desired_status: str) -> str:
+        """把 running/stopped 运行态映射成事件中的 Flow action 类型。"""
+
+        if desired_status == RecordRuleV4DesiredStatus.STOPPED.value:
+            return RecordRuleV4FlowActionType.STOP.value
+        return RecordRuleV4FlowActionType.START.value
 
     @staticmethod
     def with_desired_status(flow_config: dict[str, Any], desired_status: str) -> dict[str, Any]:

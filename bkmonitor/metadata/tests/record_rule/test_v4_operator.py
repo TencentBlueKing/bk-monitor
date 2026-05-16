@@ -19,6 +19,7 @@ from bkmonitor.utils.tenant import DatalinkBizIds
 from metadata import models
 from metadata.models.record_rule.constants import (
     RECORD_RULE_V4_BKBASE_NAMESPACE,
+    RECORD_RULE_V4_DELETED_RETENTION_DAYS,
     RECORD_RULE_V4_BKMONITOR_NAMESPACE,
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowActionType,
@@ -34,6 +35,10 @@ from metadata.models.record_rule.v4 import (
     EVENT_REASON_OPERATION_LOCKED,
     EVENT_STATUS_SKIPPED,
     EVENT_TYPE_OPERATION_SKIPPED,
+    EVENT_TYPE_APPLY_SUCCEEDED,
+    EVENT_TYPE_APPLY_STARTED,
+    EVENT_TYPE_FLOW_ACTION_STARTED,
+    EVENT_TYPE_FLOW_ACTION_SUCCEEDED,
     RecordRuleV4,
     RecordRuleV4Event,
 )
@@ -461,7 +466,7 @@ def test_space_table_ids_keep_record_rule_v4_until_delete_retention_expires(v4_b
     )
     assert rule.table_id in route_values
 
-    rule.deleted_at = now() - datetime.timedelta(days=179)
+    rule.deleted_at = now() - datetime.timedelta(days=RECORD_RULE_V4_DELETED_RETENTION_DAYS - 1)
     rule.save(update_fields=["deleted_at", "updated_at"])
     route_values = redis_client._compose_record_rule_table_ids(
         space_type=SPACE_TYPE,
@@ -470,7 +475,7 @@ def test_space_table_ids_keep_record_rule_v4_until_delete_retention_expires(v4_b
     )
     assert rule.table_id in route_values
 
-    rule.deleted_at = now() - datetime.timedelta(days=181)
+    rule.deleted_at = now() - datetime.timedelta(days=RECORD_RULE_V4_DELETED_RETENTION_DAYS + 1)
     rule.save(update_fields=["deleted_at", "updated_at"])
     route_values = redis_client._compose_record_rule_table_ids(
         space_type=SPACE_TYPE,
@@ -1023,6 +1028,12 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
     assert rule.status == RecordRuleV4Status.STOPPED.value
     external_api.check_query_ts.assert_not_called()
     external_api.apply_data_link.assert_called_once()
+    assert rule.events.filter(event_type=EVENT_TYPE_APPLY_STARTED, flow=flow).exists()
+    assert rule.events.filter(event_type=EVENT_TYPE_APPLY_SUCCEEDED, flow=flow).exists()
+    action_started = list(rule.events.filter(event_type=EVENT_TYPE_FLOW_ACTION_STARTED, flow=flow))
+    action_succeeded = list(rule.events.filter(event_type=EVENT_TYPE_FLOW_ACTION_SUCCEEDED, flow=flow))
+    assert any(event.detail["action_type"] == RecordRuleV4FlowActionType.STOP.value for event in action_started)
+    assert any(event.detail["action_type"] == RecordRuleV4FlowActionType.STOP.value for event in action_succeeded)
 
 
 def test_stop_without_applied_flow_records_apply_failure(v4_base_data, external_api):
@@ -1236,9 +1247,10 @@ def test_resolve_fails_when_source_vm_cluster_missing(v4_base_data, external_api
 def test_self_referenced_precalculated_vm_table_is_excluded_from_source(v4_base_data, external_api):
     rule = create_rule()
     resolver = RecordRuleV4Resolver(rule, source="manual")
+    rule_table_base = rule.table_id.split(".", 1)[0]
 
     src_vm_table_ids = resolver.normalize_src_vm_table_ids(
-        [SOURCE_TABLE_ID, SOURCE_VM_TABLE_ID, rule.table_id, rule.dst_vm_table_id]
+        [SOURCE_TABLE_ID, SOURCE_VM_TABLE_ID, rule.table_id, rule_table_base, rule.dst_vm_table_id]
     )
 
     assert src_vm_table_ids == [SOURCE_VM_TABLE_ID]

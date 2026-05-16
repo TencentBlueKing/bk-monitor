@@ -22,6 +22,7 @@ from constants.apm import ApmGlobalTablePrefix
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
+from metadata.models.record_rule.constants import RECORD_RULE_V4_DELETED_RETENTION_DAYS
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -1394,7 +1395,7 @@ class SpaceTableIDRedis:
 
         from metadata.models.record_rule.v4 import RecordRuleV4
 
-        queryable_deleted_at = tz_now() - datetime.timedelta(days=180)
+        queryable_deleted_at = tz_now() - datetime.timedelta(days=RECORD_RULE_V4_DELETED_RETENTION_DAYS)
         objs = RecordRuleV4.objects.filter(
             space_type=space_type,
             space_id=space_id,

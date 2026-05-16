@@ -18,6 +18,7 @@ RECORD_RULE_V4_BKBASE_NAMESPACE = "bkbase"
 RECORD_RULE_V4_BKMONITOR_NAMESPACE = "bkmonitor"
 RECORD_RULE_V4_DEFAULT_TENANT = "default"
 RECORD_RULE_V4_DEFAULT_REFRESH_INTERVAL = 3600
+RECORD_RULE_V4_DELETED_RETENTION_DAYS = 180
 RECORD_RULE_V4_INTERVAL_CHOICES = ("1min", "2min", "5min", "10min")
 
 
@@ -66,6 +67,8 @@ class RecordRuleV4FlowActionType(Enum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
+    START = "start"
+    STOP = "stop"
 
 
 class RecordRuleV4FlowStatus(Enum):

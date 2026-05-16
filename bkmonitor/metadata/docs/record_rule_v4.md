@@ -341,7 +341,7 @@ V4 的核心是区分三种配置，避免后续排查时混成一团：
 | 目标 Flow | `RecordRuleV4Spec.latest_resolved.flow` | 当前 spec 最近一次 resolved 生成的目标 Flow |
 | 配置生效 | `RecordRuleV4.applied_resolved` | 哪个 resolved 已成功下发到外部 Flow |
 | 启停生效 | `RecordRuleV4.applied_desired_status` | 最近一次成功下发的 running/stopped/deleted 状态 |
-| 下发过程 | `flow_action.*` event | 本次 apply/delete 动作结果 |
+| 下发过程 | `flow_action.*` event | 本次 create/update/delete/start/stop 动作结果 |
 | 实际状态 | `FlowHealthy` condition / `RecordRuleV4Flow.flow_status` | bkbase Flow 观测结果，简化为 `ok`、`abnormal`、`not_found` |
 | 聚合状态 | `RecordRuleV4.status` | 给列表展示使用的状态，不作为唯一事实源 |
 | 配置差异 | 前端计算 | 对比 `latest_resolved_id` 与 `applied_resolved_id`，不由后端落库或作为字段返回 |
@@ -467,6 +467,7 @@ def refresh_record_rule_v4():
    - 将 desired status 置为 `deleted`。
    - 基于 group 稳定 `flow_name` 执行 delete。
    - Flow 删除成功后清空 `applied_resolved`，设置 `applied_desired_status=deleted`、`deleted_at` 并聚合为 `status=deleted`。
+   - `space_table_ids` 查询路由不会在 `deleted_at` 写入后立即移除；V4 输出表会保留 `RECORD_RULE_V4_DELETED_RETENTION_DAYS` 天历史查询窗口，超过窗口后才从空间路由中排除。
 
 7. flow observe
    - 查询 `applied_resolved.flow` 对应的 bkbase Flow。

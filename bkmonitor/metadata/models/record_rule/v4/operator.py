@@ -23,7 +23,6 @@ from metadata.models.record_rule.constants import (
     RecordRuleV4FlowStatus,
 )
 from metadata.models.record_rule.v4.models import (
-    RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH,
     RECORD_RULE_V4_TABLE_ID_SUFFIX,
     RecordRuleV4,
     RecordRuleV4Event,
@@ -170,7 +169,7 @@ class RecordRuleV4Operator:
         metric_fields_created = False
 
         with transaction.atomic():
-            temp_suffix = uuid4().hex[:RECORD_RULE_V4_NAME_RANDOM_SUFFIX_LENGTH]
+            temp_suffix = uuid4().hex
             rule = RecordRuleV4.objects.create(
                 bk_tenant_id=bk_tenant_id,
                 space_type=space_type,
