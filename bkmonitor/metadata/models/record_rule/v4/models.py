@@ -891,13 +891,11 @@ class RecordRuleV4ResolvedRecord(BaseModelWithTime):
     content_hash = models.CharField("解析记录内容指纹", max_length=64)
     source_index = models.IntegerField("原始顺序", default=0)
 
-    metricql = JsonField("MetricQL列表", default=list)
+    metricql = models.TextField("MetricQL")
     labels = JsonField("合并附加标签", default=list)
     src_vm_table_ids = JsonField("源 VM 结果表列表", default=list)
     src_result_table_configs = JsonField("源结果表配置列表", default=list)
-    route_info = JsonField("路由信息", default=list)
-    vm_cluster_id = models.IntegerField("VM 集群 ID", null=True, blank=True)
-    vm_storage_name = models.CharField("VM 存储名称", max_length=128, blank=True, default="")
+    dst_vm_storage_name = models.CharField("目标 VM 存储名称", max_length=128, blank=True, default="")
 
     class Meta:
         verbose_name = "V4 预计算解析记录"

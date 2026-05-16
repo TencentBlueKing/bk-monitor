@@ -112,21 +112,18 @@ class DeploymentStrategy(ABC):
             )
 
         recording_rule_config: list[dict] = []
-        vm_storage_name = ""
+        dst_vm_storage_name = ""
         for resolved_record in records:
             spec_record = resolved_record.spec_record
-            vm_storage_name = vm_storage_name or resolved_record.vm_storage_name
-            for index, expr in enumerate(resolved_record.metricql):
-                # 单条 record 可能展开成多个 MetricQL，额外产物用递增后缀避免指标名冲突。
-                metric_name = spec_record.metric_name if index == 0 else f"{spec_record.metric_name}_{index + 1}"
-                recording_rule_config.append(
-                    {
-                        "expr": expr,
-                        "interval": resolved_record.resolved.spec.interval,
-                        "metric_name": metric_name,
-                        "labels": resolved_record.labels,
-                    }
-                )
+            dst_vm_storage_name = dst_vm_storage_name or resolved_record.dst_vm_storage_name
+            recording_rule_config.append(
+                {
+                    "expr": resolved_record.metricql,
+                    "interval": resolved_record.resolved.spec.interval,
+                    "metric_name": spec_record.metric_name,
+                    "labels": resolved_record.labels,
+                }
+            )
 
         return {
             "kind": "Flow",
@@ -150,7 +147,7 @@ class DeploymentStrategy(ABC):
                             "kind": "VmStorage",
                             "tenant": RECORD_RULE_V4_DEFAULT_TENANT,
                             "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-                            "name": vm_storage_name,
+                            "name": dst_vm_storage_name,
                         },
                     },
                 ],

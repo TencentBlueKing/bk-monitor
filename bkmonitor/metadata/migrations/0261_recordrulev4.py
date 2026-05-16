@@ -173,7 +173,7 @@ class Migration(migrations.Migration):
                 ("record_key", models.CharField(max_length=64, verbose_name="内部稳定记录ID")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="解析记录内容指纹")),
                 ("source_index", models.IntegerField(default=0, verbose_name="原始顺序")),
-                ("metricql", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="MetricQL列表")),
+                ("metricql", models.TextField(verbose_name="MetricQL")),
                 ("labels", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="合并附加标签")),
                 (
                     "src_vm_table_ids",
@@ -183,11 +183,9 @@ class Migration(migrations.Migration):
                     "src_result_table_configs",
                     bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="源结果表配置列表"),
                 ),
-                ("route_info", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="路由信息")),
-                ("vm_cluster_id", models.IntegerField(blank=True, null=True, verbose_name="VM 集群 ID")),
                 (
-                    "vm_storage_name",
-                    models.CharField(blank=True, default="", max_length=128, verbose_name="VM 存储名称"),
+                    "dst_vm_storage_name",
+                    models.CharField(blank=True, default="", max_length=128, verbose_name="目标 VM 存储名称"),
                 ),
                 (
                     "resolved",

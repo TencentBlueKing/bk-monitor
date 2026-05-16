@@ -139,8 +139,8 @@ def create_flow(rule: RecordRuleV4, resolved: RecordRuleV4Resolved, **overrides)
 
 
 def test_stable_hash_is_independent_from_dict_key_order():
-    left = {"records": [{"metricql": ["a"], "route_info": [{"table_id": "system.cpu"}]}]}
-    right = {"records": [{"route_info": [{"table_id": "system.cpu"}], "metricql": ["a"]}]}
+    left = {"records": [{"metricql": "a", "src_vm_table_ids": ["2_vm_system_cpu"]}]}
+    right = {"records": [{"src_vm_table_ids": ["2_vm_system_cpu"], "metricql": "a"}]}
 
     assert stable_hash(left) == stable_hash(right)
 

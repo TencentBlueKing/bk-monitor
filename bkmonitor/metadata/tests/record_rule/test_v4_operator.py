@@ -40,6 +40,7 @@ from metadata.models.record_rule.v4 import (
 from metadata.models.record_rule.v4.operator import RecordRuleV4Operator
 from metadata.models.record_rule.v4.output import RecordRuleV4OutputResources
 from metadata.models.record_rule.v4.resolver import RecordRuleV4Resolver
+from metadata.models.record_rule.v4.source import resolve_vm_result_table_configs
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -50,7 +51,10 @@ GROUP_NAME = "rr_cpu_group"
 SOURCE_TABLE_ID = "system.cpu_summary"
 SOURCE_VM_TABLE_ID = "2_system_cpu_summary"
 SOURCE_BKBASE_TABLE_NAME = "bkbase_system_cpu_summary"
-METRICQL = 'avg by (bk_target_ip) ({bk_biz_id="2", result_table_id="system.cpu_summary", __name__="usage"})'
+SECOND_SOURCE_TABLE_ID = "system.cpu_detail"
+SECOND_SOURCE_VM_TABLE_ID = "2_system_cpu_detail"
+SECOND_SOURCE_BKBASE_TABLE_NAME = "bkbase_system_cpu_detail"
+METRICQL = 'avg by (bk_target_ip) ({bk_biz_id="2", result_table_id="2_system_cpu_summary", __name__="usage"})'
 CHANGED_METRICQL = f"sum({METRICQL})"
 
 
@@ -123,25 +127,18 @@ def external_api(mocker):
     )
 
 
-def build_check_result(metricql: str = METRICQL, result_table_id: str = SOURCE_TABLE_ID) -> dict:
+def build_check_result(
+    metricql: str = METRICQL,
+    result_table_id: str | list[str] = SOURCE_VM_TABLE_ID,
+    storage_type: str = "victoria_metrics",
+) -> dict:
+    result_table_ids = [result_table_id] if isinstance(result_table_id, str) else result_table_id
     return {
         "data": [
             {
-                "storage_type": "victoria_metrics",
+                "storage_type": storage_type,
                 "metricql": metricql,
-                "result_table_id": [result_table_id],
-            }
-        ],
-        "route_info": [
-            {
-                "reference_name": "a",
-                "metric_name": "usage",
-                "table_id": result_table_id,
-                "db": "system",
-                "measurement": "cpu_summary",
-                "data_source": "bk_monitor",
-                "storage_type": "victoria_metrics",
-                "storage_id": "victoria_metrics",
+                "result_table_id": result_table_ids,
             }
         ],
     }
@@ -211,6 +208,32 @@ def build_structured_query_config() -> dict:
         "slimit": 500,
         "down_sample_range": "7s",
     }
+
+
+def create_source_vm_mapping(
+    *,
+    table_id: str,
+    vm_table_id: str,
+    bkbase_table_name: str,
+    cluster_id: int,
+    bkbase_table_id: str = "",
+) -> None:
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id=TENANT_ID,
+        result_table_id=table_id,
+        bk_base_data_id=100,
+        vm_result_table_id=vm_table_id,
+        vm_cluster_id=cluster_id,
+    )
+    models.ResultTableConfig.objects.create(
+        bk_tenant_id=TENANT_ID,
+        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+        name=bkbase_table_name,
+        data_link_name=bkbase_table_name,
+        table_id=table_id,
+        bkbase_table_id=bkbase_table_id,
+        bk_biz_id=int(SPACE_ID),
+    )
 
 
 def build_record(
@@ -323,6 +346,7 @@ def test_create_group_with_two_records_applies_per_record_flows(v4_base_data, ex
             "result_table_id": SOURCE_TABLE_ID,
             "vm_result_table_id": SOURCE_VM_TABLE_ID,
             "bkbase_result_table_name": SOURCE_BKBASE_TABLE_NAME,
+            "vm_storage_name": "monitor-opsystem",
         }
     ]
     assert models.ResultTable.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
@@ -475,6 +499,83 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
     external_api.apply_data_link.assert_not_called()
 
 
+def test_resolve_vm_result_table_configs_falls_back_to_access_record(v4_base_data):
+    configs = resolve_vm_result_table_configs(
+        bk_tenant_id=TENANT_ID,
+        vm_result_table_ids=[SOURCE_VM_TABLE_ID],
+    )
+
+    assert configs == [
+        {
+            "result_table_id": SOURCE_TABLE_ID,
+            "vm_result_table_id": SOURCE_VM_TABLE_ID,
+            "bkbase_result_table_name": SOURCE_BKBASE_TABLE_NAME,
+            "vm_storage_name": "monitor-opsystem",
+        }
+    ]
+
+
+def test_resolve_vm_result_table_configs_prefers_bkbase_table_id(v4_base_data):
+    direct_bkbase_table_name = "direct_bkbase_system_cpu_summary"
+    models.ResultTableConfig.objects.create(
+        bk_tenant_id=TENANT_ID,
+        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+        name=direct_bkbase_table_name,
+        data_link_name=direct_bkbase_table_name,
+        table_id=SOURCE_TABLE_ID,
+        bkbase_table_id=SOURCE_VM_TABLE_ID,
+        bk_biz_id=int(SPACE_ID),
+    )
+
+    configs = resolve_vm_result_table_configs(
+        bk_tenant_id=TENANT_ID,
+        vm_result_table_ids=[SOURCE_VM_TABLE_ID],
+    )
+
+    assert configs[0]["bkbase_result_table_name"] == direct_bkbase_table_name
+    assert configs[0]["result_table_id"] == SOURCE_TABLE_ID
+    assert configs[0]["vm_storage_name"] == "monitor-opsystem"
+
+
+def test_resolve_vm_result_table_configs_keeps_order_and_source_storage(v4_base_data):
+    second_cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=1002,
+        cluster_name="monitor-secondary",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm-secondary.service.local",
+        port=9090,
+        description="secondary vm",
+        is_default_cluster=False,
+    )
+    create_source_vm_mapping(
+        table_id=SECOND_SOURCE_TABLE_ID,
+        vm_table_id=SECOND_SOURCE_VM_TABLE_ID,
+        bkbase_table_name=SECOND_SOURCE_BKBASE_TABLE_NAME,
+        cluster_id=second_cluster.cluster_id,
+    )
+
+    configs = resolve_vm_result_table_configs(
+        bk_tenant_id=TENANT_ID,
+        vm_result_table_ids=[SECOND_SOURCE_VM_TABLE_ID, SOURCE_VM_TABLE_ID, SECOND_SOURCE_VM_TABLE_ID],
+    )
+
+    assert configs == [
+        {
+            "result_table_id": SECOND_SOURCE_TABLE_ID,
+            "vm_result_table_id": SECOND_SOURCE_VM_TABLE_ID,
+            "bkbase_result_table_name": SECOND_SOURCE_BKBASE_TABLE_NAME,
+            "vm_storage_name": "monitor-secondary",
+        },
+        {
+            "result_table_id": SOURCE_TABLE_ID,
+            "vm_result_table_id": SOURCE_VM_TABLE_ID,
+            "bkbase_result_table_name": SOURCE_BKBASE_TABLE_NAME,
+            "vm_storage_name": "monitor-opsystem",
+        },
+    ]
+
+
 def test_spec_record_key_falls_back_to_metric_name_when_input_key_is_hidden(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
     original_record = rule.current_spec.records.get()
@@ -543,6 +644,38 @@ def test_run_check_dispatches_promql_input_to_promql_api(v4_base_data, external_
     external_api.check_query_ts.assert_not_called()
 
 
+def test_promql_resolve_uses_actual_multi_vmrt_data(v4_base_data, external_api):
+    create_source_vm_mapping(
+        table_id=SECOND_SOURCE_TABLE_ID,
+        vm_table_id=SECOND_SOURCE_VM_TABLE_ID,
+        bkbase_table_name=SECOND_SOURCE_BKBASE_TABLE_NAME,
+        cluster_id=v4_base_data.cluster.cluster_id,
+    )
+    metricql = (
+        'count({result_table_id="2_system_cpu_summary", __name__="container_cpu_usage_seconds_total_value" '
+        'or result_table_id="2_system_cpu_detail", __name__="container_cpu_usage_seconds_total_value"})'
+    )
+    external_api.check_promql.return_value = build_check_result(
+        metricql=metricql,
+        result_table_id=[SOURCE_VM_TABLE_ID, SECOND_SOURCE_VM_TABLE_ID],
+    )
+    record = build_record(
+        input_type=RecordRuleV4InputType.PROMQL.value,
+        input_config={"promql": "count(bkmonitor:container_cpu_usage_seconds_total)", "bk_biz_ids": [10]},
+        metric_name="container_cpu_usage_seconds_total_count",
+    )
+
+    rule = create_rule(records=[record])
+
+    resolved_record = rule.latest_resolved.records.get()
+    source_node_names = {
+        node["data"]["name"] for node in get_source_nodes(rule.latest_resolved.flows.get().flow_config)
+    }
+    assert resolved_record.metricql == metricql
+    assert resolved_record.src_vm_table_ids == [SOURCE_VM_TABLE_ID, SECOND_SOURCE_VM_TABLE_ID]
+    assert source_node_names == {SOURCE_BKBASE_TABLE_NAME, SECOND_SOURCE_BKBASE_TABLE_NAME}
+
+
 def test_promql_check_uses_default_time_range(v4_base_data, external_api):
     record = build_record(
         input_type=RecordRuleV4InputType.PROMQL.value,
@@ -604,6 +737,43 @@ def test_run_check_converts_structured_query_config_to_query_ts(v4_base_data, ex
     assert second_query["table_id"] == "system.cpu_summary"
     assert second_query["field_name"] == "usage"
     assert second_query["reference_name"] == "b"
+
+
+def test_query_ts_resolve_uses_actual_vmrt_data(v4_base_data, external_api):
+    disk_table_id = "system.disk"
+    disk_vm_table_id = "2_vm_system_disk"
+    disk_bkbase_table_name = "bkbase_system_disk"
+    disk_metricql = (
+        "avg by (bk_target_ip, bk_target_cloud_id, mount_point) "
+        '(avg_over_time({bk_biz_id="42", result_table_id="2_vm_system_disk", __name__="in_use_value"}[1m]))'
+    )
+    create_source_vm_mapping(
+        table_id=disk_table_id,
+        vm_table_id=disk_vm_table_id,
+        bkbase_table_name=disk_bkbase_table_name,
+        cluster_id=v4_base_data.cluster.cluster_id,
+        bkbase_table_id=disk_vm_table_id,
+    )
+    external_api.check_query_ts.return_value = build_check_result(
+        metricql=disk_metricql,
+        result_table_id=disk_vm_table_id,
+    )
+
+    rule = create_rule(records=[build_record(input_config=build_structured_query_config())])
+
+    resolved_record = rule.latest_resolved.records.get()
+    source_node = get_source_nodes(rule.latest_resolved.flows.get().flow_config)[0]
+    assert resolved_record.metricql == disk_metricql
+    assert resolved_record.src_vm_table_ids == [disk_vm_table_id]
+    assert resolved_record.src_result_table_configs == [
+        {
+            "result_table_id": disk_table_id,
+            "vm_result_table_id": disk_vm_table_id,
+            "bkbase_result_table_name": disk_bkbase_table_name,
+            "vm_storage_name": "monitor-opsystem",
+        }
+    ]
+    assert source_node["data"]["name"] == disk_bkbase_table_name
 
 
 def test_structured_query_config_uses_default_check_time_range(v4_base_data, external_api):
@@ -727,7 +897,7 @@ def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base
     assert changed is True
     assert rule.update_available is False
     assert rule.applied_deployment_id == rule.latest_deployment_id
-    assert rule.latest_resolved.records.get().metricql == [CHANGED_METRICQL]
+    assert rule.latest_resolved.records.get().metricql == CHANGED_METRICQL
     external_api.apply_data_link.assert_called_once()
 
 
@@ -832,6 +1002,43 @@ def test_resolve_failure_keeps_last_applied_deployment(v4_base_data, external_ap
     assert rule.status == RecordRuleV4Status.FAILED.value
 
 
+@pytest.mark.parametrize(
+    ("check_result", "error_text"),
+    [
+        ({"data": []}, "data is empty"),
+        ({"data": [{"metricql": METRICQL, "result_table_id": [SOURCE_VM_TABLE_ID]}]}, "storage_type"),
+        (build_check_result(storage_type="influxdb"), "storage_type"),
+        (
+            {
+                "data": [
+                    {
+                        "storage_type": "victoria_metrics",
+                        "metricql": METRICQL,
+                        "result_table_id": [SOURCE_VM_TABLE_ID],
+                    },
+                    {
+                        "storage_type": "victoria_metrics",
+                        "metricql": CHANGED_METRICQL,
+                        "result_table_id": [SOURCE_VM_TABLE_ID],
+                    },
+                ]
+            },
+            "multiple metricql",
+        ),
+    ],
+)
+def test_resolve_fails_when_check_data_is_invalid(v4_base_data, external_api, check_result, error_text):
+    external_api.check_query_ts.return_value = check_result
+
+    rule = create_rule(apply_immediately=False)
+
+    rule.refresh_from_db()
+    assert rule.latest_resolved_id is None
+    assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
+    assert error_text in rule.last_error
+    external_api.apply_data_link.assert_not_called()
+
+
 def test_resolve_fails_when_source_result_table_config_missing(v4_base_data, external_api):
     models.ResultTableConfig.objects.filter(
         bk_tenant_id=TENANT_ID,
@@ -846,6 +1053,25 @@ def test_resolve_fails_when_source_result_table_config_missing(v4_base_data, ext
     assert rule.latest_deployment_id is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
     assert "ResultTableConfig" in rule.last_error
+    external_api.apply_data_link.assert_not_called()
+
+
+def test_resolve_fails_when_source_vm_cluster_missing(v4_base_data, external_api):
+    missing_cluster_vm_table_id = "2_missing_cluster_vm_table"
+    create_source_vm_mapping(
+        table_id="system.missing_cluster",
+        vm_table_id=missing_cluster_vm_table_id,
+        bkbase_table_name="bkbase_system_missing_cluster",
+        cluster_id=9999,
+    )
+    external_api.check_query_ts.return_value = build_check_result(result_table_id=missing_cluster_vm_table_id)
+
+    rule = create_rule(apply_immediately=False)
+
+    rule.refresh_from_db()
+    assert rule.latest_resolved_id is None
+    assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
+    assert "ClusterInfo" in rule.last_error
     external_api.apply_data_link.assert_not_called()
 
 

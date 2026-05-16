@@ -36,6 +36,7 @@ from metadata.models.record_rule.v4.models import (
     now,
     stable_hash,
 )
+from metadata.models.record_rule.v4.source import resolve_vm_result_table_configs
 from metadata.models.record_rule.v4.types import (
     CheckQueryPromQLInput,
     CheckQueryTsInput,
@@ -176,9 +177,7 @@ class RecordRuleV4Resolver:
                     labels=runtime_record["labels"],
                     src_vm_table_ids=runtime_record["src_vm_table_ids"],
                     src_result_table_configs=runtime_record["src_result_table_configs"],
-                    route_info=runtime_record["route_info"],
-                    vm_cluster_id=runtime_record["vm_cluster_id"],
-                    vm_storage_name=runtime_record["vm_storage_name"],
+                    dst_vm_storage_name=runtime_record["dst_vm_storage_name"],
                     creator=self.actor,
                     updater=self.actor,
                 )
@@ -200,16 +199,13 @@ class RecordRuleV4Resolver:
         """将一条 spec record 解析成运行时 record payload。"""
 
         check_result = self.run_check(spec_record)
-        route_info = check_result.get("route_info") or []
         data = check_result.get("data") or []
-        if not route_info:
-            raise ValueError(f"unify-query check route_info is empty, record_key: {spec_record.record_key}")
+        if not data:
+            raise ValueError(f"unify-query check data is empty, record_key: {spec_record.record_key}")
 
-        metricql = self.extract_metricql(data)
-        if not metricql:
-            raise ValueError(f"unify-query check metricql is empty, record_key: {spec_record.record_key}")
-
-        src_vm_table_ids = self.normalize_src_vm_table_ids(self.extract_src_vm_table_ids(data, route_info))
+        self.validate_storage_type(data, spec_record.record_key)
+        metricql = self.extract_metricql(data, spec_record.record_key)
+        src_vm_table_ids = self.normalize_src_vm_table_ids(self.extract_src_vm_table_ids(data))
         if not src_vm_table_ids:
             raise ValueError(f"unify-query check src vm table ids is empty, record_key: {spec_record.record_key}")
         src_result_table_configs = self.resolve_src_result_table_configs(src_vm_table_ids)
@@ -224,9 +220,7 @@ class RecordRuleV4Resolver:
             "interval": spec_record.spec.interval,
             "src_vm_table_ids": src_vm_table_ids,
             "src_result_table_configs": src_result_table_configs,
-            "route_info": route_info,
-            "vm_cluster_id": vm_storage_info["cluster_id"],
-            "vm_storage_name": vm_storage_info["cluster_name"],
+            "dst_vm_storage_name": vm_storage_info["cluster_name"],
         }
         return {
             "spec_record": spec_record,
@@ -234,9 +228,7 @@ class RecordRuleV4Resolver:
             "labels": labels,
             "src_vm_table_ids": src_vm_table_ids,
             "src_result_table_configs": src_result_table_configs,
-            "route_info": route_info,
-            "vm_cluster_id": vm_storage_info["cluster_id"],
-            "vm_storage_name": vm_storage_info["cluster_name"],
+            "dst_vm_storage_name": vm_storage_info["cluster_name"],
             "resolved_payload": resolved_payload,
             "content_hash": stable_hash(resolved_payload),
         }
@@ -417,19 +409,36 @@ class RecordRuleV4Resolver:
         return 1 if latest is None else latest.resolve_version + 1
 
     @staticmethod
-    def extract_metricql(data: list[dict[str, Any]]) -> list[str]:
-        """从 check data 中提取去重后的 MetricQL。"""
+    def validate_storage_type(data: list[dict[str, Any]], record_key: str) -> None:
+        """校验 check data 只包含 V4 recording rule 支持的 VM 查询体。"""
+
+        unsupported_storage_types = sorted(
+            {str(item.get("storage_type") or "") for item in data if item.get("storage_type") != "victoria_metrics"}
+        )
+        if unsupported_storage_types:
+            raise ValueError(
+                "unify-query check storage_type is not supported, "
+                f"record_key: {record_key}, storage_type: {unsupported_storage_types}"
+            )
+
+    @staticmethod
+    def extract_metricql(data: list[dict[str, Any]], record_key: str = "") -> str:
+        """从 check data 中提取唯一 MetricQL。"""
 
         metricql: list[str] = []
         for item in data:
             value = item.get("metricql")
             if value and value not in metricql:
                 metricql.append(value)
-        return metricql
+        if not metricql:
+            raise ValueError(f"unify-query check metricql is empty, record_key: {record_key}")
+        if len(metricql) > 1:
+            raise ValueError(f"unify-query check got multiple metricql, record_key: {record_key}, metricql: {metricql}")
+        return metricql[0]
 
     @staticmethod
-    def extract_src_vm_table_ids(data: list[dict[str, Any]], route_info: list[dict[str, Any]]) -> list[str]:
-        """从 check data 和 route_info 中合并源结果表。"""
+    def extract_src_vm_table_ids(data: list[dict[str, Any]]) -> list[str]:
+        """从 check data 中提取源 VM 结果表。"""
 
         table_ids: list[str] = []
         for item in data:
@@ -439,11 +448,7 @@ class RecordRuleV4Resolver:
             for table_id in result_table_id:
                 if table_id and table_id not in table_ids:
                     table_ids.append(table_id)
-        for item in route_info:
-            table_id = item.get("table_id")
-            if table_id and table_id not in table_ids:
-                table_ids.append(table_id)
-        return sorted(table_ids)
+        return table_ids
 
     def normalize_src_vm_table_ids(self, table_ids: list[str]) -> list[str]:
         """把源 RT 统一转换成 VM RT，并排除当前预计算自己的输出表。"""
@@ -481,58 +486,15 @@ class RecordRuleV4Resolver:
                 result.append(vm_table_id)
         if missing:
             raise ValueError(f"source result tables are not access vm storage: {missing}")
-        return sorted(result)
+        return result
 
     def resolve_src_result_table_configs(self, vm_table_ids: list[str]) -> list[dict[str, str]]:
         """把源 VMRT 固化成 bkbase ResultTableConfig.name 快照。"""
 
-        from metadata import models as metadata_models
-
-        result: list[dict[str, str]] = []
-        missing_access_records: list[str] = []
-        missing_result_table_configs: list[str] = []
-        for vm_table_id in vm_table_ids:
-            access_record = (
-                metadata_models.AccessVMRecord.objects.filter(
-                    bk_tenant_id=self.rule.bk_tenant_id,
-                    vm_result_table_id=vm_table_id,
-                )
-                .order_by("-id")
-                .first()
-            )
-            if access_record is None:
-                missing_access_records.append(vm_table_id)
-                continue
-
-            result_table_configs = metadata_models.ResultTableConfig.objects.filter(
-                bk_tenant_id=self.rule.bk_tenant_id,
-                table_id=access_record.result_table_id,
-            ).order_by("-last_modify_time", "-id")
-            config_count = result_table_configs.count()
-            result_table_config = result_table_configs.first()
-            if result_table_config is None:
-                missing_result_table_configs.append(access_record.result_table_id)
-                continue
-            if config_count > 1:
-                logger.warning(
-                    "RecordRuleV4 resolve_src_result_table_configs: got multiple ResultTableConfig, "
-                    "table_id->[%s], selected name->[%s]",
-                    access_record.result_table_id,
-                    result_table_config.name,
-                )
-            result.append(
-                {
-                    "result_table_id": access_record.result_table_id,
-                    "vm_result_table_id": access_record.vm_result_table_id,
-                    "bkbase_result_table_name": result_table_config.name,
-                }
-            )
-
-        if missing_access_records:
-            raise ValueError(f"source vm result tables are not found in AccessVMRecord: {missing_access_records}")
-        if missing_result_table_configs:
-            raise ValueError(f"source result tables are not found in ResultTableConfig: {missing_result_table_configs}")
-        return result
+        return resolve_vm_result_table_configs(
+            bk_tenant_id=self.rule.bk_tenant_id,
+            vm_result_table_ids=vm_table_ids,
+        )
 
     def get_vm_storage_info(self) -> dict[str, Any]:
         """获取当前空间 recording rule 输出要写入的 VM storage。"""
