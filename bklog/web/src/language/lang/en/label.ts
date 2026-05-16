@@ -959,4 +959,5 @@ export default {
   服务: 'Service',
   客户端: 'Client',
   清空查询: 'Clear Query',
+  默认操作符: 'Default Operator',
 };

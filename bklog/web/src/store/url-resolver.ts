@@ -25,7 +25,7 @@
  */
 
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
-import { getAllSceneFieldKeys } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
+import { getAllSceneFieldOpKeys } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
 
 import { ConditionOperator } from './condition-operator';
 import { isEmptyFilterValue } from './helper';
@@ -114,7 +114,7 @@ class RouteUrlResolver {
    */
   public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
-    const allSceneFieldKeys = getAllSceneFieldKeys(getStoreSceneConfigs());
+    const allSceneFieldKeys = getAllSceneFieldOpKeys(getStoreSceneConfigs());
     const appendParamKeys = [...this.resolveFieldList, 'end_time', ...allSceneFieldKeys].filter(f => !(ignoreList ?? []).includes(f));
     const undefinedQuery = appendParamKeys.reduce((out, key) => {
       out[key] = undefined;
@@ -540,10 +540,16 @@ class RetrieveUrlResolver {
       const sceneFilterValues = this.routeQueryParams.scene_filter_values ?? {};
       for (const [key, val] of Object.entries(sceneFilterValues)) {
         if (isEmptyFilterValue(val)) continue;
-        if (Array.isArray(val)) {
-          result[key] = val;
-        } else {
-          result[key] = String(val);
+        const fieldValue = val?.value ?? val;
+        const fieldOp = val?.op;
+        if (Array.isArray(fieldValue)) {
+          result[key] = fieldValue;
+        } else if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+          result[key] = String(fieldValue);
+        }
+        // 写入操作符到 URL
+        if (fieldOp) {
+          result[`${key}[op]`] = fieldOp;
         }
       }
 

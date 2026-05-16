@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { BK_LOG_STORAGE } from "./store.type";
+import { getOperatorDisplay, getDefaultOp, REVERSE_OPERATOR_MAP } from "@/views/retrieve-v3/search-bar/scene-filter/scene-config";
 
 export const isFeatureToggleOn = (key: string, value: string | string[]) => {
   const featureToggle = window.FEATURE_TOGGLE?.[key];
@@ -204,6 +205,9 @@ export const isSceneRetrieve = (state: any): boolean => {
  */
 export const isEmptyFilterValue = (val: any): boolean => {
   if (val === undefined || val === null || val === '') return true;
+  if (typeof val === 'object' && !Array.isArray(val) && 'op' in val && 'value' in val) {
+    return isEmptyFilterValue(val.value);
+  }
   if (Array.isArray(val) && val.length === 0) return true;
   return false;
 };
@@ -240,12 +244,14 @@ export const buildTableIdConditions = (
 
   if (!sceneActive) return emptyResult;
 
-  // 根据 sceneActive 找到当前场景的配置，建立 fieldName → choicesType 的映射
+  // 根据 sceneActive 找到当前场景的配置，建立 fieldName → choicesType 和 fieldName → ops 的映射
   const activeConfig = sceneConfigs.find((s: any) => s.type === sceneActive);
   const fieldChoicesTypeMap: Record<string, string> = {};
+  const fieldOpsMap: Record<string, string[]> = {};
   if (activeConfig) {
     (activeConfig.fields ?? []).forEach((f: any) => {
       fieldChoicesTypeMap[f.key] = f.choicesType ?? 'static';
+      fieldOpsMap[f.key] = f.ops ?? [];
     });
   }
 
@@ -261,18 +267,22 @@ export const buildTableIdConditions = (
 
   // 由 scene_filter_values 生成后续条件，根据 choicesType 分类
   for (const [fieldName, fieldValue] of Object.entries(scene_filter_values)) {
-    if (fieldValue === undefined || fieldValue === null || fieldValue === '') continue;
+    const fv = fieldValue as any;
+    const op = fv?.op ?? getDefaultOp(fieldOpsMap[fieldName]);
+    const rawValue = fv?.value ?? fieldValue;
+    if (rawValue === undefined || rawValue === null || rawValue === '') continue;
 
-    const valueArray = Array.isArray(fieldValue) ? fieldValue : [fieldValue];
+    const valueArray = Array.isArray(rawValue) ? rawValue : [rawValue];
     if (valueArray.length === 0) continue;
 
     const choicesType = fieldChoicesTypeMap[fieldName] ?? 'static';
+    const operatorDisplay = getOperatorDisplay(op);
 
     if (choicesType === 'free_input') {
       // free_input 类型放入 scene_filter_values
       filterValues.push({
         field: fieldName,
-        operator: '=',
+        operator: operatorDisplay,
         value: valueArray,
       });
     } else {
@@ -280,7 +290,7 @@ export const buildTableIdConditions = (
       conditions.push({
         field_name: fieldName,
         value: valueArray,
-        op: 'eq',
+        op,
       });
     }
   }
@@ -294,8 +304,9 @@ export const buildTableIdConditions = (
 /**
  * 从历史记录中的 table_id_conditions 和 scene_filter_values 反向解析出 scene_active 和 scene_filter_values
  * - table_id_conditions 中 field_name 为 "scene" 的条目 → 提取为 scene_active
- * - table_id_conditions 中除 scene 外的字段 → 转换为 { fieldName: value } 格式，写入 scene_filter_values
- * - 历史记录中的 scene_filter_values（{field, operator, value} 格式）→ 转换为 { fieldName: value } 格式，合并到 scene_filter_values
+ * - table_id_conditions 中除 scene 外的字段 → 转换为 { fieldName: { op, value } } 格式，写入 scene_filter_values
+ * - 历史记录中的 scene_filter_values（{field, operator, value} 格式）→ 转换为 { fieldName: { op, value } } 格式，
+ * 合并到 scene_filter_values
  *
  * @param tableIdConditions 历史记录中的 table_id_conditions
  * @param sceneFilterValues 历史记录中的 scene_filter_values
@@ -315,13 +326,16 @@ export const parseTableIdConditions = (
     const innerConditions = tableIdConditions[0];
     if (Array.isArray(innerConditions)) {
       for (const condition of innerConditions) {
-        const { field_name, value } = condition;
-        if (field_name === 'scene') {
+        const { field_name: fieldName, value, op = 'eq' } = condition;
+        if (fieldName === 'scene') {
           // scene 字段 → scene_active
           sceneActive = Array.isArray(value) ? (value[0] ?? '') : value;
         } else {
           // 非 scene 字段 → scene_filter_values
-          filterValues[field_name] = Array.isArray(value) && value.length === 1 ? value[0] : value;
+          filterValues[fieldName] = {
+            op,
+            value,
+          };
         }
       }
     }
@@ -330,8 +344,13 @@ export const parseTableIdConditions = (
   // 从历史记录的 scene_filter_values 合并
   if (Array.isArray(sceneFilterValues)) {
     for (const item of sceneFilterValues) {
-      const { field, value } = item;
-      filterValues[field] = Array.isArray(value) && value.length === 1 ? value[0] : value;
+      const { field, value, operator = '=' } = item;
+      // 从显示符号反查 op key
+      const opKey = REVERSE_OPERATOR_MAP[operator] ?? 'eq';
+      filterValues[field] = {
+        op: opKey,
+        value,
+      };
     }
   }
 
