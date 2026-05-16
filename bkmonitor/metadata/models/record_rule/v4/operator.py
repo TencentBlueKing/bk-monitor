@@ -435,6 +435,12 @@ class RecordRuleV4Operator:
     def reconcile_unlocked(self, auto_apply: bool | None = None) -> bool:
         """不带操作锁的 reconcile 主流程。"""
 
+        self.reload_rule()
+        if self.rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value:
+            # 删除声明不依赖 resolved 漂移和 auto_refresh；只要尚未完成删除，
+            # 后台 reconcile 就应该继续补偿删除外部 Flow。
+            return self.runner.apply()
+
         current_spec = self.require_current_spec()
         previous_resolved_id = current_spec.latest_resolved_id
         resolved = self.refresh_resolved(force=False)

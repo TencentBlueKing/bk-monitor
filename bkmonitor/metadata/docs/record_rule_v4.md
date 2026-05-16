@@ -417,13 +417,13 @@ class RecordRuleV4(BaseModelWithTime):
 
 ### 定时任务
 
-在 `metadata/task/record_rule_v4.py` 放周期任务薄壳：
+在 `metadata/task/record_rule_v4.py` 保留周期任务薄壳；首期暂不加入 worker crontab 配置，待 V4 功能正式开启后再接入：
 
 ```python
 def refresh_record_rule_v4():
-    for rule in RecordRuleV4.objects.exclude(desired_status=RecordRuleV4DesiredStatus.DELETED.value):
-        if rule.should_refresh():
-            RecordRuleV4Operator(rule, source="scheduler").reconcile(auto_apply=rule.auto_refresh)
+    # 删除未完成的记录始终保留补偿机会；普通记录按统一检查周期筛选。
+    for rule in due_rules:
+        RecordRuleV4Operator(rule, source="scheduler").reconcile(auto_apply=rule.auto_refresh)
 ```
 
 任务层不解析 check、不拼 Flow、不直接调用 bkbase，便于保持业务流程集中在 `RecordRuleV4Operator` 中维护。

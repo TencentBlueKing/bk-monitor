@@ -275,8 +275,6 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
     # 计算平台元数据一致性 Redis Watch
     ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
-    # V4 预计算任务漂移检查
-    ("metadata.task.record_rule_v4.refresh_record_rule_v4", "*/10 * * * *", "global"),
     # ES集群关键配置检查,六小时检查一次
     ("metadata.task.config_refresh.check_es_clusters_key_settings", "0 */6 * * *", "global"),
 ]

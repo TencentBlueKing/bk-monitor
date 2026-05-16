@@ -57,6 +57,8 @@ class RecordRuleV4SpecBuilder:
         """
 
         RecordRuleV4.validate_interval(interval)
+        if not records:
+            raise ValueError("record rule requires at least one record")
         group_labels = normalize_labels(labels)
         normalized_records = [self.normalize_record_payload(record) for record in records]
         generation = self.rule.generation + 1

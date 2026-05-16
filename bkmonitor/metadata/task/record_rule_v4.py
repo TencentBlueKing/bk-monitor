@@ -9,9 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from datetime import timedelta
 
-from metadata.models.record_rule.constants import RecordRuleV4DesiredStatus
-from metadata.models.record_rule.v4 import RecordRuleV4
+from django.db.models import Q
+
+from metadata.models.record_rule.constants import RECORD_RULE_V4_DEFAULT_REFRESH_INTERVAL, RecordRuleV4DesiredStatus
+from metadata.models.record_rule.v4 import RecordRuleV4, now
 from metadata.models.record_rule.v4.operator import RecordRuleV4Operator
 
 logger = logging.getLogger("metadata")
@@ -19,11 +22,14 @@ logger = logging.getLogger("metadata")
 
 def refresh_record_rule_v4():
     """定期检查并刷新 V4 预计算任务"""
-    rules = RecordRuleV4.objects.exclude(desired_status=RecordRuleV4DesiredStatus.DELETED.value)
-    logger.info("refresh_record_rule_v4: start refresh, count->[%s]", rules.count())
+    check_before = now() - timedelta(seconds=RECORD_RULE_V4_DEFAULT_REFRESH_INTERVAL)
+    rules = RecordRuleV4.objects.filter(deleted_at__isnull=True).filter(
+        Q(desired_status=RecordRuleV4DesiredStatus.DELETED.value)
+        | Q(last_check_time__isnull=True)
+        | Q(last_check_time__lte=check_before)
+    )
+    logger.info("refresh_record_rule_v4: start refresh")
     for rule in rules.iterator():
-        if not rule.should_refresh():
-            continue
         try:
             changed = RecordRuleV4Operator(rule, source="scheduler").reconcile(auto_apply=rule.auto_refresh)
             logger.info("refresh_record_rule_v4: rule_id->[%s], changed->[%s]", rule.pk, changed)

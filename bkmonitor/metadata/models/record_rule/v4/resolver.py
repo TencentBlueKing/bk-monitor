@@ -230,6 +230,7 @@ class RecordRuleV4Resolver:
             result = api.unify_query.check_query_ts(bk_tenant_id=self.rule.bk_tenant_id, **params)
         elif spec_record.input_type == RecordRuleV4InputType.PROMQL.value:
             params = self.build_check_promql_params(cast(CheckQueryPromQLInput, spec_record.input_config or {}))
+            params.setdefault("space_uid", self.rule.space_uid)
             result = api.unify_query.check_query_ts_by_promql(bk_tenant_id=self.rule.bk_tenant_id, **params)
         else:
             raise ValueError(f"unsupported input_type: {spec_record.input_type}")

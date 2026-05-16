@@ -216,9 +216,11 @@ class RecordRuleV4Runner:
         self.reload_rule()
         flow = self.rule.get_applied_flow()
         if flow is None:
+            self.rule.set_condition(CONDITION_RECONCILED, CONDITION_FALSE, "FlowMissing")
             self.rule.sync_phase()
-            self.rule.save(update_fields=["status", "updated_at"])
-            return True
+            self.rule.save(update_fields=["conditions", "status", "updated_at"])
+            RecordRuleV4Event.record_apply_failed_missing_flow(self.rule, source=self.source, operator=self.operator)
+            return False
 
         try:
             flow_config = self.with_desired_status(flow.flow_config, desired_status)

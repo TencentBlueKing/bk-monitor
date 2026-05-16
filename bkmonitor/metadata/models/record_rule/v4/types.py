@@ -27,6 +27,7 @@ class CheckQueryTsInput(TypedDict, total=False):
     step: str
     order_by: list[str]
     space_uid: str
+    bk_tenant_id: str
     not_time_align: bool
 
 
@@ -41,6 +42,8 @@ class CheckQueryPromQLInput(TypedDict, total=False):
     start: int | str
     end: int | str
     step: str
+    space_uid: str
+    bk_tenant_id: str
     bk_biz_ids: list[str]
 
 

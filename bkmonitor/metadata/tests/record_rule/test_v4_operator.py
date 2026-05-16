@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from api.unify_query.default import CheckQueryTsByPromqlResource, CheckQueryTsResource
 from bkmonitor.utils.tenant import DatalinkBizIds
 from metadata import models
 from metadata.models.record_rule.constants import (
@@ -39,6 +40,7 @@ from metadata.models.record_rule.v4.output import RecordRuleV4OutputResources
 from metadata.models.record_rule.v4.resolver import RecordRuleV4Resolver
 from metadata.models.record_rule.v4.runner import RecordRuleV4Runner
 from metadata.models.record_rule.v4.source import resolve_vm_result_table_configs
+from metadata.task.record_rule_v4 import refresh_record_rule_v4
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -263,7 +265,7 @@ def create_rule(
     auto_refresh: bool = True,
     apply_immediately: bool = True,
 ) -> RecordRuleV4:
-    records = records or [build_record()]
+    records = [build_record()] if records is None else records
     group_labels = labels or []
     return RecordRuleV4Operator.create(
         bk_tenant_id=TENANT_ID,
@@ -438,6 +440,15 @@ def test_create_supports_description_and_data_label(v4_base_data, external_api):
     assert rule.to_dict()["description"] == "record rule output"
     assert output_table.table_name_zh == RULE_NAME
     assert output_table.data_label == "rr_cpu"
+
+
+def test_create_rejects_empty_records(v4_base_data, external_api):
+    with pytest.raises(ValueError, match="at least one record"):
+        create_rule(records=[])
+
+    assert RecordRuleV4.objects.count() == 0
+    external_api.check_query_ts.assert_not_called()
+    external_api.apply_data_link.assert_not_called()
 
 
 def test_group_interval_and_labels_merge_into_resolved_and_flow(v4_base_data, external_api):
@@ -668,7 +679,7 @@ def test_promql_resolve_uses_actual_multi_vmrt_data(v4_base_data, external_api):
 def test_promql_check_uses_default_time_range(v4_base_data, external_api):
     record = build_record(
         input_type=RecordRuleV4InputType.PROMQL.value,
-        input_config={"promql": "sum(cpu_usage)"},
+        input_config={"promql": "sum(cpu_usage)", "bk_biz_ids": ["10", "11"]},
         metric_name="cpu_usage_sum",
     )
     rule = create_rule(records=[record], apply_immediately=False)
@@ -679,7 +690,38 @@ def test_promql_check_uses_default_time_range(v4_base_data, external_api):
 
     _, kwargs = external_api.check_promql.call_args
     assert kwargs["promql"] == "sum(cpu_usage)"
+    assert kwargs["bk_tenant_id"] == TENANT_ID
+    assert kwargs["space_uid"] == "bkcc__2"
+    assert kwargs["bk_biz_ids"] == ["10", "11"]
     assert int(kwargs["end"]) - int(kwargs["start"]) == 3600
+
+
+def test_check_resources_keep_scope_fields_for_headers():
+    query_ts_params = CheckQueryTsResource().validate_request_data(
+        {
+            "query_list": [],
+            "start_time": "1",
+            "end_time": "2",
+            "space_uid": "bkcc__2",
+            "bk_tenant_id": TENANT_ID,
+        }
+    )
+    promql_params = CheckQueryTsByPromqlResource().validate_request_data(
+        {
+            "promql": "sum(cpu_usage)",
+            "start": "1",
+            "end": "2",
+            "space_uid": "bkcc__2",
+            "bk_tenant_id": TENANT_ID,
+            "bk_biz_ids": ["10", "11"],
+        }
+    )
+
+    assert query_ts_params["bk_tenant_id"] == TENANT_ID
+    assert query_ts_params["space_uid"] == "bkcc__2"
+    assert promql_params["bk_tenant_id"] == TENANT_ID
+    assert promql_params["space_uid"] == "bkcc__2"
+    assert promql_params["bk_biz_ids"] == ["10", "11"]
 
 
 def test_run_check_converts_structured_query_config_to_query_ts(v4_base_data, external_api):
@@ -919,6 +961,24 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
     external_api.apply_data_link.assert_called_once()
 
 
+def test_stop_without_applied_flow_records_apply_failure(v4_base_data, external_api):
+    rule = create_rule()
+    get_applied_flow(rule).delete()
+    external_api.apply_data_link.reset_mock()
+
+    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
+        desired_status=RecordRuleV4DesiredStatus.STOPPED.value
+    )
+
+    updated.refresh_from_db()
+    assert updated.desired_status == RecordRuleV4DesiredStatus.STOPPED.value
+    assert updated.applied_desired_status == RecordRuleV4DesiredStatus.RUNNING.value
+    assert updated.status == RecordRuleV4Status.FAILED.value
+    assert updated.get_condition(CONDITION_RECONCILED)["reason"] == "FlowMissing"
+    assert updated.events.filter(event_type="apply.failed", reason="FlowMissing").exists()
+    external_api.apply_data_link.assert_not_called()
+
+
 def test_delete_removes_applied_flow(v4_base_data, external_api):
     rule = create_rule()
     applied_flow_name = get_applied_flow(rule).flow_name
@@ -934,6 +994,43 @@ def test_delete_removes_applied_flow(v4_base_data, external_api):
     external_api.delete_data_link.assert_called_once()
     _, kwargs = external_api.delete_data_link.call_args
     assert kwargs["name"] == applied_flow_name
+
+
+def test_reconcile_retries_delete_even_when_auto_refresh_disabled(v4_base_data, external_api):
+    rule = create_rule(auto_refresh=False)
+    applied_flow_name = get_applied_flow(rule).flow_name
+    rule.set_desired_status(RecordRuleV4DesiredStatus.DELETED.value)
+    external_api.delete_data_link.reset_mock()
+
+    ok = RecordRuleV4Operator(rule, source="scheduler").reconcile(auto_apply=False)
+
+    rule.refresh_from_db()
+    assert ok is True
+    assert rule.status == RecordRuleV4Status.DELETED.value
+    assert rule.deleted_at is not None
+    external_api.delete_data_link.assert_called_once()
+    _, kwargs = external_api.delete_data_link.call_args
+    assert kwargs["name"] == applied_flow_name
+
+
+def test_refresh_record_rule_v4_keeps_unfinished_deletes_due(v4_base_data, external_api):
+    pending_deleted_rule = create_rule()
+    completed_deleted_rule = create_rule()
+    pending_deleted_flow_name = get_applied_flow(pending_deleted_rule).flow_name
+    pending_deleted_rule.set_desired_status(RecordRuleV4DesiredStatus.DELETED.value)
+    completed_deleted_rule.set_desired_status(RecordRuleV4DesiredStatus.DELETED.value)
+    completed_deleted_rule.mark_delete_applied()
+    external_api.delete_data_link.reset_mock()
+
+    refresh_record_rule_v4()
+
+    pending_deleted_rule.refresh_from_db()
+    completed_deleted_rule.refresh_from_db()
+    assert pending_deleted_rule.deleted_at is not None
+    assert completed_deleted_rule.deleted_at is not None
+    external_api.delete_data_link.assert_called_once()
+    _, kwargs = external_api.delete_data_link.call_args
+    assert kwargs["name"] == pending_deleted_flow_name
 
 
 def test_apply_failure_keeps_unapplied_resolved_and_records_action_error(v4_base_data, external_api):
