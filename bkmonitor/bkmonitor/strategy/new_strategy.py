@@ -14,6 +14,7 @@ import json
 import logging
 import traceback
 from collections import defaultdict
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from functools import partial, reduce
 from itertools import chain, permutations
@@ -1015,6 +1016,59 @@ class Algorithm(AbstractConfig):
         )
         self.id = algorithm.id
 
+    @staticmethod
+    def _get_serializer_field_default(serializer_class, field_name: str):
+        """
+        获取算法配置 serializer 字段默认值。
+        """
+        if not serializer_class:
+            return serializers.empty
+
+        serializer = serializer_class()
+        if not hasattr(serializer, "fields"):
+            return serializers.empty
+
+        field = serializer.fields.get(field_name)
+        if not field or field.default is serializers.empty:
+            return serializers.empty
+
+        if callable(field.default):
+            return field.default()
+        return copy.deepcopy(field.default)
+
+    @classmethod
+    def _merge_config_dict(cls, base_config: Mapping, request_config: Mapping, serializer_class=None) -> dict:
+        """
+        以数据库配置为基准合并请求配置，避免页面默认值覆盖后台调优参数。
+        """
+        merged_config = copy.deepcopy(base_config)
+
+        for key, value in request_config.items():
+            field_default = cls._get_serializer_field_default(serializer_class, key)
+            if key in merged_config and field_default is not serializers.empty and value == field_default:
+                continue
+
+            if isinstance(merged_config.get(key), Mapping) and isinstance(value, Mapping):
+                merged_config[key] = cls._merge_config_dict(merged_config[key], value)
+            else:
+                merged_config[key] = copy.deepcopy(value)
+
+        return merged_config
+
+    def _merge_with_db_config(self, algorithm: AlgorithmModel):
+        """
+        基于已有算法配置合并本次保存的配置。
+        """
+        if (
+            algorithm.type != self.type
+            or not isinstance(algorithm.config, Mapping)
+            or not isinstance(self.config, Mapping)
+        ):
+            return self.config
+
+        serializer_class = self.Serializer.AlgorithmSerializers.get(self.type)
+        return self._merge_config_dict(algorithm.config, self.config, serializer_class)
+
     def save(self):
         try:
             if self.id > 0:
@@ -1027,8 +1081,9 @@ class Algorithm(AbstractConfig):
         except AlgorithmModel.DoesNotExist:
             self._create()
         else:
+            merged_config = self._merge_with_db_config(algorithm)
             algorithm.type = self.type
-            algorithm.config = self.config
+            algorithm.config = merged_config
             algorithm.unit_prefix = self.unit_prefix
             algorithm.level = self.level
             algorithm.save()
