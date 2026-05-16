@@ -8,9 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 from types import SimpleNamespace
 
 import pytest
+from django.utils.timezone import now
 
 from api.unify_query.default import CheckQueryTsByPromqlResource, CheckQueryTsResource
 from bkmonitor.utils.tenant import DatalinkBizIds
@@ -40,6 +42,7 @@ from metadata.models.record_rule.v4.output import RecordRuleV4OutputResources
 from metadata.models.record_rule.v4.resolver import RecordRuleV4Resolver
 from metadata.models.record_rule.v4.runner import RecordRuleV4Runner
 from metadata.models.record_rule.v4.source import resolve_vm_result_table_configs
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.task.record_rule_v4 import refresh_record_rule_v4
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -429,6 +432,52 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
         is_publish=True,
         bk_tenant_id=TENANT_ID,
     )
+
+
+def test_space_table_ids_keep_record_rule_v4_until_delete_retention_expires(v4_base_data, external_api):
+    rule = create_rule(apply_immediately=False)
+    redis_client = SpaceTableIDRedis()
+
+    route_values = redis_client._compose_record_rule_table_ids(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        bk_tenant_id=TENANT_ID,
+    )
+    assert route_values[rule.table_id] == {"filters": []}
+
+    rule.set_desired_status(RecordRuleV4DesiredStatus.STOPPED.value)
+    route_values = redis_client._compose_record_rule_table_ids(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        bk_tenant_id=TENANT_ID,
+    )
+    assert rule.table_id in route_values
+
+    rule.set_desired_status(RecordRuleV4DesiredStatus.DELETED.value)
+    route_values = redis_client._compose_record_rule_table_ids(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        bk_tenant_id=TENANT_ID,
+    )
+    assert rule.table_id in route_values
+
+    rule.deleted_at = now() - datetime.timedelta(days=179)
+    rule.save(update_fields=["deleted_at", "updated_at"])
+    route_values = redis_client._compose_record_rule_table_ids(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        bk_tenant_id=TENANT_ID,
+    )
+    assert rule.table_id in route_values
+
+    rule.deleted_at = now() - datetime.timedelta(days=181)
+    rule.save(update_fields=["deleted_at", "updated_at"])
+    route_values = redis_client._compose_record_rule_table_ids(
+        space_type=SPACE_TYPE,
+        space_id=SPACE_ID,
+        bk_tenant_id=TENANT_ID,
+    )
+    assert rule.table_id not in route_values
 
 
 def test_create_supports_description_and_data_label(v4_base_data, external_api):
