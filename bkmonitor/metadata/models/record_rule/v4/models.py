@@ -23,7 +23,6 @@ from django.db import models
 from django.utils import timezone
 
 from bkm_space.utils import space_uid_to_bk_biz_id
-from bkmonitor.utils.db import JsonField
 from metadata.models.common import BaseModelWithTime
 from metadata.models.record_rule import utils
 from metadata.models.record_rule.constants import (
@@ -343,7 +342,7 @@ class RecordRuleV4(BaseModelWithTime):
         "最近成功生效的期望状态", max_length=32, default=RecordRuleV4DesiredStatus.RUNNING.value
     )
     status = models.CharField("聚合阶段", max_length=32, default=RecordRuleV4Status.CREATED.value)
-    conditions = JsonField("当前状态条件", default=dict)
+    conditions = models.JSONField("当前状态条件", default=dict)
 
     auto_refresh = models.BooleanField("是否自动刷新", default=True)
     last_check_time = models.DateTimeField("最近检查时间", null=True, blank=True)
@@ -747,9 +746,9 @@ class RecordRuleV4Spec(BaseModelWithTime):
     rule = models.ForeignKey(RecordRuleV4, verbose_name="预计算规则组", related_name="specs", on_delete=models.CASCADE)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     generation = models.IntegerField("用户声明版本")
-    raw_config = JsonField("用户原始完整配置", default=dict)
+    raw_config = models.JSONField("用户原始完整配置", default=dict)
     interval = models.CharField("计算周期", max_length=16, default="1min")
-    labels = JsonField("组级附加标签", default=list)
+    labels = models.JSONField("组级附加标签", default=list)
     content_hash = models.CharField("配置内容指纹", max_length=64)
     source = models.CharField("来源", max_length=32, default="user")
     operator = models.CharField("操作人", max_length=128, blank=True, default="")
@@ -792,9 +791,9 @@ class RecordRuleV4SpecRecord(BaseModelWithTime):
     source_index = models.IntegerField("原始顺序", default=0)
 
     input_type = models.CharField("输入类型", max_length=32)
-    input_config = JsonField("用户原始输入", default=dict)
+    input_config = models.JSONField("用户原始输入", default=dict)
     metric_name = models.CharField("输出指标名", max_length=128)
-    labels = JsonField("附加标签", default=list)
+    labels = models.JSONField("附加标签", default=list)
 
     class Meta:
         verbose_name = "V4 预计算用户声明记录"
@@ -838,7 +837,7 @@ class RecordRuleV4Resolved(BaseModelWithTime):
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     generation = models.IntegerField("用户声明版本")
     resolve_version = models.IntegerField("同声明下解析版本")
-    resolved_config = JsonField("解析完整配置", default=dict)
+    resolved_config = models.JSONField("解析完整配置", default=dict)
     content_hash = models.CharField("解析内容指纹", max_length=64)
     source = models.CharField("来源", max_length=32, default="scheduler")
 
@@ -873,9 +872,9 @@ class RecordRuleV4ResolvedRecord(BaseModelWithTime):
     content_hash = models.CharField("解析记录内容指纹", max_length=64)
 
     metricql = models.TextField("MetricQL")
-    labels = JsonField("合并附加标签", default=list)
-    src_vm_table_ids = JsonField("源 VM 结果表列表", default=list)  # pyright: ignore[reportAssignmentType]
-    src_result_table_configs = JsonField("源结果表配置列表", default=list)  # pyright: ignore[reportAssignmentType]
+    labels = models.JSONField("合并附加标签", default=list)
+    src_vm_table_ids = models.JSONField("源 VM 结果表列表", default=list)  # pyright: ignore[reportAssignmentType]
+    src_result_table_configs = models.JSONField("源结果表配置列表", default=list)  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         verbose_name = "V4 预计算解析记录"
@@ -901,7 +900,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
     )
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system", db_index=True)
     flow_name = models.CharField("V4 Flow 名称", max_length=128)
-    flow_config = JsonField("V4 Flow 配置", default=dict)
+    flow_config = models.JSONField("V4 Flow 配置", default=dict)
     content_hash = models.CharField("Flow 内容指纹", max_length=64)
     flow_status = models.CharField("Flow 实际状态", max_length=32, blank=True, default="")
     last_observed_at = models.DateTimeField("最近观测时间", null=True, blank=True)
@@ -1099,7 +1098,7 @@ class RecordRuleV4Event(BaseModelWithTime):
     operator = models.CharField("操作人", max_length=128, blank=True, default="")
     reason = models.CharField("原因", max_length=128, blank=True, default="")
     message = models.TextField("消息", blank=True, default="")
-    detail = JsonField("详情", default=dict)
+    detail = models.JSONField("详情", default=dict)
 
     class Meta:
         verbose_name = "V4 预计算事件"

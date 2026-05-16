@@ -2,8 +2,6 @@
 
 from django.db import migrations, models
 
-import bkmonitor.utils.db.fields
-
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -37,7 +35,7 @@ class Migration(migrations.Migration):
                     models.CharField(default="running", max_length=32, verbose_name="最近成功生效的期望状态"),
                 ),
                 ("status", models.CharField(default="created", max_length=32, verbose_name="聚合阶段")),
-                ("conditions", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="当前状态条件")),
+                ("conditions", models.JSONField(default=dict, verbose_name="当前状态条件")),
                 ("auto_refresh", models.BooleanField(default=True, verbose_name="是否自动刷新")),
                 ("last_check_time", models.DateTimeField(blank=True, null=True, verbose_name="最近检查时间")),
                 ("last_refresh_time", models.DateTimeField(blank=True, null=True, verbose_name="最近刷新时间")),
@@ -78,9 +76,9 @@ class Migration(migrations.Migration):
                     models.CharField(db_index=True, default="system", max_length=256, null=True, verbose_name="租户ID"),
                 ),
                 ("generation", models.IntegerField(verbose_name="用户声明版本")),
-                ("raw_config", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="用户原始完整配置")),
+                ("raw_config", models.JSONField(default=dict, verbose_name="用户原始完整配置")),
                 ("interval", models.CharField(default="1min", max_length=16, verbose_name="计算周期")),
-                ("labels", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="组级附加标签")),
+                ("labels", models.JSONField(default=list, verbose_name="组级附加标签")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="配置内容指纹")),
                 ("source", models.CharField(default="user", max_length=32, verbose_name="来源")),
                 ("operator", models.CharField(blank=True, default="", max_length=128, verbose_name="操作人")),
@@ -116,9 +114,9 @@ class Migration(migrations.Migration):
                 ("content_hash", models.CharField(max_length=64, verbose_name="记录内容指纹")),
                 ("source_index", models.IntegerField(default=0, verbose_name="原始顺序")),
                 ("input_type", models.CharField(max_length=32, verbose_name="输入类型")),
-                ("input_config", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="用户原始输入")),
+                ("input_config", models.JSONField(default=dict, verbose_name="用户原始输入")),
                 ("metric_name", models.CharField(max_length=128, verbose_name="输出指标名")),
-                ("labels", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="附加标签")),
+                ("labels", models.JSONField(default=list, verbose_name="附加标签")),
                 (
                     "spec",
                     models.ForeignKey(
@@ -150,7 +148,7 @@ class Migration(migrations.Migration):
                 ),
                 ("generation", models.IntegerField(verbose_name="用户声明版本")),
                 ("resolve_version", models.IntegerField(verbose_name="同声明下解析版本")),
-                ("resolved_config", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="解析完整配置")),
+                ("resolved_config", models.JSONField(default=dict, verbose_name="解析完整配置")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="解析内容指纹")),
                 ("source", models.CharField(default="scheduler", max_length=32, verbose_name="来源")),
                 (
@@ -193,14 +191,14 @@ class Migration(migrations.Migration):
                 ("record_key", models.CharField(max_length=64, verbose_name="内部稳定记录ID")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="解析记录内容指纹")),
                 ("metricql", models.TextField(verbose_name="MetricQL")),
-                ("labels", bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="合并附加标签")),
+                ("labels", models.JSONField(default=list, verbose_name="合并附加标签")),
                 (
                     "src_vm_table_ids",
-                    bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="源 VM 结果表列表"),
+                    models.JSONField(default=list, verbose_name="源 VM 结果表列表"),
                 ),
                 (
                     "src_result_table_configs",
-                    bkmonitor.utils.db.fields.JsonField(default=list, verbose_name="源结果表配置列表"),
+                    models.JSONField(default=list, verbose_name="源结果表配置列表"),
                 ),
                 (
                     "resolved",
@@ -241,7 +239,7 @@ class Migration(migrations.Migration):
                     models.CharField(db_index=True, default="system", max_length=256, null=True, verbose_name="租户ID"),
                 ),
                 ("flow_name", models.CharField(max_length=128, verbose_name="V4 Flow 名称")),
-                ("flow_config", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="V4 Flow 配置")),
+                ("flow_config", models.JSONField(default=dict, verbose_name="V4 Flow 配置")),
                 ("content_hash", models.CharField(max_length=64, verbose_name="Flow 内容指纹")),
                 ("flow_status", models.CharField(blank=True, default="", max_length=32, verbose_name="Flow 实际状态")),
                 ("last_observed_at", models.DateTimeField(blank=True, null=True, verbose_name="最近观测时间")),
@@ -289,7 +287,7 @@ class Migration(migrations.Migration):
                 ("operator", models.CharField(blank=True, default="", max_length=128, verbose_name="操作人")),
                 ("reason", models.CharField(blank=True, default="", max_length=128, verbose_name="原因")),
                 ("message", models.TextField(blank=True, default="", verbose_name="消息")),
-                ("detail", bkmonitor.utils.db.fields.JsonField(default=dict, verbose_name="详情")),
+                ("detail", models.JSONField(default=dict, verbose_name="详情")),
                 (
                     "flow",
                     models.ForeignKey(
