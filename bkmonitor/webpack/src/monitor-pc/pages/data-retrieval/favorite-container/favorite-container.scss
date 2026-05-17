@@ -1,3 +1,55 @@
 .favorite-container-comp {
   height: 100%;
+
+  // 收藏夹部分样式同步trace，避免影响指标检索的收藏夹
+  .new-search {
+    height: 34px;
+    padding-left: 4px;
+    margin: 3px 8px 11px;
+    color: #3a84ff;
+    border: none;
+    transition: all .15s;
+
+    &::before {
+      position: absolute;
+      top: -3px;
+      right: 4px;
+      left: 4px;
+      height: 1px;
+      cursor: default;
+      content: '';
+      background-color: #dcdee5;
+    }
+
+    &::after {
+      position: absolute;
+      right: 4px;
+      bottom: -3px;
+      left: 4px;
+      height: 1px;
+      cursor: default;
+      content: '';
+      background-color: #dcdee5;
+    }
+
+    &:hover {
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.0784313725);
+    }
+
+    &.active {
+      border: none;
+      border-radius: 4px;
+    }
+
+    .icon-xinjiansuo {
+      margin: 0;
+      color: #3a84ff;
+    }
+  }
+
+  .group-title {
+    padding: 0 12px;
+  }
 }
