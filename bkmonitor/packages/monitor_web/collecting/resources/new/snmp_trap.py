@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
+"""SNMP Trap 采集配置 Resource —— 适配 bk-monitor-base 的新实现。
+
+[ISSUE] 虚拟插件创建仍依赖旧版 PluginManagerFactory 和 resource.plugin.create_plugin。
+如果 plugin 模块已切换到 base 模式（ENABLE_BK_MONITOR_BASE_PLUGIN=true），
+则 resource.plugin.create_plugin 走的是 base 的 create_metric_plugin，逻辑上兼容。
+如果 plugin 模块未切换，则走旧 ORM 路径。
+两种情况下本 Resource 的接口行为一致。
 """
-Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2025 Tencent. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at http://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
-"""
+
+from __future__ import annotations
 
 from bkmonitor.utils import shortuuid
 from bkmonitor.utils.request import get_request_tenant_id
@@ -19,8 +19,9 @@ from monitor_web.plugin.manager import PluginManagerFactory
 
 
 class GetTrapCollectorPluginResource(Resource):
-    """
-    用于获取SNMPTrap采集配置
+    """用于获取 SNMPTrap 采集配置对应的虚拟插件。
+
+    仅被 SaveCollectConfigResource 内部调用。
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -28,7 +29,9 @@ class GetTrapCollectorPluginResource(Resource):
             class SnmpTrapSlz(serializers.Serializer):
                 class AuthInfoSlz(serializers.Serializer):
                     security_name = serializers.CharField(required=False, label="安全名")
-                    context_name = serializers.CharField(required=False, label="上下文名称", default="", allow_blank=True)
+                    context_name = serializers.CharField(
+                        required=False, label="上下文名称", default="", allow_blank=True
+                    )
                     security_level = serializers.CharField(required=False, label="安全级别")
                     authentication_protocol = serializers.CharField(
                         required=False, label="验证协议", default="", allow_blank=True
@@ -36,8 +39,12 @@ class GetTrapCollectorPluginResource(Resource):
                     authentication_passphrase = serializers.CharField(
                         required=False, label="验证口令", default="", allow_blank=True
                     )
-                    privacy_protocol = serializers.CharField(required=False, label="隐私协议", default="", allow_blank=True)
-                    privacy_passphrase = serializers.CharField(required=False, label="私钥", default="", allow_blank=True)
+                    privacy_protocol = serializers.CharField(
+                        required=False, label="隐私协议", default="", allow_blank=True
+                    )
+                    privacy_passphrase = serializers.CharField(
+                        required=False, label="私钥", default="", allow_blank=True
+                    )
                     authoritative_engineID = serializers.CharField(required=False, label="设备ID")
 
                 server_port = serializers.IntegerField(required=True, label="trap服务端口")
@@ -56,13 +63,14 @@ class GetTrapCollectorPluginResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=False, label="采集配置ID")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> str:
         bk_tenant_id = get_request_tenant_id()
         plugin_id = validated_request_data["plugin_id"]
         label = validated_request_data["label"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         snmp_trap = validated_request_data["params"]["snmp_trap"]
         yaml = validated_request_data["params"]["snmp_trap"]["yaml"]
+
         if "id" not in validated_request_data:
             plugin_id = "trap_" + str(shortuuid.uuid())
             plugin_manager = PluginManagerFactory.get_manager(

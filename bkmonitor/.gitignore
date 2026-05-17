@@ -254,3 +254,6 @@ openspec/
 
 # bk-monitor-base config file
 bk-monitor-base-config.yaml
+config.yaml
+
+packages/monitor_web/integration_tests/

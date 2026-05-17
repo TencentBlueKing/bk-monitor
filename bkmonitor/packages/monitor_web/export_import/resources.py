@@ -80,6 +80,8 @@ from monitor_web.tasks import import_config, remove_file
 
 logger = logging.getLogger("monitor_web")
 
+_USE_BASE_PLUGIN = os.getenv("ENABLE_BK_MONITOR_BASE_PLUGIN", "false").lower() == "true"
+
 
 class GetAllConfigListResource(Resource):
     """
@@ -466,6 +468,22 @@ class ExportPackageResource(Resource):
         bk_tenant_id = get_request_tenant_id()
         plugin_file_path = os.path.join(self.package_path, "plugin_directory")
         os.makedirs(plugin_file_path)
+
+        if _USE_BASE_PLUGIN:
+            self._make_plugin_file_new(bk_tenant_id, plugin_file_path)
+        else:
+            self._make_plugin_file_old(bk_tenant_id, plugin_file_path)
+
+    def _make_plugin_file_old(self, bk_tenant_id: str, plugin_file_path: str):
+        """旧模式：通过 ``CollectorPluginMeta`` + ``PluginManagerFactory`` 导出插件包。
+
+        遍历 ``associated_plugin_list``，为每个插件调用旧管理器的
+        ``make_package(need_tar=False)`` 将文件直接写入导出目录。
+
+        Args:
+            bk_tenant_id: 当前请求的租户 ID。
+            plugin_file_path: 插件文件的导出根目录。
+        """
         for plugin_id in self.associated_plugin_list:
             plugin = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id).first()
             plugin_manager = PluginManagerFactory.get_manager(
@@ -480,6 +498,50 @@ class ExportPackageResource(Resource):
                     plugin_id,
                     exc_info=True,
                 )
+
+    def _make_plugin_file_new(self, bk_tenant_id: str, plugin_file_path: str):
+        """新模式：通过 ``export_metric_plugin_package`` 导出插件包。
+
+        遍历 ``associated_plugin_list``，为每个插件执行以下步骤：
+
+        1. 调用 ``export_metric_plugin_package`` 向节点管理创建导出任务并获取 tgz 下载链接。
+        2. 通过 HTTP 下载 tgz 文件。
+        3. 将 tgz 解压到 ``plugin_file_path/<plugin_id>/``，保持与旧模式一致的目录结构。
+
+        单个插件导出失败不会阻断其余插件，仅记录异常日志。
+
+        Args:
+            bk_tenant_id: 当前请求的租户 ID。
+            plugin_file_path: 插件文件的导出根目录。
+        """
+        import io
+
+        import requests
+        from bk_monitor_base.metric_plugin import export_metric_plugin_package
+
+        operator = get_local_username() or "system"
+        for plugin_id in self.associated_plugin_list:
+            try:
+                download_url = export_metric_plugin_package(
+                    bk_tenant_id=bk_tenant_id,
+                    plugin_id=plugin_id,
+                    operator=operator,
+                )
+                resp = requests.get(download_url, timeout=120)
+                resp.raise_for_status()
+
+                plugin_dest = os.path.join(plugin_file_path, plugin_id)
+                os.makedirs(plugin_dest, exist_ok=True)
+
+                with tarfile.open(fileobj=io.BytesIO(resp.content), mode="r:gz") as tar:
+                    safe_members = [
+                        m
+                        for m in tar.getmembers()
+                        if not m.name.startswith(("/", "..")) and ".." not in m.name.split("/")
+                    ]
+                    tar.extractall(plugin_dest, members=safe_members)
+            except Exception:
+                logger.exception("[make_plugin_file_new] 导出插件 %s 失败", plugin_id)
 
     def make_view_config_file(self):
         if not self.view_config_ids:

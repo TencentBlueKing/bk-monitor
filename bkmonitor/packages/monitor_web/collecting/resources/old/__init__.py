@@ -8,13 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import os
-
-if os.getenv("ENABLE_BK_MONITOR_BASE_COLLECTING", "false").lower() == "true":
-    from .new import *  # noqa: F403
-
-    # status 和 toolkit 暂未适配 base，始终使用旧实现
-    from .old.status import *  # noqa: F403
-    from .old.toolkit import *  # noqa: F403
-else:
-    from .old import *  # noqa: F403
+from .backend import *  # noqa: F403
+from .frontend import *  # noqa: F403
+from .snmp_trap import *  # noqa: F403
+from .status import *  # noqa: F403
+from .toolkit import *  # noqa: F403

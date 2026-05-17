@@ -436,7 +436,6 @@ import {
   exportPluginCollectorPlugin,
   importPluginCollectorPlugin,
   listCollectorPlugin,
-  tagOptionsCollectorPlugin,
 } from 'monitor-api/modules/model';
 import { saveAndReleasePlugin } from 'monitor-api/modules/plugin';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
@@ -725,7 +724,6 @@ export default {
         labels: this.labelKeyword,
       };
       this.emptyType = this.header.keyword ? 'search-empty' : 'empty';
-      !this.popover.list.length && this.getTagList();
       listCollectorPlugin(params, { cancelToken: new CancelToken(c => (this.cancelListRequest = c)) })
         .then(data => {
           let total = 0;
@@ -746,15 +744,6 @@ export default {
           this.loading = false;
           this.table.loading = false;
           this.table.message = params.search_key ? this.$t('搜索无数据') : this.$t('查无数据');
-        });
-    },
-    getTagList() {
-      tagOptionsCollectorPlugin()
-        .then(data => {
-          this.popover.list = data;
-        })
-        .catch(() => {
-          this.popover.list = [];
         });
     },
     handleDestoryLabelInstance() {

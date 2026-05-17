@@ -10,7 +10,9 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import logging
+import os
 import re
+from typing import Any
 
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -42,8 +44,61 @@ from utils import count_md5
 
 logger = logging.getLogger("monitor_web")
 
+_USE_BASE_PLUGIN = os.getenv("ENABLE_BK_MONITOR_BASE_PLUGIN", "false").lower() == "true"
 
-def import_plugin(bk_biz_id, plugin_config):
+
+def _normalize_metric_json(metric_json: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """对 metric_json 做 旧→新→旧 往返转换，确保字段集完整且格式统一。
+
+    不同来源的 metric_json 可能缺少 ``dimensions``、``is_diff_metric``、``is_manual``、
+    ``tag_list`` 等字段。经过往返转换后，所有字段都会被补齐到统一格式，
+    使得后续 MD5 比较不会因字段缺失而误判。
+
+    Args:
+        metric_json: 任意来源的指标组字典列表。
+
+    Returns:
+        字段已规范化的旧格式 metric_json。
+    """
+    from monitor_web.plugin.compat import convert_metric_json_to_base, convert_metric_json_to_legacy
+
+    return convert_metric_json_to_legacy(convert_metric_json_to_base(metric_json))
+
+
+def _strip_file_fields_from_define(define: dict[str, Any]) -> dict[str, Any]:
+    """移除 define/collector_json 中的 file_id 和 file_name 字段。
+
+    这些字段在插件包重新打包后经常变化（如 Nodeman 分配新的文件 ID），
+    不应参与插件内容一致性比较，否则会导致内容完全相同的插件被误判为不同。
+
+    Args:
+        define: 原始 define/collector_json 字典。
+
+    Returns:
+        剥离 file_id/file_name 后的副本。
+    """
+    result = copy.deepcopy(define)
+    for value in result.values():
+        if isinstance(value, dict):
+            value.pop("file_id", None)
+            value.pop("file_name", None)
+    return result
+
+
+def _import_plugin_old(bk_biz_id: int, plugin_config) -> Any:
+    """旧模式：通过 ``CollectorPluginMeta`` + ``PluginManagerFactory`` 导入插件。
+
+    如果目标租户下已存在同 ID 的插件，则比较 config/info 的 MD5：
+    一致且为已发布状态则直接复用，否则标记失败。
+    如果不存在，则通过旧序列化器校验后创建版本、注册到节点管理并发布。
+
+    Args:
+        bk_biz_id: 导入目标业务 ID。
+        plugin_config: ``ImportDetail`` 实例，用于更新导入状态。
+
+    Returns:
+        更新状态后的 ``plugin_config`` 实例。
+    """
     parse_instance = ImportParse.objects.get(id=plugin_config.parse_id)
     config = parse_instance.config
     plugin_id = config["plugin_id"]
@@ -52,7 +107,7 @@ def import_plugin(bk_biz_id, plugin_config):
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     exist_plugin = CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id).first()
     if exist_plugin:
-        # 避免导入包和原插件内容一致，文件名不同
+
         def handle_collector_json(config_value):
             for config_msg in list(config_value.get("collector_json", {}).values()):
                 if isinstance(config_msg, dict):
@@ -106,6 +161,161 @@ def import_plugin(bk_biz_id, plugin_config):
             plugin_config.save()
 
     return plugin_config
+
+
+def _import_plugin_new(bk_biz_id: int, plugin_config) -> Any:
+    """新模式：通过 bk-monitor-base 领域 API 导入插件。
+
+    如果目标租户下已存在同 ID 的插件（``MetricPluginModel``），则将已有插件的
+    metrics 和 define 转换为旧格式后与导入数据做 MD5 比较：一致且为 RELEASE
+    状态则直接复用，否则标记失败。
+
+    如果不存在，则从 ``ImportParse.config`` 构建 ``CreatePluginParams``，
+    依次调用 ``create_metric_plugin`` → ``register_metric_plugin`` →
+    ``release_metric_plugin_version`` 完成创建、注册和发布。
+
+    Args:
+        bk_biz_id: 导入目标业务 ID。
+        plugin_config: ``ImportDetail`` 实例，用于更新导入状态。
+
+    Returns:
+        更新状态后的 ``plugin_config`` 实例。
+    """
+    from bk_monitor_base.metric_plugin import (
+        CreatePluginParams,
+        MetricPluginNotFoundError,
+        MetricPluginStatus,
+        VersionTuple,
+        create_metric_plugin,
+        get_metric_plugin,
+        register_metric_plugin,
+        release_metric_plugin_version,
+    )
+    from monitor_web.plugin.compat import convert_metric_json_to_base
+
+    parse_instance = ImportParse.objects.get(id=plugin_config.parse_id)
+    config = parse_instance.config
+    plugin_id: str = config["plugin_id"]
+    config["bk_biz_id"] = bk_biz_id
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    operator: str = local.username or "system"
+
+    try:
+        exist_plugin = get_metric_plugin(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id)
+    except MetricPluginNotFoundError:
+        exist_plugin = None
+
+    if exist_plugin is not None:
+        from bk_monitor_base.domains.metric_plugin.define import MetricPluginParams
+        from monitor_web.plugin.compat import convert_metric_json_to_legacy
+
+        # --- 指标比较（双向归一化确保字段集一致）---
+        existing_metrics = convert_metric_json_to_legacy(exist_plugin.metrics)
+        incoming_metrics = _normalize_metric_json(config.get("metric_json", []))
+
+        # --- 插件定义比较（移除 file_id/file_name，重新打包后会变化）---
+        existing_define = _strip_file_fields_from_define(exist_plugin.define or {})
+        incoming_define = _strip_file_fields_from_define(config.get("collector_json", {}))
+
+        # --- 参数配置比较（通过 MetricPluginParams 归一化，补齐缺省字段）---
+        existing_params = [p.model_dump() for p in exist_plugin.params]
+        incoming_params = [MetricPluginParams(**p).model_dump() for p in config.get("config_json", [])]
+
+        # --- 插件信息比较 ---
+        existing_info = {
+            "name": exist_plugin.name,
+            "description_md": exist_plugin.description_md,
+            "label": exist_plugin.label,
+            "logo": exist_plugin.logo,
+        }
+        incoming_info = {
+            "name": config.get("plugin_display_name", ""),
+            "description_md": config.get("description_md", ""),
+            "label": config.get("label", ""),
+            "logo": config.get("logo", ""),
+        }
+
+        config_match = all(
+            [
+                count_md5(existing_metrics) == count_md5(incoming_metrics),
+                count_md5(existing_define) == count_md5(incoming_define),
+                count_md5(existing_params) == count_md5(incoming_params),
+                exist_plugin.is_support_remote == config.get("is_support_remote", False),
+                exist_plugin.enable_metric_discovery == config.get("enable_field_blacklist", True),
+            ]
+        )
+        info_match = count_md5(existing_info) == count_md5(incoming_info)
+        is_released = exist_plugin.status == MetricPluginStatus.RELEASE
+
+        if config_match and info_match and is_released:
+            plugin_config.config_id = plugin_id
+            plugin_config.import_status = ImportDetailStatus.SUCCESS
+            plugin_config.error_msg = ""
+            plugin_config.save()
+        else:
+            plugin_config.import_status = ImportDetailStatus.FAILED
+            plugin_config.error_msg = _("插件ID已存在")
+            plugin_config.save()
+    else:
+        try:
+            version = VersionTuple(
+                major=config.get("config_version", 1) or 1,
+                minor=config.get("info_version", 0) or 0,
+            )
+            params = CreatePluginParams(
+                id=plugin_id,
+                type=config["plugin_type"].lower(),
+                is_global=bk_biz_id == 0,
+                is_internal=config.get("is_internal", False),
+                version=version,
+                status=MetricPluginStatus.DEBUG,
+                version_log=config.get("version_log", ""),
+                name=config.get("plugin_display_name", ""),
+                description_md=config.get("description_md", ""),
+                label=config.get("label", ""),
+                logo=config.get("logo", ""),
+                metrics=convert_metric_json_to_base(config.get("metric_json", [])),
+                enable_metric_discovery=config.get("enable_field_blacklist", True),
+                params=config.get("config_json", []),
+                define=config.get("collector_json", {}),
+                is_support_remote=config.get("is_support_remote", False),
+            )
+            metric_plugin = create_metric_plugin(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                operator=operator,
+                params=params,
+            )
+            created_version = metric_plugin.version
+            register_metric_plugin(
+                bk_tenant_id=bk_tenant_id,
+                plugin_id=plugin_id,
+                version=created_version,
+                operator=operator,
+            )
+            release_metric_plugin_version(
+                bk_tenant_id=bk_tenant_id,
+                plugin_id=plugin_id,
+                version=created_version,
+                operator=operator,
+            )
+            plugin_config.config_id = plugin_id
+            plugin_config.import_status = ImportDetailStatus.SUCCESS
+            plugin_config.error_msg = ""
+            plugin_config.save()
+        except Exception as e:
+            logger.exception("[import_plugin_new] 插件 %s 导入失败", plugin_id)
+            plugin_config.import_status = ImportDetailStatus.FAILED
+            plugin_config.error_msg = str(e)
+            plugin_config.save()
+
+    return plugin_config
+
+
+def import_plugin(bk_biz_id, plugin_config):
+    if _USE_BASE_PLUGIN:
+        return _import_plugin_new(bk_biz_id, plugin_config)
+    return _import_plugin_old(bk_biz_id, plugin_config)
 
 
 def import_one_log_collect(data, bk_biz_id):

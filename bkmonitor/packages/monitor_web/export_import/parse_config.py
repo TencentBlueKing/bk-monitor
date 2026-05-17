@@ -11,20 +11,102 @@ specific language governing permissions and limitations under the License.
 import abc
 import json
 import logging
+import os
+import shutil
+import tempfile
 from pathlib import Path
+from typing import Any
 
 import yaml
 from bk_monitor_base.strategy import StrategySerializer
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
-from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from core.errors.plugin import PluginParseError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
 from monitor_web.plugin.manager import PluginManagerFactory
 
 logger = logging.getLogger("monitor_web")
+
+_USE_BASE_PLUGIN = os.getenv("ENABLE_BK_MONITOR_BASE_PLUGIN", "false").lower() == "true"
+
+
+def _write_plugin_to_dir(plugin_configs: dict[Path, bytes], plugin_id: str) -> Path:
+    """将内存中的插件文件物化到临时目录，生成 ``parse_metric_plugin_package`` 可直接解析的目录结构。
+
+    上传阶段通过 ``parse_package_without_decompress`` 将导入包解压到内存
+    （``dict[Path, bytes]``），其中插件文件的路径格式为
+    ``<plugin_id>/external_plugins_*/...``。
+
+    bk-monitor-base 的 ``parse_metric_plugin_package`` 要求根目录直接是
+    ``external_plugins_*/``，因此写入磁盘时会去掉顶层的 ``<plugin_id>/`` 前缀。
+
+    Note:
+        由于 bk-monitor-base 的解析 API 基于文件系统操作（``Path.iterdir()``、
+        ``open()``），不接受内存字典，所以这里必须先将 bytes 写到磁盘。
+
+    Args:
+        plugin_configs: 上传包中的插件文件映射，键为相对路径，值为文件内容。
+        plugin_id: 要提取的目标插件 ID，用于从混合的 plugin_configs 中过滤文件。
+
+    Returns:
+        写入完成的临时目录路径。调用方负责在使用完毕后清理该目录。
+    """
+    tmp_dir = Path(tempfile.mkdtemp())
+    for file_path, content in plugin_configs.items():
+        p = Path(file_path)
+        if len(p.parts) < 2 or p.parts[0] != plugin_id:
+            continue
+        dest = tmp_dir / Path(*p.parts[1:])
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(content)
+    return tmp_dir
+
+
+def _create_plugin_params_to_config(params: Any, meta_dict: dict[str, Any]) -> dict[str, Any]:
+    """将 bk-monitor-base 的 ``CreatePluginParams`` 转换为 ``ImportParse`` 存储的 plugin_config 字典。
+
+    解析阶段通过 ``parse_metric_plugin_package`` 得到 ``CreatePluginParams``（新格式），
+    但 ``ImportParse.config`` 及下游 ``import_plugin`` 仍然使用旧格式字典（包含
+    ``plugin_id``、``config_json``、``collector_json``、``metric_json`` 等字段）。
+
+    其中 ``metric_json`` 通过 ``convert_metric_json_to_legacy`` 做 ``rules`` →
+    ``rule_list`` 的转换并补齐 ``dimensions``、``is_diff_metric``、``is_manual``、
+    ``tag_list`` 等旧字段，保证存储格式和旧模式一致，下游比较 MD5 或序列化器
+    校验时不会因字段缺失而出错。
+
+    Args:
+        params: ``parse_metric_plugin_package`` 返回的 ``CreatePluginParams`` 实例。
+        meta_dict: 从插件包 ``meta.yaml`` 中解析出的原始字典，用于提取
+            ``tag`` 等 ``CreatePluginParams`` 不包含的字段。
+
+    Returns:
+        可直接存入 ``ImportParse.config`` 的扁平字典，格式与旧模式解析结果一致。
+    """
+    from monitor_web.plugin.compat import convert_metric_json_to_legacy, convert_plugin_type_to_legacy
+
+    return {
+        "plugin_id": params.id,
+        "plugin_type": convert_plugin_type_to_legacy(params.type),
+        "tag": meta_dict.get("tag", "") or "",
+        "label": params.label,
+        "config_json": [p.model_dump() if hasattr(p, "model_dump") else p for p in (params.params or [])],
+        "collector_json": params.define or {},
+        "is_support_remote": params.is_support_remote,
+        "plugin_display_name": params.name,
+        "description_md": params.description_md,
+        "logo": params.logo or "",
+        "metric_json": convert_metric_json_to_legacy(params.metrics or []),
+        "enable_field_blacklist": params.enable_metric_discovery,
+        "config_version": params.version.major,
+        "info_version": params.version.minor,
+        "version_log": params.version_log,
+        "is_official": False,
+        "is_safety": False,
+        "signature": "",
+    }
 
 
 class BaseParse:
@@ -89,8 +171,22 @@ class CollectConfigParse(BaseParse):
                 "collect_config": self.file_content,
                 "error_msg": _("缺少依赖的插件"),
             }
+
+        if _USE_BASE_PLUGIN:
+            return self._check_msg_new(plugin_id)
+        return self._check_msg_old(plugin_id)
+
+    def _check_msg_old(self, plugin_id: str):
+        """旧模式：通过 ``PluginManagerFactory.get_tmp_version`` 解析插件并构建 plugin_config。
+
+        Args:
+            plugin_id: 需要解析的插件 ID。
+
+        Returns:
+            包含 ``file_status``、``collect_config``、``plugin_config`` 等键的字典；
+            解析失败时 ``file_status`` 为 ``FAILED`` 并携带 ``error_msg``。
+        """
         parse_plugin_config = self.parse_plugin_msg(plugin_id)
-        # 只在失败情况下才需要添加 collect_config 键，因为成功时没有 config 键
         if "config" in parse_plugin_config:
             parse_plugin_config["collect_config"] = parse_plugin_config["config"]
         if parse_plugin_config.get("tmp_version"):
@@ -119,6 +215,30 @@ class CollectConfigParse(BaseParse):
             }
         else:
             return parse_plugin_config
+
+    def _check_msg_new(self, plugin_id: str):
+        """新模式：通过 ``parse_metric_plugin_package`` 解析插件并构建 plugin_config。
+
+        与 ``_check_msg_old`` 返回相同的字典结构，区别在于内部调用
+        ``_parse_plugin_msg_new`` 使用 bk-monitor-base 的领域 API 完成解析。
+
+        Args:
+            plugin_id: 需要解析的插件 ID。
+
+        Returns:
+            包含 ``file_status``、``collect_config``、``plugin_config`` 等键的字典；
+            解析失败时 ``file_status`` 为 ``FAILED`` 并携带 ``error_msg``。
+        """
+        parse_result = self._parse_plugin_msg_new(plugin_id)
+        if "config" in parse_result:
+            parse_result["collect_config"] = parse_result["config"]
+        if "plugin_config" in parse_result:
+            return {
+                "file_status": ImportDetailStatus.SUCCESS,
+                "collect_config": self.file_content,
+                "plugin_config": parse_result["plugin_config"],
+            }
+        return parse_result
 
     def get_meta_path(self, plugin_id):
         """获取 meta.yaml 的路径"""
@@ -176,6 +296,61 @@ class CollectConfigParse(BaseParse):
                 "config": self.file_content,
                 "error_msg": _("关联插件信息解析失败: {e}".format(e=e)),
             }
+
+    def _parse_plugin_msg_new(self, plugin_id: str) -> dict[str, Any]:
+        """新模式：将内存中的插件文件写入临时目录，调用 bk-monitor-base 解析后返回 plugin_config。
+
+        流程：
+        1. 通过 ``_write_plugin_to_dir`` 将 ``self.plugin_configs`` 中属于
+           ``plugin_id`` 的文件物化到临时目录。
+        2. 调用 ``parse_metric_plugin_package`` 传入目录路径完成解析，
+           得到 ``CreatePluginParams``。
+        3. 通过 ``_create_plugin_params_to_config`` 转换为旧格式 dict。
+
+        Args:
+            plugin_id: 需要解析的插件 ID。
+
+        Returns:
+            解析成功时返回 ``{"plugin_config": dict}``；
+            失败时返回 ``{"file_status": "failed", "name": ..., "config": ..., "error_msg": ...}``。
+        """
+        from bk_monitor_base.metric_plugin import parse_metric_plugin_package
+
+        meta_path = self.get_meta_path(plugin_id)
+        if not meta_path:
+            return {
+                "file_status": ImportDetailStatus.FAILED,
+                "name": self.file_content.get("name"),
+                "config": self.file_content,
+                "error_msg": _("关联插件信息不完整"),
+            }
+
+        plugin_dir: Path | None = None
+        try:
+            meta_content = self.plugin_configs[meta_path]
+            meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
+
+            plugin_dir = _write_plugin_to_dir(self.plugin_configs, plugin_id)
+            bk_tenant_id: str = get_request_tenant_id() or ""
+            operator: str = get_request_username() or "system"
+
+            create_params = parse_metric_plugin_package(
+                bk_tenant_id=bk_tenant_id,
+                package_file=plugin_dir,
+                operator=operator,
+            )
+            plugin_config = _create_plugin_params_to_config(create_params, meta_dict)
+            return {"plugin_config": plugin_config}
+        except Exception as e:
+            return {
+                "file_status": ImportDetailStatus.FAILED,
+                "name": self.file_content.get("name"),
+                "config": self.file_content,
+                "error_msg": _("关联插件信息解析失败: {e}".format(e=e)),
+            }
+        finally:
+            if plugin_dir is not None:
+                shutil.rmtree(plugin_dir, ignore_errors=True)
 
     def get_filename_list(self, plugin_id: str) -> list[Path]:
         """获取插件的文件列表"""
