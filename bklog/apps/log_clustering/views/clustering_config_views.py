@@ -21,9 +21,17 @@ the project delivered to anyone in the future.
 """
 import re
 
+from django.utils.translation import ugettext_lazy as _
+from pipeline.service import task_service
+from rest_framework import permissions
+from rest_framework.response import Response
+
+from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
@@ -33,15 +41,32 @@ from apps.log_clustering.serializers import (
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
-from pipeline.service import task_service
-from rest_framework.response import Response
+
+
+class _IsSuperuser(permissions.BasePermission):
+    """Django 超级管理员校验"""
+
+    message = "需要 Django 超级管理员权限"
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        return bool(user and getattr(user, "is_superuser", False))
 
 
 class ClusteringConfigViewSet(APIViewSet):
     lookup_field = "index_set_id"
+    # 仅超管：内部流水线运维接口
+    pipeline_admin_actions = {"get_pipeline_state", "retry_pipeline", "skip_pipeline", "fail_pipeline"}
+    # 仅需登录态：不涉及具体 index_set 的模板/调试动作
+    open_actions = {"get_default_config", "preview", "check"}
 
     def get_permissions(self):
-        return []
+        if self.action in self.pipeline_admin_actions:
+            return [_IsSuperuser()]
+        if self.action in self.open_actions:
+            return []
+        # 其余按 index_set_id 定位的动作，统一校验日志检索权限
+        return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @detail_route(methods=["GET"], url_path="config")
     def get_config(self, request, *args, index_set_id=None, **kwargs):
@@ -128,7 +153,7 @@ class ClusteringConfigViewSet(APIViewSet):
         return Response({"strategy_id": strategy_id})
 
     @detail_route(methods=["POST"])
-    def create_or_update(self, request, *args, **kwargs):
+    def create_or_update(self, request, *args, index_set_id=None, **kwargs):
         """
         @api {post} /clustering_config/$index_set_id/create_or_update 2_聚类设置-新建或者更新
         @apiName create_or_update_clustering_config
@@ -180,6 +205,14 @@ class ClusteringConfigViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ClusteringConfigSerializer)
+        # URL 上的 index_set_id 已经过 InstanceActionPermission 校验，
+        # 强制以 URL 为准，避免攻击者用自己有权限的 ID 过 IAM、
+        # 在 body 里塞他人 index_set_id 进而越权读写他人的聚类配置。
+        body_index_set_id = int(params.get("index_set_id") or 0)
+        url_index_set_id = int(index_set_id)
+        if body_index_set_id and body_index_set_id != url_index_set_id:
+            raise ValidationError(_("URL 中的 index_set_id 与请求体不一致"))
+        params["index_set_id"] = url_index_set_id
         return Response(ClusteringConfigHandler().update_or_create(params=params))
 
     @list_route(methods=["GET"], url_path="default_config")
