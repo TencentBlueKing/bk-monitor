@@ -110,7 +110,14 @@ export default defineComponent({
       emit('cancel', !props.isShow);
     };
     const currentParamsValue = computed(() => {
-      return isClickFavoriteEdit.value ? Object.assign({}, favoriteData.value, indexItem.value) : favoriteData.value;
+      if (!isClickFavoriteEdit.value) return favoriteData.value;
+      const merged = Object.assign({}, favoriteData.value, indexItem.value);
+      // 场景化模式：使用 retrieveParams 中已转换的 table_id_conditions 和 scene_filter_values 覆盖
+      if (store.getters.isSceneMode) {
+        const { table_id_conditions, scene_filter_values } = store.getters.retrieveParams;
+        Object.assign(merged, { table_id_conditions, scene_filter_values });
+      }
+      return merged;
     });
 
     /** 修改收藏 */
@@ -141,9 +148,16 @@ export default defineComponent({
         isDisableSelect.value = favoriteData.value.visible_type === 'private';
       }
     };
-    /** 展示的索引集，当为多索引集时，展示index_set_names字段，反之展示index_set_name */
+    /** 展示的索引集/场景名，场景模式下显示场景名，索引集模式下显示索引集名 */
     const indexSetName = () => {
-      const { index_set_name: indexSetName, index_set_names: indexSetNames } = favoriteData.value;
+      const data = favoriteData.value;
+      if (data.source_type === 'scene') {
+        // 场景化收藏：从 sceneConfigList 中查找场景名称
+        const sceneConfigs = store.getters['retrieve/sceneConfigList'] ?? [];
+        const sceneConfig = sceneConfigs.find(s => s.type === data.scene_id);
+        return sceneConfig?.label ?? data.scene_id ?? '';
+      }
+      const { index_set_name: indexSetName, index_set_names: indexSetNames } = data;
       return !isUnionSearch.value ? indexSetName : (indexSetNames || []).join(',');
     };
 
@@ -218,7 +232,7 @@ export default defineComponent({
               </div>
             </bk-select>
           </bk-form-item>
-          <bk-form-item label={t('索引集')}>
+          <bk-form-item label={favoriteData.value.source_type === 'scene' ? t('场景') : t('索引集')}>
             <bk-input
               disabled={true}
               value={indexSetName()}
