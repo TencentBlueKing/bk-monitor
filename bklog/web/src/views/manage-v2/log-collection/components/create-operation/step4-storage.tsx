@@ -570,26 +570,34 @@ export default defineComponent({
         es_shards,
         parent_index_set_ids,
       } = formData.value;
+      const submitData = {
+        bk_data_id,
+        custom_type,
+        storage_cluster_id,
+        retention: Number(retention),
+        allocation_min_days: Number(allocation_min_days),
+        storage_replies: Number(storage_replies),
+        category_id,
+        description,
+        es_shards: Number(es_shards),
+        parent_index_set_ids,
+        collector_config_name_en,
+        collector_config_name: collector_config_name || index_set_name,
+        bk_biz_id: Number(bkBizId.value),
+      };
+
+      if (isDorisMode.value) {
+        delete submitData.es_shards;
+        delete submitData.storage_replies;
+        delete submitData.allocation_min_days;
+      }
+
       $http
         .request(`custom/${isUpdate.value ? 'setCustom' : 'createCustom'}`, {
           params: {
             collector_config_id: props.configData.collector_config_id,
           },
-          data: {
-            bk_data_id,
-            custom_type,
-            storage_cluster_id,
-            retention: Number(retention),
-            allocation_min_days: Number(allocation_min_days),
-            storage_replies: Number(storage_replies),
-            category_id,
-            description,
-            es_shards: Number(es_shards),
-            parent_index_set_ids,
-            collector_config_name_en,
-            collector_config_name: collector_config_name || index_set_name,
-            bk_biz_id: Number(bkBizId.value),
-          },
+          data: submitData,
         })
         .then(res => {
           res.result && showMessage(t('保存成功'));
