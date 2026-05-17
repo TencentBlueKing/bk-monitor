@@ -699,20 +699,28 @@
           () => {
             this.submitLoading = true;
             if (this.isCloseDataLink) delete this.formData.data_link_id;
+            const submitData = {
+              ...this.formData,
+              storage_replies: Number(this.formData.storage_replies),
+              allocation_min_days: Number(this.formData.allocation_min_days),
+              es_shards: Number(this.formData.es_shards),
+              bk_biz_id: Number(this.bkBizId),
+              sort_fields: this.fieldSettingData.sortFields || [],
+              target_fields: this.fieldSettingData.targetFields || [],
+            };
+
+            if (this.isDorisMode) {
+              delete submitData.es_shards;
+              delete submitData.storage_replies;
+              delete submitData.allocation_min_days;
+            }
+
             this.$http
               .request(`custom/${this.isEdit ? 'setCustom' : 'createCustom'}`, {
                 params: {
                   collector_config_id: this.collectorId,
                 },
-                data: {
-                  ...this.formData,
-                  storage_replies: Number(this.formData.storage_replies),
-                  allocation_min_days: Number(this.formData.allocation_min_days),
-                  es_shards: Number(this.formData.es_shards),
-                  bk_biz_id: Number(this.bkBizId),
-                  sort_fields: this.fieldSettingData.sortFields || [],
-                  target_fields: this.fieldSettingData.targetFields || [],
-                },
+                data: submitData,
               })
               .then(res => {
                 res.result && this.messageSuccess(this.$t('保存成功'));
