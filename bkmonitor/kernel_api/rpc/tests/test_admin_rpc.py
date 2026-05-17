@@ -33,6 +33,7 @@ from kernel_api.rpc.functions.admin.query_route import (
     _resolve_space_identity,
 )
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
+from kernel_api.rpc.functions.admin import kafka_sample as kafka_sample_module
 from kernel_api.rpc.functions.admin import storage as admin_storage
 from kernel_api.rpc.functions.admin.storage import (
     get_doris_storage_latest_records,
@@ -126,7 +127,7 @@ def test_uptime_check_subscription_summary_extracts_effective_data_id():
                                 "period": "60s",
                                 "task_id": 135,
                                 "bk_biz_id": 52,
-                                "target_host_list": ["30.167.62.75"],
+                                "target_host_list": ["127.0.0.1"],
                             }
                         ],
                         "period": "60s",
@@ -627,6 +628,44 @@ def test_kafka_sample_function_registered():
     assert detail is not None
     assert detail["func_name"] == "admin.datasource.kafka_sample"
     assert "bk_data_id" in detail["params_schema"]
+
+
+def test_kafka_sample_v4_uses_data_id_config_by_bk_data_id():
+    datasource = SimpleNamespace(
+        bk_data_id=1001,
+        datalink_version="V4",
+        etl_config="bk_standard_v2_time_series",
+        data_name="demo",
+        mq_cluster=SimpleNamespace(is_auth=False),
+        mq_config=SimpleNamespace(topic="origin_topic"),
+    )
+    data_id_config = SimpleNamespace(namespace="bkmonitor", name="actual_data_id_name")
+    data_id_config_queryset = Mock()
+    data_id_config_queryset.order_by.return_value.first.return_value = data_id_config
+
+    with (
+        patch.object(kafka_sample_module.models.DataSource.objects, "get", return_value=datasource),
+        patch.object(
+            kafka_sample_module.models.DataSourceResultTable.objects,
+            "filter",
+            return_value=Mock(first=Mock(return_value=None)),
+        ),
+        patch.object(kafka_sample_module, "_query_gse_route_topic", return_value=None),
+        patch.object(
+            kafka_sample_module.DataIdConfig.objects, "filter", return_value=data_id_config_queryset
+        ) as data_id_filter,
+        patch.object(kafka_sample_module.api.bkdata, "tail_kafka_data", return_value=['{"value": 1}']) as tail_kafka,
+    ):
+        result = kafka_sample_module.kafka_sample({"bk_tenant_id": "system", "bk_data_id": 1001, "size": 1})
+
+    data_id_filter.assert_called_once_with(bk_tenant_id="system", bk_data_id=1001)
+    tail_kafka.assert_called_once_with(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="actual_data_id_name",
+        limit=1,
+    )
+    assert result["data"]["items"] == [{"value": 1}]
 
 
 def test_custom_report_refresh_metrics_function_registered():
