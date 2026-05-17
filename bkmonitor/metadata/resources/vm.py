@@ -136,6 +136,9 @@ class ApplyVMShortLinkResource(Resource):
         vmrts = serializers.ListField(required=True, label="VM结果表ID列表", child=serializers.CharField())
         is_global = serializers.BooleanField(required=False, label="是否为同空间类型全局表", default=False)
         query_router_config = serializers.DictField(required=False, label="查询路由配置", default=dict)
+        data_labels = serializers.ListField(
+            required=False, label="数据标签列表", child=serializers.CharField(allow_blank=False), default=list
+        )
         operator = serializers.CharField(required=False, label="操作者", default="system")
         refresh_router = serializers.BooleanField(required=False, label="是否刷新路由", default=True)
         overwrite = serializers.BooleanField(required=False, label="是否覆盖已存在短链路配置", default=False)
@@ -155,6 +158,7 @@ class ApplyVMShortLinkResource(Resource):
             operator=validated_request_data["operator"],
             refresh_router=validated_request_data["refresh_router"],
             overwrite=validated_request_data["overwrite"],
+            data_labels=validated_request_data.get("data_labels", []),
         )
 
 
@@ -197,6 +201,14 @@ class UpdateVMShortLinkResource(Resource):
         query_router_config = serializers.DictField(
             required=False, allow_null=True, default=None, label="查询路由配置，未传则不修改"
         )
+        data_labels = serializers.ListField(
+            required=False,
+            allow_empty=True,
+            allow_null=True,
+            default=None,
+            label="数据标签列表，未传则不修改",
+            child=serializers.CharField(allow_blank=False),
+        )
         refresh_bkbase = serializers.BooleanField(required=False, label="是否从BKBase刷新配置", default=True)
         operator = serializers.CharField(required=False, label="操作者", default="system")
         refresh_router = serializers.BooleanField(required=False, label="是否刷新路由", default=True)
@@ -217,6 +229,7 @@ class UpdateVMShortLinkResource(Resource):
             refresh_bkbase=validated_request_data["refresh_bkbase"],
             operator=validated_request_data["operator"],
             refresh_router=validated_request_data["refresh_router"],
+            data_labels=validated_request_data.get("data_labels"),
         )
 
 

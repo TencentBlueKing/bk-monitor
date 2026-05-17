@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import re
 from typing import Any
 
 from django.conf import settings
@@ -28,6 +29,8 @@ logger = logging.getLogger("metadata")
 # 短链路没有监控侧 DataSource，统一使用 0 标识“无数据源”。
 SHORT_LINK_BK_DATA_ID = 0
 DEFAULT_OPERATOR = "system"
+DATA_LABEL_MAX_LENGTH = 32
+DATA_LABEL_PATTERN = re.compile(r"^[a-z][a-z0-9_.:]*$")
 
 
 def _get_space_info_by_biz_id(bk_tenant_id: str, bk_biz_id: int) -> tuple[str, str]:
@@ -66,9 +69,35 @@ def _get_vmrt_info(bk_tenant_id: str, vmrt: str) -> tuple[int, str, int]:
 def _validate_vmrt_biz_id(vmrt: str, actual_bk_biz_id: int, expected_bk_biz_id: int) -> None:
     """只允许业务自身的 VMRT 接入或刷新，避免把其他业务的 BKBase 表挂到当前空间。"""
     if actual_bk_biz_id != expected_bk_biz_id:
-        raise ValueError(
-            f"vmrt: {vmrt} bk_biz_id mismatch, expected: {expected_bk_biz_id}, actual: {actual_bk_biz_id}"
-        )
+        raise ValueError(f"vmrt: {vmrt} bk_biz_id mismatch, expected: {expected_bk_biz_id}, actual: {actual_bk_biz_id}")
+
+
+def _normalize_data_labels(data_labels: list[str] | tuple[str, ...] | None) -> list[str]:
+    """标准化短链路 data_labels，并校验单个 label。"""
+    if data_labels is None:
+        return []
+    if not isinstance(data_labels, list | tuple):
+        raise ValueError("data_labels must be a list of strings")
+
+    normalized_labels = list(dict.fromkeys(str(label).strip() for label in data_labels if str(label).strip()))
+    for data_label in normalized_labels:
+        if len(data_label) > DATA_LABEL_MAX_LENGTH:
+            raise ValueError(f"data_label exceeds {DATA_LABEL_MAX_LENGTH} characters: {data_label}")
+        if not DATA_LABEL_PATTERN.match(data_label):
+            raise ValueError(
+                "data_label only supports a-z, 0-9, underscore, dot and colon, "
+                f"and must start with a letter: {data_label}"
+            )
+    return normalized_labels
+
+
+def _split_result_table_data_label(data_label: str) -> list[str]:
+    """拆分 ResultTable.data_label 旧存储形态，仅用于刷新旧路由映射。"""
+    return [label for label in data_label.split(",") if label]
+
+
+def _compose_result_table_data_label(data_labels: list[str]) -> str:
+    return ",".join(data_labels)
 
 
 def _upsert_result_table_option(table_id: str, bk_tenant_id: str, name: str, value: bool, operator: str) -> None:
@@ -92,22 +121,27 @@ def _upsert_result_table(
     bk_biz_id: int,
     bk_tenant_id: str,
     operator: str,
+    data_labels: list[str] | None = None,
 ) -> tuple[models.ResultTable, bool]:
     """创建短链路虚拟 RT；它只参与查询路由和指标发现，不对应监控侧 DataSource。"""
+    defaults = {
+        "table_name_zh": vm_result_table_name,
+        "is_custom_table": False,
+        "schema_type": models.ResultTable.SCHEMA_TYPE_FIXED,
+        "default_storage": models.ClusterInfo.TYPE_VM,
+        "creator": operator,
+        "last_modify_user": operator,
+        "bk_biz_id": bk_biz_id,
+        "is_deleted": False,
+        "is_enable": True,
+    }
+    if data_labels is not None:
+        defaults["data_label"] = _compose_result_table_data_label(data_labels)
+
     return models.ResultTable.objects.update_or_create(
         table_id=table_id,
         bk_tenant_id=bk_tenant_id,
-        defaults={
-            "table_name_zh": vm_result_table_name,
-            "is_custom_table": False,
-            "schema_type": models.ResultTable.SCHEMA_TYPE_FIXED,
-            "default_storage": models.ClusterInfo.TYPE_VM,
-            "creator": operator,
-            "last_modify_user": operator,
-            "bk_biz_id": bk_biz_id,
-            "is_deleted": False,
-            "is_enable": True,
-        },
+        defaults=defaults,
     )
 
 
@@ -119,6 +153,7 @@ def _sync_vm_short_link_metadata(
     bk_biz_id: int,
     bk_tenant_id: str,
     operator: str,
+    data_labels: list[str] | None = None,
 ) -> tuple[bool, bool]:
     """同步短链路依赖的 RT / VM / 指标配置，供新接入和配置刷新复用。"""
     _, rt_created = _upsert_result_table(
@@ -127,6 +162,7 @@ def _sync_vm_short_link_metadata(
         bk_biz_id=bk_biz_id,
         bk_tenant_id=bk_tenant_id,
         operator=operator,
+        data_labels=data_labels,
     )
 
     models.AccessVMRecord.objects.update_or_create(
@@ -177,15 +213,40 @@ def _sync_vm_short_link_metadata(
     return rt_created, ts_group.update_metrics(metrics_info)
 
 
+def _update_result_table_data_label(table_id: str, bk_tenant_id: str, data_labels: list[str], operator: str) -> str:
+    """更新短链路虚拟 RT 的 data_label，并返回更新前的 data_label。"""
+    result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    old_data_label = result_table.data_label or ""
+    data_label = _compose_result_table_data_label(data_labels)
+    if old_data_label != data_label:
+        result_table.data_label = data_label
+        result_table.last_modify_user = operator
+        result_table.save(update_fields=["data_label", "last_modify_user"])
+    return old_data_label
+
+
+def _get_result_table_data_label(table_id: str, bk_tenant_id: str) -> str:
+    return (
+        models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        .values_list("data_label", flat=True)
+        .first()
+        or ""
+    )
+
+
 def _refresh_short_link_spaces(
     bk_tenant_id: str,
     refresh_spaces: set[tuple[str, str]],
     table_ids: list[str] | None = None,
+    data_labels: list[str] | None = None,
 ) -> None:
     """刷新短链路归属空间；非归属空间由 BMW 自然刷新。"""
     redis = SpaceTableIDRedis()
     if table_ids:
         redis.push_table_id_detail(table_id_list=table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
+
+    if data_labels:
+        redis.push_data_label_table_ids(data_label_list=data_labels, is_publish=True, bk_tenant_id=bk_tenant_id)
 
     for space_type, space_id in refresh_spaces:
         redis.push_space_table_ids(space_type=space_type, space_id=str(space_id), is_publish=True)
@@ -200,6 +261,7 @@ def apply_vm_short_links(
     operator: str = DEFAULT_OPERATOR,
     refresh_router: bool = True,
     overwrite: bool = False,
+    data_labels: list[str] | tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """接入 VM 短链路。
 
@@ -207,9 +269,11 @@ def apply_vm_short_links(
     """
     # apply 是“接入”语义，重复 VMRT 只执行一次，避免同一批次内第二次命中已存在记录。
     vmrts = list(dict.fromkeys(vmrts))
+    normalized_data_labels = _normalize_data_labels(data_labels)
     results: list[dict[str, Any]] = []
     refresh_spaces: set[tuple[str, str]] = set()
     refreshed_table_ids: list[str] = []
+    refreshed_data_labels: set[str] = set()
     space_type, space_id = _get_space_info_by_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
     normalized_query_router_config = models.VMShortLinkRecord.normalize_query_router_config(
         query_router_config, space_type
@@ -227,14 +291,11 @@ def apply_vm_short_links(
         bk_biz_id=bk_biz_id,
         action="apply_vm_short_links",
     )
-    active_existing_vmrts = sorted(
-        vmrt for vmrt, record in existing_records.items() if not record.is_deleted
-    )
+    active_existing_vmrts = sorted(vmrt for vmrt, record in existing_records.items() if not record.is_deleted)
     # overwrite 是显式破坏性开关：默认发现已接入未删除记录就提前失败，避免误覆盖路由配置。
     if active_existing_vmrts and not overwrite:
         raise ValueError(
-            f"vm short link already exists: {', '.join(active_existing_vmrts)}, "
-            "use overwrite=True to overwrite"
+            f"vm short link already exists: {', '.join(active_existing_vmrts)}, use overwrite=True to overwrite"
         )
     # 先拉取并校验整批 VMRT，避免部分短链路已经写入后才发现后续 VMRT 不属于当前业务。
     vmrt_infos: dict[str, tuple[int, str]] = {}
@@ -248,8 +309,10 @@ def apply_vm_short_links(
         vm_cluster_id, vm_result_table_name = vmrt_infos[vmrt]
         # 覆盖或复用软删除记录时，旧归属空间也需要刷新；新接入则只刷新当前归属空间。
         old_space = None
+        old_data_label = ""
         if vmrt in existing_records:
             old_space = (existing_records[vmrt].space_type, existing_records[vmrt].space_id)
+            old_data_label = _get_result_table_data_label(table_id, bk_tenant_id)
 
         with transaction.atomic():
             _, is_updated = _sync_vm_short_link_metadata(
@@ -260,6 +323,7 @@ def apply_vm_short_links(
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=bk_tenant_id,
                 operator=operator,
+                data_labels=normalized_data_labels,
             )
 
             short_link, short_link_created = models.VMShortLinkRecord.objects.update_or_create(
@@ -271,6 +335,7 @@ def apply_vm_short_links(
                     "vm_result_table_id": vmrt,
                     "vm_result_table_name": vm_result_table_name,
                     "vm_cluster_id": vm_cluster_id,
+                    "data_labels": normalized_data_labels,
                     "query_router_config": normalized_query_router_config,
                     "is_global": is_global,
                     "is_enabled": True,
@@ -282,6 +347,9 @@ def apply_vm_short_links(
 
         if old_space:
             refresh_spaces.add(old_space)
+        if old_data_label:
+            refreshed_data_labels.update(_split_result_table_data_label(old_data_label))
+        refreshed_data_labels.update(normalized_data_labels)
         refresh_spaces.add((space_type, space_id))
         refreshed_table_ids.append(table_id)
         results.append(
@@ -292,6 +360,8 @@ def apply_vm_short_links(
                 "space_id": short_link.space_id,
                 "bk_tenant_id": bk_tenant_id,
                 "vm_cluster_id": vm_cluster_id,
+                "data_labels": normalized_data_labels,
+                "data_label": _compose_result_table_data_label(normalized_data_labels),
                 "created": short_link_created,
                 "is_updated_metrics": is_updated,
             }
@@ -302,6 +372,7 @@ def apply_vm_short_links(
             bk_tenant_id=bk_tenant_id,
             refresh_spaces=refresh_spaces,
             table_ids=refreshed_table_ids,
+            data_labels=list(refreshed_data_labels) or None,
         )
 
     return results
@@ -395,9 +466,11 @@ def update_vm_short_links(
     refresh_bkbase: bool = True,
     operator: str = DEFAULT_OPERATOR,
     refresh_router: bool = True,
+    data_labels: list[str] | tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """更新已有短链路配置；可选择是否从 BKBase 刷新 VMRT 相关配置。"""
     records = list(_filter_vm_short_links(bk_tenant_id=bk_tenant_id, table_ids=table_ids, vmrts=vmrts))
+    normalized_data_labels = _normalize_data_labels(data_labels) if data_labels is not None else None
     # update 是“修改已有记录”语义，目标不完整时必须在任何外部请求或写库前失败。
     _validate_vm_short_link_records_exist(records=records, table_ids=table_ids, vmrts=vmrts)
     _validate_vm_short_link_records_in_biz(
@@ -425,6 +498,7 @@ def update_vm_short_links(
     results: list[dict[str, Any]] = []
     refresh_spaces: set[tuple[str, str]] = set()
     refreshed_table_ids: list[str] = []
+    refreshed_data_labels: set[str] = set()
 
     for short_link in records:
         # 所属空间由 apply 时确定，update 只允许校验一致性，不承担迁移空间语义。
@@ -438,6 +512,8 @@ def update_vm_short_links(
         vm_cluster_id = short_link.vm_cluster_id
         vm_result_table_name = short_link.vm_result_table_name
         is_updated = False
+        current_data_label = _get_result_table_data_label(short_link.table_id, bk_tenant_id)
+        current_data_labels = list(short_link.data_labels or _split_result_table_data_label(current_data_label))
 
         if refresh_bkbase:
             vm_cluster_id, vm_result_table_name = vmrt_infos[short_link.vm_result_table_id]
@@ -452,10 +528,26 @@ def update_vm_short_links(
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=bk_tenant_id,
                     operator=operator,
+                    data_labels=normalized_data_labels,
                 )
+            elif normalized_data_labels is not None:
+                _update_result_table_data_label(
+                    table_id=short_link.table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    data_labels=normalized_data_labels,
+                    operator=operator,
+                )
+
+            if normalized_data_labels is not None:
+                if current_data_label:
+                    refreshed_data_labels.update(_split_result_table_data_label(current_data_label))
+                refreshed_data_labels.update(normalized_data_labels)
+                current_data_labels = normalized_data_labels
+                current_data_label = _compose_result_table_data_label(current_data_labels)
 
             short_link.vm_result_table_name = vm_result_table_name
             short_link.vm_cluster_id = vm_cluster_id
+            short_link.data_labels = current_data_labels
             short_link.query_router_config = current_query_router_config
             short_link.is_global = current_is_global
             short_link.updater = operator
@@ -463,6 +555,7 @@ def update_vm_short_links(
                 update_fields=[
                     "vm_result_table_name",
                     "vm_cluster_id",
+                    "data_labels",
                     "query_router_config",
                     "is_global",
                     "updater",
@@ -480,6 +573,8 @@ def update_vm_short_links(
                 "space_id": short_link.space_id,
                 "bk_tenant_id": bk_tenant_id,
                 "vm_cluster_id": short_link.vm_cluster_id,
+                "data_labels": current_data_labels,
+                "data_label": current_data_label,
                 "is_global": short_link.is_global,
                 "query_router_config": short_link.query_router_config,
                 "is_updated_metrics": is_updated,
@@ -491,6 +586,7 @@ def update_vm_short_links(
             bk_tenant_id=bk_tenant_id,
             refresh_spaces=refresh_spaces,
             table_ids=refreshed_table_ids,
+            data_labels=list(refreshed_data_labels) or None,
         )
 
     return results

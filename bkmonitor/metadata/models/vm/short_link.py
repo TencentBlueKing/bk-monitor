@@ -35,6 +35,7 @@ class VMShortLinkRecord(BaseModel):
     vm_result_table_id = models.CharField("VM 结果表ID", max_length=128, db_index=True)
     vm_result_table_name = models.CharField("VM 结果表名称", max_length=255)
     vm_cluster_id = models.IntegerField("VM 集群ID")
+    data_labels = models.JSONField("数据标签列表", default=list)
     query_router_config = models.JSONField("查询路由配置", default=dict)
     is_global = models.BooleanField("是否为同类型空间全局表", default=False)
     is_enabled = models.BooleanField("是否启用", default=True)

@@ -49,6 +49,7 @@ OPERATION_DELETE = "vm_short_link.delete"
 
 ORDERING_FIELDS = {"table_id", "vm_result_table_id", "space_id", "vm_cluster_id", "create_time", "update_time"}
 VM_SHORT_LINK_FIELDS = [
+    "id",
     "bk_tenant_id",
     "space_type",
     "space_id",
@@ -56,6 +57,7 @@ VM_SHORT_LINK_FIELDS = [
     "vm_result_table_id",
     "vm_result_table_name",
     "vm_cluster_id",
+    "data_labels",
     "query_router_config",
     "is_global",
     "is_enabled",
@@ -117,6 +119,14 @@ def _normalize_query_router_config(value: Any) -> dict[str, Any] | None:
     return value
 
 
+def _normalize_data_labels(value: Any, *, default: list[str] | None = None) -> list[str] | None:
+    if value is None:
+        return default
+    if isinstance(value, list | tuple):
+        return [str(item).strip() for item in value]
+    raise CustomException(message="data_labels 必须是字符串列表")
+
+
 def _service_call(fn, *args: Any, **kwargs: Any) -> Any:
     try:
         return fn(*args, **kwargs)
@@ -124,9 +134,30 @@ def _service_call(fn, *args: Any, **kwargs: Any) -> Any:
         raise CustomException(message=str(error)) from error
 
 
-def _serialize_short_link(record: models.VMShortLinkRecord) -> dict[str, Any]:
+def _build_vm_cluster_name_map(
+    records: list[models.VMShortLinkRecord],
+    bk_tenant_id: str,
+) -> dict[int, str]:
+    cluster_ids = {record.vm_cluster_id for record in records if record.vm_cluster_id}
+    if not cluster_ids:
+        return {}
+    return dict(
+        models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_id__in=cluster_ids,
+            cluster_type=models.ClusterInfo.TYPE_VM,
+        ).values_list("cluster_id", "cluster_name")
+    )
+
+
+def _serialize_short_link(
+    record: models.VMShortLinkRecord,
+    vm_cluster_names: dict[int, str] | None = None,
+) -> dict[str, Any]:
     item = serialize_model(record, VM_SHORT_LINK_FIELDS)
     item["bk_biz_id"] = int(record.space_id) if record.space_type == "bkcc" and record.space_id.isdigit() else None
+    item["data_label"] = ",".join(record.data_labels or [])
+    item["vm_cluster_name"] = (vm_cluster_names or {}).get(record.vm_cluster_id) or ""
     item["normalized_query_router_config"] = record.normalized_query_router_config
     return item
 
@@ -215,12 +246,13 @@ def list_vm_short_links(params: dict[str, Any]) -> dict[str, Any]:
     ordering = normalize_ordering(params.get("ordering"), ORDERING_FIELDS, default="-update_time")
     queryset = _build_queryset(params, bk_tenant_id).order_by(ordering, "table_id")
     records, total = paginate_queryset(queryset, page=page, page_size=page_size)
+    vm_cluster_names = _build_vm_cluster_name_map(records, bk_tenant_id)
     return build_response(
         operation=OPERATION_LIST,
         func_name=FUNC_LIST,
         bk_tenant_id=bk_tenant_id,
         data={
-            "items": [_serialize_short_link(record) for record in records],
+            "items": [_serialize_short_link(record, vm_cluster_names) for record in records],
             "page": page,
             "page_size": page_size,
             "total": total,
@@ -238,11 +270,12 @@ def list_vm_short_links(params: dict[str, Any]) -> dict[str, Any]:
 def get_vm_short_link_detail(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     record = _get_record_or_raise(params, bk_tenant_id)
+    vm_cluster_names = _build_vm_cluster_name_map([record], bk_tenant_id)
     return build_response(
         operation=OPERATION_DETAIL,
         func_name=FUNC_DETAIL,
         bk_tenant_id=bk_tenant_id,
-        data={"short_link": _serialize_short_link(record)},
+        data={"short_link": _serialize_short_link(record, vm_cluster_names)},
     )
 
 
@@ -256,6 +289,7 @@ def get_vm_short_link_detail(params: dict[str, Any]) -> dict[str, Any]:
         "vmrts": "必填，VM 结果表 ID 列表",
         "is_global": "可选，是否全局",
         "query_router_config": "可选，查询路由配置",
+        "data_labels": "可选，数据标签列表",
         "overwrite": "可选，是否覆盖已存在短链路配置，默认 false",
         "operator": "可选，操作者",
     },
@@ -275,6 +309,7 @@ def create_vm_short_link(params: dict[str, Any]) -> dict[str, Any]:
         operator=_normalize_text(params.get("operator"), "operator") or "system",
         refresh_router=normalize_optional_bool(params.get("refresh_router"), "refresh_router") is not False,
         overwrite=normalize_optional_bool(params.get("overwrite"), "overwrite") or False,
+        data_labels=_normalize_data_labels(params.get("data_labels"), default=[]),
     )
     return build_response(
         operation=OPERATION_CREATE,
@@ -296,6 +331,7 @@ def create_vm_short_link(params: dict[str, Any]) -> dict[str, Any]:
         "vmrts": "可选，VM 结果表 ID 列表",
         "is_global": "可选，是否全局",
         "query_router_config": "可选，查询路由配置",
+        "data_labels": "可选，数据标签列表；传空列表可清空，未传则不修改",
         "refresh_bkbase": "可选，是否从 BKBase 刷新配置，默认 false",
         "operator": "可选，操作者",
     },
@@ -316,6 +352,7 @@ def update_vm_short_link(params: dict[str, Any]) -> dict[str, Any]:
         refresh_bkbase=normalize_optional_bool(params.get("refresh_bkbase"), "refresh_bkbase") or False,
         operator=_normalize_text(params.get("operator"), "operator") or "system",
         refresh_router=normalize_optional_bool(params.get("refresh_router"), "refresh_router") is not False,
+        data_labels=_normalize_data_labels(params.get("data_labels")) if "data_labels" in params else None,
     )
     return build_response(
         operation=OPERATION_UPDATE,
@@ -338,7 +375,12 @@ def update_vm_short_link(params: dict[str, Any]) -> dict[str, Any]:
         "is_enabled": "必填，是否启用",
         "operator": "可选，操作者",
     },
-    example_params={"bk_tenant_id": "system", "bk_biz_id": 315, "table_ids": ["315_demo.__default__"], "is_enabled": False},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_biz_id": 315,
+        "table_ids": ["315_demo.__default__"],
+        "is_enabled": False,
+    },
 )
 def switch_vm_short_link(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
