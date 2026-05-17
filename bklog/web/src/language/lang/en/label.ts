@@ -960,4 +960,5 @@ export default {
   客户端: 'Client',
   清空查询: 'Clear Query',
   默认操作符: 'Default Operator',
+  场景: 'Scene',
 };
