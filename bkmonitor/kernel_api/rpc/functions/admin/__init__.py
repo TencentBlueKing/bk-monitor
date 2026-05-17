@@ -24,6 +24,7 @@ from . import (
     storage,
     tenant,
     uptime_check,
+    vm_short_link,
 )
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "storage",
     "tenant",
     "uptime_check",
+    "vm_short_link",
 ]
