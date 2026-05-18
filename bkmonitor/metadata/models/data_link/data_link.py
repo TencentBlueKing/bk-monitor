@@ -1532,7 +1532,7 @@ class DataLink(models.Model):
         5. metadata/spec 属于组件标准结构，缺失时直接报错，避免吞掉异常后生成不完整 payload。
         """
         existing_config = deepcopy(existing_config)
-        merged_config = deepcopy(config)
+        merged_config = config
 
         existing_metadata = existing_config["metadata"]
         merged_metadata = merged_config["metadata"]
