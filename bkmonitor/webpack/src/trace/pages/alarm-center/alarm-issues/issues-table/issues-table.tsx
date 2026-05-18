@@ -89,6 +89,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** Issue 名称变更回调（返回 Promise，用于 loading 状态管理） */
+    nameChange: {
+      type: Function as PropType<(id: string, name: string) => Promise<void>>,
+      default: () => () => Promise.resolve(),
+    },
   },
   emits: {
     /** 页码变化 */
@@ -149,6 +154,7 @@ export default defineComponent({
       handleAssignClick,
       handleAction,
       handlePriorityClick,
+      handleNameChange: (row, name) => props.nameChange(row.id, name),
       handleImpactScopeClick,
     });
 
