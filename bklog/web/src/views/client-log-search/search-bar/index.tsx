@@ -188,6 +188,7 @@ export default defineComponent({
       openidList.value = [];
       lastKeyword = null;
       currentValueType.value = 'openid';
+      handleSearch();
     };
 
     /** 输入框聚焦 */
