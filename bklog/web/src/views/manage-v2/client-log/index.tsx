@@ -143,8 +143,18 @@ export default defineComponent({
       // 获取总开关状态
       const { tgpa_task: tgpaTaskToggle } = window.FEATURE_TOGGLE;
       const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
+      const blackList = window.FEATURE_TOGGLE_BLACK_LIST?.tgpa_task ?? [];
+      const normalizedBlackList = blackList.map((id: any) => String(id));
 
-      let hasAccess = false;
+      let hasAccess = !(
+        normalizedBlackList.includes(String(bizId)) ||
+        normalizedBlackList.includes(String(spaceUid))
+      );
+
+      if (!hasAccess) {
+        isGrayRelease.value = true;
+        return;
+      }
 
       switch (tgpaTaskToggle) {
         case 'on':

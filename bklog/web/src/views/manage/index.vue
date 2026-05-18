@@ -206,6 +206,15 @@ import { isFeatureToggleOn } from '@/store/helper';
       // 检查 tgpa_task 功能开关
       checkTgpaTaskFeatureToggle() {
         const featureToggle = window.FEATURE_TOGGLE?.tgpa_task;
+        const blackList = window.FEATURE_TOGGLE_BLACK_LIST?.tgpa_task ?? [];
+        const bizId = this.$store.state.bkBizId;
+        const spaceUid = this.$store.state.spaceUid;
+        const normalizedBlackList = blackList.map(id => String(id));
+
+        if (normalizedBlackList.includes(String(bizId)) ||
+          normalizedBlackList.includes(String(spaceUid))) {
+          return false;
+        }
 
         // 如果功能开关为 'on' 或不存在，显示菜单
         if (featureToggle === 'on' || !featureToggle) {
@@ -220,8 +229,6 @@ import { isFeatureToggleOn } from '@/store/helper';
         // 如果功能开关为 'debug'，检查白名单
         if (featureToggle === 'debug') {
           const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
-          const bizId = this.$store.state.bkBizId;
-          const spaceUid = this.$store.state.spaceUid;
 
           // 类型安全的白名单检查
           const normalizedWhiteList = whiteList.map(id => String(id));
