@@ -56,6 +56,7 @@ KIND_EXTRA_FIELDS = {
     "DorisBinding": ["table_id", "bkbase_result_table_name", "doris_cluster_name"],
     "Databus": ["data_id_name", "bk_data_id", "sink_names"],
     "ConditionalSink": [],
+    "BasereportSink": ["vm_storage_binding_names", "result_table_ids"],
 }
 
 CLUSTER_CONFIG_FIELDS = [
@@ -92,7 +93,9 @@ DATALINK_ORDERING_FIELDS = {
 INCLUDE_VALUES = {"component_config"}
 
 DRLRB_KINDS = set(COMPONENT_CLASS_MAP.keys())
+CLUSTER_CONFIG_KINDS = set(ClusterConfig.KIND_TO_NAMESPACES_MAP.keys())
 VALID_KINDS_FOR_LIST = DRLRB_KINDS
+VALID_KINDS_FOR_COMPONENT_CONFIG = DRLRB_KINDS | CLUSTER_CONFIG_KINDS
 
 KIND_FILTER_MAP: dict[str, list[str]] = {
     "DataId": ["bk_data_id"],
@@ -111,6 +114,36 @@ def _get_component_model(kind: str):
             message=f"未知的组件类型 (kind={kind})，有效值: {', '.join(sorted(COMPONENT_CLASS_MAP.keys()))}"
         )
     return COMPONENT_CLASS_MAP[kind]
+
+
+def _valid_kind_message(kinds: set[str]) -> str:
+    return ", ".join(sorted(kinds))
+
+
+def _get_component_config_instance(kind: str, bk_tenant_id: str, namespace: str, name: str):
+    if kind in COMPONENT_CLASS_MAP:
+        model_class = COMPONENT_CLASS_MAP[kind]
+        try:
+            return model_class.objects.get(bk_tenant_id=bk_tenant_id, namespace=namespace, name=name)
+        except model_class.DoesNotExist as error:
+            raise CustomException(message=f"未找到组件: kind={kind}, namespace={namespace}, name={name}") from error
+
+    if kind in CLUSTER_CONFIG_KINDS:
+        try:
+            return ClusterConfig.objects.get(
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                kind=kind,
+                name=name,
+            )
+        except ClusterConfig.DoesNotExist as error:
+            raise CustomException(
+                message=f"未找到 ClusterConfig: kind={kind}, namespace={namespace}, name={name}"
+            ) from error
+
+    raise CustomException(
+        message=f"未知的组件类型 (kind={kind})，有效值: {_valid_kind_message(VALID_KINDS_FOR_COMPONENT_CONFIG)}"
+    )
 
 
 def _serialize_component(instance, kind: str) -> dict[str, Any]:
@@ -158,11 +191,7 @@ def _handle_component_config(params, operation_name, func_name):
     if not name:
         raise CustomException(message="name 为必填项")
 
-    model_class = _get_component_model(kind)
-    try:
-        instance = model_class.objects.get(bk_tenant_id=bk_tenant_id, namespace=namespace, name=name)
-    except model_class.DoesNotExist as error:
-        raise CustomException(message=f"未找到组件: kind={kind}, namespace={namespace}, name={name}") from error
+    instance = _get_component_config_instance(kind, bk_tenant_id, namespace, name)
 
     try:
         component_config = instance.component_config
@@ -335,15 +364,15 @@ def get_component_detail(params: dict[str, Any]) -> dict[str, Any]:
     description="根据 kind、namespace、name 查询单个组件的远程配置。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
-        "kind": "必填，组件类型: " + ", ".join(sorted(COMPONENT_CLASS_MAP.keys())),
+        "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_COMPONENT_CONFIG),
         "namespace": "必填，命名空间",
         "name": "必填，组件名称",
     },
     example_params={
         "bk_tenant_id": "system",
-        "kind": "VmStorageBinding",
+        "kind": "VmStorage",
         "namespace": "bkmonitor",
-        "name": "test-component",
+        "name": "default-vm",
     },
 )
 def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
@@ -603,10 +632,12 @@ def get_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
     data = _serialize_datalink_for_detail(datalink)
 
     kind_order = [
+        "DataId",
         "ResultTable",
         "VmStorageBinding",
         "ElasticSearchBinding",
         "DorisBinding",
+        "BasereportSink",
         "Databus",
         "ConditionalSink",
     ]
@@ -647,15 +678,15 @@ def get_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
     description="根据 kind、namespace、name 查询单个组件的远程配置。与 component_config 逻辑一致。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
-        "kind": "必填，组件类型: " + ", ".join(sorted(COMPONENT_CLASS_MAP.keys())),
+        "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_COMPONENT_CONFIG),
         "namespace": "必填，命名空间",
         "name": "必填，组件名称",
     },
     example_params={
         "bk_tenant_id": "system",
-        "kind": "VmStorageBinding",
+        "kind": "VmStorage",
         "namespace": "bkmonitor",
-        "name": "test-component",
+        "name": "default-vm",
     },
 )
 def get_datalink_component_config(params: dict[str, Any]) -> dict[str, Any]:

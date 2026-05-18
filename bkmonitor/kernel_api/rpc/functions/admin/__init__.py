@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from . import (
     apm,
+    api_auth_token,
     ascode_import_task,
     bcs_cluster,
     cluster_info,
@@ -19,12 +20,16 @@ from . import (
     es_storage,
     kafka_sample,
     query_route,
+    record_rule_v4,
     result_table,
     tenant,
+    uptime_check,
+    vm_short_link,
 )
 
 __all__ = [
     "apm",
+    "api_auth_token",
     "ascode_import_task",
     "bcs_cluster",
     "cluster_info",
@@ -34,6 +39,9 @@ __all__ = [
     "es_storage",
     "kafka_sample",
     "query_route",
+    "record_rule_v4",
     "result_table",
     "tenant",
+    "uptime_check",
+    "vm_short_link",
 ]

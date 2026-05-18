@@ -267,7 +267,7 @@
           } else {
             this.$bkMessage({
               theme: 'warning',
-              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+              message: this.$t('当前选中日志暂无trace字段，请检查日志内容'),
             });
           }
 

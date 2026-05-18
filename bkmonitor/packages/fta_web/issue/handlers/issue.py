@@ -41,7 +41,12 @@ class IssueQueryTransformer(BaseQueryTransformer):
         "priority": IssuePriority.CHOICES,
     }
 
-    KEYWORD_FIELD_MAPPING = {"name": "name.raw", "strategy_name": "strategy_name.raw"}
+    KEYWORD_FIELD_MAPPING = {
+        "name": "name.raw",
+        "strategy_name": "strategy_name.raw",
+        # fingerprint 本身就是 keyword，不需要 .raw；放进 mapping 是声明它属于"按精确值检索"语义
+        "fingerprint": "fingerprint",
+    }
 
     doc_cls = IssueDocument
 
@@ -62,6 +67,11 @@ class IssueQueryTransformer(BaseQueryTransformer):
         QueryField("create_time", "创建时间"),
         QueryField("update_time", "更新时间"),
         QueryField("resolved_time", "解决时间"),
+        # fingerprint：按"同一具体问题"精确检索/聚合（同维度组合的所有 Issue 含历史）
+        QueryField("fingerprint", "Issue 指纹"),
+        # dimension_values：Flattened 动态 key，前端通过 conditions 传 dimension_values.{key}
+        # 路径直接 term 过滤；TopN 聚合也走子字段路径（详见 IssueTopNResource 适配）
+        QueryField("dimension_values", "维度组合"),
     ] + [
         QueryField(
             field=f"impact_scope.{impact_field}",
@@ -98,6 +108,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
         is_time_partitioned: bool = False,
         is_finally_partition: bool = False,
         need_bucket_count: bool = True,
+        fingerprint: str = "",
         **kwargs,
     ):
         super().__init__(
@@ -113,6 +124,8 @@ class IssueQueryHandler(BaseBizQueryHandler):
             **kwargs,
         )
         self.status = [status] if isinstance(status, str) else status
+        # fingerprint 精确过滤：定位"同一具体问题"的全部 Issue（含历史）
+        self.fingerprint = fingerprint or ""
 
         # 默认排序：最早发生时间降序 > 优先级 > 状态
         if not self.ordering:
@@ -179,6 +192,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 for q in queries[1:]:
                     combined = combined | q
                 search_object = search_object.filter(combined)
+
+        # 指纹精确过滤
+        if self.fingerprint:
+            search_object = search_object.filter("term", fingerprint=self.fingerprint)
 
         return search_object
 
@@ -280,6 +297,25 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 buckets = self._parse_impact_scope_buckets(search_result, actual_field, translators, char_add_quotes)
                 result["fields"].append(
                     {"field": field, "is_char": True, "bucket_count": len(buckets), "buckets": buckets}
+                )
+                continue
+
+            # dimension_values.{key}: Flattened 子字段 terms 聚合结果解析
+            # bucket.key 即 dim 的实际值（如 host_id "9185731"），无需翻译
+            if actual_field.startswith("dimension_values."):
+                agg_name = self._sanitize_dim_agg_name(actual_field)
+                bucket_count = None
+                if bucket_count_suffix:
+                    cardinality_agg = getattr(search_result.aggs, f"{agg_name}{bucket_count_suffix}", None)
+                    bucket_count = cardinality_agg.value if cardinality_agg else 0
+                buckets = []
+                terms_agg = getattr(search_result.aggs, agg_name, None)
+                if terms_agg:
+                    for bucket in terms_agg.buckets:
+                        if bucket.key is not None:
+                            buckets.append({"id": bucket.key, "name": bucket.key, "count": bucket.doc_count})
+                result["fields"].append(
+                    {"field": field, "is_char": False, "bucket_count": bucket_count, "buckets": buckets}
                 )
                 continue
 
@@ -385,14 +421,27 @@ class IssueQueryHandler(BaseBizQueryHandler):
         return buckets
 
     def add_cardinality_bucket(self, search_object: Bucket, field: str, bucket_count_suffix: str):
-        """添加基数聚合桶，支持 impact_dimensions 和 impact_scope 特殊字段"""
+        """添加基数聚合桶，支持 impact_dimensions / impact_scope / dimension_values.{key} 特殊字段"""
         actual_field = field.lstrip("+-")
 
         if actual_field == "impact_dimensions":
-            # 直接去buckets的数量作为bucket_count
+            # 直接取 buckets 的数量作为 bucket_count
             return search_object
 
+        if actual_field.startswith("dimension_values."):
+            # ES agg name 不能含 "."，sanitize 为 "__"；ES field 仍用原路径（Flattened 子字段）
+            agg_name = self._sanitize_dim_agg_name(actual_field) + bucket_count_suffix
+            return search_object.bucket(agg_name, "cardinality", field=actual_field)
+
         return super().add_cardinality_bucket(search_object, field, bucket_count_suffix)
+
+    @staticmethod
+    def _sanitize_dim_agg_name(field: str) -> str:
+        """把 dimension_values.{key} 转成合法的 ES agg name（不能含 "."）。
+
+        使用 "__" 分隔避免与原 . 路径混淆；与 impact_scope 类的 agg name 风格一致。
+        """
+        return field.replace(".", "__")
 
     def add_agg_bucket(self, search_object, field: str, size: int = 10):
         """
@@ -431,6 +480,12 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 "first_doc", "top_hits", size=1, _source=[display_name_field, es_field]
             )
             return new_search_object
+
+        if actual_field.startswith("dimension_values."):
+            # Flattened 子字段：ES field 用原路径（如 dimension_values.bk_host_id），
+            # 但 agg name 必须 sanitize（去 "."）才能在结果端用 getattr 取桶
+            agg_name = self._sanitize_dim_agg_name(actual_field)
+            return search_object.bucket(agg_name, "terms", field=actual_field, size=size)
 
         # 其他字段走基类标准流程
         return super().add_agg_bucket(search_object, field, size)

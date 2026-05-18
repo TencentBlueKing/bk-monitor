@@ -2,6 +2,10 @@
 
 元数据管理
 
+### 预计算
+
+- [V4 Recording Rule 预计算方案](docs/record_rule_v4.md)
+
 ### dataid分配规则
 
 

@@ -1495,19 +1495,18 @@ class AlertGraphQueryResource(ApiAuthResource):
 
             current_series_list.append(series)
 
-        # 以最长的 series 的时间戳为基准，对短的 series 尾部补齐 null 值
+        # 以最长的 series 的时间戳为基准，对所有 series 按时间戳对齐补齐 null 值
+        # 确保每条 series 的 datapoints 时间戳序列完全一致，避免 ECharts 按索引渲染时出现时间偏移
+        # 原逻辑按索引截断仅仅尾部补齐，但稀疏 series 点数少、时间跨度大，会导致补充的时间戳与已有数据点重叠
         if current_series_list and longest_series["datapoints"]:
-            max_len = len(longest_series["datapoints"])
-            tail_timestamps = [point[1] for point in longest_series["datapoints"]]
+            all_timestamps = [data_point[1] for data_point in longest_series["datapoints"]]
             for series in current_series_list:
-                # 从后往前找到最后一个有效数值的位置，作为有效长度
-                cur_len = len(series["datapoints"])
-                while cur_len > 0 and not isinstance(series["datapoints"][cur_len - 1][0], int | float):
-                    cur_len -= 1
-                if cur_len < max_len:
-                    # 截断尾部 None 点，再按基准时间戳补齐
-                    series["datapoints"] = series["datapoints"][:cur_len]
-                    series["datapoints"].extend([[None, ts] for ts in tail_timestamps[cur_len:]])
+                if series is longest_series:
+                    continue
+                # 构建当前 series 的时间戳到值的映射
+                ts_to_value = {d_point[1]: d_point[0] for d_point in series["datapoints"]}
+                # 按基准时间戳序列重建 datapoints，缺失的时间点补 null
+                series["datapoints"] = [[ts_to_value.get(ts, None), ts] for ts in all_timestamps]
 
         return result
 

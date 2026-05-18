@@ -33,7 +33,7 @@
     "@vue/shared": "3.5.29",
     "@vueuse/core": "^13.9.0",
     "apm": "workspace:*",
-    "bkui-vue": "^2.0.2-beta.63",
+    "bkui-vue": "2.0.2-beta.63",
     "d3-array": "^3.2.4",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",

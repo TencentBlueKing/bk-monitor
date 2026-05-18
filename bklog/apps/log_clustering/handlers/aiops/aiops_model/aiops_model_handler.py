@@ -21,11 +21,13 @@ the project delivered to anyone in the future.
 
 import base64
 
-from cloudpickle import cloudpickle
-
 from apps.api import BkDataAIOPSApi
 from apps.log_clustering.handlers.aiops.aiops_model.data_cls import (
     AiopsReleaseModelReleaseIdModelFileCls,
+)
+from apps.log_clustering.handlers.aiops.aiops_model.safe_unpickle import (
+    safe_loads,
+    validate_model_content,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 
@@ -53,6 +55,10 @@ class AiopsModelHandler(BaseAiopsHandler):
 
     @classmethod
     def pickle_decode(cls, content: str):
-        model_original_content = base64.b64decode(content)
-        model = cloudpickle.loads(model_original_content)
+        # 上游协议为 base64(cloudpickle.dumps(model))，本仓库无法变更上游格式。
+        # 因此通过 safe_loads（受限 Unpickler + 白名单 find_class）+ validate_model_content
+        # （结构 schema 校验）两层防御，把"任意代码执行"收敛为"只能构造合法 pattern 数据"。
+        raw = base64.b64decode(content)
+        model = safe_loads(raw)
+        validate_model_content(model)
         return model

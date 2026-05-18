@@ -45,6 +45,7 @@ export type FormatterConfig = {
   jsonValue: any;
   field: any;
   onSegmentClick: (_args: any) => void;
+  onSegmentRenderUpdate?: () => void;
   options?: Record<string, any>;
 };
 
@@ -304,7 +305,7 @@ export default class UseJsonFormatter {
         removeScrollEvent();
 
         element.append(segmentContent);
-        setListItem(1000);
+        setListItem(1000, this.config.onSegmentRenderUpdate);
 
         if (appendText !== undefined) {
           const appendElement = document.createElement('span');
@@ -378,7 +379,7 @@ export default class UseJsonFormatter {
             this.getChildItem,
           );
           removeScrollEvent();
-          setListItem(600);
+          setListItem(600, this.config.onSegmentRenderUpdate);
         },
       });
 

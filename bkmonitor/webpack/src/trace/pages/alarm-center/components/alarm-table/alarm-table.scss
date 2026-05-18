@@ -109,3 +109,40 @@
     width: calc(100% - var(--td-comp-paddingLR-s) - var(--td-comp-paddingLR-s));
   }
 }
+
+.tippy-box[data-theme~='alarm-center-popover'] {
+  .alarm-name-popover-container {
+    padding: 6px 8px;
+    line-height: 20px;
+
+    .alarm-name-popover-item {
+      display: flex;
+      align-items: flex-start;
+      font-size: 12px;
+
+      .alarm-name-popover-item-label {
+        display: inline-block;
+        flex-shrink: 0;
+        width: 58px;
+        margin-right: 4px;
+        text-align: right;
+      }
+
+      .alarm-name-popover-item-value {
+        display: inline-flex;
+        align-items: flex-start;
+        color: #a3c5fd;
+        cursor: pointer;
+
+        a {
+          display: inline-flex;
+          align-items: flex-start;
+        }
+
+        .icon-monitor {
+          margin-left: 2px;
+        }
+      }
+    }
+  }
+}

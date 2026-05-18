@@ -1003,7 +1003,10 @@ ISSUE_ACTIVE_CONTENT_KEY = register_key_with_config(
     {
         "label": "[issue]活跃Issue热缓存",
         "key_type": "string",
-        "key_tpl": "issue.active.content.{strategy_id}",
+        # 路由参数从 strategy_id 升级为 fingerprint：
+        # 一个策略下按 issue 配置的 aggregate_dimensions 取值组合切分多个活跃 Issue。
+        # aggregate_dimensions=[] 时 fingerprint 退化为 "strategy:{strategy_id}"，行为与旧版本兼容。
+        "key_tpl": "issue.active.content.{fingerprint}",
         "ttl": 30 * CONST_MINUTES,
         "backend": "service",
     }
@@ -1021,10 +1024,49 @@ TRIGGER_EVENT_RATE_LIMIT_KEY = register_key_with_config(
 
 ISSUE_STRATEGY_LOCK = register_key_with_config(
     {
-        "label": "[issue]Issue策略级分布式锁",
+        # DEPRECATED：fingerprint 改造后 Issue 创建锁按 fingerprint 路由，
+        # 此 key 不再被代码引用，保留注册仅为兼容回滚场景；后续清理。
+        "label": "[issue][DEPRECATED]Issue策略级分布式锁",
         "key_type": "string",
         "key_tpl": "issue.strategy.lock.{strategy_id}",
         "ttl": 60,
+        "backend": "service",
+    }
+)
+
+ISSUE_FINGERPRINT_LOCK = register_key_with_config(
+    {
+        "label": "[issue]Issue指纹级分布式锁",
+        "key_type": "string",
+        # 创建 Issue 时按 fingerprint 抢锁：不同 fingerprint 互不阻塞，
+        # 同 fingerprint 的并发告警保证只有一个进程进入新建路径。
+        "key_tpl": "issue.fingerprint.lock.{fingerprint}",
+        "ttl": 60,
+        "backend": "service",
+    }
+)
+
+ISSUE_ACTIVE_COUNT_KEY = register_key_with_config(
+    {
+        "label": "[issue]单策略活跃 Issue 数缓存（high_cardinality 熔断观测用）",
+        "key_type": "string",
+        # 5min cache，避免 _check_active_issue_count 每条新告警都打 ES count 成为热点
+        "key_tpl": "issue.active_count.{strategy_id}",
+        "ttl": 5 * CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
+ISSUE_LEGACY_MIGRATION_DONE_KEY = register_key_with_config(
+    {
+        "label": "[issue]legacy 迁移完成全局哨兵（processor 跳过 legacy fallback ES 查询）",
+        "key_type": "string",
+        # 全局单 key（无路由参数）；migrate_legacy_active_issues 完成时 set，
+        # processor 看到该哨兵 → 跳过 _find_active_issue 的 Step 2 legacy fallback，
+        # 避免迁移完成后每个新 fingerprint 仍打 2 次 fingerprint=null 全索引查询。
+        # 长 TTL 跨多次重启不失效；migrate 重跑会刷新 TTL；Redis 故障 fail-open 走 fallback。
+        "key_tpl": "issue.legacy_migration.done",
+        "ttl": 30 * CONST_ONE_DAY,
         "backend": "service",
     }
 )

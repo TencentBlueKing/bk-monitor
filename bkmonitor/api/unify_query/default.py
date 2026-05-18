@@ -21,6 +21,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
@@ -276,6 +277,59 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")
             return attrs
+
+
+class CheckQueryTsResource(UnifyQueryAPIResource):
+    """
+    结构化 QueryTs 解析预览
+    """
+
+    method = "POST"
+    path = "/check/query/ts"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        metric_merge = serializers.CharField(required=False)
+        step = serializers.CharField(required=False)
+        order_by = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+        space_uid = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+        bk_tenant_id = TenantIdField(label="租户ID", prefer_request_tenant=False)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False, default=False)
+        reference = serializers.BooleanField(required=False, default=False)
+        not_time_align = serializers.BooleanField(required=False, default=False)
+        limit = serializers.IntegerField(required=False, default=0)
+
+
+class CheckQueryTsByPromqlResource(UnifyQueryAPIResource):
+    """
+    PromQL 解析预览
+    """
+
+    method = "POST"
+    path = "/check/query/ts/promql"
+
+    class RequestSerializer(serializers.Serializer):
+        promql = serializers.CharField()
+        start = serializers.CharField()
+        end = serializers.CharField()
+        step = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False, default=False)
+        timezone = serializers.CharField(required=False)
+        look_back_delta = serializers.CharField(allow_blank=True, required=False)
+        reference = serializers.BooleanField(required=False, default=False)
+        not_time_align = serializers.BooleanField(required=False, default=False)
+        down_sample_range = serializers.CharField(allow_blank=True, required=False)
+        space_uid = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+        bk_tenant_id = TenantIdField(label="租户ID", prefer_request_tenant=False)
+        bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
+        limit = serializers.IntegerField(required=False, default=0)
+        slimit = serializers.IntegerField(required=False, default=0)
+        match = serializers.CharField(allow_blank=True, required=False)
+        is_verify_dimensions = serializers.BooleanField(required=False, default=False)
+        add_dimensions = serializers.ListField(required=False, default=list)
 
 
 class PromqlToStructResource(UnifyQueryAPIResource):

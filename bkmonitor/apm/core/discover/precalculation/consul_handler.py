@@ -164,6 +164,10 @@ class ConsulHandler:
         if trace_datasource is None:
             return None
 
+        # 共享数据源暂时跳过预计算任务注册
+        if trace_datasource.is_shared:
+            return None
+
         key = CONSUL_PATH.format(data_id=trace_datasource.bk_data_id)
 
         try:
