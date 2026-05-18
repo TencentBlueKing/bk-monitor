@@ -29,6 +29,7 @@ import { defineComponent, onMounted, ref, watch } from 'vue';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import { t } from '@/hooks/use-locale';
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import * as authorityMap from '../../../common/authority-map';
 
 import CollectionDeploy from './collection-deploy';
@@ -139,41 +140,7 @@ export default defineComponent({
     const checkGrayReleaseAccess = () => {
       const bizId = store.state.bkBizId;
       const spaceUid = store.state.spaceUid;
-
-      // 获取总开关状态
-      const { tgpa_task: tgpaTaskToggle } = window.FEATURE_TOGGLE;
-      const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
-      const blackList = window.FEATURE_TOGGLE_BLACK_LIST?.tgpa_task ?? [];
-      const normalizedBlackList = blackList.map((id: any) => String(id));
-
-      let hasAccess = !(
-        normalizedBlackList.includes(String(bizId)) ||
-        normalizedBlackList.includes(String(spaceUid))
-      );
-
-      if (!hasAccess) {
-        isGrayRelease.value = true;
-        return;
-      }
-
-      switch (tgpaTaskToggle) {
-        case 'on':
-          hasAccess = true;
-          break;
-        case 'off':
-          hasAccess = false;
-          break;
-        case 'debug': {
-          // 检查白名单
-          const normalizedWhiteList = whiteList.map((id: any) => String(id));
-          hasAccess = normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
-          break;
-        }
-        default:
-          // 没有配置，默认为全开
-          hasAccess = true;
-          break;
-      }
+      const hasAccess = isFeatureToggleOn('tgpa_task', [String(bizId), String(spaceUid)], { defaultEnabled: true });
 
       isGrayRelease.value = !hasAccess;
     };
