@@ -112,11 +112,16 @@ class TestSearchAlertResourceDetectActionIdQuery:
         assert has_action_id is True
         assert "17790733296960932147" in detect_result["action_ids_in_query"]
 
-    def test_query_string_with_english_i18n_display_name_is_detected(self):
+    def test_query_string_with_english_i18n_display_name_is_not_detected(self):
+        """英文 i18n 显示名 "Handling Record ID" 含空格，luqum parser 不接受这种字段名
+        （会被切碎为 UnknownOperation + SearchField('ID', ...)），下游 Path B 永远不会
+        命中 action_id 白名单。因此 Path A 也不应识别它——否则会触发时间窗扩展但下游
+        改写失败，形成"看似支持实际无效"的死代码（参见 PR review P1）。
+        """
         request_data = {"query_string": "Handling Record ID : 17790733296960932147"}
         has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
-        assert has_action_id is True
-        assert "17790733296960932147" in detect_result["action_ids_in_query"]
+        assert has_action_id is False
+        assert detect_result["action_ids_in_query"] == []
 
     def test_query_string_with_unrelated_field_is_not_detected(self):
         request_data = {"query_string": "alert_name : foo"}
@@ -172,3 +177,95 @@ class TestSearchAlertResourceDetectActionIdQuery:
         request_data = {"query_string": 'action_id : "17790733296960932147"'}
         has_action_id, _ = SearchAlertResource.detect_action_id_query(request_data)
         assert has_action_id is False
+
+
+class TestAlertQueryTransformerProcessActionId:
+    """端到端验证：Path A (detect_action_id_query) + Path B (AlertQueryTransformer.transform_query_string)
+    必须对 action_id 识别口径完全对称——前者识别后扩时间窗，后者识别后改写 query_string 为 id 查询。
+    任何一方识别另一方不识别，都会导致用户看到"查不到告警"或语义异常。
+
+    这一组测试填补 PR review 发现的盲点：原 detect_action_id_query 单元测试只覆盖 Path A regex，
+    没验证 Path B 的 luqum AST 改写是否真的命中。
+    """
+
+    @staticmethod
+    def _transform(query_string: str) -> str:
+        from fta_web.alert.handlers.alert import AlertQueryTransformer
+
+        # transform_query_string 内部调用 luqum parser + transformer，最终输出改写后的字符串
+        return AlertQueryTransformer.transform_query_string(query_string)
+
+    def test_english_action_id_is_rewritten_to_id_query(self, monkeypatch):
+        """action_id : X → 经过 Path B 改写为 id:( <alert_id> )"""
+        from fta_web.alert.handlers import alert as alert_handler
+
+        # mock get_alert_ids_by_action_id 避免依赖 ES
+        monkeypatch.setattr(
+            alert_handler,
+            "get_alert_ids_by_action_id",
+            lambda action_ids: (["1776330921292201387"], {action_ids[0]: ["1776330921292201387"]}),
+        )
+
+        result = self._transform("action_id : 17790733296960932147")
+
+        # 改写后应不再含原 action_id 字段名，且应包含解析出的 alert_id
+        assert "action_id" not in result
+        assert "1776330921292201387" in result
+
+    def test_chinese_display_name_is_rewritten_to_id_query(self, monkeypatch):
+        """处理记录ID : X → 同样被 Path B 改写"""
+        from fta_web.alert.handlers import alert as alert_handler
+
+        monkeypatch.setattr(
+            alert_handler,
+            "get_alert_ids_by_action_id",
+            lambda action_ids: (["1776330921292201387"], {action_ids[0]: ["1776330921292201387"]}),
+        )
+
+        result = self._transform("处理记录ID : 17790733296960932147")
+
+        assert "处理记录ID" not in result
+        assert "1776330921292201387" in result
+
+    def test_english_i18n_display_name_is_not_rewritten(self, monkeypatch):
+        """ "Handling Record ID : X" 因含空格无法被 luqum 解析为单一 SearchField，
+        因此 Path B 不会改写它。验证不会触发 get_alert_ids_by_action_id 调用，
+        且 ID 字段值保留（说明未经 action_id 路径改写）。
+        这与 Path A 的 detect_action_id_query 现在也不识别它的语义保持一致。
+        """
+        from fta_web.alert.handlers import alert as alert_handler
+
+        called = {"count": 0}
+
+        def fake_get_alert_ids(action_ids):
+            called["count"] += 1
+            return ([], {})
+
+        monkeypatch.setattr(alert_handler, "get_alert_ids_by_action_id", fake_get_alert_ids)
+
+        result = self._transform("Handling Record ID : 12345")
+
+        # 未触发 action_id 反查
+        assert called["count"] == 0
+        # ID 仍以原始值保留，未被替换为 alert id
+        assert "12345" in result
+
+    def test_parent_action_id_is_not_rewritten(self, monkeypatch):
+        """parent_action_id 是合法的另一字段（handlers/action.py），不应被误识别为 action_id。"""
+        from fta_web.alert.handlers import alert as alert_handler
+
+        called = {"count": 0}
+
+        def fake_get_alert_ids(action_ids):
+            called["count"] += 1
+            return ([], {})
+
+        monkeypatch.setattr(alert_handler, "get_alert_ids_by_action_id", fake_get_alert_ids)
+
+        # parent_action_id 不是 AlertQueryTransformer.query_fields 注册的字段，luqum 会解析成
+        # SearchField('parent_action_id', Word('999'))，Path B 的 _process_action_id 严格判断
+        # search_field_origin_name in 白名单，不会命中
+        result = self._transform("parent_action_id : 999")
+
+        assert called["count"] == 0
+        assert "999" in result
