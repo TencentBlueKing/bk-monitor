@@ -1592,7 +1592,13 @@ class DataLink(models.Model):
             raise
 
     def merge_existing_component_configs(self, configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """下发前查询 BKBase 侧已有组件配置，并把配置字段合并进本次 payload。"""
+        """下发前查询 BKBase 侧已有组件配置，并把配置字段合并进本次 payload。
+
+        合并策略：
+        - 组件明确 not found 时视为无旧配置，其它 API 异常继续抛出；
+        - 仅合并 metadata.labels、metadata.annotations、metadata.annotation 和 spec；
+        - 本次 compose 配置优先，旧配置只补当前缺失字段，status 等运行态字段不回填。
+        """
 
         merged_configs: list[dict[str, Any]] = []
         for config in configs:
