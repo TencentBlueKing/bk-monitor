@@ -29,6 +29,7 @@ from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
+from apm.models.datasource import TraceDataSource
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
@@ -739,6 +740,17 @@ class SetupResource(Resource):
 
         def validate(self, attrs):
             res = super().validate(attrs)
+
+            if attrs.get("trace_datasource_option") and (
+                application := Application.objects.filter(application_id=attrs["application_id"]).first()
+            ):
+                trace_datasource = TraceDataSource.objects.filter(
+                    bk_biz_id=application.bk_biz_id,
+                    app_name=application.app_name,
+                ).first()
+                if trace_datasource and trace_datasource.is_shared:
+                    raise ValueError("共享数据源的应用不支持修改链路信息")
+
             if attrs.get("trace_datasource_option") and not attrs.get("trace_datasource_option", {}).get(
                 "es_slice_size"
             ):
