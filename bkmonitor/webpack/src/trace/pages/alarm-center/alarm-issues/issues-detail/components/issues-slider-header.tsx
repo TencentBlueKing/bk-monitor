@@ -117,9 +117,9 @@ export default defineComponent({
         issue_id: props.detail.id,
         new_name: editName.value,
       })
-        .then(() => {
+        .then(data => {
           isEdit.value = false;
-          emit('nameChange', editName.value);
+          emit('nameChange', data.name);
         })
         .finally(() => {
           editNameLoading.value = false;
