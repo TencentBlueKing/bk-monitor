@@ -1587,10 +1587,13 @@ class SearchAlertResource(Resource):
 
         has_action_id = False
 
-        # 检查 query_string 中的处理记录ID
+        # 检查 query_string 中的处理记录ID（兼容内部字段名 action_id、中文 "处理记录ID"、英文 i18n "Handling Record ID"）
         query_string = request_data.get("query_string", "")
         if query_string:
-            action_id_matches = re.findall(r"处理记录ID\s*:\s*(\d+)", query_string)
+            action_id_matches = re.findall(
+                r"(?:action_id|处理记录ID|Handling\s+Record\s+ID)\s*:\s*(\d+)",
+                query_string,
+            )
             if action_id_matches:
                 action_ids_in_query.update(set(action_id_matches))
 

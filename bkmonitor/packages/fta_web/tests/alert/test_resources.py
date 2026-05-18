@@ -4,7 +4,7 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from fta_web.alert import resources as alert_resources
-from fta_web.alert.resources import AlertDetailResource, AlertTopNResource
+from fta_web.alert.resources import AlertDetailResource, AlertTopNResource, SearchAlertResource
 
 
 class TestAlertTopNResource:
@@ -90,3 +90,44 @@ class TestAlertDetailResource:
         assert result["graph_panel"] is None
         assert result["plugin_display_name"] == "Test Plugin"
         assert result["relation_info"] == "topo recent"
+
+
+class TestSearchAlertResourceDetectActionIdQuery:
+    """detect_action_id_query 需同时识别 query_string 内的英文 action_id 与中英文 i18n 显示名。
+
+    背景：前端从企微通知点击告警链接时实际发送英文字段名 action_id，原 regex 仅匹配中文
+    "处理记录ID"，导致 adjust_time_range_for_action_id 不触发、时间窗未扩展、长生命周期
+    告警查不到（TAPD #1010158081134388517）。
+    """
+
+    def test_query_string_with_english_action_id_is_detected(self):
+        request_data = {"query_string": "action_id : 17790733296960932147"}
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is True
+        assert "17790733296960932147" in detect_result["action_ids_in_query"]
+
+    def test_query_string_with_chinese_display_name_is_detected(self):
+        request_data = {"query_string": "处理记录ID : 17790733296960932147"}
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is True
+        assert "17790733296960932147" in detect_result["action_ids_in_query"]
+
+    def test_query_string_with_english_i18n_display_name_is_detected(self):
+        request_data = {"query_string": "Handling Record ID : 17790733296960932147"}
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is True
+        assert "17790733296960932147" in detect_result["action_ids_in_query"]
+
+    def test_query_string_with_unrelated_field_is_not_detected(self):
+        request_data = {"query_string": "alert_name : foo"}
+        has_action_id, _ = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is False
+
+    def test_action_id_in_conditions_still_detected_after_regex_change(self):
+        request_data = {
+            "query_string": "",
+            "conditions": [{"key": "action_id", "value": ["17790733296960932147"]}],
+        }
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is True
+        assert "17790733296960932147" in detect_result["action_ids_in_conditions"]
