@@ -64,11 +64,6 @@ export default defineComponent({
       store.commit('updateIndexItemParams', { keyword: '', addition: [] });
       store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
 
-      // 切换检索模式时，如果收藏面板展开，先清空选中态和搜索值，再重新获取收藏列表
-      if (RetrieveHelper.isFavoriteShown) {
-        RetrieveHelper.fire(RetrieveEvent.FAVORITE_LIST_REFRESH);
-      }
-
       // 切换到常规检索时，清空场景化检索条件
       if (type === RetrieveType.Normal) {
         store.commit('updateIndexItemParams', {
@@ -122,6 +117,11 @@ export default defineComponent({
             addition: undefined,
           },
         });
+      }
+
+      // 切换检索模式时，如果收藏面板展开，先清空选中态和搜索值，再重新获取收藏列表
+      if (RetrieveHelper.isFavoriteShown) {
+        RetrieveHelper.fire(RetrieveEvent.FAVORITE_LIST_REFRESH);
       }
     };
 
