@@ -123,7 +123,7 @@ export default defineComponent({
           query: restQuery,
         });
       },
-      onTabChange: async type => {
+      onTabChange: async (type, _previousType, isInitial) => {
         const currentQuery = { ...route.query };
         currentQuery.tab = type === CLUSTER_TYPES.DORIS ? 'doris' : 'es';
         router.replace({
@@ -132,8 +132,10 @@ export default defineComponent({
           query: currentQuery,
         });
 
-        storageList.value = [];
-        resetClusterSelection();
+        if (!isInitial) {
+          storageList.value = [];
+          resetClusterSelection();
+        }
         await getStorage();
       },
     });
@@ -342,6 +344,10 @@ export default defineComponent({
       initData();
       loading.value = true;
       checkDorisAccess();
+      let clusterType: ClusterType | undefined;
+      if (props.configData?.storage_cluster_type) {
+        clusterType = props.configData.storage_cluster_type;
+      }
       const isStorageEdit = ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
       if (isStorageEdit) {
         await $http
@@ -350,7 +356,10 @@ export default defineComponent({
           })
           .then(res => {
             if (res?.data) {
-              const { storage_cluster_id, storage_shards_nums } = res.data;
+              const { storage_cluster_id, storage_shards_nums, storage_cluster_type } = res.data;
+              if (storage_cluster_type) {
+                clusterType = storage_cluster_type;
+              }
               formData.value = {
                 ...formData.value,
                 ...res.data,
@@ -360,7 +369,7 @@ export default defineComponent({
             }
           });
       }
-      await getStorage();
+      await handleTabClick(clusterType ?? activeTab.value, true);
       if (!isCustomReport.value) {
         getCleanStash();
       }
@@ -561,26 +570,34 @@ export default defineComponent({
         es_shards,
         parent_index_set_ids,
       } = formData.value;
+      const submitData = {
+        bk_data_id,
+        custom_type,
+        storage_cluster_id,
+        retention: Number(retention),
+        allocation_min_days: Number(allocation_min_days),
+        storage_replies: Number(storage_replies),
+        category_id,
+        description,
+        es_shards: Number(es_shards),
+        parent_index_set_ids,
+        collector_config_name_en,
+        collector_config_name: collector_config_name || index_set_name,
+        bk_biz_id: Number(bkBizId.value),
+      };
+
+      if (isDorisMode.value) {
+        delete submitData.es_shards;
+        delete submitData.storage_replies;
+        delete submitData.allocation_min_days;
+      }
+
       $http
         .request(`custom/${isUpdate.value ? 'setCustom' : 'createCustom'}`, {
           params: {
             collector_config_id: props.configData.collector_config_id,
           },
-          data: {
-            bk_data_id,
-            custom_type,
-            storage_cluster_id,
-            retention: Number(retention),
-            allocation_min_days: Number(allocation_min_days),
-            storage_replies: Number(storage_replies),
-            category_id,
-            description,
-            es_shards: Number(es_shards),
-            parent_index_set_ids,
-            collector_config_name_en,
-            collector_config_name: collector_config_name || index_set_name,
-            bk_biz_id: Number(bkBizId.value),
-          },
+          data: submitData,
         })
         .then(res => {
           res.result && showMessage(t('保存成功'));
