@@ -656,10 +656,14 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
                 },
                 "status": {"phase": DataLinkResourceStatus.OK.value},
             }
+        kind_name_map = {
+            DataLinkKind.get_choice_value(DataLinkKind.VMSTORAGEBINDING.value): DataLinkKind.VMSTORAGEBINDING.value,
+            DataLinkKind.get_choice_value(DataLinkKind.DATABUS.value): DataLinkKind.DATABUS.value,
+        }
         raise BKAPIError(
             system_name="bkdata",
             url="/v4/namespaces/{namespace}/{kind}/{name}/",
-            result={"message": f"resource {name} of kind {kind} not found"},
+            result={"message": f"resource {name} of kind {kind_name_map[kind]} not found"},
         )
 
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
@@ -669,7 +673,12 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
     ):
-        data_link_ins.apply_data_link(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+        data_link_ins.apply_data_link(
+            bk_biz_id=1001,
+            data_source=ds,
+            table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+        )
 
     configs = mock_apply_with_retry.call_args.args[0]
     result_table_config = configs[0]

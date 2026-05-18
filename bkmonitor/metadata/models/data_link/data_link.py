@@ -1505,59 +1505,49 @@ class DataLink(models.Model):
         )
 
     @classmethod
-    def _fill_missing_dict(cls, target: dict[str, Any], existing: dict[str, Any], current: dict[str, Any]) -> None:
-        """把旧配置中存在、当前配置中缺失的字段补到 target，当前配置已有值保持优先。"""
+    def _fill_missing_dict(cls, target: dict[str, Any], existing: dict[str, Any]) -> None:
+        """把旧配置中存在、当前配置中缺失的字段补到 target，当前配置已有值保持优先。
+
+        target 是本次 compose 配置的工作副本，existing 是 BKBase 查询回来的旧配置工作副本。
+        这里不做覆盖，只做补缺：
+        - target 已有普通字段时保持本次 compose 结果；
+        - target 和 existing 对应值都是 dict 时继续递归补缺；
+        - target 缺少字段时直接搬入 existing 中的值。
+        """
         for key, existing_value in existing.items():
-            current_value = current.get(key)
-            target_value = target.get(key)
-            if key not in current:
+            if key not in target:
                 target[key] = existing_value
-            elif (
-                isinstance(existing_value, dict) and isinstance(current_value, dict) and isinstance(target_value, dict)
-            ):
-                cls._fill_missing_dict(target_value, existing_value, current_value)
+            elif isinstance(existing_value, dict) and isinstance(target[key], dict):
+                cls._fill_missing_dict(target[key], existing_value)
 
     @classmethod
     def merge_component_config(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-        """把 BKBase 侧已有配置与本次配置合并，过滤掉 status 等运行态字段。"""
+        """把 BKBase 侧已有配置与本次配置合并，过滤掉 status 等运行态字段。
+
+        单个组件的合并策略：
+        1. 以本次 compose 出来的 config 作为最终 payload 主体，保证代码侧声明的配置优先；
+        2. 只从 BKBase 旧配置里读取 metadata.labels、metadata.annotations 和 spec；
+        3. 旧配置只用于补齐本次 config 缺失的字段，不覆盖本次 config 已声明的字段；
+        4. metadata.name、namespace、tenant、resourceVersion、status 等非配置字段不从旧配置回填；
+        5. metadata/spec 属于组件标准结构，缺失时直接报错，避免吞掉异常后生成不完整 payload。
+        """
         existing_config = deepcopy(existing_config)
         merged_config = deepcopy(config)
 
-        existing_metadata = existing_config.get("metadata")
-        config_metadata = config.get("metadata")
-        if isinstance(existing_metadata, dict) and isinstance(config_metadata, dict):
-            merged_metadata = merged_config["metadata"]
-            # 只保留用户/平台可能额外维护的配置型元数据，避免把 resourceVersion/status 等运行态字段带回 apply。
-            for metadata_key in ("labels", "annotations", "annotation"):
-                existing_value = existing_metadata.get(metadata_key)
-                config_value = config_metadata.get(metadata_key)
-                target_value = merged_metadata.get(metadata_key)
-                if not isinstance(existing_value, dict):
-                    continue
-                if isinstance(config_value, dict) and isinstance(target_value, dict):
-                    cls._fill_missing_dict(target_value, existing_value, config_value)
-                elif metadata_key not in config_metadata:
-                    merged_metadata[metadata_key] = existing_value
+        existing_metadata = existing_config["metadata"]
+        merged_metadata = merged_config["metadata"]
+        # 只保留用户/平台可能额外维护的配置型元数据，避免把 resourceVersion/status 等运行态字段带回 apply。
+        for metadata_key in ("labels", "annotations"):
+            if metadata_key not in existing_metadata:
+                continue
+            if metadata_key not in merged_metadata:
+                merged_metadata[metadata_key] = existing_metadata[metadata_key]
+                continue
+            cls._fill_missing_dict(merged_metadata[metadata_key], existing_metadata[metadata_key])
 
-        existing_spec = existing_config.get("spec")
-        config_spec = config.get("spec")
-        if isinstance(existing_spec, dict):
-            target_spec = merged_config.get("spec")
-            if isinstance(config_spec, dict) and isinstance(target_spec, dict):
-                cls._fill_missing_dict(target_spec, existing_spec, config_spec)
-            elif "spec" not in config:
-                merged_config["spec"] = existing_spec
+        cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
 
         return merged_config
-
-    @staticmethod
-    def _is_component_not_found_error(error: BKAPIError) -> bool:
-        error_data = getattr(error, "data", {}) or {}
-        if not isinstance(error_data, dict):
-            return False
-
-        messages = (error_data.get("message"), error_data.get("data"))
-        return any(isinstance(message, str) and "not found" in message.lower() for message in messages)
 
     def get_existing_component_config(
         self,
@@ -1581,14 +1571,15 @@ class DataLink(models.Model):
         except BKAPIError as error:
             # 这里必须直接区分 not found 与其它 API 异常：资源不存在可以继续 apply，
             # 权限、网关或服务异常则要抛出，避免误判为“无旧配置”后覆盖 BKBase 侧真实状态。
-            if self._is_component_not_found_error(error):
-                logger.info(
-                    "get_existing_component_config: component not found,kind->[%s],name->[%s],namespace->[%s]",
-                    kind,
-                    name,
-                    namespace,
-                )
+            if f"resource {name} of kind {kind} not found".lower() in error.message.lower():
                 return None
+            logger.error(
+                "get_existing_component_config: bkbase api error,kind->[%s],name->[%s],namespace->[%s],error->[%s]",
+                kind,
+                name,
+                namespace,
+                error,
+            )
             raise
 
     def merge_existing_component_configs(self, configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1596,29 +1587,31 @@ class DataLink(models.Model):
 
         合并策略：
         - 组件明确 not found 时视为无旧配置，其它 API 异常继续抛出；
-        - 仅合并 metadata.labels、metadata.annotations、metadata.annotation 和 spec；
+        - 仅合并 metadata.labels、metadata.annotations 和 spec；
         - 本次 compose 配置优先，旧配置只补当前缺失字段，status 等运行态字段不回填。
         """
 
         merged_configs: list[dict[str, Any]] = []
         for config in configs:
-            if not isinstance(config, dict):
-                merged_configs.append(config)
-                continue
+            metadata = config["metadata"]
+            kind = config["kind"]
+            name = metadata["name"]
+            namespace = metadata["namespace"]
 
-            metadata = config.get("metadata") or {}
-            kind = config.get("kind")
-            name = metadata.get("name") if isinstance(metadata, dict) else None
-            namespace = metadata.get("namespace") if isinstance(metadata, dict) else None
-            if not kind or not name:
-                merged_configs.append(config)
-                continue
+            # 校验配置是否合法
+            if not kind or not name or not namespace:
+                raise ValueError(
+                    f"merge_existing_component_configs: kind->[{kind}],name->[{name}],namespace->[{namespace}] "
+                    "is invalid"
+                )
 
-            existing_config = self.get_existing_component_config(kind, name, namespace or self.namespace)
+            # 查询已有配置
+            existing_config = self.get_existing_component_config(kind, name, namespace)
             if not isinstance(existing_config, dict):
                 merged_configs.append(config)
                 continue
 
+            # 合并配置
             merged_configs.append(self.merge_component_config(existing_config, config))
         return merged_configs
 
