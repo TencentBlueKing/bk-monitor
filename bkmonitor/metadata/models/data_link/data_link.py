@@ -1505,41 +1505,48 @@ class DataLink(models.Model):
         )
 
     @classmethod
-    def _merge_dict(cls, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-        """递归合并配置字段，冲突时以本次 compose 结果为准。"""
-        result = deepcopy(base)
-        for key, value in override.items():
-            if isinstance(result.get(key), dict) and isinstance(value, dict):
-                result[key] = cls._merge_dict(result[key], value)
-            else:
-                result[key] = deepcopy(value)
-        return result
+    def _fill_missing_dict(cls, target: dict[str, Any], existing: dict[str, Any], current: dict[str, Any]) -> None:
+        """把旧配置中存在、当前配置中缺失的字段补到 target，当前配置已有值保持优先。"""
+        for key, existing_value in existing.items():
+            current_value = current.get(key)
+            target_value = target.get(key)
+            if key not in current:
+                target[key] = existing_value
+            elif (
+                isinstance(existing_value, dict) and isinstance(current_value, dict) and isinstance(target_value, dict)
+            ):
+                cls._fill_missing_dict(target_value, existing_value, current_value)
 
     @classmethod
     def merge_component_config(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         """把 BKBase 侧已有配置与本次配置合并，过滤掉 status 等运行态字段。"""
+        existing_config = deepcopy(existing_config)
         merged_config = deepcopy(config)
 
         existing_metadata = existing_config.get("metadata")
         config_metadata = config.get("metadata")
         if isinstance(existing_metadata, dict) and isinstance(config_metadata, dict):
-            merged_metadata = deepcopy(config_metadata)
+            merged_metadata = merged_config["metadata"]
             # 只保留用户/平台可能额外维护的配置型元数据，避免把 resourceVersion/status 等运行态字段带回 apply。
             for metadata_key in ("labels", "annotations", "annotation"):
                 existing_value = existing_metadata.get(metadata_key)
                 config_value = config_metadata.get(metadata_key)
-                if isinstance(existing_value, dict) and isinstance(config_value, dict):
-                    merged_metadata[metadata_key] = cls._merge_dict(existing_value, config_value)
-                elif isinstance(existing_value, dict) and metadata_key not in config_metadata:
-                    merged_metadata[metadata_key] = deepcopy(existing_value)
-            merged_config["metadata"] = merged_metadata
+                target_value = merged_metadata.get(metadata_key)
+                if not isinstance(existing_value, dict):
+                    continue
+                if isinstance(config_value, dict) and isinstance(target_value, dict):
+                    cls._fill_missing_dict(target_value, existing_value, config_value)
+                elif metadata_key not in config_metadata:
+                    merged_metadata[metadata_key] = existing_value
 
         existing_spec = existing_config.get("spec")
         config_spec = config.get("spec")
-        if isinstance(existing_spec, dict) and isinstance(config_spec, dict):
-            merged_config["spec"] = cls._merge_dict(existing_spec, config_spec)
-        elif isinstance(existing_spec, dict) and "spec" not in config:
-            merged_config["spec"] = deepcopy(existing_spec)
+        if isinstance(existing_spec, dict):
+            target_spec = merged_config.get("spec")
+            if isinstance(config_spec, dict) and isinstance(target_spec, dict):
+                cls._fill_missing_dict(target_spec, existing_spec, config_spec)
+            elif "spec" not in config:
+                merged_config["spec"] = existing_spec
 
         return merged_config
 
