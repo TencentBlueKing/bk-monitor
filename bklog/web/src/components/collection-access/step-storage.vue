@@ -36,23 +36,13 @@
       data-test-id="storage_form_storageBox"
     >
       <div class="add-collection-title">{{ $t('集群选择') }}</div>
-      <div
+      <ClusterTypeTabs
         v-if="isDorisEnabled"
-        class="cluster-type-tabs"
-      >
-        <span
-          :class="['tab-btn', clusterType === 'elasticsearch' ? 'active' : '']"
-          @click="handleClusterTypeChange('elasticsearch')"
-        >
-          {{ $t('ES集群') }}
-        </span>
-        <span
-          :class="['tab-btn', clusterType === 'doris' ? 'active' : '']"
-          @click="handleClusterTypeChange('doris')"
-        >
-          {{ $t('Doris集群') }}
-        </span>
-      </div>
+        :active-tab="clusterType"
+        :is-doris-enabled="isDorisEnabled"
+        :disabled="operateType !== 'add'"
+        @tab-click="handleClusterTypeChange"
+      />
       <cluster-table
         :external-doris-mode="isDorisMode"
         :is-change-select.sync="isChangeSelect"
@@ -373,10 +363,12 @@ import { isFeatureToggleOn } from '@/store/helper';
 import { mapGetters } from 'vuex';
 
   import ClusterTable from './components/cluster-table';
+  import ClusterTypeTabs from '@/views/manage-v2/es-cluster/cluster-manage/cluster-type-tabs';
 
   export default {
     components: {
       ClusterTable,
+      ClusterTypeTabs,
     },
     mixins: [storageMixin],
     props: {
@@ -1032,52 +1024,6 @@ import { mapGetters } from 'vuex';
     max-height: 100%;
     padding: 0 42px 42px;
     overflow: auto;
-
-    .cluster-type-tabs {
-      display: inline-flex;
-      margin-bottom: 16px;
-      overflow: hidden;
-      border-radius: 2px;
-
-      .tab-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        height: 32px;
-        padding: 0 16px;
-        font-size: 14px;
-        line-height: 32px;
-        cursor: pointer;
-        border: 1px solid #3a84ff;
-        transition: all 0.15s;
-        user-select: none;
-
-        &:first-child {
-          border-radius: 2px 0 0 2px;
-        }
-
-        &:last-child {
-          border-radius: 0 2px 2px 0;
-        }
-
-        &.active {
-          z-index: 1;
-          color: #fff;
-          background-color: #3a84ff;
-          border-color: #3a84ff;
-        }
-
-        &:not(.active) {
-          color: #3a84ff;
-          background-color: #fff;
-          border-color: #3a84ff;
-
-          &:hover {
-            background-color: #e1ecff;
-          }
-        }
-      }
-    }
 
     .bk-label {
       font-size: 12px;
