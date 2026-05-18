@@ -7,13 +7,15 @@
   height: 100%;
 
   --td-text-color-primary: #4e5e7a;
+  --issues-primary-color: #3974ff;
+  --issues-primary-color-hover: #5594fa;
 
   %btn-hover {
-    color: #3974ff;
+    color: var(--issues-primary-color);
     cursor: pointer;
 
     &:hover {
-      color: #5594fa;
+      color: var(--issues-primary-color-hover);
     }
   }
 
@@ -32,14 +34,11 @@
     min-width: 0;
 
     .issues-name-title {
+      height: 24px;
       font-size: 13px;
       font-weight: 500;
       line-height: 24px;
-      color: #3974ff;
-
-      .issues-name-title-text {
-        @extend %btn-hover;
-      }
+      color: var(--issues-primary-color);
     }
 
     .issues-name-exception {
