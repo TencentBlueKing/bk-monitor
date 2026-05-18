@@ -50,9 +50,9 @@
                 </div>
                 <BookmarkPop
                 v-if="!isMonitorComponent"
-                :sql="item.query_string"
+                :sql="(item.params.search_mode || item.search_mode) === 'sql' ? item.query_string : ''"
                 :addition="item.params.addition"
-                searchMode='sql'
+                :searchMode="item.params.search_mode || item.search_mode || 'sql'"
                 active-favorite="history"
                 @instanceShow="instanceShow"
                 ></BookmarkPop>
