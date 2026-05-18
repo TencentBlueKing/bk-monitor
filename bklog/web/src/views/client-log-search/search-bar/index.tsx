@@ -55,9 +55,9 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const store = useStore();
 
-    /** 搜索关键词 — 优先使用 URL 回填值 */
+    /** 搜索关键词 — 优先使用 URL 回填值，无 keyword 时回填 fileName */
     const urlState = props.initialUrlState ?? {};
-    const keyword = ref(urlState.keyword || '');
+    const keyword = ref(urlState.keyword || urlState.fileName || '');
 
     /** 时间范围 — 优先使用 URL 回填值 */
     const timeRange = ref<[string, string]>(
@@ -85,9 +85,11 @@ export default defineComponent({
     let cancelExecutor: (() => void) | null = null;
     /** 上次请求 openid 列表时使用的关键词 */
     let lastKeyword: string | null = null;
+    /** 上次执行检索时使用的关键词 */
+    let lastSearchedKeyword = '';
 
     /** 当前值的类型 */
-    const currentValueType = ref<SearchValueType | undefined>(urlState.valueType || undefined);
+    const currentValueType = ref<SearchValueType | undefined>(urlState.valueType || (!urlState.keyword && urlState.fileName ? 'file_name' : undefined));
 
     /** 搜索按钮是否禁用（联想请求进行中且类型未确定，或面板加载中时禁用） */
     const isSearchDisabled = computed(() => props.loading || (isRequesting.value && keyword.value.trim() !== '' && !currentValueType.value));
@@ -186,6 +188,7 @@ export default defineComponent({
       openidList.value = [];
       lastKeyword = null;
       currentValueType.value = 'openid';
+      handleSearch();
     };
 
     /** 输入框聚焦 */
@@ -228,6 +231,8 @@ export default defineComponent({
         return;
       }
 
+      lastSearchedKeyword = keyword.value;
+
       const params: SearchParams = {
         keyword: keyword.value,
         timeRange: timeRange.value,
@@ -259,6 +264,21 @@ export default defineComponent({
       keyword.value = val;
       // 手动输入时重置类型，等待联想结果判断
       currentValueType.value = undefined;
+      // 清空输入框且上次检索使用了非空关键词时，重新触发检索
+      if (val.trim() === '' && lastSearchedKeyword.trim() !== '') {
+        isOpenidListVisible.value = false;
+        isRequesting.value = false;
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        if (cancelExecutor) {
+          cancelExecutor();
+          cancelExecutor = null;
+        }
+        handleSearch();
+        return;
+      }
       // 如果输入内容以 .zip 为后缀，则类型为 file_name
       if (val.trim().endsWith('.zip')) {
         currentValueType.value = 'file_name';
