@@ -75,15 +75,12 @@ export const useFavorite = () => {
   const filteredFavoriteList = computed(() => {
     let data = favoriteList.value ?? [];
 
-    if (isShowCurrentIndexList.value) {
+    if (isShowCurrentIndexList.value && !isSceneMode.value) {
       data = data.map(({ group_id, group_name, group_type, favorites }) => ({
         group_id,
         group_name,
         group_type,
         favorites: favorites.filter(item => {
-          if (isSceneMode.value) {
-            return item.scene_id === sceneActive.value;
-          }
           if (isUnionSearch.value) {
             return (
               item.index_set_type === 'union' &&
