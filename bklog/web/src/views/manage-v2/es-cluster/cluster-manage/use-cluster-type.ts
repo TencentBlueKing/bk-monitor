@@ -40,7 +40,7 @@ interface IUseClusterTypeOptions {
   spaceUid: Ref<string | number>;
   initialTab?: ClusterType;
   // eslint-disable-next-line no-unused-vars
-  onTabChange?: (type: ClusterType, previousType: ClusterType) => void | Promise<void>;
+  onTabChange?: (type: ClusterType, previousType: ClusterType, isInitial?: boolean) => void | Promise<void>;
   onAccessDenied?: () => void;
 }
 
@@ -65,11 +65,11 @@ export const useClusterType = ({
     return hasAccess;
   };
 
-  const handleTabClick = async (type: ClusterType) => {
-    if (activeTab.value === type) return;
+  const handleTabClick = async (type: ClusterType, force = false) => {
+    if (!force && activeTab.value === type) return;
     const previousType = activeTab.value;
     activeTab.value = type;
-    await onTabChange?.(type, previousType);
+    await onTabChange?.(type, previousType, force);
   };
 
   watch(
