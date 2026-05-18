@@ -55,9 +55,9 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const store = useStore();
 
-    /** 搜索关键词 — 优先使用 URL 回填值 */
+    /** 搜索关键词 — 优先使用 URL 回填值，无 keyword 时回填 fileName */
     const urlState = props.initialUrlState ?? {};
-    const keyword = ref(urlState.keyword || '');
+    const keyword = ref(urlState.keyword || urlState.fileName || '');
 
     /** 时间范围 — 优先使用 URL 回填值 */
     const timeRange = ref<[string, string]>(
@@ -89,7 +89,7 @@ export default defineComponent({
     let lastSearchedKeyword = '';
 
     /** 当前值的类型 */
-    const currentValueType = ref<SearchValueType | undefined>(urlState.valueType || undefined);
+    const currentValueType = ref<SearchValueType | undefined>(urlState.valueType || (!urlState.keyword && urlState.fileName ? 'file_name' : undefined));
 
     /** 搜索按钮是否禁用（联想请求进行中且类型未确定，或面板加载中时禁用） */
     const isSearchDisabled = computed(() => props.loading || (isRequesting.value && keyword.value.trim() !== '' && !currentValueType.value));
