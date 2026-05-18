@@ -131,3 +131,44 @@ class TestSearchAlertResourceDetectActionIdQuery:
         has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
         assert has_action_id is True
         assert "17790733296960932147" in detect_result["action_ids_in_conditions"]
+
+    def test_parent_action_id_not_falsely_detected(self):
+        """regex 必须用负向 lookbehind，避免合法字段 parent_action_id / alert_action_id 被误识别为 action_id"""
+        request_data = {"query_string": "parent_action_id : 999"}
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is False
+        assert detect_result["action_ids_in_query"] == []
+
+    def test_multiple_action_ids_in_query_string_collected(self):
+        request_data = {"query_string": "action_id : 17790733296960932147 OR action_id : 17790733296960932148"}
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is True
+        assert set(detect_result["action_ids_in_query"]) == {
+            "17790733296960932147",
+            "17790733296960932148",
+        }
+
+    def test_action_id_combined_with_other_fields_in_query_string(self):
+        request_data = {"query_string": "alert_name : foo AND action_id : 12345"}
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is True
+        assert "12345" in detect_result["action_ids_in_query"]
+
+    def test_action_id_with_scalar_condition_value_handled(self):
+        """conditions.value 可以是标量（非 list），需走 L1605 的 else 分支正确收集"""
+        request_data = {
+            "query_string": "",
+            "conditions": [{"key": "action_id", "value": "17790733296960932147"}],
+        }
+        has_action_id, detect_result = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is True
+        assert "17790733296960932147" in detect_result["action_ids_in_conditions"]
+
+    def test_quoted_value_not_supported_current_behavior(self):
+        """当前不支持 Lucene 引号包裹值形式 'action_id : "123"'。
+        前端实测裸值发送，不支持也不影响业务。本测试锁定当前行为，
+        若未来需要支持引号形式，扩 regex 时此测试应同步更新。
+        """
+        request_data = {"query_string": 'action_id : "17790733296960932147"'}
+        has_action_id, _ = SearchAlertResource.detect_action_id_query(request_data)
+        assert has_action_id is False

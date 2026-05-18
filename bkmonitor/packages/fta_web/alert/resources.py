@@ -1580,18 +1580,22 @@ class SearchAlertResource(Resource):
             request_data: 请求数据
 
         Returns:
-            tuple: (是否包含 action_id 查询, 处理记录 ID 列表)
+            tuple: (是否包含 action_id 查询, detect_result dict 含 action_ids_in_query / action_ids_in_conditions)
         """
         action_ids_in_query = set()
         action_ids_in_conditions = set()
 
         has_action_id = False
 
-        # 检查 query_string 中的处理记录ID（兼容内部字段名 action_id、中文 "处理记录ID"、英文 i18n "Handling Record ID"）
+        # 检查 query_string 中的处理记录ID
+        # 兼容三种写法：内部字段名 action_id、中文 "处理记录ID"、英文 i18n "Handling Record ID"
+        # 同步维护：fta_web/alert/handlers/alert.py::AlertQueryTransformer._process_action_id 的白名单需与本处一致，
+        # 否则会出现 Path A 扩了时间窗但 Path B 未改写 query 的语义不一致（导致 ES 把字面字段当未知字段，0 命中）
+        # 英文部分用负向 lookbehind 避免误命中 parent_action_id / alert_action_id 等含 "action_id" 子串的合法字段
         query_string = request_data.get("query_string", "")
         if query_string:
             action_id_matches = re.findall(
-                r"(?:action_id|处理记录ID|Handling\s+Record\s+ID)\s*:\s*(\d+)",
+                r"(?:(?<![A-Za-z0-9_])(?:action_id|Handling\s+Record\s+ID)|处理记录ID)\s*:\s*(\d+)",
                 query_string,
             )
             if action_id_matches:

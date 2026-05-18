@@ -378,11 +378,18 @@ class AlertQueryTransformer(BaseQueryTransformer):
     def _process_action_id(self, node: Word, context: dict) -> tuple:
         """
         处理动作ID
+
+        同步维护：fta_web/alert/resources.py::SearchAlertResource.detect_action_id_query 的 regex 需与本白名单一致，
+        否则会出现 Path A 扩了时间窗但 Path B 未改写 query 的语义冲突（ES 把字面字段当未知字段，0 命中）。
         """
         search_field_name = context.get("search_field_name")
         if search_field_name == "id" and context.get("search_field_origin_name") in [
             "action_id",
             _("处理记录ID"),
+            # 显式列出 zh / en i18n 字面值，避免 locale 切换导致跨语言查询失效
+            # （Path A regex 字面与 locale 无关；Path B 必须对称兼容）
+            "处理记录ID",
+            "Handling Record ID",
         ]:
             action_alert_map = context.get("action_alert_map", {})
             if action_alert_map:
