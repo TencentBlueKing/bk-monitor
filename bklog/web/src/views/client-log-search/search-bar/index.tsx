@@ -85,6 +85,8 @@ export default defineComponent({
     let cancelExecutor: (() => void) | null = null;
     /** 上次请求 openid 列表时使用的关键词 */
     let lastKeyword: string | null = null;
+    /** 上次执行检索时使用的关键词 */
+    let lastSearchedKeyword = '';
 
     /** 当前值的类型 */
     const currentValueType = ref<SearchValueType | undefined>(urlState.valueType || undefined);
@@ -228,6 +230,8 @@ export default defineComponent({
         return;
       }
 
+      lastSearchedKeyword = keyword.value;
+
       const params: SearchParams = {
         keyword: keyword.value,
         timeRange: timeRange.value,
@@ -259,6 +263,21 @@ export default defineComponent({
       keyword.value = val;
       // 手动输入时重置类型，等待联想结果判断
       currentValueType.value = undefined;
+      // 清空输入框且上次检索使用了非空关键词时，重新触发检索
+      if (val.trim() === '' && lastSearchedKeyword.trim() !== '') {
+        isOpenidListVisible.value = false;
+        isRequesting.value = false;
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        if (cancelExecutor) {
+          cancelExecutor();
+          cancelExecutor = null;
+        }
+        handleSearch();
+        return;
+      }
       // 如果输入内容以 .zip 为后缀，则类型为 file_name
       if (val.trim().endsWith('.zip')) {
         currentValueType.value = 'file_name';
