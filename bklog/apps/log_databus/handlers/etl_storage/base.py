@@ -317,6 +317,40 @@ class EtlStorage:
             "now_if_parse_failed": True,
         }
 
+    @staticmethod
+    def _convert_v3_to_doris_v4_time_format(v3_time_format: str, time_zone: int = None) -> dict:
+        """
+        将 V3 时间格式转换为 doris V4 time_format 配置
+        :param v3_time_format: V3 版本的时间格式字符串
+        :param time_zone: 用户配置的时区偏移(如 8 表示 UTC+8), 仅对不含内嵌时区的格式生效; None 时保持 mapping 默认值(zone=0 即 UTC)
+        :return: doris V4 版本的 time_format 配置字典
+        """
+        time_format_mapping = {
+            # 标准日期时间格式
+            "yyyy-MM-dd HH:mm:ss": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+            "yyyy-MM-dd HH:mm:ss Z": {"format": "%Y-%m-%d %H:%M:%S %z", "zone": None},
+            # Unix 时间戳格式
+            "epoch_micros": {"format": "Unix Timestamp", "zone": None},
+            "Unix Time Stamp(milliseconds)": {"format": "Unix Timestamp", "zone": None},
+            "epoch_millis": {"format": "Unix Timestamp", "zone": None},
+            "epoch_second": {"format": "Unix Timestamp", "zone": None},
+        }
+
+        # 获取映射配置
+        format_config = time_format_mapping.get(v3_time_format)
+        if not format_config:
+            # 如果找不到映射, 使用默认配置
+            zone = time_zone if time_zone is not None else 0
+            return {"format": "%Y-%m-%d %H:%M:%S", "zone": zone}
+
+        # zone=None 表示格式本身内嵌了时区信息(如 %z、%:z), 此时忽略用户 time_zone
+        # zone=0 表示格式不含时区信息, 可被用户 time_zone 覆盖
+        zone = format_config["zone"]
+        if zone is not None and time_zone is not None:
+            zone = time_zone
+
+        return {"format": format_config["format"], "zone": zone}
+
     def _build_built_in_fields_v4(self, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE) -> list:
         """
         构建V4版本的内置字段规则
@@ -417,30 +451,41 @@ class EtlStorage:
                 elif storage_cluster_type == DORIS_CLUSTER_TYPE:
                     main_time_rules["operator"]["output_type"] = "string"
                     main_time_rules["operator"]["is_time_field"] = True
-                    main_time_rules["operator"]["time_format"] = v4_time_parsing
+                    main_time_rules["operator"]["time_format"] = self._convert_v3_to_doris_v4_time_format(
+                        v3_time_format
+                    )
+                    main_time_rules["operator"]["in_place_time_parsing"] = None
 
                 rules.append(main_time_rules)
 
-                # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
-                rules.append(
-                    {
-                        "input_id": "json_data",
-                        "output_id": "time",
-                        "operator": {
-                            "type": "assign",
-                            "key_index": time_alias_name,
-                            "alias": "time",
-                            "desc": "data timestamp in epoch second",
-                            "input_type": None,
-                            "output_type": "long",
-                            "fixed_value": None,
-                            "is_time_field": None,
-                            "time_format": None,
-                            "in_place_time_parsing": v4_time_parsing,
-                            "default_value": None,
-                        },
-                    }
-                )
+                # 从同源生成 time 字段，Legacy 路径下 Transfer 自动生成，V4 需显式声明
+                second_time_rules = {
+                    "input_id": "json_data",
+                    "output_id": "time",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": time_alias_name,
+                        "alias": "time",
+                        "desc": "data timestamp in epoch second",
+                        "input_type": None,
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "default_value": None,
+                    },
+                }
+
+                if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                    second_time_rules["operator"]["output_type"] = "long"
+                    second_time_rules["operator"]["time_format"] = None
+                    second_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
+                elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+                    second_time_rules["operator"]["output_type"] = "string"
+                    second_time_rules["operator"]["time_format"] = self._convert_v3_to_doris_v4_time_format(
+                        v3_time_format
+                    )
+                    second_time_rules["operator"]["in_place_time_parsing"] = None
+
+                rules.append(second_time_rules)
 
             # 如果是纳秒级时间格式，记录需要生成dtEventTimeStampNanos字段
             # 注意：dtEventTimeStampNanos规则需要在bk_separator_object之后生成，因为用户指定的时间字段在bk_separator_object中
