@@ -378,11 +378,22 @@ class AlertQueryTransformer(BaseQueryTransformer):
     def _process_action_id(self, node: Word, context: dict) -> tuple:
         """
         处理动作ID
+
+        同步维护：fta_web/alert/resources.py::SearchAlertResource.detect_action_id_query 的 regex 需与本白名单一致，
+        否则会出现 Path A 扩了时间窗但 Path B 未改写 query 的语义冲突（ES 把字面字段当未知字段，0 命中）。
+
+        FIXME: `_("处理记录ID")` 在 locale=en 下返回 "Handling Record ID"（含空格），但 luqum parser 不接受含空格的
+        field name，"Handling Record ID : X" 会被切碎为 UnknownOperation(Word('Handling'), Word('Record'),
+        SearchField('ID', Word('X')))，本分支拿到的 search_field_origin_name 是 'ID'，不会命中白名单。这意味着
+        en locale 下用户输入英文 i18n 显示名的查询永远失效。这是 v1.0 之前就存在的遗留缺陷，需独立 PR 修复
+        （方案：进 luqum 前规范化字段名 / 改用 ASCII-safe 英文翻译 / 要求前端只发 action_id）。
         """
         search_field_name = context.get("search_field_name")
         if search_field_name == "id" and context.get("search_field_origin_name") in [
             "action_id",
             _("处理记录ID"),
+            # 显式列出 zh 字面，避免 _() 受 locale 切换影响时 zh 用户失效
+            "处理记录ID",
         ]:
             action_alert_map = context.get("action_alert_map", {})
             if action_alert_map:
