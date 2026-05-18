@@ -62,7 +62,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
+import { formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isFeatureToggleOn } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
@@ -254,7 +254,7 @@ const store = new Vuex.Store({
     maskingToggle: state => state.maskingToggle,
     isNotVisibleFieldsShow: state => state.isNotVisibleFieldsShow,
     /** 脱敏灰度判断 */
-    isShowMaskingTemplate: state => state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
+    isShowMaskingTemplate: state => isFeatureToggleOn('log_desensitize', state.bkBizId),
     isLimitExpandView: state => state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
     custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
 
