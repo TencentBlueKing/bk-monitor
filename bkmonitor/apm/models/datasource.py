@@ -36,6 +36,7 @@ from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose
 from apm.models.shared_datasource import BaseSharedDataSource, SHARED_DS_REGISTRY
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -955,9 +956,10 @@ class TraceDataSource(ApmDataSourceConfigBase):
         fields: list[str] | None = None,
     ):
         """根据过滤条件（filter_params）、节点类别（category）、字段列表（fields）构建 QueryConfig"""
+        # 接入 TraceQueryGuard 做共享数据源查询隔离改造
+        target: TraceDatasourceTarget = TraceDatasourceTarget.build(self.bk_biz_id, self.app_name, self.result_table_id)
         return (
-            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
-            .table(self.result_table_id)
+            TraceQueryGuard.get_q([target])
             .filter(self.build_filter_params(filter_params, category))
             .time_field("end_time")
             .values(*(fields or []))

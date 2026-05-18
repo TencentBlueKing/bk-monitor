@@ -187,6 +187,7 @@ const {
   delayShowInstance,
   repositionTippyInstance,
   hideTippyInstance,
+  handleInputBlur,
   getTippyUtil,
 } = useFocusInput(props, {
   refContent: refPopInstance,
@@ -212,6 +213,7 @@ const {
       clearTimeout(delayBlurTimer);
       delayBlurTimer = null;
     }
+    inputValueLength.value = 0;
     queryItem.value = '';
     activeIndex.value = null;
   },
@@ -371,7 +373,7 @@ const isComposing = ref(false);
 const handleGlobalSaveQueryClick = (payload) => {
   isGlobalKeyEnter.value = true;
   handleSaveQueryClick(payload);
-  refSearchInput.value.style.setProperty('width', '12px');
+  handleInputBlur();
 };
 
 /**
@@ -388,7 +390,7 @@ const handleInputValueEnter = (e) => {
   if (!isGlobalKeyEnter.value) {
     handleSaveQueryClick(undefined);
     repositionTippyInstance();
-    e.target.style.setProperty('width', '12px');
+    handleInputBlur(e);
   }
 
   isGlobalKeyEnter.value = false;
@@ -409,22 +411,28 @@ const handleCancelClick = () => {
   closeTippyInstance();
 };
 
+const syncFullTextInputStateAfterBlur = () => {
+  setIsInputTextFocus(false);
+  inputValueLength.value = 0;
+  queryItem.value = '';
+};
+
 let delayBlurTimer = null;
 
-const handleFullTextInputBlur = () => {
+const handleFullTextInputBlur = (e) => {
+  // DOM value/width 的清理由 useFocusInput 统一处理，避免组件内重复维护 input 细节。
+  handleInputBlur(e);
+
   delayBlurTimer && clearTimeout(delayBlurTimer);
   delayBlurTimer = setTimeout(() => {
     const input = refSearchInput.value;
     if (!input) return;
 
-    // 延时回调执行时，若 input 已重新获得焦点，则跳过清除逻辑
+    // 若 input 已重新获得焦点，只保留 useFocusInput 已完成的 DOM 清理，不重置 focus 状态。
     if (document.activeElement === input) return;
 
-    setIsInputTextFocus(false);
-    inputValueLength.value = 0;
-    input.style.setProperty('width', '12px');
-    input.value = '';
-    queryItem.value = '';
+    syncFullTextInputStateAfterBlur();
+    delayBlurTimer = null;
   }, 300);
 };
 

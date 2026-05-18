@@ -366,7 +366,18 @@ def kafka_sample(params: dict[str, Any]) -> dict[str, Any]:
     if mq_cluster.is_auth:
         items = _consume_with_confluent_kafka(mq_cluster, topic, size)
     elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
-        if result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
+        data_id_config = (
+            DataIdConfig.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).order_by("-id").first()
+        )
+        if data_id_config:
+            res = api.bkdata.tail_kafka_data(
+                bk_tenant_id=bk_tenant_id,
+                namespace=data_id_config.namespace,
+                name=data_id_config.name,
+                limit=size,
+            )
+            items = [json.loads(data) for data in res]
+        elif result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
             data_id_config_name = compose_bkdata_data_id_name(datasource.data_name)
             try:
                 data_id_config = DataIdConfig.objects.get(

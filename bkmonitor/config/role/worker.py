@@ -541,6 +541,13 @@ QOS_ALERT_THRESHOLD = 200
 # 处理动作流控窗口大小
 QOS_ALERT_WINDOW = 60
 
+# Issue 单策略活跃数观测阈值（warn-only，**不阻塞新建**）
+# 0 = 关闭观测；>0 = 单策略活跃 Issue 达此值后仅 metric + warning（继续创建新 Issue），
+# 避免触发后所有缺失 fingerprint 的告警永久失联。
+# 运维通过 `bkmonitor_issue_fingerprint_blocked{reason=high_cardinality}` 速率告警发现高基数策略
+# （metric 由 ISSUE_ACTIVE_COUNT_KEY 5min Redis cache 驱动，存在 ≤5min 滞后）。
+ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
+
 # 第三方事件接入白名单
 BIZ_WHITE_LIST_FOR_3RD_EVENT = []
 

@@ -392,6 +392,34 @@ ALERT_QOS_COUNT = Counter(
     labelnames=("strategy_id", "is_blocked"),
 )
 
+ISSUE_FINGERPRINT_BLOCKED = Counter(
+    name="bkmonitor_issue_fingerprint_blocked",
+    documentation="Issue 聚合按指纹路径中跳过创建的次数（按原因分类）",
+    # reason 取值：
+    #   - missing_dim：告警 dimensions 缺失 issue 配置中的某个 aggregate_dimension，无法生成指纹
+    #   - high_cardinality：单策略活跃 Issue 数已达 ISSUE_MAX_ACTIVE_PER_STRATEGY 阈值
+    #     （warn-only，告警不被丢弃；本 metric 仅用于运维监控高基数策略）
+    # label 用 bk_biz_id（业务粒度）而非 strategy_id（策略粒度），避免高基数策略推爆 metric series
+    labelnames=("bk_biz_id", "reason"),
+)
+
+ISSUE_CREATE_ACTIVITY_LOST = Counter(
+    name="bkmonitor_issue_create_activity_lost",
+    documentation="Issue CREATE 活动日志写入永久失败计数（retry 后仍失败）。"
+    "活动日志缺失不影响主功能但影响审计完整性，运维可据此发现 ES 持续异常",
+    labelnames=("bk_biz_id",),
+)
+
+ISSUE_LEGACY_FALLBACK_HIT = Counter(
+    name="bkmonitor_issue_legacy_fallback_hit",
+    documentation="部署窗口期 read-only legacy fallback 命中次数。"
+    "fingerprint 改造部署期内,worker 可能先于 web migrate 完成而看到 fingerprint=null 的活跃 Issue,"
+    "alert 被关联到 legacy Issue（不写 fingerprint）。migrate 完成后该 Issue 被 RESOLVE,"
+    "alert.issue_id 永久指向 RESOLVED Issue（best-effort,不会重新关联到新 fingerprint Issue)。"
+    "正常上线后此 metric 应在分钟级回零;持续非零说明 migrate 未成功执行",
+    labelnames=("bk_biz_id",),
+)
+
 # composite
 COMPOSITE_PROCESS_TIME = Histogram(
     name="bkmonitor_composite_process_time",

@@ -18,6 +18,8 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.exceptions import CustomException
 
 SAFETY_LEVEL_READ = "read"
+SAFETY_LEVEL_WRITE = "write"
+SAFETY_LEVEL_DESTRUCTIVE = "destructive"
 
 
 def get_bk_tenant_id(params: dict[str, Any]) -> str:
@@ -123,6 +125,7 @@ def build_response(
     bk_tenant_id: str,
     data: dict[str, Any],
     warnings: list[dict[str, Any]] | None = None,
+    safety_level: str = SAFETY_LEVEL_READ,
 ) -> dict[str, Any]:
     return {
         "data": data,
@@ -130,7 +133,7 @@ def build_response(
         "meta": {
             "operation": operation,
             "func_name": func_name,
-            "safety_level": SAFETY_LEVEL_READ,
+            "safety_level": safety_level,
             "effective_bk_tenant_id": bk_tenant_id,
         },
     }

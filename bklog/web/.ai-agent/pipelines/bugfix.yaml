@@ -1,0 +1,7 @@
+pipeline:
+  - skill: memory-recaller
+  - skill: architect
+  - skill: module-decomposer
+  - skill: refactor-critic
+  - skill: memory-writer
+  - gate: merge_gate

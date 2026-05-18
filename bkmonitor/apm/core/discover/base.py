@@ -28,6 +28,7 @@ from apm.core.discover.instance_data import BaseInstanceData
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
@@ -353,6 +354,11 @@ class TopoHandler:
     def __str__(self):
         return f"bk_biz_id: {self.bk_biz_id} app_name: {self.app_name}"
 
+    @property
+    def _trace_target(self) -> TraceDatasourceTarget:
+        """当前应用的 Trace 数据源查询目标，用于 TraceQueryGuard 识别共享表并追加隔离条件"""
+        return TraceDatasourceTarget.build(self.bk_biz_id, self.app_name, self.datasource.result_table_id)
+
     def is_valid(self) -> bool:
         """Topo Instance validator"""
         if not self.datasource:
@@ -386,6 +392,7 @@ class TopoHandler:
 
         while True:
             query_body = self._get_after_key_body(after_key)
+            query_body = TraceQueryGuard.build_dsl(query_body, self._trace_target)
             logger.info(f"[TopoHandler] {self.bk_biz_id} {self.app_name} list_trace_ids body: {query_body}")
             response = self.datasource.es_client.search(index=index_name, body=query_body, request_timeout=60)
 
@@ -415,6 +422,7 @@ class TopoHandler:
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
                 "size": constants.DISCOVER_BATCH_SIZE * len(trace_ids),
             }
+            query = TraceQueryGuard.build_dsl(query, self._trace_target)
             response = self.datasource.es_client.search(index=index_name, body=query)
             hits = response["hits"]["hits"]
             return [i["_source"] for i in hits]
@@ -425,6 +433,7 @@ class TopoHandler:
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
                 "size": max_result_count,
             }
+            query = TraceQueryGuard.build_dsl(query, self._trace_target)
             response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
             hits = response["hits"]["hits"]
             res += [i["_source"] for i in hits]

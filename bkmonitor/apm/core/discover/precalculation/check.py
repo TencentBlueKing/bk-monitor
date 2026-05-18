@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import math
@@ -92,6 +92,13 @@ class PreCalculateCheck:
                 )
                 continue
 
+            # 共享数据源暂时跳过预计算任务注册
+            if trace_datasource.is_shared:
+                logger.info(
+                    f"[PreCalculateCheck] app: {app.bk_biz_id}-{app.app_name} use shared trace datasource, skip"
+                )
+                continue
+
             # 由 BMW 模块来保证任务正常运行(SaaS 不关注)
             info = next((i for i in daemon_tasks if i["data_id"] == str(trace_datasource.bk_data_id)), None)
             # 获取总数据量
@@ -147,7 +154,7 @@ class PreCalculateCheck:
     @classmethod
     def _calculate_cost(cls, queue_info):
         # 用请求量的标准差来反映此刻所有队列的均衡程度
-        loads = [info['data_count'] for info in queue_info.values()]
+        loads = [info["data_count"] for info in queue_info.values()]
         mean = sum(loads) / len(loads)
         return math.sqrt(sum((x - mean) ** 2 for x in loads))
 
@@ -156,7 +163,7 @@ class PreCalculateCheck:
         """使用模拟退火策略，计算未分派应用到合适队列，避免产生总是分配到固定队列的问题"""
         all_queues = settings.APM_BMW_TASK_QUEUES
         if not all_queues:
-            logger.info(f"[PreCalculateCheck] empty bmw task queues, return")
+            logger.info("[PreCalculateCheck] empty bmw task queues, return")
             return {}
 
         if not unopened_mapping:
@@ -202,10 +209,10 @@ class PreCalculateCheck:
                     current_cost = new_cost
                 else:
                     # 不移动 保持之前的随机结果
-                    queue_info[old_queue]['data_count'] += unopened_mapping[app_to_move].request_count
-                    queue_info[old_queue]['app_count'] += 1
-                    queue_info[new_queue]['data_count'] -= unopened_mapping[app_to_move].request_count
-                    queue_info[new_queue]['app_count'] -= 1
+                    queue_info[old_queue]["data_count"] += unopened_mapping[app_to_move].request_count
+                    queue_info[old_queue]["app_count"] += 1
+                    queue_info[new_queue]["data_count"] -= unopened_mapping[app_to_move].request_count
+                    queue_info[new_queue]["app_count"] -= 1
                     app_assignment[app_to_move] = old_queue
 
             temperature *= cls._COOLING_RATE
@@ -221,11 +228,11 @@ class PreCalculateCheck:
         for app_id, queue in distribute_mapping.items():
             DaemonTaskHandler.execute(app_id, queue)
 
-        logger.info(f"[PreCalculateCheck] distribute finished")
+        logger.info("[PreCalculateCheck] distribute finished")
 
     @classmethod
     def batch_remove(cls, task_uni_ids):
         logger.info(f"[PreCalculateCheck] remove tasks: \n{json.dumps(task_uni_ids)}")
         for i in task_uni_ids:
             DaemonTaskHandler.remove(i)
-        logger.info(f"[PreCalculateCheck] remove finished")
+        logger.info("[PreCalculateCheck] remove finished")

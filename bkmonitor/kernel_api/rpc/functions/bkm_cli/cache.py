@@ -123,6 +123,33 @@ ALLOWED_KEY_SPECS: dict[str, CacheKeySpec] = {
         required_params={"strategy_id"},
         label="[nodata] 无数据告警处理锁 — 查看指定策略当前是否被 nodata 检测占用",
     ),
+    "ISSUE_ACTIVE_CONTENT_KEY": CacheKeySpec(
+        key_name="ISSUE_ACTIVE_CONTENT_KEY",
+        key_type="string",
+        required_params={"fingerprint"},
+        label="[issue] 活跃 Issue 热缓存 — 按 fingerprint 查指定活跃 Issue 内容快照；"
+        "aggregate_dimensions=[] 时 fingerprint 退化为 `strategy:{strategy_id}`",
+    ),
+    "ISSUE_FINGERPRINT_LOCK": CacheKeySpec(
+        key_name="ISSUE_FINGERPRINT_LOCK",
+        key_type="string",
+        required_params={"fingerprint"},
+        label="[issue] Issue 指纹级分布式锁 — 查指定 fingerprint 当前是否被某进程创建中",
+    ),
+    "ISSUE_ACTIVE_COUNT_KEY": CacheKeySpec(
+        key_name="ISSUE_ACTIVE_COUNT_KEY",
+        key_type="string",
+        required_params={"strategy_id"},
+        label="[issue] 单策略活跃 Issue 数缓存 — _check_active_issue_count 5min cache，"
+        "high_cardinality 熔断观测；值含 ≤5min 滞后",
+    ),
+    "ISSUE_LEGACY_MIGRATION_DONE_KEY": CacheKeySpec(
+        key_name="ISSUE_LEGACY_MIGRATION_DONE_KEY",
+        key_type="string",
+        required_params=set(),
+        label="[issue] legacy 迁移完成全局哨兵 — 看到该哨兵则 processor 跳过 fingerprint=null "
+        "全索引 fallback；migrate_legacy_active_issues 完成时 set",
+    ),
 }
 
 

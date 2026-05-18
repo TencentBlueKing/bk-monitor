@@ -74,6 +74,14 @@ def get_label_from_enums(value: Any, enums: list[type[CachedEnum]]) -> str:
     return value
 
 
+class ApmGlobalTablePrefix:
+    COMMON = "apm_global."
+    # 共享数据源场景
+    SHARED = f"{COMMON}shared"
+    # 预计算场景
+    PRECALCULATE = f"{COMMON}precalculate_storage"
+
+
 class TraceDataSourceConfig:
     """Trace数据源配置常量"""
 

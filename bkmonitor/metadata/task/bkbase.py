@@ -557,7 +557,7 @@ def _get_bkbase_components_config(
             bk_data_id = int(annotations.get("dataId") or annotations.get("DataId") or 0)
             extra_config["bk_data_id"] = bk_data_id
         case DataLinkKind.RESULTTABLE.value:
-            extra_config["bkbase_table_id"] = annotations.get("ResultTableId") or ""
+            extra_config["bkbase_table_id"] = _get_annotation_value(annotations, "ResultTableId") or ""
             extra_config["data_type"] = spec["dataType"]
         case DataLinkKind.VMSTORAGEBINDING.value:
             extra_config["vm_cluster_name"] = spec["storage"]["name"]
@@ -578,7 +578,23 @@ def _get_bkbase_components_config(
             sink_names = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["data_id_name"] = spec["sources"][0]["name"]
             extra_config["sink_names"] = sink_names
+        case DataLinkKind.BASEREPORTSINK.value:
+            vm_storage_binding_names = []
+            for mapping in spec.get("mappings", []):
+                for sink in mapping.get("sinks", []):
+                    if sink.get("kind") == DataLinkKind.VMSTORAGEBINDING.value and sink.get("name"):
+                        vm_storage_binding_names.append(sink["name"])
+            extra_config["vm_storage_binding_names"] = list(dict.fromkeys(vm_storage_binding_names))
     return base_config, extra_config
+
+
+def _get_annotation_value(annotations: dict[str, Any], key: str) -> Any:
+    """兼容 BKBase annotation key 的大小写/下划线差异。"""
+    normalized_key = key.replace("_", "").lower()
+    for annotation_key, value in annotations.items():
+        if annotation_key.replace("_", "").lower() == normalized_key:
+            return value
+    return None
 
 
 def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind: str):
@@ -662,6 +678,7 @@ def sync_bkbase_v4_datalink_components():
         DataLinkKind.DATAID.value,
         DataLinkKind.RESULTTABLE.value,
         DataLinkKind.CONDITIONALSINK.value,
+        DataLinkKind.BASEREPORTSINK.value,
     ]
     for tenant, namespace, kind in itertools.product(tenants, namespaces, kinds):
         _sync_bkbase_v4_datalink_components(bk_tenant_id=tenant["id"], namespace=namespace, kind=kind)

@@ -37,6 +37,9 @@ from bkmonitor.utils.alert_drilling import (
     build_log_search_condition,
     get_alert_dimensions,
     get_alert_query_config_or_none,
+    get_log_clustering_filter_dict,
+    get_log_clustering_info,
+    get_log_clustering_time_range,
 )
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
 from constants.data_source import DataSourceLabel
@@ -345,27 +348,44 @@ class DefaultTarget(BaseTarget):
         if not query_config:
             return []
 
-        if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
-            return []
+        index_set_id: str
+        clustering_type, clustering_index_set_id = get_log_clustering_info(self._alert.strategy or {})
+        if clustering_type and clustering_index_set_id:
+            index_set_id = clustering_index_set_id
+        else:
+            if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
+                return []
 
-        index_set_id: int = query_config.get("index_set_id", 0)
-        if not index_set_id:
-            return []
+            index_set_id = str(query_config.get("index_set_id", 0))
 
         # 获取完整的索引集信息
         index_sets: list[dict[str, Any]] = get_biz_index_sets_with_cache(bk_biz_id=self._alert.event.bk_biz_id)
         index_set_info: dict[str, Any] | None = next(
-            (i for i in index_sets if i.get("index_set_id", 0) == index_set_id),
+            (i for i in index_sets if str(i.get("index_set_id", 0)) == index_set_id),
             None,
         )
         if not index_set_info:
             return []
 
+        extra_filter_dict: dict[str, list[str]] = {}
+        exclude_fields: set[str] | None = None
+        if clustering_type and clustering_index_set_id:
+            time_range: tuple[int, int] | None = get_log_clustering_time_range(self._alert, clustering_type)
+            if time_range:
+                start_time, end_time = time_range
+                extra_filter_dict = get_log_clustering_filter_dict(self._alert, clustering_type, start_time, end_time)
+                exclude_fields = {"sensitivity", "signature", "__dist_05"}
+
         # 构造日志查询过滤条件
         log_search_condition: dict[str, Any] = build_log_search_condition(
             query_config=query_config,
             dimensions=get_alert_dimensions(self._alert),
+            exclude_fields=exclude_fields,
+            extra_filter_dict=extra_filter_dict,
         )
+        if clustering_type and clustering_index_set_id:
+            # 聚类告警依赖 addition 过滤，keyword 置空可让前端保持 UI 过滤模式。
+            log_search_condition["keyword"] = ""
 
         # 返回完整的索引集信息，并补充 addition 和 keyword 字段
         log_target: dict[str, Any] = copy.deepcopy(index_set_info)

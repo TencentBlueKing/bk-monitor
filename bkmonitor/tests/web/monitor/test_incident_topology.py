@@ -90,9 +90,10 @@ class TestIncidentTopologyAggregateVersion(SimpleTestCase):
         self.assertEqual(len(snapshot.incident_graph_entities), 4)
 
         aggregated_entity = snapshot.incident_graph_entities["pod-a"]
-        self.assertEqual(aggregated_entity.entity_name, "部署版本: v1")
+        self.assertEqual(aggregated_entity.entity_name, "pod-a")
         self.assertEqual(aggregated_entity.properties["aggregate_type"], "resource_version")
         self.assertEqual(aggregated_entity.properties["resource_version"], "v1")
+        self.assertNotIn("original_entity_name", aggregated_entity.properties)
         self.assertEqual([entity.entity_id for entity in aggregated_entity.aggregated_entities], ["pod-b"])
 
         self.assertIn("pod-c", snapshot.incident_graph_entities)
