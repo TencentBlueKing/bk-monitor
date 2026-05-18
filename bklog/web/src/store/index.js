@@ -1636,6 +1636,7 @@ const store = new Vuex.Store({
           query: {
             space_uid: payload?.spaceUid ?? state.spaceUid,
             order_type: payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
+            source_type: isSceneRetrieve(state) ? 'scene' : 'index_set',
           },
         })
         .then((resp) => {

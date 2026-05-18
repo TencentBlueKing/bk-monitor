@@ -51,6 +51,11 @@ enum RetrieveEvent {
   FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
 
   /**
+   * 收藏列表刷新
+   */
+  FAVORITE_LIST_REFRESH = 'favorite-list-refresh',
+
+  /**
    * 全局滚动
    */
   GLOBAL_SCROLL = 'global-scroll',
