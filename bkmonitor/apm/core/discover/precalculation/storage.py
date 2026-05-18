@@ -34,7 +34,12 @@ from apm.models import DataLink
 from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
-from constants.apm import PRECALCULATE_RESULT_TABLE_OPTION, PreCalculateSpecificField, PrecalculateStorageConfig
+from constants.apm import (
+    PRECALCULATE_RESULT_TABLE_OPTION,
+    PreCalculateSpecificField,
+    PrecalculateStorageConfig,
+    ApmGlobalTablePrefix,
+)
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
@@ -149,11 +154,14 @@ class PrecalculateStorage:
 
         pre_calculate_config = {"cluster": []}
 
-        prefix = "apm_global.precalculate_storage_auto_{index}"
+        prefix = "{global_prefix}_auto_{index}"
 
         for i in range(cls.DEFAULT_STORAGE_DISPERSED_COUNT):
             pre_calculate_config["cluster"].append(
-                {"cluster_id": default_storage_id, "table_name": prefix.format(index=i + 1)}
+                {
+                    "cluster_id": default_storage_id,
+                    "table_name": prefix.format(global_prefix=ApmGlobalTablePrefix.PRECALCULATE, index=i + 1),
+                }
             )
 
         if datalink:

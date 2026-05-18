@@ -29,7 +29,6 @@ from apm.core.handlers.query.define import QueryMode, TraceInfoList
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
 from apm.core.handlers.query.span_query import SpanQuery
-from apm.core.handlers.query.statistics_query import StatisticsQuery
 from apm.core.handlers.query.trace_query import TraceQuery
 from apm.models import ApmApplication, ApmDataSourceConfigBase
 from apm_ebpf.models import DeepflowWorkload
@@ -104,10 +103,6 @@ class QueryProxy:
         return trace_query
 
     @cached_property
-    def statistics_query(self):
-        return StatisticsQuery(self.trace_query, self.span_query)
-
-    @cached_property
     def is_trace_query_valid(self):
         return isinstance(self.trace_query, TraceQuery)
 
@@ -178,10 +173,17 @@ class QueryProxy:
                 bk_biz_id=trace_relation["bk_biz_id"], app_name=trace_relation["app_name"]
             ).first()
             if relation_app:
+                # 跨应用 Span 查询：需透传 relation_app 的真实 result_table_id，
+                # 确保共享 Trace 结果表场景下 TraceQueryGuard 能拿到与 relation_app 绑定的 table_id 和 应用上下文。
                 span_query = SpanQuery(
                     relation_app.bk_biz_id,
                     relation_app.app_name,
                     relation_app.trace_datasource.retention,
+                    overwrite_datasource_configs={
+                        ApmDataSourceConfigBase.TRACE_DATASOURCE: {
+                            "get_table_id_func": lambda *args, **kwargs: relation_app.trace_datasource.result_table_id,
+                        },
+                    },
                 )
                 relation_spans = span_query.query_by_trace_id(trace_id)
                 client = Permission()
@@ -219,13 +221,6 @@ class QueryProxy:
         """获取候选值"""
         return self.query_mode[query_mode].query_option_values(
             datasource_type, start_time, end_time, fields, limit, filters, query_string
-        )
-
-    def query_statistics(
-        self, query_mode, start_time, end_time, limit, offset, filters=None, query_string=None, sort=None
-    ):
-        return self.statistics_query.query_statistics(
-            query_mode, start_time, end_time, limit, offset, filters, query_string, sort
         )
 
     def _get_trace_relation(self, trace_id: str):

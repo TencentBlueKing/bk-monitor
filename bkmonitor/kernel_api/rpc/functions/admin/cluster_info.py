@@ -175,37 +175,17 @@ def _extract_shard_limit(settings: dict[str, Any] | None) -> int | None:
     return None
 
 
-def _build_alias_summary(client: Any, warnings: list[dict[str, Any]]) -> dict[str, Any]:
+def _build_alias_count_summary(client: Any, warnings: list[dict[str, Any]]) -> dict[str, Any]:
     aliases = _run_es_overview_query(
-        "aliases",
+        "alias count",
         warnings,
-        lambda: client.cat.aliases(format="json", params={"request_timeout": 10}),
+        lambda: client.cat.aliases(format="json", params={"h": "alias", "request_timeout": 10}),
     )
-    if isinstance(aliases, list):
-        alias_names = {str(alias.get("alias")) for alias in aliases if alias.get("alias")}
-        index_names = {str(alias.get("index")) for alias in aliases if alias.get("index")}
-        return {"count": len(alias_names), "relation_count": len(aliases), "index_count": len(index_names)}
-
-    alias_map = _run_es_overview_query(
-        "alias map",
-        warnings,
-        lambda: client.indices.get_alias(index="*"),
-    )
-    if not isinstance(alias_map, dict):
+    if not isinstance(aliases, list):
         return {"count": None, "relation_count": None, "index_count": None}
 
-    alias_names: set[str] = set()
-    relation_count = 0
-    for detail in alias_map.values():
-        if not isinstance(detail, dict):
-            continue
-        aliases_obj = detail.get("aliases")
-        if not isinstance(aliases_obj, dict):
-            continue
-        alias_names.update(str(alias_name) for alias_name in aliases_obj)
-        relation_count += len(aliases_obj)
-
-    return {"count": len(alias_names), "relation_count": relation_count, "index_count": len(alias_map)}
+    alias_names = {str(alias.get("alias")) for alias in aliases if isinstance(alias, dict) and alias.get("alias")}
+    return {"count": len(alias_names), "relation_count": len(aliases), "index_count": None}
 
 
 def _build_es_cluster_overview(
@@ -287,7 +267,7 @@ def _build_es_cluster_overview(
                 "docs_count": docs_count,
                 "deleted_docs_count": deleted_docs_count,
             },
-            "aliases": _build_alias_summary(client, warnings),
+            "aliases": _build_alias_count_summary(client, warnings),
             "shards": {
                 "current": total_shards_from_stats or current_shards,
                 "active": active_shards,
@@ -441,7 +421,8 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
 
     effective_cluster_type = _resolve_cluster_type(params, cluster)
 
-    data: dict[str, Any] = {"cluster": _serialize_cluster_info(cluster)}
+    cluster_item = _serialize_cluster_info(cluster)
+    data: dict[str, Any] = {"cluster": cluster_item}
     warnings: list[dict[str, Any]] = []
 
     from metadata.models.data_link.data_link_configs import ClusterConfig
@@ -498,14 +479,14 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
     if effective_cluster_type == models.ClusterInfo.TYPE_KAFKA:
         datasource_count = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, mq_cluster_id=cluster_id).count()
     data["related_datasources"] = datasource_count
+    cluster_item["associated_datasources"] = datasource_count
 
+    storage_count = 0
     storage_model = _get_storage_model_for_cluster_type(effective_cluster_type)
     if storage_model is not None:
-        data["related_result_tables"] = storage_model.objects.filter(
-            bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id
-        ).count()
-    else:
-        data["related_result_tables"] = 0
+        storage_count = storage_model.objects.filter(bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id).count()
+    data["related_result_tables"] = storage_count
+    cluster_item["associated_storages"] = storage_count
 
     return build_response(
         operation="cluster_info.detail",
@@ -593,7 +574,7 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_CLUSTER_INFO_ES_OVERVIEW,
     summary="Admin 查询 ES ClusterInfo 运行时大盘",
-    description="inspect 级别能力，访问目标 ES 集群读取健康状态、存储使用量、索引/别名数量和 shard 使用情况。",
+    description="inspect 级别能力，访问目标 ES 集群读取健康状态、存储使用量、索引数量、别名数量和 shard 使用情况；只用轻量 alias 列计数，不读取详细 alias map。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "cluster_id": "必填，ClusterInfo.cluster_id，必须是 elasticsearch 集群",

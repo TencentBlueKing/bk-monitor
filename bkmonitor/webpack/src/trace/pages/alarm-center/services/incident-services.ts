@@ -104,7 +104,7 @@ const INCIDENT_TABLE_COLUMNS = [
   {
     colKey: 'assignees',
     title: window.i18n.t('负责人'),
-    is_default: true,
+    is_default: false,
     width: 150,
   },
   {
@@ -136,7 +136,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     name: 'id',
     alias: window.i18n.t('故障ID'),
     isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.integer,
     methods: [
       {
         alias: '=',
@@ -148,19 +148,15 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
       },
     ],
   },
+  // 支持模糊查询
   {
     name: 'incident_name',
     alias: window.i18n.t('故障名称'),
-    isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.text,
     methods: [
       {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
+        alias: window.i18n.t('包含'),
+        value: 'include',
       },
     ],
   },
@@ -173,17 +169,13 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
         alias: window.i18n.t('包含'),
         value: 'include',
       },
-      {
-        alias: window.i18n.t('不包含'),
-        value: 'exclude',
-      },
     ],
   },
   {
     name: 'bk_biz_id',
     alias: window.i18n.t('业务ID'),
     isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.integer,
     methods: [
       {
         alias: '=',
@@ -280,14 +272,11 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     alias: window.i18n.t('故障检出时间'),
     type: EFieldType.date,
     methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
+      { alias: '=', value: 'eq' },
+      { alias: '<', value: 'lt' },
+      { alias: '<=', value: 'lte' },
+      { alias: '>', value: 'gt' },
+      { alias: '>=', value: 'gte' },
     ],
   },
   {
@@ -295,14 +284,11 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     alias: window.i18n.t('故障更新时间'),
     type: EFieldType.date,
     methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
+      { alias: '=', value: 'eq' },
+      { alias: '<', value: 'lt' },
+      { alias: '<=', value: 'lte' },
+      { alias: '>', value: 'gt' },
+      { alias: '>=', value: 'gte' },
     ],
   },
   {
@@ -310,14 +296,11 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     alias: window.i18n.t('故障开始时间'),
     type: EFieldType.date,
     methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
+      { alias: '=', value: 'eq' },
+      { alias: '<', value: 'lt' },
+      { alias: '<=', value: 'lte' },
+      { alias: '>', value: 'gt' },
+      { alias: '>=', value: 'gte' },
     ],
   },
   {
@@ -325,21 +308,18 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     alias: window.i18n.t('故障结束时间'),
     type: EFieldType.date,
     methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
+      { alias: '=', value: 'eq' },
+      { alias: '<', value: 'lt' },
+      { alias: '<=', value: 'lte' },
+      { alias: '>', value: 'gt' },
+      { alias: '>=', value: 'gte' },
     ],
   },
   {
     name: 'snapshot',
     alias: window.i18n.t('故障图谱快照'),
     isEnableOptions: true,
-    type: EFieldType.keyword,
+    type: EFieldType.integer,
     methods: [
       {
         alias: '=',
@@ -353,7 +333,8 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
   },
 ];
 
-export const INCIDENT_STORAGE_KEY = '__INCIDENT_EVENT_COLUMN__';
+/** 告警中心故障表列配置（与事件中心旧版 `__INCIDENT_EVENT_COLUMN__` 隔离，避免互相覆盖） */
+export const INCIDENT_STORAGE_KEY = '__ALARM_CENTER_INCIDENT_TABLE_COLUMN__';
 export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
   readonly storageAnalysisKey = '__INCIDENT_ANALYZE_STORAGE_KEY__';
   readonly storageKey = INCIDENT_STORAGE_KEY;

@@ -27,6 +27,7 @@ class QueryMultiResourceRelationResource(Resource):
         class QueryListItemSerializer(serializers.Serializer):
             timestamp = serializers.IntegerField(required=True, label="时间戳（Unix 时间戳，秒级）")
             source_info = serializers.DictField(required=True, label="源资源信息（维度映射）")
+            source_type = serializers.CharField(required=False, allow_blank=True, label="源资源类型")
             target_type = serializers.CharField(required=False, default="system", label="目标资源类型")
             path_resource = serializers.ListField(
                 child=serializers.CharField(), required=False, allow_empty=True, label="关联路径资源类型列表"
@@ -40,17 +41,7 @@ class QueryMultiResourceRelationResource(Resource):
         query_list = validated_request_data["query_list"]
 
         logger.info("QueryMultiResourceRelationResource: try to query relation,bk_biz_id->[%s]", bk_biz_id)
-
-        # 参数格式转换
-        source_info_list = []
-        for query_item in query_list:
-            source_info = query_item["source_info"].copy()
-            source_info["data_timestamp"] = query_item["timestamp"]
-            source_info["target_type"] = query_item.get("target_type", "system")
-            source_info["path_resource"] = query_item.get("path_resource") or ["node"]
-            source_info_list.append(source_info)
-
-        return api.unify_query.get_kubernetes_relation(bk_biz_ids=[bk_biz_id], source_info_list=source_info_list)
+        return api.unify_query.query_multi_resource(bk_biz_ids=[str(bk_biz_id)], query_list=query_list)
 
 
 class QueryMultiResourceRelationRangeResource(Resource):
@@ -64,6 +55,7 @@ class QueryMultiResourceRelationRangeResource(Resource):
             end_time = serializers.IntegerField(required=True, label="结束时间（Unix 时间戳，秒级）")
             step = serializers.CharField(required=True, label="查询步长，如 60s")
             source_info = serializers.DictField(required=True, label="源资源信息（维度映射）")
+            source_type = serializers.CharField(required=False, allow_blank=True, label="源资源类型")
             target_type = serializers.CharField(required=False, default="system", label="目标资源类型")
             path_resource = serializers.ListField(
                 child=serializers.CharField(), required=False, allow_empty=True, label="关联路径资源类型列表"

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import mock
+
+from unittest import mock
+
 import pytest
 from apm_web.models import Application, ApplicationRelationInfo
 
@@ -46,7 +47,7 @@ def create_application(db):
 
 
 @pytest.fixture(autouse=True)
-def get_rules():
+def mock_get_rules():
     return_value = {
         "id": 4,
         "bk_biz_id": 0,
@@ -57,11 +58,11 @@ def get_rules():
         "topo_kind": "component",
         "predicate_key": "attributes.db.system",
     }
-    mock.patch("apm_web.handlers.db_handler.DbInstanceHandler.get_rules", return_value=return_value).start()
+    with mock.patch("apm_web.handlers.db_handler.DbInstanceHandler.get_rules", return_value=return_value):
+        yield
 
 
 @pytest.fixture(autouse=True)
-def get_param():
-    mock.patch(
-        "apm_web.handlers.db_handler.DbComponentHandler.build_component_filter_params", return_value=None
-    ).start()
+def mock_build_component_filter_params():
+    with mock.patch("apm_web.handlers.db_handler.DbComponentHandler.build_component_filter_params", return_value=None):
+        yield

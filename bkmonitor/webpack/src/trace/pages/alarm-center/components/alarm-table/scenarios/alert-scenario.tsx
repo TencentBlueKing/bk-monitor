@@ -307,27 +307,27 @@ export class AlertScenario extends BaseScenario {
    */
   private handleAlterNameHover(e: MouseEvent, row: AlertTableItem) {
     const content = (
-      <div class='alert-name-popover-container'>
-        <div class='alert-name-item'>
-          <span class='alert-name-item-label'>{window.i18n.t('告警 ID')} : </span>
+      <div class='alarm-name-popover-container'>
+        <div class='alarm-name-popover-item'>
+          <span class='alarm-name-popover-item-label'>{window.i18n.t('告警 ID')} : </span>
           <div
-            class='alert-name-item-value'
+            class='alarm-name-popover-item-value'
             onClick={() => this.handleCopy(row?.id)}
           >
             <span class='item-text'>{row?.id || '--'}</span>
             <i class='icon-monitor icon-mc-copy' />
           </div>
         </div>
-        <div class='alert-name-item'>
-          <span class='alert-name-item-label'>{window.i18n.t('告警策略')} : </span>
-          <div class='alert-name-item-value'>
+        <div class='alarm-name-popover-item'>
+          <span class='alarm-name-popover-item-label'>{window.i18n.t('告警策略')} : </span>
+          <div class='alarm-name-popover-item-value'>
             <a
               style='color: inherit'
               href={this.getStrategyUrl(row?.strategy_id, row?.bk_biz_id)}
-              rel='noreferrer'
+              rel='noopener noreferrer'
               target='_blank'
             >
-              <span class='alert-name-item-value'>{row?.strategy_name || '--'}</span>
+              <span class='alarm-name-popover-item-value'>{row?.strategy_name || '--'}</span>
               <i class='icon-monitor icon-mc-goto' />
             </a>
           </div>

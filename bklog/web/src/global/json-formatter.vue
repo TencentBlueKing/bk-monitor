@@ -36,7 +36,7 @@
         >
       </span>
     </template>
-    <template v-if="showMoreTextAction && hasScrollY">
+    <template v-if="showMoreAction">
       <span
         class="btn-more-action"
         @mouseup="handleMouseUp"
@@ -95,6 +95,14 @@
   const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
   const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
   const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+  const limitRowNumber = computed(() => {
+    if (props.limitRow === null || props.limitRow === undefined || props.limitRow === '') {
+      return null;
+    }
+
+    const limitRow = Number(props.limitRow);
+    return Number.isFinite(limitRow) && limitRow > 0 ? limitRow : null;
+  });
 
   const isCurrentCellExpandText = computed(() => {
     if (isLimitExpandText.value) {
@@ -105,21 +113,15 @@
   });
 
   const rootElementStyle = computed(() => {
-    if (formatJson.value) {
-      return {
-        maxHeight: undefined,
-      };
-    }
-
     if (isCurrentCellExpandText.value) {
       return {
         maxHeight: '50vh',
       };
     }
 
-    if (typeof props.limitRow === 'number') {
+    if (limitRowNumber.value !== null) {
       return {
-        maxHeight: `${20 * props.limitRow}px`,
+        maxHeight: `${20 * limitRowNumber.value}px`,
       };
     }
 
@@ -137,12 +139,14 @@
   });
 
   const showMoreTextAction = computed(() => {
-    if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
+    if (limitRowNumber.value !== null && !isLimitExpandText.value) {
       return true;
     }
 
     return false;
   });
+
+  const showMoreAction = computed(() => showMoreTextAction.value && (hasScrollY.value || showAllText.value));
 
   const showAllWords = computed(() => {
     return !showMoreTextAction.value || showAllText.value;
@@ -167,6 +171,7 @@
     e.stopImmediatePropagation();
     if (mousedownItem === e.target) {
       showAllText.value = !showAllText.value;
+      scheduleSetIsOverflowY();
     }
 
     mousedownItem = null;
@@ -175,9 +180,17 @@
   const onSegmentClick = args => {
     emit('menu-click', args);
   };
+  const scheduleSetIsOverflowY = () => {
+    nextTick(() => {
+      requestAnimationFrame(() => {
+        setIsOverflowY();
+      });
+    });
+  };
   const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
     fields: fieldList.value,
     onSegmentClick,
+    onSegmentRenderUpdate: scheduleSetIsOverflowY,
   });
 
   const convertToObject = val => {
@@ -300,12 +313,14 @@
     hasScrollY.value = false;
   };
 
-  watch(() => [props.limitRow], () => {
-    showAllText.value = false;
-    nextTick(() => {
-      setIsOverflowY();
-    });
-  });
+  watch(
+    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value],
+    () => {
+      showAllText.value = false;
+      hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+  );
 
   watch(
     () => [isRowIntersecting.value],

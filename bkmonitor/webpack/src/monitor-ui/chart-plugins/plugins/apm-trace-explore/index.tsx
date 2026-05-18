@@ -32,6 +32,17 @@ import type { TimeRangeType } from 'trace/components/time-range/utils';
 
 import './index.scss';
 
+const APM_TRACE_EXPLORE_STYLE_ID = 'apm-trace-explore-runtime-style';
+const APM_TRACE_EXPLORE_STYLE_TEXT = `
+body .tippy-box[data-theme~='padding-0'] .tippy-content {
+  padding: 0;
+}
+
+body .tippy-box[data-placement^='right'] .tippy-arrow {
+  top: -8px !important;
+}
+`;
+
 @Component
 export default class ApmTraceHome extends tsc<any, any> {
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
@@ -40,6 +51,7 @@ export default class ApmTraceHome extends tsc<any, any> {
   @InjectReactive('refreshImmediate') readonly panelRefreshImmediate: string;
   // 处理时间范围变化
   @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: TimeRangeType) => void;
+  runtimeStyleEl: HTMLStyleElement | null = null;
 
   get v3Props() {
     return {
@@ -55,6 +67,34 @@ export default class ApmTraceHome extends tsc<any, any> {
       this.handleTimeRangeChange(params as TimeRangeType);
       return;
     }
+  }
+
+  mounted() {
+    this.injectRuntimeStyle();
+  }
+
+  beforeDestroy() {
+    this.removeRuntimeStyle();
+  }
+
+  injectRuntimeStyle() {
+    if (typeof document === 'undefined') return;
+    const existedStyle = document.getElementById(APM_TRACE_EXPLORE_STYLE_ID) as HTMLStyleElement | null;
+    if (existedStyle) {
+      this.runtimeStyleEl = existedStyle;
+      return;
+    }
+    const styleEl = document.createElement('style');
+    styleEl.id = APM_TRACE_EXPLORE_STYLE_ID;
+    styleEl.textContent = APM_TRACE_EXPLORE_STYLE_TEXT;
+    document.head.appendChild(styleEl);
+    this.runtimeStyleEl = styleEl;
+  }
+
+  removeRuntimeStyle() {
+    if (!this.runtimeStyleEl) return;
+    this.runtimeStyleEl.remove();
+    this.runtimeStyleEl = null;
   }
 
   render() {

@@ -26,3 +26,5 @@ class IssueSearchSerializer(BaseSearchSerializer):
     query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
+    # 按指纹精确过滤"同一具体问题"的全部 Issue（含已解决历史），用于详情页"该问题历史"等场景
+    fingerprint = serializers.CharField(label="Issue 指纹", required=False, allow_blank=True, default="")

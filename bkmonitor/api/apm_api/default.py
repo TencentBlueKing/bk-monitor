@@ -170,15 +170,6 @@ class UpdateMetricFieldsResource(ApmAPIGWResource):
     method = "POST"
 
 
-class QueryEsResource(ApmAPIGWResource):
-    """
-    查询应用入口接口
-    """
-
-    action = "/app/apm/query_apm_es/"
-    method = "POST"
-
-
 class QueryTraceListResource(ApmAPIGWResource):
     """
     Trace查询
@@ -194,24 +185,6 @@ class QuerySpanListResource(ApmAPIGWResource):
     """
 
     action = "/app/apm/query_apm_span_list/"
-    method = "POST"
-
-
-class QuerySpanStatisticsResource(ApmAPIGWResource):
-    """
-    接口统计查询
-    """
-
-    action = "/app/apm/query_apm_span_statistics/"
-    method = "POST"
-
-
-class QueryServiceStatisticsResource(ApmAPIGWResource):
-    """
-    服务统计查询
-    """
-
-    action = "/app/apm/query_apm_service_statistics/"
     method = "POST"
 
 

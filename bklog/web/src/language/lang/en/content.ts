@@ -1309,6 +1309,7 @@ export default {
   前往日志检索: 'Go to Log Search',
   整体趋势: 'Overall Trend',
   相关样本: 'Related Samples',
+  '当前选中日志暂无trace字段，请检查日志内容': 'The currently selected log has no trace field. Please check the log content',
   '未找到与 "{keyword}" 匹配的用户或任务': 'No user or task matching "{keyword}" was found',
   请检查任务ID和用户ID是否输入错误: 'Please check if the task ID and user ID are entered incorrectly',
   '平台默认保存 90 天的任务记录，请检查 ID 是否过期': 'The platform keeps task records for 90 days by default, please check if the ID has expired',

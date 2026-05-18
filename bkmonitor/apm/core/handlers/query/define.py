@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,6 +14,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 from dataclasses import dataclass
 
 
@@ -30,10 +30,3 @@ class QueryMode:
     TRACE = "trace"
     ORIGIN_TRACE = "origin_trace"
     SPAN = "span"
-
-
-class QueryStatisticsMode:
-    """查询统计视角 SpanName/Service"""
-
-    SPAN_NAME = "span_name"
-    SERVICE = "service"

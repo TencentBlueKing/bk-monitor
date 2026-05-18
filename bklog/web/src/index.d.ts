@@ -37,6 +37,7 @@ declare global {
     VERSION: string;
     AJAX_URL_PREFIX: string;
     FEATURE_TOGGLE_WHITE_LIST: Record<string, (number | string)[]>;
+    FEATURE_TOGGLE_BLACK_LIST: Record<string, (number | string)[]>;
     FEATURE_TOGGLE: Record<string, 'debug' | 'off' | 'on'>;
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件

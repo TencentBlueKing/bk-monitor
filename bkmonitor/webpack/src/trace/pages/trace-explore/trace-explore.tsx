@@ -993,7 +993,7 @@ export default defineComponent({
           />
         </div>
         <div class='main-panel'>
-          <div class='header-panel'>
+          <div class={['header-panel', { 'is-apm-trace': window.source_app === 'apm' }]}>
             <TraceExploreHeader
               isShowFavorite={this.isShowFavorite}
               list={this.applicationList}

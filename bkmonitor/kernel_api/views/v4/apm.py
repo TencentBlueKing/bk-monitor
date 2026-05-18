@@ -6,11 +6,15 @@ from apm_web.metric.views import MetricViewSet
 from apm_web.profile.views import ProfileQueryViewSet
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.apm import (
-    ListApmApplicationResource,
     GetApmSearchFiltersResource,
+    GetProfileApplicationServiceResource,
+    GetProfileLabelResource,
+    GetProfileTypeResource,
+    ListApmApplicationResource,
     ListApmSpanResource,
-    QueryApmTraceDetailResource,
     QueryApmSpanDetailResource,
+    QueryApmTraceDetailResource,
+    QueryGraphProfileResource,
 )
 
 
@@ -61,4 +65,9 @@ class ApmMcpViewSet(ResourceViewSet):
         ResourceRoute("POST", ListApmSpanResource, endpoint="list_apm_span"),
         ResourceRoute("POST", QueryApmTraceDetailResource, endpoint="query_apm_trace_detail"),
         ResourceRoute("POST", QueryApmSpanDetailResource, endpoint="query_apm_span_detail"),
+        # ---- Profiling 子工作流 ----
+        ResourceRoute("POST", GetProfileApplicationServiceResource, endpoint="get_profile_application_service"),
+        ResourceRoute("POST", GetProfileTypeResource, endpoint="get_profile_type"),
+        ResourceRoute("POST", GetProfileLabelResource, endpoint="get_profile_label"),
+        ResourceRoute("POST", QueryGraphProfileResource, endpoint="query_graph_profile"),
     ]
