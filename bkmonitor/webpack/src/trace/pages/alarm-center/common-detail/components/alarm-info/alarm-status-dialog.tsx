@@ -56,7 +56,7 @@ export default defineComponent({
       default: 0,
     },
     alarmBizId: {
-      type: Number,
+      type: [Number, String],
       default: null,
     },
   },

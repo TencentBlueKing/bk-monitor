@@ -2011,4 +2011,6 @@ export default {
   动作: 'Action',
   Issue聚合: 'Issue aggregation',
   生效告警级别: 'Effective alarm level',
+  操作时间: 'Operation time',
+  影响范围维度: 'Impact scope dimension',
 };

@@ -72,7 +72,7 @@ export default defineComponent({
     },
     /** 业务ID */
     bizId: {
-      type: Number,
+      type: [Number, String],
     },
     /** 默认时间范围 */
     defaultTimeRange: {
