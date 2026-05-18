@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -18,6 +19,7 @@ from django.db import models, transaction
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 from metadata.models.data_link import utils
 from metadata.models.data_link.component_reuse import (
     ComponentReuseError,
@@ -1477,6 +1479,8 @@ class DataLink(models.Model):
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
 
+        configs = self.merge_existing_component_configs(configs)
+
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
             self.data_link_name,
@@ -1499,6 +1503,111 @@ class DataLink(models.Model):
             self.data_link_strategy,
             response,
         )
+
+    @classmethod
+    def _merge_dict(cls, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+        """递归合并配置字段，冲突时以本次 compose 结果为准。"""
+        result = deepcopy(base)
+        for key, value in override.items():
+            if isinstance(result.get(key), dict) and isinstance(value, dict):
+                result[key] = cls._merge_dict(result[key], value)
+            else:
+                result[key] = deepcopy(value)
+        return result
+
+    @classmethod
+    def merge_component_config(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+        """把 BKBase 侧已有配置与本次配置合并，过滤掉 status 等运行态字段。"""
+        merged_config = deepcopy(config)
+
+        existing_metadata = existing_config.get("metadata")
+        config_metadata = config.get("metadata")
+        if isinstance(existing_metadata, dict) and isinstance(config_metadata, dict):
+            merged_metadata = deepcopy(config_metadata)
+            # 只保留用户/平台可能额外维护的配置型元数据，避免把 resourceVersion/status 等运行态字段带回 apply。
+            for metadata_key in ("labels", "annotations", "annotation"):
+                existing_value = existing_metadata.get(metadata_key)
+                config_value = config_metadata.get(metadata_key)
+                if isinstance(existing_value, dict) and isinstance(config_value, dict):
+                    merged_metadata[metadata_key] = cls._merge_dict(existing_value, config_value)
+                elif isinstance(existing_value, dict) and metadata_key not in config_metadata:
+                    merged_metadata[metadata_key] = deepcopy(existing_value)
+            merged_config["metadata"] = merged_metadata
+
+        existing_spec = existing_config.get("spec")
+        config_spec = config.get("spec")
+        if isinstance(existing_spec, dict) and isinstance(config_spec, dict):
+            merged_config["spec"] = cls._merge_dict(existing_spec, config_spec)
+        elif isinstance(existing_spec, dict) and "spec" not in config:
+            merged_config["spec"] = deepcopy(existing_spec)
+
+        return merged_config
+
+    @staticmethod
+    def _is_component_not_found_error(error: BKAPIError) -> bool:
+        error_data = getattr(error, "data", {}) or {}
+        if not isinstance(error_data, dict):
+            return False
+
+        messages = (error_data.get("message"), error_data.get("data"))
+        return any(isinstance(message, str) and "not found" in message.lower() for message in messages)
+
+    def get_existing_component_config(
+        self,
+        kind: str,
+        name: str,
+        namespace: str,
+    ) -> dict[str, Any] | None:
+        """直接查询 BKBase 组件配置；只把明确不存在视为可忽略。"""
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_existing_component_config: kind is not valid,kind->[%s]", kind)
+            return None
+
+        try:
+            return api.bkdata.get_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                kind=bkbase_kind,
+                namespace=namespace,
+                name=name,
+            )
+        except BKAPIError as error:
+            # 这里必须直接区分 not found 与其它 API 异常：资源不存在可以继续 apply，
+            # 权限、网关或服务异常则要抛出，避免误判为“无旧配置”后覆盖 BKBase 侧真实状态。
+            if self._is_component_not_found_error(error):
+                logger.info(
+                    "get_existing_component_config: component not found,kind->[%s],name->[%s],namespace->[%s]",
+                    kind,
+                    name,
+                    namespace,
+                )
+                return None
+            raise
+
+    def merge_existing_component_configs(self, configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """下发前查询 BKBase 侧已有组件配置，并把配置字段合并进本次 payload。"""
+
+        merged_configs: list[dict[str, Any]] = []
+        for config in configs:
+            if not isinstance(config, dict):
+                merged_configs.append(config)
+                continue
+
+            metadata = config.get("metadata") or {}
+            kind = config.get("kind")
+            name = metadata.get("name") if isinstance(metadata, dict) else None
+            namespace = metadata.get("namespace") if isinstance(metadata, dict) else None
+            if not kind or not name:
+                merged_configs.append(config)
+                continue
+
+            existing_config = self.get_existing_component_config(kind, name, namespace or self.namespace)
+            if not isinstance(existing_config, dict):
+                merged_configs.append(config)
+                continue
+
+            merged_configs.append(self.merge_component_config(existing_config, config))
+        return merged_configs
 
     def _leftover_policy(self, kind: type["DataLinkResourceConfigBase"]) -> Literal["strict", "keep"]:
         """按 (strategy, kind) 查找 leftover 策略，未声明时默认 ``strict``。"""
