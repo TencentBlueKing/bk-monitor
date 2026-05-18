@@ -2,7 +2,12 @@
 
 本目录为 Cursor IDE 的 AI 配置入口。
 
-## 配置来源
+# AAFE Architecture Runtime for Cursor
+
+Use .ai-agent as the project architecture runtime. Route requests through runtime/router.yaml, execute pipeline steps, enforce gates, and run refactor critique before finalizing code.
+
+
+## 本项目相关配置来源
 
 - `skills/ENTRY.md` - Skills 入口，指向公共配置
 - `rules/ENTRY.md` - Rules 入口，指向公共配置

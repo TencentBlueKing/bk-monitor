@@ -60,6 +60,11 @@ register(models.LogDataSource)
 register(models.TraceDataSource)
 register(models.MetricDataSource)
 register(models.ProfileDataSource)
+register(
+    models.SharedTraceDataSource,
+    search_fields=("result_table_id", "index_set_name", "bk_data_id"),
+    list_filter=("is_enabled",),
+)
 register(models.BcsClusterDefaultApplicationRelation)
 register(models.ApmTopoDiscoverRule)
 register(models.DataLink, ("bk_biz_id",), ("bk_biz_id",))

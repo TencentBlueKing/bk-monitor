@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CODEBUDDY_PROJECT_DIR/.codebuddy/hooks/run-hook.cmd aafe-session-start",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -42,7 +42,6 @@ from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
     QuerySerializer,
-    QueryStatisticsSerializer,
     SpanIdInputSerializer,
     TraceFieldStatisticsGraphRequestSerializer,
     TraceFieldStatisticsInfoRequestSerializer,
@@ -782,70 +781,6 @@ class GetFieldsOptionValuesResource(Resource):
             data[field_name] = [option_value_dict.get("value", "") for option_value_dict in option_value_list]
 
         return data
-
-
-class ListSpanStatisticsResource(Resource):
-    """
-    接口统计
-    """
-
-    RequestSerializer = QueryStatisticsSerializer
-
-    def perform_request(self, validated_data):
-        bk_biz_id: int = validated_data["bk_biz_id"]
-        app_name: str = validated_data["app_name"]
-        query_string = QueryHandler.process_query_string(
-            SpanQueryTransformer(bk_biz_id, app_name), validated_data["query"]
-        )
-        params = {
-            "bk_biz_id": validated_data["bk_biz_id"],
-            "app_name": validated_data["app_name"],
-            "start_time": validated_data["start_time"],
-            "end_time": validated_data["end_time"],
-            "offset": validated_data["offset"],
-            "limit": validated_data["limit"],
-            "query_string": query_string,
-            "filters": validated_data["filters"],
-        }
-
-        try:
-            response = api.apm_api.query_span_statistics(params)
-        except BKAPIError as e:
-            raise CustomException(_lazy("获取接口统计失败: {message}").format(message=e.data.get("message")))
-
-        return response
-
-
-class ListServiceStatisticsResource(Resource):
-    """
-    服务统计
-    """
-
-    RequestSerializer = QueryStatisticsSerializer
-
-    def perform_request(self, validated_data):
-        bk_biz_id: int = validated_data["bk_biz_id"]
-        app_name: str = validated_data["app_name"]
-        query_string = QueryHandler.process_query_string(
-            SpanQueryTransformer(bk_biz_id, app_name), validated_data["query"]
-        )
-        params = {
-            "bk_biz_id": validated_data["bk_biz_id"],
-            "app_name": validated_data["app_name"],
-            "start_time": validated_data["start_time"],
-            "end_time": validated_data["end_time"],
-            "offset": validated_data["offset"],
-            "limit": validated_data["limit"],
-            "query_string": query_string,
-            "filters": validated_data["filters"],
-        }
-
-        try:
-            response = api.apm_api.query_service_statistics(params)
-        except BKAPIError as e:
-            raise CustomException(_lazy("获取服务统计失败: {message}".format(message=e.data.get("message"))))
-
-        return response
 
 
 class ApplyTraceComparisonResource(Resource):

@@ -60,22 +60,11 @@ class TestListDbStatistics(django.test.TestCase):
             "bk_biz_id": BK_BIZ_ID,
         }
 
-        return_value = {
-            "took": 48,
-            "timed_out": False,
-            "_shards": {"total": 6, "successful": 6, "skipped": 0, "failed": 0},
-            "hits": {"total": {"value": 0, "relation": "eq"}, "max_score": None, "hits": []},
-            "aggregations": {
-                "attributes.db.statement": {
-                    "meta": {},
-                    "doc_count_error_upper_bound": 0,
-                    "sum_other_doc_count": 0,
-                    "buckets": [],
-                }
-            },
-        }
-
-        mock.patch("core.drf_resource.api.apm_api.query_es", return_value=return_value).start()
+        mock.patch("apm_web.db.resources.Application.get_trace_table_id", return_value="apm_global.shared_test").start()
+        mock.patch(
+            "apm_web.db.resources.ListDbStatisticsResource._query_field_aggregated_records",
+            return_value=[],
+        ).start()
 
         obj = ListDbStatisticsResource()
 

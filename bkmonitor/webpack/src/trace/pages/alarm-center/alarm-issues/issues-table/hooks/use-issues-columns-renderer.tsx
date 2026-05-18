@@ -31,7 +31,11 @@ import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
-import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
+import {
+  type BaseTableColumn,
+  type TableCellRenderContext,
+  ExploreTableColumnTypeEnum,
+} from '../../../../trace-explore/components/trace-explore-table/typing';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import {
   IMPACT_SCOPE_SORT_ORDER_MAP,
@@ -40,11 +44,8 @@ import {
   ISSUES_STATUS_MAP,
   IssueStatusEnum,
 } from '../../constant';
+import IssueNameCell from '../components/issue-name-cell/issue-name-cell';
 
-import type {
-  BaseTableColumn,
-  TableCellRenderContext,
-} from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { TableColumnItem } from '../../../typings';
 import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem } from '../../typing';
@@ -57,6 +58,8 @@ export type IssuesColumnsRendererCtx = {
   chartGroupId?: MaybeRef<string>;
   /** click popover 工具（基础设施依赖） */
   clickPopoverTools: IUsePopoverTools;
+  /** 提交 Issue 名称变更（返回 Promise，用于 loading 状态管理） */
+  handleNameChange: (row: IssueItem, name: string) => Promise<void>;
   /** hover popover 工具（基础设施依赖） */
   hoverPopoverTools: IUsePopoverTools;
 } & UseIssuesHandlersReturnType;
@@ -82,15 +85,16 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
     const regressionConfig = ISSUES_REGRESSION_MAP[String(row.is_regression)];
+
     return (
       <div class='issues-name-col'>
-        <div class={`issues-name-title ${renderCtx.isEnabledCellEllipsis(column)}`}>
-          <span
-            class='issues-name-title-text'
-            onClick={() => rendererCtx.handleShowDetail(row)}
-          >
-            {row.name || '--'}
-          </span>
+        <div class='issues-name-title'>
+          <IssueNameCell
+            ellipsisClass={renderCtx.isEnabledCellEllipsis(column)}
+            name={row.name || ''}
+            onShowDetail={() => rendererCtx.handleShowDetail(row)}
+            onSubmit={(newName: string) => rendererCtx.handleNameChange(row, newName)}
+          />
         </div>
         <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span class='issues-name-exception-text'>{row.anomaly_message}</span>

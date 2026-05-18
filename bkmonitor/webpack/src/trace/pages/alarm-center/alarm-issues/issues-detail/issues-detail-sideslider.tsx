@@ -192,6 +192,11 @@ export default defineComponent({
       filterMode.value = val;
     };
 
+    /** issues 重命名 */
+    const handleNameChange = (name: string) => {
+      detail.value = { ...detail.value, name };
+    };
+
     /** 负责人变更 */
     const handleAssigneeChange = (users: string[]) => {
       detail.value = { ...detail.value, assignee: users };
@@ -270,6 +275,7 @@ export default defineComponent({
       handleStatusAction,
       handleImpactScopeClick,
       handleAddCondition,
+      handleNameChange,
     };
   },
   render() {
@@ -300,6 +306,7 @@ export default defineComponent({
               detail={this.detail}
               isFullscreen={this.isFullscreen}
               showStepBtn={this.showStepBtn}
+              onNameChange={this.handleNameChange}
               onNext={this.handleNext}
               onPrevious={this.handlePrevious}
               onToggleFullscreen={this.handleToggleFullscreen}

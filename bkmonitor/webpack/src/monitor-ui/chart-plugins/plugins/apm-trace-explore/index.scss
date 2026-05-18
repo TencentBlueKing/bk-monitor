@@ -4,12 +4,3 @@
   width: 100%;
   height: 100%;
 }
-
-#apm {
-  // 处理apm下padding被污染问题
-  .tippy-box[data-theme~='padding-0'] {
-    .tippy-content {
-      padding: 0;
-    }
-  }
-}

@@ -1,0 +1,15 @@
+routes:
+  feature:
+    pipeline: feature
+  domainFeature:
+    pipeline: domain-feature
+  refactor:
+    pipeline: refactor
+  bugfix:
+    pipeline: bugfix
+  performance:
+    pipeline: performance
+  graphFeature:
+    pipeline: graph-feature
+  patternFeature:
+    pipeline: pattern-feature

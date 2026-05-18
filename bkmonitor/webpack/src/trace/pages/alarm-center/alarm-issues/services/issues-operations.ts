@@ -29,18 +29,23 @@ import {
   addIssueFollowUp,
   archiveIssue,
   assignIssue,
+  exportIssue,
+  renameIssue,
   reopenIssue,
   resolveIssue,
   restoreIssue,
   updateIssuePriority,
 } from 'monitor-api/modules/issue';
+import { downFile } from 'trace/utils/utils';
 
 import type { RequestOptions } from '../../services/base';
 import type {
   AssignIssuesParams,
+  ExportIssuesParams,
   FollowUpIssuesParams,
-  IssueIdentifier,
   IssuesBatchOperationResponse,
+  RenameIssueParams,
+  RenameIssueSucceededItem,
   ResolveIssuesParams,
   UpdatePriorityParams,
 } from '../typing';
@@ -57,6 +62,26 @@ export const assignIssues = async (
 ): Promise<IssuesBatchOperationResponse<'assign'>> => {
   const data = await assignIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
+};
+
+/**
+ * @description 重命名 Issue，按接口规范提交 { bk_biz_id, issue_id, new_name }
+ * @param {RenameIssueParams} params - 重命名请求参数
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<RenameIssueSucceededItem>} 重命名后的 Issue 信息（含活动日志）
+ */
+export const updateIssueName = async (
+  params: RenameIssueParams,
+  options?: RequestOptions
+): Promise<RenameIssueSucceededItem> => {
+  return renameIssue(
+    {
+      bk_biz_id: params.bk_biz_id,
+      issue_id: String(params.issue_id).trim(),
+      new_name: String(params.new_name).trim(),
+    },
+    options
+  );
 };
 
 /**
@@ -144,15 +169,30 @@ export const followUpIssues = async (
 };
 
 /**
- * @description 导出 Issues 列表，封装底层 API 调用（当前为 mock 占位，待后端接口就绪后替换）
- * @param {IssueIdentifier[]} issues - 跨业务批量操作 Issue 标识列表
- * @param {RequestOptions} options - 请求配置选项
+ * @description 导出 Issues 列表，请求后端导出接口并触发文件下载
+ * @param {ExportIssuesParams} param - 导出请求参数（issues 列表及趋势时间范围）
+ * @param {RequestOptions} requestOptions - 请求配置选项
  * @returns {Promise<void>}
  */
-export const exportIssues = async (issues: IssueIdentifier[], options?: RequestOptions): Promise<void> => {
-  console.log('exportIssues', issues, options);
-  // TODO: 替换为真实 API 调用，如 exportIssueList({ issues }, options)
-  await new Promise(resolve => setTimeout(resolve, 1500));
+export const exportIssues = async (param: ExportIssuesParams, requestOptions?: RequestOptions): Promise<void> => {
+  // 调用导出接口获取下载链接
+  const res = await exportIssue(param, requestOptions).catch(err => {
+    throw err;
+  });
+
+  // 拼接完整下载路径
+  const { download_path: downloadPath, download_name: downloadName } = res;
+  if (!downloadPath || !downloadName) {
+    Message({
+      theme: 'error',
+      message: window.i18n?.t?.('导出失败'),
+    });
+    return;
+  }
+
+  // 触发浏览器下载
+  const downloadUrl = `${downloadPath}/${downloadName}`;
+  downFile(downloadUrl, downloadName.split('?')[0]);
 };
 
 /**

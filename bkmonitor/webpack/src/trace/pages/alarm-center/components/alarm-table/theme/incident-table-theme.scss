@@ -1,4 +1,13 @@
 .alarm-table.incident-table {
+  %custom-table-ellipsis {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    word-break: break-all;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+  }
+
   .explore-col {
     align-items: flex-start;
     min-height: 40px;
@@ -8,6 +17,10 @@
 
       .lever-rect {
         margin-right: 8px;
+      }
+
+      .lever-rect-text {
+        @extend %custom-table-ellipsis;
       }
 
       .lever-rect-link {
@@ -46,11 +59,6 @@
   }
 
   .common-table-ellipsis:not(.tag-item) {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    word-break: break-all;
-    white-space: normal;
-    -webkit-box-orient: vertical;
+    @extend %custom-table-ellipsis;
   }
 }

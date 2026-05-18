@@ -52,7 +52,7 @@
 </template>
 <script>
 import { renderNoticeTemplate } from 'monitor-api/modules/action';
-import { xssFilter } from 'monitor-common/utils/xss';
+import { sanitizeMailHtml } from 'monitor-common/utils/xss';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 import { createNamespacedHelpers } from 'vuex';
 
@@ -91,19 +91,20 @@ export default {
   computed: {
     renderTemplate() {
       const data = this.renderData[this.tabActive];
+      const stripStyleTag = (message = '') => {
+        let next = message;
+        let prev;
+        do {
+          prev = next;
+          next = next.replace(/<style[^>]*>[^<]*<\/style>/gim, '');
+        } while (next !== prev);
+        return next;
+      };
       return (
         data?.messages.map(item => ({
           ...item,
           tabActive: this.tabActive,
-          message: (() => {
-            let sanitizedMessage = item.message;
-            let previousMessage;
-            do {
-              previousMessage = sanitizedMessage;
-              sanitizedMessage = sanitizedMessage.replace(/<style[^>]*>[^<]*<\/style>/gim, '');
-            } while (sanitizedMessage !== previousMessage);
-            return sanitizedMessage;
-          })(),
+          message: data.type === 'mail' ? sanitizeMailHtml(item.message) : stripStyleTag(item.message),
           type: data.type || '',
         })) || []
       );
@@ -131,13 +132,7 @@ export default {
               this.loading = false;
             });
           }
-          this.renderData =
-            data?.filter(item => {
-              if (item.type === 'mail') {
-                return this.template === xssFilter(this.template);
-              }
-              return true;
-            }) || [];
+          this.renderData = data || [];
         }
       },
       immediate: true,

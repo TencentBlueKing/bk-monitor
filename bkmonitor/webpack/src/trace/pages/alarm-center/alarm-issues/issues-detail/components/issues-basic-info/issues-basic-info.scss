@@ -75,22 +75,28 @@
 
       &.influence {
         .basic-info-value {
-          padding: 4px 8px;
-          background-color: #f2f6fc;
-          border-radius: 6px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
 
           .influence-item {
             display: flex;
+            gap: 4px;
             align-items: center;
-            line-height: 20px;
+            height: 24px;
+            padding: 0 8px;
+            line-height: 24px;
+            background-color: #f0f5ff;
+            border-radius: 999px;
 
             .label {
-              flex-shrink: 0;
-              color: #8f9fbd;
+              font-weight: 500;
+              color: #4e5e7a;
             }
 
             .value {
-              color: #3974ff;
+              font-weight: 700;
+              color: #3a84ff;
               cursor: pointer;
             }
           }

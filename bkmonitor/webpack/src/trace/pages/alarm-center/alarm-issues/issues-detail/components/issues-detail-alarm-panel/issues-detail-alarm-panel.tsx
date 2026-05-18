@@ -47,7 +47,7 @@ export default defineComponent({
       required: true,
     },
     bizId: {
-      type: Number,
+      type: [Number, String],
     },
   },
   setup(props) {

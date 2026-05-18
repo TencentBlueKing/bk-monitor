@@ -1,0 +1,697 @@
+{
+  "generatedAt": "2026-01-15T07:33:28.819Z",
+  "baseUrl": "http://appdev.woa.com:8001",
+  "totalRoutes": 86,
+  "totalScenarios": 88,
+  "routes": [
+    {
+      "route": "/un-authorized",
+      "fileName": "un-authorized.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/*",
+      "fileName": "root.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/dashboard",
+      "fileName": "dashboard.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/dashboard/home",
+      "fileName": "dashboard-home.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/dashboard/default-dashboard",
+      "fileName": "dashboard-default-dashboard.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/dashboard/create-dashboard",
+      "fileName": "dashboard-create-dashboard.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/dashboard/create-folder",
+      "fileName": "dashboard-create-folder.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/dashboard/import-dashboard",
+      "fileName": "dashboard-import-dashboard.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage",
+      "fileName": "manage.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection",
+      "fileName": "manage-log-collection.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item",
+      "fileName": "manage-log-collection-collection-item.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/list",
+      "fileName": "manage-log-collection-collection-item-list.md",
+      "scenarioCount": 3,
+      "types": [
+        "smoke",
+        "e2e"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/manage/:collectorId",
+      "fileName": "manage-log-collection-collection-item-manage-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/add",
+      "fileName": "manage-log-collection-collection-item-add.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/edit/:collectorId",
+      "fileName": "manage-log-collection-collection-item-edit-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/field/:collectorId",
+      "fileName": "manage-log-collection-collection-item-field-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/storage/:collectorId",
+      "fileName": "manage-log-collection-collection-item-storage-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/masking/:collectorId",
+      "fileName": "manage-log-collection-collection-item-masking-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/start/:collectorId",
+      "fileName": "manage-log-collection-collection-item-start-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/collection-item/stop/:collectorId",
+      "fileName": "manage-log-collection-collection-item-stop-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/log-index-set",
+      "fileName": "manage-log-collection-log-index-set.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/log-index-set/list",
+      "fileName": "manage-log-collection-log-index-set-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/log-index-set/manage/:indexSetId",
+      "fileName": "manage-log-collection-log-index-set-manage-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/log-index-set/create",
+      "fileName": "manage-log-collection-log-index-set-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/log-index-set/edit/:indexSetId",
+      "fileName": "manage-log-collection-log-index-set-edit-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-collection/log-index-set/masking/:indexSetId",
+      "fileName": "manage-log-collection-log-index-set-masking-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/tgpa-task",
+      "fileName": "manage-tgpa-task.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/tgpa-task/list",
+      "fileName": "manage-tgpa-task-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/tgpa-task/clean-config",
+      "fileName": "manage-tgpa-task-clean-config.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-collection",
+      "fileName": "manage-bk-data-collection.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-collection/list",
+      "fileName": "manage-bk-data-collection-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-collection/manage/:indexSetId",
+      "fileName": "manage-bk-data-collection-manage-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-collection/create",
+      "fileName": "manage-bk-data-collection-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-collection/edit/:indexSetId",
+      "fileName": "manage-bk-data-collection-edit-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-collection/masking/:indexSetId",
+      "fileName": "manage-bk-data-collection-masking-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/es-collection",
+      "fileName": "manage-es-collection.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/es-collection/list",
+      "fileName": "manage-es-collection-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/es-collection/manage/:indexSetId",
+      "fileName": "manage-es-collection-manage-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/es-collection/create",
+      "fileName": "manage-es-collection-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/es-collection/edit/:indexSetId",
+      "fileName": "manage-es-collection-edit-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/es-collection/masking/:indexSetId",
+      "fileName": "manage-es-collection-masking-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/custom-report",
+      "fileName": "manage-custom-report.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/custom-report/list",
+      "fileName": "manage-custom-report-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/custom-report/create",
+      "fileName": "manage-custom-report-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/custom-report/edit/:collectorId",
+      "fileName": "manage-custom-report-edit-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/custom-report/detail/:collectorId",
+      "fileName": "manage-custom-report-detail-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/custom-report/masking/:indexSetId",
+      "fileName": "manage-custom-report-masking-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-list",
+      "fileName": "manage-clean-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-list/list",
+      "fileName": "manage-clean-list-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-list/create",
+      "fileName": "manage-clean-list-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-list/edit/:collectorId",
+      "fileName": "manage-clean-list-edit-_collectorid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-templates",
+      "fileName": "manage-clean-templates.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-templates/list",
+      "fileName": "manage-clean-templates-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-templates/create",
+      "fileName": "manage-clean-templates-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/clean-templates/edit/:templateId",
+      "fileName": "manage-clean-templates-edit-_templateid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-desensitize",
+      "fileName": "manage-log-desensitize.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-desensitize/list",
+      "fileName": "manage-log-desensitize-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/archive-repository",
+      "fileName": "manage-archive-repository.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/archive-list",
+      "fileName": "manage-archive-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/archive-restore",
+      "fileName": "manage-archive-restore.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/manage-log-extract",
+      "fileName": "manage-manage-log-extract.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-extract-task",
+      "fileName": "manage-log-extract-task.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-extract-task/extract-create",
+      "fileName": "manage-log-extract-task-extract-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/log-extract-task/extract-clone",
+      "fileName": "manage-log-extract-task-extract-clone.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/extract-link-manage",
+      "fileName": "manage-extract-link-manage.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/extract-link-manage/list",
+      "fileName": "manage-extract-link-manage-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/extract-link-manage/edit/:linkId",
+      "fileName": "manage-extract-link-manage-edit-_linkid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/extract-link-manage/create",
+      "fileName": "manage-extract-link-manage-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/es-cluster-manage",
+      "fileName": "manage-es-cluster-manage.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/report-manage",
+      "fileName": "manage-report-manage.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/collection-track",
+      "fileName": "manage-collection-track.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-track",
+      "fileName": "manage-bk-data-track.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-track/list",
+      "fileName": "manage-bk-data-track-list.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-track/manage/:indexSetId",
+      "fileName": "manage-bk-data-track-manage-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-track/create",
+      "fileName": "manage-bk-data-track-create.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/bk-data-track/edit/:indexSetId",
+      "fileName": "manage-bk-data-track-edit-_indexsetid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/sdk-track",
+      "fileName": "manage-sdk-track.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/manage-data-link-conf",
+      "fileName": "manage-manage-data-link-conf.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/manage/collect",
+      "fileName": "manage-collect.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/monitor-apm-log/:indexId?",
+      "fileName": "monitor-apm-log-_indexid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/monitor-trace-log/:indexId?",
+      "fileName": "monitor-trace-log-_indexid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/retrieve/:indexId?",
+      "fileName": "retrieve-_indexid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/template-manage",
+      "fileName": "template-manage.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/external-auth/:activeNav?",
+      "fileName": "external-auth-_activenav.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/share/:linkId?",
+      "fileName": "share-_linkid.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    },
+    {
+      "route": "/data_id/:id?",
+      "fileName": "data_id-_id.md",
+      "scenarioCount": 1,
+      "types": [
+        "smoke"
+      ]
+    }
+  ]
+}

@@ -37,7 +37,7 @@ from apm.core.handlers.application_hepler import ApplicationHelper, SharedDataso
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.query.base import FilterOperator
-from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
+from apm.core.handlers.query.define import QueryMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
@@ -1434,29 +1434,6 @@ class UpdateMetricFieldsResource(Resource):
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
 
 
-class QueryEsResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        table_id = serializers.CharField(required=True, label="结果表ID")
-        query_body = serializers.DictField(required=True, label="查询内容")
-
-    def perform_request(self, validated_request_data):
-        table_id = validated_request_data["table_id"].replace(".", "_")
-        datasource = None
-        try:
-            datasource = TraceDataSource.objects.get(result_table_id=validated_request_data["table_id"])
-        except TraceDataSource.DoesNotExist:
-            logger.info(f"trace data source not found [{validated_request_data['table_id']}]")
-        if not datasource:
-            for trace_datasource in TraceDataSource.objects.all():
-                if trace_datasource.result_table_id.replace(".", "_") == table_id:
-                    datasource = trace_datasource
-
-        if datasource:
-            return datasource.es_client.search(index=datasource.index_name, body=validated_request_data["query_body"])
-
-        raise ValueError(_("未找到对应的结果表"))
-
-
 class QueryEsMappingResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
@@ -1897,38 +1874,6 @@ class DeleteApplicationResource(Resource):
             raise ValueError(_("应用不存在"))
 
         delete_application_async.delay(app.bk_biz_id, app.app_name, get_request_username())
-
-
-class QuerySpanStatisticsListResource(Resource):
-    RequestSerializer = QuerySerializer
-
-    def perform_request(self, validated_data):
-        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_statistics(
-            QueryStatisticsMode.SPAN_NAME,
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["limit"],
-            validated_data["offset"],
-            validated_data.get("filters"),
-            validated_data.get("query_string"),
-            validated_data.get("sort"),
-        )
-
-
-class QueryServiceStatisticsListResource(Resource):
-    RequestSerializer = QuerySerializer
-
-    def perform_request(self, validated_data):
-        return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_statistics(
-            QueryStatisticsMode.SERVICE,
-            validated_data["start_time"],
-            validated_data["end_time"],
-            validated_data["limit"],
-            validated_data["offset"],
-            validated_data.get("filters"),
-            validated_data.get("query_string"),
-            validated_data.get("sort"),
-        )
 
 
 class QueryBuiltinProfileDatasourceResource(Resource):

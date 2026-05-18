@@ -1,6 +1,4 @@
 const crypto = require('node:crypto');
-const webpackLog = require('webpack-log');
-const log = webpackLog({ name: 'monitor-webpack-plugin' });
 const CachedSource = require('webpack-sources/lib/CachedSource');
 const RawSource = require('webpack-sources/lib/RawSource');
 
@@ -22,6 +20,7 @@ module.exports = class MonitorWebpackPlugin {
   }
 
   apply(compiler) {
+    const logger = compiler.getInfrastructureLogger('MonitorWebpackPlugin');
     const hookOption = {
       name: 'MonitorWebpackPlugin',
       stage: 'PROCESS_ASSETS_STAGE_ANALYZE',
@@ -69,7 +68,7 @@ module.exports = class MonitorWebpackPlugin {
               compilation.assets['static_version.txt'] = new RawSource(crypto.randomBytes(16).toString('hex'));
             }
           } catch (err) {
-            log.error(err);
+            logger.error(err);
           }
         }
       });

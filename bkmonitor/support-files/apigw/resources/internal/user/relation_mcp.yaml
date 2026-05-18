@@ -31,16 +31,18 @@ paths:
                       source_info:
                         type: object
                         description: 'Source resource dimensional info (key-value mapping). For Pod: include bcs_cluster_id, namespace, pod. For Node: include bcs_cluster_id, node. 源资源维度信息(键值映射)。Pod需包含bcs_cluster_id、namespace、pod。Node需包含bcs_cluster_id、node。'
+                      source_type:
+                        type: string
+                        description: 'Source resource type. Required when source_info contains multiple dimensions or when the dimension key is ambiguous. Common values: "pod", "node", "system", "container", "service". 源资源类型。当source_info包含多个维度或维度键存在歧义时必传。常见值: "pod"、"node"、"system"、"container"、"service"。'
                       target_type:
                         type: string
                         default: system
-                        description: 'Target resource type. Common values: "system" (host), "node" (K8s node), "service", "container". Default: system. 目标资源类型。常见值: "system"(主机)、"node"(K8s节点)、"service"、"container"。默认: system。'
+                        description: 'Target resource type. Common values: "system" (host), "node" (K8s node), "service", "container", "git_commit". Default: system. 目标资源类型。常见值: "system"(主机)、"node"(K8s节点)、"service"、"container"、"git_commit"。默认: system。'
                       path_resource:
                         type: array
                         items:
                           type: string
-                        default: '["node"]'
-                        description: 'Relation path resource types. For Pod-to-System: ["node"] (pod→node→system). Can be empty for direct relations. Default: ["node"]. 关联路径资源类型。Pod到System: ["node"](pod→node→system)。直接关联可为空。默认: ["node"]。'
+                        description: 'Relation path resource types (intermediate hops). For Pod-to-System with node hop: ["node"]. Leave empty/unset for direct relations or to let the backend pick the default path. 关联路径资源类型(中间跳板)。Pod经Node到System: ["node"]。直接关联或希望由后端选择默认路径时,留空或不传。'
                   description: List of query items. Each item represents a source resource to query. Supports batch queries (multiple resources in one request). 查询列表。每个条目代表一个要查询的源资源。支持批量查询(单次请求查询多个资源)。
         required: false
         description: ''
@@ -101,16 +103,18 @@ paths:
                       source_info:
                         type: object
                         description: 'Source resource dimensional info (key-value mapping). For Pod: include bcs_cluster_id, namespace, pod. For Node: include bcs_cluster_id, node. 源资源维度信息(键值映射)。Pod需包含bcs_cluster_id、namespace、pod。Node需包含bcs_cluster_id、node。'
+                      source_type:
+                        type: string
+                        description: 'Source resource type. Required when source_info contains multiple dimensions or when the dimension key is ambiguous. Common values: "pod", "node", "system", "container", "service". 源资源类型。当source_info包含多个维度或维度键存在歧义时必传。常见值: "pod"、"node"、"system"、"container"、"service"。'
                       target_type:
                         type: string
                         default: system
-                        description: 'Target resource type. Common values: "system" (host), "node" (K8s node), "service", "container". Default: system. 目标资源类型。常见值: "system"(主机)、"node"(K8s节点)、"service"、"container"。默认: system。'
+                        description: 'Target resource type. Common values: "system" (host), "node" (K8s node), "service", "container", "git_commit". Default: system. 目标资源类型。常见值: "system"(主机)、"node"(K8s节点)、"service"、"container"、"git_commit"。默认: system。'
                       path_resource:
                         type: array
                         items:
                           type: string
-                        default: '["node"]'
-                        description: 'Relation path resource types. For Pod-to-System: ["node"] (pod→node→system). Can be empty for direct relations. Default: ["node"]. 关联路径资源类型。Pod到System: ["node"](pod→node→system)。直接关联可为空。默认: ["node"]。'
+                        description: 'Relation path resource types (intermediate hops). For Pod-to-System with node hop: ["node"]. Leave empty/unset for direct relations or to let the backend pick the default path. 关联路径资源类型(中间跳板)。Pod经Node到System: ["node"]。直接关联或希望由后端选择默认路径时,留空或不传。'
                   description: List of query items. Each item represents a source resource to query over a time range. Supports batch queries. 查询列表。每个条目代表一个要在时间范围内查询的源资源。支持批量查询。
         required: false
         description: ''

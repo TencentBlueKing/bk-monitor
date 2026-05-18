@@ -33,7 +33,7 @@ import type { AnalysisListItem, AnalysisListItemBucket } from '@/pages/alarm-cen
 
 import './dimension-stats.scss';
 
-const COLOR_LIST = ['#3370EB', '#56CCBC', '#FAC20A', '#FF7763', '#FB99ED', '#51CFFD'];
+const COLOR_LIST = ['#3A84FF', '#52BDAE', '#FAC20A', '#FF7763', '#DC94DA', '#75C5F1'];
 export default defineComponent({
   name: 'DimensionStats',
   props: {

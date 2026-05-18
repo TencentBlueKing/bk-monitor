@@ -15,6 +15,7 @@ from django.conf import settings
 
 from apm_web.profile.models import (
     Function,
+    Label,
     Line,
     Location,
     Mapping,
@@ -51,6 +52,33 @@ class DorisProfileConverter(ProfileConverter):
         except Exception:
             normalized = value
         return normalized
+
+    def _build_sample_labels(self, labels_text: str | None) -> list[Label]:
+        if not labels_text:
+            return []
+
+        labels = json.loads(labels_text)
+        if not isinstance(labels, dict):
+            return []
+
+        result = []
+        for key, value in labels.items():
+            if value is None:
+                continue
+
+            values = value if isinstance(value, list) else [value]
+            for item in values:
+                if item is None:
+                    continue
+
+                if isinstance(item, int) and not isinstance(item, bool):
+                    result.append(Label(key=self.add_string(str(key)), num=item))
+                else:
+                    if isinstance(item, dict | list):
+                        item = json.dumps(item, sort_keys=True)
+                    result.append(Label(key=self.add_string(str(key)), str=self.add_string(str(item))))
+
+        return result
 
     @classmethod
     def _build_avg_samples(cls, samples_info: list[dict], agg_interval: int) -> list[dict]:
@@ -105,11 +133,16 @@ class DorisProfileConverter(ProfileConverter):
         self.profile.period_type = ValueType(self.add_string(period_type), self.add_string(period_unit))
         self.profile.period = first_sample["period"]
         sample_type, sample_unit = first_sample["sample_type"].split("/")
-        self.profile.sample_type = [ValueType(self.add_string(sample_type), self.add_string(sample_unit))]
-        self.profile.default_sample_type = 0
+        sample_type_id = self.add_string(sample_type)
+        self.profile.sample_type = [ValueType(sample_type_id, self.add_string(sample_unit))]
+        self.profile.default_sample_type = sample_type_id
+
+        sample_timestamps = [int(sample_info["dtEventTimeStamp"]) for sample_info in samples_info]
+        self.profile.time_nanos = min(sample_timestamps) * 1000 * 1000
+        self.profile.duration_nanos = (max(sample_timestamps) - min(sample_timestamps)) * 1000 * 1000
 
         for sample_info in samples_info:
-            labels = json.loads(sample_info.get("labels", "{}"))
+            labels = self._build_sample_labels(sample_info.get("labels"))
             sample = Sample(value=[int(sample_info["value"])], label=labels)
             for stacktrace in json.loads(sample_info["stacktrace"]):
                 location = self.stacktrace_to_location(stacktrace)
@@ -123,7 +156,15 @@ class DorisProfileConverter(ProfileConverter):
         mapping_id = 0
         mapping_info = stacktrace["mapping"]
         if mapping_info is not None:
-            mapping = self._mapping_mapping.get(mapping_info["fileName"])
+            mapping_key = "||".join(
+                [
+                    str(mapping_info["fileName"]),
+                    str(mapping_info["fileOffset"]),
+                    str(mapping_info["memoryStart"]),
+                    str(mapping_info["memoryLimit"]),
+                ]
+            )
+            mapping = self._mapping_mapping.get(mapping_key)
             if mapping is None:
                 mapping = Mapping(
                     id=len(self.profile.mapping) + 1,
@@ -137,13 +178,21 @@ class DorisProfileConverter(ProfileConverter):
                     has_line_numbers=mapping_info["hasLineNumbers"],
                     has_inline_frames=mapping_info["hasInlineFrames"],
                 )
-                self._mapping_mapping[mapping_info["fileName"]] = mapping
+                self._mapping_mapping[mapping_key] = mapping
                 self._mapping_id_mapping[mapping.id] = mapping
                 self.profile.mapping.append(mapping)
 
             mapping_id = mapping.id
 
-        location = self._location_mapping.get(stacktrace["address"])
+        location_key = "||".join(
+            [
+                str(mapping_id),
+                str(stacktrace["address"]),
+                str(stacktrace["isFolded"]),
+                json.dumps(stacktrace["lines"], sort_keys=True),
+            ]
+        )
+        location = self._location_mapping.get(location_key)
         if location is None:
             location = Location(
                 id=len(self.profile.location) + 1,
@@ -151,21 +200,30 @@ class DorisProfileConverter(ProfileConverter):
                 address=stacktrace["address"],
                 is_folded=stacktrace["isFolded"],
             )
-            self._location_mapping[stacktrace["address"]] = location
+            self._location_mapping[location_key] = location
             self._location_id_mapping[location.id] = location
             self.profile.location.append(location)
 
-            for line_info in stacktrace["lines"]:
-                function = self._function_mapping.get(line_info["function"]["name"])
+            for line_info in stacktrace["lines"] or []:
+                function_info = line_info["function"]
+                function_key = "||".join(
+                    [
+                        str(function_info["name"]),
+                        str(function_info["systemName"]),
+                        str(function_info["fileName"]),
+                        str(function_info["startLine"]),
+                    ]
+                )
+                function = self._function_mapping.get(function_key)
                 if function is None:
                     function = Function(
                         id=len(self.profile.function) + 1,
-                        name=self.add_string(line_info["function"]["name"]),
-                        system_name=self.add_string(line_info["function"]["systemName"]),
-                        filename=self.add_string(line_info["function"]["fileName"]),
-                        start_line=line_info["function"]["startLine"],
+                        name=self.add_string(function_info["name"]),
+                        system_name=self.add_string(function_info["systemName"]),
+                        filename=self.add_string(function_info["fileName"]),
+                        start_line=function_info["startLine"],
                     )
-                    self._function_mapping[line_info["function"]["name"]] = function
+                    self._function_mapping[function_key] = function
                     self._function_id_mapping[function.id] = function
                     self.profile.function.append(function)
 

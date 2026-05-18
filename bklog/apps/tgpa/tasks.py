@@ -38,6 +38,7 @@ from apps.tgpa.constants import (
     TGPA_REPORT_OFFSET_MINUTES,
     TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
     TGPA_UNFINISHED_TASK_CHECK_DAYS,
+    TGPA_UNFINISHED_TASK_CHECK_BATCH_SIZE,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -122,41 +123,49 @@ def _flush_new_tasks_batch(batch: list, is_first_sync: bool):
 def _check_unfinished_tasks(bk_biz_id: int):
     """
     检查存量未完成任务的状态变化：
-    批量查询处于活跃状态的任务，若远程文件状态变为上传成功则触发处理，同时更新本地状态
+    分批查询处于活跃状态的任务，若远程文件状态变为上传成功则触发处理，同时更新本地状态
     """
-    unfinished_tasks = TGPATask.objects.filter(
-        bk_biz_id=bk_biz_id,
-        task_status__in=TGPATaskStatusEnum.get_active_statuses(),
-        created_at__gte=arrow.now().shift(days=-TGPA_UNFINISHED_TASK_CHECK_DAYS).datetime,
+    unfinished_tasks = list(
+        TGPATask.objects.filter(
+            bk_biz_id=bk_biz_id,
+            task_status__in=TGPATaskStatusEnum.get_active_statuses(),
+            created_at__gte=arrow.now().shift(days=-TGPA_UNFINISHED_TASK_CHECK_DAYS).datetime,
+        ).order_by("-id")
     )
     if not unfinished_tasks:
         return
 
-    # 批量查询最新状态
-    task_ids_str = ",".join([str(task_obj.id) for task_obj in unfinished_tasks])
-    remote_task_map = {}
-    for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
-        item["go_svr_task_id"] = int(item["go_svr_task_id"])
-        item["status"] = str(item["status"])
-        remote_task_map[item["go_svr_task_id"]] = item
+    for start in range(0, len(unfinished_tasks), TGPA_UNFINISHED_TASK_CHECK_BATCH_SIZE):
+        batch_tasks = unfinished_tasks[start : start + TGPA_UNFINISHED_TASK_CHECK_BATCH_SIZE]
 
-    for task_obj in unfinished_tasks:
-        remote_info = remote_task_map.get(task_obj.task_id)
-        if not remote_info:
-            logger.warning("Remote task info not found for task_id: %s", task_obj.task_id)
-            continue
+        # 分批查询最新状态，避免单次请求任务过多导致接口报错
+        task_ids_str = ",".join([str(task_obj.id) for task_obj in batch_tasks])
+        remote_task_map = {}
+        for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
+            item["go_svr_task_id"] = int(item["go_svr_task_id"])
+            item["status"] = str(item["status"])
+            remote_task_map[item["go_svr_task_id"]] = item
 
-        # 如果文件状态变为上传成功，推送异步任务
-        if remote_info["exe_code"] != task_obj.file_status and remote_info["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-            task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-            task_obj.save(update_fields=["process_status"])
-            process_single_task.delay(remote_info)
+        for task_obj in batch_tasks:
+            remote_info = remote_task_map.get(task_obj.task_id)
+            if not remote_info:
+                logger.warning("Remote task info not found for task_id: %s", task_obj.task_id)
+                continue
 
-        # 如果任务状态或文件状态发生变化，更新信息
-        if task_obj.task_status != remote_info["status"] or task_obj.file_status != remote_info["exe_code"]:
-            task_obj.task_status = remote_info["status"]
-            task_obj.file_status = remote_info["exe_code"]
-            task_obj.save(update_fields=["task_status", "file_status"])
+            # 如果文件状态变为上传成功，推送异步任务
+            if (
+                remote_info["exe_code"] != task_obj.file_status
+                and remote_info["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS
+            ):
+                task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+                task_obj.save(update_fields=["process_status"])
+                process_single_task.delay(remote_info)
+
+            # 如果任务状态或文件状态发生变化，更新信息
+            if task_obj.task_status != remote_info["status"] or task_obj.file_status != remote_info["exe_code"]:
+                task_obj.task_status = remote_info["status"]
+                task_obj.file_status = remote_info["exe_code"]
+                task_obj.save(update_fields=["task_status", "file_status"])
 
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
