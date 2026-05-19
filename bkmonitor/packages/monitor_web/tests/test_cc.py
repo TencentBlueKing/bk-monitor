@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import defaultdict
-from typing import Dict, List
 
-import mock
+from collections import defaultdict
+
+from unittest import mock
 import pytest
 from django.conf import settings
 from monitor_web.constants import AGENT_STATUS
@@ -100,7 +99,7 @@ class TestParseTopoTarget:
             ],
         ],
     )
-    def test_host_topo_target(self, get_host_by_topo_node, dimensions, target: List[Dict], expected):
+    def test_host_topo_target(self, get_host_by_topo_node, dimensions, target: list[dict], expected):
         """
         测试主机拓扑目标解析
         """
@@ -140,7 +139,7 @@ class TestParseTopoTarget:
             ],
         ],
     )
-    def test_host_template_target(self, get_host_by_template, dimensions, target: List[Dict], expected):
+    def test_host_template_target(self, get_host_by_template, dimensions, target: list[dict], expected):
         """
         测试主机服务模板目标解析
         """
@@ -167,7 +166,7 @@ class TestParseTopoTarget:
             ],
         ],
     )
-    def test_service_topo_target(self, get_service_instance_by_topo_node, dimensions, target: List[Dict], expected):
+    def test_service_topo_target(self, get_service_instance_by_topo_node, dimensions, target: list[dict], expected):
         """
         测试服务拓扑目标解析
         """
@@ -189,14 +188,14 @@ class TestParseTopoTarget:
             ],
         ],
     )
-    def test_service_template_target(self, get_service_instance_by_template, dimensions, target: List[Dict], expected):
+    def test_service_template_target(self, get_service_instance_by_template, dimensions, target: list[dict], expected):
         """
         测试服务模板目标解析
         """
         self._test_template(get_service_instance_by_template, dimensions, target, expected)
 
     @staticmethod
-    def _test_template(func, dimensions, target: List[Dict], expected):
+    def _test_template(func, dimensions, target: list[dict], expected):
         template_ids = []
         bk_obj_id = None
         for node in target:
@@ -208,7 +207,7 @@ class TestParseTopoTarget:
         assert func.call_args[1] == {"bk_biz_id": 2, "bk_obj_id": bk_obj_id, "template_ids": template_ids}
 
     @staticmethod
-    def _test_topo(func, dimensions, target: List[Dict], expected):
+    def _test_topo(func, dimensions, target: list[dict], expected):
         topo_nodes = defaultdict(list)
         for node in target:
             topo_nodes[node["bk_obj_id"]].append(node["bk_inst_id"])
@@ -308,3 +307,34 @@ class TestGetAgentStatus:
             HOSTS[2].bk_host_id: AGENT_STATUS.NOT_EXIST,
         }
         assert list_agent_state.call_count == 1
+
+
+class TestGetHostPerformanceData:
+    """
+    测试 resource.cc.get_host_performance_data
+    验证切换到 instant 查询后的指标处理逻辑
+    """
+
+    def test_instant_query_records_processing(self, mocker):
+        """
+        校验 query_data 以 instant=True 触发，且单点返回的 records 能正确填回主机指标
+        """
+        query_data = mocker.patch(
+            "bkmonitor.data_source.UnifyQuery.query_data",
+            return_value=[
+                {
+                    "_result_": 42.5,
+                    "bk_host_id": str(HOSTS[0].bk_host_id),
+                    "bk_target_ip": HOSTS[0].bk_host_innerip,
+                    "bk_target_cloud_id": str(HOSTS[0].bk_cloud_id),
+                },
+            ],
+        )
+
+        result = resource.cc.get_host_performance_data(bk_biz_id=2, hosts=HOSTS[0:1])
+
+        assert query_data.call_args_list[0].kwargs.get("instant") is True
+        assert result[HOSTS[0].bk_host_id]["cpu_usage"] == 42.5
+        assert result[HOSTS[0].bk_host_id]["cpu_load"] == 42.5
+        # io_util 配置了 ratio=100，最终结果应放大
+        assert result[HOSTS[0].bk_host_id]["io_util"] == 4250.0
