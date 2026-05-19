@@ -32,7 +32,6 @@ export interface IGrokItem {
   is_builtin: boolean;
   description: string | null;
   sample: string | null;
-  sample_result: Record<string, unknown> | null;
   created_at: string;
   created_by: string;
   updated_at: string;

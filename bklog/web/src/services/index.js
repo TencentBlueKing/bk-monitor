@@ -33,6 +33,7 @@ import * as clean from './clean';
 import * as collect from './collect';
 import * as container from './container';
 import * as custom from './custom';
+import * as clientLog from './client-log';
 import * as docs from './docs';
 import * as example from './example';
 import * as extract from './extract';
@@ -114,4 +115,5 @@ export default {
   grok,
   alertStrategy,
   dashboard,
+  clientLog
 };

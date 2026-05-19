@@ -85,7 +85,6 @@ export default defineComponent({
     const popoverRef = ref<any>();
     const grokListRef = ref<GrokPopoverListExpose>();
     let editorView: EditorView | null = null;
-    let ignoreNextKeyboardSelection = false;
 
     // 弹窗状态（仅 grokMode 启用时使用）
     const popoverVisible = ref(false);
@@ -126,32 +125,24 @@ export default defineComponent({
         }
       }
 
-      const hasClosingBrace = endPos !== -1;
       // 如果没找到闭合的 }，设置为当前文本末尾
-      if (!hasClosingBrace) {
+      if (endPos === -1) {
         endPos = text.length;
       }
 
-      const contentStart = startPos + 2;
-      const content = text.substring(contentStart, endPos);
-      const colonOffset = content.indexOf(':');
-      const variableEnd = colonOffset === -1 ? endPos : contentStart + colonOffset;
-      const keyword = text.substring(contentStart, variableEnd);
+      // 提取 {} 内的关键字
+      let keyword = text.substring(startPos + 2, endPos);
+
+      if (keyword.includes(':')) {
+        keyword = keyword.split(':')[0];
+      }
 
       return {
         start: startPos,
-        end: hasClosingBrace ? endPos + 1 : endPos, // 包含 }
+        end: endPos + 1, // 包含 }
         keyword,
-        cursorInVariable: cursorPos >= contentStart && cursorPos <= variableEnd,
+        cursorInRange: cursorPos >= startPos + 2 && cursorPos <= endPos,
       };
-    };
-
-    const markKeyboardCursorMove = () => {
-      ignoreNextKeyboardSelection = true;
-      setTimeout(() => {
-        ignoreNextKeyboardSelection = false;
-      });
-      return false;
     };
 
     // 创建编辑器状态
@@ -203,34 +194,6 @@ export default defineComponent({
               return false;
             },
           },
-          {
-            key: 'Mod-Enter',
-            run: () => {
-              if (props.grokMode && popoverVisible.value && grokListRef.value) {
-                grokListRef.value.handleKeydown(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, metaKey: true }));
-                return true;
-              }
-              return false;
-            },
-          },
-          {
-            key: 'Escape',
-            run: () => {
-              if (props.grokMode && popoverVisible.value) {
-                hidePopover();
-                return true;
-              }
-              return false;
-            },
-          },
-          {
-            key: 'ArrowLeft',
-            run: markKeyboardCursorMove,
-          },
-          {
-            key: 'ArrowRight',
-            run: markKeyboardCursorMove,
-          },
           // Grok 模式下启用括号闭合和自动补全的键盘映射
           ...(props.grokMode ? closeBracketsKeymap : []),
           ...defaultKeymap,
@@ -265,11 +228,8 @@ export default defineComponent({
 
           // 监听选区变化，更新弹窗状态
           if (update.selectionSet || update.docChanged) {
-            const isKeyboardSelection = ignoreNextKeyboardSelection
-              || update.transactions.some(transaction => transaction.isUserEvent('select.keyboard'));
             // 传入 docChanged 参数，用于区分是光标移动还是内容变化
-            handleSelectionChange(update.state, update.docChanged, isKeyboardSelection);
-            ignoreNextKeyboardSelection = false;
+            handleSelectionChange(update.state, update.docChanged);
           }
         }),
 
@@ -357,25 +317,15 @@ export default defineComponent({
     };
 
     // 处理选区变化
-    const handleSelectionChange = (state: EditorState, docChanged: boolean, isKeyboardSelection: boolean) => {
+    const handleSelectionChange = (state: EditorState, docChanged: boolean) => {
       if (!props.grokMode) return;
-
-      const hasSelectedText = state.selection.ranges.some(range => !range.empty);
-      if (hasSelectedText) {
-        hidePopover();
-        return;
-      }
-
-      if (!docChanged && isKeyboardSelection) {
-        return;
-      }
 
       const cursorPos = state.selection.main.head;
       const text = state.doc.toString();
 
       const grokInfo = parseGrokAtCursor(text, cursorPos);
 
-      if (grokInfo && grokInfo.cursorInVariable) {
+      if (grokInfo && grokInfo.cursorInRange) {
         const wasInGrokRange = currentGrokRange.value !== null;
 
         currentGrokRange.value = { start: grokInfo.start, end: grokInfo.end };
@@ -405,36 +355,36 @@ export default defineComponent({
       if (popoverVisible.value) {
         popoverVisible.value = false;
         popoverRef.value?.hide?.();
+        currentGrokRange.value = null;
+        currentKeyword.value = '';
       }
-      currentGrokRange.value = null;
-      currentKeyword.value = '';
     };
 
     // 处理选择 Grok 项
     const handleGrokSelect = (item: IGrokItem) => {
       if (!editorView || !currentGrokRange.value) return;
 
-      const { start, end } = currentGrokRange.value;
+      const { start } = currentGrokRange.value;
       const text = editorView.state.doc.toString();
-      const contentStart = start + 2;
-      const contentEnd = text[end - 1] === '}' ? end - 1 : end;
-      const content = text.slice(contentStart, contentEnd);
-      const colonOffset = content.indexOf(':');
-      const replaceEnd = colonOffset === -1 ? contentEnd : contentStart + colonOffset;
 
+      // 查找当前 %{} 的结束位置
+      let endPos = start + 2;
+      for (let i = start + 2; i < text.length; i++) {
+        if (text[i] === '}') {
+          endPos = i + 1;
+          break;
+        }
+      }
+
+      // 替换整个 %{xxx} 为 %{选中的name}
+      const newContent = `%{${item.name}}`;
       editorView.dispatch({
-        changes: { from: contentStart, to: replaceEnd, insert: item.name },
-        selection: { anchor: contentStart + item.name.length },
+        changes: { from: start, to: endPos, insert: newContent },
+        selection: { anchor: start + newContent.length },
       });
 
       hidePopover();
       editorView.focus();
-    };
-
-    // 处理取消 Grok 弹窗
-    const handleGrokCancel = () => {
-      hidePopover();
-      editorView?.focus();
     };
 
     // 初始化编辑器
@@ -530,7 +480,6 @@ export default defineComponent({
             keyword={currentKeyword.value}
             visible={popoverVisible.value}
             on-select={handleGrokSelect}
-            on-cancel={handleGrokCancel}
           />
         );
 
@@ -546,9 +495,6 @@ export default defineComponent({
                 appendTo: document.body,
                 theme: 'bklog-basic-light',
                 arrow: false,
-                offset: [0, 4],
-                maxWidth: 'none',
-                zIndex: 9999,
                 ...(props.popoverPosition === 'cursor'
                   ? {
                     popperOptions: {

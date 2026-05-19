@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
+
 // 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
 const LogCollectionView = { name: 'LogCollection', template: '<router-view></router-view>' };
 const CollectionItemView = { name: 'CollectionItemView', template: '<router-view></router-view>' };
@@ -116,21 +118,9 @@ const GrokManage = () => import(/* webpackChunkName: 'grok-manage' */ '@/views/m
 const logManageV2Mixin = {
   computed: {
     isV2Enabled() {
-      const featureToggle = window.FEATURE_TOGGLE?.log_manage_v2;
-
-      if (featureToggle === 'on') return true;
-      if (featureToggle === 'off' || !featureToggle) return false;
-
-      if (featureToggle === 'debug') {
-        const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.log_manage_v2 ?? [];
-        const bizId = this.$store.state.bkBizId;
-        const spaceUid = this.$store.state.spaceUid;
-        // 用 String() 统一类型，兼容白名单为数字数组（后端 JSON）而 bizId/spaceUid 为字符串的情况
-        const normalizedWhiteList = whiteList.map(id => String(id));
-        return normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
-      }
-
-      return false;
+      const bizId = this.$store.state.bkBizId;
+      const spaceUid = this.$store.state.spaceUid;
+      return isFeatureToggleOn('log_manage_v2', [String(bizId), String(spaceUid)]);
     },
   },
 };

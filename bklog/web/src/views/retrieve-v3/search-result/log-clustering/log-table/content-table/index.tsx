@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, isRef, ref, type PropType } from 'vue';
+import { computed, defineComponent, isRef, onMounted, ref, type PropType } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import useLocale from '@/hooks/use-locale';
@@ -36,6 +36,7 @@ import tippy from 'tippy.js';
 
 import ClusterEventPopover from './cluster-popover';
 import RemarkEditTip from './remark-edit-tip';
+import PatternAnalysisSlider from './pattern-analysis-slider';
 import { getConditionRouterParams } from './utils';
 import $http from '@/api';
 
@@ -49,6 +50,15 @@ export interface GroupListState {
   [key: string]: {
     isOpen: boolean;
   };
+}
+
+/** 聚类配置响应数据 */
+export interface ClusteringConfigData {
+  index_set_id: number;
+  storage_type: string;
+  clustered_rt: string;
+  clustering_fields?: string;
+  placeholder_analysis_supported: boolean;
 }
 
 export interface IPagination {
@@ -78,6 +88,7 @@ export default defineComponent({
     ClusterEventPopover,
     BkUserSelector,
     RemarkEditTip,
+    PatternAnalysisSlider,
   },
   props: {
     tableColumnWidth: {
@@ -126,6 +137,33 @@ export default defineComponent({
     let activeMarkElement: HTMLElement | null = null;
     const isExternal = window.IS_EXTERNAL === true;
 
+    /** Pattern 分析侧栏状态 */
+    const showAnalysisSlider = ref(false);
+    const analysisMarkText = ref('');
+    const analysisMarkIndex = ref(null);
+    const analysisRowData = ref<any>(null);
+
+    /** 聚类配置数据 */
+    const clusteringConfigData = ref<ClusteringConfigData | null>(null);
+
+    // 获取聚类配置（只调用一次）
+    onMounted(() => {
+      $http.request('/logClustering/getConfig', {
+        params: {
+          index_set_id: props.indexId,
+        },
+      }).then((res) => {
+        clusteringConfigData.value = res.data as ClusteringConfigData;
+      });
+    });
+
+    const handleMarkClick = (markIndex: number, markText: string, row: ITableItem) => {
+      analysisMarkIndex.value = markIndex;
+      analysisMarkText.value = markText;
+      analysisRowData.value = row.data ?? null;
+      showAnalysisSlider.value = true;
+    };
+
     const headRowRef = ref<HTMLElement>();
     const remarkTipsRef = ref<any>(null);
     const tableWraperRef = ref<HTMLElement>();
@@ -139,42 +177,36 @@ export default defineComponent({
     // );
 
     /** 获取当前编辑操作的数据 */
-    const currentRowValue = computed(() =>
-      props.tableList.find((item) => item.data?.id === currentRowId.value),
+    const currentRowValue = computed(() => props.tableList.find(item => item.data?.id === currentRowId.value),
     );
     const showGroupBy = computed(
-      () =>
-        props.requestData?.group_by.length > 0 && props.displayMode === 'group',
+      () => props.requestData?.group_by.length > 0 && props.displayMode === 'group',
     );
     const isFlattenMode = computed(
-      () =>
-        props.requestData?.group_by.length > 0 && props.displayMode !== 'group',
+      () => props.requestData?.group_by.length > 0 && props.displayMode !== 'group',
     );
-    const columnWidth = computed(() =>
-      Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}),
+    const columnWidth = computed(() => Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}),
     );
 
     /**
      * 过滤所有可见行数据
      * 针对所有的数据
      */
-    const visibleList = computed(() =>
-      props.tableList.filter((d) => !d.hidden),
+    const visibleList = computed(() => props.tableList.filter(d => !d.hidden),
     );
 
     /**
      * 所有可见分组数据
      * 针对分组的展开收起
      */
-    const visibleGroupData = computed(() =>
-      visibleList.value.filter((d) => {
-        if (showGroupBy.value) {
-          // 如果是分组展示，则需要展示分组行和已经展开的分组行下的数据
-          return d.isGroupRow || groupState.value[d.hashKey]?.isOpen;
-        }
+    const visibleGroupData = computed(() => visibleList.value.filter((d) => {
+      if (showGroupBy.value) {
+        // 如果是分组展示，则需要展示分组行和已经展开的分组行下的数据
+        return d.isGroupRow || groupState.value[d.hashKey]?.isOpen;
+      }
 
-        return !d.isGroupRow;
-      }),
+      return !d.isGroupRow;
+    }),
     );
 
     /**
@@ -187,7 +219,7 @@ export default defineComponent({
       );
       const lastItem = visibleGroupData.value[lastIndex - 1];
       const lastItemIndex = visibleList.value.findIndex(
-        (item) => item === lastItem,
+        item => item === lastItem,
       );
       return visibleList.value.slice(0, lastItemIndex + 1);
     });
@@ -465,7 +497,7 @@ export default defineComponent({
             <div
               class='add-search'
               v-bk-tooltips={t('添加为检索条件')}
-              on-click={(e) => handleAddSearch(e, row)}
+              on-click={e => handleAddSearch(e, row)}
             >
               <log-icon type='sousuo-' />
             </div>
@@ -493,8 +525,8 @@ export default defineComponent({
     const renderGroupRow = (row: ITableItem) => {
       // 平铺模式
       if (
-        (isFlattenMode.value || props.requestData?.group_by.length === 0) &&
-        row.index === 1
+        (isFlattenMode.value || props.requestData?.group_by.length === 0)
+        && row.index === 1
       ) {
         return (
           <tr class='is-row-group is-flatten-count'>
@@ -589,8 +621,8 @@ export default defineComponent({
               </div>
             </td>
           )}
-          {isFlattenMode.value &&
-            row.data?.group.map((item) => (
+          {isFlattenMode.value
+            && row.data?.group.map(item => (
               <td>
                 <div class='dynamic-column' v-bk-overflow-tips>
                   {item}
@@ -606,8 +638,10 @@ export default defineComponent({
               <ClusterEventPopover
                 indexId={props.indexId}
                 rowData={row.data}
-                on-event-click={(isLink) => handleMenuClick(row.data, isLink)}
+                clusteringConfigData={clusteringConfigData.value}
+                on-event-click={isLink => handleMenuClick(row.data, isLink)}
                 on-open-cluster-config={() => emit('open-cluster-config')}
+                on-mark-click={(markIndex: number, markText: string) => handleMarkClick(markIndex, markText, row)}
               >
                 <text-highlight
                   style=''
@@ -645,9 +679,9 @@ export default defineComponent({
               class='principal-main'
               v-bk-tooltips={{
                 placement: 'top',
-                content: row.data?.owners.value.join(', '),
+                content: row.data?.owners?.value?.join(', ') ?? '',
                 delay: 300,
-                disabled: !row.data?.owners.value.length,
+                disabled: !(row.data?.owners?.value?.length),
               }}
             >
               {!isExternal ? (
@@ -656,9 +690,9 @@ export default defineComponent({
                   api={window.BK_LOGIN_URL}
                   empty-text={t('无匹配人员')}
                   placeholder='--'
-                  value={row.data?.owners.value}
+                  value={row.data?.owners?.value ?? []}
                   multiple
-                  on-change={(val) => handleChangePrincipal(val, row.data)}
+                  on-change={val => handleChangePrincipal(val, row.data)}
                 />
               ) : (
                 <bk-tag-input
@@ -666,7 +700,7 @@ export default defineComponent({
                   class='principal-tag-input'
                   clearable={false}
                   placeholder='--'
-                  value={row.data?.owners.value}
+                  value={row.data?.owners?.value ?? []}
                   allow-create
                   has-delete-icon
                   on-blur={() => handleChangePrincipal(null, row.data)}
@@ -680,12 +714,12 @@ export default defineComponent({
           {!isExternal && (
             <td>
               <div class='create-strategy-main'>
-                {row.data?.owners.value.length > 0 ? (
+                {(row.data?.owners?.value?.length ?? 0) > 0 ? (
                   <div class='is-able'>
                     <bk-switcher
                       theme='primary'
                       value={row.data?.strategy_enabled}
-                      on-change={(val) => changeStrategy(val, row.data)}
+                      on-change={val => changeStrategy(val, row.data)}
                     />
                     {row.data?.strategy_id > 0 && (
                       <span on-click={() => handleStrategyInfoClick(row.data)}>
@@ -707,7 +741,7 @@ export default defineComponent({
           <td style='padding-right: 8px;'>
             <div
               class='remark-column'
-              on-mouseenter={(e) => handleHoverRemarkIcon(e, row.data)}
+              on-mouseenter={e => handleHoverRemarkIcon(e, row.data)}
               on-mouseleave={() => clearTimeout(remarkPopoverTimer)}
             >
               {remarkContent(row.data?.remark)}
@@ -782,8 +816,8 @@ export default defineComponent({
                     同比变化
                   </th>
                 )}
-                {isFlattenMode.value &&
-                  props.requestData.group_by.map((item) => (
+                {isFlattenMode.value
+                  && props.requestData.group_by.map(item => (
                     <th
                       style={{ width: `${columnWidth.value[item] ?? 100}px` }}
                     >
@@ -821,6 +855,16 @@ export default defineComponent({
           rowData={currentRowValue.value?.data ?? {}}
           on-hide-self={handleHideRemarkTip}
           on-update={handleUpdateRemark}
+        />
+        <PatternAnalysisSlider
+          isShow={showAnalysisSlider.value}
+          indexSetId={props.indexId}
+          requestData={props.requestData}
+          markIndex={analysisMarkIndex.value}
+          markText={analysisMarkText.value}
+          rowData={analysisRowData.value}
+          clusteringConfigData={clusteringConfigData.value}
+          on-close={() => (showAnalysisSlider.value = false)}
         />
       </div>
     );

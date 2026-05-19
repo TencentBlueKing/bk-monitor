@@ -60,10 +60,4 @@ const debugGrok = {
   method: 'post',
 };
 
-// 搜索 Grok
-const searchGrok = {
-  url: '/databus/grok/search/',
-  method: 'get',
-};
-
-export { getGrokList, createGrok, updateGrok, deleteGrok, getUpdatedByList, debugGrok, searchGrok };
+export { getGrokList, createGrok, updateGrok, deleteGrok, getUpdatedByList, debugGrok };

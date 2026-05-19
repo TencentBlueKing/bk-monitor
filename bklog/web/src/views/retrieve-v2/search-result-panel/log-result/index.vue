@@ -248,7 +248,7 @@ export default {
     const { addEvent } = useRetrieveEvent();
     addEvent(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
       if (event === 'mark' && !this.highlightValue.includes(value)) {
-        this.highlightValue.push(...value.split(/\s/).filter(w => w.length > 0));
+        this.highlightValue.push(value);
         RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       }
     });
