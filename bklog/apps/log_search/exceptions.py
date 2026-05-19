@@ -609,6 +609,26 @@ class PreCheckSortFieldException(BaseSearchException):
 
 
 # =================================================
+# Scene Search Fields Config
+# =================================================
+
+
+class SceneFieldsConfigNotExistException(BaseException):
+    ERROR_CODE = "508"
+    MESSAGE = _("场景字段配置不存在")
+
+
+class SceneFieldsConfigAlreadyExistException(BaseException):
+    ERROR_CODE = "509"
+    MESSAGE = _("场景字段配置名称已存在")
+
+
+class SceneDefaultConfigNotAllowedDelete(BaseException):
+    ERROR_CODE = "510"
+    MESSAGE = _("默认场景字段配置不允许删除")
+
+
+# =================================================
 # JWT
 # =================================================
 

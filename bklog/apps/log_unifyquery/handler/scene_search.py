@@ -473,24 +473,18 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "config": config_list,
         }
 
-        # 合入当前用户在该业务-场景-范围下的字段展示配置（与 index-set 的 user_custom_config 形态对齐）
+        # 合入当前用户在该业务-场景-范围下应用的字段模板（与 fields_config GET 响应结构一致）
         scene_id = self._extract_scene_id()
         if self.bk_biz_id and scene_id:
-            from apps.log_search.models import UserSceneFieldsConfig
+            from apps.log_search.handlers.search.scene_fields_config import SceneFieldsConfigHandler
 
-            user_cfg = UserSceneFieldsConfig.objects.filter(
-                bk_biz_id=self.bk_biz_id,
-                username=self.request_username,
-                scene_id=scene_id,
-                scope=scope,
-                source_app_code=get_request_app_code(),
-            ).first()
-            if user_cfg:
-                result["user_fields_config"] = {
-                    "display_fields": user_cfg.display_fields,
-                    "sort_list": user_cfg.sort_list,
-                    "updated_at": user_cfg.updated_at,
-                }
+            source_app_code = get_request_app_code()
+            user_obj, tpl = SceneFieldsConfigHandler.get_user_applied_config(
+                self.bk_biz_id, self.request_username, scene_id, scope
+            )
+            result["user_fields_config"] = SceneFieldsConfigHandler.build_user_fields_config_response(
+                user_obj, tpl, self.request_username, source_app_code
+            )
         return result
 
     def _extract_scene_id(self) -> str:

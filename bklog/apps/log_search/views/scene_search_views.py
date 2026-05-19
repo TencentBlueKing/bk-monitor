@@ -27,10 +27,16 @@ from apps.log_search.constants import (
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.handlers.scene_search import AllConditionsBuilder
+from apps.log_search.handlers.search.scene_fields_config import SceneFieldsConfigHandler
 from apps.log_search.models import AsyncTask, UserIndexSetSearchHistory, UserSceneFieldsConfig
 from apps.log_search.serializers import (
+    CreateSceneFieldsConfigSerializer,
+    SceneFieldsConfigApplySerializer,
+    SceneFieldsConfigDeleteSerializer,
     SceneFieldsConfigGetSerializer,
+    SceneFieldsConfigListSerializer,
     SceneFieldsConfigUpsertSerializer,
+    UpdateSceneFieldsConfigSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
@@ -154,16 +160,41 @@ class SceneTotalSerializer(_SceneRouteMixin):
     filter = serializers.ListField(allow_empty=True, required=False, default=list, allow_null=True)
 
 
+class SceneDimensionFilterSerializer(serializers.Serializer):
+    field_name = serializers.CharField(required=True, help_text="维度 key")
+    value = serializers.ListField(child=serializers.CharField(), required=True, help_text="匹配值列表")
+    op = serializers.ChoiceField(
+        choices=["eq", "ne", "req", "nreq"], default="eq", required=False, help_text="操作符"
+    )
+
+
 class SceneDimensionValuesSerializer(serializers.Serializer):
-    """场景化维度值预览（支持级联反选）"""
+    """场景化维度值预览（支持级联反选，filters 支持 op）"""
 
     bk_biz_id = serializers.IntegerField(required=True, help_text="业务 ID")
     scene = serializers.CharField(required=True, help_text="场景标识, e.g. k8s / host / bk_paas")
     dimension_key = serializers.CharField(required=True, help_text="要查询的维度 key, e.g. cluster_id / stream")
-    filters = serializers.DictField(
-        required=False, default=dict,
-        help_text='级联筛选, value 为 str 或 list, e.g. {"stream": ["file","stdout"]}',
+    filters = serializers.JSONField(
+        required=False,
+        default=list,
+        help_text="级联筛选：推荐 [{field_name, value, op}]；兼容旧 dict 形式",
     )
+
+    def validate_filters(self, value):
+        if not value:
+            return []
+        if isinstance(value, dict):
+            normalized = []
+            for f_key, f_values in value.items():
+                if isinstance(f_values, str):
+                    f_values = [f_values]
+                normalized.append({"field_name": f_key, "value": list(f_values), "op": "eq"})
+            return normalized
+        if not isinstance(value, list):
+            raise serializers.ValidationError("filters 必须是 list 或 dict")
+        child = SceneDimensionFilterSerializer(data=value, many=True)
+        child.is_valid(raise_exception=True)
+        return child.validated_data
 
 
 # ---------------------------------------------------------------------------
@@ -572,7 +603,7 @@ class SceneSearchViewSet(APIViewSet):
         return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})
 
     # ------------------------------------------------------------------
-    # User scene fields config endpoints
+    # Scene fields config (template + user pointer)
     # ------------------------------------------------------------------
 
     @list_route(methods=["GET", "POST", "DELETE"], url_path="fields_config")
@@ -581,55 +612,122 @@ class SceneSearchViewSet(APIViewSet):
         @api {get|post|delete} /search/scene/fields_config/ 场景化检索-用户字段展示配置
         @apiName scene_fields_config
         @apiGroup 14_SceneSearch
-        @apiDescription 按 业务-用户-场景-范围 持久化字段展示配置（单层，不做模板分层）。
-            - GET: 读取当前用户配置；无记录时返回 display_fields=[] / sort_list=[]
-            - POST: upsert
-            - DELETE: 重置（删除记录），随后前端可按默认值渲染
+        @apiDescription 读/写当前用户应用的字段模板；无指针时 GET 懒回退默认模板。
         """
         username = get_request_external_username() or get_request_username()
         source_app_code = get_request_app_code()
 
         if request.method.upper() == "POST":
             data = self.params_valid(SceneFieldsConfigUpsertSerializer)
-            obj, _ = UserSceneFieldsConfig.objects.update_or_create(
+            return Response(
+                SceneFieldsConfigHandler.upsert_user_applied_template(
+                    bk_biz_id=data["bk_biz_id"],
+                    username=username,
+                    scene_id=data["scene_id"],
+                    scope=data["scope"],
+                    display_fields=data["display_fields"],
+                    sort_list=data.get("sort_list") or [],
+                )
+            )
+
+        data = self.params_valid(SceneFieldsConfigGetSerializer, params=request.query_params)
+        if request.method.upper() == "DELETE":
+            UserSceneFieldsConfig.objects.filter(
                 bk_biz_id=data["bk_biz_id"],
                 username=username,
                 scene_id=data["scene_id"],
                 scope=data["scope"],
                 source_app_code=source_app_code,
-                defaults={
-                    "display_fields": data["display_fields"],
-                    "sort_list": data.get("sort_list") or [],
-                },
-            )
-            return Response({
-                "display_fields": obj.display_fields,
-                "sort_list": obj.sort_list,
-                "updated_at": obj.updated_at,
-            })
-
-        # GET / DELETE 都从 query 取参数，避免 DELETE 走到 request.data 拿不到值
-        data = self.params_valid(SceneFieldsConfigGetSerializer, params=request.query_params)
-        qs = UserSceneFieldsConfig.objects.filter(
-            bk_biz_id=data["bk_biz_id"],
-            username=username,
-            scene_id=data["scene_id"],
-            scope=data["scope"],
-            source_app_code=source_app_code,
-        )
-
-        if request.method.upper() == "DELETE":
-            qs.delete()
+            ).delete()
             return Response({})
 
-        obj = qs.first()
-        if not obj:
-            return Response({"display_fields": [], "sort_list": [], "updated_at": None})
-        return Response({
-            "display_fields": obj.display_fields,
-            "sort_list": obj.sort_list,
-            "updated_at": obj.updated_at,
-        })
+        user_obj, tpl = SceneFieldsConfigHandler.get_user_applied_config(
+            data["bk_biz_id"], username, data["scene_id"], data["scope"]
+        )
+        return Response(
+            SceneFieldsConfigHandler.build_user_fields_config_response(
+                user_obj, tpl, username, source_app_code
+            )
+        )
+
+    @list_route(methods=["POST"], url_path="list_config")
+    def list_config(self, request):
+        """
+        @api {post} /search/scene/list_config/ 场景化检索-字段模板列表
+        """
+        data = self.params_valid(SceneFieldsConfigListSerializer)
+        return Response(
+            SceneFieldsConfigHandler(
+                bk_biz_id=data["bk_biz_id"],
+                scene_id=data["scene_id"],
+                scope=data["scope"],
+            ).list()
+        )
+
+    @list_route(methods=["POST"], url_path="create_config")
+    def create_config(self, request):
+        """
+        @api {post} /search/scene/create_config/ 场景化检索-创建字段模板
+        """
+        data = self.params_valid(CreateSceneFieldsConfigSerializer)
+        return Response(
+            SceneFieldsConfigHandler(
+                bk_biz_id=data["bk_biz_id"],
+                scene_id=data["scene_id"],
+                scope=data["scope"],
+            ).create_or_update(
+                name=data["name"],
+                display_fields=data["display_fields"],
+                sort_list=data.get("sort_list") or [],
+            )
+        )
+
+    @list_route(methods=["POST"], url_path="update_config")
+    def update_config(self, request):
+        """
+        @api {post} /search/scene/update_config/ 场景化检索-更新字段模板
+        """
+        data = self.params_valid(UpdateSceneFieldsConfigSerializer)
+        return Response(
+            SceneFieldsConfigHandler(
+                config_id=data["config_id"],
+                bk_biz_id=data["bk_biz_id"],
+                scene_id=data["scene_id"],
+                scope=data["scope"],
+            ).create_or_update(
+                name=data["name"],
+                display_fields=data["display_fields"],
+                sort_list=data.get("sort_list") or [],
+            )
+        )
+
+    @list_route(methods=["GET"], url_path="retrieve_config")
+    def retrieve_config(self, request):
+        """
+        @api {get} /search/scene/retrieve_config/ 场景化检索-获取字段模板详情
+        """
+        config_id = request.GET.get("config_id")
+        if not config_id:
+            raise serializers.ValidationError("config_id 不能为空")
+        return Response(SceneFieldsConfigHandler(config_id=int(config_id)).retrieve())
+
+    @list_route(methods=["POST"], url_path="delete_config")
+    def delete_config(self, request):
+        """
+        @api {post} /search/scene/delete_config/ 场景化检索-删除字段模板
+        """
+        data = self.params_valid(SceneFieldsConfigDeleteSerializer)
+        SceneFieldsConfigHandler(config_id=data["config_id"]).delete()
+        return Response(None)
+
+    @list_route(methods=["POST"], url_path="config")
+    def apply_config(self, request):
+        """
+        @api {post} /search/scene/config/ 场景化检索-应用字段模板
+        """
+        data = self.params_valid(SceneFieldsConfigApplySerializer)
+        username = get_request_external_username() or get_request_username()
+        return Response(SceneFieldsConfigHandler(config_id=data["config_id"]).apply(username))
 
     # ------------------------------------------------------------------
     # Aggs endpoints
