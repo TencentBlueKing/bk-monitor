@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 import time
 import uuid
@@ -18,6 +19,7 @@ from elasticsearch_dsl import MetaField, field
 
 from bkmonitor.documents.base import BaseDocument, BulkActionType, Date, Flattened
 from bkmonitor.documents.constants import ES_INDEX_SETTINGS
+from bkmonitor.issue_merge import IssueMergeResolver
 from constants.issue import IssueActivityType, IssueStatus
 
 logger = logging.getLogger("fta_action.issue")
@@ -174,6 +176,7 @@ class IssueDocument(BaseDocument):
 
     def assign(self, assignees: list[str], operator: str) -> list:
         """首次指派负责人：PENDING_REVIEW → UNRESOLVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.PENDING_REVIEW:
             raise ValueError(f"Cannot assign: current status={self.status}, expected={IssueStatus.PENDING_REVIEW}")
         old_status = self.status
@@ -190,6 +193,7 @@ class IssueDocument(BaseDocument):
 
     def reassign(self, assignees: list[str], operator: str) -> list:
         """改派负责人(任意状态均可)：不触发状态流转"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         old_assignees = list(self.assignee or [])
         self.assignee = assignees
         self.update_time = int(time.time())
@@ -202,6 +206,7 @@ class IssueDocument(BaseDocument):
 
     def resolve(self, operator: str) -> list:
         """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(
                 f"Cannot resolve: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
@@ -219,6 +224,7 @@ class IssueDocument(BaseDocument):
 
     def archive(self, operator: str) -> list:
         """归档（实例级）：PENDING_REVIEW → ARCHIVED or UNRESOLVED → ARCHIVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(
                 f"Cannot archive: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
@@ -235,6 +241,7 @@ class IssueDocument(BaseDocument):
 
     def reopen(self, operator: str) -> list:
         """重新打开：RESOLVED → UNRESOLVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.RESOLVED:
             raise ValueError(f"Cannot reopen: current status={self.status}, expected={IssueStatus.RESOLVED}")
         old_status = self.status
@@ -249,6 +256,7 @@ class IssueDocument(BaseDocument):
 
     def restore(self, operator: str) -> list:
         """恢复归档：ARCHIVED → 归档前状态（从活动日志推断），无记录时回退到 PENDING_REVIEW"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.ARCHIVED:
             raise ValueError(f"Cannot restore: current status={self.status}, expected={IssueStatus.ARCHIVED}")
         target_status = self._get_pre_archive_status()
@@ -274,6 +282,7 @@ class IssueDocument(BaseDocument):
         Returns:
             该 Issue 全部活动日志列表（含本次新增），按时间降序排列。
         """
+        IssueMergeResolver.assert_not_frozen(self.id)
         activities = [
             (IssueActivityType.COMMENT, None, None, operator, content),
         ]
@@ -301,6 +310,7 @@ class IssueDocument(BaseDocument):
             IssueActivityNotFoundError: 指定 activity_id 的 IssueActivityDocument不存在。
             PermissionError: operator 不是原评论操作者
         """
+        IssueMergeResolver.assert_not_frozen(self.id)
         # 查询原评论信息
         search = (
             IssueActivityDocument.search(all_indices=True)
@@ -395,6 +405,7 @@ class IssueDocument(BaseDocument):
 
     def update_priority(self, priority: str, operator: str) -> list:
         """修改优先级（任意状态均可）"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         old_priority = self.priority
         self.priority = priority
         activities = [
@@ -416,6 +427,7 @@ class IssueDocument(BaseDocument):
 
     def rename(self, new_name: str, operator: str) -> list:
         """重命名 Issue"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         new_name = new_name.strip()
         old_name = self.name
         # 内容未变化时直接返回当前活动列表，不写 ES
@@ -440,6 +452,136 @@ class IssueDocument(BaseDocument):
                 (IssueActivityType.NAME_CHANGE, old_name, new_name, operator, None),
             ]
         )
+
+    @classmethod
+    def bulk_reset_for_split(
+        cls,
+        member_ids: list[str],
+        operator: str,
+        kind: str,
+        main_issue_id: str,
+    ) -> None:
+        """批量将 member 重置为 PENDING_REVIEW + 清空 assignee，写 SPLIT_FROM 活动日志。
+
+        用于 split API 单 member + cascade 多 member 两个路径。仿
+        ``migrate_legacy_active_issues`` / ``_bulk_update_with_retry`` 现网范式：
+        ``bulk_create`` + retry 1 次 + warning（不抛、不返回细粒度结果）。
+
+        Args:
+            member_ids: 被拆分的 member Issue ID 列表。
+            operator: 操作人，用于 STATUS_CHANGE / ASSIGNEE_CHANGE / SPLIT_FROM 活动日志。
+            kind: 拆分类型，``manual`` / ``by_main_resolve`` / ``by_main_archive``。
+            main_issue_id: 关联主 Issue ID，写入 SPLIT_FROM content 字段。
+
+        失败处理：ES bulk 写失败仅 warning，不抛；运维通过 bkm-cli ``list_conflicts``
+        发现 + Django management command ``repair_issue_merge_state`` 修复。
+
+        注：直接走 ``IssueActivityDocument.bulk_create``，不调 ``_write_activities``
+        实例方法，避免 N 次 ``_read_activities`` 全量回读（size=500）放大延迟。
+        """
+        if not member_ids:
+            return
+        now = int(time.time())
+
+        # ① 批量 UPDATE 物理状态
+        update_docs = [
+            cls(id=mid, status=IssueStatus.PENDING_REVIEW, assignee=[], update_time=now) for mid in member_ids
+        ]
+        try:
+            cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk reset update failed, retrying once: %s", e)
+            try:
+                cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk reset update retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ② 批量写活动日志（3N 条：STATUS_CHANGE + ASSIGNEE_CHANGE + SPLIT_FROM）
+        split_content = json.dumps(
+            {"kind": kind, "main_issue_id": main_issue_id},
+            ensure_ascii=False,
+        )
+        activities: list[IssueActivityDocument] = []
+        for mid in member_ids:
+            activities.extend(
+                [
+                    IssueActivityDocument(
+                        issue_id=mid,
+                        activity_type=IssueActivityType.STATUS_CHANGE,
+                        from_value=None,
+                        to_value=IssueStatus.PENDING_REVIEW,
+                        operator=operator,
+                        content=None,
+                        time=now,
+                        create_time=now,
+                    ),
+                    IssueActivityDocument(
+                        issue_id=mid,
+                        activity_type=IssueActivityType.ASSIGNEE_CHANGE,
+                        from_value=None,
+                        to_value="",
+                        operator=operator,
+                        content=None,
+                        time=now,
+                        create_time=now,
+                    ),
+                    IssueActivityDocument(
+                        issue_id=mid,
+                        activity_type=IssueActivityType.SPLIT_FROM,
+                        from_value=main_issue_id,
+                        to_value=None,
+                        operator=operator,
+                        content=split_content,
+                        time=now,
+                        create_time=now,
+                    ),
+                ]
+            )
+        try:
+            IssueActivityDocument.bulk_create(activities)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk reset activity write failed, retrying once: %s", e)
+            try:
+                IssueActivityDocument.bulk_create(activities)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk reset activity write retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ③ Redis fingerprint cache 批量清理（fail-open）
+        # 复用 _delete_redis_cache 的 fingerprint 守卫语义，避免在 web/saas role 缺
+        # REDIS_*_CONF 时抛 AttributeError。这里 lazy import 同款防御。
+        try:
+            from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY
+
+            fp_hits = (
+                cls.search(all_indices=True)
+                .filter("terms", _id=member_ids)
+                .source(["fingerprint"])
+                .params(size=len(member_ids))
+                .execute()
+                .hits
+            )
+            fingerprints = [getattr(h, "fingerprint", None) for h in fp_hits]
+            fingerprints = [fp for fp in fingerprints if fp]
+            if fingerprints:
+                pipe = ISSUE_ACTIVE_CONTENT_KEY.client.pipeline()
+                for fp in fingerprints:
+                    pipe.delete(ISSUE_ACTIVE_CONTENT_KEY.get_key(fingerprint=fp))
+                pipe.execute()
+        except Exception:
+            # fail-open：cache 删除失败不阻塞主路径（30s TTL 兜底，且 web role 本无 Redis 配置）
+            logger.warning(
+                "[issue-merge] bulk reset cache invalidation failed (fail-open, member_ids=%s)",
+                member_ids,
+                exc_info=True,
+            )
 
     def _get_pre_archive_status(self) -> str:
         """
