@@ -232,16 +232,20 @@ export default defineComponent({
       saveLocalSceneDisplayFields(sceneDisplayFields.value);
     };
 
+    const syncQueriedSnapshot = () => {
+      lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
+      lastQueriedScene.value = activeScene.value;
+      showQueryHint.value = false;
+      store.commit('updateIndexItem', { isSceneFilterChanged: false });
+      syncUrlParams();
+    };
+
     // 监听 is_loading 从 false→true，表示查询开始
     watch(
       () => store.state.indexSetQueryResult.is_loading,
       (newVal, oldVal) => {
         if (newVal && !oldVal) {
-          lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
-          lastQueriedScene.value = activeScene.value;
-          showQueryHint.value = false;
-          store.commit('updateIndexItem', { isSceneFilterChanged: false });
-          syncUrlParams();
+          syncQueriedSnapshot();
         }
       },
     );
@@ -252,6 +256,11 @@ export default defineComponent({
       lastQueriedScene.value = null;
       showQueryHint.value = false;
       store.commit('updateIndexItem', { isSceneFilterChanged: false });
+    });
+
+    // 监听字段列表为空事件（场景化检索模式下，字段为空时跳过检索，需同步状态）
+    addEvent(RetrieveEvent.SCENE_FIELD_EMPTY, () => {
+      syncQueriedSnapshot();
     });
 
     const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
@@ -292,6 +301,8 @@ export default defineComponent({
           if (resp?.data?.fields?.length) {
             store.dispatch('requestIndexSetQuery');
             RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+          } else {
+            RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
           }
         });
       }

@@ -278,6 +278,8 @@ const handleHistoryChange = (payload) => {
         if (resp?.data?.fields?.length) {
           store.dispatch('requestIndexSetQuery');
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        } else {
+          RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
         }
       });
     });
