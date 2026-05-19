@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 from collections import Counter
 from collections.abc import Callable
@@ -23,6 +24,13 @@ from bkmonitor.documents.issue import (
     IssueFrozenError,
     IssueNotFoundError,
 )
+from bkmonitor.issue_merge import (
+    MergeConflictError,
+    MergeCrossBizForbiddenError,
+    MergeTargetIsMemberError,
+    SplitNotFoundError,
+)
+from bkmonitor.models.issue import IssueMergeRelation
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
@@ -938,3 +946,223 @@ class ListRecentAssigneesResource(Resource):
                         counter[assignee] += bucket.doc_count
 
         return [username for username, _ in counter.most_common(100)]
+
+
+def _invalidate_active_members_cache(bk_biz_id: int) -> None:
+    """合并/拆分写后清理业务级 active members cache（30s TTL 兜底，fail-open）。"""
+    try:
+        from alarm_backends.core.cache.key import ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
+
+        cache_key = ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.get_key(bk_biz_id=str(bk_biz_id))
+        ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.client.delete(cache_key)
+    except Exception:
+        logger.warning("[issue-merge] active_members cache invalidate failed (fail-open)", exc_info=True)
+
+
+class MergeIssueResource(Resource):
+    """合并 Issue：把多个 Issue 收敛到一个主 Issue。
+
+    校验顺序：跨业务 → 主 issue 自己是 member（防链式）→ 任一 member 已在 active。
+    写入：SQL bulk_create 关系 + ES 活动日志（main 1 条 + 每 member 1 条 MERGED_INTO）。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        main_issue_id = IssueIDField(label="主 Issue ID")
+        members = serializers.ListField(label="并入 Issue ID 列表", child=IssueIDField(), min_length=1, max_length=100)
+        reasons = serializers.ListField(label="合并依据", child=serializers.CharField(), min_length=1)
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        main_id = validated_request_data["main_issue_id"]
+        members = list(dict.fromkeys(validated_request_data["members"]))  # 去重保序
+        reasons = validated_request_data["reasons"]
+        operator = get_request_username()
+
+        if main_id in members:
+            members = [m for m in members if m != main_id]
+        if not members:
+            raise serializers.ValidationError("members 去重后为空")
+
+        # 校验 1: 跨业务（main + members 所有 issue 的 bk_biz_id 必须一致）
+        all_ids = [main_id, *members]
+        biz_hits = (
+            IssueDocument.search(all_indices=True)
+            .filter("terms", _id=all_ids)
+            .source(["bk_biz_id"])
+            .params(size=len(all_ids))
+            .execute()
+            .hits
+        )
+        biz_set = {str(getattr(h, "bk_biz_id", "")) for h in biz_hits if getattr(h, "bk_biz_id", None)}
+        if biz_set and (len(biz_set) > 1 or str(bk_biz_id) not in biz_set):
+            raise MergeCrossBizForbiddenError()
+
+        # 校验 2: 主 issue 自身是某行活跃 member（防链式合并）
+        target_as_member = (
+            IssueMergeRelation.objects.filter(member_issue_id=main_id, status=IssueMergeRelation.STATUS_ACTIVE)
+            .values("main_issue_id")
+            .first()
+        )
+        if target_as_member:
+            raise MergeTargetIsMemberError(main_id, target_as_member["main_issue_id"])
+
+        # 校验 3: 任一 member 已在 active 关系
+        existing = (
+            IssueMergeRelation.objects.filter(member_issue_id__in=members, status=IssueMergeRelation.STATUS_ACTIVE)
+            .values("member_issue_id", "main_issue_id")
+            .first()
+        )
+        if existing:
+            raise MergeConflictError(existing["main_issue_id"])
+
+        # 写关系表（无事务：单条 INSERT 已原子；race window 由 list_conflicts 对账兜底）
+        IssueMergeRelation.objects.bulk_create(
+            [
+                IssueMergeRelation(
+                    bk_biz_id=bk_biz_id,
+                    main_issue_id=main_id,
+                    member_issue_id=m,
+                    status=IssueMergeRelation.STATUS_ACTIVE,
+                    merge_reasons=reasons,
+                    create_user=operator,
+                    update_user=operator,
+                )
+                for m in members
+            ]
+        )
+
+        # 写 ES 活动日志（main 1 条 + 每 member 1 条；失败仅 warning）
+        now = int(time.time())
+        bk_biz_id_str = str(bk_biz_id)
+        activities: list[IssueActivityDocument] = [
+            IssueActivityDocument(
+                issue_id=main_id,
+                bk_biz_id=bk_biz_id_str,
+                activity_type=IssueActivityType.MERGED_INTO,
+                from_value=None,
+                to_value=None,
+                operator=operator,
+                content=json.dumps({"kind": "manual", "members": members}, ensure_ascii=False),
+                time=now,
+                create_time=now,
+            ),
+        ]
+        for m in members:
+            activities.append(
+                IssueActivityDocument(
+                    issue_id=m,
+                    bk_biz_id=bk_biz_id_str,
+                    activity_type=IssueActivityType.MERGED_INTO,
+                    from_value=None,
+                    to_value=main_id,
+                    operator=operator,
+                    content=json.dumps({"kind": "manual", "main_issue_id": main_id}, ensure_ascii=False),
+                    time=now,
+                    create_time=now,
+                )
+            )
+        try:
+            IssueActivityDocument.bulk_create(activities)
+        except Exception as e:
+            logger.warning("[issue-merge] merge activity bulk write failed: %s", e)
+
+        _invalidate_active_members_cache(bk_biz_id)
+        return {"status": "ok", "main_issue_id": main_id, "members": members}
+
+
+class SplitIssueResource(Resource):
+    """拆分单个 member Issue：恢复为独立 Issue 并重置状态为 PENDING_REVIEW + 清 assignee。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        member_issue_id = IssueIDField(label="并入 Issue ID")
+        reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), min_length=1)
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        member_id = validated_request_data["member_issue_id"]
+        reasons = validated_request_data["reasons"]
+        operator = get_request_username()
+
+        # 关系必须存在且 active
+        relation = IssueMergeRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            member_issue_id=member_id,
+            status=IssueMergeRelation.STATUS_ACTIVE,
+        ).first()
+        if not relation:
+            raise SplitNotFoundError(member_id)
+
+        # SQL UPDATE 改 status=split（单条 UPDATE 已原子，无需事务）
+        IssueMergeRelation.objects.filter(pk=relation.pk).update(
+            status=IssueMergeRelation.STATUS_SPLIT,
+            split_kind=IssueMergeRelation.SPLIT_KIND_MANUAL,
+            split_reasons=reasons,
+            update_user=operator,
+        )
+
+        # ES 重置 member 状态 + 写活动日志（失败仅 warning，bkm-cli + management command 兜底）
+        IssueDocument.bulk_reset_for_split(
+            [member_id],
+            operator=operator,
+            kind=IssueMergeRelation.SPLIT_KIND_MANUAL,
+            main_issue_id=relation.main_issue_id,
+        )
+
+        _invalidate_active_members_cache(bk_biz_id)
+        return {"status": "ok", "member_issue_id": member_id}
+
+
+class ListMergeSourcesResource(Resource):
+    """列主 Issue 的合并来源（active + split 历史，数据源以 MySQL 关系表为主）。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        main_issue_id = IssueIDField(label="主 Issue ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        main_id = validated_request_data["main_issue_id"]
+
+        relations = list(
+            IssueMergeRelation.objects.filter(main_issue_id=main_id, bk_biz_id=bk_biz_id).order_by("-create_time")
+        )
+
+        result = {"main_issue_id": main_id, "active_members": [], "split_history": []}
+        if not relations:
+            return result
+
+        member_ids = [r.member_issue_id for r in relations]
+        member_hits = (
+            IssueDocument.search(all_indices=True)
+            .filter("terms", _id=member_ids)
+            .source(["name", "status"])
+            .params(size=len(member_ids))
+            .execute()
+            .hits
+        )
+        name_map = {hit.meta.id: getattr(hit, "name", None) for hit in member_hits}
+
+        for r in relations:
+            item = {
+                "member_issue_id": r.member_issue_id,
+                "member_name": name_map.get(r.member_issue_id) or f"{r.member_issue_id} (已删除)",
+                "merge_reasons": r.merge_reasons,
+                "merge_operator": r.create_user,
+                "merge_time": int(r.create_time.timestamp()) if r.create_time else 0,
+                "status": r.status,
+            }
+            if r.status == IssueMergeRelation.STATUS_SPLIT:
+                item.update(
+                    {
+                        "split_reasons": r.split_reasons,
+                        "split_operator": r.update_user,
+                        "split_time": int(r.update_time.timestamp()) if r.update_time else 0,
+                        "split_kind": r.split_kind,
+                    }
+                )
+                result["split_history"].append(item)
+            else:
+                result["active_members"].append(item)
+        return result

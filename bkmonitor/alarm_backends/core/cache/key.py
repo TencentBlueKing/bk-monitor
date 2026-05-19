@@ -1057,6 +1057,17 @@ ISSUE_ACTIVE_COUNT_KEY = register_key_with_config(
     }
 )
 
+ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY = register_key_with_config(
+    {
+        "label": "[issue]业务级合并 active member ID 列表（TopN exclude 用）",
+        "key_type": "string",
+        # 30s TTL：TopN 等查询前 GET，miss 则 SQL；merge/split/cascade 写后 DEL 兜底
+        "key_tpl": "issue.merge.active_members.{bk_biz_id}",
+        "ttl": 30,
+        "backend": "service",
+    }
+)
+
 ISSUE_LEGACY_MIGRATION_DONE_KEY = register_key_with_config(
     {
         "label": "[issue]legacy 迁移完成全局哨兵（processor 跳过 legacy fallback ES 查询）",
