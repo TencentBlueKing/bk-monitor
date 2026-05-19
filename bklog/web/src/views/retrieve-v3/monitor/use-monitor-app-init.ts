@@ -154,23 +154,10 @@ export default indexSetApi => {
         return;
       }
 
-      // 如果当前地址参数没有indexSetId，先读取本地 MONITOR_LOG_RECENT_INDEX_SET_ID，有的话设置
-      // 本地如果没有 MONITOR_LOG_RECENT_INDEX_SET_IDS，则默认取第一个有数据的索引集
+      // 如果当前地址参数没有indexSetId，则默认取第一个索引集
       // 同时，更新索引信息到store中
       if (!indexSetIdList.value.length) {
-        const memoryIdStr = localStorage.getItem('MONITOR_LOG_RECENT_INDEX_SET_ID');
-        let defaultId ='';
-        if (memoryIdStr) {
-          const memoryId = JSON.parse(memoryIdStr)[0];
-          const defaultValidItem = resp.find(item => item.index_set_id === memoryId);
-          if (defaultValidItem) {
-            defaultId = memoryId;
-          }
-        }
-        if (!defaultId) {
-          const dataValidItem = resp.find(item => item.tags.every((tag) => tag.tag_id !== 4));
-          defaultId = `${dataValidItem.index_set_id}`;
-        }
+        const defaultId = `${resp[0].index_set_id}`;
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
         store.commit('updateState', {'indexId': defaultId});
         router.replace({

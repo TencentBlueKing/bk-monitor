@@ -39,7 +39,6 @@ import useStore from '@/hooks/use-store';
 import logoImg from '@/images/log-logo.png';
 import platformConfigStore from '@/store/modules/platform-config';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { isFeatureToggleOn } from '@/store/helper';
 import { bkDropdownMenu, bkMessage } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
@@ -420,16 +419,9 @@ export default defineComponent({
 
     // 计算可见菜单（外部版根据 externalMenu 限制）
     const menuList = computed(() => {
-      const list =
-        (navMenu.topMenu as any).value?.filter((menu: any) => {
-          const baseFilter = menu.feature === 'on' && (isExternal.value ? store.state.externalMenu.includes(menu.id) : true);
-          if (!baseFilter) return false;
-          // 客户端日志菜单项需要检查 tgpa_task 功能开关
-          if (menu.id === 'client-log-search') {
-            return isFeatureToggleOn('tgpa_task', [String(bkBizId.value), String(store.state.spaceUid)]);
-          }
-          return true;
-        }) || [];
+      const list =        (navMenu.topMenu as any).value?.filter((menu: any) => {
+        return menu.feature === 'on' && (isExternal.value ? store.state.externalMenu.includes(menu.id) : true);
+      }) || [];
       if (process.env.NODE_ENV === 'development' && (process as any).env.MONITOR_APP === 'apm' && list.length) {
         return [...list, { id: 'monitor-apm-log', name: 'APM Log检索' }];
       }

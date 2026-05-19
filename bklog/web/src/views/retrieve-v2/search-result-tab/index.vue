@@ -1,6 +1,5 @@
 <script setup>
 import $http from '@/api';
-import { getFeatureToggleStatus, isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
@@ -37,15 +36,20 @@ const isAiopsToggle = computed(() => {
     return false;
   }
 
+  // 日志聚类总开关
+  const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
+  const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
   const isLocalToggle = (indexSetItems.value?.some(i => i.scenario_id === 'log' && i.collector_config_id !== null))
     || indexSetItems.value?.some(i => i.scenario_id === 'bkdata');
-  const status = getFeatureToggleStatus('bkdata_aiops_toggle');
 
-  if (status === 'on') {
-    return isLocalToggle;
+  switch (bkdataAiopsToggle) {
+    case 'on':
+      return isLocalToggle;
+    case 'off':
+      return false;
+    default:
+      return aiopsBizList ? aiopsBizList.some(item => item.toString() === bkBizId.value) : isLocalToggle;
   }
-
-  return isFeatureToggleOn('bkdata_aiops_toggle', String(bkBizId.value), { defaultEnabled: isLocalToggle });
 });
 
 const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);

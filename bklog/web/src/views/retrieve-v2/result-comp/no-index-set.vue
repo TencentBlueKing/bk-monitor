@@ -75,7 +75,6 @@
 </template>
 
 <script>
-  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
   import { mapGetters } from 'vuex';
 
   export default {
@@ -94,10 +93,7 @@
         });
       },
       goToCreateCollection() {
-        if (isFeatureToggleOn('scenario_log', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
-        ])) {
+        if (window.FEATURE_TOGGLE.scenario_log === 'on') {
           this.$router.push({
             path: '/manage/log-collection',
             query: {

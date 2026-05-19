@@ -517,7 +517,6 @@
 <script>
   import { projectManages, random, deepEqual } from '@/common/util';
   import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector';
-  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
   import ContainerSvg from '@/images/container-icons/Container.svg';
   import LinuxSvg from '@/images/container-icons/Linux.svg';
   import NodeSvg from '@/images/container-icons/Node.svg';
@@ -560,7 +559,7 @@
       return {
         guideUrl: window.COLLECTOR_GUIDE_URL,
         colorRules: false,
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
+        isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
         showRegDialog: false, // 显示段日志调试弹窗
         linkConfigurationList: [], // 链路配置列表
         formData: {

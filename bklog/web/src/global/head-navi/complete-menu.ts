@@ -33,11 +33,6 @@ export const MENU_LISTS = [
     level: 1,
   },
   {
-    name: i18n.t('客户端日志'),
-    id: 'client-log-search',
-    level: 1,
-  },
-  {
     name: i18n.t('仪表盘'),
     id: 'dashboard',
     level: 1,

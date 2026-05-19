@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/common/util';
 import { builtInInitHiddenList } from '@/const/index.js';
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
@@ -291,9 +290,24 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 未开启白名单时 是否由前端来统计总数 */
   get isFrontStatistics() {
-    const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
-    const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
-    return !(scenarioIdWhiteList?.includes(scenarioID) && isFeatureToggleOn('field_analysis_config', this.bkBizId));
+    let isFront = true;
+    const { field_analysis_config: fieldAnalysisToggle } = (window as any).FEATURE_TOGGLE;
+    switch (fieldAnalysisToggle) {
+      case 'on':
+        isFront = false;
+        break;
+      case 'off':
+        isFront = true;
+        break;
+      default: {
+        const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
+        const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
+        const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
+        isFront = !(scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId)));
+        break;
+      }
+    }
+    return isFront;
   }
 
   get indexSetId() {

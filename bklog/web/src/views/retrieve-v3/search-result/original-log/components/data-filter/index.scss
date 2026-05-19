@@ -22,9 +22,7 @@
       }
 
       .filter-key-input {
-        flex: 1;
-
-        .bk-tag-input {
+        input {
           border-top-left-radius: 0;
           border-bottom-left-radius: 0;
         }

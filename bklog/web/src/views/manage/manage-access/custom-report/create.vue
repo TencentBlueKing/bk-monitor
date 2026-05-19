@@ -412,7 +412,6 @@
 
 <script>
   import clusterTable from '@/components/collection-access/components/cluster-table';
-  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
   import dragMixin from '@/mixins/drag-mixin';
   import storageMixin from '@/mixins/storage-mixin';
   import { mapGetters } from 'vuex';
@@ -430,7 +429,7 @@
     mixins: [storageMixin, dragMixin],
     data() {
       return {
-        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
+        isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
         customRetentionDay: '', // 过期时间天数
         customHotDataDay: 0, // 热数据天数
         retentionDaysList: [], // 过期时间列表

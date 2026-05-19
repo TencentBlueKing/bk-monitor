@@ -35,7 +35,6 @@ import NoticeComponent from '@blueking/notice-component-vue2';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
-import { getFeatureToggleStatus } from './hooks/use-feature-toggle';
 import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
 import { join } from '@/global/utils/path';
@@ -74,16 +73,24 @@ export default defineComponent({
 
     /** 初始化脱敏灰度相关的数据 */
     const initMaskingToggle = () => {
-      const logDesensitize = getFeatureToggleStatus('log_desensitize');
-
-      if (logDesensitize === 'off') {
-        store.commit('updateState', { globalSettingList: [] });
+      const { log_desensitize: logDesensitize } = window.FEATURE_TOGGLE;
+      let toggleList = window.FEATURE_TOGGLE_WHITE_LIST?.log_desensitize || [];
+      switch (logDesensitize) {
+        case 'on':
+          toggleList = [];
+          break;
+        case 'off': {
+          toggleList = [];
+          store.commit('updateState', { globalSettingList: [] });
+          break;
+        }
+        default:
+          break;
       }
-
       store.commit('updateState', {
         maskingToggle: {
           toggleString: logDesensitize,
-          toggleList: [],
+          toggleList,
         },
       });
 

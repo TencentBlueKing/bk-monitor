@@ -164,10 +164,6 @@ class RetrieveHelper extends RetrieveBase {
    * @param id
    */
   setIndexsetId(idList: string[], type: string, fireEvent = true) {
-    // 监控下的关联日志需要再浏览器本地记住最近一次使用的索引集
-    if (window.__IS_MONITOR_COMPONENT__) {
-      localStorage.setItem('MONITOR_LOG_RECENT_INDEX_SET_ID', JSON.stringify(idList))
-    }
     this.indexSetIdList = idList;
     this.indexSetType = type;
     if (fireEvent) {

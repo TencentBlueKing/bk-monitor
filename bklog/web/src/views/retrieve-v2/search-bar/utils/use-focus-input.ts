@@ -106,13 +106,6 @@ export default (
 
   const isInstanceShown = () => popInstanceUtil.isShown();
 
-  const resetInputValueAndWidth = (input = getTargetInput()) => {
-    if (input) {
-      input.value = '';
-      input.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
-    }
-  };
-
   const handleContainerClick = (e?) => {
     const root = getRoot();
     const clickTarget = e?.target as HTMLElement;
@@ -123,7 +116,7 @@ export default (
       const input = root.querySelector('.tag-option-focus-input');
 
       input?.focus();
-      resetInputValueAndWidth(input);
+      input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
 
       if (isInstanceShown()) {
         // 如果已经显示，只需要更新位置，不要销毁再重新弹出
@@ -163,12 +156,14 @@ export default (
   const handleInputBlur = (e?) => {
     const input = getTargetInput();
     if (input !== undefined && (e === undefined || e.target === input)) {
-      resetInputValueAndWidth(input);
+      input.value = '';
+      input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
     }
   };
 
   const setDefaultInputWidth = () => {
-    resetInputValueAndWidth();
+    const input = getTargetInput();
+    input?.style?.setProperty?.('width', `${1 * INPUT_MIN_WIDTH}px`);
   };
 
   const hideTippyInstance = () => {

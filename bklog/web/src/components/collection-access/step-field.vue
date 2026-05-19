@@ -926,7 +926,6 @@
 <script>
   import { projectManages } from '@/common/util';
 import AuthContainerPage from '@/components/common/auth-container-page';
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
 import { mapGetters, mapState } from 'vuex';
 import * as authorityMap from '../../common/authority-map';
@@ -957,6 +956,7 @@ import fieldTable from './field-table';
     },
     data() {
       return {
+        // isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
         refresh: false,
         defaultRegex: '(?P<request_ip>[\d\.]+)[^[]+\[(?P<request_time>[^]]+)\]',
         isLoading: false,
@@ -1201,19 +1201,13 @@ import fieldTable from './field-table';
       },
       advanceDisable() {
         return (
-          !isFeatureToggleOn('scenario_bkdata', [
-            String(this.$store.state.bkBizId),
-            String(this.$store.state.spaceUid),
-          ]) ||
+          window.FEATURE_TOGGLE.scenario_bkdata !== 'on' ||
           this.curCollect.bkdata_data_id === null ||
           (this.isCleanField && !this.cleanCollector)
         );
       },
       advanceDisableTips() {
-        if (!isFeatureToggleOn('scenario_bkdata', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
-        ])) {
+        if (window.FEATURE_TOGGLE.scenario_bkdata !== 'on') {
           return '';
         }
         if (this.curCollect.bkdata_data_id === null) {
@@ -1222,10 +1216,7 @@ import fieldTable from './field-table';
         return '';
       },
       unAuthBkdata() {
-        return !isFeatureToggleOn('scenario_bkdata', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
-        ]);
+        return window.FEATURE_TOGGLE.scenario_bkdata !== 'on';
       },
       isSetDisabled() {
         return this.isSetEdit && this.setDisabled;

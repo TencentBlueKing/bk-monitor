@@ -91,7 +91,7 @@ export default defineComponent({
     const prevBegin = ref(0);
     const nextBegin = ref(0);
     const filterType = ref('include');
-    const activeFilterKey = ref<string[]>([]);
+    const activeFilterKey = ref('');
     const ignoreCase = ref(false);
     const showType = ref('log');
     const highlightList = ref([]);
@@ -172,7 +172,7 @@ export default defineComponent({
         next: 0,
       };
       ignoreCase.value = false;
-      activeFilterKey.value = [];
+      activeFilterKey.value = '';
       showType.value = 'log';
       filterType.value = 'include';
       initLogValues();
@@ -429,7 +429,7 @@ export default defineComponent({
       activeFilterKey.value = value;
       clearTimeout(throttleTimer);
       throttleTimer = setTimeout(() => {
-        if (!value.length) {
+        if (!value) {
           nextTick(() => {
             initLogScrollPosition();
           });

@@ -30,7 +30,6 @@ from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermissi
 from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.base import TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
-from apps.tgpa.handlers.search import TGPASearchHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.models import TGPAReportSyncRecord
 from apps.tgpa.serializers import (
@@ -40,18 +39,13 @@ from apps.tgpa.serializers import (
     GetIndexSetIdSerializer,
     GetReportListSerializer,
     SyncReportSerializer,
-    SyncTaskSerializer,
     GetFileStatusSerializer,
-    GetTaskStatusSerializer,
     RetrieveSyncRecordSerializer,
     GetCountInfoSerializer,
     GetUsernameListSerializer,
     DownloadFileSerializer,
-    GetOpenidListSerializer,
-    GetMergedTaskListSerializer,
-    GetClientInfoSerializer,
 )
-from apps.tgpa.tasks import fetch_and_process_tgpa_reports, sync_and_process_tgpa_tasks
+from apps.tgpa.tasks import fetch_and_process_tgpa_reports
 from bkm_search_module.constants import list_route
 
 
@@ -61,21 +55,7 @@ class TGPAViewSet(APIViewSet):
     @list_route(methods=["GET"], url_path="count")
     def get_count_info(self, request, *args, **kwargs):
         """
-        @api {get} /tgpa/count/?bk_biz_id=$bk_biz_id 01_TGPA-数量统计
-        @apiName tgpa_get_count_info
-        @apiGroup TGPA
-        @apiDescription 获取客户端日志任务数和上报数统计信息
-        @apiParam {Int} bk_biz_id 业务ID
-        @apiSuccessExample {json} 成功返回:
-        {
-            "message": "",
-            "code": 0,
-            "data": {
-                "task": 12,
-                "report": 34
-            },
-            "result": true
-        }
+        获取日志拉取任务列表
         """
         params = self.params_valid(GetCountInfoSerializer)
         return Response(
@@ -84,115 +64,6 @@ class TGPAViewSet(APIViewSet):
                 "report": TGPAReportHandler.get_report_count(params["bk_biz_id"]),
             }
         )
-
-    @list_route(methods=["GET"], url_path="openid_list")
-    def get_openid_list(self, request, *args, **kwargs):
-        """
-        @api {get} /tgpa/openid_list/?bk_biz_id=$bk_biz_id 02_TGPA-openid列表
-        @apiName tgpa_get_openid_list
-        @apiGroup TGPA
-        @apiDescription 根据关键字和时间范围查询 openid 列表，并从 task 与 report 中合并去重
-        @apiParam {Int} bk_biz_id 业务ID
-        @apiParam {String} keyword 搜索关键字
-        @apiParam {Int} start_time 开始时间（毫秒时间戳）
-        @apiParam {Int} end_time 结束时间（毫秒时间戳）
-        @apiSuccessExample {json} 成功返回:
-        {
-            "message": "",
-            "code": 0,
-            "data": [
-                "openid_1",
-                "openid_2"
-            ],
-            "result": true
-        }
-        """
-        params = self.params_valid(GetOpenidListSerializer)
-        return Response(TGPASearchHandler.get_openid_list(params))
-
-    @list_route(methods=["GET"], url_path="task_list")
-    def get_merged_task_list(self, request, *args, **kwargs):
-        """
-        @api {get} /tgpa/task_list/?bk_biz_id=$bk_biz_id 03_TGPA-合并任务列表
-        @apiName tgpa_get_merged_task_list
-        @apiGroup TGPA
-        @apiDescription 查询检索页合并任务列表，返回日志捞取任务与用户上报记录的统一结果
-        @apiParam {Int} bk_biz_id 业务ID
-        @apiParam {Int} [task_id] 后台任务ID（指定时仅查询 task 数据源，不查 report）
-        @apiParam {String} [openid] openid
-        @apiParam {Int} start_time 开始时间（毫秒时间戳）
-        @apiParam {Int} end_time 结束时间（毫秒时间戳）
-        @apiParam {Int} page 页码
-        @apiParam {Int} pagesize 分页大小
-        @apiSuccessExample {json} 成功返回:
-        {
-            "message": "",
-            "code": 0,
-            "data": {
-                "total": 2,
-                "list": [
-                    {
-                        "source": "task",
-                        "id": 1,
-                        "task_id": "T1",
-                        "openid": "openid_1",
-                        "file_name": "file_1.log",
-                        "os_type": "Android",
-                        "os_version": "13",
-                        "sdk_version": "1.0.0",
-                        "model": "Pixel",
-                        "xid": "",
-                        "report_time": "2026-04-24 10:00:00",
-                        "process_status": "done",
-                        "processed_at": "2026-04-24 10:00:00"
-                    },
-                    {
-                        "source": "report",
-                        "id": null,
-                        "task_id": null,
-                        "openid": "openid_2",
-                        "file_name": "report.log",
-                        "os_type": "iOS",
-                        "os_version": "16.0",
-                        "sdk_version": "3.0",
-                        "model": "iPhone14",
-                        "xid": "",
-                        "report_time": "2026-04-24 09:00:00",
-                        "process_status": "pending",
-                        "processed_at": ""
-                    }
-                ]
-            },
-            "result": true
-        }
-        """
-        params = self.params_valid(GetMergedTaskListSerializer)
-        return Response(TGPASearchHandler.get_merged_task_list(params))
-
-    @list_route(methods=["GET"], url_path="client_info")
-    def get_client_info(self, request, *args, **kwargs):
-        """
-        @api {get} /tgpa/client_info/?bk_biz_id=$bk_biz_id&openid=$openid 04_TGPA-客户端信息
-        @apiName tgpa_get_client_info
-        @apiGroup TGPA
-        @apiDescription 根据 openid 获取客户端累计数量与指定时间范围内的数量统计
-        @apiParam {Int} bk_biz_id 业务ID
-        @apiParam {String} openid openid
-        @apiParam {Int} start_time 开始时间（毫秒时间戳）
-        @apiParam {Int} end_time 结束时间（毫秒时间戳）
-        @apiSuccessExample {json} 成功返回:
-        {
-            "message": "",
-            "code": 0,
-            "data": {
-                "total_count": 20,
-                "range_count": 5
-            },
-            "result": true
-        }
-        """
-        params = self.params_valid(GetClientInfoSerializer)
-        return Response(TGPASearchHandler.get_client_info(params))
 
 
 class TGPATaskViewSet(APIViewSet):
@@ -276,27 +147,6 @@ class TGPATaskViewSet(APIViewSet):
         """
         params = self.params_valid(GetUsernameListSerializer)
         return Response(TGPATaskHandler.get_username_list(params["bk_biz_id"]))
-
-    @list_route(methods=["POST"], url_path="status")
-    def get_task_status(self, request, *args, **kwargs):
-        """
-        获取任务处理状态
-        """
-        params = self.params_valid(GetTaskStatusSerializer)
-        return Response(TGPATaskHandler.get_task_status(params["bk_biz_id"], params["task_id_list"]))
-
-    @list_route(methods=["POST"], url_path="sync")
-    def sync_task(self, request, *args, **kwargs):
-        """
-        手动触发同步并处理指定的客户端日志捞取任务
-        """
-        params = self.params_valid(SyncTaskSerializer)
-        bk_biz_id = params["bk_biz_id"]
-        if not FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, bk_biz_id):
-            return Response()
-
-        sync_and_process_tgpa_tasks.delay(bk_biz_id, params["task_id_list"])
-        return Response()
 
 
 class TGPAReportViewSet(APIViewSet):

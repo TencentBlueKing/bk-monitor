@@ -84,17 +84,10 @@ class ClusteringConfigHandler:
 
     @classmethod
     def list_all_configs(cls):
-        configs = []
-        for config in ClusteringConfig.objects.all():
-            data = model_to_dict(config, exclude=CLUSTERING_CONFIG_EXCLUDE)
-            data["placeholder_analysis_supported"] = config.placeholder_analysis_supported
-            configs.append(data)
-        return configs
+        return [model_to_dict(config, exclude=CLUSTERING_CONFIG_EXCLUDE) for config in ClusteringConfig.objects.all()]
 
     def retrieve(self):
-        data = model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
-        data["placeholder_analysis_supported"] = self.data.placeholder_analysis_supported
-        return data
+        return model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
 
     def online_start(self):
         from apps.log_clustering.handlers.pipline_service.aiops_service_online import (

@@ -27,7 +27,6 @@
 import { defineComponent, ref, computed, watch } from 'vue';
 
 import { messageError } from '@/common/bkmagic';
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import ValidateUserSelector from '@/components/user-selector';
@@ -72,7 +71,7 @@ export default defineComponent({
 
     const configDocUrl = ref((window as any).BK_HOT_WARM_CONFIG_URL);
     const archiveDocUrl = ref((window as any).BK_ARCHIVE_DOC_URL); // 日志归档跳转链接
-    const isItsm = ref(isFeatureToggleOn('collect_itsm', [String(store.state.bkBizId), String(store.state.spaceUid)])); // 容量评估全局参数
+    const isItsm = ref((window as any).FEATURE_TOGGLE.collect_itsm === 'on'); // 容量评估全局参数
 
     const confirmLoading = ref(false); // 确认按钮加载状态
     const sliderLoading = ref(false); // 侧边栏加载状态

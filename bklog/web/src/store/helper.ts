@@ -24,9 +24,21 @@
  * IN THE SOFTWARE.
  */
 import { BK_LOG_STORAGE } from "./store.type";
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
-export { isFeatureToggleOn };
+export const isFeatureToggleOn = (key: string, value: string | string[]) => {
+  const featureToggle = window.FEATURE_TOGGLE?.[key];
+  if (featureToggle === 'debug') {
+    const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.[key] ?? []).map(id => `${id}`);
+
+    if (Array.isArray(value)) {
+      return value.some(v => whiteList.includes(v));
+    }
+
+    return whiteList.includes(value);
+  }
+
+  return featureToggle === 'on';
+};
 
 export const SESSION_STORAGE_KEY = 'CommonFilterAddition';
 
