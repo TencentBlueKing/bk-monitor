@@ -47,10 +47,6 @@ def _set_settings(mocker):
     mocker.patch("metadata.task.diagnostics.settings.LINK_HEALTH_AUTOREMEDIATE", True)
     mocker.patch("metadata.task.diagnostics.settings.LINK_HEALTH_EXCLUDE_TABLE_IDS", [])
     mocker.patch("metadata.task.diagnostics.settings.LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD", 5)
-    mocker.patch(
-        "metadata.task.diagnostics.settings.LINK_HEALTH_ALLOWED_STORAGE_TYPES",
-        {"influxdb", "victoria_metrics", "elasticsearch"},
-    )
     mocker.patch("metadata.task.diagnostics.settings.METRICS_KEY_PREFIX", "bkmonitor:metrics_")
     mocker.patch("metadata.task.diagnostics.settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", 7200)
 
@@ -107,8 +103,8 @@ def test_dry_run_does_not_fix(mock_metadata_redis, mock_http, mocker):
     assert client.exists(t_key) == 1
 
 
-def test_routing_storage_type_fix_writes_storage_type_back(mock_metadata_redis, mock_http, mocker):
-    """F5/F7 防回归：detail 缺 storage_type → 修复后 redis 里 storage_type=influxdb，且原其他字段保留。"""
+def test_routing_storage_type_missing_is_not_an_issue(mock_metadata_redis, mock_http, mocker):
+    """storage_type 字段缺失/任意值不再被视为故障——实证 unify-query 不依赖该字段。"""
     _set_settings(mocker)
     client = mock_metadata_redis
 
@@ -117,222 +113,46 @@ def test_routing_storage_type_fix_writes_storage_type_back(mock_metadata_redis, 
         SPACE_TO_RESULT_TABLE_KEY,
     )
 
-    table_id = "2_bkmonitor_time_series_999.__default__"
-    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__999", json.dumps({table_id: {"filters": []}}))
-    original_detail = {
-        "storage_id": 2,
-        "db": "2_bkmonitor_time_series_999",
-        "measurement": "__default__",
-        "vm_rt": "",
-        "fields": ["cpu_load"],
-        "data_label": "zjtest",
-        "bk_data_id": 999,
-    }
-    client.hset(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(original_detail))
+    cases = [
+        ("system.cpu_summary", {"db": "system", "measurement": "cpu_summary", "vm_rt": ""}),
+        ("2_bkmonitor_time_series_999.__default__", {"db": "2_bkmonitor_time_series_999", "vm_rt": ""}),
+        ("2_vm_backed.__default__", {"db": "2_vm_backed", "vm_rt": "vm_some_table"}),
+        ("2_weird.__default__", {"db": "x", "vm_rt": "y", "storage_type": "elasticsearch"}),
+    ]
+    space_payload = {}
+    for tid, extra in cases:
+        space_payload[tid] = {"filters": []}
+        base = {"storage_id": 1, "fields": [], "bk_data_id": 999}
+        base.update(extra)
+        client.hset(RESULT_TABLE_DETAIL_KEY, tid, json.dumps(base))
+    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__999", json.dumps(space_payload))
 
-    # 关键：不 mock push_table_id_detail，确保自愈走的是 _ensure_storage_type（局部 HSET）路径，
-    # 而不是会擦字段的 push。
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    routing_issues = [i for i in summary["issues"] if i["stage"] == "routing"]
+    assert routing_issues == [], f"unexpected routing issues: {routing_issues}"
+
+
+def test_routing_detail_missing_is_autofixed(mock_metadata_redis, mock_http, mocker):
+    """space_to_result_table 引用了某 table_id 但 result_table_detail 里查不到 → 真实路由不完整，自愈重建。"""
+    _set_settings(mocker)
+    client = mock_metadata_redis
+
+    from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_KEY
+
+    table_id = "2_truly_missing.__default__"
+    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__111", json.dumps({table_id: {"filters": []}}))
+    # 关键：不写 result_table_detail，制造路由缺失场景
+
     push_mock = mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
 
     summary = diagnostics.run_health_check(dry_run=False)
 
-    assert any(i["code"] == "detail_no_storage_type" for i in summary["issues"])
-    assert summary["fix_total"] >= 1
-
-    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-    assert raw is not None
-    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    assert written["storage_type"] == "influxdb"
-    # 原字段必须保留
-    assert written["db"] == original_detail["db"]
-    assert written["fields"] == original_detail["fields"]
-    assert written["data_label"] == original_detail["data_label"]
-    # storage_type 修复路径不应该调 push_table_id_detail（会擦字段）
-    push_mock.assert_not_called()
-
-
-def test_routing_storage_type_drift_influxdb_to_vm_is_autofixed(mock_metadata_redis, mock_http, mocker):
-    """storage_type=influxdb 但 vm_rt 非空 → 漂移，自愈纠正为 victoria_metrics。"""
-    _set_settings(mocker)
-    client = mock_metadata_redis
-
-    from metadata.models.space.constants import (
-        RESULT_TABLE_DETAIL_KEY,
-        SPACE_TO_RESULT_TABLE_KEY,
-    )
-
-    table_id = "2_drift_table.__default__"
-    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__333", json.dumps({table_id: {"filters": []}}))
-    client.hset(
-        RESULT_TABLE_DETAIL_KEY,
-        table_id,
-        json.dumps(
-            {
-                "storage_id": 5,
-                "vm_rt": "vm_drift_table",
-                "fields": [],
-                "bk_data_id": 333,
-                "storage_type": "influxdb",
-            }
-        ),
-    )
-    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
-
-    diagnostics.run_health_check(dry_run=False)
-
-    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    assert written["storage_type"] == "victoria_metrics"
-
-
-def test_routing_legitimate_elasticsearch_storage_type_is_not_touched(mock_metadata_redis, mock_http, mocker):
-    """ES storage 的 detail：storage_type=elasticsearch + vm_rt 空，应被视为合法，_ensure_storage_type 不动它。"""
-    _set_settings(mocker)
-    client = mock_metadata_redis
-
-    from metadata.models.space.constants import (
-        RESULT_TABLE_DETAIL_KEY,
-        SPACE_TO_RESULT_TABLE_KEY,
-    )
-
-    table_id = "2_bk_log_search_es.base"
-    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__555", json.dumps({table_id: {"filters": []}}))
-    es_detail = {
-        "storage_id": 9,
-        "db": "",
-        "measurement": "",
-        "vm_rt": "",
-        "fields": [],
-        "data_label": "es_label",
-        "bk_data_id": 555,
-        "storage_type": "elasticsearch",
-    }
-    client.hset(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(es_detail))
-    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
-
-    summary = diagnostics.run_health_check(dry_run=False)
-
-    # 该 RT 不应产生 routing 类 issue（storage_type 合法、vm_rt 一致）
-    routing_issues = [
-        i for i in summary["issues"] if i["stage"] == "routing" and i["detail"].get("table_id") == table_id
-    ]
-    assert routing_issues == []
-
-    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    assert written["storage_type"] == "elasticsearch"  # 必须保持原值
-
-
-def test_routing_es_with_vm_rt_is_flagged_but_not_autofixed(mock_metadata_redis, mock_http, mocker):
-    """ES + vm_rt 同时存在是异常组合，标 inconsistent_es_with_vm，仅告警不自愈。"""
-    _set_settings(mocker)
-    client = mock_metadata_redis
-
-    from metadata.models.space.constants import (
-        RESULT_TABLE_DETAIL_KEY,
-        SPACE_TO_RESULT_TABLE_KEY,
-    )
-
-    table_id = "2_weird_es_vm.base"
-    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__444", json.dumps({table_id: {"filters": []}}))
-    weird_detail = {
-        "storage_id": 9,
-        "vm_rt": "vm_weird",
-        "fields": [],
-        "bk_data_id": 444,
-        "storage_type": "elasticsearch",
-    }
-    client.hset(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(weird_detail))
-    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
-
-    summary = diagnostics.run_health_check(dry_run=False)
-
-    assert any(i["code"] == "detail_inconsistent_es_with_vm" for i in summary["issues"])
-    assert summary["fix_total"] == 0  # 不自愈
-    # 原值保留
-    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    assert written["storage_type"] == "elasticsearch"
-
-
-def test_routing_allowed_storage_types_extensible_via_settings(mock_metadata_redis, mock_http, mocker):
-    """运维通过 settings 扩展白名单后，新字面量被视为合法、不被自愈擦写。"""
-    _set_settings(mocker)
-    # 把上游可能新增的字面量加入白名单
-    mocker.patch(
-        "metadata.task.diagnostics.settings.LINK_HEALTH_ALLOWED_STORAGE_TYPES",
-        {"influxdb", "victoria_metrics", "elasticsearch", "bkdata"},
-    )
-    client = mock_metadata_redis
-
-    from metadata.models.space.constants import (
-        RESULT_TABLE_DETAIL_KEY,
-        SPACE_TO_RESULT_TABLE_KEY,
-    )
-
-    table_id = "2_bkdata_table.__default__"
-    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__222", json.dumps({table_id: {"filters": []}}))
-    client.hset(
-        RESULT_TABLE_DETAIL_KEY,
-        table_id,
-        json.dumps(
-            {
-                "storage_id": 11,
-                "vm_rt": "",
-                "fields": [],
-                "bk_data_id": 222,
-                "storage_type": "bkdata",
-            }
-        ),
-    )
-    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
-
-    summary = diagnostics.run_health_check(dry_run=False)
-
-    routing_issues = [
-        i for i in summary["issues"] if i["stage"] == "routing" and i["detail"].get("table_id") == table_id
-    ]
-    assert routing_issues == []
-
-    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    assert written["storage_type"] == "bkdata"  # 扩展后被保留
-
-
-def test_routing_storage_type_fix_chooses_vm_when_vm_rt_present(mock_metadata_redis, mock_http, mocker):
-    """detail.vm_rt 非空时 storage_type 应推断为 victoria_metrics。"""
-    _set_settings(mocker)
-    client = mock_metadata_redis
-
-    from metadata.models.space.constants import (
-        RESULT_TABLE_DETAIL_KEY,
-        SPACE_TO_RESULT_TABLE_KEY,
-    )
-
-    table_id = "2_vm_table.__default__"
-    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__888", json.dumps({table_id: {"filters": []}}))
-    client.hset(
-        RESULT_TABLE_DETAIL_KEY,
-        table_id,
-        json.dumps(
-            {
-                "storage_id": 7,
-                "db": "",
-                "measurement": "",
-                "vm_rt": "vm_2_table",
-                "fields": [],
-                "data_label": "vm_label",
-                "bk_data_id": 888,
-            }
-        ),
-    )
-    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
-
-    diagnostics.run_health_check(dry_run=False)
-
-    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    assert written["storage_type"] == "victoria_metrics"
+    assert any(i["code"] == "detail_missing" for i in summary["issues"])
+    push_mock.assert_called()
+    _, kwargs = push_mock.call_args
+    assert kwargs.get("table_id_list") == [table_id]
+    assert kwargs.get("is_publish") is True
 
 
 def test_streak_gates_fix(mock_metadata_redis, mock_http, mocker):

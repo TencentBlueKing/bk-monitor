@@ -28,7 +28,6 @@ from alarm_backends.core.lock.service_lock import share_lock
 from metadata import models
 from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.space.constants import (
-    RESULT_TABLE_DETAIL_CHANNEL,
     RESULT_TABLE_DETAIL_KEY,
     SPACE_TO_RESULT_TABLE_KEY,
 )
@@ -53,13 +52,6 @@ BMW_PERIODIC_TASK_NAMES = (
     "periodic:cluster_metrics:push_and_publish_space_router_info",
 )
 BMW_BROKER_QUEUE = "default"
-
-
-def _allowed_storage_types() -> set:
-    """合法 storage_type 字面量集合；按 settings 动态读取以支持运维不发版扩白名单。"""
-    return set(
-        getattr(settings, "LINK_HEALTH_ALLOWED_STORAGE_TYPES", {"influxdb", "victoria_metrics", "elasticsearch"})
-    )
 
 
 class Issue:
@@ -173,45 +165,6 @@ def _should_skip_table_id(table_id: str) -> bool:
     return table_id in set(settings.LINK_HEALTH_EXCLUDE_TABLE_IDS)
 
 
-def _ensure_storage_type(table_id: str) -> bool:
-    """补齐 result_table_detail 中缺失的 storage_type，不改写已合法的值。
-
-    仅在以下情况写入：
-    - 字段缺失或为空；
-    - 当前值不在 LINK_HEALTH_ALLOWED_STORAGE_TYPES 范围内（即非法字面量）；
-    - 当前值是 influxdb / victoria_metrics 但与 vm_rt 实际指向矛盾（漂移）。
-    若当前值 ∈ LINK_HEALTH_ALLOWED_STORAGE_TYPES（含 elasticsearch）且与 vm_rt 不冲突，直接返回 False。
-    """
-    raw = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-    if raw is None:
-        return False
-    try:
-        detail = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    except (ValueError, TypeError):
-        return False
-
-    vm_rt = detail.get("vm_rt", "") or ""
-    current = detail.get("storage_type", "") or ""
-
-    if current in _allowed_storage_types():
-        # 已是合法值，仅在与 vm_rt 显著冲突时纠正：vm_rt 非空但 storage_type 是 influxdb，
-        # 或反之 storage_type=victoria_metrics 但无 vm_rt。其它情况（如 elasticsearch）保留。
-        if vm_rt and current == "influxdb":
-            new_value = "victoria_metrics"
-        elif not vm_rt and current == "victoria_metrics":
-            new_value = "influxdb"
-        else:
-            return False
-    else:
-        # 缺失或非法值，按 vm_rt 推断
-        new_value = "victoria_metrics" if vm_rt else "influxdb"
-
-    detail["storage_type"] = new_value
-    RedisTools.hset_to_redis(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(detail))
-    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
-    return True
-
-
 # ============= Stage C: BMW broker =============
 
 
@@ -301,7 +254,13 @@ def _list_sample_table_ids(limit: int) -> List[str]:
 
 
 def check_routing(report: Report):
-    """巡检 result_table_detail 中字段完整性，重点是 storage_type 缺失。"""
+    """巡检 result_table_detail 是否齐全可解析。
+
+    历史上曾把 ``storage_type`` 字段缺失视为故障，但实测 unify-query 不依赖该字段
+    （traditional / split / vm 三类 measurement 在字段缺失时查询均正常），且 metadata
+    Python 端的 push_table_id_detail 从未写过该字段，全集群普遍缺失是正常状态。
+    本 stage 只检查"路由 detail 完全缺失"和"JSON 损坏"这两类真实故障。
+    """
     sample_size = settings.LINK_HEALTH_SAMPLE_SIZE
     try:
         table_ids = _list_sample_table_ids(sample_size)
@@ -314,7 +273,6 @@ def check_routing(report: Report):
         return
 
     raws = RedisTools.hmget(RESULT_TABLE_DETAIL_KEY, table_ids)
-
     space_redis = SpaceTableIDRedis()
 
     for tid, raw in zip(table_ids, raws):
@@ -324,20 +282,11 @@ def check_routing(report: Report):
         scope = f"routing:{tid}"
 
         if raw is None:
-            # detail_missing 用 push_table_id_detail 重建（首次或被清），随后再 ensure storage_type
+            # space_to_result_table 引用了但 detail hash 里查不到，路由不完整，触发重建
             def _fix_missing(_tid=tid):
                 space_redis.push_table_id_detail(table_id_list=[_tid], is_publish=True)
-                _ensure_storage_type(_tid)
 
-            report.add(
-                Issue(
-                    "routing",
-                    "detail_missing",
-                    scope,
-                    {"table_id": tid},
-                    fix_callable=_fix_missing,
-                )
-            )
+            report.add(Issue("routing", "detail_missing", scope, {"table_id": tid}, _fix_missing))
             continue
 
         detail = _parse_detail(raw)
@@ -345,42 +294,8 @@ def check_routing(report: Report):
             report.add(Issue("routing", "detail_invalid_json", scope, {"table_id": tid}))
             continue
 
-        storage_type = detail.get("storage_type", "") or ""
-        vm_rt = detail.get("vm_rt", "") or ""
-        code: Optional[str] = None
-        detail_payload: Optional[Dict] = None
-        actionable = True
-
-        if not storage_type:
-            code = "detail_no_storage_type"
-            detail_payload = {"table_id": tid, "detail_keys": list(detail.keys()), "vm_rt": vm_rt}
-        elif storage_type not in _allowed_storage_types():
-            code = "detail_unknown_storage_type"
-            detail_payload = {"table_id": tid, "storage_type": storage_type}
-        elif storage_type == "influxdb" and vm_rt:
-            # 两个 ts 类型间的漂移，可自动按 vm_rt 纠正
-            code = "storage_type_mismatch"
-            detail_payload = {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt}
-        elif storage_type == "victoria_metrics" and not vm_rt:
-            code = "storage_type_mismatch"
-            detail_payload = {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt}
-        elif storage_type == "elasticsearch" and vm_rt:
-            # ES 与 vm_rt 同时出现是异常组合，但语义不明，仅告警不自愈
-            code = "detail_inconsistent_es_with_vm"
-            detail_payload = {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt}
-            actionable = False
-
-        if not code:
-            _streak_clear(f"{scope}:detail_no_storage_type")
-            _streak_clear(f"{scope}:detail_unknown_storage_type")
-            _streak_clear(f"{scope}:storage_type_mismatch")
-            _streak_clear(f"{scope}:detail_inconsistent_es_with_vm")
-            continue
-
-        # fix：局部 HSET 补 storage_type，不调 push_table_id_detail 以免擦掉 BMW 已写好的字段。
-        # _ensure_storage_type 自身对 storage_type ∈ ALLOWED 且与 vm_rt 一致时直接 noop。
-        fix_callable = (lambda _tid=tid: _ensure_storage_type(_tid)) if actionable else None
-        report.add(Issue("routing", code, scope, detail_payload, fix_callable))
+        _streak_clear(f"{scope}:detail_missing")
+        _streak_clear(f"{scope}:detail_invalid_json")
 
 
 # ============= Stage A/B: 输入侧 + DB 一致性（与 F3 漂移） =============
@@ -453,8 +368,6 @@ def check_transfer_and_db(report: Report):
             is_updated = ts_group.update_time_series_metrics()
             if is_updated:
                 space_redis.push_table_id_detail(table_id_list=[_table_id], is_publish=True)
-                # push_table_id_detail 不写 storage_type，需要补回，避免擦掉 BMW 写好的字段
-                _ensure_storage_type(_table_id)
 
         report.add(Issue("transfer", "metric_drift", scope, detail, _fix_drift))
 
