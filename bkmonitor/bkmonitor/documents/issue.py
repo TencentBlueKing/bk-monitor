@@ -216,11 +216,14 @@ class IssueDocument(BaseDocument):
         self.resolved_time = int(time.time())
         self.update_time = self.resolved_time
         self._persist_and_cache(active=False)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.RESOLVED, operator, None),
             ]
         )
+        # 级联拆分所有 active members（仿 spec §6.5：写 SQL + ES bulk_reset + cache DEL）
+        self._cascade_split_active_members(operator, kind="by_main_resolve")
+        return activities
 
     def archive(self, operator: str) -> list:
         """归档（实例级）：PENDING_REVIEW → ARCHIVED or UNRESOLVED → ARCHIVED"""
@@ -233,11 +236,14 @@ class IssueDocument(BaseDocument):
         self.status = IssueStatus.ARCHIVED
         self.update_time = int(time.time())
         self._persist_and_cache(active=False)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.ARCHIVED, operator, None),
             ]
         )
+        # 级联拆分所有 active members
+        self._cascade_split_active_members(operator, kind="by_main_archive")
+        return activities
 
     def reopen(self, operator: str) -> list:
         """重新打开：RESOLVED → UNRESOLVED"""
@@ -582,6 +588,67 @@ class IssueDocument(BaseDocument):
                 member_ids,
                 exc_info=True,
             )
+
+    def _cascade_split_active_members(self, operator: str, kind: str) -> None:
+        """主 Issue resolve / archive 时级联拆分所有 active members。
+
+        流程（与单 split 对称）：
+        1. SQL 一次 UPDATE 把所有 active members 的关系改 status='split'
+        2. cache DEL（active members 列表缓存）
+        3. ES bulk_reset_for_split：重置 member status + assignee + 写 SPLIT_FROM 活动
+
+        Args:
+            operator: 触发主操作的用户（resolve/archive 操作人）；级联拆分以该用户为 split_operator。
+            kind: 拆分类型，``by_main_resolve`` 或 ``by_main_archive``，写入 split_kind 与活动 content。
+
+        失败处理：任一环节失败仅 warning + log，不抛；bkm-cli ``list_conflicts`` +
+        ``repair_issue_merge_state`` 运维兜底。
+        """
+        # lazy import 避免与 bkmonitor.models.issue 的循环依赖
+        from bkmonitor.models.issue import IssueMergeRelation
+
+        qs = IssueMergeRelation.objects.filter(main_issue_id=self.id, status=IssueMergeRelation.STATUS_ACTIVE)
+        member_ids = list(qs.values_list("member_issue_id", flat=True))
+        if not member_ids:
+            return
+
+        reason = str(_("由主 Issue {kind} 触发").format(kind=kind))
+        try:
+            qs.update(
+                status=IssueMergeRelation.STATUS_SPLIT,
+                split_kind=kind,
+                split_reasons=[reason],
+                update_user=operator,
+            )
+        except Exception:
+            logger.error(
+                "[issue-merge] cascade SQL update failed (main_issue_id=%s, kind=%s)",
+                self.id,
+                kind,
+                exc_info=True,
+            )
+            return  # SQL 失败时不继续 ES 重置，避免状态不一致扩大
+
+        # cache DEL（fail-open）
+        try:
+            from alarm_backends.core.cache.key import ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
+
+            cache_key = ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.get_key(bk_biz_id=str(self.bk_biz_id))
+            ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.client.delete(cache_key)
+        except Exception:
+            logger.warning(
+                "[issue-merge] cascade active_members cache DEL failed (fail-open, main_issue_id=%s)",
+                self.id,
+                exc_info=True,
+            )
+
+        # ES bulk_reset_for_split（含 retry，失败仅 warning）
+        type(self).bulk_reset_for_split(
+            member_ids,
+            operator=operator,
+            kind=kind,
+            main_issue_id=self.id,
+        )
 
     def _get_pre_archive_status(self) -> str:
         """
