@@ -1351,4 +1351,8 @@ export default {
   'Grok 模式': 'Grok pattern',
   '当检测到 %{PATTERN} 就按 Grok 处理，否则按传统正则':
     'When %{PATTERN} is detected, process it with Grok; otherwise, process it with traditional regular expressions',
+  未匹配到索引集: 'No index set matched',
+  '根据过滤条件未匹配到索引集，请修改过滤条件': 'No index set matched the filter criteria. Please modify the filter criteria',
+  '若仍无结果返回，可点击联系': 'If there are still no results, you can click to contact',
+  BK助手: 'BK Assistant',
 };

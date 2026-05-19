@@ -488,6 +488,9 @@ export default () => {
                       exception_msg: 'index-set-field-not-found',
                     });
                     RetrieveHelper.setSearchingValue(false);
+                    if (isSceneMode.value) {
+                      RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
+                    }
                   }
                 } else {
                   RetrieveHelper.setSearchingValue(false);
