@@ -1185,3 +1185,55 @@ class ListMergeSourcesResource(Resource):
             else:
                 result["active_members"].append(item)
         return result
+
+
+class AlertIssueEnrichResource(Resource):
+    """alert.issue_id → 主 Issue 展示信息批量 enrich（模块解耦）。
+
+    前端在 alert 列表/详情拿到 alert 后调一次此接口拼装"所属 Issue"列：
+    - member id 自动 resolve 为主 id（合并视图）
+    - 返回主 Issue name；查不到则展示 ``"{issue_id} (已删除)"``
+
+    模块边界：alert 模块不依赖 issue 内部模型；按需调用，alert search 不增加延迟。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_ids = serializers.ListField(
+            label="alert.issue_id 列表", child=serializers.CharField(), min_length=1, max_length=500
+        )
+
+    def perform_request(self, validated_request_data):
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))  # 去重保序
+
+        ctx = MergeResolverContext(bk_biz_id)
+        ctx.load()
+        display_map = {iid: IssueMergeResolver.resolve_display_id(iid, ctx) for iid in issue_ids}
+
+        # 批量查主 Issue name（去重后查 ES）
+        main_ids = list(set(display_map.values()))
+        name_map: dict[str, str] = {}
+        if main_ids:
+            try:
+                hits = (
+                    IssueDocument.search(all_indices=True)
+                    .filter("terms", _id=main_ids)
+                    .source(["name"])
+                    .params(size=len(main_ids))
+                    .execute()
+                    .hits
+                )
+                name_map = {hit.meta.id: getattr(hit, "name", None) for hit in hits}
+            except Exception as e:
+                logger.warning("[issue-merge] alert enrich name lookup failed: %s", e)
+
+        return {
+            iid: {
+                "display_issue_id": display_map[iid],
+                "display_issue_name": name_map.get(display_map[iid]) or f"{display_map[iid]} (已删除)",
+            }
+            for iid in issue_ids
+        }

@@ -28,6 +28,7 @@ class IssueViewSet(ResourceViewSet):
         "issue/export",
         "issue/recent_assignees",
         "issue/merge_sources",
+        "issue/alert_enrich",
     ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
@@ -122,4 +123,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.split_issue, endpoint="issue/split"),
         # 列主 Issue 的合并来源（active + split 历史）
         ResourceRoute("GET", resource.issue.list_merge_sources, endpoint="issue/merge_sources"),
+        # alert.issue_id → 主 Issue 展示信息 enrich（前端按需调用，模块解耦）
+        ResourceRoute("POST", resource.issue.alert_issue_enrich, endpoint="issue/alert_enrich"),
     ]
