@@ -543,14 +543,20 @@ def check_unify_query(report: Report):
 
 
 def check_influxdb(report: Report):
-    url = settings.LINK_HEALTH_INFLUXDB_PING_URL
+    """探测 InfluxDB（含 Proxy 透传）端到端可达。
+
+    InfluxDB Proxy 不暴露 /ping /health 等 healthcheck，但透传 InfluxDB /query API；
+    默认 URL 用 ``/query?q=SHOW+DATABASES`` 覆盖 Proxy → InfluxDB 整条链路。
+    InfluxDB 直连 :8086/ping 返回 204，Proxy /query 返回 200，两者都视为可达。
+    """
+    url = settings.LINK_HEALTH_INFLUXDB_PROBE_URL
     try:
         resp = requests.get(url, timeout=5)
     except Exception as exc:
-        report.add(Issue("influxdb", "ping_failed", "endpoint", {"url": url, "error": str(exc)}))
+        report.add(Issue("influxdb", "probe_failed", "endpoint", {"url": url, "error": str(exc)}))
         return
     if resp.status_code not in (200, 204):
-        report.add(Issue("influxdb", "ping_bad_status", "endpoint", {"url": url, "status_code": resp.status_code}))
+        report.add(Issue("influxdb", "probe_bad_status", "endpoint", {"url": url, "status_code": resp.status_code}))
 
 
 # ============= 安全阀 + 调度入口 =============

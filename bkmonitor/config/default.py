@@ -1335,13 +1335,17 @@ LINK_HEALTH_FIX_AFTER_STREAK = int(os.environ.get("LINK_HEALTH_FIX_AFTER_STREAK"
 LINK_HEALTH_SAMPLE_SIZE = int(os.environ.get("LINK_HEALTH_SAMPLE_SIZE", 50))
 # BMW lease 视为过期的最小秒数
 LINK_HEALTH_BMW_LEASE_GRACE_SECONDS = int(os.environ.get("LINK_HEALTH_BMW_LEASE_GRACE_SECONDS", 600))
-# unify-query metrics 端点
+# unify-query metrics 端点（实测：service 名为 bk-monitor-unify-query-http）
 LINK_HEALTH_UNIFY_QUERY_METRICS_URL = os.environ.get(
-    "LINK_HEALTH_UNIFY_QUERY_METRICS_URL", "http://bk-monitor-unify-query:10205/metrics"
+    "LINK_HEALTH_UNIFY_QUERY_METRICS_URL", "http://bk-monitor-unify-query-http:10205/metrics"
 )
-# InfluxDB ping 端点
-LINK_HEALTH_INFLUXDB_PING_URL = os.environ.get(
-    "LINK_HEALTH_INFLUXDB_PING_URL", "http://bk-monitor-influxdb-proxy-http:10203/ping"
+# InfluxDB 可达性探针端点
+# InfluxDB Proxy 不暴露 /ping /health 等 healthcheck path（所有非业务路径返回 404），
+# 但透传 InfluxDB /query API；用最轻量的 SHOW DATABASES 做端到端探针，
+# 覆盖 Proxy → InfluxDB 整条链路
+LINK_HEALTH_INFLUXDB_PROBE_URL = os.environ.get(
+    "LINK_HEALTH_INFLUXDB_PROBE_URL",
+    "http://bk-monitor-influxdb-proxy-http:10203/query?q=SHOW+DATABASES",
 )
 # 排除清单（逗号分隔的 table_id），永不自愈
 LINK_HEALTH_EXCLUDE_TABLE_IDS = [
