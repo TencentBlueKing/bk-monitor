@@ -34,6 +34,7 @@ from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
     AlertStatusEnum,
+    DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ExportFileType,
     FavoriteListOrderType,
     FavoriteSourceType,
@@ -1328,8 +1329,8 @@ class RemoveChildIndexSetsSerializer(serializers.Serializer):
     )
 
 
-class SceneFieldsConfigGetSerializer(serializers.Serializer):
-    """场景化检索 - 用户字段展示配置 GET / DELETE 入参"""
+class SceneFieldsConfigBaseSerializer(serializers.Serializer):
+    """场景化检索 - 字段配置基础入参（业务+场景+范围 三元组）"""
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     scene_id = serializers.CharField(label=_("场景ID"), required=True, max_length=64)
@@ -1341,9 +1342,44 @@ class SceneFieldsConfigGetSerializer(serializers.Serializer):
     )
 
 
-class SceneFieldsConfigUpsertSerializer(SceneFieldsConfigGetSerializer):
-    """场景化检索 - 用户字段展示配置 POST 入参"""
+class SceneFieldsConfigGetSerializer(SceneFieldsConfigBaseSerializer):
+    """场景化检索 - 当前用户字段展示配置 GET / DELETE 入参"""
 
+    pass
+
+
+class SceneFieldsConfigUpsertSerializer(SceneFieldsConfigBaseSerializer):
+    """场景化检索 - 当前用户字段展示配置 POST 入参（写入用户当前指针指向的模板）"""
+
+    display_fields = serializers.ListField(
+        label=_("显示字段"), child=serializers.CharField(), allow_empty=True, required=True
+    )
+    sort_list = serializers.ListField(
+        label=_("排序规则"),
+        required=False,
+        default=list,
+        allow_empty=True,
+        child=serializers.ListField(child=serializers.CharField()),
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_scene_sort_list(attrs.get("sort_list") or [])
+        return attrs
+
+
+def _validate_scene_sort_list(sort_list: list):
+    for item in sort_list or []:
+        if len(item) != 2:
+            raise ValidationError(_("sort_list参数格式有误"))
+        if item[1].lower() not in ["desc", "asc"]:
+            raise ValidationError(_("排序规则只支持升序asc或降序desc"))
+
+
+class CreateSceneFieldsConfigSerializer(SceneFieldsConfigBaseSerializer):
+    """场景化检索 - 创建字段模板"""
+
+    name = serializers.CharField(label=_("配置名称"), required=True, max_length=255)
     display_fields = serializers.ListField(
         label=_("显示字段"), child=serializers.CharField(), allow_empty=False, required=True
     )
@@ -1354,3 +1390,34 @@ class SceneFieldsConfigUpsertSerializer(SceneFieldsConfigGetSerializer):
         allow_empty=True,
         child=serializers.ListField(child=serializers.CharField()),
     )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_scene_sort_list(attrs.get("sort_list") or [])
+        if attrs.get("name") == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME:
+            raise ValidationError(_("配置名称不能使用保留名「默认」"))
+        return attrs
+
+
+class UpdateSceneFieldsConfigSerializer(CreateSceneFieldsConfigSerializer):
+    """场景化检索 - 更新字段模板"""
+
+    config_id = serializers.IntegerField(label=_("配置ID"), required=True)
+
+
+class SceneFieldsConfigListSerializer(SceneFieldsConfigBaseSerializer):
+    """场景化检索 - 字段模板列表入参"""
+
+    pass
+
+
+class SceneFieldsConfigApplySerializer(serializers.Serializer):
+    """场景化检索 - 应用字段模板入参（切换当前用户指针）"""
+
+    config_id = serializers.IntegerField(label=_("配置ID"), required=True)
+
+
+class SceneFieldsConfigDeleteSerializer(serializers.Serializer):
+    """场景化检索 - 删除字段模板入参"""
+
+    config_id = serializers.IntegerField(label=_("配置ID"), required=True)
