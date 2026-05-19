@@ -464,9 +464,12 @@ export default {
   '类型、返回码、备注范围的组合值须唯一': 'The combination of type, return code, and remark range must be unique',
   返回码不能为空: 'Return code cannot be empty',
   备注范围: 'Remark range',
-  '被调 Service、被调接口的组合值须唯一': 'The combination of called Service and called interface must be unique',
+  '被调 Service、被调接口、是否全局的组合值须唯一':
+    'The combination of the invoked Service, the invoked Interface, and the "Is Global" flag must be unique',
   备注不能为空: 'Remark cannot be empty',
   可配置全局返回码规则: 'Can configure global return code rules',
   点击: 'Click',
   '是否确认删除？': 'Are you sure you want to delete?',
+  '「被调」类型无需填写「被调服务」':
+    'For the "Callee" type, the "Callee Service" field does not need to be filled in.',
 };

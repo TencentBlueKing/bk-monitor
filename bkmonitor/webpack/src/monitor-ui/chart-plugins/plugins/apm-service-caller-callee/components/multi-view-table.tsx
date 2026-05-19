@@ -864,7 +864,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             // filter-method={this.fieldFilterMethod}
             // filters={this.tableFilterData[item.value]}
             label={item.text}
-            min-width={120}
+            min-width={item.value === 'code' ? 250 : 120}
             prop={item.value}
           />
         );

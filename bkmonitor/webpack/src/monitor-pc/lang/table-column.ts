@@ -181,7 +181,7 @@ export default {
   消费场景: 'Consumption Scenario',
 
   被调服务: 'Called server',
-  被调service: 'Called service',
+  '被调 Service': 'Called Service',
   被调接口: 'Called interface',
   返回码: 'Return code',
 

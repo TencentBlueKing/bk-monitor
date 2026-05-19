@@ -91,6 +91,10 @@
       .rule-row {
         height: 154px;
         background-color: #fff;
+
+        .cell {
+          overflow: visible !important;
+        }
       }
 
       .rule-row-global {
@@ -101,6 +105,7 @@
       .interface-column {
         display: flex;
         align-items: center;
+        overflow: visible;
 
         .bk-select {
           flex: 1;
