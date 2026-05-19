@@ -112,7 +112,15 @@ router.beforeEach(async (to, from, next) => {
   }
   if (
     !window.__BK_WEWEB_DATA__?.token &&
-    !['no-business', 'event-center', 'event-center-detail', 'event-center-action-detail', 'share'].includes(to.name) &&
+    ![
+      'no-business',
+      'event-center',
+      'event-center-detail',
+      'event-center-action-detail',
+      'alarm-center',
+      'alarm-center-detail',
+      'share',
+    ].includes(to.name) &&
     !store.getters.bizList?.length
   ) {
     return next({ name: 'no-business' });
@@ -164,6 +172,8 @@ router.beforeEach(async (to, from, next) => {
       'event-center',
       'event-center-detail',
       'event-center-action-detail',
+      'alarm-center',
+      'alarm-center-detail',
       'share',
     ].includes(to.name)
   ) {
@@ -213,8 +223,12 @@ router.afterEach(to => {
     // 仪表盘 显示原始标题
     title = '';
     subtitle = window.i18n.t(to.params.title || to.meta.title) as string;
-  } else if (to.path.includes('/event-center') || to.name === 'incident-detail') {
-    // 事件中心 故障详情 显示告警事件 告警
+  } else if (
+    to.path.includes('/event-center') ||
+    to.path.includes('/trace/alarm-center') ||
+    to.name === 'incident-detail'
+  ) {
+    // 事件中心 / 告警中心 / 故障详情 显示告警事件 告警
     title = window.i18n.t('route-告警事件') as string;
     subtitle = window.i18n.t('告警') as string;
   } else {

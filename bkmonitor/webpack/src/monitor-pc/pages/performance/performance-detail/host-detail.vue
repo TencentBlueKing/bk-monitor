@@ -179,6 +179,7 @@
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import { copyText } from 'monitor-common/utils/utils.js';
 
 import PerformanceModule, { type ICurNode } from '../../../store/modules/performance';
@@ -370,17 +371,16 @@ export default class HostDetail extends Vue<MonitorVue> {
   // 跳转事件中心
   handleToEventCenter() {
     if (this.alarmInfo.alarm_count > 0) {
-      this.$router.push({
-        name: 'event-center',
-        query: {
+      this.$router.push(
+        getAlarmCenterRouteLocation({
           from: 'now-7d',
           to: 'now',
           queryString: ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale)
             ? `目标IP : ${this.data.ip}`
             : `ip : ${this.data.ip}`,
           activeFilterId: 'NOT_SHIELDED_ABNORMAL',
-        },
-      });
+        })
+      );
     }
   }
   // 跳转策略

@@ -12,7 +12,7 @@ from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
 from metadata.models.result_table import LogV4DataLinkOption
-from metadata.models.storage import DorisStorage, ESStorage
+from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +130,28 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             datalink.save(update_fields=update_fields)
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
+    # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
+    # 当 ES / Doris 两种存储同时存在时，按 ResultTable.default_storage 选择记录的存储类型；
+    # 否则回退到任一存在的 storage（兼容只配置单一存储的链路）。
+    # storage_cluster_id 直接传入 sync_metadata，由其反查 ClusterInfo 得到 storage_type。
+    sync_storage_cluster_id: int | None = None
+    if rt.default_storage == ClusterInfo.TYPE_DORIS and doris_storage is not None:
+        sync_storage_cluster_id = doris_storage.storage_cluster_id
+    elif rt.default_storage == ClusterInfo.TYPE_ES and es_storage is not None:
+        sync_storage_cluster_id = es_storage.storage_cluster_id
+    elif es_storage is not None:
+        sync_storage_cluster_id = es_storage.storage_cluster_id
+    elif doris_storage is not None:
+        sync_storage_cluster_id = doris_storage.storage_cluster_id
+    if sync_storage_cluster_id is not None:
+        datalink.sync_metadata(table_id=table_id, storage_cluster_id=sync_storage_cluster_id)
+    else:
+        logger.warning(
+            "apply_log_v4_datalink: tenant(%s) %s no storage cluster found, skip sync_metadata",
+            bk_tenant_id,
+            table_id,
+        )
+
     # 清理多余的存储链路
     es_binding_config = ESStorageBindingConfig.objects.filter(
         bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name
@@ -236,6 +258,18 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
 
     # 创建/更新链路配置
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
+
+    # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
+    # 事件组 V4 链路使用 ES 存储，按 table_id 关联到 ESStorage 拿到 storage_cluster_id。
+    es_storage = ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+    if es_storage is not None:
+        datalink.sync_metadata(table_id=table_id, storage_cluster_id=es_storage.storage_cluster_id)
+    else:
+        logger.warning(
+            "apply_event_group_datalink: tenant(%s) %s no ESStorage found, skip sync_metadata",
+            bk_tenant_id,
+            table_id,
+        )
 
     # 清理transfer链路配置
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:

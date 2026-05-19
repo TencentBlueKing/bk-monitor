@@ -28,6 +28,7 @@ import { type MaybeRef, inject } from 'vue';
 // import { handleAddStrategy } from '@/plugins/utls/menu';
 
 import { get } from '@vueuse/core';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 
 import { handleAddStrategy, handleExplore, handleRelateAlert, handleStoreImage } from './menu';
 import { DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
@@ -62,14 +63,11 @@ export const useChartTitleEvent = (
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
       case 2:
-        window.open(
-          location.href.replace(
-            location.hash,
-            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${
-              get(timeRange)[0]
-            }&to=${get(timeRange)[1]}`
-          )
-        );
+        openAlarmCenter({
+          queryString: metricIds.map(item => `metric : "${item}"`).join(' AND '),
+          from: get(timeRange)[0],
+          to: get(timeRange)[1],
+        });
         break;
     }
   }

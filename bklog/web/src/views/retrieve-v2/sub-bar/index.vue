@@ -40,7 +40,6 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import ShareLink from './share-link.tsx';
-import RetrieveTypeSwitch, { RetrieveType } from './retrieve-type-switch.tsx';
 
 const props = defineProps({
   showFavorites: {
@@ -52,8 +51,6 @@ const route = useRoute();
 const router = useRouter();
 const store = useStore();
 
-const isSceneMode = computed(() => store.getters.isSceneMode);
-const retrieveType = computed(() => isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal);
 const fieldSettingRef = ref(null);
 const timeSettingRef = ref(null);
 const isShowClusterSetting = ref(false);
@@ -164,8 +161,10 @@ const handleIndexSetSelected = async (payload) => {
   if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
     /** 索引集默认条件 */
     let indexSetDefaultCondition = {};
-    /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件 */
-    if (payload.items.length === 1 && !indexSetParams.value.addition.length && !indexSetParams.value.keyword) {
+    /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件
+     *  如果是监控组件，切换采集项的时候也取对应索引集默认条件
+     */
+    if (payload.items.length === 1 && ((!indexSetParams.value.addition.length && !indexSetParams.value.keyword) || isMonitorComponent)) {
       if (payload.items[0]?.query_string) {
         indexSetDefaultCondition = {
           keyword: payload.items[0].query_string,
@@ -356,15 +355,11 @@ function handleIndexConfigSliderOpen() {
 </script>
 <template>
   <div class="subbar-container">
-    <RetrieveTypeSwitch
-      :style="{ margin: `0 ${retrieveType === RetrieveType.Normal ? 8 : 0}px 0 8px` }"
-    />
     <div
       :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
       class="box-biz-select"
     >
       <IndexSetChoice
-        v-if="retrieveType === RetrieveType.Normal"
         width="100%"
         :active-tab="indexSetTab"
         :active-type="indexSetType"
@@ -382,6 +377,7 @@ function handleIndexConfigSliderOpen() {
         @change="handleHistoryChange"
       />
     </div>
+
     <div
       v-if="!isMonitorComponent"
       class="box-right-option"

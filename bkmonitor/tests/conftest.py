@@ -21,15 +21,19 @@ def pytest_configure():
     config_dict = {key: getattr(monitor_settings, key) for key in dir(monitor_settings) if key.upper() == key}
 
     # fix database collation
-    config_dict["DATABASES"]["default"]["TEST"] = {
-        "CHARSET": "utf8",
-        "COLLATION": "utf8_general_ci",
-    }
+    config_dict["DATABASES"]["default"].setdefault("TEST", {}).update(
+        {
+            "CHARSET": "utf8",
+            "COLLATION": "utf8_general_ci",
+        }
+    )
 
-    config_dict["DATABASES"]["monitor_api"]["TEST"] = {
-        "CHARSET": "utf8",
-        "COLLATION": "utf8_general_ci",
-    }
+    config_dict["DATABASES"]["monitor_api"].setdefault("TEST", {}).update(
+        {
+            "CHARSET": "utf8",
+            "COLLATION": "utf8_general_ci",
+        }
+    )
 
     if settings._wrapped is empty:
         settings.configure(**config_dict)

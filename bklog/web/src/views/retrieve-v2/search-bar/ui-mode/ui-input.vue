@@ -63,7 +63,7 @@ const setMorePopoverRef = (el, index) => {
 };
 const inputValueLength = ref(0);
 
-const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+// const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
 
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
@@ -187,6 +187,7 @@ const {
   delayShowInstance,
   repositionTippyInstance,
   hideTippyInstance,
+  handleInputBlur,
   getTippyUtil,
 } = useFocusInput(props, {
   refContent: refPopInstance,
@@ -212,6 +213,7 @@ const {
       clearTimeout(delayBlurTimer);
       delayBlurTimer = null;
     }
+    inputValueLength.value = 0;
     queryItem.value = '';
     activeIndex.value = null;
   },
@@ -230,7 +232,7 @@ const {
 });
 
 const debounceShowInstance = () => {
-  const target = refSearchInput.value?.closest(".search-item");
+  const target = refSearchInput.value?.closest('.search-item');
   if (target) {
     delayShowInstance(target);
   }
@@ -371,7 +373,7 @@ const isComposing = ref(false);
 const handleGlobalSaveQueryClick = (payload) => {
   isGlobalKeyEnter.value = true;
   handleSaveQueryClick(payload);
-  refSearchInput.value.style.setProperty('width', '12px');
+  handleInputBlur();
 };
 
 /**
@@ -388,7 +390,7 @@ const handleInputValueEnter = (e) => {
   if (!isGlobalKeyEnter.value) {
     handleSaveQueryClick(undefined);
     repositionTippyInstance();
-    e.target.style.setProperty('width', '12px');
+    handleInputBlur(e);
   }
 
   isGlobalKeyEnter.value = false;
@@ -409,20 +411,30 @@ const handleCancelClick = () => {
   closeTippyInstance();
 };
 
+const syncFullTextInputStateAfterBlur = () => {
+  setIsInputTextFocus(false);
+  inputValueLength.value = 0;
+  queryItem.value = '';
+};
+
 let delayBlurTimer = null;
 
 const handleFullTextInputBlur = (e) => {
+  // DOM value/width 的清理由 useFocusInput 统一处理，避免组件内重复维护 input 细节。
+  handleInputBlur(e);
+
   delayBlurTimer && clearTimeout(delayBlurTimer);
   delayBlurTimer = setTimeout(() => {
-    setIsInputTextFocus(false);
-    inputValueLength.value = 0;
-    e.target.style.setProperty('width', '12px');
-    e.target.value = '';
-    queryItem.value = '';
+    const input = refSearchInput.value;
+    if (!input) return;
+
+    // 若 input 已重新获得焦点，只保留 useFocusInput 已完成的 DOM 清理，不重置 focus 状态。
+    if (document.activeElement === input) return;
+
+    syncFullTextInputStateAfterBlur();
+    delayBlurTimer = null;
   }, 300);
 };
-
-
 
 const handleInputValueChange = (e) => {
   const currentLength = e.target.value.length;
@@ -524,7 +536,8 @@ const handleBatchInputChange = (isShow) => {
 const formatDateTimeField = (value, fieldType) => {
   const timezone = store.state.indexItem.timezone;
   return RetrieveHelper.formatTimeZoneValue(value, fieldType, timezone);
-}
+};
+
 </script>
 
 <template>

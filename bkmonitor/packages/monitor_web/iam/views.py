@@ -59,7 +59,6 @@ class ExternalViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.iam.get_authorizer_by_biz, endpoint="get_authorizer_by_biz"),
         ResourceRoute("GET", resource.iam.get_authorizer_list, endpoint="get_authorizer_list"),
         ResourceRoute("GET", resource.iam.get_apply_record_list, endpoint="get_apply_record_list"),
-        ResourceRoute("GET", resource.iam.callback, endpoint="callback"),
     ]
 
 

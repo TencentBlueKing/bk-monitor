@@ -373,7 +373,7 @@ class RecoverStatusChecker(BaseChecker):
                 alert.update_extra_info("is_recovering", True)
                 alert.add_log(
                     AlertLog.OpType.RECOVERING,
-                    description=_("最近一个检测周期内不满足触发条件，当前告警处于恢复期内，告警异常时的处理将被抑制"),
+                    description=_("最近一个检测周期内不满足触发条件，当前告警处于恢复期内，告警处理将被抑制"),
                 )
 
             # 未满足条件，则移动窗口，继续判断

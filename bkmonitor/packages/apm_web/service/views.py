@@ -24,7 +24,6 @@ from apm_web.service.resources import (
     ListPipelineResource,
     ListCodeRedefinedRuleResource,
     SetCodeRedefinedRuleResource,
-    DeleteCodeRedefinedRuleResource,
     GetCodeRemarksResource,
     SetCodeRemarkResource,
 )
@@ -72,7 +71,6 @@ class ServiceViewSet(ResourceViewSet):
         # 返回码重定义：查询/设置/删除
         ResourceRoute("POST", ListCodeRedefinedRuleResource, "list_code_redefined_rule"),
         ResourceRoute("POST", SetCodeRedefinedRuleResource, "set_code_redefined_rule"),
-        ResourceRoute("POST", DeleteCodeRedefinedRuleResource, "delete_code_redefined_rule"),
         # 返回码备注：获取/设置
         ResourceRoute("POST", GetCodeRemarksResource, "get_code_remarks"),
         ResourceRoute("POST", SetCodeRemarkResource, "set_code_remark"),

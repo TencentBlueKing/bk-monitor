@@ -164,6 +164,10 @@ class RetrieveHelper extends RetrieveBase {
    * @param id
    */
   setIndexsetId(idList: string[], type: string, fireEvent = true) {
+    // 监控下的关联日志需要再浏览器本地记住最近一次使用的索引集
+    if (window.__IS_MONITOR_COMPONENT__) {
+      localStorage.setItem('MONITOR_LOG_RECENT_INDEX_SET_ID', JSON.stringify(idList))
+    }
     this.indexSetIdList = idList;
     this.indexSetType = type;
     if (fireEvent) {
@@ -353,16 +357,6 @@ class RetrieveHelper extends RetrieveBase {
   setSearchBarHeight(height: number) {
     this.searchBarHeight = height;
     this.runEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height);
-  }
-
-  /**
-   * 设置场景筛选面板高度
-   * 场景模式下用于计算吸顶状态
-   * @param height
-   */
-  setSceneFilterPanelHeight(height: number) {
-    this.sceneFilterPanelHeight = height;
-    this.runEvent(RetrieveEvent.SCENE_FILTER_PANEL_HEIGHT_CHANGE, height);
   }
 
   setStorage(key: string, value: any) {

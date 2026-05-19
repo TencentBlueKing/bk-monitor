@@ -29,13 +29,21 @@ import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { useAppStore } from '../store/modules/app';
 
 export function useDocumentLink() {
+  const store = useAppStore();
   /** 链接跳转 */
   function handleGotoLink(id: string): void {
-    const extraLinkMap = useAppStore().extraDocLinkMap;
+    const extraLinkMap = store.extraDocLinkMap;
     skipToDocsLink(id, extraLinkMap);
   }
 
+  /** 是否有额外文档链接 */
+  const hasExtraDocLink = (id: string): boolean => {
+    const extraLinkMap = store.extraDocLinkMap;
+    return !!extraLinkMap[id];
+  };
+
   return {
     handleGotoLink,
+    hasExtraDocLink,
   };
 }

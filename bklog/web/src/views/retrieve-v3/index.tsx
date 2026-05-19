@@ -31,7 +31,6 @@ import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '../../store/store.type';
 import V3Container from './container';
 import V3Collection from './favorite';
-import SceneFilter from './search-bar/scene-filter';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
@@ -59,7 +58,6 @@ export default defineComponent({
     } = useAppInit();
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-    const isSceneMode = computed(() => store.getters.isSceneMode);
 
     /**
      * AI 助手关闭
@@ -84,25 +82,17 @@ export default defineComponent({
      * 渲染结果内容
      * @returns
      */
-    const renderSearchBar = () => {
-      const stickyClass = {
-        'is-sticky-top': isSearchContextStickyTop.value,
-        'is-sticky-top-result': isSearchResultStickyTop.value,
-      };
-
-      if (isSceneMode.value) {
-        return <SceneFilter isSticky={isSearchContextStickyTop.value} />;
-      }
-
-      return <V3Searchbar class={stickyClass} />;
-    };
-
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
           <V3Toolbar></V3Toolbar>,
           <V3Container>
-            {renderSearchBar()}
+            <V3Searchbar
+              class={{
+                'is-sticky-top': isSearchContextStickyTop.value,
+                'is-sticky-top-result': isSearchResultStickyTop.value,
+              }}
+            ></V3Searchbar>
             <V3SearchResult></V3SearchResult>
           </V3Container>,
         ];
@@ -122,7 +112,6 @@ export default defineComponent({
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
-          { 'is-scene-mode': isSceneMode.value },
         ]}
         v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >

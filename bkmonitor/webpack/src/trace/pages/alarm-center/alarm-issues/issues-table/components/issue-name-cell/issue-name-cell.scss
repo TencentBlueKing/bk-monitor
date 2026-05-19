@@ -1,0 +1,60 @@
+/* stylelint-disable selector-class-pattern */
+
+.issue-name-cell-view {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+
+  .issue-name-cell-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    font-weight: 500;
+    color: #3974ff;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      color: #5594fa;
+    }
+  }
+
+  .issue-name-cell-edit-btn {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 2px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-bianji {
+      font-size: 22px;
+    }
+  }
+
+  &:hover {
+    .issue-name-cell-edit-btn {
+      display: inline-flex;
+    }
+  }
+}
+
+.issue-name-cell-editing {
+  display: flex;
+  align-items: center;
+  height: 24px;
+
+  .issue-name-cell-input {
+    width: 100%;
+  }
+
+  .issue-name-cell-loading-wrap {
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+  }
+}

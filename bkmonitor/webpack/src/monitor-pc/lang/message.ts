@@ -361,6 +361,7 @@ export default {
   '当前检索范围，暂无告警': 'No alarms in the current search scope',
   '当前检索范围，暂无故障': 'No failures in the current search scope',
   '当前检索范围，暂无处理记录': 'No processing records in the current search scope',
+  '暂无历史 Issue': 'No history issue',
 
   /*
  #### 提示反馈类
@@ -545,4 +546,5 @@ export default {
   克隆模板成功: 'Cloned template successfully',
   解除关联成功: 'Unassociation successful',
   解除关联失败: 'Unassociation failed',
+  评论发送失败: 'Comment sending failed',
 };

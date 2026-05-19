@@ -20,10 +20,13 @@ from apm_web.models import (
     CMDBServiceRelation,
     EventServiceRelation,
     LogServiceRelation,
+    CodeRedefinedConfigRelation,
 )
 from apm_web.handlers.service_handler import ServiceHandler
+from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import api
 from monitor_web.data_explorer.event.constants import EventDomain, EventSource
+from constants.apm import CallSide
 
 
 class CMDBServiceRelationSerializer(serializers.ModelSerializer):
@@ -48,7 +51,7 @@ class LogServiceRelationSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
             if "related_bk_biz_id" not in attrs or not attrs["related_bk_biz_id"]:
-                raise ValueError(_("关联日志平台日志需要选择业务"))
+                raise serializers.ValidationError(_("关联日志平台日志需要选择业务"))
         else:
             attrs["related_bk_biz_id"] = None
 
@@ -149,6 +152,7 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
             "log_type_alias",
             "updated_at",
             "updated_by",
+            "is_global",
         ]
 
 
@@ -176,76 +180,166 @@ class ListPipelineRequestSerializer(BasePipelineRequestSerializer):
 class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
     """代码重定义规则基础请求序列化器"""
 
-    bk_biz_id = serializers.IntegerField(label="业务 ID")
-    app_name = serializers.CharField(label="应用名")
-    service_name = serializers.CharField(label="本服务")
-    kind = serializers.ChoiceField(label="角色", choices=[("caller", "caller"), ("callee", "callee")])
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+    app_name = serializers.CharField(label=_("应用名"))
+    service_name = serializers.CharField(label=_("本服务"), required=False)
+    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
 
-    def validate_callee_kind_consistency(self, attrs):
-        """验证 callee 角色的一致性规则"""
-        kind = attrs.get("kind")
-        service_name = attrs.get("service_name")
-        callee_server = attrs.get("callee_server")
-
-        if kind == "callee" and callee_server and callee_server != service_name:
-            raise serializers.ValidationError(_("callee 场景下 callee_server 必须等于 service_name"))
-        return attrs
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # 服务级配置：必须指定 kind
+        if attrs.get("service_name") and not attrs.get("kind"):
+            raise serializers.ValidationError(_("请填写类型"))
+        return super().validate(attrs)
 
 
 class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则列表查询请求序列化器"""
 
-    callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True, default=None)
-    callee_service = serializers.CharField(label="被调 Service", required=False, allow_blank=True, default=None)
-    callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True, default=None)
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
-
-    def validate(self, attrs):
-        """验证请求参数"""
-        return self.validate_callee_kind_consistency(attrs)
+    callee_server = serializers.CharField(label=_("被调服务"), required=False, allow_blank=True)
+    callee_service = serializers.CharField(label=_("被调 Service"), required=False, allow_blank=True)
+    callee_method = serializers.CharField(label=_("被调接口"), required=False, allow_blank=True)
 
 
 class CodeRedefinedRuleItemSerializer(serializers.Serializer):
     """单个代码重定义规则项序列化器"""
 
-    callee_server = serializers.CharField(label="被调服务", allow_blank=True)
-    callee_service = serializers.CharField(label="被调 Service", allow_blank=True)
-    callee_method = serializers.CharField(label="被调接口", allow_blank=True)
-    code_type_rules = serializers.JSONField(label="返回码映射")
-    enabled = serializers.BooleanField(label="是否启用", required=False, default=True)
+    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
+    service_names = serializers.ListField(
+        label=_("服务名列表"), child=serializers.CharField(), allow_null=True, required=False
+    )
+    is_global = serializers.BooleanField(label=_("是否全局"), default=False)
+    callee_server = serializers.CharField(label=_("被调服务"), allow_blank=True)
+    callee_service = serializers.CharField(label=_("被调 Service"), allow_blank=True)
+    callee_method = serializers.CharField(label=_("被调接口"), allow_blank=True)
+    code_type_rules = serializers.JSONField(label=_("返回码映射"))
+    enabled = serializers.BooleanField(label=_("是否启用"), required=False, default=True)
 
 
 class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
-    rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label="规则列表", min_length=1)
+    UNIQUE_FIELDS = ("is_global", "service_name", "kind", "callee_server", "callee_service", "callee_method")
 
-    def validate(self, attrs):
-        """验证参数；callee 角色下强制覆盖 callee_server=service_name"""
-        kind = attrs.get("kind")
-        service_name = attrs.get("service_name")
+    rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label=_("规则列表"))
 
-        # 对每个规则项进行验证
-        if kind == "callee":
-            for rule in attrs.get("rules", []):
-                # 复用基础校验逻辑
-                rule_attrs = {"kind": kind, "service_name": service_name, "callee_server": rule.get("callee_server")}
-                self.validate_callee_kind_consistency(rule_attrs)
-                rule["callee_server"] = service_name
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        kind: str | None = attrs.get("kind")
+        service_name: str | None = attrs.get("service_name")
+
+        # 服务级配置只保留非全局规则
+        if service_name:
+            attrs["rules"] = [rule for rule in attrs["rules"] if not rule["is_global"]]
+
+        unique_set: set[str] = set()
+        for rule in attrs.get("rules", []):
+            rule["kind"] = kind if service_name else rule.get("kind")
+            if not rule["kind"]:
+                raise serializers.ValidationError(_("请填写类型"))
+
+            # 外层有 service_name 时，强制覆盖 service_names
+            rule["service_names"] = [service_name] if service_name else rule.get("service_names", [])
+            if rule["is_global"] is False and not rule["service_names"]:
+                raise serializers.ValidationError(_("请填写服务名"))
+
+            rule["callee_server"] = "" if rule["kind"] == CallSide.CALLEE.value else rule["callee_server"]
+
+        # 唯一性校验
+        for record in CodeRedefinedConfigRelation.build_sync_records(attrs.get("rules", [])):
+            unique_key: str = count_md5({field: record.get(field) for field in self.UNIQUE_FIELDS})
+            if unique_key in unique_set:
+                raise serializers.ValidationError(
+                    _(
+                        "规则列表中存在重复的规则："
+                        "是否全局：{is_global} "
+                        "服务名：{service_name} "
+                        "类型：{kind} "
+                        "被调服务：{callee_server} "
+                        "被调 Service：{callee_service} "
+                        "被调接口：{callee_method} "
+                    ).format(
+                        is_global=record["is_global"],
+                        service_name=record["service_name"],
+                        kind=record["kind"],
+                        callee_server=record["callee_server"],
+                        callee_service=record["callee_service"],
+                        callee_method=record["callee_method"],
+                    )
+                )
+            unique_set.add(unique_key)
 
         return attrs
 
 
-class DeleteCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
-    """代码重定义规则删除请求序列化器"""
+def build_code_remark_configs(remark_configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    remark_records: list[dict[str, Any]] = []
+    for remark_config in remark_configs:
+        service_names = [""] if remark_config.get("is_global") else remark_config.get("service_names", [])
+        for service_name in service_names:
+            remark_records.append(
+                {
+                    "service_name": service_name,
+                    "kind": remark_config.get("kind"),
+                    "code": remark_config.get("code", ""),
+                    "remark": remark_config.get("remark", ""),
+                }
+            )
+    return remark_records
 
-    callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True)
-    callee_service = serializers.CharField(label="被调 Service", required=False, allow_blank=True)
-    callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True)
+
+class CodeRemarkItemSerializer(serializers.Serializer):
+    """单个返回码备注项序列化器，用于应用级别配置"""
+
+    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices())
+    code = serializers.CharField(label=_("返回码"), allow_blank=False)
+    remark = serializers.CharField(label=_("备注"), allow_blank=True, default="")
+    is_global = serializers.BooleanField(label=_("是否全局生效"), default=False)
+    service_names = serializers.ListField(label=_("生效服务列表"), child=serializers.CharField(), default=[])
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("is_global") and attrs.get("service_names"):
+            raise serializers.ValidationError(_("全局配置时，service_names 应为空列表"))
+
+        if not attrs.get("is_global") and not attrs.get("service_names"):
+            raise serializers.ValidationError(_("非全局配置时，service_names 应非空列表"))
+
+        return super().validate(attrs)
 
 
 class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
-    """设置单个返回码备注 请求序列化器"""
+    """设置返回码备注请求序列化器，同时支持服务级别和应用级别配置"""
 
-    code = serializers.CharField(label="返回码", allow_blank=False)
-    remark = serializers.CharField(label="备注", required=False, allow_blank=True, default="")
+    code = serializers.CharField(label=_("返回码"), allow_blank=False, required=False)
+    remark = serializers.CharField(label=_("备注"), allow_blank=True, default="")
+    is_global = serializers.BooleanField(label=_("是否全局生效"), default=False)
+    remarks = serializers.ListField(label=_("备注列表"), child=CodeRemarkItemSerializer(), required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        # 服务配置场景下，kind、code 两者必须同时存在
+        if attrs.get("service_name") and not (attrs.get("kind") and attrs.get("code")):
+            raise serializers.ValidationError(_("服务配置场景下，kind、code 必须同时存在"))
+
+        # service_name 为空时要求请求体显式传入 remarks 字段
+        if not attrs.get("service_name") and "remarks" not in attrs:
+            raise serializers.ValidationError(_("应用配置场景下，remarks 字段必须存在"))
+
+        # 应用配置场景下，校验记录唯一性（service_name、kind、code）
+        unique_keys: set[tuple[str, str, str]] = set()
+        for remark_dict in build_code_remark_configs(attrs.get("remarks", [])):
+            unique_key = (remark_dict["service_name"], remark_dict["kind"], remark_dict["code"])
+            if unique_key in unique_keys:
+                raise serializers.ValidationError(
+                    _(
+                        "应用配置记录键存在冲突，"
+                        "is_global={is_global}, service_name={service_name}, kind={kind}, code={code}"
+                    ).format(
+                        is_global=remark_dict["service_name"] == "",
+                        service_name=remark_dict["service_name"],
+                        kind=remark_dict["kind"],
+                        code=remark_dict["code"],
+                    )
+                )
+            unique_keys.add(unique_key)
+
+        return attrs

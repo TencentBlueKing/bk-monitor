@@ -33,7 +33,6 @@ import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
 import { handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
 import { BK_LOG_STORAGE } from '../../../../../../store/store.type';
-import { isSceneRetrieve } from '../../../../../../store/helper';
 
 import type { From } from 'bk-magic-vue';
 
@@ -143,41 +142,19 @@ export default class FilterRule extends tsc<IProps> {
       return;
     }
     const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
-    const isScene = this.$store.getters.isSceneMode;
     try {
-      let requestConfig;
-      if (isScene) {
-        // 场景化检索：使用 getSceneAggsTerms，不传 index_set_id
-        requestConfig = {
-          data: {
-            keyword: this.retrieveParams?.keyword ?? '*',
-            fields,
-            start_time: formatDate(tempList[0]),
-            end_time: formatDate(tempList[1]),
-            bk_biz_id: this.$store.state.bkBizId,
-            space_uid: this.retrieveParams?.space_uid,
-            table_id_conditions: this.retrieveParams?.table_id_conditions,
-          },
-        };
-      } else {
-        // 普通检索：使用 getAggsTerms，传 index_set_id
-        requestConfig = {
-          params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-          },
-          data: {
-            keyword: this.retrieveParams?.keyword ?? '*',
-            fields,
-            start_time: formatDate(tempList[0]),
-            end_time: formatDate(tempList[1]),
-            bk_biz_id: this.$store.state.bkBizId,
-          },
-        };
-      }
-      const res = await $http.request(
-        isScene ? 'retrieve/getSceneAggsTerms' : 'retrieve/getAggsTerms',
-        requestConfig,
-      );
+      const res = await $http.request('retrieve/getAggsTerms', {
+        params: {
+          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+        },
+        data: {
+          keyword: this.retrieveParams?.keyword ?? '*',
+          fields,
+          start_time: formatDate(tempList[0]),
+          end_time: formatDate(tempList[1]),
+          bk_biz_id: this.$store.state.bkBizId,
+        },
+      });
       for (const item of this.formData.filter_rules) {
         item.valueList = res.data.aggs_items[item.fields_name]?.map(newItem => ({
           id: newItem.toString(),

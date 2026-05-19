@@ -663,14 +663,12 @@ def create_bkbase_data_link(
         data_link_strategy,
         namespace,
     )
-    # 0. 组装生成计算平台侧需要的data_name和rt_name
+    # 组装计算平台侧的 data_name，作为 DataLink / AccessVMRecord 的查询键。
     bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name)
-    bkbase_rt_name = compose_bkdata_table_id(table_id=monitor_table_id)
     logger.info(
-        "create_bkbase_data_link:try to access bkbase , data_id->[%s],bkbase_data_name->[%s],bkbase_vmrt_name->[%s]",
+        "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",
         data_source.bk_data_id,
         bkbase_data_name,
-        bkbase_rt_name,
     )
 
     # 1. 判断是否是联邦代理集群链路
@@ -736,7 +734,6 @@ def create_bkbase_data_link(
     )
     # 3. 同步更新元数据
     data_link_ins.sync_metadata(
-        data_source=data_source,
         table_id=monitor_table_id,
         storage_cluster_name=storage_cluster_name,
     )
@@ -752,7 +749,24 @@ def create_bkbase_data_link(
         storage_cluster_id,
         data_link_strategy,
     )
-    datalink_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=data_source.bk_tenant_id, bk_biz_id=bk_biz_id)
+    # vm_result_table_id 来自 sync_metadata 刚写入的 BkBaseResultTable；读取失败则按 tenant
+    # data_biz_id + compose 生成名兜底，并打 error log 方便排查。
+    from metadata.models.bkdata.result_table import BkBaseResultTable
+
+    try:
+        vm_result_table_id = BkBaseResultTable.objects.get(data_link_name=data_link_ins.data_link_name).bkbase_table_id
+        if not vm_result_table_id:
+            raise BkBaseResultTable.DoesNotExist
+    except BkBaseResultTable.DoesNotExist:
+        datalink_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=data_source.bk_tenant_id, bk_biz_id=bk_biz_id)
+        fallback_rt_name = compose_bkdata_table_id(table_id=monitor_table_id, strategy=data_link_strategy)
+        vm_result_table_id = f"{datalink_biz_id.data_biz_id}_{fallback_rt_name}"
+        logger.error(
+            "create_bkbase_data_link: BkBaseResultTable for data_link_name->[%s] not found after sync_metadata, "
+            "fallback vm_result_table_id->[%s]",
+            data_link_ins.data_link_name,
+            vm_result_table_id,
+        )
     AccessVMRecord.objects.update_or_create(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
@@ -760,7 +774,7 @@ def create_bkbase_data_link(
         bk_base_data_name=bkbase_data_name,
         defaults={
             "vm_cluster_id": storage_cluster_id,
-            "vm_result_table_id": f"{datalink_biz_id.data_biz_id}_{bkbase_rt_name}",
+            "vm_result_table_id": vm_result_table_id,
             "bcs_cluster_id": bcs_cluster_id,
         },
     )
@@ -807,7 +821,6 @@ def create_fed_bkbase_data_link(
     bkbase_data_name = compose_bkdata_data_id_name(
         data_name=data_source.data_name, strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
     )
-    # bkbase_rt_name = compose_bkdata_table_id(table_id=monitor_table_id)
 
     logger.info(
         "create_fed_bkbase_data_link: bcs_cluster_id->[%s],data_id->[%s],data_link_name->[%s] try to create "
@@ -854,7 +867,6 @@ def create_fed_bkbase_data_link(
         raise e
 
     data_link_ins.sync_metadata(
-        data_source=data_source,
         table_id=monitor_table_id,
         storage_cluster_name=storage_cluster_name,
     )

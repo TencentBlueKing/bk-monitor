@@ -579,6 +579,7 @@ export default class OptimizedHighlighter {
       instance.markRegExp(regList[0], {
         element: 'mark',
         exclude: ['mark'],
+        separateWordSearch: false,
         done: resolve ?? (() => {}),
         each: (element: HTMLElement) => {
           if (element.parentElement?.classList.contains('valid-text')) {
@@ -617,6 +618,7 @@ export default class OptimizedHighlighter {
         element: 'mark',
         exclude: ['mark'],
         acrossElements: true,
+        separateWordSearch: false,
         done: () => {
           // 在所有标记完成后，处理连续的 mark 元素
           // 从 sections 中查找对应的容器元素
@@ -679,6 +681,7 @@ export default class OptimizedHighlighter {
       caseSensitive: this.caseSensitive ?? false,
       accuracy: this.accuracy ?? 'partially',
       acrossElements: true,
+      separateWordSearch: false,
       done: () => {
         // 在所有标记完成后，处理连续的 mark 元素
         // 获取容器元素（通过查找第一个 mark 元素的根容器）

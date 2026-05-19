@@ -219,7 +219,9 @@ export default defineComponent({
 
     const operatorToolsWidth = computed(() => {
       const w = indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
-      return store.getters.isAiAssistantActive ? w + 26 : w;
+      const traceWidth = store.state.indexSetFieldConfig?.apm_relation?.is_active ? 26 : 0;
+      const aiWidth = store.getters.isAiAssistantActive ? 26 : 0;
+      return w + traceWidth + aiWidth;
     });
 
     const originalColumns = computed(() => {

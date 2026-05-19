@@ -1,0 +1,17 @@
+---
+description: AAFE Architecture Runtime
+alwaysApply: true
+---
+
+# AAFE Architecture Runtime
+
+For every non-trivial frontend task:
+1. Read .ai-agent/runtime/engine.md.
+2. Classify the task using .ai-agent/runtime/router.yaml.
+3. Follow the selected .ai-agent/pipelines/*.yaml.
+4. Enforce .ai-agent/runtime/gates.yaml before implementation.
+5. Use framework, DDD, design-pattern and scenario packs when relevant.
+6. For business-heavy features, run DDD Discovery before module decomposition.
+7. For new features, run Pattern Interview before Pattern Selection.
+8. For complex frontend work, select and land patterns per module based on real business responsibility.
+9. Output DDD Model, Architecture, Module Boundaries, Pattern Interview, Pattern Selection, Module Pattern Selection, Tradeoffs, Implementation and Critique.

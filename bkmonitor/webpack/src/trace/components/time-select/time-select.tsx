@@ -62,7 +62,7 @@ export default defineComponent({
      * @return {*}
      */
     const handleKeyDown = (v: string, e: any) => {
-      if (/enter/i.test(e.code) && /^([1-9][0-9]+)+(m|h|d|w|M|y)$/.test(customTimeVal.value)) {
+      if (/enter/i.test(e.code) && /^[1-9]\d*(m|h|d|w|M|y)$/.test(customTimeVal.value)) {
         if (props.list.every(item => item.id !== customTimeVal.value)) {
           emit('addItem', {
             id: customTimeVal.value,

@@ -136,7 +136,7 @@ const errorHandle = (response: ErrorResponse, config: CustomAxiosRequestConfig):
         !config.reject403 &&
         window.space_list?.length &&
         !(
-          (['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
+          (['#/', '#/event-center', '#/trace/alarm-center'].includes(location.hash.replace(/\?.*/, '')) ||
             location.hash.includes('#/event-center/detail')) &&
           !config.url?.includes('/incident/')
         ) &&

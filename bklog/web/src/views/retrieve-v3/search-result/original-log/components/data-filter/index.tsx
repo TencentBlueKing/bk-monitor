@@ -54,8 +54,8 @@ export default defineComponent({
     const highlightControlRef = ref<any>(null);
     const tagInputRef = ref<any>(null);
     const filterType = ref('include');
-    const filterKey = ref('');
-    const catchFilterKey = ref('');
+    const filterKey = ref<string[]>([]);
+    const catchFilterKey = ref<string[]>([]);
     const ignoreCase = ref(false);
     const highlightList = ref<string[]>([]);
     const colorHighlightList = ref<any[]>([]);
@@ -111,11 +111,11 @@ export default defineComponent({
     const catchColorIndexList = computed(() => colorHighlightList.value.map(item => item.colorIndex));
 
     const filterLog = () => {
-      catchFilterKey.value = filterKey.value;
+      catchFilterKey.value = [...filterKey.value];
       emit('handle-filter', 'filterKey', filterKey.value);
     };
     const blurFilterLog = () => {
-      if (!catchFilterKey.value && !filterKey.value) return;
+      if (catchFilterKey.value.length === 0 && filterKey.value.length === 0) return;
       filterLog();
     };
 
@@ -152,6 +152,15 @@ export default defineComponent({
       emit('handle-filter', 'interval', state ? interval.value : baseInterval);
     };
     // 粘贴过滤条件
+    const filterPasteFn = (pasteValue: string) => {
+      const trimPasteValue = pasteValue.trim();
+      if (!filterKey.value.includes(trimPasteValue)) {
+        filterKey.value.push(trimPasteValue);
+        filterLog();
+      }
+      return [];
+    };
+    // 粘贴高亮条件
     const pasteFn = (pasteValue: string) => {
       const trimPasteValue = pasteValue.trim();
       if (!highlightList.value.includes(trimPasteValue) && highlightList.value.length < 5) {
@@ -208,7 +217,7 @@ export default defineComponent({
         highlightList.value = [];
         interval.value = cloneDeep(baseInterval);
         ignoreCase.value = false;
-        filterKey.value = '';
+        filterKey.value = [];
         showType.value = 'log';
         filterType.value = 'include';
         fieldConfigPopoverInstance?.hide();
@@ -234,18 +243,17 @@ export default defineComponent({
                 />
               ))}
             </bk-select>
-            <bk-input
+            <bk-tag-input
               class='filter-key-input'
               placeholder={t('输入关键字进行过滤')}
-              right-icon='bk-icon icon-search'
               value={filterKey.value}
-              clearable
-              on-blur={blurFilterLog}
+              allow-create
+              has-delete-icon
+              paste-fn={filterPasteFn}
               on-change={(value) => {
                 filterKey.value = value;
+                filterLog();
               }}
-              on-clear={filterLog}
-              on-enter={filterLog}
             />
           </div>
           <div class='highlight-main'>

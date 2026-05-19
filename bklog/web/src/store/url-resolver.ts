@@ -25,23 +25,11 @@
  */
 
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
-import { getAllSceneFieldKeys } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
 
 import { ConditionOperator } from './condition-operator';
 import { BK_LOG_STORAGE } from './store.type';
 
 import type { Route } from 'vue-router';
-
-/** 从 store 获取场景配置列表，store 未初始化时返回空数组 */
-const getStoreSceneConfigs = () => {
-  try {
-    // 延迟引用 store，避免循环依赖
-    const store = require('@/store').default;
-    return store?.getters?.['retrieve/sceneConfigList'] ?? [];
-  } catch {
-    return [];
-  }
-};
 
 /**
  * 初始化App时解析URL中的参数
@@ -113,8 +101,7 @@ class RouteUrlResolver {
    */
   public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
-    const allSceneFieldKeys = getAllSceneFieldKeys(getStoreSceneConfigs());
-    const appendParamKeys = [...this.resolveFieldList, 'end_time', ...allSceneFieldKeys].filter(f => !(ignoreList ?? []).includes(f));
+    const appendParamKeys = [...this.resolveFieldList, 'end_time'].filter(f => !(ignoreList ?? []).includes(f));
     const undefinedQuery = appendParamKeys.reduce((out, key) => {
       out[key] = undefined;
       return out;
@@ -145,9 +132,6 @@ class RouteUrlResolver {
       'format',
       'index_id',
       'pid',
-      'retrieve_type',
-      'scene_active',
-      'scene_filter_values',
       BK_LOG_STORAGE.FAVORITE_ID,
       BK_LOG_STORAGE.HISTORY_ID,
     ];
@@ -370,11 +354,6 @@ class RouteUrlResolver {
         return this.dateTimeRangeResolver([startTime, value]).end_time;
       });
     });
-
-    this.resolver.set('scene_filter_values', () => {
-      // 初始化阶段配置未加载，这里无法获取字段列表，直接返回空对象
-      return {};
-    });
   }
 
   private stripQuoteArtifacts(val: string): string {
@@ -424,20 +403,6 @@ class RouteUrlResolver {
       if (formatPattern.test(val)) return val;
       const cleaned = this.stripQuoteArtifacts(val);
       return formatPattern.test(cleaned) ? cleaned : undefined;
-    });
-
-    // retrieve_type: 白名单
-    this.paramSanitizers.set('retrieve_type', (val) => {
-      if (typeof val !== 'string') return undefined;
-      return ['normal', 'scene'].includes(val) ? val : undefined;
-    });
-
-    // scene_active: 字母、数字、下划线
-    this.paramSanitizers.set('scene_active', (val) => {
-      if (typeof val !== 'string') return undefined;
-      if (/^[a-zA-Z0-9_]+$/.test(val)) return val;
-      const cleaned = this.stripQuoteArtifacts(val);
-      return /^[a-zA-Z0-9_]+$/.test(cleaned) ? cleaned : undefined;
     });
 
     // index_id: 纯数字或数字字符串
@@ -502,9 +467,6 @@ class RetrieveUrlResolver {
 
         return;
       },
-      scene_filter_values: () => {
-        return undefined;
-      },
       default: (val) => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
@@ -523,30 +485,18 @@ class RetrieveUrlResolver {
     };
 
     const getRouteQueryValue = () => {
-      const result = Object.keys(this.routeQueryParams)
+      return Object.keys(this.routeQueryParams)
         .filter((key) => {
-          return !['ids', 'isUnionIndex', 'datePickerValue', 'scene_filter_values'].includes(key);
+          return !['ids', 'isUnionIndex', 'datePickerValue'].includes(key);
         })
-        .reduce((out, key) => {
+        .reduce((result, key) => {
           const val = this.routeQueryParams[key];
           const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
           const value = valueFn(val);
           const fieldName = this.storeFieldKeyMap[key] ?? key;
-          out[fieldName] = value;
-          return out;
+          result[fieldName] = value;
+          return result;
         }, {});
-
-      const sceneFilterValues = this.routeQueryParams.scene_filter_values ?? {};
-      for (const [key, val] of Object.entries(sceneFilterValues)) {
-        if (val === undefined || val === null || val === '') continue;
-        if (Array.isArray(val)) {
-          if (val.length) result[key] = val;
-        } else {
-          result[key] = String(val);
-        }
-      }
-
-      return result;
     };
 
     return getRouteQueryValue();

@@ -12,14 +12,17 @@ import datetime
 import itertools
 import json
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
+from constants.apm import ApmGlobalTablePrefix
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
+from metadata.models.record_rule.constants import RECORD_RULE_V4_DELETED_RETENTION_DAYS
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -63,6 +66,8 @@ class SpaceTableIDRedis:
     空间路由结果表数据推送 redis 相关功能
     多租户环境下,不允许跨租户推送路由,即每次操作的目标数据,必须是同一租户下的,不能跨租户
     """
+
+    SUPPORT_SPACE_TYPES = {SpaceTypes.BKCC.value, SpaceTypes.BKCI.value, SpaceTypes.BKSAAS.value}
 
     def push_space_table_ids(self, space_type: str, space_id: str, is_publish: bool | None = False):
         """
@@ -287,34 +292,44 @@ class SpaceTableIDRedis:
             table_id_list,
         )
         if table_id_list:
-            doris_records = models.DorisStorage.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id)
-            data_label_map = models.ResultTable.objects.filter(
-                table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
-            ).values("table_id", "data_label")
-            # 构建字段别名map
-            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
-        else:
-            doris_records = models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id)
-            tids = list(doris_records.values_list("table_id", flat=True))
-            data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
-                "table_id", "data_label"
+            doris_records = list(
+                models.DorisStorage.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id)
             )
-            # 构建字段别名map
-            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
+        else:
+            doris_records = list(models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id))
 
-        data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
+        tids = [record.table_id for record in doris_records]
+        rt_meta_qs = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
+            "table_id", "data_label", "labels"
+        )
+        rt_meta_map = {
+            item["table_id"]: {"data_label": item["data_label"], "labels": item.get("labels") or {}}
+            for item in rt_meta_qs
+        }
+        # 虚拟 Doris RT 通过 origin_table_id 关联实体 RT，用于当前 RT 未记录物理表名时兜底。
+        origin_table_ids = {record.origin_table_id for record in doris_records if record.origin_table_id}
+        origin_doris_map = {
+            record.table_id: record
+            for record in models.DorisStorage.objects.filter(table_id__in=origin_table_ids, bk_tenant_id=bk_tenant_id)
+        }
+        # 构建字段别名map
+        field_alias_map = self._get_field_alias_map(tids, bk_tenant_id)
 
         data: dict[str, dict] = {}
         for record in doris_records:
-            db = record.bkbase_table_id
+            # Redis key 仍使用当前 RT；db 优先使用当前记录，缺失时再回退到实体 DorisStorage。
+            origin_record = origin_doris_map.get(record.origin_table_id)
+            db = record.bkbase_table_id or (origin_record.bkbase_table_id if origin_record else None)
             table_id = record.table_id
-            data_label = data_label_map_dict.get(table_id, "")
+            rt_meta = rt_meta_map.get(table_id, {})
 
             data[table_id] = {
                 "db": db,
                 "measurement": models.ClusterInfo.TYPE_DORIS,
                 "storage_type": "bk_sql",
-                "data_label": data_label,
+                # data_label、labels、field_alias 始终归属当前 RT，避免虚拟 RT 丢失自身路由元信息。
+                "data_label": rt_meta.get("data_label", ""),
+                "labels": rt_meta.get("labels", {}),
                 "field_alias": field_alias_map.get(table_id, {}),  # 字段查询别名
             }
         return data
@@ -822,6 +837,7 @@ class SpaceTableIDRedis:
         _values.update(
             self._compose_related_bkci_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
+        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
         return _values
 
     def _compose_bkci_space_table_ids(
@@ -858,6 +874,7 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
+        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
         return _values
 
     def _compose_bksaas_space_table_ids(
@@ -891,7 +908,56 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
+        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
         return _values
+
+    def _compose_vm_short_link_table_ids(
+        self, space_type: str, space_id: str, bk_tenant_id: str = DEFAULT_TENANT_ID
+    ) -> dict[str, dict[str, list[dict[str, Any]]]]:
+        """组装 VM 短链路结果表。
+
+        单业务短链路只进入归属空间；全局短链路按 query_router_config.space_type 进入目标空间。
+        归属空间可查询全量数据，非归属空间沿用业务过滤语义。
+        """
+        logger.info(
+            "_compose_vm_short_link_table_ids: space_type->[%s], space_id->[%s], bk_tenant_id->[%s]",
+            space_type,
+            space_id,
+            bk_tenant_id,
+        )
+        records = models.VMShortLinkRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            is_enabled=True,
+            is_deleted=False,
+        ).filter(Q(space_type=space_type, space_id=space_id) | Q(is_global=True))
+        if not records:
+            return {}
+
+        values: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        for record in records:
+            table_id = record.table_id
+            # 单业务表只会命中归属空间；全局表在归属空间也不需要额外业务过滤。
+            if not record.is_global or (record.space_type == space_type and record.space_id == space_id):
+                values[table_id] = {"filters": []}
+                continue
+
+            if not record.match_query_router_space_type(space_type):
+                continue
+
+            # 非归属空间访问全局表时按 query_router_config 生成过滤条件。
+            query_filter = record.get_query_router_filter(space_type, space_id)
+            if query_filter is None:
+                logger.warning(
+                    "_compose_vm_short_link_table_ids: table_id->[%s] cannot compose filter for "
+                    "space_type->[%s], space_id->[%s]",
+                    table_id,
+                    space_type,
+                    space_id,
+                )
+                continue
+            values[table_id] = {"filters": [query_filter]}
+
+        return values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
         """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""
@@ -1063,7 +1129,7 @@ class SpaceTableIDRedis:
             return {}
 
         result_tables = models.ResultTable.objects.filter(
-            table_id__contains="apm_global.precalculate_storage", bk_tenant_id=space.bk_tenant_id
+            table_id__startswith=ApmGlobalTablePrefix.COMMON, bk_tenant_id=space.bk_tenant_id
         )
         return {rt.table_id: {"filters": [{rt.bk_biz_id_alias: str(-space.id)}]} for rt in result_tables}
 
@@ -1214,7 +1280,7 @@ class SpaceTableIDRedis:
 
         other_filter = {}
         if settings.ENABLE_MULTI_TENANT_MODE:
-            other_filter = {"bk_tenant_id": bk_tenant_id}
+            other_filter.update({"bk_tenant_id": bk_tenant_id})
 
         # 判断是否添加过滤条件
         _table_list = filter_model_by_in_page(
@@ -1222,9 +1288,18 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias"],
+            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias", "default_storage"],
             other_filter=other_filter,
         )  # 新增bk_biz_id_alias,部分业务存在自定义过滤规则别名需求，如bk_biz_id -> appid
+
+        # ES / Doris 路由由后续独立流程处理，这里仅按 default_storage 排除，不再根据 RT 启用或删除状态过滤。
+        _table_list = [
+            data
+            for data in _table_list
+            if data["default_storage"] not in [models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS]
+        ]
+        table_ids = {data["table_id"] for data in _table_list}
+        table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}
 
         # 获取结果表对应的类型
         measurement_type_dict = get_measurement_type_by_table_id(
@@ -1300,6 +1375,32 @@ class SpaceTableIDRedis:
             bk_tenant_id,
         )
         objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
+        values = {obj.table_id: {"filters": []} for obj in objs}
+        values.update(
+            self._compose_record_rule_v4_table_ids(
+                space_type=space_type,
+                space_id=space_id,
+                bk_tenant_id=bk_tenant_id,
+            )
+        )
+        return values
+
+    def _compose_record_rule_v4_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+        """组装 V4 预计算输出结果表。
+
+        V4 输出 RT 没有普通 DataSourceResultTable 链路，空间可查询表索引
+        需要显式追加。停用只停止后续写入，不影响历史数据查询；删除完成
+        后也保留半年查询窗口，超过窗口后才从空间路由中移除。
+        """
+
+        from metadata.models.record_rule.v4 import RecordRuleV4
+
+        queryable_deleted_at = tz_now() - datetime.timedelta(days=RECORD_RULE_V4_DELETED_RETENTION_DAYS)
+        objs = RecordRuleV4.objects.filter(
+            space_type=space_type,
+            space_id=space_id,
+            bk_tenant_id=bk_tenant_id,
+        ).filter(Q(deleted_at__isnull=True) | Q(deleted_at__gt=queryable_deleted_at))
         return {obj.table_id: {"filters": []} for obj in objs}
 
     def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
