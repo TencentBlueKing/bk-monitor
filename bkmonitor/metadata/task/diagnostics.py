@@ -168,9 +168,13 @@ def _should_skip_table_id(table_id: str) -> bool:
 
 
 def _ensure_storage_type(table_id: str) -> bool:
-    """读 result_table_detail，若 storage_type 缺失则按 vm_rt 推断后补齐 + publish。
+    """补齐 result_table_detail 中缺失的 storage_type，不改写已合法的值。
 
-    返回 True 表示有写入。仅在缺失或与 vm_rt 不一致时改动。
+    仅在以下情况写入：
+    - 字段缺失或为空；
+    - 当前值不在 ALLOWED_STORAGE_TYPES 范围内（即非法字面量）；
+    - 当前值是 influxdb / victoria_metrics 但与 vm_rt 实际指向矛盾（漂移）。
+    若当前值 ∈ ALLOWED_STORAGE_TYPES（含 elasticsearch）且与 vm_rt 不冲突，直接返回 False。
     """
     raw = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
     if raw is None:
@@ -181,13 +185,22 @@ def _ensure_storage_type(table_id: str) -> bool:
         return False
 
     vm_rt = detail.get("vm_rt", "") or ""
-    expected = "victoria_metrics" if vm_rt else "influxdb"
-    current = detail.get("storage_type", "")
+    current = detail.get("storage_type", "") or ""
 
-    if current == expected:
-        return False
+    if current in ALLOWED_STORAGE_TYPES:
+        # 已是合法值，仅在与 vm_rt 显著冲突时纠正：vm_rt 非空但 storage_type 是 influxdb，
+        # 或反之 storage_type=victoria_metrics 但无 vm_rt。其它情况（如 elasticsearch）保留。
+        if vm_rt and current == "influxdb":
+            new_value = "victoria_metrics"
+        elif not vm_rt and current == "victoria_metrics":
+            new_value = "influxdb"
+        else:
+            return False
+    else:
+        # 缺失或非法值，按 vm_rt 推断
+        new_value = "victoria_metrics" if vm_rt else "influxdb"
 
-    detail["storage_type"] = expected
+    detail["storage_type"] = new_value
     RedisTools.hset_to_redis(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(detail))
     RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
     return True
@@ -326,10 +339,11 @@ def check_routing(report: Report):
             report.add(Issue("routing", "detail_invalid_json", scope, {"table_id": tid}))
             continue
 
-        storage_type = detail.get("storage_type", "")
-        vm_rt = detail.get("vm_rt", "")
+        storage_type = detail.get("storage_type", "") or ""
+        vm_rt = detail.get("vm_rt", "") or ""
         code: Optional[str] = None
         detail_payload: Optional[Dict] = None
+        actionable = True
 
         if not storage_type:
             code = "detail_no_storage_type"
@@ -337,22 +351,30 @@ def check_routing(report: Report):
         elif storage_type not in ALLOWED_STORAGE_TYPES:
             code = "detail_unknown_storage_type"
             detail_payload = {"table_id": tid, "storage_type": storage_type}
-        elif vm_rt and storage_type != "victoria_metrics":
+        elif storage_type == "influxdb" and vm_rt:
+            # 两个 ts 类型间的漂移，可自动按 vm_rt 纠正
             code = "storage_type_mismatch"
             detail_payload = {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt}
+        elif storage_type == "victoria_metrics" and not vm_rt:
+            code = "storage_type_mismatch"
+            detail_payload = {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt}
+        elif storage_type == "elasticsearch" and vm_rt:
+            # ES 与 vm_rt 同时出现是异常组合，但语义不明，仅告警不自愈
+            code = "detail_inconsistent_es_with_vm"
+            detail_payload = {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt}
+            actionable = False
 
         if not code:
             _streak_clear(f"{scope}:detail_no_storage_type")
             _streak_clear(f"{scope}:detail_unknown_storage_type")
             _streak_clear(f"{scope}:storage_type_mismatch")
+            _streak_clear(f"{scope}:detail_inconsistent_es_with_vm")
             continue
 
-        # fix：仅按 vm_rt 推断后 HSET 补 storage_type 字段，避免调 push_table_id_detail
-        # 反复擦掉 BMW 已写好的 storage_type
-        def _fix_storage_type(_tid=tid):
-            _ensure_storage_type(_tid)
-
-        report.add(Issue("routing", code, scope, detail_payload, _fix_storage_type))
+        # fix：局部 HSET 补 storage_type，不调 push_table_id_detail 以免擦掉 BMW 已写好的字段。
+        # _ensure_storage_type 自身对 storage_type ∈ ALLOWED 且与 vm_rt 一致时直接 noop。
+        fix_callable = (lambda _tid=tid: _ensure_storage_type(_tid)) if actionable else None
+        report.add(Issue("routing", code, scope, detail_payload, fix_callable))
 
 
 # ============= Stage A/B: 输入侧 + DB 一致性（与 F3 漂移） =============
@@ -481,13 +503,16 @@ def check_unify_query(report: Report):
         if delta >= threshold:
             deltas[metric] = delta
 
-    # 刷新本轮快照供下一轮对比
+    # 刷新本轮快照供下一轮对比；三步用 pipeline 原子提交，避免中间步骤失败
+    # 导致 baseline 无 TTL 永久驻留或与新一轮数据不一致。
     try:
         snapshot_payload = {k: str(v) for k, v in counters.items()}
         if snapshot_payload:
-            client.delete(UQ_SNAPSHOT_REDIS_KEY)
-            RedisTools.hmset_to_redis(UQ_SNAPSHOT_REDIS_KEY, snapshot_payload)
-            client.expire(UQ_SNAPSHOT_REDIS_KEY, UQ_SNAPSHOT_TTL_SECONDS)
+            pipe = client.pipeline()
+            pipe.delete(UQ_SNAPSHOT_REDIS_KEY)
+            pipe.hmset(UQ_SNAPSHOT_REDIS_KEY, snapshot_payload)
+            pipe.expire(UQ_SNAPSHOT_REDIS_KEY, UQ_SNAPSHOT_TTL_SECONDS)
+            pipe.execute()
     except Exception:
         logger.exception("link_health.unify_query snapshot persist failed")
 

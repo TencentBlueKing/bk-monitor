@@ -147,6 +147,110 @@ def test_routing_storage_type_fix_writes_storage_type_back(mock_metadata_redis, 
     push_mock.assert_not_called()
 
 
+def test_routing_storage_type_drift_influxdb_to_vm_is_autofixed(mock_metadata_redis, mock_http, mocker):
+    """storage_type=influxdb 但 vm_rt 非空 → 漂移，自愈纠正为 victoria_metrics。"""
+    _set_settings(mocker)
+    client = mock_metadata_redis
+
+    from metadata.models.space.constants import (
+        RESULT_TABLE_DETAIL_KEY,
+        SPACE_TO_RESULT_TABLE_KEY,
+    )
+
+    table_id = "2_drift_table.__default__"
+    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__333", json.dumps({table_id: {"filters": []}}))
+    client.hset(
+        RESULT_TABLE_DETAIL_KEY,
+        table_id,
+        json.dumps(
+            {
+                "storage_id": 5,
+                "vm_rt": "vm_drift_table",
+                "fields": [],
+                "bk_data_id": 333,
+                "storage_type": "influxdb",
+            }
+        ),
+    )
+    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
+
+    diagnostics.run_health_check(dry_run=False)
+
+    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
+    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    assert written["storage_type"] == "victoria_metrics"
+
+
+def test_routing_legitimate_elasticsearch_storage_type_is_not_touched(mock_metadata_redis, mock_http, mocker):
+    """ES storage 的 detail：storage_type=elasticsearch + vm_rt 空，应被视为合法，_ensure_storage_type 不动它。"""
+    _set_settings(mocker)
+    client = mock_metadata_redis
+
+    from metadata.models.space.constants import (
+        RESULT_TABLE_DETAIL_KEY,
+        SPACE_TO_RESULT_TABLE_KEY,
+    )
+
+    table_id = "2_bk_log_search_es.base"
+    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__555", json.dumps({table_id: {"filters": []}}))
+    es_detail = {
+        "storage_id": 9,
+        "db": "",
+        "measurement": "",
+        "vm_rt": "",
+        "fields": [],
+        "data_label": "es_label",
+        "bk_data_id": 555,
+        "storage_type": "elasticsearch",
+    }
+    client.hset(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(es_detail))
+    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
+
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    # 该 RT 不应产生 routing 类 issue（storage_type 合法、vm_rt 一致）
+    routing_issues = [
+        i for i in summary["issues"] if i["stage"] == "routing" and i["detail"].get("table_id") == table_id
+    ]
+    assert routing_issues == []
+
+    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
+    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    assert written["storage_type"] == "elasticsearch"  # 必须保持原值
+
+
+def test_routing_es_with_vm_rt_is_flagged_but_not_autofixed(mock_metadata_redis, mock_http, mocker):
+    """ES + vm_rt 同时存在是异常组合，标 inconsistent_es_with_vm，仅告警不自愈。"""
+    _set_settings(mocker)
+    client = mock_metadata_redis
+
+    from metadata.models.space.constants import (
+        RESULT_TABLE_DETAIL_KEY,
+        SPACE_TO_RESULT_TABLE_KEY,
+    )
+
+    table_id = "2_weird_es_vm.base"
+    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__444", json.dumps({table_id: {"filters": []}}))
+    weird_detail = {
+        "storage_id": 9,
+        "vm_rt": "vm_weird",
+        "fields": [],
+        "bk_data_id": 444,
+        "storage_type": "elasticsearch",
+    }
+    client.hset(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(weird_detail))
+    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
+
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    assert any(i["code"] == "detail_inconsistent_es_with_vm" for i in summary["issues"])
+    assert summary["fix_total"] == 0  # 不自愈
+    # 原值保留
+    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
+    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    assert written["storage_type"] == "elasticsearch"
+
+
 def test_routing_storage_type_fix_chooses_vm_when_vm_rt_present(mock_metadata_redis, mock_http, mocker):
     """detail.vm_rt 非空时 storage_type 应推断为 victoria_metrics。"""
     _set_settings(mocker)
