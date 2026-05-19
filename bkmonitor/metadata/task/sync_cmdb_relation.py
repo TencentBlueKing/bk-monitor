@@ -32,6 +32,7 @@ from metadata.models import (
     TimeSeriesGroup,
 )
 from metadata.models.data_link.data_link import SURREALDB_RT_SUFFIX
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import GraphRelationBindingConfig, SurrealDBBindingConfig
 from metadata.models.data_link.utils import compose_bkdata_table_id
 from metadata.models.entity_relation import EntityMeta, NAMESPACE_ALL
@@ -239,7 +240,8 @@ def _apply_relation_graph_link_best_effort(
     table_id: str,
     vm_cluster_name: str,
     effective_write_mode: str,
-) -> None:
+    graph_binding: GraphRelationBindingConfig | None = None,
+) -> bool:
     """
     Relation data must keep the historical VM/event path available.
 
@@ -254,7 +256,11 @@ def _apply_relation_graph_link_best_effort(
             storage_cluster_name=vm_cluster_name,
             write_mode=effective_write_mode,
         )
+        return True
     except Exception as e:  # pylint: disable=broad-except
+        if graph_binding:
+            graph_binding.status = DataLinkResourceStatus.FAILED.value
+            graph_binding.save(update_fields=["status"])
         logger.warning(
             "enable_relation_surrealdb_dual_write: best-effort graph link apply failed, data_id->[%s], "
             "bk_biz_id->[%s], write_mode->[%s], error->[%s]",
@@ -263,6 +269,18 @@ def _apply_relation_graph_link_best_effort(
             effective_write_mode,
             e,
         )
+        return False
+
+
+def _is_graph_relation_binding_apply_config_unchanged(
+    graph_binding: GraphRelationBindingConfig,
+    effective_write_mode: str,
+    graph_binding_defaults: dict[str, Any],
+) -> bool:
+    if graph_binding.write_mode != effective_write_mode:
+        return False
+
+    return all(getattr(graph_binding, field) == value for field, value in graph_binding_defaults.items())
 
 
 def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_biz_id: int) -> None:
@@ -365,7 +383,6 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
     graph_binding_defaults = {
         "data_link_name": data_link.data_link_name,
         "bk_biz_id": bk_biz_id,
-        "status": "Initializing",
         "vm_cluster_name": vm_cluster_name,
         "surrealdb_cluster_name": surrealdb_cluster_name,
         "table_id": table_id,
@@ -382,12 +399,31 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
         defaults={
             **graph_binding_defaults,
             "write_mode": effective_write_mode,
+            "status": DataLinkResourceStatus.INITIALIZING.value,
         },
     )
     if not created:
+        if (
+            graph_binding.component_status == DataLinkResourceStatus.OK.value
+            and _is_graph_relation_binding_apply_config_unchanged(
+                graph_binding=graph_binding,
+                effective_write_mode=effective_write_mode,
+                graph_binding_defaults=graph_binding_defaults,
+            )
+        ):
+            logger.info(
+                "enable_relation_surrealdb_dual_write: graph link unchanged, skip apply, data_id->[%s], "
+                "data_link->[%s], bk_biz_id->[%s]",
+                ds.bk_data_id,
+                data_link.data_link_name,
+                bk_biz_id,
+            )
+            return
         for field, value in graph_binding_defaults.items():
             setattr(graph_binding, field, value)
-        graph_binding.save(update_fields=list(graph_binding_defaults))
+        graph_binding.write_mode = effective_write_mode
+        graph_binding.status = DataLinkResourceStatus.INITIALIZING.value
+        graph_binding.save(update_fields=[*graph_binding_defaults, "write_mode", "status"])
 
     _apply_relation_graph_link_best_effort(
         data_link=data_link,
@@ -396,6 +432,7 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
         table_id=table_id,
         vm_cluster_name=vm_cluster_name,
         effective_write_mode=effective_write_mode,
+        graph_binding=graph_binding,
     )
 
 

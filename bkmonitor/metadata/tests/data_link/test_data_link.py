@@ -3851,7 +3851,7 @@ class TestRelationGraphAutoQuery:
         assert pod_node_rel is not None
         assert pod_node_rel["from"] == "pod"
         assert pod_node_rel["to"] == "node"
-        assert pod_node_rel["metric"] == "pod_node_metric"
+        assert pod_node_rel["metric"] == "node_with_pod_relation"
         assert pod_node_rel["delimiter"] == GraphDelimiter.default().value
 
     def test_invalid_bk_biz_id_raises_error(self, setup_entity_definitions):

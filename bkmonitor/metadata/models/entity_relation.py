@@ -20,6 +20,7 @@ from rest_framework import serializers
 from metadata.models.common import BaseModel
 
 NAMESPACE_ALL = "__all__"
+RELATION_METRIC_NAME_LABEL = "metric_name"
 
 logger = logging.getLogger("metadata")
 
@@ -373,6 +374,18 @@ class RelationDefinition(EntityMeta):
             "generation": self.generation,
         }
 
+
+def get_relation_metric_name(rel_def: RelationDefinition) -> str:
+    """Return the metric name consumed by bmw for this relation definition."""
+    metric_name = (rel_def.labels or {}).get(RELATION_METRIC_NAME_LABEL)
+    if isinstance(metric_name, str) and metric_name.strip():
+        return metric_name.strip()
+    if rel_def.is_directional:
+        return f"{rel_def.from_resource}_to_{rel_def.to_resource}_flow"
+    from_resource, to_resource = sorted([rel_def.from_resource, rel_def.to_resource])
+    return f"{from_resource}_with_{to_resource}_relation"
+
+
 def convert_to_vertices_and_relations(
     resource_defs: list[ResourceDefinition],
     relation_defs: list[RelationDefinition],
@@ -390,7 +403,7 @@ def convert_to_vertices_and_relations(
     - RelationDefinition.name -> relation.name
     - RelationDefinition.from_resource -> relation.from
     - RelationDefinition.to_resource -> relation.to
-    - RelationDefinition.labels["metric_name"] 或 "{name}_metric" fallback -> relation.metric
+    - RelationDefinition.labels["metric_name"] 或 BMW 关系名规则 fallback -> relation.metric
 
     Args:
         resource_defs: ResourceDefinition 列表
@@ -401,7 +414,9 @@ def convert_to_vertices_and_relations(
 
     输出示例:
         >>> vertices = [{"name":"pod", "id_fields":["pod_name","namespace"], "delimiter":"_"}]
-        >>> relations = [{"name":"pod_node", "from":"pod", "to":"node", "metric":"pod_node_metric", "delimiter":"_"}]
+        >>> relations = [
+        ...     {"name":"pod_node", "from":"pod", "to":"node", "metric":"node_with_pod_relation", "delimiter":"_"}
+        ... ]
     """
     # 转换 ResourceDefinition -> vertices
     vertices = []
@@ -432,8 +447,8 @@ def convert_to_vertices_and_relations(
             "name": rel_def.name,
             "from": rel_def.from_resource,
             "to": rel_def.to_resource,
-            # 优先使用 RelationDefinition.labels 中的自定义 metric_name，fallback 到 {name}_metric
-            "metric": (rel_def.labels or {}).get("metric_name", f"{rel_def.name}_metric"),
+            # 优先使用 RelationDefinition.labels 中的自定义 metric_name，fallback 到 bmw GetRelationName 规则
+            "metric": get_relation_metric_name(rel_def),
             # delimiter: 与 vertex 一致，确保关系边两端节点的 UID 拼接规则相同
             "delimiter": GraphDelimiter.default().value,
         }

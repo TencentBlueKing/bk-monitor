@@ -598,6 +598,9 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
         verbose_name = "图关系绑定配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+        indexes = [
+            models.Index(fields=["bk_tenant_id", "namespace", "data_link_name"], name="grbc_tenant_ns_dl_idx"),
+        ]
 
     @property
     def should_write_vm(self) -> bool:
@@ -1235,6 +1238,9 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
         verbose_name = "SurrealDB绑定配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+        indexes = [
+            models.Index(fields=["bk_tenant_id", "namespace", "data_link_name"], name="sdbc_tenant_ns_dl_idx"),
+        ]
 
     def compose_config(self) -> dict[str, Any]:
         """

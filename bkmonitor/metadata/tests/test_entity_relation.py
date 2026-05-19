@@ -386,7 +386,7 @@ class TestConvertToVerticesAndRelations:
             "metric": "pod_node_custom_metric", "delimiter": "_",
         }]
 
-    def test_metric_falls_back_to_name_suffix(self):
+    def test_metric_falls_back_to_bidirectional_bmw_relation_name(self):
         from metadata.models.entity_relation import convert_to_vertices_and_relations
 
         _, relations = convert_to_vertices_and_relations([], [
@@ -394,7 +394,26 @@ class TestConvertToVerticesAndRelations:
                 "name": "svc_pod", "from_resource": "service", "to_resource": "pod", "labels": {},
             }),
         ])
-        assert relations[0]["metric"] == "svc_pod_metric"
+        assert relations[0]["metric"] == "pod_with_service_relation"
+
+    def test_metric_falls_back_to_directional_bmw_relation_name(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            [],
+            [
+                self._make_relation_defs(
+                    {
+                        "name": "pod_node",
+                        "from_resource": "pod",
+                        "to_resource": "node",
+                        "is_directional": True,
+                        "labels": {},
+                    }
+                ),
+            ],
+        )
+        assert relations[0]["metric"] == "pod_to_node_flow"
 
     def test_dedup_keeps_first_occurrence(self):
         from metadata.models.entity_relation import convert_to_vertices_and_relations
