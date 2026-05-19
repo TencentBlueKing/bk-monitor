@@ -28,6 +28,7 @@ from alarm_backends.core.lock.service_lock import share_lock
 from metadata import models
 from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.space.constants import (
+    RESULT_TABLE_DETAIL_CHANNEL,
     RESULT_TABLE_DETAIL_KEY,
     SPACE_TO_RESULT_TABLE_KEY,
 )
@@ -40,8 +41,10 @@ REPORT_REDIS_KEY = "bkmonitorv3:metadata:link_health:last"
 FIX_HISTORY_REDIS_KEY = "bkmonitorv3:metadata:link_health:fix_history"
 STREAK_REDIS_KEY_PREFIX = "bkmonitorv3:metadata:link_health:streak"
 COOLDOWN_REDIS_KEY_PREFIX = "bkmonitorv3:metadata:link_health:fix_cooldown"
+UQ_SNAPSHOT_REDIS_KEY = "bkmonitorv3:metadata:link_health:uq_counters_snapshot"
 REPORT_TTL_SECONDS = 3600
 FIX_HISTORY_MAX_LEN = 1000
+UQ_SNAPSHOT_TTL_SECONDS = 3600
 
 BMW_PERIODIC_TASK_NAMES = (
     "periodic:metadata:refresh_ts_metric",
@@ -69,6 +72,11 @@ class Issue:
     def actionable(self) -> bool:
         return self.fix_callable is not None
 
+    @property
+    def gate_key(self) -> str:
+        """streak / cooldown 在 redis 的 key suffix；按 (scope, code) 唯一。"""
+        return f"{self.scope}:{self.code}"
+
     def to_dict(self) -> Dict:
         return {"stage": self.stage, "code": self.code, "scope": self.scope, "detail": self.detail}
 
@@ -80,6 +88,7 @@ class Report:
         self.started_at = time.time()
         self.issues: List[Issue] = []
         self.fix_attempts: List[Dict] = []
+        self.skipped: List[Dict] = []
         self.stage_stats: Dict[str, Dict[str, int]] = {}
 
     def add(self, issue: Issue):
@@ -99,6 +108,16 @@ class Report:
         }
         self.fix_attempts.append(record)
 
+    def mark_skip(self, issue: Issue, reason: str):
+        record = {
+            "ts": int(time.time()),
+            "stage": issue.stage,
+            "code": issue.code,
+            "scope": issue.scope,
+            "reason": reason,
+        }
+        self.skipped.append(record)
+
     def summary(self) -> Dict:
         return {
             "ts": int(self.started_at),
@@ -107,9 +126,11 @@ class Report:
             "fix_total": sum(1 for r in self.fix_attempts if r.get("ok") and not r.get("dry_run")),
             "fix_failed": sum(1 for r in self.fix_attempts if not r.get("ok")),
             "dry_run_total": sum(1 for r in self.fix_attempts if r.get("dry_run")),
+            "skipped_total": len(self.skipped),
             "stage_stats": self.stage_stats,
             "issues": [i.to_dict() for i in self.issues[:50]],
             "fix_attempts": self.fix_attempts[:50],
+            "skipped": self.skipped[:50],
         }
 
 
@@ -121,29 +142,55 @@ def _bmw_broker_client():
     return RedisClient.from_envs(prefix=prefix, db=db)
 
 
-def _streak_inc(scope: str) -> int:
+def _streak_inc(key_suffix: str) -> int:
     """连续命中计数；超过 LINK_HEALTH_FIX_AFTER_STREAK 才放行修复。"""
     client = RedisTools().client
-    key = f"{STREAK_REDIS_KEY_PREFIX}:{scope}"
+    key = f"{STREAK_REDIS_KEY_PREFIX}:{key_suffix}"
     n = client.incr(key)
     client.expire(key, 3600)
     return int(n)
 
 
-def _streak_clear(scope: str):
+def _streak_clear(key_suffix: str):
     client = RedisTools().client
-    client.delete(f"{STREAK_REDIS_KEY_PREFIX}:{scope}")
+    client.delete(f"{STREAK_REDIS_KEY_PREFIX}:{key_suffix}")
 
 
-def _cooldown_acquire(scope: str) -> bool:
-    """同 scope 在 LINK_HEALTH_FIX_COOLDOWN_SECONDS 内只允许修一次。"""
+def _cooldown_acquire(key_suffix: str) -> bool:
+    """同 key 在 LINK_HEALTH_FIX_COOLDOWN_SECONDS 内只允许修一次。"""
     client = RedisTools().client
-    key = f"{COOLDOWN_REDIS_KEY_PREFIX}:{scope}"
+    key = f"{COOLDOWN_REDIS_KEY_PREFIX}:{key_suffix}"
     return bool(client.set(key, "1", ex=settings.LINK_HEALTH_FIX_COOLDOWN_SECONDS, nx=True))
 
 
 def _should_skip_table_id(table_id: str) -> bool:
     return table_id in set(settings.LINK_HEALTH_EXCLUDE_TABLE_IDS)
+
+
+def _ensure_storage_type(table_id: str) -> bool:
+    """读 result_table_detail，若 storage_type 缺失则按 vm_rt 推断后补齐 + publish。
+
+    返回 True 表示有写入。仅在缺失或与 vm_rt 不一致时改动。
+    """
+    raw = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
+    if raw is None:
+        return False
+    try:
+        detail = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    except (ValueError, TypeError):
+        return False
+
+    vm_rt = detail.get("vm_rt", "") or ""
+    expected = "victoria_metrics" if vm_rt else "influxdb"
+    current = detail.get("storage_type", "")
+
+    if current == expected:
+        return False
+
+    detail["storage_type"] = expected
+    RedisTools.hset_to_redis(RESULT_TABLE_DETAIL_KEY, table_id, json.dumps(detail))
+    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
+    return True
 
 
 # ============= Stage C: BMW broker =============
@@ -164,18 +211,19 @@ def check_bmw_broker(report: Report):
 
     for task_name in BMW_PERIODIC_TASK_NAMES:
         t_key = f"{{bmw}}:{{{BMW_BROKER_QUEUE}}}:t:{task_name}"
+        gate_key = f"bmw_orphan:{task_name}:orphan_active_task"
         try:
             state = client.hget(t_key, "state")
             if state is None:
-                _streak_clear(f"bmw_orphan:{task_name}")
+                _streak_clear(gate_key)
                 continue
             state_str = state.decode("utf-8") if isinstance(state, bytes) else state
             if state_str != "active":
-                _streak_clear(f"bmw_orphan:{task_name}")
+                _streak_clear(gate_key)
                 continue
             lease_score = client.zscore(lease_key, task_name)
             if lease_score is not None and lease_score >= now_ts - grace:
-                _streak_clear(f"bmw_orphan:{task_name}")
+                _streak_clear(gate_key)
                 continue
         except Exception as exc:
             logger.exception("link_health.bmw_broker probe %s failed", task_name)
@@ -253,51 +301,58 @@ def check_routing(report: Report):
     for tid, raw in zip(table_ids, raws):
         if _should_skip_table_id(tid):
             continue
+
+        scope = f"routing:{tid}"
+
         if raw is None:
-            scope = f"routing_detail_missing:{tid}"
-            _streak_clear(scope)
+            # detail_missing 用 push_table_id_detail 重建（首次或被清），随后再 ensure storage_type
+            def _fix_missing(_tid=tid):
+                space_redis.push_table_id_detail(table_id_list=[_tid], is_publish=True)
+                _ensure_storage_type(_tid)
+
             report.add(
                 Issue(
                     "routing",
                     "detail_missing",
                     scope,
                     {"table_id": tid},
-                    fix_callable=lambda _tid=tid: space_redis.push_table_id_detail(
-                        table_id_list=[_tid], is_publish=True
-                    ),
+                    fix_callable=_fix_missing,
                 )
             )
             continue
 
         detail = _parse_detail(raw)
         if detail is None:
-            report.add(Issue("routing", "detail_invalid_json", tid, {"table_id": tid}))
+            report.add(Issue("routing", "detail_invalid_json", scope, {"table_id": tid}))
             continue
 
         storage_type = detail.get("storage_type", "")
         vm_rt = detail.get("vm_rt", "")
-        issues_for_tid: List[Tuple[str, Dict]] = []
+        code: Optional[str] = None
+        detail_payload: Optional[Dict] = None
 
         if not storage_type:
-            issues_for_tid.append(("detail_no_storage_type", {"table_id": tid, "detail_keys": list(detail.keys())}))
+            code = "detail_no_storage_type"
+            detail_payload = {"table_id": tid, "detail_keys": list(detail.keys()), "vm_rt": vm_rt}
         elif storage_type not in ALLOWED_STORAGE_TYPES:
-            issues_for_tid.append(("detail_unknown_storage_type", {"table_id": tid, "storage_type": storage_type}))
+            code = "detail_unknown_storage_type"
+            detail_payload = {"table_id": tid, "storage_type": storage_type}
         elif vm_rt and storage_type != "victoria_metrics":
-            issues_for_tid.append(
-                ("storage_type_mismatch", {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt})
-            )
+            code = "storage_type_mismatch"
+            detail_payload = {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt}
 
-        if not issues_for_tid:
-            _streak_clear(f"routing_storage_type:{tid}")
+        if not code:
+            _streak_clear(f"{scope}:detail_no_storage_type")
+            _streak_clear(f"{scope}:detail_unknown_storage_type")
+            _streak_clear(f"{scope}:storage_type_mismatch")
             continue
 
-        for code, detail_payload in issues_for_tid:
-            scope = f"routing_storage_type:{tid}"
+        # fix：仅按 vm_rt 推断后 HSET 补 storage_type 字段，避免调 push_table_id_detail
+        # 反复擦掉 BMW 已写好的 storage_type
+        def _fix_storage_type(_tid=tid):
+            _ensure_storage_type(_tid)
 
-            def _fix(_tid=tid):
-                space_redis.push_table_id_detail(table_id_list=[_tid], is_publish=True)
-
-            report.add(Issue("routing", code, scope, detail_payload, _fix))
+        report.add(Issue("routing", code, scope, detail_payload, _fix_storage_type))
 
 
 # ============= Stage A/B: 输入侧 + DB 一致性（与 F3 漂移） =============
@@ -320,7 +375,7 @@ def check_transfer_and_db(report: Report):
         return
 
     metrics_prefix = getattr(settings, "METRICS_KEY_PREFIX", "bkmonitor:metrics_")
-    history_seconds = getattr(settings, "TIME_SERIES_METRIC_EXPIRED_SECONDS", 30 * 24 * 3600)
+    fetch_window = getattr(settings, "FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", 7200)
     now_ts = int(time.time())
 
     group_qs = (
@@ -338,23 +393,26 @@ def check_transfer_and_db(report: Report):
         if _should_skip_table_id(table_id):
             continue
 
+        scope = f"metric_drift:{data_id}"
+        gate_key = f"{scope}:metric_drift"
+
         try:
-            redis_count = client.zcount(f"{metrics_prefix}{data_id}", now_ts - history_seconds, now_ts)
+            # 仅观察 fetch_window 内的活跃指标，与下游 instance 方法 update_time_series_metrics 口径一致
+            redis_count = client.zcount(f"{metrics_prefix}{data_id}", now_ts - fetch_window, now_ts)
         except Exception as exc:
             logger.exception("link_health.transfer zcount failed bk_data_id=%s", data_id)
             report.add(Issue("transfer", "zcount_error", f"data_id:{data_id}", {"error": str(exc)}))
             continue
 
         if redis_count == 0:
-            _streak_clear(f"metric_drift:{data_id}")
+            _streak_clear(gate_key)
             continue
 
         db_count = models.TimeSeriesMetric.objects.filter(group_id=group_id).count()
         if db_count >= redis_count:
-            _streak_clear(f"metric_drift:{data_id}")
+            _streak_clear(gate_key)
             continue
 
-        scope = f"metric_drift:{data_id}"
         detail = {
             "bk_data_id": data_id,
             "table_id": table_id,
@@ -362,22 +420,25 @@ def check_transfer_and_db(report: Report):
             "db_metric_count": db_count,
         }
 
-        def _fix(_group_id=group_id, _table_id=table_id, _history=history_seconds):
+        def _fix_drift(_group_id=group_id, _table_id=table_id):
             ts_group = models.TimeSeriesGroup.objects.get(time_series_group_id=_group_id)
-            metric_info = ts_group.get_metrics_from_redis(expired_time=_history)
-            if not metric_info:
-                return
-            ts_group.update_metrics(metric_info)
-            space_redis.push_table_id_detail(table_id_list=[_table_id], is_publish=True)
+            is_updated = ts_group.update_time_series_metrics()
+            if is_updated:
+                space_redis.push_table_id_detail(table_id_list=[_table_id], is_publish=True)
+                # push_table_id_detail 不写 storage_type，需要补回，避免擦掉 BMW 写好的字段
+                _ensure_storage_type(_table_id)
 
-        report.add(Issue("transfer", "metric_drift", scope, detail, _fix))
+        report.add(Issue("transfer", "metric_drift", scope, detail, _fix_drift))
 
 
 # ============= Stage E: unify-query metrics =============
 
 
 def check_unify_query(report: Report):
-    """通过 /metrics 端点观测 unify-query 是否出现 SPACE_* 异常计数器。"""
+    """观测 unify-query SPACE_* counter 与上一轮快照的增量。
+
+    Prometheus counter 是累加器，健康态也非零；仅当与上一轮快照差值 ≥ 阈值才认为异常。
+    """
     url = settings.LINK_HEALTH_UNIFY_QUERY_METRICS_URL
     try:
         resp = requests.get(url, timeout=5)
@@ -398,15 +459,53 @@ def check_unify_query(report: Report):
         except ValueError:
             continue
 
-    if counters:
-        report.add(
-            Issue(
-                "unify_query",
-                "space_router_anomaly",
-                "metrics_snapshot",
-                {"sample": dict(list(counters.items())[:10]), "total": len(counters)},
-            )
+    if not counters:
+        return
+
+    threshold = settings.LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD
+    client = RedisTools().client
+    last_snapshot_raw = client.hgetall(UQ_SNAPSHOT_REDIS_KEY) or {}
+    last_snapshot: Dict[str, float] = {}
+    for k, v in last_snapshot_raw.items():
+        k_str = k.decode("utf-8") if isinstance(k, bytes) else k
+        v_str = v.decode("utf-8") if isinstance(v, bytes) else v
+        try:
+            last_snapshot[k_str] = float(v_str)
+        except (ValueError, TypeError):
+            continue
+
+    deltas: Dict[str, float] = {}
+    for metric, value in counters.items():
+        prev = last_snapshot.get(metric, value)  # 首次未见过则视为 0 增长
+        delta = value - prev
+        if delta >= threshold:
+            deltas[metric] = delta
+
+    # 刷新本轮快照供下一轮对比
+    try:
+        snapshot_payload = {k: str(v) for k, v in counters.items()}
+        if snapshot_payload:
+            client.delete(UQ_SNAPSHOT_REDIS_KEY)
+            RedisTools.hmset_to_redis(UQ_SNAPSHOT_REDIS_KEY, snapshot_payload)
+            client.expire(UQ_SNAPSHOT_REDIS_KEY, UQ_SNAPSHOT_TTL_SECONDS)
+    except Exception:
+        logger.exception("link_health.unify_query snapshot persist failed")
+
+    if not deltas:
+        return
+
+    report.add(
+        Issue(
+            "unify_query",
+            "space_router_anomaly_delta",
+            "metrics_snapshot",
+            {
+                "threshold": threshold,
+                "delta_count": len(deltas),
+                "sample": dict(list(deltas.items())[:10]),
+            },
         )
+    )
 
 
 # ============= Stage F: InfluxDB 可达性 =============
@@ -428,10 +527,10 @@ def check_influxdb(report: Report):
 
 def _passes_safety_gates(issue: Issue) -> Tuple[bool, str]:
     streak_threshold = settings.LINK_HEALTH_FIX_AFTER_STREAK
-    streak = _streak_inc(issue.scope)
+    streak = _streak_inc(issue.gate_key)
     if streak < streak_threshold:
         return False, f"streak {streak}/{streak_threshold}"
-    if not _cooldown_acquire(issue.scope):
+    if not _cooldown_acquire(issue.gate_key):
         return False, "cooldown"
     return True, "ok"
 
@@ -442,8 +541,9 @@ def _publish_report(report: Report):
     try:
         client = RedisTools().client
         client.set(REPORT_REDIS_KEY, body, ex=REPORT_TTL_SECONDS)
-        if report.fix_attempts:
-            for record in report.fix_attempts:
+        records = list(report.fix_attempts) + list(report.skipped)
+        if records:
+            for record in records:
                 client.lpush(FIX_HISTORY_REDIS_KEY, json.dumps(record, ensure_ascii=False))
             client.ltrim(FIX_HISTORY_REDIS_KEY, 0, FIX_HISTORY_MAX_LEN - 1)
     except Exception:
@@ -454,10 +554,11 @@ def _publish_report(report: Report):
         return
     level = logger.warning if summary["fix_failed"] == 0 else logger.error
     level(
-        "link_health: %s issues, fixed=%s failed=%s dry_run=%s elapsed=%.3fs detail=%s",
+        "link_health: %s issues, fixed=%s failed=%s skipped=%s dry_run=%s elapsed=%.3fs detail=%s",
         summary["issue_total"],
         summary["fix_total"],
         summary["fix_failed"],
+        summary["skipped_total"],
         summary["dry_run_total"],
         summary["elapsed_seconds"],
         body[:2000],
@@ -488,10 +589,12 @@ def run_health_check(dry_run: Optional[bool] = None) -> Dict:
     fix_count = 0
     for issue in report.issues:
         if not issue.actionable:
+            report.mark_skip(issue, "not_actionable")
             continue
         if fix_count >= fix_budget:
             logger.error("link_health: fix budget %s exhausted, remaining issues skipped", fix_budget)
-            break
+            report.mark_skip(issue, "budget_exhausted")
+            continue
 
         passed, reason = _passes_safety_gates(issue)
         if not passed:
@@ -502,6 +605,7 @@ def run_health_check(dry_run: Optional[bool] = None) -> Dict:
                 issue.scope,
                 reason,
             )
+            report.mark_skip(issue, reason)
             continue
 
         if dry_run:

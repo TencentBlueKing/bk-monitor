@@ -1347,6 +1347,8 @@ LINK_HEALTH_INFLUXDB_PING_URL = os.environ.get(
 LINK_HEALTH_EXCLUDE_TABLE_IDS = [
     s.strip() for s in os.environ.get("LINK_HEALTH_EXCLUDE_TABLE_IDS", "").split(",") if s.strip()
 ]
+# unify-query SPACE_* counters delta 告警阈值（与上一轮快照对比）
+LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD = int(os.environ.get("LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD", 5))
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
