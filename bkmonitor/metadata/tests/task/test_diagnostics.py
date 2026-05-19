@@ -47,6 +47,10 @@ def _set_settings(mocker):
     mocker.patch("metadata.task.diagnostics.settings.LINK_HEALTH_AUTOREMEDIATE", True)
     mocker.patch("metadata.task.diagnostics.settings.LINK_HEALTH_EXCLUDE_TABLE_IDS", [])
     mocker.patch("metadata.task.diagnostics.settings.LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD", 5)
+    mocker.patch(
+        "metadata.task.diagnostics.settings.LINK_HEALTH_ALLOWED_STORAGE_TYPES",
+        {"influxdb", "victoria_metrics", "elasticsearch"},
+    )
     mocker.patch("metadata.task.diagnostics.settings.METRICS_KEY_PREFIX", "bkmonitor:metrics_")
     mocker.patch("metadata.task.diagnostics.settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", 7200)
 
@@ -249,6 +253,50 @@ def test_routing_es_with_vm_rt_is_flagged_but_not_autofixed(mock_metadata_redis,
     raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
     written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
     assert written["storage_type"] == "elasticsearch"
+
+
+def test_routing_allowed_storage_types_extensible_via_settings(mock_metadata_redis, mock_http, mocker):
+    """运维通过 settings 扩展白名单后，新字面量被视为合法、不被自愈擦写。"""
+    _set_settings(mocker)
+    # 把上游可能新增的字面量加入白名单
+    mocker.patch(
+        "metadata.task.diagnostics.settings.LINK_HEALTH_ALLOWED_STORAGE_TYPES",
+        {"influxdb", "victoria_metrics", "elasticsearch", "bkdata"},
+    )
+    client = mock_metadata_redis
+
+    from metadata.models.space.constants import (
+        RESULT_TABLE_DETAIL_KEY,
+        SPACE_TO_RESULT_TABLE_KEY,
+    )
+
+    table_id = "2_bkdata_table.__default__"
+    client.hset(SPACE_TO_RESULT_TABLE_KEY, "bkcc__222", json.dumps({table_id: {"filters": []}}))
+    client.hset(
+        RESULT_TABLE_DETAIL_KEY,
+        table_id,
+        json.dumps(
+            {
+                "storage_id": 11,
+                "vm_rt": "",
+                "fields": [],
+                "bk_data_id": 222,
+                "storage_type": "bkdata",
+            }
+        ),
+    )
+    mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
+
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    routing_issues = [
+        i for i in summary["issues"] if i["stage"] == "routing" and i["detail"].get("table_id") == table_id
+    ]
+    assert routing_issues == []
+
+    raw = client.hget(RESULT_TABLE_DETAIL_KEY, table_id)
+    written = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    assert written["storage_type"] == "bkdata"  # 扩展后被保留
 
 
 def test_routing_storage_type_fix_chooses_vm_when_vm_rt_present(mock_metadata_redis, mock_http, mocker):

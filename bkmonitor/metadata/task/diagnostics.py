@@ -53,7 +53,13 @@ BMW_PERIODIC_TASK_NAMES = (
     "periodic:cluster_metrics:push_and_publish_space_router_info",
 )
 BMW_BROKER_QUEUE = "default"
-ALLOWED_STORAGE_TYPES = {"influxdb", "victoria_metrics", "elasticsearch"}
+
+
+def _allowed_storage_types() -> set:
+    """合法 storage_type 字面量集合；按 settings 动态读取以支持运维不发版扩白名单。"""
+    return set(
+        getattr(settings, "LINK_HEALTH_ALLOWED_STORAGE_TYPES", {"influxdb", "victoria_metrics", "elasticsearch"})
+    )
 
 
 class Issue:
@@ -172,9 +178,9 @@ def _ensure_storage_type(table_id: str) -> bool:
 
     仅在以下情况写入：
     - 字段缺失或为空；
-    - 当前值不在 ALLOWED_STORAGE_TYPES 范围内（即非法字面量）；
+    - 当前值不在 LINK_HEALTH_ALLOWED_STORAGE_TYPES 范围内（即非法字面量）；
     - 当前值是 influxdb / victoria_metrics 但与 vm_rt 实际指向矛盾（漂移）。
-    若当前值 ∈ ALLOWED_STORAGE_TYPES（含 elasticsearch）且与 vm_rt 不冲突，直接返回 False。
+    若当前值 ∈ LINK_HEALTH_ALLOWED_STORAGE_TYPES（含 elasticsearch）且与 vm_rt 不冲突，直接返回 False。
     """
     raw = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
     if raw is None:
@@ -187,7 +193,7 @@ def _ensure_storage_type(table_id: str) -> bool:
     vm_rt = detail.get("vm_rt", "") or ""
     current = detail.get("storage_type", "") or ""
 
-    if current in ALLOWED_STORAGE_TYPES:
+    if current in _allowed_storage_types():
         # 已是合法值，仅在与 vm_rt 显著冲突时纠正：vm_rt 非空但 storage_type 是 influxdb，
         # 或反之 storage_type=victoria_metrics 但无 vm_rt。其它情况（如 elasticsearch）保留。
         if vm_rt and current == "influxdb":
@@ -348,7 +354,7 @@ def check_routing(report: Report):
         if not storage_type:
             code = "detail_no_storage_type"
             detail_payload = {"table_id": tid, "detail_keys": list(detail.keys()), "vm_rt": vm_rt}
-        elif storage_type not in ALLOWED_STORAGE_TYPES:
+        elif storage_type not in _allowed_storage_types():
             code = "detail_unknown_storage_type"
             detail_payload = {"table_id": tid, "storage_type": storage_type}
         elif storage_type == "influxdb" and vm_rt:

@@ -1349,6 +1349,17 @@ LINK_HEALTH_EXCLUDE_TABLE_IDS = [
 ]
 # unify-query SPACE_* counters delta 告警阈值（与上一轮快照对比）
 LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD = int(os.environ.get("LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD", 5))
+# 路由 result_table_detail.storage_type 合法字面量白名单
+# 默认值与 BMW Go 端 internal/metadata/models/constants.go 写入的字面量集合保持一致；
+# 若上游引入新字面量，运维可通过 env 扩展不发版即生效，避免被巡检误判为非法
+LINK_HEALTH_ALLOWED_STORAGE_TYPES = {
+    s.strip()
+    for s in os.environ.get(
+        "LINK_HEALTH_ALLOWED_STORAGE_TYPES",
+        "influxdb,victoria_metrics,elasticsearch",
+    ).split(",")
+    if s.strip()
+}
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
