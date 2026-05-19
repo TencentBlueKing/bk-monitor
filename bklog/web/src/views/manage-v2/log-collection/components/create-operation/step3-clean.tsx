@@ -1426,16 +1426,17 @@ export default defineComponent({
           etl_params,
         };
         const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etl_fields;
+        const isDorisEdit = isUpdate.value && curCollect.value.storage_cluster_type === 'doris';
         const requestData = isNeedCreate
           ? {
             ...data,
             fields: fieldsList,
             storage_cluster_id,
-            allocation_min_days,
+            allocation_min_days: allocation_min_days ?? (isDorisEdit ? 0 : undefined),
             storage_replies,
             es_shards: es_shards ?? storage_shards_nums,
             table_id,
-            retention,
+            retention: retention ?? (isDorisEdit ? 7 : undefined),
             etl_config: cleaningMode.value,
           }
           : {

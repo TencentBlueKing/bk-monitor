@@ -310,6 +310,10 @@ export default defineComponent({
       }
       clusterSelect.value = row.storage_cluster_id;
       clusterData.value = row;
+      // doris集群编辑时，接口返回的retention可能为null，使用选中集群的max_retention兜底
+      if (isDorisMode.value && props.isEdit && formData.value.retention == null) {
+        formData.value.retention = row.max_retention ?? STORAGE_DEFAULTS.retention;
+      }
       // 如果开启了冷热集群，天数不能为0
       if (row.enable_hot_warm && Number(formData.value.allocation_min_days) === 0) {
         formData.value.allocation_min_days = row.setup_config?.retention_days_default || '7';
