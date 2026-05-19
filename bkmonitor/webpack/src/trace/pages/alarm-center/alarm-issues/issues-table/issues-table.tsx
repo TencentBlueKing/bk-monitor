@@ -30,6 +30,7 @@ import CommonTable from '../../components/alarm-table/components/common-table/co
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
 import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
 import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
+import { ENDED_STATUS_SET } from '../constant';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
@@ -188,6 +189,10 @@ export default defineComponent({
               />
             ) as unknown as SlotReturnValue
           }
+          rowClassName={({ row }) => {
+            const status = (row as IssueItem).status;
+            return ENDED_STATUS_SET.has(status) ? 'is-ended' : '';
+          }}
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}

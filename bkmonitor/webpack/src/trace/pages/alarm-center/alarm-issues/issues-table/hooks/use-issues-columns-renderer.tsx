@@ -89,17 +89,6 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     return (
       <div class='issues-name-col'>
         <div class='issues-name-title'>
-          <IssueNameCell
-            ellipsisClass={renderCtx.isEnabledCellEllipsis(column)}
-            name={row.name || ''}
-            onShowDetail={() => rendererCtx.handleShowDetail(row)}
-            onSubmit={(newName: string) => rendererCtx.handleNameChange(row, newName)}
-          />
-        </div>
-        <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(column)}`}>
-          <span class='issues-name-exception-text'>{row.anomaly_message}</span>
-        </div>
-        <div class='issues-name-meta'>
           <span
             style={{
               '--issues-type-bg': regressionConfig?.bgColor || '#E1F5F0',
@@ -115,6 +104,14 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           >
             <i class={regressionConfig?.icon} />
           </span>
+          <IssueNameCell
+            ellipsisClass={renderCtx.isEnabledCellEllipsis(column)}
+            name={row.name || ''}
+            onShowDetail={() => rendererCtx.handleShowDetail(row)}
+            onSubmit={(newName: string) => rendererCtx.handleNameChange(row, newName)}
+          />
+        </div>
+        <div class='issues-name-description'>
           <span
             class='issues-alert-count'
             onMouseenter={e =>
@@ -124,8 +121,11 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             }
             onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
           >
-            <i class='icon-monitor icon-shijianjiansuo' />
-            {row.alert_count}
+            <i class='icon-monitor icon-alert-line' />
+            <span class='issues-alert-count-number'>{row.alert_count}</span>
+          </span>
+          <span class={['issues-name-exception-text', renderCtx.isEnabledCellEllipsis(column)]}>
+            {row.anomaly_message}
           </span>
         </div>
       </div>
@@ -156,28 +156,33 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 趋势列渲染（MiniBarChart 柱状迷你图 + 告警总数，支持通过 chartGroupId 进行图表联动）
+   * @description 趋势列渲染（MiniBarChart 柱状迷你图，支持通过 chartGroupId 进行图表联动）
    * @param {IssueItem} row - 当前行 Issue 数据
    * @returns {SlotReturnValue} 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
     const trend = row.trend || [];
-    const seriesList = trend.length
-      ? [
-          {
-            datapoints: trend.map(([ts, count]) => [count, ts] as [number, number]),
-            name: t('告警事件数'),
-            type: 'bar',
-            unit: 'none',
-          },
-        ]
-      : [];
+    const effectiveTrend = trend.filter(([, count]) => count > 0);
+    if (!effectiveTrend.length) {
+      return (
+        <div class='issues-trend-col is-empty'>
+          <span class='empty-text'>{t('暂无数据')}</span>
+        </div>
+      ) as unknown as SlotReturnValue;
+    }
+    const seriesList = [
+      {
+        datapoints: trend.map(([ts, count]) => [count, ts] as [number, number]),
+        name: t('告警事件数'),
+        type: 'bar',
+        unit: 'none',
+      },
+    ];
     return (
       <div class='issues-trend-col'>
         <MiniBarChart
           group={get(rendererCtx.chartGroupId)}
           seriesList={seriesList}
-          total={row.alert_count}
         />
       </div>
     ) as unknown as SlotReturnValue;

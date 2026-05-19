@@ -64,6 +64,12 @@ export const IssueStatusEnum = {
   ARCHIVED: 'archived',
 } as const;
 
+/** 已结束的 issue 状态集合 */
+export const ENDED_STATUS_SET: ReadonlySet<(typeof IssueStatusEnum)[keyof typeof IssueStatusEnum]> = new Set([
+  IssueStatusEnum.RESOLVED,
+  IssueStatusEnum.ARCHIVED,
+]);
+
 /** Issues 详情操作功能枚举 */
 export const IssueActionEnum = {
   /** 标记已解决 */
