@@ -527,6 +527,42 @@ const getSceneQuickExport = {
   method: 'post',
 };
 
+/** 场景化检索 - 字段展示配置 保存 */
+const sceneFieldsConfig = {
+  url: '/search/scene/fields_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段模板列表 */
+const sceneListConfig = {
+  url: '/search/scene/list_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 创建字段模板 */
+const sceneCreateConfig = {
+  url: '/search/scene/create_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 更新字段模板 */
+const sceneUpdateConfig = {
+  url: '/search/scene/update_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 删除字段模板 */
+const sceneDeleteConfig = {
+  url: '/search/scene/delete_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 应用字段模板 */
+const sceneApplyFieldsConfig = {
+  url: '/search/scene/config/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -596,4 +632,10 @@ export {
   getSceneQuickExport,
   getSceneSearchHistory,
   getSceneExportHistory,
+  sceneFieldsConfig,
+  sceneListConfig,
+  sceneCreateConfig,
+  sceneUpdateConfig,
+  sceneDeleteConfig,
+  sceneApplyFieldsConfig,
 };
