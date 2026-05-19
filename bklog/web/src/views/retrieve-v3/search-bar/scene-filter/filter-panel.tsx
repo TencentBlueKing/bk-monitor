@@ -83,13 +83,18 @@ export default defineComponent({
 
       try {
         // 构建级联筛选条件：已选的其他维度值
-        const filters: Record<string, string[]> = {};
+        const filters: Array<{ field_name: string; value: string[]; op: string }> = [];
         const currentFields = currentScene.value?.fields ?? [];
         for (const f of currentFields) {
           if (f.key === field.key) continue;
-          const val = props.filterValues[f.key]?.value;
+          const fieldValue = props.filterValues[f.key];
+          const val = fieldValue?.value;
           if (val == null || val === '' || (Array.isArray(val) && val.length === 0)) continue;
-          filters[f.key] = Array.isArray(val) ? val.map(String) : [String(val)];
+          filters.push({
+            field_name: f.key,
+            value: Array.isArray(val) ? val.map(String) : [String(val)],
+            op: fieldValue.op || 'eq',
+          });
         }
 
         const res = await http.request('retrieve/getSceneDimensionValues', {
@@ -97,7 +102,7 @@ export default defineComponent({
             bk_biz_id: store.state.bkBizId,
             scene: props.activeScene,
             dimension_key: field.key,
-            filters: Object.keys(filters).length > 0 ? filters : undefined,
+            filters: filters.length > 0 ? filters : undefined,
           },
         });
 
