@@ -193,10 +193,7 @@ export default class TagBlock extends tsc<IProps> {
     this.$nextTick(() => {
       // 已存在实例仅更新内容，避免重复创建
       if (this.tippyIns) {
-        // 折叠内容可能变化，动态替换面板 DOM
-        this.tippyIns.setProps({
-          content: this.getTippyContent(),
-        });
+        this.syncTippyTipsProps();
         // 可能在“无折叠项”分支被 disable，这里确保重新可用
         this.tippyIns.enable();
         return;
@@ -206,6 +203,7 @@ export default class TagBlock extends tsc<IProps> {
       if (!moreEl || !this.tipsPanel) {
         return;
       }
+      const placement = this.getTipsPlacement(moreEl as HTMLElement, this.tipsPanel);
       // tippy 返回实例对象，后续复用并在销毁阶段统一清理
       this.tippyIns = tippy(moreEl as SingleTarget, {
         allowHTML: true,
@@ -215,7 +213,26 @@ export default class TagBlock extends tsc<IProps> {
         hideOnClick: true,
         interactive: true,
         maxWidth: 400,
-        placement: 'top',
+        onShow: instance => {
+          this.applyTipsPanelScrollLimitOnShow(instance);
+        },
+        placement,
+        popperOptions: {
+          modifiers: [
+            {
+              name: 'preventOverflow',
+              options: {
+                padding: 20,
+              },
+            },
+            {
+              name: 'flip',
+              options: {
+                padding: 20,
+              },
+            },
+          ],
+        },
         theme: 'monitor-pc-tag-block-more',
         trigger: 'mouseenter',
         zIndex: 999999,
@@ -230,15 +247,104 @@ export default class TagBlock extends tsc<IProps> {
       return;
     }
     this.$nextTick(() => {
-      this.tippyIns?.setProps({
-        content: this.getTippyContent(),
-      });
+      this.syncTippyTipsProps();
+    });
+  }
+
+  syncTippyTipsProps() {
+    const moreEl = this.moreRef?.$el as HTMLElement | undefined;
+    if (!this.tippyIns || !moreEl || !this.tipsPanel) {
+      return;
+    }
+    this.tippyIns.setProps({
+      content: this.getTippyContent(),
+      placement: this.getTipsPlacement(moreEl, this.tipsPanel),
     });
   }
 
   getTippyContent() {
     // 返回克隆节点，避免 tippy 接管原始 DOM 导致渲染副作用
-    return this.tipsPanel ? (this.tipsPanel.cloneNode(true) as HTMLDivElement) : '';
+    if (!this.tipsPanel) {
+      return '';
+    }
+    const panel = this.tipsPanel.cloneNode(true) as HTMLDivElement;
+    const moreEl = this.moreRef?.$el as HTMLElement | undefined;
+    if (moreEl) {
+      this.applyTipsPanelScrollLimit(panel, moreEl);
+    }
+    return panel;
+  }
+
+  /** 测量面板自然高度，用于预判 flip 方向 */
+  measureTipsPanelHeight(panelSource: HTMLElement) {
+    const measureEl = panelSource.cloneNode(true) as HTMLElement;
+    measureEl.style.maxHeight = 'none';
+    measureEl.style.position = 'fixed';
+    measureEl.style.top = '-9999px';
+    measureEl.style.left = '-9999px';
+    measureEl.style.visibility = 'hidden';
+    measureEl.style.pointerEvents = 'none';
+    document.body.appendChild(measureEl);
+    const height = measureEl.scrollHeight;
+    document.body.removeChild(measureEl);
+    return height;
+  }
+
+  /**
+   * 预判 tip 展示在参考元素上方还是下方（对齐 Popper flip 逻辑）。
+   * 优先 top；上方放不下且下方更充裕时取 bottom。
+   */
+  getTipsPlacement(referenceEl: HTMLElement, panelSource: HTMLElement): 'top' | 'bottom' {
+    const viewportGap = 20;
+    const offset = 10;
+    const tippyBoxExtra = 20;
+    const refRect = referenceEl.getBoundingClientRect();
+    const topSpace = refRect.top - viewportGap - offset;
+    const bottomSpace = window.innerHeight - refRect.bottom - viewportGap - offset;
+    const popperHeight = this.measureTipsPanelHeight(panelSource) + tippyBoxExtra;
+
+    if (popperHeight <= topSpace) {
+      return 'top';
+    }
+    if (popperHeight <= bottomSpace) {
+      return 'bottom';
+    }
+    return topSpace >= bottomSpace ? 'top' : 'bottom';
+  }
+
+  calcTipsPanelMaxHeight(referenceEl: HTMLElement, placement: 'top' | 'bottom') {
+    const viewportGap = 20;
+    const offset = 10;
+    const refRect = referenceEl.getBoundingClientRect();
+    const availableHeight =
+      placement === 'top'
+        ? refRect.top - viewportGap - offset
+        : window.innerHeight - refRect.bottom - viewportGap - offset;
+    return Math.max(80, availableHeight);
+  }
+
+  applyTipsPanelScrollLimit(panel: HTMLElement, referenceEl: HTMLElement) {
+    if (!this.tipsPanel) {
+      return;
+    }
+    const placement = this.getTipsPlacement(referenceEl, this.tipsPanel);
+    panel.style.maxHeight = `${this.calcTipsPanelMaxHeight(referenceEl, placement)}px`;
+    panel.style.overflowY = 'auto';
+  }
+
+  /** onShow 内同步兜底：按当前位置重新预判并限制高度 */
+  applyTipsPanelScrollLimitOnShow(instance: Instance) {
+    const panel = instance.popper?.querySelector('.monitor-pc-tag-block-more-panel') as HTMLElement | null;
+    const referenceEl = instance.reference as HTMLElement | undefined;
+    if (!panel || !referenceEl || !this.tipsPanel) {
+      return;
+    }
+    const placement = this.getTipsPlacement(referenceEl, this.tipsPanel);
+    panel.style.maxHeight = `${this.calcTipsPanelMaxHeight(referenceEl, placement)}px`;
+    panel.style.overflowY = 'auto';
+    if (instance.props.placement !== placement) {
+      instance.setProps({ placement });
+    }
   }
 
   /**

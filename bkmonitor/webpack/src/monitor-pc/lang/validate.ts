@@ -298,8 +298,8 @@ export default {
   '变量名仅支持大小写字符、数字、下划线、点（.），50个字符以内':
     'Variable name only supports case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
   请输入业务ID: 'Please enter the business ID',
-  '被调服务、被调 Service、被调接口的组合值须唯一':
-    'The combination value of the called service, called Service, and called interface must be unique',
+  '被调服务、被调 Service、被调接口、是否全局的组合值须唯一':
+    'The combination value of the called service, called Service, called interface and whether it is global must be unique',
   '类型、被调服务、被调Service、被调接口、是否全局的组合值须唯一':
     'The combination value of the type, called service, called Service, called interface, and whether it is global must be unique',
   返回码格式错误: 'Return code format error',

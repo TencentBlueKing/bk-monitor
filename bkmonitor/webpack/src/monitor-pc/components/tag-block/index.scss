@@ -43,7 +43,24 @@
 }
 
 .monitor-pc-tag-block-more-panel {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   color: #fff;
+  scrollbar-color: rgb(255 255 255 / 50%) transparent;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 25%);
+    border-radius: 2px;
+  }
 
   &-item {
     max-width: 360px;

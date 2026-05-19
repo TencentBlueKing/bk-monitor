@@ -43,6 +43,10 @@ export interface IValue {
 interface IProps {
   autoFocus?: boolean;
   fieldInfo?: IFieldItem;
+  /* 是否多选，默认多选 */
+  multiple?: boolean;
+  /* 是否禁用 */
+  disabled?: boolean;
   /* 获取数据 */
   getValueFn?: TGetValueFn;
   value?: IValue[];
@@ -58,6 +62,8 @@ export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: IValue[];
   @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
   @Prop({ type: Boolean, default: false }) autoFocus: boolean;
+  @Prop({ type: Boolean, default: true }) multiple: boolean;
+  @Prop({ type: Boolean, default: false }) disabled: boolean;
   @Prop({
     type: Function,
     default: () =>
@@ -98,6 +104,10 @@ export default class ValueTagSelector extends tsc<IProps> {
     return this.isTypeInteger ? this.localValue.some(v => !isNumeric(v)) : false;
   }
 
+  get isSingleDisabled() {
+    return this.localValue.length === 1 && !this.multiple;
+  }
+
   mounted() {
     this.activeIndex = this.localValue.length - 1;
     if (this.autoFocus) {
@@ -132,9 +142,18 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param item
    */
   handleCheck(item: IValue) {
+    if (this.disabled) {
+      return;
+    }
+
     this.activeIndex = -1;
     if (this.localValue.some(v => v.id === item.id)) return;
-    this.localValue.push(item);
+    if (this.isSingleDisabled) {
+      this.localValue = [item];
+    } else {
+      this.localValue.push(item);
+    }
+
     this.handleChange();
   }
 
@@ -142,6 +161,10 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 点击输入框
    */
   handleClick() {
+    if (this.disabled) {
+      return;
+    }
+
     if (!this.isShowDropDown) {
       this.handleShowShowDropDown(true);
     }
@@ -155,6 +178,10 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param event
    */
   handleInput(value: string) {
+    if (this.disabled) {
+      return;
+    }
+
     this.inputValue = value;
     if (!this.isShowDropDown) {
       this.handleShowShowDropDown(true);
@@ -173,14 +200,20 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 输入框enter事件
    */
   handleEnter() {
-    if (!this.inputValue || this.isChecked) {
+    if (this.disabled || !this.inputValue || this.isChecked) {
       return;
     }
     if (this.localValue.some(v => v.id === this.inputValue)) {
       this.inputValue = '';
       return;
     }
-    this.localValue.push({ id: this.inputValue, name: this.inputValue });
+
+    const newItem = { id: this.inputValue, name: this.inputValue };
+    if (this.isSingleDisabled) {
+      this.localValue = [newItem];
+    } else {
+      this.localValue.push(newItem);
+    }
     this.activeIndex += 1;
     this.inputValue = '';
     this.handleChange();
@@ -232,6 +265,10 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param index
    */
   handleDelete(index: number) {
+    if (this.disabled) {
+      return;
+    }
+
     this.localValue.splice(index, 1);
     this.handleChange();
   }
@@ -296,6 +333,7 @@ export default class ValueTagSelector extends tsc<IProps> {
         isFocus={this.isFocus}
         placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
         value={this.inputValue}
+        disabled={this.disabled}
         onBackspaceNull={this.handleBackspaceNull}
         onBlur={this.handleBlur}
         onEnter={this.handleEnter}
@@ -305,7 +343,7 @@ export default class ValueTagSelector extends tsc<IProps> {
     return (
       <div class='retrieval__value-tag-selector-component'>
         <div
-          class={['value-tag-selector-component-wrap', { active: this.isFocus }]}
+          class={['value-tag-selector-component-wrap', { active: this.isFocus, disabled: this.disabled }]}
           onClick={this.handleClick}
         >
           {this.localValue.length

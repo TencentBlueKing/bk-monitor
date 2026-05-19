@@ -40,13 +40,17 @@
 
     .return-code-redefine-row {
       height: 154px;
+
+      .cell {
+        overflow: visible !important;
+      }
     }
 
     .interface-column {
       display: flex;
       align-items: center;
       width: 100%;
-      overflow: hidden;
+      overflow: visible;
 
       .scoped-select {
         width: 100%;
