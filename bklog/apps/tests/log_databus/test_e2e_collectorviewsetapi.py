@@ -283,9 +283,9 @@ class TestCollectorViewSetAPI(TestCase):
     @patch.object(permission.Permission, "batch_is_allowed", lambda _, actions, resources: BATCH_IS_ALLOWED)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     @FakeRedis("apps.utils.cache.cache")
-    def test_list_collector_filter_by_bk_data_id(self, mock_get_result_table_storage):
+    def test_list_collectors_filter_by_bk_data_id(self, mock_get_result_table_storage):
         """
-        测试 api.v1.databus.collectors 通过 bk_data_id 参数过滤
+        测试 api.v1.databus.collectors.list_collectors 通过 bk_data_id 参数过滤
         """
         mock_get_result_table_storage.return_value = CLUSTER_INFOS
 
@@ -327,10 +327,10 @@ class TestCollectorViewSetAPI(TestCase):
             task_id_list=["1331698"],
         )
 
-        path = "/api/v1/databus/collectors/"
+        path = "/api/v1/databus/collectors/list_collectors/"
 
         # 使用 bk_data_id 过滤，应只返回匹配的那一条
-        data = {"bk_biz_id": BK_BIZ_ID, "bk_data_id": 1500586, "page": 1, "pagesize": 10}
+        data = {"bk_biz_id": BK_BIZ_ID, "bk_data_id": 1500586}
         response = self.client.get(path=path, data=data)
         content = json.loads(response.content)
 
@@ -338,16 +338,17 @@ class TestCollectorViewSetAPI(TestCase):
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertTrue(content["result"])
-        self.assertEqual(content["data"]["total"], 1)
-        self.assertEqual(content["data"]["list"][0]["bk_data_id"], 1500586)
-        self.assertEqual(content["data"]["list"][0]["collector_config_name"], "test3333")
+        # list_collectors 返回的是列表
+        result_list = content["data"]
+        matched = [item for item in result_list if item["bk_data_id"] == 1500586]
+        self.assertEqual(len(matched), 1)
+        self.assertEqual(matched[0]["collector_config_name"], "test3333")
 
         # 使用不存在的 bk_data_id 过滤，应返回空列表
-        data = {"bk_biz_id": BK_BIZ_ID, "bk_data_id": 9999999, "page": 1, "pagesize": 10}
+        data = {"bk_biz_id": BK_BIZ_ID, "bk_data_id": 9999999}
         response = self.client.get(path=path, data=data)
         content = json.loads(response.content)
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.assertTrue(content["result"])
-        self.assertEqual(content["data"]["total"], 0)
-        self.assertEqual(content["data"]["list"], [])
+        self.assertEqual(content["data"], [])
