@@ -39,6 +39,12 @@ import { VariablesService } from '../../../../utils/variable';
 
 import type { CallOptions, CodeRedefineItem } from '../../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
+import type {
+  IGetValueFnParams,
+  IOptionsInfo,
+  TGetValueFn,
+} from 'monitor-pc/components/retrieval-filter/value-selector-typing';
 
 import './code-redefine-slider.scss';
 interface CodeRedefineSliderEvents {
@@ -78,19 +84,12 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
   data: CodeRedefineItem[] = [];
   showData: CodeRedefineItem[] = [];
-
   tableLoading = false;
+  isCurrentCancelClick = false;
 
   /** 重复的规则id */
   repeatRulesIdSet = new Set();
   rowEditMap: Record<string, boolean> = {};
-
-  columns: ColumnItem[] = [
-    { label: this.$tc('被调服务'), prop: 'callee_server', options: [], loading: false, width: 194 },
-    { label: this.$tc('被调service'), prop: 'callee_service', options: [], loading: false, width: 194 },
-    { label: this.$tc('被调接口'), prop: 'callee_method', options: [], loading: false, width: 252 },
-    { label: this.$tc('返回码'), prop: 'code_type_rules', options: [], loading: false },
-  ];
 
   codeStatus = [
     { label: this.$tc('失败'), value: 'exception' },
@@ -99,6 +98,37 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   ];
 
   codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
+
+  get isCallee() {
+    return this.type === 'callee';
+  }
+
+  get columns(): ColumnItem[] {
+    return [
+      { label: this.$tc('被调服务'), prop: 'callee_server', options: [], loading: false, width: 250 },
+      {
+        label: this.$tc('被调 Service'),
+        prop: 'callee_service',
+        options: [],
+        loading: false,
+        width: this.isCallee ? 350 : 250,
+      },
+      {
+        label: this.$tc('被调接口'),
+        prop: 'callee_method',
+        options: [],
+        loading: false,
+        width: this.isCallee ? 350 : 250,
+      },
+      {
+        label: this.$tc('返回码'),
+        prop: 'code_type_rules',
+        options: [],
+        loading: false,
+        width: this.isCallee ? 450 : 320,
+      },
+    ];
+  }
 
   get showColumn() {
     if (this.type === 'callee') return this.columns.slice(1);
@@ -190,7 +220,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     } else {
       this.$set(this.showData[index], prop, newValue);
     }
-    this.validRules();
+    this.validRules(index);
   }
 
   async getCodeRedefineList() {
@@ -289,16 +319,30 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   handleExport() {
-    downloadFile(JSON.stringify(this.data, null, 2), 'application/json', 'code-redefine.json');
+    const exportData = this.data.reduce((results, item) => {
+      if (!item.is_global) {
+        results.push({
+          kind: item.kind,
+          callee_server: item.callee_server,
+          callee_service: item.callee_service,
+          callee_method: item.callee_method,
+          code_type_rules: item.code_type_rules,
+          is_global: item.is_global,
+        });
+      }
+      return results;
+    }, []);
+    downloadFile(JSON.stringify(exportData, null, 2), 'application/json', 'code-redefine.json');
   }
 
   /** 校验填写的规则 */
-  async validRules() {
-    const values = this.showData.map(item =>
-      this.type === 'caller'
-        ? `${item.callee_server}_${item.callee_service}_${item.callee_method}_${item.is_global}`
-        : `${item.callee_service}_${item.callee_method}_${item.is_global}`
-    );
+  async validRules(rowIndex: number) {
+    const values = this.showData.map((item, index) => {
+      const targetItem = rowIndex === index ? item : this.data[index];
+      return this.type === 'caller'
+        ? `${targetItem.callee_server}_${targetItem.callee_service}_${targetItem.callee_method}_${targetItem.is_global}`
+        : `${targetItem.callee_service}_${targetItem.callee_method}_${targetItem.is_global}`;
+    });
     const keyIdsMap: Record<string, string[]> = {};
     for (let index = 0; index < values.length; index++) {
       const item = values[index];
@@ -330,14 +374,20 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   handleGlobalConfigClick() {
+    if (this.isCurrentCancelClick) {
+      this.isCurrentCancelClick = false;
+      return;
+    }
+
     const hash = `#/apm/application/config/${this.appName}?active=codeRedefine`;
     const url = location.href.replace(location.hash, hash);
     window.open(url, '_blank');
   }
 
   handleCancelEditRow(index: number) {
+    this.isCurrentCancelClick = true;
     this.$set(this.rowEditMap, this.showData[index].id, false);
-    if (this.data[index].isNew && this.showData.length > 1) {
+    if (this.data[index].isNew && this.showData.length > 0) {
       const row = this.data[index];
       const isEmpty =
         (this.type === 'caller' ? row.callee_server === '' : true) &&
@@ -394,6 +444,11 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   async handleSaveEditRow(index: number) {
+    const isRowValid = await this.validRules(index);
+    if (!isRowValid) {
+      return;
+    }
+
     if (JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index]) && !this.showData[index].isNew) {
       this.$set(this.rowEditMap, this.showData[index].id, false);
       return;
@@ -446,6 +501,23 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     }
   }
 
+  getValueCallback(list: { value: string; text: string }[]): TGetValueFn {
+    return (_params: IGetValueFnParams): Promise<IOptionsInfo> => {
+      return Promise.resolve({
+        count: 0 as const,
+        list: list.map(item => ({
+          id: item.value,
+          name: item.text,
+        })),
+      });
+    };
+  }
+
+  handleValueTagSelectorChange(list: { id: string; name: string }[], prop: string, index: number) {
+    const value = list.length ? list[0].id : '';
+    this.handleValueChange(value, prop, index);
+  }
+
   renderColumn(item: ColumnItem) {
     switch (item.prop) {
       case 'callee_server':
@@ -494,35 +566,37 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                     </div>
                   );
                 }
+                const value = row[item.prop]
+                  ? [
+                      {
+                        id: row[item.prop],
+                        name: row[item.prop],
+                      },
+                    ]
+                  : [];
                 return (
                   <div class='interface-column'>
-                    <bk-select
-                      disabled={item.loading}
-                      display-tag={true}
-                      loading={item.loading}
-                      placeholder={this.$tc('请选择或输入')}
-                      showEmpty={!item.loading && !item.options.length}
-                      value={row[item.prop]}
-                      allow-create
-                      searchable
-                      onChange={v => this.handleValueChange(v, item.prop, $index)}
-                    >
-                      {item.options.map(opt => (
-                        <bk-option
-                          id={opt.value}
-                          key={opt.value}
-                          name={opt.text}
-                        />
-                      ))}
-                    </bk-select>
+                    <ValueTagSelector
+                      style='width: 100%'
+                      multiple={false}
+                      fieldInfo={{
+                        field: '',
+                        alias: '',
+                        methods: [],
+                        isEnableOptions: true,
+                      }}
+                      value={value}
+                      getValueFn={this.getValueCallback(item.options)}
+                      onChange={data => this.handleValueTagSelectorChange(data, item.prop, $index)}
+                    />
                     {this.repeatRulesIdSet.has(row.id) && item.prop === 'callee_method' && (
                       <i
                         class='icon-monitor icon-mind-fill'
                         v-bk-tooltips={{
                           content:
                             this.type === 'caller'
-                              ? this.$tc('被调服务、被调 Service、被调接口的组合值须唯一')
-                              : this.$tc('被调 Service、被调接口的组合值须唯一'),
+                              ? this.$tc('被调服务、被调 Service、被调接口、是否全局的组合值须唯一')
+                              : this.$tc('被调 Service、被调接口、是否全局的组合值须唯一'),
                         }}
                       />
                     )}
@@ -706,7 +780,6 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                 text
                 on-click={this.handleGlobalConfigClick}
               >
-                {/* <i class='icon-monitor icon-fenxiang' /> */}
                 {this.$t('应用配置')}
               </bk-button>
               <span>{this.$t('可配置全局返回码规则')}</span>
@@ -748,6 +821,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
               <bk-table
                 ref='tableRef'
                 data={this.showData}
+                row-key='id'
                 row-class-name={({ row }) => (row.is_global ? 'rule-row-global' : 'rule-row')}
                 border
                 row-auto-height
@@ -755,6 +829,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                 {this.showColumn.map(item => this.renderColumn(item))}
                 <bk-table-column
                   width={136}
+                  fixed='right'
                   scopedSlots={{
                     default: ({ $index, row }) => {
                       if (row.is_global) {
@@ -802,16 +877,14 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                           >
                             {this.$t('编辑')}
                           </bk-button>
-                          {this.data.length > 1 && (
-                            <bk-button
-                              class='btn'
-                              theme='danger'
-                              text
-                              onClick={() => this.handleDeleteRow($index)}
-                            >
-                              {this.$t('删除')}
-                            </bk-button>
-                          )}
+                          <bk-button
+                            class='btn'
+                            theme='danger'
+                            text
+                            onClick={() => this.handleDeleteRow($index)}
+                          >
+                            {this.$t('删除')}
+                          </bk-button>
                         </div>
                       );
                     },

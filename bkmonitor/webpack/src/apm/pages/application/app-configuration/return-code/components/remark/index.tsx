@@ -34,6 +34,12 @@ import { random } from 'monitor-common/utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
+import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
+import type {
+  IGetValueFnParams,
+  IOptionsInfo,
+  TGetValueFn,
+} from 'monitor-pc/components/retrieval-filter/value-selector-typing';
 
 import './index.scss';
 
@@ -229,13 +235,13 @@ export default class RemarkTabContent extends tsc<Props> {
     this.codeColumnEmptyIdSet.clear();
     this.remarkColumnEmptyIdSet.clear();
     for (let index = 0; index < this.showData.length; index++) {
-      const item = this.showData[index];
+      const item = rowId === this.showData[index].id ? this.showData[index] : this.data[index];
       // 必填校验：返回码不能为空
-      if (item.code === '') {
+      if (this.showData[index].code === '') {
         this.codeColumnEmptyIdSet.add(item.id);
       }
       // 必填校验：备注不能为空
-      if (item.remark === '') {
+      if (this.showData[index].remark === '') {
         this.remarkColumnEmptyIdSet.add(item.id);
       }
       // 按 is_global 分流构造判重 key
@@ -284,9 +290,9 @@ export default class RemarkTabContent extends tsc<Props> {
     this.isGlobalFalseRepeatRulesIdSet = new Set(isGlobalFalseRepeatIds);
     for (let index = 0; index < this.showData.length; index++) {
       const { id } = this.showData[index];
-      if (id !== rowId) {
-        continue;
-      }
+      // if (id !== rowId) {
+      //   continue;
+      // }
       if (
         this.isGlobalTruerepeatRulesIdSet.has(id) ||
         this.isGlobalFalseRepeatRulesIdSet.has(id) ||
@@ -395,6 +401,11 @@ export default class RemarkTabContent extends tsc<Props> {
   }
 
   async handleSaveEditRow(id: string) {
+    const isRowValid = await this.validRules(id);
+    if (!isRowValid) {
+      return;
+    }
+
     const showRow = this.showData.find(item => item.id === id);
     const dataIndex = this.data.findIndex(item => item.id === id);
     const dataRow = this.data[dataIndex];
@@ -489,6 +500,24 @@ export default class RemarkTabContent extends tsc<Props> {
     );
   }
 
+  getValueCallback(kind: string): TGetValueFn {
+    return (_params: IGetValueFnParams): Promise<IOptionsInfo> => {
+      const enumOptions = kind === 'caller' ? this.callerEnumOptions : this.calleeEnumOptions;
+      return Promise.resolve({
+        count: 0 as const,
+        list: enumOptions.map(item => ({
+          id: item.value,
+          name: item.text,
+        })),
+      });
+    };
+  }
+
+  handleValueTagSelectorChange(list: { id: string; name: string }[], id: string) {
+    const value = list.length ? list[0].id : '';
+    this.handleValueChange(value, 'code', id);
+  }
+
   renderColumn(item: ColumnItem) {
     // 按列类型拆分渲染逻辑，便于维护“只读态/编辑态”双视图
     switch (item.prop) {
@@ -554,28 +583,30 @@ export default class RemarkTabContent extends tsc<Props> {
                     </div>
                   );
                 }
-                const enumOptions = row.kind === 'caller' ? this.callerEnumOptions : this.calleeEnumOptions;
+                const value = row[item.prop]
+                  ? [
+                      {
+                        id: row[item.prop],
+                        name: row[item.prop],
+                      },
+                    ]
+                  : [];
                 return (
                   <div class='interface-column'>
                     {/* 编辑态：返回码支持搜索、选填与自定义创建 */}
-                    <bk-select
-                      display-tag={true}
-                      loading={item.loading}
-                      placeholder={this.$tc('请选择或输入')}
-                      showEmpty={!item.loading && !item.options.length}
-                      value={row[item.prop]}
-                      allow-create
-                      searchable
-                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
-                    >
-                      {enumOptions.map(opt => (
-                        <bk-option
-                          id={opt.value}
-                          key={opt.value}
-                          name={opt.text}
-                        />
-                      ))}
-                    </bk-select>
+                    <ValueTagSelector
+                      style='width: 100%'
+                      multiple={false}
+                      fieldInfo={{
+                        field: '',
+                        alias: '',
+                        methods: [],
+                        isEnableOptions: true,
+                      }}
+                      value={value}
+                      getValueFn={this.getValueCallback(row.kind)}
+                      onChange={data => this.handleValueTagSelectorChange(data, row.id)}
+                    />
                     {/* 校验失败时显示错误图标 */}
                     {this.renderTipContent(row)}
                   </div>
@@ -764,16 +795,14 @@ export default class RemarkTabContent extends tsc<Props> {
                         >
                           {this.$t('编辑')}
                         </bk-button>
-                        {this.data.length > 1 && (
-                          <bk-button
-                            class='btn'
-                            theme='danger'
-                            text
-                            onClick={() => this.handleDeleteRow(row.id)}
-                          >
-                            {this.$t('删除')}
-                          </bk-button>
-                        )}
+                        <bk-button
+                          class='btn'
+                          theme='danger'
+                          text
+                          onClick={() => this.handleDeleteRow(row.id)}
+                        >
+                          {this.$t('删除')}
+                        </bk-button>
                       </div>
                     );
                   },

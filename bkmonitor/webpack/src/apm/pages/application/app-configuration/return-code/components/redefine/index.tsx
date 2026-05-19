@@ -36,6 +36,12 @@ import { uploadJsonFile } from 'monitor-pc/pages/view-detail/utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { CallOptions, CodeRedefineItem } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
+import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
+import type {
+  IGetValueFnParams,
+  IOptionsInfo,
+  TGetValueFn,
+} from 'monitor-pc/components/retrieval-filter/value-selector-typing';
 
 import './index.scss';
 
@@ -77,10 +83,10 @@ export default class RedefineTabContent extends tsc<Props> {
   repeatRulesIdSet = new Set<string>();
 
   columns: ColumnItem[] = [
-    { label: this.$tc('类型'), prop: 'kind', options: [], loading: false, width: 124, minWidth: 124 },
-    { label: this.$tc('被调服务'), prop: 'callee_server', options: [], loading: false, width: 194 },
-    { label: this.$tc('被调service'), prop: 'callee_service', options: [], loading: false, width: 194 },
-    { label: this.$tc('被调接口'), prop: 'callee_method', options: [], loading: false, width: 202 },
+    { label: this.$tc('类型'), prop: 'kind', options: [], loading: false, width: 124 },
+    { label: this.$tc('被调服务'), prop: 'callee_server', options: [], loading: false, width: 260 },
+    { label: this.$tc('被调 Service'), prop: 'callee_service', options: [], loading: false, width: 260 },
+    { label: this.$tc('被调接口'), prop: 'callee_method', options: [], loading: false, width: 260 },
     { label: this.$tc('返回码'), prop: 'code_type_rules', options: [], loading: false },
     { label: this.$tc('作用范围'), prop: 'service_names', options: [], loading: false, width: 204 },
   ];
@@ -278,9 +284,15 @@ export default class RedefineTabContent extends tsc<Props> {
   /** 校验填写的规则 */
   async validRules(rowId: string) {
     // 规则唯一键：类型+被调服务+被调service+被调接口+是否全局+作用范围
+    // 两个同时处于编辑状态的记录，唯一性校验要根据那些已保存的数据来计算
+    const dataMap: Record<string, CodeRedefineItem> = this.data.reduce((acc, item) => {
+      acc[item.id] = item;
+      return acc;
+    }, {});
     const values = this.showData.map(item => {
-      const serviceNames = cloneDeep(item.service_names).sort().join(',');
-      return `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}_${item.is_global}_${serviceNames}`;
+      let targetItem = item.id === rowId ? item : dataMap[item.id];
+      const serviceNames = cloneDeep(targetItem.service_names).sort().join(',');
+      return `${targetItem.kind}_${targetItem.callee_server}_${targetItem.callee_service}_${targetItem.callee_method}_${targetItem.is_global}_${serviceNames}`;
     });
     const keyIdsMap: Record<string, string[]> = {};
     for (let index = 0; index < values.length; index++) {
@@ -301,10 +313,11 @@ export default class RedefineTabContent extends tsc<Props> {
     const codeValid = await Promise.allSettled(codeValidate);
     for (let index = 0; index < this.showData.length; index++) {
       const { id } = this.showData[index];
-      if (id !== rowId) {
-        continue;
-      }
-      if (this.repeatRulesIdSet.has(id) || codeValid[index].status === 'rejected') {
+      if (
+        this.repeatRulesIdSet.has(id) ||
+        codeValid[index].status === 'rejected' ||
+        JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index])
+      ) {
         this.$set(this.ableSaveMap, id, false);
       } else {
         this.$set(this.ableSaveMap, id, true);
@@ -361,7 +374,7 @@ export default class RedefineTabContent extends tsc<Props> {
     const showIndex = this.showData.findIndex(item => item.id === id);
     const dataRow = this.data[dataIndex];
     // 新建且仍为空白的行，取消时直接移除
-    if (dataRow.isNew && this.data.length > 1) {
+    if (dataRow.isNew && this.data.length > 0) {
       const isEmpty =
         dataRow.callee_server === '' &&
         dataRow.callee_service === '' &&
@@ -419,6 +432,11 @@ export default class RedefineTabContent extends tsc<Props> {
   }
 
   async handleSaveEditRow(id: string) {
+    const isRowValid = await this.validRules(id);
+    if (!isRowValid) {
+      return;
+    }
+
     const showRow = this.showData.find(item => item.id === id);
     const dataIndex = this.data.findIndex(item => item.id === id);
     const dataRow = this.data[dataIndex];
@@ -545,7 +563,34 @@ export default class RedefineTabContent extends tsc<Props> {
 
   handleExport() {
     // 以当前快照数据导出，保留结构与缩进方便二次编辑
-    downloadFile(JSON.stringify(this.data, null, 2), 'application/json', 'code-redefine.json');
+    const exportData = this.data.map(item => ({
+      kind: item.kind,
+      callee_server: item.callee_server,
+      callee_service: item.callee_service,
+      callee_method: item.callee_method,
+      code_type_rules: item.code_type_rules,
+      service_names: item.is_global ? [] : item.service_names,
+      is_global: item.is_global,
+    }));
+    downloadFile(JSON.stringify(exportData, null, 2), 'application/json', 'code-redefine.json');
+  }
+
+  getValueCallback(kind: string, prop: string): TGetValueFn {
+    return (_params: IGetValueFnParams): Promise<IOptionsInfo> => {
+      const enumOptions = kind === 'caller' ? this.callerEnumOptionsMap[prop] : this.calleeEnumOptionsMap[prop];
+      return Promise.resolve({
+        count: 0 as const,
+        list: enumOptions.map(item => ({
+          id: item.value,
+          name: item.text,
+        })),
+      });
+    };
+  }
+
+  handleValueTagSelectorChange(list: { id: string; name: string }[], prop: string, id: string) {
+    const value = list.length ? list[0].id : '';
+    this.handleValueChange(value, prop, id);
   }
 
   renderColumn(item: ColumnItem) {
@@ -617,31 +662,36 @@ export default class RedefineTabContent extends tsc<Props> {
                     </div>
                   );
                 }
-                const enumOptions =
-                  row.kind === 'caller' ? this.callerEnumOptionsMap[item.prop] : this.calleeEnumOptionsMap[item.prop];
                 // 业务约束：kind=callee 时，callee_server 禁止输入
                 const isCalleeServerDisabled = item.prop === 'callee_server' && row.kind === 'callee';
+                const value = row[item.prop]
+                  ? [
+                      {
+                        id: row[item.prop],
+                        name: row[item.prop],
+                      },
+                    ]
+                  : [];
                 return (
                   <div class='interface-column'>
-                    <bk-select
-                      allow-create={!isCalleeServerDisabled}
+                    <ValueTagSelector
+                      style='width: 100%'
                       disabled={isCalleeServerDisabled}
-                      display-tag={true}
-                      loading={item.loading}
-                      placeholder={this.$tc('请选择或输入')}
-                      showEmpty={!item.loading && !item.options.length}
-                      value={row[item.prop]}
-                      searchable
-                      onChange={v => this.handleValueChange(v, item.prop, row.id)}
-                    >
-                      {enumOptions.map(opt => (
-                        <bk-option
-                          id={opt.value}
-                          key={opt.value}
-                          name={opt.text}
-                        />
-                      ))}
-                    </bk-select>
+                      v-bk-tooltips={{
+                        content: this.$t('「被调」类型无需填写「被调服务」'),
+                        disabled: !isCalleeServerDisabled,
+                      }}
+                      multiple={false}
+                      fieldInfo={{
+                        field: '',
+                        alias: '',
+                        methods: [],
+                        isEnableOptions: true,
+                      }}
+                      value={value}
+                      getValueFn={this.getValueCallback(row.kind, item.prop)}
+                      onChange={data => this.handleValueTagSelectorChange(data, item.prop, row.id)}
+                    />
                     {this.repeatRulesIdSet.has(row.id) && item.prop === 'callee_method' && (
                       <i
                         class='icon-monitor icon-mind-fill'
@@ -749,6 +799,7 @@ export default class RedefineTabContent extends tsc<Props> {
               },
             }}
             label={item.label}
+            min-width={280}
             prop={item.prop}
           />
         );
@@ -875,7 +926,7 @@ export default class RedefineTabContent extends tsc<Props> {
               {this.columns.map(item => this.renderColumn(item))}
               <bk-table-column
                 width={120}
-                // fixed='right'
+                fixed='right'
                 scopedSlots={{
                   default: ({ row }) => {
                     if (this.rowEditMap[row.id]) {
@@ -912,16 +963,14 @@ export default class RedefineTabContent extends tsc<Props> {
                         >
                           {this.$t('编辑')}
                         </bk-button>
-                        {this.data.length > 1 && (
-                          <bk-button
-                            class='btn'
-                            theme='danger'
-                            text
-                            onClick={() => this.handleDeleteRow(row.id)}
-                          >
-                            {this.$t('删除')}
-                          </bk-button>
-                        )}
+                        <bk-button
+                          class='btn'
+                          theme='danger'
+                          text
+                          onClick={() => this.handleDeleteRow(row.id)}
+                        >
+                          {this.$t('删除')}
+                        </bk-button>
                       </div>
                     );
                   },
