@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 from collections.abc import Iterable
 
@@ -154,6 +155,56 @@ class IssueMergeResolver:
                         "main_issue_id": main_id,
                         "active_members": None,
                     }
+
+    @classmethod
+    def get_active_member_ids(cls, bk_biz_id: int) -> list[str]:
+        """获取业务级 active member id 列表，Redis 30s 缓存 + miss 走 SQL。
+
+        用于 ES 查询前 ``exclude("terms", _id=...)``，覆盖 SearchIssue / TopN / Export 等
+        所有走 IssueQueryHandler.get_search_object 的列表查询路径。
+
+        Fail-open：缓存与 SQL 都失败 → 返回 []（视为无合并，全部展示）。
+        """
+        cache_key = None
+        cache_obj = None
+        try:
+            from alarm_backends.core.cache.key import ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
+
+            cache_obj = ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
+            cache_key = cache_obj.get_key(bk_biz_id=str(bk_biz_id))
+            cached = cache_obj.client.get(cache_key)
+            if cached is not None:
+                return json.loads(cached)
+        except Exception:
+            logger.warning(
+                "[issue-merge] active_members cache get failed (fail-open, bk_biz_id=%s)",
+                bk_biz_id,
+                exc_info=True,
+            )
+
+        # SQL fallback
+        try:
+            ids = list(
+                IssueMergeRelation.objects.filter(
+                    bk_biz_id=bk_biz_id, status=IssueMergeRelation.STATUS_ACTIVE
+                ).values_list("member_issue_id", flat=True)
+            )
+        except Exception:
+            logger.warning(
+                "[issue-merge] active_members SQL load failed (fail-open, bk_biz_id=%s)",
+                bk_biz_id,
+                exc_info=True,
+            )
+            return []
+
+        # cache SET（fail-open）
+        if cache_obj is not None and cache_key is not None:
+            try:
+                cache_obj.client.set(cache_key, json.dumps(ids), ex=cache_obj.ttl)
+            except Exception:
+                pass
+
+        return ids
 
     @classmethod
     def assert_not_frozen(cls, issue_id: str) -> None:

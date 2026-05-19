@@ -198,6 +198,18 @@ class IssueQueryHandler(BaseBizQueryHandler):
         if self.fingerprint:
             search_object = search_object.filter("term", fingerprint=self.fingerprint)
 
+        # 合并/拆分独立映射层：默认从列表中剔除 active member（被并入 Issue 在主 Issue 下展示）。
+        # Redis 30s 缓存 + miss 走 SQL；fail-open（无缓存与无 SQL 都视为无合并）。
+        # 覆盖 Search / TopN / Export 三类走 get_search_object 的查询路径。
+        if self.bk_biz_ids:
+            from bkmonitor.issue_merge import IssueMergeResolver
+
+            exclude_ids: set[str] = set()
+            for biz_id in self.bk_biz_ids:
+                exclude_ids.update(IssueMergeResolver.get_active_member_ids(biz_id))
+            if exclude_ids:
+                search_object = search_object.exclude("terms", _id=list(exclude_ids))
+
         return search_object
 
     def parse_condition_item(self, condition: dict) -> Q:
@@ -550,7 +562,17 @@ class IssueQueryHandler(BaseBizQueryHandler):
         StrategyTranslator().translate_from_dict(issues, "strategy_id", "strategy_name")
         BizTranslator().translate_from_dict(issues, "bk_biz_id", "bk_biz_name")
 
-        # 批量查询关联告警趋势
+        # 合并/拆分视图层注入：主 Issue 注入 merge_status.active_members 摘要。
+        # 关系表为空时 noop（fast-path）；context degraded 时全部 noop（fail-open）。
+        if self.bk_biz_ids and issues:
+            from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+
+            # 单业务直接 ctx；跨业务取首个（hydrate 仅做摘要注入，跨业务场景在 PRD 中已禁止）
+            self._merge_ctx = MergeResolverContext(self.bk_biz_ids[0])
+            self._merge_ctx.load()
+            IssueMergeResolver.hydrate_aggregations(issues, self._merge_ctx)
+
+        # 批量查询关联告警趋势（add_alert_trend 内部会读 self._merge_ctx 做 expand）
         self.add_alert_trend(issues)
 
         result = {"issues": issues, "total": search_result.hits.total.value}
@@ -826,10 +848,26 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         参数:
             issues: search() 已清洗完成的 Issue 列表（会被原地修改）
+
+        合并/拆分独立映射层：主 Issue 的告警归属覆盖自身 + 所有 active members
+        （alert.issue_id 仍指向 member 自身，路由不变；这里通过 expand_to_full_ids
+        把查询条件扩展为 [main, ...members]，使聚合天然包含 member 历史告警）。
         """
         issue_ids = [issue["id"] for issue in issues if issue.get("id")]
         if not issue_ids:
             return
+
+        # 合并视图：将主 Issue 的查询 id 扩展为 [main, ...members]
+        # ctx 由 search() 入口创建（self._merge_ctx），单业务列表查询时存在
+        merge_ctx = getattr(self, "_merge_ctx", None)
+        if merge_ctx is not None and not merge_ctx.degraded:
+            from bkmonitor.issue_merge import IssueMergeResolver
+
+            expanded_ids = IssueMergeResolver.expand_to_full_ids(issue_ids, merge_ctx)
+            # 主 Issue 卡片仍以 issue_ids 中的主 id 作为聚合 key，但 alert 查询用扩展集
+            alert_query_issue_ids = expanded_ids
+        else:
+            alert_query_issue_ids = issue_ids
 
         # 从本页 Issue 中提取告警时间边界（空值检查必须在 min/max 之前）
         first_alert_times = [issue["first_alert_time"] for issue in issues if issue.get("first_alert_time")]
@@ -856,11 +894,11 @@ class IssueQueryHandler(BaseBizQueryHandler):
         aligned_end = trend_end // interval * interval + interval
         default_time_series = [[ts * 1000, 0] for ts in range(aligned_start, aligned_end, interval)]
 
-        # 启动后台线程查询 anomaly_message 和 alert_count
+        # 启动后台线程查询 anomaly_message 和 alert_count（用扩展集查 alert，按主 Issue 聚合回填）
         fill_result = {"alert_count_map": {}, "anomaly_message_map": {}}
         fill_thread = threading.Thread(
             target=self._fill_anomaly_message,
-            args=(issue_ids, start_time, end_time, fill_result),
+            args=(alert_query_issue_ids, start_time, end_time, fill_result, merge_ctx),
         )
         fill_thread.start()
 
@@ -874,7 +912,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
                     start_time=trend_start,
                     end_time=trend_end,
                     interval=interval,
-                    conditions=[{"key": "issue_id", "value": issue_ids, "method": "eq"}],
+                    conditions=[{"key": "issue_id", "value": alert_query_issue_ids, "method": "eq"}],
                     group_by=["issue_id"],
                 )
             else:
@@ -883,7 +921,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
                     end_time=trend_end,
                     interval=interval,
                     handler_kwargs={
-                        "conditions": [{"key": "issue_id", "value": issue_ids, "method": "eq"}],
+                        "conditions": [{"key": "issue_id", "value": alert_query_issue_ids, "method": "eq"}],
                     },
                     group_by=["issue_id"],
                 )
@@ -896,8 +934,18 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 issue["anomaly_message"] = "--"
             return
 
-        # 从合并结果中提取每个 issue 的时间序列
-        merged = {}  # {issue_id: {ts_ms: count}}
+        # 从合并结果中提取每个 issue 的时间序列；member 的趋势会被 resolve 到主 Issue 名下累加
+        if merge_ctx is not None and not merge_ctx.degraded:
+            from bkmonitor.issue_merge import IssueMergeResolver
+
+            def _display_id(raw_id: str) -> str:
+                return IssueMergeResolver.resolve_display_id(raw_id, merge_ctx)
+        else:
+
+            def _display_id(raw_id: str) -> str:
+                return raw_id
+
+        merged = {}  # {display_issue_id: {ts_ms: count}}
         for dimension_tuple, status_series in result.items():
             # 跳过空结果标记（perform_request 在无数据时返回 default_time_series）
             if dimension_tuple == "default_time_series":
@@ -910,11 +958,11 @@ class IssueQueryHandler(BaseBizQueryHandler):
             if issue_id is None:
                 continue
 
-            if issue_id not in merged:
-                merged[issue_id] = {}
-            # group_by=["issue_id"] 不含 status，只返回 ABNORMAL 序列
-            abnormal_series = status_series.get("ABNORMAL", {})
-            merged[issue_id].update(abnormal_series)
+            display = _display_id(issue_id)
+            bucket = merged.setdefault(display, {})
+            # group_by=["issue_id"] 不含 status，只返回 ABNORMAL 序列；多个 member 同 ts 累加
+            for ts, count in status_series.get("ABNORMAL", {}).items():
+                bucket[ts] = bucket.get(ts, 0) + count
 
         # 等待后台线程完成
         fill_thread.join(timeout=30)
@@ -930,8 +978,19 @@ class IssueQueryHandler(BaseBizQueryHandler):
             issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
             issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
 
-    def _fill_anomaly_message(self, issue_ids: list[str], start_time: int, end_time: int, fill_result: dict) -> None:
-        """后台线程：查询每个 Issue 最新告警的 description 作为 anomaly_message，同时统计 alert_count"""
+    def _fill_anomaly_message(
+        self,
+        issue_ids: list[str],
+        start_time: int,
+        end_time: int,
+        fill_result: dict,
+        merge_ctx=None,
+    ) -> None:
+        """后台线程：查询每个 Issue 最新告警的 description 作为 anomaly_message，同时统计 alert_count。
+
+        合并视图：``issue_ids`` 已被 caller 扩展为 ``[main, ...members]``；本函数把按
+        member 聚合的 alert_count / anomaly_message resolve 到主 Issue 名下累加 / 取最新。
+        """
         try:
             search_object = AlertDocument.search(start_time=start_time, end_time=end_time)
             search_object = search_object.filter("terms", issue_id=issue_ids)
@@ -949,10 +1008,21 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
             result = search_object[:0].execute()
 
-            msg_map = {}
-            count_map = {}
+            # 合并视图：把 member 的统计折叠到主 Issue 名下。alert_count 累加；
+            # anomaly_message 取最新（按 begin_time，但跨桶时简化为：保留首个非 "--" 的 description，
+            # 因为 top_hits 已按 begin_time desc 排序，先遍历到的 member 桶 description 即较新）。
+            from bkmonitor.issue_merge import IssueMergeResolver
+
+            def _display_id(raw_id: str) -> str:
+                if merge_ctx is None or merge_ctx.degraded:
+                    return raw_id
+                return IssueMergeResolver.resolve_display_id(raw_id, merge_ctx)
+
+            msg_map: dict[str, str] = {}
+            count_map: dict[str, int] = {}
             for issue_bucket in result.aggs.issues.buckets:
                 issue_id = issue_bucket.key
+                display = _display_id(issue_id)
 
                 # 解析 anomaly_message
                 anomaly_message = "--"
@@ -966,11 +1036,13 @@ class IssueQueryHandler(BaseBizQueryHandler):
                         description = event_data.get("description", "") if isinstance(event_data, dict) else ""
                         if description:
                             anomaly_message = description
-                msg_map[issue_id] = anomaly_message
+                # 主 Issue 视角：若已有 anomaly_message 且当前为占位则不覆盖
+                if display not in msg_map or msg_map[display] == "--":
+                    msg_map[display] = anomaly_message
 
-                # 解析 alert_count
+                # 解析 alert_count（累加：主 + 多 member）
                 if hasattr(issue_bucket, "alert_count"):
-                    count_map[issue_id] = int(issue_bucket.alert_count.value or 0)
+                    count_map[display] = count_map.get(display, 0) + int(issue_bucket.alert_count.value or 0)
 
             fill_result["anomaly_message_map"] = msg_map
             fill_result["alert_count_map"] = count_map

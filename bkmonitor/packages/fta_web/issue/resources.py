@@ -416,12 +416,31 @@ class IssueDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, validated_request_data):
-        """获取 Issue 元数据，告警动态数据由前端调用告警中心接口获取"""
+        """获取 Issue 元数据，告警动态数据由前端调用告警中心接口获取。
+
+        合并视图：若请求的 issue_id 是 active member，自动返回主 Issue 数据 +
+        ``redirected_from=<原 issue_id>`` 字段；前端据此 URL 静默替换为主 Issue。
+        主 Issue 自身则注入 ``merge_status.active_members`` 摘要供详情页展示。
+        """
         issue_id = validated_request_data["id"]
         bk_biz_id = validated_request_data["bk_biz_id"]
 
-        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        # 合并视图：member id → 主 id 重定向（仅 active 关系）
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+
+        ctx = MergeResolverContext(bk_biz_id)
+        ctx.load()
+        display_id = IssueMergeResolver.resolve_display_id(issue_id, ctx)
+        redirected_from = issue_id if display_id != issue_id else None
+
+        issue = IssueDocument.get_issue_or_raise(display_id, bk_biz_id=bk_biz_id)
         result = IssueQueryHandler.clean_document(issue)
+
+        # 注入 merge_status（主 Issue 拼装 active_members；member 拼装 main_issue_id）
+        IssueMergeResolver.hydrate_aggregations([result], ctx)
+
+        if redirected_from:
+            result["redirected_from"] = redirected_from
 
         # 填充 anomaly_message（查询最新告警的 description）
         self._fill_anomaly_message(issue, result)
