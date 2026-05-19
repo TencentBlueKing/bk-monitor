@@ -1319,6 +1319,35 @@ TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 # 是否启用 influxdb 写入，默认 True
 ENABLE_INFLUXDB_STORAGE = True
 
+# 链路健康巡检（metadata.task.diagnostics）
+# BMW broker redis 与业务 redis 同实例不同 db；如生产环境分离，通过 env 覆盖
+BMW_BROKER_REDIS_DB = int(os.environ.get("BMW_BROKER_REDIS_DB", 5))
+BMW_BROKER_REDIS_PREFIX = os.environ.get("BMW_BROKER_REDIS_PREFIX", "BK_MONITOR")
+# 默认仅检测不修复；生产灰度后再打开
+LINK_HEALTH_AUTOREMEDIATE = os.environ.get("LINK_HEALTH_AUTOREMEDIATE", "false").lower() == "true"
+# 单轮修复动作上限，超过则熔断
+LINK_HEALTH_MAX_FIX_PER_ROUND = int(os.environ.get("LINK_HEALTH_MAX_FIX_PER_ROUND", 20))
+# 同一修复对象冷却秒数
+LINK_HEALTH_FIX_COOLDOWN_SECONDS = int(os.environ.get("LINK_HEALTH_FIX_COOLDOWN_SECONDS", 3600))
+# 冷启动保护：连续 N 次检测出同一问题才修
+LINK_HEALTH_FIX_AFTER_STREAK = int(os.environ.get("LINK_HEALTH_FIX_AFTER_STREAK", 2))
+# 抽样 / 巡检规模
+LINK_HEALTH_SAMPLE_SIZE = int(os.environ.get("LINK_HEALTH_SAMPLE_SIZE", 50))
+# BMW lease 视为过期的最小秒数
+LINK_HEALTH_BMW_LEASE_GRACE_SECONDS = int(os.environ.get("LINK_HEALTH_BMW_LEASE_GRACE_SECONDS", 600))
+# unify-query metrics 端点
+LINK_HEALTH_UNIFY_QUERY_METRICS_URL = os.environ.get(
+    "LINK_HEALTH_UNIFY_QUERY_METRICS_URL", "http://bk-monitor-unify-query:10205/metrics"
+)
+# InfluxDB ping 端点
+LINK_HEALTH_INFLUXDB_PING_URL = os.environ.get(
+    "LINK_HEALTH_INFLUXDB_PING_URL", "http://bk-monitor-influxdb-proxy-http:10203/ping"
+)
+# 排除清单（逗号分隔的 table_id），永不自愈
+LINK_HEALTH_EXCLUDE_TABLE_IDS = [
+    s.strip() for s in os.environ.get("LINK_HEALTH_EXCLUDE_TABLE_IDS", "").split(",") if s.strip()
+]
+
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
     os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL

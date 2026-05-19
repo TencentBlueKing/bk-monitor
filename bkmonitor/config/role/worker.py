@@ -274,6 +274,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
+    # 自定义指标查询链路巡检（默认 dry-run，由 LINK_HEALTH_AUTOREMEDIATE 控制是否自愈）
+    ("metadata.task.diagnostics.link_health_check", "*/10 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds

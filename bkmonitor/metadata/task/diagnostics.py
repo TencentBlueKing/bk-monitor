@@ -1,0 +1,539 @@
+# -*- coding: utf-8 -*-
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+
+自定义指标查询链路健康巡检。
+
+覆盖路径：transfer redis 上报 → metadata DB → BMW broker 调度 → 路由 redis hash →
+unify-query → InfluxDB。每条链路异常都对应一个 ``Issue``；若开启 autoremediate 则按
+安全阀闸放行后调用现成 API 修复。
+"""
+
+import json
+import logging
+import time
+import traceback
+from typing import Dict, List, Optional, Tuple
+
+import requests
+from django.conf import settings
+
+from alarm_backends.core.lock.service_lock import share_lock
+from metadata import models
+from metadata.config import PERIODIC_TASK_DEFAULT_TTL
+from metadata.models.space.constants import (
+    RESULT_TABLE_DETAIL_KEY,
+    SPACE_TO_RESULT_TABLE_KEY,
+)
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+from metadata.utils.redis_tools import RedisTools
+
+logger = logging.getLogger("metadata")
+
+REPORT_REDIS_KEY = "bkmonitorv3:metadata:link_health:last"
+FIX_HISTORY_REDIS_KEY = "bkmonitorv3:metadata:link_health:fix_history"
+STREAK_REDIS_KEY_PREFIX = "bkmonitorv3:metadata:link_health:streak"
+COOLDOWN_REDIS_KEY_PREFIX = "bkmonitorv3:metadata:link_health:fix_cooldown"
+REPORT_TTL_SECONDS = 3600
+FIX_HISTORY_MAX_LEN = 1000
+
+BMW_PERIODIC_TASK_NAMES = (
+    "periodic:metadata:refresh_ts_metric",
+    "periodic:metadata:refresh_datasource",
+    "periodic:metadata:refresh_kafka_topic_info",
+    "periodic:cluster_metrics:push_and_publish_space_router_info",
+)
+BMW_BROKER_QUEUE = "default"
+ALLOWED_STORAGE_TYPES = {"influxdb", "victoria_metrics", "elasticsearch"}
+
+
+class Issue:
+    """单条异常及其修复动作。"""
+
+    __slots__ = ("stage", "code", "scope", "detail", "fix_callable")
+
+    def __init__(self, stage: str, code: str, scope: str, detail: Dict, fix_callable=None):
+        self.stage = stage
+        self.code = code
+        self.scope = scope
+        self.detail = detail
+        self.fix_callable = fix_callable
+
+    @property
+    def actionable(self) -> bool:
+        return self.fix_callable is not None
+
+    def to_dict(self) -> Dict:
+        return {"stage": self.stage, "code": self.code, "scope": self.scope, "detail": self.detail}
+
+
+class Report:
+    """巡检报告聚合。"""
+
+    def __init__(self):
+        self.started_at = time.time()
+        self.issues: List[Issue] = []
+        self.fix_attempts: List[Dict] = []
+        self.stage_stats: Dict[str, Dict[str, int]] = {}
+
+    def add(self, issue: Issue):
+        self.issues.append(issue)
+        stat = self.stage_stats.setdefault(issue.stage, {"issue_total": 0})
+        stat["issue_total"] += 1
+
+    def mark_fix(self, issue: Issue, ok: bool, err: Optional[str] = None, dry_run: bool = False):
+        record = {
+            "ts": int(time.time()),
+            "stage": issue.stage,
+            "code": issue.code,
+            "scope": issue.scope,
+            "dry_run": dry_run,
+            "ok": ok,
+            "err": err,
+        }
+        self.fix_attempts.append(record)
+
+    def summary(self) -> Dict:
+        return {
+            "ts": int(self.started_at),
+            "elapsed_seconds": round(time.time() - self.started_at, 3),
+            "issue_total": len(self.issues),
+            "fix_total": sum(1 for r in self.fix_attempts if r.get("ok") and not r.get("dry_run")),
+            "fix_failed": sum(1 for r in self.fix_attempts if not r.get("ok")),
+            "dry_run_total": sum(1 for r in self.fix_attempts if r.get("dry_run")),
+            "stage_stats": self.stage_stats,
+            "issues": [i.to_dict() for i in self.issues[:50]],
+            "fix_attempts": self.fix_attempts[:50],
+        }
+
+
+def _bmw_broker_client():
+    from utils.redis_client import RedisClient
+
+    prefix = settings.BMW_BROKER_REDIS_PREFIX
+    db = settings.BMW_BROKER_REDIS_DB
+    return RedisClient.from_envs(prefix=prefix, db=db)
+
+
+def _streak_inc(scope: str) -> int:
+    """连续命中计数；超过 LINK_HEALTH_FIX_AFTER_STREAK 才放行修复。"""
+    client = RedisTools().client
+    key = f"{STREAK_REDIS_KEY_PREFIX}:{scope}"
+    n = client.incr(key)
+    client.expire(key, 3600)
+    return int(n)
+
+
+def _streak_clear(scope: str):
+    client = RedisTools().client
+    client.delete(f"{STREAK_REDIS_KEY_PREFIX}:{scope}")
+
+
+def _cooldown_acquire(scope: str) -> bool:
+    """同 scope 在 LINK_HEALTH_FIX_COOLDOWN_SECONDS 内只允许修一次。"""
+    client = RedisTools().client
+    key = f"{COOLDOWN_REDIS_KEY_PREFIX}:{scope}"
+    return bool(client.set(key, "1", ex=settings.LINK_HEALTH_FIX_COOLDOWN_SECONDS, nx=True))
+
+
+def _should_skip_table_id(table_id: str) -> bool:
+    return table_id in set(settings.LINK_HEALTH_EXCLUDE_TABLE_IDS)
+
+
+# ============= Stage C: BMW broker =============
+
+
+def check_bmw_broker(report: Report):
+    """探测 BMW broker 是否存在孤儿 active task（lease 已过期但 hash 未清）。"""
+    try:
+        client = _bmw_broker_client()
+    except Exception as exc:
+        logger.error("link_health.bmw_broker connect failed: %s", exc)
+        report.add(Issue("bmw_broker", "broker_unreachable", "default", {"error": str(exc)}))
+        return
+
+    lease_key = f"{{bmw}}:{{{BMW_BROKER_QUEUE}}}:lease"
+    now_ts = int(time.time())
+    grace = settings.LINK_HEALTH_BMW_LEASE_GRACE_SECONDS
+
+    for task_name in BMW_PERIODIC_TASK_NAMES:
+        t_key = f"{{bmw}}:{{{BMW_BROKER_QUEUE}}}:t:{task_name}"
+        try:
+            state = client.hget(t_key, "state")
+            if state is None:
+                _streak_clear(f"bmw_orphan:{task_name}")
+                continue
+            state_str = state.decode("utf-8") if isinstance(state, bytes) else state
+            if state_str != "active":
+                _streak_clear(f"bmw_orphan:{task_name}")
+                continue
+            lease_score = client.zscore(lease_key, task_name)
+            if lease_score is not None and lease_score >= now_ts - grace:
+                _streak_clear(f"bmw_orphan:{task_name}")
+                continue
+        except Exception as exc:
+            logger.exception("link_health.bmw_broker probe %s failed", task_name)
+            report.add(Issue("bmw_broker", "probe_error", task_name, {"error": str(exc)}))
+            continue
+
+        detail = {
+            "task": task_name,
+            "queue": BMW_BROKER_QUEUE,
+            "state": state_str,
+            "lease_score": lease_score,
+            "now": now_ts,
+        }
+
+        def _fix(_t_key=t_key, _task_name=task_name, _lease_key=lease_key):
+            client.delete(_t_key)
+            client.zrem(_lease_key, _task_name)
+            unique_key = f"{{bmw}}:{{{BMW_BROKER_QUEUE}}}:unique:{_task_name}:"
+            client.delete(unique_key)
+
+        report.add(Issue("bmw_broker", "orphan_active_task", f"bmw_orphan:{task_name}", detail, _fix))
+
+
+# ============= Stage D: Redis 路由完整性 =============
+
+
+def _parse_detail(raw) -> Optional[Dict]:
+    if raw is None:
+        return None
+    try:
+        return json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _list_sample_table_ids(limit: int) -> List[str]:
+    """从 space_to_result_table 中抽样 table_id。"""
+    client = RedisTools().client
+    seen: List[str] = []
+    cursor = 0
+    while len(seen) < limit:
+        cursor, fields = client.hscan(SPACE_TO_RESULT_TABLE_KEY, cursor=cursor, count=20)
+        for _, raw in fields.items():
+            try:
+                payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+            except (ValueError, TypeError):
+                continue
+            for tid in payload:
+                if tid not in seen:
+                    seen.append(tid)
+                    if len(seen) >= limit:
+                        return seen
+        if cursor == 0:
+            break
+    return seen
+
+
+def check_routing(report: Report):
+    """巡检 result_table_detail 中字段完整性，重点是 storage_type 缺失。"""
+    sample_size = settings.LINK_HEALTH_SAMPLE_SIZE
+    try:
+        table_ids = _list_sample_table_ids(sample_size)
+    except Exception as exc:
+        logger.exception("link_health.routing sample failed")
+        report.add(Issue("routing", "sample_error", "sample", {"error": str(exc)}))
+        return
+
+    if not table_ids:
+        return
+
+    raws = RedisTools.hmget(RESULT_TABLE_DETAIL_KEY, table_ids)
+
+    space_redis = SpaceTableIDRedis()
+
+    for tid, raw in zip(table_ids, raws):
+        if _should_skip_table_id(tid):
+            continue
+        if raw is None:
+            scope = f"routing_detail_missing:{tid}"
+            _streak_clear(scope)
+            report.add(
+                Issue(
+                    "routing",
+                    "detail_missing",
+                    scope,
+                    {"table_id": tid},
+                    fix_callable=lambda _tid=tid: space_redis.push_table_id_detail(
+                        table_id_list=[_tid], is_publish=True
+                    ),
+                )
+            )
+            continue
+
+        detail = _parse_detail(raw)
+        if detail is None:
+            report.add(Issue("routing", "detail_invalid_json", tid, {"table_id": tid}))
+            continue
+
+        storage_type = detail.get("storage_type", "")
+        vm_rt = detail.get("vm_rt", "")
+        issues_for_tid: List[Tuple[str, Dict]] = []
+
+        if not storage_type:
+            issues_for_tid.append(("detail_no_storage_type", {"table_id": tid, "detail_keys": list(detail.keys())}))
+        elif storage_type not in ALLOWED_STORAGE_TYPES:
+            issues_for_tid.append(("detail_unknown_storage_type", {"table_id": tid, "storage_type": storage_type}))
+        elif vm_rt and storage_type != "victoria_metrics":
+            issues_for_tid.append(
+                ("storage_type_mismatch", {"table_id": tid, "storage_type": storage_type, "vm_rt": vm_rt})
+            )
+
+        if not issues_for_tid:
+            _streak_clear(f"routing_storage_type:{tid}")
+            continue
+
+        for code, detail_payload in issues_for_tid:
+            scope = f"routing_storage_type:{tid}"
+
+            def _fix(_tid=tid):
+                space_redis.push_table_id_detail(table_id_list=[_tid], is_publish=True)
+
+            report.add(Issue("routing", code, scope, detail_payload, _fix))
+
+
+# ============= Stage A/B: 输入侧 + DB 一致性（与 F3 漂移） =============
+
+
+def _transfer_redis_client():
+    from utils.redis_client import RedisClient
+
+    return RedisClient.from_envs(prefix="BK_MONITOR_TRANSFER")
+
+
+def check_transfer_and_db(report: Report):
+    """对比 transfer redis 中已上报的指标 vs metadata DB；落后则触发重新拉取。"""
+    sample_size = settings.LINK_HEALTH_SAMPLE_SIZE
+    try:
+        client = _transfer_redis_client()
+    except Exception as exc:
+        logger.error("link_health.transfer redis connect failed: %s", exc)
+        report.add(Issue("transfer", "redis_unreachable", "all", {"error": str(exc)}))
+        return
+
+    metrics_prefix = getattr(settings, "METRICS_KEY_PREFIX", "bkmonitor:metrics_")
+    history_seconds = getattr(settings, "TIME_SERIES_METRIC_EXPIRED_SECONDS", 30 * 24 * 3600)
+    now_ts = int(time.time())
+
+    group_qs = (
+        models.TimeSeriesGroup.objects.filter(is_enable=True, is_delete=False)
+        .order_by("-last_modify_time")
+        .values("time_series_group_id", "bk_data_id", "table_id", "last_modify_time")[:sample_size]
+    )
+    space_redis = SpaceTableIDRedis()
+
+    for group in group_qs:
+        data_id = group["bk_data_id"]
+        table_id = group["table_id"]
+        group_id = group["time_series_group_id"]
+
+        if _should_skip_table_id(table_id):
+            continue
+
+        try:
+            redis_count = client.zcount(f"{metrics_prefix}{data_id}", now_ts - history_seconds, now_ts)
+        except Exception as exc:
+            logger.exception("link_health.transfer zcount failed bk_data_id=%s", data_id)
+            report.add(Issue("transfer", "zcount_error", f"data_id:{data_id}", {"error": str(exc)}))
+            continue
+
+        if redis_count == 0:
+            _streak_clear(f"metric_drift:{data_id}")
+            continue
+
+        db_count = models.TimeSeriesMetric.objects.filter(group_id=group_id).count()
+        if db_count >= redis_count:
+            _streak_clear(f"metric_drift:{data_id}")
+            continue
+
+        scope = f"metric_drift:{data_id}"
+        detail = {
+            "bk_data_id": data_id,
+            "table_id": table_id,
+            "redis_metric_count": int(redis_count),
+            "db_metric_count": db_count,
+        }
+
+        def _fix(_group_id=group_id, _table_id=table_id, _history=history_seconds):
+            ts_group = models.TimeSeriesGroup.objects.get(time_series_group_id=_group_id)
+            metric_info = ts_group.get_metrics_from_redis(expired_time=_history)
+            if not metric_info:
+                return
+            ts_group.update_metrics(metric_info)
+            space_redis.push_table_id_detail(table_id_list=[_table_id], is_publish=True)
+
+        report.add(Issue("transfer", "metric_drift", scope, detail, _fix))
+
+
+# ============= Stage E: unify-query metrics =============
+
+
+def check_unify_query(report: Report):
+    """通过 /metrics 端点观测 unify-query 是否出现 SPACE_* 异常计数器。"""
+    url = settings.LINK_HEALTH_UNIFY_QUERY_METRICS_URL
+    try:
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
+    except Exception as exc:
+        report.add(Issue("unify_query", "metrics_unreachable", "endpoint", {"url": url, "error": str(exc)}))
+        return
+
+    counters: Dict[str, float] = {}
+    for line in resp.text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        if not line.startswith("unify_query_space_router_total{"):
+            continue
+        try:
+            metric, value = line.rsplit(" ", 1)
+            counters[metric] = float(value)
+        except ValueError:
+            continue
+
+    if counters:
+        report.add(
+            Issue(
+                "unify_query",
+                "space_router_anomaly",
+                "metrics_snapshot",
+                {"sample": dict(list(counters.items())[:10]), "total": len(counters)},
+            )
+        )
+
+
+# ============= Stage F: InfluxDB 可达性 =============
+
+
+def check_influxdb(report: Report):
+    url = settings.LINK_HEALTH_INFLUXDB_PING_URL
+    try:
+        resp = requests.get(url, timeout=5)
+    except Exception as exc:
+        report.add(Issue("influxdb", "ping_failed", "endpoint", {"url": url, "error": str(exc)}))
+        return
+    if resp.status_code not in (200, 204):
+        report.add(Issue("influxdb", "ping_bad_status", "endpoint", {"url": url, "status_code": resp.status_code}))
+
+
+# ============= 安全阀 + 调度入口 =============
+
+
+def _passes_safety_gates(issue: Issue) -> Tuple[bool, str]:
+    streak_threshold = settings.LINK_HEALTH_FIX_AFTER_STREAK
+    streak = _streak_inc(issue.scope)
+    if streak < streak_threshold:
+        return False, f"streak {streak}/{streak_threshold}"
+    if not _cooldown_acquire(issue.scope):
+        return False, "cooldown"
+    return True, "ok"
+
+
+def _publish_report(report: Report):
+    summary = report.summary()
+    body = json.dumps(summary, default=str, ensure_ascii=False)
+    try:
+        client = RedisTools().client
+        client.set(REPORT_REDIS_KEY, body, ex=REPORT_TTL_SECONDS)
+        if report.fix_attempts:
+            for record in report.fix_attempts:
+                client.lpush(FIX_HISTORY_REDIS_KEY, json.dumps(record, ensure_ascii=False))
+            client.ltrim(FIX_HISTORY_REDIS_KEY, 0, FIX_HISTORY_MAX_LEN - 1)
+    except Exception:
+        logger.exception("link_health publish report failed")
+
+    if summary["issue_total"] == 0:
+        logger.info("link_health: clean, elapsed=%.3fs", summary["elapsed_seconds"])
+        return
+    level = logger.warning if summary["fix_failed"] == 0 else logger.error
+    level(
+        "link_health: %s issues, fixed=%s failed=%s dry_run=%s elapsed=%.3fs detail=%s",
+        summary["issue_total"],
+        summary["fix_total"],
+        summary["fix_failed"],
+        summary["dry_run_total"],
+        summary["elapsed_seconds"],
+        body[:2000],
+    )
+
+
+def run_health_check(dry_run: Optional[bool] = None) -> Dict:
+    """执行一轮巡检。``dry_run=True`` 时仅检测不修复。"""
+    if dry_run is None:
+        dry_run = not settings.LINK_HEALTH_AUTOREMEDIATE
+
+    report = Report()
+
+    for check in (
+        check_bmw_broker,
+        check_routing,
+        check_transfer_and_db,
+        check_unify_query,
+        check_influxdb,
+    ):
+        try:
+            check(report)
+        except Exception:
+            logger.exception("link_health check %s panicked", check.__name__)
+            report.add(Issue(check.__name__, "panic", check.__name__, {"traceback": traceback.format_exc()[:2000]}))
+
+    fix_budget = settings.LINK_HEALTH_MAX_FIX_PER_ROUND
+    fix_count = 0
+    for issue in report.issues:
+        if not issue.actionable:
+            continue
+        if fix_count >= fix_budget:
+            logger.error("link_health: fix budget %s exhausted, remaining issues skipped", fix_budget)
+            break
+
+        passed, reason = _passes_safety_gates(issue)
+        if not passed:
+            logger.info(
+                "link_health: skip fix stage=%s code=%s scope=%s reason=%s",
+                issue.stage,
+                issue.code,
+                issue.scope,
+                reason,
+            )
+            continue
+
+        if dry_run:
+            report.mark_fix(issue, ok=True, dry_run=True)
+            fix_count += 1
+            continue
+
+        try:
+            issue.fix_callable()
+            report.mark_fix(issue, ok=True)
+            logger.warning(
+                "link_health: fixed stage=%s code=%s scope=%s detail=%s",
+                issue.stage,
+                issue.code,
+                issue.scope,
+                json.dumps(issue.detail, default=str, ensure_ascii=False)[:1000],
+            )
+        except Exception as exc:
+            report.mark_fix(issue, ok=False, err=str(exc))
+            logger.exception(
+                "link_health: fix failed stage=%s code=%s scope=%s",
+                issue.stage,
+                issue.code,
+                issue.scope,
+            )
+        fix_count += 1
+
+    _publish_report(report)
+    return report.summary()
+
+
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_linkHealthCheck")
+def link_health_check():
+    """周期入口：每 10 min 一次。"""
+    run_health_check()
