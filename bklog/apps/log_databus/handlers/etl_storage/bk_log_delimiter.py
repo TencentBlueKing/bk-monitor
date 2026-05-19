@@ -176,13 +176,22 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
             result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
-                fields, etl_params, built_in_config, storage_cluster_type=storage_cluster_type
+                fields,
+                etl_params,
+                built_in_config,
+                result_table_config["field_list"],
+                storage_cluster_type=storage_cluster_type,
             )
 
         return result_table_config
 
     def build_log_v4_data_link(
-        self, fields: list, etl_params: dict, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE
+        self,
+        fields: list,
+        etl_params: dict,
+        built_in_config: dict,
+        field_list: list,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
     ) -> dict:
         """
         构建分隔符类型的V4 clean_rules配置
@@ -201,7 +210,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         )
 
         # 2. 提取内置字段（从json_data提取内置字段）
-        built_in_rules = self._build_built_in_fields_v4(built_in_config)
+        built_in_rules = self._build_built_in_fields_v4(built_in_config, storage_cluster_type)
         rules.extend(built_in_rules)
 
         # 3. 提取items数组并迭代
@@ -289,10 +298,20 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                 "timezone": 8,
             }
         elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+            json_fields = set()
+            for check_rule in rules:
+                if check_rule["operator"].get("output_type") == self._get_output_type("object"):
+                    json_fields.add(check_rule["output_id"])
+
+            need_analysis_fields = set()
+            for check_field in field_list:
+                if check_field["option"]["es_type"] == "text":
+                    need_analysis_fields.add(check_field["field_name"])
+
             data_link_config["doris_storage_config"] = {
                 "storage_keys": built_in_config["option"]["es_unique_field_list"],
-                # "json_fields": [],
-                # "field_config_group": {},
+                "json_fields": list(json_fields),
+                "field_config_group": {"search_zh": list(need_analysis_fields)},
                 # "flush_timeout": None
             }
 
