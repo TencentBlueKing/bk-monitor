@@ -1047,6 +1047,53 @@ class TestIndexSetTagExtension(TestCase):
         )
         self.assertEqual(values, [])
 
+    def test_get_dimension_values_ne_excludes_index_sets(self):
+        from apps.log_search.models import IndexSetTag, LogIndexSet
+
+        scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
+        c1_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-001", tag_type="scene")
+        c2_tag = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-K8S-002", tag_type="scene")
+
+        LogIndexSet.objects.create(
+            index_set_name="idx_ne_1",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(c1_tag)],
+            is_active=True,
+        )
+        LogIndexSet.objects.create(
+            index_set_name="idx_ne_2",
+            space_uid="bkcc__2",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(c2_tag)],
+            is_active=True,
+        )
+
+        values = IndexSetTag.get_dimension_values(
+            bk_biz_id=2,
+            scene="k8s",
+            dimension_key="cluster_id",
+            filters=[{"field_name": "cluster_id", "value": ["BCS-K8S-002"], "op": "ne"}],
+        )
+        self.assertEqual(values, ["BCS-K8S-001"])
+
+    def test_dimension_filter_serializer_dict_compat(self):
+        s = SceneDimensionValuesSerializer(
+            data={
+                "bk_biz_id": 2,
+                "scene": "k8s",
+                "dimension_key": "cluster_id",
+                "filters": {"stream": ["stdout", "file"]},
+            }
+        )
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(
+            s.validated_data["filters"],
+            [
+                {"field_name": "stream", "value": ["stdout", "file"], "op": "eq"},
+            ],
+        )
+
 
 # =========================================================================
 # 7. dimension_values ViewSet endpoint test
@@ -1097,8 +1144,37 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["values"], ["BCS-K8S-001"])
         mock_dv.assert_called_once_with(
-            bk_biz_id=2, scene="k8s", dimension_key="cluster_id",
-            filters={"stream": "stdout"},
+            bk_biz_id=2,
+            scene="k8s",
+            dimension_key="cluster_id",
+            filters=[{"field_name": "stream", "value": ["stdout"], "op": "eq"}],
+        )
+
+    @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
+    def test_dimension_values_with_list_filters(self, mock_dv):
+        mock_dv.return_value = ["BCS-K8S-001"]
+
+        factory = APIRequestFactory()
+        request = factory.post(
+            "/api/v1/search/scene/dimension_values/",
+            data={
+                "bk_biz_id": 2,
+                "scene": "k8s",
+                "dimension_key": "cluster_id",
+                "filters": [{"field_name": "stream", "value": ["stdout"], "op": "eq"}],
+            },
+            format="json",
+        )
+
+        vs = _get_viewset("dimension_values", request)
+        response = vs.dimension_values(request)
+
+        self.assertEqual(response.status_code, 200)
+        mock_dv.assert_called_once_with(
+            bk_biz_id=2,
+            scene="k8s",
+            dimension_key="cluster_id",
+            filters=[{"field_name": "stream", "value": ["stdout"], "op": "eq"}],
         )
 
     def test_dimension_values_missing_scene_fails(self):
@@ -1295,3 +1371,125 @@ class TestSceneExportHistoryPagination(TestCase):
         )
         self.assertEqual(response2.data["total"], 3)
         self.assertEqual(len(response2.data["list"]), 1)
+
+
+# =========================================================================
+# Scene fields config (template + user pointer)
+# =========================================================================
+
+@override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
+class TestSceneFieldsConfigApi(TestCase):
+    """fields_config + list/create/update/delete/apply template APIs."""
+
+    BIZ_ID = 2
+    SCENE_ID = "k8s"
+    USERNAME = "admin"
+
+    def setUp(self):
+        from apps.log_search.models import SceneFieldsConfig, UserSceneFieldsConfig
+
+        UserSceneFieldsConfig.objects.all().delete()
+        SceneFieldsConfig.objects.all().delete()
+
+    def _patch_user(self):
+        return patch.multiple(
+            "apps.log_search.handlers.search.scene_fields_config",
+            get_request_username=MagicMock(return_value=self.USERNAME),
+            get_request_external_username=MagicMock(return_value=""),
+            get_request_app_code=MagicMock(return_value="bk_log_search"),
+        )
+
+    def test_fields_config_get_lazy_default(self):
+        factory = APIRequestFactory()
+        request = factory.get(
+            "/api/v1/search/scene/fields_config/",
+            {"bk_biz_id": self.BIZ_ID, "scene_id": self.SCENE_ID},
+        )
+        with self._patch_user():
+            vs = _get_viewset("fields_config", request)
+            response = vs.fields_config(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("config_id", response.data)
+        self.assertIn("display_fields", response.data)
+        self.assertIn("name", response.data)
+        self.assertEqual(response.data["username"], self.USERNAME)
+
+    def test_create_list_apply_update_delete_config(self):
+        from apps.log_search.constants import DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME
+        from apps.log_search.exceptions import SceneDefaultConfigNotAllowedDelete
+        from apps.log_search.models import SceneFieldsConfig
+
+        factory = APIRequestFactory()
+        with self._patch_user():
+            # create custom template
+            req_create = factory.post(
+                "/api/v1/search/scene/create_config/",
+                data={
+                    "bk_biz_id": self.BIZ_ID,
+                    "scene_id": self.SCENE_ID,
+                    "name": "排障视图",
+                    "display_fields": ["dtEventTimeStamp", "log"],
+                    "sort_list": [["dtEventTimeStamp", "desc"]],
+                },
+                format="json",
+            )
+            vs = _get_viewset("create_config", req_create)
+            created = vs.create_config(req_create).data
+            self.assertEqual(created["name"], "排障视图")
+
+            # list includes default + custom
+            req_list = factory.post(
+                "/api/v1/search/scene/list_config/",
+                data={"bk_biz_id": self.BIZ_ID, "scene_id": self.SCENE_ID},
+                format="json",
+            )
+            vs = _get_viewset("list_config", req_list)
+            listed = vs.list_config(req_list).data
+            self.assertGreaterEqual(len(listed), 2)
+            self.assertEqual(listed[0]["name"], DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME)
+
+            # apply custom template
+            req_apply = factory.post(
+                "/api/v1/search/scene/config/",
+                data={"config_id": created["id"]},
+                format="json",
+            )
+            vs = _get_viewset("apply_config", req_apply)
+            applied = vs.apply_config(req_apply).data
+            self.assertEqual(applied["config_id"], created["id"])
+            self.assertEqual(applied["name"], "排障视图")
+
+            # fields_config GET reflects applied template
+            req_get = factory.get(
+                "/api/v1/search/scene/fields_config/",
+                {"bk_biz_id": self.BIZ_ID, "scene_id": self.SCENE_ID},
+            )
+            vs = _get_viewset("fields_config", req_get)
+            got = vs.fields_config(req_get).data
+            self.assertEqual(got["config_id"], created["id"])
+
+            # default template cannot be deleted
+            default_tpl = SceneFieldsConfig.objects.get(
+                bk_biz_id=self.BIZ_ID,
+                scene_id=self.SCENE_ID,
+                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+            )
+            req_del_default = factory.post(
+                "/api/v1/search/scene/delete_config/",
+                data={"config_id": default_tpl.id},
+                format="json",
+            )
+            vs = _get_viewset("delete_config", req_del_default)
+            with self.assertRaises(SceneDefaultConfigNotAllowedDelete):
+                vs.delete_config(req_del_default)
+
+            # delete custom template
+            req_del = factory.post(
+                "/api/v1/search/scene/delete_config/",
+                data={"config_id": created["id"]},
+                format="json",
+            )
+            vs = _get_viewset("delete_config", req_del)
+            vs.delete_config(req_del)
+            self.assertFalse(SceneFieldsConfig.objects.filter(id=created["id"]).exists())

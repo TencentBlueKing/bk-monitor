@@ -1193,32 +1193,70 @@ class IndexSetTag(models.Model):
         }
 
     @classmethod
-    def get_dimension_values(cls, bk_biz_id: int, scene: str, dimension_key: str, filters: dict = None) -> list:
+    def _normalize_dimension_filters(cls, filters) -> list:
+        """Accept list-of-dict (preferred) or legacy dict; always return normalized filter list."""
+        if not filters:
+            return []
+        if isinstance(filters, dict):
+            normalized = []
+            for f_key, f_values in filters.items():
+                if isinstance(f_values, str):
+                    f_values = [f_values]
+                normalized.append({"field_name": f_key, "value": list(f_values), "op": "eq"})
+            return normalized
+        return list(filters)
+
+    @classmethod
+    def _match_filter_tag_ids(cls, field_name: str, values: list, op: str) -> set:
+        import re
+
+        matched = set()
+        if op in ("eq", "ne"):
+            for v in values:
+                try:
+                    f_tag = cls.objects.get(name=field_name, value=v, tag_type=TAG_TYPE_SCENE)
+                    matched.add(str(f_tag.tag_id))
+                except cls.DoesNotExist:
+                    pass
+        elif op in ("req", "nreq"):
+            for v in values:
+                try:
+                    pattern = re.compile(v)
+                except re.error:
+                    continue
+                for f_tag in cls.objects.filter(name=field_name, tag_type=TAG_TYPE_SCENE).exclude(value=""):
+                    if pattern.search(f_tag.value):
+                        matched.add(str(f_tag.tag_id))
+        return matched
+
+    @classmethod
+    def get_dimension_values(cls, bk_biz_id: int, scene: str, dimension_key: str, filters=None) -> list:
         """
         Query distinct dimension values for *dimension_key* across index sets
         that belong to *bk_biz_id* and match *scene* + optional cascading *filters*.
 
-        Example: scene="k8s", dimension_key="cluster_id", filters={"stream": "stdout"}
-        returns all cluster_id values whose index sets also carry stream=stdout.
+        filters: list[dict] with field_name, value (list), op (eq/ne/req/nreq);
+        legacy dict {key: value|[values]} is auto-converted to op=eq.
         """
         scene_tag_id = cls.get_tag_id(name="scene", value=scene, tag_type=TAG_TYPE_SCENE)
-        # Each group is a set of tag_ids; an index set must contain >= 1 from each group.
         required_groups = [{str(scene_tag_id)}]
+        excluded_tag_ids = set()
 
-        if filters:
-            for f_key, f_values in filters.items():
-                if isinstance(f_values, str):
-                    f_values = [f_values]
-                group = set()
-                for v in f_values:
-                    try:
-                        f_tag = cls.objects.get(name=f_key, value=v, tag_type=TAG_TYPE_SCENE)
-                        group.add(str(f_tag.tag_id))
-                    except cls.DoesNotExist:
-                        pass
-                if not group:
-                    return []
-                required_groups.append(group)
+        for f in cls._normalize_dimension_filters(filters):
+            field_name = f.get("field_name")
+            if not field_name:
+                continue
+            values = f.get("value") or []
+            if isinstance(values, str):
+                values = [values]
+            op = f.get("op") or "eq"
+            matched = cls._match_filter_tag_ids(field_name, values, op)
+            if op in ("eq", "req") and not matched:
+                return []
+            if op in ("eq", "req"):
+                required_groups.append(matched)
+            else:
+                excluded_tag_ids |= matched
 
         index_sets = LogIndexSet.objects.filter(
             space_uid__endswith=str(bk_biz_id),
@@ -1230,8 +1268,11 @@ class IndexSetTag(models.Model):
             if not raw_tag_ids:
                 continue
             id_set = {str(t) for t in raw_tag_ids if t}
-            if all(group & id_set for group in required_groups):
-                candidate_tag_ids.update(id_set)
+            if not all(group & id_set for group in required_groups):
+                continue
+            if excluded_tag_ids & id_set:
+                continue
+            candidate_tag_ids.update(id_set)
 
         if not candidate_tag_ids:
             return []
@@ -1716,8 +1757,52 @@ class IndexSetCustomConfig(models.Model):
         return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
 
 
+class SceneFieldsConfig(models.Model):
+    """场景化检索：业务+场景维度下的命名字段展示模板（对标 IndexSetFieldsConfig 模板表）。"""
+
+    name = models.CharField(_("配置名称"), max_length=255)
+    bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
+    scene_id = models.CharField(_("场景ID"), max_length=64, db_index=True)
+    scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
+    display_fields = JsonField(_("字段配置"), default=list)
+    sort_list = JsonField(_("排序规则"), null=True, default=None)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    created_by = models.CharField(_("创建者"), max_length=64, default="", blank=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+    updated_by = models.CharField(_("更新者"), max_length=64, default="", blank=True)
+
+    class Meta:
+        verbose_name = _("场景化检索-字段配置模板")
+        verbose_name_plural = _("场景化检索-字段配置模板")
+        unique_together = (("bk_biz_id", "scene_id", "name", "scope", "source_app_code"),)
+
+    @classmethod
+    @atomic
+    def delete_config(cls, config_id: int, source_app_code: str = None):
+        """删除模板：默认模板禁删；引用该模板的用户记录回指到同 (biz, scene, scope) 下的默认模板。"""
+        from apps.log_search.exceptions import SceneDefaultConfigNotAllowedDelete
+
+        if source_app_code is None:
+            source_app_code = get_request_app_code()
+        obj = cls.objects.get(pk=config_id)
+        if obj.name == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME:
+            raise SceneDefaultConfigNotAllowedDelete()
+        default_config = cls.objects.get(
+            bk_biz_id=obj.bk_biz_id,
+            scene_id=obj.scene_id,
+            name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+            scope=obj.scope,
+            source_app_code=source_app_code,
+        )
+        UserSceneFieldsConfig.objects.filter(config_id=config_id).update(config_id=default_config.id)
+        cls.objects.filter(id=config_id).delete()
+
+
 class UserSceneFieldsConfig(models.Model):
-    """场景化检索：按 业务-用户-场景-范围 持久化字段展示配置（单层，无模板分层）。"""
+    """场景化检索：用户在 (业务, 场景, 范围, 来源) 下当前应用的字段模板指针。"""
 
     bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
     username = models.CharField(_("用户名"), max_length=64, db_index=True)
@@ -1730,8 +1815,7 @@ class UserSceneFieldsConfig(models.Model):
     source_app_code = models.CharField(
         verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
     )
-    display_fields = JsonField(_("显示字段"), default=list)
-    sort_list = JsonField(_("排序规则"), default=list)
+    config_id = models.IntegerField(_("场景字段配置ID"), db_index=True)
     created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
     updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
 
@@ -1739,3 +1823,35 @@ class UserSceneFieldsConfig(models.Model):
         verbose_name = _("场景化检索-用户字段展示配置")
         verbose_name_plural = _("场景化检索-用户字段展示配置")
         unique_together = [("bk_biz_id", "username", "scene_id", "scope", "source_app_code")]
+
+    @classmethod
+    @atomic
+    def get_config(
+        cls,
+        bk_biz_id: int,
+        username: str,
+        scene_id: str,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ):
+        """读取用户当前应用的场景字段模板；用户未指针则回退默认模板（懒创建发生在调用方）。"""
+        source_app_code = get_request_app_code()
+        try:
+            obj = cls.objects.get(
+                bk_biz_id=bk_biz_id,
+                username=username,
+                scene_id=scene_id,
+                scope=scope,
+                source_app_code=source_app_code,
+            )
+        except cls.DoesNotExist:
+            return SceneFieldsConfig.objects.filter(
+                bk_biz_id=bk_biz_id,
+                scene_id=scene_id,
+                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+                scope=scope,
+                source_app_code=source_app_code,
+            ).first()
+        try:
+            return SceneFieldsConfig.objects.get(pk=obj.config_id)
+        except SceneFieldsConfig.DoesNotExist:
+            return None
