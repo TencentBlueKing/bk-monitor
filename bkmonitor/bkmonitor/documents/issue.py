@@ -12,6 +12,7 @@ import logging
 import time
 import uuid
 
+from django.utils.translation import gettext_lazy as _
 from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import MetaField, field
 
@@ -36,6 +37,33 @@ class IssueNameDuplicatedError(Exception):
 
 class IssueActivityNotFoundError(Exception):
     """Issue 活动记录不存在"""
+
+
+class IssueFrozenError(Exception):
+    """Issue 被合并冻结，不允许写操作。
+
+    抛出位置：IssueDocument 10 个状态机方法入口的 assert_not_frozen 守卫。
+    携带 conflicting_main_issue_id 字段，前端可据此跳转到主 Issue。
+    """
+
+    code = "MERGE_FREEZE_VIOLATION"
+
+    def __init__(self, issue_id: str, conflicting_main_issue_id: str):
+        self.issue_id = issue_id
+        self.conflicting_main_issue_id = conflicting_main_issue_id
+        super().__init__(
+            _("Issue {issue_id} 已被合并到 #{main_id}，请前往主 Issue 操作或先拆分").format(
+                issue_id=issue_id, main_id=conflicting_main_issue_id
+            )
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "code": self.code,
+            "issue_id": self.issue_id,
+            "conflicting_main_issue_id": self.conflicting_main_issue_id,
+            "message": str(self),
+        }
 
 
 @registry.register_document

@@ -20,6 +20,7 @@ from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
     IssueDocumentWriteError,
+    IssueFrozenError,
     IssueNotFoundError,
 )
 from bkmonitor.utils.request import get_request_username
@@ -91,6 +92,16 @@ def _run_batch(
         try:
             result = action_fn(bk_biz_id, issue_id)
             return {"ok": True, "result": result}
+        except IssueFrozenError as e:
+            # 合并冻结：携带 code + detail 供前端构造跳转到主 Issue 的引导
+            return {
+                "ok": False,
+                "bk_biz_id": bk_biz_id,
+                "issue_id": issue_id,
+                "code": e.code,
+                "detail": e.to_dict(),
+                "message": str(e),
+            }
         except IssueNotFoundError as e:
             return {"ok": False, "bk_biz_id": bk_biz_id, "issue_id": issue_id, "message": str(e)}
         except IssueDocumentWriteError as e:
@@ -107,9 +118,17 @@ def _run_batch(
             if item["ok"]:
                 succeeded.append(item["result"])
             else:
-                failed.append(
-                    {"bk_biz_id": item["bk_biz_id"], "issue_id": item["issue_id"], "message": item["message"]}
-                )
+                # 旧错误路径仅含 message；IssueFrozenError 额外带 code + detail（向后兼容）
+                failed_item = {
+                    "bk_biz_id": item["bk_biz_id"],
+                    "issue_id": item["issue_id"],
+                    "message": item["message"],
+                }
+                if "code" in item:
+                    failed_item["code"] = item["code"]
+                if "detail" in item:
+                    failed_item["detail"] = item["detail"]
+                failed.append(failed_item)
 
     return {"succeeded": succeeded, "failed": failed}
 
