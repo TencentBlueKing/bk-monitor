@@ -44,29 +44,47 @@ class TestIssueFrozenError:
 
 
 class TestMergeErrors:
-    """合并/拆分业务异常：错误码与字段。"""
+    """合并/拆分业务异常：继承 core.errors.Error → 由 custom_exception_handler 渲染。
+
+    code 是 int（3337xxx 段），business_code 字符串通过 ``extra`` 暴露给前端。
+    """
 
     def test_merge_cross_biz_forbidden(self):
         err = MergeCrossBizForbiddenError()
-        assert err.code == "MERGE_CROSS_BIZ_FORBIDDEN"
-        assert "code" in err.to_dict()
+        assert err.code == 3337101
+        assert err.extra["business_code"] == "MERGE_CROSS_BIZ_FORBIDDEN"
+        assert err.status_code == 400
 
     def test_merge_conflict_carries_main_id(self):
         err = MergeConflictError(conflicting_main_issue_id="a1")
-        assert err.code == "MERGE_CONFLICT"
+        assert err.code == 3337102
         assert err.conflicting_main_issue_id == "a1"
-        assert err.to_dict()["conflicting_main_issue_id"] == "a1"
+        assert err.extra["business_code"] == "MERGE_CONFLICT"
+        assert err.extra["conflicting_main_issue_id"] == "a1"
+        assert err.status_code == 409
 
     def test_merge_target_is_member(self):
         err = MergeTargetIsMemberError(main_issue_id="a1", conflicting_main_issue_id="c1")
-        assert err.code == "MERGE_TARGET_IS_MEMBER"
+        assert err.code == 3337103
         assert err.main_issue_id == "a1"
         assert err.conflicting_main_issue_id == "c1"
+        assert err.extra["business_code"] == "MERGE_TARGET_IS_MEMBER"
 
     def test_split_not_found(self):
         err = SplitNotFoundError(member_issue_id="b1")
-        assert err.code == "SPLIT_NOT_FOUND"
+        assert err.code == 3337104
         assert err.member_issue_id == "b1"
+        assert err.extra["business_code"] == "SPLIT_NOT_FOUND"
+
+    def test_merge_issues_not_found(self):
+        from bkmonitor.issue_merge import MergeIssuesNotFoundError
+
+        err = MergeIssuesNotFoundError(["b1", "b2"])
+        assert err.code == 3337105
+        assert err.missing_ids == ["b1", "b2"]
+        assert err.extra["business_code"] == "MERGE_ISSUES_NOT_FOUND"
+        assert err.extra["missing_ids"] == ["b1", "b2"]
+        assert err.status_code == 404
 
 
 class TestMergeResolverFastPath:

@@ -9,8 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.issue_merge.errors import (
+    IssuesMergeError,
     MergeConflictError,
     MergeCrossBizForbiddenError,
+    MergeIssuesNotFoundError,
     MergeTargetIsMemberError,
     SplitNotFoundError,
 )
@@ -19,8 +21,10 @@ from bkmonitor.issue_merge.resolver import IssueMergeResolver, MergeResolverCont
 __all__ = [
     "IssueMergeResolver",
     "MergeResolverContext",
+    "IssuesMergeError",
     "MergeConflictError",
     "MergeCrossBizForbiddenError",
+    "MergeIssuesNotFoundError",
     "MergeTargetIsMemberError",
     "SplitNotFoundError",
 ]

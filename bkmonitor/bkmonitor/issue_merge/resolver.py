@@ -125,17 +125,27 @@ class IssueMergeResolver:
 
     @classmethod
     def hydrate_aggregations(cls, issues: list[dict], context: MergeResolverContext) -> None:
-        """主 Issue 行注入 ``merge_status`` 字段；原地修改 issues。
+        """主 Issue 行注入 ``merge_status`` 字段 + 聚合数据字段；原地修改 issues。
 
+        Step 1（注入关系摘要）：
         - role='main'：拼装 active_members 摘要列表
         - role='member'：拼装 main_issue_id（供前端跳转主 Issue）
         - 普通 Issue：不动
 
-        注：alert_count / impact_scope / first/last_alert_time 的实际数值聚合需要 caller
-        额外查询 ES 拿 member 文档（bulk 一次），本方法只负责注入关系摘要。
+        Step 2（聚合数据字段）—— 仅对 role='main' 的 Issue：
+        - ``alert_count`` += Σ members.alert_count
+        - ``first_alert_time`` = min(self, Σ members.first_alert_time)
+        - ``last_alert_time``  = max(self, Σ members.last_alert_time)
+        - ``impact_scope`` = self ∪ Σ members.impact_scope（按 dimension 维度 union，instance_list 按 dict 内容去重）
+
+        聚合后的 first/last_alert_time 会被 ``IssueQueryHandler.add_alert_trend`` 用于
+        计算告警查询时间窗，保证 member 在主 Issue 自身时间窗外的告警也能进入聚合统计。
         """
         if context.degraded:
             return
+
+        # Step 1: 注入 merge_status
+        main_issue_ids: list[str] = []
         for issue in issues:
             issue_id = issue.get("id")
             if not issue_id:
@@ -147,6 +157,7 @@ class IssueMergeResolver:
                     "main_issue_id": None,
                     "active_members": members,
                 }
+                main_issue_ids.append(issue_id)
             else:
                 main_id = context.main_of(issue_id)
                 if main_id:
@@ -155,6 +166,108 @@ class IssueMergeResolver:
                         "main_issue_id": main_id,
                         "active_members": None,
                     }
+
+        # Step 2: 聚合数据字段（无主 Issue 命中时直接跳过，避免无谓 ES 查询）
+        if not main_issue_ids:
+            return
+
+        all_member_ids: list[str] = []
+        for mid in main_issue_ids:
+            for m in context.members_of(mid):
+                all_member_ids.append(m["member_issue_id"])
+        if not all_member_ids:
+            return
+
+        # lazy import 避免循环依赖
+        from bkmonitor.documents.issue import IssueDocument
+
+        try:
+            hits = (
+                IssueDocument.search(all_indices=True)
+                .filter("terms", _id=all_member_ids)
+                .source(["alert_count", "impact_scope", "first_alert_time", "last_alert_time"])
+                .params(size=len(all_member_ids))
+                .execute()
+                .hits
+            )
+        except Exception:
+            logger.warning(
+                "[issue-merge] hydrate aggregate ES fetch failed (fail-open, member_ids=%s)",
+                all_member_ids,
+                exc_info=True,
+            )
+            return
+
+        member_doc_map = {hit.meta.id: hit for hit in hits}
+
+        for issue in issues:
+            main_id = issue.get("id")
+            if not main_id:
+                continue
+            members = context.members_of(main_id)
+            if not members:
+                continue
+            for m in members:
+                member_doc = member_doc_map.get(m["member_issue_id"])
+                if member_doc is None:
+                    continue
+                # alert_count 累加
+                mc = getattr(member_doc, "alert_count", 0) or 0
+                issue["alert_count"] = (issue.get("alert_count") or 0) + int(mc)
+                # first_alert_time min（取最早；caller 用此作为告警查询窗口下界）
+                mft = getattr(member_doc, "first_alert_time", None)
+                if mft:
+                    cur = issue.get("first_alert_time")
+                    issue["first_alert_time"] = min(int(cur), int(mft)) if cur else int(mft)
+                # last_alert_time max（取最近；caller 用此作为告警查询窗口上界）
+                mlt = getattr(member_doc, "last_alert_time", None)
+                if mlt:
+                    cur = issue.get("last_alert_time")
+                    issue["last_alert_time"] = max(int(cur), int(mlt)) if cur else int(mlt)
+                # impact_scope union
+                m_scope = getattr(member_doc, "impact_scope", None)
+                if hasattr(m_scope, "to_dict"):
+                    m_scope = m_scope.to_dict()
+                if not isinstance(m_scope, dict):
+                    continue
+                cls._union_impact_scope(issue, m_scope)
+
+    @classmethod
+    def _union_impact_scope(cls, main_issue: dict, member_scope: dict) -> None:
+        """把 member 的 impact_scope 并入主 Issue。原地修改 main_issue['impact_scope']。
+
+        union 规则：
+        - 维度 key 取并集（跨策略合并时主和 member 可能维度异构，逐维度独立处理）
+        - 每个维度的 instance_list 按 ``frozenset(item.items())`` 去重合并（list[dict] 元素结构稳定）
+        """
+        issue_scope = main_issue.get("impact_scope") or {}
+        if hasattr(issue_scope, "to_dict"):
+            issue_scope = issue_scope.to_dict()
+        if not isinstance(issue_scope, dict):
+            issue_scope = {}
+
+        for dim, dim_data in member_scope.items():
+            if not isinstance(dim_data, dict):
+                continue
+            member_inst_list = dim_data.get("instance_list") or []
+            if dim not in issue_scope:
+                # 主 Issue 没该维度，直接复制 member 维度
+                issue_scope[dim] = {"instance_list": list(member_inst_list)}
+                continue
+            existing = issue_scope[dim].get("instance_list") or []
+            seen = set()
+            merged: list = []
+            for inst in [*existing, *member_inst_list]:
+                if isinstance(inst, dict):
+                    key = frozenset((k, str(v)) for k, v in inst.items())
+                else:
+                    key = ("__primitive__", str(inst))
+                if key in seen:
+                    continue
+                seen.add(key)
+                merged.append(inst)
+            issue_scope[dim]["instance_list"] = merged
+        main_issue["impact_scope"] = issue_scope
 
     @classmethod
     def get_active_member_ids(cls, bk_biz_id: int) -> list[str]:

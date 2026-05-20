@@ -27,6 +27,7 @@ from bkmonitor.documents.issue import (
 from bkmonitor.issue_merge import (
     MergeConflictError,
     MergeCrossBizForbiddenError,
+    MergeIssuesNotFoundError,
     MergeTargetIsMemberError,
     SplitNotFoundError,
 )
@@ -1003,7 +1004,8 @@ class MergeIssueResource(Resource):
         if not members:
             raise serializers.ValidationError("members 去重后为空")
 
-        # 校验 1: 跨业务（main + members 所有 issue 的 bk_biz_id 必须一致）
+        # 校验 1: 所有 main + members 必须存在于 ES（防止 main 不存在仍写关系导致 member 被冻结）
+        # + 跨业务校验（所有 issue 的 bk_biz_id 必须一致并等于入参 bk_biz_id）
         all_ids = [main_id, *members]
         biz_hits = (
             IssueDocument.search(all_indices=True)
@@ -1013,8 +1015,15 @@ class MergeIssueResource(Resource):
             .execute()
             .hits
         )
+        found_ids = {hit.meta.id for hit in biz_hits}
+        missing_ids = [iid for iid in all_ids if iid not in found_ids]
+        if missing_ids:
+            raise MergeIssuesNotFoundError(missing_ids)
+
         biz_set = {str(getattr(h, "bk_biz_id", "")) for h in biz_hits if getattr(h, "bk_biz_id", None)}
-        if biz_set and (len(biz_set) > 1 or str(bk_biz_id) not in biz_set):
+        # 全部存在但 biz_set 仍异常（极端：所有 ES doc 的 bk_biz_id 字段为空）
+        # 或 biz 不一致 / 与入参 bk_biz_id 不匹配 → 拒绝
+        if not biz_set or len(biz_set) > 1 or str(bk_biz_id) not in biz_set:
             raise MergeCrossBizForbiddenError()
 
         # 校验 2: 主 issue 自身是某行活跃 member（防链式合并）
