@@ -45,6 +45,7 @@ export const SESSION_STORAGE_KEY = 'CommonFilterAddition';
 
 export type FilterAdditionStorageItem = {
   indexSetIdList: string[];
+  sceneKey?: string; // 场景化检索键，格式 "bk_biz_id-scene_active"
   filterAddition: Record<string, any>[];
   t: number; // ISO 8601 format timestamp
 };
@@ -83,6 +84,14 @@ export const filterCommontAdditionByIndexSetId = (indexSetIdList: string[], list
   );
 };
 
+export const filterCommontAdditionBySceneKey = (sceneKey: string, list?: FilterAdditionStorageItem[]) => {
+  const jsonValue: FilterAdditionStorageItem[] = list ?? getStorageCommonFilterAddition();
+  return jsonValue?.find(item => item.sceneKey === sceneKey);
+};
+
+/** 获取场景化检索的 sessionStorage 键，格式 "bk_biz_id-scene_active" */
+export const getSceneFilterKey = (state: any): string => `${state.bkBizId}-${state.indexItem.scene_active}`;
+
 /**
  * 获取常驻字段过滤设置
  * @param store
@@ -97,7 +106,10 @@ export const getCommonFilterFieldsList = state => {
 };
 
 export const getCommonFilterAddition = state => {
-  const additionValue = filterCommontAdditionByIndexSetId(state.indexItem.ids);
+  const isScene = isSceneRetrieve(state);
+  const additionValue = isScene
+    ? filterCommontAdditionBySceneKey(getSceneFilterKey(state))
+    : filterCommontAdditionByIndexSetId(state.indexItem.ids);
   const storedValue = additionValue?.filterAddition ?? [];
 
   const storedCommonAddition =
@@ -134,7 +146,10 @@ export const getCommonFilterAdditionWithValues = state =>
 
 export const setStorageCommonFilterAddition = (state, filterAddition: Record<string, any>[]) => {
   const allStorage = getStorageCommonFilterAddition();
-  const currentItem: FilterAdditionStorageItem = filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
+  const isScene = isSceneRetrieve(state);
+  const currentItem: FilterAdditionStorageItem | undefined = isScene
+    ? filterCommontAdditionBySceneKey(getSceneFilterKey(state), allStorage)
+    : filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
 
   if (currentItem !== undefined) {
     currentItem.filterAddition = filterAddition;
@@ -143,11 +158,15 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
     return;
   }
 
-  allStorage.push({
-    indexSetIdList: state.indexItem.ids.map(id => `${id}`),
+  const newItem: FilterAdditionStorageItem = {
+    indexSetIdList: isScene ? [] : state.indexItem.ids.map(id => `${id}`),
     filterAddition,
     t: Date.now(),
-  });
+  };
+  if (isScene) {
+    newItem.sceneKey = getSceneFilterKey(state);
+  }
+  allStorage.push(newItem);
 
   /**
    * 如果本地存储超过5条，则移除最早的一条数据
@@ -162,7 +181,10 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
 
 export const clearStorageCommonFilterAddition = state => {
   const allStorage = getStorageCommonFilterAddition();
-  const currentItem: FilterAdditionStorageItem = filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
+  const isScene = isSceneRetrieve(state);
+  const currentItem: FilterAdditionStorageItem | undefined = isScene
+    ? filterCommontAdditionBySceneKey(getSceneFilterKey(state), allStorage)
+    : filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
   if (currentItem !== undefined) {
     const index = allStorage.indexOf(currentItem);
     if (index > -1) {

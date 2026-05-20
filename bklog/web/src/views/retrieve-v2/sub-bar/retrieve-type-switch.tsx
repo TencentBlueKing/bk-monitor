@@ -60,6 +60,9 @@ export default defineComponent({
       // 先取消所有进行中的请求，防止旧请求返回覆盖新数据
       cancelPendingRetrieveRequests();
 
+      // 切换检索模式时，关闭常驻筛选面板
+      store.commit('retrieve/updateCatchFieldCustomConfig', { fixedFilterAddition: false, filterAddition: [] });
+
       // 切换检索模式时，清空 keyword 和 addition
       store.commit('updateIndexItemParams', { keyword: '', addition: [] });
       store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
