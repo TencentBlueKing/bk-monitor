@@ -211,9 +211,10 @@ class IssueMergeResolver:
                 member_doc = member_doc_map.get(m["member_issue_id"])
                 if member_doc is None:
                     continue
-                # alert_count 累加
-                mc = getattr(member_doc, "alert_count", 0) or 0
-                issue["alert_count"] = (issue.get("alert_count") or 0) + int(mc)
+                # alert_count 不在此处累加：add_alert_trend 走 AlertDocument 按 display_id 折叠
+                # 后会直接覆盖式写回 issue["alert_count"]（resources.py 内 fill_result.alert_count_map），
+                # 此处累加属于死代码。仅保留 first/last_alert_time + impact_scope 聚合，
+                # 因为这两个字段 add_alert_trend 不再覆盖，由此处提供最终值。
                 # first_alert_time min（取最早；caller 用此作为告警查询窗口下界）
                 mft = getattr(member_doc, "first_alert_time", None)
                 if mft:
@@ -224,7 +225,9 @@ class IssueMergeResolver:
                 if mlt:
                     cur = issue.get("last_alert_time")
                     issue["last_alert_time"] = max(int(cur), int(mlt)) if cur else int(mlt)
-                # impact_scope union
+                # impact_scope union（caller 需在 hydrate 后对主 Issue 再调 enrich_impact_scope
+                # 一次，补 member instance 的 alert_query_fields，保持主 / member instance
+                # 字段集一致）
                 m_scope = getattr(member_doc, "impact_scope", None)
                 if hasattr(m_scope, "to_dict"):
                     m_scope = m_scope.to_dict()
@@ -232,13 +235,24 @@ class IssueMergeResolver:
                     continue
                 cls._union_impact_scope(issue, m_scope)
 
+    # 计算 instance 去重键时忽略的字段集——这些字段是 enrich 阶段动态注入，主 / member
+    # 在 hydrate 调用时 enrich 状态不同（主已 enrich vs member 未 enrich），不能进入去重键
+    # 否则同一 instance 会被判为不同导致重复保留。
+    _IMPACT_INSTANCE_VOLATILE_FIELDS = frozenset({"alert_query_fields"})
+
     @classmethod
     def _union_impact_scope(cls, main_issue: dict, member_scope: dict) -> None:
-        """把 member 的 impact_scope 并入主 Issue。原地修改 main_issue['impact_scope']。
+        """把 member 的 impact_scope 并入主 Issue。原地修改 ``main_issue['impact_scope']``。
 
         union 规则：
         - 维度 key 取并集（跨策略合并时主和 member 可能维度异构，逐维度独立处理）
-        - 每个维度的 instance_list 按 ``frozenset(item.items())`` 去重合并（list[dict] 元素结构稳定）
+        - 每个维度的 instance_list 按"核心字段"去重（忽略 enrich 注入的 volatile 字段），
+          保证主（已 enrich，含 alert_query_fields）与 member（未 enrich）的同一 instance
+          能正确判定相等而合并
+        - 维护 ``count = len(instance_list)``，与 instance_list 长度同步
+
+        ⚠ 调用方需在 hydrate_aggregations 完成后对**主 Issue**整体调一次
+        ``IssueQueryHandler.enrich_impact_scope``，补 member instance 的 alert_query_fields。
         """
         issue_scope = main_issue.get("impact_scope") or {}
         if hasattr(issue_scope, "to_dict"):
@@ -252,14 +266,19 @@ class IssueMergeResolver:
             member_inst_list = dim_data.get("instance_list") or []
             if dim not in issue_scope:
                 # 主 Issue 没该维度，直接复制 member 维度
-                issue_scope[dim] = {"instance_list": list(member_inst_list)}
+                issue_scope[dim] = {
+                    "instance_list": list(member_inst_list),
+                    "count": len(member_inst_list),
+                }
                 continue
             existing = issue_scope[dim].get("instance_list") or []
             seen = set()
             merged: list = []
             for inst in [*existing, *member_inst_list]:
                 if isinstance(inst, dict):
-                    key = frozenset((k, str(v)) for k, v in inst.items())
+                    key = tuple(
+                        sorted((k, str(v)) for k, v in inst.items() if k not in cls._IMPACT_INSTANCE_VOLATILE_FIELDS)
+                    )
                 else:
                     key = ("__primitive__", str(inst))
                 if key in seen:
@@ -267,6 +286,7 @@ class IssueMergeResolver:
                 seen.add(key)
                 merged.append(inst)
             issue_scope[dim]["instance_list"] = merged
+            issue_scope[dim]["count"] = len(merged)
         main_issue["impact_scope"] = issue_scope
 
     @classmethod

@@ -440,6 +440,12 @@ class IssueDetailResource(Resource):
         # 注入 merge_status（主 Issue 拼装 active_members；member 拼装 main_issue_id）
         IssueMergeResolver.hydrate_aggregations([result], ctx)
 
+        # hydrate union 改写了主 Issue 的 impact_scope（member 维度的 instance 是 ES 原始字段、
+        # 未经 enrich），role='main' 时需重跑 enrich_impact_scope 补 alert_query_fields，
+        # 与 IssueQueryHandler.search 同款修复。
+        if result.get("merge_status", {}).get("role") == "main" and result.get("impact_scope"):
+            IssueQueryHandler.enrich_impact_scope(result["impact_scope"])
+
         if redirected_from:
             result["redirected_from"] = redirected_from
 

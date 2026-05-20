@@ -572,6 +572,14 @@ class IssueQueryHandler(BaseBizQueryHandler):
             self._merge_ctx.load()
             IssueMergeResolver.hydrate_aggregations(issues, self._merge_ctx)
 
+            # hydrate union 改写了主 Issue 的 impact_scope（member 维度的 instance 是 ES 原始字段、
+            # 未经 enrich），需对 role='main' 的主 Issue 整体重跑一次 enrich_impact_scope，
+            # 给 union 进来的 member instance 补 alert_query_fields，保证前端字段集一致。
+            for issue in issues:
+                merge_status = issue.get("merge_status") or {}
+                if merge_status.get("role") == "main" and issue.get("impact_scope"):
+                    self.enrich_impact_scope(issue["impact_scope"])
+
         # 批量查询关联告警趋势（add_alert_trend 内部会读 self._merge_ctx 做 expand）
         self.add_alert_trend(issues)
 

@@ -201,6 +201,109 @@ class TestExpandAndFilter:
         assert IssueMergeResolver.resolve_display_id("c1", ctx) == "c1"
 
 
+class TestUnionImpactScope:
+    """_union_impact_scope 行为：跨维度 union / 去重忽略 enrich volatile 字段 / count 维护。
+
+    Reviewer 反馈 1.3：主 Issue 在 clean_document 阶段已被 enrich（instance 含 alert_query_fields），
+    member 走 ES 原始字段（不含 alert_query_fields）。如果去重键直接用 frozenset(item.items())，
+    主 / member 字段集不一致会导致同一 instance 被判为不同 → 重复保留 + 前端字段不一致。
+    本测试覆盖修复后的"忽略 volatile 字段去重"行为。
+    """
+
+    def test_cross_dimension_union(self):
+        """跨策略合并：主 host 维度，member cluster 维度——各自独立保留。"""
+        main_issue = {
+            "id": "a1",
+            "impact_scope": {
+                "host": {"instance_list": [{"bk_host_id": "1", "display_name": "host-A"}], "count": 1},
+            },
+        }
+        member_scope = {
+            "cluster": {"instance_list": [{"bcs_cluster_id": "BCS-1"}], "count": 1},
+        }
+        IssueMergeResolver._union_impact_scope(main_issue, member_scope)
+        assert set(main_issue["impact_scope"].keys()) == {"host", "cluster"}
+        assert main_issue["impact_scope"]["host"]["count"] == 1
+        assert main_issue["impact_scope"]["cluster"]["count"] == 1
+        assert main_issue["impact_scope"]["cluster"]["instance_list"] == [{"bcs_cluster_id": "BCS-1"}]
+
+    def test_same_dimension_dedup_main_enriched_vs_member_raw(self):
+        """同 host_id 在主（已 enrich，含 alert_query_fields）+ member（未 enrich）：必须去重为 1 条。"""
+        main_issue = {
+            "id": "a1",
+            "impact_scope": {
+                "host": {
+                    "instance_list": [
+                        {
+                            "bk_host_id": "9185731",
+                            "display_name": "host-A",
+                            "alert_query_fields": [{"keys": ["event.bk_host_id"], "value": "9185731"}],
+                        }
+                    ],
+                    "count": 1,
+                },
+            },
+        }
+        member_scope = {
+            "host": {
+                "instance_list": [
+                    {"bk_host_id": "9185731", "display_name": "host-A"}  # member 无 alert_query_fields
+                ],
+            },
+        }
+        IssueMergeResolver._union_impact_scope(main_issue, member_scope)
+        # 去重成功：仍是 1 条
+        assert len(main_issue["impact_scope"]["host"]["instance_list"]) == 1
+        # count 与 instance_list 长度同步
+        assert main_issue["impact_scope"]["host"]["count"] == 1
+        # 保留主版本（带 alert_query_fields，对前端友好）
+        first = main_issue["impact_scope"]["host"]["instance_list"][0]
+        assert first["bk_host_id"] == "9185731"
+        # 注：主版本是 existing 优先入 merged，alert_query_fields 应保留
+        assert "alert_query_fields" in first
+
+    def test_same_dimension_union_unique_instances(self):
+        """同维度不同 host_id：两者都保留 + count = 2。"""
+        main_issue = {
+            "id": "a1",
+            "impact_scope": {
+                "host": {"instance_list": [{"bk_host_id": "1"}], "count": 1},
+            },
+        }
+        member_scope = {
+            "host": {"instance_list": [{"bk_host_id": "2"}]},
+        }
+        IssueMergeResolver._union_impact_scope(main_issue, member_scope)
+        assert len(main_issue["impact_scope"]["host"]["instance_list"]) == 2
+        assert main_issue["impact_scope"]["host"]["count"] == 2
+        host_ids = {inst["bk_host_id"] for inst in main_issue["impact_scope"]["host"]["instance_list"]}
+        assert host_ids == {"1", "2"}
+
+    def test_main_without_dimension_member_supplements(self):
+        """主无 cluster 维度，member 有：member 直接复制 + count 设置。"""
+        main_issue = {
+            "id": "a1",
+            "impact_scope": {
+                "host": {"instance_list": [{"bk_host_id": "1"}], "count": 1},
+            },
+        }
+        member_scope = {
+            "cluster": {"instance_list": [{"bcs_cluster_id": "BCS-1"}, {"bcs_cluster_id": "BCS-2"}]},
+        }
+        IssueMergeResolver._union_impact_scope(main_issue, member_scope)
+        assert main_issue["impact_scope"]["cluster"]["count"] == 2
+        assert len(main_issue["impact_scope"]["cluster"]["instance_list"]) == 2
+
+    def test_empty_member_scope_noop(self):
+        """member.impact_scope 为空：主不变。"""
+        main_issue = {
+            "id": "a1",
+            "impact_scope": {"host": {"instance_list": [{"bk_host_id": "1"}], "count": 1}},
+        }
+        IssueMergeResolver._union_impact_scope(main_issue, {})
+        assert main_issue["impact_scope"] == {"host": {"instance_list": [{"bk_host_id": "1"}], "count": 1}}
+
+
 class TestActivityContentFormat:
     """合并/拆分活动日志的 content JSON 字段结构（前端按 kind 渲染）。"""
 
