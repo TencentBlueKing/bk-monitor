@@ -29,6 +29,7 @@ export default {
   归档: 'Archive',
   提取: 'Extract',
   检索: 'Explore',
+  客户端日志: 'Client Log',
   清洗: 'Parsing',
   集群: 'Cluster',
   设置: 'Settings',

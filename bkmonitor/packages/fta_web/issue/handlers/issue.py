@@ -28,6 +28,7 @@ from bkmonitor.utils.time_tools import hms_string
 from constants.issue import ImpactScopeDimension, IssuePriority, IssueStatus
 from fta_web.alert.handlers.base import BaseBizQueryHandler, BaseQueryTransformer, QueryField
 from fta_web.alert.handlers.translator import BizTranslator, StrategyTranslator
+from utils import escape_lucene_special_chars
 from fta_web.issue.handlers.translator import StatusTranslator, PriorityTranslator
 
 logger = logging.getLogger("fta_action.issue")
@@ -806,10 +807,14 @@ class IssueQueryHandler(BaseBizQueryHandler):
         返回值示例:
             [{"keys": ["event.bk_host_id", "tags.bk_host_id"], "value": "9185731"}]
         """
+        # 转义 Lucene 特殊字符，避免 instance 值进入查询模板时被解析为查询语法
+        # 使用副本避免污染原 instance（前端响应数据）和重复转义
+        escaped_instance = {k: escape_lucene_special_chars(v) for k, v in instance.items()}
+
         result = []
         for entry in mapping_entries:
             try:
-                value = entry["value_tpl"].format(**instance)
+                value = entry["value_tpl"].format(**escaped_instance)
             except (KeyError, IndexError):
                 continue
             result.append({"keys": entry["keys"], "value": value, "condition": entry.get("condition", "or")})

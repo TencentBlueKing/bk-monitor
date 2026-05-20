@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from rest_framework.response import Response
 
 from apps.api import MonitorApi
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import (
+    InstanceActionPermission,
+    ViewBusinessPermission,
+)
 from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.models import SignatureStrategySettings
@@ -37,6 +42,14 @@ from apps.utils.drf import detail_route, list_route
 
 class ClusteringMonitorViewSet(APIViewSet):
     lookup_field = "index_set_id"
+    # 仅校验业务访问权限：不绑定 index_set 的列表动作
+    business_actions = {"search_user_groups"}
+
+    def get_permissions(self):
+        if self.action in self.business_actions:
+            return [ViewBusinessPermission()]
+        # 其余按 index_set_id 定位的动作，统一校验日志检索权限
+        return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @list_route(methods=["post"], url_path="search_user_groups")
     def search_user_groups(self, request):

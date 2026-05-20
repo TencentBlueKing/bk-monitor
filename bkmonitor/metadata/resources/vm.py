@@ -30,6 +30,12 @@ from metadata.service.vm_storage import (
     query_bcs_cluster_vm_rts,
     query_vm_datalink_all,
 )
+from metadata.service.vm_short_link import (
+    apply_vm_short_links,
+    delete_vm_short_links,
+    switch_vm_short_links,
+    update_vm_short_links,
+)
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 logger = logging.getLogger("metadata")
@@ -119,6 +125,139 @@ class QueryBcsClusterVmTableIds(Resource):
 
     def perform_request(self, data: OrderedDict) -> dict:
         return query_bcs_cluster_vm_rts(data["bcs_cluster_id"])
+
+
+class ApplyVMShortLinkResource(Resource):
+    """短链路接入入口：只做接入/覆盖接入，配置微调走 UpdateVMShortLinkResource。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        vmrts = serializers.ListField(required=True, label="VM结果表ID列表", child=serializers.CharField())
+        is_global = serializers.BooleanField(required=False, label="是否为同空间类型全局表", default=False)
+        query_router_config = serializers.DictField(required=False, label="查询路由配置", default=dict)
+        data_labels = serializers.ListField(
+            required=False, label="数据标签列表", child=serializers.CharField(allow_blank=False), default=list
+        )
+        operator = serializers.CharField(required=False, label="操作者", default="system")
+        refresh_router = serializers.BooleanField(required=False, label="是否刷新路由", default=True)
+        overwrite = serializers.BooleanField(required=False, label="是否覆盖已存在短链路配置", default=False)
+
+        def validate_vmrts(self, value: list[str]) -> list[str]:
+            if not value:
+                raise ValidationError("vmrts cannot be empty")
+            return value
+
+    def perform_request(self, validated_request_data: OrderedDict[str, Any]) -> list[dict[str, Any]]:
+        return apply_vm_short_links(
+            vmrts=validated_request_data["vmrts"],
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            is_global=validated_request_data["is_global"],
+            query_router_config=validated_request_data["query_router_config"],
+            operator=validated_request_data["operator"],
+            refresh_router=validated_request_data["refresh_router"],
+            overwrite=validated_request_data["overwrite"],
+            data_labels=validated_request_data.get("data_labels", []),
+        )
+
+
+class DeleteVMShortLinkResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        table_ids = serializers.ListField(required=False, label="虚拟结果表ID列表", child=serializers.CharField())
+        vmrts = serializers.ListField(required=False, label="VM结果表ID列表", child=serializers.CharField())
+        operator = serializers.CharField(required=False, label="操作者", default="system")
+        refresh_router = serializers.BooleanField(required=False, label="是否刷新路由", default=True)
+
+        def validate(self, attrs: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
+            if not attrs.get("table_ids") and not attrs.get("vmrts"):
+                raise ValidationError("table_ids and vmrts cannot both be empty")
+            return attrs
+
+    def perform_request(self, validated_request_data: OrderedDict[str, Any]) -> dict[str, Any]:
+        return delete_vm_short_links(
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            table_ids=validated_request_data.get("table_ids"),
+            vmrts=validated_request_data.get("vmrts"),
+            operator=validated_request_data["operator"],
+            refresh_router=validated_request_data["refresh_router"],
+        )
+
+
+class UpdateVMShortLinkResource(Resource):
+    """短链路更新入口：只修改已存在记录，refresh_bkbase 控制是否同步 BKBase 元信息。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        table_ids = serializers.ListField(required=False, label="虚拟结果表ID列表", child=serializers.CharField())
+        vmrts = serializers.ListField(required=False, label="VM结果表ID列表", child=serializers.CharField())
+        is_global = serializers.BooleanField(
+            required=False, allow_null=True, default=None, label="是否为同空间类型全局表，未传则不修改"
+        )
+        query_router_config = serializers.DictField(
+            required=False, allow_null=True, default=None, label="查询路由配置，未传则不修改"
+        )
+        data_labels = serializers.ListField(
+            required=False,
+            allow_empty=True,
+            allow_null=True,
+            default=None,
+            label="数据标签列表，未传则不修改",
+            child=serializers.CharField(allow_blank=False),
+        )
+        refresh_bkbase = serializers.BooleanField(required=False, label="是否从BKBase刷新配置", default=True)
+        operator = serializers.CharField(required=False, label="操作者", default="system")
+        refresh_router = serializers.BooleanField(required=False, label="是否刷新路由", default=True)
+
+        def validate(self, attrs: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
+            if not attrs.get("table_ids") and not attrs.get("vmrts"):
+                raise ValidationError("table_ids and vmrts cannot both be empty")
+            return attrs
+
+    def perform_request(self, validated_request_data: OrderedDict[str, Any]) -> list[dict[str, Any]]:
+        return update_vm_short_links(
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            table_ids=validated_request_data.get("table_ids"),
+            vmrts=validated_request_data.get("vmrts"),
+            is_global=validated_request_data.get("is_global"),
+            query_router_config=validated_request_data.get("query_router_config"),
+            refresh_bkbase=validated_request_data["refresh_bkbase"],
+            operator=validated_request_data["operator"],
+            refresh_router=validated_request_data["refresh_router"],
+            data_labels=validated_request_data.get("data_labels"),
+        )
+
+
+class SwitchVMShortLinkResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        table_ids = serializers.ListField(required=False, label="虚拟结果表ID列表", child=serializers.CharField())
+        vmrts = serializers.ListField(required=False, label="VM结果表ID列表", child=serializers.CharField())
+        is_enabled = serializers.BooleanField(required=True, label="是否启用")
+        operator = serializers.CharField(required=False, label="操作者", default="system")
+        refresh_router = serializers.BooleanField(required=False, label="是否刷新路由", default=True)
+
+        def validate(self, attrs: OrderedDict[str, Any]) -> OrderedDict[str, Any]:
+            if not attrs.get("table_ids") and not attrs.get("vmrts"):
+                raise ValidationError("table_ids and vmrts cannot both be empty")
+            return attrs
+
+    def perform_request(self, validated_request_data: OrderedDict[str, Any]) -> dict[str, Any]:
+        return switch_vm_short_links(
+            bk_tenant_id=validated_request_data["bk_tenant_id"],
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            table_ids=validated_request_data.get("table_ids"),
+            vmrts=validated_request_data.get("vmrts"),
+            is_enabled=validated_request_data["is_enabled"],
+            operator=validated_request_data["operator"],
+            refresh_router=validated_request_data["refresh_router"],
+        )
 
 
 class SwitchKafkaCluster(Resource):

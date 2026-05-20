@@ -22,11 +22,14 @@ the project delivered to anyone in the future.
 import re
 
 from pipeline.service import task_service
+from rest_framework import permissions
 from rest_framework.response import Response
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
@@ -38,11 +41,30 @@ from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
 
 
+class _IsSuperuser(permissions.BasePermission):
+    """Django 超级管理员校验"""
+
+    message = "需要 Django 超级管理员权限"
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        return bool(user and getattr(user, "is_superuser", False))
+
+
 class ClusteringConfigViewSet(APIViewSet):
     lookup_field = "index_set_id"
+    # 仅超管：内部流水线运维接口
+    pipeline_admin_actions = {"get_pipeline_state", "retry_pipeline", "skip_pipeline", "fail_pipeline"}
+    # 仅需登录态：模板/调试动作或内部自带过滤的列表
+    open_actions = {"get_default_config", "debug", "check", "list_configs"}
 
     def get_permissions(self):
-        return []
+        if self.action in self.pipeline_admin_actions:
+            return [_IsSuperuser()]
+        if self.action in self.open_actions:
+            return []
+        # 其余按 index_set_id 定位的动作，统一校验日志检索权限
+        return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @list_route(methods=["GET"], url_path="list_configs")
     def list_configs(self, request, *args, **kwargs):

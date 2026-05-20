@@ -276,3 +276,79 @@ class TestCollectorViewSetAPI(TestCase):
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
 
         self.assertEqual(content["data"], SCENARIOS)
+
+    @patch("apps.api.TransferApi.get_result_table_storage")
+    @patch("apps.log_databus.views.collector_views.CollectorViewSet.get_permissions", lambda _: [])
+    @patch.object(collector_views.CollectorViewSet, "get_permissions", lambda _: [])
+    @patch.object(permission.Permission, "batch_is_allowed", lambda _, actions, resources: BATCH_IS_ALLOWED)
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @FakeRedis("apps.utils.cache.cache")
+    def test_list_collectors_filter_by_bk_data_id(self, mock_get_result_table_storage):
+        """
+        测试 api.v1.databus.collectors.list_collectors 通过 bk_data_id 参数过滤
+        """
+        mock_get_result_table_storage.return_value = CLUSTER_INFOS
+
+        # 创建两条采集配置，bk_data_id 不同
+        CollectorConfig.objects.create(
+            collector_config_id=COLLECTOR_CONFIG_ID,
+            collector_config_name="test3333",
+            bk_app_code=BK_APP_CODE,
+            collector_scenario_id=COLLECTOR_SCENARIO_ID_ROW,
+            bk_biz_id=BK_BIZ_ID,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type="TOPO",
+            target_nodes=[{"bk_inst_id": 52, "bk_obj_id": "module"}],
+            target_subscription_diff={},
+            description="test3333",
+            is_active=True,
+            bk_data_id=1500586,
+            table_id="2_bklog.test3333",
+            subscription_id=2103,
+            task_id_list=["1331697"],
+        )
+        CollectorConfig.objects.create(
+            collector_config_id=232,
+            collector_config_name="test4444",
+            bk_app_code=BK_APP_CODE,
+            collector_scenario_id=COLLECTOR_SCENARIO_ID_ROW,
+            bk_biz_id=BK_BIZ_ID,
+            category_id="os",
+            target_object_type="HOST",
+            target_node_type="TOPO",
+            target_nodes=[{"bk_inst_id": 53, "bk_obj_id": "module"}],
+            target_subscription_diff={},
+            description="test4444",
+            is_active=True,
+            bk_data_id=1500587,
+            table_id="2_bklog.test4444",
+            subscription_id=2104,
+            task_id_list=["1331698"],
+        )
+
+        path = "/api/v1/databus/collectors/list_collectors/"
+
+        # 使用 bk_data_id 过滤，应只返回匹配的那一条
+        data = {"bk_biz_id": BK_BIZ_ID, "bk_data_id": 1500586}
+        response = self.client.get(path=path, data=data)
+        content = json.loads(response.content)
+
+        logger.info(f" {sys._getframe().f_code.co_name}:{content}")
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        self.assertTrue(content["result"])
+        # list_collectors 返回的是列表
+        result_list = content["data"]
+        matched = [item for item in result_list if item["bk_data_id"] == 1500586]
+        self.assertEqual(len(matched), 1)
+        self.assertEqual(matched[0]["collector_config_name"], "test3333")
+
+        # 使用不存在的 bk_data_id 过滤，应返回空列表
+        data = {"bk_biz_id": BK_BIZ_ID, "bk_data_id": 9999999}
+        response = self.client.get(path=path, data=data)
+        content = json.loads(response.content)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"], [])

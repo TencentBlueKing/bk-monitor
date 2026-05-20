@@ -158,7 +158,7 @@ export default defineComponent({
   render() {
     return (
       <div class='mini-bar-chart-wrap'>
-        <span class='mini-bar-total'>{this.total}</span>
+        {this.total !== undefined && <span class='mini-bar-total'>{this.total}</span>}
         <div
           ref='chart'
           class='mini-bar-chart-container'

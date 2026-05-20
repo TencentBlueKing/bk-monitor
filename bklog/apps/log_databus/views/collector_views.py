@@ -149,6 +149,8 @@ class CollectorViewSet(ModelViewSet):
         if self.request.query_params.get("collector_id_list", None):
             collector_id_list = self.request.query_params.get("collector_id_list").split(",")
             qs = qs.filter(collector_config_id__in=collector_id_list)
+        if self.request.query_params.get("bk_data_id"):
+            qs = qs.filter(bk_data_id=self.request.query_params.get("bk_data_id"))
         if self.request.query_params.get(HAVE_DATA_ID):
             qs = qs.filter(bk_data_id__isnull=False)
         if self.request.query_params.get(BKDATA_OPEN) and settings.FEATURE_TOGGLE["scenario_bkdata"] == "off":

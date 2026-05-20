@@ -378,7 +378,7 @@ export default defineComponent({
                     )
                   }
                 >
-                  <div class='label'>{resource.display_name}：</div>
+                  <div class='label'>{resource.display_name}</div>
                   <div class='value'>{resource.count}</div>
                 </div>
               ))}

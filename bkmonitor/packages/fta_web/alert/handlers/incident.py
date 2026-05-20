@@ -96,6 +96,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = IncidentQueryTransformer
+    TEXT_CONDITION_FIELDS = {"incident_name", "incident_reason"}
 
     # “我的故障” 状态名称
     MINE_STATUS_NAME = "MY_INCIDENT"
@@ -129,18 +130,21 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         if self.status:
             queries = []
+            user_queries = []
             for status in self.status:
                 if status == self.MINE_STATUS_NAME:
-                    queries.append(
+                    user_queries.append(
                         Q("term", assignees=self.request_username) | Q("term", appointee=self.request_username)
                     )
                 if status == self.MY_ASSIGNEE_STATUS_NAME:
-                    queries.append(Q("term", assignees=self.request_username))
+                    user_queries.append(Q("term", assignees=self.request_username))
                 if status == self.MY_HANDLER_STATUS_NAME:
-                    queries.append(Q("term", handlers=self.request_username))
+                    user_queries.append(Q("term", handlers=self.request_username))
                 else:
                     queries.append(Q("term", status=status))
-
+            # 先查询用户所有数据，然后在查询状态数据；避免直接查询导致用户和状态使用or导致数据透出
+            if user_queries:
+                search_object = search_object.filter(reduce(operator.or_, user_queries))
             if queries:
                 search_object = search_object.filter(reduce(operator.or_, queries))
 
@@ -190,12 +194,54 @@ class IncidentQueryHandler(BaseBizQueryHandler):
                 query_dsl = query_dsl.replace(f"({display} OR {field}:{value})", f'("{display}" OR {field}:{value})')
         return query_dsl
 
+    @classmethod
+    def _build_fuzzy_query(cls, query_string: str):
+        """构造故障全字段的前缀模糊查询。"""
+        query_string = query_string.strip().strip('"').strip("'")
+        if not query_string:
+            return None
+
+        fields = [
+            field.es_field
+            for field in cls.query_transformer.query_fields
+            if field.searchable and field.es_field
+        ]
+        if not fields:
+            return None
+
+        return Q("multi_match", query=query_string, fields=fields, type="phrase_prefix", lenient=True)
+
+    @classmethod
+    def _build_text_condition_query(cls, condition: dict):
+        """为 Text 字段构造基于分词的包含/排除查询。"""
+        value = condition.get("value")
+        values = value if isinstance(value, list) else [value]
+        queries = []
+        for item in values:
+            if item is None:
+                continue
+            item = str(item).strip()
+            if not item:
+                continue
+            queries.append(Q("match", **{condition["key"]: {"query": item, "operator": "and"}}))
+
+        if not queries:
+            return None
+
+        query = queries[0] if len(queries) == 1 else Q("bool", should=queries, minimum_should_match=1)
+
+
+        if condition["method"] == "exclude":
+            return ~query
+        return query
+
     def parse_condition_item(self, condition: dict) -> Q:
         if condition["key"] == "query_string":
             con_q = None
             for query_string in condition["value"]:
                 if query_string.strip():
-                    query_string = query_string.replace(":",r"\:")
+                    original_query_string = query_string
+                    query_string = query_string.replace(":", r"\:")
                     query_dsl = self.query_transformer.transform_query_string(query_string)
                     query_dsl = self._quote_translated_query_string(query_dsl)
                     if isinstance(query_dsl, str):
@@ -203,11 +249,18 @@ class IncidentQueryHandler(BaseBizQueryHandler):
                     else:
                         temp_q = Q(query_dsl)
 
+                    fuzzy_q = self._build_fuzzy_query(original_query_string)
+                    if fuzzy_q is not None:
+                        temp_q = temp_q | fuzzy_q
+
                     if con_q is None:
                         con_q = temp_q
                     else:
                         con_q = con_q | temp_q
             return con_q
+        if condition["key"] in self.TEXT_CONDITION_FIELDS and condition["method"] in ["include", "exclude"]:
+            return self._build_text_condition_query(condition)
+
         return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object: Search) -> Search:
@@ -234,6 +287,8 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         if queries:
             return search_object.filter(reduce(operator.or_, queries))
+
+
         return search_object
 
     @classmethod
