@@ -35,9 +35,12 @@ import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { getSceneFieldKeys, getDefaultOp, getSceneConfig } from './search-bar/scene-filter/scene-config';
+import { getSceneFieldKeys, getDefaultOp, getSceneConfig, getAllSceneFieldOpKeys } from './search-bar/scene-filter/scene-config';
+import { resetRetrieveData } from './search-bar/scene-filter/scene-retrieve-utils';
+import { isFeatureToggleOn } from '@/store/helper';
 
 import $http from '@/api';
+import { RetrieveType } from '../retrieve-v2/sub-bar/retrieve-type-switch';
 
 export default () => {
   const store = useStore();
@@ -447,10 +450,10 @@ export default () => {
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
           resolveAdditionKeyword().then(async () => {
-            if (isSceneMode.value) {
+            if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
               // 场景化检索：请求场景配置，从URL获取筛选参数
-              await requestSceneConfigs();
-              if (store.getters.isSceneFilterEmpty) {
+              const sceneCleared = await requestSceneConfigs();
+              if (!sceneCleared && store.getters.isSceneFilterEmpty) {
                 RetrieveHelper.setSearchingValue(false);
                 return;
               }
@@ -567,16 +570,49 @@ export default () => {
   };
 
   /**
+   * 清空场景化检索条件并回退到常规检索
+   */
+  const clearSceneRetrieveToNormal = (configs: any[]) => {
+    store.commit('updateIndexItemParams', {
+      retrieve_type: 'normal',
+      scene_active: '',
+      scene_filter_values: {},
+      keyword: '',
+      addition: [],
+    });
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+
+    resetRetrieveData(store);
+
+    // 从 URL 中清除场景相关参数及 keyword/addition
+    const cleanQuery: Record<string, any> = { ...route.query, retrieve_type: 'normal' };
+    delete cleanQuery.scene_active;
+    delete cleanQuery.keyword;
+    delete cleanQuery.addition;
+    for (const key of getAllSceneFieldOpKeys(configs)) {
+      delete cleanQuery[key];
+    }
+    router.replace({ query: cleanQuery });
+  };
+
+  /**
    * 请求场景配置数据，接口返回后从 URL query 中回填场景筛选值
    */
-  const requestSceneConfigs = async () => {
+  const requestSceneConfigs = async (): Promise<boolean> => {
     await store.dispatch('retrieve/requestSceneConfigs');
     const configs = store.getters['retrieve/sceneConfigList'];
     const sceneActive = store.state.indexItem.scene_active;
-    if (!sceneActive || !configs.length) return;
+
+    // 当前是场景化检索模式但不在灰度业务中，清空场景化检索条件并回退到常规检索
+    if (sceneActive && !isFeatureToggleOn('log_iaas', [String(bkBizId.value), String(spaceUid.value)])) {
+      clearSceneRetrieveToNormal(configs);
+      return true;
+    }
+
+    if (!sceneActive || !configs.length) return false;
 
     const sceneFieldKeys = getSceneFieldKeys(configs, sceneActive);
-    if (!sceneFieldKeys.length) return;
+    if (!sceneFieldKeys.length) return false;
 
     // 读取当前业务的场景显示字段配置，以显示字段为主过滤回填值
     const allDisplayFields = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
@@ -609,6 +645,8 @@ export default () => {
     if (Object.keys(result).length) {
       store.commit('updateIndexItem', { scene_filter_values: result });
     }
+
+    return false;
   };
 
   getIndexSetList(() => {
