@@ -346,7 +346,7 @@ export default defineComponent({
         .then(res => {
           templateListLoading.value = false;
           if (res.data) {
-            templateList.value = res.data?.list ?? [];
+            templateList.value = Array.isArray(res.data) ? res.data : (res.data?.list ?? []);
           }
         });
     };
