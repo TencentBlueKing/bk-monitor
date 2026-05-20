@@ -291,7 +291,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 未开启白名单时 是否由前端来统计总数 */
   get isFrontStatistics() {
-    const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
+    const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG || {};
     const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
     return !(scenarioIdWhiteList?.includes(scenarioID) && isFeatureToggleOn('field_analysis_config', this.bkBizId));
   }
