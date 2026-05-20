@@ -172,6 +172,9 @@ StrategySchema = Schema(
             Optional("chart_image_enabled", default=True): bool,
             Optional("interval_mode", default="standard"): Or("standard", "increasing"),
             Optional("interval", default=120): int,
+            # 不设 default：未声明时让 validate 不写入字段，parse_yaml 据此判定"用户未显式配置"，
+            # 透传到 DB 后由 fta_action 运行时落默认 parallel（与 NotifyActionConfigSlz 行为对齐）
+            Optional("voice_notice"): Or("parallel", "serial"),
             Optional(
                 "template",
                 default=lambda: {
