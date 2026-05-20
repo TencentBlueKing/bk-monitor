@@ -202,41 +202,196 @@ def test_fix_budget_caps_actions(mock_metadata_redis, mock_http, mocker):
 
 
 def test_unify_query_no_delta_no_issue(mock_metadata_redis, mocker):
-    """unify-query counter 与上一轮一致 → 不报警。"""
+    """unify-query counter 与上一轮一致 → 不产生 router_anomaly_* issue。"""
     _set_settings(mocker)
     body = (
-        'unify_query_space_router_total{reason="SPACE_IS_NOT_EXISTS",space_uid="bkcc__0"} 9\n'
-        'unify_query_space_router_total{reason="SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS",space_uid="bkcc__2"} 11\n'
+        'unify_query_space_router_total{metric="",reason="SPACE_IS_NOT_EXISTS",result_table="",space_uid="bkcc__0"} 9\n'
+        'unify_query_space_router_total{metric="x",reason="SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS",'
+        'result_table="",space_uid="bkcc__2"} 11\n'
     )
     resp = mocker.MagicMock(status_code=200, text=body, raise_for_status=lambda: None)
     mocker.patch("metadata.task.diagnostics.requests.get", return_value=resp)
 
-    # 第一轮：种 baseline
     first = diagnostics.run_health_check(dry_run=False)
-    assert all(i["code"] != "space_router_anomaly_delta" for i in first["issues"])
+    assert all(not i["code"].startswith("router_anomaly_") for i in first["issues"])
 
-    # 第二轮：完全相同 → delta=0
     second = diagnostics.run_health_check(dry_run=False)
-    assert all(i["code"] != "space_router_anomaly_delta" for i in second["issues"])
+    assert all(not i["code"].startswith("router_anomaly_") for i in second["issues"])
 
 
 def test_unify_query_delta_above_threshold_reports(mock_metadata_redis, mocker):
-    """unify-query counter 增量过阈 → 报警。"""
+    """unify-query counter 增量过阈 → 按分类生成 router_anomaly_* issue。"""
     _set_settings(mocker)
-    mocker.patch("metadata.task.diagnostics.settings.LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD", 5)
+    space_qs = mocker.MagicMock()
+    space_qs.values.return_value.first.return_value = None  # space 不存在 → space_not_registered
+    mocker.patch("metadata.task.diagnostics.models.Space.objects.filter", return_value=space_qs)
 
-    metric_line = 'unify_query_space_router_total{reason="SPACE_IS_NOT_EXISTS",space_uid="bkcc__0"} %s\n'
-    first_resp = mocker.MagicMock(status_code=200, text=metric_line % "9", raise_for_status=lambda: None)
-    second_resp = mocker.MagicMock(status_code=200, text=metric_line % "20", raise_for_status=lambda: None)
+    _set_uq_responses(
+        mocker,
+        first_value=9,
+        second_value=20,
+        reason="SPACE_IS_NOT_EXISTS",
+        space_uid="bkcc__0",
+    )
 
-    request_get = mocker.patch("metadata.task.diagnostics.requests.get")
-    request_get.return_value = first_resp
     diagnostics.run_health_check(dry_run=False)
-
-    request_get.return_value = second_resp
     summary = diagnostics.run_health_check(dry_run=False)
 
-    assert any(i["code"] == "space_router_anomaly_delta" for i in summary["issues"])
+    assert any(i["code"].startswith("router_anomaly_") for i in summary["issues"])
+
+
+def _wrap_metrics_text(*lines):
+    return "\n".join(lines) + "\n"
+
+
+def _uq_metric_line(reason, space_uid, value, metric="", result_table=""):
+    return (
+        f'unify_query_space_router_total{{metric="{metric}",reason="{reason}",'
+        f'result_table="{result_table}",space_uid="{space_uid}"}} {value}'
+    )
+
+
+def _set_uq_responses(mocker, first_value, second_value, **labels):
+    """连续两轮 metrics，第二轮触发 delta 阈值。"""
+    line_a = _uq_metric_line(value=first_value, **labels)
+    line_b = _uq_metric_line(value=second_value, **labels)
+    first = mocker.MagicMock(status_code=200, text=_wrap_metrics_text(line_a), raise_for_status=lambda: None)
+    second = mocker.MagicMock(status_code=200, text=_wrap_metrics_text(line_b), raise_for_status=lambda: None)
+    req = mocker.patch("metadata.task.diagnostics.requests.get")
+    req.side_effect = [first, second]
+    return req
+
+
+def test_uq_classify_space_not_registered(mock_metadata_redis, mocker):
+    """SPACE_IS_NOT_EXISTS + DB 中无该 space → space_not_registered，仅告警不自愈。"""
+    _set_settings(mocker)
+    _set_uq_responses(mocker, 0, 20, reason="SPACE_IS_NOT_EXISTS", space_uid="bkcc__0")
+    space_qs = mocker.MagicMock()
+    space_qs.values.return_value.first.return_value = None
+    mocker.patch("metadata.task.diagnostics.models.Space.objects.filter", return_value=space_qs)
+
+    diagnostics.run_health_check(dry_run=False)
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    issues = [i for i in summary["issues"] if i["stage"] == "unify_query"]
+    assert any(i["code"] == "router_anomaly_space_not_registered" for i in issues)
+    assert summary["fix_total"] == 0
+
+
+def test_uq_classify_space_archived(mock_metadata_redis, mocker):
+    """SPACE_IS_NOT_EXISTS + DB 中 status=disabled → space_archived_still_queried，仅告警。"""
+    _set_settings(mocker)
+    _set_uq_responses(mocker, 0, 30, reason="SPACE_IS_NOT_EXISTS", space_uid="bkcc__14")
+    space_qs = mocker.MagicMock()
+    space_qs.values.return_value.first.return_value = {"status": "disabled"}
+    mocker.patch("metadata.task.diagnostics.models.Space.objects.filter", return_value=space_qs)
+
+    diagnostics.run_health_check(dry_run=False)
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    issues = [i for i in summary["issues"] if i["stage"] == "unify_query"]
+    assert any(i["code"] == "router_anomaly_space_archived_still_queried" for i in issues)
+    assert summary["fix_total"] == 0
+
+
+def test_uq_classify_space_normal_triggers_router_push(mock_metadata_redis, mocker):
+    """SPACE_IS_NOT_EXISTS + status=normal → space_router_not_pushed，自愈调 push_and_publish_space_router。"""
+    _set_settings(mocker)
+    _set_uq_responses(mocker, 0, 12, reason="SPACE_IS_NOT_EXISTS", space_uid="bkcc__77")
+    space_qs = mocker.MagicMock()
+    space_qs.values.return_value.first.return_value = {"status": "normal"}
+    mocker.patch("metadata.task.diagnostics.models.Space.objects.filter", return_value=space_qs)
+    push_mock = mocker.patch("metadata.task.sync_space.push_and_publish_space_router")
+
+    diagnostics.run_health_check(dry_run=False)
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    issues = [i for i in summary["issues"] if i["stage"] == "unify_query"]
+    assert any(i["code"] == "router_anomaly_space_router_not_pushed" for i in issues)
+    push_mock.assert_called()
+    _, kwargs = push_mock.call_args
+    assert kwargs.get("space_type") == "bkcc"
+    assert kwargs.get("space_id") == "77"
+
+
+def test_uq_classify_metric_unknown_rt(mock_metadata_redis, mocker):
+    """SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS + result_table 空 → metric_unknown_rt，告警。"""
+    _set_settings(mocker)
+    _set_uq_responses(
+        mocker,
+        0,
+        15,
+        reason="SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS",
+        space_uid="bkcc__2",
+        metric="kube_hpa_status_current_replicas",
+        result_table="",
+    )
+
+    diagnostics.run_health_check(dry_run=False)
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    issues = [i for i in summary["issues"] if i["stage"] == "unify_query"]
+    assert any(i["code"] == "router_anomaly_metric_unknown_rt" for i in issues)
+    assert summary["fix_total"] == 0
+
+
+def test_uq_classify_metric_not_collected(mock_metadata_redis, mocker):
+    """rt 是 TSGroup 但 transfer redis 无该 metric → metric_not_collected，告警不自愈。"""
+    _set_settings(mocker)
+    _set_uq_responses(
+        mocker,
+        0,
+        10,
+        reason="SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS",
+        space_uid="bkcc__2",
+        metric="bk_apm_count",
+        result_table="2_bkapm_metric_test.__default__",
+    )
+    tsg_qs = mocker.MagicMock()
+    tsg_qs.values.return_value.first.return_value = {"time_series_group_id": 16, "bk_data_id": 1572873}
+    mocker.patch("metadata.task.diagnostics.models.TimeSeriesGroup.objects.filter", return_value=tsg_qs)
+    transfer_client = mocker.MagicMock()
+    transfer_client.zscore.return_value = None  # 关键：没该 metric
+    mocker.patch("metadata.task.diagnostics._transfer_redis_client", return_value=transfer_client)
+
+    diagnostics.run_health_check(dry_run=False)
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    issues = [i for i in summary["issues"] if i["stage"] == "unify_query"]
+    assert any(i["code"] == "router_anomaly_metric_not_collected" for i in issues)
+    assert summary["fix_total"] == 0
+
+
+def test_uq_classify_metric_drift_collectable_triggers_fix(mock_metadata_redis, mocker):
+    """rt 是 TSGroup 且 transfer redis 有 metric → metric_drift_collectable，自愈触发 F3 修复。"""
+    _set_settings(mocker)
+    _set_uq_responses(
+        mocker,
+        0,
+        8,
+        reason="SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS",
+        space_uid="bkcc__2",
+        metric="latency_ms",
+        result_table="2_drift_table.__default__",
+    )
+    filter_qs = mocker.MagicMock()
+    filter_qs.values.return_value.first.return_value = {"time_series_group_id": 99, "bk_data_id": 9999}
+    mocker.patch("metadata.task.diagnostics.models.TimeSeriesGroup.objects.filter", return_value=filter_qs)
+    transfer_client = mocker.MagicMock()
+    transfer_client.zscore.return_value = 1.0  # 有该 metric
+    mocker.patch("metadata.task.diagnostics._transfer_redis_client", return_value=transfer_client)
+    ts_group_obj = mocker.MagicMock()
+    ts_group_obj.update_time_series_metrics.return_value = True
+    mocker.patch("metadata.task.diagnostics.models.TimeSeriesGroup.objects.get", return_value=ts_group_obj)
+    push_mock = mocker.patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail")
+
+    diagnostics.run_health_check(dry_run=False)
+    summary = diagnostics.run_health_check(dry_run=False)
+
+    issues = [i for i in summary["issues"] if i["stage"] == "unify_query"]
+    assert any(i["code"] == "router_anomaly_metric_drift_collectable" for i in issues)
+    ts_group_obj.update_time_series_metrics.assert_called_once()
+    push_mock.assert_called()
 
 
 def test_skipped_records_persist_to_ledger(mock_metadata_redis, mock_http, mocker):
