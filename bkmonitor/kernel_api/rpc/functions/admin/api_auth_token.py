@@ -20,10 +20,13 @@ from bkmonitor.models.token import AuthType
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     SAFETY_LEVEL_DESTRUCTIVE,
     SAFETY_LEVEL_WRITE,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_optional_bool,
     normalize_ordering,
     normalize_pagination,
@@ -195,8 +198,8 @@ def _serialize_api_auth_token(token: ApiAuthToken) -> dict[str, Any]:
     return item
 
 
-def _build_api_token_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = ApiAuthToken.objects.filter(bk_tenant_id=bk_tenant_id, type=AuthType.API)
+def _build_api_token_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(ApiAuthToken.objects.filter(type=AuthType.API), bk_tenant_id)
 
     token_id = _normalize_int(params.get("id"), "id")
     if token_id is not None:
@@ -261,7 +264,7 @@ def _apply_mutation_payload(token: ApiAuthToken, params: dict[str, Any], *, crea
     summary="Admin 查询 type=api 的 ApiAuthToken 列表",
     description="查询 ApiAuthToken 管理列表，只返回 type=api 的记录，支持受控过滤、白名单排序和分页。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "id": "可选，应用授权 ID 精确匹配",
         "name": "可选，授权名称包含匹配",
         "app_code": "可选，按 params.app_code 精确匹配",
@@ -275,7 +278,7 @@ def _apply_mutation_payload(token: ApiAuthToken, params: dict[str, Any], *, crea
     example_params={"bk_tenant_id": "system", "app_code": "demo-app", "page": 1, "page_size": 20},
 )
 def list_api_auth_tokens(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), ORDERING_FIELDS, default="-update_time")
 

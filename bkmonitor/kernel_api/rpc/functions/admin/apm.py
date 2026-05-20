@@ -19,8 +19,11 @@ from django.db.models import Count, Q
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_pagination,
     serialize_model,
     serialize_value,
@@ -323,7 +326,7 @@ def _load_instance_count_map(application: Any, topo_keys: list[str]) -> dict[str
     summary="Admin 查询 APM 应用列表",
     description="只读分页查询 APM 应用及其核心 DataId 摘要。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "bk_biz_id": "可选，业务 ID",
         "app_name": "可选，应用名或别名包含匹配",
         "status": "可选，状态原始值包含匹配",
@@ -335,10 +338,12 @@ def _load_instance_count_map(application: Any, topo_keys: list[str]) -> dict[str
     example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20},
 )
 def list_apm_applications(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
 
-    queryset = apm_models.ApmApplication.objects.filter(bk_tenant_id=bk_tenant_id).order_by("-update_time", "id")
+    queryset = filter_by_bk_tenant_id(apm_models.ApmApplication.objects.all(), bk_tenant_id).order_by(
+        "-update_time", "id"
+    )
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     if bk_biz_id is not None:
         queryset = queryset.filter(bk_biz_id=bk_biz_id)

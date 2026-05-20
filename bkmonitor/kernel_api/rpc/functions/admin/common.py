@@ -12,7 +12,7 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.exceptions import CustomException
@@ -20,10 +20,74 @@ from core.drf_resource.exceptions import CustomException
 SAFETY_LEVEL_READ = "read"
 SAFETY_LEVEL_WRITE = "write"
 SAFETY_LEVEL_DESTRUCTIVE = "destructive"
+PAGE_LIST_TENANT_SCHEMA = "可选，租户 ID；缺省或空表示全租户查询"
+REQUIRED_TENANT_SCHEMA = "必填，租户 ID"
+
+
+def normalize_bk_tenant_id(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    normalized_value = str(value).strip()
+    return normalized_value or None
 
 
 def get_bk_tenant_id(params: dict[str, Any]) -> str:
     return str(params.get("bk_tenant_id") or DEFAULT_TENANT_ID).strip() or DEFAULT_TENANT_ID
+
+
+def get_page_list_bk_tenant_id(params: dict[str, Any]) -> str | None:
+    return normalize_bk_tenant_id(params.get("bk_tenant_id"))
+
+
+def require_bk_tenant_id(params: dict[str, Any]) -> str:
+    bk_tenant_id = normalize_bk_tenant_id(params.get("bk_tenant_id"))
+    if not bk_tenant_id:
+        raise CustomException(message="bk_tenant_id 为必填项")
+    return bk_tenant_id
+
+
+def filter_by_bk_tenant_id(queryset: Any, bk_tenant_id: str | None):
+    return queryset.filter(bk_tenant_id=bk_tenant_id) if bk_tenant_id else queryset
+
+
+def tenant_filter_kwargs(bk_tenant_id: str | None) -> dict[str, Any]:
+    return {"bk_tenant_id": bk_tenant_id} if bk_tenant_id else {}
+
+
+def tenant_resource_key(bk_tenant_id: str | None, resource_id: Any) -> tuple[str | None, Any]:
+    return bk_tenant_id, resource_id
+
+
+def instance_tenant_resource_key(instance: Any, resource_field: str) -> tuple[str | None, Any]:
+    return tenant_resource_key(getattr(instance, "bk_tenant_id", None), getattr(instance, resource_field, None))
+
+
+def get_scoped_map_value(mapping: dict[Any, Any], bk_tenant_id: str | None, resource_id: Any) -> Any:
+    scoped_key = tenant_resource_key(bk_tenant_id, resource_id)
+    if scoped_key in mapping:
+        return mapping[scoped_key]
+    return mapping.get(resource_id)
+
+
+def filter_by_tenant_resource_pairs(
+    queryset: Any,
+    resource_field: str,
+    pairs: Iterable[tuple[str | None, Any]],
+    *,
+    tenant_field: str = "bk_tenant_id",
+) -> Any:
+    normalized_pairs = [
+        (bk_tenant_id, resource_id)
+        for bk_tenant_id, resource_id in pairs
+        if bk_tenant_id not in (None, "") and resource_id not in (None, "")
+    ]
+    if not normalized_pairs:
+        return queryset.none()
+
+    query = Q()
+    for bk_tenant_id, resource_id in normalized_pairs:
+        query |= Q(**{tenant_field: bk_tenant_id, resource_field: resource_id})
+    return queryset.filter(query)
 
 
 def normalize_positive_int(value: Any, field_name: str, *, default: int, maximum: int) -> int:
@@ -122,7 +186,7 @@ def build_response(
     *,
     operation: str,
     func_name: str,
-    bk_tenant_id: str,
+    bk_tenant_id: str | None,
     data: dict[str, Any],
     warnings: list[dict[str, Any]] | None = None,
     safety_level: str = SAFETY_LEVEL_READ,
@@ -135,6 +199,7 @@ def build_response(
             "func_name": func_name,
             "safety_level": safety_level,
             "effective_bk_tenant_id": bk_tenant_id,
+            "tenant_scope": "single" if bk_tenant_id else "all",
         },
     }
 
@@ -147,6 +212,25 @@ def count_by_field(model_cls: Any, *, group_field: str, values: Iterable[Any], *
     queryset = model_cls.objects.filter(**filters, **{f"{group_field}__in": normalized_values})
     pk_field = model_cls._meta.pk.name
     return {item[group_field]: item["total"] for item in queryset.values(group_field).annotate(total=Count(pk_field))}
+
+
+def count_by_tenant_and_field(
+    model_cls: Any,
+    *,
+    group_field: str,
+    values: Iterable[Any],
+    **filters: Any,
+) -> dict[tuple[str | None, Any], int]:
+    normalized_values = [value for value in values if value not in (None, "")]
+    if not normalized_values:
+        return {}
+
+    queryset = model_cls.objects.filter(**filters, **{f"{group_field}__in": normalized_values})
+    pk_field = model_cls._meta.pk.name
+    return {
+        tenant_resource_key(item["bk_tenant_id"], item[group_field]): item["total"]
+        for item in queryset.values("bk_tenant_id", group_field).annotate(total=Count(pk_field))
+    }
 
 
 def _mask_sensitive_fields(data: Any) -> Any:
