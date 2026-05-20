@@ -46,11 +46,15 @@ class RedisClient(Singleton):
 
     @classmethod
     def from_envs(
-        cls, prefix: str = "BK_MONITOR", prefer_type: Literal["sentinel", "standalone"] = "sentinel"
+        cls,
+        prefix: str = "BK_MONITOR",
+        prefer_type: Literal["sentinel", "standalone"] = "sentinel",
+        db: int = None,
     ) -> redis.StrictRedis:
         """从环境变量中获取 Redis Client
         :param prefix: 配置前缀
         :param prefer_type: 倾向模式，优先使用哨兵
+        :param db: 指定 db，传入则覆盖 env 中的 ``<prefix>_REDIS_DB``
         :return: redis.StrictRedis
         """
         # sentinel or standalone
@@ -81,6 +85,9 @@ class RedisClient(Singleton):
                 "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
                 "db": os.environ.get(f"{prefix}_REDIS_DB", 0),
             }
+
+        if db is not None:
+            configs["db"] = db
 
         return redis.StrictRedis(**configs)
 

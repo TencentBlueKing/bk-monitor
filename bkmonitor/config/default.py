@@ -1319,6 +1319,41 @@ TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 # 是否启用 influxdb 写入，默认 True
 ENABLE_INFLUXDB_STORAGE = True
 
+# 链路健康巡检（metadata.task.diagnostics）
+# BMW broker redis 与业务 redis 同实例不同 db；如生产环境分离，通过 env 覆盖
+BMW_BROKER_REDIS_DB = int(os.environ.get("BMW_BROKER_REDIS_DB", 5))
+BMW_BROKER_REDIS_PREFIX = os.environ.get("BMW_BROKER_REDIS_PREFIX", "BK_MONITOR")
+# 默认仅检测不修复；生产灰度后再打开
+LINK_HEALTH_AUTOREMEDIATE = os.environ.get("LINK_HEALTH_AUTOREMEDIATE", "false").lower() == "true"
+# 单轮修复动作上限，超过则熔断
+LINK_HEALTH_MAX_FIX_PER_ROUND = int(os.environ.get("LINK_HEALTH_MAX_FIX_PER_ROUND", 20))
+# 同一修复对象冷却秒数
+LINK_HEALTH_FIX_COOLDOWN_SECONDS = int(os.environ.get("LINK_HEALTH_FIX_COOLDOWN_SECONDS", 3600))
+# 冷启动保护：连续 N 次检测出同一问题才修
+LINK_HEALTH_FIX_AFTER_STREAK = int(os.environ.get("LINK_HEALTH_FIX_AFTER_STREAK", 2))
+# 抽样 / 巡检规模
+LINK_HEALTH_SAMPLE_SIZE = int(os.environ.get("LINK_HEALTH_SAMPLE_SIZE", 50))
+# BMW lease 视为过期的最小秒数
+LINK_HEALTH_BMW_LEASE_GRACE_SECONDS = int(os.environ.get("LINK_HEALTH_BMW_LEASE_GRACE_SECONDS", 600))
+# unify-query metrics 端点（实测：service 名为 bk-monitor-unify-query-http）
+LINK_HEALTH_UNIFY_QUERY_METRICS_URL = os.environ.get(
+    "LINK_HEALTH_UNIFY_QUERY_METRICS_URL", "http://bk-monitor-unify-query-http:10205/metrics"
+)
+# InfluxDB 可达性探针端点
+# InfluxDB Proxy 不暴露 /ping /health 等 healthcheck path（所有非业务路径返回 404），
+# 但透传 InfluxDB /query API；用最轻量的 SHOW DATABASES 做端到端探针，
+# 覆盖 Proxy → InfluxDB 整条链路
+LINK_HEALTH_INFLUXDB_PROBE_URL = os.environ.get(
+    "LINK_HEALTH_INFLUXDB_PROBE_URL",
+    "http://bk-monitor-influxdb-proxy-http:10203/query?q=SHOW+DATABASES",
+)
+# 排除清单（逗号分隔的 table_id），永不自愈
+LINK_HEALTH_EXCLUDE_TABLE_IDS = [
+    s.strip() for s in os.environ.get("LINK_HEALTH_EXCLUDE_TABLE_IDS", "").split(",") if s.strip()
+]
+# unify-query SPACE_* counters delta 告警阈值（与上一轮快照对比）
+LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD = int(os.environ.get("LINK_HEALTH_UQ_COUNTER_DELTA_THRESHOLD", 5))
+
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
     os.environ["BK_API_URL_TMPL"] = "%s/api/{api_name}" % BK_COMPONENT_API_URL
