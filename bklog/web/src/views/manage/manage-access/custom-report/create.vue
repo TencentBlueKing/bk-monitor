@@ -433,7 +433,6 @@
   import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
   import dragMixin from '@/mixins/drag-mixin';
   import storageMixin from '@/mixins/storage-mixin';
-  import { isFeatureToggleOn } from '@/store/helper';
   import { mapGetters } from 'vuex';
 
   import IntroPanel from './components/intro-panel';
