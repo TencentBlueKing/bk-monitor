@@ -50,7 +50,7 @@
     "@eslint/js": "^9.36.0",
     "@vue/babel-helper-vue-jsx-merge-props": "1.4.0",
     "@vue/babel-preset-jsx": "1.4.0",
-    "axios": "1.8.2",
+    "axios": "1.15.2",
     "babel-loader": "9.2.1",
     "babel-plugin-import-bk-magic-vue": "2.1.11",
     "bk-magic-vue": "2.5.10-beta.15",
@@ -150,12 +150,14 @@
     "semver": "7.6.0",
     "postcss": "8.4.38",
     "braces": "3.0.3",
-    "form-data": "4.0.4"
+    "form-data": "4.0.4",
+    "axios": "1.15.2"
   },
   "resolutions": {
     "semver": "7.6.0",
     "postcss": "8.4.38",
-    "braces": "3.0.3"
+    "braces": "3.0.3",
+    "axios": "1.15.2"
   },
   "engines": {
     "node": ">= 18"
