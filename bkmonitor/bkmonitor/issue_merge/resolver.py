@@ -265,11 +265,9 @@ class IssueMergeResolver:
                 continue
             member_inst_list = dim_data.get("instance_list") or []
             if dim not in issue_scope:
-                # 主 Issue 没该维度，直接复制 member 维度
-                issue_scope[dim] = {
-                    "instance_list": list(member_inst_list),
-                    "count": len(member_inst_list),
-                }
+                # 主 Issue 没该维度，直接透传 member 维度全部字段（含 link_tpl 等前端跳转模板），
+                # 仅覆盖 instance_list 副本与 count 长度，避免后续聚合时主与 member 共享同一引用。
+                issue_scope[dim] = {**dim_data, "instance_list": list(member_inst_list), "count": len(member_inst_list)}
                 continue
             existing = issue_scope[dim].get("instance_list") or []
             seen = set()

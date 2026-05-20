@@ -280,7 +280,7 @@ class TestUnionImpactScope:
         assert host_ids == {"1", "2"}
 
     def test_main_without_dimension_member_supplements(self):
-        """主无 cluster 维度，member 有：member 直接复制 + count 设置。"""
+        """主无 cluster 维度，member 有：透传 member 维度全部字段（含 link_tpl）+ count 设置。"""
         main_issue = {
             "id": "a1",
             "impact_scope": {
@@ -288,11 +288,20 @@ class TestUnionImpactScope:
             },
         }
         member_scope = {
-            "cluster": {"instance_list": [{"bcs_cluster_id": "BCS-1"}, {"bcs_cluster_id": "BCS-2"}]},
+            "cluster": {
+                "instance_list": [{"bcs_cluster_id": "BCS-1"}, {"bcs_cluster_id": "BCS-2"}],
+                "link_tpl": "/cluster/{bcs_cluster_id}",  # 前端跳转模板
+                "display_name": "BCS集群",
+            },
         }
         IssueMergeResolver._union_impact_scope(main_issue, member_scope)
         assert main_issue["impact_scope"]["cluster"]["count"] == 2
         assert len(main_issue["impact_scope"]["cluster"]["instance_list"]) == 2
+        # 关键断言：member 维度的 link_tpl / display_name 等字段必须透传，否则前端无法渲染跳转
+        assert main_issue["impact_scope"]["cluster"]["link_tpl"] == "/cluster/{bcs_cluster_id}"
+        assert main_issue["impact_scope"]["cluster"]["display_name"] == "BCS集群"
+        # 同时 instance_list 应是副本（不共享原引用，避免后续聚合污染 member 数据）
+        assert main_issue["impact_scope"]["cluster"]["instance_list"] is not member_scope["cluster"]["instance_list"]
 
     def test_empty_member_scope_noop(self):
         """member.impact_scope 为空：主不变。"""
