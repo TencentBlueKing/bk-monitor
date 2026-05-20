@@ -194,9 +194,14 @@ export const formatAdditionalFields = (state: any, addition: Record<string, any>
 
 /**
  * 判断当前是否为场景化检索模式
+ * 需同时满足：retrieve_type === 'scene' 且灰度开关对当前业务开启
  */
 export const isSceneRetrieve = (state: any): boolean => {
-  return state.indexItem?.retrieve_type === 'scene';
+  if (state.indexItem?.retrieve_type !== 'scene') return false;
+  if (!isFeatureToggleOn('log_iaas', [String(state.bkBizId), String(state.spaceUid)])) {
+    return false;
+  }
+  return true;
 };
 
 /**
