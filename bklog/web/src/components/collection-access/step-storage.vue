@@ -370,7 +370,6 @@
   import { deepEqual, projectManages } from '@/common/util';
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import storageMixin from '@/mixins/storage-mixin';
-import { isFeatureToggleOn } from '@/store/helper';
 import { mapGetters } from 'vuex';
 
   import ClusterTable from './components/cluster-table';
