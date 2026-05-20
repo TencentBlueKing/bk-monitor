@@ -96,3 +96,8 @@
     }
   }
 }
+.grok-input-popover-content {
+  width: 840px;
+  max-width: calc(100vw - 32px);
+  overflow: visible;
+}
