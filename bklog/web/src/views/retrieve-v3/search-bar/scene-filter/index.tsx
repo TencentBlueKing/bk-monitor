@@ -150,6 +150,7 @@ export default defineComponent({
       filterValues.value = {};
       filterLabels.value = {};
 
+      store.commit('retrieve/updateCatchFieldCustomConfig', { fixedFilterAddition: false, filterAddition: [] });
       store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
       store.commit('updateIndexItemParams', { keyword: '', addition: [] });
 
