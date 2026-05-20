@@ -446,6 +446,49 @@ class TestChecker(TestCase):
         members = self._read_check_result_members(target_md5)
         self.assertEqual(len(members), NODATA_TAG_FILL_LIMIT)
 
+    def test_update_dimensions_checkpoint__fill_45s_period_ceil(self):
+        # agg_interval=45s 时按 ceil(60/45)=2 回填，验证非整除 60 周期也能修复
+        key.CHECK_RESULT_CACHE_KEY.client.flushall()
+        self.item.query_configs[0]["agg_interval"] = 45
+        check_timestamp = 10000
+        target_dms = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": "0", NO_DATA_TAG_DIMENSION: True}
+        target_md5 = count_md5(target_dms)
+        self.item._update_dimensions_checkpoint(
+            check_timestamp=check_timestamp,
+            target_instance_dimensions=[target_dms],
+            target_dimensions_md5=[target_md5],
+            data_dimensions=[],
+            data_dimensions_md5=[],
+            dimensions_md5_timestamp={},
+        )
+        members = self._read_check_result_members(target_md5)
+        self.assertEqual(len(members), 2)
+        expected = {
+            f"{check_timestamp}|{ANOMALY_LABEL}",
+            f"{check_timestamp - 45}|{ANOMALY_LABEL}",
+        }
+        self.assertEqual({m[0] for m in members}, expected)
+
+    def test_update_dimensions_checkpoint__fill_invalid_agg_interval_fallback(self):
+        # agg_interval 异常值（0/负值/缺失）走 60s 兜底，写单点 tag
+        for bad_value in [0, -10, "abc"]:
+            key.CHECK_RESULT_CACHE_KEY.client.flushall()
+            self.item.query_configs[0]["agg_interval"] = bad_value
+            check_timestamp = 10000
+            target_dms = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": "0", NO_DATA_TAG_DIMENSION: True}
+            target_md5 = count_md5(target_dms)
+            self.item._update_dimensions_checkpoint(
+                check_timestamp=check_timestamp,
+                target_instance_dimensions=[target_dms],
+                target_dimensions_md5=[target_md5],
+                data_dimensions=[],
+                data_dimensions_md5=[],
+                dimensions_md5_timestamp={},
+            )
+            members = self._read_check_result_members(target_md5)
+            self.assertEqual(len(members), 1, f"agg_interval={bad_value!r} 应当走兜底写单点")
+            self.assertEqual(members[0][0], f"{check_timestamp}|{ANOMALY_LABEL}")
+
     def test_update_dimensions_checkpoint__data_dim_no_fill(self):
         # 维度有数据时，只写当前 check_timestamp 的 NO_DATA_VALUE 标签，不回填历史点
         key.CHECK_RESULT_CACHE_KEY.client.flushall()
