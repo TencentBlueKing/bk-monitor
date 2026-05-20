@@ -10,8 +10,10 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from django.conf import settings
 from django.db.models import Q
 
+from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -27,10 +29,11 @@ from kernel_api.rpc.functions.admin.common import (
     serialize_option,
     serialize_value,
 )
-from metadata import models
+from metadata import config, models
 
 FUNC_DATASOURCE_LIST = "admin.datasource.list"
 FUNC_DATASOURCE_DETAIL = "admin.datasource.detail"
+FUNC_DATASOURCE_GSE_ROUTE = "admin.datasource.gse_route"
 FUNC_DATASOURCE_DATA_ID_CONFIG_COMPONENT_CONFIG = "admin.datasource.data_id_config.component_config"
 
 DATASOURCE_FIELDS = [
@@ -38,6 +41,7 @@ DATASOURCE_FIELDS = [
     "bk_tenant_id",
     "data_name",
     "data_description",
+    "etl_config",
     "type_label",
     "source_label",
     "custom_label",
@@ -79,6 +83,7 @@ DATASOURCE_DETAIL_FIELDS = DATASOURCE_FIELDS[:4] + [
 ORDERING_FIELDS = {
     "bk_data_id",
     "data_name",
+    "etl_config",
     "created_from",
     "source_label",
     "type_label",
@@ -101,6 +106,7 @@ KAFKA_CLUSTER_FIELDS = [
     "label",
 ]
 KAFKA_TOPIC_FIELDS = ["id", "bk_data_id", "topic", "partition", "batch_size", "flush_interval", "consume_rate"]
+SENSITIVE_GSE_CONFIG_KEYS = {"password", "passwd", "sasl_passwd", "secret", "token"}
 
 
 def _normalize_bk_data_id(value: Any) -> int:
@@ -177,6 +183,117 @@ def _serialize_kafka_topic(topic: models.KafkaTopicInfo | None) -> dict[str, Any
     return serialize_model(topic, KAFKA_TOPIC_FIELDS)
 
 
+def _get_route_stream_to(route: Any) -> dict[str, Any]:
+    if isinstance(route, dict):
+        stream_to = route.get("stream_to")
+    else:
+        stream_to = getattr(route, "stream_to", None)
+    return stream_to if isinstance(stream_to, dict) else {}
+
+
+def _get_route_stream_to_id(route: Any) -> int | None:
+    stream_to_id = _get_route_stream_to(route).get("stream_to_id")
+    if stream_to_id in (None, ""):
+        return None
+    try:
+        return int(stream_to_id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _get_route_topic_name(route: Any) -> str | None:
+    kafka = _get_route_stream_to(route).get("kafka")
+    if not isinstance(kafka, dict):
+        return None
+    topic_name = kafka.get("topic_name")
+    return str(topic_name) if topic_name not in (None, "") else None
+
+
+def _mask_gse_sensitive_config(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "***" if str(key).lower() in SENSITIVE_GSE_CONFIG_KEYS else _mask_gse_sensitive_config(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_mask_gse_sensitive_config(item) for item in value]
+    return value
+
+
+def _serialize_gse_route(route: Any, stream_to_config_map: dict[int, dict[str, Any]]) -> dict[str, Any]:
+    route_dict = route if isinstance(route, dict) else {}
+    stream_to = _get_route_stream_to(route)
+    stream_to_id = _get_route_stream_to_id(route)
+    stream_to_config = stream_to_config_map.get(stream_to_id) if stream_to_id is not None else None
+
+    return {
+        "name": route_dict.get("name") or getattr(route, "name", None),
+        "deliver_type": route_dict.get("deliver_type") if isinstance(route_dict, dict) else None,
+        "stream_to_id": stream_to_id,
+        "stream_to_topic_name": _get_route_topic_name(route),
+        "stream_to": _mask_gse_sensitive_config(stream_to),
+        "stream_to_config": _mask_gse_sensitive_config(stream_to_config),
+        "raw": _mask_gse_sensitive_config(route),
+    }
+
+
+def _query_gse_stream_to_configs(
+    stream_to_ids: set[int], warnings_list: list[dict[str, Any]]
+) -> dict[int, dict[str, Any]]:
+    result: dict[int, dict[str, Any]] = {}
+    for stream_to_id in sorted(stream_to_ids):
+        params = {
+            "condition": {
+                "stream_to_id": stream_to_id,
+                "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
+            },
+            "operation": {"operator_name": getattr(settings, "COMMON_USERNAME", "system")},
+        }
+        try:
+            stream_to_list = api.gse.query_stream_to(**params)
+        except Exception as error:
+            warnings_list.append(
+                {
+                    "code": "GSE_STREAM_TO_QUERY_FAILED",
+                    "message": f"query_stream_to 失败: stream_to_id={stream_to_id}, error={error}",
+                }
+            )
+            continue
+
+        for stream_to_config in stream_to_list or []:
+            if not isinstance(stream_to_config, dict):
+                continue
+            config_stream_to_id = stream_to_config.get("stream_to_id", stream_to_id)
+            try:
+                normalized_id = int(config_stream_to_id)
+            except (TypeError, ValueError):
+                normalized_id = stream_to_id
+            result[normalized_id] = _mask_gse_sensitive_config(stream_to_config)
+            break
+    return result
+
+
+def _normalize_gse_route_groups(route_info_list: Any, warnings_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    route_groups = [item for item in route_info_list or [] if isinstance(item, dict)]
+    stream_to_ids: set[int] = set()
+    for route_group in route_groups:
+        for route in route_group.get("route") or []:
+            stream_to_id = _get_route_stream_to_id(route)
+            if stream_to_id is not None:
+                stream_to_ids.add(stream_to_id)
+
+    stream_to_config_map = _query_gse_stream_to_configs(stream_to_ids, warnings_list)
+
+    return [
+        {
+            "metadata": route_group.get("metadata"),
+            "routes": [_serialize_gse_route(route, stream_to_config_map) for route in route_group.get("route") or []],
+            "raw": _mask_gse_sensitive_config(route_group),
+        }
+        for route_group in route_groups
+    ]
+
+
 def _get_kafka_topic(datasource: models.DataSource) -> models.KafkaTopicInfo | None:
     topic = models.KafkaTopicInfo.objects.filter(id=datasource.mq_config_id).first()
     if topic is not None:
@@ -191,6 +308,8 @@ def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str):
         queryset = queryset.filter(bk_data_id=_normalize_bk_data_id(params.get("bk_data_id")))
     if params.get("data_name"):
         queryset = queryset.filter(data_name__contains=str(params["data_name"]).strip())
+    if params.get("etl_config"):
+        queryset = queryset.filter(etl_config=str(params["etl_config"]).strip())
     for field in ["created_from", "source_label", "type_label", "space_uid"]:
         if params.get(field) not in (None, ""):
             queryset = queryset.filter(**{field: params[field]})
@@ -222,6 +341,7 @@ def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str):
         "bk_tenant_id": "可选，租户 ID",
         "bk_data_id": "可选，数据源 ID",
         "data_name": "可选，数据源名称包含匹配",
+        "etl_config": "可选，清洗配置精确匹配",
         "created_from": "可选，数据源来源",
         "source_label": "可选，数据源标签",
         "type_label": "可选，数据类型标签",
@@ -388,6 +508,63 @@ def get_datasource_detail(params: dict[str, Any]) -> dict[str, Any]:
         func_name=FUNC_DATASOURCE_DETAIL,
         bk_tenant_id=bk_tenant_id,
         data=data,
+        warnings=warnings_list,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_DATASOURCE_GSE_ROUTE,
+    summary="Admin 查询 DataSource 的 GSE route 配置",
+    description=(
+        "根据 bk_data_id 调用 GSE query_route，并按 route 中的 stream_to_id 查询 query_stream_to 实际配置；"
+        "created_from=bkdata 时 KafkaTopic 可能不准确，应以 route 中的 topic 为准。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "bk_data_id": "必填，数据源 ID",
+        "include_stream_to_config": "可选，兼容参数，当前固定查询 stream_to 实际配置",
+    },
+    example_params={"bk_tenant_id": "system", "bk_data_id": 1600250, "include_stream_to_config": True},
+)
+def get_datasource_gse_route(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    bk_data_id = _normalize_bk_data_id(params.get("bk_data_id"))
+    warnings_list: list[dict[str, Any]] = []
+
+    try:
+        datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+    except models.DataSource.DoesNotExist as error:
+        raise CustomException(message=f"未找到 DataSource: bk_data_id={bk_data_id}") from error
+
+    route_params = {
+        "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": datasource.bk_data_id},
+        "operation": {"operator_name": getattr(settings, "COMMON_USERNAME", "system")},
+    }
+    try:
+        route_info_list = api.gse.query_route(**route_params)
+    except Exception as error:
+        raise CustomException(message=f"GSE query_route 失败: bk_data_id={bk_data_id}, error={error}") from error
+
+    route_groups = _normalize_gse_route_groups(route_info_list, warnings_list)
+    data_warnings: list[str] = []
+    if datasource.created_from == "bkdata":
+        data_warnings.append(
+            "created_from=bkdata 时 KafkaTopic 记录可能不是实际消费 topic，请以 GSE route 中的 topic_name 为准。"
+        )
+    if not route_groups:
+        data_warnings.append("未查询到 GSE route 配置。")
+
+    return build_response(
+        operation="datasource.gse_route",
+        func_name=FUNC_DATASOURCE_GSE_ROUTE,
+        bk_tenant_id=bk_tenant_id,
+        data={
+            "bk_tenant_id": bk_tenant_id,
+            "bk_data_id": bk_data_id,
+            "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
+            "route_groups": route_groups,
+            "warnings": data_warnings,
+        },
         warnings=warnings_list,
     )
 

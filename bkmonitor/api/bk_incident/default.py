@@ -134,3 +134,30 @@ class GetTaskStatusResource(IncidentBaseResource):
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+
+class GetConfigResource(IncidentBaseResource):
+    action = "/incident/incident_config/list_configs/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        config_type = serializers.CharField(label="配置类型",default='data_source')
+        scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
+        scope_value = serializers.CharField(label="空间ID", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+
+class CreateListConfigResource(IncidentBaseResource):
+    action = "/incident/incident_config/create_list_config/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        config_type = serializers.CharField(label="配置类型",required=True)
+        scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
+        scope_value = serializers.CharField(label="空间ID", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+        content_list = serializers.ListField(label="配置内容", required=True)
+
+
+
+class FetchGlobalVariablesResource(IncidentBaseResource):
+    action = "/incident/incident_config/fetch_global_variables/"
+    method = "GET"

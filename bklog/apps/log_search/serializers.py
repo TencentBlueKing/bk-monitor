@@ -1342,14 +1342,41 @@ class SceneFieldsConfigBaseSerializer(serializers.Serializer):
     )
 
 
+class SceneUserCustomConfigGetSerializer(SceneFieldsConfigBaseSerializer):
+    """场景化检索 - 用户 UI 偏好 GET 入参（对标 UserIndexSetCustomConfig 读接口）"""
+
+    pass
+
+
+class SceneUserCustomConfigDeleteSerializer(SceneFieldsConfigBaseSerializer):
+    """场景化检索 - 用户 UI 偏好 DELETE 入参"""
+
+    pass
+
+
+class SceneUserCustomConfigUpsertSerializer(SceneFieldsConfigBaseSerializer):
+    """场景化检索 - 用户 UI 偏好 POST 入参。
+
+    ``scene_config`` 由前端按 7 字段 camelCase（``fieldsWidth`` / ``displayFields`` /
+    ``filterSetting`` / ``filterAddition`` / ``fixedFilterAddition`` / ``sortList`` /
+    ``contextDisplayFields``）完整 JSON 提交，后端不解析内层结构。
+    """
+
+    scene_config = serializers.JSONField(label=_("场景用户配置"), required=True)
+
+
+# ---- 以下两个 Serializer 已废弃（保留仅为存量 import 兼容），新接口使用上面的
+#       SceneUserCustomConfig* 系列；旧路径 /scene/fields_config/ 已下线 ----
+
+
 class SceneFieldsConfigGetSerializer(SceneFieldsConfigBaseSerializer):
-    """场景化检索 - 当前用户字段展示配置 GET / DELETE 入参"""
+    """[Deprecated] 场景化检索 - 旧 fields_config GET / DELETE 入参（保留 import 兼容）"""
 
     pass
 
 
 class SceneFieldsConfigUpsertSerializer(SceneFieldsConfigBaseSerializer):
-    """场景化检索 - 当前用户字段展示配置 POST 入参（写入用户当前指针指向的模板）"""
+    """[Deprecated] 场景化检索 - 旧 fields_config POST 入参（保留 import 兼容）"""
 
     display_fields = serializers.ListField(
         label=_("显示字段"), child=serializers.CharField(), allow_empty=True, required=True

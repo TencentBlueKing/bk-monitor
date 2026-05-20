@@ -15,6 +15,7 @@ import time
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 from kubernetes.dynamic import client as dynamic_client
 from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
@@ -34,10 +35,9 @@ from metadata.models.bcs.cluster import BCSClusterInfo
 from metadata.models.bcs.resource import PodMonitorInfo, ServiceMonitorInfo
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.custom_report.subscription_config import CustomReportSubscription
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_bkdata_table_id
-from metadata.models.data_source import DataSource, DataSourceOption
+from metadata.models.data_source import DataSource
 from metadata.models.influxdb_cluster import InfluxDBClusterInfo, InfluxDBHostInfo
 from metadata.models.result_table import (
     DataSourceResultTable,
@@ -59,6 +59,7 @@ from metadata.models.storage import (
 )
 from metadata.models.vm.record import AccessVMRecord
 from metadata.utils import consul_tools, hash_util
+from bkmonitor.utils.tenant import set_local_tenant_id
 
 
 def recode_final_result(fun):
@@ -108,27 +109,51 @@ class Command(BaseCommand):
     """
     BCS集群关联状态检测命令
 
-    检测指定集群ID在整个监控关联链路中的运行状态，包括：
-    1. 数据库记录状态检查 - 验证集群基本信息和配置
-    2. BCS API连接性测试 - 测试与BCS服务的通信
-    3. 数据源配置验证 - 检查监控数据源配置
-    4. DataSourceOption配置检查 - 验证数据源选项配置完整性
-    5. MQ集群关联检查 - 检查消息队列集群配置状态
-    6. 空间类型与SpaceDataSource关联检查 - 验证空间配置和数据源关联
-    7. 监控资源状态检查 - ServiceMonitor和PodMonitor状态
-    8. 关联结果表检查 - 验证结果表及相关配置完整性
-    9. InfluxDB存储配置检查 - 验证InfluxDB存储链路配置
-    10. Elasticsearch存储配置检查 - 验证ES存储链路配置
-    11. VM数据链路依赖检查 - 验证VM数据链路相关模型配置完整性
-    12. VM发布空间路由检查 - 验证VM空间路由Redis配置
-    13. 日志V4数据链路检查 - 验证日志数据链路配置（ES/Doris存储）
-    14. 联邦集群关系检查 - 联邦集群拓扑和命名空间映射（如果是联邦集群）
-    15. Consul配置检查 - 验证datasource配置中心数据同步
-    16. BCS集群CRD资源检查 - 验证ServiceMonitor/PodMonitor等CRD资源状态
-    17. BCS API Token配置检查 - 验证API访问令牌配置
-    18. 云区域ID配置检查 - 验证集群云区域配置
-    19. 自定义上报订阅检查 - 验证CustomReportSubscription配置
-    20. TimeSeriesGroup和EventGroup数据完整性检查 - 验证自定义指标和事件组配置
+    按 A→I 阶段顺序检测集群在整条监控链路中的运行状态：
+
+    阶段 A · 集群基础
+        A1. BCSClusterInfo DB 记录 + status=RUNNING
+        A2. BCS API 可达性
+        A3. BCS API Token（仅 A2 失败时执行兜底定位）
+
+    阶段 B · DataSource 元数据登记
+        B1. DataSource 三件套（K8sMetric/CustomMetric/K8sEvent）
+
+    阶段 C · 采集配置下发（metadata → K8s）
+        C1-C4. DataID CRD 定义、实例、与 DB 一致性（spec.dataID / spec.labels）
+        C5. ServiceMonitor / PodMonitor DB vs K8s 实际数量对比
+
+    阶段 D · K8s 负载状态（CoreV1Api / AppsV1Api 只读）
+        D1. bkmonitor-operator Deployment ready
+        D2. bkm-daemonset-worker DaemonSet ready
+        D3. bkm-statefulset-worker StatefulSet ready
+        D4. bkm-event-worker Deployment ready
+        D5. ChildConfig Secret 存在
+
+    阶段 E · MQ / GSE 路由
+        E1-E3. mq_cluster + gse_stream_to_id + GSE 路由（按 stream_to_id 匹配）
+
+    阶段 F · 落表配置
+        F1-F2. DataSourceResultTable / ResultTable / ResultTableOption
+        F3-F4. VM 数据链路（DataLink + 4 类 Config 的 status=Ok）
+        F5. InfluxDB / Elasticsearch 存储（按存储类型）
+
+    阶段 G · 查询路由
+        G1-G2. Space + SpaceDataSource
+        G3. VM 空间路由 Redis key
+        G4. Consul 数据源配置同步（可降级）
+
+    阶段 H · 数据完整性
+        H1. TimeSeriesGroup
+        H2. EventGroup
+
+    阶段 I · 旁路
+        I1. 日志 V4 数据链路（按需启用）
+        I2. 联邦集群拓扑（仅联邦场景）
+
+    边界：脚本只检查"bk-monitor 元数据 + K8s 资源状态"。
+         Pod 启动后能否跑通是 K8s 自身的问题，不在脚本范围。
+         Kafka 实际写入、Transfer 消费、VM 落库等由外部检查覆盖。
 
     使用示例:
     python manage.py check_bcs_cluster_status --cluster-id BCS-K8S-00001
@@ -288,8 +313,9 @@ class Command(BaseCommand):
         }
 
         try:
-            # 1. 数据库记录检查
-            self.stdout.write(f"\n正在检查集群 {cluster_id} 的数据库记录...")
+            # ============ 阶段 A：集群基础 ============
+            # A1. BCSClusterInfo DB 记录
+            self.stdout.write(f"\n[A1] 正在检查集群 {cluster_id} 的数据库记录...")
             db_check = self.check_database_record(cluster_id)
             check_result["details"]["database"] = db_check
             self.output_check_result("database", db_check)
@@ -304,120 +330,150 @@ class Command(BaseCommand):
             self.bk_biz_id = cluster_info.bk_biz_id
             self.bk_tenant_id = cluster_info.bk_tenant_id
 
-            # 2. BCS API连接测试
-            self.stdout.write("正在测试BCS API连接...")
+            # 集群状态非 RUNNING（DELETED / init_failed 等）→ 后续所有检查无意义，提前结束
+            if cluster_info.status not in [
+                BCSClusterInfo.CLUSTER_STATUS_RUNNING,
+                BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING,
+            ]:
+                check_result["status"] = Status.WARNING
+                check_result["warnings"].append(f"集群状态为 {cluster_info.status}，跳过后续所有检查")
+                self.stdout.write(f"\n集群状态为 {cluster_info.status}，跳过 A2 及之后的全部检查项。")
+                return check_result
+
+            # management command 无 Django request 上下文，
+            # 显式设置线程级租户 ID，避免下游 api.* 调用反复打 WARNING
+            if self.bk_tenant_id:
+                set_local_tenant_id(self.bk_tenant_id)
+
+            # A2. BCS API 可达性
+            self.stdout.write("[A2] 正在测试 BCS API 连接...")
             bcs_api_check = self.check_bcs_api_connection(cluster_info, timeout)
             check_result["details"]["bcs_api"] = bcs_api_check
             self.output_check_result("check_bcs_api_connection", bcs_api_check)
 
-            # 3. 数据源配置验证
-            self.stdout.write("正在验证数据源配置...")
+            # BCS API 可达性决定 C 和 D 阶段是否能执行
+            # （CRD 检查、ServiceMonitor K8s 对比、K8s 负载状态都依赖 BCS API）
+            bcs_api_accessible = bool(bcs_api_check.get("details", {}).get("api_accessible"))
+            cluster_found_in_bcs = bool(bcs_api_check.get("details", {}).get("cluster_found"))
+            skip_k8s_stages = not (bcs_api_accessible and cluster_found_in_bcs)
+
+            # A3. BCS API Token（仅 A2 失败时作兜底定位；A2 通过则 Token 必然有效，省略检查）
+            bcs_api_check_status = bcs_api_check.get("status", Status.UNKNOWN)
+            if bcs_api_check_status not in (Status.SUCCESS,):
+                self.stdout.write("[A3] A2 异常，进入 BCS API Token 兜底诊断...")
+                api_token_check = self.check_bcs_api_token(cluster_info)
+                check_result["details"]["api_token"] = api_token_check
+                self.output_check_result("check_bcs_api_token", api_token_check)
+
+            # ============ 阶段 B：DataSource 元数据登记 ============
+            # B1. DataSource 三件套
+            self.stdout.write("[B1] 正在验证数据源配置...")
             datasource_check = self.check_datasource_configuration(cluster_info)
             check_result["details"]["datasources"] = datasource_check
             self.output_check_result("check_datasource_configuration", datasource_check)
 
-            # 4. 检查DataSourceOption配置
-            self.stdout.write("正在检查DataSourceOption配置...")
-            datasource_options_check = self.check_datasource_options(cluster_info)
-            check_result["details"]["datasource_options"] = datasource_options_check
-            self.output_check_result("check_datasource_options", datasource_options_check)
+            # ============ 阶段 C：采集配置下发（metadata → K8s）============
+            if skip_k8s_stages:
+                self.stdout.write("[C1-C5] BCS API 不可达或集群在 BCS 中未找到，跳过 CRD / 监控资源 K8s 侧对比")
+                self.warnings.append("BCS API 不可达，已跳过 C 阶段（DataID CRD / ServiceMonitor K8s 对比）")
+            else:
+                # C1-C4. DataID CRD 定义、实例、一致性
+                self.stdout.write("[C1-C4] 正在检查 BCS 集群 DataID CRD 资源...")
+                crd_resource_check = self.check_bcs_cluster_crd_resource(cluster_info)
+                check_result["details"]["crd_resources"] = crd_resource_check
+                self.output_check_result("check_bcs_cluster_crd_resource", crd_resource_check)
 
-            # 5. 检查关联mq_cluster是否正常
-            self.stdout.write("正在检查关联mq_cluster是否正常...")
+                # C5. ServiceMonitor / PodMonitor DB vs K8s 数量对比
+                self.stdout.write("[C5] 正在检查监控资源状态（ServiceMonitor / PodMonitor）...")
+                monitor_check = self.check_monitor_resources(cluster_info)
+                check_result["details"]["monitor_resources"] = monitor_check
+                self.output_check_result("check_monitor_resources", monitor_check)
+
+            # ============ 阶段 D：K8s 负载状态 ============
+            if skip_k8s_stages:
+                self.stdout.write("[D1-D5] BCS API 不可达或集群在 BCS 中未找到，跳过 K8s 负载状态检查")
+                self.warnings.append("BCS API 不可达，已跳过 D 阶段（K8s 负载状态）")
+            else:
+                # D1-D5. operator / worker / event-worker / ChildConfig Secret
+                self.stdout.write("[D1-D5] 正在检查 K8s 内 bkmonitor-operator 负载状态...")
+                k8s_workloads_check = self.check_k8s_workloads(cluster_info)
+                check_result["details"]["k8s_workloads"] = k8s_workloads_check
+                self.output_check_result("check_k8s_workloads", k8s_workloads_check)
+
+            # ============ 阶段 E：MQ / GSE 路由 ============
+            # E1-E3. mq_cluster + gse_stream_to_id + GSE 路由
+            self.stdout.write("[E1-E3] 正在检查 MQ 集群与 GSE 路由...")
             mq_cluster_check = self.check_mq_cluster(cluster_info)
             check_result["details"]["mq_cluster"] = mq_cluster_check
             self.output_check_result("check_mq_cluster", mq_cluster_check)
 
-            # 6. 检查空间类型与SpaceDataSource关联
-            self.stdout.write("正在检查datasource、space空间配置...")
-            space_type_check = self.check_space_type_and_datasource(cluster_info)
-            check_result["details"]["space_type"] = space_type_check
-            self.output_check_result("check_space_type_and_datasource", space_type_check)
-
-            # 7. 监控资源状态检查
-            self.stdout.write("正在检查监控资源状态...")
-            monitor_check = self.check_monitor_resources(cluster_info)
-            check_result["details"]["monitor_resources"] = monitor_check
-            self.output_check_result("check_monitor_resources", monitor_check)
-
-            # 8. 检查关联的结果表
-            self.stdout.write("正在检查关联的结果表...")
+            # ============ 阶段 F：落表配置 ============
+            # F1-F2. DataSourceResultTable + ResultTable + Option
+            self.stdout.write("[F1-F2] 正在检查关联的结果表...")
             related_models_check = self.check_related_result_table(cluster_info)
             check_result["details"]["related_result_table"] = related_models_check
             self.output_check_result("check_related_result_table", related_models_check)
 
-            # 9. 检查InfluxDB存储配置
-            self.stdout.write("正在检查InfluxDB存储配置...")
-            influxdb_storage_check = self.check_influxdb_storage_config(cluster_info)
-            check_result["details"]["influxdb_storage"] = influxdb_storage_check
-            self.output_check_result("check_influxdb_storage_config", influxdb_storage_check)
-
-            # 10. 检查elasticsearch存储配置
-            self.stdout.write("正在检查elasticsearch存储配置...")
-            elasticsearch_storage_check = self.check_elasticsearch_storage_config(cluster_info)
-            check_result["details"]["elasticsearch_storage"] = elasticsearch_storage_check
-            self.output_check_result("check_elasticsearch_storage_config", elasticsearch_storage_check)
-
-            # 11. 检查VM数据链路依赖
-            self.stdout.write("正在检查VM数据链路依赖...")
+            # F3-F4. VM 数据链路（含 status 校验）
+            self.stdout.write("[F3-F4] 正在检查 VM 数据链路依赖...")
             vm_datalink_check = self.check_vm_datalink_dependencies(cluster_info)
             check_result["details"]["vm_datalink_dependencies"] = vm_datalink_check
             self.output_check_result("check_vm_datalink_dependencies", vm_datalink_check)
 
-            # 12. 检查VM发布空间路由
-            self.stdout.write("正在检查VM发布空间路由...")
+            # F5. InfluxDB / ES 存储
+            # InfluxDB 仅在 ENABLE_INFLUXDB_STORAGE=True 时是有效存储（BCS 集群默认走 VM）
+            if getattr(settings, "ENABLE_INFLUXDB_STORAGE", True):
+                self.stdout.write("[F5a] 正在检查 InfluxDB 存储配置...")
+                influxdb_storage_check = self.check_influxdb_storage_config(cluster_info)
+                check_result["details"]["influxdb_storage"] = influxdb_storage_check
+                self.output_check_result("check_influxdb_storage_config", influxdb_storage_check)
+            else:
+                self.stdout.write("[F5a] ENABLE_INFLUXDB_STORAGE=False，跳过 InfluxDB 存储检查")
+
+            self.stdout.write("[F5b] 正在检查 Elasticsearch 存储配置（事件存储）...")
+            elasticsearch_storage_check = self.check_elasticsearch_storage_config(cluster_info)
+            check_result["details"]["elasticsearch_storage"] = elasticsearch_storage_check
+            self.output_check_result("check_elasticsearch_storage_config", elasticsearch_storage_check)
+
+            # ============ 阶段 G：查询路由 ============
+            # G1-G2. Space + SpaceDataSource
+            self.stdout.write("[G1-G2] 正在检查 datasource / space 空间配置...")
+            space_type_check = self.check_space_type_and_datasource(cluster_info)
+            check_result["details"]["space_type"] = space_type_check
+            self.output_check_result("check_space_type_and_datasource", space_type_check)
+
+            # G3. VM 空间路由 Redis
+            self.stdout.write("[G3] 正在检查 VM 发布空间路由...")
             vm_publish_space_router_check = self.check_vm_publish_space_router(cluster_info)
             check_result["details"]["vm_publish_space_router"] = vm_publish_space_router_check
             self.output_check_result("check_vm_publish_space_router", vm_publish_space_router_check)
 
-            # 13. 检查日志v4数据链路
-            self.stdout.write("正在检查日志v4数据链路...")
-            log_v4_datalink_check = self.check_log_datalink(cluster_info)
-            check_result["details"]["log_v4_datalink"] = log_v4_datalink_check
-            self.output_check_result("check_log_datalink", log_v4_datalink_check)
-
-            # 14. 联邦集群关系检查（如果是联邦集群）
-            if self.is_federation_cluster(cluster_info):
-                self.stdout.write("正在检查联邦集群关系...")
-                federation_check = self.check_federation_cluster(cluster_info)
-                check_result["details"]["federation"] = federation_check
-                self.output_check_result("check_federation_cluster", federation_check)
-
-            # 15. 检查datasource的Consul配置
-            self.stdout.write("正在检查datasource的Consul配置...")
+            # G4. Consul 同步（可降级）
+            self.stdout.write("[G4] 正在检查 datasource 的 Consul 配置...")
             consul_config = self.check_datasource_consul_config(cluster_info)
             check_result["details"]["datasource_consul_config"] = consul_config
             self.output_check_result("check_datasource_consul_config", consul_config)
 
-            # 16. 检查BCS集群CRD资源状态
-            self.stdout.write("正在检查BCS集群CRD资源...")
-            crd_resource_check = self.check_bcs_cluster_crd_resource(cluster_info)
-            check_result["details"]["crd_resources"] = crd_resource_check
-            self.output_check_result("check_bcs_cluster_crd_resource", crd_resource_check)
-
-            # 17. 检查BCS API Token配置
-            self.stdout.write("正在检查BCS API Token配置...")
-            api_token_check = self.check_bcs_api_token(cluster_info)
-            check_result["details"]["api_token"] = api_token_check
-            self.output_check_result("check_bcs_api_token", api_token_check)
-
-            # 18. 检查云区域ID配置
-            self.stdout.write("正在检查云区域ID配置...")
-            cloud_id_check = self.check_cloud_id_configuration(cluster_info)
-            check_result["details"]["cloud_id"] = cloud_id_check
-            self.output_check_result("check_cloud_id_configuration", cloud_id_check)
-
-            # 19. 检查CustomReportSubscription
-            self.stdout.write("正在检查自定义上报订阅...")
-            custom_report_sub_check = self.check_custom_report_subscription(cluster_info)
-            check_result["details"]["custom_report_subscription"] = custom_report_sub_check
-            self.output_check_result("check_custom_report_subscription", custom_report_sub_check)
-
-            # 20. 检查TimeSeriesGroup和EventGroup数据完整性
-            self.stdout.write("正在检查TimeSeriesGroup和EventGroup数据完整性...")
+            # ============ 阶段 H：数据完整性 ============
+            # H1-H2. TimeSeriesGroup + EventGroup
+            self.stdout.write("[H1-H2] 正在检查 TimeSeriesGroup 和 EventGroup 数据完整性...")
             custom_groups_check = self.check_custom_groups_integrity(cluster_info)
             check_result["details"]["custom_groups"] = custom_groups_check
             self.output_check_result("check_custom_groups_integrity", custom_groups_check)
+
+            # ============ 阶段 I：旁路 ============
+            # I1. 日志 V4 数据链路（可降级 WARNING）
+            self.stdout.write("[I1] 正在检查日志 V4 数据链路...")
+            log_v4_datalink_check = self.check_log_datalink(cluster_info)
+            check_result["details"]["log_v4_datalink"] = log_v4_datalink_check
+            self.output_check_result("check_log_datalink", log_v4_datalink_check)
+
+            # I2. 联邦集群（仅联邦场景）
+            if self.is_federation_cluster(cluster_info):
+                self.stdout.write("[I2] 正在检查联邦集群关系...")
+                federation_check = self.check_federation_cluster(cluster_info)
+                check_result["details"]["federation"] = federation_check
+                self.output_check_result("check_federation_cluster", federation_check)
 
             # 确定整体状态
             check_result["status"] = self.status
@@ -477,6 +533,8 @@ class Command(BaseCommand):
             ]:
                 message = f"[BCSClusterInfo] [cluster_id={cluster_info.cluster_id}] "
                 result["issues"].append(f"{message}集群状态异常: {cluster_info.status}")
+                # 非 RUNNING 集群不能算 SUCCESS
+                result["status"] = Status.WARNING
 
             # 检查数据源ID配置
             missing_data_ids = []
@@ -619,41 +677,58 @@ class Command(BaseCommand):
     @recode_final_result
     def check_monitor_resources(self, cluster_info: BCSClusterInfo) -> dict:
         """检查监控资源状态
-        ServiceMonitorInfo.refresh_resource  从 K8s 拉取 CRD 列表，新增或删除本地记录，保持一致性
+
+        DB 侧：ServiceMonitorInfo / PodMonitorInfo（由 refresh_resource 周期任务从 K8s 同步）
+        K8s 侧：实际部署的 ServiceMonitor / PodMonitor 自定义资源
+        两者数量应一致；不一致说明同步任务异常。
         """
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
+        result = {"status": Status.UNKNOWN, "details": {}, "issues": [], "warnings": []}
 
         def format_output(details: dict) -> list[str]:
-            """格式化监控资源检查输出"""
             lines = []
-            if details:
-                lines.append(f"    ServiceMonitor: {details.get('service_monitors', {}).get('count', 0)}个")
-                lines.append(f"    PodMonitor: {details.get('pod_monitors', {}).get('count', 0)}个")
+            sm = details.get("service_monitors", {})
+            pm = details.get("pod_monitors", {})
+            lines.append(f"    ServiceMonitor: DB={sm.get('db_count', 0)} K8s={sm.get('k8s_count', '-')}")
+            lines.append(f"    PodMonitor    : DB={pm.get('db_count', 0)} K8s={pm.get('k8s_count', '-')}")
             return lines
 
         result["formatter"] = format_output
 
         try:
-            # 检查ServiceMonitor资源
-            service_monitors = ServiceMonitorInfo.objects.filter(cluster_id=cluster_info.cluster_id)
-            service_monitor_count = service_monitors.count()
+            db_sm_count = ServiceMonitorInfo.objects.filter(cluster_id=cluster_info.cluster_id).count()
+            db_pm_count = PodMonitorInfo.objects.filter(cluster_id=cluster_info.cluster_id).count()
 
-            # 检查PodMonitor资源
-            pod_monitors = PodMonitorInfo.objects.filter(cluster_id=cluster_info.cluster_id)
-            pod_monitor_count = pod_monitors.count()
+            # 从 K8s 实际拉取数量，与 DB 对比（C5）
+            k8s_sm_count = self._count_k8s_monitor_resources(
+                cluster_info, plural="servicemonitors", issues=result["issues"], warnings=result["warnings"]
+            )
+            k8s_pm_count = self._count_k8s_monitor_resources(
+                cluster_info, plural="podmonitors", issues=result["issues"], warnings=result["warnings"]
+            )
 
-            result["details"]["service_monitors"] = {
-                "count": service_monitor_count,
-            }
+            result["details"]["service_monitors"] = {"db_count": db_sm_count, "k8s_count": k8s_sm_count}
+            result["details"]["pod_monitors"] = {"db_count": db_pm_count, "k8s_count": k8s_pm_count}
 
-            result["details"]["pod_monitors"] = {
-                "count": pod_monitor_count,
-            }
+            # ServiceMonitor=0 才表示采集资源完全缺失；PodMonitor=0 合法
+            if db_sm_count == 0 and (k8s_sm_count == 0 or k8s_sm_count is None):
+                result["issues"].append(
+                    f"[ServiceMonitor] [cluster_id={cluster_info.cluster_id}] 集群无 ServiceMonitor 资源"
+                )
 
-            if 0 in [service_monitor_count, pod_monitor_count]:
-                result["status"] = Status.ERROR
-            else:
-                result["status"] = Status.SUCCESS
+            # DB 与 K8s 数量不一致 → 同步任务（refresh_bcs_monitor_info）异常
+            if k8s_sm_count is not None and k8s_sm_count != db_sm_count:
+                result["issues"].append(
+                    f"[ServiceMonitor] [cluster_id={cluster_info.cluster_id}] "
+                    f"DB({db_sm_count}) 与 K8s({k8s_sm_count}) 数量不一致，"
+                    "refresh_bcs_monitor_info 同步任务可能异常"
+                )
+            if k8s_pm_count is not None and k8s_pm_count != db_pm_count:
+                result["issues"].append(
+                    f"[PodMonitor] [cluster_id={cluster_info.cluster_id}] "
+                    f"DB({db_pm_count}) 与 K8s({k8s_pm_count}) 数量不一致"
+                )
+
+            result["status"] = Status.ERROR if result["issues"] else Status.SUCCESS
 
         except Exception as e:
             result["status"] = Status.ERROR
@@ -662,10 +737,39 @@ class Command(BaseCommand):
 
         return result
 
+    def _count_k8s_monitor_resources(self, cluster_info: BCSClusterInfo, plural: str, issues: list, warnings: list):
+        """通过 dynamic client 拉取 K8s 集群里 ServiceMonitor / PodMonitor 实际数量
+
+        - CRD 未定义 → warning（PodMonitor 没装是常见情况）
+        - 其他异常 → issue
+        失败时返回 None，不参与后续 DB 对比
+        """
+        try:
+            d_client = dynamic_client.DynamicClient(cluster_info.api_client)
+            resource_api = d_client.resources.get(
+                api_version="monitoring.coreos.com/v1",
+                kind="ServiceMonitor" if plural == "servicemonitors" else "PodMonitor",
+            )
+            resp = resource_api.get()
+            return len(resp.items or [])
+        except ResourceNotFoundError:
+            warnings.append(f"[{plural}] [cluster_id={cluster_info.cluster_id}] CRD 未定义于集群，跳过 K8s 数量对比")
+            return None
+        except Exception as e:
+            issues.append(f"[{plural}] [cluster_id={cluster_info.cluster_id}] 拉取 K8s 资源异常: {str(e)}")
+            return None
+
     @recode_final_result
     def check_datasource_consul_config(self, cluster_info: BCSClusterInfo) -> dict:
-        """检查datasource Consul配置"""
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
+        """检查datasource Consul配置
+
+        Consul 存放数据源配置供 transfer 等消费端读取。但实际上：
+        - 配置完全缺失 → 真同步失败 → issue
+        - 配置存在但内容不一致 → 多数为新加字段（bk_tenant_id/bk_biz_id/display_name）
+          或 list 顺序差异，transfer 启动会重读且对元数据字段缺失有 fallback，
+          不影响数据流稳定性 → warning
+        """
+        result = {"status": Status.UNKNOWN, "details": {}, "issues": [], "warnings": []}
 
         def format_output(details: dict) -> list[str]:
             """格式化Consul配置检查输出"""
@@ -700,8 +804,11 @@ class Command(BaseCommand):
                         continue
 
                     # 获取Consul中的配置
+                    # consul Python client 的 Value 字段可能是 bytes / str / dict
                     num, consul_config = hash_consul.get(datasource.consul_config_path)
-                    consul_config = consul_config.get("Value", {})
+                    consul_config = consul_config.get("Value", {}) if consul_config else {}
+                    if isinstance(consul_config, bytes):
+                        consul_config = consul_config.decode("utf-8")
                     if isinstance(consul_config, str):
                         try:
                             consul_config = json.loads(consul_config)
@@ -735,13 +842,26 @@ class Command(BaseCommand):
                     }
 
                     if not is_consistent:
-                        # 记录配置不一致的详细信息
-                        diff_keys = self._find_config_diff(consul_config, datasource_config)
-                        consul_status[data_id]["diff_keys"] = diff_keys
+                        # 精细化对比：只关注影响 transfer 消费的关键字段（连接信息+topic+RT）
+                        # 元数据字段差异（bk_tenant_id/bk_biz_id/display_name 等）不影响数据流，忽略
+                        critical_diffs = self._find_critical_consul_diff(consul_config, datasource_config)
+                        all_diffs = self._find_config_diff(consul_config, datasource_config)
+                        consul_status[data_id]["diff_keys"] = all_diffs
+                        consul_status[data_id]["critical_diff_keys"] = critical_diffs
                         message = f"[Consul] [DataSource][bk_data_id={data_id}]"
-                        result["issues"].append(
-                            f"{message}consul_path={datasource.consul_config_path}]Consul配置与数据库配置不一致, 差异字段:{','.join(diff_keys)}"
-                        )
+
+                        if critical_diffs:
+                            # 关键字段不一致 → 真影响 transfer，作为 issue
+                            result["issues"].append(
+                                f"{message} consul_path={datasource.consul_config_path} "
+                                f"Consul 关键字段与 DB 不一致: {','.join(critical_diffs)}"
+                            )
+                        else:
+                            # 仅非关键字段差异 → warning
+                            result["warnings"].append(
+                                f"{message} consul_path={datasource.consul_config_path} "
+                                f"Consul 配置存在非关键字段差异（{len(all_diffs)} 项），不影响 transfer 消费"
+                            )
 
                 except Exception as e:
                     consul_status[data_id] = {"error": str(e)}
@@ -761,6 +881,43 @@ class Command(BaseCommand):
             result["issues"].append(f"{message}Consul配置检查异常: {str(e)}")
 
         return result
+
+    # transfer 实际消费 Consul 配置时依赖的关键字段（dotted path）
+    # 其他元数据字段（bk_tenant_id/bk_biz_id/display_name/result_table_list 中的非连接字段等）差异不影响数据流
+    _CONSUL_CRITICAL_FIELDS = (
+        "mq_config.cluster_config.cluster_id",
+        "mq_config.cluster_config.domain_name",
+        "mq_config.cluster_config.port",
+        "mq_config.storage_config.topic",
+        "mq_config.storage_config.partition",
+        "etl_config",
+        "data_id",
+    )
+
+    @staticmethod
+    def _get_nested(d: dict, path: str):
+        """按 dotted path 取嵌套值；任意一段缺失返回 sentinel 表示路径不存在"""
+        sentinel = object()
+        cur = d
+        for seg in path.split("."):
+            if not isinstance(cur, dict) or seg not in cur:
+                return sentinel
+            cur = cur[seg]
+        return cur
+
+    def _find_critical_consul_diff(self, consul_config: dict, datasource_config: dict) -> list[str]:
+        """只对比 transfer 真正依赖的关键字段（连接信息 / topic / 分区 / etl_config / data_id）"""
+        sentinel = object()
+        diffs = []
+        for path in self._CONSUL_CRITICAL_FIELDS:
+            cv = self._get_nested(consul_config, path)
+            dv = self._get_nested(datasource_config, path)
+            # 双方都不存在 → 跳过；存在性或值不同 → diff
+            if cv is sentinel and dv is sentinel:
+                continue
+            if cv != dv:
+                diffs.append(path)
+        return diffs
 
     def _find_config_diff(self, consul_config: dict, datasource_config: dict, prefix: str = "") -> list[str]:
         """查找两个配置字典的差异字段"""
@@ -786,54 +943,115 @@ class Command(BaseCommand):
 
     @recode_final_result
     def check_federation_cluster(self, cluster_info: BCSClusterInfo) -> dict:
-        """检查联邦集群状态"""
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
+        """检查联邦集群状态
+
+        当前集群可能在联邦拓扑中扮演多种角色（fed_cluster_id / host_cluster_id / sub_cluster_id）。
+        本检查：
+        - 输出该集群所在的联邦拓扑（含嵌套），让运维清楚集群位置
+        - 仅当集群是 fed_cluster_id（代理集群）时校验配置完整性
+
+        校验规则：
+        - fed_namespaces 缺失：operator 不知道采哪些 ns，真阻断 → issue
+        - fed_builtin_metric/event_table_id 缺失：
+            - V4 联邦汇聚链路（BCS_FEDERAL_PROXY_TIME_SERIES）启用 → issue（阻断汇聚）
+            - V2 链路下子集群指标直接落子集群 RT，不依赖该字段 → warning
+        """
+        result = {"status": Status.UNKNOWN, "details": {}, "issues": [], "warnings": []}
 
         def format_output(details: dict) -> list[str]:
             """格式化联邦集群检查输出"""
             lines = []
-            if details:
-                lines.append(f"    联邦关系: {details.get('federation_count', 0)}个")
+            if not details:
+                return lines
+
+            role = details.get("current_role", "unknown")
+            lines.append(f"    当前集群角色: {role}")
+
+            if details.get("v4_fed_link_enabled") is not None:
+                lines.append(f"    V4 联邦汇聚链路: {'启用' if details['v4_fed_link_enabled'] else '未启用'}")
+
+            # 直接拼接拓扑可视化
+            topo_lines = details.get("topology_lines") or []
+            lines.extend(topo_lines)
             return lines
 
         result["formatter"] = format_output
 
         try:
-            # 获取联邦集群信息
+            # 1. 渲染该集群所在的完整联邦拓扑（含嵌套），无论扮演什么角色
+            topology_lines = self._render_federation_topology(cluster_info.cluster_id)
+
+            # 2. 计算当前集群在拓扑中的角色（可能多个）
+            roles = []
+            if BcsFederalClusterInfo.objects.filter(fed_cluster_id=cluster_info.cluster_id, is_deleted=False).exists():
+                roles.append("代理集群(fed)")
+            if BcsFederalClusterInfo.objects.filter(host_cluster_id=cluster_info.cluster_id, is_deleted=False).exists():
+                roles.append("HOST 集群")
+            if BcsFederalClusterInfo.objects.filter(sub_cluster_id=cluster_info.cluster_id, is_deleted=False).exists():
+                roles.append("子集群(sub)")
+            current_role = " + ".join(roles) if roles else "无联邦关系"
+
+            # 3. 仅当作为代理集群时校验配置完整性
             fed_clusters = BcsFederalClusterInfo.objects.filter(
                 fed_cluster_id=cluster_info.cluster_id, is_deleted=False
             )
 
-            if not fed_clusters.exists():
-                result["status"] = Status.ERROR
-                message = f"[BcsFederalClusterInfo] [cluster_id={cluster_info.cluster_id}] "
-                result["issues"].append(f"{message}联邦集群信息不存在")
-                return result
-
             federation_details = []
-            for fed_cluster in fed_clusters:
-                federation_details.append(
-                    {
-                        "host_cluster_id": fed_cluster.host_cluster_id,
-                        "sub_cluster_id": fed_cluster.sub_cluster_id,
-                        "fed_namespaces": fed_cluster.fed_namespaces,
-                        "builtin_metric_table_id": fed_cluster.fed_builtin_metric_table_id,
-                        "builtin_event_table_id": fed_cluster.fed_builtin_event_table_id,
-                    }
-                )
+            v4_fed_link_enabled = None
 
-            result["details"] = {"federation_count": len(federation_details), "federations": federation_details}
+            if fed_clusters.exists():
+                for fed_cluster in fed_clusters:
+                    federation_details.append(
+                        {
+                            "host_cluster_id": fed_cluster.host_cluster_id,
+                            "sub_cluster_id": fed_cluster.sub_cluster_id,
+                            "fed_namespaces": fed_cluster.fed_namespaces,
+                            "builtin_metric_table_id": fed_cluster.fed_builtin_metric_table_id,
+                            "builtin_event_table_id": fed_cluster.fed_builtin_event_table_id,
+                        }
+                    )
 
-            # 检查联邦集群配置完整性
-            for fed in federation_details:
-                if not fed["fed_namespaces"]:
-                    message = f"[BcsFederalClusterInfo] [sub_cluster_id={fed['sub_cluster_id']}] "
-                    result["issues"].append(f"{message}没有配置命名空间")
-                if not fed["builtin_metric_table_id"]:
-                    message = f"[BcsFederalClusterInfo] [sub_cluster_id={fed['sub_cluster_id']}] "
-                    result["issues"].append(f"{message}缺少内置指标表ID")
+                # 判定该代理集群是否启用 V4 联邦汇聚链路
+                v4_fed_link_enabled = DataLink.objects.filter(
+                    bk_data_id__in=[
+                        did
+                        for did in [
+                            cluster_info.K8sMetricDataID,
+                            cluster_info.CustomMetricDataID,
+                            cluster_info.K8sEventDataID,
+                        ]
+                        if did
+                    ],
+                    data_link_strategy=DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
+                ).exists()
 
-            result["status"] = Status.SUCCESS if not result["issues"] else Status.WARNING
+                # 校验联邦记录字段完整性
+                for fed in federation_details:
+                    if not fed["fed_namespaces"]:
+                        message = f"[BcsFederalClusterInfo] [sub_cluster_id={fed['sub_cluster_id']}] "
+                        result["issues"].append(f"{message}没有配置命名空间")
+
+                    if not fed["builtin_metric_table_id"]:
+                        message = f"[BcsFederalClusterInfo] [sub_cluster_id={fed['sub_cluster_id']}] "
+                        if v4_fed_link_enabled:
+                            result["issues"].append(f"{message}缺少内置指标表ID (V4 联邦汇聚链路依赖)")
+                        else:
+                            result["warnings"].append(f"{message}缺少内置指标表ID (V2 链路下不影响数据流)")
+
+            result["details"] = {
+                "current_role": current_role,
+                "topology_lines": topology_lines,
+                "federation_count": len(federation_details),
+                "federations": federation_details,
+                "v4_fed_link_enabled": v4_fed_link_enabled,
+            }
+
+            if result["issues"]:
+                result["status"] = Status.ERROR
+            elif result["warnings"]:
+                result["status"] = Status.WARNING
+            else:
+                result["status"] = Status.SUCCESS
 
         except Exception as e:
             result["status"] = Status.ERROR
@@ -851,8 +1069,13 @@ class Command(BaseCommand):
         2. 集群的DataIDResource资源配置状态
         3. 资源配置与数据库配置的一致性
         4. 资源标签和元数据完整性
+
+        联邦代理集群特殊处理：metadata 仅向其下发 customMetricDataID 带 -fed 后缀的 CRD。
+        -fed CRD 缺失的影响判定与 I2 阶段一致，基于 V4 联邦汇聚链路是否启用：
+        - V4 启用：BkBase 汇聚需 -fed CRD 路由标识，缺失影响汇聚 → issue
+        - V4 未启用（仅嵌套联邦元数据登记）：子集群普通 CRD 已覆盖采集，不影响数据流 → warning
         """
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
+        result = {"status": Status.UNKNOWN, "details": {}, "issues": [], "warnings": []}
 
         def format_output(details: dict) -> list[str]:
             """格式化CRD资源检查输出"""
@@ -866,6 +1089,9 @@ class Command(BaseCommand):
                 if resources:
                     consistent_count = sum(1 for r in resources if r.get("is_consistent"))
                     lines.append(f"    DataID资源: {len(resources)}个, 配置一致: {consistent_count}/{len(resources)}")
+
+                if details.get("v4_fed_link_enabled") is not None and details.get("is_fed_cluster"):
+                    lines.append(f"    V4 联邦汇聚链路: {'启用' if details['v4_fed_link_enabled'] else '未启用'}")
             return lines
 
         result["formatter"] = format_output
@@ -909,6 +1135,25 @@ class Command(BaseCommand):
             is_fed_cluster = BcsFederalClusterInfo.objects.filter(
                 fed_cluster_id=cluster_info.cluster_id, is_deleted=False
             ).exists()
+
+            # 判定该代理集群是否启用 V4 联邦汇聚链路（决定 -fed CRD 缺失的严重程度）
+            # 仅嵌套联邦元数据登记 + 未启用 V4 汇聚 → -fed CRD 缺失不影响数据流（warning）
+            # V4 汇聚链路实际在跑 + -fed CRD 缺失 → 影响汇聚（issue）
+            v4_fed_link_enabled = False
+            if is_fed_cluster:
+                v4_fed_link_enabled = DataLink.objects.filter(
+                    bk_data_id__in=[
+                        did
+                        for did in [
+                            cluster_info.K8sMetricDataID,
+                            cluster_info.CustomMetricDataID,
+                            cluster_info.K8sEventDataID,
+                        ]
+                        if did
+                    ],
+                    data_link_strategy=DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
+                ).exists()
+            result["details"]["v4_fed_link_enabled"] = v4_fed_link_enabled
 
             for usage, register_info in cluster_info.DATASOURCE_REGISTER_INFO.items():
                 # 联邦集群跳过非自定义指标
@@ -976,8 +1221,25 @@ class Command(BaseCommand):
                             "is_consistent": False,
                         }
                     )
-                    message = f"[DataIDResource] [cluster_id={cluster_info.cluster_id},resource_name={resource_name},data_id={data_id}] "
-                    result["issues"].append(f"{message}不存在于集群中")
+                    message = (
+                        f"[DataIDResource] [cluster_id={cluster_info.cluster_id},"
+                        f"resource_name={resource_name},data_id={data_id}] "
+                    )
+                    if is_fed_cluster:
+                        # 联邦代理集群的 -fed CRD 缺失分两种场景：
+                        # - V4 联邦汇聚链路启用：BkBase 汇聚需 -fed CRD 路由标识，缺失影响汇聚 → issue
+                        # - 未启用 V4 汇聚（仅 DB 登记嵌套关系）：子集群普通 CRD 已覆盖采集，不影响数据流 → warning
+                        if v4_fed_link_enabled:
+                            result["issues"].append(
+                                f"{message}联邦 -fed CRD 不存在，但 V4 联邦汇聚链路已启用，影响数据汇聚"
+                            )
+                        else:
+                            result["warnings"].append(
+                                f"{message}联邦 -fed CRD 不存在。V4 联邦汇聚未启用，"
+                                "子集群普通 DataID CRD 已覆盖采集需求，不影响数据流"
+                            )
+                    else:
+                        result["issues"].append(f"{message}不存在于集群中")
                 except Exception as e:
                     dataid_resources.append(
                         {
@@ -994,17 +1256,18 @@ class Command(BaseCommand):
             result["details"]["dataid_resources"] = dataid_resources
             result["details"]["is_fed_cluster"] = is_fed_cluster
 
-            # 确定整体状态
+            # 确定整体状态（基于 issues / warnings 列表判定，
+            # 不再仅看 exists 标志——联邦 -fed CRD 缺失是 warning 不是 issue）
             if not dataid_resources:
                 result["status"] = Status.WARNING
                 message = f"[DataIDResource] [cluster_id={cluster_info.cluster_id}] "
                 result["issues"].append(f"{message}没有找到任何DataIDResource资源")
-            elif all(r.get("exists") and r.get("is_consistent") for r in dataid_resources if "error" not in r):
-                result["status"] = Status.SUCCESS
-            elif any(not r.get("exists") for r in dataid_resources):
+            elif result["issues"]:
                 result["status"] = Status.ERROR
-            else:
+            elif result["warnings"]:
                 result["status"] = Status.WARNING
+            else:
+                result["status"] = Status.SUCCESS
 
         except Exception as e:
             result["status"] = Status.ERROR
@@ -1148,6 +1411,167 @@ class Command(BaseCommand):
             diff_info.append(f"检查差异失败: {str(e)}")
 
         return diff_info
+
+    @recode_final_result
+    def check_k8s_workloads(self, cluster_info: BCSClusterInfo) -> dict:
+        """检查 K8s 集群内 bkmonitor-operator 命名空间的核心负载状态
+
+        通过 CoreV1Api / AppsV1Api 只读获取：
+        - bkmonitor-operator Deployment
+        - bkm-daemonset-worker DaemonSet
+        - bkm-statefulset-worker StatefulSet
+        - bkm-event-worker Deployment
+        - ChildConfig Secret（operator 生成的采集配置）
+
+        Pod 启动后能否跑通是 K8s 自身的问题，本检查只关注配置和负载状态。
+        """
+        result = {"status": Status.UNKNOWN, "details": {}, "issues": [], "warnings": []}
+        namespace = "bkmonitor-operator"
+
+        def format_output(details: dict) -> list[str]:
+            lines = []
+            workloads = details.get("workloads", {})
+            for kind, info in workloads.items():
+                if not info.get("found"):
+                    lines.append(f"    {kind}: 未找到")
+                    continue
+                ready = info.get("ready", 0)
+                desired = info.get("desired", 0)
+                lines.append(f"    {kind}: {ready}/{desired} ready")
+            secrets = details.get("child_config_secrets", {})
+            if secrets:
+                lines.append(
+                    f"    ChildConfig Secret: ds={secrets.get('daemonset', 0)} "
+                    f"sts={secrets.get('statefulset', 0)} event={secrets.get('event', 0)}"
+                )
+            return lines
+
+        result["formatter"] = format_output
+
+        try:
+            apps_v1 = k8s_client.AppsV1Api(cluster_info.api_client)
+            core_v1 = k8s_client.CoreV1Api(cluster_info.api_client)
+
+            workloads = {}
+
+            # D1. bkmonitor-operator Deployment
+            workloads["bkm-operator"] = self._check_deployment(apps_v1, namespace, "bkm-operator", result["issues"])
+
+            # D2. bkm-daemonset-worker DaemonSet
+            workloads["bkm-daemonset-worker"] = self._check_daemonset(
+                apps_v1, namespace, "bkm-daemonset-worker", result["issues"]
+            )
+
+            # D3. bkm-statefulset-worker StatefulSet
+            workloads["bkm-statefulset-worker"] = self._check_statefulset(
+                apps_v1, namespace, "bkm-statefulset-worker", result["issues"]
+            )
+
+            # D4. bkm-event-worker Deployment
+            workloads["bkm-event-worker"] = self._check_deployment(
+                apps_v1, namespace, "bkm-event-worker", result["issues"]
+            )
+
+            result["details"]["workloads"] = workloads
+
+            # D5. ChildConfig Secret 存在性
+            # 按 operator 源码（pkg/operator/common/tasks/tasks.go）规范：
+            #   Secret 名: daemonset-worker-{node} / statefulset-worker-{idx} / event-worker-0
+            #   Secret label: taskType=daemonset | statefulset | event
+            # 优先按 label 选择，更稳健
+            ds_secrets = self._count_task_secrets(core_v1, namespace, "daemonset", result["issues"])
+            sts_secrets = self._count_task_secrets(core_v1, namespace, "statefulset", result["issues"])
+            event_secrets = self._count_task_secrets(core_v1, namespace, "event", result["issues"])
+
+            result["details"]["child_config_secrets"] = {
+                "daemonset": ds_secrets,
+                "statefulset": sts_secrets,
+                "event": event_secrets,
+            }
+
+            # 只在 workload 已部署但对应 Secret=0 时报错
+            if ds_secrets == 0 and workloads.get("bkm-daemonset-worker", {}).get("desired", 0) > 0:
+                result["issues"].append(
+                    f"[Secret] [namespace={namespace},taskType=daemonset] 未找到 ChildConfig Secret，"
+                    "operator 可能未完成采集配置下发"
+                )
+            if sts_secrets == 0 and workloads.get("bkm-statefulset-worker", {}).get("desired", 0) > 0:
+                result["issues"].append(
+                    f"[Secret] [namespace={namespace},taskType=statefulset] 未找到 ChildConfig Secret"
+                )
+
+            if result["issues"]:
+                result["status"] = Status.ERROR
+            else:
+                result["status"] = Status.SUCCESS
+
+        except Exception as e:
+            result["status"] = Status.ERROR
+            result["issues"].append(f"[K8sWorkloads] [cluster_id={cluster_info.cluster_id}] 负载检查异常: {str(e)}")
+
+        return result
+
+    @staticmethod
+    def _workload_status(found: bool, ready: int, desired: int, reason: str = "") -> dict:
+        return {"found": found, "ready": ready, "desired": desired, "reason": reason}
+
+    def _count_task_secrets(self, core_v1, namespace: str, task_type: str, issues: list) -> int:
+        """按 taskType label 计数 operator 生成的 ChildConfig Secret
+
+        operator 源码（pkg/operator/common/tasks/tasks.go）约定 LabelTaskType="taskType"
+        失败时返回 0 并记录 issue，不中断其他检查
+        """
+        try:
+            resp = core_v1.list_namespaced_secret(namespace=namespace, label_selector=f"taskType={task_type}")
+            return len(resp.items or [])
+        except ApiException as e:
+            issues.append(f"[Secret] [namespace={namespace},taskType={task_type}] 列出 Secret 失败: {e.reason}")
+            return 0
+
+    def _check_deployment(self, apps_v1, namespace: str, name: str, issues: list) -> dict:
+        try:
+            d = apps_v1.read_namespaced_deployment(name=name, namespace=namespace)
+            ready = d.status.ready_replicas or 0
+            desired = d.spec.replicas or 0
+            if ready < desired:
+                issues.append(f"[Deployment] [namespace={namespace},name={name}] ready={ready}/{desired} 未就绪")
+            return self._workload_status(True, ready, desired)
+        except ApiException as e:
+            if e.status == 404:
+                issues.append(f"[Deployment] [namespace={namespace},name={name}] 未找到")
+                return self._workload_status(False, 0, 0, "not_found")
+            issues.append(f"[Deployment] [namespace={namespace},name={name}] 查询异常: {e.reason}")
+            return self._workload_status(False, 0, 0, str(e.reason))
+
+    def _check_daemonset(self, apps_v1, namespace: str, name: str, issues: list) -> dict:
+        try:
+            d = apps_v1.read_namespaced_daemon_set(name=name, namespace=namespace)
+            ready = d.status.number_ready or 0
+            desired = d.status.desired_number_scheduled or 0
+            if ready < desired:
+                issues.append(f"[DaemonSet] [namespace={namespace},name={name}] ready={ready}/{desired} 未全部就绪")
+            return self._workload_status(True, ready, desired)
+        except ApiException as e:
+            if e.status == 404:
+                issues.append(f"[DaemonSet] [namespace={namespace},name={name}] 未找到")
+                return self._workload_status(False, 0, 0, "not_found")
+            issues.append(f"[DaemonSet] [namespace={namespace},name={name}] 查询异常: {e.reason}")
+            return self._workload_status(False, 0, 0, str(e.reason))
+
+    def _check_statefulset(self, apps_v1, namespace: str, name: str, issues: list) -> dict:
+        try:
+            s = apps_v1.read_namespaced_stateful_set(name=name, namespace=namespace)
+            ready = s.status.ready_replicas or 0
+            desired = s.spec.replicas or 0
+            if ready < desired:
+                issues.append(f"[StatefulSet] [namespace={namespace},name={name}] ready={ready}/{desired} 未就绪")
+            return self._workload_status(True, ready, desired)
+        except ApiException as e:
+            if e.status == 404:
+                issues.append(f"[StatefulSet] [namespace={namespace},name={name}] 未找到")
+                return self._workload_status(False, 0, 0, "not_found")
+            issues.append(f"[StatefulSet] [namespace={namespace},name={name}] 查询异常: {e.reason}")
+            return self._workload_status(False, 0, 0, str(e.reason))
 
     @recode_final_result
     def check_cluster_init_resources(self, cluster_info: BCSClusterInfo) -> dict:
@@ -1535,82 +1959,6 @@ class Command(BaseCommand):
 
         return result
 
-    @recode_final_result
-    def check_datasource_options(self, cluster_info: BCSClusterInfo) -> dict:
-        """检查DataSourceOption数据完整性
-
-        验证数据源的关键配置项是否完整且符合规范
-        """
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
-
-        def format_output(details: dict) -> list[str]:
-            """格式化DataSourceOption检查输出"""
-            lines = []
-            if details:
-                total_datasources = len(details)
-                lines.append(f"    数据源数量: {total_datasources}")
-                for data_id, opt_info in list(details.items())[:3]:  # 只显示前3个
-                    if isinstance(opt_info, dict) and "options_count" in opt_info:
-                        lines.append(f"    数据源data_id:{data_id}: {opt_info['options_count']}个配置项")
-            return lines
-
-        result["formatter"] = format_output
-
-        try:
-            # 关键配置项列表
-            important_options = [
-                DataSourceOption.OPTION_TIMESTAMP_UNIT,
-                # DataSourceOption.OPTION_ALIGN_TIME_UNIT,
-                DataSourceOption.OPTION_DROP_METRICS_ETL_CONFIGS,
-            ]
-
-            option_status = {}
-            for data_id, datasource in self.data_sources.items():
-                try:
-                    # 查询该数据源的所有配置项
-                    options = DataSourceOption.objects.filter(bk_data_id=data_id, bk_tenant_id=self.bk_tenant_id).only(
-                        "name", "value"
-                    )
-
-                    option_dict = {opt.name: opt.value for opt in options}
-
-                    missing_options = []
-                    for option in important_options:
-                        if option not in option_dict:
-                            missing_options.append(option)
-
-                    if (
-                        datasource.etl_config != "bk_standard_v2_event"
-                        and DataSourceOption.OPTION_ALIGN_TIME_UNIT not in option_dict
-                    ):
-                        missing_options.append(DataSourceOption.OPTION_ALIGN_TIME_UNIT)
-
-                    option_status[data_id] = {
-                        "options_count": len(option_dict),
-                        "missing_options": missing_options,
-                        "configured_options": list(option_dict.keys()),
-                    }
-
-                    # 检查缺失的关键配置项
-                    if missing_options:
-                        message = f"[DataSourceOption] [bk_data_id={data_id}] "
-                        result["issues"].append(f"{message}缺少关键配置项: {', '.join(missing_options)}")
-
-                except Exception as e:
-                    option_status[data_id] = {"error": str(e)}
-                    message = f"[DataSourceOption] [bk_data_id={data_id}] "
-                    result["issues"].append(f"{message}配置检查异常: {str(e)}")
-
-            result["details"] = option_status
-            result["status"] = Status.SUCCESS if not result["issues"] else Status.WARNING
-
-        except Exception as e:
-            result["status"] = Status.ERROR
-            message = f"[DataSourceOption] [cluster_id={cluster_info.cluster_id}] "
-            result["issues"].append(f"{message}检查异常: {str(e)}")
-
-        return result
-
     def _get_space_info_by_biz_id(self, bk_biz_id: int, datasource: DataSource) -> dict:
         """
         通过业务ID获取空间信息
@@ -1720,71 +2068,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[SpaceDataSource] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}空间类型检查异常: {str(e)}")
-
-        return result
-
-    @recode_final_result
-    def check_custom_report_subscription(self, cluster_info: BCSClusterInfo) -> dict:
-        """检查CustomReportSubscription配置
-
-        验证BCS集群的自定义上报订阅配置是否正确
-        """
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
-
-        def format_output(details: dict) -> list[str]:
-            """格式化CustomReportSubscription检查输出"""
-            lines = []
-            if details:
-                if details.get("subscription_exists"):
-                    lines.append(f"    业务ID: {details.get('bk_biz_id')}")
-                data_source_count = details.get("data_source_subscriptions", {}).get("total_count", 0)
-                if data_source_count > 0:
-                    lines.append(f"    数据源订阅: {data_source_count}")
-            return lines
-
-        result["formatter"] = format_output
-
-        try:
-            # 检查每个数据源的订阅配置
-            data_source_subscriptions = {}
-            for data_id, datasource in self.data_sources.items():
-                try:
-                    # 查询此数据源的订阅配置
-                    ds_subscription = CustomReportSubscription.objects.filter(
-                        bk_biz_id=self.bk_biz_id, bk_data_id=data_id
-                    ).first()
-
-                    if ds_subscription:
-                        data_source_subscriptions[data_id] = {
-                            "subscription_id": ds_subscription.subscription_id,
-                            "subscription_exists": True,
-                            "config_complete": bool(ds_subscription.config),
-                        }
-                    else:
-                        data_source_subscriptions[data_id] = {
-                            "subscription_exists": False,
-                        }
-                        message = f"[CustomReportSubscription] [bk_data_id={data_id},bk_biz_id={self.bk_biz_id}] "
-                        result["issues"].append(f"{message}数据源未配置自定义上报订阅")
-
-                except Exception as e:
-                    message = f"[CustomReportSubscription] [bk_data_id={data_id}] "
-                    result["issues"].append(f"{message}数据源订阅检查异常: {str(e)}")
-
-            result["details"] = {
-                "bk_biz_id": self.bk_biz_id,
-                "data_source_subscriptions": {
-                    "total_count": len([v for v in data_source_subscriptions.values() if v.get("subscription_exists")]),
-                    "details": data_source_subscriptions,
-                },
-            }
-
-            result["status"] = Status.SUCCESS if not result["issues"] else Status.ERROR
-
-        except Exception as e:
-            result["status"] = Status.ERROR
-            message = f"[CustomReportSubscription] [cluster_id={cluster_info.cluster_id}] "
-            result["issues"].append(f"{message}CustomReportSubscription检查异常: {str(e)}")
 
         return result
 
@@ -2263,10 +2546,11 @@ class Command(BaseCommand):
     def check_vm_datalink_dependencies(self, cluster_info: BCSClusterInfo) -> dict:
         """检查VM数据链路依赖模型
 
-        验证VM数据链路创建和访问所依赖的各个模型配置是否完整
-        参考apply_data_link()方法的流程，确保检查逻辑与实际业务流程一致
+        V2 链路（老）：通过 AccessVMRecord 直接接入 VM，不经 BkBase
+        V4 链路（新）：通过 DataLink + BkBaseResultTable + 3 类 Config 走 BkBase
+        判定方式：有 AccessVMRecord 但无 DataLink 即视为 V2 接入，跳过后续 V4 状态检查
         """
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
+        result = {"status": Status.UNKNOWN, "details": {}, "issues": [], "warnings": []}
 
         def format_output(details: dict) -> list[str]:
             """格式化VM数据链路依赖检查输出"""
@@ -2389,10 +2673,18 @@ class Command(BaseCommand):
                     ).first()
 
                     if not data_link:
-                        result["issues"].append(
-                            f"[DataLink] [data_link_name={bkbase_data_name}] "
-                            f"[strategy={data_link_strategy}] 未找到对应的数据链路配置"
-                        )
+                        # 有 AccessVMRecord 但无 DataLink → V2 老链路接入（直连 VM，不经 BkBase）
+                        # 跳过后续 V4 状态检查
+                        if vm_record:
+                            result["warnings"].append(
+                                f"[DataLink] [data_link_name={bkbase_data_name}] "
+                                "无 V4 数据链路记录，识别为 V2 链路接入（依赖 AccessVMRecord，不经 BkBase）"
+                            )
+                        else:
+                            result["issues"].append(
+                                f"[DataLink] [data_link_name={bkbase_data_name}] "
+                                f"[strategy={data_link_strategy}] 未找到对应的数据链路配置"
+                            )
                         continue
 
                     data_links.append(
@@ -2429,6 +2721,10 @@ class Command(BaseCommand):
                             f"[ResultTableConfig] [name={bkbase_vmrt_name}] "
                             f"[data_link_name={data_link.data_link_name}] 未找到对应的结果表配置"
                         )
+                    elif vm_table_id_ins.status != "Ok":
+                        result["issues"].append(
+                            f"[ResultTableConfig] [name={bkbase_vmrt_name}] 状态异常: {vm_table_id_ins.status}"
+                        )
 
                     # 13. 检查VMStorageBindingConfig（compose_configs中创建的第二个配置）
                     vm_storage_ins = VMStorageBindingConfig.objects.filter(
@@ -2442,6 +2738,10 @@ class Command(BaseCommand):
                         result["issues"].append(
                             f"[VMStorageBindingConfig] [name={bkbase_vmrt_name}] "
                             f"[data_link_name={data_link.data_link_name}] 未找到对应的VM存储绑定配置"
+                        )
+                    elif vm_storage_ins.status != "Ok":
+                        result["issues"].append(
+                            f"[VMStorageBindingConfig] [name={bkbase_vmrt_name}] 状态异常: {vm_storage_ins.status}"
                         )
 
                     # 14. 检查DataBusConfig（compose_configs中创建的第三个配置）
@@ -2457,29 +2757,23 @@ class Command(BaseCommand):
                             f"[DataBusConfig] [name={bkbase_vmrt_name}] "
                             f"[data_link_name={data_link.data_link_name}] 未找到对应的DataBus配置"
                         )
+                    elif data_bus_ins.status != "Ok":
+                        result["issues"].append(
+                            f"[DataBusConfig] [name={bkbase_vmrt_name}] 状态异常: {data_bus_ins.status}"
+                        )
 
                     vm_cluster = ClusterInfo.objects.filter(
                         cluster_id=vm_record.vm_cluster_id, bk_tenant_id=self.bk_tenant_id
                     ).first()
                     if not vm_cluster:
                         result["issues"].append(
-                            f"[ClusterInfo] [cluster_id={vm_record.storage_cluster_id}] 未找到对应的vm集群信息"
+                            f"[ClusterInfo] [cluster_id={vm_record.vm_cluster_id}] 未找到对应的vm集群信息"
                         )
                         continue
 
-                    try:
-                        configs = data_link.compose_configs(
-                            bk_biz_id=self.bk_biz_id,
-                            data_source=data_source,
-                            table_id=ds_rt.table_id,
-                            storage_cluster_name=vm_cluster.cluster_name,
-                        )
-                        result["details"]["configs"] = configs
-                    except Exception as e:
-                        result["issues"].append(
-                            f"[DataLink] [data_link_name={data_link.data_link_name}] "
-                            f"[data_link.compose_configs] 获取配置异常: {str(e)}"
-                        )
+                    # 注：不调 data_link.compose_configs（写路径函数会打 INFO 日志），
+                    # 部署后配置一致性已由上面 ResultTableConfig / VMStorageBindingConfig / DataBusConfig
+                    # 的 status=="Ok" 检查覆盖
 
                 except Exception as e:
                     # 遵循循环内异常隔离原则，单个数据源检查失败不影响其他数据源
@@ -2613,6 +2907,11 @@ class Command(BaseCommand):
             """格式化日志数据链路检查输出"""
             lines = []
             if details:
+                # 全集群未启用 V4 时仅显示提示
+                if details.get("v4_enabled_any") is False and details.get("note"):
+                    lines.append(f"    {details['note']}")
+                    return lines
+
                 log_datasources = details.get("log_datasources", [])
                 v4_enabled_count = sum(1 for ds in log_datasources if ds.get("v4_enabled"))
                 lines.append(f"    日志数据源: {len(log_datasources)}个")
@@ -2629,6 +2928,27 @@ class Command(BaseCommand):
         result["formatter"] = format_output
 
         try:
+            # 预检：本集群任一 data_id 是否启用了 V4 日志链路？
+            # 全部未启用（V2 链路场景）→ 该 check 没有诊断价值，直接 SUCCESS + 提示并跳过详细遍历
+            data_ids = list(self.data_sources.keys())
+            any_v4_enabled = ResultTableOption.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id__in=DataSourceResultTable.objects.filter(
+                    bk_data_id__in=data_ids, bk_tenant_id=self.bk_tenant_id
+                ).values_list("table_id", flat=True),
+                name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
+                value="true",
+            ).exists()
+
+            if not any_v4_enabled:
+                result["status"] = Status.SUCCESS
+                result["details"] = {
+                    "log_datasources": [],
+                    "v4_enabled_any": False,
+                    "note": "本集群未启用 V4 日志数据链路，跳过详细检查（V2 链路或不需要日志采集）",
+                }
+                return result
+
             log_datasources = []
             storage_check = {}
             datalink_check = {}
@@ -2822,8 +3142,9 @@ class Command(BaseCommand):
                 "datalink_check": datalink_check,
             }
 
-            if sum(1 for ds in log_datasources if ds.get("v4_enabled")) == 0:
-                result["warnings"].append("[LogDataLink] 没有启用V4链路的日志数据源")
+            # 注：不再对"V4 链路未启用"输出 warning ——
+            # V4 / V2 由用户主动选择，未启用 V4 是合法配置，并非"问题"。
+            # format_output 已经显示 "V4链路启用: X/Y" 计数信息，避免重复噪音。
 
             result["status"] = Status.SUCCESS if not result["issues"] else Status.WARNING
 
@@ -2831,43 +3152,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[LogDataLink] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}日志V4数据链路检查异常: {str(e)}")
-
-        return result
-
-    @recode_final_result
-    def check_cloud_id_configuration(self, cluster_info: BCSClusterInfo) -> dict:
-        """检查云区域ID配置状态"""
-        result = {"status": Status.UNKNOWN, "details": {}, "issues": []}
-
-        def format_output(details: dict) -> list[str]:
-            """格式化云区域ID配置检查输出"""
-            lines = []
-            if details:
-                lines.append(f"    云区域ID已配置: {details.get('cloud_id_configured', False)}")
-                if details.get("bk_cloud_id") is not None:
-                    lines.append(f"    云区域ID: {details['bk_cloud_id']}")
-            return lines
-
-        result["formatter"] = format_output
-
-        try:
-            # 检查云区域ID是否配置
-            if cluster_info.bk_cloud_id is None:
-                message = f"[BCSClusterInfo] [cluster_id={cluster_info.cluster_id}] "
-                result["issues"].append(f"{message}云区域ID未配置")
-                result["status"] = Status.WARNING
-            else:
-                result["status"] = Status.SUCCESS
-
-            result["details"] = {
-                "bk_cloud_id": cluster_info.bk_cloud_id,
-                "cloud_id_configured": cluster_info.bk_cloud_id is not None,
-            }
-
-        except Exception as e:
-            result["status"] = Status.ERROR
-            message = f"[BCSClusterInfo] [cluster_id={cluster_info.cluster_id}] "
-            result["issues"].append(f"{message}云区域ID配置检查异常: {str(e)}")
 
         return result
 
@@ -2972,32 +3256,31 @@ class Command(BaseCommand):
                         details.setdefault("issues", []).append(error_message)
                         continue
 
-                    # 查找匹配的路由配置
-                    old_route = None
+                    # 查找 channel_id 下 stream_to_id 匹配的路由条目
+                    # 路由名称前缀可能因平台配置不同而存在差异（如 bkmonitor/tgdp），
+                    # 不以名称作为匹配键，只校验 stream_to_id 和 kafka topic 是否一致
+                    expected_stream_to = data_source.gse_route_config["stream_to"]
+                    gse_stream_to = None
                     for route_info in route_config:
-                        if old_route:
+                        if gse_stream_to:
                             break
+                        for stream_to_info in route_info.get("route", []):
+                            st = stream_to_info.get("stream_to", {})
+                            if st.get("stream_to_id") == expected_stream_to["stream_to_id"]:
+                                gse_stream_to = st
+                                break
 
-                        stream_to_info_list = route_info.get("route", [])
-                        if not stream_to_info_list:
-                            continue
-
-                        for stream_to_info in stream_to_info_list:
-                            route_name = stream_to_info.get("name", "")
-                            # 如果路由名称匹配，则保存旧的路由配置
-                            if route_name != data_source.gse_route_config["name"]:
-                                continue
-
-                            old_route = {"name": route_name, "stream_to": stream_to_info["stream_to"]}
-                            break
-
-                    # 比较现有配置与新配置的差异
-                    old_hash = hash_util.object_md5(old_route)
-                    new_hash = hash_util.object_md5(data_source.gse_route_config)
-                    # 如果配置一致，则直接返回
-                    if old_hash != new_hash:
+                    if gse_stream_to is None:
                         message = f"[ClusterInfo] [mq_cluster_id={mq_cluster_id},bk_data_id={data_id}] "
-                        error_message = f"{message}[api.gse.query_route] GSE路由配置不一致"
+                        error_message = f"{message}[api.gse.query_route] GSE未找到匹配的stream_to_id={expected_stream_to['stream_to_id']}"
+                        issues.add(error_message)
+                        details.setdefault("issues", []).append(error_message)
+                    elif hash_util.object_md5(gse_stream_to) != hash_util.object_md5(expected_stream_to):
+                        message = f"[ClusterInfo] [mq_cluster_id={mq_cluster_id},bk_data_id={data_id}] "
+                        error_message = (
+                            f"{message}[api.gse.query_route] GSE路由配置不一致: "
+                            f"期望={expected_stream_to}, 实际={gse_stream_to}"
+                        )
                         issues.add(error_message)
                         details.setdefault("issues", []).append(error_message)
 
@@ -3028,11 +3311,11 @@ class Command(BaseCommand):
     def check_custom_groups_integrity(self, cluster_info: BCSClusterInfo) -> dict:
         """检查TimeSeriesGroup和EventGroup数据完整性
 
-        验证自定义指标和事件组是否正确关联到相应的数据源，并确保其配置符合预期。
-        参考discover_bcs_clusters()函数的逻辑，主要检查：
-        1. TimeSeriesGroup是否存在并正确关联到CustomMetricDataID
-        2. EventGroup是否存在并正确正确关联到K8sEventDataID
-        3. 结果表、存储配置、字段定义等相关配置是否完整
+        必需 vs 可选：
+        - EventGroup（关联 K8sEventDataID）：**必需**。
+          transfer 落 ES 时依赖 event_group_id 作为 index 区分，缺失直接影响事件采集 → issue
+        - TimeSeriesGroup（关联 CustomMetricDataID）：**可选**。
+          仅影响 monitor-web 的指标/维度发现能力，不影响 transfer 落库 → warning
         """
         result = {"status": Status.UNKNOWN, "details": {}, "issues": [], "warnings": []}
 
@@ -3083,9 +3366,10 @@ class Command(BaseCommand):
                         message = f"[TimeSeriesGroup] [time_series_group_id={ts_group.time_series_group_id},bk_data_id={custom_metric_data_id}] "
                         result["warnings"].append(f"{message}自定义指标组未启用")
                 else:
+                    # TimeSeriesGroup 缺失不影响 transfer 落库，仅影响指标元数据发现 → warning
                     result["details"]["time_series_group"] = {"exists": False}
                     message = f"[TimeSeriesGroup] [bk_data_id={custom_metric_data_id}] "
-                    result["issues"].append(f"{message}自定义指标组不存在")
+                    result["warnings"].append(f"{message}自定义指标组不存在（不影响数据落库，仅影响指标元数据浏览）")
             else:
                 result["details"]["time_series_group"] = {"exists": False, "data_id_not_configured": True}
                 result["warnings"].append("[TimeSeriesGroup] CustomMetricDataID未配置")
@@ -3135,13 +3419,90 @@ class Command(BaseCommand):
         return result
 
     def is_federation_cluster(self, cluster_info: BCSClusterInfo) -> bool:
-        """判断是否为联邦集群"""
+        """判断集群是否参与联邦拓扑（任意角色：fed / host / sub）
+
+        覆盖所有角色，确保嵌套联邦下作为 host 或 sub 的集群也会触发 I2 联邦检查
+        """
         try:
+            from django.db.models import Q
+
             return BcsFederalClusterInfo.objects.filter(
-                fed_cluster_id=cluster_info.cluster_id, is_deleted=False
+                Q(fed_cluster_id=cluster_info.cluster_id)
+                | Q(host_cluster_id=cluster_info.cluster_id)
+                | Q(sub_cluster_id=cluster_info.cluster_id),
+                is_deleted=False,
             ).exists()
         except Exception:
             return False
+
+    def _discover_federation_topology(self, current_cluster_id: str) -> list[str]:
+        """递归发现当前集群所在的联邦拓扑（含嵌套），返回涉及的 fed_cluster_id 列表
+
+        遍历方式：从当前集群直接参与的联邦开始，每个 fed 本身可能又是上层 fed 的 sub/host，
+        持续向上爬，直到没有新的联邦关系出现
+        """
+        from django.db.models import Q
+
+        # 第一轮：直接关联的 fed_cluster_id
+        related_fed_ids = set(
+            BcsFederalClusterInfo.objects.filter(
+                Q(fed_cluster_id=current_cluster_id)
+                | Q(host_cluster_id=current_cluster_id)
+                | Q(sub_cluster_id=current_cluster_id),
+                is_deleted=False,
+            ).values_list("fed_cluster_id", flat=True)
+        )
+
+        # 嵌套发现：每个 fed_cluster_id 自身是否也是上层 fed 的 sub/host
+        visited: set[str] = set()
+        to_visit = list(related_fed_ids)
+        while to_visit:
+            fed_id = to_visit.pop()
+            if fed_id in visited:
+                continue
+            visited.add(fed_id)
+
+            upper_fed_ids = BcsFederalClusterInfo.objects.filter(
+                Q(sub_cluster_id=fed_id) | Q(host_cluster_id=fed_id),
+                is_deleted=False,
+            ).values_list("fed_cluster_id", flat=True)
+            for upper_fed_id in upper_fed_ids:
+                if upper_fed_id not in visited:
+                    to_visit.append(upper_fed_id)
+
+        return sorted(visited)
+
+    def _render_federation_topology(self, current_cluster_id: str) -> list[str]:
+        """渲染当前集群所在的联邦拓扑树（含嵌套）"""
+        fed_ids = self._discover_federation_topology(current_cluster_id)
+        if not fed_ids:
+            return []
+
+        lines = ["    联邦拓扑:"]
+        for fed_id in fed_ids:
+            recs = list(BcsFederalClusterInfo.objects.filter(fed_cluster_id=fed_id, is_deleted=False))
+            if not recs:
+                continue
+
+            fed_marker = "  ← current" if fed_id == current_cluster_id else ""
+            lines.append(f"      联邦 (fed={fed_id}){fed_marker}")
+
+            # host_cluster_id 通常每个联邦只有一个（同一 fed 下所有记录共享 host）
+            host_ids = sorted({r.host_cluster_id for r in recs})
+            for hid in host_ids:
+                marker = "  ← current" if hid == current_cluster_id else ""
+                lines.append(f"        ├── host: {hid}{marker}")
+
+            # sub_cluster_id 列表，每个对应不同的 ns 分组
+            sub_records = sorted(recs, key=lambda r: r.sub_cluster_id)
+            for i, r in enumerate(sub_records):
+                is_last = i == len(sub_records) - 1
+                prefix = "└──" if is_last else "├──"
+                marker = "  ← current" if r.sub_cluster_id == current_cluster_id else ""
+                ns_str = ",".join(r.fed_namespaces or []) if r.fed_namespaces else "(无)"
+                lines.append(f"        {prefix} sub: {r.sub_cluster_id} ns=[{ns_str}]{marker}")
+
+        return lines
 
     def output_summary_report(self, check_result: dict):
         """输出汇总报告（详细结果已在检查过程中输出）"""

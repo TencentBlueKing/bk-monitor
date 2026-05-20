@@ -413,24 +413,6 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: update apm metric fields
-  /app/apm/query_apm_es/:
-    post:
-      operationId: query_apm_es
-      description: 查询apm相关es数据
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /apm_api/v1/application/query_es/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: query apm es
   /app/apm/query_host_instance/:
     post:
       operationId: query_apm_host_instance
@@ -503,42 +485,6 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm span list
-  /app/apm/query_apm_span_statistics/:
-    post:
-      operationId: query_apm_span_statistics
-      description: 查询接口统计列表
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /apm_api/v1/application/query_span_statistics/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: query apm span statistics
-  /app/apm/query_apm_service_statistics/:
-    post:
-      operationId: query_apm_service_statistics
-      description: 查询服务统计列表
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /apm_api/v1/application/query_service_statistics/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: query apm service statistics
   /app/apm/query_apm_trace_option_values/:
     post:
       operationId: query_apm_trace_option_values

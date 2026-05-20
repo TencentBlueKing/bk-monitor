@@ -502,6 +502,11 @@ CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
 CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}  # 自定义上报 K8S 集群中 Secrets 分配逻辑默认配置
 
+# 外部监控页面资源转发接口鉴权 Token，由网关注入 BKMONITOR-EXTERNAL-TOKEN 请求头
+BKMONITOR_EXTERNAL_PROXY_TOKEN = os.getenv(
+    "BKAPP_BKMONITOR_EXTERNAL_PROXY_TOKEN", os.getenv("BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
+)
+
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 集群内上报固定域名
@@ -1493,6 +1498,9 @@ ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
+# APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
+# 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
+APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
@@ -1589,6 +1597,12 @@ ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "fa
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
+
+# DataLink 组件复用机制灰度开关
+# 仅声明在此集合中的 data_link_strategy，在 apply_data_link 时才会构造
+# ExistingComponentContext 并做 claim / leftover 检查；未声明的 strategy 维持旧行为。
+# 取值范围与 metadata.models.data_link.data_link.DataLink.*_STRATEGY 常量一致。
+DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = set()
 
 # Kafka采样接口重试次数
 KAFKA_TAIL_API_RETRY_TIMES = 3

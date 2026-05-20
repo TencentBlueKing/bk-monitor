@@ -35,6 +35,8 @@ import { deepClone } from '@/common/util';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
+import GrokModeSwitch from '@/views/manage-v2/grok-manage/components/grok-mode-switch';
+import GrokInput from '@/views/manage-v2/grok-manage/components/grok-input';
 import { useSpaceSelector } from '../../../hooks/use-space-selector';
 import * as authorityMap from '@/common/authority-map';
 import $http from '@/api';
@@ -92,6 +94,7 @@ export default defineComponent({
     const showReportLogSlider = ref(false);
     const jsonText = ref({});
     const fieldListRef = ref();
+    const grokModeEnabled = ref(true);
 
     const templateDialogVisible = ref(false);
     const templateName = ref('');
@@ -249,6 +252,9 @@ export default defineComponent({
     const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
 
     const isEditCleanItem = computed(() => route.name === 'clean-edit' || route.name === 'v2-clean-edit');
+
+    // 用于追踪 separator_regexp 的变化，确保响应式更新
+    const separatorRegexp = computed(() => formData.value.etl_params.separator_regexp);
 
     onMounted(() => {
       // 清洗列表进入
@@ -476,6 +482,8 @@ export default defineComponent({
       }
       if (cleaningMode.value === 'bk_log_regexp') {
         data.etl_params.separator_regexp = etl_params.separator_regexp;
+        data.etl_params.is_grok = grokModeEnabled.value;
+        data.bk_biz_id = bkBizId.value;
       }
       let requestUrl = 'clean/getEtlPreview';
       const urlParams = {};
@@ -617,8 +625,16 @@ export default defineComponent({
                   )} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
                 }}
               />
+              <GrokModeSwitch
+                value={grokModeEnabled.value}
+                on-change={(val: boolean) => {
+                  grokModeEnabled.value = val;
+                }}
+              />
             </div>
-            <bk-input
+            <GrokInput
+              grokMode={grokModeEnabled.value}
+              popoverPosition='cursor'
               placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
               type='textarea'
               value={formData.value.etl_params.separator_regexp}
@@ -631,7 +647,7 @@ export default defineComponent({
             />
             <bk-button
               class='clean-btn'
-              disabled={!(logOriginal.value && formData.value.etl_params.separator_regexp)}
+              disabled={!(logOriginal.value && separatorRegexp.value)}
               on-click={debugHandler}
             >
               {t('调试')}
@@ -1423,7 +1439,12 @@ export default defineComponent({
         const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
         const data = {
           bk_biz_id: bkBizId.value,
-          etl_params,
+          etl_params: {
+            ...etl_params,
+            ...(cleaningMode.value === 'bk_log_regexp'
+              ? { is_grok: grokModeEnabled.value }
+              : {}),
+          },
         };
         const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etl_fields;
         const isDorisEdit = isUpdate.value && curCollect.value.storage_cluster_type === 'doris';

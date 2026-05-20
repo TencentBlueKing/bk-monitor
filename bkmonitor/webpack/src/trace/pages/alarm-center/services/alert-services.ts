@@ -809,6 +809,7 @@ export class AlertService extends AlarmService {
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
     const paramsClone = _.cloneDeep(params);
     // #if IS_APM_MONITOR
+    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
     if (paramsClone.query_string) {
       // 语句模式
       paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
@@ -835,6 +836,7 @@ export class AlertService extends AlarmService {
   ): Promise<FilterTableResponse<T>> {
     const paramsClone = _.cloneDeep(params);
     // #if IS_APM_MONITOR
+    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
     if (paramsClone.query_string) {
       // 语句模式
       paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
@@ -900,6 +902,7 @@ export class AlertService extends AlarmService {
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
     const paramsClone = _.cloneDeep(params);
     // #if IS_APM_MONITOR
+    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
     if (paramsClone.query_string) {
       // 语句模式
       paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
@@ -988,6 +991,7 @@ export class AlertService extends AlarmService {
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
     const paramsClone = _.cloneDeep(params);
     // #if IS_APM_MONITOR
+    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
     if (paramsClone.query_string) {
       // 语句模式
       paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;

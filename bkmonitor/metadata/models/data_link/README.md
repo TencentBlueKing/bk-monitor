@@ -167,7 +167,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 | `BK_STANDARD_TIME_SERIES` | 采集插件时序（Standard） | `compose_bk_plugin_time_series_config` | `ResultTableConfig` + `VMStorageBindingConfig` + `DataBusConfig` | `VM` |
 | `BCS_FEDERAL_PROXY_TIME_SERIES` | 联邦代理集群时序 | `compose_bcs_federal_proxy_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` | `VM` |
 | `BCS_FEDERAL_SUBSET_TIME_SERIES` | 联邦子集群时序 | `compose_bcs_federal_subset_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `ConditionalSinkConfig` + `DataBusConfig` | `VM` |
-| `BASEREPORT_TIME_SERIES_V1` | 主机基础采集时序 | `compose_basereport_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `ConditionalSinkConfig` + `DataBusConfig` | `VM` |
+| `BASEREPORT_TIME_SERIES_V1` | 主机基础采集时序 | `compose_basereport_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `ConditionalSinkConfig` + `DataBusConfig` | `VM` |
 | `BASE_EVENT_V1` | 基础事件 | `compose_base_event_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DataBusConfig` | `ES` |
 | `SYSTEM_PROC_PERF` | 系统进程性能 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `DataBusConfig` | `VM` |
 | `SYSTEM_PROC_PORT` | 系统进程端口 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `DataBusConfig` | `VM` |
@@ -209,7 +209,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 
 - 基于 `BASEREPORT_USAGES`（11 个 usage）批量生成配置；
 - 每个 usage 同时生成普通与 `_cmdb` 两套 RT + VMBinding；
-- 通过 `ConditionalSink` 按 `__result_table` 路由，再由 `Databus` 统一消费。
+- 通过 `BasereportSink` 按 `metric_type` 路由普通与 `_cmdb` 后缀表，再由 `Databus` 统一消费。
 
 ---
 
@@ -347,4 +347,3 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - `metadata/models/data_link/service.py`
 - `metadata/models/data_link/utils.py`
 - `metadata/models/data_link/constants.py`
-

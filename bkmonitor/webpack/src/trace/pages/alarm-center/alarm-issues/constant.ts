@@ -64,6 +64,12 @@ export const IssueStatusEnum = {
   ARCHIVED: 'archived',
 } as const;
 
+/** 已结束的 issue 状态集合 */
+export const ENDED_STATUS_SET: ReadonlySet<(typeof IssueStatusEnum)[keyof typeof IssueStatusEnum]> = new Set([
+  IssueStatusEnum.RESOLVED,
+  IssueStatusEnum.ARCHIVED,
+]);
+
 /** Issues 详情操作功能枚举 */
 export const IssueActionEnum = {
   /** 标记已解决 */
@@ -284,15 +290,15 @@ export const ISSUES_ASSIGNEE_MAP = {
 /** Issues 回归类型映射（key 为 is_regression 布尔值的字符串形式） */
 export const ISSUES_REGRESSION_MAP: Record<string, MapEntry> = {
   false: {
-    alias: window.i18n.t('新问题'),
-    bgColor: '#E1F5F0',
-    color: '#21A380',
+    alias: window.i18n.t('新类问题'),
+    bgColor: '#78AB89',
+    color: '#fff',
     icon: 'icon-monitor icon-New',
   },
   true: {
     alias: window.i18n.t('回归问题'),
-    bgColor: '#FFEDD1',
-    color: '#F09305',
+    bgColor: '#E5B571',
+    color: '#fff',
     icon: 'icon-monitor icon-lishi',
   },
 };

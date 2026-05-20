@@ -13,7 +13,7 @@ from rest_framework import serializers
 from constants.issue import IssuePriority, IssueStatus
 from core.drf_resource import Resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from bkmonitor.documents.issue import IssueDocument
+from bkmonitor.documents.issue import IssueActivityNotFoundError, IssueDocument, IssueNameDuplicatedError
 from fta_web.issue.resources import IssueIDField
 
 
@@ -164,6 +164,42 @@ class UpdatePriorityResource(Resource):
         }
 
 
+class RenameResource(Resource):
+    """重命名 Issue"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_id = IssueIDField(label="Issue ID")
+        new_name = serializers.CharField(label="Issue 名称", min_length=1, max_length=256)
+        operator = serializers.CharField(label="操作人")
+
+        def validate_new_name(self, value: str) -> str:
+            stripped = value.strip()
+            if not stripped:
+                raise serializers.ValidationError("Issue name cannot be empty")
+            return stripped
+
+    def perform_request(self, validated_request_data):
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
+        try:
+            activities = issue.rename(
+                new_name=validated_request_data["new_name"], operator=validated_request_data["operator"]
+            )
+        except IssueNameDuplicatedError as e:
+            # 同业务下已存在同名 Issue
+            raise serializers.ValidationError(str(e))
+        return {
+            "bk_biz_id": issue.bk_biz_id,
+            "issue_id": issue.id,
+            "status": issue.status,
+            "name": issue.name,
+            "update_time": issue.update_time,
+            "activities": activities or [],
+        }
+
+
 class AddFollowUpResource(Resource):
     """向 Issue 添加跟进评论"""
 
@@ -189,6 +225,42 @@ class AddFollowUpResource(Resource):
         }
 
 
+class EditFollowUpResource(Resource):
+    """编辑 Issue 跟进评论"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_id = IssueIDField(label="Issue ID")
+        activity_id = serializers.CharField(label="评论活动 ID", min_length=1)
+        content = serializers.CharField(label="编辑后的内容", min_length=1)
+        operator = serializers.CharField(label="操作人")
+
+    def perform_request(self, validated_request_data):
+        issue = IssueDocument.get_issue_or_raise(
+            validated_request_data["issue_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
+        try:
+            activities = issue.edit_comment(
+                activity_id=validated_request_data["activity_id"],
+                content=validated_request_data["content"],
+                operator=validated_request_data["operator"],
+            )
+        except IssueActivityNotFoundError as e:
+            # 评论不存在或不属于当前 Issue（含传入非 comment 类型 activity_id 的情况）
+            raise serializers.ValidationError(str(e))
+        except PermissionError as e:
+            # 非原作者尝试编辑评论
+            raise serializers.ValidationError(str(e))
+        return {
+            "bk_biz_id": issue.bk_biz_id,
+            "issue_id": issue.id,
+            "status": issue.status,
+            "content": validated_request_data["content"],
+            "update_time": issue.update_time,
+            "activities": activities or [],
+        }
+
+
 class IssueViewSet(ResourceViewSet):
     """
     Issue 接口
@@ -207,6 +279,10 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", RestoreResource(), endpoint="restore"),
         # 修改 issue 优先级
         ResourceRoute("POST", UpdatePriorityResource(), endpoint="update_priority"),
+        # 重命名 issue
+        ResourceRoute("POST", RenameResource(), endpoint="rename"),
         # 向 Issue 添加跟进评论
         ResourceRoute("POST", AddFollowUpResource(), endpoint="add_follow_up"),
+        # 编辑 Issue 跟进评论
+        ResourceRoute("POST", EditFollowUpResource(), endpoint="edit_follow_up"),
     ]

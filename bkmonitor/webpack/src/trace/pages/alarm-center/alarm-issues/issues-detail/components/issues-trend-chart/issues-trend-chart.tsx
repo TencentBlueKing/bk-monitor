@@ -61,7 +61,7 @@ export default defineComponent({
 
     const colorMap = {
       [TrendStatusEnum.ABNORMAL]: '#FF7763',
-      [TrendStatusEnum.RECOVERED]: '#56CCBC',
+      [TrendStatusEnum.RECOVERED]: '#52BDAE',
       [TrendStatusEnum.CLOSED]: '#FAC20A',
     };
 
@@ -148,7 +148,7 @@ export default defineComponent({
             <div class='chart-header'>
               <span class='chart-title'>{this.$t('趋势')}</span>
               <span class='chart-subtitle'>
-                <i class='icon-monitor icon-gaojing1' />
+                <i class='icon-monitor icon-alert-line' />
                 <span>{this.$t('告警事件')}：</span>
                 <span class='count'>{this.alertCount}</span>
               </span>

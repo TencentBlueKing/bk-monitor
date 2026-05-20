@@ -123,6 +123,33 @@ ALLOWED_KEY_SPECS: dict[str, CacheKeySpec] = {
         required_params={"strategy_id"},
         label="[nodata] 无数据告警处理锁 — 查看指定策略当前是否被 nodata 检测占用",
     ),
+    "ISSUE_ACTIVE_CONTENT_KEY": CacheKeySpec(
+        key_name="ISSUE_ACTIVE_CONTENT_KEY",
+        key_type="string",
+        required_params={"fingerprint"},
+        label="[issue] 活跃 Issue 热缓存 — 按 fingerprint 查指定活跃 Issue 内容快照；"
+        "aggregate_dimensions=[] 时 fingerprint 退化为 `strategy:{strategy_id}`",
+    ),
+    "ISSUE_FINGERPRINT_LOCK": CacheKeySpec(
+        key_name="ISSUE_FINGERPRINT_LOCK",
+        key_type="string",
+        required_params={"fingerprint"},
+        label="[issue] Issue 指纹级分布式锁 — 查指定 fingerprint 当前是否被某进程创建中",
+    ),
+    "ISSUE_ACTIVE_COUNT_KEY": CacheKeySpec(
+        key_name="ISSUE_ACTIVE_COUNT_KEY",
+        key_type="string",
+        required_params={"strategy_id"},
+        label="[issue] 单策略活跃 Issue 数缓存 — _check_active_issue_count 5min cache，"
+        "high_cardinality 熔断观测；值含 ≤5min 滞后",
+    ),
+    "ISSUE_LEGACY_MIGRATION_DONE_KEY": CacheKeySpec(
+        key_name="ISSUE_LEGACY_MIGRATION_DONE_KEY",
+        key_type="string",
+        required_params=set(),
+        label="[issue] legacy 迁移完成全局哨兵 — 看到该哨兵则 processor 跳过 fingerprint=null "
+        "全索引 fallback；migrate_legacy_active_issues 完成时 set",
+    ),
 }
 
 
@@ -396,32 +423,47 @@ def _read_assign(params: dict[str, Any]) -> dict[str, Any]:
         raise CustomException(message=f"bk_biz_id must be an integer: {bk_biz_id}") from exc
 
     from alarm_backends.core.cache.assign import AssignCacheManager
+    from bkmonitor.utils.local import local
 
-    priority_list = AssignCacheManager.get_assign_priority_by_biz_id(bk_biz_id)
-    groups: dict[str, list] = {}
-    for priority in priority_list:
-        group_ids = AssignCacheManager.get_assign_groups_by_priority(bk_biz_id, priority)
-        groups[str(priority)] = sorted(group_ids)
+    # AssignCacheManager 依赖 local.assign_cache（threading.local），
+    # 该属性仅在 alarm_backends 模块导入线程中初始化。
+    # kernel_api 请求线程可能从未初始化，按需创建 + finally 清理。
+    had_assign_cache = hasattr(local, "assign_cache")
+    if not had_assign_cache:
+        local.assign_cache = {}
 
-    all_group_ids = {gid for grp in groups.values() for gid in grp}
-    rules: dict[str, list] = {}
-    for group_id in all_group_ids:
-        rule_list = AssignCacheManager.get_assign_rules_by_group(bk_biz_id, group_id)
-        if rule_list:
-            rules[str(group_id)] = rule_list
+    try:
+        priority_list = AssignCacheManager.get_assign_priority_by_biz_id(bk_biz_id)
+        groups: dict[str, list] = {}
+        for priority in priority_list:
+            group_ids = AssignCacheManager.get_assign_groups_by_priority(bk_biz_id, priority)
+            groups[str(priority)] = sorted(group_ids)
 
-    data = {
-        "bk_biz_id": bk_biz_id,
-        "priorities": sorted(priority_list, reverse=True),
-        "groups": groups,
-        "rules": rules,
-    }
-    return {
-        "cache_type": "assign.biz",
-        "params": {"bk_biz_id": bk_biz_id},
-        "exists": len(priority_list) > 0,
-        "data": data,
-    }
+        all_group_ids = {gid for grp in groups.values() for gid in grp}
+        rules: dict[str, list] = {}
+        for group_id in all_group_ids:
+            rule_list = AssignCacheManager.get_assign_rules_by_group(bk_biz_id, group_id)
+            if rule_list:
+                rules[str(group_id)] = rule_list
+
+        data = {
+            "source_state": "current_cache_state",
+            "bk_biz_id": bk_biz_id,
+            "priorities": sorted(priority_list, reverse=True),
+            "groups": groups,
+            "rules": rules,
+        }
+        return {
+            "cache_type": "assign.biz",
+            "source_state": "current_cache_state",
+            "params": {"bk_biz_id": bk_biz_id},
+            "exists": len(priority_list) > 0,
+            "data": data,
+        }
+    finally:
+        if not had_assign_cache:
+            AssignCacheManager.clear()
+            del local.assign_cache
 
 
 def _read_shield(params: dict[str, Any]) -> dict[str, Any]:

@@ -177,6 +177,7 @@ export const setScrollLoadCell = (
 ) => {
   let startIndex = 0;
   let scrollEvtAdded = false;
+  let scrollHandler: EventListener | null = null;
   const pageSize = 50;
 
   const defaultRenderFn = (item: any) => {
@@ -220,7 +221,7 @@ export const setScrollLoadCell = (
     return true;
   };
 
-  const handleScrollEvent = next =>
+  const createScrollHandler = next =>
     debounce(() => {
       if (rootElement) {
         const { offsetHeight, scrollHeight } = rootElement;
@@ -233,13 +234,21 @@ export const setScrollLoadCell = (
     });
 
   const addScrollEvent = (next?) => {
+    if (scrollEvtAdded) {
+      return;
+    }
+
     scrollEvtAdded = true;
-    rootElement?.addEventListener('scroll', handleScrollEvent(next));
+    scrollHandler = createScrollHandler(next) as EventListener;
+    rootElement?.addEventListener('scroll', scrollHandler);
   };
 
   const removeScrollEvent = () => {
     scrollEvtAdded = false;
-    rootElement?.removeEventListener('scroll', handleScrollEvent);
+    if (scrollHandler) {
+      rootElement?.removeEventListener('scroll', scrollHandler);
+      scrollHandler = null;
+    }
   };
 
   /**

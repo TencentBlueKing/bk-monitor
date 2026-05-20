@@ -529,6 +529,8 @@ class TimeSeriesGroup(CustomGroupBase):
         返回一个结果表的数据源
         :return: DataSource object
         """
+        if self.bk_data_id == 0:
+            return None
         return DataSource.objects.get(bk_data_id=self.bk_data_id)
 
     @property
@@ -621,7 +623,12 @@ class TimeSeriesGroup(CustomGroupBase):
         # 从 bkdata 获取指标数据
         data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
         # 默认开启单指标单表后，需要根据数据源的来源决定从哪里获取指标数据（redis/bkdata）
-        if self.table_id in data or self.data_source.created_from == DataIdCreatedFromSystem.BKDATA.value:
+        data_source = self.data_source
+        if (
+            self.table_id in data
+            or data_source is None
+            or data_source.created_from == DataIdCreatedFromSystem.BKDATA.value
+        ):
             return self.get_metric_from_bkdata()
 
         # 获取redis中数据
@@ -687,12 +694,15 @@ class TimeSeriesGroup(CustomGroupBase):
                 )
         return metrics_info
 
-    def update_time_series_metrics(self) -> bool:
+    def update_time_series_metrics(self, expired_time: int | None = None) -> bool:
         """从远端存储中同步TS的指标和维度对应关系
 
+        :param expired_time: 从 redis 拉取指标的有效窗口，单位秒
         :return: 返回是否有更新指标
         """
-        metrics_info = self.get_metrics_from_redis(expired_time=settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS)
+        metrics_info = self.get_metrics_from_redis(
+            expired_time=expired_time or settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS
+        )
         # 如果为空，直接返回
         if not metrics_info:
             return False

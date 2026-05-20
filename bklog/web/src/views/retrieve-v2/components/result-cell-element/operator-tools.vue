@@ -232,7 +232,7 @@
 
         for (let v of Object.values(this.rowData)) {
           if (typeof v === 'string') {
-            const traceIdPattern = /^[a-f0-9]{32}$/;
+            const traceIdPattern = /[a-f0-9]{32}/;
             const match = v.match(traceIdPattern);
             if (match) {
               return match[0];
@@ -241,7 +241,7 @@
 
           if (typeof v === 'object') {
             const jsonValue = JSON.stringify(v);
-            const traceIdPattern = /^[a-f0-9]{32}$/;
+            const traceIdPattern = /[a-f0-9]{32}/;
             const match = jsonValue.match(traceIdPattern);
             if (match) {
               return match[0];
@@ -259,7 +259,7 @@
           const traceId = this.getTraceIdFromRowData() ;
           if (apmRelation?.is_active && traceId) {
             const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
-            path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+            const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
             if (path) {
               const url = `${window.MONITOR_URL}${path}`;
               window.open(url, '_blank');
@@ -267,7 +267,7 @@
           } else {
             this.$bkMessage({
               theme: 'warning',
-              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+              message: this.$t('当前选中日志暂无trace字段，请检查日志内容'),
             });
           }
 

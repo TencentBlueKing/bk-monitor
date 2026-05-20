@@ -42,6 +42,7 @@ class DataLinkResourceConfigBase(models.Model):
         (DataLinkKind.DATABUS.value, "清洗任务"),
         (DataLinkKind.SINK.value, "清洗配置"),
         (DataLinkKind.CONDITIONALSINK.value, "过滤条件"),
+        (DataLinkKind.BASEREPORTSINK.value, "基础采集清洗配置"),
     )
 
     kind = models.CharField(verbose_name="配置类型", max_length=64, choices=CONFIG_KIND_CHOICES)
@@ -409,10 +410,19 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(
-        self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None, bk_data_id: int | str | None = None
+        self,
+        whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None,
+        bk_data_id: int | str | None = None,
+        rt_name: str | None = None,
     ) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
+
+        :param rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name`` 以保持
+            "binding 与 RT 同名"的历史约定；当上层开启了组件复用、binding 与 RT
+            的 name 已被各自独立 claim/复用时，必须由调用方显式传入
+            ``vm_table_id_ins.name``，否则 payload 里 ``spec.data.name`` 会指向
+            一个并不存在的 ResultTable，造成 BKBase 侧引用失效。
         """
         tpl = """
             {
@@ -474,7 +484,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "name": self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
-            "rt_name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
             "whitelist_config": whitelist_config,
@@ -531,6 +541,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         transform_kind: str | None = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
         transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
+        transform_options: dict[str, Any] | None = None,
     ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
@@ -540,6 +551,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         @param transform_kind: 转换类型
         @param transform_name: 转换名称
         @param transform_format: 转换格式
+        @param transform_options: 转换额外配置
         """
         tpl = """
         {
@@ -566,16 +578,19 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     }
                 ],
                 "transforms": [
-                    {
-                        "kind": "{{transform_kind}}",
-                        "name": "{{transform_name}}",
-                        "format": "{{transform_format}}"
-                    }
+                    {{transform}}
                 ]
             }
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        transform = {
+            "kind": transform_kind,
+            "name": transform_name,
+            "format": transform_format,
+        }
+        if transform_options:
+            transform.update(transform_options)
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -583,9 +598,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
             "data_id_name": self.data_id_name,
-            "transform_kind": transform_kind,
-            "transform_name": transform_name,
-            "transform_format": transform_format,
+            "transform": json.dumps(transform),
             "maintainers": json.dumps(maintainer),
         }
 
@@ -773,6 +786,64 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose vm conditional sink config",
         )
+
+
+class BasereportSinkConfig(DataLinkResourceConfigBase):
+    """
+    基础采集处理配置
+    """
+
+    kind = DataLinkKind.BASEREPORTSINK.value
+    name = models.CharField(verbose_name="基础采集处理配置名称", max_length=64, db_index=True)
+    vm_storage_binding_names = models.JSONField(verbose_name="VM 存储绑定名称列表", default=list)
+    result_table_ids = models.JSONField(verbose_name="结果表 ID 列表", default=list)
+
+    class Meta:
+        verbose_name = "基础采集处理配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_config(self, vmrt_prefix: str, include_cmdb: bool = False) -> dict[str, Any]:
+        """组装基础采集处理配置。"""
+        mappings: list[dict[str, Any]] = []
+        for usage in constants.BASEREPORT_USAGES:
+            vmrt_name = f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage
+            sink_config = {
+                "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                "name": vmrt_name,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            }
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                sink_config["tenant"] = self.bk_tenant_id
+            mappings.append(
+                {
+                    "metric_type": usage,
+                    "sinks": [sink_config],
+                }
+            )
+            if include_cmdb:
+                cmdb_sink_config = {
+                    "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                    "name": f"{vmrt_name}_cmdb",
+                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                }
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    cmdb_sink_config["tenant"] = self.bk_tenant_id
+                mappings.append({"metric_type": f"{usage}_cmdb", "sinks": [cmdb_sink_config]})
+
+        metadata = {
+            "name": self.name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            "labels": {"bk_biz_id": str(self.datalink_biz_ids.label_biz_id)},
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+
+        return {
+            "kind": self.kind,
+            "metadata": metadata,
+            "spec": {"mappings": mappings},
+        }
 
 
 class DorisStorageBindingConfig(DataLinkResourceConfigBase):
@@ -1196,4 +1267,5 @@ COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
     DataLinkKind.DATABUS.value: DataBusConfig,
     DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
+    DataLinkKind.BASEREPORTSINK.value: BasereportSinkConfig,
 }

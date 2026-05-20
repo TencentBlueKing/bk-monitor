@@ -34,7 +34,7 @@ import { defineStore } from 'pinia';
 import { EMode } from '../../components/retrieval-filter/typing';
 import { type TimeRangeType, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
-import { AlarmType } from '../../pages/alarm-center/typings';
+import { AlarmType, getDefaultAlarmCenterBizIds } from '../../pages/alarm-center/typings';
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 
 import type { AlarmService } from '@/pages/alarm-center/services/base';
@@ -59,7 +59,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
 
   const refreshImmediate = shallowRef('');
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
-  const bizIds = deepRef([-1]);
+  const bizIds = deepRef(getDefaultAlarmCenterBizIds());
   // 上层搜索条件
   const conditions = deepRef<CommonCondition[]>([]);
   // 常驻筛选条件
@@ -240,7 +240,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
 
   onScopeDispose(() => {
     alarmService.value = undefined;
-    bizIds.value = [+window.bk_biz_id];
+    bizIds.value = getDefaultAlarmCenterBizIds();
     conditions.value = [];
     queryString.value = '';
     timeRange.value = ['now-7d', 'now'];

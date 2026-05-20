@@ -69,6 +69,33 @@ DEFAULT_KAFKA_CLUSTER_NAMES = {
 DEFAULT_ES_CLUSTER_NAMES = {"log": "log-es-public-1", "event": "event-es-public-1"}
 
 
+def _delete_gse_route_with_fallback(delete_params: dict[str, Any]) -> None:
+    """删除 GSE 路由，失败后使用监控平台名重试一次。
+
+    Args:
+        delete_params: GSE ``delete_route`` 接口参数。
+    """
+
+    try:
+        api.gse.delete_route(**delete_params)
+    except BKAPIError as error:
+        retry_delete_params = {
+            **delete_params,
+            "condition": {
+                **delete_params["condition"],
+                "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
+            },
+        }
+        print(
+            "delete gse route failed, retry with plat_name "
+            f"{config.DEFAULT_GSE_API_PLAT_NAME}, data_id: {delete_params['condition']['channel_id']}, error: {error}"
+        )
+        try:
+            api.gse.delete_route(**retry_delete_params)
+        except BKAPIError as retry_error:
+            raise retry_error from error
+
+
 def _get_plugin_data_label(plugin: CollectorPluginMeta) -> str | None:
     qcloud_exporter_plugin_id = getattr(settings, "TENCENT_CLOUD_METRIC_PLUGIN_ID", "")
     if not qcloud_exporter_plugin_id:
@@ -141,7 +168,7 @@ def _register_data_source(bk_biz_id: int, data_source: DataSource, need_register
             "operation": {"operator_name": "admin", "method": "specification"},
             "specification": {"route": need_delete_route_names},
         }
-        api.gse.delete_route(**delete_params)
+        _delete_gse_route_with_fallback(delete_params)
 
 
 def init_global_plugin(bk_tenant_id: str):
@@ -273,9 +300,13 @@ def rebuild_collect_plugins(
         Q(bk_biz_id=bk_biz_id, plugin_id__in=plugin_ids) | Q(bk_biz_id=0, plugin_id="bkprocessbeat"),
         bk_tenant_id=bk_tenant_id,
     )
+    exists_global_plugin_ids = CollectorPluginMeta.objects.filter(
+        bk_tenant_id=bk_tenant_id, bk_biz_id=0, plugin_id__in=plugin_ids
+    ).values_list("plugin_id", flat=True)
     exists_plugin_ids = plugins.values_list("plugin_id", flat=True)
-    if not set(exists_plugin_ids).issuperset(set(plugin_ids)):
-        missing_plugin_ids = set(plugin_ids) - set(exists_plugin_ids)
+
+    missing_plugin_ids = set(plugin_ids) - set(exists_plugin_ids) - set(exists_global_plugin_ids)
+    if missing_plugin_ids:
         raise ValueError(f"插件不存在: {missing_plugin_ids}")
 
     # 如果进程插件不需要，则不需要在本轮进行重建
@@ -736,23 +767,17 @@ def rebuild_k8s_data(
     event_kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=event_kafka_cluster_name)
     es_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=es_cluster_name)
 
-    clusters = BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).exclude(
-        status__in=[
-            BCSClusterInfo.CLUSTER_STATUS_DELETED,
-            BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
-            BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED,
-        ]
-    )
+    clusters = BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     metric_data_ids = [cluster.K8sMetricDataID for cluster in clusters if cluster.K8sMetricDataID] + [
         cluster.CustomMetricDataID for cluster in clusters if cluster.CustomMetricDataID
     ]
-    event_data_ids = [cluster.K8sEventDataID for cluster in clusters if cluster.K8sEventDataID]
+    event_data_ids = [cluster.K8sEventDataID for cluster in clusters if cluster.K8sEventDataID] + [
+        cluster.CustomEventDataID for cluster in clusters if cluster.CustomEventDataID
+    ]
 
     if metric_data_ids:
-        time_series_groups = TimeSeriesGroup.objects.filter(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id__in=metric_data_ids
-        )
+        time_series_groups = TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=metric_data_ids)
         rebuild_time_series_group(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
@@ -761,9 +786,7 @@ def rebuild_k8s_data(
         )
 
     if event_data_ids:
-        event_groups = EventGroup.objects.filter(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id__in=event_data_ids
-        )
+        event_groups = EventGroup.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=event_data_ids)
         rebuild_event_group(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
@@ -803,16 +826,8 @@ def find_biz_custom_report_data_ids(bk_tenant_id: str, bk_biz_ids: list[int]) ->
 
     # K8S内置的指标上报
     k8s_ids: set[int] = set()
-    for dataids in (
-        BCSClusterInfo.objects.filter(bk_biz_id__in=bk_biz_ids)
-        .exclude(
-            status__in=[
-                BCSClusterInfo.CLUSTER_STATUS_DELETED,
-                BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
-                BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED,
-            ]
-        )
-        .values_list("K8sMetricDataID", "CustomMetricDataID", "K8sEventDataID", "CustomEventDataID")
+    for dataids in BCSClusterInfo.objects.filter(bk_biz_id__in=bk_biz_ids).values_list(
+        "K8sMetricDataID", "CustomMetricDataID", "K8sEventDataID", "CustomEventDataID"
     ):
         k8s_ids.update(dataid for dataid in dataids if dataid)
 

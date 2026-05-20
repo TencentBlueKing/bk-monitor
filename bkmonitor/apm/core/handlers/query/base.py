@@ -30,6 +30,7 @@ from apm.constants import AggregatedMethod
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OperatorGroupRelation
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -182,7 +183,14 @@ class BaseQuery:
 
     def _get_q(self, datasource_type: str):
         datasource_config: dict[str, Any] = self._datasource_configs[datasource_type]
-        return QueryConfigBuilder(datasource_config["using"]).table(self._get_table_id(datasource_type))
+        table_id: str = self._get_table_id(datasource_type)
+
+        # Trace 数据源使用真实的 result_table_id 生成 target，并统一经由 TraceQueryGuard 构造查询配置对象
+        if datasource_type == ApmDataSourceConfigBase.TRACE_DATASOURCE:
+            target: TraceDatasourceTarget = TraceDatasourceTarget.build(self.bk_biz_id, self.app_name, table_id)
+            return TraceQueryGuard.get_q([target])
+
+        return QueryConfigBuilder(datasource_config["using"]).table(table_id)
 
     @property
     def q(self) -> QueryConfigBuilder:

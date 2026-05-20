@@ -109,6 +109,7 @@ from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateType
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
@@ -132,7 +133,7 @@ from constants.apm import (
     TelemetryDataType,
 )
 from constants.common import DEFAULT_TENANT_ID
-from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
+from constants.data_source import ApplicationsResultTableLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
 from monitor.models import ApplicationConfig
@@ -738,6 +739,7 @@ class SetupResource(Resource):
 
         def validate(self, attrs):
             res = super().validate(attrs)
+
             if attrs.get("trace_datasource_option") and not attrs.get("trace_datasource_option", {}).get(
                 "es_slice_size"
             ):
@@ -780,6 +782,10 @@ class SetupResource(Resource):
             for key in self.update_key:
                 if key not in self._params:
                     return
+
+            if TraceQueryGuard.is_shared_table(self._application.trace_result_table_id):
+                raise ValueError("共享数据源的应用不支持修改链路信息")
+
             Application.setup_datasource(
                 self._application.application_id,
                 {"trace_datasource_option": self._params["trace_datasource_option"]},
@@ -2784,10 +2790,13 @@ class QueryExceptionTypeGraphResource(Resource):
 
     def perform_request(self, validated_data):
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
+        # 接入 TraceQueryGuard 做共享数据源查询隔离改造
+        target: TraceDatasourceTarget = TraceDatasourceTarget.build(
+            app.bk_biz_id, app.app_name, app.trace_result_table_id
+        )
         q: QueryConfigBuilder = (
-            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM))
+            TraceQueryGuard.get_q([target])
             .metric(method="COUNT", field="_index", alias="a")
-            .table(app.trace_result_table_id)
             .filter(**{OtlpKey.STATUS_CODE: StatusCode.ERROR.value})
             .interval(get_interval_number(validated_data["start_time"], validated_data["end_time"]))
         )

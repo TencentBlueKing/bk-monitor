@@ -253,16 +253,18 @@ class ActionQueryHandler(BaseBizQueryHandler):
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 进行我有权限的告警过滤
-            queries.append(Q("terms", **{"bk_biz_id": self.authorized_bizs}))
+            authorized_query = self.build_es_terms_query("bk_biz_id", self.authorized_bizs)
+            if authorized_query is not None:
+                queries.append(authorized_query)
 
         if self.bk_biz_ids == []:
             # 如果不带任何业务信息，表示获取跟自己相关的告警
             queries.append(Q("term", operator=self.request_username))
 
         if self.unauthorized_bizs and self.request_username:
-            queries.append(
-                Q(Q("terms", **{"bk_biz_id": self.unauthorized_bizs}) & Q("term", operator=self.request_username))
-            )
+            unauthorized_query = self.build_es_terms_query("bk_biz_id", self.unauthorized_bizs)
+            if unauthorized_query is not None:
+                queries.append(unauthorized_query & Q("term", operator=self.request_username))
         if queries:
             return search_object.filter(reduce(operator.or_, queries))
         return search_object

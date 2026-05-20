@@ -437,6 +437,27 @@ export const EXTEND_INFO_MAP = {
 export const MY_AUTH_BIZ_ID = -1;
 /** 我有告警的业务ID */
 export const MY_ALARM_BIZ_ID = -2;
+
+/**
+ * 告警中心列表「空间范围」未在 URL / 收藏中指定时的默认值：
+ * 优先「当前业务」（与 window.cc_biz_id、bk_biz_id 同步），无法解析时回退为「我有权限的空间」。
+ */
+export function getDefaultAlarmCenterBizIds(): number[] {
+  if (typeof window === 'undefined') {
+    return [MY_AUTH_BIZ_ID];
+  }
+  const w = window as Window & { bk_biz_id?: number | string; cc_biz_id?: number | string };
+  const raw = w.cc_biz_id ?? w.bk_biz_id;
+  let id = Number(raw);
+  const defaultBizItem = window.space_list?.find(item => +item?.bk_biz_id === id);
+  if (!defaultBizItem) {
+    id = window.space_list?.at(0)?.bk_biz_id ?? MY_AUTH_BIZ_ID;
+  }
+  if (Number.isFinite(id) && id) {
+    return [id];
+  }
+  return [MY_AUTH_BIZ_ID];
+}
 /** 内容滚动元素类名 */
 export const CONTENT_SCROLL_ELEMENT_CLASS_NAME = 'alarm-center-content';
 /** common-table 表格检测是否内容溢出弹出 tip 功能类名 */

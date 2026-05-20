@@ -45,8 +45,8 @@ const OverflowTips: ObjectDirective<OverflowElement, Props & { disabled: boolean
     function getIsEllipsis(el: Element) {
       return el.scrollWidth > el.clientWidth;
     }
-    function mouseenter(event: MouseEvent) {
-      event.stopPropagation();
+    function mouseenter(event?: MouseEvent) {
+      event?.stopPropagation();
       if (binding.value?.disabled) return;
       if (!getIsEllipsis(el)) {
         return;
@@ -90,8 +90,14 @@ const OverflowTips: ObjectDirective<OverflowElement, Props & { disabled: boolean
             el.addEventListener('mouseleave', mouseleave);
             el.mouseEnterFunc = mouseenter;
             el.mouseLeaveFunc = mouseleave;
+            if (el.matches(':hover')) {
+              isMouseenter = true;
+              mouseenter();
+            }
             return;
           }
+          isMouseenter = false;
+          instance?.hide();
           el.removeEventListener('mouseenter', mouseenter);
           el.removeEventListener('mouseleave', mouseleave);
         }

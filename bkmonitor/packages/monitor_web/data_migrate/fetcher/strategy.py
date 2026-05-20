@@ -57,6 +57,7 @@ def get_strategy_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
     if bk_biz_id is not None:
         shield_filters["bk_biz_id"] = bk_biz_id
 
+    user_group_ids = UserGroup.objects.filter(**(biz_filters or {})).values_list("id", flat=True)
     duty_rule_ids = DutyRule.objects.filter(**(biz_filters or {})).values_list("id", flat=True)
 
     return [
@@ -74,6 +75,7 @@ def get_strategy_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
         (UserGroup, biz_filters, None),
         (DutyRule, biz_filters, None),
         (DutyRuleRelation, biz_filters, None),
+        (DutyArrange, {"user_group_id__in": user_group_ids}, None),
         (DutyArrange, {"duty_rule_id__in": duty_rule_ids}, None),
         (AlertAssignGroup, biz_filters, None),
         (AlertAssignRule, biz_filters, None),

@@ -272,4 +272,5 @@ export default {
   负责人变更: 'Owner change',
   维度统计: 'Dimension Statistics',
   查看完整评论: 'View full comment',
+  编辑评论: 'Edit comment',
 };
