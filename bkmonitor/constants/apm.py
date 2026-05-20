@@ -74,6 +74,14 @@ def get_label_from_enums(value: Any, enums: list[type[CachedEnum]]) -> str:
     return value
 
 
+class ApmGlobalTablePrefix:
+    COMMON = "apm_global."
+    # 共享数据源场景
+    SHARED = f"{COMMON}shared"
+    # 预计算场景
+    PRECALCULATE = f"{COMMON}precalculate_storage"
+
+
 class TraceDataSourceConfig:
     """Trace数据源配置常量"""
 
@@ -1028,7 +1036,7 @@ class RPCMetricTag(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
     @classmethod
-    def tags(cls) -> list[dict[str, str]]:
+    def tags(cls) -> list[dict[str, str | bool]]:
         return [
             {"text": cls.CALLER_SERVER.label, "value": cls.CALLER_SERVER.value},
             {"text": cls.CALLER_SERVICE.label, "value": cls.CALLER_SERVICE.value},
@@ -2038,7 +2046,16 @@ class SpanKindCachedEnum(CachedEnum):
 
 
 TRACE_RESULT_TABLE_OPTION = {
-    "es_unique_field_list": ["trace_id", "span_id", "parent_span_id", "start_time", "end_time", "span_name"],
+    "es_unique_field_list": [
+        "bk_biz_id",
+        "app_name",
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "start_time",
+        "end_time",
+        "span_name",
+    ],
     # 以下为 UnifyQuery 查询所需的元数据：
     # 是否根据查询时间范围，指定具体日期的索引进行查询。
     "need_add_time": True,
@@ -2324,12 +2341,7 @@ class CallSide(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return str(
-            {
-                self.CALLER: _("主调"),
-                self.CALLEE: _("被调"),
-            }.get(self, self.value)
-        )
+        return str({self.CALLER: _("主调"), self.CALLEE: _("被调")}.get(self, self.value))
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:

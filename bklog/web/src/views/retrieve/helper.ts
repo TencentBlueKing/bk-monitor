@@ -99,6 +99,7 @@ export const getEnvVariables = (isDev: boolean) => {
     'COLLECTOR_GUIDE_URL',
     'FEATURE_TOGGLE',
     'FEATURE_TOGGLE_WHITE_LIST',
+    'FEATURE_TOGGLE_BLACK_LIST',
     'SPACE_UID_WHITE_LIST',
     'FIELD_ANALYSIS_CONFIG',
     'REAL_TIME_LOG_MAX_LENGTH',

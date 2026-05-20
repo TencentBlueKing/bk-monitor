@@ -245,6 +245,7 @@ ai_agent
 .codex
 .claude/
 CLAUDE.local.md
+CLAUDE.md
 .cursorignore
 # spec-kit 规范目录
 .specify/

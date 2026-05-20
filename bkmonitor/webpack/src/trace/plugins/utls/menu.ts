@@ -25,11 +25,13 @@
  */
 import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { deepClone } from 'monitor-common/utils/utils';
 import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { downFile, reviewInterval, VariablesService } from '../../utils';
+import { toUnixMilliseconds } from '@/utils/date';
 
 import type { IExtendMetricData, ILogUrlParams, IViewOptions, PanelModel } from '../typings';
 import type { IIableTdArrItem } from 'monitor-pc/pages/view-detail/utils';
@@ -180,8 +182,8 @@ export function handleExplore(
       bizId: window.cc_biz_id.toString(),
       keyword: queryConfig.query_string, // 搜索关键字
       addition: queryConfig.where || [],
-      start_time: startTime,
-      end_time: endTime,
+      start_time: toUnixMilliseconds(startTime),
+      end_time: toUnixMilliseconds(endTime),
       time_range: 'customized',
     };
     const indexSetId = queryConfig.index_set_id;
@@ -190,9 +192,9 @@ export function handleExplore(
     window.open(url);
   } else {
     window.open(
-      `${commOpenUrl('#/data-retrieval/')}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${
+      `${commOpenUrl('#/data-retrieval/')}?targets=${encodeURIComponent(JSON.stringify(targets))}&from=${toUnixMilliseconds(
         timeRange[0]
-      }&to=${timeRange[1]}`
+      )}&to=${toUnixMilliseconds(timeRange[1])}`
     );
   }
 }
@@ -221,9 +223,9 @@ export const getMetricId = (
     case 'custom|event':
       return [data_source_label, data_type_label, result_table_id, custom_event_name].join('.');
     case 'bk_log_search|log':
-      return `${data_source_label}.index_set.${index_set_id}`;
-    case 'bk_log_search|log':
-      return `${data_source_label}.index_set.${index_set_id}.${metric_field}`;
+      return metric_field
+        ? `${data_source_label}.index_set.${index_set_id}.${metric_field}`
+        : `${data_source_label}.index_set.${index_set_id}`;
     case 'bk_fta|alert':
     case 'bk_fta|event':
       return [data_source_label, data_type_label, alert_name ?? metric_field].join('.');
@@ -250,8 +252,13 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
   Object.keys(metricIdMap).forEach(metricId => {
     queryString += `${queryString.length ? ' or ' : ''}指标ID : ${metricId}`;
   });
-  queryString.length &&
-    window.open(commOpenUrl(`#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}`));
+  if (queryString.length) {
+    openAlarmCenter({
+      queryString,
+      from: toUnixMilliseconds(timeRange[0]),
+      to: toUnixMilliseconds(timeRange[1]),
+    });
+  }
 };
 
 export interface IUnifyQuerySeriesItem {
@@ -312,8 +319,12 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
       map.max = map.min;
       tableTdArr.forEach(td => {
         const cur = td[index]?.value;
-        cur > map.max && cur !== null && (map.max = cur);
-        cur < map.min && cur !== null && (map.min = cur);
+        if (cur > map.max && cur !== null) {
+          map.max = cur;
+        }
+        if (cur < map.min && cur !== null) {
+          map.min = cur;
+        }
       });
     }
   });
@@ -328,7 +339,9 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
           td.min = true;
           maxMinMap[i].min = null;
         }
-        td.min && td.max && (td.max = false);
+        if (td.min && td.max) {
+          td.max = false;
+        }
       }
     });
   });

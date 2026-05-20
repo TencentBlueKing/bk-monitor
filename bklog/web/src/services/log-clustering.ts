@@ -292,6 +292,24 @@ const updatePatternStrategy = {
   url: "/pattern/:index_set_id/pattern_strategy/",
   method: "post",
 };
+
+// 占位符分布统计
+const placeholderDistribution = {
+  url: "/pattern/:index_set_id/placeholder_distribution/",
+  method: "post",
+};
+
+// 占位符趋势
+const placeholderTrend = {
+  url: "/pattern/:index_set_id/placeholder_trend/",
+  method: "post",
+};
+
+// 占位符相关样本
+const placeholderSamples = {
+  url: "/pattern/:index_set_id/placeholder_samples/",
+  method: "post",
+};
 export {
   getConfig,
   getDefaultConfig,
@@ -313,4 +331,7 @@ export {
   updateTemplateName,
   deleteTemplate,
   updatePatternStrategy,
+  placeholderDistribution,
+  placeholderTrend,
+  placeholderSamples,
 };

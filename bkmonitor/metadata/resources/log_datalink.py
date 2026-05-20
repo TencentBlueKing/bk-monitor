@@ -172,6 +172,7 @@ class CreateDorisRouter(BaseLogRouter):
         cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+        origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
     def perform_request(self, validated_request_data: dict[str, Any]):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -216,6 +217,7 @@ class CreateDorisRouter(BaseLogRouter):
                 is_sync_db=False,
                 source_type=validated_request_data.get("source_type", ""),
                 bkbase_table_id=validated_request_data.get("bkbase_table_id"),
+                origin_table_id=validated_request_data.get("origin_table_id", ""),
                 index_set=validated_request_data.get("index_set"),
                 storage_cluster_id=validated_request_data.get("cluster_id"),
             )
@@ -335,6 +337,7 @@ class UpdateDorisRouter(BaseLogRouter):
         cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+        origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
     def perform_request(self, validated_request_data: dict[str, Any]):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -377,6 +380,13 @@ class UpdateDorisRouter(BaseLogRouter):
             ):
                 doris_storage.storage_cluster_id = validated_request_data["cluster_id"]
                 update_doris_fields.append("storage_cluster_id")
+            # origin_table_id
+            if (
+                validated_request_data.get("origin_table_id")
+                and validated_request_data["origin_table_id"] != doris_storage.origin_table_id
+            ):
+                doris_storage.origin_table_id = validated_request_data["origin_table_id"]
+                update_doris_fields.append("origin_table_id")
             if update_doris_fields:
                 doris_storage.save(update_fields=update_doris_fields)
         except Exception as e:  # pylint:disable=broad-except
@@ -687,6 +697,7 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
                 is_sync_db=False,
                 source_type=table_info.get("source_type", ""),
                 bkbase_table_id=table_info.get("bkbase_table_id"),
+                origin_table_id=table_info.get("origin_table_id", ""),
                 index_set=table_info.get("index_set"),
                 storage_cluster_id=table_info.get("cluster_id"),
             )
@@ -727,6 +738,10 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
             if table_info.get("bkbase_table_id") and table_info["bkbase_table_id"] != doris_storage.bkbase_table_id:
                 doris_storage.bkbase_table_id = table_info["bkbase_table_id"]
                 update_fields.append("bkbase_table_id")
+
+            if table_info.get("origin_table_id") and table_info["origin_table_id"] != doris_storage.origin_table_id:
+                doris_storage.origin_table_id = table_info["origin_table_id"]
+                update_fields.append("origin_table_id")
 
             if table_info.get("cluster_id") and table_info["cluster_id"] != doris_storage.storage_cluster_id:
                 doris_storage.storage_cluster_id = table_info["cluster_id"]

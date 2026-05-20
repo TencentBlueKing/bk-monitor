@@ -31,6 +31,7 @@ import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 import { queryCustomEventGroup } from 'monitor-api/modules/custom_report';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { ALARM_CENTER_LIST_HASH, getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, random } from 'monitor-common/utils/utils';
 import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants';
@@ -314,8 +315,8 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         current_target?.bk_target_cloud_id || 0
       }`,
       kubernetes: `${url}#/k8s?dashboardId=${this.relateTab.replace(`_${this.sceneType}`, '')}`,
-      alert_event: `${url}#/event-center`,
-      action_event: `${url}#/event-center?searchType=action&activeFilterId=action`,
+      alert_event: `${url}${ALARM_CENTER_LIST_HASH}`,
+      action_event: `${url}${getAlarmCenterListHash({ searchType: 'action', activeFilterId: 'action' })}`,
       custom_event: `${url}#/custom-escalation-event-view/${this.relateMiddlewareId}`,
     };
     window.open(urlMap[this.relatePage]);

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+read_text() {
+  if [ -f "$1" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      printf '%s\n' "$line"
+    done < "$1"
+  fi
+}
+
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+engine="$(read_text "${PROJECT_ROOT}/.ai-agent/runtime/engine.md")"
+router="$(read_text "${PROJECT_ROOT}/.ai-agent/runtime/router.yaml")"
+gates="$(read_text "${PROJECT_ROOT}/.ai-agent/runtime/gates.yaml")"
+
+context="<AAFE_RUNTIME>\nAAFE Architecture Runtime is active for this repository.\n\nEngine:\n${engine}\n\nRouter:\n${router}\n\nGates:\n${gates}\n</AAFE_RUNTIME>"
+escaped_context="$(escape_for_json "$context")"
+printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+exit 0

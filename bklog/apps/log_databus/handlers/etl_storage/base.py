@@ -1145,12 +1145,7 @@ class EtlStorage:
             target_fields=target_fields,
         )
         enable_v4 = getattr(instance, "enable_v4", False)
-
-        if not enable_v4:
-            # 如果将 doris 作为存储集群, 则强制开启 v4 清洗
-            if storage_cluster_type == DORIS_CLUSTER_TYPE:
-                enable_v4 = True
-
+        etl_params["bk_biz_id"] = instance.get_bk_biz_id()
         result_table_config = self.get_result_table_config(
             fields,
             etl_params,

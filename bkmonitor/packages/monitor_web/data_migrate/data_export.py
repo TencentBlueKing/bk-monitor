@@ -78,17 +78,29 @@ def _build_queryset(
     return queryset.order_by("pk")
 
 
-def _iter_fetcher_objects(fetchers: Sequence[FetcherResultType]):
+def _iter_fetcher_objects(fetchers: Sequence[FetcherResultType], context: str | None = None):
     """按 fetcher 配置流式查询并去重返回模型实例。"""
     seen_object_keys: set[tuple[str, Any]] = set()
     for model_cls, filters, exclude in fetchers:
         queryset = _build_queryset(model_cls, filters, exclude)
-        for instance in queryset.iterator(chunk_size=EXPORT_QUERYSET_CHUNK_SIZE):
-            object_key = (instance._meta.label_lower, instance.pk)
-            if object_key in seen_object_keys:
-                continue
-            seen_object_keys.add(object_key)
-            yield instance
+        try:
+            for instance in queryset.iterator(chunk_size=EXPORT_QUERYSET_CHUNK_SIZE):
+                object_key = (instance._meta.label_lower, instance.pk)
+                if object_key in seen_object_keys:
+                    continue
+                seen_object_keys.add(object_key)
+                yield instance
+        except Exception:
+            logger.exception(
+                "data_migrate export failed while iterating queryset, context=%s, model=%s, db_table=%s, "
+                "filters=%s, exclude=%s",
+                context,
+                model_cls._meta.label,
+                model_cls._meta.db_table,
+                filters,
+                exclude,
+            )
+            raise
 
 
 def _build_biz_export_context(
@@ -308,7 +320,7 @@ def export_biz_data_to_directory(
     if 0 in normalized_bk_biz_ids:
         global_stats = _build_scope_export_stats("global")
         for module_name, fetchers in _get_global_module_fetchers().items():
-            module_objects = _peek_export_objects(_iter_fetcher_objects(fetchers))
+            module_objects = _peek_export_objects(_iter_fetcher_objects(fetchers, context=f"global:{module_name}"))
             if module_objects is None:
                 continue
             relative_file_path = Path("global") / f"{module_name}.{format}"
@@ -334,7 +346,9 @@ def export_biz_data_to_directory(
         )
         biz_relative_files: list[str] = []
         for module_name, fetchers in module_fetchers.items():
-            module_objects = _peek_export_objects(_iter_fetcher_objects(fetchers))
+            module_objects = _peek_export_objects(
+                _iter_fetcher_objects(fetchers, context=f"biz:{bk_biz_id}:{module_name}")
+            )
             if module_objects is None:
                 continue
             relative_file_path = Path("biz") / str(bk_biz_id) / f"{module_name}.{format}"

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from abc import ABC, abstractmethod
 
 from apps.api import CmsiApi
@@ -52,12 +52,14 @@ class EmailNotify(NotifyBase):
         发送邮件, is_external 为 True 时，表示发送给外部用户, receivers 为邮箱地址
         """
         if is_external:
-            CmsiApi.send_mail({"receiver": receivers, "title": title, "content": content})
+            CmsiApi.send_mail(
+                {"receiver": receivers, "title": title, "content": content, "email_type": "SEND_TO_INTERNET"}
+            )
         else:
             CmsiApi.send_mail({"receiver__username": receivers, "title": title, "content": content})
 
 
-class NotifyType(object):
+class NotifyType:
     """
 
     1. 根据采集场景加载具体实现的类

@@ -80,8 +80,10 @@ export default {
       },
     },
     filterKey: {
-      type: String,
-      default: "",
+      type: [String, Array],
+      default() {
+        return [];
+      },
     },
     isRealTimeLog: {
       type: Boolean,
@@ -138,13 +140,19 @@ export default {
     isIncludeFilter() {
       return this.filterType === "include";
     },
+    normalizedFilterKey() {
+      if (Array.isArray(this.filterKey)) return this.filterKey;
+      return this.filterKey ? [this.filterKey] : [];
+    },
     getViewLightList() {
       const list = [];
-      if (this.filterKey) {
-        list.push({
-          str: this.filterKey,
-          style: "color: #FF5656; font-size: 12px; font-weight: 700;",
-          isUnique: true,
+      if (this.normalizedFilterKey.length && this.isIncludeFilter) {
+        this.normalizedFilterKey.forEach((key) => {
+          list.push({
+            str: key,
+            style: "color: #FF5656; font-size: 12px; font-weight: 700;",
+            isUnique: true,
+          });
         });
       }
       list.push(
@@ -181,12 +189,13 @@ export default {
       },
     },
     escapedReverseLogList() {
-      if (this.filterKey.length) {
+      if (this.normalizedFilterKey.length) {
         this.setResRange();
       }
     },
     filterKey(val) {
-      if (val.length) {
+      const normalized = Array.isArray(val) ? val : (val ? [val] : []);
+      if (normalized.length) {
         this.setResRange();
       } else {
         this.reverseResRangeIndexs.splice(0, this.reverseResRangeIndexs.length);
@@ -198,7 +207,7 @@ export default {
       handler() {
         clearTimeout(this.intervalTime);
         this.intervalTime = setTimeout(() => {
-          if (this.filterKey.length) {
+          if (this.normalizedFilterKey.length) {
             this.setResRange();
           }
         }, 500);
@@ -210,25 +219,27 @@ export default {
   },
   methods: {
     checkLineShow(item, index, field) {
+      if (!this.normalizedFilterKey.length) return true;
       if (this.isIncludeFilter) {
         const list =
-          field === "reverse"
+          field === 'reverse'
             ? this.reverseResRangeIndexs
             : this.resRangeIndexs;
         return this.handleMatch(item) || list.includes(index);
       }
-      return this.filterKey.length ? !this.handleMatch(item) : true;
+      return !this.handleMatch(item);
     },
     handleMatch(item) {
-      const valStr = Object.values(item).join(" ");
-      let { filterKey } = this;
-      const keyVal = this.ignoreCase ? valStr : valStr.toLowerCase();
-      filterKey = this.ignoreCase ? filterKey : filterKey.toLowerCase();
-
-      return keyVal.includes(filterKey);
+      const valStr = Object.values(item).join(' ');
+      if (!this.normalizedFilterKey.length) return false;
+      return this.normalizedFilterKey.every((key) => {
+        const keyVal = this.ignoreCase ? valStr : valStr.toLowerCase();
+        const filterKeyVal = this.ignoreCase ? key : key.toLowerCase();
+        return keyVal.includes(filterKeyVal);
+      });
     },
     lineMatch(item) {
-      if (!this.filterKey) return false;
+      if (!this.normalizedFilterKey.length) return false;
       return (
         this.handleMatch(item) && Object.values(this.interval).some(Boolean)
       );

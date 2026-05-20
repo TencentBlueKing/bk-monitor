@@ -16,8 +16,8 @@ from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
 from apm_web.handlers.component_handler import ComponentHandler
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from constants.apm import OtlpKey
-from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import api
 
 
@@ -45,11 +45,15 @@ class DbQuery:
     @classmethod
     def get_q(
         cls,
+        bk_biz_id: int,
+        app_name: str,
         table_id: str,
     ) -> QueryConfigBuilder:
-        return (
-            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM)).table(table_id).time_field(OtlpKey.END_TIME)
-        )
+        """构造 DB 场景的 Trace 查询
+        共享 Trace 结果表场景下，TraceQueryGuard 会自动追加 bk_biz_id / app_name 隔离条件；独占表走原有行为，不追加过滤。
+        """
+        target: TraceDatasourceTarget = TraceDatasourceTarget.build(bk_biz_id, app_name, table_id)
+        return TraceQueryGuard.get_q([target]).time_field(OtlpKey.END_TIME)
 
     @classmethod
     def get_qs(cls, bk_biz_id: int, start_time: int, end_time: int) -> UnifyQuerySet:

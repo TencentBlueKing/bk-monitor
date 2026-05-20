@@ -1,0 +1,24 @@
+{
+    "id": "trace",
+    "type": "overview",
+    "mode": "custom",
+    "name": "调用链",
+    "variables": [],
+    "panels": [],
+    "overview_panels": [
+        {
+            "id": 1,
+            "title": "",
+            "type": "trace",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 24,
+                "h": 24
+            },
+            "targets": []
+        }
+    ],
+    "order": [],
+    "options": {}
+}

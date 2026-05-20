@@ -227,7 +227,7 @@ export interface SeriesItem extends MonitorEchartOptions {
   markPoints?: [number, number][]; // 告警点数据 [value, timestamp][]
   markTimeRange?: IMarkTimeRange[]; // 时间范围标记
   metric_field?: string;
-  stack?: string;
+  stack?: boolean | string;
   target?: string;
   thresholds?: IThreshold[]; // 阈值配置
   type?: string;

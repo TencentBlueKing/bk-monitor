@@ -262,7 +262,7 @@ const store = new Vuex.Store({
     maskingToggle: state => state.maskingToggle,
     isNotVisibleFieldsShow: state => state.isNotVisibleFieldsShow,
     /** 脱敏灰度判断 */
-    isShowMaskingTemplate: state => state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
+    isShowMaskingTemplate: state => isFeatureToggleOn('log_desensitize', state.bkBizId),
     isLimitExpandView: state => state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
     custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
 
@@ -710,7 +710,7 @@ const store = new Vuex.Store({
       if (hasFieldsUpdate) {
         const fieldAliasMap = new Map();
         state.indexFieldInfo.fields.forEach((field) => {
-          const fieldAlias = field.query_alias || field.field_alias;
+          const fieldAlias = field.query_alias;
 
           if (fieldAlias) {
             const existValue = fieldAliasMap.get(fieldAlias) ?? {

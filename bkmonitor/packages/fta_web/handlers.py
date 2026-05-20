@@ -275,6 +275,26 @@ def rollover_es_indices(sender, **kwargs):
     rollover_indices()
 
 
+def migrate_legacy_issues(sender, **kwargs):
+    """post_migrate 自动触发：把所有 fingerprint=null 的活跃 Issue 一次性 RESOLVE。
+
+    fingerprint 改造（1:1 → 按维度切分）部署时自动执行；幂等。
+    顺序在 rollover_es_indices 之后由 apps.py 注册保证（mapping 已同步后再做数据迁移）。
+
+    异常向上传播（不再 try/except 吞）：migrate_legacy_active_issues 在 mapping 未 ready
+    或 bulk retry 仍失败时会 raise IssueMigrationError，post_migrate 框架会让 migrate
+    命令以非零退出码失败，部署 pipeline 可见。运维必须修复 ES 后重跑 migrate。
+    """
+    import logging
+
+    from bkmonitor.documents.issue import migrate_legacy_active_issues
+
+    logger = logging.getLogger("bkmonitor.documents")
+    migrated = migrate_legacy_active_issues()
+    if migrated:
+        logger.info("[issue migration] post_migrate: resolved %d legacy active issues", migrated)
+
+
 def register_global_event_plugin(sender, **kwargs):
     """
     注册内置的告警源插件

@@ -25,21 +25,9 @@
  */
 import { BK_LOG_STORAGE } from "./store.type";
 import { getOperatorDisplay, getDefaultOp, REVERSE_OPERATOR_MAP } from "@/views/retrieve-v3/search-bar/scene-filter/scene-config";
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
-export const isFeatureToggleOn = (key: string, value: string | string[]) => {
-  const featureToggle = window.FEATURE_TOGGLE?.[key];
-  if (featureToggle === 'debug') {
-    const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.[key] ?? []).map(id => `${id}`);
-
-    if (Array.isArray(value)) {
-      return value.some(v => whiteList.includes(v));
-    }
-
-    return whiteList.includes(value);
-  }
-
-  return featureToggle === 'on';
-};
+export { isFeatureToggleOn };
 
 export const SESSION_STORAGE_KEY = 'CommonFilterAddition';
 

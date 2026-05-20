@@ -200,6 +200,11 @@
                 border-radius: 2px;
                 font-weight: 700;
                 padding: 2px;
+                cursor: pointer;
+
+                &:hover {
+                  background: #d0e0ff;
+                }
               }
               &:hover {
                 color: #3a84ff;

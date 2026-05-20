@@ -24,6 +24,7 @@ from monitor_web.data_migrate.data_rebuilder import (
     DEFAULT_ES_CLUSTER_NAMES,
     DEFAULT_KAFKA_CLUSTER_NAMES,
     add_new_migrate_data_id_routes,
+    enable_closed_strategies_from_application_config,
     find_biz_custom_report_data_ids,
     rebuild_bklog_data_source_route,
     rebuild_collect_plugins,
@@ -84,6 +85,9 @@ class Command(BaseCommand):
             "  为数据 ID 批量添加迁移双写路由:\n"
             "    python manage.py data_migrate add-migrate-data-id-routes --data-id-infos ./data_id_infos.json\n"
             "\n"
+            "  根据导入阶段记录开启被关闭的策略:\n"
+            "    python manage.py data_migrate enable-closed-strategies --bk-biz-ids 18901\n"
+            "\n"
             "  恢复自增游标:\n"
             "    python manage.py data_migrate apply-sequences --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
             "\n"
@@ -110,6 +114,7 @@ class Command(BaseCommand):
                 "rebuild",
                 "find-custom-report-data-ids",
                 "add-migrate-data-id-routes",
+                "enable-closed-strategies",
                 "apply-sequences",
                 "replace-tenant-id",
                 "replace-cluster-id",
@@ -125,7 +130,7 @@ class Command(BaseCommand):
             "--bk-biz-ids",
             nargs="+",
             type=int,
-            help="业务 ID 列表，0 代表全局数据；export/import 动作可用",
+            help="业务 ID 列表；export/import 中 0 代表全局数据，enable-closed-strategies 仅支持正整数业务 ID",
         )
         parser.add_argument("--format", default="json", help="导出文件格式，默认 json；仅 export 动作需要")
         parser.add_argument("--indent", type=int, default=2, help="导出文件缩进，默认 2；仅 export 动作需要")
@@ -190,6 +195,7 @@ class Command(BaseCommand):
             "rebuild": self._handle_rebuild,
             "find-custom-report-data-ids": self._handle_find_custom_report_data_ids,
             "add-migrate-data-id-routes": self._handle_add_migrate_data_id_routes,
+            "enable-closed-strategies": self._handle_enable_closed_strategies,
             "apply-sequences": self._handle_apply_sequences,
             "replace-tenant-id": self._handle_replace_tenant_id,
             "replace-cluster-id": self._handle_replace_cluster_id,
@@ -271,17 +277,37 @@ class Command(BaseCommand):
         log_es_cluster_name = options["log_es_cluster_name"]
         event_es_cluster_name = options["event_es_cluster_name"]
 
+        self.stdout.write(
+            self.style.SUCCESS(
+                "rebuild initialized: "
+                f"bk_tenant_id={bk_tenant_id}, bk_biz_ids={bk_biz_ids}, "
+                f"metric_kafka_cluster_name={metric_kafka_cluster_name}, "
+                f"log_kafka_cluster_name={log_kafka_cluster_name}, "
+                f"log_es_cluster_name={log_es_cluster_name}, "
+                f"event_es_cluster_name={event_es_cluster_name}"
+            )
+        )
+
         for bk_biz_id in bk_biz_ids:
             self.stdout.write(self.style.SUCCESS(f"rebuild started: bk_biz_id={bk_biz_id}"))
+            self.stdout.write(self.style.SUCCESS(f"rebuild dashboard started: bk_biz_id={bk_biz_id}"))
             rebuild_dashboard(bk_biz_id)
+            self.stdout.write(self.style.SUCCESS(f"rebuild dashboard completed: bk_biz_id={bk_biz_id}"))
+            self.stdout.write(self.style.SUCCESS(f"rebuild bklog data source route started: bk_biz_id={bk_biz_id}"))
             rebuild_bklog_data_source_route(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 kafka_cluster_name=log_kafka_cluster_name,
                 es_cluster_name=log_es_cluster_name,
             )
+            self.stdout.write(self.style.SUCCESS(f"rebuild bklog data source route completed: bk_biz_id={bk_biz_id}"))
+            self.stdout.write(self.style.SUCCESS(f"rebuild system data started: bk_biz_id={bk_biz_id}"))
             rebuild_system_data(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            self.stdout.write(self.style.SUCCESS(f"rebuild system data completed: bk_biz_id={bk_biz_id}"))
+            self.stdout.write(self.style.SUCCESS(f"rebuild uptime check started: bk_biz_id={bk_biz_id}"))
             rebuild_uptime_check(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            self.stdout.write(self.style.SUCCESS(f"rebuild uptime check completed: bk_biz_id={bk_biz_id}"))
+            self.stdout.write(self.style.SUCCESS(f"rebuild collect plugins started: bk_biz_id={bk_biz_id}"))
             rebuild_collect_plugins(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -291,6 +317,8 @@ class Command(BaseCommand):
                 },
                 es_cluster_names={"event": event_es_cluster_name},
             )
+            self.stdout.write(self.style.SUCCESS(f"rebuild collect plugins completed: bk_biz_id={bk_biz_id}"))
+            self.stdout.write(self.style.SUCCESS(f"rebuild k8s data started: bk_biz_id={bk_biz_id}"))
             rebuild_k8s_data(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -298,6 +326,8 @@ class Command(BaseCommand):
                 event_kafka_cluster_name=log_kafka_cluster_name,
                 es_cluster_name=event_es_cluster_name,
             )
+            self.stdout.write(self.style.SUCCESS(f"rebuild k8s data completed: bk_biz_id={bk_biz_id}"))
+            self.stdout.write(self.style.SUCCESS(f"rebuild custom report started: bk_biz_id={bk_biz_id}"))
             rebuild_custom_report(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -305,6 +335,7 @@ class Command(BaseCommand):
                 event_kafka_cluster_name=log_kafka_cluster_name,
                 es_cluster_name=event_es_cluster_name,
             )
+            self.stdout.write(self.style.SUCCESS(f"rebuild custom report completed: bk_biz_id={bk_biz_id}"))
             self.stdout.write(self.style.SUCCESS(f"rebuild completed: bk_biz_id={bk_biz_id}"))
 
     def _handle_find_custom_report_data_ids(self, options) -> None:
@@ -320,6 +351,13 @@ class Command(BaseCommand):
             return
         add_new_migrate_data_id_routes(data_id_infos=data_id_infos)
         self.stdout.write(self.style.SUCCESS(f"add migrate data id routes completed: {len(data_id_infos)}"))
+
+    def _handle_enable_closed_strategies(self, options) -> None:
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name="enable-closed-strategies")
+        enable_results = enable_closed_strategies_from_application_config(bk_biz_ids=bk_biz_ids)
+        self.stdout.write(json.dumps(enable_results, ensure_ascii=False, indent=2, sort_keys=True))
+        enabled_count = sum(result["enabled_count"] for result in enable_results.values())
+        self.stdout.write(self.style.SUCCESS(f"enable closed strategies completed: {enabled_count}"))
 
     def _handle_apply_sequences(self, options):
         directory = self._load_directory(options, action_name="apply-sequences")

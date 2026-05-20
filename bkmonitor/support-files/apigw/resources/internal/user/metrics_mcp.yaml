@@ -1,0 +1,191 @@
+paths:
+  /mcp/list_time_series_groups/:
+    post:
+      operationId: list_time_series_groups
+      description: List all time series groups in the monitoring system. A time series group is a logical container that organizes custom metrics with shared configurations, including data source bindings, result_table_id, storage settings, and metric schemas.列出监控系统中的所有自定义时序分组。时序分组是一个逻辑容器，用于组织具有共享配置的自定义指标，包括数据源绑定、存储设置、结果表ID和指标结构定义。
+      tags:
+      - metrics_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                page:
+                  type: string
+                  default: '1'
+                  description: Page Number 页数
+                bk_biz_id:
+                  type: string
+                  description: business ID 业务ID
+                page_size:
+                  type: string
+                  default: '10'
+                  description: Number of items to retrieve 获取的条数
+                is_platform:
+                  type: boolean
+                  default: 'false'
+                  description: Whether to query platform-level data ID 是否查询公共数据
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/metrics/list_time_series_groups/
+          matchSubpath: false
+          timeout: 63
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/list_time_series_metrics/:
+    get:
+      operationId: list_time_series_metrics
+      description: Get all metrics information from a specific time series group. This tool retrieves detailed metric definitions including field names, types, tags, dimensions, and descriptions for metrics within the specified group. The table_id parameter must be obtained from the list_time_series_groups tool first.获取指定时序分组的所有指标信息。此工具检索详细的指标定义，包括指定分组内指标的字段名称、类型、标签、维度和描述。table_id 参数必须先从 list_time_series_groups 工具获取。
+      tags:
+      - metrics_mcp
+      parameters:
+      - in: query
+        name: table_id
+        schema:
+          type: string
+        required: true
+        description: Result table ID 结果表ID
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: number
+        required: true
+        description: Business ID 业务ID
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/get_time_series_metrics/
+          matchSubpath: false
+          timeout: 63
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/execute_range_query/:
+    post:
+      operationId: execute_range_query
+      description: Execute a PromQL range query with start time, end time, promql, and step interval. Returns data points at regular intervals for trend analysis. ⚠️ Query time span must NOT exceed 1 day (86400s). If >1 day range needed, split into batch queries (each ≤24h), then merge results.执行 PromQL 范围查询，返回时间范围内的数据点用于趋势分析。⚠️ 查询跨度不得超过1天(86400秒)。若超过1天,需分批查询(每批≤24h),然后合并结果。
+      tags:
+      - metrics_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - promql
+              - end_time
+              - bk_biz_id
+              - start_time
+              properties:
+                step:
+                  type: string
+                  default: 1m
+                  description: Query resolution step interval (e.g., "1m", "5m", "1h") 查询分辨率步长间隔（例如："1m"、"5m"、"1h"）
+                promql:
+                  type: string
+                  description: PromQL query statement PromQL查询语句
+                end_time:
+                  type: string
+                  description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'
+                bk_biz_id:
+                  type: string
+                  description: Business ID 业务ID
+                start_time:
+                  type: string
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/metrics/execute_range_query/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/execute_sql_query/:
+    post:
+      operationId: execute_sql_query
+      description: Execute a simplified BkBase SQL raw data query through bk-unify-query /query/ts/raw. The caller only needs to provide business ID, result table ID, SQL statement, time range, optional step, and optional limit. The service automatically wraps query_list, metric_merge, data_source=bkdata, and space_uid conversion. ⚠️ Query time span must NOT exceed 1 day (86400s). If >1 day range needed, split into batch queries (each ≤24h), then merge results.执行简化的 BkBase SQL 原始数据查询。调用方只需要提供业务 ID、结果表 ID、SQL 语句、时间范围、可选步长和可选返回条数。服务内部会自动封装 query_list、metric_merge、data_source=bkdata 和 space_uid 转换。⚠️ 查询跨度不得超过1天(86400秒)。若超过1天,需分批查询(每批≤24h),然后合并结果。
+      tags:
+      - metrics_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - table_id
+              - sql
+              - start_time
+              - end_time
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID, used to resolve space_uid for bk-unify-query routing and permission scope. 业务 ID,用于转换 space_uid 并确定 bk-unify-query 路由和权限范围。
+                table_id:
+                  type: string
+                  description: BkBase result table ID. BkBase 结果表 ID。
+                sql:
+                  type: string
+                  description: BkBase SQL statement. BkBase SQL 查询语句。
+                start_time:
+                  type: string
+                  description: 'Start timestamp. MUST calculate dynamically - DO NOT use fixed values. Millisecond timestamp is recommended for bk-unify-query raw queries. If user doesn''t specify time range, calculate as: end_time - 3600000 (for last 1 hour) or end_time - 86400000 (for last 24 hours). 开始时间戳。必须动态计算 - 不要使用固定值。bk-unify-query 原始数据查询建议使用毫秒级时间戳。如用户未指定时间范围,计算方式: end_time - 3600000(最近1小时) 或 end_time - 86400000(最近24小时)。'
+                end_time:
+                  type: string
+                  description: 'End timestamp. CRITICAL: MUST use current timestamp - NEVER use historical values. Millisecond timestamp is recommended for bk-unify-query raw queries. If user doesn''t specify, calculate current time dynamically. 结束时间戳。关键:必须使用当前时间戳 - 绝不使用历史值。bk-unify-query 原始数据查询建议使用毫秒级时间戳。如用户未指定,动态计算当前时间。'
+                step:
+                  type: string
+                  default: 5m
+                  description: Query step interval (e.g., "1m", "5m", "1h"). 查询步长间隔（例如："1m"、"5m"、"1h"）。
+                limit:
+                  type: number
+                  default: 10
+                  description: Maximum number of raw records to return. Keep it small when querying wide tables. 返回原始记录的最大条数。查询宽表时请保持较小的 limit。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/metrics/execute_sql_query/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true

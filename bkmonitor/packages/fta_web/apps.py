@@ -22,6 +22,7 @@ class FtaWebConfig(AppConfig):
 
     def ready(self):
         from .handlers import (
+            migrate_legacy_issues,
             register_builtin_action_configs,
             register_builtin_plugins,
             register_global_event_plugin,
@@ -35,6 +36,9 @@ class FtaWebConfig(AppConfig):
             GlobalConfig.objects.filter(key="FTA_SAAS_VERSION").update(value=settings.REAL_FTA_SAAS_VERSION)
 
         post_migrate.connect(rollover_es_indices, sender=self)
+        # 紧随 rollover 之后：mapping 已同步，再做存量旧 Issue 的 fingerprint 迁移
+        # 幂等，重跑无副作用；详见 bkmonitor/documents/issue.py::migrate_legacy_active_issues
+        post_migrate.connect(migrate_legacy_issues, sender=self)
         if os.getenv("MIGRATE_ACTION_PLUGIN_ENABLED", "enabled") == "enabled":
             post_migrate.connect(register_builtin_plugins, sender=self)
             post_migrate.connect(register_builtin_action_configs, sender=self)

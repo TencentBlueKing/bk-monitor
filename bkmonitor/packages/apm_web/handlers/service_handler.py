@@ -680,8 +680,8 @@ class ServiceHandler:
         for meta in systems:
             name = meta.get("name") or ""
             rpc_system = (meta.get("extra_data") or {}).get("rpc_system", "")
-            if rpc_system and name == metric_group.GroupEnum.TRPC:
-                name = metric_group.GroupEnum.TRPC
+            if rpc_system and name == metric_group.GroupEnum.TRPC.value:
+                name = metric_group.GroupEnum.TRPC.value
                 break
 
         sdk_name: str | None = None
@@ -698,7 +698,7 @@ class ServiceHandler:
             # 目前仅考虑单服务框架的情况，如果后续有多服务框架的需求再调整数据结构。
             "name": name,
             "rpc_system": rpc_system,
-            "is_support_call_analysis": name == metric_group.GroupEnum.TRPC,
+            "is_support_call_analysis": name == metric_group.GroupEnum.TRPC.value,
             "sdk": sdk_name or "",
             "temporality": temporality,
         }

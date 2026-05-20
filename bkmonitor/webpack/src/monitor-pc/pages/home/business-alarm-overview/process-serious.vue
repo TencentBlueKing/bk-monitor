@@ -53,6 +53,8 @@
 </template>
 
 <script>
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
+
 import { gotoPageMixin } from '../../../common/mixins';
 import SvgIcon from '../../../components/svg-icon/svg-icon';
 
@@ -79,13 +81,25 @@ export default {
   },
   methods: {
     gotoDetailHandle(id) {
-      const query = `?queryString=id : ${id}&from=now-${this.homeDays || 7}d&to=now`;
-      const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center${query}`;
+      const url = getAlarmCenterListUrl(
+        {
+          queryString: `id : ${id}`,
+          from: `now-${this.homeDays || 7}d`,
+          to: 'now',
+        },
+        this.homeItemBizId
+      );
       window.open(url);
     },
     gotoEventCenter() {
-      const query = `activeFilterId=NOT_SHIELDED_ABNORMAL&from=now-${this.homeDays || 7}d&to=now`;
-      const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center?${query}`;
+      const url = getAlarmCenterListUrl(
+        {
+          activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+          from: `now-${this.homeDays || 7}d`,
+          to: 'now',
+        },
+        this.homeItemBizId
+      );
       location.href = url;
     },
   },

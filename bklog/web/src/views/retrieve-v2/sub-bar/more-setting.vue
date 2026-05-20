@@ -3,7 +3,7 @@
   import useStore from '@/hooks/use-store';
   import useRouter from '@/hooks/use-router';
   import useLocale from '@/hooks/use-locale';
-  import { isFeatureToggleOn } from '@/store/helper';
+  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
   const emit = defineEmits(['update:is-show-cluster-setting']);
 
@@ -34,18 +34,7 @@
   const bkBizId = computed(() => store.state.bkBizId);
 
   const isAiopsToggle = computed(() => {
-    // 日志聚类总开关
-    const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
-    const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
-
-    switch (bkdataAiopsToggle) {
-      case 'on':
-        return true;
-      case 'off':
-        return false;
-      default:
-        return aiopsBizList ? aiopsBizList.some(item => item.toString() === bkBizId.value) : false;
-    }
+    return isFeatureToggleOn('bkdata_aiops_toggle', String(bkBizId.value));
   });
 
   const settingMenuList = ref([

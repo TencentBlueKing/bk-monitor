@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { actionDetail } from 'monitor-api/modules/alert';
+import { getAlarmCenterDetailUrl } from 'monitor-common/utils/alarm-center-router';
 import { copyText } from 'monitor-common/utils/utils';
 
 import ActionDetail from './action-detail';
@@ -240,9 +241,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
 
   // 复制事件详情连接
   handleToEventDetail() {
-    let url = location.href.replace(location.hash, `#/event-center/detail/${this.eventId}`);
     const { bizId } = this.$store.getters;
-    url = url.replace(location.search, `?bizId=${bizId}/`);
+    const url = getAlarmCenterDetailUrl(this.eventId, undefined, bizId);
     copyText(url, msg => {
       this.$bkMessage({
         message: msg,

@@ -28,6 +28,7 @@ from apps.exceptions import ValidationError
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
+from apps.log_databus.handlers.grok.handler import GrokHandler
 
 
 class BkLogRegexpEtlStorage(EtlStorage):
@@ -42,6 +43,11 @@ class BkLogRegexpEtlStorage(EtlStorage):
         """
         if not etl_params.get("separator_regexp"):
             raise ValidationError(_("正则表达式不能为空"))
+
+        # 兼容grok表达式
+        bk_biz_id = etl_params.pop("bk_biz_id", None)
+        if etl_params.get("is_grok") and bk_biz_id:
+            etl_params["separator_regexp"] = GrokHandler(bk_biz_id).grok_to_regex(etl_params["separator_regexp"])
 
         # 先从python获取
         regexp_match = re.compile(etl_params["separator_regexp"], re.S).match(data)
@@ -77,6 +83,11 @@ class BkLogRegexpEtlStorage(EtlStorage):
         """
         if not etl_params.get("separator_regexp"):
             raise ValidationError(_("正则表达式不能为空"))
+
+        # 兼容grok表达式
+        bk_biz_id = etl_params.pop("bk_biz_id", None)
+        if etl_params.get("is_grok") and bk_biz_id:
+            etl_params["separator_regexp"] = GrokHandler(bk_biz_id).grok_to_regex(etl_params["separator_regexp"])
 
         # 组装API请求参数
         api_request = {
@@ -124,6 +135,12 @@ class BkLogRegexpEtlStorage(EtlStorage):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
+        # 兼容grok表达式
+        etl_params = copy.deepcopy(etl_params)
+        bk_biz_id = etl_params.get("bk_biz_id")
+        if etl_params.get("is_grok") and bk_biz_id:
+            etl_params["separator_regexp"] = GrokHandler(bk_biz_id).grok_to_regex(etl_params["separator_regexp"])
+
         # 判断字段是否都在正则表达式中定义
         for field in fields:
             if field.get("is_config_by_user") and f"<{field['field_name']}>" not in etl_params["separator_regexp"]:
@@ -156,7 +173,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
             result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
-                fields, etl_params, built_in_config, storage_cluster_type=storage_cluster_type
+                fields, etl_params, built_in_config
             )
 
         return result_table_config
@@ -265,16 +282,9 @@ class BkLogRegexpEtlStorage(EtlStorage):
             data_link_config["es_storage_config"] = {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
                 "timezone": 8,
-            }
-        elif storage_cluster_type == DORIS_CLUSTER_TYPE:
-            data_link_config["doris_storage_config"] = {
-                "storage_keys": built_in_config["option"]["es_unique_field_list"],
-                # "json_fields": [],
-                # "field_config_group": {},
-                # "flush_timeout": None
-            }
-
-        return data_link_config
+            },
+            "doris_storage_config": None,
+        }
 
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         retain_original_text = etl_params.get("retain_original_text", False)

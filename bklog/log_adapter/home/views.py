@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
-from typing import Any, Dict
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from blueapps.account.decorators import login_exempt
@@ -24,6 +24,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from rest_framework.fields import BooleanField
 from rest_framework.response import Response
 
 from apps.constants import (
@@ -99,7 +100,7 @@ class RequestProcessor:
         return fake_request
 
     @classmethod
-    def get_request_user_info(cls, request) -> Dict[str, Any]:
+    def get_request_user_info(cls, request) -> dict[str, Any]:
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
         try:
             external_user = json.loads(external_user)
@@ -123,7 +124,7 @@ class RequestProcessor:
         return ""
 
     @classmethod
-    def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data_str: str):
+    def get_resource(cls, action_id: str, kwargs: dict[str, Any], json_data_str: str):
         """获取请求中的资源"""
         if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
             if "index_set_id" in kwargs:
@@ -144,7 +145,7 @@ class RequestProcessor:
         action_id: str,
         view_set: str,
         view_action: str,
-        allow_resources_result: Dict[str, Any],
+        allow_resources_result: dict[str, Any],
     ):
         """
         过滤接口返回中的资源
@@ -170,7 +171,7 @@ class RequestProcessor:
 
     @classmethod
     def filter_log_search_response_resource(
-        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: Dict[str, Any]
+        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: dict[str, Any]
     ):
         allow_resources = allow_resources_result["resources"]
         view_set_class: ViewSetAction = ViewSetAction(action_id=action_id, view_set=view_set, view_action=view_action)
@@ -422,13 +423,13 @@ def dispatch_external_proxy(request):
         )
 
     except Resolver404:
-        logger.warning("dispatch_plugin_query: resolve view func 404 for: {}".format(url))
+        logger.warning(f"dispatch_plugin_query: resolve view func 404 for: {url}")
         return JsonResponse(
-            {"result": False, "message": "dispatch_plugin_query: resolve view func 404 for: {}".format(url)}, status=404
+            {"result": False, "message": f"dispatch_plugin_query: resolve view func 404 for: {url}"}, status=404
         )
 
     except Exception as e:
-        logger.exception("dispatch_plugin_query: exception for {}".format(e))
+        logger.exception(f"dispatch_plugin_query: exception for {e}")
         raise e
 
 
@@ -436,12 +437,32 @@ def dispatch_external_proxy(request):
 @method_decorator(csrf_exempt)
 @require_POST
 def external_callback(request):
-    logger.info(f"[external_callback]: external_callback with header({request.headers}), body({request.body})")
+    logger.info("[external_callback]: external_callback with body keys present")
     try:
         params = json.loads(request.body)
     except json.decoder.JSONDecodeError:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
+    if not isinstance(params, dict):
+        return JsonResponse({"result": False, "message": "invalid payload"}, status=400)
+
+    if not params.get("token"):
+        logger.warning("[external_callback]: missing token")
+        return JsonResponse({"result": False, "message": "missing token"}, status=401)
+
+    missing = [key for key in ("sn", "title", "updated_by") if not params.get(key)]
+    if missing or "approve_result" not in params:
+        if "approve_result" not in params:
+            missing.append("approve_result")
+        logger.warning("[external_callback]: missing required fields: %s", missing)
+        return JsonResponse({"result": False, "message": f"missing required fields: {','.join(missing)}"}, status=400)
+
+    try:
+        params["approve_result"] = BooleanField().to_internal_value(params["approve_result"])
+    except Exception:
+        return JsonResponse({"result": False, "message": "invalid approve_result"}, status=400)
+
     result = ExternalPermissionApplyRecord.callback(params)
-    if result["result"]:
+    if result.get("result"):
         return JsonResponse(result, status=200)
+    return JsonResponse(result, status=400)

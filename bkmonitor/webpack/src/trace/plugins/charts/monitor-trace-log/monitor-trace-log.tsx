@@ -34,7 +34,7 @@ import {
   onMounted,
   ref,
   watch,
-  shallowRef
+  shallowRef,
 } from 'vue';
 
 import {
@@ -74,6 +74,7 @@ export default defineComponent({
     const refreshImmediate = inject<Ref<string>>(REFRESH_IMMEDIATE_KEY, shallowRef(traceStore.refreshImmediate));
     const refreshInterval = inject<Ref<number>>(REFRESH_INTERVAL_KEY, shallowRef(traceStore.refreshInterval));
     const spanId = inject<Ref<string>>('spanId', ref(''));
+    const traceId = inject<Ref<string>>('traceId', ref(''));
 
     const mainRef = ref<HTMLDivElement>();
     let logAppInstance: any;
@@ -86,6 +87,7 @@ export default defineComponent({
       // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
     });
+    const isTraceDetail = computed(() => traceId.value && !spanId.value);
 
     const logInstance = null;
     const unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
@@ -162,13 +164,21 @@ export default defineComponent({
       if (!startTime || !endTime) {
         return [];
       }
-      const data = await serviceRelationList({
-        app_name: appName.value,
-        service_name: serviceName.value,
-        start_time: startTime,
-        end_time: endTime,
-        span_id: spanId.value,
-      }).catch(() => []);
+      const params = isTraceDetail.value
+        ? {
+            app_name: appName.value,
+            trace_id: traceId.value,
+            start_time: startTime,
+            end_time: endTime,
+          }
+        : {
+            app_name: appName.value,
+            service_name: serviceName.value,
+            start_time: startTime,
+            end_time: endTime,
+            span_id: spanId.value,
+          };
+      const data = await serviceRelationList(params).catch(() => []);
       return data;
     }
 
@@ -177,13 +187,19 @@ export default defineComponent({
       if (!startTime || !endTime) {
         return [];
       }
-      const data = await serviceLogInfo({
-        app_name: appName.value,
-        service_name: serviceName.value,
-        start_time: startTime,
-        end_time: endTime,
-        span_id: spanId.value,
-      })
+      const params = isTraceDetail.value
+        ? {
+            app_name: appName.value,
+            trace_id: traceId.value,
+          }
+        : {
+            app_name: appName.value,
+            service_name: serviceName.value,
+            start_time: startTime,
+            end_time: endTime,
+            span_id: spanId.value,
+          };
+      const data = await serviceLogInfo(params)
         .then(data => {
           return !!data;
         })
