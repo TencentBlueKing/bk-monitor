@@ -12,9 +12,10 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from alarm_backends.constants import NO_DATA_LEVEL, NO_DATA_TAG_DIMENSION
+from alarm_backends.constants import NO_DATA_LEVEL, NO_DATA_TAG_DIMENSION, NO_DATA_VALUE
 from alarm_backends.core.cache import key
-from alarm_backends.core.control.mixins.nodata import CheckMixin
+from alarm_backends.core.control.mixins.nodata import NODATA_TAG_FILL_LIMIT, CheckMixin
+from alarm_backends.core.detect_result import ANOMALY_LABEL
 from alarm_backends.service.detect import DataPoint
 from bkmonitor.utils.common_utils import count_md5
 
@@ -354,3 +355,112 @@ class TestChecker(TestCase):
         data_points = [DataPoint(record, self.item) for record in RECORDS]
         # 127.0.0.3 不在HostManager缓存中
         self.assertEqual(self.item.check(data_points, check_timestamp), ANOMALY_INFO[1:2])
+
+    def _read_check_result_members(self, dimensions_md5):
+        check_key = key.CHECK_RESULT_CACHE_KEY.get_key(
+            strategy_id=self.item.strategy.id,
+            item_id=self.item.id,
+            dimensions_md5=dimensions_md5,
+            level=self.item.no_data_level,
+        )
+        return key.CHECK_RESULT_CACHE_KEY.client.zrange(check_key, 0, -1, withscores=True)
+
+    def test_update_dimensions_checkpoint__fill_60s_period(self):
+        # agg_interval=60s 时回退到单点写入，与改造前行为一致
+        key.CHECK_RESULT_CACHE_KEY.client.flushall()
+        self.item.query_configs[0]["agg_interval"] = 60
+        check_timestamp = 10000
+        target_dms = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": "0", NO_DATA_TAG_DIMENSION: True}
+        target_md5 = count_md5(target_dms)
+        self.item._update_dimensions_checkpoint(
+            check_timestamp=check_timestamp,
+            target_instance_dimensions=[target_dms],
+            target_dimensions_md5=[target_md5],
+            data_dimensions=[],
+            data_dimensions_md5=[],
+            dimensions_md5_timestamp={},
+        )
+        members = self._read_check_result_members(target_md5)
+        self.assertEqual(len(members), 1)
+        self.assertEqual(members[0][0], f"{check_timestamp}|{ANOMALY_LABEL}")
+        self.assertEqual(int(members[0][1]), check_timestamp)
+
+    def test_update_dimensions_checkpoint__fill_30s_period(self):
+        # agg_interval=30s 时按节拍回填 2 个 ANOMALY tag
+        key.CHECK_RESULT_CACHE_KEY.client.flushall()
+        self.item.query_configs[0]["agg_interval"] = 30
+        check_timestamp = 10000
+        target_dms = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": "0", NO_DATA_TAG_DIMENSION: True}
+        target_md5 = count_md5(target_dms)
+        self.item._update_dimensions_checkpoint(
+            check_timestamp=check_timestamp,
+            target_instance_dimensions=[target_dms],
+            target_dimensions_md5=[target_md5],
+            data_dimensions=[],
+            data_dimensions_md5=[],
+            dimensions_md5_timestamp={},
+        )
+        members = self._read_check_result_members(target_md5)
+        self.assertEqual(len(members), 2)
+        expected = {
+            f"{check_timestamp}|{ANOMALY_LABEL}",
+            f"{check_timestamp - 30}|{ANOMALY_LABEL}",
+        }
+        self.assertEqual({m[0] for m in members}, expected)
+
+    def test_update_dimensions_checkpoint__fill_15s_period(self):
+        # agg_interval=15s 时回填 4 个 ANOMALY tag，时间戳间隔等于 agg_interval
+        key.CHECK_RESULT_CACHE_KEY.client.flushall()
+        self.item.query_configs[0]["agg_interval"] = 15
+        check_timestamp = 10000
+        target_dms = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": "0", NO_DATA_TAG_DIMENSION: True}
+        target_md5 = count_md5(target_dms)
+        self.item._update_dimensions_checkpoint(
+            check_timestamp=check_timestamp,
+            target_instance_dimensions=[target_dms],
+            target_dimensions_md5=[target_md5],
+            data_dimensions=[],
+            data_dimensions_md5=[],
+            dimensions_md5_timestamp={},
+        )
+        members = self._read_check_result_members(target_md5)
+        self.assertEqual(len(members), 4)
+        scores = sorted({int(score) for _, score in members})
+        self.assertEqual(scores, [check_timestamp - i * 15 for i in (3, 2, 1, 0)])
+
+    def test_update_dimensions_checkpoint__fill_limit_on_extreme_period(self):
+        # agg_interval=5s 时本应回填 12 个，受 NODATA_TAG_FILL_LIMIT 上限保护
+        key.CHECK_RESULT_CACHE_KEY.client.flushall()
+        self.item.query_configs[0]["agg_interval"] = 5
+        check_timestamp = 10000
+        target_dms = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": "0", NO_DATA_TAG_DIMENSION: True}
+        target_md5 = count_md5(target_dms)
+        self.item._update_dimensions_checkpoint(
+            check_timestamp=check_timestamp,
+            target_instance_dimensions=[target_dms],
+            target_dimensions_md5=[target_md5],
+            data_dimensions=[],
+            data_dimensions_md5=[],
+            dimensions_md5_timestamp={},
+        )
+        members = self._read_check_result_members(target_md5)
+        self.assertEqual(len(members), NODATA_TAG_FILL_LIMIT)
+
+    def test_update_dimensions_checkpoint__data_dim_no_fill(self):
+        # 维度有数据时，只写当前 check_timestamp 的 NO_DATA_VALUE 标签，不回填历史点
+        key.CHECK_RESULT_CACHE_KEY.client.flushall()
+        self.item.query_configs[0]["agg_interval"] = 30
+        check_timestamp = 10000
+        data_dms = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": "0", NO_DATA_TAG_DIMENSION: True}
+        data_md5 = count_md5(data_dms)
+        self.item._update_dimensions_checkpoint(
+            check_timestamp=check_timestamp,
+            target_instance_dimensions=[],
+            target_dimensions_md5=[],
+            data_dimensions=[data_dms],
+            data_dimensions_md5=[data_md5],
+            dimensions_md5_timestamp={data_md5: check_timestamp},
+        )
+        members = self._read_check_result_members(data_md5)
+        self.assertEqual(len(members), 1)
+        self.assertEqual(members[0][0], f"{check_timestamp}|{NO_DATA_VALUE}")
