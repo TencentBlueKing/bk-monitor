@@ -37,7 +37,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 
 import { getSceneFieldKeys, getDefaultOp, getSceneConfig, getAllSceneFieldOpKeys } from './search-bar/scene-filter/scene-config';
 import { resetRetrieveData } from './search-bar/scene-filter/scene-retrieve-utils';
-import { isFeatureToggleOn } from '@/store/helper';
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
 import $http from '@/api';
 import { RetrieveType } from '../retrieve-v2/sub-bar/retrieve-type-switch';
