@@ -1,8 +1,24 @@
+/* stylelint-disable selector-class-pattern */
 .retrieval-filter__ui-selector-component {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  padding: 4px 4px 0px 4px;
+  padding: 4px 4px 0;
+
+  .condition-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 4px;
+    margin: 0 4px 4px 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #f59500;
+    cursor: pointer;
+    background: #fdeed8;
+    border-radius: 2px;
+  }
 
   .add-btn {
     display: flex;
@@ -35,7 +51,7 @@
     display: flex;
     align-items: center;
     height: 40px;
-    margin: 0 4px 4px 4px;
+    margin: 0 4px 4px;
     white-space: nowrap;
 
     .placeholder-text {

@@ -2292,17 +2292,6 @@
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
-  dest_path: /apm_api/v1/application/query_es/
-  is_hidden: true
-  label: 查询apm相关es数据
-  label_en: query apm es
-  name: query_apm_es
-  path: /v2/monitor_v3/query_apm_es/
-  method: POST
-
-- api_type: query
-  comp_codename: generic.v2.monitor_v3.monitor_v3_component
-  dest_http_method: POST
   dest_path: /apm_api/v1/application/query_host_instance/
   is_hidden: true
   label: 查询apm主机实例
@@ -2342,28 +2331,6 @@
   label_en: query apm span list
   name: query_apm_span_list
   path: /v2/monitor_v3/query_apm_span_list/
-  method: POST
-
-- api_type: query
-  comp_codename: generic.v2.monitor_v3.monitor_v3_component
-  dest_http_method: POST
-  dest_path: /apm_api/v1/application/query_span_statistics/
-  is_hidden: true
-  label: 查询接口统计列表
-  label_en: query apm span statistics
-  name: query_apm_span_statistics
-  path: /v2/monitor_v3/query_apm_span_statistics/
-  method: POST
-
-- api_type: query
-  comp_codename: generic.v2.monitor_v3.monitor_v3_component
-  dest_http_method: POST
-  dest_path: /apm_api/v1/application/query_service_statistics/
-  is_hidden: true
-  label: 查询服务统计列表
-  label_en: query apm service statistics
-  name: query_apm_service_statistics
-  path: /v2/monitor_v3/query_apm_service_statistics/
   method: POST
 
 - api_type: query

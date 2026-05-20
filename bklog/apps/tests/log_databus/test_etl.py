@@ -149,6 +149,7 @@ ETL_CONFIG_REGEXP = "bk_log_regexp"
 ETL_PARAMS_REGEXP = {
     "separator_regexp": "(?P<request_ip>[\\d\\.]+)[^[]+\\[(?P<request_time>[^]]+)\\]",
     "retain_original_text": True,
+    "bk_biz_id": 2,
 }
 ETL_REGEXP_CONTENT = '127.0.0.1 - - [30/Nov/2019:21:07:10 +0800] "GET /api/v3/object/statistics HTTP/1.0" "200"'
 FIELDS_REGEXP = [
@@ -1026,6 +1027,7 @@ class TestEtl(TestCase):
         etl_params = {
             "separator_regexp": "(?P<request_ip>[\\d\\.]+)[^[]+\\[(?P<request_time>[^]]+)\\]",
             "retain_original_text": True,
+            "bk_biz_id": 2,
         }
 
         # 创建EtlStorage实例

@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from core.drf_resource.exceptions import CustomException
+from django.db.models import Q
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     build_response,
@@ -78,6 +79,13 @@ DATA_ID_FIELD_NAMES = [
 ]
 
 
+def _normalize_bk_data_id(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="bk_data_id 必须是整数") from error
+
+
 def _serialize_bcs_cluster(bcs_cluster: models.BCSClusterInfo) -> dict[str, Any]:
     item = {field: serialize_value(getattr(bcs_cluster, field, None)) for field in BCS_CLUSTER_FIELDS}
     for sensitive_field, flag_field in SENSITIVE_BCS_FIELDS.items():
@@ -94,6 +102,16 @@ def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str):
             queryset = queryset.filter(bk_biz_id=int(params["bk_biz_id"]))
         except (TypeError, ValueError) as error:
             raise CustomException(message="bk_biz_id 必须是整数") from error
+
+    if params.get("bk_data_id") not in (None, ""):
+        bk_data_id = _normalize_bk_data_id(params["bk_data_id"])
+        if bk_data_id <= 0:
+            return queryset.none()
+
+        data_id_query = Q()
+        for field_name in DATA_ID_FIELD_NAMES:
+            data_id_query |= Q(**{field_name: bk_data_id})
+        queryset = queryset.filter(data_id_query)
 
     if params.get("cluster_id") not in (None, ""):
         queryset = queryset.filter(cluster_id__contains=str(params["cluster_id"]).strip())
@@ -120,13 +138,14 @@ def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str):
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "bk_biz_id": "可选，业务 ID 精确匹配",
+        "bk_data_id": "可选，DataID 精确匹配；匹配 K8sMetricDataID、CustomMetricDataID、K8sEventDataID、CustomEventDataID、SystemLogDataID、CustomLogDataID 任一字段",
         "cluster_id": "可选，集群 ID 包含匹配",
         "status": "可选，集群状态原始值精确匹配，支持字符串、逗号分隔字符串或列表；不传则不过滤",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(ORDERING_FIELDS))}，默认 cluster_id",
     },
-    example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20, "ordering": "cluster_id"},
+    example_params={"bk_tenant_id": "system", "bk_data_id": 50010, "page": 1, "page_size": 20},
 )
 def list_bcs_clusters(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)

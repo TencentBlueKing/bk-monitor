@@ -1,4 +1,13 @@
 .alarm-table.incident-table {
+  %custom-table-ellipsis {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    word-break: break-all;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+  }
+
   .explore-col {
     align-items: flex-start;
     min-height: 40px;
@@ -8,6 +17,15 @@
 
       .lever-rect {
         margin-right: 8px;
+      }
+
+      .lever-rect-text {
+        @extend %custom-table-ellipsis;
+      }
+
+      .lever-rect-link {
+        color: inherit;
+        text-decoration: none;
       }
     }
 
@@ -32,16 +50,15 @@
         &.icon-mc-solved {
           color: #8e9bb3;
         }
+
+        &.icon-yihebing {
+          color: rgb(226 77 66);
+        }
       }
     }
   }
 
   .common-table-ellipsis:not(.tag-item) {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    word-break: break-all;
-    white-space: normal;
-    -webkit-box-orient: vertical;
+    @extend %custom-table-ellipsis;
   }
 }

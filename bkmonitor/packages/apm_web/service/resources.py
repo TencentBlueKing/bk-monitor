@@ -59,6 +59,7 @@ from apm_web.service.serializers import (
     SetCodeRedefinedRuleRequestSerializer,
     SetCodeRemarkRequestSerializer,
     BaseCodeRedefinedRequestSerializer,
+    build_code_remark_configs,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkm_space.errors import NoRelatedResourceError
@@ -917,54 +918,196 @@ class GetCodeRemarksResource(Resource):
     """
     获取返回码备注
 
-    维度：业务 + 应用 + 服务 + 调用类型(kind)
-    存储：ApmMetaConfig ，config_key 随 kind 变化
+    存储：ApmMetaConfig 应用级配置，统一使用 APM_CODE_REMARK_CONFIG_KEY
+    行为：
+      - 不传 service_name（应用配置场景）：直接返回备注列表
+      - 传 service_name（服务配置场景）：按 kind + service_name 过滤全局/服务级备注，返回 code → remark 字典
     """
 
-    RequestSerializer = BaseCodeRedefinedRequestSerializer
+    APM_CODE_REMARK_CONFIG_KEY = "code_remarks"
 
-    CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
+    class RequestSerializer(BaseCodeRedefinedRequestSerializer):
+        pass
 
-    def perform_request(self, validated_request_data):
+    TRPC_DEFAULT_CODE_REMARK = {
+        "1": _("服务端解码错误"),
+        "2": _("服务端编码错误"),
+        "11": _("服务端无对应 Service 实现"),
+        "12": _("服务端无对应接口实现"),
+        "21": _("服务端处理超时"),
+        "22": _("服务端过载保护丢弃请求"),
+        "23": _("服务端限流"),
+        "24": _("服务端全链路超时"),
+        "31": _("服务端系统错误"),
+        "41": _("服务端鉴权失败"),
+        "51": _("服务端请求参数校验失败"),
+        "101": _("客户端调用超时"),
+        "102": _("客户端全链路超时"),
+        "111": _("客户端连接错误"),
+        "121": _("客户端编码错误"),
+        "122": _("客户端解码错误"),
+        "123": _("客户端限流"),
+        "124": _("客户端过载保护丢弃请求"),
+        "131": _("客户端路由错误"),
+        "141": _("客户端网络错误"),
+        "151": _("客户端响应参数校验失败"),
+        "161": _("上游主动取消请求"),
+        "171": _("客户端读取 Frame 错误"),
+        "201": _("服务端流式网络错误"),
+        "211": _("服务端流消息超限"),
+        "221": _("服务端流式编码错误"),
+        "222": _("服务端流式解码错误"),
+        "231": _("服务端流写结束"),
+        "232": _("服务端流写溢出"),
+        "233": _("服务端流写关闭"),
+        "234": _("服务端流写超时"),
+        "251": _("服务端流读结束"),
+        "252": _("服务端流读关闭"),
+        "253": _("服务端流读空数据"),
+        "254": _("服务端流读超时"),
+        "255": _("服务端流空闲超时"),
+        "301": _("客户端流式网络错误"),
+        "311": _("客户端流消息超限"),
+        "321": _("客户端流式编码错误"),
+        "322": _("客户端流式解码错误"),
+        "331": _("客户端流写结束"),
+        "332": _("客户端流写溢出"),
+        "333": _("客户端流写关闭"),
+        "334": _("客户端流写超时"),
+        "351": _("客户端流读结束"),
+        "352": _("客户端流读关闭"),
+        "353": _("客户端流读空数据"),
+        "354": _("客户端流读超时"),
+        "355": _("客户端流空闲超时"),
+        "361": _("客户端流初始化错误"),
+        "999": _("未明确错误"),
+        "1000": _("未明确流式错误"),
+    }
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
-        service_name: str = validated_request_data["service_name"]
-        kind: str = validated_request_data["kind"]
+        service_name: str | None = validated_request_data.get("service_name")
+        kind: str | None = validated_request_data.get("kind")
 
-        config_key = self.CONFIG_KEY_MAP.get(kind)
-        if not config_key:
-            return {}
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise serializers.ValidationError(_("应用不存在"))
 
-        instance = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, config_key)
-        return instance.config_value if instance else {}
+        config_obj = ApmMetaConfig.get_application_config_value(app.application_id, self.APM_CODE_REMARK_CONFIG_KEY)
+
+        # 应用配置场景直接返回用户显式配置的备注
+        remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
+        if not service_name:
+            return remark_configs
+
+        # 服务配置场景返回字典数据结构，全局配置优先级低于服务级配置，通过排序保证服务级后写入覆盖全局
+        service_config: dict[str, str] = {
+            **self.TRPC_DEFAULT_CODE_REMARK,
+            # 基于 TRPC_DEFAULT_CODE_REMARK 另外派生 err_{code}: {default_remark} 的备注规则。
+            **{f"err_{code}": remark for code, remark in self.TRPC_DEFAULT_CODE_REMARK.items()},
+        }
+        for remark_dict in sorted(remark_configs, key=lambda x: not x.get("is_global")):
+            if remark_dict.get("kind") != kind:
+                continue
+            if not remark_dict.get("is_global") and service_name not in remark_dict.get("service_names", []):
+                continue
+            service_config[remark_dict.get("code", "")] = remark_dict.get("remark", "")
+
+        return service_config
 
 
 class SetCodeRemarkResource(Resource):
+    APM_CODE_REMARK_CONFIG_KEY = "code_remarks"
     RequestSerializer = SetCodeRemarkRequestSerializer
 
-    CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
+    @classmethod
+    def merge_remark_configs(
+        cls,
+        remark_configs: list[dict[str, Any]],
+        update_remark_configs: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        """合并状态码备注配置：先展平覆盖去重，再按备注聚合回服务列表
 
-    def perform_request(self, validated_request_data):
+        存储态（聚合）单项结构：{kind, code, remark, is_global, service_names: list[str]}；
+        通过 build_code_remark_configs 可展平为扁平态 {service_name, kind, code, remark}，
+        其中 is_global=True 的记录以 service_name="" 表示。
+
+        合并分两步：
+            1. 展平 remark_configs 与 update_remark_configs 后，以 (service_name, kind, code)
+               为键写入 remark_map；存量在前、变更在后，后写入者覆盖先写入者，从而实现
+               "变更项覆盖同键存量"的更新语义。
+            2. 以 (is_global, kind, code, remark) 为键聚合 remark_map，把键相同的多条记录
+               的 service_name 合并到同一 service_names 集合，实现按备注维度的去重；过程中
+               kind、code、remark 任一为空的记录会被丢弃（等价于"清空备注"即删除该配置）。
+
+        :param remark_configs: 存量配置列表（聚合态）
+        :param update_remark_configs: 本次变更项列表（聚合态），以 (service_name, kind, code)
+            为键覆盖存量中的同键项；为空时等价于仅对存量做一次规范化
+        :return: 聚合态配置列表，service_names 统一为 list 以便 JSON 序列化；
+            is_global=True 时 service_names 为 []
+        """
+        # 存量在前、变更在后，保证变更项覆盖存量的同键配置
+        remark_map: dict[tuple[str, str, str], str] = {
+            (item["service_name"], item["kind"], item["code"]): item["remark"]
+            for item in build_code_remark_configs(remark_configs)
+            + build_code_remark_configs(update_remark_configs or [])
+        }
+
+        merged_map: dict[tuple[bool, str, str, str], dict[str, Any]] = {}
+        for (service_name, kind, code), remark in remark_map.items():
+            # 任一关键字段为空即视为无效配置（清空备注 => 删除）
+            if not (kind and code and remark):
+                continue
+            is_global: bool = service_name == ""
+            merged_key = (is_global, kind, code, remark)
+            if merged_key in merged_map:
+                merged_map[merged_key]["service_names"].append(service_name)
+            else:
+                merged_map[merged_key] = {
+                    "kind": kind,
+                    "code": code,
+                    "remark": remark,
+                    "is_global": is_global,
+                    "service_names": [] if is_global else [service_name],
+                }
+        return list(merged_map.values())
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
-        service_name: str = validated_request_data["service_name"]
-        kind: str = validated_request_data["kind"]
-        code: str = str(validated_request_data["code"]).strip()
-        remark: str = str(validated_request_data.get("remark", "")).strip()
+        service_name: str | None = validated_request_data.get("service_name")
+        code: str = validated_request_data.get("code", "").strip()
+        remark: str = validated_request_data.get("remark", "").strip()
 
-        config_key = self.CONFIG_KEY_MAP.get(kind)
-        if not config_key:
-            return {}
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise serializers.ValidationError(_("应用不存在"))
 
-        exists = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, config_key)
-        data = (exists.config_value if exists else {}) or {}
-
-        # 设置/覆盖/删除（空串即删除该码的备注）
-        if remark:
-            data[code] = remark
+        update_remark_configs: list[dict[str, Any]] | None = None
+        if service_name:
+            config_obj = ApmMetaConfig.get_application_config_value(app.application_id, self.APM_CODE_REMARK_CONFIG_KEY)
+            remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
+            is_global: bool = validated_request_data["is_global"]
+            kind: str = validated_request_data["kind"]
+            update_remark_configs = [
+                {
+                    "kind": kind,
+                    "code": code,
+                    "remark": remark,
+                    "is_global": is_global,
+                    "service_names": [] if is_global else [service_name],
+                }
+            ]
+            # 保存并应用为全局时，需要同时移除服务级配置
+            if is_global:
+                update_remark_configs.append(
+                    {"kind": kind, "code": code, "remark": "", "is_global": False, "service_names": [service_name]}
+                )
         else:
-            if code in data:
-                del data[code]
-
-        ApmMetaConfig.service_config_setup(bk_biz_id, app_name, service_name, config_key, data)
+            remark_configs: list[dict[str, Any]] = validated_request_data["remarks"]
+        remark_configs = self.merge_remark_configs(remark_configs, update_remark_configs)
+        ApmMetaConfig.application_config_setup(
+            app.application_id, self.APM_CODE_REMARK_CONFIG_KEY, {"remarks": remark_configs}
+        )
         return {}

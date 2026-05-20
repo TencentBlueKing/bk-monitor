@@ -46,6 +46,7 @@ def create_or_delete_records(mocker):
         is_custom_table=False,
         default_storage=models.ClusterInfo.TYPE_DORIS,
         data_label="bkdata_index_set_7839",
+        labels={"scene": "doris"},
     )
 
     # DorisStorage
@@ -56,6 +57,26 @@ def create_or_delete_records(mocker):
         index_set="2_bklog_pure_doris,2_bklog_doris_log",
         source_type="bkdata",
         table_id="2_bklog.test_doris_non_exists",
+    )
+
+    # Doris虚拟结果表
+    models.ResultTable.objects.create(
+        bk_tenant_id="riot",
+        table_id="2_bklog.test_doris_fake",
+        bk_biz_id=2,
+        is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+        data_label="bkdata_index_set_fake",
+        labels={"scene": "doris-fake"},
+    )
+    models.DorisStorage.objects.create(
+        bk_tenant_id="riot",
+        bkbase_table_id=None,
+        origin_table_id="2_bklog.test_doris_non_exists",
+        storage_cluster_id=10034,
+        index_set="2_bklog_fake_doris",
+        source_type="bkdata",
+        table_id="2_bklog.test_doris_fake",
     )
 
     # 计算平台结果表
@@ -106,6 +127,14 @@ def create_or_delete_records(mocker):
         field_path="__ext.pod_name",
         path_type="keyword",
         query_alias="pod_name",
+        is_deleted=False,
+    )
+    models.ESFieldQueryAliasOption.objects.create(
+        table_id="2_bklog.test_doris_fake",
+        bk_tenant_id="riot",
+        field_path="__ext.fake_pod_name",
+        path_type="keyword",
+        query_alias="fake_pod_name",
         is_deleted=False,
     )
 
@@ -180,7 +209,7 @@ def test_push_doris_table_id_detail(create_or_delete_records):
             expected_rt_detail_router = {
                 "2_bklog.test_doris_non_exists|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log",'
                 '"measurement":"doris","storage_type":"bk_sql",'
-                '"data_label":"bkdata_index_set_7839","field_alias":{'
+                '"data_label":"bkdata_index_set_7839","labels":{"scene":"doris"},"field_alias":{'
                 '"pod_name":"__ext.pod_name","pod_ip":"__ext.pod_ip"}}'
             }
 
@@ -193,6 +222,39 @@ def test_push_doris_table_id_detail(create_or_delete_records):
             mock_publish.assert_has_calls(
                 [
                     call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bklog.test_doris_non_exists|riot"]),
+                ]
+            )
+
+    settings.ENABLE_MULTI_TENANT_MODE = False
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_push_doris_table_id_detail_for_fake_rt(create_or_delete_records):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+
+    # 虚拟Doris RT当前记录未保存物理表名时，db来自origin_table_id对应的DorisStorage，其余元信息来自当前RT
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            space_client = SpaceTableIDRedis()
+            space_client.push_doris_table_id_detail(
+                bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_fake"], is_publish=True
+            )
+            expected_rt_detail_router = {
+                "2_bklog.test_doris_fake|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log",'
+                '"measurement":"doris","storage_type":"bk_sql",'
+                '"data_label":"bkdata_index_set_fake","labels":{"scene":"doris-fake"},"field_alias":{'
+                '"fake_pod_name":"__ext.fake_pod_name"}}'
+            }
+
+            mock_hmset_to_redis.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
+                ]
+            )
+
+            mock_publish.assert_has_calls(
+                [
+                    call("bkmonitorv3:spaces:result_table_detail:channel", ["2_bklog.test_doris_fake|riot"]),
                 ]
             )
 

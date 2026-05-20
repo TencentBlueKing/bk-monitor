@@ -311,9 +311,9 @@ export default {
     };
   },
   computed: {
-    // 是否事件中心跳转过来
+    // 是否事件中心 / 新版告警中心跳转过来
     fromEvent() {
-      return this.fromRouteName === 'event-center-detail';
+      return ['event-center-detail', 'alarm-center-detail'].includes(this.fromRouteName);
     },
     positionText() {
       return `${this.$t('屏蔽ID')}：${this.detailData.id || ''}`;

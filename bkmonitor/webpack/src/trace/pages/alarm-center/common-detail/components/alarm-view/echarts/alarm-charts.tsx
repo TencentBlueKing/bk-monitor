@@ -189,6 +189,7 @@ export default defineComponent({
             },
           },
           {
+            lazyRender: true,
             alias: 'alertEventTs',
             datasource: 'time_series',
             dataType: 'time_series',
@@ -349,7 +350,7 @@ export default defineComponent({
                   symbol: 'circle',
                   symbolSize: 5,
                   itemStyle: { color: ANOMALY_COLOR },
-                  tooltip: createMarkPointTooltip(t('异常检测点')),
+                  tooltip: createMarkPointTooltip(t('异常点')),
                 }))),
           // 告警级别标记
           {
@@ -594,8 +595,8 @@ export default defineComponent({
     const customLegendData = (legendData: ILegendItem[]): ILegendItem[] => {
       let eventLegend = null;
       let legendList = legendData.reduce((prev, curr) => {
-        if (curr.name === t('事件')) {
-          eventLegend = curr;
+        if (curr.alias === 'alertEventTs') {
+          eventLegend = { ...curr, alias: curr.name };
           return prev;
         }
         return [...prev, curr];

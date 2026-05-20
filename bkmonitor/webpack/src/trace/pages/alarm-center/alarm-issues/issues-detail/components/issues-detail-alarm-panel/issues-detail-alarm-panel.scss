@@ -1,0 +1,30 @@
+.issues-detail-alarm-panel {
+  padding: 6px 16px 16px;
+  background: #fff;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 #1919290a;
+
+  .event-detail-head-main {
+    margin-bottom: 8px;
+  }
+
+  .alarm-center-detail-box {
+    padding: 0;
+    background: #fff;
+
+    .panel-tab {
+      background: #fff;
+    }
+
+    .alarm-view {
+      .alarm-view-tab {
+        background: #fff;
+
+        & > .bk-tab {
+          background: #fff;
+        }
+      }
+    }
+  }
+}

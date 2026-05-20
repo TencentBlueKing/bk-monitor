@@ -49,7 +49,6 @@ const AlarmCenter = () => import(/* webpackChunkName: "AlarmCenter" */ '../../pa
 //   timeout: Infinity
 // });
 
-const isSpecEvent = location.search.indexOf('specEvent') > -1;
 export default [
   {
     path: '/trace/alarm-center',
@@ -74,16 +73,7 @@ export default [
         authority: {
           map: eventCenterAuth,
         },
-      },
-      !isSpecEvent
-        ? {
-          authorityList: ['view_event_v2'],
-          authority: {
-            page: eventCenterAuth.VIEW_AUTH,
-            map: eventCenterAuth,
-          },
-        }
-        : {}
+      }
     ),
   },
   {
@@ -110,14 +100,7 @@ export default [
         authority: {
           map: eventCenterAuth,
         },
-      },
-      !isSpecEvent
-        ? {
-          authority: {
-            page: eventCenterAuth.VIEW_AUTH,
-          },
-        }
-        : {}
+      }
     ),
   },
   {
@@ -143,16 +126,7 @@ export default [
         authority: {
           map: eventCenterAuth,
         },
-      },
-      !isSpecEvent
-        ? {
-          authorityList: ['view_event_v2'],
-          authority: {
-            page: eventCenterAuth.VIEW_AUTH,
-            map: eventCenterAuth,
-          },
-        }
-        : {}
+      }
     ),
   },
   {
@@ -178,16 +152,7 @@ export default [
         authority: {
           map: eventCenterAuth,
         },
-      },
-      !isSpecEvent
-        ? {
-          authorityList: ['view_event'],
-          authority: {
-            page: eventCenterAuth.VIEW_AUTH,
-            map: eventCenterAuth,
-          },
-        }
-        : {}
+      }
     ),
   },
   {
@@ -213,14 +178,7 @@ export default [
         authority: {
           map: eventCenterAuth,
         },
-      },
-      !isSpecEvent
-        ? {
-          authority: {
-            page: eventCenterAuth.VIEW_AUTH,
-          },
-        }
-        : {}
+      }
     ),
   },
   {
@@ -246,14 +204,7 @@ export default [
         authority: {
           map: eventCenterAuth,
         },
-      },
-      !isSpecEvent
-        ? {
-          authority: {
-            page: eventCenterAuth.VIEW_AUTH,
-          },
-        }
-        : {}
+      }
     ),
   },
   {

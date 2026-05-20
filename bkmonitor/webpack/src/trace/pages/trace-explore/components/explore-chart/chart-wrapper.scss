@@ -1,8 +1,9 @@
 .explore-chart-wrapper {
   width: 100%;
+
   @keyframes chart-collapse-bottom-box {
     0% {
-      border-bottom: 0px solid transparent;
+      border-bottom: 0 solid transparent;
     }
 
     100% {
@@ -45,7 +46,7 @@
         }
       }
 
-      .title-wrapper.draggable-handle {
+      .title-wrapper.trace-home-draggable-handle {
         visibility: hidden;
         pointer-events: none;
       }

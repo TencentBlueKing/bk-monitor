@@ -72,7 +72,7 @@ export default defineComponent({
         show_aggs: false,
         show_overview: false,
         start_time: props.detail.create_time - oneDay,
-        bk_biz_ids: [props.detail.bk_biz_id],
+        bk_biz_ids: window.APM_QUERY_STRING ? [window.bk_biz_id] : [props.detail.bk_biz_id],
       };
       const triggerData = await searchAlert({
         ...params,

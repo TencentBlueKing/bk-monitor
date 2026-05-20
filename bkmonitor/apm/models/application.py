@@ -18,6 +18,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apm.constants import DATABASE_CONNECTION_NAME
 from apm.models.datasource import (
+    ApmDataSourceConfigBase,
     LogDataSource,
     MetricDataSource,
     ProfileDataSource,
@@ -111,6 +112,9 @@ class ApmApplication(AbstractRecordModel):
         self.save(update_fields=["is_enabled", "is_enabled_log"])
 
     def stop_trace(self):
+        # 已经是停用状态时直接返回，避免共享模式下重复 release 导致 usage_count 被多次递减
+        if not self.is_enabled_trace:
+            return
         TraceDataSource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         self.is_enabled_trace = False
         self.save(update_fields=["is_enabled_trace"])
@@ -137,7 +141,12 @@ class ApmApplication(AbstractRecordModel):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-    def apply_datasource(self, trace_storage_config, log_storage_config, options=None):
+    def apply_datasource(
+        self,
+        trace_storage_config: dict | None,
+        log_storage_config: dict | None,
+        options: dict | None = None,
+    ) -> None:
         """
         创建/更新应用的数据源 (支持重复执行)
         适用以下场景:
@@ -145,16 +154,19 @@ class ApmApplication(AbstractRecordModel):
         2. 更新应用数据源
         """
         if not options:
-            # 如果没有 options 则从应用的字段中取功能开关
-            options = {
-                "is_enabled_trace": self.is_enabled_trace,
-                "is_enabled_log": self.is_enabled_log,
-                "is_enabled_metric": self.is_enabled_metric,
-                "is_enabled_profiling": self.is_enabled_profiling,
-            }
+            options = {}
 
-        # 更新字段
-        ApmApplication.objects.filter(id=self.id).update(**options)
+        # 功能开关缺失时从应用字段补充
+        options.setdefault("is_enabled_trace", self.is_enabled_trace)
+        options.setdefault("is_enabled_log", self.is_enabled_log)
+        options.setdefault("is_enabled_metric", self.is_enabled_metric)
+        options.setdefault("is_enabled_profiling", self.is_enabled_profiling)
+
+        shared_datasource_types = options.get("shared_datasource_types", [])
+        # 更新字段（只保留模型类的字段）
+        model_field_names = {f.name for f in ApmApplication._meta.get_fields()}
+        update_fields = {k: v for k, v in options.items() if k in model_field_names}
+        ApmApplication.objects.filter(id=self.id).update(**update_fields)
 
         try:
             if trace_storage_config:
@@ -163,6 +175,7 @@ class ApmApplication(AbstractRecordModel):
                     bk_biz_id=self.bk_biz_id,
                     app_name=self.app_name,
                     option=options["is_enabled_trace"],
+                    is_shared=ApmDataSourceConfigBase.TRACE_DATASOURCE in shared_datasource_types,
                     **trace_storage_config,
                 )
         except Exception as e:  # noqa

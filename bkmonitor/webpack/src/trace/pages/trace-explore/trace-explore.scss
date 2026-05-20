@@ -25,6 +25,11 @@
       height: 52px;
       background: #fff;
       box-shadow: 0 3px 4px 0 rgba(0, 0, 0, 0.039);
+
+      &.is-apm-trace {
+        position: relative;
+        z-index: 1;
+      }
     }
 
     .trace-explore-content {
@@ -33,6 +38,11 @@
       flex-direction: column;
       min-height: 0;
       padding: 8px;
+
+      &.is-apm-trace {
+        padding: 13px 8px 0;
+        background: #f0f1f5;
+      }
 
       .filter-skeleton {
         height: 48px;

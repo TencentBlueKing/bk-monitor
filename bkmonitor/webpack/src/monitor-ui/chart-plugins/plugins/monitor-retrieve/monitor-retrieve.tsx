@@ -27,7 +27,7 @@ import Vue from 'vue';
 
 import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+// TODO: 只要先加载@blueking/monitor-apm-log，就一定会错乱
 import {
   i18n,
   initGlobalComponents,

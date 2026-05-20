@@ -31,7 +31,7 @@ import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { useTableSetting } from '../hooks/use-table-setting';
+import { useTableSetting } from '@/views/manage-v2/hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
 import { useDownloadFile } from '../hooks/use-download-file';
 import { FileUploadStatus, UserReportItem } from './types';

@@ -182,16 +182,18 @@ class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
     app_name = serializers.CharField(label=_("应用名"))
-    service_name = serializers.CharField(label=_("本服务"))
-    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices())
+    service_name = serializers.CharField(label=_("本服务"), required=False)
+    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # 服务级配置：必须指定 kind
+        if attrs.get("service_name") and not attrs.get("kind"):
+            raise serializers.ValidationError(_("请填写类型"))
+        return super().validate(attrs)
 
 
 class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则列表查询请求序列化器"""
-
-    # 不传 service_name 时，返回全量视图
-    service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
-    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
 
     callee_server = serializers.CharField(label=_("被调服务"), required=False, allow_blank=True)
     callee_service = serializers.CharField(label=_("被调 Service"), required=False, allow_blank=True)
@@ -218,18 +220,15 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
 
     UNIQUE_FIELDS = ("is_global", "service_name", "kind", "callee_server", "callee_service", "callee_method")
 
-    service_name = serializers.CharField(label=_("本服务"), allow_null=True, required=False)
-    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices(), required=False)
     rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label=_("规则列表"))
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
         kind: str | None = attrs.get("kind")
         service_name: str | None = attrs.get("service_name")
 
-        # 服务级配置：必须指定 kind，且只保留非全局规则
+        # 服务级配置只保留非全局规则
         if service_name:
-            if not kind:
-                raise serializers.ValidationError(_("请填写类型"))
             attrs["rules"] = [rule for rule in attrs["rules"] if not rule["is_global"]]
 
         unique_set: set[str] = set()
@@ -272,8 +271,75 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
         return attrs
 
 
-class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
-    """设置单个返回码备注 请求序列化器"""
+def build_code_remark_configs(remark_configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    remark_records: list[dict[str, Any]] = []
+    for remark_config in remark_configs:
+        service_names = [""] if remark_config.get("is_global") else remark_config.get("service_names", [])
+        for service_name in service_names:
+            remark_records.append(
+                {
+                    "service_name": service_name,
+                    "kind": remark_config.get("kind"),
+                    "code": remark_config.get("code", ""),
+                    "remark": remark_config.get("remark", ""),
+                }
+            )
+    return remark_records
 
-    code = serializers.CharField(label="返回码", allow_blank=False)
-    remark = serializers.CharField(label="备注", required=False, allow_blank=True, default="")
+
+class CodeRemarkItemSerializer(serializers.Serializer):
+    """单个返回码备注项序列化器，用于应用级别配置"""
+
+    kind = serializers.ChoiceField(label=_("角色"), choices=CallSide.choices())
+    code = serializers.CharField(label=_("返回码"), allow_blank=False)
+    remark = serializers.CharField(label=_("备注"), allow_blank=True, default="")
+    is_global = serializers.BooleanField(label=_("是否全局生效"), default=False)
+    service_names = serializers.ListField(label=_("生效服务列表"), child=serializers.CharField(), default=[])
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("is_global") and attrs.get("service_names"):
+            raise serializers.ValidationError(_("全局配置时，service_names 应为空列表"))
+
+        if not attrs.get("is_global") and not attrs.get("service_names"):
+            raise serializers.ValidationError(_("非全局配置时，service_names 应非空列表"))
+
+        return super().validate(attrs)
+
+
+class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
+    """设置返回码备注请求序列化器，同时支持服务级别和应用级别配置"""
+
+    code = serializers.CharField(label=_("返回码"), allow_blank=False, required=False)
+    remark = serializers.CharField(label=_("备注"), allow_blank=True, default="")
+    is_global = serializers.BooleanField(label=_("是否全局生效"), default=False)
+    remarks = serializers.ListField(label=_("备注列表"), child=CodeRemarkItemSerializer(), required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        # 服务配置场景下，kind、code 两者必须同时存在
+        if attrs.get("service_name") and not (attrs.get("kind") and attrs.get("code")):
+            raise serializers.ValidationError(_("服务配置场景下，kind、code 必须同时存在"))
+
+        # service_name 为空时要求请求体显式传入 remarks 字段
+        if not attrs.get("service_name") and "remarks" not in attrs:
+            raise serializers.ValidationError(_("应用配置场景下，remarks 字段必须存在"))
+
+        # 应用配置场景下，校验记录唯一性（service_name、kind、code）
+        unique_keys: set[tuple[str, str, str]] = set()
+        for remark_dict in build_code_remark_configs(attrs.get("remarks", [])):
+            unique_key = (remark_dict["service_name"], remark_dict["kind"], remark_dict["code"])
+            if unique_key in unique_keys:
+                raise serializers.ValidationError(
+                    _(
+                        "应用配置记录键存在冲突，"
+                        "is_global={is_global}, service_name={service_name}, kind={kind}, code={code}"
+                    ).format(
+                        is_global=remark_dict["service_name"] == "",
+                        service_name=remark_dict["service_name"],
+                        kind=remark_dict["kind"],
+                        code=remark_dict["code"],
+                    )
+                )
+            unique_keys.add(unique_key)
+
+        return attrs

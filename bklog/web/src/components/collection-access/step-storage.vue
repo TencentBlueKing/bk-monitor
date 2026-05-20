@@ -368,6 +368,7 @@
 
 <script>
   import { deepEqual, projectManages } from '@/common/util';
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import storageMixin from '@/mixins/storage-mixin';
 import { isFeatureToggleOn } from '@/store/helper';
 import { mapGetters } from 'vuex';
@@ -394,7 +395,7 @@ import { mapGetters } from 'vuex';
     },
     data() {
       return {
-        isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
+        isItsm: isFeatureToggleOn('collect_itsm', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)]),
         HOST_COUNT: window.ASSESSMEN_HOST_COUNT,
         refresh: false,
 

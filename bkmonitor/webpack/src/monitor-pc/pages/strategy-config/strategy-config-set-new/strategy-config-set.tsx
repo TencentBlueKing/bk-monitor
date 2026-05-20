@@ -64,7 +64,7 @@ import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
-import AlarmHandlingList from './alarm-handling/alarm-handling-list';
+import AlarmHandlingList from './alarm-handling/alarm-handling-list-new';
 import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
 import DetectionRules from './detection-rules/detection-rules';
@@ -97,7 +97,7 @@ import type { IDataRetrieval } from '../../data-retrieval/typings';
 import type { ChartType } from './detection-rules/components/intelligent-detect/intelligent-detect';
 import type { IModelData } from './detection-rules/components/time-series-forecast/time-series-forecast';
 import type { IFunctionsValue } from './monitor-data/function-select';
-import type { IActionConfig } from './type';
+import type { IActionConfig, IIssueConfig } from './type';
 
 import './strategy-config-set.scss';
 
@@ -301,6 +301,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 告警处理(新)
   actionsData: IAlarmItem[] = [];
   actionIndex = -1;
+  alarmHandlingListRefreshKey = random(8);
 
   // 判断条件生效时间段（当isNeedJudgingCondition为false显示）
   // judgeTimeRange: ITimeRangeMultipleProps['value'] = [['00:00', '23:59']];
@@ -411,6 +412,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>> = new Map();
   /** 优先级组key 只有编辑策略的时候 才会有 从 API 获取  前端无需配置*/
   priority_group_key = '';
+  /* issue聚合 */
+  issueConfig: IIssueConfig = null;
 
   get isEdit(): boolean {
     return !!this.$route.params.id;
@@ -1374,7 +1377,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.isActionEnabled = false;
     }
     // 通知设置回显(新)
-    const { notice } = data;
+    const { notice, issue_config: issueConfig } = data;
     const legalDimensionList = this.metricData.reduce(
       (pre, cur) =>
         cur.agg_dimension?.length > pre.length
@@ -1424,6 +1427,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.detectionConfig.connector = connector;
     this.detectionConfig.unit = algorithms?.[0]?.unit_prefix || '';
     this.metricSelector.type = metric_type || MetricType.TimeSeries;
+    // issue聚合数据回显
+    this.issueConfig = issueConfig;
+    this.alarmHandlingListRefreshKey = random(8);
   }
   // 检测算法回显空数据转换
   displayDetectionRulesConfig(item) {
@@ -1926,6 +1932,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         },
         metric_type: this.metricSelector.type || this.selectMetricData?.[0]?.metric_type || MetricType.TimeSeries,
         priority_group_key: this.priority_group_key || '', // 优先级组key 只有编辑策略的时候 才会有 从 API 获取  前端无需配置
+        issue_config:
+          this.issueConfig?.alert_levels?.length ||
+          this.issueConfig?.conditions?.length ||
+          this.issueConfig?.aggregate_dimensions?.length
+            ? {
+                is_enabled: true,
+                aggregate_dimensions: this.issueConfig.aggregate_dimensions,
+                alert_levels: this.issueConfig.alert_levels,
+                conditions: this.issueConfig.conditions,
+              }
+            : null,
       };
       this.loading = true;
 
@@ -2839,9 +2856,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               title={this.$t('告警处理')}
             >
               <AlarmHandlingList
+                key={this.alarmHandlingListRefreshKey}
                 ref='alarmHandlingList'
                 allAction={actionConfigGroupList(this.actionConfigList)}
                 allDefense={this.defenseList}
+                detectionConfig={this.detectionConfig}
+                issueConfig={this.issueConfig}
+                metricData={this.metricData}
                 readonly={this.isDetailMode}
                 strategyId={this.id ? +this.id : ''}
                 value={this.actionsData}
@@ -2850,6 +2871,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 }}
                 onChange={v => {
                   this.actionsData = v;
+                }}
+                onIssueConfigChange={v => {
+                  this.issueConfig = v;
                 }}
               />
             </GroupPanel>

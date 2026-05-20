@@ -56,19 +56,14 @@ class EventDomain(CachedEnum):
 class EventSource(CachedEnum):
     """事件来源，需要保持唯一"""
 
-    BKCI: str = "BKCI"
-    BCS: str = "BCS"
-    HOST: str = "HOST"
-    DEFAULT: str = "DEFAULT"
+    BKCI = "BKCI"
+    BCS = "BCS"
+    HOST = "HOST"
+    DEFAULT = "DEFAULT"
 
     @classmethod
     def choices(cls):
-        return [
-            (cls.BCS.value, cls.BCS.value),
-            (cls.BKCI.value, cls.BKCI.value),
-            (cls.HOST.value, cls.HOST.value),
-            (cls.DEFAULT.value, cls.DEFAULT.value),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self):

@@ -250,7 +250,7 @@ export default {
     const { addEvent } = useRetrieveEvent();
     addEvent(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
       if (event === 'mark' && !this.highlightValue.includes(value)) {
-        this.highlightValue.push(...value.split(/\s/).filter(w => w.length > 0));
+        this.highlightValue.push(value);
         RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       }
     });
@@ -312,13 +312,14 @@ export default {
       this.highlightValue = [];
       for (let i = 0; i < valList.length; i++) {
         const val = valList[i];
-        const values = val.split(/\s+/);
-        for (let j = 0; j < values.length; j++) {
-          const value = values[j].replace(/^\s+|\s+$/g, '');
-          if (value.length > 0) {
-            this.highlightValue.push(value);
-          }
-        }
+        this.highlightValue.push(val);
+        // const values = val.split(/\s+/);
+        // for (let j = 0; j < values.length; j++) {
+        //   const value = values[j].replace(/^\s+|\s+$/g, '');
+        //   if (value.length > 0) {
+        //     this.highlightValue.push(value);
+        //   }
+        // }
       }
 
       RetrieveHelper.highLightKeywords(this.highlightValue);

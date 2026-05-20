@@ -61,6 +61,7 @@
 import dayjs from 'dayjs';
 // import { graphPoint } from 'monitor-api/modules/alert_events';
 import { alertGraphQuery } from 'monitor-api/modules/alert';
+import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
 import MonitorEacharts from 'monitor-ui/monitor-echarts/monitor-echarts';
 
 import { gotoPageMixin } from '../../../../common/mixins';
@@ -239,8 +240,14 @@ export default {
         });
     },
     clickHandle() {
-      const query = `?queryString=id : ${this.alarm.event_id}&from=now-${this.homeDays || 7}d&to=now`;
-      const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center${query}`;
+      const url = getAlarmCenterListUrl(
+        {
+          queryString: `id : ${this.alarm.event_id}`,
+          from: `now-${this.homeDays || 7}d`,
+          to: 'now',
+        },
+        this.homeItemBizId
+      );
       window.open(url);
     },
   },

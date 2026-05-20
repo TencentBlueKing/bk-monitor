@@ -45,7 +45,7 @@ type RootField = {
   };
 };
 
-export default ({ fields, onSegmentClick }) => {
+export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
   const rootFieldOperator = new Map<string, RootFieldOperator>();
   let initEditPromise: Promise<any>;
 
@@ -58,6 +58,7 @@ export default ({ fields, onSegmentClick }) => {
             fields,
             jsonValue: value.value,
             onSegmentClick,
+            onSegmentRenderUpdate,
             field: value.field,
           });
         }
@@ -86,6 +87,7 @@ export default ({ fields, onSegmentClick }) => {
           fields,
           jsonValue: value.value,
           onSegmentClick,
+          onSegmentRenderUpdate,
           field: value.field,
         });
       }
@@ -129,6 +131,7 @@ export default ({ fields, onSegmentClick }) => {
           fields,
           jsonValue: formatter.value,
           onSegmentClick,
+          onSegmentRenderUpdate,
           field: formatter.field,
         });
       } else {
