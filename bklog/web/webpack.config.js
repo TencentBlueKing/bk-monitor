@@ -130,6 +130,18 @@ module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email =
               serveIndex: false, // 禁用目录索引
               watch: false, // 不监听文件变化
             },
+            {
+              directory: logWebDistPath,
+              publicPath: '/log-web1-dll',
+              serveIndex: false,
+              watch: false,
+            },
+            {
+              directory: path.resolve(logWebDistPath, './fonts'),
+              publicPath: '/fonts',
+              serveIndex: false,
+              watch: false,
+            },
           ]
           : []),
         // 添加静态目录，使 devServer 可以提供其他静态资源
