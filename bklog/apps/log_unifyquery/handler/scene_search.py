@@ -32,7 +32,6 @@ from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.local import (
     get_local_param,
-    get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
@@ -473,17 +472,16 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             "config": config_list,
         }
 
-        # 合入当前用户在该业务-场景-范围下应用的字段模板（与 fields_config GET 响应结构一致）
+        # 合入当前用户在该业务-场景-范围下的 UI 偏好（7 字段 camelCase JSON，与 user_custom_config GET 一致）
         scene_id = self._extract_scene_id()
         if self.bk_biz_id and scene_id:
-            from apps.log_search.handlers.search.scene_fields_config import SceneFieldsConfigHandler
+            from apps.log_search.handlers.search.scene_fields_config import UserSceneCustomConfigHandler
 
-            source_app_code = get_request_app_code()
-            user_obj, tpl = SceneFieldsConfigHandler.get_user_applied_config(
-                self.bk_biz_id, self.request_username, scene_id, scope
-            )
-            result["user_fields_config"] = SceneFieldsConfigHandler.build_user_fields_config_response(
-                user_obj, tpl, self.request_username, source_app_code
+            result["user_custom_config"] = UserSceneCustomConfigHandler.get(
+                bk_biz_id=self.bk_biz_id,
+                username=self.request_username,
+                scene_id=scene_id,
+                scope=scope,
             )
         return result
 

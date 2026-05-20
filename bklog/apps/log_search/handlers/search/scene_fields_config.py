@@ -12,7 +12,7 @@ from apps.log_search.exceptions import (
     SceneFieldsConfigAlreadyExistException,
     SceneFieldsConfigNotExistException,
 )
-from apps.log_search.models import SceneFieldsConfig, UserSceneFieldsConfig
+from apps.log_search.models import SceneFieldsConfig, UserSceneCustomConfig, UserSceneFieldsConfig
 from apps.utils.local import get_request_app_code, get_request_external_username, get_request_username
 
 

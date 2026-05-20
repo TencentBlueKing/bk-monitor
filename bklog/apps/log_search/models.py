@@ -1855,3 +1855,30 @@ class UserSceneFieldsConfig(models.Model):
             return SceneFieldsConfig.objects.get(pk=obj.config_id)
         except SceneFieldsConfig.DoesNotExist:
             return None
+
+
+class UserSceneCustomConfig(models.Model):
+    """场景化检索：用户在 (业务, 场景, 范围, 来源) 下的 UI 偏好（display/sort/filter/列宽 等），与模板系统解耦。
+
+    对标 `UserIndexSetCustomConfig.index_set_config`；7 字段 camelCase 直接由前端持久化为完整 JSON。
+    """
+
+    bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
+    username = models.CharField(_("用户名"), max_length=64, db_index=True)
+    scene_id = models.CharField(_("场景ID"), max_length=64, db_index=True)
+    scope = models.CharField(
+        _("检索范围"),
+        max_length=16,
+        default=SearchScopeEnum.DEFAULT.value,
+    )
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
+    scene_config = models.JSONField(_("场景用户配置"), default=dict)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("场景化检索-用户UI偏好")
+        verbose_name_plural = _("场景化检索-用户UI偏好")
+        unique_together = [("bk_biz_id", "username", "scene_id", "scope", "source_app_code")]

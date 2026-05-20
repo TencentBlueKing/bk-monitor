@@ -1399,22 +1399,6 @@ class TestSceneFieldsConfigApi(TestCase):
             get_request_app_code=MagicMock(return_value="bk_log_search"),
         )
 
-    def test_fields_config_get_lazy_default(self):
-        factory = APIRequestFactory()
-        request = factory.get(
-            "/api/v1/search/scene/fields_config/",
-            {"bk_biz_id": self.BIZ_ID, "scene_id": self.SCENE_ID},
-        )
-        with self._patch_user():
-            vs = _get_viewset("fields_config", request)
-            response = vs.fields_config(request)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("config_id", response.data)
-        self.assertIn("display_fields", response.data)
-        self.assertIn("name", response.data)
-        self.assertEqual(response.data["username"], self.USERNAME)
-
     def test_create_list_apply_update_delete_config(self):
         from apps.log_search.constants import DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME
         from apps.log_search.exceptions import SceneDefaultConfigNotAllowedDelete
@@ -1460,15 +1444,6 @@ class TestSceneFieldsConfigApi(TestCase):
             self.assertEqual(applied["config_id"], created["id"])
             self.assertEqual(applied["name"], "排障视图")
 
-            # fields_config GET reflects applied template
-            req_get = factory.get(
-                "/api/v1/search/scene/fields_config/",
-                {"bk_biz_id": self.BIZ_ID, "scene_id": self.SCENE_ID},
-            )
-            vs = _get_viewset("fields_config", req_get)
-            got = vs.fields_config(req_get).data
-            self.assertEqual(got["config_id"], created["id"])
-
             # default template cannot be deleted
             default_tpl = SceneFieldsConfig.objects.get(
                 bk_biz_id=self.BIZ_ID,
@@ -1493,3 +1468,170 @@ class TestSceneFieldsConfigApi(TestCase):
             vs = _get_viewset("delete_config", req_del)
             vs.delete_config(req_del)
             self.assertFalse(SceneFieldsConfig.objects.filter(id=created["id"]).exists())
+
+
+class TestSceneUserCustomConfig(TestCase):
+    """/search/scene/user_custom_config/ GET / POST / DELETE 与模板系统解耦验证。"""
+
+    BIZ_ID = 2
+    SCENE_ID = "k8s"
+    USERNAME = "admin"
+    SCENE_CONFIG_FULL = {
+        "fieldsWidth": {"log": 200},
+        "displayFields": ["log", "time", "dtEventTimeStamp", "dtEventTime", "bk_host_id"],
+        "filterSetting": [],
+        "filterAddition": [],
+        "fixedFilterAddition": False,
+        "sortList": [["dtEventTimeStamp", "asc"], ["serverIp", "asc"]],
+        "contextDisplayFields": ["serverIp", "path", "cloudId"],
+    }
+
+    def setUp(self):
+        from apps.log_search.models import SceneFieldsConfig, UserSceneCustomConfig, UserSceneFieldsConfig
+
+        UserSceneCustomConfig.objects.all().delete()
+        UserSceneFieldsConfig.objects.all().delete()
+        SceneFieldsConfig.objects.all().delete()
+
+    def _patch_user(self):
+        return patch.multiple(
+            "apps.log_search.handlers.search.scene_fields_config",
+            get_request_username=MagicMock(return_value=self.USERNAME),
+            get_request_external_username=MagicMock(return_value=""),
+            get_request_app_code=MagicMock(return_value="bk_log_search"),
+        )
+
+    def test_get_returns_empty_dict_when_no_record(self):
+        factory = APIRequestFactory()
+        request = factory.get(
+            "/api/v1/search/scene/user_custom_config/",
+            {"bk_biz_id": self.BIZ_ID, "scene_id": self.SCENE_ID},
+        )
+        with self._patch_user():
+            vs = _get_viewset("user_custom_config", request)
+            resp = vs.user_custom_config(request)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data, {})
+
+    def test_post_then_get_returns_full_seven_fields(self):
+        factory = APIRequestFactory()
+        with self._patch_user():
+            req_post = factory.post(
+                "/api/v1/search/scene/user_custom_config/",
+                data={
+                    "bk_biz_id": self.BIZ_ID,
+                    "scene_id": self.SCENE_ID,
+                    "scene_config": self.SCENE_CONFIG_FULL,
+                },
+                format="json",
+            )
+            vs = _get_viewset("user_custom_config", req_post)
+            posted = vs.user_custom_config(req_post)
+            self.assertEqual(posted.status_code, 200)
+            self.assertEqual(posted.data, self.SCENE_CONFIG_FULL)
+
+            req_get = factory.get(
+                "/api/v1/search/scene/user_custom_config/",
+                {"bk_biz_id": self.BIZ_ID, "scene_id": self.SCENE_ID},
+            )
+            vs = _get_viewset("user_custom_config", req_get)
+            got = vs.user_custom_config(req_get)
+            self.assertEqual(got.data, self.SCENE_CONFIG_FULL)
+            for key in (
+                "fieldsWidth",
+                "displayFields",
+                "filterSetting",
+                "filterAddition",
+                "fixedFilterAddition",
+                "sortList",
+                "contextDisplayFields",
+            ):
+                self.assertIn(key, got.data)
+
+    def test_delete_clears_record(self):
+        from apps.log_search.handlers.search.scene_fields_config import UserSceneCustomConfigHandler
+        from apps.log_search.models import UserSceneCustomConfig
+
+        factory = APIRequestFactory()
+        with self._patch_user():
+            UserSceneCustomConfigHandler.update_or_create(
+                bk_biz_id=self.BIZ_ID,
+                username=self.USERNAME,
+                scene_id=self.SCENE_ID,
+                scope="default",
+                scene_config=self.SCENE_CONFIG_FULL,
+            )
+            self.assertTrue(UserSceneCustomConfig.objects.filter(bk_biz_id=self.BIZ_ID).exists())
+
+            req_del = factory.delete(
+                "/api/v1/search/scene/user_custom_config/?bk_biz_id={}&scene_id={}".format(
+                    self.BIZ_ID, self.SCENE_ID
+                ),
+            )
+            vs = _get_viewset("user_custom_config", req_del)
+            resp = vs.user_custom_config(req_del)
+            self.assertEqual(resp.data, {"deleted": True})
+            self.assertFalse(UserSceneCustomConfig.objects.filter(bk_biz_id=self.BIZ_ID).exists())
+
+    def test_post_does_not_touch_template(self):
+        """关键：POST user_custom_config 不会改动 SceneFieldsConfig 模板内容。"""
+        from apps.log_search.constants import DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME
+        from apps.log_search.handlers.search.scene_fields_config import SceneFieldsConfigHandler
+        from apps.log_search.models import SceneFieldsConfig
+
+        factory = APIRequestFactory()
+        with self._patch_user():
+            tpl = SceneFieldsConfigHandler.get_or_create_default(
+                bk_biz_id=self.BIZ_ID, scene_id=self.SCENE_ID
+            )
+            tpl.display_fields = ["dtEventTimeStamp", "log"]
+            tpl.sort_list = [["dtEventTimeStamp", "desc"]]
+            tpl.save()
+
+            req_post = factory.post(
+                "/api/v1/search/scene/user_custom_config/",
+                data={
+                    "bk_biz_id": self.BIZ_ID,
+                    "scene_id": self.SCENE_ID,
+                    "scene_config": self.SCENE_CONFIG_FULL,
+                },
+                format="json",
+            )
+            vs = _get_viewset("user_custom_config", req_post)
+            vs.user_custom_config(req_post)
+
+            reloaded = SceneFieldsConfig.objects.get(
+                bk_biz_id=self.BIZ_ID, scene_id=self.SCENE_ID, name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME
+            )
+            self.assertEqual(reloaded.display_fields, ["dtEventTimeStamp", "log"])
+            self.assertEqual(reloaded.sort_list, [["dtEventTimeStamp", "desc"]])
+
+
+class TestSceneSearchModePersisted(TestCase):
+    """语句模式 search 的 history_obj.search_mode 必须保留为 sql，不被默认覆盖。"""
+
+    @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.search")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_search_mode_sql_persisted_to_history(self, mock_local, mock_user, mock_ext_user, mock_search):
+        # NOTE: 跳过 search_history_record 装饰器 ORM 写入，断言 response.data["history_obj"]。
+        mock_search.return_value = {"list": [], "origin_log_list": [], "total": 0, "took": 1}
+        factory = APIRequestFactory()
+        body = {**SEARCH_POST_BODY, "search_mode": "sql"}
+        request = _make_post_request(body, factory)
+        vs = _get_viewset("search", request)
+        resp = vs.search.__wrapped__(vs, request)
+        self.assertEqual(resp.data["history_obj"]["search_mode"], "sql")
+
+    @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.search")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_search_mode_default_ui(self, mock_local, mock_user, mock_ext_user, mock_search):
+        mock_search.return_value = {"list": [], "origin_log_list": [], "total": 0, "took": 1}
+        factory = APIRequestFactory()
+        request = _make_post_request(SEARCH_POST_BODY, factory)
+        vs = _get_viewset("search", request)
+        resp = vs.search.__wrapped__(vs, request)
+        self.assertEqual(resp.data["history_obj"]["search_mode"], "ui")

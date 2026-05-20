@@ -23,19 +23,24 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     MAX_RESULT_WINDOW,
     RESULT_WINDOW_COST_TIME,
+    SearchMode,
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.handlers.scene_search import AllConditionsBuilder
-from apps.log_search.handlers.search.scene_fields_config import SceneFieldsConfigHandler
-from apps.log_search.models import AsyncTask, UserIndexSetSearchHistory, UserSceneFieldsConfig
+from apps.log_search.handlers.search.scene_fields_config import (
+    SceneFieldsConfigHandler,
+    UserSceneCustomConfigHandler,
+)
+from apps.log_search.models import AsyncTask, UserIndexSetSearchHistory
 from apps.log_search.serializers import (
     CreateSceneFieldsConfigSerializer,
     SceneFieldsConfigApplySerializer,
     SceneFieldsConfigDeleteSerializer,
-    SceneFieldsConfigGetSerializer,
     SceneFieldsConfigListSerializer,
-    SceneFieldsConfigUpsertSerializer,
+    SceneUserCustomConfigDeleteSerializer,
+    SceneUserCustomConfigGetSerializer,
+    SceneUserCustomConfigUpsertSerializer,
     UpdateSceneFieldsConfigSerializer,
 )
 from apps.log_search.utils import create_download_response
@@ -113,6 +118,12 @@ class SceneSearchSerializer(_SceneRouteMixin):
 
     search_after = serializers.ListField(required=False, allow_empty=True, default=list, allow_null=True)
     collapse = serializers.DictField(required=False, default=dict, allow_null=True)
+
+    search_mode = serializers.ChoiceField(
+        required=False,
+        choices=SearchMode.get_choices(),
+        default=SearchMode.UI.value,
+    )
 
 
 class SceneFieldsSerializer(_SceneRouteMixin):
@@ -523,7 +534,7 @@ class SceneSearchViewSet(APIViewSet):
                 "space_uid": data["space_uid"],
             },
             "search_type": "default",
-            "search_mode": data.get("search_mode", "ui"),
+            "search_mode": data["search_mode"],
             "from_favorite_id": 0,
         }
         return result
@@ -603,50 +614,49 @@ class SceneSearchViewSet(APIViewSet):
         return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})
 
     # ------------------------------------------------------------------
-    # Scene fields config (template + user pointer)
+    # Scene user custom config (UI 偏好 JSON，与模板系统解耦)
     # ------------------------------------------------------------------
 
-    @list_route(methods=["GET", "POST", "DELETE"], url_path="fields_config")
-    def fields_config(self, request):
+    @list_route(methods=["GET", "POST", "DELETE"], url_path="user_custom_config")
+    def user_custom_config(self, request):
         """
-        @api {get|post|delete} /search/scene/fields_config/ 场景化检索-用户字段展示配置
-        @apiName scene_fields_config
+        @api {get|post|delete} /search/scene/user_custom_config/ 场景化检索-用户UI偏好
+        @apiName scene_user_custom_config
         @apiGroup 14_SceneSearch
-        @apiDescription 读/写当前用户应用的字段模板；无指针时 GET 懒回退默认模板。
+        @apiDescription 读/写/删当前用户的场景 UI 偏好（7 字段 camelCase JSON），与模板系统解耦。
         """
         username = get_request_external_username() or get_request_username()
-        source_app_code = get_request_app_code()
 
         if request.method.upper() == "POST":
-            data = self.params_valid(SceneFieldsConfigUpsertSerializer)
+            data = self.params_valid(SceneUserCustomConfigUpsertSerializer)
             return Response(
-                SceneFieldsConfigHandler.upsert_user_applied_template(
+                UserSceneCustomConfigHandler.update_or_create(
                     bk_biz_id=data["bk_biz_id"],
                     username=username,
                     scene_id=data["scene_id"],
                     scope=data["scope"],
-                    display_fields=data["display_fields"],
-                    sort_list=data.get("sort_list") or [],
+                    scene_config=data["scene_config"],
                 )
             )
 
-        data = self.params_valid(SceneFieldsConfigGetSerializer, params=request.query_params)
         if request.method.upper() == "DELETE":
-            UserSceneFieldsConfig.objects.filter(
+            data = self.params_valid(SceneUserCustomConfigDeleteSerializer, params=request.query_params)
+            return Response(
+                UserSceneCustomConfigHandler.delete(
+                    bk_biz_id=data["bk_biz_id"],
+                    username=username,
+                    scene_id=data["scene_id"],
+                    scope=data["scope"],
+                )
+            )
+
+        data = self.params_valid(SceneUserCustomConfigGetSerializer, params=request.query_params)
+        return Response(
+            UserSceneCustomConfigHandler.get(
                 bk_biz_id=data["bk_biz_id"],
                 username=username,
                 scene_id=data["scene_id"],
                 scope=data["scope"],
-                source_app_code=source_app_code,
-            ).delete()
-            return Response({})
-
-        user_obj, tpl = SceneFieldsConfigHandler.get_user_applied_config(
-            data["bk_biz_id"], username, data["scene_id"], data["scope"]
-        )
-        return Response(
-            SceneFieldsConfigHandler.build_user_fields_config_response(
-                user_obj, tpl, username, source_app_code
             )
         )
 
