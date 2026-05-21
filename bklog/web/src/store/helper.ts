@@ -208,7 +208,7 @@ export const formatAdditionalFields = (state: any, addition: Record<string, any>
  */
 export const isSceneRetrieve = (state: any): boolean => {
   if (state.indexItem?.retrieve_type !== 'scene') return false;
-  if (!isFeatureToggleOn('log_iaas', [String(state.bkBizId), String(state.spaceUid)])) {
+  if (!isFeatureToggleOn('scene_search', [String(state.bkBizId), String(state.spaceUid)])) {
     return false;
   }
   return true;
