@@ -47,7 +47,7 @@ from kernel_api.rpc.functions.admin.storage import (
     _serialize_bkbase_item,
     _serialize_doris_storage,
 )
-from kernel_api.rpc.functions.admin.uptime_check import _summarize_subscription
+from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
 
 
@@ -124,6 +124,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.uptime_check.node_detail",
         "admin.uptime_check.task_list",
         "admin.uptime_check.task_detail",
+        "admin.uptime_check.subscription_detail",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -177,6 +178,54 @@ def test_uptime_check_subscription_summary_extracts_effective_data_id():
     assert summary["steps"][0]["data_ids"] == [1009]
     assert summary["steps"][0]["context_summary"]["tasks_samples"][0]["task_id"] == 135
     assert "headers" not in summary["steps"][0]["context_summary"]
+
+
+def test_uptime_check_subscription_detail_masks_sensitive_and_truncates_large_json():
+    relation = {
+        "task_id": 135,
+        "subscription_id": 123,
+        "bk_biz_id": 2,
+        "is_deleted": False,
+        "create_time": "2026-05-14 10:00:00",
+        "update_time": "2026-05-14 10:10:00",
+    }
+    subscription_info = {
+        "id": 123,
+        "enable": True,
+        "steps": [
+            {
+                "id": "bkmonitorbeat_http",
+                "params": {
+                    "context": {
+                        "data_id": "1009",
+                        "token": "secret-token",
+                        "headers": [{"key": "Authorization", "value": "secret"}],
+                        "node_list": [{"bk_host_id": host_id} for host_id in range(25)],
+                    }
+                },
+            }
+        ],
+    }
+    status_detail = [
+        {
+            "subscription_id": 123,
+            "instances": [{"instance_id": f"host-{index}", "status": "SUCCESS"} for index in range(25)],
+        }
+    ]
+
+    detail = _build_subscription_detail_payload(
+        info=subscription_info,
+        relation=relation,
+        status_detail=status_detail,
+    )
+
+    context = detail["config_detail"]["steps"][0]["params"]["context"]
+    assert context["token"] == "***"
+    assert context["headers"] == "***"
+    assert context["node_list"]["count"] == 25
+    assert len(context["node_list"]["samples"]) == 20
+    assert detail["status_detail"][0]["instances"]["count"] == 25
+    assert detail["relation"]["subscription_id"] == 123
 
 
 def test_api_auth_token_serializer_keeps_api_token_fields():
