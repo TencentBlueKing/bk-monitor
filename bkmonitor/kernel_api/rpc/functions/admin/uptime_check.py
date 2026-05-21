@@ -19,7 +19,6 @@ from bk_monitor_base.uptime_check import (
     UptimeCheckNode,
     UptimeCheckNodeModel,
     UptimeCheckNodeIPType,
-    UptimeCheckTask,
     UptimeCheckTaskModel,
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
@@ -29,8 +28,11 @@ from bk_monitor_base.uptime_check import (
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_optional_bool,
     normalize_ordering,
     normalize_pagination,
@@ -231,13 +233,13 @@ def _build_node_query(params: dict[str, Any]) -> dict[str, Any]:
 
 def _build_node_queryset(
     *,
-    bk_tenant_id: str,
+    bk_tenant_id: str | None,
     bk_biz_id: int | None,
     params: dict[str, Any],
     ordering: str,
 ) -> tuple[Any, bool]:
     include_common = normalize_optional_bool(params.get("include_common"), "include_common")
-    queryset = UptimeCheckNodeModel.objects.filter(bk_tenant_id=bk_tenant_id, is_deleted=False)
+    queryset = filter_by_bk_tenant_id(UptimeCheckNodeModel.objects.filter(is_deleted=False), bk_tenant_id)
     needs_scope_filter = False
     if bk_biz_id is not None:
         if include_common:
@@ -298,9 +300,7 @@ def _build_task_query(params: dict[str, Any]) -> dict[str, Any]:
     return query
 
 
-def _build_task_queryset(
-    *, bk_biz_id: int | None, params: dict[str, Any], ordering: str
-) -> Any:
+def _build_task_queryset(*, bk_biz_id: int | None, params: dict[str, Any], ordering: str) -> Any:
     queryset = UptimeCheckTaskModel.objects.all()
     include_deleted = normalize_optional_bool(params.get("include_deleted"), "include_deleted")
     is_deleted = normalize_optional_bool(params.get("is_deleted"), "is_deleted")
@@ -510,7 +510,7 @@ def _extract_data_ids_from_context(value: Any) -> list[int]:
 
 
 def _mask_scalar(value: Any) -> Any:
-    if isinstance(value, (dict, list)):
+    if isinstance(value, dict | list):
         return None
     return serialize_value(value)
 
@@ -632,10 +632,8 @@ def _load_task_subscription_relations(task_ids: list[int]) -> dict[int, list[dic
         return {}
     relation_map: dict[int, list[dict[str, Any]]] = defaultdict(list)
     queryset = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id__in=task_ids)
-    for item in (
-        queryset
-        .order_by("uptimecheck_id", "bk_biz_id", "subscription_id")
-        .values("uptimecheck_id", "subscription_id", "bk_biz_id", "is_deleted", "create_time", "update_time")
+    for item in queryset.order_by("uptimecheck_id", "bk_biz_id", "subscription_id").values(
+        "uptimecheck_id", "subscription_id", "bk_biz_id", "is_deleted", "create_time", "update_time"
     ):
         relation_map[item["uptimecheck_id"]].append(
             {
@@ -880,7 +878,7 @@ def _load_group_summaries(bk_tenant_id: str, bk_biz_id: int, group_ids: list[int
     summary="Admin 查询拨测节点列表",
     description="只读分页查询拨测节点。默认补充 bkmonitorbeat 版本、Agent/GSE 状态；include_runtime=false 时只返回轻量节点字段。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "bk_biz_id": "可选，业务 ID；传入 include_common=true 时会包含当前业务可见的公共节点",
         "node_id": "可选，节点 ID 精确匹配",
         "name": "可选，节点名称包含匹配",
@@ -899,13 +897,15 @@ def _load_group_summaries(bk_tenant_id: str, bk_biz_id: int, group_ids: list[int
     example_params={"bk_tenant_id": "system", "bk_biz_id": 2, "include_common": True, "page": 1, "page_size": 20},
 )
 def list_uptime_check_nodes(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), NODE_ORDERING_FIELDS, default="name")
     include_runtime = normalize_optional_bool(params.get("include_runtime"), "include_runtime")
     if include_runtime is None:
         include_runtime = True
+    if bk_tenant_id is None and include_runtime:
+        include_runtime = False
 
     queryset, needs_scope_filter = _build_node_queryset(
         bk_tenant_id=bk_tenant_id,
@@ -922,12 +922,17 @@ def list_uptime_check_nodes(params: dict[str, Any]) -> dict[str, Any]:
     )
     node_ids = [int(node.id) for node in page_nodes if node.id is not None]
     task_count_map = _count_tasks_by_node(node_ids)
-    if include_runtime:
+    runtime_warnings: list[dict[str, Any]] = []
+    if include_runtime and bk_tenant_id is not None:
         hosts_by_id, node_status_map, beat_versions, runtime_warnings = _load_node_runtime(
             bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, nodes=page_nodes
         )
     else:
-        hosts_by_id, node_status_map, beat_versions, runtime_warnings = {}, {}, {}, []
+        hosts_by_id, node_status_map, beat_versions = {}, {}, {}
+        if bk_tenant_id is None:
+            runtime_warnings.append(
+                {"code": "RUNTIME_SKIPPED_FOR_ALL_TENANTS", "message": "全租户节点列表不加载租户相关运行时状态"}
+            )
     items = [
         _serialize_node(
             node,

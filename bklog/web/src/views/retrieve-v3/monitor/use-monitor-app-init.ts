@@ -30,6 +30,7 @@ import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
+import { getLocationQueryParams } from '@/utils';
 
 import useResizeObserve from '../../../hooks/use-resize-observe';
 import { getDefaultRetrieveParams, updateURLArgs } from '../../../store/default-values';
@@ -158,18 +159,33 @@ export default indexSetApi => {
       // 本地如果没有 MONITOR_LOG_RECENT_INDEX_SET_IDS，则默认取第一个有数据的索引集
       // 同时，更新索引信息到store中
       if (!indexSetIdList.value.length) {
-        const memoryIdStr = localStorage.getItem('MONITOR_LOG_RECENT_INDEX_SET_ID');
-        let defaultId ='';
-        if (memoryIdStr) {
-          const memoryId = JSON.parse(memoryIdStr)[0];
-          const defaultValidItem = resp.find(item => item.index_set_id === memoryId);
-          if (defaultValidItem) {
-            defaultId = memoryId;
+        const query = getLocationQueryParams();
+        const bizAppKey = `${query.bizId} ${query['filter-app_name']}`;
+        const memoryStr = localStorage.getItem('MONITOR_LOG_RECENT_INDEX_SET_ID');
+        let defaultId = '';
+        if (memoryStr) {
+          const parseValue = JSON.parse(memoryStr);
+          // 兼容旧的代码，后期可以去除
+          if (!Array.isArray(parseValue)) {
+            const memoryObj = parseValue;
+            const memoryIds = memoryObj[bizAppKey];
+            if (memoryIds) {
+              const memoryId = memoryIds[0];
+              const defaultValidItem = resp.find(item => item.index_set_id === memoryId && item.tags.every((tag) => tag.tag_id !== 4));
+              if (defaultValidItem) {
+                defaultId = memoryId;
+              }
+            }
           }
         }
         if (!defaultId) {
           const dataValidItem = resp.find(item => item.tags.every((tag) => tag.tag_id !== 4));
-          defaultId = `${dataValidItem.index_set_id}`;
+          if (dataValidItem) {
+            defaultId = `${dataValidItem.index_set_id}`;
+          } else {
+            // 也可能存在只有无数据的采集项，这种情况取第一个即可
+            defaultId = `${resp[0].index_set_id}`;
+          }
         }
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
         store.commit('updateState', {'indexId': defaultId});

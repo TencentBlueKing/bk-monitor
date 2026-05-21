@@ -950,6 +950,7 @@ export default {
   系统类型: 'System type',
   上传状态: 'Upload status',
   未上传: 'Not uploaded',
+  定义: 'Definition',
   英文名称: 'English name',
   '搜索名称、英文名称、地址、创建人': 'Search by name, English name, address, or creator',
   集群英文名称: 'Cluster English Name',
@@ -969,4 +970,5 @@ export default {
   采集中: 'Collecting',
   采集失败: 'Collection Failed',
   根目录: 'Root Directory',
+  输入样例: 'Input example',
 };

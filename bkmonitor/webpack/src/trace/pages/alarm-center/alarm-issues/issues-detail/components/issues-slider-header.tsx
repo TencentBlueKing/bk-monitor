@@ -213,6 +213,7 @@ export default defineComponent({
                   v-model={this.editName}
                   behavior='simplicity'
                   onBlur={this.handleNameBlur}
+                  onEnter={this.handleNameBlur}
                 />
               </Loading>
             ) : (

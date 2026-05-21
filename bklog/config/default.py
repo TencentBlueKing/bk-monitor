@@ -733,6 +733,12 @@ MENUS = [
                         "feature": FEATURE_TOGGLE["log_desensitize"],
                         "icon": "rizhituomin",
                     },
+                    {
+                        "id": "grok_manage",
+                        "name": "Grok管理",
+                        "feature": "on",
+                        "icon": "grok",
+                    },
                 ],
             },
             {

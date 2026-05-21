@@ -783,11 +783,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             app_name=app_name, data_type=validated_data["data_type"], time=now_str, format=export_format
         )
 
-        if not doris_converter:
-            compressed_data = b""
-        else:
-            serialized_data = doris_converter.profile.SerializeToString()
-            compressed_data = gzip.compress(serialized_data)
+        if not doris_converter or not doris_converter.profile.sample_type or not doris_converter.profile.sample:
+            raise ValueError(_("当前查询条件未查询到有效 Profiling 数据，无法导出"))
+
+        serialized_data = doris_converter.profile.SerializeToString()
+        compressed_data = gzip.compress(serialized_data)
 
         response = HttpResponse(compressed_data, content_type="application/octet-stream")
         response["Content-Encoding"] = "gzip"

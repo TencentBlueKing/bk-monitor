@@ -38,7 +38,7 @@ import $http from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '@/common/authority-map';
-import { isFeatureToggleOn } from '@/store/helper';
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
 import './index.scss';
 

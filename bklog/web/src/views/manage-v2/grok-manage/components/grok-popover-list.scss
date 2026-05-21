@@ -1,0 +1,326 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ */
+
+.grok-popover-list {
+  display: grid;
+  grid-template-rows: 472px 48px;
+  grid-template-columns: 400px 440px;
+  width: 840px;
+  height: 520px;
+  overflow: hidden;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #DCDEE5;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px 0 rgb(0 0 0 / 12%);
+
+  // ====== 左侧面板 400px ======
+  .grok-popover-list-left {
+    display: flex;
+    flex-direction: column;
+    width: 400px;
+    height: 100%;
+    border-right: 1px solid #DCDEE5;
+  }
+
+  // 搜索框区域
+  .grok-popover-search {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border-bottom: 1px solid #DCDEE5;
+  }
+
+  // 列表区域
+  .grok-popover-list-body {
+    flex: 1;
+    min-height: 0;
+    padding: 4px 0;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background-color: #f1f1f1;
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: #c1c1c1;
+      border-radius: 3px;
+    }
+  }
+
+  .grok-popover-list-row {
+    // display: flex;
+    // align-items: center;
+    // height: 32px;
+    padding: 8px 16px;
+    color: #63656E;
+    cursor: pointer;
+
+    &:hover {
+      background: #F5F7FA;
+    }
+
+    &.active {
+      color: #3A84FF;
+      background: #EAF3FF;
+    }
+
+    .grok-popover-list-name {
+      overflow: hidden;
+      font-weight: 700;
+      line-height: 20px;
+      color: #313238;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .grok-popover-list-description {
+      overflow: hidden;
+      line-height: 20px;
+      color: #8e9bb3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+
+
+  .grok-popover-list-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 0;
+    color: #979BA5;
+  }
+
+  .grok-popover-list-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 0;
+    color: #979BA5;
+  }
+
+  .grok-popover-list-no-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+    font-size: 12px;
+    color: #C4C6CC;
+  }
+
+  .grok-popover-list-skeleton {
+    padding: 8px 16px;
+  }
+
+  .grok-popover-list-more-skeleton {
+    padding: 0 16px 8px;
+  }
+
+  // ====== 右侧面板 440px ======
+  .grok-popover-list-right {
+    width: 440px;
+    height: 100%;
+    overflow-y: auto;
+    background: #F5F7FA;
+  }
+
+  .grok-popover-debug {
+    height: 100%;
+    min-height: 200px;
+    padding: 16px 24px;
+
+    &-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    // name
+    &-name {
+      margin-bottom: 12px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 20px;
+      color: #313238;
+    }
+
+    // 每个区块（定义/样例/输出结果）
+    &-section {
+      margin-bottom: 12px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    // label 标签
+    &-label {
+      margin-bottom: 4px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #8E9BB3;
+    }
+
+    // value 值
+    &-value {
+      font-size: 12px;
+      line-height: 20px;
+      color: #4D4F56;
+    }
+
+    // 定义区域的 pattern 值
+    &-pattern {
+      padding: 8px 12px;
+      word-break: break-all;
+      // background: #F5F7FA;
+      border-radius: 2px;
+    }
+
+    // 样例区域的值
+    &-sample {
+      padding: 8px 12px;
+      word-break: break-all;
+      // background: #F5F7FA;
+      border-radius: 2px;
+    }
+
+    // 输出结果表格
+    &-table {
+      width: 100%;
+      margin-top: 4px;
+      border-collapse: collapse;
+      border: none;
+
+      th, td {
+        padding: 8px 12px;
+        font-size: 12px;
+        text-align: left;
+        border: none;
+      }
+
+      th {
+        font-weight: 400;
+        color: #8E9BB3;
+        background: transparent;
+        border-bottom: 1px solid #DCDEE5;
+      }
+
+      td {
+        color: #4D4F56;
+        border-bottom: 1px solid #F0F1F5;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+    }
+
+    &-field {
+      flex-shrink: 0;
+      width: 120px;
+      color: #4D4F56;
+    }
+
+    &-skeleton {
+      padding-top: 2px;
+    }
+
+    &-value {
+      word-break: break-all;
+    }
+
+    &-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 100px;
+      font-size: 12px;
+      color: #C4C6CC;
+    }
+  }
+
+  // ====== Footer ======
+  .grok-popover-list-footer {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 48px;
+    padding: 8px 24px 8px 16px;
+    background: var(--Neutral-10, #FAFBFD);
+    border-top: 1px solid var(--Neutral-6--, #DCDEE5);
+  }
+
+  .grok-popover-list-shortcut {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 24px;
+    font-size: 12px;
+    line-height: 16px;
+
+    .label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 16px;
+      padding: 0 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a3b1cc;
+      background-color: #a3b1cc29;
+      border: 1px solid #a3b1cc4d;
+      border-radius: 2px;
+
+      &.bklog-arrow-down-filled {
+        padding: 0;
+        font-size: 14px;
+      }
+
+      &.up {
+        margin-right: 2px;
+        transform: rotate(-180deg);
+      }
+    }
+
+    .value {
+      margin-left: 4px;
+      color: #7a8599;
+    }
+  }
+
+  .grok-popover-list-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+// 快捷键图标旋转
+// ↑ 向上箭头：bofang 图标旋转 270°
+// ↓ 向下箭头：bofang 图标旋转 90°
+.shortcut-icon-up {
+  display: inline-block;
+  transform: rotate(270deg);
+}
+
+.shortcut-icon-down {
+  display: inline-block;
+  transform: rotate(90deg);
+}

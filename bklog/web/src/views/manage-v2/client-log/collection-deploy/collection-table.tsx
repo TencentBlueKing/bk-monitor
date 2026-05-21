@@ -34,7 +34,7 @@ import { t } from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
 import { TaskStatus, TaskScene } from './types';
-import { useTableSetting } from '../hooks/use-table-setting';
+import { useTableSetting } from '@/views/manage-v2/hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
 import { useDownloadFile } from '../hooks/use-download-file';
 

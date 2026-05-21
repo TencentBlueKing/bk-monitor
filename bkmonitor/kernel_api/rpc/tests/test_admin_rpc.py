@@ -21,6 +21,12 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 )
 from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
+from kernel_api.rpc.functions.admin import datalink as admin_datalink
+from kernel_api.rpc.functions.admin.datalink import (
+    get_component_detail,
+    get_datalink_component_config,
+    list_components,
+)
 from kernel_api.rpc.functions.admin.es_storage import (
     _contains_index_wildcard,
     _is_virtual_es_storage,
@@ -47,6 +53,30 @@ from kernel_api.rpc.registry import KernelRPCRegistry
 
 def _doris_storage_manager():
     return admin_storage.models.DorisStorage.objects
+
+
+class _FakeQuerySet:
+    def __init__(self, items):
+        self.items = list(items)
+        self.filters = []
+        self.ordering = []
+
+    def filter(self, **kwargs):
+        self.filters.append(kwargs)
+        return self
+
+    def exclude(self, **kwargs):
+        return self
+
+    def order_by(self, *fields):
+        self.ordering.append(fields)
+        return self
+
+    def count(self):
+        return len(self.items)
+
+    def __getitem__(self, key):
+        return self.items[key]
 
 
 def test_admin_rpc_functions_registered_by_builtin_loader():
@@ -283,6 +313,94 @@ def test_result_table_detail_serializer_does_not_return_fields():
 
     assert item["table_id"] == "system.cpu"
     assert "fields" not in item
+
+
+def test_datalink_component_list_accepts_cluster_config_kind():
+    cluster_config = SimpleNamespace(
+        name="default-vm",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        origin_config={"domain": "vm.example.com"},
+        create_time=None,
+        update_time=None,
+    )
+    queryset = _FakeQuerySet([cluster_config])
+
+    with patch.object(admin_datalink.ClusterConfig.objects, "filter", return_value=queryset) as cluster_filter:
+        response = list_components(
+            {"bk_tenant_id": "system", "kind": "VmStorage", "namespace": "bkmonitor", "page": 1, "page_size": 20}
+        )
+
+    cluster_filter.assert_called_once_with(bk_tenant_id="system", kind="VmStorage")
+    assert queryset.filters == [{"namespace": "bkmonitor"}]
+    assert queryset.ordering == [("-create_time",)]
+    assert response["data"]["total"] == 1
+    assert response["data"]["items"][0]["kind"] == "VmStorage"
+    assert response["data"]["items"][0]["status"] == ""
+    assert response["data"]["items"][0]["data_link_name"] is None
+    assert response["data"]["items"][0]["bk_biz_id"] == 0
+
+
+def test_datalink_component_detail_accepts_cluster_config_kind_with_component_config():
+    cluster_config = SimpleNamespace(
+        name="default-vm",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        origin_config={"domain": "vm.example.com"},
+        create_time=None,
+        update_time=None,
+        component_config={
+            "kind": "VmStorage",
+            "metadata": {"namespace": "bkmonitor", "name": "default-vm"},
+            "spec": {"password": "secret"},
+        },
+    )
+
+    with patch.object(admin_datalink.ClusterConfig.objects, "get", return_value=cluster_config) as cluster_get:
+        response = get_component_detail(
+            {
+                "bk_tenant_id": "system",
+                "kind": "VmStorage",
+                "namespace": "bkmonitor",
+                "name": "default-vm",
+                "include": ["component_config"],
+            }
+        )
+
+    cluster_get.assert_called_once_with(
+        bk_tenant_id="system",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        name="default-vm",
+    )
+    assert response["data"]["kind"] == "VmStorage"
+    assert response["data"]["status"] == ""
+    assert response["data"]["component_config"]["kind"] == "VmStorage"
+    assert response["data"]["component_config"]["spec"]["password"] == "***"
+
+
+def test_datalink_component_config_accepts_cluster_config_kind():
+    cluster_config = SimpleNamespace(
+        name="default-vm",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        component_config={
+            "kind": "VmStorage",
+            "metadata": {"namespace": "bkmonitor", "name": "default-vm"},
+            "spec": {"password": "secret"},
+        },
+    )
+
+    with patch.object(admin_datalink.ClusterConfig.objects, "get", return_value=cluster_config):
+        response = get_datalink_component_config(
+            {"bk_tenant_id": "system", "kind": "VmStorage", "namespace": "bkmonitor", "name": "default-vm"}
+        )
+
+    assert response["data"]["kind"] == "VmStorage"
+    assert response["data"]["component_config"]["spec"]["password"] == "***"
 
 
 def test_cluster_info_serializer_masks_sensitive_fields():

@@ -17,9 +17,16 @@ from django.db.models import Q
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     build_response,
     count_by_field,
+    count_by_tenant_and_field,
+    filter_by_bk_tenant_id,
+    filter_by_tenant_resource_pairs,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
+    get_scoped_map_value,
+    instance_tenant_resource_key,
     normalize_include,
     normalize_optional_bool,
     normalize_ordering,
@@ -167,16 +174,23 @@ def _serialize_es_storage_list_item(
 ) -> dict[str, Any]:
     item = serialize_model(es_storage, ES_STORAGE_LIST_FIELDS)
     item["table_kind"] = _table_kind(es_storage)
-    item["result_table"] = _serialize_result_table_summary(result_table_map.get(es_storage.table_id))
-    item["storage_cluster"] = _serialize_cluster_summary(cluster_map.get(es_storage.storage_cluster_id))
+    item["result_table"] = _serialize_result_table_summary(
+        get_scoped_map_value(result_table_map, es_storage.bk_tenant_id, es_storage.table_id)
+    )
+    item["storage_cluster"] = _serialize_cluster_summary(
+        get_scoped_map_value(cluster_map, es_storage.bk_tenant_id, es_storage.storage_cluster_id)
+    )
     item["physical_table"] = None
     if item["table_kind"] == TABLE_KIND_VIRTUAL:
         item["physical_table"] = {
             "table_id": es_storage.origin_table_id,
-            "exists": es_storage.origin_table_id in physical_table_exists,
+            "exists": es_storage.origin_table_id in physical_table_exists
+            or (es_storage.bk_tenant_id, es_storage.origin_table_id) in physical_table_exists,
         }
     item["virtual_table_count"] = (
-        virtual_table_count_map.get(es_storage.table_id, 0) if item["table_kind"] == TABLE_KIND_PHYSICAL else 0
+        get_scoped_map_value(virtual_table_count_map, es_storage.bk_tenant_id, es_storage.table_id) or 0
+        if item["table_kind"] == TABLE_KIND_PHYSICAL
+        else 0
     )
     return item
 
@@ -193,8 +207,8 @@ def _serialize_cluster_summary(cluster: Any | None) -> dict[str, Any] | None:
     return serialize_model(cluster, CLUSTER_SUMMARY_FIELDS)
 
 
-def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.ESStorage.objects.all(), bk_tenant_id)
 
     if params.get("table_id"):
         table_id = str(params["table_id"]).strip()
@@ -208,10 +222,17 @@ def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str):
         )
 
     if params.get("data_label") not in (None, ""):
-        table_ids = models.ResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, data_label=str(params["data_label"]).strip()
-        ).values_list("table_id", flat=True)
-        queryset = queryset.filter(table_id__in=table_ids)
+        result_tables = filter_by_bk_tenant_id(
+            models.ResultTable.objects.filter(data_label=str(params["data_label"]).strip()), bk_tenant_id
+        ).only("bk_tenant_id", "table_id")
+        if bk_tenant_id is None:
+            queryset = filter_by_tenant_resource_pairs(
+                queryset,
+                "table_id",
+                ((result_table.bk_tenant_id, result_table.table_id) for result_table in result_tables),
+            )
+        else:
+            queryset = queryset.filter(table_id__in=[result_table.table_id for result_table in result_tables])
 
     table_kind = str(params.get("table_kind") or "").strip()
     if table_kind == TABLE_KIND_PHYSICAL:
@@ -238,23 +259,23 @@ def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str):
     return queryset
 
 
-def _load_result_table_map(bk_tenant_id: str, table_ids: list[str]) -> dict[str, Any]:
+def _load_result_table_map(bk_tenant_id: str | None, table_ids: list[str]) -> dict[Any, Any]:
     if not table_ids:
         return {}
-    return {
-        result_table.table_id: result_table
-        for result_table in models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids)
-    }
+    queryset = filter_by_bk_tenant_id(models.ResultTable.objects.filter(table_id__in=table_ids), bk_tenant_id)
+    if bk_tenant_id is None:
+        return {instance_tenant_resource_key(result_table, "table_id"): result_table for result_table in queryset}
+    return {result_table.table_id: result_table for result_table in queryset}
 
 
-def _load_cluster_map(bk_tenant_id: str, cluster_ids: list[int]) -> dict[int, Any]:
+def _load_cluster_map(bk_tenant_id: str | None, cluster_ids: list[int]) -> dict[Any, Any]:
     normalized_ids = [cluster_id for cluster_id in cluster_ids if cluster_id not in (None, "")]
     if not normalized_ids:
         return {}
-    return {
-        cluster.cluster_id: cluster
-        for cluster in models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_id__in=normalized_ids)
-    }
+    queryset = filter_by_bk_tenant_id(models.ClusterInfo.objects.filter(cluster_id__in=normalized_ids), bk_tenant_id)
+    if bk_tenant_id is None:
+        return {instance_tenant_resource_key(cluster, "cluster_id"): cluster for cluster in queryset}
+    return {cluster.cluster_id: cluster for cluster in queryset}
 
 
 def _get_es_storage_or_raise(bk_tenant_id: str, table_id: str):
@@ -493,7 +514,7 @@ def _is_index_allowed(es_storage: Any, index: str, warnings: list[dict[str, Any]
     summary="Admin 查询 ESStorage 列表",
     description="只读查询 ESStorage，支持实体/虚拟表、ResultTable.data_label、集群和受控 table_id 匹配。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，同时匹配 ESStorage.table_id 和 origin_table_id，支持精确、前缀或受控包含匹配",
         "data_label": "可选，精确匹配 ResultTable.data_label 后按 table_id 查询 ESStorage",
         "table_kind": "可选，physical / virtual",
@@ -507,7 +528,7 @@ def _is_index_allowed(es_storage: Any, index: str, warnings: list[dict[str, Any]
     example_params={"bk_tenant_id": "system", "table_kind": "virtual", "page": 1, "page_size": 20},
 )
 def list_es_storages(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), ES_STORAGE_ORDERING_FIELDS, default="table_id")
 
@@ -521,14 +542,22 @@ def list_es_storages(params: dict[str, Any]) -> dict[str, Any]:
 
     result_table_map = _load_result_table_map(bk_tenant_id, table_ids)
     cluster_map = _load_cluster_map(bk_tenant_id, cluster_ids)
-    physical_table_exists = set(
-        models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=origin_table_ids).values_list(
-            "table_id", flat=True
+    physical_storage_queryset = filter_by_bk_tenant_id(
+        models.ESStorage.objects.filter(table_id__in=origin_table_ids), bk_tenant_id
+    )
+    physical_table_exists = (
+        {instance_tenant_resource_key(storage, "table_id") for storage in physical_storage_queryset}
+        if bk_tenant_id is None
+        else set(physical_storage_queryset.values_list("table_id", flat=True))
+    )
+    if bk_tenant_id is None:
+        virtual_table_count_map = count_by_tenant_and_field(
+            models.ESStorage, group_field="origin_table_id", values=physical_table_ids
         )
-    )
-    virtual_table_count_map = count_by_field(
-        models.ESStorage, group_field="origin_table_id", values=physical_table_ids, bk_tenant_id=bk_tenant_id
-    )
+    else:
+        virtual_table_count_map = count_by_field(
+            models.ESStorage, group_field="origin_table_id", values=physical_table_ids, bk_tenant_id=bk_tenant_id
+        )
 
     items = [
         _serialize_es_storage_list_item(

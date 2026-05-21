@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, type PropType, onMounted, onUnmounted } from 'vue';
+import { defineComponent, ref, type PropType, onMounted, onUnmounted, type VNode } from 'vue';
 import PopInstanceUtil from '../../global/pop-instance-util';
 import type { Props as TippyProps } from 'tippy.js';
 import './index.scss';
@@ -38,7 +38,7 @@ export default defineComponent({
       default: () => ({}),
     },
     trigger: {
-      type: String as PropType<'click' | 'hover'>,
+      type: String as PropType<'click' | 'hover' | 'manual'>,
       default: 'click',
     },
     delegateTarget: {
@@ -50,11 +50,11 @@ export default defineComponent({
       default: '',
     },
     beforeHide: {
-      type: Function as PropType<(e: MouseEvent) => boolean>,
+      type: Function as PropType<(_e: MouseEvent) => boolean>,
       default: () => true,
     },
     content: {
-      type: [String, Function] as PropType<(() => JSX.Element) | JSX.Element | string>,
+      type: [String, Function] as PropType<(() => VNode) | VNode | string>,
       default: undefined,
     },
   },
@@ -166,6 +166,10 @@ export default defineComponent({
       instance.setProps(prop);
     };
 
+    const update = (force = false) => {
+      return instance.repositionTippyInstance(force);
+    };
+
     onMounted(() => {
       resolveOptions();
     });
@@ -189,7 +193,7 @@ export default defineComponent({
       }
     });
 
-    expose({ show, hide, setProps });
+    expose({ show, hide, setProps, update });
     const renderSlot = () => {
       if (typeof props.content === 'function') {
         return props.content();
