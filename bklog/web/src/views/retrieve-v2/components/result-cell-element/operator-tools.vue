@@ -261,7 +261,7 @@
             const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
             const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
             if (path) {
-              const url = `${window.MONITOR_URL || '/'}${path}`;
+              const url = `${window.MONITOR_URL ?? ''}${path}`;
               window.open(url, '_blank');
             }
           } else {
