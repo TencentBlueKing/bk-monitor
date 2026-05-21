@@ -529,7 +529,7 @@ const getSceneQuickExport = {
 
 /** 场景化检索 - 字段展示配置 保存 */
 const sceneFieldsConfig = {
-  url: '/search/scene/fields_config/',
+  url: '/search/scene/user_custom_config/',
   method: 'post',
 };
 
