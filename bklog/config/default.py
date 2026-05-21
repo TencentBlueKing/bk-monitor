@@ -609,6 +609,8 @@ FEATURE_TOGGLE = {
     "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
     # 客户端日志
     "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
+    # 场景化检索
+    "scene_search": os.environ.get("BKAPP_FEATURE_SCENE_SEARCH", "off"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"
