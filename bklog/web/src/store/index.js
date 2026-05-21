@@ -1953,7 +1953,7 @@ const store = new Vuex.Store({
         queryParams = {
           bk_biz_id: state.bkBizId,
           scene_id: state.indexItem.scene_active,
-          ...indexSetConfig,
+          scene_config: indexSetConfig,
         };
       } else {
         // 常规模式：保持原有逻辑
