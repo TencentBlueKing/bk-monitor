@@ -34,6 +34,9 @@ from core.prometheus import metrics
 
 logger = logging.getLogger(__name__)
 
+# MCP auth logs: grep by tag, e.g. `grep '\[MCP_AUTH\]'` or `event=permission_denied`
+MCP_AUTH_LOG_TAG = "MCP_AUTH"
+
 APP_CODE_TOKENS: dict[str, list[str]] = {}
 APP_CODE_UPDATE_TIME = None
 APP_CODE_TOKEN_CACHE_TIME = 300 + random.randint(0, 100)
@@ -255,6 +258,10 @@ class AuthenticationMiddleware(MiddlewareMixin):
         从请求路径中提取工具名称
         路径格式: /xxx/xx/xxx/tool_name/ -> 提取 tool_name
         """
+        if not path:
+            return ""
+        # 防御 nginx rewrite 等场景下 path 携带 query string / fragment 的情况
+        path = path.split("?", 1)[0].split("#", 1)[0]
         # 去除末尾的斜杠，然后按斜杠分割，取最后一个非空部分
         path = path.rstrip("/")
         parts = path.split("/")
@@ -287,7 +294,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             # 立即推送指标
             metrics.report_all()
         except Exception as err:  # pylint: disable=broad-except
-            logger.exception(f"MCPAuthentication: Failed to report mcp_requests metrics, error: {err}")
+            logger.exception("[%s] event=metrics_report_failed error=%s", MCP_AUTH_LOG_TAG, err)
 
     def _handle_mcp_auth(self, request, username=None):
         """
@@ -297,22 +304,39 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 导入放在这里避免循环依赖
         from bkmonitor.iam.action import get_action_by_id
         from bkmonitor.iam.drf import MCPPermission
-        from constants.mcp import MCP_SERVER_NAME_TO_PERMISSION_ACTION
-
-        logger.info("MCPAuthentication: Handling MCP authentication")
+        from constants.mcp import get_mcp_permission_action_by_server_name
 
         # 提取MCP服务名称（用于指标上报）
         mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
-
-        # 提取工具名称，检查是否在豁免白名单中
         tool_name = self.extract_tool_name_from_path(request.path)
+        logger.info(
+            "[%s] event=auth_begin tool=%s mcp_server=%s username=%s method=%s path=%s",
+            MCP_AUTH_LOG_TAG,
+            tool_name,
+            mcp_server_name,
+            username,
+            request.method,
+            request.path,
+        )
 
         openclaw_mcp_server_name = getattr(settings, "OPENCLAW_RECOVERING_MCP_SERVER_NAME", "")
         if openclaw_mcp_server_name and mcp_server_name == openclaw_mcp_server_name:
             if not username:
+                logger.warning(
+                    "[%s] event=openclaw_denied reason=missing_username mcp_server=%s",
+                    MCP_AUTH_LOG_TAG,
+                    mcp_server_name,
+                )
                 return HttpResponseForbidden("Missing username in request")
 
             if tool_name not in OPENCLAW_RECOVERING_MCP_TOOLS:
+                logger.warning(
+                    "[%s] event=openclaw_denied reason=invalid_tool tool=%s mcp_server=%s username=%s",
+                    MCP_AUTH_LOG_TAG,
+                    tool_name,
+                    mcp_server_name,
+                    username,
+                )
                 return HttpResponseForbidden("Invalid OpenClaw MCP tool")
 
             # OpenClaw 数据统一上报到一个业务，入口只固定业务上下文；
@@ -320,6 +344,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
             request.biz_id = int(getattr(settings, "OPENCLAW_RECOVERING_BK_BIZ_ID", 0) or 0)
             request.skip_check = True
             request.openclaw_identity_scoped = True
+            logger.info(
+                "[%s] event=openclaw_allowed tool=%s mcp_server=%s username=%s bk_biz_id=%s",
+                MCP_AUTH_LOG_TAG,
+                tool_name,
+                mcp_server_name,
+                username,
+                request.biz_id,
+            )
             self._report_mcp_metric(
                 tool_name=tool_name,
                 bk_biz_id=request.biz_id,
@@ -334,20 +366,33 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 优先从 MCP Server Name 映射中获取，如果没有则从旧的请求头中获取
         permission_action_id = ""
 
+        permission_action_source = ""
         if mcp_server_name:
-            # 从映射表中获取对应的权限动作ID
-            permission_action_id = MCP_SERVER_NAME_TO_PERMISSION_ACTION.get(mcp_server_name, "")
-            logger.info(
-                f"MCPAuthentication: MCP Server Name: {mcp_server_name}, mapped permission_action_id: {permission_action_id}"
-            )
+            permission_action_id = get_mcp_permission_action_by_server_name(mcp_server_name)
+            if permission_action_id:
+                permission_action_source = "server_name_map"
 
         # 如果没有从 MCP Server Name 获取到，则尝试从旧的请求头中获取
         if not permission_action_id:
             permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION", "")
-            logger.info(f"MCPAuthentication: Using permission_action_id from header: {permission_action_id}")
+            if permission_action_id:
+                permission_action_source = "permission_action_header"
+
+        logger.info(
+            "[%s] event=permission_action_resolved mcp_server=%s permission_action=%s source=%s",
+            MCP_AUTH_LOG_TAG,
+            mcp_server_name,
+            permission_action_id,
+            permission_action_source or "none",
+        )
 
         if tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS:
-            logger.info(f"MCPAuthentication: Tool '{tool_name}' is in exempt list, skipping permission check")
+            logger.info(
+                "[%s] event=tool_exempt tool=%s permission_action=%s",
+                MCP_AUTH_LOG_TAG,
+                tool_name,
+                permission_action_id,
+            )
             request.skip_check = True
             # 上报豁免工具的调用指标
             self._report_mcp_metric(
@@ -369,22 +414,41 @@ class AuthenticationMiddleware(MiddlewareMixin):
             try:
                 bk_biz_id = request.POST.get("bk_biz_id")
             except Exception as e:  # pylint: disable=broad-except
-                logger.warning("MCPAuthentication: Failed to get bk_biz_id from POST form data, error: %s", e)
+                logger.warning(
+                    "[%s] event=bk_biz_id_parse_failed source=post_form error=%s",
+                    MCP_AUTH_LOG_TAG,
+                    e,
+                )
 
             # 如果表单数据中没有，尝试从JSON body中获取
             if not bk_biz_id:
                 try:
                     body = request.body.decode("utf-8")
-                    logger.info(f"MCPAuthentication: request post body: {body}")
                     if body:
                         data = json.loads(body)
                         bk_biz_id = data.get("bk_biz_id")
-                        logger.warning(f"MCPAuthentication: Got bk_biz_id from JSON body: {bk_biz_id}")
+                        if bk_biz_id:
+                            logger.info(
+                                "[%s] event=bk_biz_id_resolved source=json_body bk_biz_id=%s",
+                                MCP_AUTH_LOG_TAG,
+                                bk_biz_id,
+                            )
                 except Exception as e:  # pylint: disable=broad-except
-                    logger.warning("MCPAuthentication: Failed to get bk_biz_id from JSON body, error: %s", e)
+                    logger.warning(
+                        "[%s] event=bk_biz_id_parse_failed source=json_body error=%s",
+                        MCP_AUTH_LOG_TAG,
+                        e,
+                    )
 
         if not bk_biz_id:
-            logger.error("MCPAuthentication: Missing bk_biz_id in request parameters")
+            logger.error(
+                "[%s] event=bk_biz_id_missing tool=%s method=%s path=%s username=%s",
+                MCP_AUTH_LOG_TAG,
+                tool_name,
+                request.method,
+                request.path,
+                username,
+            )
             # 上报参数缺失的调用指标
             self._report_mcp_metric(
                 tool_name=tool_name,
@@ -399,7 +463,12 @@ class AuthenticationMiddleware(MiddlewareMixin):
         try:
             request.biz_id = int(bk_biz_id)
         except (ValueError, TypeError):
-            logger.error(f"MCPAuthentication: Invalid bk_biz_id format: {bk_biz_id}")
+            logger.error(
+                "[%s] event=bk_biz_id_invalid bk_biz_id=%s username=%s",
+                MCP_AUTH_LOG_TAG,
+                bk_biz_id,
+                username,
+            )
             # 上报参数格式错误的调用指标
             self._report_mcp_metric(
                 tool_name=tool_name,
@@ -411,8 +480,6 @@ class AuthenticationMiddleware(MiddlewareMixin):
             )
             return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
 
-        logger.info(f"MCPAuthentication: Permission action from header: {permission_action_id}")
-
         # 使用 MCPPermission 进行权限校验
         try:
             # 根据请求头动态获取权限动作
@@ -420,9 +487,19 @@ class AuthenticationMiddleware(MiddlewareMixin):
             if permission_action_id:
                 try:
                     action = get_action_by_id(permission_action_id)
-                    logger.info(f"MCPAuthentication: Using action: {action.id} - {action.name}")
+                    logger.info(
+                        "[%s] event=iam_action_resolved permission_action=%s permission_action_name=%s",
+                        MCP_AUTH_LOG_TAG,
+                        action.id,
+                        action.name,
+                    )
                 except Exception as e:
-                    logger.warning(f"MCPAuthentication: Failed to get action by id '{permission_action_id}': {e}")
+                    logger.warning(
+                        "[%s] event=iam_action_resolve_failed permission_action=%s error=%s",
+                        MCP_AUTH_LOG_TAG,
+                        permission_action_id,
+                        e,
+                    )
                     # 如果找不到对应的权限，使用默认权限
 
             permission = MCPPermission(action=action)
@@ -430,7 +507,15 @@ class AuthenticationMiddleware(MiddlewareMixin):
             mock_view = type("MockView", (), {"kwargs": {}})()
 
             if not permission.has_permission(request, mock_view):
-                logger.warning(f"MCPAuthentication: Permission denied for user={username}, bk_biz_id={request.biz_id}")
+                logger.warning(
+                    "[%s] event=permission_denied username=%s bk_biz_id=%s permission_action=%s tool=%s mcp_server=%s",
+                    MCP_AUTH_LOG_TAG,
+                    username,
+                    request.biz_id,
+                    permission_action_id,
+                    tool_name,
+                    mcp_server_name,
+                )
                 # 上报权限拒绝的调用指标
                 self._report_mcp_metric(
                     tool_name=tool_name,
@@ -442,7 +527,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 )
                 return HttpResponseForbidden("Permission denied: insufficient MCP permissions")
         except Exception as e:
-            logger.exception(f"MCPAuthentication: Permission check failed: {e}")
+            logger.exception("[%s] event=permission_check_failed error=%s", MCP_AUTH_LOG_TAG, e)
             # 上报异常的调用指标
             self._report_mcp_metric(
                 tool_name=tool_name,
@@ -454,7 +539,15 @@ class AuthenticationMiddleware(MiddlewareMixin):
             )
             return HttpResponseForbidden(f"Permission denied: {e}")
 
-        logger.info(f"MCPAuthentication: Authentication Success: user={username}, bk_biz_id={request.biz_id}")
+        logger.info(
+            "[%s] event=auth_success username=%s bk_biz_id=%s permission_action=%s tool=%s mcp_server=%s",
+            MCP_AUTH_LOG_TAG,
+            username,
+            request.biz_id,
+            permission_action_id,
+            tool_name,
+            mcp_server_name,
+        )
         # 上报成功的调用指标
         self._report_mcp_metric(
             tool_name=tool_name,
@@ -535,18 +628,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # MCP权限校验（在用户认证完成后）
         if self.use_mcp_auth(request, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
-            logger.info("=" * 80)
-            logger.info("MCPAuthentication: Handling MCP authentication")
-
-            # 打印认证信息
-            logger.info(f"MCPAuthentication: app_code={app_code}, username={username}, tenant_id={bk_tenant_id}")
-
-            # 打印请求基本信息
-            logger.info(f"MCPAuthentication: method={request.method}, path={request.path}")
-
-            # 打印关键请求头
-            logger.info("MCPAuthentication: Request Headers:")
-            key_headers = [
+            mcp_key_headers = (
                 "HTTP_X_BK_REQUEST_SOURCE",
                 "HTTP_X_BKAPI_FROM",
                 "HTTP_X_BK_TENANT_ID",
@@ -555,29 +637,36 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 "HTTP_X_BKAPI_MCP_SERVER_NAME",
                 "HTTP_X_BKAPI_PERMISSION_ACTION",
                 "Content-Type",
-            ]
-            for header_key in key_headers:
-                header_value = request.META.get(header_key, "N/A")
-                logger.info(f"MCPAuthentication: Header - {header_key}: {header_value}")
-
-            # 打印GET参数
-            if request.GET:
-                logger.info(f"MCPAuthentication: GET params: {dict(request.GET)}")
-            else:
-                logger.info("MCPAuthentication: GET params: (empty)")
-
-            # 打印POST参数
+            )
+            headers = {key: request.META.get(key, "N/A") for key in mcp_key_headers}
+            logger.info(
+                "[%s] event=request_received app_code=%s username=%s tenant_id=%s method=%s path=%s "
+                "headers=%s get_params=%s",
+                MCP_AUTH_LOG_TAG,
+                app_code,
+                username,
+                bk_tenant_id,
+                request.method,
+                request.path,
+                json.dumps(headers, ensure_ascii=False),
+                json.dumps(dict(request.GET), ensure_ascii=False) if request.GET else "",
+            )
             if request.method == "POST":
                 try:
-                    if request.POST:
-                        logger.info(f"MCPAuthentication: POST params: {dict(request.POST)}")
-                    else:
-                        logger.info("MCPAuthentication: POST params: (empty)")
+                    post_params = dict(request.POST) if request.POST else {}
+                    logger.info(
+                        "[%s] event=request_post_params path=%s post_params=%s",
+                        MCP_AUTH_LOG_TAG,
+                        request.path,
+                        json.dumps(post_params, ensure_ascii=False) if post_params else "(empty)",
+                    )
                 except Exception as e:  # pylint: disable=broad-except
-                    logger.warning(f"MCPAuthentication: Failed to read POST params: {e}")
-
-            logger.info("=" * 80)
-
+                    logger.warning(
+                        "[%s] event=request_post_params_read_failed path=%s error=%s",
+                        MCP_AUTH_LOG_TAG,
+                        request.path,
+                        e,
+                    )
             return self._handle_mcp_auth(request, username=username)
 
         if self.use_api_token_auth(request):
