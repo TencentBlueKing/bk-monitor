@@ -28,6 +28,7 @@ from kernel_api.rpc.functions.admin.datalink import (
     list_components,
 )
 from kernel_api.rpc.functions.admin.es_storage import (
+    _build_runtime_index_item,
     _contains_index_wildcard,
     _is_virtual_es_storage,
     _serialize_es_storage_config,
@@ -861,6 +862,32 @@ def test_es_storage_functions_registered():
     rotate_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.rotate_aliases")
     assert "write" in rotate_detail["description"]
     assert "traceback" in rotate_detail["description"]
+
+
+def test_es_storage_runtime_index_item_keeps_stats_values_and_counts_shards():
+    item = _build_runtime_index_item(
+        index_name="v2_system_cpu_20260521_0",
+        stats={"total": {"docs": {"count": 0}, "store": {"size_in_bytes": 0}}},
+        cat_meta={"health": "green", "status": "open", "pri": "2", "rep": "1", "docs.count": "99"},
+    )
+
+    assert item["docs_count"] == 0
+    assert item["store_size"] == 0
+    assert item["primary_shards"] == 2
+    assert item["replica_shards"] == 2
+    assert item["replica_factor"] == 1
+    assert item["shards"] == 4
+
+    settings_item = _build_runtime_index_item(
+        index_name="v2_system_cpu_20260521_0",
+        stats={"total": {"docs": {"count": 3}, "store": {"size_in_bytes": 1024}}},
+        cat_meta={},
+        settings_meta={"settings": {"index": {"number_of_shards": "3", "number_of_replicas": "2"}}},
+    )
+
+    assert settings_item["primary_shards"] == 3
+    assert settings_item["replica_shards"] == 6
+    assert settings_item["shards"] == 9
 
 
 def test_storage_functions_registered():

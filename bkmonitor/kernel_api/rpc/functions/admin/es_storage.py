@@ -399,6 +399,160 @@ def _runtime_index_expression(es_storage: Any, index: str | None = None) -> str:
     return index or es_storage.search_format_v2()
 
 
+def _runtime_index_stats_expression(es_storage: Any, index_version: str) -> str:
+    if index_version == "v1":
+        return es_storage.search_format_v1()
+    return es_storage.search_format_v2()
+
+
+def _parse_runtime_int(value: Any) -> int | None:
+    if value in (None, "") or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        normalized = value.strip().replace(",", "")
+        if not normalized:
+            return None
+        try:
+            return int(float(normalized))
+        except ValueError:
+            return None
+    return None
+
+
+def _nested_runtime_value(value: Any, path: tuple[str, ...]) -> Any:
+    current = value
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _first_runtime_value(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
+def _extract_runtime_docs_count(stats: dict[str, Any], cat_meta: dict[str, Any]) -> int | None:
+    return _parse_runtime_int(
+        _first_runtime_value(
+            _nested_runtime_value(stats, ("total", "docs", "count")),
+            _nested_runtime_value(stats, ("primaries", "docs", "count")),
+            cat_meta.get("docs.count"),
+        )
+    )
+
+
+def _extract_runtime_store_size(stats: dict[str, Any], cat_meta: dict[str, Any]) -> Any:
+    return _first_runtime_value(
+        _nested_runtime_value(stats, ("total", "store", "size_in_bytes")),
+        _nested_runtime_value(stats, ("primaries", "store", "size_in_bytes")),
+        cat_meta.get("store.size"),
+    )
+
+
+def _build_cat_indices_meta(
+    es_storage: Any,
+    index_names: list[str],
+    index_version: str,
+    warnings: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    if not index_names:
+        return {}
+
+    try:
+        rows = es_storage.es_client.cat.indices(
+            index=_runtime_index_stats_expression(es_storage, index_version),
+            h="index,health,status,pri,rep,docs.count,store.size",
+            format="json",
+            bytes="b",
+        )
+    except Exception as error:  # pylint: disable=broad-except
+        _append_runtime_warning(warnings, "INDEX_CAT_UNAVAILABLE", "ES 索引 cat 信息查询失败", error)
+        return {}
+
+    if not isinstance(rows, list):
+        return {}
+
+    allowed = set(index_names)
+    return {
+        str(row.get("index")): row
+        for row in rows
+        if isinstance(row, dict) and row.get("index") is not None and str(row.get("index")) in allowed
+    }
+
+
+def _build_index_settings_meta(
+    es_storage: Any,
+    index_names: list[str],
+    index_version: str,
+    warnings: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    if not index_names:
+        return {}
+
+    try:
+        rows = es_storage.es_client.indices.get_settings(
+            index=_runtime_index_stats_expression(es_storage, index_version)
+        )
+    except Exception as error:  # pylint: disable=broad-except
+        _append_runtime_warning(warnings, "INDEX_SETTINGS_UNAVAILABLE", "ES 索引 settings 查询失败", error)
+        return {}
+
+    if not isinstance(rows, dict):
+        return {}
+
+    allowed = set(index_names)
+    return {
+        str(index_name): meta
+        for index_name, meta in rows.items()
+        if isinstance(meta, dict) and str(index_name) in allowed
+    }
+
+
+def _extract_index_setting(settings_meta: dict[str, Any], key: str) -> Any:
+    return _nested_runtime_value(settings_meta, ("settings", "index", key))
+
+
+def _build_runtime_index_item(
+    index_name: str,
+    stats: dict[str, Any],
+    cat_meta: dict[str, Any],
+    settings_meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    settings_meta = settings_meta or {}
+    primary_shards = _parse_runtime_int(
+        _first_runtime_value(cat_meta.get("pri"), _extract_index_setting(settings_meta, "number_of_shards"))
+    )
+    replica_factor = _parse_runtime_int(
+        _first_runtime_value(cat_meta.get("rep"), _extract_index_setting(settings_meta, "number_of_replicas"))
+    )
+    replica_shards = (
+        primary_shards * replica_factor if primary_shards is not None and replica_factor is not None else None
+    )
+    shards = primary_shards + replica_shards if primary_shards is not None and replica_shards is not None else None
+
+    item = {
+        "index": index_name,
+        "health": cat_meta.get("health"),
+        "status": cat_meta.get("status"),
+        "docs_count": _extract_runtime_docs_count(stats, cat_meta),
+        "store_size": _extract_runtime_store_size(stats, cat_meta),
+        "primary_shards": primary_shards,
+        "replica_shards": replica_shards,
+        "replica_factor": replica_factor,
+        "shards": shards,
+        "stats": stats,
+    }
+    return {key: value for key, value in item.items() if value is not None}
+
+
 def _append_runtime_warning(
     warnings: list[dict[str, Any]], code: str, message: str, error: Exception | None = None
 ) -> None:
@@ -451,6 +605,8 @@ def _build_indices_overview(es_storage: Any, warnings: list[dict[str, Any]]) -> 
     current_index_info: dict[str, Any] | None = None
     index_names = es_storage.get_index_names()
     stats_map, stats_version = es_storage.get_index_stats()
+    cat_meta_map = _build_cat_indices_meta(es_storage, index_names, stats_version, warnings)
+    settings_meta_map = _build_index_settings_meta(es_storage, index_names, stats_version, warnings)
 
     try:
         index_exist = es_storage.index_exist()
@@ -469,10 +625,12 @@ def _build_indices_overview(es_storage: Any, warnings: list[dict[str, Any]]) -> 
         "index_exist": index_exist,
         "current_index_info": _serialize_runtime_value(current_index_info),
         "items": [
-            {
-                "index": index_name,
-                "stats": stats_map.get(index_name, {}),
-            }
+            _build_runtime_index_item(
+                index_name=index_name,
+                stats=stats_map.get(index_name, {}),
+                cat_meta=cat_meta_map.get(index_name, {}),
+                settings_meta=settings_meta_map.get(index_name, {}),
+            )
             for index_name in index_names
         ],
     }
