@@ -27,6 +27,19 @@
 import { SceneType } from './types';
 import type { SceneConfig, SceneConfigItem } from './types';
 
+/** 操作符 key → 页面显示符号映射 */
+export const OPERATOR_DISPLAY_MAP: Record<string, string> = {
+  eq: '=',
+  ne: '!=',
+  req: '=~',
+  nreq: '!~',
+};
+
+/** 操作符显示符号 → key 的反向映射 */
+export const REVERSE_OPERATOR_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(OPERATOR_DISPLAY_MAP).map(([k, v]) => [v, k]),
+);
+
 /**
  * 本地场景映射表：根据接口返回的 id 映射显示名称和图标。
  * key 为 SceneType 枚举值（即接口 id），value 为本地展示信息。
@@ -113,5 +126,27 @@ export const getSceneFieldKeys = (sceneConfigs: SceneConfig[], sceneId: string):
 export const getAllSceneFieldKeys = (sceneConfigs: SceneConfig[]): string[] => {
   const keys = new Set<string>();
   (sceneConfigs ?? []).forEach(s => s.fields.forEach(f => keys.add(f.key)));
+  return Array.from(keys);
+};
+
+/** 获取操作符的显示符号，未知操作符原样返回 */
+export const getOperatorDisplay = (op: string): string => {
+  return OPERATOR_DISPLAY_MAP[op] ?? op;
+};
+
+/** 获取字段的默认操作符（取 ops 第一个） */
+export const getDefaultOp = (ops: string[] | undefined): string => {
+  return ops?.[0] ?? 'eq';
+};
+
+/**
+ * 获取所有场景的全部字段 key 及其 [op] 后缀（用于 URL 清理）
+ */
+export const getAllSceneFieldOpKeys = (sceneConfigs: SceneConfig[]): string[] => {
+  const keys = new Set<string>();
+  (sceneConfigs ?? []).forEach(s => s.fields.forEach((f) => {
+    keys.add(f.key);
+    keys.add(`${f.key}[op]`);
+  }));
   return Array.from(keys);
 };
