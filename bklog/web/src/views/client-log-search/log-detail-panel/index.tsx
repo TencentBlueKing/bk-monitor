@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, computed } from 'vue';
+import { defineComponent, ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { bkMessage } from 'bk-magic-vue';
 
 import { t } from '@/hooks/use-locale';
@@ -577,6 +577,29 @@ export default defineComponent({
       },
     ]);
 
+    /** 是否全屏展示 */
+    const isFullscreen = ref(false);
+
+    /** 切换全屏 */
+    const handleFullscreen = () => {
+      isFullscreen.value = !isFullscreen.value;
+    };
+
+    /** Esc 键退出全屏 */
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen.value) {
+        isFullscreen.value = false;
+      }
+    };
+
+    onMounted(() => {
+      document.addEventListener('keydown', handleKeydown);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleKeydown);
+    });
+
     /** 点击展开图标 */
     const handleExpand = () => {
       emit('expand');
@@ -841,7 +864,7 @@ export default defineComponent({
     };
 
     return () => (
-      <div class='card-base log-detail-panel'>
+      <div class={['card-base', 'log-detail-panel', { 'is-fullscreen': isFullscreen.value }]}>
         {/* 左上角展开图标 - 仅在左侧列表收起时显示 */}
         {props.isTaskListCollapsed && (
           <span class='expand-icon' onClick={handleExpand}>
@@ -878,6 +901,12 @@ export default defineComponent({
                 <bk-button onClick={handleShare}>
                   <i class='bklog-icon bklog-share-fenxiang'></i>
                   {t('分享')}
+                </bk-button>
+                <bk-button
+                  onClick={handleFullscreen}
+                >
+                  <i class={`bk-icon ${isFullscreen.value ? 'icon-unfull-screen' : 'icon-full-screen'}`}></i>
+                  {isFullscreen.value ? t('退出') : t('全屏')}
                 </bk-button>
               </div>
             )}

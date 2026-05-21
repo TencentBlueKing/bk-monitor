@@ -971,4 +971,5 @@ export default {
   采集失败: 'Collection Failed',
   根目录: 'Root Directory',
   输入样例: 'Input example',
+  退出: 'Exit',
 };

@@ -8,6 +8,21 @@
   padding: 0;
   gap: 16px;
 
+  &.is-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    border-radius: 0;
+    border: none;
+
+    .expand-icon {
+      display: none;
+    }
+  }
+
   .expand-icon {
     position: absolute;
     top: 12px;
