@@ -1,0 +1,243 @@
+"""
+Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
+"""
+
+from django.forms.models import model_to_dict
+
+from apps.log_search.constants import DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME, SearchScopeEnum
+from apps.log_search.exceptions import (
+    SceneDefaultConfigNotAllowedDelete,
+    SceneFieldsConfigAlreadyExistException,
+    SceneFieldsConfigNotExistException,
+)
+from apps.log_search.models import SceneFieldsConfig, UserSceneCustomConfig, UserSceneFieldsConfig
+from apps.utils.local import get_request_app_code, get_request_external_username, get_request_username
+
+
+class SceneFieldsConfigHandler:
+    """场景化字段模板（展示字段 + 排序）CRUD 与应用，对标 IndexSetFieldsConfigHandler。"""
+
+    data: SceneFieldsConfig | None = None
+
+    def __init__(
+        self,
+        config_id: int | None = None,
+        bk_biz_id: int | None = None,
+        scene_id: str | None = None,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ):
+        self.config_id = config_id
+        self.bk_biz_id = bk_biz_id
+        self.scene_id = scene_id
+        self.scope = scope
+        self.source_app_code = get_request_app_code()
+        if config_id:
+            try:
+                self.data = SceneFieldsConfig.objects.get(pk=config_id)
+            except SceneFieldsConfig.DoesNotExist:
+                raise SceneFieldsConfigNotExistException()
+
+    # ------------------------------------------------------------------
+    # Read
+    # ------------------------------------------------------------------
+
+    def retrieve(self) -> dict:
+        if not self.data:
+            raise SceneFieldsConfigNotExistException()
+        return model_to_dict(self.data)
+
+    def list(self) -> list:
+        objs = SceneFieldsConfig.objects.filter(
+            bk_biz_id=self.bk_biz_id,
+            scene_id=self.scene_id,
+            scope=self.scope,
+            source_app_code=self.source_app_code,
+        ).all()
+        config_list = [model_to_dict(obj) for obj in objs]
+        # 默认模板排在最前
+        config_list.sort(key=lambda c: c["name"] == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME, reverse=True)
+        return config_list
+
+    # ------------------------------------------------------------------
+    # Write
+    # ------------------------------------------------------------------
+
+    def create_or_update(self, name: str, display_fields: list, sort_list: list) -> dict:
+        username = get_request_external_username() or get_request_username()
+        # 名称重复校验（创建态、或更新但改名时）
+        if not self.data or self.data.name != name:
+            exists = SceneFieldsConfig.objects.filter(
+                bk_biz_id=self._infer_biz_id(),
+                scene_id=self._infer_scene_id(),
+                name=name,
+                scope=self._infer_scope(),
+                source_app_code=self.source_app_code,
+            ).exists()
+            if exists:
+                raise SceneFieldsConfigAlreadyExistException()
+
+        if self.data:
+            # 默认模板不允许改名
+            if self.data.name != DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME:
+                self.data.name = name
+            self.data.display_fields = display_fields
+            self.data.sort_list = sort_list
+            self.data.updated_by = username
+            self.data.save()
+        else:
+            self.data = SceneFieldsConfig.objects.create(
+                name=name,
+                bk_biz_id=self.bk_biz_id,
+                scene_id=self.scene_id,
+                scope=self.scope,
+                source_app_code=self.source_app_code,
+                display_fields=display_fields,
+                sort_list=sort_list,
+                created_by=username,
+                updated_by=username,
+            )
+        return model_to_dict(self.data)
+
+    def delete(self):
+        if not self.data:
+            raise SceneFieldsConfigNotExistException()
+        if self.data.name == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME:
+            raise SceneDefaultConfigNotAllowedDelete()
+        SceneFieldsConfig.delete_config(self.config_id, source_app_code=self.source_app_code)
+
+    # ------------------------------------------------------------------
+    # Apply
+    # ------------------------------------------------------------------
+
+    def apply(self, username: str) -> dict:
+        """切换用户当前在 (业务, 场景, 范围, 来源) 下应用的模板指针，返回用户视角完整配置。"""
+        if not self.data:
+            raise SceneFieldsConfigNotExistException()
+        user_obj, created = UserSceneFieldsConfig.objects.get_or_create(
+            bk_biz_id=self.data.bk_biz_id,
+            username=username,
+            scene_id=self.data.scene_id,
+            scope=self.data.scope,
+            source_app_code=self.source_app_code,
+            defaults={"config_id": self.data.id},
+        )
+        if not created and user_obj.config_id != self.data.id:
+            user_obj.config_id = self.data.id
+            user_obj.save(update_fields=["config_id", "updated_at"])
+        return self.build_user_fields_config_response(user_obj, self.data, username, self.source_app_code)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _infer_biz_id(self) -> int:
+        return self.data.bk_biz_id if self.data else self.bk_biz_id
+
+    def _infer_scene_id(self) -> str:
+        return self.data.scene_id if self.data else self.scene_id
+
+    def _infer_scope(self) -> str:
+        return self.data.scope if self.data else self.scope
+
+    # ------------------------------------------------------------------
+    # User-config read (used by fields_config GET)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def get_or_create_default(
+        cls,
+        bk_biz_id: int,
+        scene_id: str,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ) -> SceneFieldsConfig:
+        source_app_code = get_request_app_code()
+        obj, _ = SceneFieldsConfig.objects.get_or_create(
+            bk_biz_id=bk_biz_id,
+            scene_id=scene_id,
+            name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+            scope=scope,
+            source_app_code=source_app_code,
+            defaults={"display_fields": [], "sort_list": []},
+        )
+        return obj
+
+    @classmethod
+    def get_user_applied_config(
+        cls,
+        bk_biz_id: int,
+        username: str,
+        scene_id: str,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ) -> tuple[UserSceneFieldsConfig | None, SceneFieldsConfig]:
+        """读用户当前应用的模板；无指针则懒创建默认模板（不写指针，保留 first-write 行为给 apply()）。"""
+        source_app_code = get_request_app_code()
+        user_obj = UserSceneFieldsConfig.objects.filter(
+            bk_biz_id=bk_biz_id,
+            username=username,
+            scene_id=scene_id,
+            scope=scope,
+            source_app_code=source_app_code,
+        ).first()
+        if user_obj:
+            try:
+                tpl = SceneFieldsConfig.objects.get(pk=user_obj.config_id)
+                return user_obj, tpl
+            except SceneFieldsConfig.DoesNotExist:
+                # 指针指向的模板被外部清理：回退到默认模板
+                user_obj = None
+        tpl = cls.get_or_create_default(bk_biz_id, scene_id, scope)
+        return user_obj, tpl
+
+    @classmethod
+    def build_user_fields_config_response(
+        cls,
+        user_obj: UserSceneFieldsConfig | None,
+        tpl: SceneFieldsConfig,
+        username: str,
+        source_app_code: str,
+    ) -> dict:
+        """组装 fields_config / fields.user_fields_config 的统一响应结构。"""
+        return {
+            "id": user_obj.id if user_obj else None,
+            "config_id": tpl.id,
+            "username": username,
+            "bk_biz_id": tpl.bk_biz_id,
+            "scene_id": tpl.scene_id,
+            "scope": tpl.scope,
+            "source_app_code": source_app_code,
+            "name": tpl.name,
+            "display_fields": tpl.display_fields or [],
+            "sort_list": tpl.sort_list or [],
+            "created_at": tpl.created_at,
+            "updated_at": tpl.updated_at,
+        }
+
+    @classmethod
+    def upsert_user_applied_template(
+        cls,
+        bk_biz_id: int,
+        username: str,
+        scene_id: str,
+        scope: str,
+        display_fields: list,
+        sort_list: list,
+    ) -> dict:
+        """写入当前用户指针所指向的模板内容；无指针时懒绑定默认模板后写入。"""
+        source_app_code = get_request_app_code()
+        user_obj, tpl = cls.get_user_applied_config(bk_biz_id, username, scene_id, scope)
+        tpl.display_fields = display_fields
+        tpl.sort_list = sort_list
+        tpl.updated_by = get_request_external_username() or get_request_username()
+        tpl.save(update_fields=["display_fields", "sort_list", "updated_by", "updated_at"])
+        if not user_obj:
+            user_obj, _ = UserSceneFieldsConfig.objects.update_or_create(
+                bk_biz_id=bk_biz_id,
+                username=username,
+                scene_id=scene_id,
+                scope=scope,
+                source_app_code=source_app_code,
+                defaults={"config_id": tpl.id},
+            )
+        return cls.build_user_fields_config_response(user_obj, tpl, username, source_app_code)

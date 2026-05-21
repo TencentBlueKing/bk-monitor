@@ -56,6 +56,7 @@ class TransferEtlHandler(EtlHandler):
         target_fields=None,
         username="",
         total_shards_per_node=None,
+        labels=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -154,6 +155,7 @@ class TransferEtlHandler(EtlHandler):
             sort_fields=sort_fields,
             target_fields=target_fields,
             total_shards_per_node=total_shards_per_node,
+            labels=labels,
         )
 
         if not view_roles:

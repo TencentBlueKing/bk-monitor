@@ -32,6 +32,7 @@ from apps.log_search.views import (
     index_set_views,
     meta_views,
     result_table_views,
+    scene_search_views,
     search_views,
     user_custom_config_views,
     index_group_views,
@@ -57,6 +58,8 @@ router.register(r"search/index_set", aggs_views.AggsViewSet, basename="aggs")
 router.register(r"search/favorite", favorite_search_views.FavoriteViewSet, basename="favorite")
 router.register(r"search/favorite_group", favorite_search_views.FavoriteGroupViewSet, basename="favorite_group")
 router.register(r"search/favorite_union", favorite_search_views.FavoriteUnionSearchViewSet, basename="favorite_union")
+
+router.register(r"search/scene", scene_search_views.SceneSearchViewSet, basename="scene_search")
 
 router.register(r"result_table", result_table_views.ResultTablesViewSet, basename="result_table")
 
