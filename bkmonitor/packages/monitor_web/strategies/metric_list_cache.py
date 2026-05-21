@@ -753,7 +753,7 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
             yield from api.bkdata.list_result_table(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=self.bk_biz_id,
-                storages=["mysql", "tspider", "databus_tspider"],
+                storages=["vm"],
             )
 
     def get_metrics_by_table(self, table):

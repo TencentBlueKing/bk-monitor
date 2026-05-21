@@ -99,7 +99,12 @@ import { IssuesBatchActionEnum } from './alarm-issues/constant';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
-import { exportIssues, showOperationResult, updateIssuesPriority } from './alarm-issues/services/issues-operations';
+import {
+  exportIssues,
+  showOperationResult,
+  updateIssueName,
+  updateIssuesPriority,
+} from './alarm-issues/services/issues-operations';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -192,6 +197,35 @@ export default defineComponent({
       showOperationResult(res, t('修改成功'));
 
       updateIssueItems(res.succeeded);
+    };
+
+    /**
+     * @description 保存 Issues 标题：校验入参后调用重命名接口，成功则回写当前行数据
+     * @param {string} id - Issue ID
+     * @param {string} name - 新标题
+     */
+    const handleIssuesNameChange = async (id: string, name: string) => {
+      const nextName = name.trim();
+      const issuesData = data.value as IssueItem[];
+      const targetRow = issuesData.find(item => item.id === id);
+
+      if (!nextName || !targetRow || nextName === String(targetRow.name || '').trim()) {
+        return;
+      }
+
+      // 请求拦截器已统一弹出错误提示；异常会冒泡至 IssueNameCell.handleSubmit 的 catch 以保留编辑态
+      const res = await updateIssueName({
+        bk_biz_id: targetRow.bk_biz_id,
+        issue_id: id,
+        new_name: nextName,
+      });
+
+      updateIssueItems([res]);
+
+      Message({
+        theme: 'success',
+        message: t('修改成功'),
+      });
     };
 
     /**
@@ -1004,6 +1038,7 @@ export default defineComponent({
       issuesDialogParam,
       handleIssuesShowDetail,
       handleIssuesPriorityChange,
+      handleIssuesNameChange,
       handleExportIssues,
       handleIssuePreviousDetail,
       handleIssueNextDetail,
@@ -1155,6 +1190,7 @@ export default defineComponent({
                               headerAffixedTop={tableAffixed}
                               horizontalScrollAffixedBottom={tableAffixed}
                               loading={this.loading}
+                              nameChange={this.handleIssuesNameChange}
                               pagination={this.pagination}
                               scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                               selectedRowKeys={this.selectedRowKeys}
@@ -1176,9 +1212,7 @@ export default defineComponent({
                               onCurrentPageChange={this.handleCurrentPageChange}
                               onImpactScopeClick={this.handleImpactScopeClick}
                               onPageSizeChange={this.handlePageSizeChange}
-                              onPriorityChange={(id: string, priority: IssuePriorityType) =>
-                                this.handleIssuesPriorityChange(id, priority)
-                              }
+                              onPriorityChange={this.handleIssuesPriorityChange}
                               onSelectionChange={this.handleSelectedRowKeysChange}
                               onShowDetail={this.handleIssuesShowDetail}
                               onSortChange={sort => this.handleSortChange(sort as string)}

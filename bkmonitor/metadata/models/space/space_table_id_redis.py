@@ -12,14 +12,17 @@ import datetime
 import itertools
 import json
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
+from constants.apm import ApmGlobalTablePrefix
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
+from metadata.models.record_rule.constants import RECORD_RULE_V4_DELETED_RETENTION_DAYS
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -63,6 +66,8 @@ class SpaceTableIDRedis:
     空间路由结果表数据推送 redis 相关功能
     多租户环境下,不允许跨租户推送路由,即每次操作的目标数据,必须是同一租户下的,不能跨租户
     """
+
+    SUPPORT_SPACE_TYPES = {SpaceTypes.BKCC.value, SpaceTypes.BKCI.value, SpaceTypes.BKSAAS.value}
 
     def push_space_table_ids(self, space_type: str, space_id: str, is_publish: bool | None = False):
         """
@@ -832,6 +837,7 @@ class SpaceTableIDRedis:
         _values.update(
             self._compose_related_bkci_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
+        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
         return _values
 
     def _compose_bkci_space_table_ids(
@@ -868,6 +874,7 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
+        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
         return _values
 
     def _compose_bksaas_space_table_ids(
@@ -901,7 +908,56 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
+        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
         return _values
+
+    def _compose_vm_short_link_table_ids(
+        self, space_type: str, space_id: str, bk_tenant_id: str = DEFAULT_TENANT_ID
+    ) -> dict[str, dict[str, list[dict[str, Any]]]]:
+        """组装 VM 短链路结果表。
+
+        单业务短链路只进入归属空间；全局短链路按 query_router_config.space_type 进入目标空间。
+        归属空间可查询全量数据，非归属空间沿用业务过滤语义。
+        """
+        logger.info(
+            "_compose_vm_short_link_table_ids: space_type->[%s], space_id->[%s], bk_tenant_id->[%s]",
+            space_type,
+            space_id,
+            bk_tenant_id,
+        )
+        records = models.VMShortLinkRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            is_enabled=True,
+            is_deleted=False,
+        ).filter(Q(space_type=space_type, space_id=space_id) | Q(is_global=True))
+        if not records:
+            return {}
+
+        values: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        for record in records:
+            table_id = record.table_id
+            # 单业务表只会命中归属空间；全局表在归属空间也不需要额外业务过滤。
+            if not record.is_global or (record.space_type == space_type and record.space_id == space_id):
+                values[table_id] = {"filters": []}
+                continue
+
+            if not record.match_query_router_space_type(space_type):
+                continue
+
+            # 非归属空间访问全局表时按 query_router_config 生成过滤条件。
+            query_filter = record.get_query_router_filter(space_type, space_id)
+            if query_filter is None:
+                logger.warning(
+                    "_compose_vm_short_link_table_ids: table_id->[%s] cannot compose filter for "
+                    "space_type->[%s], space_id->[%s]",
+                    table_id,
+                    space_type,
+                    space_id,
+                )
+                continue
+            values[table_id] = {"filters": [query_filter]}
+
+        return values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
         """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""
@@ -1073,7 +1129,7 @@ class SpaceTableIDRedis:
             return {}
 
         result_tables = models.ResultTable.objects.filter(
-            table_id__contains="apm_global.precalculate_storage", bk_tenant_id=space.bk_tenant_id
+            table_id__startswith=ApmGlobalTablePrefix.COMMON, bk_tenant_id=space.bk_tenant_id
         )
         return {rt.table_id: {"filters": [{rt.bk_biz_id_alias: str(-space.id)}]} for rt in result_tables}
 
@@ -1319,6 +1375,32 @@ class SpaceTableIDRedis:
             bk_tenant_id,
         )
         objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
+        values = {obj.table_id: {"filters": []} for obj in objs}
+        values.update(
+            self._compose_record_rule_v4_table_ids(
+                space_type=space_type,
+                space_id=space_id,
+                bk_tenant_id=bk_tenant_id,
+            )
+        )
+        return values
+
+    def _compose_record_rule_v4_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+        """组装 V4 预计算输出结果表。
+
+        V4 输出 RT 没有普通 DataSourceResultTable 链路，空间可查询表索引
+        需要显式追加。停用只停止后续写入，不影响历史数据查询；删除完成
+        后也保留半年查询窗口，超过窗口后才从空间路由中移除。
+        """
+
+        from metadata.models.record_rule.v4 import RecordRuleV4
+
+        queryable_deleted_at = tz_now() - datetime.timedelta(days=RECORD_RULE_V4_DELETED_RETENTION_DAYS)
+        objs = RecordRuleV4.objects.filter(
+            space_type=space_type,
+            space_id=space_id,
+            bk_tenant_id=bk_tenant_id,
+        ).filter(Q(deleted_at__isnull=True) | Q(deleted_at__gt=queryable_deleted_at))
         return {obj.table_id: {"filters": []} for obj in objs}
 
     def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):

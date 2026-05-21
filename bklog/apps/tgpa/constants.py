@@ -315,6 +315,8 @@ class TGPAReportSyncStatusEnum(ChoicesEnum):
 TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name"]
 TGPA_REPORT_ORDER_FIELDS = ["file_size"]
 TGPA_REPORT_LIST_BATCH_SIZE = 2000  # 客户端日志上报列表批量查询大小
+TGPA_OPENID_SUGGEST_LIMIT = 10  # openid 联想/聚合查询最大返回数量
+TGPA_MERGED_LIST_MAX_RESULT_WINDOW = 10000  # 合并任务列表最大深度分页限制（page * pagesize）
 TGPA_REPORT_SOURCE_FIELDS = [
     "openid",
     "file_name",
@@ -333,4 +335,6 @@ TGPA_REPORT_SOURCE_FIELDS = [
 ]
 TGPA_REPORT_OFFSET_MINUTES = -5  # 客户端日志上报同步偏移时间
 TGPA_REPORT_MAX_TIME_RANGE_MINUTES = 30  # 客户端日志上报同步最大时间跨度
+TGPA_UNFINISHED_TASK_CHECK_BATCH_SIZE = 200  # 未完成任务状态检查的单次查询批量大小
 TGPA_UNFINISHED_TASK_CHECK_DAYS = 7  # 未完成任务的最大回溯天数
+TGPA_REPORT_TOTAL_COUNT_DAYS = 30  # 客户端日志上报累计统计的默认天数

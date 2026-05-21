@@ -1,0 +1,14 @@
+pipeline:
+  - skill: memory-recaller
+  - skill: architect
+  - skill: module-decomposer
+  - skill: pattern-interviewer
+  - skill: pattern-selector
+  - skill: module-pattern-selector
+  - gate: pattern_gate
+  - skill: pattern-implementation-planner
+  - skill: adr-generator
+  - gate: implementation_gate
+  - skill: refactor-critic
+  - skill: memory-writer
+  - gate: merge_gate

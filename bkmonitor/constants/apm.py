@@ -74,6 +74,14 @@ def get_label_from_enums(value: Any, enums: list[type[CachedEnum]]) -> str:
     return value
 
 
+class ApmGlobalTablePrefix:
+    COMMON = "apm_global."
+    # 共享数据源场景
+    SHARED = f"{COMMON}shared"
+    # 预计算场景
+    PRECALCULATE = f"{COMMON}precalculate_storage"
+
+
 class TraceDataSourceConfig:
     """Trace数据源配置常量"""
 
@@ -2038,7 +2046,16 @@ class SpanKindCachedEnum(CachedEnum):
 
 
 TRACE_RESULT_TABLE_OPTION = {
-    "es_unique_field_list": ["trace_id", "span_id", "parent_span_id", "start_time", "end_time", "span_name"],
+    "es_unique_field_list": [
+        "bk_biz_id",
+        "app_name",
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "start_time",
+        "end_time",
+        "span_name",
+    ],
     # 以下为 UnifyQuery 查询所需的元数据：
     # 是否根据查询时间范围，指定具体日期的索引进行查询。
     "need_add_time": True,

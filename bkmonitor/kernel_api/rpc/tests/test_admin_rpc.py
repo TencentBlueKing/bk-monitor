@@ -14,8 +14,19 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
+from kernel_api.rpc.functions.admin.api_auth_token import (
+    _normalize_biz_ids,
+    _normalize_namespaces,
+    _serialize_api_auth_token,
+)
 from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
+from kernel_api.rpc.functions.admin import datalink as admin_datalink
+from kernel_api.rpc.functions.admin.datalink import (
+    get_component_detail,
+    get_datalink_component_config,
+    list_components,
+)
 from kernel_api.rpc.functions.admin.es_storage import (
     _contains_index_wildcard,
     _is_virtual_es_storage,
@@ -28,6 +39,7 @@ from kernel_api.rpc.functions.admin.query_route import (
     _resolve_space_identity,
 )
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
+from kernel_api.rpc.functions.admin import kafka_sample as kafka_sample_module
 from kernel_api.rpc.functions.admin import storage as admin_storage
 from kernel_api.rpc.functions.admin.storage import (
     get_doris_storage_latest_records,
@@ -35,11 +47,36 @@ from kernel_api.rpc.functions.admin.storage import (
     _serialize_bkbase_item,
     _serialize_doris_storage,
 )
+from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
 
 
 def _doris_storage_manager():
     return admin_storage.models.DorisStorage.objects
+
+
+class _FakeQuerySet:
+    def __init__(self, items):
+        self.items = list(items)
+        self.filters = []
+        self.ordering = []
+
+    def filter(self, **kwargs):
+        self.filters.append(kwargs)
+        return self
+
+    def exclude(self, **kwargs):
+        return self
+
+    def order_by(self, *fields):
+        self.ordering.append(fields)
+        return self
+
+    def count(self):
+        return len(self.items)
+
+    def __getitem__(self, key):
+        return self.items[key]
 
 
 def test_admin_rpc_functions_registered_by_builtin_loader():
@@ -61,6 +98,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.es_storage.detail",
         "admin.es_storage.runtime_overview",
         "admin.es_storage.sample",
+        "admin.es_storage.rotate_aliases",
         "admin.query_route.query",
         "admin.query_route.refresh",
         "admin.doris_storage.list",
@@ -73,11 +111,158 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.kafka_storage.detail",
         "admin.bkbase_result_table.list",
         "admin.bkbase_result_table.detail",
+        "admin.custom_report.list",
+        "admin.custom_report.detail",
+        "admin.custom_report.metric_list",
+        "admin.custom_report.refresh_metrics",
+        "admin.api_auth_token.list",
+        "admin.api_auth_token.detail",
+        "admin.api_auth_token.create",
+        "admin.api_auth_token.update",
+        "admin.api_auth_token.delete",
+        "admin.uptime_check.node_list",
+        "admin.uptime_check.node_detail",
+        "admin.uptime_check.task_list",
+        "admin.uptime_check.task_detail",
+        "admin.uptime_check.subscription_detail",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
     assert detail is not None
     assert detail["params_schema"]["include"].find("fields") != -1
+
+
+def test_uptime_check_subscription_summary_extracts_effective_data_id():
+    relation = {
+        "subscription_id": 123,
+        "bk_biz_id": 2,
+        "create_time": "2026-05-14 10:00:00",
+        "update_time": "2026-05-14 10:10:00",
+    }
+    subscription_info = {
+        "id": 123,
+        "enable": True,
+        "category": "once",
+        "plugin_name": "bkmonitorbeat",
+        "scope": {"object_type": "HOST"},
+        "target_hosts": [{"bk_host_id": 1}],
+        "steps": [
+            {
+                "id": "bkmonitorbeat_http",
+                "type": "PLUGIN",
+                "config": {"plugin_name": "bkmonitorbeat", "plugin_version": "1.31.0"},
+                "params": {
+                    "context": {
+                        "tasks": [
+                            {
+                                "period": "60s",
+                                "task_id": 135,
+                                "bk_biz_id": 52,
+                                "target_host_list": ["127.0.0.1"],
+                            }
+                        ],
+                        "period": "60s",
+                        "data_id": "1009",
+                        "task_id": 135,
+                        "bk_biz_id": 52,
+                        "headers": [{"key": "Authorization", "value": "secret"}],
+                    }
+                },
+            }
+        ],
+    }
+
+    summary = _summarize_subscription(subscription_info, relation)
+
+    assert summary["data_ids"] == [1009]
+    assert summary["steps"][0]["data_ids"] == [1009]
+    assert summary["steps"][0]["context_summary"]["tasks_samples"][0]["task_id"] == 135
+    assert "headers" not in summary["steps"][0]["context_summary"]
+
+
+def test_uptime_check_subscription_detail_masks_sensitive_and_truncates_large_json():
+    relation = {
+        "task_id": 135,
+        "subscription_id": 123,
+        "bk_biz_id": 2,
+        "is_deleted": False,
+        "create_time": "2026-05-14 10:00:00",
+        "update_time": "2026-05-14 10:10:00",
+    }
+    subscription_info = {
+        "id": 123,
+        "enable": True,
+        "steps": [
+            {
+                "id": "bkmonitorbeat_http",
+                "params": {
+                    "context": {
+                        "data_id": "1009",
+                        "token": "secret-token",
+                        "headers": [{"key": "Authorization", "value": "secret"}],
+                        "node_list": [{"bk_host_id": host_id} for host_id in range(25)],
+                    }
+                },
+            }
+        ],
+    }
+    status_detail = [
+        {
+            "subscription_id": 123,
+            "instances": [{"instance_id": f"host-{index}", "status": "SUCCESS"} for index in range(25)],
+        }
+    ]
+
+    detail = _build_subscription_detail_payload(
+        info=subscription_info,
+        relation=relation,
+        status_detail=status_detail,
+    )
+
+    context = detail["config_detail"]["steps"][0]["params"]["context"]
+    assert context["token"] == "***"
+    assert context["headers"] == "***"
+    assert context["node_list"]["count"] == 25
+    assert len(context["node_list"]["samples"]) == 20
+    assert detail["status_detail"][0]["instances"]["count"] == 25
+    assert detail["relation"]["subscription_id"] == 123
+
+
+def test_api_auth_token_serializer_keeps_api_token_fields():
+    token = SimpleNamespace(
+        id=1,
+        bk_tenant_id="system",
+        name="demo-api-token",
+        token="secret-token",
+        namespaces=["biz#2", "biz#-4779"],
+        type="api",
+        params={"app_code": "demo-app", "scope": "demo"},
+        expire_time=None,
+        is_enabled=True,
+        is_deleted=False,
+        create_user="admin",
+        create_time=None,
+        update_user="admin",
+        update_time=None,
+    )
+
+    item = _serialize_api_auth_token(token)
+
+    assert item["type"] == "api"
+    assert item["token"] == "secret-token"
+    assert item["namespaces"] == ["biz#2", "biz#-4779"]
+    assert item["app_code"] == "demo-app"
+    assert item["applicant"] == "admin"
+    assert item["biz_ids"] == [2, -4779]
+
+
+def test_api_auth_token_namespaces_accepts_json_and_csv():
+    assert _normalize_namespaces('["biz#2", "project#5"]') == ["biz#2", "project#5"]
+    assert _normalize_namespaces("biz#2, project#5") == ["biz#2", "project#5"]
+
+
+def test_api_auth_token_biz_ids_accepts_negative_biz_id():
+    assert _normalize_biz_ids([2, "-4779"]) == [2, -4779]
 
 
 def test_doris_storage_physical_metadata_rpc_marks_inspect_and_serializes_runtime_values():
@@ -177,6 +362,94 @@ def test_result_table_detail_serializer_does_not_return_fields():
 
     assert item["table_id"] == "system.cpu"
     assert "fields" not in item
+
+
+def test_datalink_component_list_accepts_cluster_config_kind():
+    cluster_config = SimpleNamespace(
+        name="default-vm",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        origin_config={"domain": "vm.example.com"},
+        create_time=None,
+        update_time=None,
+    )
+    queryset = _FakeQuerySet([cluster_config])
+
+    with patch.object(admin_datalink.ClusterConfig.objects, "filter", return_value=queryset) as cluster_filter:
+        response = list_components(
+            {"bk_tenant_id": "system", "kind": "VmStorage", "namespace": "bkmonitor", "page": 1, "page_size": 20}
+        )
+
+    cluster_filter.assert_called_once_with(bk_tenant_id="system", kind="VmStorage")
+    assert queryset.filters == [{"namespace": "bkmonitor"}]
+    assert queryset.ordering == [("-create_time",)]
+    assert response["data"]["total"] == 1
+    assert response["data"]["items"][0]["kind"] == "VmStorage"
+    assert response["data"]["items"][0]["status"] == ""
+    assert response["data"]["items"][0]["data_link_name"] is None
+    assert response["data"]["items"][0]["bk_biz_id"] == 0
+
+
+def test_datalink_component_detail_accepts_cluster_config_kind_with_component_config():
+    cluster_config = SimpleNamespace(
+        name="default-vm",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        origin_config={"domain": "vm.example.com"},
+        create_time=None,
+        update_time=None,
+        component_config={
+            "kind": "VmStorage",
+            "metadata": {"namespace": "bkmonitor", "name": "default-vm"},
+            "spec": {"password": "secret"},
+        },
+    )
+
+    with patch.object(admin_datalink.ClusterConfig.objects, "get", return_value=cluster_config) as cluster_get:
+        response = get_component_detail(
+            {
+                "bk_tenant_id": "system",
+                "kind": "VmStorage",
+                "namespace": "bkmonitor",
+                "name": "default-vm",
+                "include": ["component_config"],
+            }
+        )
+
+    cluster_get.assert_called_once_with(
+        bk_tenant_id="system",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        name="default-vm",
+    )
+    assert response["data"]["kind"] == "VmStorage"
+    assert response["data"]["status"] == ""
+    assert response["data"]["component_config"]["kind"] == "VmStorage"
+    assert response["data"]["component_config"]["spec"]["password"] == "***"
+
+
+def test_datalink_component_config_accepts_cluster_config_kind():
+    cluster_config = SimpleNamespace(
+        name="default-vm",
+        kind="VmStorage",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        component_config={
+            "kind": "VmStorage",
+            "metadata": {"namespace": "bkmonitor", "name": "default-vm"},
+            "spec": {"password": "secret"},
+        },
+    )
+
+    with patch.object(admin_datalink.ClusterConfig.objects, "get", return_value=cluster_config):
+        response = get_datalink_component_config(
+            {"bk_tenant_id": "system", "kind": "VmStorage", "namespace": "bkmonitor", "name": "default-vm"}
+        )
+
+    assert response["data"]["kind"] == "VmStorage"
+    assert response["data"]["component_config"]["spec"]["password"] == "***"
 
 
 def test_cluster_info_serializer_masks_sensitive_fields():
@@ -309,9 +582,9 @@ def test_es_cluster_overview_uses_lightweight_alias_count_query():
             allocation=Mock(return_value=[{"disk.total": "100", "disk.used": "40", "disk.avail": "60"}]),
             aliases=Mock(
                 return_value=[
-                    {"alias": "write_20260514_system_cpu", "index": "v2_system_cpu_20260514_0"},
-                    {"alias": "system_cpu_read", "index": "v2_system_cpu_20260514_0"},
-                    {"alias": "system_cpu_read", "index": "v2_system_cpu_20260513_0"},
+                    {"alias": "write_20260514_system_cpu"},
+                    {"alias": "system_cpu_read"},
+                    {"alias": "system_cpu_read"},
                 ]
             ),
         ),
@@ -328,9 +601,9 @@ def test_es_cluster_overview_uses_lightweight_alias_count_query():
         data, warnings = _build_es_cluster_overview(cluster, "system")
 
     assert warnings == []
-    assert data["aliases"] == {"count": 2, "relation_count": 3, "index_count": 2}
+    assert data["aliases"] == {"count": 2, "relation_count": 3, "index_count": None}
     client.cat.allocation.assert_called_once()
-    client.cat.aliases.assert_called_once_with(format="json", params={"h": "alias,index", "request_timeout": 10})
+    client.cat.aliases.assert_called_once_with(format="json", params={"h": "alias", "request_timeout": 10})
     client.indices.get_alias.assert_not_called()
 
 
@@ -524,12 +797,59 @@ def test_kafka_sample_function_registered():
     assert "bk_data_id" in detail["params_schema"]
 
 
+def test_kafka_sample_v4_uses_data_id_config_by_bk_data_id():
+    datasource = SimpleNamespace(
+        bk_data_id=1001,
+        datalink_version="V4",
+        etl_config="bk_standard_v2_time_series",
+        data_name="demo",
+        mq_cluster=SimpleNamespace(is_auth=False),
+        mq_config=SimpleNamespace(topic="origin_topic"),
+    )
+    data_id_config = SimpleNamespace(namespace="bkmonitor", name="actual_data_id_name")
+    data_id_config_queryset = Mock()
+    data_id_config_queryset.order_by.return_value.first.return_value = data_id_config
+
+    with (
+        patch.object(kafka_sample_module.models.DataSource.objects, "get", return_value=datasource),
+        patch.object(
+            kafka_sample_module.models.DataSourceResultTable.objects,
+            "filter",
+            return_value=Mock(first=Mock(return_value=None)),
+        ),
+        patch.object(kafka_sample_module, "_query_gse_route_topic", return_value=None),
+        patch.object(
+            kafka_sample_module.DataIdConfig.objects, "filter", return_value=data_id_config_queryset
+        ) as data_id_filter,
+        patch.object(kafka_sample_module.api.bkdata, "tail_kafka_data", return_value=['{"value": 1}']) as tail_kafka,
+    ):
+        result = kafka_sample_module.kafka_sample({"bk_tenant_id": "system", "bk_data_id": 1001, "size": 1})
+
+    data_id_filter.assert_called_once_with(bk_tenant_id="system", bk_data_id=1001)
+    tail_kafka.assert_called_once_with(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="actual_data_id_name",
+        limit=1,
+    )
+    assert result["data"]["items"] == [{"value": 1}]
+
+
+def test_custom_report_refresh_metrics_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.custom_report.refresh_metrics")
+    assert detail is not None
+    assert detail["func_name"] == "admin.custom_report.refresh_metrics"
+    assert "write" in detail["description"]
+    assert "expired_time" in detail["params_schema"]
+
+
 def test_es_storage_functions_registered():
     for func_name in [
         "admin.es_storage.list",
         "admin.es_storage.detail",
         "admin.es_storage.runtime_overview",
         "admin.es_storage.sample",
+        "admin.es_storage.rotate_aliases",
     ]:
         detail = KernelRPCRegistry.get_function_detail(func_name)
         assert detail is not None
@@ -538,6 +858,9 @@ def test_es_storage_functions_registered():
     runtime_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.runtime_overview")
     assert "inspect" in runtime_detail["description"]
     assert "table_id" in runtime_detail["params_schema"]
+    rotate_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.rotate_aliases")
+    assert "write" in rotate_detail["description"]
+    assert "traceback" in rotate_detail["description"]
 
 
 def test_storage_functions_registered():

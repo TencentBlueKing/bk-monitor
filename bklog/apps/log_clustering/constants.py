@@ -47,6 +47,7 @@ NEW_CLASS_QUERY_TIME_RANGE = "customized"
 
 CLUSTERING_CONFIG_EXCLUDE = ["sample_set_id", "model_id"]
 CLUSTERING_CONFIG_DEFAULT = "default_clustering_config"
+CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST = "remark_group_fallback_biz_id_black_list"
 
 DEFAULT_CLUSTERING_FIELDS = "log"
 DEFAULT_IS_CASE_SENSITIVE = 0

@@ -15,24 +15,34 @@ from django.db.models import Count
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
+    SAFETY_LEVEL_WRITE,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_optional_bool,
     normalize_pagination,
+    normalize_positive_int,
     paginate_queryset,
     serialize_model,
     serialize_value,
+    tenant_filter_kwargs,
 )
 from metadata import models
+from metadata.models.constants import DataIdCreatedFromSystem
 
 FUNC_CUSTOM_REPORT_LIST = "admin.custom_report.list"
 FUNC_CUSTOM_REPORT_DETAIL = "admin.custom_report.detail"
 FUNC_CUSTOM_REPORT_METRIC_LIST = "admin.custom_report.metric_list"
+FUNC_CUSTOM_REPORT_REFRESH_METRICS = "admin.custom_report.refresh_metrics"
 
 REPORT_TYPE_METRIC = "custom_metric"
 REPORT_TYPE_EVENT = "custom_event"
 REPORT_TYPE_LOG = "custom_log"
 REPORT_TYPES = {REPORT_TYPE_METRIC, REPORT_TYPE_EVENT, REPORT_TYPE_LOG}
+DEFAULT_BKGSE_EXPIRED_TIME = 30 * 24 * 60 * 60
+MAX_BKGSE_EXPIRED_TIME = 365 * 24 * 60 * 60
 
 
 def _normalize_report_type(value: Any, *, required: bool = False) -> str | None:
@@ -174,7 +184,6 @@ def _serialize_time_series_group(group: models.TimeSeriesGroup, metric_counts: d
         "is_enable": group.is_enable,
         "metric_count": metric_counts.get(group_id, 0),
         "field_count": 0,
-        "monitor_web_source": None,
         "last_modify_time": serialize_value(group.last_modify_time),
     }
 
@@ -193,7 +202,6 @@ def _serialize_event_group(group: models.EventGroup) -> dict[str, Any]:
         "is_enable": group.is_enable,
         "metric_count": 0,
         "field_count": len(getattr(group, "STORAGE_FIELD_LIST", []) or []),
-        "monitor_web_source": None,
         "last_modify_time": serialize_value(group.last_modify_time),
     }
 
@@ -221,13 +229,12 @@ def _serialize_log_datasource(datasource: models.DataSource) -> dict[str, Any]:
         "is_enable": datasource.is_enable,
         "metric_count": 0,
         "field_count": 0,
-        "monitor_web_source": None,
         "last_modify_time": serialize_value(datasource.last_modify_time),
     }
 
 
-def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False)
+def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.TimeSeriesGroup.objects.filter(is_delete=False), bk_tenant_id)
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     if bk_biz_id is not None:
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
@@ -243,8 +250,8 @@ def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str):
     return queryset
 
 
-def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.EventGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False)
+def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.EventGroup.objects.filter(is_delete=False), bk_tenant_id)
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     if bk_biz_id is not None:
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
@@ -260,11 +267,13 @@ def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str):
     return queryset
 
 
-def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.DataSource.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        is_custom_source=True,
-        type_label__icontains="log",
+def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(
+        models.DataSource.objects.filter(
+            is_custom_source=True,
+            type_label__icontains="log",
+        ),
+        bk_tenant_id,
     )
     bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
     if bk_data_id is not None:
@@ -275,7 +284,7 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
     table_id = str(params.get("table_id") or "").strip()
     if table_id:
         bk_data_ids = models.DataSourceResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, table_id__icontains=table_id
+            **tenant_filter_kwargs(bk_tenant_id), table_id__icontains=table_id
         ).values_list("bk_data_id", flat=True)
         queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     created_from = str(params.get("created_from") or "").strip()
@@ -289,7 +298,7 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
     summary="Admin 查询自定义上报列表",
     description="只读分页查询自定义指标、自定义事件和日志类自定义上报资源。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "report_type": "可选，custom_metric / custom_event / custom_log",
         "bk_biz_id": "可选，业务 ID",
         "bk_data_id": "可选，DataId",
@@ -302,7 +311,7 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
     example_params={"bk_tenant_id": "system", "report_type": "custom_metric", "page": 1, "page_size": 20},
 )
 def list_custom_reports(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     report_type = _normalize_report_type(params.get("report_type")) or REPORT_TYPE_METRIC
     page, page_size = normalize_pagination(params)
 
@@ -382,7 +391,6 @@ def get_custom_report_detail(params: dict[str, Any]) -> dict[str, Any]:
             "report": report,
             "datasource": _serialize_datasource_summary(datasource),
             "result_table": _serialize_result_table_summary(result_table),
-            "monitor_web_relation": None,
             "event_fields": event_fields,
             "warnings": [],
         },
@@ -440,4 +448,70 @@ def list_custom_report_metrics(params: dict[str, Any]) -> dict[str, Any]:
         func_name=FUNC_CUSTOM_REPORT_METRIC_LIST,
         bk_tenant_id=bk_tenant_id,
         data={"items": items, "page": page, "page_size": page_size, "total": total},
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_CUSTOM_REPORT_REFRESH_METRICS,
+    summary="Admin 刷新自定义指标字段",
+    description=(
+        "write 级别能力，人工触发 TimeSeriesMetric 刷新，直接调用 TimeSeriesGroup.update_time_series_metrics。"
+        "当关联 DataSource.created_from=bkgse 时支持传入 expired_time，默认 30 天。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "group_id": "必填，TimeSeriesGroup ID",
+        "expired_time": "可选，仅 bkgse DataSource 生效，单位秒，默认 30 天",
+    },
+    example_params={"bk_tenant_id": "system", "group_id": 1, "expired_time": 2592000},
+)
+def refresh_custom_report_metrics(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    group_id = _normalize_int(params.get("group_id"), "group_id", required=True)
+    try:
+        group = models.TimeSeriesGroup.objects.get(
+            bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False
+        )
+    except models.TimeSeriesGroup.DoesNotExist as error:
+        raise CustomException(message=f"未找到 TimeSeriesGroup: group_id={group_id}") from error
+
+    datasource = _load_datasource_map(bk_tenant_id, [group.bk_data_id]).get(group.bk_data_id)
+    created_from = datasource.created_from if datasource else None
+    is_bkgse = created_from == DataIdCreatedFromSystem.BKGSE.value
+    expired_time = None
+    if is_bkgse:
+        expired_time = normalize_positive_int(
+            params.get("expired_time"),
+            "expired_time",
+            default=DEFAULT_BKGSE_EXPIRED_TIME,
+            maximum=MAX_BKGSE_EXPIRED_TIME,
+        )
+
+    metric_count_before = models.TimeSeriesMetric.objects.filter(group_id=group_id).count()
+    is_updated = group.update_time_series_metrics(expired_time=expired_time)
+    if is_updated:
+        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+        SpaceTableIDRedis().push_table_id_detail(table_id_list=[group.table_id], is_publish=True)
+    metric_count_after = models.TimeSeriesMetric.objects.filter(group_id=group_id).count()
+
+    return build_response(
+        operation="custom_report.refresh_metrics",
+        func_name=FUNC_CUSTOM_REPORT_REFRESH_METRICS,
+        bk_tenant_id=bk_tenant_id,
+        data={
+            "report_type": REPORT_TYPE_METRIC,
+            "group_id": group_id,
+            "group_name": group.time_series_group_name,
+            "bk_data_id": group.bk_data_id,
+            "table_id": group.table_id,
+            "datasource_created_from": created_from,
+            "expired_time": expired_time,
+            "metric_count_before": metric_count_before,
+            "metric_count_after": metric_count_after,
+            "updated": is_updated,
+            "success": True,
+            "errors": [],
+        },
+        safety_level=SAFETY_LEVEL_WRITE,
     )

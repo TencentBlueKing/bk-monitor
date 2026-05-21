@@ -112,14 +112,14 @@ export class IncidentScenario extends BaseScenario {
   /**
    * @description 故障名称(incident_name) 列渲染方法
    * @param {IncidentTableItem} row 故障项
-   * @param {BaseTableColumn} column 触发列的列配置项
-   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @param {BaseTableColumn} _column 触发列的列配置项（未使用）
+   * @param {TableCellRenderContext} _renderCtx 列渲染上下文（未使用）
    * @returns {SlotReturnValue} 渲染dom
    */
   private renderActionId(
     row: IncidentTableItem,
-    column: BaseTableColumn,
-    renderCtx: TableCellRenderContext
+    _column: BaseTableColumn,
+    _renderCtx: TableCellRenderContext
   ): SlotReturnValue {
     const rectColor = IncidentLevelIconMap?.[row?.level]?.iconColor;
     return (
@@ -129,13 +129,15 @@ export class IncidentScenario extends BaseScenario {
           class='lever-rect'
         />
         <div
-          class={`lever-rect-text ellipsis-text ${renderCtx.isEnabledCellEllipsis(column)}`}
+          class={'lever-rect-text'}
           onMouseenter={e => this.handleIncidentNameHover(e, row)}
           onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
         >
           <a
             class='lever-rect-link'
             href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
+            rel='noopener noreferrer'
+            target='_blank'
           >
             <span>{row?.incident_name}</span>
           </a>
@@ -187,15 +189,29 @@ export class IncidentScenario extends BaseScenario {
    */
   private handleIncidentNameHover(e: MouseEvent, row: IncidentTableItem) {
     const content = (
-      <div class='alert-name-popover-container'>
-        <div class='alert-name-item'>
-          <span class='alert-name-item-label'>{window.i18n.t('故障ID')} : </span>
+      <div class='alarm-name-popover-container'>
+        <div class='alarm-name-popover-item'>
+          <span class='alarm-name-popover-item-label'>{window.i18n.t('故障ID')} : </span>
           <div
-            class='alert-name-item-value'
+            class='alarm-name-popover-item-value'
             onClick={() => this.handleCopyIncidentField(row?.id)}
           >
             <span class='item-text'>{row?.id || '--'}</span>
             <i class='icon-monitor icon-mc-copy' />
+          </div>
+        </div>
+        <div class='alarm-name-popover-item'>
+          <span class='alarm-name-popover-item-label'>{window.i18n.t('故障名称')} : </span>
+          <div class='alarm-name-popover-item-value'>
+            <a
+              style='color: inherit'
+              href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
+              rel='noopener noreferrer'
+              target='_blank'
+            >
+              <span class='alarm-name-popover-item-value'>{row?.incident_name || '--'}</span>
+              <i class='icon-monitor icon-mc-goto' />
+            </a>
           </div>
         </div>
       </div>

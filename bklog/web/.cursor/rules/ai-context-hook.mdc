@@ -1,0 +1,84 @@
+---
+description: AI 上下文钩子 - 预生成上下文的正确使用方式
+globs: ["**/*.ts", "**/*.tsx", "**/*.vue", "**/*.js"]
+alwaysApply: true
+---
+
+# AI 上下文钩子（Cursor Hooks）
+
+## 核心原则
+
+**不要在 AI 推理过程中调用 MCP 工具收集上下文**，这会消耗大量 Token。
+
+正确的方式是：**用户在提问前预生成上下文文件，然后 @ 引用**。
+
+## 工作流（用户操作）
+
+### 步骤 1：预生成上下文
+
+```bash
+# 在终端运行（bklog/web 目录下）
+npm run ai-pre "你的问题描述"
+
+# 或指定意图类型
+npm run ai-pre:url "URL 参数解析问题"
+npm run ai-pre:hook "useUrlResolver hook 问题"
+npm run ai-pre:store "Store 状态管理问题"
+npm run ai-pre:api "API 请求问题"
+```
+
+### 步骤 2：引用上下文
+
+在 Cursor 中输入：`@current.md`（位于 `.cursor/context/current.md`）
+
+### 步骤 3：提问
+
+基于引用的上下文提问。
+
+## 预生成上下文的优势
+
+| 方式 | Token 消耗 | 原因 |
+|------|-----------|------|
+| 默认无优化 | ~110万 | 大范围文件检索 |
+| Skills + Rules | ~77万 | 规则引导减少检索 |
+| MCP 工具调用 | ~208万 | 工具调用本身消耗 Token |
+| **预生成上下文** | **~20万** | 精准上下文，无额外调用 |
+
+## AI 处理规则
+
+当用户 @ 引用了 `current.md` 文件时：
+
+1. **直接使用**：文件中已包含精准的上下文信息
+2. **不要重复检索**：不需要再次搜索相关文件
+3. **基于上下文回答**：使用文件中提供的符号、文件列表和调用关系
+
+## 意图类型说明
+
+| 意图 | 触发词 | 命令 |
+|------|--------|------|
+| url-resolver | url、query、参数、路由 | `npm run ai-pre:url` |
+| hooks | hook、use*、composition api | `npm run ai-pre:hook` |
+| store | store、vuex、状态、缓存 | `npm run ai-pre:store` |
+| api | 接口、api、请求、service | `npm run ai-pre:api` |
+| 自动检测 | （其他） | `npm run ai-pre` |
+
+## 示例
+
+用户终端操作：
+```bash
+cd bklog/web
+npm run ai-pre:url "日志检索页面的 URL 参数解析有问题"
+```
+
+用户在 Cursor 中：
+```
+@current.md
+
+帮我分析上面的问题，找出 URL 参数解析的 bug
+```
+
+## 文件位置
+
+- 上下文输出：`.cursor/context/current.md`
+- DSL 配置：`scripts/dsl/`
+- 预生成脚本：`scripts/ai-pre.js`

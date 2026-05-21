@@ -1498,6 +1498,9 @@ ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
+# APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
+# 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
+APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}

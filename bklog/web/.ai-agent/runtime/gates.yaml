@@ -1,0 +1,23 @@
+gates:
+  ddd_gate:
+    requires:
+      - ubiquitous_language
+      - bounded_contexts
+      - aggregates
+  architecture_gate:
+    requires:
+      - boundaries
+      - decomposition
+      - pattern_selection
+  pattern_gate:
+    requires:
+      - pattern_interview
+      - pattern_selection
+      - module_pattern_selection
+  implementation_gate:
+    requires:
+      - risk_review
+      - extension_points
+  merge_gate:
+    requires:
+      - critic_pass

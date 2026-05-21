@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
@@ -23,7 +24,7 @@ from bkmonitor.documents.issue import (
 )
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.issue import IssuePriority, IssueStatus
+from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
@@ -346,6 +347,12 @@ class IssueTopNResource(Resource):
             elif actual_field == "bk_biz_id" and hasattr(handler, "authorized_bizs"):
                 authorized_bizs = set(handler.authorized_bizs)
                 result[actual_field] = {"bucket_count": len(authorized_bizs), "authorized_bizs": authorized_bizs}
+            elif actual_field.startswith("dimension_values."):
+                # dimension_values.{key}：cardinality agg name 经 sanitize（"." → "__"），
+                # 与 IssueQueryHandler.add_cardinality_bucket 保持一致
+                agg_name = actual_field.replace(".", "__") + bucket_count_suffix
+                agg = getattr(search_result.aggs, agg_name, None)
+                result[actual_field] = {"bucket_count": agg.value if agg else 0}
             else:
                 agg = getattr(search_result.aggs, f"{field}{bucket_count_suffix}", None)
                 result[actual_field] = {"bucket_count": agg.value if agg else 0}
@@ -796,11 +803,18 @@ class ListIssueHistoryResource(Resource):
         # 校验当前 Issue 存在且归属当前业务
         current_issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
 
-        # 查询同策略下所有已解决的历史 Issue（排除当前 Issue 自身），按解决时间降序排列，最多返回 200 条
+        # fingerprint 为空：legacy 1:1 数据（迁移函数已自动 RESOLVE，但用户仍可能查 RESOLVED 列表里的旧 Issue）
+        # 新模型下"同问题历史"按 fingerprint 切分，旧 1:1 数据无法对齐到新模型语义，直接返回空列表。
+        # 真正的"同策略相关 Issue"用户可通过列表页 strategy_id 过滤获得。
+        # 前端可通过 issue.fingerprint 字段判断是否为 legacy（响应 schema 保持 list 不变以兼容现有前端）
+        if not current_issue.fingerprint:
+            return []
+
+        # 按 fingerprint 查"同一具体问题"已解决历史，排除当前 Issue 自身，按解决时间降序，最多 200 条
         search = (
             IssueDocument.search(all_indices=True)
             .filter("term", bk_biz_id=str(bk_biz_id))
-            .filter("term", strategy_id=current_issue.strategy_id)
+            .filter("term", fingerprint=current_issue.fingerprint)
             .filter("term", status=IssueStatus.RESOLVED)
             .exclude("term", **{"_id": issue_id})
             .sort("-resolved_time")
@@ -855,3 +869,53 @@ class ExportIssueResource(Resource):
             raise ValueError("未找到符合条件的 Issue，无法导出")
 
         return resource.export_import.export_package(json_list_data=issue_list)
+
+
+class ListRecentAssigneesResource(Resource):
+    """获取最近经常指派的负责人列表（基于指派事件聚合）"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(
+            label="业务ID", default=None, allow_null=True, child=serializers.IntegerField()
+        )
+        recent_days = serializers.IntegerField(label="最近天数", min_value=1, max_value=30, default=7)
+
+    def perform_request(self, validated_request_data):
+        bk_biz_ids = validated_request_data.get("bk_biz_ids") or []
+        recent_days = validated_request_data["recent_days"]
+
+        # 业务权限校验：仅保留当前用户有权限的业务
+        authorized_bizs = IssueQueryHandler.parse_biz_item(bk_biz_ids)[0]
+        if not authorized_bizs:
+            return []
+        authorized_biz_ids = [str(b) for b in authorized_bizs]
+
+        end_time = int(time.time())
+        start_time = end_time - recent_days * 86400
+
+        # 基于活动日志查询指派事件
+        search = (
+            IssueActivityDocument.search(start_time=start_time, end_time=end_time)
+            .filter("range", time={"gte": start_time, "lte": end_time})
+            .filter("term", activity_type=IssueActivityType.ASSIGNEE_CHANGE)
+            .filter("terms", bk_biz_id=authorized_biz_ids)
+        )
+
+        # terms 聚合：按 to_value 分组（to_value 存储逗号分隔的负责人列表）
+        search.aggs.bucket("assignees", "terms", field="to_value", size=500, order={"_count": "desc"})
+        search = search.params(size=0, track_total_hits=False)
+
+        result = search.execute()
+
+        # to_value 是逗号分隔的字符串（如 "user1,user2"），拆分后重新统计频次
+        counter = Counter()
+        if result.aggs:
+            for bucket in result.aggs.assignees.buckets:
+                if not bucket.key:
+                    continue
+                for assignee in bucket.key.split(","):
+                    assignee = assignee.strip()
+                    if assignee:
+                        counter[assignee] += bucket.doc_count
+
+        return [username for username, _ in counter.most_common(100)]

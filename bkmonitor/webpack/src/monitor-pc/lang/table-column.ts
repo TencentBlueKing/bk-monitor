@@ -201,5 +201,6 @@ export default {
   最后出现时间: 'Last Occurrence Time',
   最早发生时间: 'Earliest Occurrence Time',
   趋势: 'Trend',
+  '24h 趋势': '24h Trend',
   影响范围: 'Affected Range',
 };

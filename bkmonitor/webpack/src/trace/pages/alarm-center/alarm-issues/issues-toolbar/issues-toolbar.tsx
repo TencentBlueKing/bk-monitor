@@ -30,12 +30,13 @@ import BkButton from 'bkui-vue/lib/button';
 import BkDropdown, { BkDropdownItem, BkDropdownMenu } from 'bkui-vue/lib/dropdown';
 import { useI18n } from 'vue-i18n';
 
+import { useDocumentLink } from '../../../../hooks/documentLink';
 import { IssuesBatchActionEnum } from '../constant';
 
 import type { IssuesBatchActionType } from '../typing';
 
 import './issues-toolbar.scss';
-
+const ISSUES_DOCS_ID = 'issues_docs';
 export default defineComponent({
   name: 'IssuesToolbar',
   props: {
@@ -64,6 +65,8 @@ export default defineComponent({
 
     /** 是否有选中行 */
     const hasSelection = computed(() => props.issuesIds.length > 0);
+
+    const { handleGotoLink, hasExtraDocLink } = useDocumentLink();
 
     /** 批量操作下拉菜单项 */
     const batchActions = computed(() => [
@@ -117,6 +120,8 @@ export default defineComponent({
       batchActions,
       handleBatchAction,
       handleExport,
+      handleGotoLink,
+      hasExtraDocLink,
     };
   },
   render() {
@@ -169,6 +174,16 @@ export default defineComponent({
           >
             <span class='toolbar-btn-text'>{this.$t('导出')}</span>
           </BkButton>
+          {this.hasExtraDocLink(ISSUES_DOCS_ID) && (
+            <BkButton
+              size='small'
+              theme='primary'
+              text
+              onClick={() => this.handleGotoLink(ISSUES_DOCS_ID)}
+            >
+              {this.$t('了解更多')}
+            </BkButton>
+          )}
         </div>
 
         {/* 表格区域：通过 default slot 注入 */}

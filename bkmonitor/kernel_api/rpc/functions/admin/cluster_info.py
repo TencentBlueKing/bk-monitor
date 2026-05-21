@@ -13,10 +13,15 @@ from typing import Any
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     _mask_sensitive_fields,
     build_response,
     count_by_field,
+    count_by_tenant_and_field,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
+    get_scoped_map_value,
     normalize_include,
     normalize_optional_bool,
     normalize_ordering,
@@ -179,14 +184,13 @@ def _build_alias_count_summary(client: Any, warnings: list[dict[str, Any]]) -> d
     aliases = _run_es_overview_query(
         "alias count",
         warnings,
-        lambda: client.cat.aliases(format="json", params={"h": "alias,index", "request_timeout": 10}),
+        lambda: client.cat.aliases(format="json", params={"h": "alias", "request_timeout": 10}),
     )
     if not isinstance(aliases, list):
         return {"count": None, "relation_count": None, "index_count": None}
 
     alias_names = {str(alias.get("alias")) for alias in aliases if isinstance(alias, dict) and alias.get("alias")}
-    index_names = {str(alias.get("index")) for alias in aliases if isinstance(alias, dict) and alias.get("index")}
-    return {"count": len(alias_names), "relation_count": len(aliases), "index_count": len(index_names)}
+    return {"count": len(alias_names), "relation_count": len(aliases), "index_count": None}
 
 
 def _build_es_cluster_overview(
@@ -298,8 +302,8 @@ def _get_storage_model_for_cluster_type(cluster_type: str) -> type[Any] | None:
     return STORAGE_MODEL_MAP.get(cluster_type)
 
 
-def _build_cluster_info_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id)
+def _build_cluster_info_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.ClusterInfo.objects.all(), bk_tenant_id)
 
     if params.get("cluster_type") not in (None, ""):
         queryset = queryset.filter(cluster_type=str(params["cluster_type"]).strip())
@@ -314,16 +318,20 @@ def _build_cluster_info_queryset(params: dict[str, Any], bk_tenant_id: str):
     return queryset
 
 
-def _enrich_clusters_with_datasource_count(clusters: list[models.ClusterInfo], bk_tenant_id: str) -> dict[int, int]:
+def _enrich_clusters_with_datasource_count(
+    clusters: list[models.ClusterInfo], bk_tenant_id: str | None
+) -> dict[Any, int]:
     kafka_cluster_ids = [c.cluster_id for c in clusters if c.cluster_type == models.ClusterInfo.TYPE_KAFKA]
     if not kafka_cluster_ids:
         return {}
+    if bk_tenant_id is None:
+        return count_by_tenant_and_field(models.DataSource, group_field="mq_cluster_id", values=kafka_cluster_ids)
     return count_by_field(
         models.DataSource, group_field="mq_cluster_id", values=kafka_cluster_ids, bk_tenant_id=bk_tenant_id
     )
 
 
-def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_tenant_id: str) -> dict[int, int]:
+def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_tenant_id: str | None) -> dict[Any, int]:
     storage_model_map: dict[type[Any], list[int]] = {}
     for cluster in clusters:
         model_cls = _get_storage_model_for_cluster_type(cluster.cluster_type)
@@ -333,6 +341,10 @@ def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_t
 
     result: dict[int, int] = {}
     for model_cls, cluster_ids in storage_model_map.items():
+        if bk_tenant_id is None:
+            grouped = count_by_tenant_and_field(model_cls, group_field="storage_cluster_id", values=cluster_ids)
+            result.update(grouped)
+            continue
         grouped = count_by_field(
             model_cls, group_field="storage_cluster_id", values=cluster_ids, bk_tenant_id=bk_tenant_id
         )
@@ -345,7 +357,7 @@ def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_t
     summary="Admin 查询 ClusterInfo 列表",
     description="只读查询 ClusterInfo，支持受控过滤、白名单排序和分页；敏感字段以布尔标记代替。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "cluster_type": "可选，集群类型精确匹配",
         "cluster_name": "可选，集群名称包含匹配",
         "is_default_cluster": "可选，是否默认集群",
@@ -358,7 +370,7 @@ def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_t
     example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20, "ordering": "cluster_id"},
 )
 def list_cluster_infos(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), ORDERING_FIELDS, default="cluster_id")
     includes = normalize_include(params.get("include"), CLUSTER_LIST_INCLUDE_VALUES, default=DEFAULT_LIST_INCLUDE)
@@ -375,8 +387,12 @@ def list_cluster_infos(params: dict[str, Any]) -> dict[str, Any]:
     items = []
     for cluster in clusters:
         item = _serialize_cluster_info(cluster)
-        item["associated_datasources"] = datasource_count_map.get(cluster.cluster_id, 0)
-        item["associated_storages"] = storage_count_map.get(cluster.cluster_id, 0)
+        item["associated_datasources"] = (
+            get_scoped_map_value(datasource_count_map, cluster.bk_tenant_id, cluster.cluster_id) or 0
+        )
+        item["associated_storages"] = (
+            get_scoped_map_value(storage_count_map, cluster.bk_tenant_id, cluster.cluster_id) or 0
+        )
         items.append(item)
 
     return build_response(
@@ -422,7 +438,8 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
 
     effective_cluster_type = _resolve_cluster_type(params, cluster)
 
-    data: dict[str, Any] = {"cluster": _serialize_cluster_info(cluster)}
+    cluster_item = _serialize_cluster_info(cluster)
+    data: dict[str, Any] = {"cluster": cluster_item}
     warnings: list[dict[str, Any]] = []
 
     from metadata.models.data_link.data_link_configs import ClusterConfig
@@ -479,14 +496,14 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
     if effective_cluster_type == models.ClusterInfo.TYPE_KAFKA:
         datasource_count = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, mq_cluster_id=cluster_id).count()
     data["related_datasources"] = datasource_count
+    cluster_item["associated_datasources"] = datasource_count
 
+    storage_count = 0
     storage_model = _get_storage_model_for_cluster_type(effective_cluster_type)
     if storage_model is not None:
-        data["related_result_tables"] = storage_model.objects.filter(
-            bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id
-        ).count()
-    else:
-        data["related_result_tables"] = 0
+        storage_count = storage_model.objects.filter(bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id).count()
+    data["related_result_tables"] = storage_count
+    cluster_item["associated_storages"] = storage_count
 
     return build_response(
         operation="cluster_info.detail",

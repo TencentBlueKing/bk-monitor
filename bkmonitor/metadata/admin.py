@@ -61,12 +61,12 @@ class YamlJsonField(forms.CharField):
         except yaml.YAMLError:
             pass
         else:
-            if isinstance(parsed, (dict, list)):
+            if isinstance(parsed, dict | list):
                 return parsed
             # 标量值（如纯字符串/数字），尝试 JSON 解析
             try:
                 parsed = json.loads(value)
-                if isinstance(parsed, (dict, list)):
+                if isinstance(parsed, dict | list):
                     return parsed
             except (json.JSONDecodeError, TypeError):
                 pass
@@ -104,6 +104,7 @@ class RelationDefinitionForm(forms.ModelForm):
     class Meta:
         model = models.RelationDefinition
         fields = "__all__"
+
 
 # Register your models here.
 
@@ -297,6 +298,21 @@ class AccessVMRecordAdmin(admin.ModelAdmin):
     list_filter = ("data_type",)
 
 
+class VMShortLinkRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "table_id",
+        "vm_result_table_id",
+        "vm_result_table_name",
+        "space_type",
+        "space_id",
+        "is_global",
+        "is_enabled",
+        "is_deleted",
+    )
+    search_fields = ("table_id", "vm_result_table_id", "vm_result_table_name", "space_id")
+    list_filter = ("space_type", "is_global", "is_enabled", "is_deleted")
+
+
 class BCSClusterInfoAdmin(admin.ModelAdmin):
     list_display = ("cluster_id", "bk_biz_id", "status", "K8sMetricDataID", "CustomMetricDataID", "K8sEventDataID")
     search_fields = ("cluster_id", "bk_biz_id")
@@ -412,6 +428,7 @@ admin.site.register(models.ResultTableOption, ResultTableOptionAdmin)
 admin.site.register(models.ReplaceConfig, ReplaceConfigAdmin)
 admin.site.register(models.InfluxDBProxyStorage, InfluxDBProxyStorageAdmin)
 admin.site.register(models.AccessVMRecord, AccessVMRecordAdmin)
+admin.site.register(models.VMShortLinkRecord, VMShortLinkRecordAdmin)
 admin.site.register(models.BCSClusterInfo, BCSClusterInfoAdmin)
 admin.site.register(models.DataLink, DataLinkAdmin)
 admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)

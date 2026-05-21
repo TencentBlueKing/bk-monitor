@@ -30,6 +30,8 @@ import {
   archiveIssue,
   assignIssue,
   exportIssue,
+  listRecentAssignees,
+  renameIssue,
   reopenIssue,
   resolveIssue,
   restoreIssue,
@@ -43,6 +45,10 @@ import type {
   ExportIssuesParams,
   FollowUpIssuesParams,
   IssuesBatchOperationResponse,
+  ListRecentAssigneesParams,
+  ListRecentAssigneesResponse,
+  RenameIssueParams,
+  RenameIssueSucceededItem,
   ResolveIssuesParams,
   UpdatePriorityParams,
 } from '../typing';
@@ -59,6 +65,40 @@ export const assignIssues = async (
 ): Promise<IssuesBatchOperationResponse<'assign'>> => {
   const data = await assignIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
+};
+
+/**
+ * @description 查询最近指派的负责人列表，封装底层 API 调用与数据预处理
+ * @param {ListRecentAssigneesParams} params - 查询请求参数（bk_biz_ids / recent_days）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<ListRecentAssigneesResponse>} 负责人用户名列表
+ */
+export const fetchRecentAssignees = async (
+  params: ListRecentAssigneesParams,
+  options?: RequestOptions
+): Promise<ListRecentAssigneesResponse> => {
+  const data = await listRecentAssignees(params, options).catch(() => []);
+  return data ?? [];
+};
+
+/**
+ * @description 重命名 Issue，按接口规范提交 { bk_biz_id, issue_id, new_name }
+ * @param {RenameIssueParams} params - 重命名请求参数
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<RenameIssueSucceededItem>} 重命名后的 Issue 信息（含活动日志）
+ */
+export const updateIssueName = async (
+  params: RenameIssueParams,
+  options?: RequestOptions
+): Promise<RenameIssueSucceededItem> => {
+  return renameIssue(
+    {
+      bk_biz_id: params.bk_biz_id,
+      issue_id: String(params.issue_id).trim(),
+      new_name: String(params.new_name).trim(),
+    },
+    options
+  );
 };
 
 /**

@@ -467,6 +467,10 @@ class StrategyConfigParser(BaseConfigParser):
                 ],
             },
         }
+        # YAML 显式声明时透传 voice_notice；未声明时不写入字段，运行时由 fta_action 落到默认 parallel
+        # （AsCode save 直接覆盖 ActionConfig.execute_config，不经 NotifyActionConfigSlz default）
+        if "voice_notice" in config["notice"]:
+            notice["config"]["voice_notice"] = config["notice"]["voice_notice"]
 
         # 动作配置
         actions = []
@@ -688,6 +692,11 @@ class StrategyConfigParser(BaseConfigParser):
         interval = notice_config["config"]["notify_interval"] // 60
         if interval != 120:
             notice["interval"] = interval
+
+        # voice_notice 默认 parallel，仅当 DB 显式为 serial 时写出，保持 YAML 简洁；与 interval/interval_mode 风格一致
+        voice_notice = notice_config["config"].get("voice_notice")
+        if voice_notice and voice_notice != "parallel":
+            notice["voice_notice"] = voice_notice
 
         code_config["notice"] = notice
 

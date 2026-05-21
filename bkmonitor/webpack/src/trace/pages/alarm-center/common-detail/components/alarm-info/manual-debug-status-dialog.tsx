@@ -49,7 +49,7 @@ export default defineComponent({
       type: Object as PropType<MealInfo>,
     },
     alarmBizId: {
-      type: Number,
+      type: [Number, String],
       default: null,
     },
   },

@@ -1,0 +1,87 @@
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+
+  &-input {
+    flex: 0 0 360px;
+    position: relative;
+
+    .openid-list-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 1000;
+      min-width: 100%;
+      max-height: 240px;
+      padding: 4px 0;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+      li {
+        padding: 0 12px;
+        height: 32px;
+        line-height: 32px;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #63656e;
+        font-size: 12px;
+
+        &:hover,
+        &.is-hover {
+          background: #eaf3ff;
+          color: #3a84ff;
+        }
+      }
+
+      .openid-list-empty {
+        color: #c4c6cc;
+        text-align: center;
+        cursor: default;
+
+        &:hover {
+          background: transparent;
+          color: #c4c6cc;
+        }
+      }
+    }
+  }
+
+  &-time {
+    border-radius: 4px;
+    border: 1px solid #C1CDE5;
+
+    .__bk_date_picker__ {
+        .date-icon {
+          background-color: #F2F6FC;
+          border-radius: 4px;
+        }
+    
+        .date-content {
+          padding: 0 24px;
+        }
+      }
+    
+  }
+
+  &-btn {
+    width: 78px;
+    border-radius: 4px;
+
+    div {
+      align-items: center;
+      display: flex;
+      gap: 4px;
+    }
+
+    .bklog-icon {
+      font-size: 14px;
+    }
+  }
+}

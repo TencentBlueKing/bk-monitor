@@ -26,11 +26,12 @@ class IssueViewSet(ResourceViewSet):
         "issue/history",
         "issue/top_n",
         "issue/export",
+        "issue/recent_assignees",
     ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
     # 新增支持「无业务 ID」的接口时，只需在此处追加 endpoint 名称即可
-    NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search", "issue/top_n"]
+    NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search", "issue/top_n", "issue/recent_assignees"]
 
     class IssueBusinessActionPermission(IAMPermission):
         """
@@ -112,4 +113,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.issue.list_issue_history, endpoint="issue/history"),
         # 导出 Issue 列表
         ResourceRoute("POST", resource.issue.export_issue, endpoint="issue/export"),
+        # 最近使用负责人（基于 ES 聚合）
+        ResourceRoute("POST", resource.issue.list_recent_assignees, endpoint="issue/recent_assignees"),
     ]

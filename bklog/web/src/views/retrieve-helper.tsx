@@ -27,6 +27,7 @@
 import { Ref } from 'vue';
 
 import { parseTableRowData } from '@/common/util';
+import { getLocationQueryParams } from '@/utils';
 
 import AiAssitantHelper from '@/global/ai-assitant/ai-assitant-helper';
 import RetrieveBase from './retrieve-core/base';
@@ -47,6 +48,8 @@ export enum STORAGE_KEY {
 export { GradeConfiguration, GradeSetting, RetrieveEvent };
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
+
+
 class RetrieveHelper extends RetrieveBase {
   scrollEventAdded = false;
   mousedownEvent = null;
@@ -164,6 +167,24 @@ class RetrieveHelper extends RetrieveBase {
    * @param id
    */
   setIndexsetId(idList: string[], type: string, fireEvent = true) {
+    // 监控下的关联日志需要再浏览器本地记住最近一次使用的索引集
+    if (window.__IS_MONITOR_COMPONENT__) {
+      const query = getLocationQueryParams();
+      const bizAppKey = `${query.bizId} ${query['filter-app_name']}`;
+      let memoryObj = {};
+      const storageStr = localStorage.getItem('MONITOR_LOG_RECENT_INDEX_SET_ID');
+      if (storageStr) {
+        // 兼容旧的代码，后期可以去除
+        const parseValue = JSON.parse(storageStr);
+        if (!Array.isArray(parseValue)) {
+          memoryObj = parseValue;
+        }
+      }
+      Object.assign(memoryObj, {
+        [bizAppKey]: idList
+      })
+      localStorage.setItem('MONITOR_LOG_RECENT_INDEX_SET_ID', JSON.stringify(memoryObj));
+    }
     this.indexSetIdList = idList;
     this.indexSetType = type;
     if (fireEvent) {
