@@ -33,6 +33,8 @@ from apps.log_search.exceptions import DateHistogramException
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
+from apps.log_search.models import LogIndexSet
+from apps.log_search.utils import get_es_date_histogram_param_version, normalize_date_histogram_interval
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -180,6 +182,10 @@ class AggsHandlers(AggsBase):
         if not interval or interval == "auto":
             interval = cls._init_default_interval(start_time, end_time)
 
+        storage_cluster_id = (
+            LogIndexSet.objects.filter(index_set_id=index_set_id).values_list("storage_cluster_id", flat=True).first()
+        )
+        es_version = get_es_date_histogram_param_version(storage_cluster_id)
         time_format = cls.TIME_FORMAT_MAP.get(interval, cls.TIME_FORMAT)
         datetime_format = cls.DATETIME_FORMAT_MAP.get(interval, cls.DATETIME_FORMAT)
 
@@ -191,7 +197,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                interval=interval,
+                **normalize_date_histogram_interval(interval, es_version=es_version),
                 format=time_format,
                 time_zone=time_zone,
                 min_doc_count=cls.MIN_DOC_COUNT,
@@ -208,7 +214,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                interval=interval,
+                **normalize_date_histogram_interval(interval, es_version=es_version),
                 min_doc_count=cls.MIN_DOC_COUNT,
                 extended_bounds={"min": min_value, "max": max_value},
             )

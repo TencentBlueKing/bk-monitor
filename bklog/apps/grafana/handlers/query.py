@@ -46,6 +46,7 @@ from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.utils import get_es_date_histogram_param_version, normalize_date_histogram_interval
 from apps.log_unifyquery.handler.agg import UnifyQueryAggHandler
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
@@ -86,14 +87,18 @@ class GrafanaQueryHandler:
     def space_uid(self):
         return bk_biz_id_to_space_uid(self.bk_biz_id)
 
-    def _get_aggregations(self, metric_field, agg_method, dimensions, time_field, interval):
+    def _get_aggregations(self, metric_field, agg_method, dimensions, time_field, interval, storage_cluster_id=None):
         """
         组装聚合条件
         """
+        es_version = get_es_date_histogram_param_version(storage_cluster_id)
         # datetime aggregation
         aggragations = {
             time_field: {
-                "date_histogram": {"field": time_field, "interval": self._parse_interval(interval)},
+                "date_histogram": {
+                    "field": time_field,
+                    **normalize_date_histogram_interval(self._parse_interval(interval), es_version=es_version),
+                },
                 "aggregations": {metric_field: {agg_method: {"field": metric_field}}},
             },
         }
@@ -298,7 +303,8 @@ class GrafanaQueryHandler:
             for field_config_obj in desensitize_field_config_objs
         ]
 
-        time_field = SearchHandler(query_dict["result_table_id"], {}).time_field
+        meta_search_handler = SearchHandler(query_dict["result_table_id"], {})
+        time_field = meta_search_handler.time_field
 
         # 如果是统计数量，则无需提供指标字段，用 _id 字段统计即可
         if query_dict["method"] == "value_count":
@@ -310,6 +316,7 @@ class GrafanaQueryHandler:
             dimensions=query_dict.get("group_by", []),
             interval=query_dict["interval"],
             time_field=time_field,
+            storage_cluster_id=meta_search_handler.storage_cluster_id,
         )
         search_dict = {
             "start_time": query_dict["start_time"],

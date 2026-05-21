@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,13 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
 
 from apps.grafana.constants import TRACE_DATASOURCE_TYPE
-from apps.grafana.data_source import CustomIndexSetESDataSource
 from apps.grafana.model import TraceDatasourceMap
 from apps.log_search.models import LogIndexSet
 from apps.utils.db import array_hash
@@ -42,7 +39,7 @@ class Provisioning(BaseProvisioning):
                 access="direct",
                 isDefault=True,
                 version=1,
-                jsonData={"baseUrl": "/{}api/v1/".format(settings.SITE_URL)},
+                jsonData={"baseUrl": f"/{settings.SITE_URL}api/v1/"},
                 url="",
                 orgId=org_id,
             )
@@ -53,7 +50,7 @@ class Provisioning(BaseProvisioning):
 
 
 class TraceProvisioning(BaseProvisioning):
-    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
+    def datasources(self, request, org_name: str, org_id: int) -> list[Datasource]:
         trace_index_sets = LogIndexSet.objects.filter(
             is_trace_log=True, space_uid=bk_biz_id_to_space_uid(org_name)
         ).values("index_set_name", "index_set_id")
@@ -73,7 +70,7 @@ class TraceProvisioning(BaseProvisioning):
                     type=TRACE_DATASOURCE_TYPE,
                     access="direct",
                     isDefault=False,
-                    url="proxy/trace/{}".format(index_set_id),
+                    url=f"proxy/trace/{index_set_id}",
                     jsonData={"index_set_id": index_set_id},
                     orgId=org_id,
                 )
@@ -89,7 +86,7 @@ class TraceProvisioning(BaseProvisioning):
                     type=TRACE_DATASOURCE_TYPE,
                     access="direct",
                     isDefault=False,
-                    url="proxy/trace/{}".format(index_set_id),
+                    url=f"proxy/trace/{index_set_id}",
                     jsonData={"index_set_id": index_set_id},
                     orgId=org_id,
                     id=datasource_map_hash[index_set_id],
@@ -119,6 +116,9 @@ class CustomESDataSourceProvisioning(BaseProvisioning):
         - org_name: 项目project_id
         - org_id: grafana org对应的Id
         """
+        # 延迟导入：避免与 apps.log_search.utils 形成循环依赖
+        from apps.grafana.data_source import CustomIndexSetESDataSource
+
         bk_biz_id = int(org_name)
         return CustomIndexSetESDataSource.list_datasource(bk_biz_id=bk_biz_id)
 

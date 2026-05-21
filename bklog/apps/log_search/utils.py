@@ -22,15 +22,22 @@ the project delivered to anyone in the future.
 import functools
 import json
 import operator
+import re
 from io import BytesIO
 from typing import Any
 
 from django.http import FileResponse
-import re
+from packaging.version import InvalidVersion, Version
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
 from apps.log_search.exceptions import LogSearchException
 from apps.utils.local import get_request_external_username, get_request_username
+
+
+DATE_HISTOGRAM_INTERVAL_RE = re.compile(r"^(?P<count>\d+)(?P<unit>[smhdwMqy])$")
+FIXED_INTERVAL_UNITS = {"s", "m", "h", "d"}
+CALENDAR_INTERVAL_UNITS = {"w", "M", "q", "y"}
+ES8_DATE_HISTOGRAM_PARAM_VERSION = Version("8.0.0")
 
 
 def sort_func(data: list[dict[str, Any]], sort_list: list[list[str]], key_func=lambda x: x) -> list[dict[str, Any]]:
@@ -250,6 +257,93 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
     )
 
     return response
+
+
+def parse_es_date_histogram_param_version(value: Any) -> Version | None:
+    """
+    解析 ES 集群版本，非法值返回 None。
+    """
+    if isinstance(value, Version):
+        return value
+
+    try:
+        return Version(str(value))
+    except (InvalidVersion, TypeError, ValueError):
+        return None
+
+
+def get_es_date_histogram_param_version(storage_cluster_id: Any) -> Version | None:
+    """
+    从存储集群元数据读取 ES 版本，用于决定 date_histogram 参数格式。
+    """
+    if storage_cluster_id in [None, "", -1]:
+        return None
+
+    try:
+        storage_cluster_id = int(storage_cluster_id)
+    except (TypeError, ValueError):
+        return None
+
+    try:
+        from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
+
+        _, _, _, _, version, _ = QueryClientEs._connect_info(storage_cluster_id=storage_cluster_id)
+    except Exception:  # pylint: disable=broad-except
+        return None
+
+    return parse_es_date_histogram_param_version(version)
+
+
+def is_es8_date_histogram_params(version: Version | None) -> bool:
+    """
+    ES 8.0.0 及以上使用 fixed_interval / calendar_interval。
+    """
+    return bool(version and version >= ES8_DATE_HISTOGRAM_PARAM_VERSION)
+
+
+def normalize_date_histogram_interval(interval: Any, es_version: Any = None) -> dict[str, Any]:
+    """
+    按 ES 集群版本将 interval 转换为对应的字段名。
+    """
+    version = parse_es_date_histogram_param_version(es_version)
+    if not version or not is_es8_date_histogram_params(version):
+        return {"interval": interval}
+
+    if not isinstance(interval, str):
+        return {"interval": interval}
+
+    match = DATE_HISTOGRAM_INTERVAL_RE.fullmatch(interval)
+    if not match:
+        return {"interval": interval}
+
+    unit = match.group("unit")
+    if unit in FIXED_INTERVAL_UNITS:
+        return {"fixed_interval": interval}
+    if unit in CALENDAR_INTERVAL_UNITS:
+        return {"calendar_interval": interval}
+    return {"interval": interval}
+
+
+def adapt_date_histogram_params(date_histogram: dict[str, Any], es_version: Any = None) -> dict[str, Any]:
+    """
+    按 ES 集群版本适配 date_histogram 参数格式。
+    """
+    date_histogram = dict(date_histogram)
+    target_version = parse_es_date_histogram_param_version(es_version)
+
+    if not target_version or not is_es8_date_histogram_params(target_version):
+        if "interval" in date_histogram:
+            return date_histogram
+        if "fixed_interval" in date_histogram:
+            date_histogram["interval"] = date_histogram.pop("fixed_interval")
+        elif "calendar_interval" in date_histogram:
+            date_histogram["interval"] = date_histogram.pop("calendar_interval")
+        return date_histogram
+
+    interval = date_histogram.pop("interval", None)
+    if interval is not None and "fixed_interval" not in date_histogram and "calendar_interval" not in date_histogram:
+        date_histogram.update(normalize_date_histogram_interval(interval, es_version=target_version))
+    return date_histogram
 
 
 def handle_es_query_error(exc: Exception) -> Exception:
