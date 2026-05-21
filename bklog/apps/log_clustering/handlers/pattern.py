@@ -189,27 +189,34 @@ class PatternHandler:
                 [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
             )
 
-            # 黑名单业务严格匹配 group_hash；其余业务兼容空维度备注降级展示。
-            if (signature, group_hash) in signature_map_remark:
-                remark = signature_map_remark[(signature, group_hash)]["remark"]
-                owners = signature_map_remark[(signature, group_hash)]["owners"]
-                strategy_id = signature_map_remark[(signature, group_hash)]["strategy_id"]
-                strategy_enabled = signature_map_remark[(signature, group_hash)]["strategy_enabled"]
-            elif signature_origin_pattern and (signature_origin_pattern, group_hash) in origin_pattern_map_remark:
-                remark = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["remark"]
-                owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
-                strategy_id = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_id"]
-                strategy_enabled = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_enabled"]
-            elif signature in signature_map_remark_without_group:
-                remark = signature_map_remark_without_group[signature]["remark"]
-                owners = signature_map_remark_without_group[signature]["owners"]
-                strategy_id = signature_map_remark_without_group[signature]["strategy_id"]
-                strategy_enabled = signature_map_remark_without_group[signature]["strategy_enabled"]
-            elif signature_origin_pattern and signature_origin_pattern in origin_pattern_map_remark_without_group:
-                remark = origin_pattern_map_remark_without_group[signature_origin_pattern]["remark"]
-                owners = origin_pattern_map_remark_without_group[signature_origin_pattern]["owners"]
-                strategy_id = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_id"]
-                strategy_enabled = origin_pattern_map_remark_without_group[signature_origin_pattern]["strategy_enabled"]
+            remark_obj = None
+            exact_signature_remark_obj = signature_map_remark.get((signature, group_hash))
+            exact_origin_pattern_remark_obj = (
+                origin_pattern_map_remark.get((signature_origin_pattern, group_hash))
+                if signature_origin_pattern
+                else None
+            )
+            fallback_signature_remark_obj = signature_map_remark_without_group.get(signature)
+            fallback_origin_pattern_remark_obj = (
+                origin_pattern_map_remark_without_group.get(signature_origin_pattern)
+                if signature_origin_pattern
+                else None
+            )
+            for candidate in [
+                exact_signature_remark_obj,
+                exact_origin_pattern_remark_obj,
+                fallback_signature_remark_obj,
+                fallback_origin_pattern_remark_obj,
+            ]:
+                if candidate and candidate["remark"]:
+                    remark_obj = candidate
+                    break
+
+            if remark_obj:
+                remark = remark_obj["remark"]
+                owners = remark_obj["owners"]
+                strategy_id = remark_obj["strategy_id"]
+                strategy_enabled = remark_obj["strategy_enabled"]
             else:
                 remark = []
                 owners = []
