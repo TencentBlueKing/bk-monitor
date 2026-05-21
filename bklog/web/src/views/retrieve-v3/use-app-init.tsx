@@ -604,7 +604,7 @@ export default () => {
     const sceneActive = store.state.indexItem.scene_active;
 
     // 当前是场景化检索模式但不在灰度业务中，清空场景化检索条件并回退到常规检索
-    if (sceneActive && !isFeatureToggleOn('log_iaas', [String(bkBizId.value), String(spaceUid.value)])) {
+    if (sceneActive && !isFeatureToggleOn('scene_search', [String(bkBizId.value), String(spaceUid.value)])) {
       clearSceneRetrieveToNormal(configs);
       return true;
     }
