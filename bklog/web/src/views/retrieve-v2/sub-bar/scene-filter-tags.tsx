@@ -28,6 +28,7 @@ import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, w
 
 import useStore from '@/hooks/use-store';
 import { isEmptyFilterValue } from '@/store/helper';
+import { getOperatorDisplay, getDefaultOp } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import './scene-filter-tags.scss';
@@ -36,6 +37,7 @@ interface TagItem {
   key: string;
   name: string;
   value: string;
+  opDisplay: string;
 }
 
 const DEBOUNCE_DELAY = 50;
@@ -86,15 +88,20 @@ export default defineComponent({
         const val = filterValues[field.key];
         if (isEmptyFilterValue(val)) continue;
 
+        const rawValue = val?.value ?? val;
+        const op = val?.op ?? getDefaultOp(field.ops);
+        const opDisplay = getOperatorDisplay(op);
+
         const fieldLabels = props.filterLabels[field.key] ?? {};
-        const ids = Array.isArray(val) ? val : [val];
-        const displayNames = ids.map(id => fieldLabels[id] ?? String(id));
+        const rawValues = Array.isArray(rawValue) ? rawValue : [rawValue];
+        const displayNames = rawValues.map(id => fieldLabels[id] ?? String(id));
         const displayValue = displayNames.join(', ');
 
         result.push({
           key: field.key,
           name: field.name,
-          value: `${field.name}=${displayValue}`,
+          value: `${field.name}${opDisplay}${displayValue}`,
+          opDisplay,
         });
       }
 
@@ -122,9 +129,9 @@ export default defineComponent({
 
     const measureItemWidth = (tag: TagItem): number => {
       if (!measureSpans.tag.value) return 0;
-      const displayValue = tag.value.slice(tag.name.length + 1);
+      const displayValue = tag.value.slice(tag.name.length + tag.opDisplay.length);
       measureSpans.tag.value.innerHTML = `<span class="tag-key">${tag.name}</span>`
-        + '<span class="tag-separator">=</span>'
+        + `<span class="tag-separator">${tag.opDisplay}</span>`
         + `<span class="tag-value">${displayValue}</span>`;
       return measureSpans.tag.value.offsetWidth;
     };
@@ -322,8 +329,8 @@ export default defineComponent({
                 class='tag-item'
               >
                 <span class='tag-key'>{tag.name}</span>
-                <span class='tag-separator'>=</span>
-                <span class='tag-value'>{tag.value.slice(tag.name.length + 1)}</span>
+                <span class='tag-separator'>{tag.opDisplay}</span>
+                <span class='tag-value'>{tag.value.slice(tag.name.length + tag.opDisplay.length)}</span>
               </span>
             ))}
           </div>
@@ -342,8 +349,8 @@ export default defineComponent({
               class='tag-item'
             >
               <span class='tag-key'>{tag.name}</span>
-              <span class='tag-separator'>=</span>
-              <span class='tag-value'>{tag.value.slice(tag.name.length + 1)}</span>
+              <span class='tag-separator'>{tag.opDisplay}</span>
+              <span class='tag-value'>{tag.value.slice(tag.name.length + tag.opDisplay.length)}</span>
             </span>
           ))}
 

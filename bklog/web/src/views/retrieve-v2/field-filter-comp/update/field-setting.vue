@@ -39,10 +39,11 @@ const dropdownListRef = ref();
 
 const isUnionSearch = computed(() => store.getters.isUnionSearch);
 const isExternal = computed(() => store.state.isExternal);
+const isSceneMode = computed(() => store.getters.isSceneMode);
 
-// 联合查询和外部环境不展示
+// 联合查询、外部环境和场景化检索不展示
 const isFieldSettingShow = computed(() => {
-  return !store.getters.isUnionSearch && !isExternal.value;
+  return !store.getters.isUnionSearch && !isExternal.value && !isSceneMode.value;
 });
 
 const handleSetting = (e) => {

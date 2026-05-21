@@ -961,6 +961,7 @@ export default {
   服务: 'Service',
   客户端: 'Client',
   清空查询: 'Clear Query',
+  默认操作符: 'Default Operator',
   选中值: 'Selected Value',
   整体: 'Overall',
   用户: 'User',
@@ -977,4 +978,5 @@ export default {
   采集失败: 'Collection Failed',
   根目录: 'Root Directory',
   输入样例: 'Input example',
+  场景: 'Scene',
 };

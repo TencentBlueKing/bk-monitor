@@ -4,6 +4,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
+  import { buildTableIdConditions } from '@/store/helper';
 
   import $http from '../../../../api';
 
@@ -48,6 +49,12 @@
   //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
   // });
   const indexSetName = computed(() => {
+    if (store.getters.isSceneMode) {
+      const sceneConfigs = store.getters['retrieve/sceneConfigList'] ?? [];
+      const sceneActive = store.state.indexItem?.scene_active ?? '';
+      const sceneConfig = sceneConfigs.find(s => s.type === sceneActive);
+      return sceneConfig?.label ?? sceneActive ?? '';
+    }
     const indexSetList = store.state.retrieve.flatIndexSetList || [];
     const indexSetId = store.state.indexId;
     const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
@@ -259,7 +266,20 @@
       pid: store.state.indexItem.pid,
       ...searchParams,
     };
-    if (indexSetItem.value.isUnionIndex) {
+
+    if (store.getters.isSceneMode) {
+      // 场景化收藏
+      const { table_id_conditions, scene_filter_values } = buildTableIdConditions(
+        store.state,
+        store.getters['retrieve/sceneConfigList'],
+      );
+      Object.assign(data, {
+        source_type: 'scene',
+        scene_id: store.state.indexItem.scene_active,
+        table_id_conditions,
+        scene_filter_values,
+      });
+    } else if (indexSetItem.value.isUnionIndex) {
       Object.assign(data, {
         index_set_ids: indexSetItem.value.ids,
         index_set_type: 'union',
@@ -523,7 +543,7 @@
             </bk-select>
           </bk-form-item>
 
-          <bk-form-item :label="$t('索引集')">
+          <bk-form-item :label="store.getters.isSceneMode ? $t('场景') : $t('索引集')">
             <bk-input
               :value="indexSetName"
               readonly

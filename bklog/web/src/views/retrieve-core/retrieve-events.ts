@@ -51,6 +51,11 @@ enum RetrieveEvent {
   FAVORITE_WIDTH_CHANGE = 'favorite-width-change',
 
   /**
+   * 收藏列表刷新
+   */
+  FAVORITE_LIST_REFRESH = 'favorite-list-refresh',
+
+  /**
    * 全局滚动
    */
   GLOBAL_SCROLL = 'global-scroll',
@@ -164,6 +169,11 @@ enum RetrieveEvent {
    * 场景筛选面板高度变化
    */
   SCENE_FILTER_PANEL_HEIGHT_CHANGE = 'scene-filter-panel-height-change',
+
+  /**
+   * 获取的字段列表为空
+   */
+  SCENE_FIELD_EMPTY = 'scene-field-empty',
 }
 
 export default RetrieveEvent;

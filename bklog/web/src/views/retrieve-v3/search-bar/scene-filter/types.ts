@@ -113,8 +113,17 @@ export interface FilterFieldConfig {
   placeholder?: string;
 }
 
-/** 每场景的显示字段配置：key = SceneType, value = 有序字段 key 数组（null 表示全部显示、默认顺序） */
-export type SceneDisplayFields = Record<string, string[] | null>;
+/** 单个字段的筛选值（含操作符） */
+export interface FilterFieldValue {
+  /** 操作符 key，如 'eq'、'ne'、'req'、'nreq' */
+  op: string;
+  /** 字段值 */
+  value: string | string[] | number | number[];
+}
+
+/** 每场景的显示字段配置 */
+/** 新: { scene: [[field, op], [field, op]] }，null 表示全部显示、默认顺序 */
+export type SceneDisplayFields = Record<string, Array<[string, string]> | null>;
 
 /** 场景配置（从接口数据 + 本地映射合并而来） */
 export interface SceneConfig {
@@ -132,5 +141,5 @@ export interface SceneConfig {
   disabled?: boolean;
 }
 
-/** 筛选条件值 */
-export type FilterValues = Record<string, string | string[] | number | number[]>;
+/** 筛选条件值（含操作符） */
+export type FilterValues = Record<string, FilterFieldValue>;
