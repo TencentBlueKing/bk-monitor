@@ -73,6 +73,13 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
     }
   }
 
+  @Watch('applicationId')
+  watchApplicationId() {
+    if (this.appName) {
+      this.getToken();
+    }
+  }
+
   @Emit('sidesliderShow')
   handleSidesliderShow(v) {
     return v;
@@ -89,6 +96,10 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
 
   // 获取上报token
   async getToken() {
+    if (this.applicationId === '' || this.applicationId === undefined || this.applicationId === null) {
+      return;
+    }
+
     this.token = await queryBkDataToken(this.applicationId)
       .then(res => res)
       .catch(() => '');
