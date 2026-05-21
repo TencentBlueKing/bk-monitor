@@ -1,0 +1,47 @@
+---
+description: bklog retrieve-v2 UI 修改约束
+alwaysApply: false
+globs:
+  - "src/views/retrieve-v2/**/*"
+  - "src/store/index.js"
+  - "src/common/util.js"
+---
+
+# retrieve-v2 UI 修改约束
+
+## 修改前必读
+
+涉及日志检索结果面板时，优先查看：
+
+- `src/views/retrieve-v2/search-result-panel/index.vue`
+- `src/views/retrieve-v2/search-result-panel/index.scss`
+- `src/views/retrieve-v2/search-result-panel/field-filter.vue`
+- `src/views/retrieve-v2/search-result-panel/field-filter.scss`
+- `src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`
+- `src/common/util.js`
+- `src/store/index.js`
+
+## 字段设置栏约束
+
+1. 展开态字段设置栏 sticky 位置由 `.field-list-sticky.is-show` 控制。
+2. 收起态入口 `.search-field-filter-new.is-close .field-filter-title` 必须与展开态使用同一 `top: var(--offset-search-bar)`。
+3. 不要硬编码顶部偏移值；图表显隐、趋势图高度变化会动态影响 `--offset-search-bar`。
+4. 修改 z-index 前需确认不会遮挡搜索条件、图表标题和日志结果 hover 操作。
+
+## 日志表格列宽约束
+
+1. 列宽口径必须在 store、工具函数、渲染组件三处保持一致。
+2. `operatorToolsWidth` 只表示右侧操作工具内容宽度，不包含表格单元格额外 padding/安全余量。
+3. 右侧操作列完整占位应使用 `getStaticWidthForTable(operatorToolsWidth)`，不要直接写 `operatorToolsWidth + 40`。
+4. 末列撑满逻辑必须避免真实内容宽度超出可视区域，否则最后一列的“更多”等操作会被横向滚动遮挡。
+5. 修改宽度计算后需要验证：
+   - 字段数量少时无横向滚动
+   - 最后一列有“更多”时可直接看到
+   - 字段数量多时横向滚动仍正常
+   - AI 助手、WebConsole、APM 关联等可选操作开启时不遮挡
+
+## 性能约束
+
+- 大字段列表优先使用 Map/for 循环等低开销路径。
+- 不在渲染行循环中引入重复 DOM 查询或复杂响应式计算。
+- 对高频滚动/resize/drag 逻辑使用 throttle/debounce 或缓存。
