@@ -41,10 +41,6 @@ import './merge-content.scss';
 export default defineComponent({
   name: 'MergeContent',
   props: {
-    defaultMainIssue: {
-      type: Object as PropType<IssueItem>,
-      default: () => null,
-    },
     issues: {
       type: Array as PropType<IssueItem[]>,
       default: () => [],
@@ -54,12 +50,17 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
+    /** 默认主 Issue*/
+    const defaultMainIssue = computed(() => {
+      return props.issues.find(issue => issue.merge_status?.role === 'main');
+    });
+
     /** 自定义主 Issue ID */
     const customMainIssueId = shallowRef('');
     /** 主 Issue */
     const mainIssue = computed(() => {
       /** 有默认主 Issue时，直接返回 */
-      if (props.defaultMainIssue) return props.defaultMainIssue;
+      if (defaultMainIssue.value) return defaultMainIssue.value;
       /** 没有默认主 Issue时，根据自定义主 Issue ID 返回 */
       if (customMainIssueId.value) return props.issues.find(issue => issue.id === customMainIssueId.value);
       /** 没有自定义主 Issue ID时，返回第一个 Issue */
@@ -110,7 +111,7 @@ export default defineComponent({
               </span>
             </div>
             {/* 没有默认主 Issue且属于被合并issue 时，可以自定义设置主 Issue*/}
-            {!isMain && !props.defaultMainIssue && (
+            {!isMain && !defaultMainIssue.value && (
               <Button
                 size='small'
                 theme='primary'
@@ -154,6 +155,7 @@ export default defineComponent({
     };
 
     return {
+      defaultMainIssue,
       mainIssue,
       targetIssues,
       customReason,

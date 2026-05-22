@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 
 import MergeContent from './components/merge-content';
 import SplitContent from './components/split-content';
-import { mockData } from './mock-data';
 
 import type { IssueItem } from '../typing';
 
@@ -45,7 +44,7 @@ export default defineComponent({
     /** 是否显示侧栏 */
     show: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     /** 侧栏类型：merge-合并，split-拆分 */
     type: {
@@ -54,17 +53,12 @@ export default defineComponent({
     },
     /** 已勾选的Issue */
     issues: {
-      type: Object as PropType<IssueItem[]>,
-      default: () => mockData,
+      type: Array as PropType<IssueItem[]>,
+      default: () => [],
     },
   },
   emits: ['update:show', 'confirm'],
-  setup(props, { emit }) {
-    /** 默认主 Issue*/
-    const defaultMainIssue = computed(() => {
-      return props.issues.find(issue => issue.merge_status?.role === 'main');
-    });
-
+  setup(_, { emit }) {
     /** 处理侧栏显示状态变更 */
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
@@ -76,7 +70,6 @@ export default defineComponent({
     };
 
     return {
-      defaultMainIssue,
       handleShowChange,
       handleClose,
     };
@@ -97,7 +90,7 @@ export default defineComponent({
               <div class='split-slider-header'>
                 <span class='header-title'>{this.$t('合并明细')}</span>
                 <span class='divider' />
-                <span class='header-desc'>{this.defaultMainIssue?.anomaly_message}</span>
+                <span class='header-desc'>{this.issues[0]?.anomaly_message}</span>
               </div>
             );
           },
@@ -108,10 +101,7 @@ export default defineComponent({
                 onClose={this.handleClose}
               />
             ) : (
-              <SplitContent
-                issues={this.issues}
-                mainIssue={this.defaultMainIssue}
-              />
+              <SplitContent issues={this.issues} />
             ),
         }}
       </Sideslider>

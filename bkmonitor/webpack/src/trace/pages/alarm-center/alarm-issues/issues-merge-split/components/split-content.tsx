@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { mockData } from '../mock-data';
 import EmptyStatus, { type EmptyStatusOperationType } from '@/components/empty-status/empty-status';
 import MergedIssueIcon from '@/static/img/merged-Issue.svg';
 
@@ -39,10 +40,6 @@ import './split-content.scss';
 export default defineComponent({
   name: 'SplitContent',
   props: {
-    mainIssue: {
-      type: Object as PropType<IssueItem>,
-      default: () => null,
-    },
     issues: {
       type: Array as PropType<IssueItem[]>,
       default: () => [],
@@ -54,9 +51,23 @@ export default defineComponent({
 
     const searchKey = shallowRef('');
 
+    const issues = shallowRef([]);
+
+    watch(
+      () => props.issues,
+      val => {
+        if (val.length > 0) {
+          issues.value = mockData.active_members;
+        }
+      },
+      {
+        immediate: true,
+      }
+    );
+
     /** 被合并 Issue 列表 */
     const targetIssues = computed(() => {
-      return props.issues.filter(issue => issue.id !== props.mainIssue?.id && issue.name.includes(searchKey.value));
+      return issues.value.filter(issue => issue.member_name.includes(searchKey.value));
     });
 
     const handleOperation = (type: EmptyStatusOperationType) => {
