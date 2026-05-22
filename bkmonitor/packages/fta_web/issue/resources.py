@@ -1148,6 +1148,64 @@ class SplitIssueResource(Resource):
         return {"status": "ok", "member_issue_id": member_id}
 
 
+_MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER = 30 * 86400
+
+
+def _fetch_member_anomaly_messages(member_ids: list[str], first_alert_time_map: dict[str, int]) -> dict[str, str]:
+    """批量查 member 最新告警 description。复用 IssueQueryHandler._fill_anomaly_message 范式：
+    1 次 AlertDocument terms agg + top_hits(size=1, sort begin_time desc)。
+
+    Args:
+        member_ids: 待查询的 member Issue ID 列表（active + split 全集）。
+        first_alert_time_map: ``{member_id: first_alert_time}``，用于取 min 作为索引时间窗下界；
+            缺失或全空时回退 ``now - 30d``，覆盖 ES 索引典型保留窗口。
+
+    Returns:
+        ``{member_id: description}``；未命中或失败的 member 不在返回字典中。
+        失败统一 fail-open（warning + 空 dict），由 caller 兜底为 ``"--"``。
+    """
+    if not member_ids:
+        return {}
+
+    from bkmonitor.documents.alert import AlertDocument
+
+    valid_times = [t for t in first_alert_time_map.values() if t]
+    end_time = int(time.time())
+    start_time = min(valid_times) if valid_times else end_time - _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER
+
+    try:
+        search_object = AlertDocument.search(start_time=start_time, end_time=end_time).filter(
+            "terms", issue_id=member_ids
+        )
+        issue_agg = search_object.aggs.bucket("issues", "terms", field="issue_id", size=len(member_ids))
+        issue_agg.metric(
+            "latest_alert",
+            "top_hits",
+            size=1,
+            sort=[{"begin_time": {"order": "desc"}}],
+            _source=["event.description"],
+        )
+        result = search_object[:0].execute()
+    except Exception as e:
+        logger.warning("[issue-merge] list_merge_sources fill anomaly_message failed (fail-open): %s", e)
+        return {}
+
+    msg_map: dict[str, str] = {}
+    for issue_bucket in result.aggs.issues.buckets:
+        if not hasattr(issue_bucket, "latest_alert") or not issue_bucket.latest_alert:
+            continue
+        hits = issue_bucket.latest_alert.hits
+        if not hits or not hits.hits:
+            continue
+        # top_hits 返回的 hit 是 AttrDict，_source 在 hit["_source"] 中
+        source = hits.hits[0].to_dict().get("_source", {})
+        event_data = source.get("event", {})
+        description = event_data.get("description", "") if isinstance(event_data, dict) else ""
+        if description:
+            msg_map[issue_bucket.key] = description
+    return msg_map
+
+
 class ListMergeSourcesResource(Resource):
     """列主 Issue 的合并来源（active + split 历史，数据源以 MySQL 关系表为主）。"""
 
@@ -1168,20 +1226,26 @@ class ListMergeSourcesResource(Resource):
             return result
 
         member_ids = [r.member_issue_id for r in relations]
+        # 同次 ES 查询多 source 一个 first_alert_time，用于后续 anomaly_message 查询的索引时间窗
         member_hits = (
             IssueDocument.search(all_indices=True)
             .filter("terms", _id=member_ids)
-            .source(["name", "status"])
+            .source(["name", "status", "first_alert_time"])
             .params(size=len(member_ids))
             .execute()
             .hits
         )
         name_map = {hit.meta.id: getattr(hit, "name", None) for hit in member_hits}
+        first_alert_time_map = {hit.meta.id: int(getattr(hit, "first_alert_time", 0) or 0) for hit in member_hits}
+
+        # 批量拉 member 最新告警 description（1 次 ES agg；失败 fail-open）
+        anomaly_map = _fetch_member_anomaly_messages(member_ids, first_alert_time_map)
 
         for r in relations:
             item = {
                 "member_issue_id": r.member_issue_id,
                 "member_name": name_map.get(r.member_issue_id) or f"{r.member_issue_id} (已删除)",
+                "anomaly_message": anomaly_map.get(r.member_issue_id, "--"),
                 "merge_reasons": r.merge_reasons,
                 "merge_operator": r.create_user,
                 "merge_time": int(r.create_time.timestamp()) if r.create_time else 0,

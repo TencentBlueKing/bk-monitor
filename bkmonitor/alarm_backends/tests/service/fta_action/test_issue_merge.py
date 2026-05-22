@@ -328,3 +328,116 @@ class TestActivityContentFormat:
             data = json.loads(content)
             assert data["kind"] == kind
             assert data["main_issue_id"] == "a1"
+
+
+class TestListMergeSourcesAnomalyMessage:
+    """``_fetch_member_anomaly_messages`` 行为：
+
+    1) 正常路径：terms agg + top_hits 返回 description → 命中的 member 进入结果字典
+    2) 部分 member 无 alert → 不在结果字典（caller 兜底 ``"--"``）
+    3) AlertDocument.search 抛异常 → 返回空 dict (fail-open)
+    4) first_alert_time 全空 → 走 ``now - 30d`` 兜底窗口（不应抛异常）
+    """
+
+    @staticmethod
+    def _build_search_stub(buckets: list, on_search=None):
+        """构造一条链式可调用的 ES search stub，``buckets`` 即 ``result.aggs.issues.buckets``。"""
+        from unittest.mock import MagicMock
+
+        result = MagicMock()
+        result.aggs.issues.buckets = buckets
+
+        search_obj = MagicMock()
+        search_obj.filter.return_value = search_obj
+        search_obj.__getitem__.return_value.execute.return_value = result
+
+        def _search(**kwargs):
+            if on_search is not None:
+                on_search(kwargs)
+            return search_obj
+
+        return _search, search_obj
+
+    @staticmethod
+    def _make_bucket(member_id: str, description: str | None):
+        """模拟单个 issue_id terms 桶。``description=None`` 表示 top_hits 命中但 description 为空。"""
+        from unittest.mock import MagicMock
+
+        bucket = MagicMock()
+        bucket.key = member_id
+        if description is None:
+            bucket.latest_alert.hits.hits = []
+        else:
+            hit = MagicMock()
+            hit.to_dict.return_value = {"_source": {"event": {"description": description}}}
+            bucket.latest_alert.hits.hits = [hit]
+        return bucket
+
+    def test_normal_path_returns_description_map(self, monkeypatch):
+        from bkmonitor.documents import alert as alert_mod
+        from fta_web.issue.resources import _fetch_member_anomaly_messages
+
+        buckets = [
+            self._make_bucket("b1", "AVG(CPU) >= 10%, 当前值 10.19%"),
+            self._make_bucket("b2", "Disk IO 异常"),
+        ]
+        search_fn, _ = self._build_search_stub(buckets)
+        monkeypatch.setattr(alert_mod.AlertDocument, "search", search_fn)
+
+        result = _fetch_member_anomaly_messages(["b1", "b2"], {"b1": 1_700_000_000, "b2": 1_700_000_500})
+        assert result == {
+            "b1": "AVG(CPU) >= 10%, 当前值 10.19%",
+            "b2": "Disk IO 异常",
+        }
+
+    def test_partial_miss_omits_member(self, monkeypatch):
+        from bkmonitor.documents import alert as alert_mod
+        from fta_web.issue.resources import _fetch_member_anomaly_messages
+
+        # b1 命中、b2 top_hits 为空、b3 description 为空字符串：均不进入结果
+        buckets = [
+            self._make_bucket("b1", "CPU 异常"),
+            self._make_bucket("b2", None),
+            self._make_bucket("b3", ""),
+        ]
+        search_fn, _ = self._build_search_stub(buckets)
+        monkeypatch.setattr(alert_mod.AlertDocument, "search", search_fn)
+
+        result = _fetch_member_anomaly_messages(["b1", "b2", "b3"], {"b1": 1_700_000_000, "b2": 0, "b3": 0})
+        assert result == {"b1": "CPU 异常"}
+
+    def test_empty_member_ids_returns_empty(self):
+        from fta_web.issue.resources import _fetch_member_anomaly_messages
+
+        # 空入参不应触发 ES 查询，直接返回空 dict
+        assert _fetch_member_anomaly_messages([], {}) == {}
+
+    def test_search_exception_fail_open(self, monkeypatch):
+        from bkmonitor.documents import alert as alert_mod
+        from fta_web.issue.resources import _fetch_member_anomaly_messages
+
+        def _explode(**kwargs):
+            raise RuntimeError("ES cluster unreachable")
+
+        monkeypatch.setattr(alert_mod.AlertDocument, "search", _explode)
+
+        # fail-open：返回空 dict，由 caller 在 list_merge_sources 中兜底为 "--"
+        assert _fetch_member_anomaly_messages(["b1"], {"b1": 1_700_000_000}) == {}
+
+    def test_all_first_alert_time_empty_uses_fallback_window(self, monkeypatch):
+        """所有 member 的 first_alert_time 为空（如旧数据）→ 走 now-30d 兜底窗口，不抛异常。"""
+        from bkmonitor.documents import alert as alert_mod
+        from fta_web.issue.resources import _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER, _fetch_member_anomaly_messages
+
+        captured: dict = {}
+
+        def _capture(kwargs):
+            captured.update(kwargs)
+
+        search_fn, _ = self._build_search_stub([self._make_bucket("b1", "fallback window hit")], on_search=_capture)
+        monkeypatch.setattr(alert_mod.AlertDocument, "search", search_fn)
+
+        result = _fetch_member_anomaly_messages(["b1"], {"b1": 0})
+        assert result == {"b1": "fallback window hit"}
+        # 兜底窗口 ≈ now - 30d；允许少量调用时延误差
+        assert captured["end_time"] - captured["start_time"] == _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER
