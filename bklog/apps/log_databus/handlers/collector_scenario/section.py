@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 
 from django.utils.translation import gettext as _
 
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import EtlConfig, LogPluginInfo, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import (
     deal_collector_scenario_param,
@@ -219,7 +219,9 @@ class SectionCollectorScenario(CollectorScenario):
         return params
 
     @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, **kwargs):
+    def get_built_in_config(
+        cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, storage_cluster_type=STORAGE_CLUSTER_TYPE, **kwargs
+    ):
         """
         获取采集器标准字段
         """
@@ -246,7 +248,7 @@ class SectionCollectorScenario(CollectorScenario):
             "fields": [
                 {
                     "field_name": "bk_host_id",
-                    "field_type": "float",
+                    "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "bk_host_id",
                     "description": _("主机ID"),
@@ -266,7 +268,7 @@ class SectionCollectorScenario(CollectorScenario):
                 },
                 {
                     "field_name": "cloudId",
-                    "field_type": "float",
+                    "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "cloudid",
                     "description": _("云区域ID"),
@@ -296,7 +298,7 @@ class SectionCollectorScenario(CollectorScenario):
                 },
                 {
                     "field_name": "gseIndex",
-                    "field_type": "float",
+                    "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "gseindex",
                     "description": _("gse索引"),
@@ -306,7 +308,7 @@ class SectionCollectorScenario(CollectorScenario):
                 },
                 {
                     "field_name": "iterationIndex",
-                    "field_type": "float",
+                    "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "iterationindex",
                     "description": _("迭代ID"),

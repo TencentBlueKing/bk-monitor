@@ -447,20 +447,20 @@ class EtlStorage:
                     },
                 }
 
+                # doris 采集项无需传递时间字段 dtEventTimeStamp 的清洗规则
                 if storage_cluster_type == STORAGE_CLUSTER_TYPE:
                     main_time_rules["operator"]["output_type"] = self._get_output_type(time_field_type)
                     main_time_rules["operator"]["is_time_field"] = None
                     main_time_rules["operator"]["time_format"] = None
                     main_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
-                elif storage_cluster_type == DORIS_CLUSTER_TYPE:
-                    main_time_rules["operator"]["output_type"] = "string"
-                    main_time_rules["operator"]["is_time_field"] = True
-                    main_time_rules["operator"]["time_format"] = self._convert_v3_to_doris_v4_time_format(
-                        v3_time_format
-                    )
-                    main_time_rules["operator"]["in_place_time_parsing"] = None
-
-                rules.append(main_time_rules)
+                    rules.append(main_time_rules)
+                # elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+                #     main_time_rules["operator"]["output_type"] = "string"
+                #     main_time_rules["operator"]["is_time_field"] = True
+                #     main_time_rules["operator"]["time_format"] = self._convert_v3_to_doris_v4_time_format(
+                #         v3_time_format
+                #     )
+                #     main_time_rules["operator"]["in_place_time_parsing"] = None
 
                 # 从同源生成 time 字段，Legacy 路径下 Transfer 自动生成，V4 需显式声明
                 second_time_rules = {
@@ -473,16 +473,17 @@ class EtlStorage:
                         "desc": "data timestamp in epoch second",
                         "input_type": None,
                         "fixed_value": None,
-                        "is_time_field": None,
                         "default_value": None,
                     },
                 }
 
                 if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                    second_time_rules["operator"]["is_time_field"] = None
                     second_time_rules["operator"]["output_type"] = "long"
                     second_time_rules["operator"]["time_format"] = None
                     second_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
                 elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+                    second_time_rules["operator"]["is_time_field"] = True
                     second_time_rules["operator"]["output_type"] = "string"
                     second_time_rules["operator"]["time_format"] = self._convert_v3_to_doris_v4_time_format(
                         v3_time_format
@@ -1190,6 +1191,7 @@ class EtlStorage:
         built_in_config = collector_scenario.get_built_in_config(
             es_version,
             self.etl_config,
+            storage_cluster_type=storage_cluster_type,
             sort_fields=sort_fields,
             target_fields=target_fields,
         )
