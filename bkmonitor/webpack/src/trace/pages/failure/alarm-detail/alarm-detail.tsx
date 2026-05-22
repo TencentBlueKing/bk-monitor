@@ -115,7 +115,6 @@ export default defineComponent({
     // 错误状态/空状态
     const exceptionData = shallowRef({
       isError: false,
-      title: '',
       errorMsg: '',
     });
     const bkzIds = inject<Ref<string[]>>('bkzIds');
