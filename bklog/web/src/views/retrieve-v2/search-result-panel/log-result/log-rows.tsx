@@ -1183,6 +1183,16 @@ export default defineComponent({
       return indexSetQueryResult.value?.is_error || (!!rawExceptionMsg && !/^cancel$/gi.test(rawExceptionMsg));
     });
 
+    /**
+     * 字段信息重新加载期间 visibleFields 会被清空。
+     * monitor 独立包切换 timeRange 时，字段接口返回前如果继续渲染旧 renderList，
+     * 表格会只剩固定列（序号/操作列），形成错误中间态。这里仅在字段加载中接管为首屏骨架屏，
+     * 字段加载完成后的错误/空态仍交给 LogResultException 渲染。
+     */
+    const isFieldLoadingForFirstPage = computed(() => {
+      return indexFieldInfo.value.is_loading && visibleFields.value.length === 0;
+    });
+
     const shouldEnterFirstPageSkeleton = computed(() => {
       return (
         !hasResultException.value
@@ -1197,7 +1207,7 @@ export default defineComponent({
         return false;
       }
 
-      return shouldEnterFirstPageSkeleton.value || (isFirstPageLayoutPending.value && tableDataSize.value > 0);
+      return shouldEnterFirstPageSkeleton.value || isFieldLoadingForFirstPage.value || isFirstPageLayoutPending.value;
     });
 
     const shouldBlockTableRender = computed(() => {
