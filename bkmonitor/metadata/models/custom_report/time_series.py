@@ -20,6 +20,7 @@ from typing import Any
 from django.conf import settings
 from django.db import models
 from django.db import utils as django_db_utils
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -1052,7 +1053,9 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
-            time_series_metric_query = time_series_metric_query.filter(last_modify_time__gt=last)
+            time_series_metric_query = time_series_metric_query.filter(
+                models.Q(last_modify_time__gt=last) | Q(is_active=True)
+            )
         # 查找过期时间以前的数据
         for metric in time_series_metric_query.iterator():
             metric_info = metric.to_metric_info(field_map=orm_field_map, group=self, scope_map=scope_map)
