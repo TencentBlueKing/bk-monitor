@@ -46,3 +46,29 @@ globs:
 - 大字段列表优先使用 Map/for 循环等低开销路径。
 - 不在渲染行循环中引入重复 DOM 查询或复杂响应式计算。
 - 对高频滚动/resize/drag 逻辑使用 throttle/debounce 或缓存。
+
+## LogRows 行配置与 monitor 独立包刷新约束
+
+- `src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx` 的行级展开/行号状态由 `WeakMap<row, Ref<RowConfig>>` 承载。
+- 不允许在 render/click 路径中直接使用 `tableRowConfig.get(row).value`；必须通过 `ensureTableRowConfig(row, rowIndex)` 兜底，避免 monitor/apm 独立包在 `props.timeRange` 变更时由于刷新时序差异导致行配置未注册而 render 崩溃。
+- `ensureTableRowConfig` 必须保持 O(1)，只能基于当前 row 与当前渲染 rowIndex 懒创建/修正配置，不能扫描 `indexSetQueryResult.value.list`。
+- 展开内容二次渲染如果无法拿到 rowIndex，可以传 `-1` 只读取同轮 `renderRowCells` 已创建的配置；交互事件必须传真实 rowIndex。
+- 修改 monitor/apm 独立包相关逻辑后，必须执行 `npm run build:apm` 验证。
+
+## LogRows 大数据列表性能约束
+
+- API 返回列表和单条日志都可能非常大（线上出现过单次约 80M 响应，list 占主要内存），性能优先级高于通用重置逻辑。
+- 不要监听 `indexSetQueryResult.value?.list` 引用来重置 `renderList`；更不要使用 deep watch 或遍历 list。
+- 保留 `tableDataSize` 驱动的更新模型：接口每次通常追加约 50 条，`setRenderList(null)` 应按当前已加载长度构造 renderList，保留“更多时追加”的优化路径。
+- 不要把 `setRenderList` 的默认长度改成 `pageSize`；否则会破坏已加载数据展示和本地分页追加模型。
+- `resetRowListState` 不应重置 `pageIndex/hasMoreList`，避免把已加载/已展开的本地分页状态误退回首屏。
+- 禁止恢复 eager `updateTableRowConfig` 这类按 `tableDataSize/list.length` 全量初始化或清理 WeakMap 的逻辑；行状态必须在实际渲染/点击时懒创建。
+
+
+## LogRows 大数据查询更新与行状态约束
+
+- `LogRows` 面向大日志结果：单条日志可能很大，接口返回也可能很大。不得对 `indexSetQueryResult.list` 做 deep watch、遍历式 watch、序列化、structured clone 或基于内容的比较。
+- 查询变更条件很多（timeRange、keyword、addition、sort、indexSet 等），组件内不要枚举这些条件；以 store 行为为准：非分页查询开始前会清空 list，因此 `tableDataSize === 0` 是本地分页状态复位的轻量信号。
+- `setRenderList` 必须保留按当前已加载 `tableDataSize` 或指定 length 构建渲染窗口的语义；滚动加载更多只推进 `pageIndex/pageSize`，不能在查询刷新外重置已加载更多状态。
+- `tableRowConfig` 若继续使用 WeakMap，必须通过 `ensureTableRowConfig(row, rowIndex)` 懒创建；禁止 `tableRowConfig.get(row).value` 裸访问，禁止恢复按 `tableDataSize` 全量初始化 row config。
+- Row Expand / 操作列 / 行号列必须使用当前 render 回调提供的 `rowIndex` 参与兜底，避免独立包刷新时新 row 对象还未注册导致错误行号或空引用。
