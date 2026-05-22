@@ -40,6 +40,7 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
+import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
 import ScrollTop from '../../components/scroll-top/index';
 import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
@@ -134,6 +135,7 @@ export default defineComponent({
 
     const tableRowConfig = new WeakMap();
     const isPageLoading = ref(RetrieveHelper.isSearching);
+    const isPaginationLoading = ref(false);
     // 前端本地分页loadmore触发器
     // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
     const localUpdateCounter = ref(0);
@@ -158,9 +160,6 @@ export default defineComponent({
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
     const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
 
-    // 检索第一页数据时，loading状态
-    const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
-
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
@@ -172,18 +171,26 @@ export default defineComponent({
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
     const columnLayoutVersion = ref(0);
+    const isFirstPageLayoutPending = ref(false);
+    let firstPageLayoutToken = 0;
 
     /**
      * 重置分页状态
+     * 新查询首屏需要先展示骨架屏，等待列宽布局稳定后再渲染真实行，避免 monitor 包外部挂载时首帧列宽抖动。
      */
     const resetPageState = () => {
       pageIndex.value = 1;
       hasMoreList.value = true;
+      isFirstPageLayoutPending.value = true;
+      firstPageLayoutToken += 1;
     };
 
     const { addEvent } = useRetrieveEvent();
     addEvent(RetrieveEvent.SEARCHING_CHANGE, (isSearching) => {
       isPageLoading.value = isSearching;
+      if (isSearching && tableDataSize.value === 0 && !isPaginationLoading.value) {
+        resetPageState();
+      }
     });
 
     addEvent([
@@ -639,6 +646,7 @@ export default defineComponent({
 
     const isRequesting = ref(false);
     let requestingTimer: any = null;
+    let skipNextLoadingEndReset = false;
 
     const debounceSetLoading = (delay = 120) => {
       requestingTimer && clearTimeout(requestingTimer);
@@ -680,13 +688,26 @@ export default defineComponent({
       },
     };
 
+    let syncResultBoxRectBeforeRender = () => {};
+    let scheduleFirstPageTableReveal = () => {};
+
     const resetRowListState = () => {
+      const shouldWaitFirstPageLayout = isFirstPageLayoutPending.value && tableDataSize.value > 0;
+
+      if (shouldWaitFirstPageLayout) {
+        syncResultBoxRectBeforeRender();
+      }
+
       setRenderList(null);
       debounceSetLoading();
       localUpdateCounter.value += 1;
 
       if (tableDataSize.value <= pageSize.value) {
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+      }
+
+      if (shouldWaitFirstPageLayout) {
+        scheduleFirstPageTableReveal();
       }
     };
 
@@ -771,6 +792,9 @@ export default defineComponent({
       ([size]) => {
         if (size === 0) {
           resetPageState();
+          if (!isLoading.value) {
+            isFirstPageLayoutPending.value = false;
+          }
         }
 
         resetRowListState();
@@ -868,6 +892,26 @@ export default defineComponent({
       preserveHorizontalScrollAfterColumnResize(prevScrollLeft);
     };
 
+    const getPaginationResponseSize = (resp) => {
+      if (typeof resp?.length === 'number') {
+        return resp.length;
+      }
+
+      if (typeof resp?.size === 'number') {
+        return resp.size;
+      }
+
+      if (Array.isArray(resp)) {
+        return resp.length;
+      }
+
+      if (Array.isArray(resp?.data?.list)) {
+        return resp.data.list.length;
+      }
+
+      return null;
+    };
+
     const loadMoreTableData = () => {
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
       // visibleFields.value 在字段重置时会清空，所以需要判断
@@ -889,17 +933,21 @@ export default defineComponent({
 
       if (hasMoreList.value) {
         isRequesting.value = true;
+        isPaginationLoading.value = true;
+        skipNextLoadingEndReset = true;
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then((resp) => {
+            const responseSize = getPaginationResponseSize(resp);
             pageIndex.value += 1;
             handleResultBoxResize(false);
 
-            if (resp?.length !== pageSize.value) {
+            if (responseSize !== null && responseSize < pageSize.value) {
               hasMoreList.value = false;
             }
           })
           .finally(() => {
+            isPaginationLoading.value = false;
             debounceSetLoading(0);
             nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
           });
@@ -930,6 +978,40 @@ export default defineComponent({
       rootElement: refRootElement,
       refLoadMoreElement,
     });
+
+    syncResultBoxRectBeforeRender = () => {
+      computeRectSync(refResultRowBox.value);
+      triggerColumnLayoutReflow();
+    };
+
+    scheduleFirstPageTableReveal = () => {
+      const token = firstPageLayoutToken;
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          if (token !== firstPageLayoutToken || tableDataSize.value === 0) {
+            return;
+          }
+
+          computeRectSync(refResultRowBox.value);
+          triggerColumnLayoutReflow();
+
+          nextTick(() => {
+            requestAnimationFrame(() => {
+              if (token !== firstPageLayoutToken || tableDataSize.value === 0) {
+                return;
+              }
+
+              computeRectSync(refResultRowBox.value);
+              isFirstPageLayoutPending.value = false;
+              nextTick(() => {
+                computeRectSync(refResultRowBox.value);
+                setRowboxTransform();
+              });
+            });
+          });
+        });
+      });
+    };
 
     const setRowboxTransform = () => {
       if (refResultRowBox.value && refRootElement.value) {
@@ -1096,8 +1178,34 @@ export default defineComponent({
       return showCtxType.value === 'table' && tableList.value.length > 0;
     });
 
+    const hasResultException = computed(() => {
+      const rawExceptionMsg = indexSetQueryResult.value?.exception_msg ?? '';
+      return indexSetQueryResult.value?.is_error || (!!rawExceptionMsg && !/^cancel$/gi.test(rawExceptionMsg));
+    });
+
+    const shouldEnterFirstPageSkeleton = computed(() => {
+      return (
+        !hasResultException.value
+        && !isPaginationLoading.value
+        && tableDataSize.value === 0
+        && (isLoading.value || isPageLoading.value || isRequesting.value)
+      );
+    });
+
+    const shouldShowFirstPageSkeleton = computed(() => {
+      if (hasResultException.value || isPaginationLoading.value) {
+        return false;
+      }
+
+      return shouldEnterFirstPageSkeleton.value || (isFirstPageLayoutPending.value && tableDataSize.value > 0);
+    });
+
+    const shouldBlockTableRender = computed(() => {
+      return shouldShowFirstPageSkeleton.value;
+    });
+
     const renderHeadVNode = () => {
-      if (isFirstPageLoading.value) {
+      if (shouldBlockTableRender.value) {
         return null;
       }
 
@@ -1265,7 +1373,7 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      if (isFirstPageLoading.value) {
+      if (shouldBlockTableRender.value) {
         return null;
       }
 
@@ -1303,11 +1411,11 @@ export default defineComponent({
     };
 
     const loadingText = computed(() => {
-      if (isLoading.value && !isRequesting.value) {
+      if (isLoading.value && !isRequesting.value && !isPaginationLoading.value) {
         return '';
       }
 
-      if (hasMoreList.value && (isLoading.value || isRending.value)) {
+      if (hasMoreList.value && (isLoading.value || isRending.value || isPaginationLoading.value)) {
         return 'Loading ...';
       }
 
@@ -1352,12 +1460,23 @@ export default defineComponent({
     watch(
       () => indexSetQueryResult.value.is_loading,
       (newVal, oldVal) => {
-        if (oldVal && !newVal && !isRequesting.value) {
-          nextTick(() => {
-            scrollXOffsetLeft = 0;
-            refScrollXBar.value?.scrollLeft(0);
-            computeRect(refResultRowBox.value);
-          });
+        if (oldVal && !newVal) {
+          if (tableDataSize.value === 0) {
+            isFirstPageLayoutPending.value = false;
+          }
+
+          if (skipNextLoadingEndReset) {
+            skipNextLoadingEndReset = false;
+            return;
+          }
+
+          if (!isRequesting.value) {
+            nextTick(() => {
+              scrollXOffsetLeft = 0;
+              refScrollXBar.value?.scrollLeft(0);
+              computeRect(refResultRowBox.value);
+            });
+          }
         }
       },
     );
@@ -1386,13 +1505,19 @@ export default defineComponent({
 
     const isTableLoading = computed(() => {
       return (
-        tableDataSize.value === 0 && (isRequesting.value || isRending.value || isPageLoading.value || isLoading.value)
+        !shouldShowFirstPageSkeleton.value
+        && tableDataSize.value === 0
+        && (isRequesting.value || isRending.value || isPageLoading.value || isLoading.value)
       );
     });
 
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const exceptionType = computed(() => {
       if (tableDataSize.value === 0 || indexFieldInfo.value.is_loading) {
+        if (shouldShowFirstPageSkeleton.value) {
+          return 'hidden';
+        }
+
         if (isRequesting.value || isLoading.value || isPageLoading.value) {
           return 'loading';
         }
@@ -1416,10 +1541,31 @@ export default defineComponent({
     });
 
     const getExceptionRender = () => {
+      if (shouldShowFirstPageSkeleton.value) {
+        return null;
+      }
+
       return (
         <LogResultException
           message={exceptionMsg.value}
           type={exceptionType.value}
+        />
+      );
+    };
+
+    const renderFirstPageSkeleton = () => {
+      if (!shouldShowFirstPageSkeleton.value) {
+        return null;
+      }
+
+      return (
+        <RetrieveLoader
+          class='bklog-first-page-skeleton'
+          isLoading={true}
+          isOriginalField={showCtxType.value !== 'table'}
+          maxLength={12}
+          static={true}
+          visibleFields={visibleFields.value.length ? visibleFields.value : fullColumns.value}
         />
       );
     };
@@ -1445,6 +1591,7 @@ export default defineComponent({
       renderScrollXBar,
       renderLoader,
       renderHeadVNode,
+      renderFirstPageSkeleton,
       getExceptionRender,
       tableDataSize,
       resultContainerId,
@@ -1470,6 +1617,7 @@ export default defineComponent({
         >
           {this.renderRowVNode()}
         </div>
+        {this.renderFirstPageSkeleton()}
         {this.getExceptionRender()}
         {this.renderFixRightShadow()}
         {this.renderScrollXBar()}
