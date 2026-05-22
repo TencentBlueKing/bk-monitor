@@ -336,9 +336,11 @@ class TestCollectorViewSetAPI(TestCase):
         content = json.loads(response.content)
 
         logger.info(f" {sys._getframe().f_code.co_name}:{content}")
+        # DEBUG: 显式输出便于 CI 日志定位失败原因
+        print(f"[DEBUG test_list_collectors_filter_by_bk_data_id] content={content}", flush=True)
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
-        self.assertTrue(content["result"])
+        self.assertTrue(content["result"], msg=f"content={content}")
         # list_collectors 返回的是列表
         result_list = content["data"]
         matched = [item for item in result_list if item["bk_data_id"] == 1500586]
