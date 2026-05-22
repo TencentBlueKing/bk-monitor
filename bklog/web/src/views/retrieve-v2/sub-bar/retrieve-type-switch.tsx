@@ -27,6 +27,7 @@
 import { computed, defineComponent } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import http from '@/api';
 import { useRoute, useRouter } from 'vue-router/composables';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getAllSceneFieldOpKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
@@ -113,6 +114,16 @@ export default defineComponent({
         // 清空检索数据
         resetRetrieveData(store);
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_CLEAR);
+
+        // 获取场景化检索用户自定义配置
+        http.request('retrieve/getSceneUserCustomConfig', {
+          query: {
+            bk_biz_id: store.state.bkBizId,
+            scene_id: SceneType.Container,
+          },
+        }).then((res) => {
+          store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
+        });
 
         router.replace({
           query: {
