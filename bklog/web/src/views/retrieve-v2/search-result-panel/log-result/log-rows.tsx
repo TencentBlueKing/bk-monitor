@@ -447,8 +447,8 @@ export default defineComponent({
         align: 'center',
         resize: false,
         fixed: 'left',
-        renderBodyCell: ({ row }) => {
-          const config: RowConfig = tableRowConfig.get(row).value;
+        renderBodyCell: ({ row, rowIndex }) => {
+          const config: RowConfig = ensureTableRowConfig(row, rowIndex).value;
           return (
             <span class={['bklog-expand-icon', { 'is-expaned': config.expand }]}>
               <i
@@ -468,8 +468,8 @@ export default defineComponent({
         align: 'center',
         resize: false,
         class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
-        renderBodyCell: ({ row }) => {
-          return tableRowConfig.get(row).value[ROW_INDEX] + 1;
+        renderBodyCell: ({ row, rowIndex }) => {
+          return ensureTableRowConfig(row, rowIndex).value[ROW_INDEX] + 1;
         },
       },
       {
@@ -496,15 +496,15 @@ export default defineComponent({
       },
     ]);
 
-    const handleRowAIClcik = (e: MouseEvent, row: any) => {
-      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
+    const handleRowAIClcik = (e: MouseEvent, row: any, rowIndex: number) => {
+      const displayRowIndex = ensureTableRowConfig(row, rowIndex).value[ROW_INDEX] + 1;
       const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
       const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
 
       oldRow?.classList.remove('ai-active');
       targetRow?.classList.add('ai-active');
 
-      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
+      props.handleClickTools('ai', row, indexSetOperatorConfig.value, displayRowIndex);
     };
 
     const rightColumns = computed(() => {
@@ -519,20 +519,20 @@ export default defineComponent({
           width: operatorToolsWidth.value,
           fixed: 'right',
           resize: false,
-          renderBodyCell: ({ row }) => {
+          renderBodyCell: ({ row, rowIndex }) => {
             return (
               // @ts-expect-error
               <OperatorTools
                 handle-click={(type, event) => {
                   if (type === 'ai') {
-                    handleRowAIClcik(event, row);
+                    handleRowAIClcik(event, row, rowIndex);
                     return;
                   }
                   props.handleClickTools(
                     type,
                     row,
                     indexSetOperatorConfig.value,
-                    tableRowConfig.get(row).value[ROW_INDEX] + 1,
+                    ensureTableRowConfig(row, rowIndex).value[ROW_INDEX] + 1,
                   );
                 }}
                 index={row[ROW_INDEX]}
@@ -611,30 +611,30 @@ export default defineComponent({
       }, {});
     };
 
-    const updateTableRowConfig = (nextIdx = 0) => {
-      if (nextIdx >= 0) {
-        for (let index = nextIdx; index < tableDataSize.value; index++) {
-          const nextRow = tableList.value[index];
-          if (!tableRowConfig.has(nextRow)) {
-            const rowKey = `${ROW_KEY}_${index}`;
-            tableRowConfig.set(
-              nextRow,
-              ref({
-                [ROW_KEY]: rowKey,
-                [ROW_INDEX]: index,
-                ...getRowConfigWithCache(),
-              }),
-            );
-          }
-        }
+    const createRowConfigRef = (index: number) => {
+      const rowIndex = index >= 0 ? index : -1;
+      const rowKey = `${ROW_KEY}_${rowIndex}`;
+      return ref({
+        [ROW_KEY]: rowKey,
+        [ROW_INDEX]: rowIndex,
+        ...getRowConfigWithCache(),
+      });
+    };
+
+    const ensureTableRowConfig = (row, index: number) => {
+      if (!row) {
+        return createRowConfigRef(index);
       }
 
-      if (nextIdx === -1) {
-        for (let index = 0; index < tableDataSize.value; index++) {
-          const nextRow = tableList.value[index];
-          tableRowConfig.delete(nextRow);
-        }
+      let config = tableRowConfig.get(row);
+      if (!config) {
+        config = createRowConfigRef(index);
+        tableRowConfig.set(row, config);
+      } else if (index >= 0 && config.value[ROW_INDEX] !== index) {
+        config.value[ROW_INDEX] = index;
       }
+
+      return config;
     };
 
     const isRequesting = ref(false);
@@ -648,9 +648,9 @@ export default defineComponent({
     };
 
     const expandOption = {
-      render: ({ row }) => {
-        const config = tableRowConfig.get(row);
-        const rowIndex = config.value[ROW_INDEX];
+      render: ({ row, rowIndex }) => {
+        const config = ensureTableRowConfig(row, rowIndex);
+        const realRowIndex = config.value[ROW_INDEX];
 
         // // 性能监控：记录展开渲染耗时
         // perfStart('log-rows:expand-render', {
@@ -671,7 +671,7 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
-            row-index={rowIndex}
+            row-index={realRowIndex}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {
               return handleIconClick(type, content, field, row, isLink, depth, isNestedField);
             }}
@@ -680,12 +680,12 @@ export default defineComponent({
       },
     };
 
-    const resetRowListState = (oldValSize?) => {
+    const resetRowListState = () => {
       setRenderList(null);
       debounceSetLoading();
-      updateTableRowConfig(oldValSize ?? 0);
+      localUpdateCounter.value += 1;
 
-      if (tableDataSize.value <= 50) {
+      if (tableDataSize.value <= pageSize.value) {
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
       }
     };
@@ -768,8 +768,12 @@ export default defineComponent({
 
     watch(
       () => [tableDataSize.value],
-      (_, oldVal) => {
-        resetRowListState(oldVal?.[0]);
+      ([size]) => {
+        if (size === 0) {
+          resetPageState();
+        }
+
+        resetRowListState();
       },
       {
         immediate: true,
@@ -779,7 +783,7 @@ export default defineComponent({
     useResizeObserve(
       () => refResultRowBox.value,
       () => {
-        handleResultBoxResize();
+        handleResultBoxResize(!isColumnWidthChanging);
         RetrieveHelper.fire(RetrieveEvent.RESULT_ROW_BOX_RESIZE);
       },
       60,
@@ -797,7 +801,33 @@ export default defineComponent({
       refResultRowBox.value?.querySelector('.ai-active')?.classList.remove('ai-active');
     });
 
+    let isColumnWidthChanging = false;
+    let columnWidthChangeTimer: number;
+
+    const markColumnWidthChanging = () => {
+      isColumnWidthChanging = true;
+      window.clearTimeout(columnWidthChangeTimer);
+      columnWidthChangeTimer = window.setTimeout(() => {
+        isColumnWidthChanging = false;
+      }, 300);
+    };
+
+    const preserveHorizontalScrollAfterColumnResize = (preferredScrollLeft: number) => {
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          computeRectSync(refResultRowBox.value);
+          const maxOffset = Math.max(0, scrollWidth.value - offsetWidth.value);
+          scrollXOffsetLeft = Math.min(preferredScrollLeft, maxOffset);
+          refScrollXBar.value?.scrollLeft(scrollXOffsetLeft);
+          setRowboxTransform();
+        });
+      });
+    };
+
     const handleColumnWidthChange = (w, col) => {
+      const prevScrollLeft = scrollXOffsetLeft;
+      markColumnWidthChanging();
+
       const width = w > 40 ? w : 40;
       const longFiels = visibleFields.value.filter(
         item => item.width >= 800 || item.field_name === 'log' || item.field_type === 'text',
@@ -835,6 +865,7 @@ export default defineComponent({
       });
 
       store.commit('updateVisibleFields', visibleFields.value);
+      preserveHorizontalScrollAfterColumnResize(prevScrollLeft);
     };
 
     const loadMoreTableData = () => {
@@ -971,7 +1002,6 @@ export default defineComponent({
     const preloadCooldown = 300;         // ms
 
     const shouldPreloadOnScrollDown = (event: WheelEvent) => {
-
       if (!hasMoreList.value) return false;
       if (isPreloading.value) return false;
 
@@ -987,9 +1017,13 @@ export default defineComponent({
       const clientHeight = scrollElement?.clientHeight ?? 0;
       const scrollHeight = scrollElement?.scrollHeight ?? 0;
       const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
+      const shouldPreload = distanceToBottom <= preloadThreshold;
+      if (shouldPreload) {
+        lastPreloadTime = now;
+      }
 
-      return distanceToBottom <= preloadThreshold;
-    }
+      return shouldPreload;
+    };
 
     let isAnimating = false;
 
@@ -1131,7 +1165,7 @@ export default defineComponent({
     });
 
     const renderRowCells = (row, rowIndex) => {
-      const { expand } = tableRowConfig.get(row).value;
+      const { expand } = ensureTableRowConfig(row, rowIndex).value;
       let hasFullWidth = false;
 
       return [
@@ -1157,7 +1191,7 @@ export default defineComponent({
             );
           })}
         </div>,
-        expand ? expandOption.render({ row }) : '',
+        expand ? expandOption.render({ row, rowIndex }) : '',
       ];
     };
 
@@ -1173,7 +1207,7 @@ export default defineComponent({
       savedSelection = null;
     };
 
-    const handleRowMouseup = (e: MouseEvent, item: any) => {
+    const handleRowMouseup = (e: MouseEvent, item: any, rowIndex: number) => {
       if (!mousedownOnRow) {
         RetrieveHelper.setMousedownEvent(null);
         return;
@@ -1205,7 +1239,7 @@ export default defineComponent({
         return;
       }
 
-      const config: RowConfig = tableRowConfig.get(item).value;
+      const config: RowConfig = ensureTableRowConfig(item, rowIndex).value;
       const isExpanding = !config.expand;
       config.expand = isExpanding;
       RetrieveHelper.setMousedownEvent(null);
@@ -1244,7 +1278,7 @@ export default defineComponent({
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
             on-row-mousedown={handleRowMousedown}
-            on-row-mouseup={e => handleRowMouseup(e, row.item)}
+            on-row-mouseup={e => handleRowMouseup(e, row.item, rowIndex)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
@@ -1325,7 +1359,7 @@ export default defineComponent({
             computeRect(refResultRowBox.value);
           });
         }
-      }
+      },
     );
 
     const renderLoader = () => {
@@ -1396,7 +1430,8 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
-      resetRowListState(-1);
+      window.clearTimeout(columnWidthChangeTimer);
+      renderList = Object.freeze([]);
     });
 
     return {
