@@ -115,6 +115,8 @@ export interface IssueItem extends Record<string, unknown> {
   labels: string[];
   /** 最近关联告警时间（秒级时间戳） */
   last_alert_time: number;
+  /** 合并状态 */
+  merge_status?: IssueMergeStatus;
   /** Issue 名称（回归问题带 [回归] 前缀） */
   name: string;
   /** 优先级 */
@@ -135,4 +137,10 @@ export interface IssueItem extends Record<string, unknown> {
   trend: [number, number][];
   /** 最近更新时间（秒级时间戳） */
   update_time: number;
+}
+
+export interface IssueMergeStatus {
+  active_members?: { member_issue_id: string; merge_operator: string; merge_reasons: string[]; merge_time: number }[];
+  main_issue_id?: string;
+  role: 'main' | 'member';
 }
