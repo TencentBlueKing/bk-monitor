@@ -1800,9 +1800,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   handleViewRelatedAlerts() {
     const { href } = this.$router.resolve(
       getAlarmCenterRouteLocation({
-        queryString: isEn
-          ? `告警名称 : "${this.popover.data.strategyName}"`
-          : `alert_name : "${this.popover.data.strategyName}"`,
+        queryString: isEn ? `strategy_id : ${this.popover.data.id}` : `策略ID : ${this.popover.data.id}`,
         from: 'now-7d',
         to: 'now',
       })
