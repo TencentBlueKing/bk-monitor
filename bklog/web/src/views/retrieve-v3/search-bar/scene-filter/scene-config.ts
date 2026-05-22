@@ -27,17 +27,36 @@
 import { SceneType } from './types';
 import type { SceneConfig, SceneConfigItem } from './types';
 
-/** 操作符 key → 页面显示符号映射 */
+/** 操作符 key → 页面显示符号映射（非 free_input 类型） */
 export const OPERATOR_DISPLAY_MAP: Record<string, string> = {
   eq: '=',
   ne: '!=',
+  req: '正则匹配',
+  nreq: '正则排除',
+};
+
+/** 操作符 key → 页面显示符号映射（free_input 且 type=string） */
+export const FREE_INPUT_STRING_OPERATOR_DISPLAY_MAP: Record<string, string> = {
+  eq: '包含',
+  ne: '不包含',
+  req: '正则匹配',
+  nreq: '正则排除',
+};
+
+/** 操作符 key → free_input 类型请求参数映射（仅 free_input + string 时使用） */
+export const FREE_INPUT_STRING_OPERATOR_REQUEST_MAP: Record<string, string> = {
+  eq: 'contains match phrase',
+  ne: 'not contains match phrase',
   req: '=~',
   nreq: '!~',
 };
 
 /** 操作符显示符号 → key 的反向映射 */
 export const REVERSE_OPERATOR_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(OPERATOR_DISPLAY_MAP).map(([k, v]) => [v, k]),
+  [
+    ...Object.entries(OPERATOR_DISPLAY_MAP),
+    ...Object.entries(FREE_INPUT_STRING_OPERATOR_DISPLAY_MAP),
+  ].map(([k, v]) => [v, k]),
 );
 
 /**
@@ -130,8 +149,19 @@ export const getAllSceneFieldKeys = (sceneConfigs: SceneConfig[]): string[] => {
 };
 
 /** 获取操作符的显示符号，未知操作符原样返回 */
-export const getOperatorDisplay = (op: string): string => {
+export const getOperatorDisplay = (op: string, choicesType?: string, fieldType?: string): string => {
+  if (choicesType === 'free_input' && fieldType === 'string') {
+    return FREE_INPUT_STRING_OPERATOR_DISPLAY_MAP[op] ?? op;
+  }
   return OPERATOR_DISPLAY_MAP[op] ?? op;
+};
+
+/** 获取操作符的请求参数值（用于 free_input + string 类型字段的 scene_filter_values 传参） */
+export const getOperatorRequestParam = (op: string, choicesType?: string, fieldType?: string): string => {
+  if (choicesType === 'free_input' && fieldType === 'string') {
+    return FREE_INPUT_STRING_OPERATOR_REQUEST_MAP[op] ?? op;
+  }
+  return op;
 };
 
 /** 获取字段的默认操作符（取 ops 第一个） */

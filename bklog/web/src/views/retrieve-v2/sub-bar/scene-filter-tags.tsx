@@ -90,7 +90,7 @@ export default defineComponent({
 
         const rawValue = val?.value ?? val;
         const op = val?.op ?? getDefaultOp(field.ops);
-        const opDisplay = getOperatorDisplay(op);
+        const opDisplay = getOperatorDisplay(op, field.choicesType, field.fieldType);
 
         const fieldLabels = props.filterLabels[field.key] ?? {};
         const rawValues = Array.isArray(rawValue) ? rawValue : [rawValue];
