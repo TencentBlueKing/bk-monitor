@@ -116,6 +116,8 @@ export default defineComponent({
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
     /** 影响范围点击 */
     impactScopeClick: (event: ImpactScopeEvent) => !!event,
+    /** 拆分按钮点击 */
+    splitClick: (row: IssueItem) => !!row,
     /** 清除检索过滤 */
     clearFilter: () => true,
   },
@@ -136,15 +138,22 @@ export default defineComponent({
       },
     });
 
-    const { handleShowDetail, handleAssignClick, handleAction, handlePriorityClick, handleImpactScopeClick } =
-      useIssuesHandlers({
-        clickPopoverTools,
-        showDetailEmit: item => emit('showDetail', item),
-        assignClickEmit: (id, data) => emit('assignClick', id, data),
-        actionEmit: (type, id) => emit('action', type, id),
-        priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
-        impactScopeClickEmit: event => emit('impactScopeClick', event),
-      });
+    const {
+      handleShowDetail,
+      handleAssignClick,
+      handleAction,
+      handlePriorityClick,
+      handleImpactScopeClick,
+      handleSplitClick,
+    } = useIssuesHandlers({
+      clickPopoverTools,
+      showDetailEmit: item => emit('showDetail', item),
+      assignClickEmit: (id, data) => emit('assignClick', id, data),
+      actionEmit: (type, id) => emit('action', type, id),
+      priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
+      impactScopeClickEmit: event => emit('impactScopeClick', event),
+      splitClickEmit: row => emit('splitClick', row),
+    });
 
     /** Issues 列渲染器 */
     const { transformColumns } = useIssuesColumnsRenderer({
@@ -155,8 +164,9 @@ export default defineComponent({
       handleAssignClick,
       handleAction,
       handlePriorityClick,
-      handleNameChange: (row, name) => props.nameChange(row.id, name),
       handleImpactScopeClick,
+      handleSplitClick,
+      handleNameChange: (row, name) => props.nameChange(row.id, name),
     });
 
     /** 转换后的列配置 */
