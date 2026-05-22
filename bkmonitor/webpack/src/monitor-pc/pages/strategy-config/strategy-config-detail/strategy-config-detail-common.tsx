@@ -278,7 +278,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         { signal: 'closed', message_tmpl: '', title_tmpl: '' },
         { signal: 'ack', message_tmpl: '', title_tmpl: '' },
       ],
-      voice_notice: 'serial',
+      voice_notice: 'parallel',
     },
   };
 
@@ -1563,7 +1563,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             ))}
                           </span>
                         </div>
-                        {this.noticeData?.user_group_list?.length > 1 && !!this.noticeData?.config?.voice_notice ? (
+                        {this.noticeData?.user_group_list?.length > 1 && this.noticeData?.config?.voice_notice ? (
                           <div class='user-notice-item'>
                             <span class='groups-title-warp'>{this.$t('语音拨打顺序')}：</span>
                             {this.voiceNoticeText[this.noticeData.config.voice_notice]}
