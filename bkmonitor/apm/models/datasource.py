@@ -200,6 +200,12 @@ class ApmDataSourceConfigBase(models.Model):
         """判断是否为共享数据源"""
         return self.shared_datasource_id is not None
 
+    def is_ready(self) -> bool:
+        """判断数据源是否已准备就绪"""
+        if not self.bk_data_id or self.bk_data_id == -1 or not self.result_table_id:
+            return False
+        return True
+
     def to_link_info(self) -> dict[str, Any]:
         """导出链路元数据字典。
 
