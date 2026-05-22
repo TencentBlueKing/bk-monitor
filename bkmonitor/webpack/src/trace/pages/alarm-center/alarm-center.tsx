@@ -98,6 +98,7 @@ import IssuesOperationDialogs from './alarm-issues/components/issues-operation-d
 import { IssuesBatchActionEnum } from './alarm-issues/constant';
 import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-actions';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
+import IssuesMergeSplitSideslider from './alarm-issues/issues-merge-split/issues-merge-split-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
 import {
@@ -1285,16 +1286,20 @@ export default defineComponent({
             />
           </div>
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
-            <IssuesDetailSideSlider
-              firstAlarmTime={this.issueFirstAlarmTime}
-              issueBizId={this.detailBizId}
-              issueId={this.detailId}
-              show={this.alarmDetailShow}
-              showStepBtn={this.data.length > 1}
-              onNext={this.handleIssueNextDetail}
-              onPrevious={this.handleIssuePreviousDetail}
-              onUpdate:show={this.handleDetailShowChange}
-            />
+            [
+              <IssuesDetailSideSlider
+                key='issues-detail'
+                firstAlarmTime={this.issueFirstAlarmTime}
+                issueBizId={this.detailBizId}
+                issueId={this.detailId}
+                show={this.alarmDetailShow}
+                showStepBtn={this.data.length > 1}
+                onNext={this.handleIssueNextDetail}
+                onPrevious={this.handleIssuePreviousDetail}
+                onUpdate:show={this.handleDetailShowChange}
+              />,
+              <IssuesMergeSplitSideslider key='issues-merge-split' />,
+            ]
           ) : (
             <AlarmCenterDetail
               alarmBizId={this.detailBizId}
