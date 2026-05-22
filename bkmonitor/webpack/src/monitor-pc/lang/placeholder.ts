@@ -376,4 +376,7 @@ export default {
   '搜索 指标名、别名': 'Search Metric Name, Alias',
   输入告警ID进行变量渲染: 'Enter Alarm ID to render variables',
   '搜索 告警关键词': 'Search Alarm Keywords',
+
+  // RUM
+  '搜索 应用名称、展示名称、应用状态': 'Search Application Name, Display Name, Application Status',
 };

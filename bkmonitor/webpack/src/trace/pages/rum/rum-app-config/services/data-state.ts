@@ -24,9 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { getDataSampling, getDataViewConfig, getNoDataStrategyInfo } from 'monitor-api/modules/rum_meta';
-
-import { noDataStrategyDisable, noDataStrategyEnable } from '../components/data-state/mock';
+import {
+  getDataSampling,
+  getDataViewConfig,
+  getNoDataStrategyInfo,
+  noDataStrategyDisable,
+  noDataStrategyEnable,
+} from 'monitor-api/modules/rum_meta';
 
 import type { IDataSamplingItem, INoDataStrategyParams, IRumAppBaseParams, IStrategyData } from '../../typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';

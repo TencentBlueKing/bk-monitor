@@ -64,5 +64,19 @@ export default {
   检测数据上报: 'Detect Data Reporting',
   '跳过，稍后接入': 'Skip, Access Later',
   重新检测上报: 'Recheck and report again',
-  '稍等几分钟后，前往{0}查看相关数据': 'Wait a few minutes, then go to {0} to view related data',
+  /** RUM SDK 协议 */
+  'OT 协议': 'OT Protocol',
+  'Aegis 协议': 'Aegis Protocol',
+  Aegis: 'Aegis',
+  蓝鲸原生: 'BlueKing Native',
+  标准格式: 'Standard Format',
+  生态兼容: 'Ecosystem Compatible',
+  'Trace 关联': 'Trace Correlation',
+  '遵循 OpenTelemetry 标准，数据通过 OTLP 格式上报，兼容可观测平台生态，适合已有 OTel 基础设施的团队。':
+    'Compliant with OpenTelemetry standard, data is reported via OTLP format, compatible with observability platform ecosystem, suitable for teams with existing OTel infrastructure.',
+  轻量接入: 'Lightweight Integration',
+  深度优化: 'Deep Optimization',
+  配置简单: 'Simple Configuration',
+  '蓝鲸监控原生上报协议，接入成本低，数据结构针对 RUM 场景深度优化，适合新项目快速接入':
+    'BlueKing monitoring native reporting protocol, low integration cost, data structure deeply optimized for RUM scenarios, suitable for new projects to quickly integrate.',
 };

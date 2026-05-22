@@ -31,6 +31,7 @@ import { CancelToken } from 'monitor-api/cancel';
 import tippy from 'tippy.js';
 import { useI18n } from 'vue-i18n';
 
+import { type TimeRangeType, handleTransformToTimestamp } from '../../../../../../../components/time-range/utils';
 import {
   ALERT_BAR_ACTIVE_HEIGHT,
   ALERT_BAR_GAP,
@@ -56,6 +57,11 @@ export default defineComponent({
     alertGraph: {
       type: Object as PropType<IAlertGraphConfig | null>,
       default: null,
+    },
+    /** 时间范围 */
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: () => [],
     },
   },
   setup(props) {
@@ -168,8 +174,9 @@ export default defineComponent({
       }
 
       try {
+        const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
         const data = await $api[apiModule][apiFunc](
-          { ...target.data },
+          { ...target.data, start_time: startTime, end_time: endTime },
           {
             cancelToken: new CancelToken((cb: () => void) => {
               cancelFn = cb;
@@ -291,9 +298,9 @@ export default defineComponent({
       tippyInstance = null;
     });
 
-    // 监听 alertGraph 配置变化，重新拉取数据
+    // 监听 alertGraph 和 timeRange 配置变化，重新拉取数据
     watch(
-      () => props.alertGraph,
+      () => [props.alertGraph, props.timeRange],
       () => fetchAlertData(),
       { immediate: true }
     );
