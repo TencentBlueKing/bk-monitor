@@ -100,7 +100,10 @@ export default defineComponent({
         for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
           delete cleanQuery[key];
         }
-        router.replace({ query: cleanQuery });
+        router.replace({
+          params: { ...route.params, indexId: store.state.indexId || undefined },
+          query: cleanQuery,
+        });
       } else {
         store.commit('updateIndexItemParams', {
           retrieve_type: type,
