@@ -21,11 +21,13 @@
 
       &.is-close {
         top: var(--offset-search-bar);
+        transform: translateX(-8px);
         z-index: 4;
         flex: 0 0 24px;
         width: 24px;
         height: 32px;
         margin-right: -24px;
+        overflow: hidden;
       }
     }
 
