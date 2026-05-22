@@ -96,6 +96,7 @@ import IssuesImpactScopeDrawer from './alarm-issues/components/issues-impact-sco
 import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './alarm-issues/components/issues-operation-dialogs/issues-operation-dialogs';
 import { IssuesBatchActionEnum } from './alarm-issues/constant';
+import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-actions';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
@@ -125,6 +126,10 @@ export default defineComponent({
     const appStore = useAppStore();
 
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
+    /** table 选中的 rowKey 数组 */
+    const selectedRowKeys = shallowRef<string[]>([]);
+    /** 是否有选中行 */
+    const hasSelection = computed(() => selectedRowKeys.value.length > 0);
 
     const {
       handleGetUserConfig: handleGetResidentSettingUserConfig,
@@ -177,6 +182,11 @@ export default defineComponent({
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
     } = useIssuesDialogs(data as Ref<IssueItem[]>);
+
+    const { mergeDisabled, mergeDisabledTip, handleIssuesMergeClick, handleIssuesSplitClick } = useIssuesMergeActions({
+      data: data as Ref<IssueItem[]>,
+      selectedRowKeys,
+    });
 
     /**
      * @description 直接调用优先级变更接口，无需打开弹窗，成功后原地更新对应 Issue 行数据
@@ -294,8 +304,7 @@ export default defineComponent({
     /* 当前选中的告警bizId */
     const detailBizId = shallowRef<number>(undefined);
     const alarmDetailShow = shallowRef(false);
-    /** table 选中的 rowKey 数组 */
-    const selectedRowKeys = shallowRef<string[]>([]);
+
     const defaultActiveRowKeys = computed(() => {
       return detailId.value ? [detailId.value] : [];
     });
@@ -621,7 +630,7 @@ export default defineComponent({
 
     /**
      * @description 展示 Issue 详情
-     * @param {string} _id - Issue ID
+     * @param {IssueItem} item - Issue 行数据
      */
     const handleIssuesShowDetail = (item: IssueItem) => {
       detailId.value = item.id;
@@ -1046,6 +1055,11 @@ export default defineComponent({
       showPermissionTips,
       dismissPermissionTips,
       handleApplyPermission,
+      hasSelection,
+      mergeDisabled,
+      mergeDisabledTip,
+      handleIssuesMergeClick,
+      handleIssuesSplitClick,
     };
   },
   render() {
@@ -1175,8 +1189,11 @@ export default defineComponent({
                         {this.alarmStore.alarmType === AlarmType.ISSUES ? (
                           <IssuesToolbar
                             batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
-                            issuesIds={this.selectedRowKeys}
+                            hasSelection={this.hasSelection}
+                            mergeDisabled={this.mergeDisabled}
+                            mergeDisabledTip={this.mergeDisabledTip}
                             onExport={this.handleExportIssues}
+                            onMerge={this.handleIssuesMergeClick}
                           >
                             <IssuesTable
                               showEmptyOperation={
@@ -1216,6 +1233,7 @@ export default defineComponent({
                               onSelectionChange={this.handleSelectedRowKeysChange}
                               onShowDetail={this.handleIssuesShowDetail}
                               onSortChange={sort => this.handleSortChange(sort as string)}
+                              onSplitClick={this.handleIssuesSplitClick}
                             />
                           </IssuesToolbar>
                         ) : (

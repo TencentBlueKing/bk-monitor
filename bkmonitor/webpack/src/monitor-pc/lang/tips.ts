@@ -475,4 +475,9 @@ export default {
   重新打开成功: 'Reopen successfully',
   请选择Issue聚合维度: 'Please select Issue aggregation dimension',
   请选择Issue聚合生效告警级别: 'Please select effective alert level for Issue aggregation',
+  '请先选择 Issue': 'Please select Issue first',
+  '请至少选择 2 个 Issue': 'Please select at least 2 Issues',
+  '主 Issue 不支持再并入其他主 Issue': 'The main Issue does not support being merged into other main Issues',
+  '合并了 {n} 个 Issue，点击查看合并明细': 'Merged {n} Issues, click to view merge details',
+  拆分: 'Split',
 };

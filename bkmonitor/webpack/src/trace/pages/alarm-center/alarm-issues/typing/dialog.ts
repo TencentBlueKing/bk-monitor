@@ -26,7 +26,7 @@
 
 import type { IssuesBatchActionEnum } from '../constant';
 import type { IssueActiveNodeType, IssuePriorityType, IssuesBatchActionType } from './constants';
-import type { IssueItem } from './table';
+import type { IssueItem, MergeMember } from './table';
 
 // ===================== 请求参数类型 =====================
 
@@ -134,6 +134,24 @@ export interface IssueSucceededItemByActionMap {
   [IssuesBatchActionEnum.UNRESOLVE]: StatusChangeSucceededItem;
 }
 
+/** 合并来源列表请求参数 */
+export interface ListMergeSourcesParams {
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** 主 Issue ID */
+  main_issue_id: string;
+}
+
+/** 合并来源列表响应 */
+export interface ListMergeSourcesResponse {
+  /** 当前活跃成员列表 */
+  active_members: MergeMember[];
+  /** 主 Issue ID */
+  main_issue_id: string;
+  /** 拆分历史 */
+  split_history: MergeSplitHistoryItem[];
+}
+
 /** 查询最近指派负责人请求参数 */
 export interface ListRecentAssigneesParams {
   /** 业务 ID 列表 */
@@ -144,6 +162,30 @@ export interface ListRecentAssigneesParams {
 
 /** 查询最近指派负责人响应结果 */
 export type ListRecentAssigneesResponse = string[];
+
+/** 合并 Issue 请求参数 */
+export interface MergeIssueParams {
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** 主 Issue ID（合并目标） */
+  main_issue_id: string;
+  /** 被合并的成员 Issue ID 列表 */
+  members: string[];
+  /** 合并依据 */
+  reasons: string[];
+}
+
+/** 合并来源 - 拆分历史条目 */
+export interface MergeSplitHistoryItem extends MergeMember {
+  /** 拆分类型 */
+  split_kind: string;
+  /** 拆分操作人 */
+  split_operator: string;
+  /** 拆分依据 */
+  split_reasons: null | string[];
+  /** 拆分时间（Unix 秒级时间戳） */
+  split_time: number;
+}
 
 /** 重命名 Issue 请求参数 */
 export interface RenameIssueParams {
@@ -173,6 +215,16 @@ export interface ResolveIssuesParams {
 export interface ResolveSucceededItem extends IssueOperationSucceededBase {
   /** 解决时间 */
   resolved_time: IssueItem['resolved_time'];
+}
+
+/** 拆分 Issue 请求参数 */
+export interface SplitIssueParams {
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** 被拆出的成员 Issue ID */
+  member_issue_id: string;
+  /** 拆分依据 */
+  reasons: string[];
 }
 
 /** 状态变更类操作 - 成功条目 */
