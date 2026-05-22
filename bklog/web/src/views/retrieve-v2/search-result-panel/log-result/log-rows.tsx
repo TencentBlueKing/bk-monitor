@@ -171,6 +171,7 @@ export default defineComponent({
     const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
+    const columnLayoutVersion = ref(0);
 
     /**
      * 重置分页状态
@@ -280,6 +281,7 @@ export default defineComponent({
         title: field.field_name,
         width: field.width,
         minWidth: field.minWidth,
+        field_type: field.field_type,
         align: 'top',
         resize: true,
         renderBodyCell: ({ row }) => {
@@ -319,13 +321,78 @@ export default defineComponent({
       };
     };
 
-    const setColWidth = (col) => {
-      col.minWidth = col.width - 4;
-      col.width = '100%';
+    const getNumericWidth = (width, fallback = 0) => {
+      if (typeof width === 'number') {
+        return width;
+      }
+
+      if (typeof width === 'string' && width.includes('%')) {
+        return fallback;
+      }
+
+      const parsedWidth = Number.parseFloat(width);
+      return Number.isNaN(parsedWidth) ? fallback : parsedWidth;
+    };
+
+    const TABLE_WIDTH_SAFE_GAP = 4;
+
+    const getFixedColumnsWidth = () => {
+      const expandColumnWidth = 36;
+      const rowIndexColumnWidth = tableShowRowIndex.value ? 50 : 0;
+      const sourceColumnWidth = isShowSourceField.value && indexSetType.value ? 230 : 0;
+
+      return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth + operatorToolsWidth.value;
+    };
+
+    const getFieldsAvailableWidth = () => offsetWidth.value - getFixedColumnsWidth() - TABLE_WIDTH_SAFE_GAP;
+
+    const getColumnWidthTotal = (columnList: Record<string, any>[]) => {
+      return columnList.reduce((total, item) => total + getNumericWidth(item.width, item.minWidth), 0);
+    };
+
+    const getExtraWidthTargetColumns = (columnList: Record<string, any>[]) => {
+      const longTextColumns = columnList.filter((item) => {
+        return item.field === 'log' || item.field_type === 'text' || getNumericWidth(item.width) >= 800;
+      });
+
+      return longTextColumns;
+    };
+
+    const distributeExtraWidthToLongTextColumns = (columnList: Record<string, any>[]) => {
+      const availableWidth = getFieldsAvailableWidth();
+      if (availableWidth <= 0 || columnList.length === 0) {
+        return;
+      }
+
+      const columnWidth = getColumnWidthTotal(columnList);
+      if (columnWidth >= availableWidth) {
+        return;
+      }
+
+      const targetColumns = getExtraWidthTargetColumns(columnList);
+      if (targetColumns.length === 0) {
+        return;
+      }
+
+      const extraWidth = availableWidth - columnWidth;
+      const addWidth = Math.floor(extraWidth / targetColumns.length);
+      let restWidth = extraWidth - addWidth * targetColumns.length;
+
+      targetColumns.forEach((item) => {
+        const nextWidth = getNumericWidth(item.width, item.minWidth) + addWidth + (restWidth > 0 ? 1 : 0);
+        restWidth -= 1;
+        item.width = nextWidth;
+      });
+    };
+
+    const triggerColumnLayoutReflow = () => {
+      columnLayoutVersion.value += 1;
     };
 
     // 性能优化：使用 computed 缓存列配置，避免每次渲染都重新计算
     const getFieldColumns = computed(() => {
+      columnLayoutVersion.value;
+
       if (showCtxType.value === 'table') {
         const columnList: Record<string, any>[] = [];
         const columns = visibleFields.value.length > 0 ? visibleFields.value : fullColumns.value;
@@ -349,8 +416,10 @@ export default defineComponent({
         }
 
         if (logField && offsetWidth.value > maxColWidth) {
-          setColWidth(logField);
+          logField.width = getNumericWidth(logField.width, logField.minWidth);
         }
+
+        distributeExtraWidthToLongTextColumns(columnList);
 
         return columnList;
       }
@@ -655,7 +724,7 @@ export default defineComponent({
 
 
     watch(
-      () => [tableShowRowIndex.value],
+      () => [tableShowRowIndex.value, isShowSourceField.value, indexSetType.value, operatorToolsWidth.value],
       () => {
         computeRect();
       },
@@ -719,9 +788,7 @@ export default defineComponent({
     addEvent(
       [
         RetrieveEvent.FAVORITE_WIDTH_CHANGE,
-        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
         RetrieveEvent.FAVORITE_SHOWN_CHANGE,
-        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
       ],
       handleResultBoxResize,
     );
@@ -826,7 +893,7 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, scrollWidth, computeRect, getScrollElement } = useLazyRender({
+    const { offsetWidth, scrollWidth, computeRect, computeRectSync, getScrollElement } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -852,6 +919,51 @@ export default defineComponent({
     const hasScrollX = computed(() => {
       return showCtxType.value === 'table' && scrollWidth.value > offsetWidth.value;
     });
+
+    const syncResultBoxLayout = () => {
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          triggerColumnLayoutReflow();
+
+          nextTick(() => {
+            requestAnimationFrame(() => {
+              computeRectSync(refResultRowBox.value);
+              if (scrollWidth.value <= offsetWidth.value && scrollXOffsetLeft !== 0) {
+                scrollXOffsetLeft = 0;
+                refScrollXBar.value?.scrollLeft(0);
+              }
+              setRowboxTransform();
+            });
+          });
+        });
+      });
+    };
+
+    const handleFieldSettingLayoutChange = () => {
+      scrollXOffsetLeft = 0;
+      refScrollXBar.value?.scrollLeft(0);
+      computeRectSync(refResultRowBox.value);
+      syncResultBoxLayout();
+      window.setTimeout(syncResultBoxLayout, 120);
+      window.setTimeout(syncResultBoxLayout, 320);
+    };
+
+    addEvent(
+      [
+        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+      ],
+      handleFieldSettingLayoutChange,
+    );
+
+    watch(
+      () => [offsetWidth.value, showCtxType.value],
+      ([width], [oldWidth]) => {
+        if (width !== oldWidth) {
+          syncResultBoxLayout();
+        }
+      },
+    );
 
     const isPreloading = ref(false);     // 是否正在预加载
     const preloadThreshold = 32 * 50;        // 距离底部多少 px 开始预加载
@@ -955,7 +1067,6 @@ export default defineComponent({
         return null;
       }
 
-      const columnLength = allColumns.value.length;
       let hasFullWidth = false;
 
       return (
@@ -964,12 +1075,10 @@ export default defineComponent({
           class={['bklog-row-container row-header']}
         >
           <div class='bklog-list-row'>
-            {allColumns.value.map((column, index) => {
-              const cellStyle = getColumnWidth(
-                column,
-                !hasFullWidth && (column.width === '100%' || index === columnLength - 2),
-              );
-              hasFullWidth = hasFullWidth || column.width === '100%' || index === columnLength - 2;
+            {allColumns.value.map((column) => {
+              const isFullWidthColumn = !hasFullWidth && column.width === '100%';
+              const cellStyle = getColumnWidth(column, isFullWidthColumn);
+              hasFullWidth = hasFullWidth || column.width === '100%';
 
               return (
                 <LogCell
@@ -1023,7 +1132,6 @@ export default defineComponent({
 
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
-      const columnLength = allColumns.value.length;
       let hasFullWidth = false;
 
       return [
@@ -1033,12 +1141,10 @@ export default defineComponent({
           data-row-index={rowIndex}
           data-row-click
         >
-          {allColumns.value.map((column, index) => {
-            const cellStyle = getColumnWidth(
-              column,
-              !hasFullWidth && (column.width === '100%' || index === columnLength - 2),
-            );
-            hasFullWidth = hasFullWidth || column.width === '100%' || index === columnLength - 2;
+          {allColumns.value.map((column) => {
+            const isFullWidthColumn = !hasFullWidth && column.width === '100%';
+            const cellStyle = getColumnWidth(column, isFullWidthColumn);
+            hasFullWidth = hasFullWidth || column.width === '100%';
 
             return (
               <div
