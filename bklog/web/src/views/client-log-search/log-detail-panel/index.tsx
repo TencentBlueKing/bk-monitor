@@ -218,7 +218,7 @@ export default defineComponent({
     const currentBegin = ref(0);
 
     /** 每页条数 */
-    const pageSize = 50;
+    const pageSize = 1000;
 
     /** 是否还有更多日志 */
     const hasMore = ref(false);
