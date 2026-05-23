@@ -329,6 +329,18 @@ def _serialize_vhost(raw_vhost: dict[str, Any] | None, config: RabbitMqTargetCon
     }
 
 
+def _build_vhost_fallback_info(config: RabbitMqTargetConfig, queue_totals: dict[str, Any]) -> dict[str, Any]:
+    vhost_info = _serialize_vhost(None, config)
+    vhost_info.update(
+        {
+            "messages": queue_totals.get("messages"),
+            "messages_ready": queue_totals.get("messages_ready"),
+            "messages_unacknowledged": queue_totals.get("messages_unacknowledged"),
+        }
+    )
+    return vhost_info
+
+
 def _build_target_error_payload(config: RabbitMqTargetConfig, error: Exception) -> dict[str, Any]:
     return {
         "target": config.target,
@@ -372,7 +384,18 @@ def _fetch_target_overview(
     warnings: list[dict[str, Any]] = []
     try:
         encoded_vhost = _encoded_vhost(config)
-        vhost_info = _request_rabbitmq(config, "GET", f"/api/vhosts/{encoded_vhost}", expected_statuses={200})
+        vhost_info: dict[str, Any] | None = None
+        try:
+            raw_vhost_info = _request_rabbitmq(config, "GET", f"/api/vhosts/{encoded_vhost}", expected_statuses={200})
+            vhost_info = raw_vhost_info if isinstance(raw_vhost_info, dict) else None
+        except Exception as error:  # pylint: disable=broad-except
+            warnings.append(
+                {
+                    "code": "RABBITMQ_VHOST_QUERY_SKIPPED",
+                    "message": f"{config.label} vhost 详情查询失败，已继续使用 queue 接口汇总",
+                    "details": {"target": config.target, "vhost": config.vhost, "error": str(error)},
+                }
+            )
         queues = _request_rabbitmq(
             config,
             "GET",
@@ -390,6 +413,7 @@ def _fetch_target_overview(
         ]
         queue_items = [_serialize_queue(queue) for queue in filtered_queues]
         queue_items.sort(key=lambda item: (-(item.get("messages") or 0), str(item.get("name") or "")))
+        queue_totals = _build_queue_totals(filtered_queues)
 
         return {
             "target": config.target,
@@ -401,8 +425,10 @@ def _fetch_target_overview(
             "username": config.username,
             "status": "ok",
             "error": None,
-            "vhost_info": _serialize_vhost(vhost_info if isinstance(vhost_info, dict) else {}, config),
-            "queue_totals": _build_queue_totals(filtered_queues),
+            "vhost_info": (
+                _serialize_vhost(vhost_info, config) if vhost_info else _build_vhost_fallback_info(config, queue_totals)
+            ),
+            "queue_totals": queue_totals,
             "excluded_queue_count": len(queues) - len(filtered_queues),
             "queues": queue_items,
         }, warnings
