@@ -1,3 +1,5 @@
+# Print build environment timestamp for CI diagnostics
+date "+%Y-%m-%d %H:%M:%S %Z"
 export BK_PAAS_HOST=https://bk.bktencent.com
 export BKAPP_APIGW_CLOSE=on
 export APP_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
