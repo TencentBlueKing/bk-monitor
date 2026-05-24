@@ -1765,7 +1765,10 @@ class DataLink(models.Model):
             defaults.update(
                 {
                     "bkbase_rt_name": bkbase_rt_name,
-                    "bkbase_table_id": f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
+                    # 优先使用ResultTableConfig记录的bkbase_table_id，因为重建链路的所属业务并不稳定
+                    "bkbase_table_id": rt.bkbase_table_id
+                    if rt.bkbase_table_id
+                    else f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
                 }
             )
         if databus:
