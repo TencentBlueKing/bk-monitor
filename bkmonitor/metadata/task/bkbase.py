@@ -518,7 +518,7 @@ def sync_bkbase_rt_meta_info_all():
 
 def _get_bkbase_components_config(
     bk_tenant_id: str, kind: str, namespace: str, config: dict[str, Any]
-) -> tuple[dict[str, Any], dict[str, Any]] | None:
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """获取BKBase组件配置
 
     Args:
@@ -531,32 +531,15 @@ def _get_bkbase_components_config(
         基础字段配置和额外字段配置
         - 基础字段配置: 包含数据链路名称、租户ID、命名空间、名称、业务ID、状态
         - 额外字段配置: 包含组件状态，其他关联字段等
-
-        当组件无法解析出有效的归属业务ID时返回 ``None``，由调用方跳过同步。
     """
 
     metadata = config["metadata"]
     annotations: dict[str, Any] = metadata.get("annotations", {})
     labels: dict[str, Any] = metadata.get("labels", {})
+    bk_biz_id: int = int(labels.get("bk_biz_id", 0))
     name: str = metadata["name"]
     status: str = config["status"]["phase"]
     spec: dict[str, Any] = config["spec"]
-
-    # 解析归属业务ID：ResultTable 类型强制以 spec.bizId 为准（labels 可能缺失），
-    # 其他类型沿用 labels.bk_biz_id。
-    bk_biz_id: int = _resolve_bk_biz_id(kind=kind, labels=labels, spec=spec)
-
-    # ResultTable 必须能解析出 spec.bizId，否则记录 warning 并跳过同步，
-    # 避免历史上把组件错误地写入 bk_biz_id=0。
-    if kind == DataLinkKind.RESULTTABLE.value and not bk_biz_id:
-        logger.warning(
-            "_get_bkbase_components_config: skip ResultTable sync due to missing spec.bizId,"
-            "bk_tenant_id->[%s],namespace->[%s],name->[%s]",
-            bk_tenant_id,
-            namespace,
-            name,
-        )
-        return None
 
     # 基础字段
     base_config: dict[str, Any] = {
@@ -576,7 +559,6 @@ def _get_bkbase_components_config(
         case DataLinkKind.RESULTTABLE.value:
             extra_config["bkbase_table_id"] = _get_annotation_value(annotations, "ResultTableId") or ""
             extra_config["data_type"] = spec["dataType"]
-
         case DataLinkKind.VMSTORAGEBINDING.value:
             extra_config["vm_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
@@ -609,36 +591,6 @@ def _get_annotation_value(annotations: dict[str, Any], key: str) -> Any:
     return None
 
 
-def _resolve_bk_biz_id(kind: str, labels: dict[str, Any], spec: dict[str, Any]) -> int:
-    """解析 BKBase 组件的归属业务ID。
-
-    不同组件类型的业务ID来源不同：
-
-    - ``ResultTable``：以 ``spec.bizId`` 为准（``metadata.labels`` 经常缺失，
-      历史上会被错误地解析成 0）。
-    - 其他类型：沿用 ``metadata.labels.bk_biz_id``。
-
-    Args:
-        kind: 组件类型，对应 ``DataLinkKind`` 枚举值。
-        labels: ``metadata.labels`` 字段。
-        spec: ``spec`` 字段。
-
-    Returns:
-        解析出来的业务ID，无法解析时返回 0。
-    """
-
-    def _safe_int(value: Any) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return 0
-
-    if kind == DataLinkKind.RESULTTABLE.value:
-        return _safe_int(spec.get("bizId"))
-
-    return _safe_int(labels.get("bk_biz_id"))
-
-
 def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind: str):
     """创建或更新组件"""
     logger.info(
@@ -659,15 +611,15 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
     created_components = []
     update_fields = set()
     for config in configs:
-        # 获取组件基础字段和额外字段；返回 None 表示组件缺少同步所需的关键字段（如 bk_biz_id），跳过本次同步
-        component_config = _get_bkbase_components_config(
+        # 获取组件基础字段和额外字段
+        base_config, extra_config = _get_bkbase_components_config(
             bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, config=config
         )
-        if component_config is None:
-            continue
-        base_config, extra_config = component_config
-
         if base_config["name"] in exists_components:
+            # 如果没有额外字段，则跳过
+            if not extra_config:
+                continue
+
             # 如果组件已存在，则只更新额外字段
             exists_component = exists_components[base_config["name"]]
             is_updated = False
@@ -677,14 +629,6 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
                     setattr(exists_component, field, value)
                     is_updated = True
                     update_fields.add(field)
-
-            # 历史数据兜底：当存量记录的 bk_biz_id 为空/0 时，使用本次解析到的有效业务ID补齐
-            new_bk_biz_id = base_config.get("bk_biz_id") or 0
-            if new_bk_biz_id and not getattr(exists_component, "bk_biz_id", 0):
-                exists_component.bk_biz_id = new_bk_biz_id
-                is_updated = True
-                update_fields.add("bk_biz_id")
-
             if is_updated:
                 updated_components.append(exists_component)
         else:

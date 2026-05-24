@@ -305,12 +305,9 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": self.data_link_name,
-                    "es_cluster_name": es_storage.storage_cluster.cluster_name,
-                    "timezone": es_storage.time_zone,
-                },
+                es_cluster_name=es_storage.storage_cluster.cluster_name,
+                timezone=es_storage.time_zone,  # 时区,默认0时区
+                defaults={"table_id": table_id, "bkbase_result_table_name": self.data_link_name},
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
@@ -928,12 +925,9 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": component_name,
-                    "es_cluster_name": storage_cluster_name,
-                    "timezone": timezone,
-                },
+                es_cluster_name=storage_cluster_name,
+                timezone=timezone,  # 时区,默认0时区
+                defaults={"table_id": table_id, "bkbase_result_table_name": component_name},
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
