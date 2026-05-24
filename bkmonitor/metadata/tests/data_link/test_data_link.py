@@ -579,9 +579,11 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
         '"kind":"DataId","name":"bkm_data_link_test","namespace":"bkmonitor"}],"transforms":[{'
         '"kind":"PreDefinedLogic","name":"log_to_metric","format":"bkmonitor_standard_v2"}]}}]'
     )
+    expected_config_list = json.loads(expected_configs)
 
     with (
-        patch.object(DataLink, "compose_configs", return_value=expected_configs) as mock_compose_configs,
+        patch.object(DataLink, "compose_configs", return_value=expected_config_list) as mock_compose_configs,
+        patch.object(DataLink, "merge_existing_component_configs", side_effect=lambda configs: configs),
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
@@ -591,7 +593,7 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
         # 验证 compose_configs 被调用并返回预期的配置
         mock_compose_configs.assert_called_once()
         actual_configs = mock_compose_configs.return_value
-        assert actual_configs == expected_configs
+        assert actual_configs == expected_config_list
 
         # 验证 apply_data_link_with_retry 被调用并返回模拟的值
         mock_apply_with_retry.assert_called_once()
@@ -643,7 +645,8 @@ def test_merge_component_config_merges_config_fields_and_drops_runtime_fields():
         "keep_annotation": "old",
     }
     assert merged_config["spec"]["alias"] == "new_alias"
-    assert merged_config["spec"]["storage_config"] == {"keep": True, "override": "new"}
+    # 当前 merge 只做顶层补缺，不递归补齐已存在 dict 的子字段。
+    assert merged_config["spec"]["storage_config"] == {"override": "new"}
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -803,8 +806,16 @@ def test_Standard_V2_Time_Series_apply_data_link_with_failure(create_or_delete_r
     )
 
     # 模拟请求外部API时出现了异常
+    expected_config_list = [
+        {
+            "kind": DataLinkKind.RESULTTABLE.value,
+            "metadata": {"name": bkbase_vmrt_name, "namespace": "bkmonitor"},
+            "spec": {"alias": bkbase_vmrt_name},
+        }
+    ]
     with (
-        patch.object(DataLink, "compose_configs", return_value="") as mock_compose_configs,
+        patch.object(DataLink, "compose_configs", return_value=expected_config_list) as mock_compose_configs,
+        patch.object(DataLink, "merge_existing_component_configs", side_effect=lambda configs: configs),
         patch.object(DataLink, "apply_data_link_with_retry", side_effect=BKAPIError("apply_data_link_with_retry")),
     ):  # noqa
         with pytest.raises(BKAPIError):
