@@ -121,7 +121,7 @@ def rebuild_simple_databus_relation(
     from metadata.models.data_source import DataSource
 
     databus_name = databus.name
-    rebuilt_data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}_{databus_name}"
+    rebuilt_data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}_{databus_name}"
 
     # Step 1: 简单链路只处理尚未归属 DataLink 的 DataBus，已有归属直接跳过避免覆盖关系。
     if databus.data_link_name and databus.data_link_name != rebuilt_data_link_name:
@@ -940,6 +940,7 @@ def _serialize_datalink_components(instances: Sequence[DataLinkResourceConfigBas
             "namespace": instance.namespace,
             "bk_tenant_id": instance.bk_tenant_id,
             "data_link_name": instance.data_link_name,
+            "bk_biz_id": instance.bk_biz_id,
         }
         for field in ("table_id", "bk_data_id", "data_id_name", "sink_names", "result_table_ids"):
             value = getattr(instance, field, None)
