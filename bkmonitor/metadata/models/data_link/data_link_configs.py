@@ -470,11 +470,11 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         "tenant": "{{ tenant }}",
                         {% endif %}
                         "namespace": "{{namespace}}"
-                    },
-                    {% if metric_group_dimensions %}
-                    "metricGroupDimensions": {{metric_group_dimensions}},
+                    }
+                    {% if metric_group_dimensions %},
+                    "metricGroupDimensions": {{metric_group_dimensions}}
                     {% endif %}
-                    {% if dd_version %}
+                    {% if dd_version %},
                     "ddVersion": "{{dd_version}}"
                     {% endif %}
                 }
