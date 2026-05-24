@@ -429,7 +429,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         rt_name: str | None = None,
         metric_group_dimensions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        f"""
+        """
         组装VM存储配置，与结果表相关联
 
         :param rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name`` 以保持
