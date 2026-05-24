@@ -14,8 +14,11 @@ from core.drf_resource.exceptions import CustomException
 from django.db.models import Q
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_ordering,
     normalize_pagination,
     paginate_queryset,
@@ -94,8 +97,8 @@ def _serialize_bcs_cluster(bcs_cluster: models.BCSClusterInfo) -> dict[str, Any]
     return item
 
 
-def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id)
+def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.BCSClusterInfo.objects.all(), bk_tenant_id)
 
     if params.get("bk_biz_id") not in (None, ""):
         try:
@@ -136,7 +139,7 @@ def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str):
     summary="Admin 查询 BCSClusterInfo 列表",
     description="只读查询 BCSClusterInfo 列表，支持受控过滤、白名单排序和分页。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "bk_biz_id": "可选，业务 ID 精确匹配",
         "bk_data_id": "可选，DataID 精确匹配；匹配 K8sMetricDataID、CustomMetricDataID、K8sEventDataID、CustomEventDataID、SystemLogDataID、CustomLogDataID 任一字段",
         "cluster_id": "可选，集群 ID 包含匹配",
@@ -148,7 +151,7 @@ def _build_bcs_cluster_queryset(params: dict[str, Any], bk_tenant_id: str):
     example_params={"bk_tenant_id": "system", "bk_data_id": 50010, "page": 1, "page_size": 20},
 )
 def list_bcs_clusters(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), ORDERING_FIELDS, default="cluster_id")
 

@@ -21,10 +21,13 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from alarm_backends.core.cache.key import SERVICE_LOCK_METADATA_MANAGE_ES_STORAGE
+from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, ClusterInfo, DataSource
@@ -219,19 +222,28 @@ def update_time_series_metrics(time_series_metrics):
 
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def manage_es_storage(storage_record_ids, cluster_id: int = None):
+def manage_es_storage(storage_record_ids: list[int], cluster_id: int | None = None) -> None:
     """
     ES索引轮转异步任务
     @param es_storages: 待轮转采集项
     @param cluster_id: 集群ID
     @return:
     """
+    try:
+        with service_lock(SERVICE_LOCK_METADATA_MANAGE_ES_STORAGE, cluster_id=cluster_id):
+            _manage_es_storage_with_cluster_lock(storage_record_ids=storage_record_ids, cluster_id=cluster_id)
+    except LockError:
+        logger.info("manage_es_storage:cluster_id->[%s] is locked, skip rotate index", cluster_id)
+
+
+def _manage_es_storage_with_cluster_lock(storage_record_ids: list[int], cluster_id: int | None = None) -> None:
+    """在集群级锁内执行 ES 索引轮转任务."""
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="manage_es_storage", status=TASK_STARTED, process_target=None
     ).inc()
 
-    logger.info("manage_es_storage: start to manage_es_storage")
+    logger.info("manage_es_storage:cluster_id->[%s],start to manage_es_storage", cluster_id)
     start_time = time.time()
 
     es_storages = models.ESStorage.objects.filter(id__in=storage_record_ids)
@@ -272,11 +284,11 @@ def manage_es_storage(storage_record_ids, cluster_id: int = None):
         cost_time
     )
     metrics.report_all()
-    logger.info("manage_es_storage:manage_es_storage cost time: %s", cost_time)
+    logger.info("manage_es_storage:cluster_id->[%s],manage_es_storage cost time: %s", cluster_id, cost_time)
 
 
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def clean_disable_es_storage(es_storages, cluster_id: int = None):
+def clean_disable_es_storage(es_storages, cluster_id: int | None = None):
     """
     停用采集项管理异步任务
     @param es_storages: 待处理采集项

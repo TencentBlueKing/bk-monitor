@@ -101,6 +101,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 最近选择用户 ID 列表，传入后在下拉右侧展示最近选择 */
+    recentUserIds: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
   },
   emits: {
     'update:modelValue': (value: string[]) => Array.isArray(value),
@@ -238,6 +243,7 @@ export default defineComponent({
         modelValue={this.modelValue}
         multiple={this.multiple}
         placeholder={this.placeholder}
+        recentUserIds={this.recentUserIds}
         renderListItem={this.listItemRender}
         renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}

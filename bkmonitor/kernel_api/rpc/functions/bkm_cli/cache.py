@@ -235,8 +235,10 @@ def _try_json(s: str | None) -> Any:
 
 
 def _read_string(key_obj, key_params: dict[str, Any]) -> dict[str, Any]:
+    # 必须传 SimilarStr 原对象给 client；str() 会丢失 strategy_id 属性，
+    # 导致 RedisProxy 按 strategy_id=0 路由到错误的 cache_node。
     resolved_key = key_obj.get_key(**key_params)
-    raw = key_obj.client.get(str(resolved_key))
+    raw = key_obj.client.get(resolved_key)
     value = _safe_decode(raw)
     return {
         "exists": value is not None,
@@ -249,14 +251,14 @@ def _read_hash(key_obj, key_params: dict[str, Any], field: str | None, limit: in
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
     if field:
-        raw = client.hget(str(resolved_key), field)
+        raw = client.hget(resolved_key, field)
         value = _safe_decode(raw)
         return {
             "exists": value is not None,
             "field": field,
             "value": _try_json(value),
         }
-    raw_map: dict = client.hgetall(str(resolved_key))
+    raw_map: dict = client.hgetall(resolved_key)
     items = {_safe_decode(k): _try_json(_safe_decode(v)) for k, v in raw_map.items()}
     total = len(items)
     truncated_items = dict(list(items.items())[:limit])
@@ -273,11 +275,11 @@ def _read_zset(
 ) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
-    total: int = client.zcard(str(resolved_key))
+    total: int = client.zcard(resolved_key)
     if score_min is not None and score_max is not None:
-        raw_pairs = client.zrangebyscore(str(resolved_key), score_min, score_max, withscores=True, start=0, num=limit)
+        raw_pairs = client.zrangebyscore(resolved_key, score_min, score_max, withscores=True, start=0, num=limit)
     else:
-        raw_pairs = client.zrange(str(resolved_key), 0, limit - 1, withscores=True)
+        raw_pairs = client.zrange(resolved_key, 0, limit - 1, withscores=True)
     members = [{"score": score, "value": _try_json(_safe_decode(member))} for member, score in raw_pairs]
     return {
         "exists": total > 0,
@@ -291,8 +293,8 @@ def _read_zset(
 def _read_list(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
-    total: int = client.llen(str(resolved_key))
-    raw_items = client.lrange(str(resolved_key), 0, limit - 1)
+    total: int = client.llen(resolved_key)
+    raw_items = client.lrange(resolved_key, 0, limit - 1)
     items = [_try_json(_safe_decode(v)) for v in raw_items]
     return {
         "exists": total > 0,
@@ -309,12 +311,12 @@ _READ_SET_HARD_CAP = 2000
 def _read_set(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
-    total: int = client.scard(str(resolved_key))
+    total: int = client.scard(resolved_key)
     if total > _READ_SET_HARD_CAP:
         raise CustomException(
             message=f"set 成员数 {total} 超过安全读取上限 {_READ_SET_HARD_CAP}，拒绝 smembers 全量拉取"
         )
-    raw_items = client.smembers(str(resolved_key))
+    raw_items = client.smembers(resolved_key)
     members = [_try_json(_safe_decode(v)) for v in raw_items]
     return {
         "exists": total > 0,

@@ -2046,7 +2046,16 @@ class SpanKindCachedEnum(CachedEnum):
 
 
 TRACE_RESULT_TABLE_OPTION = {
-    "es_unique_field_list": ["trace_id", "span_id", "parent_span_id", "start_time", "end_time", "span_name"],
+    "es_unique_field_list": [
+        "bk_biz_id",
+        "app_name",
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "start_time",
+        "end_time",
+        "span_name",
+    ],
     # 以下为 UnifyQuery 查询所需的元数据：
     # 是否根据查询时间范围，指定具体日期的索引进行查询。
     "need_add_time": True,

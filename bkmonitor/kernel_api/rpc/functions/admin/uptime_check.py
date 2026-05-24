@@ -19,7 +19,6 @@ from bk_monitor_base.uptime_check import (
     UptimeCheckNode,
     UptimeCheckNodeModel,
     UptimeCheckNodeIPType,
-    UptimeCheckTask,
     UptimeCheckTaskModel,
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
@@ -29,8 +28,11 @@ from bk_monitor_base.uptime_check import (
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_optional_bool,
     normalize_ordering,
     normalize_pagination,
@@ -41,6 +43,7 @@ FUNC_UPTIME_CHECK_NODE_LIST = "admin.uptime_check.node_list"
 FUNC_UPTIME_CHECK_NODE_DETAIL = "admin.uptime_check.node_detail"
 FUNC_UPTIME_CHECK_TASK_LIST = "admin.uptime_check.task_list"
 FUNC_UPTIME_CHECK_TASK_DETAIL = "admin.uptime_check.task_detail"
+FUNC_UPTIME_CHECK_SUBSCRIPTION_DETAIL = "admin.uptime_check.subscription_detail"
 
 NODE_ORDERING_FIELDS = {
     "id",
@@ -103,6 +106,7 @@ NODE_MODEL_ONLY_FIELDS = (
 )
 MAX_DETAIL_RELATION_ITEMS = 200
 SUMMARY_SAMPLE_SIZE = 3
+DETAIL_JSON_LIST_LIMIT = 20
 
 
 def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> int | None:
@@ -231,13 +235,13 @@ def _build_node_query(params: dict[str, Any]) -> dict[str, Any]:
 
 def _build_node_queryset(
     *,
-    bk_tenant_id: str,
+    bk_tenant_id: str | None,
     bk_biz_id: int | None,
     params: dict[str, Any],
     ordering: str,
 ) -> tuple[Any, bool]:
     include_common = normalize_optional_bool(params.get("include_common"), "include_common")
-    queryset = UptimeCheckNodeModel.objects.filter(bk_tenant_id=bk_tenant_id, is_deleted=False)
+    queryset = filter_by_bk_tenant_id(UptimeCheckNodeModel.objects.filter(is_deleted=False), bk_tenant_id)
     needs_scope_filter = False
     if bk_biz_id is not None:
         if include_common:
@@ -298,9 +302,7 @@ def _build_task_query(params: dict[str, Any]) -> dict[str, Any]:
     return query
 
 
-def _build_task_queryset(
-    *, bk_biz_id: int | None, params: dict[str, Any], ordering: str
-) -> Any:
+def _build_task_queryset(*, bk_biz_id: int | None, params: dict[str, Any], ordering: str) -> Any:
     queryset = UptimeCheckTaskModel.objects.all()
     include_deleted = normalize_optional_bool(params.get("include_deleted"), "include_deleted")
     is_deleted = normalize_optional_bool(params.get("is_deleted"), "is_deleted")
@@ -510,7 +512,7 @@ def _extract_data_ids_from_context(value: Any) -> list[int]:
 
 
 def _mask_scalar(value: Any) -> Any:
-    if isinstance(value, (dict, list)):
+    if isinstance(value, dict | list):
         return None
     return serialize_value(value)
 
@@ -601,6 +603,32 @@ def _summarize_target_hosts(value: Any) -> dict[str, Any] | None:
     return {"count": len(value), "samples": value[:SUMMARY_SAMPLE_SIZE]}
 
 
+def _is_sensitive_detail_key(key: Any) -> bool:
+    normalized_key = str(key).strip().lower().replace("-", "_")
+    if normalized_key in SENSITIVE_CONTEXT_KEYS:
+        return True
+    return any(token in normalized_key for token in ("password", "passwd", "token", "secret", "authorization"))
+
+
+def _sanitize_subscription_detail_value(value: Any, *, key: Any = None) -> Any:
+    if key is not None and _is_sensitive_detail_key(key):
+        return "***"
+
+    if isinstance(value, dict):
+        return {
+            item_key: _sanitize_subscription_detail_value(item_value, key=item_key)
+            for item_key, item_value in value.items()
+        }
+
+    if isinstance(value, list):
+        samples = [_sanitize_subscription_detail_value(item) for item in value[:DETAIL_JSON_LIST_LIMIT]]
+        if len(value) > DETAIL_JSON_LIST_LIMIT:
+            return {"count": len(value), "samples": samples, "truncated": True}
+        return samples
+
+    return serialize_value(value)
+
+
 def _load_subscription_infos(
     *, bk_tenant_id: str, subscription_ids: list[int]
 ) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]]]:
@@ -632,10 +660,8 @@ def _load_task_subscription_relations(task_ids: list[int]) -> dict[int, list[dic
         return {}
     relation_map: dict[int, list[dict[str, Any]]] = defaultdict(list)
     queryset = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id__in=task_ids)
-    for item in (
-        queryset
-        .order_by("uptimecheck_id", "bk_biz_id", "subscription_id")
-        .values("uptimecheck_id", "subscription_id", "bk_biz_id", "is_deleted", "create_time", "update_time")
+    for item in queryset.order_by("uptimecheck_id", "bk_biz_id", "subscription_id").values(
+        "uptimecheck_id", "subscription_id", "bk_biz_id", "is_deleted", "create_time", "update_time"
     ):
         relation_map[item["uptimecheck_id"]].append(
             {
@@ -716,6 +742,19 @@ def _summarize_subscription(info: dict[str, Any] | None, relation: dict[str, Any
     }
 
 
+def _build_subscription_detail_payload(
+    *,
+    info: dict[str, Any] | None,
+    relation: dict[str, Any],
+    status_detail: Any,
+) -> dict[str, Any]:
+    payload = _summarize_subscription(info, relation)
+    payload["relation"] = _sanitize_subscription_detail_value(relation)
+    payload["config_detail"] = _sanitize_subscription_detail_value(info) if info else None
+    payload["status_detail"] = _sanitize_subscription_detail_value(status_detail) if status_detail is not None else None
+    return payload
+
+
 def _build_task_subscription_payloads(
     *, bk_tenant_id: str, task_ids: list[int]
 ) -> tuple[dict[int, list[dict[str, Any]]], list[dict[str, Any]]]:
@@ -738,6 +777,59 @@ def _build_light_task_subscription_payloads(task_ids: list[int]) -> dict[int, li
         for relation in relations:
             payloads[task_id].append(_summarize_subscription_relation(relation))
     return payloads
+
+
+def _get_task_subscription_relation(
+    *,
+    task_id: int,
+    subscription_id: int,
+    bk_biz_id: int | None,
+) -> dict[str, Any]:
+    task_queryset = UptimeCheckTaskModel.objects.filter(pk=task_id).only("id", "bk_biz_id")
+    if bk_biz_id is not None:
+        task_queryset = task_queryset.filter(bk_biz_id=bk_biz_id)
+    task = task_queryset.first()
+    if not task:
+        raise CustomException(message=f"未找到拨测任务: task_id={task_id}")
+
+    relation = (
+        UptimeCheckTaskSubscription.objects.filter(
+            uptimecheck_id=task_id,
+            subscription_id=subscription_id,
+        )
+        .order_by("bk_biz_id", "subscription_id")
+        .values("uptimecheck_id", "subscription_id", "bk_biz_id", "is_deleted", "create_time", "update_time")
+        .first()
+    )
+    if not relation:
+        raise CustomException(message=f"任务 {task_id} 未关联订阅: subscription_id={subscription_id}")
+
+    return {
+        "task_id": relation["uptimecheck_id"],
+        "subscription_id": relation["subscription_id"],
+        "bk_biz_id": relation["bk_biz_id"],
+        "is_deleted": relation.get("is_deleted", False),
+        "create_time": serialize_value(relation.get("create_time")),
+        "update_time": serialize_value(relation.get("update_time")),
+    }
+
+
+def _load_subscription_status_detail(
+    *,
+    bk_tenant_id: str,
+    subscription_id: int,
+) -> tuple[Any, list[dict[str, Any]]]:
+    from core.drf_resource import api
+
+    try:
+        status_detail = api.node_man.subscription_instance_status(
+            bk_tenant_id=bk_tenant_id,
+            subscription_id_list=[subscription_id],
+            show_task_detail=True,
+        )
+    except Exception as error:  # noqa: BLE001
+        return None, [{"code": "LOAD_SUBSCRIPTION_STATUS_FAILED", "message": str(error)}]
+    return status_detail, []
 
 
 def _serialize_task_row(
@@ -880,7 +972,7 @@ def _load_group_summaries(bk_tenant_id: str, bk_biz_id: int, group_ids: list[int
     summary="Admin 查询拨测节点列表",
     description="只读分页查询拨测节点。默认补充 bkmonitorbeat 版本、Agent/GSE 状态；include_runtime=false 时只返回轻量节点字段。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "bk_biz_id": "可选，业务 ID；传入 include_common=true 时会包含当前业务可见的公共节点",
         "node_id": "可选，节点 ID 精确匹配",
         "name": "可选，节点名称包含匹配",
@@ -899,13 +991,15 @@ def _load_group_summaries(bk_tenant_id: str, bk_biz_id: int, group_ids: list[int
     example_params={"bk_tenant_id": "system", "bk_biz_id": 2, "include_common": True, "page": 1, "page_size": 20},
 )
 def list_uptime_check_nodes(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), NODE_ORDERING_FIELDS, default="name")
     include_runtime = normalize_optional_bool(params.get("include_runtime"), "include_runtime")
     if include_runtime is None:
         include_runtime = True
+    if bk_tenant_id is None and include_runtime:
+        include_runtime = False
 
     queryset, needs_scope_filter = _build_node_queryset(
         bk_tenant_id=bk_tenant_id,
@@ -922,12 +1016,17 @@ def list_uptime_check_nodes(params: dict[str, Any]) -> dict[str, Any]:
     )
     node_ids = [int(node.id) for node in page_nodes if node.id is not None]
     task_count_map = _count_tasks_by_node(node_ids)
-    if include_runtime:
+    runtime_warnings: list[dict[str, Any]] = []
+    if include_runtime and bk_tenant_id is not None:
         hosts_by_id, node_status_map, beat_versions, runtime_warnings = _load_node_runtime(
             bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, nodes=page_nodes
         )
     else:
-        hosts_by_id, node_status_map, beat_versions, runtime_warnings = {}, {}, {}, []
+        hosts_by_id, node_status_map, beat_versions = {}, {}, {}
+        if bk_tenant_id is None:
+            runtime_warnings.append(
+                {"code": "RUNTIME_SKIPPED_FOR_ALL_TENANTS", "message": "全租户节点列表不加载租户相关运行时状态"}
+            )
     items = [
         _serialize_node(
             node,
@@ -1096,4 +1195,53 @@ def get_uptime_check_task_detail(params: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id=bk_tenant_id,
         data={"task": task_payload},
         warnings=subscription_warnings + task_warnings,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_UPTIME_CHECK_SUBSCRIPTION_DETAIL,
+    summary="Admin 查询拨测任务订阅详情",
+    description=(
+        "只读懒加载单个拨测任务关联的 NodeMan 订阅状态和订阅配置 JSON。"
+        "返回前会遮罩敏感字段，并对超长列表做采样，避免直接返回巨大 context。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "task_id": "必填，拨测任务 ID，用于校验订阅关系",
+        "subscription_id": "必填，NodeMan 订阅 ID",
+        "bk_biz_id": "可选，业务 ID；用于任务校验",
+    },
+    example_params={"bk_tenant_id": "system", "bk_biz_id": 2, "task_id": 1, "subscription_id": 1001},
+)
+def get_uptime_check_subscription_detail(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    task_id = _normalize_int(params.get("task_id"), "task_id", required=True)
+    subscription_id = _normalize_int(params.get("subscription_id"), "subscription_id", required=True)
+    bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
+
+    relation = _get_task_subscription_relation(
+        task_id=task_id,
+        subscription_id=subscription_id,
+        bk_biz_id=bk_biz_id,
+    )
+    info_map, info_warnings = _load_subscription_infos(
+        bk_tenant_id=bk_tenant_id,
+        subscription_ids=[subscription_id],
+    )
+    status_detail, status_warnings = _load_subscription_status_detail(
+        bk_tenant_id=bk_tenant_id,
+        subscription_id=subscription_id,
+    )
+    subscription = _build_subscription_detail_payload(
+        info=info_map.get(subscription_id),
+        relation=relation,
+        status_detail=status_detail,
+    )
+
+    return build_response(
+        operation="uptime_check.subscription_detail",
+        func_name=FUNC_UPTIME_CHECK_SUBSCRIPTION_DETAIL,
+        bk_tenant_id=bk_tenant_id,
+        data={"subscription": subscription},
+        warnings=info_warnings + status_warnings,
     )

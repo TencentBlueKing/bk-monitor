@@ -17,12 +17,17 @@ from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     build_response,
     count_by_field,
-    get_bk_tenant_id,
+    count_by_tenant_and_field,
+    filter_by_bk_tenant_id,
+    filter_by_tenant_resource_pairs,
+    get_page_list_bk_tenant_id,
+    get_scoped_map_value,
     normalize_include,
     normalize_ordering,
     normalize_optional_bool,
     normalize_pagination,
     paginate_queryset,
+    require_bk_tenant_id,
     serialize_model,
     serialize_option,
 )
@@ -225,8 +230,8 @@ def _serialize_custom_group(group: Any, id_field: str, name_field: str) -> dict[
     )
 
 
-def _build_result_table_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id)
+def _build_result_table_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.ResultTable.objects.all(), bk_tenant_id)
 
     if params.get("table_id"):
         table_id = str(params["table_id"]).strip()
@@ -245,10 +250,16 @@ def _build_result_table_queryset(params: dict[str, Any], bk_tenant_id: str):
             bk_data_id = int(params["bk_data_id"])
         except (TypeError, ValueError) as error:
             raise CustomException(message="bk_data_id 必须是整数") from error
-        table_ids = models.DataSourceResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id
-        ).values_list("table_id", flat=True)
-        queryset = queryset.filter(table_id__in=table_ids)
+        relation_queryset = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id)
+        if bk_tenant_id:
+            table_ids = relation_queryset.filter(bk_tenant_id=bk_tenant_id).values_list("table_id", flat=True)
+            queryset = queryset.filter(table_id__in=table_ids)
+        else:
+            queryset = filter_by_tenant_resource_pairs(
+                queryset,
+                "table_id",
+                relation_queryset.values_list("bk_tenant_id", "table_id"),
+            )
     for field in ["data_label", "label", "schema_type", "default_storage"]:
         if params.get(field) not in (None, ""):
             queryset = queryset.filter(**{field: params[field]})
@@ -313,7 +324,7 @@ def _build_result_table_summary(bk_tenant_id: str, table_id: str) -> dict[str, i
     summary="Admin 查询 ResultTable 列表",
     description="只读查询 ResultTable，支持受控过滤、白名单排序和分页。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": "可选，租户 ID；缺省或空表示全租户查询",
         "table_id": "可选，结果表 ID，支持精确、前缀或受控包含匹配",
         "table_name_zh": "可选，中文名包含匹配",
         "bk_biz_id": "可选，所属业务",
@@ -332,7 +343,7 @@ def _build_result_table_summary(bk_tenant_id: str, table_id: str) -> dict[str, i
     example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20, "ordering": "table_id"},
 )
 def list_result_tables(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), RESULT_TABLE_ORDERING_FIELDS, default="table_id")
 
@@ -340,43 +351,63 @@ def list_result_tables(params: dict[str, Any]) -> dict[str, Any]:
     result_tables, total = paginate_queryset(queryset, page=page, page_size=page_size)
     table_ids = [result_table.table_id for result_table in result_tables]
 
-    field_count_map = count_by_field(
-        models.ResultTableField, group_field="table_id", values=table_ids, bk_tenant_id=bk_tenant_id
+    count_func = count_by_field if bk_tenant_id else count_by_tenant_and_field
+    tenant_filter = {"bk_tenant_id": bk_tenant_id} if bk_tenant_id else {}
+    field_count_map = count_func(models.ResultTableField, group_field="table_id", values=table_ids, **tenant_filter)
+    datasource_count_map = count_func(
+        models.DataSourceResultTable, group_field="table_id", values=table_ids, **tenant_filter
     )
-    datasource_count_map = count_by_field(
-        models.DataSourceResultTable, group_field="table_id", values=table_ids, bk_tenant_id=bk_tenant_id
-    )
-    es_storage_table_ids = set(
-        models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids).values_list(
-            "table_id", flat=True
+    es_storage_queryset = models.ESStorage.objects.filter(table_id__in=table_ids)
+    vm_record_queryset = models.AccessVMRecord.objects.filter(result_table_id__in=table_ids)
+    if bk_tenant_id:
+        es_storage_table_ids = set(
+            es_storage_queryset.filter(bk_tenant_id=bk_tenant_id).values_list("table_id", flat=True)
         )
-    )
-    vm_record_table_ids = set(
-        models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id__in=table_ids).values_list(
-            "result_table_id", flat=True
+        vm_record_table_ids = set(
+            vm_record_queryset.filter(bk_tenant_id=bk_tenant_id).values_list("result_table_id", flat=True)
         )
-    )
-    custom_group_types: dict[str, str] = {}
+    else:
+        es_storage_table_ids = set(es_storage_queryset.values_list("bk_tenant_id", "table_id"))
+        vm_record_table_ids = set(vm_record_queryset.values_list("bk_tenant_id", "result_table_id"))
+    custom_group_types: dict[Any, str] = {}
     for model_cls, group_type in [
         (models.TimeSeriesGroup, "time_series"),
         (models.EventGroup, "event"),
         (models.LogGroup, "log"),
     ]:
-        for table_id in model_cls.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids).values_list(
-            "table_id", flat=True
-        ):
-            custom_group_types.setdefault(table_id, group_type)
+        group_queryset = model_cls.objects.filter(table_id__in=table_ids)
+        if bk_tenant_id:
+            group_queryset = group_queryset.filter(bk_tenant_id=bk_tenant_id)
+            for table_id in group_queryset.values_list("table_id", flat=True):
+                custom_group_types.setdefault(table_id, group_type)
+        else:
+            for group_bk_tenant_id, table_id in group_queryset.values_list("bk_tenant_id", "table_id"):
+                custom_group_types.setdefault((group_bk_tenant_id, table_id), group_type)
 
     items = []
     for result_table in result_tables:
         item = _serialize_result_table(result_table)
         item.update(
             {
-                "field_count": field_count_map.get(result_table.table_id, 0),
-                "datasource_count": datasource_count_map.get(result_table.table_id, 0),
-                "has_es_storage": result_table.table_id in es_storage_table_ids,
-                "has_vm_record": result_table.table_id in vm_record_table_ids,
-                "custom_group_type": custom_group_types.get(result_table.table_id),
+                "field_count": get_scoped_map_value(field_count_map, result_table.bk_tenant_id, result_table.table_id)
+                or 0,
+                "datasource_count": get_scoped_map_value(
+                    datasource_count_map, result_table.bk_tenant_id, result_table.table_id
+                )
+                or 0,
+                "has_es_storage": (
+                    result_table.table_id in es_storage_table_ids
+                    if bk_tenant_id
+                    else (result_table.bk_tenant_id, result_table.table_id) in es_storage_table_ids
+                ),
+                "has_vm_record": (
+                    result_table.table_id in vm_record_table_ids
+                    if bk_tenant_id
+                    else (result_table.bk_tenant_id, result_table.table_id) in vm_record_table_ids
+                ),
+                "custom_group_type": get_scoped_map_value(
+                    custom_group_types, result_table.bk_tenant_id, result_table.table_id
+                ),
             }
         )
         items.append(item)
@@ -394,14 +425,14 @@ def list_result_tables(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 查询 ResultTable 详情",
     description="只读查询 ResultTable 详情和关联信息；字段列表不会在详情接口全量返回，请使用 field_list。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": "必填，租户 ID",
         "table_id": "必填，结果表 ID",
         "include": f"可选，展开范围: {', '.join(sorted(DETAIL_INCLUDE_VALUES))}；不支持 fields",
     },
     example_params={"bk_tenant_id": "system", "table_id": "system.cpu", "include": ["datasources", "storages"]},
 )
 def get_result_table_detail(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = require_bk_tenant_id(params)
     table_id = _require_table_id(params)
     includes = normalize_include(params.get("include"), DETAIL_INCLUDE_VALUES)
 
@@ -491,7 +522,7 @@ def get_result_table_detail(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 分页查询 ResultTableField",
     description="只读分页查询 ResultTableField，支持受控过滤和字段 option 概览。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": "必填，租户 ID",
         "table_id": "必填，结果表 ID",
         "field_name": "可选，字段名包含匹配",
         "field_type": "可选，字段类型",
@@ -506,7 +537,7 @@ def get_result_table_detail(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "table_id": "system.cpu", "page": 1, "page_size": 50},
 )
 def list_result_table_fields(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = require_bk_tenant_id(params)
     table_id = _require_table_id(params)
     page, page_size = normalize_pagination(params, default_page_size=50, max_page_size=200)
     ordering = normalize_ordering(params.get("ordering"), FIELD_ORDERING_FIELDS, default="field_name")
@@ -560,14 +591,14 @@ def list_result_table_fields(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 查询单个 ResultTableField 及 FieldOption",
     description="只读查询单个字段及其 FieldOption。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": "必填，租户 ID",
         "table_id": "必填，结果表 ID",
         "field_name": "必填，字段名",
     },
     example_params={"bk_tenant_id": "system", "table_id": "system.cpu", "field_name": "usage"},
 )
 def get_result_table_field_options(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = require_bk_tenant_id(params)
     table_id = _require_table_id(params)
     field_name = str(params.get("field_name") or "").strip()
     if not field_name:

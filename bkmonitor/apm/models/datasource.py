@@ -714,9 +714,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if global_mode:
             bk_biz_id = GLOBAL_CONFIG_BK_BIZ_ID
             bk_tenant_id = DEFAULT_TENANT_ID
+            table_name_zh = f"APM 共享数据源（{table_id.rsplit('_', 1)[-1]}）"
         else:
             bk_biz_id = self.bk_biz_id
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+            table_name_zh = self.app_name
 
         params = {
             "bk_data_id": self.bk_data_id,
@@ -725,7 +727,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "bk_tenant_id": bk_tenant_id,
             "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             "is_enable": True,
-            "table_name_zh": self.app_name,
+            "table_name_zh": table_name_zh,
             "is_custom_table": True,
             "schema_type": "free",
             "default_storage": "elasticsearch",

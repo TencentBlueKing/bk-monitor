@@ -15,10 +15,15 @@ from django.db.models import Q
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     SAFETY_LEVEL_DESTRUCTIVE,
     SAFETY_LEVEL_WRITE,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
+    get_scoped_map_value,
+    instance_tenant_resource_key,
     normalize_optional_bool,
     normalize_ordering,
     normalize_pagination,
@@ -136,18 +141,18 @@ def _service_call(fn, *args: Any, **kwargs: Any) -> Any:
 
 def _build_vm_cluster_name_map(
     records: list[models.VMShortLinkRecord],
-    bk_tenant_id: str,
-) -> dict[int, str]:
+    bk_tenant_id: str | None,
+) -> dict[Any, str]:
     cluster_ids = {record.vm_cluster_id for record in records if record.vm_cluster_id}
     if not cluster_ids:
         return {}
-    return dict(
-        models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_id__in=cluster_ids,
-            cluster_type=models.ClusterInfo.TYPE_VM,
-        ).values_list("cluster_id", "cluster_name")
+    queryset = filter_by_bk_tenant_id(
+        models.ClusterInfo.objects.filter(cluster_id__in=cluster_ids, cluster_type=models.ClusterInfo.TYPE_VM),
+        bk_tenant_id,
     )
+    if bk_tenant_id is None:
+        return {instance_tenant_resource_key(cluster, "cluster_id"): cluster.cluster_name for cluster in queryset}
+    return {cluster.cluster_id: cluster.cluster_name for cluster in queryset}
 
 
 def _serialize_short_link(
@@ -157,13 +162,15 @@ def _serialize_short_link(
     item = serialize_model(record, VM_SHORT_LINK_FIELDS)
     item["bk_biz_id"] = int(record.space_id) if record.space_type == "bkcc" and record.space_id.isdigit() else None
     item["data_label"] = ",".join(record.data_labels or [])
-    item["vm_cluster_name"] = (vm_cluster_names or {}).get(record.vm_cluster_id) or ""
+    item["vm_cluster_name"] = (
+        get_scoped_map_value(vm_cluster_names or {}, record.bk_tenant_id, record.vm_cluster_id) or ""
+    )
     item["normalized_query_router_config"] = record.normalized_query_router_config
     return item
 
 
-def _build_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.VMShortLinkRecord.objects.filter(bk_tenant_id=bk_tenant_id)
+def _build_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.VMShortLinkRecord.objects.all(), bk_tenant_id)
     include_deleted = normalize_optional_bool(params.get("include_deleted"), "include_deleted") or False
     if not include_deleted:
         queryset = queryset.filter(is_deleted=False)
@@ -226,7 +233,7 @@ def _build_target_params(params: dict[str, Any]) -> tuple[list[str] | None, list
     summary="Admin 查询 VM 短链路列表",
     description="分页查询 VMShortLinkRecord，支持按业务、虚拟结果表、VMRT、全局、启用和删除态过滤。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "bk_biz_id": "可选，BKCC 业务 ID",
         "table_id": "可选，虚拟结果表 ID，支持包含匹配",
         "vmrt": "可选，VM 结果表 ID，支持包含匹配",
@@ -241,7 +248,7 @@ def _build_target_params(params: dict[str, Any]) -> tuple[list[str] | None, list
     example_params={"bk_tenant_id": "system", "bk_biz_id": 315, "page": 1, "page_size": 20},
 )
 def list_vm_short_links(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), ORDERING_FIELDS, default="-update_time")
     queryset = _build_queryset(params, bk_tenant_id).order_by(ordering, "table_id")

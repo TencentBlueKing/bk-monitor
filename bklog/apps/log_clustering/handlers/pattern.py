@@ -30,9 +30,14 @@ from django.utils.functional import cached_property
 
 from apps.api import MonitorApi, UnifyQueryApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SEARCH_CLUSTERING
+from apps.feature_toggle.plugins.constants import (
+    BKDATA_CLUSTERING_TOGGLE,
+    UNIFY_QUERY_SEARCH,
+    UNIFY_QUERY_SEARCH_CLUSTERING,
+)
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
+    CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST,
     DEFAULT_ACTION_NOTICE,
     DEFAULT_ALERT_NOTICE,
     DEFAULT_LABEL,
@@ -148,12 +153,18 @@ class PatternHandler:
         )
 
         signature_map_remark = {}
+        signature_map_remark_without_group = {}
         origin_pattern_map_remark = {}
+        origin_pattern_map_remark_without_group = {}
 
         for remark in clustering_remarks:
             signature_map_remark[(remark["signature"], remark["group_hash"])] = remark
+            if self._allow_remark_group_fallback and not remark["groups"]:
+                signature_map_remark_without_group[remark["signature"]] = remark
             if remark["origin_pattern"]:
                 origin_pattern_map_remark[(remark["origin_pattern"], remark["group_hash"])] = remark
+                if self._allow_remark_group_fallback and not remark["groups"]:
+                    origin_pattern_map_remark_without_group[remark["origin_pattern"]] = remark
 
         result = []
         for pattern in pattern_aggs:
@@ -178,17 +189,35 @@ class PatternHandler:
                 [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
             )
 
-            # 严格按 (signature/origin_pattern, group_hash) 精确匹配，不再兼容空维度备注降级展示
-            if (signature, group_hash) in signature_map_remark:
-                remark = signature_map_remark[(signature, group_hash)]["remark"]
-                owners = signature_map_remark[(signature, group_hash)]["owners"]
-                strategy_id = signature_map_remark[(signature, group_hash)]["strategy_id"]
-                strategy_enabled = signature_map_remark[(signature, group_hash)]["strategy_enabled"]
-            elif signature_origin_pattern and (signature_origin_pattern, group_hash) in origin_pattern_map_remark:
-                remark = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["remark"]
-                owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
-                strategy_id = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_id"]
-                strategy_enabled = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["strategy_enabled"]
+            # 黑名单业务严格匹配 group_hash；其余业务兼容空维度备注降级展示。
+            remark_obj = None
+            exact_signature_remark_obj = signature_map_remark.get((signature, group_hash))
+            exact_origin_pattern_remark_obj = (
+                origin_pattern_map_remark.get((signature_origin_pattern, group_hash))
+                if signature_origin_pattern
+                else None
+            )
+            fallback_signature_remark_obj = signature_map_remark_without_group.get(signature)
+            fallback_origin_pattern_remark_obj = (
+                origin_pattern_map_remark_without_group.get(signature_origin_pattern)
+                if signature_origin_pattern
+                else None
+            )
+            for candidate in [
+                exact_signature_remark_obj,
+                exact_origin_pattern_remark_obj,
+                fallback_signature_remark_obj,
+                fallback_origin_pattern_remark_obj,
+            ]:
+                if candidate and candidate["remark"]:
+                    remark_obj = candidate
+                    break
+
+            if remark_obj:
+                remark = remark_obj["remark"]
+                owners = remark_obj["owners"]
+                strategy_id = remark_obj["strategy_id"]
+                strategy_enabled = remark_obj["strategy_enabled"]
             else:
                 remark = []
                 owners = []
@@ -218,6 +247,18 @@ class PatternHandler:
             result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
+
+    @cached_property
+    def _allow_remark_group_fallback(self) -> bool:
+        feature_toggle = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE)
+        feature_config = feature_toggle.feature_config if feature_toggle else {}
+        if not isinstance(feature_config, dict):
+            return True
+
+        biz_id_black_list = feature_config.get(CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST, [])
+        if not isinstance(biz_id_black_list, list | tuple | set):
+            return True
+        return str(self._clustering_config.bk_biz_id) not in {str(bk_biz_id) for bk_biz_id in biz_id_black_list}
 
     def _get_remark_and_owner(self, result):
         if self._remark_config == RemarkConfigEnum.REMARKED.value:
