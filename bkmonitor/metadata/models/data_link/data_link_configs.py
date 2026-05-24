@@ -325,14 +325,20 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
 
     def compose_config(
         self,
-        storage_cluster_name,
-        write_alias_format,
-        unique_field_list,
+        storage_cluster_name: str,
+        write_alias_format: str,
+        unique_field_list: list[str],
         json_field_list: list[str] | None = None,
-    ):
+        rt_name: str | None = None,
+    ) -> dict[str, Any]:
         """
         结果表- ES存储关联关系
         在日志链路中,整套链路各个资源的name相同
+
+        Args:
+            rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name``，以兼容历史上
+                binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
+                调用方显式传入实际 RT name。
         """
         tpl = """
             {
@@ -348,7 +354,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                 "spec": {
                     "data": {
                         "kind": "ResultTable",
-                        "name": "{{name}}",
+                        "name": "{{rt_name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
                         {% endif %}
@@ -379,6 +385,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "storage_cluster_name": storage_cluster_name,
@@ -894,9 +901,15 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         original_json_fields: list[str],
         expires: str,
         flush_timeout: int | None,
+        rt_name: str | None = None,
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
+
+        Args:
+            rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name``，以兼容历史上
+                binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
+                调用方显式传入实际 RT name。
         """
         tpl = """
         {
@@ -911,7 +924,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "data": {
-                    "name": "{{name}}",
+                    "name": "{{rt_name}}",
                     {% if tenant %}
                     "tenant": "{{ tenant }}",
                     {% endif %}
@@ -945,6 +958,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
 
         render_params = {
             "name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.data_biz_id,
             "monitor_biz_id": self.datalink_biz_ids.label_biz_id,

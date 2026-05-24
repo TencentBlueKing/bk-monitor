@@ -265,6 +265,7 @@ class DataLink(models.Model):
         bk_biz_id: int,
         data_source: "DataSource",
         table_id: str,
+        existing_context: ExistingComponentContext | None = None,
     ) -> list[dict[str, Any]]:
         """生成自定义事件链路
 
@@ -272,6 +273,8 @@ class DataLink(models.Model):
             bk_biz_id: 业务ID
             data_source: 数据源
             table_id: 结果表ID
+            existing_context: 既有组件复用上下文。显式传入时按 table_id / bk_data_id
+                尝试复用已有组件；默认不启用复用。
         """
         from metadata.models import ResultTableOption
 
@@ -290,8 +293,30 @@ class DataLink(models.Model):
 
         config_list = []
         with transaction.atomic():
+            existing_rt = (
+                existing_context.claim(ResultTableConfig, lambda c: c.table_id == table_id)
+                if existing_context is not None
+                else None
+            )
+            rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
+
+            existing_binding = (
+                existing_context.claim(ESStorageBindingConfig, lambda c: c.table_id == table_id)
+                if existing_context is not None
+                else None
+            )
+            binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
+
+            existing_databus = (
+                existing_context.claim(DataBusConfig, lambda c: c.bk_data_id == data_source.bk_data_id)
+                if existing_context is not None
+                else None
+            )
+            databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
+            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+
             es_table_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=self.data_link_name,
+                name=rt_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -300,14 +325,14 @@ class DataLink(models.Model):
             )
 
             es_storage_ins, _ = ESStorageBindingConfig.objects.update_or_create(
-                name=self.data_link_name,
+                name=binding_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
                 defaults={
                     "table_id": table_id,
-                    "bkbase_result_table_name": self.data_link_name,
+                    "bkbase_result_table_name": es_table_ins.name,
                     "es_cluster_name": es_storage.storage_cluster.cluster_name,
                     "timezone": es_storage.time_zone,
                 },
@@ -321,12 +346,12 @@ class DataLink(models.Model):
             ).get_value()
 
             databus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=self.data_link_name,
+                name=databus_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                data_id_name=bkbase_data_name,
+                data_id_name=databus_data_id_name,
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
@@ -339,6 +364,7 @@ class DataLink(models.Model):
                 write_alias_format=write_alias,
                 unique_field_list=unique_field_list,
                 json_field_list=["event", "dimension"],
+                rt_name=es_table_ins.name,
             )
 
             sinks = [
@@ -369,6 +395,7 @@ class DataLink(models.Model):
         bk_biz_id: int,
         data_source: "DataSource",
         table_id: str,
+        existing_context: ExistingComponentContext | None = None,
     ) -> list[dict[str, Any]]:
         """生成日志链路配置
 
@@ -377,6 +404,8 @@ class DataLink(models.Model):
             data_source: 数据源
             table_id: 结果表ID
             storage_cluster_name: 存储集群名称
+            existing_context: 既有组件复用上下文。显式传入时按 table_id / bk_data_id
+                尝试复用已有组件；默认不启用复用。
         """
         from metadata.models import ResultTableOption
         from metadata.models.result_table import LogV4DataLinkOption
@@ -403,13 +432,20 @@ class DataLink(models.Model):
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
             clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
 
+            existing_rt = (
+                existing_context.claim(ResultTableConfig, lambda c: c.table_id == table_id)
+                if existing_context is not None
+                else None
+            )
+            rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
+
             # 创建结果表配置
             result_table, _ = ResultTableConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
-                name=self.data_link_name,
+                name=rt_name,
                 defaults={"table_id": table_id},
             )
 
@@ -420,17 +456,23 @@ class DataLink(models.Model):
             # 创建ES存储绑定配置
             if es_storage and datalink_option.es_storage_config:
                 storage_option = datalink_option.es_storage_config
+                existing_binding = (
+                    existing_context.claim(ESStorageBindingConfig, lambda c: c.table_id == table_id)
+                    if existing_context is not None
+                    else None
+                )
+                binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
                 binding, _ = ESStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
-                    name=self.data_link_name,
+                    name=binding_name,
                     defaults={
                         "es_cluster_name": es_storage.storage_cluster.cluster_name,
                         "timezone": es_storage.time_zone,
                         "table_id": table_id,
-                        "bkbase_result_table_name": self.data_link_name,
+                        "bkbase_result_table_name": result_table.name,
                     },
                 )
 
@@ -444,6 +486,7 @@ class DataLink(models.Model):
                         write_alias_format=write_alias,
                         unique_field_list=storage_option.unique_field_list,
                         json_field_list=storage_option.json_field_list,
+                        rt_name=result_table.name,
                     )
                 )
                 databus_sinks.append(
@@ -457,15 +500,21 @@ class DataLink(models.Model):
             # 创建 Doris 存储绑定配置
             if doris_storage and datalink_option.doris_storage_config:
                 storage_option = datalink_option.doris_storage_config
+                existing_binding = (
+                    existing_context.claim(DorisStorageBindingConfig, lambda c: c.table_id == table_id)
+                    if existing_context is not None
+                    else None
+                )
+                binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
                 binding, _ = DorisStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
-                    name=self.data_link_name,
+                    name=binding_name,
                     defaults={
                         "table_id": table_id,
-                        "bkbase_result_table_name": self.data_link_name,
+                        "bkbase_result_table_name": result_table.name,
                         "doris_cluster_name": doris_storage.storage_cluster.cluster_name,
                     },
                 )
@@ -478,6 +527,7 @@ class DataLink(models.Model):
                         original_json_fields=storage_option.original_json_fields,
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
+                        rt_name=result_table.name,
                     )
                 )
                 databus_sinks.append(
@@ -498,13 +548,20 @@ class DataLink(models.Model):
                 raise ValueError("至少需要一个存储绑定配置")
 
             # 创建数据总线配置
+            existing_databus = (
+                existing_context.claim(DataBusConfig, lambda c: c.bk_data_id == data_source.bk_data_id)
+                if existing_context is not None
+                else None
+            )
+            databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
+            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
             databus, _ = DataBusConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
-                name=self.data_link_name,
-                data_id_name=bkbase_data_name,
+                name=databus_name,
+                data_id_name=databus_data_id_name,
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink['kind']}:{sink['name']}" for sink in databus_sinks],

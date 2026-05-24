@@ -41,6 +41,8 @@ from metadata.models.data_link.constants import (
 )
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
+    DorisStorageBindingConfig,
+    ESStorageBindingConfig,
     ResultTableConfig,
     VMStorageBindingConfig,
 )
@@ -4202,6 +4204,260 @@ def test_compose_configs_falls_back_when_strategy_not_implemented(mocker, settin
     # 关键断言：尽管上游传了 existing_context，switcher 发现当前 strategy 未接入
     # (不在 REUSE_ENABLED_STRATEGIES 里)，必须把它丢弃，不能透传给 compose 分支。
     assert "existing_context" not in mocked_compose.call_args.kwargs
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_custom_event_configs_reuses_legacy_components(create_or_delete_records, mocker):
+    """显式传入 existing_context 时，自定义事件链路应复用 RT / ES binding / Databus。"""
+    bk_tenant_id = "system"
+    bk_biz_id = 1001
+    table_id = "1001_bkmonitor_event_91001.__default__"
+    data_link_name = "custom_event_reuse_link"
+    ds = models.DataSource.objects.create(
+        bk_data_id=91001,
+        data_name="custom_event_reuse",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config=DataLink.BK_STANDARD_V2_EVENT,
+        is_custom_source=False,
+        bk_tenant_id=bk_tenant_id,
+    )
+    models.ResultTable.objects.create(
+        table_id=table_id,
+        bk_biz_id=bk_biz_id,
+        bk_tenant_id=bk_tenant_id,
+        is_custom_table=True,
+        default_storage=models.ClusterInfo.TYPE_ES,
+    )
+    models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=666666, bk_tenant_id=bk_tenant_id)
+    models.ResultTableOption.create_option(
+        table_id=table_id,
+        name=models.ResultTableOption.OPTION_ES_DOCUMENT_ID,
+        value=["event", "dimension", "time"],
+        creator="pytest",
+        bk_tenant_id=bk_tenant_id,
+    )
+    datalink = DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        bk_tenant_id=bk_tenant_id,
+        data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+    )
+
+    ResultTableConfig.objects.create(
+        name="legacy_event_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bk_biz_id=bk_biz_id,
+        table_id=table_id,
+    )
+    ESStorageBindingConfig.objects.create(
+        name="legacy_event_es_binding",
+        namespace=datalink.namespace,
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bk_biz_id=bk_biz_id,
+        table_id=table_id,
+        bkbase_result_table_name=data_link_name,
+        es_cluster_name="old-es",
+    )
+    DataBusConfig.objects.create(
+        name="legacy_event_databus",
+        namespace=datalink.namespace,
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bk_biz_id=bk_biz_id,
+        data_id_name="legacy_event_data_id",
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    ctx = ExistingComponentContext.from_datalink(datalink)
+    configs = datalink.compose_custom_event_configs(
+        bk_biz_id=bk_biz_id,
+        data_source=ds,
+        table_id=table_id,
+        existing_context=ctx,
+    )
+
+    assert ResultTableConfig.objects.filter(data_link_name=data_link_name).count() == 1
+    assert ESStorageBindingConfig.objects.filter(data_link_name=data_link_name).count() == 1
+    assert DataBusConfig.objects.filter(data_link_name=data_link_name).count() == 1
+    assert ctx.leftover() == {}
+
+    rt_cfg = ResultTableConfig.objects.get(data_link_name=data_link_name)
+    binding_cfg = ESStorageBindingConfig.objects.get(data_link_name=data_link_name)
+    databus_cfg = DataBusConfig.objects.get(data_link_name=data_link_name)
+    assert rt_cfg.name == "legacy_event_rt"
+    assert binding_cfg.name == "legacy_event_es_binding"
+    assert binding_cfg.bkbase_result_table_name == "legacy_event_rt"
+    assert databus_cfg.name == "legacy_event_databus"
+    assert databus_cfg.data_id_name == "legacy_event_data_id"
+    assert databus_cfg.sink_names == [f"{DataLinkKind.ESSTORAGEBINDING.value}:legacy_event_es_binding"]
+
+    assert configs[0]["metadata"]["name"] == "legacy_event_rt"
+    assert configs[1]["metadata"]["name"] == "legacy_event_es_binding"
+    assert configs[1]["spec"]["data"]["name"] == "legacy_event_rt"
+    assert configs[2]["metadata"]["name"] == "legacy_event_databus"
+    assert configs[2]["spec"]["sources"][0]["name"] == "legacy_event_data_id"
+    assert configs[2]["spec"]["sinks"][0]["name"] == "legacy_event_es_binding"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, mocker):
+    """显式传入 existing_context 时，日志链路应复用 RT / ES / Doris / Databus。"""
+    bk_tenant_id = "system"
+    bk_biz_id = 1001
+    table_id = "1001_bklog.log_reuse"
+    data_link_name = "log_reuse_link"
+    ds = models.DataSource.objects.create(
+        bk_data_id=91002,
+        data_name="log_reuse",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config=DataLink.BK_LOG,
+        is_custom_source=False,
+        bk_tenant_id=bk_tenant_id,
+    )
+    models.ResultTable.objects.create(
+        table_id=table_id,
+        bk_biz_id=bk_biz_id,
+        bk_tenant_id=bk_tenant_id,
+        is_custom_table=True,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+    )
+    doris_cluster = models.ClusterInfo.objects.create(
+        cluster_name="doris_reuse",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="doris.reuse",
+        port=9030,
+        description="",
+        cluster_id=710002,
+        is_default_cluster=False,
+        version="2.x",
+        bk_tenant_id=bk_tenant_id,
+    )
+    models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=666666, bk_tenant_id=bk_tenant_id)
+    models.DorisStorage.objects.create(
+        table_id=table_id,
+        bkbase_table_id=f"{bk_biz_id}_{data_link_name}",
+        storage_cluster_id=doris_cluster.cluster_id,
+        bk_tenant_id=bk_tenant_id,
+    )
+    log_option = {
+        "clean_rules": [
+            {
+                "input_id": "log",
+                "output_id": "log",
+                "operator": {"type": "assign", "key_index": "log", "output_type": "string"},
+            }
+        ],
+        "es_storage_config": {"unique_field_list": ["log"], "json_field_list": ["json_body"]},
+        "doris_storage_config": {
+            "storage_keys": ["log"],
+            "json_fields": ["json_body"],
+            "original_json_fields": ["origin_json"],
+            "field_config_group": {"search_analyzed": ["log"]},
+            "flush_timeout": 30,
+        },
+    }
+    models.ResultTableOption.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=table_id,
+        name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+        value=json.dumps(log_option),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="pytest",
+    )
+    datalink = DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bklog",
+        bk_tenant_id=bk_tenant_id,
+        data_link_strategy=DataLink.BK_LOG,
+    )
+
+    ResultTableConfig.objects.create(
+        name="legacy_log_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bk_biz_id=bk_biz_id,
+        table_id=table_id,
+    )
+    ESStorageBindingConfig.objects.create(
+        name="legacy_log_es_binding",
+        namespace=datalink.namespace,
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bk_biz_id=bk_biz_id,
+        table_id=table_id,
+        bkbase_result_table_name=data_link_name,
+        es_cluster_name="old-es",
+    )
+    DorisStorageBindingConfig.objects.create(
+        name="legacy_log_doris_binding",
+        namespace=datalink.namespace,
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bk_biz_id=bk_biz_id,
+        table_id=table_id,
+        bkbase_result_table_name=data_link_name,
+        doris_cluster_name="old-doris",
+    )
+    DataBusConfig.objects.create(
+        name="legacy_log_databus",
+        namespace=datalink.namespace,
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+        bk_biz_id=bk_biz_id,
+        data_id_name="legacy_log_data_id",
+        bk_data_id=ds.bk_data_id,
+        sink_names=[],
+    )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    ctx = ExistingComponentContext.from_datalink(datalink)
+    configs = datalink.compose_log_configs(
+        bk_biz_id=bk_biz_id,
+        data_source=ds,
+        table_id=table_id,
+        existing_context=ctx,
+    )
+
+    assert ResultTableConfig.objects.filter(data_link_name=data_link_name).count() == 1
+    assert ESStorageBindingConfig.objects.filter(data_link_name=data_link_name).count() == 1
+    assert DorisStorageBindingConfig.objects.filter(data_link_name=data_link_name).count() == 1
+    assert DataBusConfig.objects.filter(data_link_name=data_link_name).count() == 1
+    assert ctx.leftover() == {}
+
+    es_binding_cfg = ESStorageBindingConfig.objects.get(data_link_name=data_link_name)
+    doris_binding_cfg = DorisStorageBindingConfig.objects.get(data_link_name=data_link_name)
+    databus_cfg = DataBusConfig.objects.get(data_link_name=data_link_name)
+    assert ResultTableConfig.objects.get(data_link_name=data_link_name).name == "legacy_log_rt"
+    assert es_binding_cfg.name == "legacy_log_es_binding"
+    assert es_binding_cfg.bkbase_result_table_name == "legacy_log_rt"
+    assert doris_binding_cfg.name == "legacy_log_doris_binding"
+    assert doris_binding_cfg.bkbase_result_table_name == "legacy_log_rt"
+    assert databus_cfg.name == "legacy_log_databus"
+    assert databus_cfg.data_id_name == "legacy_log_data_id"
+    assert databus_cfg.sink_names == [
+        f"{DataLinkKind.ESSTORAGEBINDING.value}:legacy_log_es_binding",
+        f"{DataLinkKind.DORISBINDING.value}:legacy_log_doris_binding",
+    ]
+
+    assert configs[0]["metadata"]["name"] == "legacy_log_rt"
+    assert configs[1]["metadata"]["name"] == "legacy_log_es_binding"
+    assert configs[1]["spec"]["data"]["name"] == "legacy_log_rt"
+    assert configs[2]["metadata"]["name"] == "legacy_log_doris_binding"
+    assert configs[2]["spec"]["data"]["name"] == "legacy_log_rt"
+    assert configs[3]["metadata"]["name"] == "legacy_log_databus"
+    assert configs[3]["spec"]["sources"][0]["name"] == "legacy_log_data_id"
+    assert configs[3]["spec"]["sinks"] == [
+        {"kind": DataLinkKind.ESSTORAGEBINDING.value, "name": "legacy_log_es_binding", "namespace": "bklog"},
+        {"kind": DataLinkKind.DORISBINDING.value, "name": "legacy_log_doris_binding", "namespace": "bklog"},
+    ]
 
 
 # ============================================================
