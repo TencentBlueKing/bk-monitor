@@ -278,11 +278,18 @@ class ResultTableConfig(DataLinkResourceConfigBase):
                 }
             }
             """
+
+        # 优先使用ResultTableConfig记录的bkbase_table_id，因为重建链路的所属业务并不稳定
+        if self.bkbase_table_id:
+            bk_biz_id = int(self.bkbase_table_id.split("_")[0])
+        else:
+            bk_biz_id = self.datalink_biz_ids.label_biz_id
+
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "bk_biz_id": bk_biz_id,  # 数据实际归属的业务ID
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
