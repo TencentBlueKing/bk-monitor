@@ -163,15 +163,6 @@ def rebuild_simple_databus_relation(
             resolved_bk_data_id,
         )
         return None
-    if databus.bk_data_id != 0 and databus.bk_data_id != resolved_bk_data_id:
-        logger.warning(
-            "rebuild_simple_databus_relation: databus->[%s] bk_data_id->[%s] "
-            "is not equal to DataIdConfig bk_data_id->[%s], skip",
-            databus_name,
-            databus.bk_data_id,
-            resolved_bk_data_id,
-        )
-        return None
 
     # Step 3: 简单链路优先限定为 BKDATA 来源；VM 迁移链路允许通过 AccessVMRecord 反查监控侧 DataSource。
     dsrt_from_vm_record = None
@@ -237,6 +228,17 @@ def rebuild_simple_databus_relation(
             databus_name,
             data_source.bk_data_id,
             data_source.created_from,
+        )
+        return None
+
+    # 检查databus的bk_data_id是否与DataIdConfig的bk_data_id一致
+    if databus.bk_data_id != 0 and databus.bk_data_id != data_source.bk_data_id:
+        logger.warning(
+            "rebuild_simple_databus_relation: databus->[%s] bk_data_id->[%s] "
+            "is not equal to DataIdConfig bk_data_id->[%s], skip",
+            databus_name,
+            databus.bk_data_id,
+            data_source.bk_data_id,
         )
         return None
 
@@ -450,7 +452,7 @@ def rebuild_simple_databus_relation(
 
         databus.bk_biz_id = target_bk_biz_id
         databus.data_link_name = rebuilt_data_link_name
-        databus.bk_data_id = resolved_bk_data_id
+        databus.bk_data_id = data_source.bk_data_id
         databus.save(update_fields=["data_link_name", "bk_data_id", "bk_biz_id"])
 
         for instance in sink_instances:
