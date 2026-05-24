@@ -1388,6 +1388,18 @@ class ResultTable(models.Model):
             ):
                 force_update_datalink = True
 
+            # 检查指标组维度配置是否发生变化
+            metric_group_dimensions_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS,
+            ).first()
+            metric_group_dimensions_option_value = (
+                metric_group_dimensions_option.get_value() if metric_group_dimensions_option else None
+            )
+            if metric_group_dimensions_option_value != option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS):
+                force_update_datalink = True
+
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
             # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
@@ -2882,6 +2894,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
+    OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
 
     # 选项类型
     TYPE_BOOL = "bool"

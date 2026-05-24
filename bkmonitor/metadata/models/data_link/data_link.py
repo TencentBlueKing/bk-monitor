@@ -1239,6 +1239,9 @@ class DataLink(models.Model):
         注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
         ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
         """
+
+        from metadata.models import ResultTableOption
+
         logger.info(
             "compose_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s] "
             "start to compose configs",
@@ -1285,6 +1288,14 @@ class DataLink(models.Model):
 
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
         bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+
+        # 获取指标组维度配置
+        result_table_option = ResultTableOption.objects.filter(
+            table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS
+        ).first()
+        metric_group_dimensions: list[dict[str, Any]] | None = (
+            result_table_option.get_value() if result_table_option is not None else None
+        )
 
         with transaction.atomic():
             # 渲染所需的资源配置
@@ -1341,7 +1352,9 @@ class DataLink(models.Model):
             vm_table_id_ins.compose_config(),
             # 显式透传 RT 的 name，避免复用后 RT/Binding 被独立 claim 成不同 name 时
             # binding payload 的 spec.data.name 仍然指向 binding 自己的 name（不存在的 RT）。
-            vm_storage_ins.compose_config(bk_data_id=data_source.bk_data_id, rt_name=vm_table_id_ins.name),
+            vm_storage_ins.compose_config(
+                rt_name=vm_table_id_ins.name, metric_group_dimensions=metric_group_dimensions
+            ),
             data_bus_ins.compose_config(sinks),
         ]
         return configs

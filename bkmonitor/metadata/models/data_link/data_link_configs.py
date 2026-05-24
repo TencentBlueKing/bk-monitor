@@ -426,10 +426,10 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     def compose_config(
         self,
         whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None,
-        bk_data_id: int | str | None = None,
         rt_name: str | None = None,
+        metric_group_dimensions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        """
+        f"""
         组装VM存储配置，与结果表相关联
 
         :param rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name`` 以保持
@@ -437,6 +437,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             的 name 已被各自独立 claim/复用时，必须由调用方显式传入
             ``vm_table_id_ins.name``，否则 payload 里 ``spec.data.name`` 会指向
             一个并不存在的 ResultTable，造成 BKBase 侧引用失效。
+        :param metric_group_dimensions: 指标组维度。如果为空，[{"key": "service_name", "default_value": "unknown_service"}]
         """
         tpl = """
             {
@@ -469,11 +470,11 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         "tenant": "{{ tenant }}",
                         {% endif %}
                         "namespace": "{{namespace}}"
-                    }
+                    },
                     {% if metric_group_dimensions %},
-                    "metricGroupDimensions": {{metric_group_dimensions}}
+                    "metricGroupDimensions": {{metric_group_dimensions}},
                     {% endif %}
-                    {% if dd_version %},
+                    {% if dd_version %}
                     "ddVersion": "{{dd_version}}"
                     {% endif %}
                 }
@@ -494,6 +495,20 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 }
             )
 
+        # 指标组维度配置
+        metric_group_dimensions_list: list[str] = []
+        dd_version: str | None = None
+        for dim in metric_group_dimensions or []:
+            key = dim.get("key")
+            if not key:
+                continue
+            if "default_value" in dim and dim["default_value"] is not None:
+                metric_group_dimensions_list.append(f"{key}|{dim['default_value']}")
+            else:
+                metric_group_dimensions_list.append(key)
+        if metric_group_dimensions_list:
+            dd_version = "v2"
+
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -502,25 +517,11 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
             "whitelist_config": whitelist_config,
+            "metric_group_dimensions": json.dumps(metric_group_dimensions_list)
+            if metric_group_dimensions_list
+            else None,
+            "dd_version": dd_version,
         }
-
-        if bk_data_id:
-            # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
-            from metadata.models.custom_report.time_series import TimeSeriesGroup
-
-            ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
-            if ts_group and ts_group.metric_group_dimensions:
-                metric_group_dimensions = []
-                for dim in ts_group.metric_group_dimensions:
-                    key = dim.get("key")
-                    if not key:
-                        continue
-                    if "default_value" in dim and dim["default_value"] is not None:
-                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
-                    else:
-                        metric_group_dimensions.append(key)
-                render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
-                render_params["dd_version"] = "v2"
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
