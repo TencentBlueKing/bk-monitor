@@ -1395,9 +1395,12 @@ class ResultTable(models.Model):
                 name=ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS,
             ).first()
             metric_group_dimensions_option_value = (
-                metric_group_dimensions_option.get_value() if metric_group_dimensions_option else None
+                metric_group_dimensions_option.get_value() if metric_group_dimensions_option else []
             )
-            if metric_group_dimensions_option_value != option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS):
+            if (
+                metric_group_dimensions_option_value != option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS)
+                or []
+            ):
                 force_update_datalink = True
 
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
