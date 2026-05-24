@@ -450,7 +450,7 @@ def rebuild_simple_databus_relation(
 
         databus.bk_biz_id = target_bk_biz_id
         databus.data_link_name = rebuilt_data_link_name
-        databus.bk_data_id = resolved_bk_data_id
+        databus.bk_data_id = data_source.bk_data_id
         databus.save(update_fields=["data_link_name", "bk_data_id", "bk_biz_id"])
 
         for instance in sink_instances:

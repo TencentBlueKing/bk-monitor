@@ -1221,11 +1221,13 @@ class DataLink(models.Model):
         binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
 
         existing_databus = (
-            existing_context.claim(DataBusConfig, lambda c: c.data_id_name == bkbase_data_name)
+            existing_context.claim(DataBusConfig, lambda c: c.bk_data_id == data_source.bk_data_id)
             if existing_context is not None
             else None
         )
+
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
+        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
 
         with transaction.atomic():
             # 渲染所需的资源配置
@@ -1344,11 +1346,12 @@ class DataLink(models.Model):
         binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
 
         existing_databus = (
-            existing_context.claim(DataBusConfig, lambda c: c.data_id_name == bkbase_data_name)
+            existing_context.claim(DataBusConfig, lambda c: c.bk_data_id == data_source.bk_data_id)
             if existing_context is not None
             else None
         )
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
+        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
 
         with transaction.atomic():
             # 渲染所需的资源配置
@@ -1474,11 +1477,12 @@ class DataLink(models.Model):
                     # 一旦 strict 策略不通过会抛 ComponentReuseError，连带上面的 compose
                     # 写入一起回滚，避免失败的 apply 留下持久化副作用。
                     self._check_leftover_or_raise(existing_context)
-        except ComponentReuseError:
+        except ComponentReuseError as e:
             logger.error(
                 "apply_data_link: data_link_name->[%s] leftover check failed, "
-                "rollback compose-side DB writes in this attempt",
+                "rollback compose-side DB writes in this attempt, error->[%s]",
                 self.data_link_name,
+                e,
             )
             raise
         except Exception as e:  # pylint: disable=broad-except
@@ -1523,8 +1527,9 @@ class DataLink(models.Model):
         for key, existing_value in existing.items():
             if key not in target:
                 target[key] = existing_value
-            elif isinstance(existing_value, dict) and isinstance(target[key], dict):
-                cls._fill_missing_dict(target[key], existing_value)
+            # 暂时不支持嵌套覆盖，除非后续有需求
+            # elif isinstance(existing_value, dict) and isinstance(target[key], dict):
+            #     cls._fill_missing_dict(target[key], existing_value)
 
     @classmethod
     def merge_component_config(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
@@ -1542,7 +1547,7 @@ class DataLink(models.Model):
 
         existing_metadata = existing_config["metadata"]
         merged_metadata = merged_config["metadata"]
-        # 只保留用户/平台可能额外维护的配置型元数据，避免把 resourceVersion/status 等运行态字段带回 apply。
+        # 合并metadata，仅处理labels和annotations
         for metadata_key in ("labels", "annotations"):
             if metadata_key not in existing_metadata:
                 continue
@@ -1551,6 +1556,7 @@ class DataLink(models.Model):
                 continue
             cls._fill_missing_dict(merged_metadata[metadata_key], existing_metadata[metadata_key])
 
+        # 合并spec
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
 
         return merged_config
