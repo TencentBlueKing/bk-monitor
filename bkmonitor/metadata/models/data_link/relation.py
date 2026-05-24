@@ -35,6 +35,7 @@ from metadata.models import (
     DataSourceResultTable,
     DorisStorage,
     ESStorage,
+    ResultTable,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
@@ -120,9 +121,10 @@ def rebuild_simple_databus_relation(
     from metadata.models.data_source import DataSource
 
     databus_name = databus.name
+    rebuilt_data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}_{databus_name}"
 
     # Step 1: 简单链路只处理尚未归属 DataLink 的 DataBus，已有归属直接跳过避免覆盖关系。
-    if databus.data_link_name:
+    if databus.data_link_name and databus.data_link_name != rebuilt_data_link_name:
         logger.warning(
             "rebuild_simple_databus_relation: databus->[%s] already has data_link_name->[%s], skip",
             databus_name,
@@ -259,6 +261,22 @@ def rebuild_simple_databus_relation(
         return None
     table_id = dsrt_instances[0].table_id
 
+    # 获取结果表所属业务ID，对齐apply_datalink的逻辑
+    try:
+        result_table = ResultTable.objects.get(bk_tenant_id=databus.bk_tenant_id, table_id=table_id)
+    except ResultTable.DoesNotExist:
+        logger.warning(
+            "rebuild_simple_databus_relation: databus->[%s] ResultTable with table_id->[%s] not found, skip",
+            databus_name,
+            table_id,
+        )
+        return None
+
+    if result_table.default_storage in [ClusterInfo.TYPE_VM, ClusterInfo.TYPE_INFLUXDB]:
+        target_bk_biz_id = result_table.get_target_bk_biz_id()
+    else:
+        target_bk_biz_id = 0
+
     # Step 5: 解析 DataBus.sink_names；只接受直接写入 VM / ES / Doris 的存储绑定。
     sink_instances: list[SimpleStorageBindingConfig] = []
     sink_map: dict[str, list[str]] = {}
@@ -307,7 +325,7 @@ def rebuild_simple_databus_relation(
 
     # Step 6: 检查 sink 冲突，避免把已归属其他链路的 binding 拉进来。
     for instance in sink_instances:
-        if instance.data_link_name:
+        if instance.data_link_name and instance.data_link_name != rebuilt_data_link_name:
             logger.error(
                 "rebuild_simple_databus_relation: databus->[%s] sink component kind->[%s] name->[%s] "
                 "already has data_link_name->[%s], conflict detected, skip",
@@ -351,7 +369,7 @@ def rebuild_simple_databus_relation(
 
     rt_instances = [rts_by_name[name] for name in rt_name_map]
     for rt in rt_instances:
-        if rt.data_link_name:
+        if rt.data_link_name and rt.data_link_name != rebuilt_data_link_name:
             logger.error(
                 "rebuild_simple_databus_relation: databus->[%s] ResultTableConfig name->[%s] "
                 "already has data_link_name->[%s], conflict detected, skip",
@@ -387,10 +405,9 @@ def rebuild_simple_databus_relation(
         )
         return None
 
-    data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}_{databus_name}"
     table_ids = [table_id]
     bkbase_result_table = _build_simple_bkbase_result_table(
-        data_link_name=data_link_name,
+        data_link_name=rebuilt_data_link_name,
         databus=databus,
         table_id=table_id,
         rt=rts_by_name[sink_instances[0].bkbase_result_table_name],
@@ -407,7 +424,7 @@ def rebuild_simple_databus_relation(
     # Step 9: dry_run 只返回解析结果，实际重建在事务中统一更新 DataLink 和组件归属。
     if dry_run:
         return {
-            "data_link_name": data_link_name,
+            "data_link_name": rebuilt_data_link_name,
             "strategy": strategy,
             "bk_data_id": data_source.bk_data_id,
             "table_ids": table_ids,
@@ -423,7 +440,7 @@ def rebuild_simple_databus_relation(
         data_link, created = DataLink.objects.update_or_create(
             bk_tenant_id=databus.bk_tenant_id,
             namespace=databus.namespace,
-            data_link_name=data_link_name,
+            data_link_name=rebuilt_data_link_name,
             defaults={
                 "bk_data_id": data_source.bk_data_id,
                 "table_ids": table_ids,
@@ -431,21 +448,24 @@ def rebuild_simple_databus_relation(
             },
         )
 
-        databus.data_link_name = data_link_name
+        databus.bk_biz_id = target_bk_biz_id
+        databus.data_link_name = rebuilt_data_link_name
         databus.bk_data_id = resolved_bk_data_id
-        databus.save(update_fields=["data_link_name", "bk_data_id"])
+        databus.save(update_fields=["data_link_name", "bk_data_id", "bk_biz_id"])
 
         for instance in sink_instances:
-            instance.data_link_name = data_link_name
+            instance.data_link_name = rebuilt_data_link_name
+            instance.bk_biz_id = target_bk_biz_id
         _bulk_update_data_link_name(sink_instances)
 
         for rt in rt_instances:
-            rt.data_link_name = data_link_name
-        ResultTableConfig.objects.bulk_update(rt_instances, ["data_link_name", "table_id"])
+            rt.data_link_name = rebuilt_data_link_name
+            rt.bk_biz_id = target_bk_biz_id
+        ResultTableConfig.objects.bulk_update(rt_instances, ["data_link_name", "table_id", "bk_biz_id"])
 
         BkBaseResultTable.objects.update_or_create(
             bk_tenant_id=databus.bk_tenant_id,
-            data_link_name=data_link_name,
+            data_link_name=rebuilt_data_link_name,
             defaults={
                 key: value
                 for key, value in bkbase_result_table.items()
@@ -941,27 +961,27 @@ def _bulk_update_data_link_name(instances: Sequence[DataLinkResourceConfigBase])
         if model_cls is VMStorageBindingConfig:
             VMStorageBindingConfig.objects.bulk_update(
                 cast(list[VMStorageBindingConfig], group),
-                ["data_link_name", "table_id"],
+                ["data_link_name", "table_id", "bk_biz_id"],
             )
         elif model_cls is ESStorageBindingConfig:
             ESStorageBindingConfig.objects.bulk_update(
                 cast(list[ESStorageBindingConfig], group),
-                ["data_link_name", "table_id"],
+                ["data_link_name", "table_id", "bk_biz_id"],
             )
         elif model_cls is DorisStorageBindingConfig:
             DorisStorageBindingConfig.objects.bulk_update(
                 cast(list[DorisStorageBindingConfig], group),
-                ["data_link_name", "table_id"],
+                ["data_link_name", "table_id", "bk_biz_id"],
             )
         elif model_cls is BasereportSinkConfig:
             BasereportSinkConfig.objects.bulk_update(
                 cast(list[BasereportSinkConfig], group),
-                ["data_link_name", "result_table_ids"],
+                ["data_link_name", "result_table_ids", "bk_biz_id"],
             )
         else:
             ConditionalSinkConfig.objects.bulk_update(
                 cast(list[ConditionalSinkConfig], group),
-                ["data_link_name"],
+                ["data_link_name", "bk_biz_id"],
             )
 
 

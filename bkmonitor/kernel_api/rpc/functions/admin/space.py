@@ -123,6 +123,16 @@ def _serialize_space_resource(resource: models.SpaceResource) -> dict[str, Any]:
     return item
 
 
+def _serialize_reverse_space_resource(
+    resource: models.SpaceResource,
+    spaces_by_key: dict[tuple[str, str], models.Space],
+) -> dict[str, Any]:
+    item = _serialize_space_resource(resource)
+    related_space = spaces_by_key.get((resource.space_type_id, resource.space_id))
+    item["space"] = _serialize_space(related_space) if related_space else None
+    return item
+
+
 def _normalize_space_ordering(raw_ordering: Any) -> list[str]:
     ordering = normalize_ordering(raw_ordering, ORDERING_FIELDS, default="space_type_id")
     descending = ordering.startswith("-")
@@ -219,7 +229,10 @@ def list_spaces(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_SPACE_DETAIL,
     summary="Admin 查询 Space 详情",
-    description="只读查询 Space 基础信息和该空间下的 SpaceResource；不展开 SpaceDataSource 或场景聚合。",
+    description=(
+        "只读查询 Space 基础信息、该空间下的 SpaceResource，以及基于 resource_type/resource_id "
+        "反查到当前 Space 的 SpaceResource；不展开 SpaceDataSource 或场景聚合。"
+    ),
     params_schema={
         "bk_tenant_id": "必填，租户 ID",
         "space_uid": "必填，空间 UID，格式为 <space_type_id>__<space_id>",
@@ -247,10 +260,33 @@ def get_space_detail(params: dict[str, Any]) -> dict[str, Any]:
             space_id=space_id,
         ).order_by("resource_type", "resource_id", "id")
     ]
+    reverse_resources = list(
+        models.SpaceResource.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            resource_type=space_type_id,
+            resource_id=space_id,
+        ).order_by("space_type_id", "space_id", "id")
+    )
+    reverse_resource_query = Q()
+    for resource in reverse_resources:
+        reverse_resource_query |= Q(space_type_id=resource.space_type_id, space_id=resource.space_id)
+
+    reverse_spaces = (
+        models.Space.objects.filter(bk_tenant_id=bk_tenant_id).filter(reverse_resource_query)
+        if reverse_resources
+        else []
+    )
+    reverse_spaces_by_key = {(space.space_type_id, space.space_id): space for space in reverse_spaces}
 
     return build_response(
         operation="space.detail",
         func_name=FUNC_SPACE_DETAIL,
         bk_tenant_id=bk_tenant_id,
-        data={"space": _serialize_space(space), "space_resources": resources},
+        data={
+            "space": _serialize_space(space),
+            "space_resources": resources,
+            "reverse_space_resources": [
+                _serialize_reverse_space_resource(resource, reverse_spaces_by_key) for resource in reverse_resources
+            ],
+        },
     )
