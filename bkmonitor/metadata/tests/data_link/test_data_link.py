@@ -63,6 +63,25 @@ from metadata.task.tasks import (
 from metadata.tests.common_utils import consul_client
 
 
+def _create_simple_rebuild_result_table(
+    table_id: str,
+    bk_biz_id: int,
+    bk_tenant_id: str = "default",
+    default_storage: str = models.ClusterInfo.TYPE_ES,
+) -> models.ResultTable:
+    return models.ResultTable.objects.create(
+        table_id=table_id,
+        bk_biz_id=bk_biz_id,
+        bk_tenant_id=bk_tenant_id,
+        table_name_zh=table_id,
+        is_custom_table=False,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FIXED,
+        default_storage=default_storage,
+        creator="system",
+        last_modify_user="system",
+    )
+
+
 @pytest.fixture
 def create_or_delete_records(mocker):
     models.Space.objects.create(space_type_id="bkcc", space_id=1, space_name="bkcc_1", bk_tenant_id="system")
@@ -2320,6 +2339,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
         table_id=table_id,
         bk_tenant_id="default",
     )
+    _create_simple_rebuild_result_table(table_id=table_id, bk_biz_id=10)
     models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=1, bk_tenant_id="default")
     models.DataIdConfig.objects.create(
         name="l_524502",
@@ -2354,6 +2374,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
         es_cluster_name="bkdata-app-log2-es",
     )
 
+    expected_data_link_name = "rebuilt___l_524502"
     relation = rebuild_simple_databus_relation(databus, dry_run=True)
 
     assert relation is not None
@@ -2400,7 +2421,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
     ]
     assert relation["bkbase_result_table"] == {
         "bk_tenant_id": "default",
-        "data_link_name": "rebuilt__default_l_524502",
+        "data_link_name": expected_data_link_name,
         "bkbase_data_name": "l_524502",
         "storage_type": models.ClusterInfo.TYPE_ES,
         "monitor_table_id": table_id,
@@ -2440,6 +2461,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_and_doris_storage():
         created_from=DataIdCreatedFromSystem.BKDATA.value,
     )
     models.DataSourceResultTable.objects.create(bk_data_id=524503, table_id=table_id, bk_tenant_id="default")
+    _create_simple_rebuild_result_table(table_id=table_id, bk_biz_id=11)
     models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=1, bk_tenant_id="default")
     models.DorisStorage.objects.create(
         table_id=table_id,
@@ -2520,6 +2542,7 @@ def test_rebuild_simple_databus_relation_skips_doris_bkbase_table_mismatch():
         created_from=DataIdCreatedFromSystem.BKDATA.value,
     )
     models.DataSourceResultTable.objects.create(bk_data_id=524508, table_id=table_id, bk_tenant_id="default")
+    _create_simple_rebuild_result_table(table_id=table_id, bk_biz_id=11)
     models.DorisStorage.objects.create(
         table_id=table_id,
         bkbase_table_id="11_l_524508_actual",
@@ -2578,6 +2601,11 @@ def test_rebuild_simple_databus_relation_supports_bkdata_vm_storage():
         created_from=DataIdCreatedFromSystem.BKDATA.value,
     )
     models.DataSourceResultTable.objects.create(bk_data_id=524506, table_id=table_id, bk_tenant_id="default")
+    _create_simple_rebuild_result_table(
+        table_id=table_id,
+        bk_biz_id=2,
+        default_storage=models.ClusterInfo.TYPE_INFLUXDB,
+    )
     models.DataIdConfig.objects.create(
         name="bkm_space_42_bkapm_metric_bkapp_ai",
         namespace="bkmonitor",
@@ -2656,6 +2684,12 @@ def test_rebuild_simple_databus_relation_supports_vm_migration_bkbase_data_id():
         table_id=table_id,
         bk_tenant_id="system",
     )
+    _create_simple_rebuild_result_table(
+        table_id=table_id,
+        bk_biz_id=7,
+        bk_tenant_id="system",
+        default_storage=models.ClusterInfo.TYPE_INFLUXDB,
+    )
     models.DataIdConfig.objects.create(
         name=data_name,
         namespace="bkmonitor",
@@ -2698,6 +2732,7 @@ def test_rebuild_simple_databus_relation_supports_vm_migration_bkbase_data_id():
         bk_tenant_id="system",
     )
 
+    expected_data_link_name = f"rebuilt___{data_name}"
     relation = rebuild_simple_databus_relation(databus, dry_run=True)
 
     assert relation is not None
@@ -2713,11 +2748,11 @@ def test_rebuild_simple_databus_relation_supports_vm_migration_bkbase_data_id():
     ]
     assert relation["bkbase_result_table"] == {
         "bk_tenant_id": "system",
-        "data_link_name": f"rebuilt__system_{data_name}",
+        "data_link_name": expected_data_link_name,
         "bkbase_data_name": data_name,
         "storage_type": models.ClusterInfo.TYPE_VM,
         "monitor_table_id": table_id,
-        "storage_cluster_id": 23,
+        "storage_cluster_id": 36,
         "status": DataLinkResourceStatus.OK.value,
         "bkbase_table_id": vm_result_table_id,
         "bkbase_rt_name": data_name,
@@ -2731,7 +2766,7 @@ def test_rebuild_simple_databus_relation_supports_vm_migration_bkbase_data_id():
     assert bkbase_rt.bkbase_table_id == vm_result_table_id
     assert bkbase_rt.bkbase_data_name == data_name
     assert bkbase_rt.storage_type == models.ClusterInfo.TYPE_VM
-    assert bkbase_rt.storage_cluster_id == 23
+    assert bkbase_rt.storage_cluster_id == 36
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -2749,6 +2784,11 @@ def test_rebuild_simple_databus_relation_skips_vm_result_table_mismatch():
         created_from=DataIdCreatedFromSystem.BKDATA.value,
     )
     models.DataSourceResultTable.objects.create(bk_data_id=524507, table_id=table_id, bk_tenant_id="default")
+    _create_simple_rebuild_result_table(
+        table_id=table_id,
+        bk_biz_id=2,
+        default_storage=models.ClusterInfo.TYPE_INFLUXDB,
+    )
     models.DataIdConfig.objects.create(
         name="bkm_space_42_bkapm_metric_mismatch",
         namespace="bkmonitor",
