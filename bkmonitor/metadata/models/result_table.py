@@ -1394,13 +1394,13 @@ class ResultTable(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 name=ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS,
             ).first()
-            metric_group_dimensions_option_value = (
-                metric_group_dimensions_option.get_value() if metric_group_dimensions_option else []
+            existing_metric_group_dimensions_option_value = (
+                (metric_group_dimensions_option.get_value() or []) if metric_group_dimensions_option else []
             )
-            if (
-                metric_group_dimensions_option_value != option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS)
-                or []
-            ):
+            new_metric_group_dimensions_option_value = (
+                option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS) or []
+            )
+            if existing_metric_group_dimensions_option_value != new_metric_group_dimensions_option_value:
                 force_update_datalink = True
 
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
