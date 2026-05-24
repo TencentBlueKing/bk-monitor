@@ -261,7 +261,7 @@ def rebuild_simple_databus_relation(
         return None
     table_id = dsrt_instances[0].table_id
 
-    # 获取结果表所属业务ID
+    # 获取结果表所属业务ID，对齐apply_datalink的逻辑
     try:
         result_table = ResultTable.objects.get(bk_tenant_id=databus.bk_tenant_id, table_id=table_id)
     except ResultTable.DoesNotExist:
@@ -271,7 +271,11 @@ def rebuild_simple_databus_relation(
             table_id,
         )
         return None
-    target_bk_biz_id = result_table.get_target_bk_biz_id()
+
+    if result_table.default_storage in [ClusterInfo.TYPE_VM, ClusterInfo.TYPE_INFLUXDB]:
+        target_bk_biz_id = result_table.get_target_bk_biz_id()
+    else:
+        target_bk_biz_id = 0
 
     # Step 5: 解析 DataBus.sink_names；只接受直接写入 VM / ES / Doris 的存储绑定。
     sink_instances: list[SimpleStorageBindingConfig] = []
