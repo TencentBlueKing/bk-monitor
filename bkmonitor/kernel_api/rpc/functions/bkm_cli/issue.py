@@ -314,12 +314,12 @@ _MAX_CONFLICT_LOOKBACK_DAYS = 90
 def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
     """扫描合并/拆分状态不一致（运维对账兜底）。
 
-    返回三类：
+    返回三类（顺序与下方代码计算顺序一致，第 1/2/3 类）：
     - duplicate_active_members：同一 member_issue_id 在多行 status='active' 关系（race window）
-    - pending_follow_resync   ：关系 active 但 member ES status ≠ 主当前 status
-      （cascade follow fail-open 兜底，对应 repair_issue_merge_state --mode=follow_status_resync）
     - pending_split_resets    ：SQL status='split' 但对应 IssueDocument 物理状态未匹配 PENDING_REVIEW
       （deprecated：主状态变更不再触发拆分，仅历史遗留 split 关系仍可能触发；将随 reset_pending_split mode 一起移除）
+    - pending_follow_resync   ：关系 active 但 member ES status ≠ 主当前 status
+      （cascade follow fail-open 兜底，对应 repair_issue_merge_state --mode=follow_status_resync）
 
     Args:
         bk_biz_id (必填): 业务 ID

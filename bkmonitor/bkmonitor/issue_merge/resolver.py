@@ -321,7 +321,7 @@ class IssueMergeResolver:
             return []
 
     @classmethod
-    def get_split_info_map(cls, member_ids: list[str]) -> dict[str, dict]:
+    def get_split_info_map(cls, member_ids: list[str], bk_biz_ids: list[int] | None = None) -> dict[str, dict]:
         """批量查 status='split' 关系，返回 ``{member_id: split_info}``。
 
         用途：列表接口给"被拆出的独立 Issue"注入永久拆分溯源（前端据此常驻展示
@@ -332,19 +332,24 @@ class IssueMergeResolver:
         多次 split 取最新：``order_by("-update_time", "-id")``；``-id`` 作为 update_time
         相同时的稳定 tiebreaker（AutoField 单调递增）。
 
-        只按 ``member_issue_id`` 过滤、不传 bk_biz_id：Issue ID 由 timestamp + uuid 生成
-        （见 IssueDocument.save），全局唯一且作为 ES ``_id`` 系统级使用；列表 ES 查询已按
-        业务权限过滤，本方法只对当前页命中的 issue id 补充元数据，无越权风险。
+        ``bk_biz_ids`` 给定时附加 ``bk_biz_id__in`` 过滤，与详情 ``_fill_split_info`` 口径一致
+        （member_issue_id 全局唯一，biz 过滤不影响正确性，仅作 defense-in-depth + 口径统一）；
+        不给定则只按 member_issue_id 查（caller 已确保 id 来自鉴权结果）。
 
         Fail-open：SQL 失败返回 ``{}``（列表无拆分标签，不阻塞主路径）。
         """
         if not member_ids:
             return {}
+        filter_kwargs = {
+            "member_issue_id__in": member_ids,
+            "status": IssueMergeRelation.STATUS_SPLIT,
+        }
+        if bk_biz_ids:
+            filter_kwargs["bk_biz_id__in"] = bk_biz_ids
         try:
             rows = list(
                 IssueMergeRelation.objects.filter(
-                    member_issue_id__in=member_ids,
-                    status=IssueMergeRelation.STATUS_SPLIT,
+                    **filter_kwargs,
                 )
                 .order_by("-update_time", "-id")
                 .values(

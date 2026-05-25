@@ -576,10 +576,25 @@ class TestGetSplitInfoMap:
         else:
             manager.filter.return_value.order_by.return_value.values.return_value = rows or []
         monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+        return manager
 
     def test_empty_member_ids_returns_empty(self):
         # 空入参不查 DB，直接返回 {}
         assert IssueMergeResolver.get_split_info_map([]) == {}
+
+    def test_bk_biz_ids_adds_biz_filter(self, monkeypatch):
+        """传 bk_biz_ids 时附加 bk_biz_id__in，与详情 _fill_split_info 口径一致（P2-2）。"""
+        manager = self._patch_rows(monkeypatch, rows=[])
+        IssueMergeResolver.get_split_info_map(["m1", "m2"], bk_biz_ids=[2, 3])
+        kwargs = manager.filter.call_args.kwargs
+        assert kwargs["member_issue_id__in"] == ["m1", "m2"]
+        assert kwargs["bk_biz_id__in"] == [2, 3]
+
+    def test_no_bk_biz_ids_omits_biz_filter(self, monkeypatch):
+        """不传 bk_biz_ids 时只按 member_issue_id 查（向后兼容）。"""
+        manager = self._patch_rows(monkeypatch, rows=[])
+        IssueMergeResolver.get_split_info_map(["m1"])
+        assert "bk_biz_id__in" not in manager.filter.call_args.kwargs
 
     def test_hit_returns_split_info_fields(self, monkeypatch):
         import datetime

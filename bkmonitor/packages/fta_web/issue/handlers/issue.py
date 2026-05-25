@@ -599,7 +599,12 @@ class IssueQueryHandler(BaseBizQueryHandler):
         if issues:
             from bkmonitor.issue_merge import IssueMergeResolver
 
-            split_info_map = IssueMergeResolver.get_split_info_map([i["id"] for i in issues if i.get("id")])
+            # 附带页内 distinct bk_biz_id，与详情 _fill_split_info 的 bk_biz_id 过滤口径一致
+            page_split_biz_ids = list({int(i["bk_biz_id"]) for i in issues if i.get("bk_biz_id")})
+            split_info_map = IssueMergeResolver.get_split_info_map(
+                [i["id"] for i in issues if i.get("id")],
+                bk_biz_ids=page_split_biz_ids,
+            )
             if split_info_map:
                 for issue in issues:
                     info = split_info_map.get(issue.get("id"))
