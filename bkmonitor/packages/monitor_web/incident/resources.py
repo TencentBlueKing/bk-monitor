@@ -483,6 +483,10 @@ class IncidentDetailResource(IncidentBaseResource):
             incident["alert_count"] = len(incident["snapshot"]["alerts"])
             incident["incident_root"] = self.get_incident_root_info(snapshot)
 
+        incident["wx_cs_link"] = ""
+        for item in settings.BK_DATA_ROBOT_LINK_LIST:
+            if item["icon_name"] == "icon-kefu":
+                incident["wx_cs_link"] = item["link"]
         return incident
 
     def get_incident_snapshots(self, incident: IncidentDocument) -> dict:
