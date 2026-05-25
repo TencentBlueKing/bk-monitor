@@ -44,7 +44,7 @@ export default defineComponent({
     /** 是否显示侧栏 */
     show: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     /** 侧栏类型：merge-合并，split-拆分 */
     type: {
@@ -57,21 +57,20 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['update:show', 'confirm'],
+  emits: ['update:show', 'success'],
   setup(_, { emit }) {
     /** 处理侧栏显示状态变更 */
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
     };
 
-    /** 处理确认 */
-    const handleClose = () => {
-      emit('update:show', false);
+    const handleSuccess = () => {
+      emit('success');
     };
 
     return {
       handleShowChange,
-      handleClose,
+      handleSuccess,
     };
   },
   render() {
@@ -98,10 +97,19 @@ export default defineComponent({
             this.type === 'merge' ? (
               <MergeContent
                 issues={this.issues}
-                onClose={this.handleClose}
+                onClose={() => {
+                  this.handleShowChange(false);
+                }}
+                onSuccess={this.handleSuccess}
               />
             ) : (
-              <SplitContent issues={this.issues} />
+              <SplitContent
+                issues={this.issues}
+                onSuccess={() => {
+                  this.handleShowChange(false);
+                  this.handleSuccess();
+                }}
+              />
             ),
         }}
       </Sideslider>

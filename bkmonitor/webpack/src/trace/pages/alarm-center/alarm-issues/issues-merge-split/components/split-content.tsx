@@ -24,16 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { Button, Input } from 'bkui-vue';
-import { useI18n } from 'vue-i18n';
+import dayjs from 'dayjs';
 
-import { mockData } from '../mock-data';
+import { listMergeSources } from '../../services/mock';
+import IssueInfoItem from './issue-info-item';
+import IssuesSplitDialog from './issues-split-dialog';
 import EmptyStatus, { type EmptyStatusOperationType } from '@/components/empty-status/empty-status';
 import MergedIssueIcon from '@/static/img/merged-Issue.svg';
 
 import type { IssueItem } from '../../typing';
+import type { ActiveMember, IssueMergeSource } from '../typing';
 
 import './split-content.scss';
 
@@ -45,30 +48,34 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['close'],
+  emits: ['close', 'success'],
   setup(props, { emit }) {
-    const { t } = useI18n();
-
     const searchKey = shallowRef('');
 
-    const issues = shallowRef([]);
+    const mergeSources = shallowRef<IssueMergeSource>(null);
 
-    watch(
-      () => props.issues,
-      val => {
-        if (val.length > 0) {
-          issues.value = mockData.active_members;
-        }
-      },
-      {
-        immediate: true,
-      }
-    );
+    /** 弹窗显示状态 */
+    const dialogVisible = shallowRef(false);
+    /** 当前待拆分的 Issue */
+    const currentSplitIssue = shallowRef<ActiveMember>(null);
 
     /** 被合并 Issue 列表 */
     const targetIssues = computed(() => {
-      return issues.value.filter(issue => issue.member_name.includes(searchKey.value));
+      return mergeSources.value?.active_members?.filter(issue => issue.member_name?.includes(searchKey.value)) || [];
     });
+
+    /** 获取 metric 列表 */
+    const getMetricList = (issue: ActiveMember) => issue.merge_reasons.map(reason => reason);
+
+    const getIssueMergeSources = async () => {
+      const issue = props.issues[0];
+      if (!issue) return;
+      const data = await listMergeSources({
+        bk_biz_id: issue.bk_biz_id,
+        main_issue_id: issue.id,
+      });
+      mergeSources.value = data;
+    };
 
     const handleOperation = (type: EmptyStatusOperationType) => {
       if (type === 'clear-filter') {
@@ -76,64 +83,38 @@ export default defineComponent({
       }
     };
 
-    const renderIssueItem = (issue: IssueItem) => {
-      if (!issue) return null;
-      return (
-        <div class='issue-item'>
-          <div class='issue-info-row'>
-            <div class='issue-info'>
-              <span class='issue-name'>{issue.name}</span>
-              <span class='divider' />
-              <span
-                class='issue-desc'
-                v-overflow-tips
-              >
-                {issue.anomaly_message}
-              </span>
-            </div>
-            <Button
-              size='small'
-              theme='primary'
-              outline
-            >
-              <i class='icon-monitor icon-ziyuantuopu' />
-              {t('拆分为新 Issue')}
-            </Button>
-          </div>
-          <div class='issue-metrics-row'>
-            {Object.entries(issue.impact_scope ?? {}).map(([resourceKey, resource]) => (
-              <div
-                key={resourceKey}
-                class='tag-item metric-item'
-              >
-                <div class='label'>{resource.display_name}</div>
-                <div class='value'>{resource.count}</div>
-              </div>
-            ))}
-            <span class='operate-record'>edwinwu · 2025-04-10 00:00:00</span>
-          </div>
-        </div>
-      );
+    /** 处理拆分按钮点击，打开弹窗 */
+    const handleSplit = (issue: ActiveMember) => {
+      currentSplitIssue.value = issue;
+      dialogVisible.value = true;
     };
 
-    /** 处理确认 */
-    const handleConfirm = () => {
-      console.log('confirm');
-      emit('close');
+    /** 处理弹窗关闭 */
+    const handleDialogClose = () => {
+      dialogVisible.value = false;
+      currentSplitIssue.value = null;
     };
 
-    const handleClose = () => {
-      console.log('cancel');
-      emit('close');
+    /** 处理拆分成功 */
+    const handleDialogSuccess = () => {
+      emit('success');
+      handleDialogClose();
     };
+
+    onMounted(() => {
+      getIssueMergeSources();
+    });
 
     return {
       searchKey,
       targetIssues,
+      getMetricList,
       handleOperation,
-      renderIssueItem,
-      handleConfirm,
-      handleClose,
+      handleSplit,
+      dialogVisible,
+      currentSplitIssue,
+      handleDialogClose,
+      handleDialogSuccess,
     };
   },
   render() {
@@ -156,7 +137,31 @@ export default defineComponent({
             />
           </div>
           <div class='issue-content'>
-            {this.targetIssues.map(issue => this.renderIssueItem(issue))}
+            {this.targetIssues.map(issue => (
+              <IssueInfoItem
+                key={issue.member_issue_id}
+                v-slots={{
+                  actions: () => (
+                    <Button
+                      class='split-btn'
+                      size='small'
+                      theme='primary'
+                      outline
+                      onClick={() => this.handleSplit(issue)}
+                    >
+                      <i class='icon-monitor icon-ziyuantuopu' />
+                      {this.$t('拆分为新 Issue')}
+                    </Button>
+                  ),
+                  suffix: () => (
+                    <span class='operate-record'>{`${issue.merge_operator} · ${dayjs(issue.merge_time * 1000).format('YYYY-MM-DD HH:mm')}`}</span>
+                  ),
+                }}
+                desc={issue.anomaly_message}
+                list={this.getMetricList(issue)}
+                name={issue.member_name}
+              />
+            ))}
             {this.targetIssues.length === 0 && (
               <EmptyStatus
                 type={this.searchKey ? 'search-empty' : 'empty'}
@@ -165,6 +170,13 @@ export default defineComponent({
             )}
           </div>
         </div>
+        <IssuesSplitDialog
+          bizId={this.issues[0]?.bk_biz_id}
+          isShow={this.dialogVisible}
+          issue={this.currentSplitIssue}
+          onSuccess={this.handleDialogSuccess}
+          onUpdate:isShow={this.handleDialogClose}
+        />
       </div>
     );
   },
