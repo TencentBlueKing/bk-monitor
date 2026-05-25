@@ -39,20 +39,6 @@ from fta_web.issue.resources import IssueIDField
 logger = logging.getLogger("root")
 
 
-def _invalidate_active_members_cache(bk_biz_id: int) -> None:
-    """合并/拆分写后清理业务级 active members cache（30s TTL 兜底，fail-open）。
-
-    在 api role 端执行，有 REDIS_*_CONF，cache 操作真生效。
-    """
-    try:
-        from alarm_backends.core.cache.key import ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
-
-        cache_key = ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.get_key(bk_biz_id=str(bk_biz_id))
-        ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.client.delete(cache_key)
-    except Exception:
-        logger.warning("[issue-merge] active_members cache invalidate failed (fail-open)", exc_info=True)
-
-
 class AssignResource(Resource):
     """指派/改派 Issue 负责人"""
 
@@ -452,7 +438,6 @@ class MergeResource(Resource):
         except Exception as e:
             logger.warning("[issue-merge] merge activity bulk write failed: %s", e)
 
-        _invalidate_active_members_cache(bk_biz_id)
         return {"status": "ok", "main_issue_id": main_id, "members": members}
 
 
@@ -498,10 +483,10 @@ class SplitResource(Resource):
             operator=operator,
             kind=IssueMergeRelation.SPLIT_KIND_MANUAL,
             main_issue_id=relation.main_issue_id,
+            bk_biz_id=bk_biz_id,
             reasons=reasons,
         )
 
-        _invalidate_active_members_cache(bk_biz_id)
         return {"status": "ok", "member_issue_id": member_id}
 
 

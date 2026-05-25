@@ -472,6 +472,7 @@ class IssueDocument(BaseDocument):
         operator: str,
         kind: str,
         main_issue_id: str,
+        bk_biz_id: int | str,
         reasons: list[str] | None = None,
     ) -> None:
         """批量将 member 重置为 PENDING_REVIEW + 清空 assignee，写 SPLIT_FROM 活动日志。
@@ -486,6 +487,9 @@ class IssueDocument(BaseDocument):
             kind: 拆分类型，目前只有 ``manual``（主状态变更不再触发拆分，改走
                 ``_cascade_follow_status``）。
             main_issue_id: 关联主 Issue ID，写入 SPLIT_FROM content 字段。
+            bk_biz_id: member 所属业务 ID，写入活动日志（与普通 ``_write_activities``
+                对齐，保证审计/按业务过滤不缺字段）。跨业务合并已被禁止，member 与
+                main 必同 biz，故单值即可。
             reasons: 用户传入的拆分依据，写入 SPLIT_FROM content（自包含，前端拼接
                 ``split_info`` 标签时优先读关系表，活动日志为审计副本）。
 
@@ -527,6 +531,7 @@ class IssueDocument(BaseDocument):
                 [
                     IssueActivityDocument(
                         issue_id=mid,
+                        bk_biz_id=bk_biz_id,
                         activity_type=IssueActivityType.STATUS_CHANGE,
                         from_value=None,
                         to_value=IssueStatus.PENDING_REVIEW,
@@ -537,6 +542,7 @@ class IssueDocument(BaseDocument):
                     ),
                     IssueActivityDocument(
                         issue_id=mid,
+                        bk_biz_id=bk_biz_id,
                         activity_type=IssueActivityType.ASSIGNEE_CHANGE,
                         from_value=None,
                         to_value="",
@@ -547,6 +553,7 @@ class IssueDocument(BaseDocument):
                     ),
                     IssueActivityDocument(
                         issue_id=mid,
+                        bk_biz_id=bk_biz_id,
                         activity_type=IssueActivityType.SPLIT_FROM,
                         from_value=main_issue_id,
                         to_value=None,
@@ -607,6 +614,7 @@ class IssueDocument(BaseDocument):
         operator: str,
         kind: str,
         main_issue_id: str,
+        bk_biz_id: int | str,
     ) -> None:
         """主状态变更级联：批量把 member ES status 同步为 target_status，不动 assignee。
 
@@ -614,8 +622,9 @@ class IssueDocument(BaseDocument):
         - status 同步到 target_status（resolve/archive/reopen/restore 各自的终点），而非
           固定 PENDING_REVIEW；
         - **assignee 不动**——合并组在合并瞬间冻结的负责人维持，与"主带着走"语义一致；
-        - 活动日志写 STATUS_CHANGE（content 携带 kind/main_issue_id 供审计），不写
-          SPLIT_FROM（关系仍 active，未真正拆分）；
+        - 活动日志写 STATUS_CHANGE（content 携带 kind/main_issue_id 供审计；bk_biz_id
+          写 member 业务，与普通 ``_write_activities`` 对齐），不写 SPLIT_FROM（关系仍
+          active，未真正拆分）；
         - fp cache：target_status 为终态（非 ACTIVE_STATUSES）→ DEL；为活跃态 → NOOP
           （cache miss 时下次告警走 ES Step 1 自然回填，无需重建）。
 
@@ -669,6 +678,7 @@ class IssueDocument(BaseDocument):
         activities = [
             IssueActivityDocument(
                 issue_id=mid,
+                bk_biz_id=bk_biz_id,
                 activity_type=IssueActivityType.STATUS_CHANGE,
                 from_value=from_status_map.get(mid),
                 to_value=target_status,
@@ -734,15 +744,23 @@ class IssueDocument(BaseDocument):
         运维兜底。
         """
         # lazy import 避免与 bkmonitor.models.issue 的循环依赖
+        from django.utils import timezone
+
         from bkmonitor.models.issue import IssueMergeRelation
 
         try:
-            member_ids = list(
-                IssueMergeRelation.objects.filter(
-                    main_issue_id=self.id,
-                    status=IssueMergeRelation.STATUS_ACTIVE,
-                ).values_list("member_issue_id", flat=True)
+            active_qs = IssueMergeRelation.objects.filter(
+                main_issue_id=self.id,
+                status=IssueMergeRelation.STATUS_ACTIVE,
             )
+            member_ids = list(active_qs.values_list("member_issue_id", flat=True))
+            # touch update_time：active 关系下 update_time 语义为"最近一次主状态 cascade 触达"。
+            # 这样 list_conflicts / repair --mode=follow_status_resync 的 update_time__gte 时间窗
+            # 能扫到本次参与流转的关系——即使是很早合并的关系，今天 cascade 后 ES 同步失败，
+            # 也能在窗口内被发现修复（否则按合并时间早就滑出窗口，兜底失效）。
+            # .update() 不触发 auto_now，显式赋值；update_user 记最近触发人便于审计。
+            if member_ids:
+                active_qs.update(update_time=timezone.now(), update_user=operator)
         except Exception:
             logger.error(
                 "[issue-merge] cascade follow SQL query failed (main_issue_id=%s, target_status=%s)",
@@ -761,6 +779,7 @@ class IssueDocument(BaseDocument):
             operator=operator,
             kind=kind,
             main_issue_id=self.id,
+            bk_biz_id=self.bk_biz_id,
         )
 
     def _get_pre_archive_status(self) -> str:

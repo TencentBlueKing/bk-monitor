@@ -721,3 +721,213 @@ class TestSearchInjectsSplitInfo:
         assert by_id["split-1"]["split_info"]["split_reasons"] == ["误合并，根因不同"]
         # 普通 Issue 不注入
         assert "split_info" not in by_id["normal-1"]
+
+
+class TestCascadeFollowTouchesRelation:
+    """P1：cascade follow 时 touch active 关系 update_time，让 repair/list_conflicts
+    的 update_time__gte 窗口能扫到本次参与流转的关系（ES 同步失败时兜底可发现）。
+    """
+
+    def test_touches_update_time_and_passes_bk_biz_id(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
+
+        doc = IssueDocument.__new__(IssueDocument)
+        doc.id = "main-1"
+        doc.bk_biz_id = "2"
+
+        active_qs = MagicMock()
+        active_qs.values_list.return_value = ["m1", "m2"]
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
+
+        captured: dict = {}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, member_ids, **kw: captured.update({"member_ids": member_ids, **kw})),
+        )
+
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
+
+        # 关系被 touch：update_time + update_user=operator
+        active_qs.update.assert_called_once()
+        update_kwargs = active_qs.update.call_args.kwargs
+        assert update_kwargs["update_user"] == "alice"
+        assert "update_time" in update_kwargs
+        # bulk_follow_status 收到 member 业务 ID（cascade 传 self.bk_biz_id）
+        assert captured["member_ids"] == ["m1", "m2"]
+        assert captured["bk_biz_id"] == "2"
+
+    def test_no_members_skips_touch_and_follow(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
+
+        doc = IssueDocument.__new__(IssueDocument)
+        doc.id = "main-1"
+        doc.bk_biz_id = "2"
+
+        active_qs = MagicMock()
+        active_qs.values_list.return_value = []
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
+
+        called = {"follow": False}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
+        )
+
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
+
+        # 无 active member：不 touch、不 follow
+        active_qs.update.assert_not_called()
+        assert called["follow"] is False
+
+
+class TestBulkActivitiesCarryBizId:
+    """P2b：bulk_reset_for_split / bulk_follow_status 写的活动日志必须带 bk_biz_id
+    （与普通 _write_activities 对齐，否则审计/按业务过滤缺字段）。
+    """
+
+    @staticmethod
+    def _patch_es_noop(monkeypatch):
+        """patch IssueDocument.bulk_create + search（fingerprint/status 查空），避免触 ES。"""
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+
+        monkeypatch.setattr(IssueDocument, "bulk_create", classmethod(lambda cls, docs, **kw: None))
+        search_mock = MagicMock()
+        search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = []
+        monkeypatch.setattr(IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
+
+    def test_bulk_reset_for_split_sets_bk_biz_id(self, monkeypatch):
+        from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument
+
+        self._patch_es_noop(monkeypatch)
+        captured: dict = {}
+        monkeypatch.setattr(
+            IssueActivityDocument, "bulk_create", classmethod(lambda cls, acts, **kw: captured.update({"acts": acts}))
+        )
+
+        IssueDocument.bulk_reset_for_split(
+            ["m1", "m2"], operator="alice", kind="manual", main_issue_id="main-1", bk_biz_id=7, reasons=["r"]
+        )
+
+        acts = captured["acts"]
+        assert acts  # 3N 条活动
+        assert all(int(a.bk_biz_id) == 7 for a in acts)
+
+    def test_bulk_follow_status_sets_bk_biz_id(self, monkeypatch):
+        from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument
+        from constants.issue import IssueStatus
+
+        self._patch_es_noop(monkeypatch)
+        captured: dict = {}
+        monkeypatch.setattr(
+            IssueActivityDocument, "bulk_create", classmethod(lambda cls, acts, **kw: captured.update({"acts": acts}))
+        )
+
+        # target_status 用活跃态（UNRESOLVED）跳过 fp cache DEL 分支，避免触 Redis
+        IssueDocument.bulk_follow_status(
+            ["m1"],
+            target_status=IssueStatus.UNRESOLVED,
+            operator="alice",
+            kind="by_main_reopen",
+            main_issue_id="main-1",
+            bk_biz_id=7,
+        )
+
+        acts = captured["acts"]
+        assert acts
+        assert all(int(a.bk_biz_id) == 7 for a in acts)
+
+
+class TestMergeResolverContextMultiBiz:
+    """P2a：MergeResolverContext 支持 int|list[int]，按业务集合 bk_biz_id__in 加载。
+    单业务调用方（含测试关键字传参）向后兼容；跨业务 map 按全局唯一 id 无冲突。
+    """
+
+    @staticmethod
+    def _patch_rows(monkeypatch, rows):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import resolver as resolver_mod
+
+        manager = MagicMock()
+        manager.filter.return_value.values.return_value = rows
+        monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+        return manager
+
+    def test_single_int_backward_compat(self, monkeypatch):
+        from bkmonitor.issue_merge import MergeResolverContext
+
+        manager = self._patch_rows(monkeypatch, [])
+        ctx = MergeResolverContext(bk_biz_id=2)
+        ctx.load()
+        assert ctx.bk_biz_ids == [2]
+        assert manager.filter.call_args.kwargs["bk_biz_id__in"] == [2]
+
+    def test_multi_biz_list_maps_across_biz(self, monkeypatch):
+        import datetime
+
+        from bkmonitor.issue_merge import MergeResolverContext
+
+        rows = [
+            {
+                "main_issue_id": "A",
+                "member_issue_id": "m1",
+                "merge_reasons": [],
+                "create_user": "u",
+                "create_time": datetime.datetime(2026, 5, 1, 0, 0, 0),
+            },
+            {
+                "main_issue_id": "B",
+                "member_issue_id": "m2",
+                "merge_reasons": [],
+                "create_user": "u",
+                "create_time": datetime.datetime(2026, 5, 1, 0, 0, 0),
+            },
+        ]
+        manager = self._patch_rows(monkeypatch, rows)
+        ctx = MergeResolverContext([2, 3])
+        ctx.load()
+        assert manager.filter.call_args.kwargs["bk_biz_id__in"] == [2, 3]
+        # 跨业务的两条关系都进同一 context（按全局唯一 issue_id）
+        assert ctx.main_of("m1") == "A"
+        assert ctx.main_of("m2") == "B"
+        assert len(ctx.members_of("A")) == 1
+
+
+class TestGetActiveMemberIdsSqlOnly:
+    """web-cache：get_active_member_ids 改 SQL-only（不碰 service Redis），fail-open。"""
+
+    def test_returns_sql_result(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import IssueMergeResolver
+        from bkmonitor.issue_merge import resolver as resolver_mod
+
+        manager = MagicMock()
+        manager.filter.return_value.values_list.return_value = ["m1", "m2"]
+        monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+        assert IssueMergeResolver.get_active_member_ids(2) == ["m1", "m2"]
+
+    def test_fail_open_returns_empty(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import IssueMergeResolver
+        from bkmonitor.issue_merge import resolver as resolver_mod
+
+        manager = MagicMock()
+        manager.filter.side_effect = RuntimeError("db down")
+        monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+        assert IssueMergeResolver.get_active_member_ids(2) == []

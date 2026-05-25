@@ -223,6 +223,7 @@ class Command(BaseCommand):
                     operator="repair_command",
                     kind=REPAIR_FOLLOW_STATUS_KIND,
                     main_issue_id=main_id,
+                    bk_biz_id=bk_biz_id,
                 )
                 handled += len(m_ids)
             except Exception as e:
@@ -280,7 +281,9 @@ class Command(BaseCommand):
                 handled += len(m_ids)
                 continue
             try:
-                IssueDocument.bulk_reset_for_split(m_ids, operator="repair_command", kind=kind, main_issue_id=main_id)
+                IssueDocument.bulk_reset_for_split(
+                    m_ids, operator="repair_command", kind=kind, main_issue_id=main_id, bk_biz_id=bk_biz_id
+                )
                 handled += len(m_ids)
             except Exception as e:
                 self.stderr.write(f"  bulk_reset_for_split main={main_id} failed: {e}")

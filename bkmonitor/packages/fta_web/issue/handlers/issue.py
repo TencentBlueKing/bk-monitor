@@ -564,21 +564,30 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         # 合并/拆分视图层注入：主 Issue 注入 merge_status.active_members 摘要。
         # 关系表为空时 noop（fast-path）；context degraded 时全部 noop（fail-open）。
-        if self.bk_biz_ids and issues:
+        #
+        # context 按"页内命中 issue 的 distinct bk_biz_id"构建，而非 self.bk_biz_ids：
+        # - 更收敛：只加载本页涉及业务的关系，不拉请求里其它业务；
+        # - 对多业务 / 无业务 / bk_biz_ids=[-1] / 未授权但负责人可见等场景一致——这些
+        #   场景下 self.bk_biz_ids 不可靠（可能为空或哨兵），页内 bk_biz_id 才是实际命中业务。
+        #   多业务时非首个业务的主 Issue 也能拿到 merge_status；无业务"我负责的"列表里
+        #   重现的 active member 也会被标 role=member（前端可隐藏/跳主，预排除仍只在显式
+        #   bk_biz_ids 时做，见 get_search_object）。
+        if issues:
             from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
 
-            # 单业务直接 ctx；跨业务取首个（hydrate 仅做摘要注入，跨业务场景在 PRD 中已禁止）
-            self._merge_ctx = MergeResolverContext(self.bk_biz_ids[0])
-            self._merge_ctx.load()
-            IssueMergeResolver.hydrate_aggregations(issues, self._merge_ctx)
+            page_biz_ids = {int(i["bk_biz_id"]) for i in issues if i.get("bk_biz_id")}
+            if page_biz_ids:
+                self._merge_ctx = MergeResolverContext(page_biz_ids)
+                self._merge_ctx.load()
+                IssueMergeResolver.hydrate_aggregations(issues, self._merge_ctx)
 
-            # hydrate union 改写了主 Issue 的 impact_scope（member 维度的 instance 是 ES 原始字段、
-            # 未经 enrich），需对 role='main' 的主 Issue 整体重跑一次 enrich_impact_scope，
-            # 给 union 进来的 member instance 补 alert_query_fields，保证前端字段集一致。
-            for issue in issues:
-                merge_status = issue.get("merge_status") or {}
-                if merge_status.get("role") == "main" and issue.get("impact_scope"):
-                    self.enrich_impact_scope(issue["impact_scope"])
+                # hydrate union 改写了主 Issue 的 impact_scope（member 维度的 instance 是 ES 原始字段、
+                # 未经 enrich），需对 role='main' 的主 Issue 整体重跑一次 enrich_impact_scope，
+                # 给 union 进来的 member instance 补 alert_query_fields，保证前端字段集一致。
+                for issue in issues:
+                    merge_status = issue.get("merge_status") or {}
+                    if merge_status.get("role") == "main" and issue.get("impact_scope"):
+                        self.enrich_impact_scope(issue["impact_scope"])
 
         # 拆分溯源注入：被拆出的独立 Issue 注入 split_info（前端常驻展示「由合并拆分 +
         # 拆分依据」标签，split_time 另供"刚拆出"瞬态高亮）。split member 已恢复独立、不在

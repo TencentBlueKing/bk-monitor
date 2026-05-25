@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
 from collections.abc import Iterable
 
@@ -29,8 +28,11 @@ class MergeResolverContext:
     它直接走 SQL 单点查询。
     """
 
-    def __init__(self, bk_biz_id: int):
-        self.bk_biz_id = bk_biz_id
+    def __init__(self, bk_biz_id: int | list[int]):
+        # 接受单个或多个业务：列表查询可能跨业务，按"页内命中的 distinct bk_biz_id"批量加载。
+        # 关系 map 按全局唯一 issue_id 存储，多业务合并到同一 context 无键冲突。
+        # 参数名保留 bk_biz_id（单业务调用方 / 测试用关键字传参兼容）。
+        self.bk_biz_ids: list[int] = [bk_biz_id] if isinstance(bk_biz_id, int) else list(bk_biz_id)
         self.degraded = False
         # member_id -> main_id（active 关系）
         self._member_to_main: dict[str, str] = {}
@@ -39,12 +41,12 @@ class MergeResolverContext:
         self._loaded = False
 
     def load(self) -> None:
-        """一次 SQL 加载当前业务的全部 active 关系。幂等可重入。"""
+        """一次 SQL 加载业务集合的全部 active 关系。幂等可重入。"""
         if self._loaded:
             return
         try:
             for r in IssueMergeRelation.objects.filter(
-                bk_biz_id=self.bk_biz_id,
+                bk_biz_id__in=self.bk_biz_ids,
                 status=IssueMergeRelation.STATUS_ACTIVE,
             ).values("main_issue_id", "member_issue_id", "merge_reasons", "create_user", "create_time"):
                 main_id = r["main_issue_id"]
@@ -60,8 +62,8 @@ class MergeResolverContext:
                 )
         except Exception:
             logger.warning(
-                "[issue-merge] context load failed, fallback to noop (bk_biz_id=%s)",
-                self.bk_biz_id,
+                "[issue-merge] context load failed, fallback to noop (bk_biz_ids=%s)",
+                self.bk_biz_ids,
                 exc_info=True,
             )
             self.degraded = True
@@ -289,33 +291,20 @@ class IssueMergeResolver:
 
     @classmethod
     def get_active_member_ids(cls, bk_biz_id: int) -> list[str]:
-        """获取业务级 active member id 列表，Redis 30s 缓存 + miss 走 SQL。
+        """获取业务级 active member id 列表（SQL-only）。
 
         用于 ES 查询前 ``exclude("terms", _id=...)``，覆盖 SearchIssue / TopN / Export 等
         所有走 IssueQueryHandler.get_search_object 的列表查询路径。
 
-        Fail-open：缓存与 SQL 都失败 → 返回 []（视为无合并，全部展示）。
+        不走 service Redis：列表查询在 web role 执行，web 无 ``REDIS_*_CONF``——service
+        缓存只能 api/worker 读写，web 读必失败、又无 api/worker 调用方写入，缓存恒不命中
+        纯属负担（每次查询一次失败 GET + warning）。故直接 SQL（命中
+        ``idx_imr_biz_status_main`` 索引）。
+
+        Fail-open：SQL 失败 → 返回 []（视为无合并，全部展示）。
         """
-        cache_key = None
-        cache_obj = None
         try:
-            from alarm_backends.core.cache.key import ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
-
-            cache_obj = ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
-            cache_key = cache_obj.get_key(bk_biz_id=str(bk_biz_id))
-            cached = cache_obj.client.get(cache_key)
-            if cached is not None:
-                return json.loads(cached)
-        except Exception:
-            logger.warning(
-                "[issue-merge] active_members cache get failed (fail-open, bk_biz_id=%s)",
-                bk_biz_id,
-                exc_info=True,
-            )
-
-        # SQL fallback
-        try:
-            ids = list(
+            return list(
                 IssueMergeRelation.objects.filter(
                     bk_biz_id=bk_biz_id, status=IssueMergeRelation.STATUS_ACTIVE
                 ).values_list("member_issue_id", flat=True)
@@ -327,15 +316,6 @@ class IssueMergeResolver:
                 exc_info=True,
             )
             return []
-
-        # cache SET（fail-open）
-        if cache_obj is not None and cache_key is not None:
-            try:
-                cache_obj.client.set(cache_key, json.dumps(ids), ex=cache_obj.ttl)
-            except Exception:
-                pass
-
-        return ids
 
     @classmethod
     def get_split_info_map(cls, member_ids: list[str]) -> dict[str, dict]:
