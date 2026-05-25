@@ -41,7 +41,6 @@ import {
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
 import { MENU_LISTS } from '@/global/head-navi/complete-menu.ts';
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import DOMPurify from 'dompurify';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
@@ -64,7 +63,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneFilterValuesEmpty, isSceneRetrieve } from './helper.ts';
+import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isFeatureToggleOn, isSceneFilterValuesEmpty, isSceneRetrieve } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
