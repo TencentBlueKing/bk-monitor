@@ -258,6 +258,7 @@ export default {
   前往配置: 'go to configuration',
   点击查询: 'search',
   正则匹配: 'Regex matching',
+  正则排除: 'Regex exclude',
   监控告警: 'Monitoring and alerting',
   实时日志: 'Real-time logs',
   虚拟字段: 'Virtual field',

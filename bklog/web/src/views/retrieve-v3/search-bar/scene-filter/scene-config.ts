@@ -51,11 +51,11 @@ export const FREE_INPUT_STRING_OPERATOR_REQUEST_MAP: Record<string, string> = {
   nreq: '!~',
 };
 
-/** 操作符显示符号 → key 的反向映射 */
+/** 操作符显示符号/请求参数 → key 的反向映射 */
 export const REVERSE_OPERATOR_MAP: Record<string, string> = Object.fromEntries(
   [
     ...Object.entries(OPERATOR_DISPLAY_MAP),
-    ...Object.entries(FREE_INPUT_STRING_OPERATOR_DISPLAY_MAP),
+    ...Object.entries(FREE_INPUT_STRING_OPERATOR_REQUEST_MAP),
   ].map(([k, v]) => [v, k]),
 );
 
@@ -151,9 +151,11 @@ export const getAllSceneFieldKeys = (sceneConfigs: SceneConfig[]): string[] => {
 /** 获取操作符的显示符号，未知操作符原样返回 */
 export const getOperatorDisplay = (op: string, choicesType?: string, fieldType?: string): string => {
   if (choicesType === 'free_input' && fieldType === 'string') {
-    return FREE_INPUT_STRING_OPERATOR_DISPLAY_MAP[op] ?? op;
+    const display = FREE_INPUT_STRING_OPERATOR_DISPLAY_MAP[op] ?? op;
+    return window.$t(display) as string;
   }
-  return OPERATOR_DISPLAY_MAP[op] ?? op;
+  const display = OPERATOR_DISPLAY_MAP[op] ?? op;
+  return window.$t(display) as string;
 };
 
 /** 获取操作符的请求参数值（用于 free_input + string 类型字段的 scene_filter_values 传参） */

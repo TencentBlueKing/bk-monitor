@@ -24,7 +24,8 @@
       align-items: center;
       justify-content: center;
       gap: 2px;
-      width: 40px;
+      min-width: 40px;
+      padding: 0 2px;
       height: 40px;
       font-size: 11px;
       color: #63656e;
