@@ -199,7 +199,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
             search_object = search_object.filter("term", fingerprint=self.fingerprint)
 
         # 合并/拆分独立映射层：默认从列表中剔除 active member（被并入 Issue 在主 Issue 下展示）。
-        # Redis 30s 缓存 + miss 走 SQL；fail-open（无缓存与无 SQL 都视为无合并）。
+        # 走 SQL（命中 idx_imr_biz_status_main）；fail-open（SQL 失败视为无合并，全部展示）。
         # 覆盖 Search / TopN / Export 三类走 get_search_object 的查询路径。
         if self.bk_biz_ids:
             from bkmonitor.issue_merge import IssueMergeResolver

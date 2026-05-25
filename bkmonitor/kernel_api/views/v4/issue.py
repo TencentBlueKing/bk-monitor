@@ -12,6 +12,7 @@ import json
 import logging
 import time
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from constants.issue import IssueActivityType, IssuePriority, IssueStatus
@@ -469,11 +470,15 @@ class SplitResource(Resource):
             raise SplitNotFoundError(member_id)
 
         # SQL UPDATE 改 status=split（单条 UPDATE 已原子，无需事务）
+        # 显式写 update_time：split 关系的 update_time 即"拆分时间"，被 split_info.split_time
+        # 消费（详情/列表展示 + 前端"刚拆出"瞬态高亮）。QuerySet.update() 不触发 auto_now，
+        # 不显式赋值会残留合并时间 / cascade 触达时间，导致 split_time 错误。
         IssueMergeRelation.objects.filter(pk=relation.pk).update(
             status=IssueMergeRelation.STATUS_SPLIT,
             split_kind=IssueMergeRelation.SPLIT_KIND_MANUAL,
             split_reasons=reasons,
             update_user=operator,
+            update_time=timezone.now(),
         )
 
         # ES 重置 member 状态 + 写活动日志（含 reasons，让 SPLIT_FROM content 自包含）

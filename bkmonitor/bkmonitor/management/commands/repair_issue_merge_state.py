@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Count
+from django.utils import timezone
 
 from bkmonitor.documents.issue import IssueDocument
 from bkmonitor.models.issue import IssueMergeRelation
@@ -145,6 +146,9 @@ class Command(BaseCommand):
                     split_kind=IssueMergeRelation.SPLIT_KIND_MANUAL,
                     split_reasons=["repair_resolve_conflicts"],
                     update_user="repair_command",
+                    # 显式写 update_time：split 关系 update_time 即拆分时间，被 split_info.split_time
+                    # 消费；.update() 不触发 auto_now，与 SplitResource 口径一致
+                    update_time=timezone.now(),
                 )
                 handled += len(to_split)
             except Exception as e:
