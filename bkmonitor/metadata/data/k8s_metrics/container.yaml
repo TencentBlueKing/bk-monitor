@@ -1363,3 +1363,343 @@
   - {description: '', field_name: node}
   - {description: '', field_name: container}
   - {description: '', field_name: container_name}
+- description: ''
+  field_name: container_blkio_device_usage_total
+  tag_list:
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: device}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: container}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: node}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: image}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: minor}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: major}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: container_cpu_load_d_average_10s
+  tag_list:
+  - {description: '', field_name: target}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: job}
+  - {description: '', field_name: image}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: service}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: workload_name}
+- description: ''
+  field_name: container_memory_kernel_usage
+  tag_list:
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: image}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: node}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: job}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: container_memory_total_active_file_bytes
+  tag_list:
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: image}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: container}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: job}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: node}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: monitor_type}
+- description: ''
+  field_name: container_memory_total_inactive_file_bytes
+  tag_list:
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: job}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: target}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: container}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: image}
+  - {description: '', field_name: node}
+  - {description: '', field_name: exported_namespace}
+- description: ''
+  field_name: container_oom_events_total
+  tag_list:
+  - {description: '', field_name: instance}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: container}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: image}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: job}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: workload_name}
+- description: ''
+  field_name: container_pressure_cpu_stalled_seconds_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: job}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: image}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: container}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: container_pressure_cpu_waiting_seconds_total
+  tag_list:
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: service}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: image}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: container}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: job}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: container_pressure_io_stalled_seconds_total
+  tag_list:
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: image}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: node}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: job}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: container}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: bcs_cluster_id}
+- description: ''
+  field_name: container_pressure_io_waiting_seconds_total
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: job}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: image}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: target}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: container_pressure_memory_stalled_seconds_total
+  tag_list:
+  - {description: '', field_name: container}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: image}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: node}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: job}
+  - {description: '', field_name: service}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: container_pressure_memory_waiting_seconds_total
+  tag_list:
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: image}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: container}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: job}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: workload_kind}
+  - {description: '', field_name: node}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: workload_name}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: pod_name}
