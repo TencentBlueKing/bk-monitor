@@ -580,6 +580,20 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 if merge_status.get("role") == "main" and issue.get("impact_scope"):
                     self.enrich_impact_scope(issue["impact_scope"])
 
+        # 拆分溯源注入：被拆出的独立 Issue 注入 split_info（前端常驻展示「由合并拆分 +
+        # 拆分依据」标签，split_time 另供"刚拆出"瞬态高亮）。split member 已恢复独立、不在
+        # active 集，不受上面 hydrate 影响；此处独立批量查 status='split'，无时间窗（标签
+        # 常驻，过期与否由前端按 split_time 自行判定）。fail-open：失败返回 {} 不阻塞列表。
+        if issues:
+            from bkmonitor.issue_merge import IssueMergeResolver
+
+            split_info_map = IssueMergeResolver.get_split_info_map([i["id"] for i in issues if i.get("id")])
+            if split_info_map:
+                for issue in issues:
+                    info = split_info_map.get(issue.get("id"))
+                    if info:
+                        issue["split_info"] = info
+
         # 批量查询关联告警趋势（add_alert_trend 内部会读 self._merge_ctx 做 expand）
         self.add_alert_trend(issues)
 

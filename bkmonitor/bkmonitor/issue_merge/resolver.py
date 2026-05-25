@@ -338,6 +338,66 @@ class IssueMergeResolver:
         return ids
 
     @classmethod
+    def get_split_info_map(cls, member_ids: list[str]) -> dict[str, dict]:
+        """批量查 status='split' 关系，返回 ``{member_id: split_info}``。
+
+        用途：列表接口给"被拆出的独立 Issue"注入永久拆分溯源（前端据此常驻展示
+        「由合并拆分」+「拆分依据」标签；``split_time`` 另供前端做"刚拆出"瞬态高亮）。
+        与详情 ``IssueDetailResource._fill_split_info`` 同一套 split_info 键集，差异仅
+        ``split_from_main_issue_name`` 留空——列表标签不展示主名，省掉逐主名的 ES 查询。
+
+        多次 split 取最新：``order_by("-update_time", "-id")``；``-id`` 作为 update_time
+        相同时的稳定 tiebreaker（AutoField 单调递增）。
+
+        只按 ``member_issue_id`` 过滤、不传 bk_biz_id：Issue ID 由 timestamp + uuid 生成
+        （见 IssueDocument.save），全局唯一且作为 ES ``_id`` 系统级使用；列表 ES 查询已按
+        业务权限过滤，本方法只对当前页命中的 issue id 补充元数据，无越权风险。
+
+        Fail-open：SQL 失败返回 ``{}``（列表无拆分标签，不阻塞主路径）。
+        """
+        if not member_ids:
+            return {}
+        try:
+            rows = list(
+                IssueMergeRelation.objects.filter(
+                    member_issue_id__in=member_ids,
+                    status=IssueMergeRelation.STATUS_SPLIT,
+                )
+                .order_by("-update_time", "-id")
+                .values(
+                    "member_issue_id",
+                    "main_issue_id",
+                    "split_reasons",
+                    "split_kind",
+                    "update_time",
+                    "update_user",
+                )
+            )
+        except Exception:
+            logger.warning(
+                "[issue-merge] get_split_info_map SQL load failed (fail-open, member_ids=%s)",
+                member_ids,
+                exc_info=True,
+            )
+            return {}
+
+        result: dict[str, dict] = {}
+        for r in rows:
+            member_id = r["member_issue_id"]
+            # 已排序，首见即最新；同一 member 多条 split 关系只保留最新一条
+            if member_id in result:
+                continue
+            result[member_id] = {
+                "split_from_main_issue_id": r["main_issue_id"],
+                "split_from_main_issue_name": None,
+                "split_reasons": r["split_reasons"] or [],
+                "split_kind": r["split_kind"],
+                "split_time": int(r["update_time"].timestamp()) if r["update_time"] else 0,
+                "split_operator": r["update_user"],
+            }
+        return result
+
+    @classmethod
     def assert_not_frozen(cls, issue_id: str) -> None:
         """守卫：member 抛 IssueFrozenError；非 member pass。
 

@@ -552,3 +552,172 @@ class TestListMergeSourcesAnomalyMessage:
         assert result == {"b1": "fallback window hit"}
         # 兜底窗口 ≈ now - 30d；允许少量调用时延误差
         assert captured["end_time"] - captured["start_time"] == _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER
+
+
+class TestGetSplitInfoMap:
+    """``IssueMergeResolver.get_split_info_map`` 行为：列表批量拆分溯源注入的取数层。
+
+    与详情 split_info 同键集（列表场景 main_name 留空）；多条 split 取最新；fail-open。
+    """
+
+    @staticmethod
+    def _patch_rows(monkeypatch, rows=None, explode=False):
+        """patch ``IssueMergeRelation.objects.filter(...).order_by(...).values(...)`` 链。"""
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import resolver as resolver_mod
+
+        manager = MagicMock()
+        if explode:
+            manager.filter.side_effect = RuntimeError("db unreachable")
+        else:
+            manager.filter.return_value.order_by.return_value.values.return_value = rows or []
+        monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+
+    def test_empty_member_ids_returns_empty(self):
+        # 空入参不查 DB，直接返回 {}
+        assert IssueMergeResolver.get_split_info_map([]) == {}
+
+    def test_hit_returns_split_info_fields(self, monkeypatch):
+        import datetime
+
+        ts = datetime.datetime(2026, 5, 14, 12, 0, 0)
+        self._patch_rows(
+            monkeypatch,
+            rows=[
+                {
+                    "member_issue_id": "m1",
+                    "main_issue_id": "A",
+                    "split_reasons": ["误合并，根因不同"],
+                    "split_kind": "manual",
+                    "update_time": ts,
+                    "update_user": "willgchen",
+                }
+            ],
+        )
+        info = IssueMergeResolver.get_split_info_map(["m1"])["m1"]
+        # 与详情 split_info 同键集
+        assert set(info.keys()) == {
+            "split_from_main_issue_id",
+            "split_from_main_issue_name",
+            "split_reasons",
+            "split_kind",
+            "split_time",
+            "split_operator",
+        }
+        assert info["split_from_main_issue_id"] == "A"
+        assert info["split_from_main_issue_name"] is None  # 列表不查主名（省 ES）
+        assert info["split_reasons"] == ["误合并，根因不同"]
+        assert info["split_time"] == int(ts.timestamp())
+        assert info["split_operator"] == "willgchen"
+
+    def test_multiple_split_keeps_latest(self, monkeypatch):
+        import datetime
+
+        newer = datetime.datetime(2026, 5, 14, 12, 0, 0)
+        older = datetime.datetime(2026, 5, 1, 9, 0, 0)
+        # DB 已按 -update_time, -id 排序；首见即最新
+        self._patch_rows(
+            monkeypatch,
+            rows=[
+                {
+                    "member_issue_id": "m1",
+                    "main_issue_id": "NEW",
+                    "split_reasons": ["最新"],
+                    "split_kind": "manual",
+                    "update_time": newer,
+                    "update_user": "u2",
+                },
+                {
+                    "member_issue_id": "m1",
+                    "main_issue_id": "OLD",
+                    "split_reasons": ["历史"],
+                    "split_kind": "manual",
+                    "update_time": older,
+                    "update_user": "u1",
+                },
+            ],
+        )
+        result = IssueMergeResolver.get_split_info_map(["m1"])
+        assert len(result) == 1
+        assert result["m1"]["split_from_main_issue_id"] == "NEW"
+        assert result["m1"]["split_time"] == int(newer.timestamp())
+
+    def test_reasons_none_degrades_to_empty_list(self, monkeypatch):
+        import datetime
+
+        self._patch_rows(
+            monkeypatch,
+            rows=[
+                {
+                    "member_issue_id": "m1",
+                    "main_issue_id": "A",
+                    "split_reasons": None,
+                    "split_kind": "manual",
+                    "update_time": datetime.datetime(2026, 5, 14, 0, 0, 0),
+                    "update_user": "u",
+                }
+            ],
+        )
+        assert IssueMergeResolver.get_split_info_map(["m1"])["m1"]["split_reasons"] == []
+
+    def test_sql_exception_fail_open(self, monkeypatch):
+        self._patch_rows(monkeypatch, explode=True)
+        # fail-open：DB 异常返回 {}，列表无拆分标签但不阻塞
+        assert IssueMergeResolver.get_split_info_map(["m1"]) == {}
+
+
+class TestSearchInjectsSplitInfo:
+    """``IssueQueryHandler.search()`` 列表契约：被拆出的独立 Issue 注入 split_info。
+
+    独立守护"search 流程真的会塞 split_info"——避免后续重构 search 时 resolver 单测仍过、
+    但列表契约悄悄断裂。patch 掉 ES / 翻译 / 趋势等重链路，只验证注入这一刀。
+    """
+
+    def test_split_member_injected_normal_untouched(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+        from fta_web.alert.handlers import translator as translator_mod
+        from fta_web.issue.handlers.issue import IssueQueryHandler
+
+        # __new__ 跳过 BaseBizQueryHandler.__init__（避免触发 IAM 权限装配）
+        handler = IssueQueryHandler.__new__(IssueQueryHandler)
+        handler.bk_biz_ids = [2]
+
+        issues = [{"id": "split-1", "bk_biz_id": 2}, {"id": "normal-1", "bk_biz_id": 2}]
+
+        fake_result = MagicMock()
+        fake_result.hits.total.value = len(issues)
+
+        # patch 重链路：ES 查询 / 清洗 / 翻译 / 合并 ctx 加载 / 告警趋势
+        monkeypatch.setattr(handler, "search_raw", lambda **kw: (fake_result, None))
+        monkeypatch.setattr(handler, "handle_hit_list", lambda sr: issues)
+        monkeypatch.setattr(handler, "add_alert_trend", lambda items: None)
+        monkeypatch.setattr(translator_mod.StrategyTranslator, "translate_from_dict", lambda self, *a, **k: None)
+        monkeypatch.setattr(translator_mod.BizTranslator, "translate_from_dict", lambda self, *a, **k: None)
+        monkeypatch.setattr(MergeResolverContext, "load", lambda self: None)
+        monkeypatch.setattr(
+            IssueMergeResolver,
+            "get_split_info_map",
+            classmethod(
+                lambda cls, ids: {
+                    "split-1": {
+                        "split_from_main_issue_id": "A",
+                        "split_from_main_issue_name": None,
+                        "split_reasons": ["误合并，根因不同"],
+                        "split_kind": "manual",
+                        "split_time": 1716580800,
+                        "split_operator": "willgchen",
+                    }
+                }
+            ),
+        )
+
+        result = handler.search()
+        by_id = {i["id"]: i for i in result["issues"]}
+        # 被拆出的独立 Issue 注入 split_info
+        assert "split_info" in by_id["split-1"]
+        assert by_id["split-1"]["split_info"]["split_reasons"] == ["误合并，根因不同"]
+        # 普通 Issue 不注入
+        assert "split_info" not in by_id["normal-1"]
