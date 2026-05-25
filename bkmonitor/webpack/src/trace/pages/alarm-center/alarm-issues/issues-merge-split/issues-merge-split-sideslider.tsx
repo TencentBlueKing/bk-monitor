@@ -36,7 +36,7 @@ import type { IssueItem } from '../typing';
 import './issues-merge-split-sideslider.scss';
 
 /** 侧栏类型：合并或拆分 */
-type SidesliderType = 'merge' | 'split';
+export type SidesliderType = 'merge' | 'split';
 
 export default defineComponent({
   name: 'IssuesMergeSplitSideslider',

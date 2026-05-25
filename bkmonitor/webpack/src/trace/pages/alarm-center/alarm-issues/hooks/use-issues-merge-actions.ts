@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, computed } from 'vue';
+import { type Ref, computed, shallowRef } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
+import type { SidesliderType } from '../issues-merge-split/issues-merge-split-sideslider';
 import type { IssueItem } from '../typing';
 
 /** useIssuesMergeActions 入参类型 */
@@ -55,16 +56,37 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
   const { data, selectedRowKeys } = options;
   const { t } = useI18n();
 
+  // ===================== 合并/拆分侧栏状态 =====================
+
+  /** 侧栏是否可见 */
+  const mergeSplitShow = shallowRef(false);
+
+  /** 侧栏类型 */
+  const mergeSplitType = shallowRef<SidesliderType>('merge');
+
+  /** 侧栏传入的 Issue 列表 */
+  const mergeSplitIssues = shallowRef<IssueItem[]>([]);
+
+  // ===================== 合并按钮禁用判定 =====================
+
   /** 选中行中主 Issue 的数量 */
   const mainIssueCount = computed(() => {
     const selectedSet = new Set(selectedRowKeys.value);
     return data.value.filter(item => selectedSet.has(item.id) && item.merge_status?.role === 'main').length;
   });
 
+  /** 选中行中是否包含不同空间的 Issue */
+  const hasMultipleSpaces = computed(() => {
+    const selectedSet = new Set(selectedRowKeys.value);
+    const bizIds = new Set(data.value.filter(item => selectedSet.has(item.id)).map(item => item.bk_biz_id));
+    return bizIds.size > 1;
+  });
+
   /** 合并按钮是否禁用 */
   const mergeDisabled = computed(() => {
     const hasSelection = selectedRowKeys.value.length > 0;
     if (!hasSelection || selectedRowKeys.value.length < 2) return true;
+    if (hasMultipleSpaces.value) return true;
     return mainIssueCount.value > 1;
   });
 
@@ -73,35 +95,52 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
     const hasSelection = selectedRowKeys.value.length > 0;
     if (!hasSelection) return t('请先选择 Issue');
     if (selectedRowKeys.value.length < 2) return t('请至少选择 2 个 Issue');
+    if (hasMultipleSpaces.value) return t('不支持跨空间合并 Issue');
     if (mainIssueCount.value > 1) return t('主 Issue 不支持再并入其他主 Issue');
     return '';
   });
 
   /**
    * @description 处理合并按钮点击。
-   * 当前为 console.log 占位 —— 待合并弹框实现后，需评估是否需要在 hook 内部
-   * 维护弹框可见性等状态。data + selectedRowKeys 已足够构建弹框参数，
-   * 后续可直接在此函数内打开合并弹框或触发合并流程。
+   * 将选中行对应的 Issue 数据填入侧栏，以 merge 模式打开。
    */
   const handleIssuesMergeClick = () => {
-    console.log('merge dialog', selectedRowKeys.value);
+    const selectedSet = new Set(selectedRowKeys.value);
+    mergeSplitIssues.value = data.value.filter(item => selectedSet.has(item.id));
+    mergeSplitType.value = 'merge';
+    mergeSplitShow.value = true;
   };
 
   /**
    * @description 处理拆分按钮点击。
-   * 当前为 console.log 占位 —— 待拆分弹框实现后，需评估是否需要在 hook 内部
-   * 维护弹框可见性等状态。row 参数已包含构建拆分弹框所需的全部信息，
-   * 后续可直接在此函数内打开拆分弹框或触发拆分流程。
+   * 将目标行 Issue 数据填入侧栏，以 split 模式打开。
    * @param {IssueItem} row - 被拆分的 Issue 行数据
    */
   const handleIssuesSplitClick = (row: IssueItem) => {
-    console.log('split dialog', row.id);
+    mergeSplitIssues.value = [row];
+    mergeSplitType.value = 'split';
+    mergeSplitShow.value = true;
+  };
+
+  /**
+   * @description 处理侧栏显示状态变更（v-model:show 回调）
+   * @param {boolean} isShow - 目标显示状态
+   */
+  const handleMergeSplitShowChange = (isShow: boolean) => {
+    mergeSplitShow.value = isShow;
+    if (!isShow) {
+      mergeSplitIssues.value = [];
+    }
   };
 
   return {
     mergeDisabled,
     mergeDisabledTip,
+    mergeSplitShow,
+    mergeSplitType,
+    mergeSplitIssues,
     handleIssuesMergeClick,
     handleIssuesSplitClick,
+    handleMergeSplitShowChange,
   };
 }
