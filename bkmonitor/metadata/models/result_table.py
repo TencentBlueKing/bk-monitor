@@ -641,10 +641,10 @@ class ResultTable(models.Model):
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
-            # 如果存在日志V4数据链路配置，则创建日志V4数据链路
+            # 日志 V4 数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
-            # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
+            # 事件组 V4 数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
