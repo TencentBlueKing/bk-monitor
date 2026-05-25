@@ -63,7 +63,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isSceneFilterValuesEmpty, isSceneRetrieve } from './helper.ts';
+import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isFeatureToggleOn, isSceneFilterValuesEmpty, isSceneRetrieve } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
