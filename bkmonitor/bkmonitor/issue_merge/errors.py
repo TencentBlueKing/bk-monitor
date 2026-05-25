@@ -117,3 +117,78 @@ class MergeIssuesNotFoundError(IssuesMergeError):
             context={"missing_ids": ", ".join(self.missing_ids)},
             extra={"business_code": "MERGE_ISSUES_NOT_FOUND", "missing_ids": self.missing_ids},
         )
+
+
+class MergeMainStatusForbiddenError(IssuesMergeError):
+    """主 Issue 当前 ES 状态不允许作为合并目标（必须 ∈ ACTIVE_STATUSES）。
+
+    防止把活跃成员合并到已 RESOLVED / ARCHIVED 的主 Issue——主状态不会因合并变更，
+    会立刻造成 ES 层状态发散（主已结案但拿到活跃 member）。
+    """
+
+    status_code = 400
+    code = 3337106
+    name = _lazy("主 Issue 状态不允许合并")
+    message_tpl = _lazy("主 Issue {main_issue_id} 当前状态 {main_status} 不允许合并，必须是活跃状态")
+
+    def __init__(self, main_issue_id: str, main_status: str):
+        self.main_issue_id = main_issue_id
+        self.main_status = main_status
+        super().__init__(
+            context={"main_issue_id": main_issue_id, "main_status": main_status},
+            extra={
+                "business_code": "MERGE_MAIN_STATUS_FORBIDDEN",
+                "main_issue_id": main_issue_id,
+                "main_status": main_status,
+            },
+        )
+
+
+class MergeMemberStatusForbiddenError(IssuesMergeError):
+    """部分 member Issue 当前 ES 状态不允许被合并（必须 ∈ ACTIVE_STATUSES）。
+
+    防止把已 RESOLVED / ARCHIVED 的 member 合并进活跃主——member 被冻结写入后，
+    其 ES 状态停在终态，主与 member 永久不一致。
+    """
+
+    status_code = 400
+    code = 3337107
+    name = _lazy("成员 Issue 状态不允许合并")
+    message_tpl = _lazy("以下 Issue 状态不允许合并（必须是活跃状态）: {invalid_summary}")
+
+    def __init__(self, invalid_members: list[dict]):
+        # invalid_members: [{"issue_id": ..., "status": ...}, ...]
+        self.invalid_members = list(invalid_members)
+        invalid_summary = ", ".join(f"{m['issue_id']}({m['status']})" for m in self.invalid_members)
+        super().__init__(
+            context={"invalid_summary": invalid_summary},
+            extra={
+                "business_code": "MERGE_MEMBER_STATUS_FORBIDDEN",
+                "invalid_members": self.invalid_members,
+            },
+        )
+
+
+class MergeMemberIsAnotherMainError(IssuesMergeError):
+    """部分 member Issue 自身是别的活跃合并关系的主 Issue（防链式合并的对称校验）。
+
+    与 ``MergeTargetIsMemberError`` 对称：那个校验"目标主自身被合并"，这个校验
+    "目标 member 自己是别人的主"——都是为了拒绝链式合并，否则 hydrate 视图层会陷入
+    "主 → member → member 的 member"递归。
+    """
+
+    status_code = 409
+    code = 3337108
+    name = _lazy("成员 Issue 自身是别的合并组主")
+    message_tpl = _lazy("以下 Issue 自身是别的合并组主，请先拆分这些组再合并: {chain_members_summary}")
+
+    def __init__(self, chain_members: list[str]):
+        # chain_members: 那些自身是 active main 的 member id 列表
+        self.chain_members = list(chain_members)
+        super().__init__(
+            context={"chain_members_summary": ", ".join(self.chain_members)},
+            extra={
+                "business_code": "MERGE_MEMBER_IS_ANOTHER_MAIN",
+                "chain_members": self.chain_members,
+            },
+        )

@@ -86,6 +86,45 @@ class TestMergeErrors:
         assert err.extra["missing_ids"] == ["b1", "b2"]
         assert err.status_code == 404
 
+    def test_merge_main_status_forbidden(self):
+        """主 Issue 当前状态不允许合并：携带 main_issue_id + main_status，前端可据此引导。"""
+        from bkmonitor.issue_merge import MergeMainStatusForbiddenError
+
+        err = MergeMainStatusForbiddenError(main_issue_id="a1", main_status="RESOLVED")
+        assert err.code == 3337106
+        assert err.main_issue_id == "a1"
+        assert err.main_status == "RESOLVED"
+        assert err.extra["business_code"] == "MERGE_MAIN_STATUS_FORBIDDEN"
+        assert err.extra["main_issue_id"] == "a1"
+        assert err.extra["main_status"] == "RESOLVED"
+        assert err.status_code == 400
+
+    def test_merge_member_status_forbidden(self):
+        """成员 Issue 状态不允许合并：携带 invalid_members 列表（含 issue_id + status）。"""
+        from bkmonitor.issue_merge import MergeMemberStatusForbiddenError
+
+        invalid = [
+            {"issue_id": "b1", "status": "RESOLVED"},
+            {"issue_id": "b2", "status": "ARCHIVED"},
+        ]
+        err = MergeMemberStatusForbiddenError(invalid)
+        assert err.code == 3337107
+        assert err.invalid_members == invalid
+        assert err.extra["business_code"] == "MERGE_MEMBER_STATUS_FORBIDDEN"
+        assert err.extra["invalid_members"] == invalid
+        assert err.status_code == 400
+
+    def test_merge_member_is_another_main(self):
+        """成员 Issue 自身是别的合并组主（防链式合并，与 MergeTargetIsMemberError 对称）。"""
+        from bkmonitor.issue_merge import MergeMemberIsAnotherMainError
+
+        err = MergeMemberIsAnotherMainError(chain_members=["b1", "b3"])
+        assert err.code == 3337108
+        assert err.chain_members == ["b1", "b3"]
+        assert err.extra["business_code"] == "MERGE_MEMBER_IS_ANOTHER_MAIN"
+        assert err.extra["chain_members"] == ["b1", "b3"]
+        assert err.status_code == 409
+
 
 class TestMergeResolverFastPath:
     """Resolver fast-path：未 load context 或 degraded 时全部 noop（行为等价于无合并）。"""

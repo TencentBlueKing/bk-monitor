@@ -28,6 +28,9 @@ from bkmonitor.issue_merge import (
     MergeConflictError,
     MergeCrossBizForbiddenError,
     MergeIssuesNotFoundError,
+    MergeMainStatusForbiddenError,
+    MergeMemberIsAnotherMainError,
+    MergeMemberStatusForbiddenError,
     MergeTargetIsMemberError,
     SplitNotFoundError,
 )
@@ -988,7 +991,14 @@ def _invalidate_active_members_cache(bk_biz_id: int) -> None:
 class MergeIssueResource(Resource):
     """合并 Issue：把多个 Issue 收敛到一个主 Issue。
 
-    校验顺序：跨业务 → 主 issue 自己是 member（防链式）→ 任一 member 已在 active。
+    校验顺序（任一失败即拒绝，先后顺序按"轻量 → 重"组织）：
+    1. ES 存在性 + 跨业务一致（同次 ES 查询同时拉 bk_biz_id 与 status）
+    2. status 白名单：main 与 members 当前 ES status 必须 ∈ ACTIVE_STATUSES
+       （防合并到已 RESOLVED / ARCHIVED 主，或合并已结案 member 进活跃主）
+    3. 防链式（main 端）：main 自身不能是别行 active 关系的 member
+    4. 防链式（member 端）：members 自身不能是别行 active 关系的 main（对称校验）
+    5. 任一 member 不能已在 active 关系（不可重复合并）
+
     写入：SQL bulk_create 关系 + ES 活动日志（main 1 条 + 每 member 1 条 MERGED_INTO）。
     """
 
@@ -1012,11 +1022,12 @@ class MergeIssueResource(Resource):
 
         # 校验 1: 所有 main + members 必须存在于 ES（防止 main 不存在仍写关系导致 member 被冻结）
         # + 跨业务校验（所有 issue 的 bk_biz_id 必须一致并等于入参 bk_biz_id）
+        # 同次 ES 查询多 source 一个 status 字段，给校验 2 的状态白名单复用（零额外查询）
         all_ids = [main_id, *members]
         biz_hits = (
             IssueDocument.search(all_indices=True)
             .filter("terms", _id=all_ids)
-            .source(["bk_biz_id"])
+            .source(["bk_biz_id", "status"])
             .params(size=len(all_ids))
             .execute()
             .hits
@@ -1032,7 +1043,22 @@ class MergeIssueResource(Resource):
         if not biz_set or len(biz_set) > 1 or str(bk_biz_id) not in biz_set:
             raise MergeCrossBizForbiddenError()
 
-        # 校验 2: 主 issue 自身是某行活跃 member（防链式合并）
+        # 校验 2: status 白名单（main + members 必须 ∈ ACTIVE_STATUSES）
+        # 复用上面 ES 查询的 status 字段，无额外查询成本
+        status_map = {hit.meta.id: getattr(hit, "status", None) for hit in biz_hits}
+        main_status = status_map.get(main_id)
+        if main_status not in IssueStatus.ACTIVE_STATUSES:
+            raise MergeMainStatusForbiddenError(main_id, main_status or "UNKNOWN")
+
+        invalid_members = [
+            {"issue_id": mid, "status": status_map.get(mid) or "UNKNOWN"}
+            for mid in members
+            if status_map.get(mid) not in IssueStatus.ACTIVE_STATUSES
+        ]
+        if invalid_members:
+            raise MergeMemberStatusForbiddenError(invalid_members)
+
+        # 校验 3: 主 issue 自身是某行活跃 member（防链式合并 - main 端）
         target_as_member = (
             IssueMergeRelation.objects.filter(member_issue_id=main_id, status=IssueMergeRelation.STATUS_ACTIVE)
             .values("main_issue_id")
@@ -1041,7 +1067,20 @@ class MergeIssueResource(Resource):
         if target_as_member:
             raise MergeTargetIsMemberError(main_id, target_as_member["main_issue_id"])
 
-        # 校验 3: 任一 member 已在 active 关系
+        # 校验 4: members 自身是别的 active 关系的 main（防链式合并 - member 端，与校验 3 对称）
+        # 拒绝 "main A 合并 member B，B 自己又是 main C 的别名"——视图层 hydrate 会递归
+        chain_members = list(
+            IssueMergeRelation.objects.filter(
+                main_issue_id__in=members,
+                status=IssueMergeRelation.STATUS_ACTIVE,
+            )
+            .values_list("main_issue_id", flat=True)
+            .distinct()
+        )
+        if chain_members:
+            raise MergeMemberIsAnotherMainError(chain_members)
+
+        # 校验 5: 任一 member 已在 active 关系（不可重复合并）
         existing = (
             IssueMergeRelation.objects.filter(member_issue_id__in=members, status=IssueMergeRelation.STATUS_ACTIVE)
             .values("member_issue_id", "main_issue_id")

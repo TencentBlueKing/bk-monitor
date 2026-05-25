@@ -13,6 +13,9 @@ from bkmonitor.issue_merge.errors import (
     MergeConflictError,
     MergeCrossBizForbiddenError,
     MergeIssuesNotFoundError,
+    MergeMainStatusForbiddenError,
+    MergeMemberIsAnotherMainError,
+    MergeMemberStatusForbiddenError,
     MergeTargetIsMemberError,
     SplitNotFoundError,
 )
@@ -25,6 +28,9 @@ __all__ = [
     "MergeConflictError",
     "MergeCrossBizForbiddenError",
     "MergeIssuesNotFoundError",
+    "MergeMainStatusForbiddenError",
+    "MergeMemberIsAnotherMainError",
+    "MergeMemberStatusForbiddenError",
     "MergeTargetIsMemberError",
     "SplitNotFoundError",
 ]
