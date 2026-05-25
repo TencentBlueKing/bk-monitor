@@ -94,15 +94,11 @@ class TestStrategies(TestCase):
         response = self.client.get(request_path, data=PAGINATE_PARAMS)
         content = json.loads(response.content)
         for index, strategy in enumerate(STRATEGIES_LIST_RESULT["data"]):
+            self.assertEqual(content["data"][index]["modules"], STRATEGIES_LIST_RESULT["data"][index]["modules"])
             self.assertEqual(
-                content["data"]["list"][index]["modules"], STRATEGIES_LIST_RESULT["data"][index]["modules"]
+                content["data"][index]["visible_dir"], STRATEGIES_LIST_RESULT["data"][index]["visible_dir"]
             )
-            self.assertEqual(
-                content["data"]["list"][index]["visible_dir"], STRATEGIES_LIST_RESULT["data"][index]["visible_dir"]
-            )
-            self.assertEqual(
-                content["data"]["list"][index]["file_type"], STRATEGIES_LIST_RESULT["data"][index]["file_type"]
-            )
+            self.assertEqual(content["data"][index]["file_type"], STRATEGIES_LIST_RESULT["data"][index]["file_type"])
 
     @override_settings(MIDDLEWARE=("apps.tests.middlewares.OverrideMiddleware",))
     @patch("apps.log_search.handlers.meta.MetaHandler.get_user", lambda: {"operator": USER})
