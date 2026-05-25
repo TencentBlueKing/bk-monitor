@@ -9,10 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import operator
 import time
+from functools import reduce
 from typing import Any
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
@@ -20,10 +23,14 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.utils.cache import lru_cache_with_ttl, using_cache, CacheType
 from core.drf_resource import api
 from monitor_web.data_explorer.event.constants import (
+    DEFAULT_EVENT_ORIGIN,
     DIMENSION_PREFIX,
     EVENT_FIELD_ALIAS,
+    EVENT_ORIGIN_MAPPING,
     INNER_FIELD_TYPE_MAPPINGS,
+    CicdEventName,
     EventCategory,
+    EventDomain,
 )
 
 logger = logging.getLogger(__name__)
@@ -115,6 +122,88 @@ def get_data_labels_map(bk_biz_id: int, tables: Iterable[str]) -> dict[str, str]
 @lru_cache_with_ttl(ttl=60 * 20, decision_to_drop_func=lambda v: not v)
 def _get_data_labels_map(bk_biz_id: int, tables: tuple[str, ...]) -> dict[str, str]:
     return api.metadata.get_data_labels_map(bk_biz_id=bk_biz_id, table_or_labels=list(tables))
+
+
+def cicd_cond_handler(cond: dict[str, Any]) -> Q:
+    return Q(
+        **{
+            "pipelineId": cond.get("pipeline_id"),
+            "projectId": cond.get("project_id"),
+            "event_name": CicdEventName.PIPELINE_STATUS_INFO.value,
+        }
+    )
+
+
+def default_cond_handler(cond: dict[str, Any]) -> Q:
+    return Q(**cond)
+
+
+def k8s_cond_handler(cond: dict[str, Any]) -> Q:
+    kind: str | None = cond.get("kind")
+    name: str | None = cond.get("name")
+    namespace: str | None = cond.get("namespace")
+    bcs_cluster_id: str | None = cond.get("bcs_cluster_id")
+    if not (bcs_cluster_id and namespace and kind and name):
+        return default_cond_handler(cond)
+
+    q: Q = Q(**cond)
+    kind_pod_reg_map: dict[str, Any] = {
+        "Job": f"{name}-[a-z0-9]{{5,10}}",
+        "Deployment": f"{name}(-[a-z0-9]{{5,10}}){{1,2}}",
+        "DaemonSet": f"{name}-[a-z0-9]{{5}}",
+        "StatefulSet": f"{name}-[0-9]+",
+    }
+    base_cond: dict[str, str] = {"bcs_cluster_id": bcs_cluster_id, "namespace": namespace}
+    for workload_kind, pod_name_reg in kind_pod_reg_map.items():
+        # 为什么采取模糊匹配？因为有类似 xxxDeployment 的 CRD 存在。
+        if kind not in workload_kind:
+            continue
+
+        # Workload 事件（例如 Deployment 滚服），实际会触发管控对象（ReplicaSet、Pod）的变更，产生对应级别的 k8s 事件，
+        # 即错误事件可能发生在 Workload 所管理的更基础的 k8s 对象，例如 Pod 重启失败、拉取镜像异常等，此处需要一并关联展示。
+        q |= Q(**base_cond, kind="Pod", name__req=pod_name_reg)
+        if kind in "Deployment":
+            q |= Q(**base_cond, kind="HorizontalPodAutoscaler", name=name) | Q(
+                **base_cond, kind="ReplicaSet", name__req=f"{name}-[a-z0-9]{{5,10}}"
+            )
+
+        # 至多匹配一次
+        break
+    return q
+
+
+DOMAIN_CONF_HANDLER_MAP: dict[str, Callable[[dict[str, Any]], Q]] = {
+    EventDomain.CICD.value: cicd_cond_handler,
+    EventDomain.K8S.value: k8s_cond_handler,
+}
+
+
+def filter_by_relation(
+    q: QueryConfigBuilder, relation: dict[str, Any], data_labels_map: dict[str, str], table: str | None = None
+) -> QueryConfigBuilder:
+    q = q.table(table or relation["table"])
+    domain, __ = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(relation["table"]), DEFAULT_EVENT_ORIGIN)
+    cond_handler: Callable[[dict[str, Any]], Q] = DOMAIN_CONF_HANDLER_MAP.get(domain, default_cond_handler)
+    if relation["relations"]:
+        q = q.filter(Q() | reduce(operator.or_, [cond_handler(cond) for cond in relation["relations"]]))
+    return q
+
+
+def workloads_to_filter_q(workloads: list[dict[str, Any]]) -> Q:
+    if not workloads:
+        return Q()
+
+    conditions: list[dict[str, Any]] = []
+    for workload in workloads:
+        cond: dict[str, Any] = {k: v for k, v in workload.items() if k != "workload"}
+        workload_value: str = workload.get("workload") or ""
+        if workload_value:
+            kind, name = workload_value.split(":", 1)
+            cond["kind"] = kind
+            cond["name"] = name
+        conditions.append(cond)
+
+    return reduce(operator.or_, [k8s_cond_handler(cond) for cond in conditions])
 
 
 def create_k8s_info(origin_data, fields: list[str]):

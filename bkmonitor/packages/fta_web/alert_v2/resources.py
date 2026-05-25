@@ -47,7 +47,7 @@ from apm_web.event.resources import (
     EventTimeSeriesResource as APMEventTimeSeriesResource,
 )
 
-from monitor_web.data_explorer.event.utils import get_cluster_table_map
+from monitor_web.data_explorer.event.utils import get_cluster_table_map, workloads_to_filter_q
 
 
 class AlertDetailResource(BaseAlertDetailResource):
@@ -148,8 +148,10 @@ class AlertEventBaseResource(Resource, abc.ABC):
     def build_k8s_query(
         cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
     ) -> QueryConfigBuilder | None:
-        """
-        构建 K8S 事件查询。
+        """构建 K8S 事件查询。
+
+        基于目标关联的 workload 列表，确定 K8S 事件结果表并构建 OR 连接的过滤条件。
+
         :param alert: 告警文档对象
         :param target: 目标对象
         :param q: 查询构建器
@@ -159,10 +161,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
         if not related_targets:
             return None
 
-        # 非服务类告警只有一个 k8s 目标，服务类告警直接复用服务关联事件检索，不走此逻辑。
-        related_k8s_target: dict[str, Any] = related_targets[0]
-
-        bcs_cluster_id: str = related_k8s_target.get("bcs_cluster_id", "")
+        bcs_cluster_id: str = related_targets[0].get("bcs_cluster_id", "")
         if not bcs_cluster_id:
             # 没有集群 ID，无法查询事件
             return None
@@ -171,19 +170,8 @@ class AlertEventBaseResource(Resource, abc.ABC):
         if not table:
             return None
 
-        filter_q: Q = Q()
-        workload: str | None = related_k8s_target.pop("workload", "")
-        if workload and target.TARGET_TYPE == K8STargetType.WORKLOAD:
-            # 工作负载类型，按 kind 和 name 查询
-            kind, name = workload.split(":")
-            filter_q &= Q(kind=kind, name=name)
-            if related_k8s_target.get("namespace"):
-                filter_q &= Q(namespace=related_k8s_target["namespace"])
-        else:
-            # 其他类型（Pod、Node、Service等），按资源类型字段查询。
-            filter_q &= Q(**{key: value for key, value in related_k8s_target.items()})
-
-        return q.table(table).conditions(q_to_conditions(filter_q))
+        # 多个 workload 用 OR 连接
+        return q.table(table).filter(workloads_to_filter_q(related_targets))
 
     @classmethod
     def build_apm_query(
