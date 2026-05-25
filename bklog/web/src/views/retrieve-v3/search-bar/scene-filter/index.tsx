@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import http from '@/api';
 import { getOs } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
@@ -156,6 +157,16 @@ export default defineComponent({
 
       // 清空检索数据
       resetRetrieveData(store);
+
+      // 获取场景化检索用户自定义配置
+      http.request('retrieve/getSceneUserCustomConfig', {
+        query: {
+          bk_biz_id: store.state.bkBizId,
+          scene_id: type,
+        },
+      }).then((res) => {
+        store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
+      });
 
       syncUrlParams({ clearKeywordAndAddition: true });
 

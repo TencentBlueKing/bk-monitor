@@ -24,7 +24,8 @@
       align-items: center;
       justify-content: center;
       gap: 2px;
-      width: 40px;
+      min-width: 40px;
+      padding: 0 2px;
       height: 40px;
       font-size: 11px;
       color: #63656e;
@@ -209,7 +210,7 @@
 
 .scene-fields-setting-popover-content {
   .scene-fields-setting {
-    width: 580px;
+    width: 640px;
 
     .setting-body {
       display: flex;
@@ -373,12 +374,12 @@
 
       .setting-field-operator {
         margin-left: auto;
-        margin-right: 26px;
+        margin-right: 54px;
         flex-shrink: 0;
       }
 
       &:hover .setting-field-operator {
-        margin-right: 4px;
+        margin-right: 32px;
       }
 
       .remove-icon {
