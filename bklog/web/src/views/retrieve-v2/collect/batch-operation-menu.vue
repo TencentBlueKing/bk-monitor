@@ -279,7 +279,7 @@ async function handleBatchMoveToGroup(id) {
 async function handleAddGroupConfirm() {
   try {
     await checkInputAddFormRef.value.validate();
-    const data = { name: addGroupData.value.name, space_uid: spaceUid.value };
+    const data = { name: addGroupData.value.name, space_uid: spaceUid.value, source_type: store.getters.isSceneMode ? 'scene' : 'index_set' };
     const res = await $http
       .request(`favorite/createGroup`, {
         data,

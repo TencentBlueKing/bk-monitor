@@ -414,6 +414,7 @@ const getGroupList = async () => {
     const res = await $http.request("favorite/getGroupList", {
       query: {
         space_uid: spaceUid.value,
+        source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
       },
     });
     otherGroupList.value = res.data
@@ -442,6 +443,7 @@ const getFavoriteList = async () => {
       query: {
         space_uid: spaceUid.value,
         order_type: "NAME_ASC",
+        source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
       },
     });
     const data = formatResponseListTimeZoneString(res.data, () => {
@@ -529,7 +531,7 @@ const handleTableSelectionChange = (selection) => {
 const handleAddGroupConfirm = async () => {
   try {
     await checkInputFormRef.value.validate();
-    const data = { name: addGroupData.value.name, space_uid: spaceUid.value };
+    const data = { name: addGroupData.value.name, space_uid: spaceUid.value, source_type: store.getters.isSceneMode ? 'scene' : 'index_set' };
     await $http
       .request(`favorite/createGroup`, {
         data,

@@ -527,6 +527,12 @@ const getSceneQuickExport = {
   method: 'post',
 };
 
+/** 场景化检索 - 字段展示配置 读取 */
+const getSceneUserCustomConfig = {
+  url: '/search/scene/user_custom_config/',
+  method: 'get',
+};
+
 /** 场景化检索 - 字段展示配置 保存 */
 const sceneFieldsConfig = {
   url: '/search/scene/user_custom_config/',
@@ -632,6 +638,7 @@ export {
   getSceneQuickExport,
   getSceneSearchHistory,
   getSceneExportHistory,
+  getSceneUserCustomConfig,
   sceneFieldsConfig,
   sceneListConfig,
   sceneCreateConfig,
