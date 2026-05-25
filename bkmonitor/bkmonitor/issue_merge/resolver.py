@@ -290,29 +290,32 @@ class IssueMergeResolver:
         main_issue["impact_scope"] = issue_scope
 
     @classmethod
-    def get_active_member_ids(cls, bk_biz_id: int) -> list[str]:
-        """获取业务级 active member id 列表（SQL-only）。
+    def get_active_member_ids(cls, bk_biz_id: int | list[int]) -> list[str]:
+        """获取业务（集）的 active member id 列表（SQL-only，单次 ``bk_biz_id__in`` 查询）。
 
         用于 ES 查询前 ``exclude("terms", _id=...)``，覆盖 SearchIssue / TopN / Export 等
-        所有走 IssueQueryHandler.get_search_object 的列表查询路径。
+        所有走 IssueQueryHandler.get_search_object 的列表查询路径。接受单个或多个业务——
+        ``bk_biz_ids=[-1]``（全授权业务）场景需按展开后的业务集批量排除。
 
         不走 service Redis：列表查询在 web role 执行，web 无 ``REDIS_*_CONF``——service
         缓存只能 api/worker 读写，web 读必失败、又无 api/worker 调用方写入，缓存恒不命中
-        纯属负担（每次查询一次失败 GET + warning）。故直接 SQL（命中
-        ``idx_imr_biz_status_main`` 索引）。
+        纯属负担。故直接 SQL（命中 ``idx_imr_biz_status_main`` 索引）。
 
         Fail-open：SQL 失败 → 返回 []（视为无合并，全部展示）。
         """
+        biz_ids = [bk_biz_id] if isinstance(bk_biz_id, int) else list(bk_biz_id)
+        if not biz_ids:
+            return []
         try:
             return list(
                 IssueMergeRelation.objects.filter(
-                    bk_biz_id=bk_biz_id, status=IssueMergeRelation.STATUS_ACTIVE
+                    bk_biz_id__in=biz_ids, status=IssueMergeRelation.STATUS_ACTIVE
                 ).values_list("member_issue_id", flat=True)
             )
         except Exception:
             logger.warning(
-                "[issue-merge] active_members SQL load failed (fail-open, bk_biz_id=%s)",
-                bk_biz_id,
+                "[issue-merge] active_members SQL load failed (fail-open, bk_biz_ids=%s)",
+                biz_ids,
                 exc_info=True,
             )
             return []
@@ -404,8 +407,7 @@ class IssueMergeResolver:
             return
         if not relation:
             return
-        # lazy import 避免循环依赖（IssueFrozenError 在 bkmonitor.documents.issue 定义）
-        from bkmonitor.documents.issue import IssueFrozenError
+        from bkmonitor.issue_merge.errors import IssueFrozenError
 
         raise IssueFrozenError(
             issue_id=issue_id,

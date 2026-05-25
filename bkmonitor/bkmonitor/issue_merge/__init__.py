@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.issue_merge.errors import (
+    IssueFrozenError,
     IssuesMergeError,
     MergeConflictError,
     MergeCrossBizForbiddenError,
@@ -24,6 +25,7 @@ from bkmonitor.issue_merge.resolver import IssueMergeResolver, MergeResolverCont
 __all__ = [
     "IssueMergeResolver",
     "MergeResolverContext",
+    "IssueFrozenError",
     "IssuesMergeError",
     "MergeConflictError",
     "MergeCrossBizForbiddenError",

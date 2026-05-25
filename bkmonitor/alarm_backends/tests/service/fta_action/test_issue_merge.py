@@ -14,8 +14,8 @@ import json
 
 import pytest
 
-from bkmonitor.documents.issue import IssueFrozenError
 from bkmonitor.issue_merge import (
+    IssueFrozenError,
     IssueMergeResolver,
     MergeConflictError,
     MergeCrossBizForbiddenError,
@@ -26,21 +26,24 @@ from bkmonitor.issue_merge import (
 
 
 class TestIssueFrozenError:
-    """合并冻结异常：含 conflicting_main_issue_id 供前端跳转。"""
+    """合并冻结异常：IssuesMergeError 子类，conflicting_main_issue_id 经 extra 过 HTTP 给前端。"""
 
     def test_carries_conflicting_main_issue_id(self):
         err = IssueFrozenError(issue_id="b1", conflicting_main_issue_id="a1")
         assert err.issue_id == "b1"
         assert err.conflicting_main_issue_id == "a1"
-        assert err.code == "MERGE_FREEZE_VIOLATION"
+        # code 是 int（3337xxx 段），不再是字符串 business_code
+        assert err.code == 3337109
+        assert err.status_code == 409
 
-    def test_to_dict_has_all_fields(self):
+    def test_extra_exposes_business_code_and_main_id(self):
         err = IssueFrozenError(issue_id="b1", conflicting_main_issue_id="a1")
-        d = err.to_dict()
-        assert d["code"] == "MERGE_FREEZE_VIOLATION"
-        assert d["issue_id"] == "b1"
-        assert d["conflicting_main_issue_id"] == "a1"
-        assert "message" in d
+        # business_code + conflicting_main_issue_id 走 extra（custom_exception_handler 渲染到响应顶层）
+        assert err.extra["business_code"] == "MERGE_FREEZE_VIOLATION"
+        assert err.extra["conflicting_main_issue_id"] == "a1"
+        assert err.extra["issue_id"] == "b1"
+        # message_tpl 用 context 渲染，含主 Issue id
+        assert "a1" in err.message
 
 
 class TestMergeErrors:
@@ -989,3 +992,42 @@ class TestGetActiveMemberIdsSqlOnly:
         manager.filter.side_effect = RuntimeError("db down")
         monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
         assert IssueMergeResolver.get_active_member_ids(2) == []
+
+    def test_single_int_normalized_to_in_filter(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import IssueMergeResolver
+        from bkmonitor.issue_merge import resolver as resolver_mod
+
+        manager = MagicMock()
+        manager.filter.return_value.values_list.return_value = ["m1"]
+        monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+        IssueMergeResolver.get_active_member_ids(2)
+        # 单 int 归一化为 bk_biz_id__in=[2]（统一走 IN 查询）
+        assert manager.filter.call_args.kwargs["bk_biz_id__in"] == [2]
+
+    def test_multi_biz_list_single_in_query(self, monkeypatch):
+        """[-1] 展开后的多业务集：一次 bk_biz_id__in 查询批量排除（P2 修复）。"""
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import IssueMergeResolver
+        from bkmonitor.issue_merge import resolver as resolver_mod
+
+        manager = MagicMock()
+        manager.filter.return_value.values_list.return_value = ["m1", "m2", "m3"]
+        monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+        result = IssueMergeResolver.get_active_member_ids([2, 3, 5])
+        assert result == ["m1", "m2", "m3"]
+        assert manager.filter.call_args.kwargs["bk_biz_id__in"] == [2, 3, 5]
+        assert manager.filter.call_count == 1  # 单次查询，非每 biz 一次
+
+    def test_empty_biz_list_returns_empty_no_query(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.issue_merge import IssueMergeResolver
+        from bkmonitor.issue_merge import resolver as resolver_mod
+
+        manager = MagicMock()
+        monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
+        assert IssueMergeResolver.get_active_member_ids([]) == []
+        manager.filter.assert_not_called()

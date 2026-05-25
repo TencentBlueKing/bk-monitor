@@ -192,3 +192,32 @@ class MergeMemberIsAnotherMainError(IssuesMergeError):
                 "chain_members": self.chain_members,
             },
         )
+
+
+class IssueFrozenError(IssuesMergeError):
+    """Issue 被合并冻结，不允许写操作。
+
+    抛出位置：IssueDocument 状态机方法入口的 ``IssueMergeResolver.assert_not_frozen`` 守卫
+    （active member 被直接操作时）。
+
+    必须是 ``IssuesMergeError`` 子类而非裸 Exception：状态机操作经 web→api role 中转，
+    在 api role 抛出后由 ``custom_exception_handler`` 渲染为结构化响应，``conflicting_main_issue_id``
+    经 ``extra`` 过 HTTP 边界回到 web；否则降级为通用错误，前端拿不到"跳转主 Issue"所需字段。
+    """
+
+    status_code = 409
+    code = 3337109
+    name = _lazy("Issue 已被合并冻结")
+    message_tpl = _lazy("Issue {issue_id} 已被合并到 #{conflicting_main_issue_id}，请前往主 Issue 操作或先拆分")
+
+    def __init__(self, issue_id: str, conflicting_main_issue_id: str):
+        self.issue_id = issue_id
+        self.conflicting_main_issue_id = conflicting_main_issue_id
+        super().__init__(
+            context={"issue_id": issue_id, "conflicting_main_issue_id": conflicting_main_issue_id},
+            extra={
+                "business_code": "MERGE_FREEZE_VIOLATION",
+                "issue_id": issue_id,
+                "conflicting_main_issue_id": conflicting_main_issue_id,
+            },
+        )

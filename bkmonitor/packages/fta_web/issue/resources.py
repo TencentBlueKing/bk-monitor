@@ -20,14 +20,15 @@ from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
     IssueDocumentWriteError,
-    IssueFrozenError,
     IssueNotFoundError,
 )
+from bkmonitor.issue_merge import IssueFrozenError
 from bkmonitor.models.issue import IssueMergeRelation
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
+from core.errors.api import BKAPIError
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
@@ -94,15 +95,31 @@ def _run_batch(
             result = action_fn(bk_biz_id, issue_id)
             return {"ok": True, "result": result}
         except IssueFrozenError as e:
-            # 合并冻结：携带 code + detail 供前端构造跳转到主 Issue 的引导
+            # 本地直接调用路径（如非中转场景）的合并冻结
             return {
                 "ok": False,
                 "bk_biz_id": bk_biz_id,
                 "issue_id": issue_id,
-                "code": e.code,
-                "detail": e.to_dict(),
-                "message": str(e),
+                "code": e.extra.get("business_code"),
+                "detail": e.extra,
+                "message": e.message,
             }
+        except BKAPIError as e:
+            # 状态机操作经 web→api role 中转：冻结在 api role 抛出，过 HTTP 后已不是
+            # IssueFrozenError 实例，而是 BKAPIError（e.data 即 api 的 result_json）。
+            # 从 extra.business_code 识别合并冻结，回填 code/detail 供前端构造"跳主 Issue"引导。
+            payload = e.data if isinstance(e.data, dict) else {}
+            extra = payload.get("extra") or {}
+            item = {
+                "ok": False,
+                "bk_biz_id": bk_biz_id,
+                "issue_id": issue_id,
+                "message": payload.get("message") or str(e),
+            }
+            if extra.get("business_code") == "MERGE_FREEZE_VIOLATION":
+                item["code"] = extra["business_code"]
+                item["detail"] = extra
+            return item
         except IssueNotFoundError as e:
             return {"ok": False, "bk_biz_id": bk_biz_id, "issue_id": issue_id, "message": str(e)}
         except IssueDocumentWriteError as e:

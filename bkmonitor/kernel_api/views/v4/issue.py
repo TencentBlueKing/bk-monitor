@@ -12,6 +12,7 @@ import json
 import logging
 import time
 
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -352,57 +353,66 @@ class MergeResource(Resource):
         if invalid_members:
             raise MergeMemberStatusForbiddenError(invalid_members)
 
-        # 校验 3: 主 issue 自身是某行活跃 member（防链式 - main 端）
-        target_as_member = (
-            IssueMergeRelation.objects.filter(
-                member_issue_id=main_id,
-                status=IssueMergeRelation.STATUS_ACTIVE,
-            )
-            .values("main_issue_id")
-            .first()
-        )
-        if target_as_member:
-            raise MergeTargetIsMemberError(main_id, target_as_member["main_issue_id"])
-
-        # 校验 4: members 自身是别的 active 关系的 main（防链式 - member 端，与校验 3 对称）
-        chain_members = list(
-            IssueMergeRelation.objects.filter(
-                main_issue_id__in=members,
-                status=IssueMergeRelation.STATUS_ACTIVE,
-            )
-            .values_list("main_issue_id", flat=True)
-            .distinct()
-        )
-        if chain_members:
-            raise MergeMemberIsAnotherMainError(chain_members)
-
-        # 校验 5: 任一 member 已在 active 关系（不可重复合并）
-        existing = (
-            IssueMergeRelation.objects.filter(
-                member_issue_id__in=members,
-                status=IssueMergeRelation.STATUS_ACTIVE,
-            )
-            .values("member_issue_id", "main_issue_id")
-            .first()
-        )
-        if existing:
-            raise MergeConflictError(existing["main_issue_id"])
-
-        # 写关系表
-        IssueMergeRelation.objects.bulk_create(
-            [
-                IssueMergeRelation(
-                    bk_biz_id=bk_biz_id,
-                    main_issue_id=main_id,
-                    member_issue_id=m,
+        # SQL 关系校验 3/4/5 + 写入放进同一事务，对关系行加锁（select_for_update）重查：
+        # 表无 DB UNIQUE 约束，唯一性靠应用层 SELECT。并发 merge 同一 member 时，两侧校验 5
+        # 都可能查不到 active 关系而各写一行，破坏"一 member 至多一个 active main"。校验 5 的
+        # select_for_update 利用 (member_issue_id, status) 索引间隙锁，阻断并发事务在该区间插入，
+        # 把竞态窗口收窄到提交前。极端残留（隔离级别/边界）仍由 list_conflicts + repair
+        # resolve_conflicts 周期对账兜底（彻底方案是 DB 层 active member 唯一约束，更重，未做）。
+        with transaction.atomic():
+            # 校验 3: 主 issue 自身是某行活跃 member（防链式 - main 端）
+            target_as_member = (
+                IssueMergeRelation.objects.select_for_update()
+                .filter(
+                    member_issue_id=main_id,
                     status=IssueMergeRelation.STATUS_ACTIVE,
-                    merge_reasons=reasons,
-                    create_user=operator,
-                    update_user=operator,
                 )
-                for m in members
-            ]
-        )
+                .values("main_issue_id")
+                .first()
+            )
+            if target_as_member:
+                raise MergeTargetIsMemberError(main_id, target_as_member["main_issue_id"])
+
+            # 校验 4: members 自身是别的 active 关系的 main（防链式 - member 端，与校验 3 对称）
+            chain_members = list(
+                IssueMergeRelation.objects.filter(
+                    main_issue_id__in=members,
+                    status=IssueMergeRelation.STATUS_ACTIVE,
+                )
+                .values_list("main_issue_id", flat=True)
+                .distinct()
+            )
+            if chain_members:
+                raise MergeMemberIsAnotherMainError(chain_members)
+
+            # 校验 5: 任一 member 已在 active 关系（不可重复合并）——加锁重查，间隙锁阻断并发重复插入
+            existing = (
+                IssueMergeRelation.objects.select_for_update()
+                .filter(
+                    member_issue_id__in=members,
+                    status=IssueMergeRelation.STATUS_ACTIVE,
+                )
+                .values("member_issue_id", "main_issue_id")
+                .first()
+            )
+            if existing:
+                raise MergeConflictError(existing["main_issue_id"])
+
+            # 写关系表（与校验同事务，受上面行锁保护）
+            IssueMergeRelation.objects.bulk_create(
+                [
+                    IssueMergeRelation(
+                        bk_biz_id=bk_biz_id,
+                        main_issue_id=main_id,
+                        member_issue_id=m,
+                        status=IssueMergeRelation.STATUS_ACTIVE,
+                        merge_reasons=reasons,
+                        create_user=operator,
+                        update_user=operator,
+                    )
+                    for m in members
+                ]
+            )
 
         # 写 ES 活动日志（main 1 条 + 每 member 1 条 MERGED_INTO，失败仅 warning）
         now = int(time.time())

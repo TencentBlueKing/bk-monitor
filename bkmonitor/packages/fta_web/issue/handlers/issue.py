@@ -201,14 +201,17 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # 合并/拆分独立映射层：默认从列表中剔除 active member（被并入 Issue 在主 Issue 下展示）。
         # 走 SQL（命中 idx_imr_biz_status_main）；fail-open（SQL 失败视为无合并，全部展示）。
         # 覆盖 Search / TopN / Export 三类走 get_search_object 的查询路径。
+        #
+        # bk_biz_ids=[-1] 表示"全部授权业务"：预排除必须按 authorized_bizs（展开后的实际业务集），
+        # 否则只查 get_active_member_ids(-1) 查无果 → 全业务列表/TopN/Export 的 active member
+        # 预排除失效（后置 hydrate 只能标记当前页，无法修正 ES total / 分页 / 聚合 / 导出范围）。
         if self.bk_biz_ids:
             from bkmonitor.issue_merge import IssueMergeResolver
 
-            exclude_ids: set[str] = set()
-            for biz_id in self.bk_biz_ids:
-                exclude_ids.update(IssueMergeResolver.get_active_member_ids(biz_id))
+            exclude_biz_ids = self.authorized_bizs if -1 in self.bk_biz_ids else self.bk_biz_ids
+            exclude_ids = IssueMergeResolver.get_active_member_ids(exclude_biz_ids or [])
             if exclude_ids:
-                search_object = search_object.exclude("terms", _id=list(exclude_ids))
+                search_object = search_object.exclude("terms", _id=exclude_ids)
 
         return search_object
 
