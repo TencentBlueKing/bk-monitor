@@ -41,7 +41,6 @@ import {
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
 import { MENU_LISTS } from '@/global/head-navi/complete-menu.ts';
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import DOMPurify from 'dompurify';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
