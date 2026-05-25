@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from apm.models.datasource import LogDataSource, MetricDataSource, ProfileDataSource, TraceDataSource
 from bk_dataview.api import DashboardPermissionActions, get_or_create_user, sync_user_role
-from bk_dataview.models import BuiltinRole, Dashboard, Org, Permission, Role
+from bk_dataview.models import BuiltinRole, Dashboard, Folder, Org, Permission, Role
 from bk_dataview.permissions import GrafanaPermission
 from bk_dataview.utils import generate_uid
 from bkmonitor.models import StrategyModel
@@ -67,6 +67,50 @@ DEFAULT_KAFKA_CLUSTER_NAMES = {
 }
 
 DEFAULT_ES_CLUSTER_NAMES = {"log": "log-es-public-1", "event": "event-es-public-1"}
+
+BUILTIN_ROLE_MANAGED_NAMES = {
+    "Admin": "managed:builtins:admin:permissions",
+    "Editor": "managed:builtins:editor:permissions",
+    "Viewer": "managed:builtins:viewer:permissions",
+}
+
+FOLDER_PERMISSION_ACTIONS = {
+    GrafanaPermission.View: [
+        "folders:read",
+        "dashboards:read",
+        "library.panels:read",
+    ],
+    GrafanaPermission.Edit: [
+        "folders:read",
+        "folders:write",
+        "folders:delete",
+        "dashboards:create",
+        "dashboards:read",
+        "dashboards:write",
+        "dashboards:delete",
+        "library.panels:create",
+        "library.panels:read",
+        "library.panels:write",
+        "library.panels:delete",
+    ],
+    GrafanaPermission.Admin: [
+        "folders:read",
+        "folders:write",
+        "folders:delete",
+        "folders.permissions:read",
+        "folders.permissions:write",
+        "dashboards:create",
+        "dashboards:read",
+        "dashboards:write",
+        "dashboards:delete",
+        "dashboards.permissions:read",
+        "dashboards.permissions:write",
+        "library.panels:create",
+        "library.panels:read",
+        "library.panels:write",
+        "library.panels:delete",
+    ],
+}
 
 
 def _delete_gse_route_with_fallback(delete_params: dict[str, Any]) -> None:
@@ -626,26 +670,108 @@ def _ensure_builtin_role(org_id: int, role_name: str, managed_role_name: str) ->
     """
     builtin_role = BuiltinRole.objects.filter(org_id=org_id, role=role_name).first()
     if builtin_role:
-        return Role.objects.get(id=builtin_role.role_id)
+        try:
+            return Role.objects.get(id=builtin_role.role_id)
+        except Role.DoesNotExist:
+            logger.warning(
+                "_ensure_builtin_role: org_id=%s role=%s 对应 role_id=%s 不存在，尝试重建",
+                org_id,
+                role_name,
+                builtin_role.role_id,
+            )
 
     try:
-        role = Role.objects.create(
+        role, _ = Role.objects.get_or_create(
             org_id=org_id,
             name=managed_role_name,
-            uid=generate_uid(exclude_model=Role),
+            defaults={"uid": generate_uid(exclude_model=Role)},
         )
-        BuiltinRole.objects.create(org_id=org_id, role=role_name, role_id=role.id)
+        if builtin_role:
+            builtin_role.role_id = role.id
+            builtin_role.save(update_fields=["role_id"])
+        elif not BuiltinRole.objects.filter(org_id=org_id, role=role_name).exists():
+            BuiltinRole.objects.create(org_id=org_id, role=role_name, role_id=role.id)
     except IntegrityError:
         role = Role.objects.get(org_id=org_id, name=managed_role_name)
+        if builtin_role:
+            builtin_role.role_id = role.id
+            builtin_role.save(update_fields=["role_id"])
+        elif not BuiltinRole.objects.filter(org_id=org_id, role=role_name).exists():
+            BuiltinRole.objects.create(org_id=org_id, role=role_name, role_id=role.id)
     return role
+
+
+def _rebuild_folder_records(org_id: int) -> tuple[int, int, int]:
+    """按 org 将 legacy dashboard folder 同步到 Grafana 新 folder 表。
+
+    Grafana 仍以 dashboard 表中 ``is_folder=1`` 的记录作为 legacy folder，
+    但 folder 更新/移动会同时写新 ``folder`` 表。迁移缺失 ``folder`` 表时，
+    会出现 GET/search 正常、PUT /api/folders/:uid 报 folder.notFound 的情况。
+
+    Args:
+        org_id: Grafana 组织 ID
+
+    Returns:
+        (created_count, updated_count, deleted_count)
+    """
+    dashboard_folders = list(
+        Dashboard.objects.filter(org_id=org_id, is_folder=1, uid__isnull=False)
+        .exclude(uid="")
+        .values("uid", "title", "folder_uid", "created", "updated")
+    )
+    folder_uids = [folder["uid"] for folder in dashboard_folders]
+    existing_folders = {folder.uid: folder for folder in Folder.objects.filter(org_id=org_id, uid__in=folder_uids)}
+
+    create_folders: list[Folder] = []
+    update_folders: list[Folder] = []
+    for dashboard_folder in dashboard_folders:
+        parent_uid = dashboard_folder["folder_uid"] or None
+        folder = existing_folders.get(dashboard_folder["uid"])
+        if folder is None:
+            create_folders.append(
+                Folder(
+                    org_id=org_id,
+                    uid=dashboard_folder["uid"],
+                    title=dashboard_folder["title"],
+                    description=None,
+                    parent_uid=parent_uid,
+                    created=dashboard_folder["created"],
+                    updated=dashboard_folder["updated"],
+                )
+            )
+            continue
+
+        changed = False
+        if folder.title != dashboard_folder["title"]:
+            folder.title = dashboard_folder["title"]
+            changed = True
+        if folder.parent_uid != parent_uid:
+            folder.parent_uid = parent_uid
+            changed = True
+        if folder.updated != dashboard_folder["updated"]:
+            folder.updated = dashboard_folder["updated"]
+            changed = True
+        if changed:
+            update_folders.append(folder)
+
+    if create_folders:
+        Folder.objects.bulk_create(create_folders, batch_size=500, ignore_conflicts=True)
+    if update_folders:
+        Folder.objects.bulk_update(update_folders, fields=["title", "parent_uid", "updated"], batch_size=500)
+
+    delete_queryset = Folder.objects.filter(org_id=org_id)
+    if folder_uids:
+        delete_queryset = delete_queryset.exclude(uid__in=folder_uids)
+    deleted_count, _ = delete_queryset.delete()
+    return len(create_folders), len(update_folders), deleted_count
 
 
 def rebuild_dashboard(bk_biz_id: int):
     """重建仪表盘权限配置。
 
     将 admin 用户加入业务对应的 Grafana Org 并赋予 Admin 角色，
-    然后为 Org 下所有仪表盘重建基于内置角色的权限：
-    - Admin 角色：拥有全部管理权限（通过 OrgUser.role=Admin 隐式生效）
+    同步 Org 下的 folder 表记录，然后为仪表盘和目录重建基于内置角色的权限：
+    - Admin 角色：可读、可写、可删除、可管理权限
     - Editor 角色：可读、可写、可删除
     - Viewer 角色：只读
 
@@ -661,52 +787,84 @@ def rebuild_dashboard(bk_biz_id: int):
 
     # 确保 admin 用户存在并赋予 Admin 角色
     admin_user = get_or_create_user("admin")
-    sync_user_role(org_id, admin_user["id"], "Admin")
+    with transaction.atomic():
+        sync_user_role(org_id, admin_user["id"], "Admin")
 
-    # 确保 Editor / Viewer 内置角色存在
-    editor_role = _ensure_builtin_role(org_id, "Editor", "managed:builtins:editor:permissions")
-    viewer_role = _ensure_builtin_role(org_id, "Viewer", "managed:builtins:viewer:permissions")
+        # 确保 Admin / Editor / Viewer 内置角色存在
+        admin_role = _ensure_builtin_role(org_id, "Admin", BUILTIN_ROLE_MANAGED_NAMES["Admin"])
+        editor_role = _ensure_builtin_role(org_id, "Editor", BUILTIN_ROLE_MANAGED_NAMES["Editor"])
+        viewer_role = _ensure_builtin_role(org_id, "Viewer", BUILTIN_ROLE_MANAGED_NAMES["Viewer"])
 
-    # 获取 Org 下所有仪表盘 UID（排除 folder）
-    dashboard_uids = list(Dashboard.objects.filter(org_id=org_id, is_folder=0).values_list("uid", flat=True))
-    if not dashboard_uids:
-        logger.info("rebuild_dashboard: bk_biz_id=%s org_id=%s 下无仪表盘，跳过权限重建", bk_biz_id, org_id)
-        return
+        folder_created_count, folder_updated_count, folder_deleted_count = _rebuild_folder_records(org_id)
 
-    # 构建每个角色对应的权限 scope 集合
-    role_permission_map: dict[int, list[str]] = {
-        editor_role.id: DashboardPermissionActions[GrafanaPermission.Edit],
-        viewer_role.id: DashboardPermissionActions[GrafanaPermission.View],
-    }
-
-    # 清理 editor/viewer 角色的旧仪表盘权限
-    role_ids = [editor_role.id, viewer_role.id]
-    Permission.objects.filter(
-        role_id__in=role_ids,
-        scope__startswith="dashboards:uid:",
-    ).delete()
-
-    # 批量创建新权限
-    permission_objs: list[Permission] = []
-    for role_id, actions in role_permission_map.items():
-        for uid in dashboard_uids:
-            for action in actions:
-                permission_objs.append(
-                    Permission(
-                        role_id=role_id,
-                        action=action,
-                        scope=f"dashboards:uid:{uid}",
-                    )
-                )
-
-    if permission_objs:
-        Permission.objects.bulk_create(permission_objs, batch_size=500, ignore_conflicts=True)
-        logger.info(
-            "rebuild_dashboard: bk_biz_id=%s org_id=%s 重建权限完成，共 %d 条 Permission",
-            bk_biz_id,
-            org_id,
-            len(permission_objs),
+        # 获取 Org 下所有仪表盘 / 目录 UID
+        dashboard_uids = list(
+            Dashboard.objects.filter(org_id=org_id, is_folder=0, uid__isnull=False)
+            .exclude(uid="")
+            .values_list("uid", flat=True)
         )
+        folder_uids = list(
+            Dashboard.objects.filter(org_id=org_id, is_folder=1, uid__isnull=False)
+            .exclude(uid="")
+            .values_list("uid", flat=True)
+        )
+
+        dashboard_permission_map: dict[int, list[str]] = {
+            admin_role.id: DashboardPermissionActions[GrafanaPermission.Admin],
+            editor_role.id: DashboardPermissionActions[GrafanaPermission.Edit],
+            viewer_role.id: DashboardPermissionActions[GrafanaPermission.View],
+        }
+        folder_permission_map: dict[int, list[str]] = {
+            admin_role.id: FOLDER_PERMISSION_ACTIONS[GrafanaPermission.Admin],
+            editor_role.id: FOLDER_PERMISSION_ACTIONS[GrafanaPermission.Edit],
+            viewer_role.id: FOLDER_PERMISSION_ACTIONS[GrafanaPermission.View],
+        }
+
+        # 清理 builtin 角色的旧仪表盘和目录权限
+        role_ids = [admin_role.id, editor_role.id, viewer_role.id]
+        Permission.objects.filter(role_id__in=role_ids).filter(
+            Q(scope__startswith="dashboards:uid:") | Q(scope__startswith="folders:uid:")
+        ).delete()
+
+        # 批量创建新权限
+        permission_objs: list[Permission] = []
+        for role_id, actions in dashboard_permission_map.items():
+            for uid in dashboard_uids:
+                for action in actions:
+                    permission_objs.append(
+                        Permission(
+                            role_id=role_id,
+                            action=action,
+                            scope=f"dashboards:uid:{uid}",
+                        )
+                    )
+
+        for role_id, actions in folder_permission_map.items():
+            for uid in folder_uids:
+                for action in actions:
+                    permission_objs.append(
+                        Permission(
+                            role_id=role_id,
+                            action=action,
+                            scope=f"folders:uid:{uid}",
+                        )
+                    )
+
+        if permission_objs:
+            Permission.objects.bulk_create(permission_objs, batch_size=500, ignore_conflicts=True)
+
+    logger.info(
+        "rebuild_dashboard: bk_biz_id=%s org_id=%s 重建完成，dashboard=%d folder=%d "
+        "folder_created=%d folder_updated=%d folder_deleted=%d permission=%d",
+        bk_biz_id,
+        org_id,
+        len(dashboard_uids),
+        len(folder_uids),
+        folder_created_count,
+        folder_updated_count,
+        folder_deleted_count,
+        len(permission_objs),
+    )
 
 
 def rebuild_custom_report(
