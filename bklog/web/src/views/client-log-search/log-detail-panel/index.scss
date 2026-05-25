@@ -111,6 +111,36 @@
     }
   }
 
+  /* 扩展字段内容 */
+  .ext-content {
+    margin: 12px 24px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #A3C5FD;
+    background: #F0F5FF;
+    font-size: 12px;
+    color: #4E5E7A;
+    line-height: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+
+    .bklog-icon {
+      line-height: 20px;
+      font-size: 12px;
+    }
+
+    .ext-label {
+      font-weight: 600;
+      margin-right: 4px;
+      line-height: 20px;
+    }
+
+    .ext-value {
+      flex: 1;
+    }
+  }
+
   /* 未采集状态内容 */
   .uncollected-content {
     flex: 1;
