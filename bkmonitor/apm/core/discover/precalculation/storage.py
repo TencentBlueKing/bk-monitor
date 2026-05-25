@@ -30,11 +30,16 @@ from elasticsearch5 import helpers as helpers_5
 from elasticsearch6 import helpers as helpers_6
 
 from apm.core.handlers.application_hepler import ApplicationHelper
-from apm.models import DataLink
+from apm.models import DataLink, TraceDataSource
 from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
-from constants.apm import PRECALCULATE_RESULT_TABLE_OPTION, PreCalculateSpecificField, PrecalculateStorageConfig
+from constants.apm import (
+    PRECALCULATE_RESULT_TABLE_OPTION,
+    PreCalculateSpecificField,
+    PrecalculateStorageConfig,
+    ApmGlobalTablePrefix,
+)
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
@@ -47,12 +52,13 @@ class RendezvousHash:
     def __init__(self, nodes):
         self.nodes = nodes
 
-    def select_node(self, bk_biz_id, app_name):
+    def select_node(self, route_key: str) -> str:
+        # route_key 已经是完整哈希输入，select_node 不再拼业务 ID。
+        # 独占场景保持旧格式 "{bk_biz_id}:{app_name}"，确保历史应用不换存储分片。
         max_weight = None
         max_node = None
-        key = f"{bk_biz_id}:{app_name}"
         for node in self.nodes:
-            combined = f"{node}:{key}"
+            combined = f"{node}:{route_key}"
             hash_val = hashlib.sha1(combined.encode()).hexdigest()
             weight = int(hash_val, 16)
 
@@ -85,8 +91,9 @@ class PrecalculateStorage:
     RESULT_TABLE_FIELD_MAPPING = {"field_name": "field_name", "type": "field_type", "tag": "tag", "option": "option"}
 
     def __init__(self, bk_biz_id: int, app_name: str, need_client: bool = True):
-        self.bk_biz_id = bk_biz_id
-        self.app_name = app_name
+        self.bk_biz_id: int = bk_biz_id
+        self.app_name: str = app_name
+        self.route_key = self.get_route_key(bk_biz_id, app_name)
         self.hash_ring, self.node_mapping, self.id_mapping = self.list_nodes(bk_biz_id, need_client)
         (
             self.search_index_name,
@@ -103,7 +110,7 @@ class PrecalculateStorage:
         if not self.hash_ring:
             return None, None, None, None, None
 
-        node: str = self.hash_ring.select_node(self.bk_biz_id, self.app_name)
+        node: str = self.hash_ring.select_node(self.route_key)
         result_table_id: str = node.split("-", 1)[-1]
         origin_index_name: str = rt_id_to_index(result_table_id)
 
@@ -139,6 +146,15 @@ class PrecalculateStorage:
         logger.info(f"[PrecalculateStorage] save {len(data)} success")
 
     @classmethod
+    def get_route_key(cls, bk_biz_id: int, app_name: str) -> str:
+        trace_datasource = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if trace_datasource and trace_datasource.is_shared:
+            # 共享 trace data_id 是跨业务的，同一个 result_table_id 必须落到同一预计算存储。
+            # 固定业务维度为 0，避免 primary app 所属业务影响哈希结果。
+            return f"0:{trace_datasource.result_table_id}"
+        return f"{bk_biz_id}:{app_name}"
+
+    @classmethod
     def _create_default(cls, bk_biz_id, datalink):
         """当预计算配置不存在时 基于默认存储创建索引"""
 
@@ -149,11 +165,14 @@ class PrecalculateStorage:
 
         pre_calculate_config = {"cluster": []}
 
-        prefix = "apm_global.precalculate_storage_auto_{index}"
+        prefix = "{global_prefix}_auto_{index}"
 
         for i in range(cls.DEFAULT_STORAGE_DISPERSED_COUNT):
             pre_calculate_config["cluster"].append(
-                {"cluster_id": default_storage_id, "table_name": prefix.format(index=i + 1)}
+                {
+                    "cluster_id": default_storage_id,
+                    "table_name": prefix.format(global_prefix=ApmGlobalTablePrefix.PRECALCULATE, index=i + 1),
+                }
             )
 
         if datalink:

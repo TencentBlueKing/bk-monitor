@@ -123,6 +123,33 @@ ALLOWED_KEY_SPECS: dict[str, CacheKeySpec] = {
         required_params={"strategy_id"},
         label="[nodata] 无数据告警处理锁 — 查看指定策略当前是否被 nodata 检测占用",
     ),
+    "ISSUE_ACTIVE_CONTENT_KEY": CacheKeySpec(
+        key_name="ISSUE_ACTIVE_CONTENT_KEY",
+        key_type="string",
+        required_params={"fingerprint"},
+        label="[issue] 活跃 Issue 热缓存 — 按 fingerprint 查指定活跃 Issue 内容快照；"
+        "aggregate_dimensions=[] 时 fingerprint 退化为 `strategy:{strategy_id}`",
+    ),
+    "ISSUE_FINGERPRINT_LOCK": CacheKeySpec(
+        key_name="ISSUE_FINGERPRINT_LOCK",
+        key_type="string",
+        required_params={"fingerprint"},
+        label="[issue] Issue 指纹级分布式锁 — 查指定 fingerprint 当前是否被某进程创建中",
+    ),
+    "ISSUE_ACTIVE_COUNT_KEY": CacheKeySpec(
+        key_name="ISSUE_ACTIVE_COUNT_KEY",
+        key_type="string",
+        required_params={"strategy_id"},
+        label="[issue] 单策略活跃 Issue 数缓存 — _check_active_issue_count 5min cache，"
+        "high_cardinality 熔断观测；值含 ≤5min 滞后",
+    ),
+    "ISSUE_LEGACY_MIGRATION_DONE_KEY": CacheKeySpec(
+        key_name="ISSUE_LEGACY_MIGRATION_DONE_KEY",
+        key_type="string",
+        required_params=set(),
+        label="[issue] legacy 迁移完成全局哨兵 — 看到该哨兵则 processor 跳过 fingerprint=null "
+        "全索引 fallback；migrate_legacy_active_issues 完成时 set",
+    ),
 }
 
 
@@ -208,8 +235,10 @@ def _try_json(s: str | None) -> Any:
 
 
 def _read_string(key_obj, key_params: dict[str, Any]) -> dict[str, Any]:
+    # 必须传 SimilarStr 原对象给 client；str() 会丢失 strategy_id 属性，
+    # 导致 RedisProxy 按 strategy_id=0 路由到错误的 cache_node。
     resolved_key = key_obj.get_key(**key_params)
-    raw = key_obj.client.get(str(resolved_key))
+    raw = key_obj.client.get(resolved_key)
     value = _safe_decode(raw)
     return {
         "exists": value is not None,
@@ -222,14 +251,14 @@ def _read_hash(key_obj, key_params: dict[str, Any], field: str | None, limit: in
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
     if field:
-        raw = client.hget(str(resolved_key), field)
+        raw = client.hget(resolved_key, field)
         value = _safe_decode(raw)
         return {
             "exists": value is not None,
             "field": field,
             "value": _try_json(value),
         }
-    raw_map: dict = client.hgetall(str(resolved_key))
+    raw_map: dict = client.hgetall(resolved_key)
     items = {_safe_decode(k): _try_json(_safe_decode(v)) for k, v in raw_map.items()}
     total = len(items)
     truncated_items = dict(list(items.items())[:limit])
@@ -246,11 +275,11 @@ def _read_zset(
 ) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
-    total: int = client.zcard(str(resolved_key))
+    total: int = client.zcard(resolved_key)
     if score_min is not None and score_max is not None:
-        raw_pairs = client.zrangebyscore(str(resolved_key), score_min, score_max, withscores=True, start=0, num=limit)
+        raw_pairs = client.zrangebyscore(resolved_key, score_min, score_max, withscores=True, start=0, num=limit)
     else:
-        raw_pairs = client.zrange(str(resolved_key), 0, limit - 1, withscores=True)
+        raw_pairs = client.zrange(resolved_key, 0, limit - 1, withscores=True)
     members = [{"score": score, "value": _try_json(_safe_decode(member))} for member, score in raw_pairs]
     return {
         "exists": total > 0,
@@ -264,8 +293,8 @@ def _read_zset(
 def _read_list(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
-    total: int = client.llen(str(resolved_key))
-    raw_items = client.lrange(str(resolved_key), 0, limit - 1)
+    total: int = client.llen(resolved_key)
+    raw_items = client.lrange(resolved_key, 0, limit - 1)
     items = [_try_json(_safe_decode(v)) for v in raw_items]
     return {
         "exists": total > 0,
@@ -282,12 +311,12 @@ _READ_SET_HARD_CAP = 2000
 def _read_set(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]:
     resolved_key = key_obj.get_key(**key_params)
     client = key_obj.client
-    total: int = client.scard(str(resolved_key))
+    total: int = client.scard(resolved_key)
     if total > _READ_SET_HARD_CAP:
         raise CustomException(
             message=f"set 成员数 {total} 超过安全读取上限 {_READ_SET_HARD_CAP}，拒绝 smembers 全量拉取"
         )
-    raw_items = client.smembers(str(resolved_key))
+    raw_items = client.smembers(resolved_key)
     members = [_try_json(_safe_decode(v)) for v in raw_items]
     return {
         "exists": total > 0,

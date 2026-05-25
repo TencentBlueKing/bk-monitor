@@ -41,6 +41,10 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    containerSelector: {
+      type: String,
+      default: '.dialog-log-markdown',
+    },
   },
   setup(props, { expose }) {
     const jumpInputRef = ref<HTMLElement>();
@@ -79,8 +83,9 @@ export default defineComponent({
       highlightHtmlList = document.querySelectorAll('[data-index="light"]');
       lightSize.value = highlightHtmlList.length;
       if (lightSize.value) {
-        const markDom = document.querySelector('.dialog-log-markdown');
-        const markTop = markDom!.getBoundingClientRect().top;
+        const markDom = document.querySelector(props.containerSelector);
+        if (!markDom) return;
+        const markTop = markDom.getBoundingClientRect().top;
         let isFindShow = false;
         for (let index = 0; index < highlightHtmlList.length; index++) {
           const iItemTop = highlightHtmlList[index].getBoundingClientRect().top;

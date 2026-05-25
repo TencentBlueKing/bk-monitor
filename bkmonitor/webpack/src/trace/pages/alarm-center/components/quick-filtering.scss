@@ -161,7 +161,9 @@
 
             &.regression {
               .item-icon-wrapper {
-                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 width: 18px;
                 height: 18px;
                 border-radius: 4px;
@@ -170,13 +172,13 @@
 
             &.regression-true {
               .item-icon-wrapper {
-                background-color: #ffedd1;
+                background-color: #e5b571;
               }
             }
 
             &.regression-false {
               .item-icon-wrapper {
-                background-color: #e1f5f0;
+                background-color: #78ab89;
               }
             }
 

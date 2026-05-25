@@ -20,9 +20,14 @@ from . import (
     es_storage,
     kafka_sample,
     query_route,
+    rabbitmq,
+    record_rule_v4,
     result_table,
+    space,
     storage,
     tenant,
+    uptime_check,
+    vm_short_link,
 )
 
 __all__ = [
@@ -37,7 +42,12 @@ __all__ = [
     "es_storage",
     "kafka_sample",
     "query_route",
+    "rabbitmq",
+    "record_rule_v4",
     "result_table",
+    "space",
     "storage",
     "tenant",
+    "uptime_check",
+    "vm_short_link",
 ]

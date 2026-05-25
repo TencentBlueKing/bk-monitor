@@ -146,3 +146,13 @@ class DorisStorageNotExistException(BaseClusteringException):
 class PlaceholderAnalysisNotSupportedException(BaseClusteringException):
     ERROR_CODE = "027"
     MESSAGE = _("当前 Pattern 暂不支持占位符分析: {reason}")
+
+
+class ModelFileUnpickleForbiddenException(BaseClusteringException):
+    ERROR_CODE = "028"
+    MESSAGE = _("AIOPS 模型文件反序列化被白名单拒绝: {detail}")
+
+
+class ModelFileStructureInvalidException(BaseClusteringException):
+    ERROR_CODE = "029"
+    MESSAGE = _("AIOPS 模型文件结构非法: {detail}")

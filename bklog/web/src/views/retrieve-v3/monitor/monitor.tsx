@@ -93,20 +93,24 @@ export default defineComponent({
 
     watch(
       () => props.timeRange,
-      async val => {
+      async (val) => {
         if (!val) return;
         getIndexSetList();
         store.commit('updateIsSetDefaultTableColumn', false);
+        store.commit('resetIndexSetQueryResult', {
+          is_loading: true,
+          search_count: store.state.indexSetQueryResult.search_count + 1,
+        });
         const result = handleTransformToTimestamp(val as TimeRangeType, store.getters.retrieveParams.format);
         store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
         await store.dispatch('requestIndexSetFieldInfo');
-        store.dispatch('requestIndexSetQuery');
+        store.dispatch('requestIndexSetQuery', { searchCount: store.state.indexSetQueryResult.search_count });
       },
     );
 
     watch(
       () => props.timezone,
-      val => {
+      (val) => {
         if (!val) return;
         store.commit('updateIndexItemParams', { timezone: val });
         updateTimezone(val);

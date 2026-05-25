@@ -192,6 +192,9 @@ def refresh_apm_platform_config():
 @app.task(ignore_result=True, queue="celery_cron")
 def refresh_apm_application_config(bk_biz_id, app_name):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+    # 刷新k8s配置
+    ApplicationConfig.refresh_k8s([_app])
+    # 刷新节点管理配置
     ApplicationConfig(_app).refresh()
 
 

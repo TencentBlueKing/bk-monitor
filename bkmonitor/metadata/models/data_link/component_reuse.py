@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 from django.conf import settings
 
 from metadata.models.data_link.data_link_configs import (
+    BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
     DataLinkResourceConfigBase,
@@ -37,6 +38,7 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
     VMStorageBindingConfig,
     ESStorageBindingConfig,
     DorisStorageBindingConfig,
+    BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
 ]
@@ -66,6 +68,8 @@ REUSE_ENABLED_STRATEGIES: set[str] = {
     "bk_exporter_time_series",
     "bk_standard_time_series",
     "bk_standard_v2_time_series",
+    "bk_standard_v2_event",
+    "bk_log",
 }
 
 

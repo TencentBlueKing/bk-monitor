@@ -453,9 +453,9 @@ export default {
   '输入 $ 可以插入变量': 'Input $ to insert variables',
 
   // ISSUES
-  新问题: 'New Issue',
+  新类问题: 'New Issue',
   回归问题: 'Regression Issue',
-  新: 'New',
+  新类: 'New',
   回归: 'Regression',
   待审核: 'Pending Review',
   归档: 'Archived',

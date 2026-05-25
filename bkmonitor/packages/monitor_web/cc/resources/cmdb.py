@@ -247,14 +247,14 @@ def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
             bk_biz_id=bk_biz_id,
-            interval=60,
+            interval=180,
             metrics=[{"field": metric["metric_field"], "method": "MAX", "alias": "A"}],
             table=metric["result_table_id"],
             group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
         )
         query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
         now = int(time.time()) * 1000
-        records = query.query_data(start_time=now - 180000, end_time=now)
+        records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
         for record in records:
             if not record["_result_"]:
                 continue

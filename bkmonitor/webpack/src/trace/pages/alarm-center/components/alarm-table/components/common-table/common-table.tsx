@@ -25,7 +25,7 @@
  */
 import { type PropType, computed, defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
+import { type BkUiSettings, type TableSort, type TdBaseTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
 
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
@@ -125,6 +125,10 @@ export default defineComponent({
     defaultActiveRowKeys: {
       type: Array as PropType<(number | string)[]>,
       default: () => [],
+    },
+    /** 行类名，参数为 { row, rowIndex, type } */
+    rowClassName: {
+      type: [String, Function] as PropType<TdBaseTableProps['rowClassName']>,
     },
   },
   emits: {
@@ -367,6 +371,7 @@ export default defineComponent({
           needCustomScroll={false}
           reserveSelectedRowOnPaginate={false}
           resizable={true}
+          rowClassName={this.rowClassName}
           rowKey={this.rowKey}
           selectedRowKeys={this.selectedRowKeys}
           showSortColumnBgColor={true}

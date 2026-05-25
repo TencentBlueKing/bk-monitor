@@ -200,6 +200,12 @@ class ApmDataSourceConfigBase(models.Model):
         """判断是否为共享数据源"""
         return self.shared_datasource_id is not None
 
+    def is_ready(self) -> bool:
+        """判断数据源是否已准备就绪"""
+        if not self.bk_data_id or self.bk_data_id == -1 or not self.result_table_id:
+            return False
+        return True
+
     def to_link_info(self) -> dict[str, Any]:
         """导出链路元数据字典。
 
@@ -714,9 +720,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if global_mode:
             bk_biz_id = GLOBAL_CONFIG_BK_BIZ_ID
             bk_tenant_id = DEFAULT_TENANT_ID
+            table_name_zh = f"APM 共享数据源（{table_id.rsplit('_', 1)[-1]}）"
         else:
             bk_biz_id = self.bk_biz_id
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+            table_name_zh = self.app_name
 
         params = {
             "bk_data_id": self.bk_data_id,
@@ -725,7 +733,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "bk_tenant_id": bk_tenant_id,
             "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             "is_enable": True,
-            "table_name_zh": self.app_name,
+            "table_name_zh": table_name_zh,
             "is_custom_table": True,
             "schema_type": "free",
             "default_storage": "elasticsearch",

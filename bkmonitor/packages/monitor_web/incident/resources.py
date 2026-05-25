@@ -1715,3 +1715,7 @@ class GetConfigResource(Resource):
 class FetchGlobalVariablesResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.fetch_global_variables(validated_request_data)
+
+class CreateListConfigResource(Resource):
+    def perform_request(self, validated_request_data):
+        return api.bk_incident.create_list_config(validated_request_data)

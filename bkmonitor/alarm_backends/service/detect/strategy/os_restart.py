@@ -31,6 +31,18 @@ from alarm_backends.service.detect.strategy.threshold import Threshold
 
 logger = logging.getLogger("detect")
 
+# 单次 unify-query 预取最多按 IP 收敛的目标数量上限。
+# K 在此范围内时，给 data_source.filter_dict 追加 `bk_target_ip__eq=[...]`，把"策略 target 范围全量"
+# 收窄到"本批次 K 台"，显著减少 vmselect 端扫描压力与响应数据量（典型业务下降 1-2 个数量级）。
+# 超过该上限时回退到不加 filter 的全量查询，避免 promql/请求体过长触发后端限流。
+#
+# 100 的选择动机：data_source `bk_target_ip__eq=[list]` 在 unify-query 后端被翻译为 OR 链
+# （见 data_source/models/lookups.py:Equal.list_connector=" OR "），K=100 时 promql 长度约
+# 4-5 KB，远低于网关与 vmselect 的常规请求体上限，且按经验 OsRestart 单周期触发批次（同步重启）
+# 极少超过该量级；超过则集群层面应当优先关注重启事件本身而非历史回填精度，回退到 target 全量
+# 查询更稳妥。如线上观察到批次量级长期接近上限，建议在 settings 中放开做灰度调参。
+MAX_PREFETCH_IP_FILTER = 100
+
 
 class OsRestart(SimpleRingRatio):
     expr_op = "and"
@@ -101,6 +113,30 @@ class OsRestart(SimpleRingRatio):
         # 改写 expression 拿真实 uptime（access 侧 a <= 3600 过滤的逆操作）；try/finally 保证还原，
         # 避免改动 access 与 detect 共享的 item.query 实例后泄漏到后续调用。
         item.query.expression = "a"
+
+        # 收集本批次涉及的目标 IP，把"策略 target 范围全量"收窄到"本批次 K 台"。
+        # 仅在 0 < K <= MAX_PREFETCH_IP_FILTER 时启用；K 过大时回退到不加 filter 的全量查询，
+        # 避免 promql 正则/请求体过长触发后端限流。
+        target_ips = sorted(
+            {dp.dimensions.get("bk_target_ip") for dp in data_points if dp.dimensions.get("bk_target_ip")}
+        )
+        ip_filter_applied = False
+        original_filters: list = []
+        if 0 < len(target_ips) <= MAX_PREFETCH_IP_FILTER:
+            for data_source in item.data_sources:
+                original_filters.append((data_source, dict(data_source.filter_dict)))
+                # __eq 在 list 上的语义是 OR（见 data_source/models/lookups.py:Equal.list_connector）
+                data_source.filter_dict["bk_target_ip__eq"] = target_ips
+            ip_filter_applied = True
+        elif len(target_ips) > MAX_PREFETCH_IP_FILTER:
+            logger.info(
+                "strategy(%s) item(%s) os_restart prefetch ip count %s > %s, fallback to target-scope query",
+                item.strategy.id,
+                item.id,
+                len(target_ips),
+                MAX_PREFETCH_IP_FILTER,
+            )
+
         try:
             sorted_data_points = sorted(data_points, key=lambda x: x.timestamp)
             agg_interval = item.query_configs[0]["agg_interval"]
@@ -147,6 +183,11 @@ class OsRestart(SimpleRingRatio):
                 bucket[detect_point.record_id.split(".")[0]] = json.dumps(detect_point.as_dict())
         finally:
             item.query.expression = original_expression
+            # 还原 filter_dict，避免对 access 与 detect 共享的 data_source 实例泄漏 IP 过滤条件。
+            if ip_filter_applied:
+                for data_source, original in original_filters:
+                    data_source.filter_dict.clear()
+                    data_source.filter_dict.update(original)
 
     def gen_anomaly_point(self, data_point, detect_result, level, auto_format=True):
         ap = super().gen_anomaly_point(data_point, detect_result, level)

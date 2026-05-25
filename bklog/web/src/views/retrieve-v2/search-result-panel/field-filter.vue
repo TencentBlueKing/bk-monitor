@@ -88,10 +88,7 @@
     :style="rootStyle"
   >
     <!-- 字段过滤 -->
-    <div
-      style="position: absolute; top: 64px; transform: translate(-50%, -50%)"
-      class="tab-item-title field-filter-title"
-    >
+    <div class="tab-item-title field-filter-title">
       <div
         class="close-total"
         @click="handleCloseFilterTitle(false)"

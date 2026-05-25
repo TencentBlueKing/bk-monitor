@@ -739,6 +739,7 @@ class SetupResource(Resource):
 
         def validate(self, attrs):
             res = super().validate(attrs)
+
             if attrs.get("trace_datasource_option") and not attrs.get("trace_datasource_option", {}).get(
                 "es_slice_size"
             ):
@@ -781,6 +782,10 @@ class SetupResource(Resource):
             for key in self.update_key:
                 if key not in self._params:
                     return
+
+            if TraceQueryGuard.is_shared_table(self._application.trace_result_table_id):
+                raise ValueError("共享数据源的应用不支持修改链路信息")
+
             Application.setup_datasource(
                 self._application.application_id,
                 {"trace_datasource_option": self._params["trace_datasource_option"]},

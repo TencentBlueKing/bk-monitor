@@ -23,9 +23,10 @@
       justify-content: flex-end;
 
       .field-list-sticky {
-        top: 0;
+        top: var(--top-searchbar-height);
 
         &.is-show {
+          top: 0;
           position: relative;
           height: calc(100vh - var(--top-searchbar-height) - 150px);
         }

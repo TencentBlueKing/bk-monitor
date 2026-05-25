@@ -14,7 +14,7 @@ from django.db import models
 from django.db.models import F
 from django.db.models.functions import Greatest
 
-from constants.apm import TelemetryDataType
+from constants.apm import TelemetryDataType, ApmGlobalTablePrefix
 
 
 class BaseSharedDataSource(models.Model):
@@ -151,7 +151,7 @@ class SharedTraceDataSource(BaseSharedDataSource):
 
     @property
     def table_id(self) -> str:
-        return f"apm_global.shared_{self.DATASOURCE_TYPE}_{self.pk:04d}"
+        return f"{ApmGlobalTablePrefix.SHARED}_{self.DATASOURCE_TYPE}_{self.pk:04d}"
 
     def to_shared_info(self) -> dict[str, Any]:
         info = super().to_shared_info()

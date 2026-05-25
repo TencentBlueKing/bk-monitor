@@ -1580,7 +1580,7 @@ class SearchAlertResource(Resource):
             request_data: 请求数据
 
         Returns:
-            tuple: (是否包含 action_id 查询, 处理记录 ID 列表)
+            tuple: (是否包含 action_id 查询, detect_result dict 含 action_ids_in_query / action_ids_in_conditions)
         """
         action_ids_in_query = set()
         action_ids_in_conditions = set()
@@ -1588,9 +1588,20 @@ class SearchAlertResource(Resource):
         has_action_id = False
 
         # 检查 query_string 中的处理记录ID
+        # 兼容两种写法：内部字段名 action_id、中文显示名 "处理记录ID"
+        # 同步维护：fta_web/alert/handlers/alert.py::AlertQueryTransformer._process_action_id 白名单需与本处一致，
+        # 否则会出现 Path A 扩了时间窗但 Path B 未改写 query 的语义冲突（ES 把字面字段当未知字段，0 命中）
+        # 不支持英文 i18n "Handling Record ID"：luqum parser 不接受含空格的 field name
+        # （"Handling Record ID : X" 会被解析成 UnknownOperation(Word('Handling'), Word('Record'), SearchField('ID', Word('X')))，
+        #  此时 Path B 拿到的 search_field_origin_name 是 "ID"，永远不会命中 action_id 白名单 → 无法转换 query），
+        # 强行加白名单只会触发时间窗扩展但下游查询失败，造成"看似支持实际无效"的死代码
+        # action_id 用负向 lookbehind 避免误命中 parent_action_id / alert_action_id 等含 "action_id" 子串的合法字段
         query_string = request_data.get("query_string", "")
         if query_string:
-            action_id_matches = re.findall(r"处理记录ID\s*:\s*(\d+)", query_string)
+            action_id_matches = re.findall(
+                r"(?:(?<![A-Za-z0-9_])action_id|处理记录ID)\s*:\s*(\d+)",
+                query_string,
+            )
             if action_id_matches:
                 action_ids_in_query.update(set(action_id_matches))
 

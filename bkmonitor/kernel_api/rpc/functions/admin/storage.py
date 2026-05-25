@@ -17,8 +17,14 @@ from django.db.models import Q
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     build_response,
+    filter_by_bk_tenant_id,
+    filter_by_tenant_resource_pairs,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
+    get_scoped_map_value,
+    instance_tenant_resource_key,
     normalize_ordering,
     normalize_pagination,
     paginate_queryset,
@@ -163,21 +169,37 @@ def _get_doris_storage_or_raise(bk_tenant_id: str, table_id: str) -> Any:
         raise CustomException(message=f"未找到 DorisStorage: table_id={table_id}") from error
 
 
-def _table_ids_by_data_filters(params: dict[str, Any], bk_tenant_id: str) -> set[str] | None:
+def _table_ids_by_data_filters(
+    params: dict[str, Any], bk_tenant_id: str | None
+) -> set[str] | set[tuple[str | None, str]] | None:
     filters: dict[str, Any] = {}
     if params.get("data_label") not in (None, ""):
         filters["data_label"] = str(params["data_label"]).strip()
+    relation_pairs: set[tuple[str | None, str]] | None = None
     if params.get("bk_data_id") not in (None, ""):
         bk_data_id = _parse_int_param(params, "bk_data_id")
-        relation_table_ids = models.DataSourceResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id
-        ).values_list("table_id", flat=True)
-        filters["table_id__in"] = relation_table_ids
+        relation_queryset = filter_by_bk_tenant_id(
+            models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id), bk_tenant_id
+        )
+        relation_pairs = {
+            (relation.bk_tenant_id, relation.table_id)
+            for relation in relation_queryset.only("bk_tenant_id", "table_id")
+            if relation.table_id
+        }
+        filters["table_id__in"] = [table_id for _, table_id in relation_pairs]
     if not filters:
         return None
-    return set(
-        models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, **filters).values_list("table_id", flat=True)
-    )
+    result_table_queryset = filter_by_bk_tenant_id(models.ResultTable.objects.filter(**filters), bk_tenant_id)
+    table_pairs = {
+        (result_table.bk_tenant_id, result_table.table_id)
+        for result_table in result_table_queryset.only("bk_tenant_id", "table_id")
+        if result_table.table_id
+    }
+    if relation_pairs is not None:
+        table_pairs &= relation_pairs
+    if bk_tenant_id is None:
+        return table_pairs
+    return {table_id for _, table_id in table_pairs}
 
 
 def _serialize_result_table(result_table: Any | None) -> dict[str, Any] | None:
@@ -188,28 +210,28 @@ def _serialize_cluster(cluster: Any | None) -> dict[str, Any] | None:
     return serialize_model(cluster, CLUSTER_SUMMARY_FIELDS) if cluster else None
 
 
-def _load_result_table_map(bk_tenant_id: str, table_ids: list[str | None]) -> dict[str, Any]:
+def _load_result_table_map(bk_tenant_id: str | None, table_ids: list[str | None]) -> dict[Any, Any]:
     normalized_table_ids = [table_id for table_id in table_ids if table_id]
     if not normalized_table_ids:
         return {}
-    return {
-        result_table.table_id: result_table
-        for result_table in models.ResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, table_id__in=normalized_table_ids
-        )
-    }
+    queryset = filter_by_bk_tenant_id(
+        models.ResultTable.objects.filter(table_id__in=normalized_table_ids), bk_tenant_id
+    )
+    if bk_tenant_id is None:
+        return {instance_tenant_resource_key(result_table, "table_id"): result_table for result_table in queryset}
+    return {result_table.table_id: result_table for result_table in queryset}
 
 
-def _load_cluster_map(bk_tenant_id: str, cluster_ids: list[int | None]) -> dict[int, Any]:
+def _load_cluster_map(bk_tenant_id: str | None, cluster_ids: list[int | None]) -> dict[Any, Any]:
     normalized_cluster_ids = [cluster_id for cluster_id in cluster_ids if cluster_id not in (None, "")]
     if not normalized_cluster_ids:
         return {}
-    return {
-        cluster.cluster_id: cluster
-        for cluster in models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, cluster_id__in=normalized_cluster_ids
-        )
-    }
+    queryset = filter_by_bk_tenant_id(
+        models.ClusterInfo.objects.filter(cluster_id__in=normalized_cluster_ids), bk_tenant_id
+    )
+    if bk_tenant_id is None:
+        return {instance_tenant_resource_key(cluster, "cluster_id"): cluster for cluster in queryset}
+    return {cluster.cluster_id: cluster for cluster in queryset}
 
 
 def _table_id_filter(queryset: Any, table_id: str, field: str = "table_id") -> Any:
@@ -220,12 +242,17 @@ def _table_id_filter(queryset: Any, table_id: str, field: str = "table_id") -> A
     )
 
 
-def _base_storage_queryset(model_cls: Any, params: dict[str, Any], bk_tenant_id: str, table_field: str = "table_id"):
-    queryset = model_cls.objects.filter(bk_tenant_id=bk_tenant_id)
+def _base_storage_queryset(
+    model_cls: Any, params: dict[str, Any], bk_tenant_id: str | None, table_field: str = "table_id"
+):
+    queryset = filter_by_bk_tenant_id(model_cls.objects.all(), bk_tenant_id)
     queryset = _table_id_filter(queryset, str(params.get("table_id") or "").strip(), table_field)
     table_ids = _table_ids_by_data_filters(params, bk_tenant_id)
     if table_ids is not None:
-        queryset = queryset.filter(**{f"{table_field}__in": table_ids})
+        if bk_tenant_id is None:
+            queryset = filter_by_tenant_resource_pairs(queryset, table_field, table_ids)
+        else:
+            queryset = queryset.filter(**{f"{table_field}__in": table_ids})
     storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
     if storage_cluster_id is not None:
         queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
@@ -246,8 +273,12 @@ def _serialize_doris_item(
 ) -> dict[str, Any]:
     return {
         "doris_storage": _serialize_doris_storage(storage),
-        "result_table": _serialize_result_table(result_table_map.get(storage.table_id)),
-        "storage_cluster": _serialize_cluster(cluster_map.get(storage.storage_cluster_id)),
+        "result_table": _serialize_result_table(
+            get_scoped_map_value(result_table_map, storage.bk_tenant_id, storage.table_id)
+        ),
+        "storage_cluster": _serialize_cluster(
+            get_scoped_map_value(cluster_map, storage.bk_tenant_id, storage.storage_cluster_id)
+        ),
     }
 
 
@@ -256,16 +287,24 @@ def _serialize_kafka_item(
 ) -> dict[str, Any]:
     return {
         "kafka_storage": serialize_model(storage, KAFKA_STORAGE_FIELDS),
-        "result_table": _serialize_result_table(result_table_map.get(storage.table_id)),
-        "storage_cluster": _serialize_cluster(cluster_map.get(storage.storage_cluster_id)),
+        "result_table": _serialize_result_table(
+            get_scoped_map_value(result_table_map, storage.bk_tenant_id, storage.table_id)
+        ),
+        "storage_cluster": _serialize_cluster(
+            get_scoped_map_value(cluster_map, storage.bk_tenant_id, storage.storage_cluster_id)
+        ),
     }
 
 
 def _serialize_vm_item(record: Any, result_table_map: dict[str, Any], cluster_map: dict[int, Any]) -> dict[str, Any]:
     return {
         "access_vm_record": serialize_model(record, ACCESS_VM_RECORD_FIELDS),
-        "result_table": _serialize_result_table(result_table_map.get(record.result_table_id)),
-        "storage_cluster": _serialize_cluster(cluster_map.get(record.storage_cluster_id)),
+        "result_table": _serialize_result_table(
+            get_scoped_map_value(result_table_map, record.bk_tenant_id, record.result_table_id)
+        ),
+        "storage_cluster": _serialize_cluster(
+            get_scoped_map_value(cluster_map, record.bk_tenant_id, record.storage_cluster_id)
+        ),
     }
 
 
@@ -274,8 +313,12 @@ def _serialize_bkbase_item(
 ) -> dict[str, Any]:
     return {
         "bkbase_result_table": serialize_model(record, BKBASE_RESULT_TABLE_FIELDS),
-        "result_table": _serialize_result_table(result_table_map.get(record.monitor_table_id)),
-        "storage_cluster": _serialize_cluster(cluster_map.get(record.storage_cluster_id)),
+        "result_table": _serialize_result_table(
+            get_scoped_map_value(result_table_map, record.bk_tenant_id, record.monitor_table_id)
+        ),
+        "storage_cluster": _serialize_cluster(
+            get_scoped_map_value(cluster_map, record.bk_tenant_id, record.storage_cluster_id)
+        ),
     }
 
 
@@ -283,7 +326,7 @@ def _paginate_list_response(
     *,
     params: dict[str, Any],
     queryset: Any,
-    bk_tenant_id: str,
+    bk_tenant_id: str | None,
     operation: str,
     func_name: str,
     table_id_getter,
@@ -311,7 +354,7 @@ def _paginate_list_response(
     summary="Admin 查询 DorisStorage 列表",
     description="只读分页查询 DorisStorage，字段按 DorisStorage 模型原样返回。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，DorisStorage.table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
@@ -323,7 +366,7 @@ def _paginate_list_response(
     example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo", "page": 1, "page_size": 20},
 )
 def list_doris_storages(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     queryset = _base_storage_queryset(models.DorisStorage, params, bk_tenant_id)
     return _paginate_list_response(
         params=params,
@@ -426,7 +469,7 @@ def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 查询 AccessVMRecord 列表",
     description="只读分页查询 AccessVMRecord，字段按 VM 接入记录模型原样返回。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 result_table_id / vm_result_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
@@ -437,8 +480,8 @@ def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "table_id": "2_bkmonitor_time_series.__default__"},
 )
 def list_vm_storages(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
-    queryset = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
+    queryset = filter_by_bk_tenant_id(models.AccessVMRecord.objects.all(), bk_tenant_id)
     table_id = str(params.get("table_id") or "").strip()
     if table_id:
         queryset = queryset.filter(
@@ -451,7 +494,10 @@ def list_vm_storages(params: dict[str, Any]) -> dict[str, Any]:
         )
     table_ids = _table_ids_by_data_filters(params, bk_tenant_id)
     if table_ids is not None:
-        queryset = queryset.filter(result_table_id__in=table_ids)
+        if bk_tenant_id is None:
+            queryset = filter_by_tenant_resource_pairs(queryset, "result_table_id", table_ids)
+        else:
+            queryset = queryset.filter(result_table_id__in=table_ids)
     storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
     if storage_cluster_id is not None:
         queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
@@ -503,7 +549,7 @@ def get_vm_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 查询 KafkaStorage 列表",
     description="只读分页查询 KafkaStorage，字段按 KafkaStorage 模型原样返回。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，KafkaStorage.table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
@@ -515,7 +561,7 @@ def get_vm_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "table_id": "system.cpu"},
 )
 def list_kafka_storages(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     queryset = _base_storage_queryset(models.KafkaStorage, params, bk_tenant_id)
     return _paginate_list_response(
         params=params,
@@ -565,7 +611,7 @@ def get_kafka_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 查询 BkBaseResultTable 列表",
     description="只读分页查询 BkBaseResultTable，字段按 BKBase 链路回填模型原样返回。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，匹配 monitor_table_id / bkbase_table_id / data_link_name",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
@@ -578,8 +624,8 @@ def get_kafka_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "status": "Ok", "page": 1, "page_size": 20},
 )
 def list_bkbase_result_tables(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
-    queryset = models.BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
+    queryset = filter_by_bk_tenant_id(models.BkBaseResultTable.objects.all(), bk_tenant_id)
     table_id = str(params.get("table_id") or "").strip()
     if table_id:
         queryset = queryset.filter(
@@ -595,7 +641,10 @@ def list_bkbase_result_tables(params: dict[str, Any]) -> dict[str, Any]:
         )
     table_ids = _table_ids_by_data_filters(params, bk_tenant_id)
     if table_ids is not None:
-        queryset = queryset.filter(monitor_table_id__in=table_ids)
+        if bk_tenant_id is None:
+            queryset = filter_by_tenant_resource_pairs(queryset, "monitor_table_id", table_ids)
+        else:
+            queryset = queryset.filter(monitor_table_id__in=table_ids)
     storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
     if storage_cluster_id is not None:
         queryset = queryset.filter(storage_cluster_id=storage_cluster_id)

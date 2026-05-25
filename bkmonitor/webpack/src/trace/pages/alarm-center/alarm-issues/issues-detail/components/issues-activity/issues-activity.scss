@@ -288,20 +288,30 @@
       }
     }
 
-    .detail-icon {
-      position: absolute;
-      right: 12px;
-      bottom: 12px;
+    .comment-actions {
       display: none;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      font-size: 12px;
-      color: #3974ff;
-      cursor: pointer;
-      background-color: #fff;
-      border-radius: 4px;
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      gap: 4px;
+
+      .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        font-size: 12px;
+        color: #3974ff;
+        cursor: pointer;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px 0 #0000001a;
+      }
+
+      .edit-icon {
+        font-size: 24px;
+      }
     }
 
     &:hover {
@@ -309,7 +319,7 @@
         overflow-y: auto;
       }
 
-      .detail-icon {
+      .comment-actions {
         display: flex;
       }
     }

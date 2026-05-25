@@ -31,7 +31,11 @@ import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
-import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
+import {
+  type BaseTableColumn,
+  type TableCellRenderContext,
+  ExploreTableColumnTypeEnum,
+} from '../../../../trace-explore/components/trace-explore-table/typing';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import {
   IMPACT_SCOPE_SORT_ORDER_MAP,
@@ -40,11 +44,8 @@ import {
   ISSUES_STATUS_MAP,
   IssueStatusEnum,
 } from '../../constant';
+import IssueNameCell from '../components/issue-name-cell/issue-name-cell';
 
-import type {
-  BaseTableColumn,
-  TableCellRenderContext,
-} from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { TableColumnItem } from '../../../typings';
 import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem } from '../../typing';
@@ -57,6 +58,8 @@ export type IssuesColumnsRendererCtx = {
   chartGroupId?: MaybeRef<string>;
   /** click popover 工具（基础设施依赖） */
   clickPopoverTools: IUsePopoverTools;
+  /** 提交 Issue 名称变更（返回 Promise，用于 loading 状态管理） */
+  handleNameChange: (row: IssueItem, name: string) => Promise<void>;
   /** hover popover 工具（基础设施依赖） */
   hoverPopoverTools: IUsePopoverTools;
 } & UseIssuesHandlersReturnType;
@@ -82,20 +85,10 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
     const regressionConfig = ISSUES_REGRESSION_MAP[String(row.is_regression)];
+
     return (
       <div class='issues-name-col'>
-        <div class={`issues-name-title ${renderCtx.isEnabledCellEllipsis(column)}`}>
-          <span
-            class='issues-name-title-text'
-            onClick={() => rendererCtx.handleShowDetail(row)}
-          >
-            {row.name || '--'}
-          </span>
-        </div>
-        <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(column)}`}>
-          <span class='issues-name-exception-text'>{row.anomaly_message}</span>
-        </div>
-        <div class='issues-name-meta'>
+        <div class='issues-name-title'>
           <span
             style={{
               '--issues-type-bg': regressionConfig?.bgColor || '#E1F5F0',
@@ -111,6 +104,14 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           >
             <i class={regressionConfig?.icon} />
           </span>
+          <IssueNameCell
+            ellipsisClass={renderCtx.isEnabledCellEllipsis(column)}
+            name={row.name || ''}
+            onShowDetail={() => rendererCtx.handleShowDetail(row)}
+            onSubmit={(newName: string) => rendererCtx.handleNameChange(row, newName)}
+          />
+        </div>
+        <div class='issues-name-description'>
           <span
             class='issues-alert-count'
             onMouseenter={e =>
@@ -120,8 +121,11 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             }
             onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
           >
-            <i class='icon-monitor icon-shijianjiansuo' />
-            {row.alert_count}
+            <i class='icon-monitor icon-alert-line' />
+            <span class='issues-alert-count-number'>{row.alert_count}</span>
+          </span>
+          <span class={['issues-name-exception-text', renderCtx.isEnabledCellEllipsis(column)]}>
+            {row.anomaly_message}
           </span>
         </div>
       </div>
@@ -152,28 +156,33 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 趋势列渲染（MiniBarChart 柱状迷你图 + 告警总数，支持通过 chartGroupId 进行图表联动）
+   * @description 趋势列渲染（MiniBarChart 柱状迷你图，支持通过 chartGroupId 进行图表联动）
    * @param {IssueItem} row - 当前行 Issue 数据
    * @returns {SlotReturnValue} 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
     const trend = row.trend || [];
-    const seriesList = trend.length
-      ? [
-          {
-            datapoints: trend.map(([ts, count]) => [count, ts] as [number, number]),
-            name: t('告警事件数'),
-            type: 'bar',
-            unit: 'none',
-          },
-        ]
-      : [];
+    const effectiveTrend = trend.filter(([, count]) => count > 0);
+    if (!effectiveTrend.length) {
+      return (
+        <div class='issues-trend-col is-empty'>
+          <span class='empty-text'>{t('暂无数据')}</span>
+        </div>
+      ) as unknown as SlotReturnValue;
+    }
+    const seriesList = [
+      {
+        datapoints: trend.map(([ts, count]) => [count, ts] as [number, number]),
+        name: t('告警事件数'),
+        type: 'bar',
+        unit: 'none',
+      },
+    ];
     return (
       <div class='issues-trend-col'>
         <MiniBarChart
           group={get(rendererCtx.chartGroupId)}
           seriesList={seriesList}
-          total={row.alert_count}
         />
       </div>
     ) as unknown as SlotReturnValue;

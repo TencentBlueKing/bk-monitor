@@ -15,7 +15,12 @@ from django.db.models import QuerySet, Q, Model
 
 from django.db import migrations
 
-from constants.apm import PreCalculateSpecificField, TRACE_RESULT_TABLE_OPTION, PRECALCULATE_RESULT_TABLE_OPTION
+from constants.apm import (
+    PreCalculateSpecificField,
+    TRACE_RESULT_TABLE_OPTION,
+    PRECALCULATE_RESULT_TABLE_OPTION,
+    ApmGlobalTablePrefix,
+)
 from metadata.migration_util import parse_value, sync_index_set_to_es_storages
 
 logger = logging.getLogger("metadata")
@@ -23,14 +28,11 @@ logger = logging.getLogger("metadata")
 
 DEFAULT_BATCH_SIZE: int = 1000
 
-APM_PRECALCULATE_TABLE_PREFIX: str = "apm_global.precalculate_storage"
-
-
 models: dict[str, type[Model] | None] = {"ESStorage": None, "ResultTable": None, "ResultTableOption": None}
 
 
 def is_precalculate(table_id: str) -> bool:
-    return table_id.startswith(APM_PRECALCULATE_TABLE_PREFIX)
+    return table_id.startswith(ApmGlobalTablePrefix.PRECALCULATE)
 
 
 def batch_sync_router(batch_size: int = DEFAULT_BATCH_SIZE):
@@ -41,7 +43,7 @@ def batch_sync_router(batch_size: int = DEFAULT_BATCH_SIZE):
         # 只过滤出 APM 相关的结果表。
         .filter(
             (Q(table_id__contains="bkapm") & Q(table_id__contains=".trace"))
-            | Q(table_id__contains=APM_PRECALCULATE_TABLE_PREFIX)
+            | Q(table_id__contains=ApmGlobalTablePrefix.PRECALCULATE)
         )
         .values("table_id", "bk_biz_id", "id", "bk_tenant_id")
         .order_by("table_id")
