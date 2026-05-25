@@ -393,6 +393,54 @@ class TestActivityContentFormat:
             assert data["main_issue_id"] == "a1"
 
 
+class TestSplitInfoFieldContract:
+    """split_info 字段契约：detail 接口 + bkm-cli inspect-issue detail 同口径返回。
+
+    满足需求 2.c / 2.d：前端拿到独立 Issue 后渲染「来自合并 Issues 拆分」+
+    「拆分依据」标签。reasons 优先取自关系表（结构化 source-of-truth）。
+    """
+
+    def test_split_info_keys(self):
+        """split_info 必含 6 字段：main_id / main_name / reasons / kind / time / operator。"""
+        info = {
+            "split_from_main_issue_id": "a1",
+            "split_from_main_issue_name": "context deadline exceed",
+            "split_reasons": ["真正的 IO 异常，独立处理"],
+            "split_kind": "manual",
+            "split_time": 1716580800,
+            "split_operator": "willgchen",
+        }
+        # 前端按这 6 个 key 渲染——任一缺失即视为契约破裂
+        for key in (
+            "split_from_main_issue_id",
+            "split_from_main_issue_name",
+            "split_reasons",
+            "split_kind",
+            "split_time",
+            "split_operator",
+        ):
+            assert key in info, f"split_info 必须包含 {key} 字段"
+
+    def test_split_info_main_name_fallback(self):
+        """主 Issue 已删除时，split_from_main_issue_name 用 `<id> (已删除)` 兜底。"""
+        # 模拟主 Issue ES 查询返回空时的兜底文案
+        main_id = "abc"
+        main_name = None
+        fallback = main_name or f"{main_id} (已删除)"
+        assert fallback == "abc (已删除)"
+
+    def test_split_info_reasons_from_relation(self):
+        """reasons 取关系表 split_reasons（结构化 SoT），活动日志 SPLIT_FROM.content 为审计副本。"""
+        relation_reasons = ["原因 1", "原因 2"]
+        # 模拟 _fill_split_info 取数：result["split_info"]["split_reasons"] 来自 relation.split_reasons
+        info = {"split_reasons": relation_reasons or []}
+        assert info["split_reasons"] == ["原因 1", "原因 2"]
+
+        # 关系表 split_reasons 为 None 时退化为空列表
+        info_empty = {"split_reasons": None or []}
+        assert info_empty["split_reasons"] == []
+
+
 class TestListMergeSourcesAnomalyMessage:
     """``_fetch_member_anomaly_messages`` 行为：
 

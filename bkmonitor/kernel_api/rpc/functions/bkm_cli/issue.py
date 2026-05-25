@@ -117,12 +117,70 @@ def _inspect_issue_detail(params: dict[str, Any]) -> dict[str, Any]:
         # fail-open：merge 注入失败不阻塞 inspect-issue detail 主路径
         cleaned.setdefault("merge_status", {"role": "none", "main_issue_id": None, "active_members": None})
 
+    # 注入 split_info（独立 Issue 拿到拆分溯源信息）：与 fta_web IssueDetailResource 同口径
+    _inject_split_info(cleaned, bk_biz_id)
+
     return {
         "operation": OPERATION_DETAIL,
         "bk_biz_id": cleaned.get("bk_biz_id"),
         "issue_id": cleaned.get("id"),
         "issue": cleaned,
     }
+
+
+def _inject_split_info(cleaned: dict[str, Any], bk_biz_id: int | None) -> None:
+    """查 IssueMergeRelation status='split' 最新一条，拼装 split_info。
+
+    与 ``fta_web.issue.resources.IssueDetailResource._fill_split_info`` 同口径。
+    reasons 取关系表（结构化 SoT），失败 fail-open 不阻塞主路径。
+    """
+    try:
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models.issue import IssueMergeRelation
+
+        issue_id = cleaned.get("id")
+        merge_biz_id = bk_biz_id if bk_biz_id is not None else int(cleaned.get("bk_biz_id") or 0)
+        if not issue_id or not merge_biz_id:
+            return
+
+        relation = (
+            IssueMergeRelation.objects.filter(
+                member_issue_id=issue_id,
+                bk_biz_id=merge_biz_id,
+                status=IssueMergeRelation.STATUS_SPLIT,
+            )
+            .order_by("-update_time")
+            .first()
+        )
+        if not relation:
+            return
+
+        main_name = None
+        try:
+            main_hits = (
+                IssueDocument.search(all_indices=True)
+                .filter("term", _id=relation.main_issue_id)
+                .source(["name"])
+                .params(size=1)
+                .execute()
+                .hits
+            )
+            if main_hits:
+                main_name = getattr(main_hits[0], "name", None)
+        except Exception:
+            pass  # name 留 None 走兜底文本
+
+        cleaned["split_info"] = {
+            "split_from_main_issue_id": relation.main_issue_id,
+            "split_from_main_issue_name": main_name or f"{relation.main_issue_id} (已删除)",
+            "split_reasons": relation.split_reasons or [],
+            "split_kind": relation.split_kind,
+            "split_time": int(relation.update_time.timestamp()) if relation.update_time else 0,
+            "split_operator": relation.update_user,
+        }
+    except Exception:
+        # fail-open：不阻塞 inspect-issue 主路径
+        pass
 
 
 def _list_issues_by_strategy(params: dict[str, Any]) -> dict[str, Any]:

@@ -444,7 +444,71 @@ class IssueDetailResource(Resource):
         # 填充 anomaly_message（查询最新告警的 description）
         self._fill_anomaly_message(issue, result)
 
+        # 注入 split_info（独立 Issue 拿到拆分溯源信息）：
+        # 仅当 issue 不是 active member 重定向得到的（redirected_from is None）
+        # 且自己曾经是别人的 split 产物时，前端可据此展示「来自合并 Issues 拆分」+「拆分依据」标签
+        if not redirected_from:
+            self._fill_split_info(display_id, bk_biz_id, result)
+
         return result
+
+    @staticmethod
+    def _fill_split_info(issue_id: str, bk_biz_id: int, result: dict) -> None:
+        """查 IssueMergeRelation 中 status='split' 的最新一条关系，拼装 split_info。
+
+        多次 split 取最新（按 update_time desc）。reasons 优先读关系表（结构化
+        source-of-truth），活动日志 SPLIT_FROM.content 为审计副本。
+        失败 fail-open：不阻塞主路径，仅 warning。
+        """
+        try:
+            relation = (
+                IssueMergeRelation.objects.filter(
+                    member_issue_id=issue_id,
+                    bk_biz_id=bk_biz_id,
+                    status=IssueMergeRelation.STATUS_SPLIT,
+                )
+                .order_by("-update_time")
+                .first()
+            )
+        except Exception:
+            logger.warning(
+                "[issue-merge] fill split_info SQL query failed (fail-open, issue_id=%s)",
+                issue_id,
+                exc_info=True,
+            )
+            return
+
+        if not relation:
+            return
+
+        # 查主 Issue name（拼装"来自 Issue X (name) 拆分"提示）；ES 异常时 name 留空兜底
+        main_name = None
+        try:
+            main_hits = (
+                IssueDocument.search(all_indices=True)
+                .filter("term", _id=relation.main_issue_id)
+                .source(["name"])
+                .params(size=1)
+                .execute()
+                .hits
+            )
+            if main_hits:
+                main_name = getattr(main_hits[0], "name", None)
+        except Exception:
+            logger.warning(
+                "[issue-merge] fill split_info main name fetch failed (fail-open, main_id=%s)",
+                relation.main_issue_id,
+                exc_info=True,
+            )
+
+        result["split_info"] = {
+            "split_from_main_issue_id": relation.main_issue_id,
+            "split_from_main_issue_name": main_name or f"{relation.main_issue_id} (已删除)",
+            "split_reasons": relation.split_reasons or [],
+            "split_kind": relation.split_kind,
+            "split_time": int(relation.update_time.timestamp()) if relation.update_time else 0,
+            "split_operator": relation.update_user,
+        }
 
     @staticmethod
     def _fill_anomaly_message(issue: "IssueDocument", result: dict) -> None:
