@@ -14,7 +14,7 @@ bkm-cli `inspect-issue` 后端：只读访问 IssueDocument / IssueActivityDocum
 - list_by_strategy     : IssueDocument.search().filter("term", strategy_id=...)
 - list_by_fingerprint  : IssueDocument.search().filter("term", fingerprint=...)
 - list_activities      : IssueActivityDocument.search().filter("term", issue_id=...)
-- list_conflicts       : 扫描两类合并/拆分状态不一致（运维对账兜底）
+- list_conflicts       : 扫描三类合并/拆分状态不一致（运维对账兜底；含 cascade follow resync）
 """
 
 from __future__ import annotations
@@ -314,9 +314,12 @@ _MAX_CONFLICT_LOOKBACK_DAYS = 90
 def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
     """扫描合并/拆分状态不一致（运维对账兜底）。
 
-    返回两类：
+    返回三类：
     - duplicate_active_members：同一 member_issue_id 在多行 status='active' 关系（race window）
+    - pending_follow_resync   ：关系 active 但 member ES status ≠ 主当前 status
+      （cascade follow fail-open 兜底，对应 repair_issue_merge_state --mode=follow_status_resync）
     - pending_split_resets    ：SQL status='split' 但对应 IssueDocument 物理状态未匹配 PENDING_REVIEW
+      （deprecated：主状态变更不再触发拆分，仅历史遗留 split 关系仍可能触发；将随 reset_pending_split mode 一起移除）
 
     Args:
         bk_biz_id (必填): 业务 ID
@@ -393,13 +396,63 @@ def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
                     }
                 )
 
+    # 第 3 类：关系 active 但 member ES status ≠ 主当前 status
+    # 与 repair follow_status_resync mode 配对：cascade follow 失败时此处检测得到，运维 mode 修复
+    active_rows = list(
+        IssueMergeRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            status=IssueMergeRelation.STATUS_ACTIVE,
+            update_time__gte=_dt_from_ts(since_ts),
+        ).values("main_issue_id", "member_issue_id")[:limit]
+    )
+    pending_follow_resync: list[dict[str, Any]] = []
+    if active_rows:
+        main_to_members: dict[str, list[str]] = {}
+        for r in active_rows:
+            main_to_members.setdefault(r["main_issue_id"], []).append(r["member_issue_id"])
+        all_ids = set(main_to_members.keys())
+        for ms in main_to_members.values():
+            all_ids.update(ms)
+        try:
+            es_hits = (
+                IssueDocument.search(all_indices=True)
+                .filter("terms", _id=list(all_ids))
+                .source(["status"])
+                .params(size=len(all_ids))
+                .execute()
+                .hits
+            )
+            es_status_map = {h.meta.id: getattr(h, "status", None) for h in es_hits}
+        except Exception:
+            es_status_map = {}
+        for main_id, member_ids in main_to_members.items():
+            main_es_status = es_status_map.get(main_id)
+            if main_es_status is None:
+                continue  # 主 ES 缺失，跳过（孤儿关系另作处理）
+            for mid in member_ids:
+                m_es_status = es_status_map.get(mid)
+                if m_es_status is not None and m_es_status != main_es_status:
+                    pending_follow_resync.append(
+                        {
+                            "main_issue_id": main_id,
+                            "member_issue_id": mid,
+                            "main_es_status": main_es_status,
+                            "member_es_status": m_es_status,
+                        }
+                    )
+                    if len(pending_follow_resync) >= limit:
+                        break
+            if len(pending_follow_resync) >= limit:
+                break
+
     return {
         "operation": OPERATION_LIST_CONFLICTS,
         "bk_biz_id": bk_biz_id,
         "since_days": since_days,
         "duplicate_active_members": duplicate_active_members,
+        "pending_follow_resync": pending_follow_resync,
         "pending_split_resets": pending_split_resets,
-        "total_conflicts": len(duplicate_active_members) + len(pending_split_resets),
+        "total_conflicts": (len(duplicate_active_members) + len(pending_follow_resync) + len(pending_split_resets)),
     }
 
 
