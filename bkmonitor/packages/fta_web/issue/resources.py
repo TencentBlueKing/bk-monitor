@@ -467,7 +467,7 @@ class IssueDetailResource(Resource):
                     bk_biz_id=bk_biz_id,
                     status=IssueMergeRelation.STATUS_SPLIT,
                 )
-                .order_by("-update_time")
+                .order_by("-update_time", "-id")
                 .first()
             )
         except Exception:
