@@ -152,7 +152,7 @@ class GetConfigResource(IncidentBaseResource):
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
-        content_list = serializers.ListField(label="配置内容", required=False)
+        bk_biz_id_list = serializers.ListField(label="业务ID列表", required=False)
 
 class CreateListConfigResource(IncidentBaseResource):
     action = "/incident/incident_config/create_list_config/"
