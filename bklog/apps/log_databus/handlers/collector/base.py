@@ -52,6 +52,7 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
+    COLLECTOR_SCENARIO_TO_SCENE,
     META_DATA_ENCODING,
     ArchiveInstanceType,
     CollectStatus,
@@ -61,6 +62,8 @@ from apps.log_databus.constants import (
     RunStatus,
     RETRIEVE_CHAIN,
     Environment,
+    STORAGE_CLUSTER_TYPE,
+    build_scene_labels,
 )
 from apps.log_databus.exceptions import (
     CollectNotSuccess,
@@ -102,6 +105,7 @@ from apps.log_search.constants import (
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import (
+    TAG_TYPE_SCENE,
     IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
@@ -510,6 +514,7 @@ class CollectorHandler:
         etl_params=None,
         fields=None,
         storage_cluster_id=None,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
         retention=7,
         allocation_min_days=0,
         storage_replies=1,
@@ -599,6 +604,7 @@ class CollectorHandler:
             etl_params = {
                 "table_id": table_id_name,
                 "storage_cluster_id": storage_cluster_id,
+                "storage_cluster_type": storage_cluster_type,
                 "retention": retention,
                 "es_shards": es_shards,
                 "allocation_min_days": allocation_min_days,
@@ -608,11 +614,13 @@ class CollectorHandler:
                 "fields": fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "labels": self._build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
             }
             etl_handler.update_or_create(**etl_params)
+            self._sync_scene_tags_to_index_set(etl_params["labels"])
 
         custom_config.after_hook(self.data)
 
@@ -759,17 +767,32 @@ class CollectorHandler:
         @return:
         """
 
-        def get_cluster_info(result_table_str: str):
+        def get_cluster_info(result_table_str: str, storage_type: str = "elasticsearch"):
             """
             获取集群信息（支持批量查询）
             """
             try:
                 return TransferApi.get_result_table_storage(
-                    params={"result_table_list": result_table_str, "storage_type": "elasticsearch"}
+                    params={"result_table_list": result_table_str, "storage_type": storage_type}
                 )
             except Exception as e:
-                logger.warning(f"获取集群信息失败(result_tables={result_table_str}): {e}", exc_info=True)
+                logger.warning(
+                    f"获取集群信息失败(result_tables={result_table_str}, storage_type={storage_type}): {e}",
+                    exc_info=True,
+                )
                 return {}
+
+        def _get_table_id_to_cluster_type_map(result_table_list: list):
+            """
+            获取结果表 -> 存储集群类型映射字典
+            从 CollectorConfig.storage_cluster_type 字段读取，未命中的结果表默认走 ES
+            """
+            table_id_to_cluster_type = dict(
+                CollectorConfig.objects.filter(table_id__in=result_table_list).values_list(
+                    "table_id", "storage_cluster_type"
+                )
+            )
+            return {t_id: table_id_to_cluster_type.get(t_id) or STORAGE_CLUSTER_TYPE for t_id in result_table_list}
 
         cluster_infos = {}
 
@@ -778,17 +801,33 @@ class CollectorHandler:
 
         unique_tables = list(dict.fromkeys(result_table_list))
 
-        # 按分片批量获取
-        chunk_multi_execute_func = MultiExecuteFunc()
-        unique_table_chunks: list[list[str]] = array_chunk(unique_tables, BULK_CLUSTER_INFOS_LIMIT)
+        table_id_to_cluster_type_map = _get_table_id_to_cluster_type_map(unique_tables)
 
+        storage_cluster_type_to_table_ids_map = defaultdict(list)
+
+        for t_id in unique_tables:
+            storage_cluster_type_to_table_ids_map[table_id_to_cluster_type_map.get(t_id, STORAGE_CLUSTER_TYPE)].append(
+                t_id
+            )
+
+        chunk_multi_execute_func = MultiExecuteFunc()
         # 记录每个 chunk_str 对应的 table_chunk
         table_chunk_dict: dict[str, list[str]] = {}
 
-        for table_chunk in unique_table_chunks:
-            chunk_str = ",".join(table_chunk)
-            table_chunk_dict[chunk_str] = table_chunk
-            chunk_multi_execute_func.append(chunk_str, get_cluster_info, chunk_str)
+        # 不同存储集群类型分开查询
+        for storage_cluster_type, current_tables in storage_cluster_type_to_table_ids_map.items():
+            # 按分片批量查询
+            current_table_chunks: list[list[str]] = array_chunk(current_tables, BULK_CLUSTER_INFOS_LIMIT)
+
+            for table_chunk in current_table_chunks:
+                chunk_str = ",".join(table_chunk)
+                table_chunk_dict[chunk_str] = table_chunk
+                chunk_multi_execute_func.append(
+                    chunk_str,
+                    get_cluster_info,
+                    {"result_table_str": chunk_str, "storage_type": storage_cluster_type},
+                    multi_func_params=True,
+                )
 
         chunk_response = chunk_multi_execute_func.run()
 
@@ -819,9 +858,16 @@ class CollectorHandler:
             )
 
             single_multi_execute_func = MultiExecuteFunc()
-
             for table_id in retry_tables:
-                single_multi_execute_func.append(table_id, get_cluster_info, table_id)
+                single_multi_execute_func.append(
+                    table_id,
+                    get_cluster_info,
+                    {
+                        "result_table_str": table_id,
+                        "storage_type": table_id_to_cluster_type_map.get(table_id, STORAGE_CLUSTER_TYPE),
+                    },
+                    multi_func_params=True,
+                )
 
             single_response = single_multi_execute_func.run()
 
@@ -879,7 +925,7 @@ class CollectorHandler:
             _data["storage_display_name"] = (
                 cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
             )
-            _data["retention"] = cluster_info["storage_config"]["retention"]
+            _data["retention"] = cluster_info["storage_config"].get("retention", 0)
             # table_id
             if _data.get("table_id"):
                 table_id_prefix, table_id = _data["table_id"].split(".")
@@ -929,8 +975,8 @@ class CollectorHandler:
             tag_ids_mapping[obj.index_set_id] = obj.tag_ids
             tag_ids_all.extend(obj.tag_ids)
 
-        # 查询出所有的tag信息
-        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        # 查询出所有的tag信息（排除场景化检索路由标签，仅后端使用，不暴露给前端）
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all).exclude(tag_type=TAG_TYPE_SCENE)
         index_set_tag_mapping = {
             obj.tag_id: {
                 "name": InnerTag.get_choice_label(obj.name),
@@ -1341,6 +1387,7 @@ class CollectorHandler:
         etl_params=None,
         fields=None,
         storage_cluster_id=None,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
         retention=7,
         allocation_min_days=0,
         storage_replies=1,
@@ -1461,6 +1508,7 @@ class CollectorHandler:
             params = {
                 "table_id": collector_config_name_en,
                 "storage_cluster_id": storage_cluster_id,
+                "storage_cluster_type": storage_cluster_type,
                 "retention": retention,
                 "allocation_min_days": allocation_min_days,
                 "storage_replies": storage_replies,
@@ -1470,15 +1518,16 @@ class CollectorHandler:
                 "fields": custom_config.fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
+                "labels": self._build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
             }
             if etl_params and fields:
-                # 如果传递了清洗参数，则优先使用
                 params.update({"etl_params": etl_params, "etl_config": etl_config, "fields": fields})
             self.data.index_set_id = etl_handler.update_or_create(**params)["index_set_id"]
             self.data.save(update_fields=["index_set_id"])
+            self._sync_scene_tags_to_index_set(params["labels"])
 
         custom_config.after_hook(self.data)
 
@@ -1556,6 +1605,55 @@ class CollectorHandler:
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
+    def _build_scene_labels(self) -> dict:
+        """Build ResultTable.labels based on collector scenario and environment."""
+        if self.data.is_container_environment:
+            stream = self._detect_container_stream()
+            return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "", stream=stream)
+        scene = COLLECTOR_SCENARIO_TO_SCENE.get(self.data.collector_scenario_id, "host")
+        return build_scene_labels(scene)
+
+    def _detect_container_stream(self) -> str:
+        """Determine stream type (stdout / file) from ContainerCollectorConfig.collector_type."""
+        from apps.log_databus.constants import ContainerCollectorType
+
+        container_configs = ContainerCollectorConfig.objects.filter(
+            collector_config_id=self.data.collector_config_id
+        ).values_list("collector_type", flat=True)
+        collector_types = set(container_configs)
+        if ContainerCollectorType.STDOUT in collector_types:
+            return "stdout"
+        if ContainerCollectorType.CONTAINER in collector_types:
+            return "file"
+        return ""
+
+    def _sync_scene_tags_to_index_set(self, labels: dict):
+        """
+        Persist scene labels as IndexSetTag records and attach them to the
+        collector's LogIndexSet.tag_ids so that dimension_values can be
+        queried purely from DB.
+        """
+        if not self.data.index_set_id:
+            return
+
+        tag_ids = []
+        for key, value in labels.items():
+            if value:
+                tag_ids.append(str(IndexSetTag.get_tag_id(name=key, value=value, tag_type=TAG_TYPE_SCENE)))
+
+        if not tag_ids:
+            return
+
+        try:
+            index_set = LogIndexSet.objects.get(index_set_id=self.data.index_set_id)
+        except LogIndexSet.DoesNotExist:
+            return
+
+        existing = set(str(t) for t in (index_set.tag_ids or []) if t)
+        merged = existing | set(tag_ids)
+        index_set.tag_ids = list(merged)
+        index_set.save(update_fields=["tag_ids"])
+
     def create_or_update_clean_config(self, is_update, params):
         if is_update:
             table_id = self.data.table_id
@@ -1578,10 +1676,14 @@ class CollectorHandler:
             default_etl_params.update(params)
             params = default_etl_params
 
+        params.setdefault("labels", self._build_scene_labels())
+
         from apps.log_databus.handlers.etl import EtlHandler
 
         etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        return etl_handler.update_or_create(**params)
+        result = etl_handler.update_or_create(**params)
+        self._sync_scene_tags_to_index_set(params["labels"])
+        return result
 
     @classmethod
     def _send_create_notify(cls, collector_config: CollectorConfig):

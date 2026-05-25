@@ -36,17 +36,38 @@
       data-test-id="storage_form_storageBox"
     >
       <div class="add-collection-title">{{ $t('集群选择') }}</div>
+      <div
+        v-if="isDorisEnabled"
+        class="cluster-type-tabs"
+      >
+        <span
+          :class="['tab-btn', clusterType === 'elasticsearch' ? 'active' : '']"
+          @click="handleClusterTypeChange('elasticsearch')"
+        >
+          {{ $t('ES集群') }}
+        </span>
+        <span
+          :class="['tab-btn', clusterType === 'doris' ? 'active' : '']"
+          @click="handleClusterTypeChange('doris')"
+        >
+          {{ $t('Doris集群') }}
+        </span>
+      </div>
       <cluster-table
+        :external-doris-mode="isDorisMode"
         :is-change-select.sync="isChangeSelect"
         :storage-cluster-id.sync="formData.storage_cluster_id"
         :table-list="clusterList"
+        :table-loading="clusterLoading"
       />
 
       <cluster-table
         style="margin-top: 20px"
+        :external-doris-mode="isDorisMode"
         :is-change-select.sync="isChangeSelect"
         :storage-cluster-id.sync="formData.storage_cluster_id"
         :table-list="exclusiveList"
+        :table-loading="clusterLoading"
         table-type="exclusive"
       />
 
@@ -110,7 +131,7 @@
       </bk-form-item>
       <!-- 热数据\冷热集群存储期限 -->
       <bk-form-item
-        v-if="selectedStorageCluster.enable_hot_warm"
+        v-if="selectedStorageCluster.enable_hot_warm && !isDorisMode"
         class="hot-data-form-item"
         :label="$t('热数据天数')"
       >
@@ -162,6 +183,7 @@
       </bk-form-item>
       <!-- 副本数 -->
       <bk-form-item
+        v-if="!isDorisMode"
         ext-cls="number-input"
         :label="$t('副本数')"
         :property="'storage_replies'"
@@ -180,6 +202,7 @@
       </bk-form-item>
       <!-- 分片数 -->
       <bk-form-item
+        v-if="!isDorisMode"
         ext-cls="number-input"
         :label="$t('分片数')"
         :property="'es_shards'"
@@ -501,6 +524,10 @@ import { mapGetters } from 'vuex';
         isForcedFillAssessment: false, // 是否必须容量评估
         editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
         editComparedData: {},
+        isDorisMode: false, // 是否为doris集群模式
+        clusterType: 'elasticsearch', // 当前集群类型
+        clusterLoading: false, // 切换集群类型时的加载状态
+        isDorisEnabled: false, // 是否启用doris集群
       };
     },
     computed: {
@@ -539,6 +566,7 @@ import { mapGetters } from 'vuex';
     },
     async mounted() {
       this.operateType === 'add' && (this.isChangeSelect = true);
+      this.checkDorisAccess();
       await this.getStorage();
       await this.getCleanStash();
       this.getDetail();
@@ -548,6 +576,49 @@ import { mapGetters } from 'vuex';
       this.curCollect.environment !== 'container' && this.getHostNumber();
     },
     methods: {
+      checkDorisAccess() {
+        const hasAccess = isFeatureToggleOn('doris_storage_cluster', [String(this.bkBizId), String(this.spaceUid)]);
+        this.isDorisEnabled = hasAccess;
+        if (hasAccess) {
+          // 从 URL 中读取集群类型
+          const tabQuery = this.$route.query.cluster_type;
+          if (tabQuery === 'doris') {
+            this.clusterType = 'doris';
+            this.isDorisMode = true;
+          }
+        } else if (this.clusterType === 'doris') {
+          this.clusterType = 'elasticsearch';
+          this.isDorisMode = false;
+          this.updateRouteClusterType('elasticsearch');
+        }
+      },
+      updateRouteClusterType(type) {
+        const currentQuery = { ...this.$route.query };
+        currentQuery.cluster_type = type;
+        this.$router.replace({
+          name: this.$route.name,
+          params: this.$route.params,
+          query: currentQuery,
+        });
+      },
+      async handleClusterTypeChange(type) {
+        if (this.clusterType === type) return;
+        this.clusterType = type;
+        this.isDorisMode = type === 'doris';
+        this.updateRouteClusterType(type);
+        // 重置集群选择
+        this.formData.storage_cluster_id = '';
+        this.selectedStorageCluster = {};
+        this.clusterList = [];
+        this.exclusiveList = [];
+        // 重新请求存储列表
+        this.clusterLoading = true;
+        try {
+          await this.getStorage();
+        } finally {
+          this.clusterLoading = false;
+        }
+      },
       // 获取采集项清洗基础配置缓存 用于存储入库提交
       async getCleanStash() {
         try {
@@ -955,6 +1026,52 @@ import { mapGetters } from 'vuex';
     max-height: 100%;
     padding: 0 42px 42px;
     overflow: auto;
+
+    .cluster-type-tabs {
+      display: inline-flex;
+      margin-bottom: 16px;
+      overflow: hidden;
+      border-radius: 2px;
+
+      .tab-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 32px;
+        padding: 0 16px;
+        font-size: 14px;
+        line-height: 32px;
+        cursor: pointer;
+        border: 1px solid #3a84ff;
+        transition: all 0.15s;
+        user-select: none;
+
+        &:first-child {
+          border-radius: 2px 0 0 2px;
+        }
+
+        &:last-child {
+          border-radius: 0 2px 2px 0;
+        }
+
+        &.active {
+          z-index: 1;
+          color: #fff;
+          background-color: #3a84ff;
+          border-color: #3a84ff;
+        }
+
+        &:not(.active) {
+          color: #3a84ff;
+          background-color: #fff;
+          border-color: #3a84ff;
+
+          &:hover {
+            background-color: #e1ecff;
+          }
+        }
+      }
+    }
 
     .bk-label {
       font-size: 12px;

@@ -52,13 +52,14 @@ const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetIte
 const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
 
 const isExternal = computed(() => window.IS_EXTERNAL === true);
+const isSceneMode = computed(() => store.getters.isSceneMode);
 // 可切换Tab数组
 const panelList = computed(() => {
   return [
     { name: 'origin', label: $t('原始日志'), disabled: false },
-    { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
-    { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value },
-    { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value },
+    { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value || isSceneMode.value },
+    { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value || isSceneMode.value },
+    { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value || isSceneMode.value },
   ];
 });
 
@@ -153,6 +154,16 @@ watch(
   },
 );
 
+// 场景化检索模式切换时，若当前不在原始日志 tab，自动切回原始日志
+watch(
+  () => isSceneMode.value,
+  (isSceneMode) => {
+    if (isSceneMode && normalizedValue.value !== 'origin') {
+      emit('input', 'origin', false);
+    }
+  },
+);
+
 onMounted(() => {
   const tabName = normalizeTabValue(route.query.tab) ?? 'origin';
   if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
@@ -172,6 +183,7 @@ onMounted(() => {
     </div>
     <div class="retrieve2-tab-right">
       <div
+        v-if="!isSceneMode"
         class="btn-alert-dashboard btn-spacing"
         @click="handleAddAlertDashboard"
       >
@@ -182,7 +194,7 @@ onMounted(() => {
         <span>{{ $t('添加到仪表盘') }}</span>
       </div>
       <div
-        v-if="!isExternal"
+        v-if="!isExternal && !isSceneMode"
         class="btn-alert-policy btn-spacing"
         @click="handleAddAlertPolicy"
       >

@@ -286,8 +286,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    width: 84px;
-    overflow: hidden;
+    width: 100%;
 
     .handle-card {
       display: flex;

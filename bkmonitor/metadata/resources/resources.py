@@ -419,11 +419,13 @@ class ModifyResultTableResource(Resource):
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
         labels = serializers.DictField(required=False, label="扩展标签", default=None)
         need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
+        default_storage_config = serializers.DictField(required=False, label="默认存储配置更新", default=None)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         """执行结果表修改请求"""
         table_id = validated_request_data.pop("table_id")
         query_alias_settings = validated_request_data.pop("query_alias_settings", None)
+        default_storage_config = validated_request_data.pop("default_storage_config", None)
         operator = validated_request_data.get("operator", None)
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
 
@@ -438,6 +440,9 @@ class ModifyResultTableResource(Resource):
 
         # 处理ES存储相关的逻辑
         if result_table.default_storage == models.ClusterInfo.TYPE_ES:
+            # 更新默认存储配置（如 index_set）
+            self._update_es_storage_config(table_id, default_storage_config, bk_tenant_id)
+
             # 处理ES存储索引更新
             self._handle_es_storage_index_update(table_id, validated_request_data, bk_tenant_id, is_moving_cluster)
 
@@ -448,6 +453,23 @@ class ModifyResultTableResource(Resource):
             self._push_es_route(result_table, bk_tenant_id)
 
         return result_table.to_json()
+
+    def _update_es_storage_config(self, table_id: str, storage_config: dict | None, bk_tenant_id: str) -> None:
+        """根据 default_storage_config 更新 ESStorage 可变字段（如 index_set）"""
+        if not storage_config:
+            return
+        update_fields = {}
+        if "index_set" in storage_config:
+            update_fields["index_set"] = storage_config["index_set"]
+        if not update_fields:
+            return
+        updated = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).update(**update_fields)
+        if updated:
+            logger.info(
+                "ModifyResultTableResource: updated ESStorage for table_id->[%s], fields->[%s]",
+                table_id,
+                list(update_fields.keys()),
+            )
 
     def _handle_query_alias_settings(
         self, table_id: str, query_alias_settings: Any, operator: str | None, bk_tenant_id: str

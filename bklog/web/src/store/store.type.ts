@@ -130,6 +130,12 @@ enum BK_LOG_STORAGE {
    * 结果展示行数 1 - 单行 3 - 三行
    */
   RESULT_DISPLAY_LINES = '_20',
+  /**
+   * 场景化检索-显示字段配置（按 bk_biz_id 隔离）
+   * 值: { [bkBizId: string]: { [sceneType: string]: Array<[fieldKey: string, op: string]> | null } }
+   * null 表示全部显示、默认顺序
+   */
+  SCENE_DISPLAY_FIELDS = '_21',
 }
 
 export { BK_LOG_STORAGE };
@@ -162,6 +168,9 @@ export type RouteParams = {
   ip_chooser: string[];
   search_mode: string;
   clusterParams: any;
+  retrieve_type?: string;
+  scene_active?: string;
+  scene_filter_values?: Record<string, any>;
   index_id?: string;
   bizId: string;
   spaceUid: string;

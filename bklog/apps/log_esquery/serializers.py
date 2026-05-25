@@ -455,3 +455,5 @@ def _init_index_info(*, index_set_id, is_clustered_fields):
             )
     else:
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
+
+

@@ -25,7 +25,7 @@ import re
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import ValidationError
-from apps.log_databus.constants import EtlConfig
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
 from apps.log_databus.handlers.grok.handler import GrokHandler
@@ -123,7 +123,15 @@ class BkLogRegexpEtlStorage(EtlStorage):
 
         return result
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
+    def get_result_table_config(
+        self,
+        fields,
+        etl_params,
+        built_in_config,
+        es_version="5.X",
+        enable_v4=False,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
+    ):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -170,7 +178,9 @@ class BkLogRegexpEtlStorage(EtlStorage):
 
         return result_table_config
 
-    def build_log_v4_data_link(self, fields: list, etl_params: dict, built_in_config: dict) -> dict:
+    def build_log_v4_data_link(
+        self, fields: list, etl_params: dict, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE
+    ) -> dict:
         """
         构建正则表达式类型的V4 clean_rules配置
         包含完整的数据流转规则：原始数据 -> JSON解析 -> 字段提取 -> 正则解析 -> 字段映射
@@ -266,9 +276,10 @@ class BkLogRegexpEtlStorage(EtlStorage):
         # 7. Path字段处理
         rules.extend(self._build_path_regex_rules_v4(etl_params, built_in_config))
 
-        return {
-            "clean_rules": rules,
-            "es_storage_config": {
+        data_link_config = {"clean_rules": rules}
+
+        if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+            data_link_config["es_storage_config"] = {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
                 "timezone": 8,
             },
