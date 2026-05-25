@@ -762,6 +762,64 @@ class TestCascadeFollowTouchesRelation:
         assert captured["member_ids"] == ["m1", "m2"]
         assert captured["bk_biz_id"] == "2"
 
+    def test_touch_failure_does_not_block_follow(self, monkeypatch):
+        """touch update_time 写失败（如行锁）只 warning，不能阻断核心 bulk_follow_status。"""
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
+
+        doc = IssueDocument.__new__(IssueDocument)
+        doc.id = "main-1"
+        doc.bk_biz_id = "2"
+
+        active_qs = MagicMock()
+        active_qs.values_list.return_value = ["m1"]
+        active_qs.update.side_effect = RuntimeError("lock wait timeout")  # touch 写失败
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
+
+        called = {"follow": False}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
+        )
+
+        # 不应抛异常，且 cascade 仍执行
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
+        assert called["follow"] is True
+
+    def test_member_read_failure_returns_early(self, monkeypatch):
+        """读 active member 失败才停止——此时无 member 可同步，return 不触 follow。"""
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
+
+        doc = IssueDocument.__new__(IssueDocument)
+        doc.id = "main-1"
+        doc.bk_biz_id = "2"
+
+        active_qs = MagicMock()
+        active_qs.values_list.side_effect = RuntimeError("db unreachable")  # 读 member 失败
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
+
+        called = {"follow": False}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
+        )
+
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
+        # 读失败 → 提前 return，不 touch、不 follow
+        active_qs.update.assert_not_called()
+        assert called["follow"] is False
+
     def test_no_members_skips_touch_and_follow(self, monkeypatch):
         from unittest.mock import MagicMock
 

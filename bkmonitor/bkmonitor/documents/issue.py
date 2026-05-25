@@ -754,13 +754,6 @@ class IssueDocument(BaseDocument):
                 status=IssueMergeRelation.STATUS_ACTIVE,
             )
             member_ids = list(active_qs.values_list("member_issue_id", flat=True))
-            # touch update_time：active 关系下 update_time 语义为"最近一次主状态 cascade 触达"。
-            # 这样 list_conflicts / repair --mode=follow_status_resync 的 update_time__gte 时间窗
-            # 能扫到本次参与流转的关系——即使是很早合并的关系，今天 cascade 后 ES 同步失败，
-            # 也能在窗口内被发现修复（否则按合并时间早就滑出窗口，兜底失效）。
-            # .update() 不触发 auto_now，显式赋值；update_user 记最近触发人便于审计。
-            if member_ids:
-                active_qs.update(update_time=timezone.now(), update_user=operator)
         except Exception:
             logger.error(
                 "[issue-merge] cascade follow SQL query failed (main_issue_id=%s, target_status=%s)",
@@ -772,6 +765,22 @@ class IssueDocument(BaseDocument):
 
         if not member_ids:
             return
+
+        # touch update_time：active 关系下 update_time 语义为"最近一次主状态 cascade 触达"。
+        # 这样 list_conflicts / repair --mode=follow_status_resync 的 update_time__gte 时间窗
+        # 能扫到本次参与流转的关系——即使是很早合并的关系，今天 cascade 后 ES 同步失败，
+        # 也能在窗口内被发现修复（否则按合并时间早就滑出窗口，兜底失效）。
+        # .update() 不触发 auto_now，显式赋值；update_user 记最近触发人便于审计。
+        # touch 是辅助可发现性、best-effort：失败仅 warning，绝不阻断下面的 bulk_follow_status——
+        # member 跟随主状态是核心动作，不能被一次 SQL touch 写失败拖垮（且 SQL 与 ES 是独立子系统）。
+        try:
+            active_qs.update(update_time=timezone.now(), update_user=operator)
+        except Exception:
+            logger.warning(
+                "[issue-merge] cascade follow touch update_time failed (fail-open, main_issue_id=%s)",
+                self.id,
+                exc_info=True,
+            )
 
         type(self).bulk_follow_status(
             member_ids,
