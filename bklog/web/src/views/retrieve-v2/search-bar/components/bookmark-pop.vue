@@ -179,7 +179,7 @@
   // 确认新增组事件
   const handleCreateGroup = () => {
     checkInputFormRef.value.validate().then(async () => {
-      const data = { name: verifyData.value.groupName, space_uid: spaceUid.value };
+      const data = { name: verifyData.value.groupName, space_uid: spaceUid.value, source_type: store.getters.isSceneMode ? 'scene' : 'index_set' };
       try {
         const res = await $http.request('favorite/createGroup', {
           data,
