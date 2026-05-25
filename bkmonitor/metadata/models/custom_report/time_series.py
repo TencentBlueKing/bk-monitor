@@ -739,6 +739,7 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
+        metric_group_dimensions=None,
     ):
         """
         创建一个新的自定义分组记录
@@ -755,6 +756,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
+        :param metric_group_dimensions: 指标分组的维度key配置
         :return: group object
         """
 
@@ -772,6 +774,7 @@ class TimeSeriesGroup(CustomGroupBase):
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
+            metric_group_dimensions=metric_group_dimensions,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
@@ -805,6 +808,7 @@ class TimeSeriesGroup(CustomGroupBase):
         metric_info_list=None,
         data_label: str | None = None,
         options: dict[str, Any] | None = None,
+        metric_group_dimensions=None,
     ):
         """
         修改一个自定义时序组
@@ -817,6 +821,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param metric_info_list: metric信息
         :param data_label: 数据标签
         :param options: 结果表选项内容
+        :param metric_group_dimensions: 指标分组的维度key配置
         :return: True or raise
         """
         return self.modify_custom_group(
@@ -829,6 +834,7 @@ class TimeSeriesGroup(CustomGroupBase):
             enable_field_black_list=enable_field_black_list,
             data_label=data_label,
             options=options,
+            metric_group_dimensions=metric_group_dimensions,
         )
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -856,6 +862,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
             "metric_info_list": self.get_metric_info_list(),
             "data_label": self.data_label,
+            "metric_group_dimensions": self.metric_group_dimensions,
         }
 
     def to_json_v2(self):
