@@ -491,12 +491,14 @@ class SplitResource(Resource):
             update_user=operator,
         )
 
-        # ES 重置 member 状态 + 写活动日志（失败仅 warning，bkm-cli + management command 兜底）
+        # ES 重置 member 状态 + 写活动日志（含 reasons，让 SPLIT_FROM content 自包含）
+        # 失败仅 warning，bkm-cli + management command 兜底
         IssueDocument.bulk_reset_for_split(
             [member_id],
             operator=operator,
             kind=IssueMergeRelation.SPLIT_KIND_MANUAL,
             main_issue_id=relation.main_issue_id,
+            reasons=reasons,
         )
 
         _invalidate_active_members_cache(bk_biz_id)

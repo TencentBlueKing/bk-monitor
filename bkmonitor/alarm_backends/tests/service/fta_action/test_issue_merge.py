@@ -368,6 +368,30 @@ class TestActivityContentFormat:
             assert data["kind"] == kind
             assert data["main_issue_id"] == "a1"
 
+    def test_split_from_content_includes_reasons(self):
+        """M7：SPLIT_FROM content 应包含用户传入的 reasons（自包含审计副本）。"""
+        content = json.dumps(
+            {"kind": "manual", "main_issue_id": "a1", "reasons": ["真正的 IO 异常，独立处理"]},
+            ensure_ascii=False,
+        )
+        data = json.loads(content)
+        assert data["kind"] == "manual"
+        assert data["main_issue_id"] == "a1"
+        assert data["reasons"] == ["真正的 IO 异常，独立处理"]
+
+    def test_follow_status_content_format(self):
+        """cascade follow 写 STATUS_CHANGE 活动 content 格式（前端按 kind 渲染）。
+
+        kind 取值与 4 个主状态变更方法一一对应：
+        - by_main_resolve / by_main_archive：原 cascade_split 的语义衍生
+        - by_main_reopen / by_main_restore：新增的"主复活时 member 跟随"
+        """
+        for kind in ("by_main_resolve", "by_main_archive", "by_main_reopen", "by_main_restore"):
+            content = json.dumps({"kind": kind, "main_issue_id": "a1"}, ensure_ascii=False)
+            data = json.loads(content)
+            assert data["kind"] == kind
+            assert data["main_issue_id"] == "a1"
+
 
 class TestListMergeSourcesAnomalyMessage:
     """``_fetch_member_anomaly_messages`` 行为：

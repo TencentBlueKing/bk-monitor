@@ -221,8 +221,8 @@ class IssueDocument(BaseDocument):
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.RESOLVED, operator, None),
             ]
         )
-        # 级联拆分所有 active members（仿 spec §6.5：写 SQL + ES bulk_reset + cache DEL）
-        self._cascade_split_active_members(operator, kind="by_main_resolve")
+        # 级联同步所有 active member 的 ES status（关系不破坏，assignee 不动）
+        self._cascade_follow_status(operator, target_status=IssueStatus.RESOLVED, kind="by_main_resolve")
         return activities
 
     def archive(self, operator: str) -> list:
@@ -241,8 +241,8 @@ class IssueDocument(BaseDocument):
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.ARCHIVED, operator, None),
             ]
         )
-        # 级联拆分所有 active members
-        self._cascade_split_active_members(operator, kind="by_main_archive")
+        # 级联同步所有 active member 的 ES status
+        self._cascade_follow_status(operator, target_status=IssueStatus.ARCHIVED, kind="by_main_archive")
         return activities
 
     def reopen(self, operator: str) -> list:
@@ -254,11 +254,14 @@ class IssueDocument(BaseDocument):
         self.status = IssueStatus.UNRESOLVED
         self.update_time = int(time.time())
         self._persist_and_cache(active=True)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None),
             ]
         )
+        # 级联同步：member 同步到 UNRESOLVED，与主复活语义一致
+        self._cascade_follow_status(operator, target_status=IssueStatus.UNRESOLVED, kind="by_main_reopen")
+        return activities
 
     def restore(self, operator: str) -> list:
         """恢复归档：ARCHIVED → 归档前状态（从活动日志推断），无记录时回退到 PENDING_REVIEW"""
@@ -271,11 +274,14 @@ class IssueDocument(BaseDocument):
         self.update_time = int(time.time())
         # 恢复后若目标状态为活跃状态则写回缓存
         self._persist_and_cache(active=target_status in IssueStatus.ACTIVE_STATUSES)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, target_status, operator, None),
             ]
         )
+        # 级联同步：member 跟随主回到归档前状态（与主复活语义一致）
+        self._cascade_follow_status(operator, target_status=target_status, kind="by_main_restore")
+        return activities
 
     def add_comment(self, content: str, operator: str) -> list:
         """
@@ -466,18 +472,22 @@ class IssueDocument(BaseDocument):
         operator: str,
         kind: str,
         main_issue_id: str,
+        reasons: list[str] | None = None,
     ) -> None:
         """批量将 member 重置为 PENDING_REVIEW + 清空 assignee，写 SPLIT_FROM 活动日志。
 
-        用于 split API 单 member + cascade 多 member 两个路径。仿
-        ``migrate_legacy_active_issues`` / ``_bulk_update_with_retry`` 现网范式：
-        ``bulk_create`` + retry 1 次 + warning（不抛、不返回细粒度结果）。
+        仅用于用户主动 split API 路径。仿 ``migrate_legacy_active_issues`` /
+        ``_bulk_update_with_retry`` 现网范式：``bulk_create`` + retry 1 次 + warning
+        （不抛、不返回细粒度结果）。
 
         Args:
             member_ids: 被拆分的 member Issue ID 列表。
             operator: 操作人，用于 STATUS_CHANGE / ASSIGNEE_CHANGE / SPLIT_FROM 活动日志。
-            kind: 拆分类型，``manual`` / ``by_main_resolve`` / ``by_main_archive``。
+            kind: 拆分类型，目前只有 ``manual``（主状态变更不再触发拆分，改走
+                ``_cascade_follow_status``）。
             main_issue_id: 关联主 Issue ID，写入 SPLIT_FROM content 字段。
+            reasons: 用户传入的拆分依据，写入 SPLIT_FROM content（自包含，前端拼接
+                ``split_info`` 标签时优先读关系表，活动日志为审计副本）。
 
         失败处理：ES bulk 写失败仅 warning，不抛；运维通过 bkm-cli ``list_conflicts``
         发现 + Django management command ``repair_issue_merge_state`` 修复。
@@ -508,7 +518,7 @@ class IssueDocument(BaseDocument):
 
         # ② 批量写活动日志（3N 条：STATUS_CHANGE + ASSIGNEE_CHANGE + SPLIT_FROM）
         split_content = json.dumps(
-            {"kind": kind, "main_issue_id": main_issue_id},
+            {"kind": kind, "main_issue_id": main_issue_id, "reasons": list(reasons or [])},
             ensure_ascii=False,
         )
         activities: list[IssueActivityDocument] = []
@@ -589,62 +599,165 @@ class IssueDocument(BaseDocument):
                 exc_info=True,
             )
 
-    def _cascade_split_active_members(self, operator: str, kind: str) -> None:
-        """主 Issue resolve / archive 时级联拆分所有 active members。
+    @classmethod
+    def bulk_follow_status(
+        cls,
+        member_ids: list[str],
+        target_status: str,
+        operator: str,
+        kind: str,
+        main_issue_id: str,
+    ) -> None:
+        """主状态变更级联：批量把 member ES status 同步为 target_status，不动 assignee。
 
-        流程（与单 split 对称）：
-        1. SQL 一次 UPDATE 把所有 active members 的关系改 status='split'
-        2. cache DEL（active members 列表缓存）
-        3. ES bulk_reset_for_split：重置 member status + assignee + 写 SPLIT_FROM 活动
+        与 ``bulk_reset_for_split`` 的语义差异：
+        - status 同步到 target_status（resolve/archive/reopen/restore 各自的终点），而非
+          固定 PENDING_REVIEW；
+        - **assignee 不动**——合并组在合并瞬间冻结的负责人维持，与"主带着走"语义一致；
+        - 活动日志写 STATUS_CHANGE（content 携带 kind/main_issue_id 供审计），不写
+          SPLIT_FROM（关系仍 active，未真正拆分）；
+        - fp cache：target_status 为终态（非 ACTIVE_STATUSES）→ DEL；为活跃态 → NOOP
+          （cache miss 时下次告警走 ES Step 1 自然回填，无需重建）。
 
-        Args:
-            operator: 触发主操作的用户（resolve/archive 操作人）；级联拆分以该用户为 split_operator。
-            kind: 拆分类型，``by_main_resolve`` 或 ``by_main_archive``，写入 split_kind 与活动 content。
+        失败处理：ES bulk 写失败仅 warning，不抛；运维通过 bkm-cli ``list_conflicts``
+        发现 + Django management command ``repair_issue_merge_state --mode=follow_status_resync`` 修复。
+        """
+        if not member_ids:
+            return
+        now = int(time.time())
 
-        失败处理：任一环节失败仅 warning + log，不抛；bkm-cli ``list_conflicts`` +
-        ``repair_issue_merge_state`` 运维兜底。
+        # ① ES 拉取 from_status（写 STATUS_CHANGE 需要 from_value）；失败仍继续，
+        #   from_value 留空不影响主流程
+        from_status_map: dict[str, str | None] = {}
+        try:
+            from_status_hits = (
+                cls.search(all_indices=True)
+                .filter("terms", _id=member_ids)
+                .source(["status"])
+                .params(size=len(member_ids))
+                .execute()
+                .hits
+            )
+            from_status_map = {h.meta.id: getattr(h, "status", None) for h in from_status_hits}
+        except Exception:
+            logger.warning(
+                "[issue-merge] bulk_follow_status from_status fetch failed (fail-open, member_ids=%s)",
+                member_ids,
+                exc_info=True,
+            )
+
+        # ② 批量 UPDATE 物理状态（assignee 不动）
+        update_docs = [cls(id=mid, status=target_status, update_time=now) for mid in member_ids]
+        try:
+            cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk_follow_status update failed, retrying once: %s", e)
+            try:
+                cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk_follow_status update retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ③ 批量写 STATUS_CHANGE 活动日志（content 携带 kind/main_issue_id 用于审计追溯）
+        follow_content = json.dumps(
+            {"kind": kind, "main_issue_id": main_issue_id},
+            ensure_ascii=False,
+        )
+        activities = [
+            IssueActivityDocument(
+                issue_id=mid,
+                activity_type=IssueActivityType.STATUS_CHANGE,
+                from_value=from_status_map.get(mid),
+                to_value=target_status,
+                operator=operator,
+                content=follow_content,
+                time=now,
+                create_time=now,
+            )
+            for mid in member_ids
+        ]
+        try:
+            IssueActivityDocument.bulk_create(activities)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk_follow_status activity write failed, retrying once: %s", e)
+            try:
+                IssueActivityDocument.bulk_create(activities)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk_follow_status activity write retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ④ fp cache：target_status 为终态时 DEL（不让新告警命中已结案 Issue）
+        #    target_status 为活跃态时 NOOP——cache miss 后下次告警 ES Step 1 回填
+        if target_status not in IssueStatus.ACTIVE_STATUSES:
+            try:
+                from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY
+
+                fp_hits = (
+                    cls.search(all_indices=True)
+                    .filter("terms", _id=member_ids)
+                    .source(["fingerprint"])
+                    .params(size=len(member_ids))
+                    .execute()
+                    .hits
+                )
+                fingerprints = [getattr(h, "fingerprint", None) for h in fp_hits]
+                fingerprints = [fp for fp in fingerprints if fp]
+                if fingerprints:
+                    pipe = ISSUE_ACTIVE_CONTENT_KEY.client.pipeline()
+                    for fp in fingerprints:
+                        pipe.delete(ISSUE_ACTIVE_CONTENT_KEY.get_key(fingerprint=fp))
+                    pipe.execute()
+            except Exception:
+                logger.warning(
+                    "[issue-merge] bulk_follow_status cache invalidation failed (fail-open, member_ids=%s)",
+                    member_ids,
+                    exc_info=True,
+                )
+
+    def _cascade_follow_status(self, operator: str, target_status: str, kind: str) -> None:
+        """主状态变更时同步所有 active member 的 ES status 到 target_status。
+
+        语义：合并 = 同一根因/事件组，主状态变更 → member 跟随。**不破坏关系**（关系仍
+        active）、**不动 assignee**（合并冻结时的负责人维持）。这与"用户主动 split"
+        语义对称且分离——后者才是真正的"拆分恢复独立"。
+
+        触发点：resolve / archive / reopen / restore 四个状态机方法各自的尾部。
+
+        失败处理：SQL 查询失败 → 不动 ES；ES/cache 失败 → 仅 warning + log；
+        bkm-cli ``list_conflicts`` + ``repair_issue_merge_state --mode=follow_status_resync``
+        运维兜底。
         """
         # lazy import 避免与 bkmonitor.models.issue 的循环依赖
         from bkmonitor.models.issue import IssueMergeRelation
 
-        qs = IssueMergeRelation.objects.filter(main_issue_id=self.id, status=IssueMergeRelation.STATUS_ACTIVE)
-        member_ids = list(qs.values_list("member_issue_id", flat=True))
-        if not member_ids:
-            return
-
-        reason = str(_("由主 Issue {kind} 触发").format(kind=kind))
         try:
-            qs.update(
-                status=IssueMergeRelation.STATUS_SPLIT,
-                split_kind=kind,
-                split_reasons=[reason],
-                update_user=operator,
+            member_ids = list(
+                IssueMergeRelation.objects.filter(
+                    main_issue_id=self.id,
+                    status=IssueMergeRelation.STATUS_ACTIVE,
+                ).values_list("member_issue_id", flat=True)
             )
         except Exception:
             logger.error(
-                "[issue-merge] cascade SQL update failed (main_issue_id=%s, kind=%s)",
+                "[issue-merge] cascade follow SQL query failed (main_issue_id=%s, target_status=%s)",
                 self.id,
-                kind,
+                target_status,
                 exc_info=True,
             )
-            return  # SQL 失败时不继续 ES 重置，避免状态不一致扩大
+            return
 
-        # cache DEL（fail-open）
-        try:
-            from alarm_backends.core.cache.key import ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY
+        if not member_ids:
+            return
 
-            cache_key = ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.get_key(bk_biz_id=str(self.bk_biz_id))
-            ISSUE_ACTIVE_MEMBERS_BY_BIZ_KEY.client.delete(cache_key)
-        except Exception:
-            logger.warning(
-                "[issue-merge] cascade active_members cache DEL failed (fail-open, main_issue_id=%s)",
-                self.id,
-                exc_info=True,
-            )
-
-        # ES bulk_reset_for_split（含 retry，失败仅 warning）
-        type(self).bulk_reset_for_split(
+        type(self).bulk_follow_status(
             member_ids,
+            target_status=target_status,
             operator=operator,
             kind=kind,
             main_issue_id=self.id,

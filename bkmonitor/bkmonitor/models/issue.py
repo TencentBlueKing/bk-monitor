@@ -33,9 +33,10 @@ class IssueMergeRelation(AbstractRecordModel):
     STATUS_ACTIVE = "active"
     STATUS_SPLIT = "split"
 
+    # 仅保留 MANUAL：主状态变更不再触发"拆分"，而是走 _cascade_follow_status 同步 ES status
+    # 历史数据中可能存在 by_main_resolve / by_main_archive 值（旧 cascade_split 路径写入），
+    # models 字段无 choices 约束可正常读出；新写入只用 MANUAL。
     SPLIT_KIND_MANUAL = "manual"
-    SPLIT_KIND_BY_MAIN_RESOLVE = "by_main_resolve"
-    SPLIT_KIND_BY_MAIN_ARCHIVE = "by_main_archive"
 
     class Meta:
         db_table = "bkmonitor_issue_merge_relation"
