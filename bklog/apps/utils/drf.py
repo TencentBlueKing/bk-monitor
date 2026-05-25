@@ -193,13 +193,12 @@ class GeneralSerializer(ModelSerializer):
             instance = ModelClass.objects.create(**validated_data)
         except TypeError as exc:
             msg = (
-                "Got a `TypeError` when calling `%s.objects.create()`. "
+                f"Got a `TypeError` when calling `{ModelClass.__name__}.objects.create()`. "
                 "This may be because you have a writable field on the "
                 "serializer class that is not a valid argument to "
-                "`%s.objects.create()`. You may need to make the field "
-                "read-only, or override the %s.create() method to handle "
-                "this correctly.\nOriginal exception text was: %s."
-                % (ModelClass.__name__, ModelClass.__name__, self.__class__.__name__, exc)
+                f"`{ModelClass.__name__}.objects.create()`. You may need to make the field "
+                f"read-only, or override the {self.__class__.__name__}.create() method to handle "
+                f"this correctly.\nOriginal exception text was: {exc}."
             )
             raise TypeError(msg)
 
@@ -245,7 +244,10 @@ class DataPageNumberPagination(PageNumberPagination):
                         return min(size, self.max_page_size)
                 except (TypeError, ValueError):
                     pass
-        return self.page_size
+        # 当请求中没有显式传递分页参数时，返回 None
+        # 这样 DRF 的 paginate_queryset 就不会执行分页逻辑
+        # 避免对不需要分页的接口造成数据结构变化
+        return None
 
     def get_page_number(self, request, paginator):
         page_number = self._get_param(request, self.page_query_param, 1)
