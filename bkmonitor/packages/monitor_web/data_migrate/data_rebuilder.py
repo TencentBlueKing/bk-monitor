@@ -1,5 +1,6 @@
 import logging
 import time
+from copy import deepcopy
 from typing import Any, Literal
 
 from bk_monitor_base.uptime_check import control_task, refresh_task_status
@@ -9,6 +10,7 @@ from django.db.models import Q
 from pydantic import BaseModel, Field
 
 from apm.models.datasource import LogDataSource, MetricDataSource, ProfileDataSource, TraceDataSource
+from apm_web.models import ApmMetaConfig, Application as ApmWebApplication
 from bk_dataview.api import DashboardPermissionActions, get_or_create_user, sync_user_role
 from bk_dataview.models import BuiltinRole, Dashboard, Folder, Org, Permission, Role
 from bk_dataview.permissions import GrafanaPermission
@@ -67,6 +69,11 @@ DEFAULT_KAFKA_CLUSTER_NAMES = {
 }
 
 DEFAULT_ES_CLUSTER_NAMES = {"log": "log-es-public-1", "event": "event-es-public-1"}
+APM_APPLICATION_STORAGE_CONFIG_KEYS = (
+    ApmWebApplication.APPLICATION_DATASOURCE_CONFIG_KEY,
+    ApmWebApplication.APPLICATION_LOG_DATASOURCE_CONFIG_KEY,
+)
+APM_STORAGE_CLUSTER_CONFIG_FIELDS = (ApmWebApplication.DatasourceConfig.ES_STORAGE_CLUSTER,)
 
 BUILTIN_ROLE_MANAGED_NAMES = {
     "Admin": "managed:builtins:admin:permissions",
@@ -152,6 +159,60 @@ def _get_plugin_data_label(plugin: CollectorPluginMeta) -> str | None:
         return qcloud_exporter_plugin_id
 
     return None
+
+
+def _replace_apm_storage_config_value(config_value: Any, storage_cluster_id: int) -> tuple[Any, bool]:
+    """替换 APM 应用级存储配置里的 ES 集群 ID。"""
+    if not isinstance(config_value, dict):
+        return config_value, False
+
+    updated_config = deepcopy(config_value)
+    changed = False
+
+    for field_name in APM_STORAGE_CLUSTER_CONFIG_FIELDS:
+        if updated_config.get(field_name) == storage_cluster_id:
+            continue
+        updated_config[field_name] = storage_cluster_id
+        changed = True
+
+    return updated_config, changed
+
+
+def rebuild_apm_application_storage_config(bk_tenant_id: str, bk_biz_id: int, es_cluster_id: int) -> int:
+    """同步 rebuild 后 APM 应用级 trace/log 存储配置里的 ES 集群 ID。"""
+    application_ids = list(
+        ApmWebApplication.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).values_list(
+            "application_id", flat=True
+        )
+    )
+    if not application_ids:
+        return 0
+
+    updated_count = 0
+    configs = ApmMetaConfig.objects.filter(
+        config_level=ApmMetaConfig.APPLICATION_LEVEL,
+        level_key__in=[str(application_id) for application_id in application_ids],
+        config_key__in=APM_APPLICATION_STORAGE_CONFIG_KEYS,
+    )
+    for apm_config in configs:
+        config_value, changed = _replace_apm_storage_config_value(
+            config_value=apm_config.config_value, storage_cluster_id=es_cluster_id
+        )
+        if not changed:
+            continue
+
+        apm_config.config_value = config_value
+        apm_config.save(update_fields=["config_value"])
+        updated_count += 1
+
+    logger.info(
+        "rebuild_apm_application_storage_config: bk_tenant_id=%s bk_biz_id=%s es_cluster_id=%s updated_count=%s",
+        bk_tenant_id,
+        bk_biz_id,
+        es_cluster_id,
+        updated_count,
+    )
+    return updated_count
 
 
 def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
@@ -601,7 +662,8 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
     1. 替换ESStorage/StorageClusterRecord的集群信息
     2. 替换数据源的集群信息
     3. 注册数据源到gse和bkbase
-    4. 结果表和虚拟结果表全部为停用状态，后续由日志/APM方便自行开启
+    4. 同步 APM 应用级 trace/log 存储配置中的 ES 集群信息
+    5. 结果表和虚拟结果表全部为停用状态，后续由日志/APM方便自行开启
     """
     kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=kafka_cluster_name)
     es_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=es_cluster_name)
@@ -655,6 +717,12 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
     )
     for trace_table in trace_tables:
         trace_table.modify(operator="system", is_enable=True)
+
+    rebuild_apm_application_storage_config(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_id=bk_biz_id,
+        es_cluster_id=es_cluster.cluster_id,
+    )
 
 
 def _ensure_builtin_role(org_id: int, role_name: str, managed_role_name: str) -> Role:
