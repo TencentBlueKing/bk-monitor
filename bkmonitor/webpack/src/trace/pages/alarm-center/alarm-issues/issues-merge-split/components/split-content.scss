@@ -57,52 +57,9 @@
     }
   }
 
-  .issue-item {
-    padding: 12px 16px 16px 52px;
-    border-bottom: 1px solid #dcdee5;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    .issue-info-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 24px;
-      margin-bottom: 7px;
-      line-height: 24px;
-
-      .issue-info {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        overflow: hidden;
-
-        .issue-name {
-          flex-shrink: 0;
-          font-size: 13px;
-          font-weight: 500;
-          color: #313238;
-        }
-
-        .divider {
-          width: 1px;
-          height: 12px;
-          background-color: #c1cde6;
-        }
-
-        .issue-desc {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-size: 12px;
-          font-weight: 400;
-          color: #8f9fbd;
-          white-space: nowrap;
-        }
-      }
-
-      .bk-button {
+  .issue-content {
+    .issue-info-item {
+      .split-btn {
         .icon-ziyuantuopu {
           margin-right: 4px;
           font-size: 14px;
@@ -116,42 +73,14 @@
           }
         }
       }
-    }
-
-    .issue-metrics-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      align-items: center;
-
-      .tag-item {
-        display: flex;
-        gap: 4px;
-        align-items: center;
-        height: 22px;
-        padding: 0 6px;
-        line-height: 22px;
-        background-color: #f0f4fa;
-        border-radius: 4px;
-      }
-
-      .metric-item {
-        .label {
-          font-size: 12px;
-          font-weight: 500;
-          color: #4e5e7a;
-        }
-
-        .value {
-          font-size: 12px;
-          font-weight: 700;
-          color: #3a84ff;
-        }
-      }
 
       .operate-record {
         font-size: 12px;
         color: #8f9fbd;
+      }
+
+      &:last-child {
+        border-bottom: none;
       }
     }
   }

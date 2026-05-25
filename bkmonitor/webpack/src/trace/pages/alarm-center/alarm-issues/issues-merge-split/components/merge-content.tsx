@@ -26,11 +26,14 @@
 
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
-import { Button, Checkbox, Input } from 'bkui-vue';
+import { Button, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { ISSUES_REGRESSION_MAP } from '../../constant';
+import { mergeIssue } from '../../services/mock';
+import IssueInfoItem from './issue-info-item';
 import MergeStrategyTips from './merge-strategy-tips';
+import ReasonSection from './reason-section';
 import MainIssueIcon from '@/static/img/main-Issue.svg';
 import MergedIssueIcon from '@/static/img/merged-Issue.svg';
 
@@ -46,10 +49,11 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['close'],
+  emits: ['close', 'success'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
+    const submitLoading = shallowRef(false);
     /** 默认主 Issue*/
     const defaultMainIssue = computed(() => {
       return props.issues.find(issue => issue.merge_status?.role === 'main');
@@ -68,100 +72,80 @@ export default defineComponent({
     });
     /** 被合并 Issue 列表 */
     const targetIssues = computed(() => {
-      return props.issues.filter(issue => issue.id !== mainIssue.value.id);
+      return props.issues.filter(issue => issue.id !== mainIssue.value?.id);
     });
 
-    /** 自定义合并依据 */
-    const customReason = shallowRef('');
+    /** 获取 metric 列表 */
+    const getMetricList = (issue: IssueItem) =>
+      Object.entries(issue.impact_scope ?? {}).map(([, resource]) => ({
+        label: resource.display_name,
+        value: resource.count,
+      }));
 
-    /** 选中的合并依据 */
-    const selectedReasons = shallowRef<string[]>([]);
+    /** 处理设置主 Issue */
+    const handleSetMain = (issue: IssueItem) => {
+      customMainIssueId.value = issue.id;
+    };
 
     /** 合并依据选项列表 */
     const mergeReasonOptions = [
-      { id: 'anomaly_type', label: t('异常类型 / 日志模块相近') },
-      { id: 'message_similar', label: t('message 高度相似') },
-      { id: 'stack_top', label: t('堆栈顶帧一致') },
-      { id: 'service_related', label: t('服务或链路维度相关') },
-      { id: 'time_near', label: t('时间窗口接近') },
-      { id: 'log_cluster', label: t('日志聚类一致') },
-      { id: 'manual_confirm', label: t('人工确认同根因') },
+      t('异常类型 / 日志模块相近'),
+      t('message 高度相似'),
+      t('堆栈顶帧一致'),
+      t('服务或链路维度相关'),
+      t('时间窗口接近'),
+      t('日志聚类一致'),
+      t('人工确认同根因'),
     ];
 
-    const renderIssueItem = (issue: IssueItem, isMain: boolean) => {
-      if (!issue) return null;
-      const icon = ISSUES_REGRESSION_MAP[String(issue.is_regression)];
-      return (
-        <div class='issue-item'>
-          <div class='issue-info-row'>
-            <div class='issue-info'>
-              <div
-                style={{ color: icon.color, backgroundColor: icon.bgColor }}
-                class='level-tag'
-              >
-                <i class={['icon-monitor', 'sign-icon', icon.icon]} />
-              </div>
-              <span class='issue-name'>{issue.name}</span>
-              <span class='divider' />
-              <span
-                class='issue-desc'
-                v-overflow-tips
-              >
-                {issue.anomaly_message}
-              </span>
-            </div>
-            {/* 没有默认主 Issue且属于被合并issue 时，可以自定义设置主 Issue*/}
-            {!isMain && !defaultMainIssue.value && (
-              <Button
-                size='small'
-                theme='primary'
-                outline
-                onClick={() => {
-                  customMainIssueId.value = issue.id;
-                }}
-              >
-                {t('设为主 Issue')}
-              </Button>
-            )}
-          </div>
-          <div class='issue-metrics-row'>
-            <span class='tag-item issues-alert-count'>
-              <i class='icon-monitor icon-alert-line' />
-              <span class='issues-alert-count-number'>{issue.alert_count}</span>
-            </span>
-            {Object.entries(issue.impact_scope ?? {}).map(([resourceKey, resource]) => (
-              <div
-                key={resourceKey}
-                class='tag-item metric-item'
-              >
-                <div class='label'>{resource.display_name}</div>
-                <div class='value'>{resource.count}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
+    const selectReason = shallowRef<string[]>([]);
+    const inputReason = shallowRef('');
+    const handleReasonSelectChange = (value: string[]) => {
+      selectReason.value = value;
+    };
+    const handleReasonInput = (value: string) => {
+      inputReason.value = value;
     };
 
     /** 处理确认 */
     const handleConfirm = () => {
-      console.log('confirm');
-      emit('close');
+      submitLoading.value = true;
+      const reasons = inputReason.value ? [...selectReason.value, inputReason.value] : selectReason.value;
+      mergeIssue({
+        bk_biz_id: mainIssue.value.bk_biz_id,
+        main_issue_id: mainIssue.value.id,
+        members: targetIssues.value.map(issue => issue.id),
+        reasons,
+      })
+        .then(() => {
+          Message({
+            theme: 'success',
+            message: t('issue合并成功'),
+          });
+          emit('success');
+          handleClose();
+        })
+        .finally(() => {
+          submitLoading.value = false;
+        });
     };
 
     const handleClose = () => {
-      console.log('cancel');
       emit('close');
     };
 
     return {
+      submitLoading,
       defaultMainIssue,
       mainIssue,
       targetIssues,
-      customReason,
-      selectedReasons,
       mergeReasonOptions,
-      renderIssueItem,
+      selectReason,
+      inputReason,
+      handleReasonSelectChange,
+      handleReasonInput,
+      getMetricList,
+      handleSetMain,
       handleConfirm,
       handleClose,
     };
@@ -170,7 +154,6 @@ export default defineComponent({
     return (
       <div class='merge-content'>
         {/* 合并策略提示 */}
-
         <div class='strategy-section'>
           <MergeStrategyTips hasMainIssue={Boolean(this.defaultMainIssue)} />
         </div>
@@ -179,6 +162,7 @@ export default defineComponent({
         <div class='settings-section'>
           <div class='section-title'>{this.$t('合并设置')}</div>
           <div class='issue-list'>
+            {/* 主 Issue */}
             <div class='issue-group main-issue'>
               <div class='issue-header'>
                 <div class='group-icon'>
@@ -191,7 +175,24 @@ export default defineComponent({
                 <span class='divider' />
                 <span class='issue-group-tips'>{this.$t('合并后保留')}</span>
               </div>
-              <div class='issue-content'>{this.renderIssueItem(this.mainIssue, true)}</div>
+              <div class='issue-content'>
+                {this.mainIssue && (
+                  <IssueInfoItem
+                    v-slots={{
+                      prefix: () => (
+                        <span class='tag-item issues-alert-count'>
+                          <i class='icon-monitor icon-alert-line' />
+                          <span class='issues-alert-count-number'>{this.mainIssue.alert_count}</span>
+                        </span>
+                      ),
+                    }}
+                    desc={this.mainIssue.anomaly_message}
+                    icon={ISSUES_REGRESSION_MAP[String(this.mainIssue.is_regression)]}
+                    list={this.getMetricList(this.mainIssue)}
+                    name={this.mainIssue.name}
+                  />
+                )}
+              </div>
             </div>
 
             {/* 被合并 Issue 列表 */}
@@ -207,43 +208,59 @@ export default defineComponent({
                 <span class='divider' />
                 <span class='issue-group-tips'>{this.$t('合并后隐藏')}</span>
               </div>
-              <div class='issue-content'>{this.targetIssues.map(issue => this.renderIssueItem(issue, false))}</div>
+              <div class='issue-content'>
+                {this.targetIssues.map(issue => {
+                  return (
+                    <IssueInfoItem
+                      key={issue.id}
+                      v-slots={{
+                        prefix: () => (
+                          <span class='tag-item issues-alert-count'>
+                            <i class='icon-monitor icon-alert-line' />
+                            <span class='issues-alert-count-number'>{issue.alert_count}</span>
+                          </span>
+                        ),
+                        actions: () => {
+                          return this.defaultMainIssue ? null : (
+                            <Button
+                              size='small'
+                              theme='primary'
+                              outline
+                              onClick={() => this.handleSetMain(issue)}
+                            >
+                              {this.$t('设为主 Issue')}
+                            </Button>
+                          );
+                        },
+                      }}
+                      desc={issue.anomaly_message}
+                      icon={ISSUES_REGRESSION_MAP[String(issue.is_regression)]}
+                      list={this.getMetricList(issue)}
+                      name={issue.name}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
 
         {/* 合并依据区域 */}
-        <div class='reason-section'>
-          <div class='reason-section-header'>
-            <div class='section-title'>{this.$t('合并依据')}</div>
-            <span class='reason-tips'>
-              <i class='icon-monitor icon-hint' />
-              <span>{this.$t('由执行合并的用户指定，合并后会沉淀到主 Issue 的合并来源种，便于后续复盘。')}</span>
-            </span>
-          </div>
-          <Checkbox.Group
-            class='reason-checkbox-group'
-            v-model={this.selectedReasons}
-          >
-            {this.mergeReasonOptions.map(option => (
-              <Checkbox
-                key={option.id}
-                label={option.id}
-              >
-                {option.label}
-              </Checkbox>
-            ))}
-          </Checkbox.Group>
-          <Input
-            class='custom-reason-input'
-            v-model={this.customReason}
-            placeholder={this.$t('自定义说明合并依据，例如：同一漏派发布后集中出现')}
-          />
-        </div>
+        <ReasonSection
+          inputValue={this.inputReason}
+          options={this.mergeReasonOptions}
+          placeholder={this.$t('自定义新增合并依据，例如：同一蓝盾发布后集中出现')}
+          selectValue={this.selectReason}
+          tips={this.$t('由执行合并的用户指定，合并后会沉淀到主 Issue 的合并来源种，便于后续复盘。')}
+          title={this.$t('合并依据')}
+          onInput={this.handleReasonInput}
+          onSelectChange={this.handleReasonSelectChange}
+        />
 
         {/* 底部按钮区域 */}
         <div class='footer-section'>
           <Button
+            loading={this.submitLoading}
             theme='primary'
             onClick={this.handleConfirm}
           >

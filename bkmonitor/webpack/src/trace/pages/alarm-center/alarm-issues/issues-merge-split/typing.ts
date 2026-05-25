@@ -23,33 +23,43 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export interface ActiveMember {
+  anomaly_message: string;
+  member_issue_id: string;
+  member_name: string;
+  merge_operator: string;
+  merge_reasons: string[];
+  merge_time: number;
+  status: 'active' | 'split';
+}
 
-export const mockData = {
-  main_issue_id: '1741234567abcd1234',
-  active_members: [
-    {
-      member_issue_id: '1741299999eeee1111',
-      member_name: '支付链路延迟飙升',
-      anomaly_message: 'cpu 使用率过高',
-      merge_reasons: ['影响范围不同'],
-      merge_operator: 'admin',
-      merge_time: 1741334000,
-      status: 'active',
-    },
-  ],
-  split_history: [
-    {
-      member_issue_id: '1741300000ffff2222',
-      member_name: 'DB 连接池耗尽',
-      anomaly_message: 'cpu 使用率过高',
-      merge_reasons: ['合并原因不同', '责任 Owner 不同'],
-      merge_operator: 'admin',
-      merge_time: 1741334100,
-      status: 'split',
-      split_reasons: ['责任 Owner 不同'],
-      split_operator: 'dev1',
-      split_time: 1741400000,
-      split_kind: 'manual',
-    },
-  ],
-};
+export interface IssueMergeSource {
+  active_members: ActiveMember[];
+  main_issue_id: string;
+  split_history: SplitHistory[];
+}
+
+export interface SplitHistory {
+  /** 异常信息 */
+  anomaly_message: string;
+  /** 拆分成员 Issue ID */
+  member_issue_id: string;
+  /** 拆分成员 Issue 名称*/
+  member_name: string;
+  /** 合并操作人 */
+  merge_operator: string;
+  /** 合并原因 */
+  merge_reasons: string[];
+  /** 合并时间（Unix 秒级时间戳）*/
+  merge_time: number;
+  /** 拆分触发类型：`"manual"`（手动拆分）/ `"by_main_resolve"`（主 Issue 解决时级联拆分）/ `"by_main_archive"`（主 Issue 归档时级联拆分） */
+  split_kind: 'by_main_archive' | 'by_main_resolve' | 'manual';
+  /** 拆分操作人 */
+  split_operator: string;
+  /** 拆分原因 */
+  split_reasons: string[];
+  /** 拆分时间（Unix 秒级时间戳）*/
+  split_time: number;
+  /** 关系状态，已拆分固定为 `"split"` */
+  status: 'split';
+}
