@@ -449,10 +449,11 @@ def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
         "operation": OPERATION_LIST_CONFLICTS,
         "bk_biz_id": bk_biz_id,
         "since_days": since_days,
+        # 三类顺序与 docstring / 上方计算顺序一致：第 1/2/3 类
         "duplicate_active_members": duplicate_active_members,
-        "pending_follow_resync": pending_follow_resync,
         "pending_split_resets": pending_split_resets,
-        "total_conflicts": (len(duplicate_active_members) + len(pending_follow_resync) + len(pending_split_resets)),
+        "pending_follow_resync": pending_follow_resync,
+        "total_conflicts": (len(duplicate_active_members) + len(pending_split_resets) + len(pending_follow_resync)),
     }
 
 
