@@ -184,7 +184,16 @@ export default defineComponent({
       handleIssuesDialogSuccess,
     } = useIssuesDialogs(data as Ref<IssueItem[]>);
 
-    const { mergeDisabled, mergeDisabledTip, handleIssuesMergeClick, handleIssuesSplitClick } = useIssuesMergeActions({
+    const {
+      mergeDisabled,
+      mergeDisabledTip,
+      mergeSplitShow,
+      mergeSplitType,
+      mergeSplitIssues,
+      handleIssuesMergeClick,
+      handleIssuesSplitClick,
+      handleMergeSplitShowChange,
+    } = useIssuesMergeActions({
       data: data as Ref<IssueItem[]>,
       selectedRowKeys,
     });
@@ -1061,6 +1070,10 @@ export default defineComponent({
       mergeDisabledTip,
       handleIssuesMergeClick,
       handleIssuesSplitClick,
+      mergeSplitShow,
+      mergeSplitType,
+      mergeSplitIssues,
+      handleMergeSplitShowChange,
     };
   },
   render() {
@@ -1298,7 +1311,13 @@ export default defineComponent({
                 onPrevious={this.handleIssuePreviousDetail}
                 onUpdate:show={this.handleDetailShowChange}
               />,
-              <IssuesMergeSplitSideslider key='issues-merge-split' />,
+              <IssuesMergeSplitSideslider
+                key='issues-merge-split'
+                issues={this.mergeSplitIssues}
+                show={this.mergeSplitShow}
+                type={this.mergeSplitType}
+                onUpdate:show={this.handleMergeSplitShowChange}
+              />,
             ]
           ) : (
             <AlarmCenterDetail
