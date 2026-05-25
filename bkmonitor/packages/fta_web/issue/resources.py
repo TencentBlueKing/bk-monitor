@@ -1160,6 +1160,9 @@ class ListMergeSourcesResource(Resource):
         )
         name_map = {hit.meta.id: getattr(hit, "name", None) for hit in member_hits}
         first_alert_time_map = {hit.meta.id: int(getattr(hit, "first_alert_time", 0) or 0) for hit in member_hits}
+        # member 当前 ES status：方案 A cascade follow 落地后 active member 的 status 会跟随主，
+        # 前端可据此展示 member 当前真实状态（如"已跟随主 Issue RESOLVED"）
+        member_es_status_map = {hit.meta.id: getattr(hit, "status", None) for hit in member_hits}
 
         # 批量拉 member 最新告警 description（1 次 ES agg；失败 fail-open）
         anomaly_map = _fetch_member_anomaly_messages(member_ids, first_alert_time_map)
@@ -1172,7 +1175,13 @@ class ListMergeSourcesResource(Resource):
                 "merge_reasons": r.merge_reasons,
                 "merge_operator": r.create_user,
                 "merge_time": int(r.create_time.timestamp()) if r.create_time else 0,
+                # 关系状态（active / split）。旧字段 `status` 保留一个发布周期向后兼容，
+                # 待前端切到 `relation_status` 后下一版移除
                 "status": r.status,
+                "relation_status": r.status,
+                # member 自身的 ES status（PENDING_REVIEW / UNRESOLVED / RESOLVED / ARCHIVED）。
+                # ES 缺失时为 None，前端按"已删除"占位渲染
+                "member_es_status": member_es_status_map.get(r.member_issue_id),
             }
             if r.status == IssueMergeRelation.STATUS_SPLIT:
                 item.update(
