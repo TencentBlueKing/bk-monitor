@@ -27,3 +27,16 @@ Record durable decisions, alternatives, tradeoffs and consequences here.
 - 决策：不监听 `indexSetQueryResult.value?.list`，不 deep watch，不枚举 query 条件；继续用 `tableDataSize` 作为轻量驱动。非分页查询在 store 中会先清空 list，因此 `tableDataSize === 0` 时 O(1) 调用 `resetPageState()`，覆盖所有查询条件变更。
 - 决策：保留 `setRenderList(length ?? tableDataSize.value)` 的原有语义，滚动加载更多只按 pageSize 追加本地渲染窗口；不要强制缩回首屏，也不要全量初始化行状态。
 - 决策：保留 WeakMap 作为 row 对象级状态缓存，但禁止裸访问 `.get(row).value`；统一用 `ensureTableRowConfig(row, rowIndex)` O(1) 懒初始化，Row Expand 渲染也必须显式传入 `rowIndex`。
+
+## 2026-05-22 LogRows monitor 首屏骨架屏渲染门控
+
+- 背景：monitor/apm 独立包挂载到外部项目时，timeRange 等新查询首屏数据返回后，父容器布局与列宽计算可能晚于真实行渲染，导致短暂出现第 2 列过窄、每行显示“更多”。本项目内入口布局稳定，不易复现。
+- 决策：新查询首屏阶段先渲染 `src/skeleton/retrieve-loader.vue` 骨架屏，真实 `LogRows` header/rows/exception 在两帧列宽测量与 `columnLayoutVersion` reflow 后再显示。
+- 约束：分页追加更多、列拖拽、字段设置展开/收起不触发首屏骨架屏；不能监听大 list、不能 deep watch、不能复制单条大日志对象。
+- 验证：`npx eslint src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`、`git diff --check`、`npm run build:apm` 通过。
+
+## 2026-05-22 log-rows pagination response size fix
+- 问题：首屏骨架屏修复后，monitor 包在 `total_count` 很大时只加载到 100 条即显示“已加载所有数据”。
+- 根因：`loadMoreTableData` 对 `store.dispatch('requestIndexSetQuery', { isPagination: true })` 的返回值使用 `resp?.length !== pageSize` 判断是否还有更多；实际 store 返回对象 `{ length, size, ... }`，部分入口/构建下 `resp.length` 可能不可用或判断不兼容，导致错误将 `hasMoreList` 置为 `false`。
+- 决策：新增 `getPaginationResponseSize(resp)`，兼容 `resp.length`、`resp.size`、数组返回与 `resp.data.list.length`；只有明确 `responseSize < pageSize` 时才关闭 `hasMoreList`，未知响应长度时保持可继续加载，避免大总量日志被误判为加载完成。
+- 性能约束：该判断只读取响应元信息，不遍历当前大 list，不复制日志对象。

@@ -72,3 +72,9 @@ globs:
 - `setRenderList` 必须保留按当前已加载 `tableDataSize` 或指定 length 构建渲染窗口的语义；滚动加载更多只推进 `pageIndex/pageSize`，不能在查询刷新外重置已加载更多状态。
 - `tableRowConfig` 若继续使用 WeakMap，必须通过 `ensureTableRowConfig(row, rowIndex)` 懒创建；禁止 `tableRowConfig.get(row).value` 裸访问，禁止恢复按 `tableDataSize` 全量初始化 row config。
 - Row Expand / 操作列 / 行号列必须使用当前 render 回调提供的 `rowIndex` 参与兜底，避免独立包刷新时新 row 对象还未注册导致错误行号或空引用。
+
+### LogRows monitor 首屏骨架屏门控
+
+- monitor/apm 独立包首屏查询或查询条件变更后，真实表格渲染前允许使用 `RetrieveLoader` 骨架屏遮蔽列宽测量中间态。
+- 该骨架屏只用于新查询首屏，不用于滚动加载更多；分页追加更多必须保持原有 `pageIndex/pageSize/renderList` 性能模型。
+- 首屏切真实表格前只允许做 O(1) 容器测量与列布局版本递增，不允许监听/遍历大 list，不允许 deep watch，不允许复制日志行对象。

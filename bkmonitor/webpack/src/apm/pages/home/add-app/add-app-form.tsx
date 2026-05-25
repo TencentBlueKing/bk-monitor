@@ -34,7 +34,7 @@ import './add-app-form.scss';
 
 interface IProps {
   onCancel?: () => void;
-  onSuccess?: (v: string) => void;
+  onSuccess?: (appName: string, appId: number | string) => void;
 }
 
 @Component
