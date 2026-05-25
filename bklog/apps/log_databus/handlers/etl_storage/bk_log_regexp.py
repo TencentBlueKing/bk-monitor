@@ -277,10 +277,10 @@ class BkLogRegexpEtlStorage(EtlStorage):
             )
 
         # 6.1. 处理用户指定的时间字段作为dtEventTimeStamp（从bk_separator_object提取）
-        rules.extend(self._build_user_dt_event_time_field_v4(built_in_config))
+        rules.extend(self._build_user_dt_event_time_field_v4(built_in_config, storage_cluster_type))
 
         # 6.2. 处理dtEventTimeStampNanos字段（从用户指定的时间字段提取）
-        rules.extend(self._build_nanos_time_field_v4(built_in_config))
+        rules.extend(self._build_nanos_time_field_v4(built_in_config, storage_cluster_type))
 
         # 7. Path字段处理
         rules.extend(self._build_path_regex_rules_v4(etl_params, built_in_config))
