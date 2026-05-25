@@ -1031,3 +1031,54 @@ class TestGetActiveMemberIdsSqlOnly:
         monkeypatch.setattr(resolver_mod.IssueMergeRelation, "objects", manager)
         assert IssueMergeResolver.get_active_member_ids([]) == []
         manager.filter.assert_not_called()
+
+
+class TestRunBatchFreezePropagation:
+    """_run_batch：状态机冻结经 web→api 中转后以 BKAPIError 回来。
+
+    custom_exception_handler 把 Error.extra **平铺到响应顶层**（result.update(exc.extra)），
+    故 BKAPIError.data 顶层即带 business_code / conflicting_main_issue_id。web 侧须从顶层识别
+    并回填 detail，供前端构造"跳主 Issue"引导。这里用真实平铺 payload 形状防回归。
+    """
+
+    def test_bkapi_error_flattened_payload_recognized(self):
+        from core.errors.api import BKAPIError
+        from fta_web.issue.resources import _run_batch
+
+        # 模拟 api role custom_exception_handler 渲染：extra 平铺在 result_json 顶层
+        result_json = {
+            "result": False,
+            "code": 3337109,
+            "message": "Issue b1 已被合并到 #a1，请前往主 Issue 操作或先拆分",
+            "data": None,
+            "business_code": "MERGE_FREEZE_VIOLATION",
+            "conflicting_main_issue_id": "a1",
+            "issue_id": "b1",
+        }
+
+        def _action(bk_biz_id, issue_id):
+            raise BKAPIError(system_name="bkmonitor.issue", url="resolve", result=result_json)
+
+        out = _run_batch([{"bk_biz_id": 2, "issue_id": "b1"}], _action)
+        assert out["succeeded"] == []
+        assert len(out["failed"]) == 1
+        failed = out["failed"][0]
+        assert failed["issue_id"] == "b1"
+        assert failed["code"] == "MERGE_FREEZE_VIOLATION"
+        assert failed["detail"]["conflicting_main_issue_id"] == "a1"
+
+    def test_bkapi_error_non_freeze_only_message(self):
+        from core.errors.api import BKAPIError
+        from fta_web.issue.resources import _run_batch
+
+        result_json = {"result": False, "code": 3337104, "message": "其他业务错误"}
+
+        def _action(bk_biz_id, issue_id):
+            raise BKAPIError(system_name="bkmonitor.issue", url="resolve", result=result_json)
+
+        out = _run_batch([{"bk_biz_id": 2, "issue_id": "x1"}], _action)
+        failed = out["failed"][0]
+        # 非冻结错误：只保留 message，不带 code/detail
+        assert "code" not in failed
+        assert "detail" not in failed
+        assert failed["message"] == "其他业务错误"

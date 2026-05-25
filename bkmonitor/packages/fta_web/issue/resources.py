@@ -107,18 +107,24 @@ def _run_batch(
         except BKAPIError as e:
             # 状态机操作经 web→api role 中转：冻结在 api role 抛出，过 HTTP 后已不是
             # IssueFrozenError 实例，而是 BKAPIError（e.data 即 api 的 result_json）。
-            # 从 extra.business_code 识别合并冻结，回填 code/detail 供前端构造"跳主 Issue"引导。
+            # custom_exception_handler 把 Error.extra **平铺到响应顶层**（result.update(exc.extra)，
+            # 见 core/drf_resource/exceptions.py），故 business_code/conflicting_main_issue_id 在
+            # payload 顶层；同时兼容潜在的嵌套 extra 形状（payload["extra"]）。
             payload = e.data if isinstance(e.data, dict) else {}
-            extra = payload.get("extra") or {}
+            fields = payload.get("extra") if isinstance(payload.get("extra"), dict) else payload
             item = {
                 "ok": False,
                 "bk_biz_id": bk_biz_id,
                 "issue_id": issue_id,
                 "message": payload.get("message") or str(e),
             }
-            if extra.get("business_code") == "MERGE_FREEZE_VIOLATION":
-                item["code"] = extra["business_code"]
-                item["detail"] = extra
+            if fields.get("business_code") == "MERGE_FREEZE_VIOLATION":
+                item["code"] = fields.get("business_code")
+                item["detail"] = {
+                    "business_code": fields.get("business_code"),
+                    "conflicting_main_issue_id": fields.get("conflicting_main_issue_id"),
+                    "issue_id": fields.get("issue_id"),
+                }
             return item
         except IssueNotFoundError as e:
             return {"ok": False, "bk_biz_id": bk_biz_id, "issue_id": issue_id, "message": str(e)}
