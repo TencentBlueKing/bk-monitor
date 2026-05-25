@@ -739,7 +739,7 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        metric_group_dimensions=None,
+        metric_group_dimensions: list[dict] | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -756,9 +756,14 @@ class TimeSeriesGroup(CustomGroupBase):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
-        :param metric_group_dimensions: 指标分组的维度key配置
+        :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :return: group object
         """
+        # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
+        if metric_group_dimensions is not None:
+            if additional_options is None:
+                additional_options = {}
+            additional_options["metric_group_dimensions"] = metric_group_dimensions
 
         custom_group = super().create_custom_group(
             bk_data_id=bk_data_id,
@@ -774,8 +779,12 @@ class TimeSeriesGroup(CustomGroupBase):
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
-            metric_group_dimensions=metric_group_dimensions,
         )
+
+        # 写入 metric_group_dimensions 模型字段
+        if metric_group_dimensions is not None:
+            custom_group.metric_group_dimensions = metric_group_dimensions
+            custom_group.save(update_fields=["metric_group_dimensions"])
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
@@ -808,7 +817,7 @@ class TimeSeriesGroup(CustomGroupBase):
         metric_info_list=None,
         data_label: str | None = None,
         options: dict[str, Any] | None = None,
-        metric_group_dimensions=None,
+        metric_group_dimensions: list[dict] | None = None,
     ):
         """
         修改一个自定义时序组
@@ -821,10 +830,16 @@ class TimeSeriesGroup(CustomGroupBase):
         :param metric_info_list: metric信息
         :param data_label: 数据标签
         :param options: 结果表选项内容
-        :param metric_group_dimensions: 指标分组的维度key配置
+        :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :return: True or raise
         """
-        return self.modify_custom_group(
+        # 将 metric_group_dimensions 合并到 options，流向 ResultTableOption
+        if metric_group_dimensions is not None:
+            if options is None:
+                options = {}
+            options["metric_group_dimensions"] = metric_group_dimensions
+
+        result = self.modify_custom_group(
             operator=operator,
             custom_group_name=time_series_group_name,
             label=label,
@@ -834,8 +849,14 @@ class TimeSeriesGroup(CustomGroupBase):
             enable_field_black_list=enable_field_black_list,
             data_label=data_label,
             options=options,
-            metric_group_dimensions=metric_group_dimensions,
         )
+
+        # 写入 metric_group_dimensions 模型字段
+        if metric_group_dimensions is not None and self.metric_group_dimensions != metric_group_dimensions:
+            self.metric_group_dimensions = metric_group_dimensions
+            self.save(update_fields=["metric_group_dimensions", "last_modify_user"])
+
+        return result
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def delete_time_series_group(self, operator):

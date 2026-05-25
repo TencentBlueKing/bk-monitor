@@ -201,7 +201,6 @@ class CustomGroupBase(models.Model):
         additional_options: dict | None = None,
         data_label: str | None = None,
         bk_biz_id_alias: str | None = None,
-        metric_group_dimensions=None,
         **kwargs,
     ):
         """
@@ -220,7 +219,6 @@ class CustomGroupBase(models.Model):
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
         :param bk_biz_id_alias: 业务ID别名
-        :param metric_group_dimensions: 指标分组的维度key配置
         :return: group object
         """
         # 创建流程：pre_check -> _create -> create_result_table -> 配置更新
@@ -247,8 +245,6 @@ class CustomGroupBase(models.Model):
         )
 
         # 2. 创建group
-        if metric_group_dimensions is not None:
-            filter_kwargs["metric_group_dimensions"] = metric_group_dimensions
         table_id, custom_group = cls._create(
             table_id=table_id,
             bk_biz_id=bk_biz_id,
@@ -281,12 +277,6 @@ class CustomGroupBase(models.Model):
             default_storage_config = cls.DEFAULT_STORAGE_CONFIG
 
         cls.process_default_storage_config(custom_group, default_storage_config)
-
-        # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
-        if metric_group_dimensions is not None:
-            if additional_options is None:
-                additional_options = {}
-            additional_options["metric_group_dimensions"] = metric_group_dimensions
 
         option = {"is_split_measurement": is_split_measurement}
         option.update(additional_options or {})
@@ -346,7 +336,6 @@ class CustomGroupBase(models.Model):
         enable_field_black_list: bool | None = None,
         data_label: str | None = None,
         options: dict[str, Any] | None = None,
-        metric_group_dimensions=None,
     ):
         """
         修改一个事件组
@@ -361,7 +350,6 @@ class CustomGroupBase(models.Model):
         :param data_label: 数据标签
         :param options: 结果表选项内容，会与 enable_field_black_list 产生的选项合并，
             若存在同名键则 enable_field_black_list 的值优先
-        :param metric_group_dimensions: 指标分组的维度key配置
         :return: True or raise
         """
         # 不可修改已删除的事件组
@@ -411,18 +399,6 @@ class CustomGroupBase(models.Model):
             self.max_rate = max_rate
             is_change = True
             logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] has change max_rate->[{max_rate}]")
-
-        # 判断是否修改指标分组维度配置
-        if metric_group_dimensions is not None and self.metric_group_dimensions != metric_group_dimensions:
-            self.metric_group_dimensions = metric_group_dimensions
-            is_change = True
-            # 同步放入 options，流向 ResultTableOption
-            if options is None:
-                options = {}
-            options["metric_group_dimensions"] = metric_group_dimensions
-            logger.info(
-                f"{self.__class__.__name__}->[{self.custom_group_id}] has change metric_group_dimensions->[{metric_group_dimensions}]"
-            )
 
         if is_change:
             self.last_modify_user = operator
