@@ -954,6 +954,7 @@ export default {
   英文名称: 'English name',
   '搜索名称、英文名称、地址、创建人': 'Search by name, English name, address, or creator',
   集群英文名称: 'Cluster English Name',
+  Doris集群: 'Doris Cluster',
   '最大自定义天数为{n}': 'Maximum custom days is {n}',
   选中值: 'Selected Value',
   整体: 'Overall',

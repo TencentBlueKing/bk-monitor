@@ -41,8 +41,10 @@ import useStore from '@/hooks/use-store';
 import { InfoBox } from 'bk-magic-vue';
 
 import { useDrag } from '../../hooks/use-drag';
+import ClusterTypeTabs from './cluster-type-tabs.tsx';
 import EsSlider from './es-slider.tsx';
 import IntroPanel from './intro-panel.tsx';
+import { CLUSTER_TYPES, ClusterType, useClusterType } from './use-cluster-type';
 import http from '@/api';
 
 import './index.scss';
@@ -58,7 +60,9 @@ export default defineComponent({
     EsSlider,
     IntroPanel,
     EmptyStatus,
+    ClusterTypeTabs,
   },
+
   setup() {
     const store = useStore();
     const router = useRouter();
@@ -126,6 +130,53 @@ export default defineComponent({
     const globalsData = computed(() => store.getters.globalsData);
     const authorityMapComputed = computed(() => authorityMap); // 权限映射
 
+    // 从路由查询参数获取初始 tab 值
+    const getInitialTab = (): ClusterType => {
+      const tabQuery = router.currentRoute.query.tab;
+      if (tabQuery === 'doris') return CLUSTER_TYPES.DORIS;
+      return CLUSTER_TYPES.ES;
+    };
+
+    const {
+      activeTab,
+      isDorisEnabled,
+      checkDorisAccess,
+      handleTabClick,
+    } = useClusterType({
+      bkBizId,
+      spaceUid,
+      initialTab: getInitialTab(),
+      onAccessDenied: () => {
+        const { tab, ...restQuery } = router.currentRoute.query;
+        router.replace({
+          name: router.currentRoute.name,
+          params: router.currentRoute.params,
+          query: restQuery,
+        });
+      },
+      onTabChange: (type) => {
+        const currentQuery = { ...router.currentRoute.query };
+        currentQuery.tab = type === CLUSTER_TYPES.DORIS ? 'doris' : 'es';
+        router.replace({
+          name: router.currentRoute.name,
+          params: router.currentRoute.params,
+          query: currentQuery,
+        });
+
+        params.value.keyword = '';
+        filterParams.value = {};
+        isFilterSearch.value = false;
+        tableDataOrigin.value = [];
+        tableDataSearched.value = [];
+        tableDataPaged.value = [];
+        pagination.value.current = 1;
+        pagination.value.count = 0;
+
+        getTableData();
+      },
+    });
+
+
     // 来源过滤器
     const sourceFilters = computed(() => {
       const { es_source_type: esSourceType } = globalsData.value;
@@ -165,6 +216,7 @@ export default defineComponent({
         const tableRes = await http.request('/source/list', {
           query: {
             bk_biz_id: bkBizId.value,
+            cluster_type: activeTab.value,
           },
         });
         tableLoading.value = false;
@@ -536,6 +588,7 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      checkDorisAccess();
       checkCreateAuth();
       getTableData();
       const { selectedFields } = clusterSetting.value;
@@ -558,17 +611,24 @@ export default defineComponent({
           style={`width: calc(100% - ${introWidth.value}px);`}
           class='es-cluster-list-container'
         >
+          <ClusterTypeTabs
+            activeTab={activeTab.value}
+            isDorisEnabled={isDorisEnabled.value}
+            on-tab-click={handleTabClick}
+          />
           <div class='main-operator-container'>
-            <bk-button
-              style='width: 120px'
-              data-test-id='esAccessBox_button_addNewEsAccess'
-              disabled={isAllowedCreate.value === null || tableLoading.value}
-              theme='primary'
-              vCursor={{ active: isAllowedCreate.value === false }}
-              onClick={addDataSource}
-            >
-              {t('新建')}
-            </bk-button>
+            {activeTab.value !== CLUSTER_TYPES.DORIS && (
+              <bk-button
+                style='width: 120px'
+                data-test-id='esAccessBox_button_addNewEsAccess'
+                disabled={isAllowedCreate.value === null || tableLoading.value}
+                theme='primary'
+                vCursor={{ active: isAllowedCreate.value === false }}
+                onClick={addDataSource}
+              >
+                {t('新建')}
+              </bk-button>
+            )}
             <bk-input
               style='float: right; width: 360px'
               clearable={true}
@@ -683,7 +743,7 @@ export default defineComponent({
                 renderHeader={renderHeader}
               />
             )}
-            {checkcFields('enable_hot_warm') && (
+            {activeTab.value !== CLUSTER_TYPES.DORIS && checkcFields('enable_hot_warm') && (
               <bk-table-column
                 key='hot_warm'
                 label={t('冷热数据')}
@@ -744,55 +804,57 @@ export default defineComponent({
                 sortable
               />
             )}
-            <bk-table-column
-              key='operate'
-              width='180'
-              scopedSlots={{
-                default: (props: any) => (
-                  <div class='collect-table-operate'>
-                    <log-button
-                      class='mr10'
-                      tips-conf={
-                        props.row.is_platform
-                          ? t('公共集群，禁止创建自定义索引集')
-                          : t('平台默认的集群不允许编辑和删除，请联系管理员。')
-                      }
-                      button-text={t('新建索引集')}
-                      disabled={!props.row.is_editable || props.row.is_platform}
-                      theme='primary'
-                      text
-                      on-on-click={() => createIndexSet(props.row)}
-                    />
-                    <log-button
-                      class='mr10'
-                      vCursor={{
-                        active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
-                      }}
-                      button-text={t('编辑')}
-                      disabled={!props.row.is_editable}
-                      theme='primary'
-                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
-                      text
-                      on-on-click={() => editDataSource(props.row)}
-                    />
-                    <log-button
-                      class='mr10'
-                      vCursor={{
-                        active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
-                      }}
-                      button-text={t('删除')}
-                      disabled={!props.row.is_editable}
-                      theme='primary'
-                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
-                      text
-                      on-on-click={() => deleteDataSource(props.row)}
-                    />
-                  </div>
-                ),
-              }}
-              label={t('操作')}
-              renderHeader={renderHeader}
-            />
+            {activeTab.value !== CLUSTER_TYPES.DORIS && (
+              <bk-table-column
+                key='operate'
+                width='180'
+                scopedSlots={{
+                  default: (props: any) => (
+                    <div class='collect-table-operate'>
+                      <log-button
+                        class='mr10'
+                        tips-conf={
+                          props.row.is_platform
+                            ? t('公共集群，禁止创建自定义索引集')
+                            : t('平台默认的集群不允许编辑和删除，请联系管理员。')
+                        }
+                        button-text={t('新建索引集')}
+                        disabled={!props.row.is_editable || props.row.is_platform}
+                        theme='primary'
+                        text
+                        on-on-click={() => createIndexSet(props.row)}
+                      />
+                      <log-button
+                        class='mr10'
+                        vCursor={{
+                          active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
+                        }}
+                        button-text={t('编辑')}
+                        disabled={!props.row.is_editable}
+                        theme='primary'
+                        tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
+                        text
+                        on-on-click={() => editDataSource(props.row)}
+                      />
+                      <log-button
+                        class='mr10'
+                        vCursor={{
+                          active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
+                        }}
+                        button-text={t('删除')}
+                        disabled={!props.row.is_editable}
+                        theme='primary'
+                        tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
+                        text
+                        on-on-click={() => deleteDataSource(props.row)}
+                      />
+                    </div>
+                  ),
+                }}
+                label={t('操作')}
+                renderHeader={renderHeader}
+              />
+            )}
             <bk-table-column
               key='setting'
               tippy-options={{ zIndex: 3000 }}
