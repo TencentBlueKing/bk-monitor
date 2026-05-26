@@ -717,6 +717,7 @@ export default defineComponent({
           isAllowedDownload={isAllowedDownload.value}
           initialUrlState={initialUrlState}
           searchTimeRange={lastSearchParams.value.timeRange}
+          hideCollectButton={taskSource.value !== '' && taskList.value.length === 0}
           on-expand={handleExpandTaskList}
           on-collect={handleCollectNow}
           on-url-sync={handleUrlSync}

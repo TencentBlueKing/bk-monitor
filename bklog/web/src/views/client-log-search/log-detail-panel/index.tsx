@@ -148,6 +148,11 @@ export default defineComponent({
       type: Array as unknown as () => [string, string] | [number, number],
       default: () => [0, 0],
     },
+    /** 是否隐藏采集按钮（非"全部"tab且列表为空时隐藏） */
+    hideCollectButton: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['expand', 'collect', 'url-sync'],
   setup(props, { emit }) {
@@ -749,9 +754,11 @@ export default defineComponent({
       <div class='uncollected-content'>
         <bk-exception type="empty">
           <div class='tip'>{t('暂未采集，无法获取日志')}</div>
-          <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
-            {t('立即采集')}
-          </bk-button>
+          {!props.hideCollectButton && (
+            <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
+              {t('立即采集')}
+            </bk-button>
+          )}
         </bk-exception>
       </div>
     );
@@ -771,9 +778,11 @@ export default defineComponent({
       <div class='uncollected-content'>
         <bk-exception type="empty">
           <div class='tip'>{t('日志采集失败，请重新采集')}</div>
-          <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
-            {t('立即采集')}
-          </bk-button>
+          {!props.hideCollectButton && (
+            <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
+              {t('立即采集')}
+            </bk-button>
+          )}
         </bk-exception>
       </div>
     );
@@ -948,7 +957,7 @@ export default defineComponent({
             )}
           </header>
 
-          {props.selectedLogItem?.extend_info && (
+          {currentStatus.value === 'success' && props.selectedLogItem?.extend_info && (
             <div class='ext-content'>
               <i class='bklog-icon bklog-miaoshu'></i>
               <span class='ext-label'>{t('扩展信息')}:</span>
