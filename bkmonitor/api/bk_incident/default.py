@@ -56,6 +56,14 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
         if bk_biz_id_list:
             params["scope_id_list"]= [params.get('scope_type','bkcc')+"_"+str(bk_biz_id) for bk_biz_id in bk_biz_id_list]
         return params
+    def convert_scope_id_config_to_scope_value(self, params):
+        bk_biz_id_config = params.pop("bk_biz_id_config",{})
+        if bk_biz_id_config.get("scope_id_list_open",[]):
+            bk_biz_id_config["scope_id_list_open"] = [params.get('scope_type','bkcc')+"_"+str(bk_biz_id) for bk_biz_id in bk_biz_id_config.get("scope_id_list_open",[])]
+        if bk_biz_id_config.get("scope_id_list_close",[]):
+            bk_biz_id_config["scope_id_list_close"] = [params.get('scope_type','bkcc')+"_"+str(bk_biz_id) for bk_biz_id in bk_biz_id_config.get("scope_id_list_close",[])]
+        params["scope_id_config"]=bk_biz_id_config
+        return params
 
     def perform_request(self, validated_request_data):
         """
@@ -65,6 +73,8 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
         validated_request_data = self.convert_bk_biz_id_to_scope_value(validated_request_data)
         # 转换 bk_biz_id_list 为 scope_id_list
         validated_request_data = self.convert_bk_biz_id_list_to_scope_value(validated_request_data)
+        # 转换 scope_id_config 为 scope_id_list_open & scope_id_list_close
+        validated_request_data = self.convert_scope_id_config_to_scope_value(validated_request_data)
         return super().perform_request(validated_request_data)
 
 
@@ -164,7 +174,7 @@ class CreateListConfigResource(IncidentBaseResource):
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         content_list = serializers.ListField(label="配置内容", required=False)
-        bk_biz_id_list = serializers.ListField(label="业务ID列表", required=False)
+        bk_biz_id_config = serializers.JSONField(label="scope_id配置", required=False)
 
 
 
