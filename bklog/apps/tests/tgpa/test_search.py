@@ -102,6 +102,7 @@ class TestTGPASearchHandler(SimpleTestCase):
         sdk_version="3.0.0",
         model="iPhone 15",
         xid="",
+        extend_info="",
     ):
         return {
             "openid": openid,
@@ -111,6 +112,7 @@ class TestTGPASearchHandler(SimpleTestCase):
             "os_sdk": sdk_version,
             "model": model,
             "xid": xid,
+            "extend_info": extend_info,
             "report_time": report_time,
             "status": process_status,
             "processed_at": processed_at,
@@ -191,6 +193,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                     "sdk_version": "1.0.0",
                     "model": "Pixel 8",
                     "xid": "",
+                    "extend_info": None,
                     "report_time": "2026-04-24 09:00:00",
                     "process_status": "done",
                     "processed_at": "2026-04-24 09:00:00",
@@ -206,6 +209,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                     "sdk_version": "3.0.0",
                     "model": "iPhone 15",
                     "xid": "",
+                    "extend_info": "",
                     "report_time": "2026-04-24 08:00:00",
                     "process_status": "pending",
                     "processed_at": "",
