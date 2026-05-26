@@ -1687,41 +1687,25 @@ class SpaceTableIDRedis:
 
         table_id_ts_group_id = {data["table_id"]: data["time_series_group_id"] for data in _filter_data}
         # NOTE: 针对自定义时序，过滤掉历史废弃的指标
-        # 如果开启特性开关 ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE，则使用 is_active 字段过滤
-        # 否则使用过期时间过滤（时间在`TIME_SERIES_METRIC_EXPIRED_SECONDS`的为有效数据）
-        _filter_group_id_list = list(table_id_ts_group_id.values())
-
+        # V4 链路满足 is_active 或近期更新任一条件即可，V3/兜底场景仍只使用过期时间过滤
         begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
-
-        if settings.ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE:
-            # V4 链路满足 is_active 或近期更新任一条件即可，V3/兜底场景仍只使用过期时间过滤
-            v3_group_ids, v4_group_ids = self._get_ts_metric_group_ids_by_datalink_version(
-                table_id_ts_group_id=table_id_ts_group_id,
-                bk_tenant_id=bk_tenant_id,
-            )
-            ts_group_fields = []
-            if v4_group_ids:
-                ts_group_fields.extend(self._filter_v4_ts_metric_fields(group_ids=v4_group_ids, begin_time=begin_time))
-            if v3_group_ids:
-                ts_group_fields.extend(
-                    filter_model_by_in_page(
-                        model=models.TimeSeriesMetric,
-                        field_op="group_id__in",
-                        filter_data=v3_group_ids,
-                        value_func="values",
-                        value_field_list=["field_name", "group_id"],
-                        other_filter={"last_modify_time__gte": begin_time},
-                    )
+        v3_group_ids, v4_group_ids = self._get_ts_metric_group_ids_by_datalink_version(
+            table_id_ts_group_id=table_id_ts_group_id,
+            bk_tenant_id=bk_tenant_id,
+        )
+        ts_group_fields = []
+        if v4_group_ids:
+            ts_group_fields.extend(self._filter_v4_ts_metric_fields(group_ids=v4_group_ids, begin_time=begin_time))
+        if v3_group_ids:
+            ts_group_fields.extend(
+                filter_model_by_in_page(
+                    model=models.TimeSeriesMetric,
+                    field_op="group_id__in",
+                    filter_data=v3_group_ids,
+                    value_func="values",
+                    value_field_list=["field_name", "group_id"],
+                    other_filter={"last_modify_time__gte": begin_time},
                 )
-        else:
-            # 关闭开关时保持原有逻辑，仅使用过期时间过滤
-            ts_group_fields = filter_model_by_in_page(
-                model=models.TimeSeriesMetric,
-                field_op="group_id__in",
-                filter_data=_filter_group_id_list,
-                value_func="values",
-                value_field_list=["field_name", "group_id"],
-                other_filter={"last_modify_time__gte": begin_time},
             )
 
         group_id_field_map = {}
