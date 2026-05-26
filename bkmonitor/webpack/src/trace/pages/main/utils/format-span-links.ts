@@ -32,7 +32,7 @@ export const formatSpanLinks = (links?: Record<string, unknown>[]): ISpanLinkIte
 
   return links.map((link, index) => {
     const traceId = typeof link.trace_id === 'string' && link.trace_id ? link.trace_id : `${EMPTY_TEXT}-${index + 1}`;
-    const content = Object.entries(link).map(([key, value]) => formatLinkField(key, value));
+    const content = Object.entries(link).flatMap(([key, value]) => formatLinkField(key, value));
 
     return {
       header: {
@@ -44,7 +44,14 @@ export const formatSpanLinks = (links?: Record<string, unknown>[]): ISpanLinkIte
   });
 };
 
-const formatLinkField = (key: string, value: unknown): ITagContent => {
+const formatLinkField = (key: string, value: unknown): ITagContent | ITagContent[] => {
+  if (key === 'attributes' && isPlainObject(value)) {
+    return Object.entries(value).map(([attrKey, attrValue]) => formatField(attrKey, attrValue));
+  }
+  return formatField(key, value);
+};
+
+const formatField = (key: string, value: unknown): ITagContent => {
   const isObjectValue = typeof value === 'object' && value !== null;
   return {
     label: key,
@@ -55,3 +62,6 @@ const formatLinkField = (key: string, value: unknown): ITagContent => {
     query_value: value,
   };
 };
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Object.prototype.toString.call(value) === '[object Object]';
