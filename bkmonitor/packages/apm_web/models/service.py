@@ -287,8 +287,11 @@ class LogServiceRelation(ServiceBase):
     value = models.CharField("日志值", max_length=512)
     # 需要保证value_list中的值是是 int 类型
     value_list = models.JSONField("日志值列表", default=list)
+    # 额外过滤信息。数值示例：[{"field": "__ext_json.resource.server", "operator": "=", "value": ["${service_name}"]}]
+    addition = models.JSONField("额外过滤信息", default=list)
 
     DIFF_KEYS: list[str] = ["log_type", "related_bk_biz_id"]
+    # 注：addition 不要加入 DEFAULT_KEYS，避免 SaaS 页编辑关联日志时被覆盖
     DEFAULT_KEYS: list[str] = ["value", "value_list"]
 
     @classmethod
