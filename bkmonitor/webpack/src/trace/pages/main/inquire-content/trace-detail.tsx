@@ -857,14 +857,15 @@ export default defineComponent({
     // 日志检索快捷跳转
     const handleLogQuickJump = () => {
       if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
-      const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+      const { indexId, unionList, start_time, end_time, addition, search_mode, keyword } =
+        spanDetailQueryStore.queryData;
       const startMs = toUnixMilliseconds(start_time);
       const endMs = toUnixMilliseconds(end_time);
       let url = '';
       if (unionList) {
-        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
       } else {
-        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
       }
       window.open(url, '_blank');
     };
