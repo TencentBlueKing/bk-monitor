@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { cloneDeep } from 'lodash';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import { getCodeRemarks, serviceList, setCodeRemark } from 'monitor-api/modules/apm_service';
-import { random } from 'monitor-common/utils';
+import { downloadFile, random } from 'monitor-common/utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
@@ -51,6 +51,7 @@ interface CodeRemarkItem {
   kind: string;
   remark: string;
   service_names: string[];
+  isImport?: boolean;
 }
 
 interface ColumnItem {
@@ -67,17 +68,18 @@ interface Props {
   appName: string;
   callOptions?: Partial<CallOptions>;
   variablesData?: Record<string, any>;
+  isBatchEdit: boolean;
 }
 
 @Component
 export default class RemarkTabContent extends tsc<Props> {
   @Prop({ default: '' }) appName: string;
+  @Prop({ default: false }) isBatchEdit: boolean;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
   @InjectReactive({ from: 'variablesData', default: () => ({}) }) readonly variablesData!: Record<string, any>;
 
-  @Ref('fileRef') fileRef!: HTMLInputElement;
   @Ref('tableRef') tableRef!: any;
 
   /** 全量数据（作为编辑前快照） */
@@ -117,15 +119,20 @@ export default class RemarkTabContent extends tsc<Props> {
   ];
 
   applyScopeOptions = [];
-  rowEditMap: Record<string, boolean> = {};
   savingMap: Record<string, boolean> = {};
   ableSaveMap: Record<string, boolean> = {};
   filterValues: string[] = [];
   callerEnumOptions = [];
   calleeEnumOptions = [];
+  currentEditRowId = '';
 
   get showColumn() {
     return this.columns;
+  }
+
+  @Watch('currentEditRowId', { immediate: true })
+  watchCurrentEditRowIdChange(id: string) {
+    this.$emit('currentEditRowIdChange', id);
   }
 
   addRow() {
@@ -139,6 +146,10 @@ export default class RemarkTabContent extends tsc<Props> {
       service_names: ['0'],
       isNew: true,
     };
+    if (this.isBatchEdit) {
+      this.showData.unshift(newRow);
+      return;
+    }
     this.$set(this.ableSaveMap, newRow.id, false);
     this.$set(this.savingMap, newRow.id, false);
     this.showData.unshift(newRow);
@@ -187,7 +198,7 @@ export default class RemarkTabContent extends tsc<Props> {
           data[index].service_names = ['0'];
         }
         // 默认非编辑态
-        this.$set(this.rowEditMap, id, false);
+        this.currentEditRowId = '';
         this.$set(this.ableSaveMap, id, false);
         this.$set(this.savingMap, id, false);
       }
@@ -226,7 +237,7 @@ export default class RemarkTabContent extends tsc<Props> {
   }
 
   /** 校验填写的规则 */
-  async validRules(rowId: string) {
+  async validRules(rowId?: string) {
     // 全局规则：按 kind+code 判重
     const isGlobalTrueValues: string[] = [];
     // 非全局规则：按 kind+code+service 判重（同一行可能多个 service）
@@ -235,7 +246,11 @@ export default class RemarkTabContent extends tsc<Props> {
     this.codeColumnEmptyIdSet.clear();
     this.remarkColumnEmptyIdSet.clear();
     for (let index = 0; index < this.showData.length; index++) {
-      const item = rowId === this.showData[index].id ? this.showData[index] : this.data[index];
+      const item = !this.isBatchEdit
+        ? rowId === this.showData[index].id
+          ? this.showData[index]
+          : this.data[index]
+        : this.showData[index];
       // 必填校验：返回码不能为空
       if (this.showData[index].code === '') {
         this.codeColumnEmptyIdSet.add(item.id);
@@ -344,7 +359,7 @@ export default class RemarkTabContent extends tsc<Props> {
     const showIndex = this.showData.findIndex(item => item.id === id);
     const dataIndex = this.data.findIndex(item => item.id === id);
     // 退出编辑态
-    this.$set(this.rowEditMap, id, false);
+    this.currentEditRowId = '';
     // 新增空白行取消时，直接删除，避免遗留无效数据
     if (this.data[dataIndex].isNew) {
       const row = this.data[dataIndex];
@@ -361,6 +376,12 @@ export default class RemarkTabContent extends tsc<Props> {
   }
 
   handleDeleteRow(id: string) {
+    const showIndex = this.showData.findIndex(item => item.id === id);
+    if (this.isBatchEdit) {
+      this.showData.splice(showIndex, 1);
+      return;
+    }
+
     this.$bkInfo({
       title: this.$t('是否确认删除？'),
       theme: 'danger',
@@ -371,7 +392,6 @@ export default class RemarkTabContent extends tsc<Props> {
       confirmFn: async () => {
         // 删除采用“全量提交剩余规则”方式
         const dataList = this.data.filter(item => item.id !== id && !item.isNew);
-        const showIndex = this.showData.findIndex(item => item.id === id);
         const dataIndex = this.data.findIndex(item => item.id === id);
         const params = {
           app_name: this.appName,
@@ -397,7 +417,7 @@ export default class RemarkTabContent extends tsc<Props> {
 
   handleEditRow(id: string) {
     // 切换为编辑态
-    this.$set(this.rowEditMap, id, true);
+    this.currentEditRowId = id;
   }
 
   async handleSaveEditRow(id: string) {
@@ -411,7 +431,7 @@ export default class RemarkTabContent extends tsc<Props> {
     const dataRow = this.data[dataIndex];
     // 非新建行且内容未变更时，直接退出编辑态
     if (JSON.stringify(showRow) === JSON.stringify(dataRow) && !showRow.isNew) {
-      this.$set(this.rowEditMap, showRow.id, false);
+      this.currentEditRowId = '';
       return;
     }
 
@@ -445,7 +465,7 @@ export default class RemarkTabContent extends tsc<Props> {
       await setCodeRemark(params);
       // 保存成功后将该行转为“非新增”，并更新快照
       this.$set(showRow, 'isNew', false);
-      this.$set(this.rowEditMap, showRow.id, false);
+      this.currentEditRowId = '';
       this.$set(this.data, dataIndex, cloneDeep(showRow));
       this.$bkMessage({
         message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
@@ -501,21 +521,117 @@ export default class RemarkTabContent extends tsc<Props> {
   }
 
   getValueCallback(kind: string): TGetValueFn {
-    return (_params: IGetValueFnParams): Promise<IOptionsInfo> => {
+    return (params: IGetValueFnParams): Promise<IOptionsInfo> => {
       const enumOptions = kind === 'caller' ? this.callerEnumOptions : this.calleeEnumOptions;
+      const search = params.search?.toLocaleLowerCase() ?? '';
       return Promise.resolve({
         count: 0 as const,
-        list: enumOptions.map(item => ({
-          id: item.value,
-          name: item.text,
-        })),
+        list: enumOptions.reduce((results, item) => {
+          if (
+            !search ||
+            String(item.value).toLocaleLowerCase().includes(search) ||
+            String(item.text).toLocaleLowerCase().includes(search)
+          ) {
+            results.push({
+              id: item.value,
+              name: item.text,
+            });
+          }
+          return results;
+        }, []),
       });
     };
   }
 
-  handleValueTagSelectorChange(list: { id: string; name: string }[], id: string) {
-    const value = list.length ? list[0].id : '';
+  handleValueTagSelectorChange(value: string, id: string) {
     this.handleValueChange(value, 'code', id);
+  }
+
+  handleImport(data: CodeRemarkItem[]) {
+    /**
+     * 以 类型 + 被调服务 + 被调service + 被调接口 为组合key：
+     * 1. 存量的覆盖更新
+     * 2. 新增的追加到前面
+     */
+    const importKeySet = new Set<string>(data.map(item => `${item.kind}_${item.code}_${item.is_global}`));
+    const targetData = data.map(item => ({
+      ...item,
+      id: random(8),
+    }));
+    // 记录已被导入数据替换的旧行 id，用于后续生成新增列表
+    const replaceIds = new Set<string>();
+    for (let index = 0; index < this.showData.length; index++) {
+      const item = this.showData[index];
+      const rowKey = `${item.kind}_${item.code}_${item.is_global}`;
+      if (importKeySet.has(rowKey)) {
+        // 命中相同组合键时，用导入值覆盖当前行
+        const replaceItem = targetData.find(
+          childItem => `${childItem.kind}_${childItem.code}_${childItem.is_global}` === rowKey
+        );
+        replaceItem.service_names = replaceItem.is_global ? ['0'] : replaceItem.service_names;
+        this.showData[index] = replaceItem;
+        replaceIds.add(this.showData[index].id);
+      }
+    }
+    // 剩余未替换项视为纯新增，插到表格前部
+    const newList = targetData.reduce((results, item) => {
+      if (!replaceIds.has(item.id)) {
+        results.push({
+          ...item,
+          isImport: true,
+          service_names: item.is_global ? ['0'] : item.service_names,
+        });
+      }
+      return results;
+    }, []);
+    const tatalList = [...newList, ...this.showData];
+    this.showData = tatalList;
+  }
+
+  handleExport() {
+    // 以当前快照数据导出，保留结构与缩进方便二次编辑
+    const exportData = this.data.map(item => ({
+      kind: item.kind,
+      code: item.code,
+      remark: item.remark,
+      service_names: item.is_global ? [] : item.service_names,
+      is_global: item.is_global,
+    }));
+    downloadFile(JSON.stringify(exportData, null, 2), 'application/json', 'code-remark.json');
+  }
+
+  handleCancelBatchEdit() {
+    this.showData = cloneDeep(this.data);
+  }
+
+  async handleBatchSave() {
+    const validResult = await this.validRules();
+    if (!validResult) {
+      return;
+    }
+    const params = {
+      app_name: this.appName,
+      remarks: this.showData.reduce((results, item) => {
+        results.push({
+          kind: item.kind,
+          code: item.code,
+          remark: item.remark,
+          service_names: item.is_global ? [] : item.service_names,
+          is_global: item.is_global,
+        });
+        return results;
+      }, []),
+    };
+    try {
+      await setCodeRemark(params);
+      this.$bkMessage({
+        message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
+        theme: 'success',
+      });
+    } finally {
+      // 无论成败都要关闭 loading
+      this.$emit('batchSaveSuccess');
+    }
   }
 
   renderColumn(item: ColumnItem) {
@@ -529,7 +645,7 @@ export default class RemarkTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态：输出翻译后的枚举文本
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div>
                       {row[item.prop] === '' ? '--' : row[item.prop] === 'caller' ? this.$tc('主调') : this.$tc('被调')}
@@ -538,6 +654,7 @@ export default class RemarkTabContent extends tsc<Props> {
                 }
                 return (
                   <div class='interface-column'>
+                    {row.isImport && <div class='import-sign-bar' />}
                     {/* 编辑态：可输入可选择 */}
                     <bk-select
                       clearable={false}
@@ -571,7 +688,7 @@ export default class RemarkTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态：纯文本 + 溢出提示
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
                       <div
@@ -605,7 +722,7 @@ export default class RemarkTabContent extends tsc<Props> {
                       }}
                       value={value}
                       getValueFn={this.getValueCallback(row.kind)}
-                      onChange={data => this.handleValueTagSelectorChange(data, row.id)}
+                      onChange={data => this.handleValueTagSelectorChange(data as string, row.id)}
                     />
                     {/* 校验失败时显示错误图标 */}
                     {this.renderTipContent(row)}
@@ -625,7 +742,7 @@ export default class RemarkTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态：展示备注文本
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
                       <div
@@ -668,7 +785,7 @@ export default class RemarkTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态：展示服务名列表；0 映射为“全局生效”
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
                       <div
@@ -729,15 +846,6 @@ export default class RemarkTabContent extends tsc<Props> {
   render() {
     return (
       <div class='code-redefine-content'>
-        <div class='top-btns'>
-          <bk-button
-            icon='plus'
-            theme='primary'
-            on-click={this.addRow}
-          >
-            {this.$t('新增')}
-          </bk-button>
-        </div>
         <div class='submit-table'>
           {this.tableLoading ? (
             <div class='skeleton-wrap'>
@@ -753,6 +861,7 @@ export default class RemarkTabContent extends tsc<Props> {
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
               row-class-name='return-code-remark-row'
               border
+              row-key='id'
               row-auto-height
               on-filter-change={this.handleFilterChange}
             >
@@ -761,7 +870,7 @@ export default class RemarkTabContent extends tsc<Props> {
                 width={120}
                 scopedSlots={{
                   default: ({ row }) => {
-                    if (this.rowEditMap[row.id]) {
+                    if (this.currentEditRowId === row.id) {
                       return (
                         <div class='operate-btns'>
                           <bk-button
@@ -787,22 +896,40 @@ export default class RemarkTabContent extends tsc<Props> {
                     }
                     return (
                       <div class='operate-btns'>
-                        <bk-button
-                          class='btn'
-                          theme='primary'
-                          text
-                          onClick={() => this.handleEditRow(row.id)}
+                        {!this.isBatchEdit && (
+                          <div
+                            v-bk-tooltips={{
+                              content: this.$t('当前已有配置正在编辑，请先保存或取消'),
+                              disabled: this.currentEditRowId === '' || this.currentEditRowId === row.id,
+                            }}
+                          >
+                            <bk-button
+                              class='btn'
+                              theme='primary'
+                              disabled={this.currentEditRowId !== '' && this.currentEditRowId !== row.id}
+                              text
+                              onClick={() => this.handleEditRow(row.id)}
+                            >
+                              {this.$t('编辑')}
+                            </bk-button>
+                          </div>
+                        )}
+                        <div
+                          v-bk-tooltips={{
+                            content: this.$t('当前已有配置正在编辑，请先保存或取消'),
+                            disabled: this.currentEditRowId === '' || this.currentEditRowId === row.id,
+                          }}
                         >
-                          {this.$t('编辑')}
-                        </bk-button>
-                        <bk-button
-                          class='btn'
-                          theme='danger'
-                          text
-                          onClick={() => this.handleDeleteRow(row.id)}
-                        >
-                          {this.$t('删除')}
-                        </bk-button>
+                          <bk-button
+                            class='btn'
+                            theme='danger'
+                            disabled={this.currentEditRowId !== '' && this.currentEditRowId !== row.id}
+                            text
+                            onClick={() => this.handleDeleteRow(row.id)}
+                          >
+                            {this.$t('删除')}
+                          </bk-button>
+                        </div>
                       </div>
                     );
                   },

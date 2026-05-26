@@ -86,46 +86,45 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   showData: CodeRedefineItem[] = [];
   tableLoading = false;
   isCurrentCancelClick = false;
-
   /** 重复的规则id */
   repeatRulesIdSet = new Set();
-  rowEditMap: Record<string, boolean> = {};
-
   codeStatus = [
     { label: this.$tc('失败'), value: 'exception' },
     { label: this.$tc('超时'), value: 'timeout' },
     { label: this.$tc('成功'), value: 'success' },
   ];
-
   codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
+  currentEditRowIndex = -1;
+  isBatchEdit = false;
+  isBatchEditSaving = false;
 
-  get isCallee() {
-    return this.type === 'callee';
+  get isCaller() {
+    return this.type === 'caller';
   }
 
   get columns(): ColumnItem[] {
     return [
-      { label: this.$tc('被调服务'), prop: 'callee_server', options: [], loading: false, width: 250 },
+      { label: this.$tc('被调服务'), prop: 'callee_server', options: [], loading: false, width: 245 },
       {
         label: this.$tc('被调 Service'),
         prop: 'callee_service',
         options: [],
         loading: false,
-        width: this.isCallee ? 350 : 250,
+        width: this.isCaller ? 245 : 300,
       },
       {
         label: this.$tc('被调接口'),
         prop: 'callee_method',
         options: [],
         loading: false,
-        width: this.isCallee ? 350 : 250,
+        width: this.isCaller ? 245 : 300,
       },
       {
         label: this.$tc('返回码'),
         prop: 'code_type_rules',
         options: [],
         loading: false,
-        width: this.isCallee ? 450 : 320,
+        width: this.isCaller ? 320 : 400,
       },
     ];
   }
@@ -155,7 +154,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       this.data = [];
       this.showData = [];
       this.repeatRulesIdSet = new Set();
-      this.rowEditMap = {};
+      this.currentEditRowIndex = -1;
+      this.isBatchEdit = false;
     }
   }
 
@@ -208,6 +208,11 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   handleAddNewRow(params?: CodeRedefineItem) {
+    if (this.isBatchEdit) {
+      this.showData.unshift(this.generateNewRow(params));
+      return;
+    }
+
     this.data.unshift(this.generateNewRow(params));
     this.showData.unshift(cloneDeep(this.data[0]));
     this.handleEditRow(0);
@@ -239,7 +244,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
         data[index].isNew = false;
         data[index].isSaving = false;
         data[index].isAbleSave = true;
-        this.$set(this.rowEditMap, id, false);
+        this.currentEditRowIndex = -1;
       }
       this.data = data;
       this.showData = cloneDeep(data);
@@ -276,8 +281,10 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
   async fileChange(e) {
     const files = e.target.files;
-    const data = await uploadJsonFile<CodeRedefineItem[]>(files[0]).catch(() => false);
-    if (!data || !Array.isArray(data)) {
+    const data = await uploadJsonFile<CodeRedefineItem[]>(files[0]).catch(() => []);
+    const isDataValid =
+      this.type === 'caller' ? data.every(item => item.callee_server) : data.every(item => !item.callee_server);
+    if (!data || !Array.isArray(data) || !isDataValid) {
       this.$bkMessage({
         theme: 'error',
         message: this.$t('文件格式不正确'),
@@ -292,12 +299,16 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     const importKeySet = new Set<string>(
       data.map(item => `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}`)
     );
+    const targetData = data.map(item => ({
+      ...item,
+      id: random(8),
+    }));
     const replaceIds = new Set<string>();
     for (let index = 0; index < this.showData.length; index++) {
       const item = this.showData[index];
       const rowKey = `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}`;
       if (importKeySet.has(rowKey)) {
-        this.showData[index] = data.find(
+        this.showData[index] = targetData.find(
           childItem =>
             `${childItem.kind}_${childItem.callee_server}_${childItem.callee_service}_${childItem.callee_method}` ===
             rowKey
@@ -305,17 +316,25 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
         replaceIds.add(this.showData[index].id);
       }
     }
-    const newList = data.filter(item => !replaceIds.has(item.id));
+    const newList = targetData.reduce((results, item) => {
+      if (!replaceIds.has(item.id)) {
+        results.push({
+          ...item,
+          isImport: true,
+        });
+      }
+      return results;
+    }, []);
     const tatalList = [...newList, ...this.showData];
-    for (let index = 0; index < tatalList.length; index++) {
-      const item = tatalList[index];
-      this.$set(this.rowEditMap, item.id, true);
-    }
     this.showData = tatalList;
+    this.isBatchEdit = true;
   }
 
   handleImport() {
-    this.fileRef?.click();
+    if (this.fileRef) {
+      this.fileRef.value = '';
+      this.fileRef.click();
+    }
   }
 
   handleExport() {
@@ -386,7 +405,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
   handleCancelEditRow(index: number) {
     this.isCurrentCancelClick = true;
-    this.$set(this.rowEditMap, this.showData[index].id, false);
+    this.currentEditRowIndex = -1;
     if (this.data[index].isNew && this.showData.length > 0) {
       const row = this.data[index];
       const isEmpty =
@@ -406,6 +425,10 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   handleDeleteRow(index: number) {
+    if (this.isBatchEdit) {
+      this.showData.splice(index, 1);
+      return;
+    }
     this.$bkInfo({
       title: this.$t('是否确认删除？'),
       theme: 'danger',
@@ -440,7 +463,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   handleEditRow(index: number) {
-    this.$set(this.rowEditMap, this.showData[index].id, true);
+    this.currentEditRowIndex = index;
   }
 
   async handleSaveEditRow(index: number) {
@@ -450,7 +473,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     }
 
     if (JSON.stringify(this.showData[index]) === JSON.stringify(this.data[index]) && !this.showData[index].isNew) {
-      this.$set(this.rowEditMap, this.showData[index].id, false);
+      this.currentEditRowIndex = -1;
       return;
     }
     const params = {
@@ -459,7 +482,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       kind: this.type,
       rules: this.showData.reduce((results, item, showIndex) => {
         // 编辑态且不是当前行，则提交原始数据
-        if (this.rowEditMap[item.id] && showIndex !== index && !item.isNew) {
+        if (this.currentEditRowIndex === showIndex && showIndex !== index && !item.isNew) {
           const rowItem = this.data.find(i => i.id === item.id);
           if (rowItem) {
             results.push({
@@ -489,7 +512,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       this.$set(this.showData[index], 'isSaving', true);
       await setCodeRedefinedRule(params);
       this.$set(this.showData[index], 'isNew', false);
-      this.$set(this.rowEditMap, this.showData[index].id, false);
+      this.currentEditRowIndex = -1;
       this.$set(this.data, index, cloneDeep(this.showData[index]));
       this.$bkMessage({
         message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
@@ -513,9 +536,48 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     };
   }
 
-  handleValueTagSelectorChange(list: { id: string; name: string }[], prop: string, index: number) {
-    const value = list.length ? list[0].id : '';
+  handleValueTagSelectorChange(value: string, prop: string, index: number) {
     this.handleValueChange(value, prop, index);
+  }
+
+  handleBatchEdit() {
+    this.isBatchEdit = true;
+  }
+
+  handleCancelBatchEdit() {
+    this.isBatchEdit = false;
+    this.showData = cloneDeep(this.data);
+  }
+
+  async handleBatchEditSave() {
+    this.isBatchEditSaving = true;
+    const params = {
+      app_name: this.appName,
+      service_name: this.service,
+      kind: this.type,
+      rules: this.showData.reduce((results, item) => {
+        results.push({
+          kind: item.kind,
+          callee_server: item.callee_server,
+          callee_service: item.callee_service,
+          callee_method: item.callee_method,
+          code_type_rules: item.code_type_rules,
+          is_global: item.is_global,
+        });
+
+        return results;
+      }, []),
+    };
+    try {
+      await setCodeRedefinedRule(params);
+      this.$bkMessage({
+        message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
+        theme: 'success',
+      });
+    } finally {
+      this.isBatchEditSaving = false;
+      this.isBatchEdit = false;
+    }
   }
 
   renderColumn(item: ColumnItem) {
@@ -529,14 +591,14 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
             width={item.width}
             scopedSlots={{
               default: ({ row, $index }) => {
+                const isFirstColumn =
+                  (row.kind === 'callee' && item.prop === 'callee_service') ||
+                  (row.kind === 'caller' && item.prop === 'callee_server');
                 if (row.is_global) {
-                  const isShowGlobalSign =
-                    (row.kind === 'callee' && item.prop === 'callee_service') ||
-                    (row.kind === 'caller' && item.prop === 'callee_server');
                   return (
                     <div class='interface-column-readonly'>
-                      {isShowGlobalSign && <div class='rect-bar' />}
-                      {isShowGlobalSign && (
+                      {isFirstColumn && <div class='rect-bar' />}
+                      {isFirstColumn && (
                         <span
                           class='icon-monitor icon-web'
                           v-bk-tooltips={{ content: this.$tc('全局生效规则') }}
@@ -551,7 +613,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                     </div>
                   );
                 }
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowIndex !== $index && !this.isBatchEdit) {
                   return (
                     <div
                       class='interface-column-readonly'
@@ -576,6 +638,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                   : [];
                 return (
                   <div class='interface-column'>
+                    {row.isImport && isFirstColumn && <div class='import-sign-bar' />}
                     <ValueTagSelector
                       style='width: 100%'
                       multiple={false}
@@ -587,7 +650,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                       }}
                       value={value}
                       getValueFn={this.getValueCallback(item.options)}
-                      onChange={data => this.handleValueTagSelectorChange(data, item.prop, $index)}
+                      onChange={data => this.handleValueTagSelectorChange(data as string, item.prop, $index)}
                     />
                     {this.repeatRulesIdSet.has(row.id) && item.prop === 'callee_method' && (
                       <i
@@ -662,7 +725,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                     </div>
                   );
                 }
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowIndex !== $index && !this.isBatchEdit) {
                   const isEmpty = this.codeStatus.every(item => !row.code_type_rules[item.value]);
                   if (isEmpty) {
                     return <span>--</span>;
@@ -762,14 +825,48 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
             ))}
           </div>
           <div class='top-btns'>
-            <bk-button
-              icon='plus'
-              theme='primary'
-              on-click={this.handleAddNewRow}
+            <span
+              v-bk-tooltips={{
+                content: this.$t('当前已有配置正在编辑，请先保存或取消'),
+                disabled: this.currentEditRowIndex === -1,
+              }}
             >
-              {this.$t('新增')}
-            </bk-button>
-
+              <bk-button
+                icon='plus'
+                theme='primary'
+                disabled={this.currentEditRowIndex !== -1}
+                on-click={this.handleAddNewRow}
+              >
+                {this.$t('新增')}
+              </bk-button>
+            </span>
+            {!this.isBatchEdit ? (
+              <bk-button on-click={this.handleBatchEdit}>
+                <i class='icon-monitor icon-mc-wholesale-editor' />
+                {this.$t('批量编辑')}
+              </bk-button>
+            ) : (
+              <div class='batch-group'>
+                <bk-button
+                  outline
+                  theme='primary'
+                  disabled={this.isBatchEditSaving}
+                  loading={this.isBatchEditSaving}
+                  on-click={this.handleBatchEditSave}
+                >
+                  <div class='save-btn'>
+                    <i class='bk-icon icon-save' />
+                    {this.$t('保存')}
+                  </div>
+                </bk-button>
+                <bk-button
+                  icon='close'
+                  on-click={this.handleCancelBatchEdit}
+                >
+                  {this.$t('取消')}
+                </bk-button>
+              </div>
+            )}
             <div class='tip-text'>
               <i class='icon-monitor icon-tishi' />
               <span>{this.$t('点击')}</span>
@@ -828,8 +925,8 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
               >
                 {this.showColumn.map(item => this.renderColumn(item))}
                 <bk-table-column
-                  width={136}
-                  fixed='right'
+                  width={100}
+                  // fixed='right'
                   scopedSlots={{
                     default: ({ $index, row }) => {
                       if (row.is_global) {
@@ -843,7 +940,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                           </div>
                         );
                       }
-                      if (this.rowEditMap[row.id]) {
+                      if (this.currentEditRowIndex === $index && !this.isBatchEdit) {
                         return (
                           <div class='operate-btns'>
                             <bk-button
@@ -869,22 +966,44 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                       }
                       return (
                         <div class='operate-btns'>
-                          <bk-button
-                            class='btn'
-                            theme='primary'
-                            text
-                            onClick={() => this.handleEditRow($index)}
+                          {!this.isBatchEdit && (
+                            <div
+                              v-bk-tooltips={{
+                                content: this.$t('当前已有配置正在编辑，请先保存或取消'),
+                                disabled: this.currentEditRowIndex === -1 || this.currentEditRowIndex === $index,
+                              }}
+                            >
+                              <bk-button
+                                class='btn'
+                                theme='primary'
+                                disabled={this.currentEditRowIndex !== -1 && this.currentEditRowIndex !== $index}
+                                text
+                                onClick={() => this.handleEditRow($index)}
+                              >
+                                {this.$t('编辑')}
+                              </bk-button>
+                            </div>
+                          )}
+                          <div
+                            v-bk-tooltips={{
+                              content: this.$t('当前已有配置正在编辑，请先保存或取消'),
+                              disabled: this.currentEditRowIndex === -1 || this.currentEditRowIndex === $index,
+                            }}
                           >
-                            {this.$t('编辑')}
-                          </bk-button>
-                          <bk-button
-                            class='btn'
-                            theme='danger'
-                            text
-                            onClick={() => this.handleDeleteRow($index)}
-                          >
-                            {this.$t('删除')}
-                          </bk-button>
+                            <bk-button
+                              class='btn'
+                              theme='danger'
+                              disabled={
+                                this.currentEditRowIndex !== -1 &&
+                                this.currentEditRowIndex !== $index &&
+                                !this.isBatchEdit
+                              }
+                              text
+                              onClick={() => this.handleDeleteRow($index)}
+                            >
+                              {this.$t('删除')}
+                            </bk-button>
+                          </div>
                         </div>
                       );
                     },

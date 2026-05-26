@@ -130,8 +130,9 @@ export interface ITabItem {
 }
 
 export interface CodeRedefineItem {
-  id?: string;
+  id: string;
   isNew?: boolean;
+  isImport?: boolean;
   isSaving?: boolean;
   isAbleSave?: boolean;
   kind: string;

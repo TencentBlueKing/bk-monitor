@@ -644,7 +644,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         >
           {data[item.value] || '--'}
         </span>
-        {remark && <span class='remark-text'>{remark}</span>}
+        {remark && <span class='remark-text' v-bk-overflow-tips>{remark}</span>}
         {!data?.isTotal && data[item.value] && (
           <i
             class='icon-monitor icon-mc-copy tab-row-icon'
