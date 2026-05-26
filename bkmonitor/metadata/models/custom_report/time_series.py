@@ -1054,7 +1054,7 @@ class TimeSeriesGroup(CustomGroupBase):
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
             time_series_metric_query = time_series_metric_query.filter(
-                models.Q(last_modify_time__gt=last) | Q(is_active=True)
+                Q(last_modify_time__gt=last) | Q(is_active=True)
             )
         # 查找过期时间以前的数据
         for metric in time_series_metric_query.iterator():
