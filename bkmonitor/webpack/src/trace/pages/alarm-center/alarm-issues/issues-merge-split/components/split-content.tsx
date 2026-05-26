@@ -119,7 +119,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='split-content'>
+      <div class='issues-split-content'>
         <div class='issue-group'>
           <div class='issue-header'>
             <div class='category-icon'>
