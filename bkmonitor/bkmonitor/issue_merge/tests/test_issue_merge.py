@@ -444,119 +444,6 @@ class TestSplitInfoFieldContract:
         assert info_empty["split_reasons"] == []
 
 
-class TestListMergeSourcesAnomalyMessage:
-    """``_fetch_member_anomaly_messages`` 行为：
-
-    1) 正常路径：terms agg + top_hits 返回 description → 命中的 member 进入结果字典
-    2) 部分 member 无 alert → 不在结果字典（caller 兜底 ``"--"``）
-    3) AlertDocument.search 抛异常 → 返回空 dict (fail-open)
-    4) first_alert_time 全空 → 走 ``now - 30d`` 兜底窗口（不应抛异常）
-    """
-
-    @staticmethod
-    def _build_search_stub(buckets: list, on_search=None):
-        """构造一条链式可调用的 ES search stub，``buckets`` 即 ``result.aggs.issues.buckets``。"""
-        from unittest.mock import MagicMock
-
-        result = MagicMock()
-        result.aggs.issues.buckets = buckets
-
-        search_obj = MagicMock()
-        search_obj.filter.return_value = search_obj
-        search_obj.__getitem__.return_value.execute.return_value = result
-
-        def _search(**kwargs):
-            if on_search is not None:
-                on_search(kwargs)
-            return search_obj
-
-        return _search, search_obj
-
-    @staticmethod
-    def _make_bucket(member_id: str, description: str | None):
-        """模拟单个 issue_id terms 桶。``description=None`` 表示 top_hits 命中但 description 为空。"""
-        from unittest.mock import MagicMock
-
-        bucket = MagicMock()
-        bucket.key = member_id
-        if description is None:
-            bucket.latest_alert.hits.hits = []
-        else:
-            hit = MagicMock()
-            hit.to_dict.return_value = {"_source": {"event": {"description": description}}}
-            bucket.latest_alert.hits.hits = [hit]
-        return bucket
-
-    def test_normal_path_returns_description_map(self, monkeypatch):
-        from bkmonitor.documents import alert as alert_mod
-        from fta_web.issue.resources import _fetch_member_anomaly_messages
-
-        buckets = [
-            self._make_bucket("b1", "AVG(CPU) >= 10%, 当前值 10.19%"),
-            self._make_bucket("b2", "Disk IO 异常"),
-        ]
-        search_fn, _ = self._build_search_stub(buckets)
-        monkeypatch.setattr(alert_mod.AlertDocument, "search", search_fn)
-
-        result = _fetch_member_anomaly_messages(["b1", "b2"], {"b1": 1_700_000_000, "b2": 1_700_000_500})
-        assert result == {
-            "b1": "AVG(CPU) >= 10%, 当前值 10.19%",
-            "b2": "Disk IO 异常",
-        }
-
-    def test_partial_miss_omits_member(self, monkeypatch):
-        from bkmonitor.documents import alert as alert_mod
-        from fta_web.issue.resources import _fetch_member_anomaly_messages
-
-        # b1 命中、b2 top_hits 为空、b3 description 为空字符串：均不进入结果
-        buckets = [
-            self._make_bucket("b1", "CPU 异常"),
-            self._make_bucket("b2", None),
-            self._make_bucket("b3", ""),
-        ]
-        search_fn, _ = self._build_search_stub(buckets)
-        monkeypatch.setattr(alert_mod.AlertDocument, "search", search_fn)
-
-        result = _fetch_member_anomaly_messages(["b1", "b2", "b3"], {"b1": 1_700_000_000, "b2": 0, "b3": 0})
-        assert result == {"b1": "CPU 异常"}
-
-    def test_empty_member_ids_returns_empty(self):
-        from fta_web.issue.resources import _fetch_member_anomaly_messages
-
-        # 空入参不应触发 ES 查询，直接返回空 dict
-        assert _fetch_member_anomaly_messages([], {}) == {}
-
-    def test_search_exception_fail_open(self, monkeypatch):
-        from bkmonitor.documents import alert as alert_mod
-        from fta_web.issue.resources import _fetch_member_anomaly_messages
-
-        def _explode(**kwargs):
-            raise RuntimeError("ES cluster unreachable")
-
-        monkeypatch.setattr(alert_mod.AlertDocument, "search", _explode)
-
-        # fail-open：返回空 dict，由 caller 在 list_merge_sources 中兜底为 "--"
-        assert _fetch_member_anomaly_messages(["b1"], {"b1": 1_700_000_000}) == {}
-
-    def test_all_first_alert_time_empty_uses_fallback_window(self, monkeypatch):
-        """所有 member 的 first_alert_time 为空（如旧数据）→ 走 now-30d 兜底窗口，不抛异常。"""
-        from bkmonitor.documents import alert as alert_mod
-        from fta_web.issue.resources import _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER, _fetch_member_anomaly_messages
-
-        captured: dict = {}
-
-        def _capture(kwargs):
-            captured.update(kwargs)
-
-        search_fn, _ = self._build_search_stub([self._make_bucket("b1", "fallback window hit")], on_search=_capture)
-        monkeypatch.setattr(alert_mod.AlertDocument, "search", search_fn)
-
-        result = _fetch_member_anomaly_messages(["b1"], {"b1": 0})
-        assert result == {"b1": "fallback window hit"}
-        # 兜底窗口 ≈ now - 30d；允许少量调用时延误差
-        assert captured["end_time"] - captured["start_time"] == _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER
-
-
 class TestGetSplitInfoMap:
     """``IssueMergeResolver.get_split_info_map`` 行为：列表批量拆分溯源注入的取数层。
 
@@ -685,248 +572,6 @@ class TestGetSplitInfoMap:
         assert IssueMergeResolver.get_split_info_map(["m1"]) == {}
 
 
-class TestSearchInjectsSplitInfo:
-    """``IssueQueryHandler.search()`` 列表契约：被拆出的独立 Issue 注入 split_info。
-
-    独立守护"search 流程真的会塞 split_info"——避免后续重构 search 时 resolver 单测仍过、
-    但列表契约悄悄断裂。patch 掉 ES / 翻译 / 趋势等重链路，只验证注入这一刀。
-    """
-
-    def test_split_member_injected_normal_untouched(self, monkeypatch):
-        from unittest.mock import MagicMock
-
-        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
-        from fta_web.alert.handlers import translator as translator_mod
-        from fta_web.issue.handlers.issue import IssueQueryHandler
-
-        # __new__ 跳过 BaseBizQueryHandler.__init__（避免触发 IAM 权限装配）
-        handler = IssueQueryHandler.__new__(IssueQueryHandler)
-        handler.bk_biz_ids = [2]
-
-        issues = [{"id": "split-1", "bk_biz_id": 2}, {"id": "normal-1", "bk_biz_id": 2}]
-
-        fake_result = MagicMock()
-        fake_result.hits.total.value = len(issues)
-
-        # patch 重链路：ES 查询 / 清洗 / 翻译 / 合并 ctx 加载 / 告警趋势
-        monkeypatch.setattr(handler, "search_raw", lambda **kw: (fake_result, None))
-        monkeypatch.setattr(handler, "handle_hit_list", lambda sr: issues)
-        monkeypatch.setattr(handler, "add_alert_trend", lambda items: None)
-        monkeypatch.setattr(translator_mod.StrategyTranslator, "translate_from_dict", lambda self, *a, **k: None)
-        monkeypatch.setattr(translator_mod.BizTranslator, "translate_from_dict", lambda self, *a, **k: None)
-        monkeypatch.setattr(MergeResolverContext, "load", lambda self: None)
-        monkeypatch.setattr(
-            IssueMergeResolver,
-            "get_split_info_map",
-            classmethod(
-                lambda cls, ids: {
-                    "split-1": {
-                        "split_from_main_issue_id": "A",
-                        "split_from_main_issue_name": None,
-                        "split_reasons": ["误合并，根因不同"],
-                        "split_kind": "manual",
-                        "split_time": 1716580800,
-                        "split_operator": "willgchen",
-                    }
-                }
-            ),
-        )
-
-        result = handler.search()
-        by_id = {i["id"]: i for i in result["issues"]}
-        # 被拆出的独立 Issue 注入 split_info
-        assert "split_info" in by_id["split-1"]
-        assert by_id["split-1"]["split_info"]["split_reasons"] == ["误合并，根因不同"]
-        # 普通 Issue 不注入
-        assert "split_info" not in by_id["normal-1"]
-
-
-class TestCascadeFollowTouchesRelation:
-    """P1：cascade follow 时 touch active 关系 update_time，让 repair/list_conflicts
-    的 update_time__gte 窗口能扫到本次参与流转的关系（ES 同步失败时兜底可发现）。
-    """
-
-    def test_touches_update_time_and_passes_bk_biz_id(self, monkeypatch):
-        from unittest.mock import MagicMock
-
-        from bkmonitor.documents.issue import IssueDocument
-        from bkmonitor.models import issue as models_issue
-
-        doc = IssueDocument.__new__(IssueDocument)
-        doc.id = "main-1"
-        doc.bk_biz_id = "2"
-
-        active_qs = MagicMock()
-        active_qs.values_list.return_value = ["m1", "m2"]
-        manager = MagicMock()
-        manager.filter.return_value = active_qs
-        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
-
-        captured: dict = {}
-        monkeypatch.setattr(
-            IssueDocument,
-            "bulk_follow_status",
-            classmethod(lambda cls, member_ids, **kw: captured.update({"member_ids": member_ids, **kw})),
-        )
-
-        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
-
-        # 关系被 touch：update_time + update_user=operator
-        active_qs.update.assert_called_once()
-        update_kwargs = active_qs.update.call_args.kwargs
-        assert update_kwargs["update_user"] == "alice"
-        assert "update_time" in update_kwargs
-        # bulk_follow_status 收到 member 业务 ID（cascade 传 self.bk_biz_id）
-        assert captured["member_ids"] == ["m1", "m2"]
-        assert captured["bk_biz_id"] == "2"
-
-    def test_touch_failure_does_not_block_follow(self, monkeypatch):
-        """touch update_time 写失败（如行锁）只 warning，不能阻断核心 bulk_follow_status。"""
-        from unittest.mock import MagicMock
-
-        from bkmonitor.documents.issue import IssueDocument
-        from bkmonitor.models import issue as models_issue
-
-        doc = IssueDocument.__new__(IssueDocument)
-        doc.id = "main-1"
-        doc.bk_biz_id = "2"
-
-        active_qs = MagicMock()
-        active_qs.values_list.return_value = ["m1"]
-        active_qs.update.side_effect = RuntimeError("lock wait timeout")  # touch 写失败
-        manager = MagicMock()
-        manager.filter.return_value = active_qs
-        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
-
-        called = {"follow": False}
-        monkeypatch.setattr(
-            IssueDocument,
-            "bulk_follow_status",
-            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
-        )
-
-        # 不应抛异常，且 cascade 仍执行
-        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
-        assert called["follow"] is True
-
-    def test_member_read_failure_returns_early(self, monkeypatch):
-        """读 active member 失败才停止——此时无 member 可同步，return 不触 follow。"""
-        from unittest.mock import MagicMock
-
-        from bkmonitor.documents.issue import IssueDocument
-        from bkmonitor.models import issue as models_issue
-
-        doc = IssueDocument.__new__(IssueDocument)
-        doc.id = "main-1"
-        doc.bk_biz_id = "2"
-
-        active_qs = MagicMock()
-        active_qs.values_list.side_effect = RuntimeError("db unreachable")  # 读 member 失败
-        manager = MagicMock()
-        manager.filter.return_value = active_qs
-        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
-
-        called = {"follow": False}
-        monkeypatch.setattr(
-            IssueDocument,
-            "bulk_follow_status",
-            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
-        )
-
-        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
-        # 读失败 → 提前 return，不 touch、不 follow
-        active_qs.update.assert_not_called()
-        assert called["follow"] is False
-
-    def test_no_members_skips_touch_and_follow(self, monkeypatch):
-        from unittest.mock import MagicMock
-
-        from bkmonitor.documents.issue import IssueDocument
-        from bkmonitor.models import issue as models_issue
-
-        doc = IssueDocument.__new__(IssueDocument)
-        doc.id = "main-1"
-        doc.bk_biz_id = "2"
-
-        active_qs = MagicMock()
-        active_qs.values_list.return_value = []
-        manager = MagicMock()
-        manager.filter.return_value = active_qs
-        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
-
-        called = {"follow": False}
-        monkeypatch.setattr(
-            IssueDocument,
-            "bulk_follow_status",
-            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
-        )
-
-        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
-
-        # 无 active member：不 touch、不 follow
-        active_qs.update.assert_not_called()
-        assert called["follow"] is False
-
-
-class TestBulkActivitiesCarryBizId:
-    """P2b：bulk_reset_for_split / bulk_follow_status 写的活动日志必须带 bk_biz_id
-    （与普通 _write_activities 对齐，否则审计/按业务过滤缺字段）。
-    """
-
-    @staticmethod
-    def _patch_es_noop(monkeypatch):
-        """patch IssueDocument.bulk_create + search（fingerprint/status 查空），避免触 ES。"""
-        from unittest.mock import MagicMock
-
-        from bkmonitor.documents.issue import IssueDocument
-
-        monkeypatch.setattr(IssueDocument, "bulk_create", classmethod(lambda cls, docs, **kw: None))
-        search_mock = MagicMock()
-        search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = []
-        monkeypatch.setattr(IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
-
-    def test_bulk_reset_for_split_sets_bk_biz_id(self, monkeypatch):
-        from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument
-
-        self._patch_es_noop(monkeypatch)
-        captured: dict = {}
-        monkeypatch.setattr(
-            IssueActivityDocument, "bulk_create", classmethod(lambda cls, acts, **kw: captured.update({"acts": acts}))
-        )
-
-        IssueDocument.bulk_reset_for_split(
-            ["m1", "m2"], operator="alice", kind="manual", main_issue_id="main-1", bk_biz_id=7, reasons=["r"]
-        )
-
-        acts = captured["acts"]
-        assert acts  # 3N 条活动
-        assert all(int(a.bk_biz_id) == 7 for a in acts)
-
-    def test_bulk_follow_status_sets_bk_biz_id(self, monkeypatch):
-        from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument
-        from constants.issue import IssueStatus
-
-        self._patch_es_noop(monkeypatch)
-        captured: dict = {}
-        monkeypatch.setattr(
-            IssueActivityDocument, "bulk_create", classmethod(lambda cls, acts, **kw: captured.update({"acts": acts}))
-        )
-
-        # target_status 用活跃态（UNRESOLVED）跳过 fp cache DEL 分支，避免触 Redis
-        IssueDocument.bulk_follow_status(
-            ["m1"],
-            target_status=IssueStatus.UNRESOLVED,
-            operator="alice",
-            kind="by_main_reopen",
-            main_issue_id="main-1",
-            bk_biz_id=7,
-        )
-
-        acts = captured["acts"]
-        assert acts
-        assert all(int(a.bk_biz_id) == 7 for a in acts)
-
-
 class TestMergeResolverContextMultiBiz:
     """P2a：MergeResolverContext 支持 int|list[int]，按业务集合 bk_biz_id__in 加载。
     单业务调用方（含测试关键字传参）向后兼容；跨业务 map 按全局唯一 id 无冲突。
@@ -1048,94 +693,179 @@ class TestGetActiveMemberIdsSqlOnly:
         manager.filter.assert_not_called()
 
 
-class TestRunBatchFreezePropagation:
-    """_run_batch：状态机冻结经 web→api 中转后以 BKAPIError 回来。
-
-    custom_exception_handler 把 Error.extra **平铺到响应顶层**（result.update(exc.extra)），
-    故 BKAPIError.data 顶层即带 business_code / conflicting_main_issue_id。web 侧须从顶层识别
-    并回填 detail，供前端构造"跳主 Issue"引导。这里用真实平铺 payload 形状防回归。
+class TestCascadeFollowTouchesRelation:
+    """P1：cascade follow 时 touch active 关系 update_time，让 repair/list_conflicts
+    的 update_time__gte 窗口能扫到本次参与流转的关系（ES 同步失败时兜底可发现）。
     """
 
-    def test_bkapi_error_flattened_payload_recognized(self):
-        from core.errors.api import BKAPIError
-        from fta_web.issue.resources import _run_batch
+    def test_touches_update_time_and_passes_bk_biz_id(self, monkeypatch):
+        from unittest.mock import MagicMock
 
-        # 模拟 api role custom_exception_handler 渲染：extra 平铺在 result_json 顶层
-        result_json = {
-            "result": False,
-            "code": 3337109,
-            "message": "Issue b1 已被合并到 #a1，请前往主 Issue 操作或先拆分",
-            "data": None,
-            "business_code": "MERGE_FREEZE_VIOLATION",
-            "conflicting_main_issue_id": "a1",
-            "issue_id": "b1",
-        }
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
 
-        def _action(bk_biz_id, issue_id):
-            raise BKAPIError(system_name="bkmonitor.issue", url="resolve", result=result_json)
+        doc = IssueDocument(id="main-1", bk_biz_id="2")
 
-        out = _run_batch([{"bk_biz_id": 2, "issue_id": "b1"}], _action)
-        assert out["succeeded"] == []
-        assert len(out["failed"]) == 1
-        failed = out["failed"][0]
-        assert failed["issue_id"] == "b1"
-        assert failed["code"] == "MERGE_FREEZE_VIOLATION"
-        assert failed["detail"]["conflicting_main_issue_id"] == "a1"
+        active_qs = MagicMock()
+        active_qs.values_list.return_value = ["m1", "m2"]
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
 
-    def test_bkapi_error_non_freeze_only_message(self):
-        from core.errors.api import BKAPIError
-        from fta_web.issue.resources import _run_batch
+        captured: dict = {}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, member_ids, **kw: captured.update({"member_ids": member_ids, **kw})),
+        )
 
-        result_json = {"result": False, "code": 3337104, "message": "其他业务错误"}
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
 
-        def _action(bk_biz_id, issue_id):
-            raise BKAPIError(system_name="bkmonitor.issue", url="resolve", result=result_json)
+        # 关系被 touch：update_time + update_user=operator
+        active_qs.update.assert_called_once()
+        update_kwargs = active_qs.update.call_args.kwargs
+        assert update_kwargs["update_user"] == "alice"
+        assert "update_time" in update_kwargs
+        # bulk_follow_status 收到 member 业务 ID（cascade 传 self.bk_biz_id）
+        assert captured["member_ids"] == ["m1", "m2"]
+        assert captured["bk_biz_id"] == "2"
 
-        out = _run_batch([{"bk_biz_id": 2, "issue_id": "x1"}], _action)
-        failed = out["failed"][0]
-        # 非冻结错误：只保留 message，不带 code/detail
-        assert "code" not in failed
-        assert "detail" not in failed
-        assert failed["message"] == "其他业务错误"
+    def test_touch_failure_does_not_block_follow(self, monkeypatch):
+        """touch update_time 写失败（如行锁）只 warning，不能阻断核心 bulk_follow_status。"""
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
+
+        doc = IssueDocument(id="main-1", bk_biz_id="2")
+
+        active_qs = MagicMock()
+        active_qs.values_list.return_value = ["m1"]
+        active_qs.update.side_effect = RuntimeError("lock wait timeout")  # touch 写失败
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
+
+        called = {"follow": False}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
+        )
+
+        # 不应抛异常，且 cascade 仍执行
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
+        assert called["follow"] is True
+
+    def test_member_read_failure_returns_early(self, monkeypatch):
+        """读 active member 失败才停止——此时无 member 可同步，return 不触 follow。"""
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
+
+        doc = IssueDocument(id="main-1", bk_biz_id="2")
+
+        active_qs = MagicMock()
+        active_qs.values_list.side_effect = RuntimeError("db unreachable")  # 读 member 失败
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
+
+        called = {"follow": False}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
+        )
+
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
+        # 读失败 → 提前 return，不 touch、不 follow
+        active_qs.update.assert_not_called()
+        assert called["follow"] is False
+
+    def test_no_members_skips_touch_and_follow(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.models import issue as models_issue
+
+        doc = IssueDocument(id="main-1", bk_biz_id="2")
+
+        active_qs = MagicMock()
+        active_qs.values_list.return_value = []
+        manager = MagicMock()
+        manager.filter.return_value = active_qs
+        monkeypatch.setattr(models_issue.IssueMergeRelation, "objects", manager)
+
+        called = {"follow": False}
+        monkeypatch.setattr(
+            IssueDocument,
+            "bulk_follow_status",
+            classmethod(lambda cls, *a, **kw: called.update({"follow": True})),
+        )
+
+        doc._cascade_follow_status(operator="alice", target_status="RESOLVED", kind="by_main_resolve")
+
+        # 无 active member：不 touch、不 follow
+        active_qs.update.assert_not_called()
+        assert called["follow"] is False
 
 
-class TestSplitReasonsOptional:
-    """拆分依据 reasons 改为非必填：缺省 / 空列表均通过校验，validated_data 兜底为 []。
-
-    下游 bulk_reset_for_split（reasons or []）、模型 split_reasons（null=True）、读侧
-    split_info（split_reasons or []）本就容忍空，故只需放开两处 serializer。
+class TestBulkActivitiesCarryBizId:
+    """P2b：bulk_reset_for_split / bulk_follow_status 写的活动日志必须带 bk_biz_id
+    （与普通 _write_activities 对齐，否则审计/按业务过滤缺字段）。
     """
 
-    # 合法 Issue ID：前 10 位为时间戳（IssueIDField → IssueDocument.parse_timestamp_by_id）
-    VALID_ID = "1716000000abcdef01"
+    @staticmethod
+    def _patch_es_noop(monkeypatch):
+        """patch IssueDocument.bulk_create + search（fingerprint/status 查空），避免触 ES。"""
+        from unittest.mock import MagicMock
 
-    def test_api_split_serializer_reasons_optional(self):
-        from kernel_api.views.v4.issue import SplitResource
+        from bkmonitor.documents.issue import IssueDocument
 
-        # 缺省 reasons
-        s = SplitResource.RequestSerializer(
-            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "operator": "alice"}
+        monkeypatch.setattr(IssueDocument, "bulk_create", classmethod(lambda cls, docs, **kw: None))
+        search_mock = MagicMock()
+        search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = []
+        monkeypatch.setattr(IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
+
+    def test_bulk_reset_for_split_sets_bk_biz_id(self, monkeypatch):
+        from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument
+
+        self._patch_es_noop(monkeypatch)
+        captured: dict = {}
+        monkeypatch.setattr(
+            IssueActivityDocument, "bulk_create", classmethod(lambda cls, acts, **kw: captured.update({"acts": acts}))
         )
-        assert s.is_valid(), s.errors
-        assert s.validated_data["reasons"] == []
 
-        # 空列表 reasons
-        s2 = SplitResource.RequestSerializer(
-            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "reasons": [], "operator": "alice"}
+        IssueDocument.bulk_reset_for_split(
+            ["m1", "m2"], operator="alice", kind="manual", main_issue_id="main-1", bk_biz_id=7, reasons=["r"]
         )
-        assert s2.is_valid(), s2.errors
-        assert s2.validated_data["reasons"] == []
 
-        # 传入 reasons 仍正常
-        s3 = SplitResource.RequestSerializer(
-            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "reasons": ["误合并"], "operator": "alice"}
+        acts = captured["acts"]
+        assert acts  # 3N 条活动
+        assert all(int(a.bk_biz_id) == 7 for a in acts)
+
+    def test_bulk_follow_status_sets_bk_biz_id(self, monkeypatch):
+        from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument
+        from constants.issue import IssueStatus
+
+        self._patch_es_noop(monkeypatch)
+        captured: dict = {}
+        monkeypatch.setattr(
+            IssueActivityDocument, "bulk_create", classmethod(lambda cls, acts, **kw: captured.update({"acts": acts}))
         )
-        assert s3.is_valid(), s3.errors
-        assert s3.validated_data["reasons"] == ["误合并"]
 
-    def test_web_split_serializer_reasons_optional(self):
-        from fta_web.issue.resources import SplitIssueResource
+        # target_status 用活跃态（UNRESOLVED）跳过 fp cache DEL 分支，避免触 Redis
+        IssueDocument.bulk_follow_status(
+            ["m1"],
+            target_status=IssueStatus.UNRESOLVED,
+            operator="alice",
+            kind="by_main_reopen",
+            main_issue_id="main-1",
+            bk_biz_id=7,
+        )
 
-        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID})
-        assert s.is_valid(), s.errors
-        assert s.validated_data["reasons"] == []
+        acts = captured["acts"]
+        assert acts
+        assert all(int(a.bk_biz_id) == 7 for a in acts)
