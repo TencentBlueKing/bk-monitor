@@ -148,7 +148,7 @@ class GetConfigResource(IncidentBaseResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        config_type = serializers.CharField(label="配置类型",default='data_source',required=True)
+        config_type = serializers.CharField(label="配置类型",default='data_source')
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
