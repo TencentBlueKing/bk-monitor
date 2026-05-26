@@ -1,6 +1,7 @@
 import { defineComponent } from 'vue';
 
 import type { LogItem, UserReportStats } from '../types';
+import { formatTimeZoneString } from '@/global/utils/time';
 
 import './index.scss';
 
@@ -11,23 +12,24 @@ interface DetailItemConfig {
   /** 从 LogItem 中取值的字段名，与 render 互斥 */
   field?: keyof LogItem;
   /** 自定义渲染右侧内容，优先级高于 field */
-  render?: (userInfo: LogItem | null, reportStats: UserReportStats | null, taskList: LogItem[]) => JSX.Element;
+  // eslint-disable-next-line no-unused-vars
+  render?: (userInfo: LogItem | null, reportStats: UserReportStats | null, taskList: LogItem[], timezone: string) => JSX.Element;
 }
 
 /** 详细信息项配置 */
 const detailConfig: DetailItemConfig[] = [
   { icon: 'bklog-client-log', label: '设备型号', field: 'model' },
   { icon: 'bklog-version', label: '当前版本', field: 'sdk_version' },
-  { icon: 'bklog-shijian', label: '最近活跃', render: (_userInfo, _reportStats, taskList) => {
-      const time = taskList.find(item => {
-        const t = item.source === 'task' ? item.processed_at : item.report_time;
-        return !!t;
-      });
-      const activeTime = time
-        ? (time.source === 'task' ? time.processed_at! : time.report_time!)
-        : '';
-      return <span class='value'>{activeTime ?? '--'}</span>;
-    } },
+  { icon: 'bklog-shijian', label: '最近活跃', render: (_userInfo, _reportStats, taskList, timezone) => {
+    const time = taskList.find((item) => {
+      const t = item.source === 'task' ? item.processed_at : item.report_time;
+      return !!t;
+    });
+    const activeTime = time
+      ? formatTimeZoneString(time.source === 'task' ? time.processed_at! : time.report_time!, timezone)
+      : '';
+    return <span class='value'>{activeTime || '--'}</span>;
+  } },
   { icon: 'bklog-os', label: '操作系统', field: 'os_version' },
   {
     icon: 'bklog-business',
@@ -40,7 +42,7 @@ const detailConfig: DetailItemConfig[] = [
               <span>（{window.$t('检索时间范围下')}
                 <span class='count' style={{ margin: '0 2px' }}>{reportStats.range_count}</span>{window.$t('次')}）
               </span>,
-            ]
+          ]
           : <span class='count'>--</span>
         }
       </span>
@@ -66,15 +68,25 @@ export default defineComponent({
       type: Array as () => LogItem[],
       default: () => [],
     },
+    /** 时区，用于时间格式化 */
+    timezone: {
+      type: String,
+      default: '',
+    },
   },
   setup(props) {
     /** 渲染单个详情项 */
-    const renderDetailItem = (item: DetailItemConfig, userInfo: LogItem | null, reportStats: UserReportStats | null, taskList: LogItem[]) => (
+    const renderDetailItem = (
+      item: DetailItemConfig,
+      userInfo: LogItem | null,
+      reportStats: UserReportStats | null,
+      taskList: LogItem[],
+    ) => (
       <div class='detail-item'>
         <i class={`bklog-icon ${item.icon}`}></i>
         <span class='label'>{window.$t(item.label)}：</span>
         {item.render
-          ? item.render(userInfo, reportStats, taskList)
+          ? item.render(userInfo, reportStats, taskList, props.timezone)
           : <span class='value'>{(userInfo?.[item.field!] ?? '') || '--'}</span>}
       </div>
     );
