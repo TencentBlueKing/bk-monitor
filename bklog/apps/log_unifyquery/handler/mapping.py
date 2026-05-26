@@ -230,7 +230,12 @@ class UnifyQueryMappingHandler:
             for field in fields_list:
                 field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field)
                 field["field_operator"] = OPERATORS.get(field["field_type"], [])
-                field["es_doc_values"] = field["field_type"] not in ["text", "object"]
+                field["es_doc_values"] = field["field_type"] not in ["text", "object"] and field["field_name"] not in [
+                    "dtEventTime",
+                    "localTime",
+                    "thedate",
+                    "__shard_key__",
+                ]
 
         for field in fields_list:
             # @TODO tag：兼容前端代码，后面需要删除

@@ -21,14 +21,16 @@ the project delivered to anyone in the future.
 
 from django.utils.translation import gettext as _
 
-from apps.log_databus.constants import EtlConfig
+from apps.log_databus.constants import EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
 from apps.tgpa.constants import CLIENT_LOG_UNIQUE_FIELD_LIST
 
 
 class ClientCollectorScenario(CollectorScenario):
     @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, **kwargs):
+    def get_built_in_config(
+        cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, storage_cluster_type=STORAGE_CLUSTER_TYPE, **kwargs
+    ):
         """
         获取采集器标准字段
         """
