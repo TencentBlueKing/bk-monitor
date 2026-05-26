@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import functools
 import logging
 from itertools import chain
@@ -29,6 +30,22 @@ from monitor_web.scene_view.resources import HostIndexQueryMixin
 from utils import count_md5
 
 logger = logging.getLogger("apm")
+
+# 关联日志 addition 中的占位符，在查询时被替换为请求传入的实际值。
+_SERVICE_NAME_PLACEHOLDER = "${service_name}"
+
+
+def _render_relation_addition(addition: list[dict[str, Any]], service_name: str | None) -> list[dict[str, Any]]:
+    """渲染关联日志 addition 中的占位符"""
+    rendered: list[dict[str, Any]] = []
+    for item in addition:
+        values: list[str] = item["value"]
+        if any(_SERVICE_NAME_PLACEHOLDER in v for v in values):
+            if not service_name:
+                continue
+            values = [v.replace(_SERVICE_NAME_PLACEHOLDER, service_name) for v in values]
+        rendered.append({**item, "value": values})
+    return rendered
 
 
 def _log_relation_task_safe(
@@ -103,10 +120,16 @@ def process_relation(
             matched = [i for i in relation_full_indexes if str(i["index_set_id"]) in relation_index_ids]
         else:
             matched = _find_index_infos_from_cache(bk_biz_id, relation.value_list, indexes_mapping)
+        # 解析配置在关联关系上的 addition（如服务名过滤），${service_name} 等占位符会被替换为实际值。
+        relation_addition: list[dict[str, Any]] = _render_relation_addition(relation.addition, service_name)
         for index_info in matched:
             index_info = {**index_info}
+            # 命中 span_id / trace_id 等精确过滤场景，保持原重写 addition 逻辑，不再追加额外过滤。
             if overwrite_method:
                 index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
+            # 命中关联日志需追加额外过滤信息场景。
+            elif relation_addition:
+                index_info["addition"] = copy.deepcopy(relation_addition)
             result.append(index_info)
     return result
 
