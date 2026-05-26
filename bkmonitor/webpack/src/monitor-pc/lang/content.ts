@@ -472,4 +472,7 @@ export default {
   '是否确认删除？': 'Are you sure you want to delete?',
   '「被调」类型无需填写「被调服务」':
     'For the "Callee" type, the "Callee Service" field does not need to be filled in.',
+  '当前已有配置正在编辑，请先保存或取消': 'A configuration is currently being edited; please save or cancel first.',
+  保存并应用为全局: 'Save and Apply Globally',
+  批量编辑: 'Batch Edit',
 };

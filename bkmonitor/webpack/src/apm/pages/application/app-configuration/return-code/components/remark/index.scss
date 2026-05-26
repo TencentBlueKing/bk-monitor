@@ -1,12 +1,11 @@
 .code-redefine-content {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
+  overflow: hidden;
 
   .submit-table {
     flex: 1;
-    margin-top: 24px;
     overflow-y: auto;
 
     .skeleton-wrap {
@@ -28,10 +27,20 @@
     }
 
     .interface-column {
+      position: relative;
       display: flex;
       align-items: center;
       width: 100%;
       overflow: visible;
+
+      .import-sign-bar {
+        position: absolute;
+        top: -12px;
+        left: -10px;
+        width: 2px;
+        height: 54px;
+        background: #3a84ff;
+      }
 
       .scoped-select {
         width: 100%;
@@ -126,11 +135,8 @@
     }
 
     .operate-btns {
-      .btn {
-        & + .btn {
-          margin-left: 16px;
-        }
-      }
+      display: flex;
+      gap: 6px;
     }
 
     .global-config-main {

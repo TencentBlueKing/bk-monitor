@@ -37,6 +37,58 @@
     }
   }
 
+  .top-btns {
+    display: flex;
+    gap: 12px;
+
+    .batch-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    .icon-mc-wholesale-editor {
+      margin-right: 6px;
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .save-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .icon-save {
+        margin-right: 6px;
+        font-size: 12px;
+      }
+    }
+
+    .icon-close {
+      font-size: 22px;
+      color: #c4c6cc;
+    }
+  }
+
+  .explore-btns {
+    margin-bottom: 4px;
+    line-height: 20px;
+    text-align: right;
+
+    .hidden-file-input {
+      display: none;
+    }
+
+    .btn {
+      & + .btn {
+        margin-left: 12px;
+      }
+    }
+
+    .bk-button-text {
+      font-size: 12px;
+    }
+  }
+
   .tab-content {
     flex: 1;
     overflow: hidden;

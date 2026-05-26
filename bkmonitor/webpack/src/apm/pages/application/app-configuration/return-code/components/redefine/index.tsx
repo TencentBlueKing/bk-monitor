@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -32,7 +32,6 @@ import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import { listCodeRedefinedRule, serviceList, setCodeRedefinedRule } from 'monitor-api/modules/apm_service';
 import { downloadFile, random } from 'monitor-common/utils';
 import TagBlock from 'monitor-pc/components/tag-block';
-import { uploadJsonFile } from 'monitor-pc/pages/view-detail/utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { CallOptions, CodeRedefineItem } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
@@ -57,6 +56,8 @@ interface ColumnItem {
 interface Props {
   /** 应用名（接口请求主键） */
   appName: string;
+  /**是否批量编辑模式 */
+  isBatchEdit: boolean;
   callOptions?: Partial<CallOptions>;
   variablesData?: Record<string, any>;
 }
@@ -64,12 +65,12 @@ interface Props {
 @Component
 export default class RedefineTabContent extends tsc<Props> {
   @Prop({ default: '' }) appName: string;
+  @Prop({ default: false }) isBatchEdit: boolean;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
   @InjectReactive({ from: 'variablesData', default: () => ({}) }) readonly variablesData!: Record<string, any>;
 
-  @Ref('fileRef') fileRef!: HTMLInputElement;
   @Ref('tableRef') tableRef!: any;
 
   /** 全量数据（作为编辑回滚快照） */
@@ -120,10 +121,15 @@ export default class RedefineTabContent extends tsc<Props> {
     callee_method: [],
   };
 
-  rowEditMap: Record<string, boolean> = {};
   savingMap: Record<string, boolean> = {};
   ableSaveMap: Record<string, boolean> = {};
   filterValues: string[] = [];
+  currentEditRowId: string = '';
+
+  @Watch('currentEditRowId', { immediate: true })
+  watchCurrentEditRowIdChange(id: string) {
+    this.$emit('currentEditRowIdChange', id);
+  }
 
   /** 三者都为空时才校验「不能为空」；任一有值则不做该项提示，仅对已填内容做格式校验 */
   getCodeTypeRules(codeTypeRules: CodeRedefineItem['code_type_rules']) {
@@ -176,6 +182,11 @@ export default class RedefineTabContent extends tsc<Props> {
   addRow() {
     // 新增后插入到顶部，并进入编辑态
     const newRow = this.generateNewRow();
+    if (this.isBatchEdit) {
+      this.showData.unshift(newRow);
+      return;
+    }
+
     this.$set(this.ableSaveMap, newRow.id, false);
     this.$set(this.savingMap, newRow.id, false);
     this.showData.unshift(newRow);
@@ -202,7 +213,7 @@ export default class RedefineTabContent extends tsc<Props> {
           data[index].service_names = ['0'];
         }
         // 默认非编辑态
-        this.$set(this.rowEditMap, id, false);
+        this.currentEditRowId = '';
         this.$set(this.ableSaveMap, id, false);
         this.$set(this.savingMap, id, false);
       }
@@ -282,15 +293,16 @@ export default class RedefineTabContent extends tsc<Props> {
   }
 
   /** 校验填写的规则 */
-  async validRules(rowId: string) {
+  async validRules(rowId?: string) {
     // 规则唯一键：类型+被调服务+被调service+被调接口+是否全局+作用范围
     // 两个同时处于编辑状态的记录，唯一性校验要根据那些已保存的数据来计算
-    const dataMap: Record<string, CodeRedefineItem> = this.data.reduce((acc, item) => {
+    const data = this.isBatchEdit ? this.showData : this.data;
+    const dataMap: Record<string, CodeRedefineItem> = data.reduce((acc, item) => {
       acc[item.id] = item;
       return acc;
     }, {});
     const values = this.showData.map(item => {
-      let targetItem = item.id === rowId ? item : dataMap[item.id];
+      const targetItem = rowId ? (item.id === rowId ? item : dataMap[item.id]) : item;
       const serviceNames = cloneDeep(targetItem.service_names).sort().join(',');
       return `${targetItem.kind}_${targetItem.callee_server}_${targetItem.callee_service}_${targetItem.callee_method}_${targetItem.is_global}_${serviceNames}`;
     });
@@ -364,12 +376,12 @@ export default class RedefineTabContent extends tsc<Props> {
 
   handleEditRow(id: string) {
     // 切换为编辑态
-    this.$set(this.rowEditMap, id, true);
+    this.currentEditRowId = id;
   }
 
   handleCancelEditRow(id: string) {
     // 退出编辑态
-    this.$set(this.rowEditMap, id, false);
+    this.currentEditRowId = '';
     const dataIndex = this.data.findIndex(item => item.id === id);
     const showIndex = this.showData.findIndex(item => item.id === id);
     const dataRow = this.data[dataIndex];
@@ -395,6 +407,12 @@ export default class RedefineTabContent extends tsc<Props> {
   }
 
   handleDeleteRow(id: string) {
+    const showIndex = this.showData.findIndex(item => item.id === id);
+    // 批量编辑模式下，直接删
+    if (this.isBatchEdit) {
+      this.showData.splice(showIndex, 1);
+      return;
+    }
     this.$bkInfo({
       title: this.$t('是否确认删除？'),
       theme: 'danger',
@@ -405,7 +423,7 @@ export default class RedefineTabContent extends tsc<Props> {
       confirmFn: async () => {
         // 删除通过“提交剩余全量规则”完成
         const dataList = this.data.filter(item => item.id !== id && !item.isNew);
-        const showIndex = this.showData.findIndex(item => item.id === id);
+
         const dataIndex = this.data.findIndex(item => item.id === id);
         const params = {
           app_name: this.appName,
@@ -442,7 +460,7 @@ export default class RedefineTabContent extends tsc<Props> {
     const dataRow = this.data[dataIndex];
     // 非新建且内容未变化时，无需调用接口
     if (JSON.stringify(showRow) === JSON.stringify(dataRow) && !showRow.isNew) {
-      this.$set(this.rowEditMap, showRow.id, false);
+      this.currentEditRowId = '';
       return;
     }
 
@@ -480,7 +498,7 @@ export default class RedefineTabContent extends tsc<Props> {
       await setCodeRedefinedRule(params);
       // 保存成功：更新编辑态与快照
       this.$set(showRow, 'isNew', false);
-      this.$set(this.rowEditMap, showRow.id, false);
+      this.currentEditRowId = '';
       this.$set(this.data, dataIndex, cloneDeep(showRow));
       this.$bkMessage({
         message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
@@ -511,17 +529,7 @@ export default class RedefineTabContent extends tsc<Props> {
     }
   }
 
-  async fileChange(e) {
-    // 读取导入的 json 文件
-    const files = e.target.files;
-    const data = await uploadJsonFile<CodeRedefineItem[]>(files[0]).catch(() => false);
-    if (!data || !Array.isArray(data)) {
-      this.$bkMessage({
-        theme: 'error',
-        message: this.$t('文件格式不正确'),
-      });
-      return;
-    }
+  handleImport(data: CodeRedefineItem[]) {
     /**
      * 以 类型 + 被调服务 + 被调service + 被调接口 为组合key：
      * 1. 存量的覆盖更新
@@ -530,6 +538,10 @@ export default class RedefineTabContent extends tsc<Props> {
     const importKeySet = new Set<string>(
       data.map(item => `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}`)
     );
+    const targetData = data.map(item => ({
+      ...item,
+      id: random(8),
+    }));
     // 记录已被导入数据替换的旧行 id，用于后续生成新增列表
     const replaceIds = new Set<string>();
     for (let index = 0; index < this.showData.length; index++) {
@@ -537,28 +549,29 @@ export default class RedefineTabContent extends tsc<Props> {
       const rowKey = `${item.kind}_${item.callee_server}_${item.callee_service}_${item.callee_method}`;
       if (importKeySet.has(rowKey)) {
         // 命中相同组合键时，用导入值覆盖当前行
-        this.showData[index] = data.find(
+        const replaceItem = targetData.find(
           childItem =>
             `${childItem.kind}_${childItem.callee_server}_${childItem.callee_service}_${childItem.callee_method}` ===
             rowKey
         );
+        replaceItem.service_names = replaceItem.is_global ? ['0'] : replaceItem.service_names;
+        this.showData[index] = replaceItem;
         replaceIds.add(this.showData[index].id);
       }
     }
     // 剩余未替换项视为纯新增，插到表格前部
-    const newList = data.filter(item => !replaceIds.has(item.id));
+    const newList = targetData.reduce((results, item) => {
+      if (!replaceIds.has(item.id)) {
+        results.push({
+          ...item,
+          isImport: true,
+          service_names: item.is_global ? ['0'] : item.service_names,
+        });
+      }
+      return results;
+    }, []);
     const tatalList = [...newList, ...this.showData];
-    for (let index = 0; index < tatalList.length; index++) {
-      const item = tatalList[index];
-      // 导入后统一置为编辑态，便于用户复核并保存
-      this.$set(this.rowEditMap, item.id, true);
-    }
     this.showData = tatalList;
-  }
-
-  handleImport() {
-    // 触发隐藏文件选择框
-    this.fileRef?.click();
   }
 
   handleExport() {
@@ -576,21 +589,73 @@ export default class RedefineTabContent extends tsc<Props> {
   }
 
   getValueCallback(kind: string, prop: string): TGetValueFn {
-    return (_params: IGetValueFnParams): Promise<IOptionsInfo> => {
+    return (params: IGetValueFnParams): Promise<IOptionsInfo> => {
       const enumOptions = kind === 'caller' ? this.callerEnumOptionsMap[prop] : this.calleeEnumOptionsMap[prop];
+      const search = params.search?.toLocaleLowerCase() ?? '';
       return Promise.resolve({
         count: 0 as const,
-        list: enumOptions.map(item => ({
-          id: item.value,
-          name: item.text,
-        })),
+        list: enumOptions.reduce((results, item) => {
+          if (
+            !search ||
+            String(item.value).toLocaleLowerCase().includes(search) ||
+            String(item.text).toLocaleLowerCase().includes(search)
+          ) {
+            results.push({
+              id: item.value,
+              name: item.text,
+            });
+          }
+          return results;
+        }, []),
       });
     };
   }
 
-  handleValueTagSelectorChange(list: { id: string; name: string }[], prop: string, id: string) {
-    const value = list.length ? list[0].id : '';
+  handleValueTagSelectorChange(value: string, prop: string, id: string) {
     this.handleValueChange(value, prop, id);
+  }
+
+  handleCancelBatchEdit() {
+    this.showData = cloneDeep(this.data);
+  }
+
+  async handleBatchSave() {
+    const validResult = await this.validRules();
+    if (!validResult) {
+      return;
+    }
+    const params = {
+      app_name: this.appName,
+      rules: this.showData.reduce((results, item) => {
+        results.push({
+          kind: item.kind,
+          callee_server: item.callee_server,
+          callee_service: item.callee_service,
+          callee_method: item.callee_method,
+          code_type_rules: item.code_type_rules,
+          service_names: item.is_global ? [] : item.service_names,
+          is_global: item.is_global,
+        });
+        return results;
+      }, []),
+    };
+    try {
+      await setCodeRedefinedRule(params);
+      this.$bkMessage({
+        message: this.$t('配置保存成功，需要 5 分钟左右生效。'),
+        theme: 'success',
+      });
+    } finally {
+      // 无论成功失败都关闭 loading
+      this.$emit('batchSaveSuccess');
+    }
+  }
+
+  created() {
+    // 页面初始化：并行加载规则数据、枚举候选、作用范围选项
+    this.getCodeRedefineList();
+    this.getEnumOptions();
+    this.getServiceList();
   }
 
   renderColumn(item: ColumnItem) {
@@ -604,7 +669,7 @@ export default class RedefineTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态展示文本
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div>
                       {row[item.prop] === '' ? '--' : row[item.prop] === 'caller' ? this.$tc('主调') : this.$tc('被调')}
@@ -613,6 +678,7 @@ export default class RedefineTabContent extends tsc<Props> {
                 }
                 return (
                   <div class='interface-column'>
+                    {row.isImport && <div class='import-sign-bar' />}
                     {/* 编辑态：类型可选且可自定义创建 */}
                     <bk-select
                       clearable={false}
@@ -647,7 +713,7 @@ export default class RedefineTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态：纯文本
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div
                       class='interface-column-readonly'
@@ -731,7 +797,7 @@ export default class RedefineTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态：按状态分组展示返回码，空值不展示
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   const isEmpty = this.codeStatus.every(item => !row.code_type_rules[item.value]);
                   if (isEmpty) {
                     return <span>--</span>;
@@ -811,7 +877,7 @@ export default class RedefineTabContent extends tsc<Props> {
             scopedSlots={{
               default: ({ row }) => {
                 // 非编辑态：作用范围列表
-                if (!this.rowEditMap[row.id]) {
+                if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
                       <div
@@ -861,50 +927,9 @@ export default class RedefineTabContent extends tsc<Props> {
     }
   }
 
-  created() {
-    // 页面初始化：并行加载规则数据、枚举候选、作用范围选项
-    this.getCodeRedefineList();
-    this.getEnumOptions();
-    this.getServiceList();
-  }
-
   render() {
     return (
       <div class='return-code-redefine-content'>
-        <div class='top-btns'>
-          <bk-button
-            icon='plus'
-            theme='primary'
-            on-click={this.addRow}
-          >
-            {this.$t('新增')}
-          </bk-button>
-        </div>
-        <div class='explore-btns'>
-          <input
-            ref='fileRef'
-            class='hidden-file-input'
-            accept='application/json'
-            type='file'
-            onChange={this.fileChange}
-          />
-          <bk-button
-            class='btn'
-            theme='primary'
-            text
-            onClick={this.handleImport}
-          >
-            {this.$t('导入')}
-          </bk-button>
-          <bk-button
-            class='btn'
-            theme='primary'
-            text
-            onClick={this.handleExport}
-          >
-            {this.$t('导出')}
-          </bk-button>
-        </div>
         <div class='submit-table'>
           {this.tableLoading ? (
             <div class='skeleton-wrap'>
@@ -920,6 +945,7 @@ export default class RedefineTabContent extends tsc<Props> {
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
               row-class-name='return-code-redefine-row'
               border
+              row-key='id'
               row-auto-height
               on-filter-change={this.handleFilterChange}
             >
@@ -929,7 +955,7 @@ export default class RedefineTabContent extends tsc<Props> {
                 fixed='right'
                 scopedSlots={{
                   default: ({ row }) => {
-                    if (this.rowEditMap[row.id]) {
+                    if (this.currentEditRowId === row.id && !this.isBatchEdit) {
                       return (
                         <div class='operate-btns'>
                           <bk-button
@@ -955,22 +981,40 @@ export default class RedefineTabContent extends tsc<Props> {
                     }
                     return (
                       <div class='operate-btns'>
-                        <bk-button
-                          class='btn'
-                          theme='primary'
-                          text
-                          onClick={() => this.handleEditRow(row.id)}
+                        {!this.isBatchEdit && (
+                          <div
+                            v-bk-tooltips={{
+                              content: this.$t('当前已有配置正在编辑，请先保存或取消'),
+                              disabled: this.currentEditRowId === '' || this.currentEditRowId === row.id,
+                            }}
+                          >
+                            <bk-button
+                              class='btn'
+                              theme='primary'
+                              disabled={this.currentEditRowId !== '' && this.currentEditRowId !== row.id}
+                              text
+                              onClick={() => this.handleEditRow(row.id)}
+                            >
+                              {this.$t('编辑')}
+                            </bk-button>
+                          </div>
+                        )}
+                        <div
+                          v-bk-tooltips={{
+                            content: this.$t('当前已有配置正在编辑，请先保存或取消'),
+                            disabled: this.currentEditRowId === '' || this.currentEditRowId === row.id,
+                          }}
                         >
-                          {this.$t('编辑')}
-                        </bk-button>
-                        <bk-button
-                          class='btn'
-                          theme='danger'
-                          text
-                          onClick={() => this.handleDeleteRow(row.id)}
-                        >
-                          {this.$t('删除')}
-                        </bk-button>
+                          <bk-button
+                            class='btn'
+                            theme='danger'
+                            disabled={this.currentEditRowId !== '' && this.currentEditRowId !== row.id}
+                            text
+                            onClick={() => this.handleDeleteRow(row.id)}
+                          >
+                            {this.$t('删除')}
+                          </bk-button>
+                        </div>
                       </div>
                     );
                   },

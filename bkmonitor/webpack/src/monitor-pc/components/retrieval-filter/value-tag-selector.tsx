@@ -50,7 +50,7 @@ interface IProps {
   /* 获取数据 */
   getValueFn?: TGetValueFn;
   value?: IValue[];
-  onChange?: (v: IValue[]) => void;
+  onChange?: (v: IValue[] | string) => void;
   /* 下拉选项显隐 */
   onDropDownChange?: (v: boolean) => void;
   onSelectorBlur?: () => void;
@@ -104,14 +104,14 @@ export default class ValueTagSelector extends tsc<IProps> {
     return this.isTypeInteger ? this.localValue.some(v => !isNumeric(v)) : false;
   }
 
-  get isSingleDisabled() {
-    return this.localValue.length === 1 && !this.multiple;
-  }
-
   mounted() {
     this.activeIndex = this.localValue.length - 1;
     if (this.autoFocus) {
       this.focusFn();
+    }
+
+    if (!this.multiple && this.value.length) {
+      this.inputValue = this.value[0].id;
     }
   }
 
@@ -146,14 +146,13 @@ export default class ValueTagSelector extends tsc<IProps> {
       return;
     }
 
-    this.activeIndex = -1;
-    if (this.localValue.some(v => v.id === item.id)) return;
-    if (this.isSingleDisabled) {
-      this.localValue = [item];
+    if (!this.multiple) {
+      this.inputValue = item.id;
     } else {
+      this.activeIndex = -1;
+      if (this.localValue.some(v => v.id === item.id)) return;
       this.localValue.push(item);
     }
-
     this.handleChange();
   }
 
@@ -192,6 +191,11 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 输入框失去焦点事件
    */
   handleBlur() {
+    if (!this.multiple) {
+      this.handleChange();
+      return;
+    }
+
     setTimeout(() => {
       this.inputValue = '';
     }, 300);
@@ -203,21 +207,23 @@ export default class ValueTagSelector extends tsc<IProps> {
     if (this.disabled || !this.inputValue || this.isChecked) {
       return;
     }
-    if (this.localValue.some(v => v.id === this.inputValue)) {
+
+    if (this.multiple && this.localValue.some(v => v.id === this.inputValue)) {
       this.inputValue = '';
       return;
     }
 
-    const newItem = { id: this.inputValue, name: this.inputValue };
-    if (this.isSingleDisabled) {
-      this.localValue = [newItem];
-    } else {
+    if (this.multiple) {
+      const newItem = { id: this.inputValue, name: this.inputValue };
       this.localValue.push(newItem);
+      this.activeIndex += 1;
+      this.inputValue = '';
+      this.isFocus = true;
+    } else {
+      this.isShowDropDown = false;
+      this.isFocus = false;
     }
-    this.activeIndex += 1;
-    this.inputValue = '';
     this.handleChange();
-    this.isFocus = true;
   }
 
   /**
@@ -274,7 +280,7 @@ export default class ValueTagSelector extends tsc<IProps> {
   }
 
   handleChange() {
-    this.$emit('change', this.localValue);
+    this.$emit('change', this.multiple ? this.localValue : this.inputValue);
   }
   handleTagUpdate(v: string, index: number) {
     if (v) {
@@ -340,24 +346,32 @@ export default class ValueTagSelector extends tsc<IProps> {
         onInput={this.handleInput}
       />
     );
+
+    const renderContent = () => {
+      if (!this.multiple) {
+        return inputRender('input');
+      }
+
+      return this.localValue.length
+        ? this.localValue.map((item, index) => [
+            <ValueTagInput
+              key={item.id}
+              class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
+              value={item.id}
+              onChange={v => this.handleTagUpdate(v, index)}
+              onDelete={() => this.handleDelete(index)}
+            />,
+            this.activeIndex === index && inputRender(`${item.id}_input`),
+          ])
+        : inputRender('input');
+    };
     return (
       <div class='retrieval__value-tag-selector-component'>
         <div
           class={['value-tag-selector-component-wrap', { active: this.isFocus, disabled: this.disabled }]}
           onClick={this.handleClick}
         >
-          {this.localValue.length
-            ? this.localValue.map((item, index) => [
-                <ValueTagInput
-                  key={item.id}
-                  class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
-                  value={item.id}
-                  onChange={v => this.handleTagUpdate(v, index)}
-                  onDelete={() => this.handleDelete(index)}
-                />,
-                this.activeIndex === index && inputRender(`${item.id}_input`),
-              ])
-            : inputRender('input')}
+          {renderContent()}
         </div>
         {this.isShowDropDown && (
           <ValueOptions
