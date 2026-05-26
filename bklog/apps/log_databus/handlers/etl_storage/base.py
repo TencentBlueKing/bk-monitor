@@ -557,13 +557,12 @@ class EtlStorage:
                 user_time_rules["operator"]["is_time_field"] = None
                 user_time_rules["operator"]["time_format"] = None
                 user_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
-            elif storage_cluster_type == DORIS_CLUSTER_TYPE:
-                user_time_rules["operator"]["output_type"] = "string"
-                user_time_rules["operator"]["is_time_field"] = True
-                user_time_rules["operator"]["time_format"] = v4_time_parsing
-                user_time_rules["operator"]["in_place_time_parsing"] = None
-
-            rules.append(user_time_rules)
+                rules.append(user_time_rules)
+            # elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+            #     user_time_rules["operator"]["output_type"] = "string"
+            #     user_time_rules["operator"]["is_time_field"] = True
+            #     user_time_rules["operator"]["time_format"] = v4_time_parsing
+            #     user_time_rules["operator"]["in_place_time_parsing"] = None
 
             # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
             second_time_rules = {
@@ -576,17 +575,18 @@ class EtlStorage:
                     "desc": "data timestamp in epoch second",
                     "input_type": None,
                     "fixed_value": None,
-                    "is_time_field": None,
                     "default_value": None,
                 },
             }
 
             if storage_cluster_type == STORAGE_CLUSTER_TYPE:
                 second_time_rules["operator"]["output_type"] = "long"
+                second_time_rules["operator"]["is_time_field"] = None
                 second_time_rules["operator"]["time_format"] = None
                 second_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
             elif storage_cluster_type == DORIS_CLUSTER_TYPE:
                 second_time_rules["operator"]["output_type"] = "string"
+                second_time_rules["operator"]["is_time_field"] = True
                 second_time_rules["operator"]["time_format"] = v4_time_parsing
                 second_time_rules["operator"]["in_place_time_parsing"] = None
 
