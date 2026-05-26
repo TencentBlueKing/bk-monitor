@@ -16,7 +16,50 @@ from django.dispatch import receiver
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
 
-__all__ = ["StrategyIssueConfig", "StrategyIssueConfigService"]
+__all__ = ["StrategyIssueConfig", "StrategyIssueConfigService", "IssueMergeRelation"]
+
+
+class IssueMergeRelation(AbstractRecordModel):
+    """Issue 合并/拆分关系表（独立映射层，与 IssueDocument 完全解耦）。
+
+    设计要点：
+    - 复用 AbstractRecordModel.create_time / create_user 表示合并发生时间 / 合并操作人；
+    - status='split' 时，update_time / update_user 即为拆分时间 / 拆分操作人；
+    - merge_reasons 与 split_reasons 单独保留，便于审计追溯；
+    - 索引全部为普通索引，无 UNIQUE 强约束；唯一性由应用层 SELECT 校验保证，
+      极小概率 race window 通过 bkm-cli list_conflicts 发现 + management command 修复。
+    """
+
+    STATUS_ACTIVE = "active"
+    STATUS_SPLIT = "split"
+
+    # 仅保留 MANUAL：主状态变更不再触发"拆分"，而是走 _cascade_follow_status 同步 ES status
+    # 历史数据中可能存在 by_main_resolve / by_main_archive 值（旧 cascade_split 路径写入），
+    # models 字段无 choices 约束可正常读出；新写入只用 MANUAL。
+    SPLIT_KIND_MANUAL = "manual"
+
+    class Meta:
+        db_table = "bkmonitor_issue_merge_relation"
+        verbose_name = "Issue 合并关系"
+        indexes = [
+            models.Index(fields=["bk_biz_id", "status", "main_issue_id"], name="idx_imr_biz_status_main"),
+            models.Index(fields=["main_issue_id", "status"], name="idx_imr_main_status"),
+            models.Index(fields=["member_issue_id", "status"], name="idx_imr_member_status"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(main_issue_id=models.F("member_issue_id")),
+                name="ck_imr_main_ne_member",
+            ),
+        ]
+
+    bk_biz_id = models.IntegerField(verbose_name="业务 ID")
+    main_issue_id = models.CharField(max_length=64, verbose_name="主 Issue ID")
+    member_issue_id = models.CharField(max_length=64, verbose_name="并入 Issue ID")
+    status = models.CharField(max_length=16, default=STATUS_ACTIVE, verbose_name="关系状态")
+    merge_reasons = JsonField(default=list, verbose_name="合并依据")
+    split_reasons = JsonField(default=None, null=True, blank=True, verbose_name="拆分依据")
+    split_kind = models.CharField(max_length=16, default=None, null=True, blank=True, verbose_name="拆分触发类型")
 
 
 class StrategyIssueConfig(AbstractRecordModel):

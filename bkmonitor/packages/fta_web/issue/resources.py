@@ -22,10 +22,13 @@ from bkmonitor.documents.issue import (
     IssueDocumentWriteError,
     IssueNotFoundError,
 )
+from bkmonitor.issue_merge import IssueFrozenError
+from bkmonitor.models.issue import IssueMergeRelation
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
+from core.errors.api import BKAPIError
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
@@ -91,6 +94,38 @@ def _run_batch(
         try:
             result = action_fn(bk_biz_id, issue_id)
             return {"ok": True, "result": result}
+        except IssueFrozenError as e:
+            # 本地直接调用路径（如非中转场景）的合并冻结
+            return {
+                "ok": False,
+                "bk_biz_id": bk_biz_id,
+                "issue_id": issue_id,
+                "code": e.extra.get("business_code"),
+                "detail": e.extra,
+                "message": e.message,
+            }
+        except BKAPIError as e:
+            # 状态机操作经 web→api role 中转：冻结在 api role 抛出，过 HTTP 后已不是
+            # IssueFrozenError 实例，而是 BKAPIError（e.data 即 api 的 result_json）。
+            # custom_exception_handler 把 Error.extra **平铺到响应顶层**（result.update(exc.extra)，
+            # 见 core/drf_resource/exceptions.py），故 business_code/conflicting_main_issue_id 在
+            # payload 顶层；同时兼容潜在的嵌套 extra 形状（payload["extra"]）。
+            payload = e.data if isinstance(e.data, dict) else {}
+            fields = payload.get("extra") if isinstance(payload.get("extra"), dict) else payload
+            item = {
+                "ok": False,
+                "bk_biz_id": bk_biz_id,
+                "issue_id": issue_id,
+                "message": payload.get("message") or str(e),
+            }
+            if fields.get("business_code") == "MERGE_FREEZE_VIOLATION":
+                item["code"] = fields.get("business_code")
+                item["detail"] = {
+                    "business_code": fields.get("business_code"),
+                    "conflicting_main_issue_id": fields.get("conflicting_main_issue_id"),
+                    "issue_id": fields.get("issue_id"),
+                }
+            return item
         except IssueNotFoundError as e:
             return {"ok": False, "bk_biz_id": bk_biz_id, "issue_id": issue_id, "message": str(e)}
         except IssueDocumentWriteError as e:
@@ -107,9 +142,17 @@ def _run_batch(
             if item["ok"]:
                 succeeded.append(item["result"])
             else:
-                failed.append(
-                    {"bk_biz_id": item["bk_biz_id"], "issue_id": item["issue_id"], "message": item["message"]}
-                )
+                # 旧错误路径仅含 message；IssueFrozenError 额外带 code + detail（向后兼容）
+                failed_item = {
+                    "bk_biz_id": item["bk_biz_id"],
+                    "issue_id": item["issue_id"],
+                    "message": item["message"],
+                }
+                if "code" in item:
+                    failed_item["code"] = item["code"]
+                if "detail" in item:
+                    failed_item["detail"] = item["detail"]
+                failed.append(failed_item)
 
     return {"succeeded": succeeded, "failed": failed}
 
@@ -389,17 +432,106 @@ class IssueDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, validated_request_data):
-        """获取 Issue 元数据，告警动态数据由前端调用告警中心接口获取"""
+        """获取 Issue 元数据，告警动态数据由前端调用告警中心接口获取。
+
+        合并视图：若请求的 issue_id 是 active member，自动返回主 Issue 数据 +
+        ``redirected_from=<原 issue_id>`` 字段；前端据此 URL 静默替换为主 Issue。
+        主 Issue 自身则注入 ``merge_status.active_members`` 摘要供详情页展示。
+        """
         issue_id = validated_request_data["id"]
         bk_biz_id = validated_request_data["bk_biz_id"]
 
-        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        # 合并视图：member id → 主 id 重定向（仅 active 关系）
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+
+        ctx = MergeResolverContext(bk_biz_id)
+        ctx.load()
+        display_id = IssueMergeResolver.resolve_display_id(issue_id, ctx)
+        redirected_from = issue_id if display_id != issue_id else None
+
+        issue = IssueDocument.get_issue_or_raise(display_id, bk_biz_id=bk_biz_id)
         result = IssueQueryHandler.clean_document(issue)
+
+        # 注入 merge_status（主 Issue 拼装 active_members；member 拼装 main_issue_id）
+        IssueMergeResolver.hydrate_aggregations([result], ctx)
+
+        # hydrate union 改写了主 Issue 的 impact_scope（member 维度的 instance 是 ES 原始字段、
+        # 未经 enrich），role='main' 时需重跑 enrich_impact_scope 补 alert_query_fields，
+        # 与 IssueQueryHandler.search 同款修复。
+        if result.get("merge_status", {}).get("role") == "main" and result.get("impact_scope"):
+            IssueQueryHandler.enrich_impact_scope(result["impact_scope"])
+
+        if redirected_from:
+            result["redirected_from"] = redirected_from
 
         # 填充 anomaly_message（查询最新告警的 description）
         self._fill_anomaly_message(issue, result)
 
+        # 注入 split_info（独立 Issue 拿到拆分溯源信息）：
+        # 仅当 issue 不是 active member 重定向得到的（redirected_from is None）
+        # 且自己曾经是别人的 split 产物时，前端可据此展示「来自合并 Issues 拆分」+「拆分依据」标签
+        if not redirected_from:
+            self._fill_split_info(display_id, bk_biz_id, result)
+
         return result
+
+    @staticmethod
+    def _fill_split_info(issue_id: str, bk_biz_id: int, result: dict) -> None:
+        """查 IssueMergeRelation 中 status='split' 的最新一条关系，拼装 split_info。
+
+        多次 split 取最新（按 update_time desc）。reasons 优先读关系表（结构化
+        source-of-truth），活动日志 SPLIT_FROM.content 为审计副本。
+        失败 fail-open：不阻塞主路径，仅 warning。
+        """
+        try:
+            relation = (
+                IssueMergeRelation.objects.filter(
+                    member_issue_id=issue_id,
+                    bk_biz_id=bk_biz_id,
+                    status=IssueMergeRelation.STATUS_SPLIT,
+                )
+                .order_by("-update_time", "-id")
+                .first()
+            )
+        except Exception:
+            logger.warning(
+                "[issue-merge] fill split_info SQL query failed (fail-open, issue_id=%s)",
+                issue_id,
+                exc_info=True,
+            )
+            return
+
+        if not relation:
+            return
+
+        # 查主 Issue name（拼装"来自 Issue X (name) 拆分"提示）；ES 异常时 name 留空兜底
+        main_name = None
+        try:
+            main_hits = (
+                IssueDocument.search(all_indices=True)
+                .filter("term", _id=relation.main_issue_id)
+                .source(["name"])
+                .params(size=1)
+                .execute()
+                .hits
+            )
+            if main_hits:
+                main_name = getattr(main_hits[0], "name", None)
+        except Exception:
+            logger.warning(
+                "[issue-merge] fill split_info main name fetch failed (fail-open, main_id=%s)",
+                relation.main_issue_id,
+                exc_info=True,
+            )
+
+        result["split_info"] = {
+            "split_from_main_issue_id": relation.main_issue_id,
+            "split_from_main_issue_name": main_name or f"{relation.main_issue_id} (已删除)",
+            "split_reasons": relation.split_reasons or [],
+            "split_kind": relation.split_kind,
+            "split_time": int(relation.update_time.timestamp()) if relation.update_time else 0,
+            "split_operator": relation.update_user,
+        }
 
     @staticmethod
     def _fill_anomaly_message(issue: "IssueDocument", result: dict) -> None:
@@ -919,3 +1051,223 @@ class ListRecentAssigneesResource(Resource):
                         counter[assignee] += bucket.doc_count
 
         return [username for username, _ in counter.most_common(100)]
+
+
+class MergeIssueResource(Resource):
+    """合并 Issue：web 端薄壳，转 api role 端 ``api.issue.merge`` 执行。
+
+    与现网其他状态变更 Resource（resolve / archive / reopen 等）保持架构一致：
+    cache 写入必须在 api role 执行（web role 缺 ``REDIS_*_CONF``，会被静默吞）。
+    校验、关系写入、活动日志、cache invalidate 全部在 ``kernel_api/views/v4/issue.py:MergeResource``。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        main_issue_id = IssueIDField(label="主 Issue ID")
+        members = serializers.ListField(label="并入 Issue ID 列表", child=IssueIDField(), min_length=1, max_length=100)
+        reasons = serializers.ListField(label="合并依据", child=serializers.CharField(), min_length=1)
+
+    def perform_request(self, validated_request_data):
+        return api.issue.merge(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            main_issue_id=validated_request_data["main_issue_id"],
+            members=validated_request_data["members"],
+            reasons=validated_request_data["reasons"],
+            operator=get_request_username(),
+        )
+
+
+class SplitIssueResource(Resource):
+    """拆分单个 member Issue：web 端薄壳，转 api role 端 ``api.issue.split`` 执行。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        member_issue_id = IssueIDField(label="并入 Issue ID")
+        reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), min_length=1)
+
+    def perform_request(self, validated_request_data):
+        return api.issue.split(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            member_issue_id=validated_request_data["member_issue_id"],
+            reasons=validated_request_data["reasons"],
+            operator=get_request_username(),
+        )
+
+
+_MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER = 30 * 86400
+
+
+def _fetch_member_anomaly_messages(member_ids: list[str], first_alert_time_map: dict[str, int]) -> dict[str, str]:
+    """批量查 member 最新告警 description。复用 IssueQueryHandler._fill_anomaly_message 范式：
+    1 次 AlertDocument terms agg + top_hits(size=1, sort begin_time desc)。
+
+    Args:
+        member_ids: 待查询的 member Issue ID 列表（active + split 全集）。
+        first_alert_time_map: ``{member_id: first_alert_time}``，用于取 min 作为索引时间窗下界；
+            缺失或全空时回退 ``now - 30d``，覆盖 ES 索引典型保留窗口。
+
+    Returns:
+        ``{member_id: description}``；未命中或失败的 member 不在返回字典中。
+        失败统一 fail-open（warning + 空 dict），由 caller 兜底为 ``"--"``。
+    """
+    if not member_ids:
+        return {}
+
+    from bkmonitor.documents.alert import AlertDocument
+
+    valid_times = [t for t in first_alert_time_map.values() if t]
+    end_time = int(time.time())
+    start_time = min(valid_times) if valid_times else end_time - _MERGE_SOURCES_ANOMALY_FALLBACK_BUFFER
+
+    try:
+        search_object = AlertDocument.search(start_time=start_time, end_time=end_time).filter(
+            "terms", issue_id=member_ids
+        )
+        issue_agg = search_object.aggs.bucket("issues", "terms", field="issue_id", size=len(member_ids))
+        issue_agg.metric(
+            "latest_alert",
+            "top_hits",
+            size=1,
+            sort=[{"begin_time": {"order": "desc"}}],
+            _source=["event.description"],
+        )
+        result = search_object[:0].execute()
+    except Exception as e:
+        logger.warning("[issue-merge] list_merge_sources fill anomaly_message failed (fail-open): %s", e)
+        return {}
+
+    msg_map: dict[str, str] = {}
+    for issue_bucket in result.aggs.issues.buckets:
+        if not hasattr(issue_bucket, "latest_alert") or not issue_bucket.latest_alert:
+            continue
+        hits = issue_bucket.latest_alert.hits
+        if not hits or not hits.hits:
+            continue
+        # top_hits 返回的 hit 是 AttrDict，_source 在 hit["_source"] 中
+        source = hits.hits[0].to_dict().get("_source", {})
+        event_data = source.get("event", {})
+        description = event_data.get("description", "") if isinstance(event_data, dict) else ""
+        if description:
+            msg_map[issue_bucket.key] = description
+    return msg_map
+
+
+class ListMergeSourcesResource(Resource):
+    """列主 Issue 的合并来源（active + split 历史，数据源以 MySQL 关系表为主）。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        main_issue_id = IssueIDField(label="主 Issue ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        main_id = validated_request_data["main_issue_id"]
+
+        relations = list(
+            IssueMergeRelation.objects.filter(main_issue_id=main_id, bk_biz_id=bk_biz_id).order_by("-create_time")
+        )
+
+        result = {"main_issue_id": main_id, "active_members": [], "split_history": []}
+        if not relations:
+            return result
+
+        member_ids = [r.member_issue_id for r in relations]
+        # 同次 ES 查询多 source 一个 first_alert_time，用于后续 anomaly_message 查询的索引时间窗
+        member_hits = (
+            IssueDocument.search(all_indices=True)
+            .filter("terms", _id=member_ids)
+            .source(["name", "status", "first_alert_time"])
+            .params(size=len(member_ids))
+            .execute()
+            .hits
+        )
+        name_map = {hit.meta.id: getattr(hit, "name", None) for hit in member_hits}
+        first_alert_time_map = {hit.meta.id: int(getattr(hit, "first_alert_time", 0) or 0) for hit in member_hits}
+        # member 当前 ES status：方案 A cascade follow 落地后 active member 的 status 会跟随主，
+        # 前端可据此展示 member 当前真实状态（如"已跟随主 Issue RESOLVED"）
+        member_es_status_map = {hit.meta.id: getattr(hit, "status", None) for hit in member_hits}
+
+        # 批量拉 member 最新告警 description（1 次 ES agg；失败 fail-open）
+        anomaly_map = _fetch_member_anomaly_messages(member_ids, first_alert_time_map)
+
+        for r in relations:
+            item = {
+                "member_issue_id": r.member_issue_id,
+                "member_name": name_map.get(r.member_issue_id) or f"{r.member_issue_id} (已删除)",
+                "anomaly_message": anomaly_map.get(r.member_issue_id, "--"),
+                "merge_reasons": r.merge_reasons,
+                "merge_operator": r.create_user,
+                "merge_time": int(r.create_time.timestamp()) if r.create_time else 0,
+                # 关系状态（active / split）。旧字段 `status` 保留一个发布周期向后兼容，
+                # 待前端切到 `relation_status` 后下一版移除
+                "status": r.status,
+                "relation_status": r.status,
+                # member 自身的 ES status（PENDING_REVIEW / UNRESOLVED / RESOLVED / ARCHIVED）。
+                # ES 缺失时为 None，前端按"已删除"占位渲染
+                "member_es_status": member_es_status_map.get(r.member_issue_id),
+            }
+            if r.status == IssueMergeRelation.STATUS_SPLIT:
+                item.update(
+                    {
+                        "split_reasons": r.split_reasons,
+                        "split_operator": r.update_user,
+                        "split_time": int(r.update_time.timestamp()) if r.update_time else 0,
+                        "split_kind": r.split_kind,
+                    }
+                )
+                result["split_history"].append(item)
+            else:
+                result["active_members"].append(item)
+        return result
+
+
+class AlertIssueEnrichResource(Resource):
+    """alert.issue_id → 主 Issue 展示信息批量 enrich（模块解耦）。
+
+    前端在 alert 列表/详情拿到 alert 后调一次此接口拼装"所属 Issue"列：
+    - member id 自动 resolve 为主 id（合并视图）
+    - 返回主 Issue name；查不到则展示 ``"{issue_id} (已删除)"``
+
+    模块边界：alert 模块不依赖 issue 内部模型；按需调用，alert search 不增加延迟。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_ids = serializers.ListField(
+            label="alert.issue_id 列表", child=serializers.CharField(), min_length=1, max_length=500
+        )
+
+    def perform_request(self, validated_request_data):
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))  # 去重保序
+
+        ctx = MergeResolverContext(bk_biz_id)
+        ctx.load()
+        display_map = {iid: IssueMergeResolver.resolve_display_id(iid, ctx) for iid in issue_ids}
+
+        # 批量查主 Issue name（去重后查 ES）
+        main_ids = list(set(display_map.values()))
+        name_map: dict[str, str] = {}
+        if main_ids:
+            try:
+                hits = (
+                    IssueDocument.search(all_indices=True)
+                    .filter("terms", _id=main_ids)
+                    .source(["name"])
+                    .params(size=len(main_ids))
+                    .execute()
+                    .hits
+                )
+                name_map = {hit.meta.id: getattr(hit, "name", None) for hit in hits}
+            except Exception as e:
+                logger.warning("[issue-merge] alert enrich name lookup failed: %s", e)
+
+        return {
+            iid: {
+                "display_issue_id": display_map[iid],
+                "display_issue_name": name_map.get(display_map[iid]) or f"{display_map[iid]} (已删除)",
+            }
+            for iid in issue_ids
+        }

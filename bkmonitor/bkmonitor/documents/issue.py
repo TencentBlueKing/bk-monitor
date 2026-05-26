@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 import time
 import uuid
@@ -17,6 +18,7 @@ from elasticsearch_dsl import MetaField, field
 
 from bkmonitor.documents.base import BaseDocument, BulkActionType, Date, Flattened
 from bkmonitor.documents.constants import ES_INDEX_SETTINGS
+from bkmonitor.issue_merge import IssueMergeResolver
 from constants.issue import IssueActivityType, IssueStatus
 
 logger = logging.getLogger("fta_action.issue")
@@ -146,6 +148,7 @@ class IssueDocument(BaseDocument):
 
     def assign(self, assignees: list[str], operator: str) -> list:
         """首次指派负责人：PENDING_REVIEW → UNRESOLVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.PENDING_REVIEW:
             raise ValueError(f"Cannot assign: current status={self.status}, expected={IssueStatus.PENDING_REVIEW}")
         old_status = self.status
@@ -162,6 +165,7 @@ class IssueDocument(BaseDocument):
 
     def reassign(self, assignees: list[str], operator: str) -> list:
         """改派负责人(任意状态均可)：不触发状态流转"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         old_assignees = list(self.assignee or [])
         self.assignee = assignees
         self.update_time = int(time.time())
@@ -174,6 +178,7 @@ class IssueDocument(BaseDocument):
 
     def resolve(self, operator: str) -> list:
         """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(
                 f"Cannot resolve: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
@@ -183,14 +188,18 @@ class IssueDocument(BaseDocument):
         self.resolved_time = int(time.time())
         self.update_time = self.resolved_time
         self._persist_and_cache(active=False)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.RESOLVED, operator, None),
             ]
         )
+        # 级联同步所有 active member 的 ES status（关系不破坏，assignee 不动）
+        self._cascade_follow_status(operator, target_status=IssueStatus.RESOLVED, kind="by_main_resolve")
+        return activities
 
     def archive(self, operator: str) -> list:
         """归档（实例级）：PENDING_REVIEW → ARCHIVED or UNRESOLVED → ARCHIVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(
                 f"Cannot archive: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
@@ -199,28 +208,36 @@ class IssueDocument(BaseDocument):
         self.status = IssueStatus.ARCHIVED
         self.update_time = int(time.time())
         self._persist_and_cache(active=False)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.ARCHIVED, operator, None),
             ]
         )
+        # 级联同步所有 active member 的 ES status
+        self._cascade_follow_status(operator, target_status=IssueStatus.ARCHIVED, kind="by_main_archive")
+        return activities
 
     def reopen(self, operator: str) -> list:
         """重新打开：RESOLVED → UNRESOLVED"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.RESOLVED:
             raise ValueError(f"Cannot reopen: current status={self.status}, expected={IssueStatus.RESOLVED}")
         old_status = self.status
         self.status = IssueStatus.UNRESOLVED
         self.update_time = int(time.time())
         self._persist_and_cache(active=True)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None),
             ]
         )
+        # 级联同步：member 同步到 UNRESOLVED，与主复活语义一致
+        self._cascade_follow_status(operator, target_status=IssueStatus.UNRESOLVED, kind="by_main_reopen")
+        return activities
 
     def restore(self, operator: str) -> list:
         """恢复归档：ARCHIVED → 归档前状态（从活动日志推断），无记录时回退到 PENDING_REVIEW"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.ARCHIVED:
             raise ValueError(f"Cannot restore: current status={self.status}, expected={IssueStatus.ARCHIVED}")
         target_status = self._get_pre_archive_status()
@@ -229,11 +246,14 @@ class IssueDocument(BaseDocument):
         self.update_time = int(time.time())
         # 恢复后若目标状态为活跃状态则写回缓存
         self._persist_and_cache(active=target_status in IssueStatus.ACTIVE_STATUSES)
-        return self._write_activities(
+        activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, target_status, operator, None),
             ]
         )
+        # 级联同步：member 跟随主回到归档前状态（与主复活语义一致）
+        self._cascade_follow_status(operator, target_status=target_status, kind="by_main_restore")
+        return activities
 
     def add_comment(self, content: str, operator: str) -> list:
         """
@@ -246,6 +266,7 @@ class IssueDocument(BaseDocument):
         Returns:
             该 Issue 全部活动日志列表（含本次新增），按时间降序排列。
         """
+        IssueMergeResolver.assert_not_frozen(self.id)
         activities = [
             (IssueActivityType.COMMENT, None, None, operator, content),
         ]
@@ -273,6 +294,7 @@ class IssueDocument(BaseDocument):
             IssueActivityNotFoundError: 指定 activity_id 的 IssueActivityDocument不存在。
             PermissionError: operator 不是原评论操作者
         """
+        IssueMergeResolver.assert_not_frozen(self.id)
         # 查询原评论信息
         search = (
             IssueActivityDocument.search(all_indices=True)
@@ -367,6 +389,7 @@ class IssueDocument(BaseDocument):
 
     def update_priority(self, priority: str, operator: str) -> list:
         """修改优先级（任意状态均可）"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         old_priority = self.priority
         self.priority = priority
         activities = [
@@ -388,6 +411,7 @@ class IssueDocument(BaseDocument):
 
     def rename(self, new_name: str, operator: str) -> list:
         """重命名 Issue"""
+        IssueMergeResolver.assert_not_frozen(self.id)
         new_name = new_name.strip()
         old_name = self.name
         # 内容未变化时直接返回当前活动列表，不写 ES
@@ -411,6 +435,332 @@ class IssueDocument(BaseDocument):
             [
                 (IssueActivityType.NAME_CHANGE, old_name, new_name, operator, None),
             ]
+        )
+
+    @classmethod
+    def bulk_reset_for_split(
+        cls,
+        member_ids: list[str],
+        operator: str,
+        kind: str,
+        main_issue_id: str,
+        bk_biz_id: int | str,
+        reasons: list[str] | None = None,
+    ) -> None:
+        """批量将 member 重置为 PENDING_REVIEW + 清空 assignee，写 SPLIT_FROM 活动日志。
+
+        仅用于用户主动 split API 路径。仿 ``migrate_legacy_active_issues`` /
+        ``_bulk_update_with_retry`` 现网范式：``bulk_create`` + retry 1 次 + warning
+        （不抛、不返回细粒度结果）。
+
+        Args:
+            member_ids: 被拆分的 member Issue ID 列表。
+            operator: 操作人，用于 STATUS_CHANGE / ASSIGNEE_CHANGE / SPLIT_FROM 活动日志。
+            kind: 拆分类型，目前只有 ``manual``（主状态变更不再触发拆分，改走
+                ``_cascade_follow_status``）。
+            main_issue_id: 关联主 Issue ID，写入 SPLIT_FROM content 字段。
+            bk_biz_id: member 所属业务 ID，写入活动日志（与普通 ``_write_activities``
+                对齐，保证审计/按业务过滤不缺字段）。跨业务合并已被禁止，member 与
+                main 必同 biz，故单值即可。
+            reasons: 用户传入的拆分依据，写入 SPLIT_FROM content（自包含，前端拼接
+                ``split_info`` 标签时优先读关系表，活动日志为审计副本）。
+
+        失败处理：ES bulk 写失败仅 warning，不抛；运维通过 bkm-cli ``list_conflicts``
+        发现 + Django management command ``repair_issue_merge_state`` 修复。
+
+        注：直接走 ``IssueActivityDocument.bulk_create``，不调 ``_write_activities``
+        实例方法，避免 N 次 ``_read_activities`` 全量回读（size=500）放大延迟。
+        """
+        if not member_ids:
+            return
+        now = int(time.time())
+
+        # ① 批量 UPDATE 物理状态
+        update_docs = [
+            cls(id=mid, status=IssueStatus.PENDING_REVIEW, assignee=[], update_time=now) for mid in member_ids
+        ]
+        try:
+            cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk reset update failed, retrying once: %s", e)
+            try:
+                cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk reset update retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ② 批量写活动日志（3N 条：STATUS_CHANGE + ASSIGNEE_CHANGE + SPLIT_FROM）
+        split_content = json.dumps(
+            {"kind": kind, "main_issue_id": main_issue_id, "reasons": list(reasons or [])},
+            ensure_ascii=False,
+        )
+        activities: list[IssueActivityDocument] = []
+        for mid in member_ids:
+            activities.extend(
+                [
+                    IssueActivityDocument(
+                        issue_id=mid,
+                        bk_biz_id=bk_biz_id,
+                        activity_type=IssueActivityType.STATUS_CHANGE,
+                        from_value=None,
+                        to_value=IssueStatus.PENDING_REVIEW,
+                        operator=operator,
+                        content=None,
+                        time=now,
+                        create_time=now,
+                    ),
+                    IssueActivityDocument(
+                        issue_id=mid,
+                        bk_biz_id=bk_biz_id,
+                        activity_type=IssueActivityType.ASSIGNEE_CHANGE,
+                        from_value=None,
+                        to_value="",
+                        operator=operator,
+                        content=None,
+                        time=now,
+                        create_time=now,
+                    ),
+                    IssueActivityDocument(
+                        issue_id=mid,
+                        bk_biz_id=bk_biz_id,
+                        activity_type=IssueActivityType.SPLIT_FROM,
+                        from_value=main_issue_id,
+                        to_value=None,
+                        operator=operator,
+                        content=split_content,
+                        time=now,
+                        create_time=now,
+                    ),
+                ]
+            )
+        try:
+            IssueActivityDocument.bulk_create(activities)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk reset activity write failed, retrying once: %s", e)
+            try:
+                IssueActivityDocument.bulk_create(activities)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk reset activity write retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ③ Redis fingerprint cache 批量清理（fail-open）
+        # 复用 _delete_redis_cache 的 fingerprint 守卫语义，避免在 web/saas role 缺
+        # REDIS_*_CONF 时抛 AttributeError。这里 lazy import 同款防御。
+        try:
+            from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY
+
+            fp_hits = (
+                cls.search(all_indices=True)
+                .filter("terms", _id=member_ids)
+                .source(["fingerprint"])
+                .params(size=len(member_ids))
+                .execute()
+                .hits
+            )
+            fingerprints = [getattr(h, "fingerprint", None) for h in fp_hits]
+            fingerprints = [fp for fp in fingerprints if fp]
+            if fingerprints:
+                pipe = ISSUE_ACTIVE_CONTENT_KEY.client.pipeline()
+                for fp in fingerprints:
+                    pipe.delete(ISSUE_ACTIVE_CONTENT_KEY.get_key(fingerprint=fp))
+                pipe.execute()
+        except Exception:
+            # fail-open：cache 删除失败不阻塞主路径（30s TTL 兜底，且 web role 本无 Redis 配置）
+            logger.warning(
+                "[issue-merge] bulk reset cache invalidation failed (fail-open, member_ids=%s)",
+                member_ids,
+                exc_info=True,
+            )
+
+    @classmethod
+    def bulk_follow_status(
+        cls,
+        member_ids: list[str],
+        target_status: str,
+        operator: str,
+        kind: str,
+        main_issue_id: str,
+        bk_biz_id: int | str,
+    ) -> None:
+        """主状态变更级联：批量把 member ES status 同步为 target_status，不动 assignee。
+
+        与 ``bulk_reset_for_split`` 的语义差异：
+        - status 同步到 target_status（resolve/archive/reopen/restore 各自的终点），而非
+          固定 PENDING_REVIEW；
+        - **assignee 不动**——合并组在合并瞬间冻结的负责人维持，与"主带着走"语义一致；
+        - 活动日志写 STATUS_CHANGE（content 携带 kind/main_issue_id 供审计；bk_biz_id
+          写 member 业务，与普通 ``_write_activities`` 对齐），不写 SPLIT_FROM（关系仍
+          active，未真正拆分）；
+        - fp cache：target_status 为终态（非 ACTIVE_STATUSES）→ DEL；为活跃态 → NOOP
+          （cache miss 时下次告警走 ES Step 1 自然回填，无需重建）。
+
+        失败处理：ES bulk 写失败仅 warning，不抛；运维通过 bkm-cli ``list_conflicts``
+        发现 + Django management command ``repair_issue_merge_state --mode=follow_status_resync`` 修复。
+        """
+        if not member_ids:
+            return
+        now = int(time.time())
+
+        # ① ES 拉取 from_status（写 STATUS_CHANGE 需要 from_value）；失败仍继续，
+        #   from_value 留空不影响主流程
+        from_status_map: dict[str, str | None] = {}
+        try:
+            from_status_hits = (
+                cls.search(all_indices=True)
+                .filter("terms", _id=member_ids)
+                .source(["status"])
+                .params(size=len(member_ids))
+                .execute()
+                .hits
+            )
+            from_status_map = {h.meta.id: getattr(h, "status", None) for h in from_status_hits}
+        except Exception:
+            logger.warning(
+                "[issue-merge] bulk_follow_status from_status fetch failed (fail-open, member_ids=%s)",
+                member_ids,
+                exc_info=True,
+            )
+
+        # ② 批量 UPDATE 物理状态（assignee 不动）
+        update_docs = [cls(id=mid, status=target_status, update_time=now) for mid in member_ids]
+        try:
+            cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk_follow_status update failed, retrying once: %s", e)
+            try:
+                cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk_follow_status update retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ③ 批量写 STATUS_CHANGE 活动日志（content 携带 kind/main_issue_id 用于审计追溯）
+        follow_content = json.dumps(
+            {"kind": kind, "main_issue_id": main_issue_id},
+            ensure_ascii=False,
+        )
+        activities = [
+            IssueActivityDocument(
+                issue_id=mid,
+                bk_biz_id=bk_biz_id,
+                activity_type=IssueActivityType.STATUS_CHANGE,
+                from_value=from_status_map.get(mid),
+                to_value=target_status,
+                operator=operator,
+                content=follow_content,
+                time=now,
+                create_time=now,
+            )
+            for mid in member_ids
+        ]
+        try:
+            IssueActivityDocument.bulk_create(activities)
+        except Exception as e:
+            logger.warning("[issue-merge] bulk_follow_status activity write failed, retrying once: %s", e)
+            try:
+                IssueActivityDocument.bulk_create(activities)
+            except Exception as e2:
+                logger.error(
+                    "[issue-merge] bulk_follow_status activity write retry failed (member_ids=%s): %s",
+                    member_ids,
+                    e2,
+                )
+
+        # ④ fp cache：target_status 为终态时 DEL（不让新告警命中已结案 Issue）
+        #    target_status 为活跃态时 NOOP——cache miss 后下次告警 ES Step 1 回填
+        if target_status not in IssueStatus.ACTIVE_STATUSES:
+            try:
+                from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY
+
+                fp_hits = (
+                    cls.search(all_indices=True)
+                    .filter("terms", _id=member_ids)
+                    .source(["fingerprint"])
+                    .params(size=len(member_ids))
+                    .execute()
+                    .hits
+                )
+                fingerprints = [getattr(h, "fingerprint", None) for h in fp_hits]
+                fingerprints = [fp for fp in fingerprints if fp]
+                if fingerprints:
+                    pipe = ISSUE_ACTIVE_CONTENT_KEY.client.pipeline()
+                    for fp in fingerprints:
+                        pipe.delete(ISSUE_ACTIVE_CONTENT_KEY.get_key(fingerprint=fp))
+                    pipe.execute()
+            except Exception:
+                logger.warning(
+                    "[issue-merge] bulk_follow_status cache invalidation failed (fail-open, member_ids=%s)",
+                    member_ids,
+                    exc_info=True,
+                )
+
+    def _cascade_follow_status(self, operator: str, target_status: str, kind: str) -> None:
+        """主状态变更时同步所有 active member 的 ES status 到 target_status。
+
+        语义：合并 = 同一根因/事件组，主状态变更 → member 跟随。**不破坏关系**（关系仍
+        active）、**不动 assignee**（合并冻结时的负责人维持）。这与"用户主动 split"
+        语义对称且分离——后者才是真正的"拆分恢复独立"。
+
+        触发点：resolve / archive / reopen / restore 四个状态机方法各自的尾部。
+
+        失败处理：SQL 查询失败 → 不动 ES；ES/cache 失败 → 仅 warning + log；
+        bkm-cli ``list_conflicts`` + ``repair_issue_merge_state --mode=follow_status_resync``
+        运维兜底。
+        """
+        # lazy import 避免与 bkmonitor.models.issue 的循环依赖
+        from django.utils import timezone
+
+        from bkmonitor.models.issue import IssueMergeRelation
+
+        try:
+            active_qs = IssueMergeRelation.objects.filter(
+                main_issue_id=self.id,
+                status=IssueMergeRelation.STATUS_ACTIVE,
+            )
+            member_ids = list(active_qs.values_list("member_issue_id", flat=True))
+        except Exception:
+            logger.error(
+                "[issue-merge] cascade follow SQL query failed (main_issue_id=%s, target_status=%s)",
+                self.id,
+                target_status,
+                exc_info=True,
+            )
+            return
+
+        if not member_ids:
+            return
+
+        # touch update_time：active 关系下 update_time 语义为"最近一次主状态 cascade 触达"。
+        # 这样 list_conflicts / repair --mode=follow_status_resync 的 update_time__gte 时间窗
+        # 能扫到本次参与流转的关系——即使是很早合并的关系，今天 cascade 后 ES 同步失败，
+        # 也能在窗口内被发现修复（否则按合并时间早就滑出窗口，兜底失效）。
+        # .update() 不触发 auto_now，显式赋值；update_user 记最近触发人便于审计。
+        # touch 是辅助可发现性、best-effort：失败仅 warning，绝不阻断下面的 bulk_follow_status——
+        # member 跟随主状态是核心动作，不能被一次 SQL touch 写失败拖垮（且 SQL 与 ES 是独立子系统）。
+        try:
+            active_qs.update(update_time=timezone.now(), update_user=operator)
+        except Exception:
+            logger.warning(
+                "[issue-merge] cascade follow touch update_time failed (fail-open, main_issue_id=%s)",
+                self.id,
+                exc_info=True,
+            )
+
+        type(self).bulk_follow_status(
+            member_ids,
+            target_status=target_status,
+            operator=operator,
+            kind=kind,
+            main_issue_id=self.id,
+            bk_biz_id=self.bk_biz_id,
         )
 
     def _get_pre_archive_status(self) -> str:

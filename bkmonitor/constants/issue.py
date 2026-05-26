@@ -49,6 +49,9 @@ class IssueActivityType:
     ASSIGNEE_CHANGE = "assignee_change"
     PRIORITY_CHANGE = "priority_change"
     NAME_CHANGE = "name_change"
+    # 合并/拆分活动：content 字段使用结构化 JSON，区分 manual 与 by_main_resolve / by_main_archive
+    MERGED_INTO = "merged_into"
+    SPLIT_FROM = "split_from"
 
     CHOICES = (
         (CREATE, _("创建")),
@@ -58,6 +61,8 @@ class IssueActivityType:
         (ASSIGNEE_CHANGE, _("负责人变更")),
         (PRIORITY_CHANGE, _("优先级变更")),
         (NAME_CHANGE, _("名称变更")),
+        (MERGED_INTO, _("合并进主")),
+        (SPLIT_FROM, _("从主拆分")),
     )
 
 
