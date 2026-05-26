@@ -9,6 +9,7 @@ from alarm_backends.service.scheduler.app import app
 from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
 from metadata.models.result_table import LogV4DataLinkOption
@@ -123,6 +124,10 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             data_link_strategy=DataLink.BK_LOG,
             defaults={"bk_data_id": ds.bk_data_id, "table_ids": [table_id]},
         )
+
+        # 更新BkBaseResultTable状态
+        bkbase_rt.status = DataLinkResourceStatus.CREATING.value
+        bkbase_rt.save()
 
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
@@ -245,6 +250,10 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
             defaults={"bk_data_id": ds.bk_data_id, "table_ids": [table_id]},
         )
+
+        # 更新BkBaseResultTable状态
+        bkbase_rt.status = DataLinkResourceStatus.CREATING.value
+        bkbase_rt.save()
 
     # 创建/更新链路配置
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)

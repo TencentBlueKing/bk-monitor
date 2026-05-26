@@ -1814,6 +1814,7 @@ class DataLink(models.Model):
             "monitor_table_id": table_id,
             "storage_type": resolved_storage_type,
             "storage_cluster_id": resolved_storage_cluster_id,
+            "status": DataLinkResourceStatus.OK.value,
         }
         if rt:
             bkbase_rt_name = rt.name
