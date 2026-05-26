@@ -15,9 +15,12 @@ from typing import Any
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     SAFETY_LEVEL_WRITE,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_optional_bool,
     normalize_ordering,
     normalize_pagination,
@@ -248,8 +251,10 @@ def _serialize_event(event: RecordRuleV4Event | None) -> dict[str, Any] | None:
     }
 
 
-def _build_rule_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = RecordRuleV4.objects.filter(bk_tenant_id=bk_tenant_id).select_related("current_spec", "applied_resolved")
+def _build_rule_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(RecordRuleV4.objects.all(), bk_tenant_id).select_related(
+        "current_spec", "applied_resolved"
+    )
     include_deleted = normalize_optional_bool(params.get("include_deleted"), "include_deleted")
     if not include_deleted:
         queryset = queryset.filter(deleted_at__isnull=True)
@@ -325,7 +330,7 @@ def _build_action_response(
     summary="Admin 查询 RecordRule V4 列表",
     description="分页查询 V4 预计算规则组，返回轻量状态、版本和 Flow 摘要字段。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "id": "可选，规则组 ID",
         "space_uid": "可选，空间 UID，例如 bkcc__2",
         "space_type": "可选，空间类型",
@@ -343,7 +348,7 @@ def _build_action_response(
     example_params={"bk_tenant_id": "system", "space_uid": "bkcc__2", "page": 1, "page_size": 20},
 )
 def list_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     ordering = normalize_ordering(params.get("ordering"), RULE_ORDERING_FIELDS, default="-updated_at")
     queryset = _build_rule_queryset(params, bk_tenant_id).order_by(ordering, "id")

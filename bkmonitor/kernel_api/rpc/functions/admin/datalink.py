@@ -15,9 +15,12 @@ from django.db.models import Q
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     _mask_sensitive_fields,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_include,
     normalize_optional_bool,
     normalize_pagination,
@@ -244,7 +247,7 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
     summary="Admin 查询 DataLink 组件列表",
     description="按 kind 查询指定类型的 DataLink 组件或 ClusterConfig 组件，支持条件过滤和分页。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
         "namespace": "可选，命名空间精确匹配",
         "search": "可选，按 name 模糊匹配",
@@ -261,7 +264,7 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
     example_params={"bk_tenant_id": "system", "kind": "VmStorageBinding", "page": 1, "page_size": 20},
 )
 def list_components(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
 
     kind = str(params.get("kind", "")).strip()
@@ -273,7 +276,7 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
         )
 
     if kind in CLUSTER_CONFIG_KINDS:
-        queryset = ClusterConfig.objects.filter(bk_tenant_id=bk_tenant_id, kind=kind)
+        queryset = filter_by_bk_tenant_id(ClusterConfig.objects.filter(kind=kind), bk_tenant_id)
 
         if params.get("namespace"):
             queryset = queryset.filter(namespace=str(params["namespace"]).strip())
@@ -285,7 +288,7 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
         items = [_serialize_cluster_config_as_component(item) for item in items_raw]
     else:
         model_class = _get_component_model(kind)
-        queryset = model_class.objects.filter(bk_tenant_id=bk_tenant_id)
+        queryset = filter_by_bk_tenant_id(model_class.objects.all(), bk_tenant_id)
 
         if params.get("namespace"):
             queryset = queryset.filter(namespace=str(params["namespace"]).strip())
@@ -424,7 +427,7 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 查询 ClusterConfig 列表",
     description="查询集群配置列表，支持按 kind、namespace、name 过滤和分页。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "kind": "可选，集群类型: KafkaChannel, VmStorage, ElasticSearch, Doris",
         "namespace": "可选，命名空间精确匹配",
         "search": "可选，按 name 模糊匹配",
@@ -434,10 +437,10 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "kind": "ElasticSearch", "page": 1, "page_size": 20},
 )
 def list_cluster_configs(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
 
-    queryset = ClusterConfig.objects.filter(bk_tenant_id=bk_tenant_id)
+    queryset = filter_by_bk_tenant_id(ClusterConfig.objects.all(), bk_tenant_id)
 
     if params.get("kind") not in (None, ""):
         queryset = queryset.filter(kind=str(params["kind"]).strip())
@@ -594,7 +597,7 @@ def get_cluster_config_component_config(params: dict[str, Any]) -> dict[str, Any
     summary="Admin 查询 DataLink 列表",
     description="查询数据链路编排列表，支持按名称、策略、命名空间过滤和分页。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "namespace": "可选，命名空间精确匹配",
         "search": "可选，按 data_link_name 模糊匹配",
         "data_link_strategy": "可选，链路策略精确匹配",
@@ -605,10 +608,10 @@ def get_cluster_config_component_config(params: dict[str, Any]) -> dict[str, Any
     example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20},
 )
 def list_datalinks(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
 
-    queryset = models.DataLink.objects.filter(bk_tenant_id=bk_tenant_id)
+    queryset = filter_by_bk_tenant_id(models.DataLink.objects.all(), bk_tenant_id)
 
     if params.get("namespace") not in (None, ""):
         queryset = queryset.filter(namespace=str(params["namespace"]).strip())

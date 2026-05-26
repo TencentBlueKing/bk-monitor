@@ -179,10 +179,9 @@ export const useIssuesDialogs = (
    * @returns {AlertOperationDialogParams} dialog私有参数
    */
   const getDialogParamByDialogType = (
-    dialogType: IssuesBatchActionType,
-    data: IssueItem[]
+    _dialogType: IssuesBatchActionType,
+    _data: IssueItem[]
   ): IssuesOperationDialogParams => {
-    console.log('getDialogParamByDialogType', dialogType, data);
     return {};
   };
 

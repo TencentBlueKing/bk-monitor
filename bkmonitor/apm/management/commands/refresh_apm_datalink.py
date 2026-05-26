@@ -15,23 +15,15 @@ from django.conf import settings
 from django.core.management import BaseCommand, CommandError
 
 from apm.models import ApmApplication, MetricDataSource
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from metadata.models import DataSource, Space
-from metadata.models.custom_report.time_series import TimeSeriesGroup, TimeSeriesMetric
-from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.utils import compose_bkdata_data_id_name
-from metadata.models.vm.utils import get_vm_cluster_id_name
+from core.drf_resource import api
+from metadata.models import DataSource
+from metadata.models.custom_report.time_series import TimeSeriesGroup
 
 logger = logging.getLogger("apm")
 
-# APM 场景下的 metric_group_dimensions 固定配置
-# APM_METRIC_GROUP_DIMENSIONS = [
-#     {"key": "scope_name", "default_value": "default"},
-# ]
-
 
 class Command(BaseCommand):
-    help = "刷新 APM 应用的 Metric 数据链路配置"
+    help = "刷新 APM 应用的指标分组维度配置"
 
     def add_arguments(self, parser):
         parser.add_argument("-d", "--bk_data_id", type=int, help="数据源 ID")
@@ -85,14 +77,14 @@ class Command(BaseCommand):
 
             bk_data_id = metric_ds.bk_data_id
 
-        # 2. 获取 DataSource
+        # 2. 获取 DataSource（用于获取 bk_tenant_id）
         try:
             data_source = DataSource.objects.get(bk_data_id=bk_data_id)
         except DataSource.DoesNotExist:
             self.stderr.write(f"Metadata DataSource 不存在: bk_data_id={bk_data_id}")
             return
 
-        # 3. 更新 TimeSeriesGroup.metric_group_dimensions
+        # 3. 获取 TimeSeriesGroup
         ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
         if not ts_group:
             self.stderr.write(f"TimeSeriesGroup 不存在: bk_data_id={bk_data_id}")
@@ -103,56 +95,17 @@ class Command(BaseCommand):
             f"table_id={ts_group.table_id}, "
             f"当前 metric_group_dimensions={ts_group.metric_group_dimensions}"
         )
-        ts_group.metric_group_dimensions = metric_group_dimensions
-        ts_group.save(update_fields=["metric_group_dimensions"])
-        self.stdout.write(f"已更新 metric_group_dimensions -> {metric_group_dimensions}")
 
-        bk_biz_id = ts_group.bk_biz_id
-        table_id = ts_group.table_id
-        if not table_id:
-            self.stderr.write("TimeSeriesGroup.table_id 和 MetricDataSource.result_table_id 都为空，数据链路尚未初始化")
-            return
-
-        self.stdout.write(f"本次下发表名: {table_id}")
-
-        # 4. 查找 DataLink 实例
-        bkbase_data_name = compose_bkdata_data_id_name(data_source.data_name)
-        data_link = DataLink.objects.filter(data_link_name=bkbase_data_name).first()
-        if not data_link:
-            self.stderr.write(f"DataLink 不存在: data_link_name={bkbase_data_name}")
-            return
-
-        self.stdout.write(
-            f"DataLink: data_link_name={data_link.data_link_name}, "
-            f"strategy={data_link.data_link_strategy}, "
-            f"bk_tenant_id={data_link.bk_tenant_id}"
-        )
-
-        # 5. 获取 VM 集群名称
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
-        space_data = {}
+        # 4. 调用 modify API 更新 metric_group_dimensions
+        bk_tenant_id = data_source.bk_tenant_id
         try:
-            space_data = Space.objects.get_space_info_by_biz_id(int(bk_biz_id))
-        except Exception as e:
-            logger.warning("获取空间信息失败: bk_biz_id=%s, error=%s", bk_biz_id, e)
-
-        vm_cluster = get_vm_cluster_id_name(
-            bk_tenant_id=bk_tenant_id,
-            space_type=space_data.get("space_type", ""),
-            space_id=space_data.get("space_id", ""),
-        )
-        storage_cluster_name = vm_cluster["cluster_name"]
-        self.stdout.write(f"VM 集群: {storage_cluster_name}")
-
-        # 6. 下发配置
-        try:
-            data_link.apply_data_link(
-                bk_biz_id=bk_biz_id,
-                data_source=data_source,
-                table_id=table_id,
-                storage_cluster_name=storage_cluster_name,
+            api.metadata.modify_time_series_group(
+                bk_tenant_id=bk_tenant_id,
+                time_series_group_id=ts_group.time_series_group_id,
+                operator="system",
+                metric_group_dimensions=metric_group_dimensions,
             )
-            self.stdout.write("下发成功")
+            self.stdout.write(f"已更新 metric_group_dimensions -> {metric_group_dimensions}")
         except Exception as e:
-            self.stderr.write(f"下发失败: {e}")
+            self.stderr.write(f"更新失败: {e}")
             raise

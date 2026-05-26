@@ -195,17 +195,18 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         return query_dsl
 
     @classmethod
-    def _build_fuzzy_query(cls, query_string: str):
-        """构造故障全字段的前缀模糊查询。"""
+    def _build_fuzzy_query(cls, query_string: str, fields: list[str] | None = None):
+        """构造故障前缀模糊查询，不传 fields 时默认查询全字段。"""
         query_string = query_string.strip().strip('"').strip("'")
         if not query_string:
             return None
 
-        fields = [
-            field.es_field
-            for field in cls.query_transformer.query_fields
-            if field.searchable and field.es_field
-        ]
+        if fields is None:
+            fields = [
+                field.es_field
+                for field in cls.query_transformer.query_fields
+                if field.searchable and field.es_field
+            ]
         if not fields:
             return None
 
@@ -213,7 +214,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
     @classmethod
     def _build_text_condition_query(cls, condition: dict):
-        """为 Text 字段构造基于分词的包含/排除查询。"""
+        """为 Text 字段构造基于分词和前缀短语的包含/排除查询。"""
         value = condition.get("value")
         values = value if isinstance(value, list) else [value]
         queries = []
@@ -223,7 +224,9 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             item = str(item).strip()
             if not item:
                 continue
-            queries.append(Q("match", **{condition["key"]: {"query": item, "operator": "and"}}))
+            match_query = Q("match", **{condition["key"]: {"query": item, "operator": "and"}})
+            fuzzy_query = cls._build_fuzzy_query(item, fields=[condition["key"]])
+            queries.append(match_query | fuzzy_query if fuzzy_query is not None else match_query)
 
         if not queries:
             return None

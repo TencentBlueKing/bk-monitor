@@ -28,6 +28,7 @@ from kernel_api.rpc.functions.admin.datalink import (
     list_components,
 )
 from kernel_api.rpc.functions.admin.es_storage import (
+    _build_runtime_index_item,
     _contains_index_wildcard,
     _is_virtual_es_storage,
     _serialize_es_storage_config,
@@ -47,7 +48,7 @@ from kernel_api.rpc.functions.admin.storage import (
     _serialize_bkbase_item,
     _serialize_doris_storage,
 )
-from kernel_api.rpc.functions.admin.uptime_check import _summarize_subscription
+from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
 
 
@@ -124,6 +125,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.uptime_check.node_detail",
         "admin.uptime_check.task_list",
         "admin.uptime_check.task_detail",
+        "admin.uptime_check.subscription_detail",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -177,6 +179,54 @@ def test_uptime_check_subscription_summary_extracts_effective_data_id():
     assert summary["steps"][0]["data_ids"] == [1009]
     assert summary["steps"][0]["context_summary"]["tasks_samples"][0]["task_id"] == 135
     assert "headers" not in summary["steps"][0]["context_summary"]
+
+
+def test_uptime_check_subscription_detail_masks_sensitive_and_truncates_large_json():
+    relation = {
+        "task_id": 135,
+        "subscription_id": 123,
+        "bk_biz_id": 2,
+        "is_deleted": False,
+        "create_time": "2026-05-14 10:00:00",
+        "update_time": "2026-05-14 10:10:00",
+    }
+    subscription_info = {
+        "id": 123,
+        "enable": True,
+        "steps": [
+            {
+                "id": "bkmonitorbeat_http",
+                "params": {
+                    "context": {
+                        "data_id": "1009",
+                        "token": "secret-token",
+                        "headers": [{"key": "Authorization", "value": "secret"}],
+                        "node_list": [{"bk_host_id": host_id} for host_id in range(25)],
+                    }
+                },
+            }
+        ],
+    }
+    status_detail = [
+        {
+            "subscription_id": 123,
+            "instances": [{"instance_id": f"host-{index}", "status": "SUCCESS"} for index in range(25)],
+        }
+    ]
+
+    detail = _build_subscription_detail_payload(
+        info=subscription_info,
+        relation=relation,
+        status_detail=status_detail,
+    )
+
+    context = detail["config_detail"]["steps"][0]["params"]["context"]
+    assert context["token"] == "***"
+    assert context["headers"] == "***"
+    assert context["node_list"]["count"] == 25
+    assert len(context["node_list"]["samples"]) == 20
+    assert detail["status_detail"][0]["instances"]["count"] == 25
+    assert detail["relation"]["subscription_id"] == 123
 
 
 def test_api_auth_token_serializer_keeps_api_token_fields():
@@ -812,6 +862,32 @@ def test_es_storage_functions_registered():
     rotate_detail = KernelRPCRegistry.get_function_detail("admin.es_storage.rotate_aliases")
     assert "write" in rotate_detail["description"]
     assert "traceback" in rotate_detail["description"]
+
+
+def test_es_storage_runtime_index_item_keeps_stats_values_and_counts_shards():
+    item = _build_runtime_index_item(
+        index_name="v2_system_cpu_20260521_0",
+        stats={"total": {"docs": {"count": 0}, "store": {"size_in_bytes": 0}}},
+        cat_meta={"health": "green", "status": "open", "pri": "2", "rep": "1", "docs.count": "99"},
+    )
+
+    assert item["docs_count"] == 0
+    assert item["store_size"] == 0
+    assert item["primary_shards"] == 2
+    assert item["replica_shards"] == 2
+    assert item["replica_factor"] == 1
+    assert item["shards"] == 4
+
+    settings_item = _build_runtime_index_item(
+        index_name="v2_system_cpu_20260521_0",
+        stats={"total": {"docs": {"count": 3}, "store": {"size_in_bytes": 1024}}},
+        cat_meta={},
+        settings_meta={"settings": {"index": {"number_of_shards": "3", "number_of_replicas": "2"}}},
+    )
+
+    assert settings_item["primary_shards"] == 3
+    assert settings_item["replica_shards"] == 6
+    assert settings_item["shards"] == 9
 
 
 def test_storage_functions_registered():

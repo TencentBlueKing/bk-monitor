@@ -80,8 +80,6 @@ export interface IssueIdentifier {
   issue_id: IssueItem['id'];
 }
 
-// ===================== 响应结构类型 =====================
-
 /** 批量操作失败条目 */
 export interface IssueOperationFailedItem {
   /** 该 Issue 所属的业务 ID */
@@ -105,6 +103,8 @@ export interface IssueOperationSucceededBase {
   /** 更新时间（Unix 秒级时间戳） */
   update_time: IssueItem['update_time'];
 }
+
+// ===================== 响应结构类型 =====================
 
 /** Issues 批量操作响应 */
 export interface IssuesBatchOperationResponse<U extends IssuesBatchActionType = IssuesBatchActionType> {
@@ -133,6 +133,17 @@ export interface IssueSucceededItemByActionMap {
   [IssuesBatchActionEnum.UNARCHIVE]: StatusChangeSucceededItem;
   [IssuesBatchActionEnum.UNRESOLVE]: StatusChangeSucceededItem;
 }
+
+/** 查询最近指派负责人请求参数 */
+export interface ListRecentAssigneesParams {
+  /** 业务 ID 列表 */
+  bk_biz_ids: IssueItem['bk_biz_id'][];
+  /** 统计最近 N 天内的指派记录，范围 1~30，默认 7 */
+  recent_days?: number;
+}
+
+/** 查询最近指派负责人响应结果 */
+export type ListRecentAssigneesResponse = string[];
 
 /** 重命名 Issue 请求参数 */
 export interface RenameIssueParams {

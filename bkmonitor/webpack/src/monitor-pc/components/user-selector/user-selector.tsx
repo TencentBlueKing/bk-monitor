@@ -45,6 +45,7 @@ interface IBkUserSelectorProps {
   modelValue?: string | string[];
   multiple?: boolean;
   placeholder?: string;
+  recentUserIds?: string[];
   tenantId?: string;
   userGroup?: IUserGroup[];
   onChange?: (value: string[]) => void;
@@ -67,6 +68,7 @@ export default class UserSelector extends tsc<
     emptyText?: string;
     multiple?: boolean;
     placeholder?: string;
+    recentUserIds?: string[];
     renderListItem: (h: any, userInfo: FormattedUser) => JSX.Element;
     renderTag: (h: any, userInfo: FormattedUser) => JSX.Element;
     userGroup?: string[];
@@ -87,6 +89,8 @@ export default class UserSelector extends tsc<
   @Prop({ type: String }) readonly emptyText: string;
   @Prop({ type: Function }) readonly renderTag: (h: any, userInfo: FormattedUser) => JSX.Element;
   @Prop({ type: Function }) readonly renderListItem: (h: any, userInfo: FormattedUser) => JSX.Element;
+  /** 最近选择用户 ID 列表，传入后在下拉右侧展示最近选择 */
+  @Prop({ type: Array, default: () => [] }) readonly recentUserIds: string[];
   @Model('change', { type: [Array, String], default: () => [] }) userIds: string | string[];
   componentConfig: Partial<ConfigOptions> = {};
   get enableMultiTenantMode() {
@@ -168,6 +172,7 @@ export default class UserSelector extends tsc<
         modelValue={this.userIds}
         multiple={this.multiple}
         placeholder={this.placeholder}
+        recentUserIds={this.recentUserIds}
         renderListItem={this.listItemRender}
         renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}

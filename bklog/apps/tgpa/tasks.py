@@ -25,6 +25,7 @@ import arrow
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -128,9 +129,15 @@ def _check_unfinished_tasks(bk_biz_id: int):
     unfinished_tasks = list(
         TGPATask.objects.filter(
             bk_biz_id=bk_biz_id,
-            task_status__in=TGPATaskStatusEnum.get_active_statuses(),
             created_at__gte=arrow.now().shift(days=-TGPA_UNFINISHED_TASK_CHECK_DAYS).datetime,
-        ).order_by("-id")
+        )
+        .filter(
+            # 任务状态仍在活跃中，或者任务已成功但文件尚未上传成功（防止任务状态先于文件状态变化导致遗漏）
+            Q(task_status__in=TGPATaskStatusEnum.get_active_statuses())
+            | Q(task_status=str(TGPATaskStatusEnum.SUCCESS.value), file_status__isnull=True)
+            | (Q(task_status=str(TGPATaskStatusEnum.SUCCESS.value)) & ~Q(file_status=TGPA_TASK_EXE_CODE_SUCCESS))
+        )
+        .order_by("-id")
     )
     if not unfinished_tasks:
         return

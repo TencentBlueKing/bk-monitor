@@ -31,6 +31,7 @@ import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../../components/user-selector/user-selector';
 import { useAsyncDialog } from '../../hooks/use-async-dialog';
+import { useRecentAssignees } from '../../hooks/use-recent-assignees';
 
 import type { AsyncDialogConfirmEvent } from '../../hooks/use-async-dialog';
 import type { IssueIdentifier } from '../../typing';
@@ -73,6 +74,11 @@ export default defineComponent({
     } = useAsyncDialog({
       isShow: toRef(() => props.isShow),
       onShowChange: (val: boolean) => emit('update:isShow', val),
+    });
+
+    const { recentUserIds } = useRecentAssignees({
+      isShow: toRef(() => props.isShow),
+      issuesData: toRef(() => props.issuesData),
     });
 
     /**
@@ -118,6 +124,7 @@ export default defineComponent({
     return {
       t,
       assignInputValue,
+      recentUserIds,
       loading,
       getTitle,
       handleConfirm,
@@ -146,6 +153,7 @@ export default defineComponent({
                   disabled={this.loading}
                   modelValue={this.assignInputValue}
                   placeholder={this.t('请输入')}
+                  recentUserIds={this.recentUserIds}
                   onUpdate:modelValue={(val: string[]) => {
                     this.assignInputValue = val;
                   }}
