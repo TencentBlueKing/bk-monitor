@@ -100,6 +100,16 @@ const convertFileListToTree = (fileList: string[]): FileTreeNode[] => {
   return [root];
 };
 
+/** 解析 extend_info：JSON 取 desc 字段，否则原样返回 */
+const formatExtendInfo = (val: string) => {
+  try {
+    const parsed = JSON.parse(val);
+    return parsed?.desc ?? val;
+  } catch {
+    return val;
+  }
+};
+
 export default defineComponent({
   name: 'LogDetailPanel',
   props: {
@@ -916,7 +926,7 @@ export default defineComponent({
             <div class='ext-content'>
               <i class='bklog-icon bklog-miaoshu'></i>
               <span class='ext-label'>{t('扩展信息')}:</span>
-              <span class='ext-value'>{props.selectedLogItem.extend_info}</span>
+              <span class='ext-value'>{formatExtendInfo(props.selectedLogItem.extend_info)}</span>
             </div>
           )}
 
