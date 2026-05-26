@@ -9,8 +9,8 @@ from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingAr
 
 NUMBER_REGEX_LST = ["NUMBER", "PERIOD", "IP", "CAPACITY"]
 PATTERN_GAP_REGEX = r"[\s\S]*?"
-PATTERN_PLACEHOLDER_REGEX = re.compile(r"#([A-Za-z0-9_]+)#")
-PATTERN_TOKEN_REGEX = re.compile(r"#([A-Za-z0-9_]+)#|\*")
+PATTERN_PLACEHOLDER_REGEX = re.compile(r"#([A-Za-z0-9_-]+)#")
+PATTERN_TOKEN_REGEX = re.compile(r"#([A-Za-z0-9_-]+)#|\*")
 
 RISK_REASON_NO_PLACEHOLDER = "no_placeholder"
 RISK_REASON_UNKNOWN_PLACEHOLDER = "unknown_placeholder"

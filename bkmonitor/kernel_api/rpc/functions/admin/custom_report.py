@@ -15,15 +15,19 @@ from django.db.models import Count
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    PAGE_LIST_TENANT_SCHEMA,
     SAFETY_LEVEL_WRITE,
     build_response,
+    filter_by_bk_tenant_id,
     get_bk_tenant_id,
+    get_page_list_bk_tenant_id,
     normalize_optional_bool,
     normalize_pagination,
     normalize_positive_int,
     paginate_queryset,
     serialize_model,
     serialize_value,
+    tenant_filter_kwargs,
 )
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
@@ -229,8 +233,8 @@ def _serialize_log_datasource(datasource: models.DataSource) -> dict[str, Any]:
     }
 
 
-def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False)
+def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.TimeSeriesGroup.objects.filter(is_delete=False), bk_tenant_id)
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     if bk_biz_id is not None:
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
@@ -246,8 +250,8 @@ def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str):
     return queryset
 
 
-def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.EventGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False)
+def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(models.EventGroup.objects.filter(is_delete=False), bk_tenant_id)
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     if bk_biz_id is not None:
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
@@ -263,11 +267,13 @@ def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str):
     return queryset
 
 
-def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
-    queryset = models.DataSource.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        is_custom_source=True,
-        type_label__icontains="log",
+def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str | None):
+    queryset = filter_by_bk_tenant_id(
+        models.DataSource.objects.filter(
+            is_custom_source=True,
+            type_label__icontains="log",
+        ),
+        bk_tenant_id,
     )
     bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
     if bk_data_id is not None:
@@ -278,7 +284,7 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
     table_id = str(params.get("table_id") or "").strip()
     if table_id:
         bk_data_ids = models.DataSourceResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, table_id__icontains=table_id
+            **tenant_filter_kwargs(bk_tenant_id), table_id__icontains=table_id
         ).values_list("bk_data_id", flat=True)
         queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     created_from = str(params.get("created_from") or "").strip()
@@ -292,7 +298,7 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
     summary="Admin 查询自定义上报列表",
     description="只读分页查询自定义指标、自定义事件和日志类自定义上报资源。",
     params_schema={
-        "bk_tenant_id": "可选，租户 ID",
+        "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "report_type": "可选，custom_metric / custom_event / custom_log",
         "bk_biz_id": "可选，业务 ID",
         "bk_data_id": "可选，DataId",
@@ -305,7 +311,7 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str):
     example_params={"bk_tenant_id": "system", "report_type": "custom_metric", "page": 1, "page_size": 20},
 )
 def list_custom_reports(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id = get_bk_tenant_id(params)
+    bk_tenant_id = get_page_list_bk_tenant_id(params)
     report_type = _normalize_report_type(params.get("report_type")) or REPORT_TYPE_METRIC
     page, page_size = normalize_pagination(params)
 

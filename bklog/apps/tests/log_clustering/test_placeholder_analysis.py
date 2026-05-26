@@ -21,8 +21,10 @@ class TestPlaceholderAnalysisHandler(TestCase):
     def setUp(self):
         self.predefined_variables = encode_predefined_variables(
             [
+                r"DATETIME:[^ ]+",
                 r"PATH:[^ ]+",
                 r"NUMBER:\d+",
+                r"IP-PORT:[^ ]+",
             ]
         )
         ClusteringConfig.objects.create(
@@ -182,6 +184,29 @@ class TestPlaceholderAnalysisHandler(TestCase):
         with self.assertRaises(ValidationError):
             PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
 
+    @patch("apps.log_clustering.handlers.placeholder_analysis.ClusteringUnifyQueryChartHandler")
+    def test_get_distribution_supports_hyphenated_placeholder_name(self, mock_chart_handler):
+        mock_chart_handler.return_value.get_chart_data.side_effect = [
+            {"list": [{"val": "server-a:8080", "cnt": 1}]},
+            {"list": [{"unique_count": 1}]},
+            {"list": [{"total_count": 1}]},
+        ]
+        params = {
+            "signature": "deadbeef",
+            "pattern": "#DATETIME# DEBUG client.py #NUMBER# #NUMBER# #IP-PORT# select #IP-PORT# addr #IP-PORT# cost #NUMBER#",
+            "placeholder_index": 5,
+            "start_time": 1710000000000,
+            "end_time": 1710003600000,
+        }
+
+        result = PlaceholderAnalysisHandler(INDEX_SET_ID, params).get_distribution()
+
+        self.assertEqual(result["placeholder_name"], "IP-PORT")
+        self.assertEqual(result["placeholder_index"], 5)
+        distribution_sql = mock_chart_handler.call_args_list[0].args[0]["sql"]
+        self.assertIn("regexp_extract(", distribution_sql)
+        self.assertNotIn(r"\#IP\-PORT\#", distribution_sql)
+
     def test_value_keyword_filter_uses_instr_with_escaped_literal(self):
         handler = PlaceholderAnalysisHandler(
             INDEX_SET_ID,
@@ -339,12 +364,12 @@ class TestPlaceholderAnalysisHandler(TestCase):
             "list": [
                 {
                     "dtEventTimeStamp": "1710000000000",
-                    "serverIp": "1.1.1.1",
+                    "serverIp": "server-a",
                     "message": "request failed, code=404",
                 },
                 {
                     "dtEventTimeStamp": "1709996400000",
-                    "serverIp": "1.1.1.2",
+                    "serverIp": "server-b",
                     "message": "request failed again, code=404",
                 },
             ],
@@ -378,12 +403,12 @@ class TestPlaceholderAnalysisHandler(TestCase):
                 "samples": [
                     {
                         "dtEventTimeStamp": "1710000000000",
-                        "serverIp": "1.1.1.1",
+                        "serverIp": "server-a",
                         "message": "request failed, code=404",
                     },
                     {
                         "dtEventTimeStamp": "1709996400000",
-                        "serverIp": "1.1.1.2",
+                        "serverIp": "server-b",
                         "message": "request failed again, code=404",
                     },
                 ],

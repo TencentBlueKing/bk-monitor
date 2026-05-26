@@ -30,6 +30,7 @@ import {
   archiveIssue,
   assignIssue,
   exportIssue,
+  listRecentAssignees,
   renameIssue,
   reopenIssue,
   resolveIssue,
@@ -44,6 +45,8 @@ import type {
   ExportIssuesParams,
   FollowUpIssuesParams,
   IssuesBatchOperationResponse,
+  ListRecentAssigneesParams,
+  ListRecentAssigneesResponse,
   RenameIssueParams,
   RenameIssueSucceededItem,
   ResolveIssuesParams,
@@ -62,6 +65,20 @@ export const assignIssues = async (
 ): Promise<IssuesBatchOperationResponse<'assign'>> => {
   const data = await assignIssue(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
+};
+
+/**
+ * @description 查询最近指派的负责人列表，封装底层 API 调用与数据预处理
+ * @param {ListRecentAssigneesParams} params - 查询请求参数（bk_biz_ids / recent_days）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<ListRecentAssigneesResponse>} 负责人用户名列表
+ */
+export const fetchRecentAssignees = async (
+  params: ListRecentAssigneesParams,
+  options?: RequestOptions
+): Promise<ListRecentAssigneesResponse> => {
+  const data = await listRecentAssignees(params, options).catch(() => []);
+  return data ?? [];
 };
 
 /**

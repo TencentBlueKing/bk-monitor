@@ -33,7 +33,6 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import { useSidebarDiff } from '@/views/manage-v2/hooks/use-sidebar-diff';
 
 import GrokInput from './components/grok-input';
-import GrokModeSwitch from './components/grok-mode-switch';
 import { DebugStatus, IGrokItem } from './types';
 
 import './grok-slider.scss';
@@ -383,7 +382,7 @@ export default defineComponent({
                 </div>
                 <GrokInput
                   grokMode={grokModeEnabled.value}
-                  popoverPosition='cursor'
+                  popoverPosition='editor'
                   value={formData.pattern}
                   type='textarea'
                   placeholder={`${t('例如')} \\[%{IP:client_ip}\\] (?<http_method>[A-Z]+) %{URIPATH:path}`}

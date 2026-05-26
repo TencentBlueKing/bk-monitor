@@ -25,6 +25,7 @@ from metadata.models import (
     AccessVMRecord,
     BCSClusterInfo,
     BcsFederalClusterInfo,
+    BkBaseResultTable,
     ClusterInfo,
     DataSource,
     DataSourceOption,
@@ -46,6 +47,61 @@ from metadata.models.vm.constants import (
 )
 
 logger = logging.getLogger("metadata")
+
+
+def _get_configured_bkbase_result_table(
+    bk_tenant_id: str,
+    monitor_table_id: str,
+    data_link_strategy: str,
+) -> BkBaseResultTable | None:
+    """
+    从 BkBaseResultTable 查找当前 RT 已配置的 DataLink 关联。
+
+    同一个 monitor_table_id 可能同时存在标准链路和联邦链路记录，因此优先选择
+    DataLink 策略匹配的记录；若只有孤立 BkBaseResultTable 记录，则允许上层复用
+    该 data_link_name 补齐 DataLink。
+    """
+    candidates = list(
+        BkBaseResultTable.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            monitor_table_id=monitor_table_id,
+        )
+        .exclude(data_link_name="")
+        .order_by("-last_modify_time", "-create_time")
+    )
+    if not candidates:
+        return None
+
+    data_link_names = [candidate.data_link_name for candidate in candidates]
+    data_link_strategies = {
+        data_link_name: strategy
+        for data_link_name, strategy in DataLink.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name__in=data_link_names,
+        ).values_list("data_link_name", "data_link_strategy")
+    }
+    for candidate in candidates:
+        if data_link_strategies.get(candidate.data_link_name) == data_link_strategy:
+            return candidate
+
+    orphan_candidates = [candidate for candidate in candidates if candidate.data_link_name not in data_link_strategies]
+    if len(orphan_candidates) == 1:
+        return orphan_candidates[0]
+
+    logger.warning(
+        "get_configured_bkbase_result_table: table_id->[%s] has BkBaseResultTable records but no safe "
+        "data_link_strategy match, strategy->[%s], candidates->[%s]",
+        monitor_table_id,
+        data_link_strategy,
+        [
+            {
+                "data_link_name": candidate.data_link_name,
+                "data_link_strategy": data_link_strategies.get(candidate.data_link_name),
+            }
+            for candidate in candidates
+        ],
+    )
+    return None
 
 
 def refine_bkdata_kafka_info(bk_tenant_id: str):
@@ -663,14 +719,6 @@ def create_bkbase_data_link(
         data_link_strategy,
         namespace,
     )
-    # 组装计算平台侧的 data_name，作为 DataLink / AccessVMRecord 的查询键。
-    bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name)
-    logger.info(
-        "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",
-        data_source.bk_data_id,
-        bkbase_data_name,
-    )
-
     # 1. 判断是否是联邦代理集群链路
     if BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id, is_deleted=False).exists():
         logger.info("create_bkbase_data_link: bcs_cluster_id->[%s] is a federal proxy cluster!", bcs_cluster_id)
@@ -682,10 +730,36 @@ def create_bkbase_data_link(
     elif data_source.etl_config == EtlConfigs.BK_STANDARD.value:
         data_link_strategy = DataLink.BK_STANDARD_TIME_SERIES
 
+    # 组装计算平台侧的 data_name，作为新链路场景下的默认 DataLink / AccessVMRecord 查询键。
+    bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name, strategy=data_link_strategy)
+    data_link_name = bkbase_data_name
+    configured_bkbase_rt = _get_configured_bkbase_result_table(
+        bk_tenant_id=data_source.bk_tenant_id,
+        monitor_table_id=monitor_table_id,
+        data_link_strategy=data_link_strategy,
+    )
+    if configured_bkbase_rt:
+        data_link_name = configured_bkbase_rt.data_link_name
+        bkbase_data_name = configured_bkbase_rt.bkbase_data_name or bkbase_data_name
+        logger.info(
+            "create_bkbase_data_link: use configured BkBaseResultTable relation, data_id->[%s],"
+            "monitor_table_id->[%s],data_link_name->[%s],bkbase_data_name->[%s]",
+            data_source.bk_data_id,
+            monitor_table_id,
+            data_link_name,
+            bkbase_data_name,
+        )
+    else:
+        logger.info(
+            "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",
+            data_source.bk_data_id,
+            bkbase_data_name,
+        )
+
     # 2. 创建链路资源对象
     data_link_ins, _ = DataLink.objects.update_or_create(
         bk_tenant_id=data_source.bk_tenant_id,
-        data_link_name=bkbase_data_name,
+        data_link_name=data_link_name,
         namespace=namespace,
         data_link_strategy=data_link_strategy,
         defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [monitor_table_id]},
@@ -751,10 +825,13 @@ def create_bkbase_data_link(
     )
     # vm_result_table_id 来自 sync_metadata 刚写入的 BkBaseResultTable；读取失败则按 tenant
     # data_biz_id + compose 生成名兜底，并打 error log 方便排查。
-    from metadata.models.bkdata.result_table import BkBaseResultTable
-
     try:
-        vm_result_table_id = BkBaseResultTable.objects.get(data_link_name=data_link_ins.data_link_name).bkbase_table_id
+        bkbase_rt = BkBaseResultTable.objects.get(
+            bk_tenant_id=data_source.bk_tenant_id,
+            data_link_name=data_link_ins.data_link_name,
+        )
+        vm_result_table_id = bkbase_rt.bkbase_table_id
+        bkbase_data_name = bkbase_rt.bkbase_data_name or bkbase_data_name
         if not vm_result_table_id:
             raise BkBaseResultTable.DoesNotExist
     except BkBaseResultTable.DoesNotExist:
@@ -771,8 +848,8 @@ def create_bkbase_data_link(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
         bk_base_data_id=data_source.bk_data_id,
-        bk_base_data_name=bkbase_data_name,
         defaults={
+            "bk_base_data_name": bkbase_data_name,
             "vm_cluster_id": storage_cluster_id,
             "vm_result_table_id": vm_result_table_id,
             "bcs_cluster_id": bcs_cluster_id,

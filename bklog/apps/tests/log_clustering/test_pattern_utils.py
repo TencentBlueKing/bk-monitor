@@ -23,6 +23,7 @@ PREDEFINED_VARIABLES = encode_predefined_variables(
     [
         r"PATH:[^ ]+",
         r"NUMBER:\d+",
+        r"IP-PORT:[^ ]+",
     ]
 )
 
@@ -37,6 +38,18 @@ class TestPatternUtils(SimpleTestCase):
                 {"name": "NUMBER", "index": 0},
                 {"name": "PATH", "index": 1},
                 {"name": "NUMBER", "index": 2},
+            ],
+        )
+
+    def test_parse_pattern_placeholders_supports_hyphenated_names(self):
+        result = parse_pattern_placeholders("#DATETIME# client #IP-PORT# local #IP-PORT#")
+
+        self.assertEqual(
+            result,
+            [
+                {"name": "DATETIME", "index": 0},
+                {"name": "IP-PORT", "index": 1},
+                {"name": "IP-PORT", "index": 2},
             ],
         )
 
@@ -64,6 +77,17 @@ class TestPatternUtils(SimpleTestCase):
         self.assertIn(r"\)", result)
         self.assertIn(r"(\d+)", result)
         self.assertFalse(result.endswith("$"))
+
+    def test_build_doris_regexp_treats_hyphenated_placeholder_as_variable(self):
+        result = build_doris_regexp(
+            "traceId #PATH# client address #IP-PORT# local address #IP-PORT#",
+            placeholder_index=1,
+            predefined_varibles=PREDEFINED_VARIABLES,
+        )
+
+        self.assertIn(r"([^ ]+)", result)
+        self.assertIn(r"(?:[^ ]+)", result)
+        self.assertNotIn(r"\#IP\-PORT\#", result)
 
     def test_build_doris_regexp_normalizes_inner_capturing_groups(self):
         predefined_variables = encode_predefined_variables(

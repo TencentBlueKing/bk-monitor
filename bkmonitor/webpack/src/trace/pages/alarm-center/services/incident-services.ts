@@ -271,6 +271,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     name: 'create_time',
     alias: window.i18n.t('故障检出时间'),
     type: EFieldType.date,
+    isEnableOptions: true,
     methods: [
       { alias: '=', value: 'eq' },
       { alias: '<', value: 'lt' },
@@ -283,6 +284,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     name: 'update_time',
     alias: window.i18n.t('故障更新时间'),
     type: EFieldType.date,
+    isEnableOptions: true,
     methods: [
       { alias: '=', value: 'eq' },
       { alias: '<', value: 'lt' },
@@ -295,6 +297,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     name: 'begin_time',
     alias: window.i18n.t('故障开始时间'),
     type: EFieldType.date,
+    isEnableOptions: true,
     methods: [
       { alias: '=', value: 'eq' },
       { alias: '<', value: 'lt' },
@@ -307,6 +310,7 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
     name: 'end_time',
     alias: window.i18n.t('故障结束时间'),
     type: EFieldType.date,
+    isEnableOptions: true,
     methods: [
       { alias: '=', value: 'eq' },
       { alias: '<', value: 'lt' },
@@ -315,22 +319,22 @@ export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
       { alias: '>=', value: 'gte' },
     ],
   },
-  {
-    name: 'snapshot',
-    alias: window.i18n.t('故障图谱快照'),
-    isEnableOptions: true,
-    type: EFieldType.integer,
-    methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
-    ],
-  },
+  // {
+  //   name: 'snapshot',
+  //   alias: window.i18n.t('故障图谱快照'),
+  //   isEnableOptions: true,
+  //   type: EFieldType.integer,
+  //   methods: [
+  //     {
+  //       alias: '=',
+  //       value: 'eq',
+  //     },
+  //     {
+  //       alias: '!=',
+  //       value: 'neq',
+  //     },
+  //   ],
+  // },
 ];
 
 /** 告警中心故障表列配置（与事件中心旧版 `__INCIDENT_EVENT_COLUMN__` 隔离，避免互相覆盖） */
