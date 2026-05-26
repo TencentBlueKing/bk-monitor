@@ -390,7 +390,7 @@ class IncidentListResource(IncidentBaseResource):
             result = handler.search(show_overview=False, show_aggs=True)
 
         bk_biz_ids = validated_request_data.get("bk_biz_ids", [])
-        result["greyed_spaces"] = []
+        result["authorize_bk_biz_ids"] = []
 
         if bk_biz_ids:
             general_config_data = GetConfigResource().request(**{
@@ -400,7 +400,7 @@ class IncidentListResource(IncidentBaseResource):
             })
             for item in general_config_data.get("objects",[]):
                 if item.get("content",{}).get("enabled",False):
-                    result["greyed_spaces"].append(item.get("scope_value"))
+                    result["authorize_bk_biz_ids"].append(item.get("scope_value"))
         result["wx_cs_link"] = ""
         for item in settings.BK_DATA_ROBOT_LINK_LIST:
             if item["icon_name"] == "icon-kefu":
