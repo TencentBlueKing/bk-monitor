@@ -19,6 +19,9 @@ from rest_framework.response import Response
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
+# list_users 仅允许按以下字段过滤，禁止用 lookup_field 指定 password 等敏感字段做字段枚举
+ALLOWED_USER_LOOKUP_FIELDS = ("username", "display_name")
+
 
 class UserViewSet(viewsets.GenericViewSet):
     """
@@ -29,6 +32,9 @@ class UserViewSet(viewsets.GenericViewSet):
 
     class RequestSerializer(serializers.Serializer):
         fuzzy_lookups = serializers.CharField(label="查询关键字", default="")
+        lookup_field = serializers.ChoiceField(
+            label="查询字段", choices=ALLOWED_USER_LOOKUP_FIELDS, required=False
+        )
         page = serializers.IntegerField(label="限制数量", default=1)
         page_size = serializers.IntegerField(label="限制数量", default=20)
         fields = serializers.CharField(label="返回字段", default="id,display_name,username,logo")
@@ -42,6 +48,12 @@ class UserViewSet(viewsets.GenericViewSet):
         params = dict(request.query_params)
         params.pop("callback", None)
         params.pop("app_code", None)
+
+        # 安全限制：仅允许按 username / display_name 过滤，
+        # 防止通过 lookup_field 指定 password 等敏感字段进行字段枚举（信息泄露）
+        # 校验全部取值，避免重复传参（lookup_field=username&lookup_field=password）绕过
+        if any(lf and lf not in ALLOWED_USER_LOOKUP_FIELDS for lf in request.query_params.getlist("lookup_field")):
+            raise serializers.ValidationError({"lookup_field": "仅支持按 username、display_name 过滤"})
 
         all_user_result = api.bk_login.get_all_user(**params)
         result = {
