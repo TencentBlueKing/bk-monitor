@@ -124,9 +124,7 @@ export function useAlarmTableColumns() {
     set: (val: string[]) => {
       tableStorageConfig.value = {
         ...tableStorageConfig.value,
-        displayFields: shouldOmitBkBizNameColumn(alarmStore.bizIds)
-          ? val.filter(f => f !== BK_BIZ_NAME_FIELD)
-          : val,
+        displayFields: shouldOmitBkBizNameColumn(alarmStore.bizIds) ? val.filter(f => f !== BK_BIZ_NAME_FIELD) : val,
       };
     },
   });

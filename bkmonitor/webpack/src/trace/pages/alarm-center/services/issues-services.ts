@@ -56,6 +56,14 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
     is_locked: true,
   },
   {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    is_locked: true,
+    width: 100,
+    fixed: 'left',
+  },
+  {
     colKey: 'labels',
     title: window.i18n.t('标签'),
     width: 160,
