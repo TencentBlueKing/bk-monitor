@@ -95,8 +95,8 @@ export default defineComponent({
     };
 
     /** 处理拆分成功 */
-    const handleDialogSuccess = () => {
-      emit('success');
+    const handleDialogSuccess = (memberIssueId: string) => {
+      emit('success', memberIssueId);
       handleDialogClose();
     };
 

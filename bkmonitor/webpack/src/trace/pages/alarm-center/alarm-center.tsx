@@ -190,6 +190,8 @@ export default defineComponent({
       mergeSplitShow,
       mergeSplitType,
       mergeSplitIssues,
+      highlightedRowIds,
+      addSplitHighlight,
       handleIssuesMergeClick,
       handleIssuesSplitClick,
       handleMergeSplitShowChange,
@@ -197,6 +199,15 @@ export default defineComponent({
       data: data as Ref<IssueItem[]>,
       selectedRowKeys,
     });
+
+    /**
+     * @description 拆分成功回调：先触发列表刷新让新行出现，再标记高亮
+     * @param {string} memberIssueId - 被拆分出的独立 Issue ID
+     */
+    const handleSplitSuccess = (memberIssueId: string) => {
+      alarmStore.refreshImmediate += 1;
+      addSplitHighlight(memberIssueId);
+    };
 
     /**
      * @description 直接调用优先级变更接口，无需打开弹窗，成功后原地更新对应 Issue 行数据
@@ -1074,6 +1085,8 @@ export default defineComponent({
       mergeSplitType,
       mergeSplitIssues,
       handleMergeSplitShowChange,
+      handleSplitSuccess,
+      highlightedRowIds,
     };
   },
   render() {
@@ -1219,6 +1232,7 @@ export default defineComponent({
                               columns={this.tableSourceColumns}
                               data={this.data as IssueItem[]}
                               headerAffixedTop={tableAffixed}
+                              highlightedRowIds={this.highlightedRowIds}
                               horizontalScrollAffixedBottom={tableAffixed}
                               loading={this.loading}
                               nameChange={this.handleIssuesNameChange}
@@ -1316,6 +1330,7 @@ export default defineComponent({
                 issues={this.mergeSplitIssues}
                 show={this.mergeSplitShow}
                 type={this.mergeSplitType}
+                onSuccess={this.handleSplitSuccess}
                 onUpdate:show={this.handleMergeSplitShowChange}
               />,
             ]

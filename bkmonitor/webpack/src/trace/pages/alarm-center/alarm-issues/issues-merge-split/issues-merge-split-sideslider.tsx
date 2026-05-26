@@ -64,8 +64,8 @@ export default defineComponent({
       emit('update:show', isShow);
     };
 
-    const handleSuccess = () => {
-      emit('success');
+    const handleSuccess = (memberIssueId: string) => {
+      emit('success', memberIssueId);
     };
 
     return {
@@ -105,9 +105,9 @@ export default defineComponent({
             ) : (
               <SplitContent
                 issues={this.issues}
-                onSuccess={() => {
+                onSuccess={(memberIssueId: string) => {
                   this.handleShowChange(false);
-                  this.handleSuccess();
+                  this.handleSuccess(memberIssueId);
                 }}
               />
             ),

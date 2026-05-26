@@ -77,6 +77,11 @@ export default defineComponent({
       type: String,
       required: true,
     },
+    /** 拆分后需高亮的行 ID 集合 */
+    highlightedRowIds: {
+      type: Set as PropType<Set<string>>,
+      default: () => new Set(),
+    },
     /** 表头吸顶 */
     headerAffixedTop: {
       type: Object as PropType<{ container: string }>,
@@ -200,8 +205,11 @@ export default defineComponent({
             ) as unknown as SlotReturnValue
           }
           rowClassName={({ row }) => {
-            const status = (row as IssueItem).status;
-            return ENDED_STATUS_SET.has(status) ? 'is-ended' : '';
+            const item = row as IssueItem;
+            const classes: string[] = [];
+            if (ENDED_STATUS_SET.has(item.status)) classes.push('is-ended');
+            if (this.highlightedRowIds.has(item.id)) classes.push('is-split-highlighted');
+            return classes.join(' ');
           }}
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}

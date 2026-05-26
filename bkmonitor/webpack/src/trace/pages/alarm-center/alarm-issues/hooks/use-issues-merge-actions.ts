@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, computed, shallowRef } from 'vue';
+import { type Ref, computed, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -56,8 +56,6 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
   const { data, selectedRowKeys } = options;
   const { t } = useI18n();
 
-  // ===================== 合并/拆分侧栏状态 =====================
-
   /** 侧栏是否可见 */
   const mergeSplitShow = shallowRef(false);
 
@@ -66,6 +64,44 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
 
   /** 侧栏传入的 Issue 列表 */
   const mergeSplitIssues = shallowRef<IssueItem[]>([]);
+
+  /** 拆分后需高亮的行 ID 集合（会话级，页面刷新即清除） */
+  const highlightedRowIds = shallowRef<Set<string>>(new Set());
+
+  /**
+   * 标记：下一次 data 变更是拆分操作引起的，应保留高亮。
+   * 拆分成功后会触发 refreshImmediate 刷新列表，该次刷新是为了让新行出现，
+   * 高亮不应被清除；后续任何 data 变更（定时刷新/手动查询/翻页等）则应自动清除。
+   */
+  const isSplitTriggeredRefresh = shallowRef(false);
+
+  /** 添加拆分高亮，并标记下次 data 变更需跳过清除 */
+  const addSplitHighlight = (id: string) => {
+    const next = new Set(highlightedRowIds.value);
+    next.add(id);
+    highlightedRowIds.value = next;
+    isSplitTriggeredRefresh.value = true;
+  };
+
+  /** 清除所有拆分高亮 */
+  const clearSplitHighlights = () => {
+    if (highlightedRowIds.value.size > 0) {
+      highlightedRowIds.value = new Set();
+    }
+  };
+
+  /**
+   * 监听 data 变更，自动清除拆分高亮。
+   * - 拆分触发的首次刷新：跳过清除（isSplitTriggeredRefresh 为 true），重置标记
+   * - 其他任何 data 变更（定时刷新/手动查询/翻页/排序等）：自动清除高亮
+   */
+  watch(data, () => {
+    if (isSplitTriggeredRefresh.value) {
+      isSplitTriggeredRefresh.value = false;
+      return;
+    }
+    clearSplitHighlights();
+  });
 
   // ===================== 合并按钮禁用判定 =====================
 
@@ -139,6 +175,9 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
     mergeSplitShow,
     mergeSplitType,
     mergeSplitIssues,
+    highlightedRowIds,
+    addSplitHighlight,
+    clearSplitHighlights,
     handleIssuesMergeClick,
     handleIssuesSplitClick,
     handleMergeSplitShowChange,

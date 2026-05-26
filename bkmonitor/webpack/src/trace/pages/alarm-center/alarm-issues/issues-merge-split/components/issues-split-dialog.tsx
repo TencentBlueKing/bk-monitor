@@ -99,7 +99,7 @@ export default defineComponent({
             theme: 'success',
             message: t('已拆分为独立 Issue'),
           });
-          emit('success');
+          emit('success', props.issue.member_issue_id);
           handleClose();
         })
         .finally(() => {
