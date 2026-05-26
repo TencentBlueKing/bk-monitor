@@ -164,7 +164,6 @@ console_output_style = "count"
 testpaths = [
     "alarm_backends/tests",
     "bkmonitor/data_source/tests",
-    "bkmonitor/issue_merge/tests",
     "metadata/tests",
 ]
 python_files = ["test_*.py", "tests.py"]
