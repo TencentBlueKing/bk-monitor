@@ -889,10 +889,11 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
                 "sink_names": [],
             },
         )
-        return expected_configs
+        return json.loads(expected_configs)
 
     with (
         patch.object(DataLink, "compose_configs", side_effect=_create_configs) as mock_compose_configs,
+        patch.object(DataLink, "get_existing_component_config", return_value=None),
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
@@ -922,6 +923,70 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
     assert vm_record.vm_cluster_id == 100111
     assert vm_record.bk_base_data_name == bkbase_data_name
     assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_bkbase_data_link_uses_configured_bkbase_result_table_datalink(create_or_delete_records, mocker):
+    """
+    已存在 BkBaseResultTable 关联时，应优先沿用其 data_link_name，避免按 data_source.data_name 新建链路。
+    """
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+
+    generated_data_link_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    configured_data_link_name = "legacy_data_link_test"
+    configured_bkbase_data_name = "legacy_data_id"
+    configured_bkbase_table_id = "2_legacy_rt"
+
+    BkBaseResultTable.objects.create(
+        bk_tenant_id=ds.bk_tenant_id,
+        data_link_name=configured_data_link_name,
+        bkbase_data_name=configured_bkbase_data_name,
+        monitor_table_id=rt.table_id,
+        storage_type=models.ClusterInfo.TYPE_VM,
+        storage_cluster_id=100111,
+        bkbase_rt_name="legacy_rt",
+        bkbase_table_id=configured_bkbase_table_id,
+    )
+    DataLink.objects.create(
+        bk_tenant_id=ds.bk_tenant_id,
+        data_link_name=configured_data_link_name,
+        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id=ds.bk_tenant_id,
+        result_table_id=rt.table_id,
+        bk_base_data_id=ds.bk_data_id,
+        bk_base_data_name=generated_data_link_name,
+        vm_result_table_id="2_generated_rt",
+        vm_cluster_id=100112,
+    )
+
+    with (
+        patch.object(DataLink, "apply_data_link", autospec=True) as mock_apply_data_link,
+        patch.object(DataLink, "sync_metadata", autospec=True) as mock_sync_metadata,
+    ):
+        create_bkbase_data_link(
+            bk_biz_id=1001,
+            data_source=ds,
+            monitor_table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+        )
+
+    assert mock_apply_data_link.call_args.args[0].data_link_name == configured_data_link_name
+    assert mock_sync_metadata.call_args.args[0].data_link_name == configured_data_link_name
+    assert not DataLink.objects.filter(data_link_name=generated_data_link_name).exists()
+
+    configured_data_link = DataLink.objects.get(data_link_name=configured_data_link_name)
+    assert configured_data_link.bk_data_id == ds.bk_data_id
+    assert configured_data_link.table_ids == [rt.table_id]
+
+    assert models.AccessVMRecord.objects.filter(result_table_id=rt.table_id).count() == 1
+    vm_record = models.AccessVMRecord.objects.get(result_table_id=rt.table_id)
+    assert vm_record.bk_base_data_name == configured_bkbase_data_name
+    assert vm_record.vm_result_table_id == configured_bkbase_table_id
+    assert vm_record.vm_cluster_id == 100111
 
 
 @pytest.mark.django_db(databases="__all__")
