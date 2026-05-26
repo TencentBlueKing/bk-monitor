@@ -54,7 +54,7 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
     def convert_bk_biz_id_list_to_scope_value(self, params):
         bk_biz_id_list = params.pop("bk_biz_id_list",[])
         if bk_biz_id_list:
-            params["scope_id_list"]= [params.get('scope_type','bkcc')+str(bk_biz_id) for bk_biz_id in bk_biz_id_list]
+            params["scope_id_list"]= [params.get('scope_type','bkcc')+"_"+str(bk_biz_id) for bk_biz_id in bk_biz_id_list]
         return params
 
     def perform_request(self, validated_request_data):

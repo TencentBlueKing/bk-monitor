@@ -389,7 +389,18 @@ class IncidentListResource(IncidentBaseResource):
         ):
             result = handler.search(show_overview=False, show_aggs=True)
 
-        result["greyed_spaces"] = settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+        bk_biz_ids = validated_request_data.get("bk_biz_ids", [])
+        result["greyed_spaces"] = []
+
+        if bk_biz_ids:
+            general_config_data = GetConfigResource().request(**{
+                "config_type":"general_config",
+                "bk_biz_id_list":bk_biz_ids,
+                "bk_biz_id":bk_biz_ids[0]
+            })
+            for item in general_config_data['data'].get("objects",[]):
+                if item.get("content",{}).get("enabled",False):
+                    result["greyed_spaces"].append(item.get("scope_value"))
         result["wx_cs_link"] = ""
         for item in settings.BK_DATA_ROBOT_LINK_LIST:
             if item["icon_name"] == "icon-kefu":
