@@ -480,4 +480,16 @@ export default {
   '主 Issue 不支持再并入其他主 Issue': 'The main Issue does not support being merged into other main Issues',
   '合并了 {n} 个 Issue，点击查看合并明细': 'Merged {n} Issues, click to view merge details',
   拆分: 'Split',
+
+  '选择或填写拆分依据后，再确认拆分为新 Issue。':
+    'After selecting or filling in the split basis, confirm the split as a new Issue.',
+  合并后保留: 'After merging, retain',
+  合并后隐藏: 'After merging, hide',
+  '由执行合并的用户指定，合并后会沉淀到主 Issue 的合并来源种，便于后续复盘。':
+    'Specified by the user who performs the merge, and will be retained as the merge source in the main Issue.',
+  '只能继续作为主 Issue，不支持再合并入其他 Issue；':
+    'Only continue as the main Issue, and cannot be merged into other Issues.',
+  '事件数、影响范围会并入主 Issue；': 'Event count and impact scope will be merged into the main Issue.',
+  '默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；':
+    'By default, the first selected Issue is retained as the main Issue, and can be switched in the form below.',
 };
