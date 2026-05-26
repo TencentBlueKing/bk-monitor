@@ -425,3 +425,46 @@ class TestTGPASearchHandler(SimpleTestCase):
         )
         # task_id 非空，不查 report
         mock_get_report_list.assert_not_called()
+
+    @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
+    @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
+    def test_get_merged_task_list_source_filter(self, mock_get_task_page, mock_get_report_list):
+        """source 参数过滤：task 仅查 task、report 仅查 report、空值查全部"""
+        cases = [
+            ("task", True, False),
+            ("report", False, True),
+            ("", True, True),
+        ]
+        for source, expect_task_called, expect_report_called in cases:
+            with self.subTest(source=source):
+                mock_get_task_page.reset_mock()
+                mock_get_report_list.reset_mock()
+                mock_get_task_page.return_value = {
+                    "total": 1,
+                    "list": [self._build_task(1, "task-1", "openid_1", "task_1.zip", "2026-04-24 12:00:00")],
+                }
+                mock_get_report_list.return_value = {
+                    "total": 1,
+                    "list": [self._build_report("openid_1", "report_1.zip", "2026-04-24 11:00:00")],
+                }
+
+                result = TGPASearchHandler.get_merged_task_list(
+                    {
+                        "bk_biz_id": 2,
+                        "source": source,
+                        "openid": "openid_1",
+                        "start_time": 1716000000000,
+                        "end_time": 1716600000000,
+                        "page": 1,
+                        "pagesize": 10,
+                    }
+                )
+
+                self.assertEqual(mock_get_task_page.called, expect_task_called)
+                self.assertEqual(mock_get_report_list.called, expect_report_called)
+                # 验证返回结果中的 source 字段正确
+                for item in result["list"]:
+                    if source:
+                        self.assertEqual(item["source"], source)
+                if expect_task_called and expect_report_called:
+                    self.assertEqual(result["total"], 2)
