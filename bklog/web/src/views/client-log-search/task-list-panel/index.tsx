@@ -129,7 +129,7 @@ export default defineComponent({
      * 点击日志条目
      */
     const handleLogItemSelect = (item: LogItem) => {
-      if (item.file_name === props.selectedLogItem?.file_name) return;
+      if (item === props.selectedLogItem) return;
       emit('log-item-select', item);
     };
 
@@ -203,10 +203,10 @@ export default defineComponent({
 
           {/* 日志条目列表 */}
           <div class='task-list' ref={scrollContainerRef} onScroll={handleScroll}>
-          {props.taskList.map(item => (
+          {props.taskList.map((item, index) => (
             <div
-              key={item.file_name}
-              class={['task-item', { active: props.selectedLogItem?.file_name === item.file_name }]}
+              key={`${item.file_name}_${index}`}
+              class={['task-item', { active: props.selectedLogItem === item }]}
               onClick={() => handleLogItemSelect(item)}
             >
               {/* 第一行：时间 + 状态标签 */}

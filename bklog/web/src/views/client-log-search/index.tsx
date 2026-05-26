@@ -199,8 +199,12 @@ export default defineComponent({
         query.source = taskSource.value;
       }
 
-      // URL 回填时加上 file_name 过滤（有 keyword 时不设置，避免同时传递 file_name 和 openid/task_id）
       const urlFileName = initialUrlState?.fileName;
+      if (urlFileName) {
+        delete initialUrlState.fileName;
+      }
+
+      // URL 回填时加上 file_name 过滤（有 keyword 时不设置，避免同时传递 file_name 和 openid/task_id）
       if (urlFileName && !params.keyword.trim()) {
         query.file_name = urlFileName;
       }
@@ -243,9 +247,6 @@ export default defineComponent({
               const matchedItem = urlFileName
                 ? list.find((item: LogItem) => item.file_name === urlFileName)
                 : null;
-              if (urlFileName) {
-                delete initialUrlState.fileName;
-              }
               selectedLogItem.value = matchedItem || list[0];
               fetchClientInfo(selectedLogItem.value);
               // 任务列表返回后同步 URL（选中的任务文件名）
