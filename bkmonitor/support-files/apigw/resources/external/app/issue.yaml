@@ -161,3 +161,39 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: edit follow up of issue
+  /app/issue/merge/:
+    post:
+      operationId: issue_merge
+      description: 合并 Issue
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/issue/merge/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: merge issues
+  /app/issue/split/:
+    post:
+      operationId: issue_split
+      description: 拆分 Issue
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/issue/split/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: split issue
