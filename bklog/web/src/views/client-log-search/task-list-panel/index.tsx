@@ -228,6 +228,15 @@ export default defineComponent({
               </div>
             </div>
           ))}
+          {props.taskList.length === 0 && !props.isLoading && (
+            <bk-exception
+              style='margin-top: 80px'
+              scene='part'
+              type='empty'
+            >
+              <span>{t('暂无数据')}</span>
+            </bk-exception>
+          )}
           {props.isLoading && props.hasMore && (
             <div class='task-list-loading'>loading...</div>
           )}

@@ -122,8 +122,8 @@ export default defineComponent({
     /** 轮询间隔（毫秒） */
     const POLLING_INTERVAL = 20000;
 
-    /** 搜索完成后是否为空数据状态 */
-    const isEmptyState = computed(() => taskList.value.length === 0);
+    /** 搜索完成后是否为空数据状态（仅"全部"tab下显示全屏遮罩） */
+    const isEmptyState = computed(() => taskSource.value === '' && taskList.value.length === 0);
 
     /** 面板是否正在加载（仅手动查询） */
     const isPanelLoading = ref(false);
