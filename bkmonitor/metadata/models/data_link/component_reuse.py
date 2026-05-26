@@ -68,6 +68,8 @@ REUSE_ENABLED_STRATEGIES: set[str] = {
     "bk_exporter_time_series",
     "bk_standard_time_series",
     "bk_standard_v2_time_series",
+    "bk_standard_v2_event",
+    "bk_log",
 }
 
 

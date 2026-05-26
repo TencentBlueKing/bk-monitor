@@ -766,6 +766,7 @@ export class AlertService extends AlarmService {
   }
   get analysisFields(): string[] {
     return [
+      'bk_biz_id',
       'alert_name',
       'metric',
       'duration',
@@ -783,6 +784,7 @@ export class AlertService extends AlarmService {
   }
   get analysisFieldsMap() {
     return {
+      bk_biz_id: window.i18n.t('项目空间'),
       alert_name: window.i18n.t('告警名称'),
       metric: window.i18n.t('指标ID'),
       duration: window.i18n.t('持续时间'),
