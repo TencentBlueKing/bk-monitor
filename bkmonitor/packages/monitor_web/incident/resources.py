@@ -398,7 +398,7 @@ class IncidentListResource(IncidentBaseResource):
                 "bk_biz_id_list":bk_biz_ids,
                 "bk_biz_id":bk_biz_ids[0]
             })
-            for item in general_config_data['data'].get("objects",[]):
+            for item in general_config_data.get("objects",[]):
                 if item.get("content",{}).get("enabled",False):
                     result["greyed_spaces"].append(item.get("scope_value"))
         result["wx_cs_link"] = ""
