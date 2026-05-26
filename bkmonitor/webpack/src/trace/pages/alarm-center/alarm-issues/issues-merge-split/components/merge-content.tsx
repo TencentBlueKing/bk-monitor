@@ -152,7 +152,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='merge-content'>
+      <div class='issues-merge-content'>
         {/* 合并策略提示 */}
         <div class='strategy-section'>
           <MergeStrategyTips hasMainIssue={Boolean(this.defaultMainIssue)} />

@@ -426,8 +426,8 @@ export default {
     'Automatically discover new metrics according to rules, existing metrics do not take effect.',
 
   // Issues 活动内容
-  '拆分为 {0} 个 Issue:': 'Split into {0} Issues:',
-  '合并进 Issue:': 'Merged into Issue:',
+  '拆分为 {0} 个 Issue：': 'Split into {0} Issues：',
+  '合并进 Issue：': 'Merged into Issue：',
   未解决: 'Unresolved',
   未分派: 'Unassigned',
   分派给我: 'Assigned to me',

@@ -547,4 +547,7 @@ export default {
   解除关联成功: 'Unassociation successful',
   解除关联失败: 'Unassociation failed',
   评论发送失败: 'Comment sending failed',
+
+  '已拆分为独立 Issue': 'Split into independent Issue',
+  issue合并成功: 'Issue merged successfully',
 };

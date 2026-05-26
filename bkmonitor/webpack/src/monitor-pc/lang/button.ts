@@ -537,4 +537,10 @@ export default {
   'button-中': 'Medium',
   'button-低': 'Low',
   'button-富文本编辑': 'Rich Text Editor',
+
+  确认拆分: 'Confirm Split',
+  '拆分为新 Issue': 'Split to New Issue',
+  合并: 'Merge',
+  确认合并: 'Confirm Merge',
+  '设为主 Issue': 'Set as Main Issue',
 };
