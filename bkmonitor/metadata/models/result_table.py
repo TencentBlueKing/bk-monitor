@@ -576,7 +576,9 @@ class ResultTable(models.Model):
         # 删除数据链路及对应的关联记录
         for record in records:
             data_link_name = record.data_link_name
-            DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
+            datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
+            if datalink:
+                datalink.delete_data_link()
             record.status = DataLinkResourceStatus.TERMINATING.value
             record.save()
 
