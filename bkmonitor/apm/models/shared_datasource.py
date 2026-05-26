@@ -141,6 +141,7 @@ class SharedTraceDataSource(BaseSharedDataSource):
 
     index_set_id = models.IntegerField("索引集 ID", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
+    bkdata_datalink_config = models.JSONField("BkData链路配置", default=dict)
 
     class Meta:
         verbose_name = "Trace 共享数据源"
@@ -157,12 +158,14 @@ class SharedTraceDataSource(BaseSharedDataSource):
         info = super().to_shared_info()
         info["index_set_id"] = self.index_set_id
         info["index_set_name"] = self.index_set_name
+        info["bkdata_datalink_config"] = self.bkdata_datalink_config
         return info
 
     def activate(self, link_info: dict[str, Any]) -> None:
         """填充链路元数据并启用（含 Trace 特有字段）。"""
         self.index_set_id = link_info.get("index_set_id")
         self.index_set_name = link_info.get("index_set_name")
+        self.bkdata_datalink_config = link_info.get("bkdata_datalink_config") or {}
         super().activate(link_info)
 
 
