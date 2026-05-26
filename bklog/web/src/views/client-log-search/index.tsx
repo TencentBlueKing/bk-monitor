@@ -152,14 +152,17 @@ export default defineComponent({
     /** 是否已经执行过搜索 */
     const hasSearched = ref(false);
 
+    /** 任务列表来源 */
+    const taskSource = ref<string>('');
+
     /**
      * 根据面板可用高度计算分页大小
-     * 可用高度 = 面板高度 - 上padding(12) 上margin(16) - 下padding(12) - header(24)
+     * 可用高度 = 面板高度 - 上padding(12) 上margin(16) - 下padding(12) - header(24) - tabs(44)
      * 每个 item 占 75px
      * 分档：<10 → 10, 10~19 → 20, 20~49 → 50, ≥50 → 100
      */
     const calcPagesize = (panelHeight: number): number => {
-      const availableHeight = panelHeight - 64;
+      const availableHeight = panelHeight - 108;
       const itemCount = Math.floor(availableHeight / 75);
       if (itemCount < 10) return 10;
       if (itemCount < 20) return 20;
@@ -191,6 +194,10 @@ export default defineComponent({
         page: page.value,
         pagesize: computedPagesize.value,
       };
+
+      if (taskSource.value) {
+        query.source = taskSource.value;
+      }
 
       // URL 回填时加上 file_name 过滤（有 keyword 时不设置，避免同时传递 file_name 和 openid/task_id）
       const urlFileName = initialUrlState?.fileName;
@@ -291,6 +298,15 @@ export default defineComponent({
     /** 切换任务列表收起状态 */
     const handleToggleTaskList = (collapsed: boolean) => {
       isTaskListCollapsed.value = collapsed;
+    };
+
+    /** 任务列表来源切换 */
+    const handleSourceChange = (source: string) => {
+      taskSource.value = source;
+      fetchTaskList(lastSearchParams.value, false);
+      if (taskListPanelRef.value?.resetScroll) {
+        taskListPanelRef.value.resetScroll();
+      }
     };
 
     /** 展开任务列表（从 LogDetailPanel 触发） */
@@ -685,9 +701,11 @@ export default defineComponent({
           hasMore={hasMore.value}
           isLoading={isTaskListLoading.value}
           selectedLogItem={selectedLogItem.value}
+          activeSource={taskSource.value}
           on-toggle={handleToggleTaskList}
           on-log-item-select={handleLogItemSelect}
           on-load-more={handleLoadMore}
+          on-source-change={handleSourceChange}
         />
         {/* 右侧：日志详情 */}
         <LogDetailPanel

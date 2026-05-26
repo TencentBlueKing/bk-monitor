@@ -62,8 +62,13 @@ export default defineComponent({
       type: Object as () => LogItem | null,
       default: null,
     },
+    /** 当前选中的任务来源 */
+    activeSource: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['log-item-select', 'toggle', 'load-more'],
+  emits: ['log-item-select', 'toggle', 'load-more', 'source-change'],
   setup(props, { emit, expose }) {
     /** 是否收起 */
     const isCollapsed = ref(false);
@@ -154,19 +159,50 @@ export default defineComponent({
       return status ? statusMap[status] : '未采集';
     };
 
-    return () => (
-      <div
-        class={['card-base', 'task-list-panel', { 'is-collapsed': isCollapsed.value }]}
-        style={{ width: `${isCollapsed.value ? 0 : EXPANDED_WIDTH}px` }}
-      >
-        {/* 标题栏：收起箭头 + 标题 */}
-        <div class='panel-header' onClick={handleToggle}>
-          <i class='bklog-icon bklog-collapse'></i>
-          <span class='panel-title'>{t('任务列表')}</span>
-        </div>
+    const handleTabChange = (source: string) => {
+      if (props.activeSource === source) return;
+      emit('source-change', source);
+    };
 
-        {/* 日志条目列表 */}
-        <div class='task-list' ref={scrollContainerRef} onScroll={handleScroll}>
+    return () => {
+      const tabIndex = props.activeSource === '' ? 0 : props.activeSource === 'report' ? 1 : 2;
+
+      return (
+        <div
+          class={['card-base', 'task-list-panel', { 'is-collapsed': isCollapsed.value }]}
+          style={{ width: `${isCollapsed.value ? 0 : EXPANDED_WIDTH}px` }}
+        >
+          {/* 标题栏：收起箭头 + 标题 */}
+          <div class='panel-header' onClick={handleToggle}>
+            <i class='bklog-icon bklog-collapse'></i>
+            <span class='panel-title'>{t('任务列表')}</span>
+          </div>
+
+          {/* 选项卡：全部 / 用户上报 / 主动采集 */}
+          <div class='task-source-tabs'>
+            <div class='tab-slider' style={{ transform: `translateX(${tabIndex * 100}%)` }}></div>
+            <div
+              class={['tab-item', { active: props.activeSource === '', 'hide-divider': tabIndex === 0 || tabIndex === 1 }]}
+              onClick={() => handleTabChange('')}
+            >
+              {t('全部')}
+            </div>
+            <div
+              class={['tab-item', { active: props.activeSource === 'report', 'hide-divider': tabIndex === 1 || tabIndex === 2 }]}
+              onClick={() => handleTabChange('report')}
+            >
+              {t('用户上报')}
+            </div>
+            <div
+              class={['tab-item', { active: props.activeSource === 'task' }]}
+              onClick={() => handleTabChange('task')}
+            >
+              {t('主动采集')}
+            </div>
+          </div>
+
+          {/* 日志条目列表 */}
+          <div class='task-list' ref={scrollContainerRef} onScroll={handleScroll}>
           {props.taskList.map(item => (
             <div
               key={item.file_name}
@@ -197,6 +233,7 @@ export default defineComponent({
           )}
         </div>
       </div>
-    );
+      );
+    };
   },
 });
