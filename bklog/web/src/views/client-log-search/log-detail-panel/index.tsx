@@ -239,6 +239,9 @@ export default defineComponent({
     /** 日志内容滚动容器引用 */
     const logContentScrollRef = ref<HTMLElement | null>(null);
 
+    /** 是否显示回到顶部按钮 */
+    const showScrollTop = ref(false);
+
     /** 展示用的日志列表 */
     const filteredLogList = computed(() => {
       return logList.value.filter(item => item?.message).map(item => ({
@@ -547,7 +550,12 @@ export default defineComponent({
       if (scrollTimer) clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
         const el = logContentScrollRef.value;
-        if (!el || isLoadMore.value || isLogLoading.value || !hasMore.value) return;
+        if (!el) return;
+
+        // 更新回到顶部按钮显示状态
+        showScrollTop.value = el.scrollTop > 300;
+
+        if (isLoadMore.value || isLogLoading.value || !hasMore.value) return;
 
         const { scrollTop, scrollHeight, offsetHeight } = el;
         if (scrollHeight - scrollTop - offsetHeight < 50) {
@@ -557,6 +565,14 @@ export default defineComponent({
           }
         }
       }, 300);
+    };
+
+    /** 回到顶部 */
+    const handleScrollToTop = () => {
+      const el = logContentScrollRef.value;
+      if (el) {
+        el.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     };
 
     /** 工具栏过滤事件处理 */
@@ -825,6 +841,16 @@ export default defineComponent({
               <div class='log-load-more'>loading...</div>
             )}
           </div>
+          {/* 回到顶部按钮 */}
+          {showScrollTop.value && (
+            <span
+              class='scroll-to-top-btn'
+              v-bk-tooltips={t('返回顶部')}
+              onClick={handleScrollToTop}
+            >
+              <i class='bklog-icon bklog-backtotop' />
+            </span>
+          )}
         </div>
       </div>
     );

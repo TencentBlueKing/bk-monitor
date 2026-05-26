@@ -312,6 +312,7 @@
       flex-direction: column;
       overflow: hidden;
       padding-top: 8px;
+      position: relative;
 
       .toolbar-wrapper {
         flex-shrink: 0;
@@ -345,6 +346,33 @@
           padding: 12px 0 16px;
           font-size: 12px;
           color: #979BA5;
+        }
+      }
+
+      /* 回到顶部按钮 */
+      .scroll-to-top-btn {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        opacity: 0.6;
+        background: #4E4E4E;
+        box-shadow: 0 2px 8px 0 #1919290a;
+        cursor: pointer;
+        z-index: 10;
+
+        .bklog-icon {
+          color: #fff;
+          font-size: 16px;
+        }
+
+        &:hover {
+          opacity: 1;
         }
       }
     }
