@@ -38,7 +38,7 @@ export const formatSpanLinks = (links?: Record<string, unknown>[]): ISpanLinkIte
       header: {
         name: traceId,
       },
-      isExpan: false,
+      isExpan: true,
       content,
     };
   });
