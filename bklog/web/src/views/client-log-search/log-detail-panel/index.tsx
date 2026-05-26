@@ -912,11 +912,11 @@ export default defineComponent({
             )}
           </header>
 
-          {props.selectedLogItem?.ext && (
+          {props.selectedLogItem?.extend_info && (
             <div class='ext-content'>
               <i class='bklog-icon bklog-miaoshu'></i>
               <span class='ext-label'>{t('扩展信息')}:</span>
-              <span class='ext-value'>{props.selectedLogItem.ext}</span>
+              <span class='ext-value'>{props.selectedLogItem.extend_info}</span>
             </div>
           )}
 

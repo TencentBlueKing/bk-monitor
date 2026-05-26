@@ -49,7 +49,7 @@ export interface LogItem {
   report_time: string | null;        // 展示排序时间。task 使用 processed_at，report 使用 report_time
   process_status: ProcessStatus | null; // 处理状态
   processed_at: string | null;       // 处理时间
-  ext?: string;                      // 扩展字段内容，仅 report 来源时可能有值
+  extend_info?: string;                      // 扩展字段内容，仅 report 来源时可能有值
 }
 
 /** 用户累计上报统计（来自独立接口） */
