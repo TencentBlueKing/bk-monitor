@@ -1,6 +1,7 @@
 .user-info-card {
   display: flex;
   align-items: center;
+  overflow: hidden;
 
   .overflow-hidden-text {
     overflow: hidden;

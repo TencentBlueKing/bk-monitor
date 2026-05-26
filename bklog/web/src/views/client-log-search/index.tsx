@@ -692,6 +692,7 @@ export default defineComponent({
         userInfo={selectedLogItem.value}
         userReportStats={userReportStats.value}
         taskList={taskList.value}
+        timezone={lastSearchParams.value.timezone}
       />,
       <div class='task-content-area'>
         {/* 左侧：任务列表 */}
