@@ -269,9 +269,12 @@ class ListServiceK8sTargetsResource(Resource):
         if not span_detail:
             return {"target_list": targets}
 
-        bcs_cluster_id = span_detail[OtlpKey.RESOURCE].get("k8s.bcs.cluster.id")
-        namespace = span_detail[OtlpKey.RESOURCE].get("k8s.namespace.name")
-        pod = span_detail[OtlpKey.RESOURCE].get("k8s.pod.name")
+        resource_info: dict[str, Any] = span_detail.get(OtlpKey.RESOURCE, {})
+        bcs_cluster_id: str = resource_info.get("k8s.bcs.cluster.id") or ""
+        namespace: str = resource_info.get("k8s.namespace.name") or ""
+        pod: str = resource_info.get("k8s.pod.name") or ""
+        if not all([bcs_cluster_id, namespace, pod]):
+            return _construct_response(targets)
 
         # Pod 目标优先展示
         targets.insert(
