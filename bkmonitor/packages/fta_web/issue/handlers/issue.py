@@ -694,10 +694,6 @@ class IssueQueryHandler(BaseBizQueryHandler):
         for field in cls.query_transformer.query_fields:
             cleaned[field.field] = field.get_value_by_es_field(data)
 
-        if "bk_biz_id" in cleaned:
-            # 转为int
-            cleaned["bk_biz_id"] = int(cleaned["bk_biz_id"])
-
         # 计算字段
         now = int(time.time())
         create_time = cleaned.get("create_time")
