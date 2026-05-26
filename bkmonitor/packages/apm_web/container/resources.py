@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,12 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
 
 from rest_framework import serializers
 
 from apm_web.container.helpers import ContainerHelper
+from apm_web.strategy.dispatch import EntitySet
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.request import get_request
+from constants.alert import K8S_RESOURCE_TYPE, K8STargetType
+from constants.apm import OtlpKey
 from core.drf_resource import CacheResource, Resource, api, resource
 from monitor_web.collecting.constant import CollectStatus
 
@@ -45,13 +48,20 @@ class PodDetailResource(Resource):
             bk_biz_id = BCSPod.objects.filter(**query_params).first().bk_biz_id
             return resource.scene_view.get_kubernetes_pod(**{**validated_data, "bk_biz_id": bk_biz_id})
 
-        res = [{"key": "monitor_status", "name": "状态", "type": "status", "value": {"text": "已销毁", "type": "failed"}}]
+        res = [
+            {"key": "monitor_status", "name": "状态", "type": "status", "value": {"text": "已销毁", "type": "failed"}}
+        ]
         if validated_data.get("pod_name"):
             res.append({"key": "pod_name", "name": "Pod 名称", "type": "string", "value": validated_data["pod_name"]})
 
         if validated_data.get("bcs_cluster_id"):
             res.append(
-                {"key": "bcs_cluster_id", "name": "集群 ID", "type": "string", "value": validated_data["bcs_cluster_id"]}
+                {
+                    "key": "bcs_cluster_id",
+                    "name": "集群 ID",
+                    "type": "string",
+                    "value": validated_data["bcs_cluster_id"],
+                }
             )
         if validated_data.get("namespace"):
             res.append(
@@ -215,3 +225,62 @@ class ListServicePodsResource(CacheResource):
                 res.append(i)
 
         return res
+
+
+class ListServiceK8sTargetsResource(Resource):
+    """获取服务关联的 k8s 目标列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        app_name = serializers.CharField(label="应用名称")
+        service_name = serializers.CharField(label="服务名称")
+        # 时间范围为保留参数，暂时用不上
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        # span_id 用于查询调用链关联的 Pod 目标，优先展示关联的 Pod。
+        span_id = serializers.CharField(label="Span Id", required=False)
+
+    def perform_request(self, validated_data: dict[str, Any]) -> dict[str, Any]:
+        bk_biz_id: int = validated_data["bk_biz_id"]
+        app_name: str = validated_data["app_name"]
+        service_name: str = validated_data["service_name"]
+
+        workloads: list[dict[str, Any]] = EntitySet.get_service_workloads(bk_biz_id, app_name, service_name)
+        targets: list[dict[str, str]] = [
+            {
+                "resource_type": K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD],
+                "workload": f"{w['kind']}:{w['name']}",
+                "bcs_cluster_id": w["bcs_cluster_id"],
+                "namespace": w["namespace"],
+            }
+            for w in workloads
+        ]
+
+        def _construct_response(_targets: list[dict[str, str]]) -> dict[str, Any]:
+            # 返回结构和 AlertK8sTargetResource 保持一致。
+            return {"target_list": _targets}
+
+        if not validated_data.get("span_id"):
+            return _construct_response(targets)
+
+        span_detail: dict[str, Any] = api.apm_api.query_span_detail(
+            bk_biz_id=bk_biz_id, app_name=app_name, span_id=validated_data["span_id"]
+        )
+        if not span_detail:
+            return {"target_list": targets}
+
+        bcs_cluster_id = span_detail[OtlpKey.RESOURCE].get("k8s.bcs.cluster.id")
+        namespace = span_detail[OtlpKey.RESOURCE].get("k8s.namespace.name")
+        pod = span_detail[OtlpKey.RESOURCE].get("k8s.pod.name")
+
+        # Pod 目标优先展示
+        targets.insert(
+            0,
+            {
+                "resource_type": K8S_RESOURCE_TYPE[K8STargetType.POD],
+                "pod": pod,
+                "bcs_cluster_id": bcs_cluster_id,
+                "namespace": namespace,
+            },
+        )
+        return _construct_response(targets)
