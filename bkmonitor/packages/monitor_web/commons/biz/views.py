@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.permissions import GlobalSettingPermission
 
 
 class BusinessListOptionViewSet(ResourceViewSet):
@@ -60,84 +61,84 @@ class SpaceIntroduceViewSet(ResourceViewSet):
 
 
 class ListDataPipelineViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.list_data_pipeline),
     ]
 
 
 class ListDataSourceByDataPipelineViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.list_data_source_by_data_pipeline),
     ]
 
 
 class CreateDataPipelineViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("POST", resource.commons.create_data_pipeline),
     ]
 
 
 class UpdateDataPipelineViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("POST", resource.commons.update_data_pipeline),
     ]
 
 
 class GetClusterInfoViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.get_cluster_info),
     ]
 
 
 class GetEtlConfigViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.get_etl_config),
     ]
 
 
 class GetTransferListViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.get_transfer_list),
     ]
 
 
 class CheckClusterHealthViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.check_cluster_health),
     ]
 
 
 class ListClustersViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.list_clusters),
     ]
 
 
 class GetStorageClusterDetailViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("GET", resource.commons.get_storage_cluster_detail),
     ]
 
 
 class RegisterClusterViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("POST", resource.commons.register_cluster),
     ]
 
 
 class UpdateRegisteredClusterViewSet(ResourceViewSet):
-    permission_classes = ()
+    permission_classes = (GlobalSettingPermission,)
     resource_routes = [
         ResourceRoute("POST", resource.commons.update_registered_cluster),
     ]
