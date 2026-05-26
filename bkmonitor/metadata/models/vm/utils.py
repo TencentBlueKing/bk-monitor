@@ -848,8 +848,8 @@ def create_bkbase_data_link(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
         bk_base_data_id=data_source.bk_data_id,
-        bk_base_data_name=bkbase_data_name,
         defaults={
+            "bk_base_data_name": bkbase_data_name,
             "vm_cluster_id": storage_cluster_id,
             "vm_result_table_id": vm_result_table_id,
             "bcs_cluster_id": bcs_cluster_id,

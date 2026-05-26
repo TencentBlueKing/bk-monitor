@@ -954,6 +954,14 @@ def test_create_bkbase_data_link_uses_configured_bkbase_result_table_datalink(cr
         namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
         data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
     )
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id=ds.bk_tenant_id,
+        result_table_id=rt.table_id,
+        bk_base_data_id=ds.bk_data_id,
+        bk_base_data_name=generated_data_link_name,
+        vm_result_table_id="2_generated_rt",
+        vm_cluster_id=100112,
+    )
 
     with (
         patch.object(DataLink, "apply_data_link", autospec=True) as mock_apply_data_link,
@@ -974,9 +982,11 @@ def test_create_bkbase_data_link_uses_configured_bkbase_result_table_datalink(cr
     assert configured_data_link.bk_data_id == ds.bk_data_id
     assert configured_data_link.table_ids == [rt.table_id]
 
+    assert models.AccessVMRecord.objects.filter(result_table_id=rt.table_id).count() == 1
     vm_record = models.AccessVMRecord.objects.get(result_table_id=rt.table_id)
     assert vm_record.bk_base_data_name == configured_bkbase_data_name
     assert vm_record.vm_result_table_id == configured_bkbase_table_id
+    assert vm_record.vm_cluster_id == 100111
 
 
 @pytest.mark.django_db(databases="__all__")
