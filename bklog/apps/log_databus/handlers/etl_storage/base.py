@@ -416,18 +416,13 @@ class EtlStorage:
                     },
                 }
 
-                # doris 采集项无需传递时间字段 dtEventTimeStamp 的清洗规则
+                # doris 采集项自动生成 dtEventTimeStamp 字段, 无需配置
                 if storage_cluster_type == STORAGE_CLUSTER_TYPE:
                     main_time_rules["operator"]["output_type"] = self._get_output_type(time_field_type)
                     main_time_rules["operator"]["is_time_field"] = None
                     main_time_rules["operator"]["time_format"] = None
                     main_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
                     rules.append(main_time_rules)
-                # elif storage_cluster_type == DORIS_CLUSTER_TYPE:
-                #     main_time_rules["operator"]["output_type"] = "string"
-                #     main_time_rules["operator"]["is_time_field"] = True
-                #     main_time_rules["operator"]["time_format"] = v4_time_parsing
-                #     main_time_rules["operator"]["in_place_time_parsing"] = None
 
                 # 从同源生成 time 字段，Legacy 路径下 Transfer 自动生成，V4 需显式声明
                 second_time_rules = {
@@ -548,17 +543,13 @@ class EtlStorage:
                 },
             }
 
+            # doris 采集项自动生成 dtEventTimeStamp 字段, 无需配置
             if storage_cluster_type == STORAGE_CLUSTER_TYPE:
                 user_time_rules["operator"]["output_type"] = self._get_output_type(user_time_field["time_field_type"])
                 user_time_rules["operator"]["is_time_field"] = None
                 user_time_rules["operator"]["time_format"] = None
                 user_time_rules["operator"]["in_place_time_parsing"] = v4_time_parsing
                 rules.append(user_time_rules)
-            # elif storage_cluster_type == DORIS_CLUSTER_TYPE:
-            #     user_time_rules["operator"]["output_type"] = "string"
-            #     user_time_rules["operator"]["is_time_field"] = True
-            #     user_time_rules["operator"]["time_format"] = v4_time_parsing
-            #     user_time_rules["operator"]["in_place_time_parsing"] = None
 
             # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
             second_time_rules = {
