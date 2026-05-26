@@ -34,7 +34,7 @@ import { splitIssue } from '../../services/mock';
 import IssueInfoItem from './issue-info-item';
 import ReasonSection from './reason-section';
 
-import type { ActiveMember } from '../typing';
+import type { MergeSourceActiveMember } from '../../typing';
 
 import './issues-split-dialog.scss';
 
@@ -52,7 +52,7 @@ export default defineComponent({
     },
     /** 当前 Issue */
     issue: {
-      type: Object as PropType<ActiveMember>,
+      type: Object as PropType<MergeSourceActiveMember>,
       default: () => null,
     },
   },
@@ -81,7 +81,7 @@ export default defineComponent({
     };
 
     /** 获取 metric 列表 */
-    const getMetricList = (issue: ActiveMember) => issue.merge_reasons.map(reason => reason);
+    const getMetricList = (issue: MergeSourceActiveMember) => issue.merge_reasons.map(reason => reason);
 
     const submitLoading = shallowRef(false);
 
