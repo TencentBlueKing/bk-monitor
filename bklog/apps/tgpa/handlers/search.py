@@ -137,12 +137,14 @@ class TGPASearchHandler:
         fetch_size = page * pagesize
 
         # 根据 source 参数决定查询哪些数据源
-        query_task = source in (None, "task")
-        query_report = source in (None, "report")
+        # task 接口不支持 file_name 查询，有 file_name 但无 task_id 时跳过
+        query_task = source in (None, "task") and (not file_name or task_id)
+        # 指定了 task_id 时无需查询 report
+        query_report = source in (None, "report") and not task_id
 
         # 并行查询 task 和 report
         multi_execute = MultiExecuteFunc()
-        if query_task and (not file_name or task_id):
+        if query_task:
             multi_execute.append(
                 result_key="task_result",
                 func=TGPATaskHandler.get_task_page,
@@ -161,7 +163,7 @@ class TGPASearchHandler:
                 },
                 multi_func_params=True,
             )
-        if query_report and not task_id:
+        if query_report:
             multi_execute.append(
                 result_key="report_result",
                 func=TGPAReportHandler.get_report_list,
