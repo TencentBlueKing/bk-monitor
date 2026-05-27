@@ -36,17 +36,28 @@
       data-test-id="storage_form_storageBox"
     >
       <div class="add-collection-title">{{ $t('集群选择') }}</div>
+      <ClusterTypeTabs
+        v-if="isDorisEnabled"
+        :active-tab="clusterType"
+        :is-doris-enabled="isDorisEnabled"
+        :disabled="operateType !== 'add'"
+        @tab-click="handleClusterTypeChange"
+      />
       <cluster-table
+        :external-doris-mode="isDorisMode"
         :is-change-select.sync="isChangeSelect"
         :storage-cluster-id.sync="formData.storage_cluster_id"
         :table-list="clusterList"
+        :table-loading="clusterLoading"
       />
 
       <cluster-table
         style="margin-top: 20px"
+        :external-doris-mode="isDorisMode"
         :is-change-select.sync="isChangeSelect"
         :storage-cluster-id.sync="formData.storage_cluster_id"
         :table-list="exclusiveList"
+        :table-loading="clusterLoading"
         table-type="exclusive"
       />
 
@@ -110,7 +121,7 @@
       </bk-form-item>
       <!-- 热数据\冷热集群存储期限 -->
       <bk-form-item
-        v-if="selectedStorageCluster.enable_hot_warm"
+        v-if="selectedStorageCluster.enable_hot_warm && !isDorisMode"
         class="hot-data-form-item"
         :label="$t('热数据天数')"
       >
@@ -162,6 +173,7 @@
       </bk-form-item>
       <!-- 副本数 -->
       <bk-form-item
+        v-if="!isDorisMode"
         ext-cls="number-input"
         :label="$t('副本数')"
         :property="'storage_replies'"
@@ -180,6 +192,7 @@
       </bk-form-item>
       <!-- 分片数 -->
       <bk-form-item
+        v-if="!isDorisMode"
         ext-cls="number-input"
         :label="$t('分片数')"
         :property="'es_shards'"
@@ -350,10 +363,12 @@ import storageMixin from '@/mixins/storage-mixin';
 import { mapGetters } from 'vuex';
 
   import ClusterTable from './components/cluster-table';
+  import ClusterTypeTabs from '@/views/manage-v2/es-cluster/cluster-manage/cluster-type-tabs';
 
   export default {
     components: {
       ClusterTable,
+      ClusterTypeTabs,
     },
     mixins: [storageMixin],
     props: {
@@ -501,6 +516,10 @@ import { mapGetters } from 'vuex';
         isForcedFillAssessment: false, // 是否必须容量评估
         editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
         editComparedData: {},
+        isDorisMode: false, // 是否为doris集群模式
+        clusterType: 'elasticsearch', // 当前集群类型
+        clusterLoading: false, // 切换集群类型时的加载状态
+        isDorisEnabled: false, // 是否启用doris集群
       };
     },
     computed: {
@@ -539,6 +558,13 @@ import { mapGetters } from 'vuex';
     },
     async mounted() {
       this.operateType === 'add' && (this.isChangeSelect = true);
+      this.checkDorisAccess();
+      // 编辑模式下，从详情数据中确定集群类型，确保获取正确的集群列表
+      if (this.operateType !== 'add' && this.isDorisEnabled && this.curCollect?.storage_cluster_type === 'doris') {
+        this.clusterType = 'doris';
+        this.isDorisMode = true;
+        this.updateRouteClusterType('doris');
+      }
       await this.getStorage();
       await this.getCleanStash();
       this.getDetail();
@@ -548,6 +574,49 @@ import { mapGetters } from 'vuex';
       this.curCollect.environment !== 'container' && this.getHostNumber();
     },
     methods: {
+      checkDorisAccess() {
+        const hasAccess = isFeatureToggleOn('doris_storage_cluster', [String(this.bkBizId), String(this.spaceUid)]);
+        this.isDorisEnabled = hasAccess;
+        if (hasAccess) {
+          // 从 URL 中读取集群类型
+          const tabQuery = this.$route.query.cluster_type;
+          if (tabQuery === 'doris') {
+            this.clusterType = 'doris';
+            this.isDorisMode = true;
+          }
+        } else if (this.clusterType === 'doris') {
+          this.clusterType = 'elasticsearch';
+          this.isDorisMode = false;
+          this.updateRouteClusterType('elasticsearch');
+        }
+      },
+      updateRouteClusterType(type) {
+        const currentQuery = { ...this.$route.query };
+        currentQuery.cluster_type = type;
+        this.$router.replace({
+          name: this.$route.name,
+          params: this.$route.params,
+          query: currentQuery,
+        });
+      },
+      async handleClusterTypeChange(type) {
+        if (this.clusterType === type) return;
+        this.clusterType = type;
+        this.isDorisMode = type === 'doris';
+        this.updateRouteClusterType(type);
+        // 重置集群选择
+        this.formData.storage_cluster_id = '';
+        this.selectedStorageCluster = {};
+        this.clusterList = [];
+        this.exclusiveList = [];
+        // 重新请求存储列表
+        this.clusterLoading = true;
+        try {
+          await this.getStorage();
+        } finally {
+          this.clusterLoading = false;
+        }
+      },
       // 获取采集项清洗基础配置缓存 用于存储入库提交
       async getCleanStash() {
         try {
