@@ -20,6 +20,7 @@ from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorag
 from apps.log_databus.handlers.etl_storage.bk_log_delimiter import BkLogDelimiterEtlStorage
 from apps.log_databus.handlers.etl_storage.bk_log_regexp import BkLogRegexpEtlStorage
 
+from apps.tests.log_databus.v4_clean.testdata.built_in_configs import build_test_field_list
 from apps.tests.log_databus.test_v4_clean_snapshots import (
     EXPECTED_TEXT_BASIC,
     EXPECTED_JSON_RETAIN_ORIGINAL,
@@ -146,7 +147,8 @@ class TestV4CleanText(TestCase):
 
     def test_basic_text(self):
         """场景1：直接入库 — 基础场景"""
-        result = self.storage.build_log_v4_data_link([], {}, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link([], {}, config, build_test_field_list([], config))
         _assert_v4_result_equal(self, result, EXPECTED_TEXT_BASIC, "场景1-直接入库")
 
 
@@ -173,7 +175,8 @@ class TestV4CleanJson(TestCase):
              "description": "日志内容", "is_analyzed": True, "is_dimension": False,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_JSON_RETAIN_ORIGINAL, "场景2-JSON多字段+保留原文")
 
     def test_json_alias_and_delete_and_time_field(self):
@@ -191,7 +194,8 @@ class TestV4CleanJson(TestCase):
              "description": "调试信息", "is_analyzed": False, "is_dimension": False,
              "is_time": False, "is_delete": True, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_JSON_ALIAS_DELETE_TIME, "场景3-JSON别名+删除+时间")
 
     def test_json_retain_extra_json_and_enable_retain_content(self):
@@ -202,7 +206,8 @@ class TestV4CleanJson(TestCase):
              "description": "日志级别", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_JSON_EXTRA_AND_FAILURE, "场景4-JSON-ext_json+解析失败")
 
     def test_json_with_path_separator_configs(self):
@@ -216,7 +221,8 @@ class TestV4CleanJson(TestCase):
              "is_analyzed": False, "is_dimension": True, "is_time": False,
              "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_JSON_PATH_SEPARATOR, "场景8-JSON-path正则")
 
 
@@ -243,7 +249,8 @@ class TestV4CleanDelimiter(TestCase):
              "description": "耗时", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_DELIMITER_BASIC, "场景5-分隔符基础")
 
     def test_delimiter_with_delete_and_skip_index(self):
@@ -257,7 +264,8 @@ class TestV4CleanDelimiter(TestCase):
             {"field_name": "value", "alias_name": "", "field_type": "int", "field_index": 5,
              "is_analyzed": False, "is_dimension": True, "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_DELIMITER_DELETE_SKIP, "场景6-分隔符删除+跳索引")
 
 
@@ -288,7 +296,8 @@ class TestV4CleanRegexp(TestCase):
              "description": "HTTP方法", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_REGEXP_BASIC, "场景7-正则基础")
 
 
@@ -313,7 +322,8 @@ class TestV4CleanJsonNew(TestCase):
              "description": "操作", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_JSON_ISO8601_TIME, "场景9-JSON-ISO8601时间")
 
     def test_json_non_json_retain_content(self):
@@ -324,7 +334,8 @@ class TestV4CleanJsonNew(TestCase):
              "description": "日志级别", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_JSON_NON_JSON_RETAIN, "场景10-非JSON保留原文")
 
     def test_json_epoch_millis_time_field(self):
@@ -339,7 +350,8 @@ class TestV4CleanJsonNew(TestCase):
              "description": "事件", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_JSON_EPOCH_MILLIS, "场景12-JSON-epoch_millis")
 
 
@@ -370,5 +382,6 @@ class TestV4CleanDelimiterNew(TestCase):
              "description": "消息", "is_analyzed": True, "is_dimension": False,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        config = _get_fresh_built_in_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         _assert_v4_result_equal(self, result, EXPECTED_DELIMITER_TIME_FIELD, "场景11-分隔符+时间字段")
