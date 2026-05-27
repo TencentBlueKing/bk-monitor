@@ -12,6 +12,7 @@ import json
 import logging
 import uuid
 
+from django.db import transaction
 from django.db.models import Q, Model
 from django.db.models.base import ModelBase
 
@@ -48,7 +49,7 @@ def add_datasource(models, data_id, data_name, etl_config, source_label, type_la
         creator=user,
         mq_cluster_id=kafka_cluster.cluster_id,
         is_custom_source=is_custom_source,
-        data_description="init data_source for %s" % data_name,
+        data_description=f"init data_source for {data_name}",
         # 由于mq_config和data_source两者相互指向对方，所以只能先提供占位符，先创建data_source
         mq_config_id=0,
         last_modify_user=user,
@@ -278,3 +279,241 @@ def sync_index_set_to_es_storages(es_storage_model: type[Model], table_ids: list
     if to_be_updated_storages:
         es_storage_model.objects.bulk_update(to_be_updated_storages, fields=["index_set"])
     logger.info("[migration_util] sync index_set to ESStorage: %s", len(to_be_updated_storages))
+
+
+def _get_value_from_option(option: dict) -> object:
+    """按 ResultTableOption.value_type 解析 option value。"""
+    if option["value_type"] == "string":
+        return option["value"]
+
+    try:
+        return json.loads(option["value"])
+    except (TypeError, ValueError):
+        return {}
+
+
+def _get_origin_table_time_fields(
+    es_storage_model: type[Model],
+    result_table_model: type[Model],
+    result_table_option_model: type[Model],
+    origin_table_keys: set[tuple[str, str]],
+) -> dict[tuple[str, str], object]:
+    """获取真实 ES 表对应虚拟 RT 上配置的 time_field。"""
+    if not origin_table_keys:
+        return {}
+
+    tenant_ids = {bk_tenant_id for bk_tenant_id, _ in origin_table_keys}
+    table_ids = {table_id for _, table_id in origin_table_keys}
+    virtual_storages = list(
+        es_storage_model.objects.filter(
+            bk_tenant_id__in=tenant_ids,
+            origin_table_id__in=table_ids,
+        )
+        .exclude(Q(origin_table_id__isnull=True) | Q(origin_table_id=""))
+        .values("id", "bk_tenant_id", "table_id", "origin_table_id")
+        .order_by("bk_tenant_id", "origin_table_id", "id")
+    )
+
+    virtual_table_keys = {
+        (storage["bk_tenant_id"], storage["table_id"])
+        for storage in virtual_storages
+        if (storage["bk_tenant_id"], storage["origin_table_id"]) in origin_table_keys
+    }
+    if not virtual_table_keys:
+        return {}
+
+    virtual_tenants = {bk_tenant_id for bk_tenant_id, _ in virtual_table_keys}
+    virtual_table_ids = {table_id for _, table_id in virtual_table_keys}
+    virtual_rt_status = {
+        (record["bk_tenant_id"], record["table_id"]): (record["is_enable"], record["is_deleted"])
+        for record in result_table_model.objects.filter(
+            bk_tenant_id__in=virtual_tenants,
+            table_id__in=virtual_table_ids,
+        ).values("bk_tenant_id", "table_id", "is_enable", "is_deleted")
+    }
+    virtual_time_fields = {}
+    for option in (
+        result_table_option_model.objects.filter(
+            bk_tenant_id__in=virtual_tenants,
+            table_id__in=virtual_table_ids,
+            name="time_field",
+        )
+        .values("id", "bk_tenant_id", "table_id", "value", "value_type")
+        .order_by("bk_tenant_id", "table_id", "id")
+    ):
+        option_key = (option["bk_tenant_id"], option["table_id"])
+        virtual_time_fields.setdefault(option_key, _get_value_from_option(option))
+
+    origin_time_fields: dict[tuple[str, str], object] = {}
+    origin_candidates: dict[tuple[str, str], list[tuple[int, int, object]]] = {}
+    for storage in virtual_storages:
+        origin_key = (storage["bk_tenant_id"], storage["origin_table_id"])
+        virtual_key = (storage["bk_tenant_id"], storage["table_id"])
+        if origin_key not in origin_table_keys or virtual_key not in virtual_time_fields:
+            continue
+
+        is_enable, is_deleted = virtual_rt_status.get(virtual_key, (False, True))
+        priority = 0 if is_enable and not is_deleted else 1
+        origin_candidates.setdefault(origin_key, []).append((priority, storage["id"], virtual_time_fields[virtual_key]))
+
+    for origin_key, candidates in origin_candidates.items():
+        origin_time_fields[origin_key] = sorted(candidates, key=lambda item: (item[0], item[1]))[0][2]
+
+    return origin_time_fields
+
+
+def _build_result_table_options(
+    result_table_option_model: type[Model],
+    target_keys: set[tuple[str, str]],
+    time_field_map: dict[tuple[str, str], object],
+    stats: dict[str, int],
+):
+    tenant_ids = {bk_tenant_id for bk_tenant_id, _ in target_keys}
+    table_ids = {table_id for _, table_id in target_keys}
+    existing_options: dict[tuple[str, str, str], list[Model]] = {}
+    for option in result_table_option_model.objects.filter(
+        bk_tenant_id__in=tenant_ids,
+        table_id__in=table_ids,
+        name__in=["need_add_time", "time_field"],
+    ).order_by("id"):
+        existing_options.setdefault((option.bk_tenant_id, option.table_id, option.name), []).append(option)
+
+    to_be_created = []
+    to_be_updated = []
+    for bk_tenant_id, table_id in sorted(target_keys):
+        option_values = {
+            "need_add_time": True,
+        }
+        time_field = time_field_map.get((bk_tenant_id, table_id))
+        if time_field:
+            option_values["time_field"] = time_field
+        else:
+            stats["time_field_skipped"] += 1
+            logger.warning(
+                "[backfill_esstorage_origin_table_options] skip time_field option for bk_tenant_id=%s table_id=%s, "
+                "no virtual ESStorage time_field found",
+                bk_tenant_id,
+                table_id,
+            )
+
+        for option_name, option_value in option_values.items():
+            value, value_type = parse_value(option_value)
+            option_key = (bk_tenant_id, table_id, option_name)
+            if option_key not in existing_options:
+                to_be_created.append(
+                    result_table_option_model(
+                        bk_tenant_id=bk_tenant_id,
+                        table_id=table_id,
+                        name=option_name,
+                        value=value,
+                        value_type=value_type,
+                        creator="system",
+                    )
+                )
+                continue
+
+            for option in existing_options[option_key]:
+                if option.value == value and option.value_type == value_type:
+                    continue
+                option.value = value
+                option.value_type = value_type
+                to_be_updated.append(option)
+
+    return to_be_created, to_be_updated
+
+
+def backfill_esstorage_origin_table_options(
+    es_storage_model: type[Model],
+    result_table_model: type[Model],
+    result_table_option_model: type[Model],
+    bk_tenant_id: str | None = None,
+    batch_size: int = 500,
+    dry_run: bool = False,
+) -> dict[str, int]:
+    """回填真实 ESStorage 的 index_set 与日志查询 ResultTableOption。"""
+    batch_size = max(batch_size, 1)
+    stats = {
+        "scanned": 0,
+        "index_set_updated": 0,
+        "option_created": 0,
+        "option_updated": 0,
+        "time_field_skipped": 0,
+    }
+    last_id = 0
+    base_qs = (
+        es_storage_model.objects.filter(Q(origin_table_id__isnull=True) | Q(origin_table_id=""))
+        .values("id", "bk_tenant_id", "table_id", "index_set")
+        .order_by("id")
+    )
+    if bk_tenant_id:
+        base_qs = base_qs.filter(bk_tenant_id=bk_tenant_id)
+
+    while True:
+        batch = list(base_qs.filter(id__gt=last_id)[:batch_size])
+        if not batch:
+            break
+        last_id = batch[-1]["id"]
+        stats["scanned"] += len(batch)
+
+        batch_keys = {(record["bk_tenant_id"], record["table_id"]) for record in batch}
+        tenant_ids = {bk_tenant_id for bk_tenant_id, _ in batch_keys}
+        table_ids = {table_id for _, table_id in batch_keys}
+        result_table_keys = {
+            (record["bk_tenant_id"], record["table_id"])
+            for record in result_table_model.objects.filter(
+                bk_tenant_id__in=tenant_ids,
+                table_id__in=table_ids,
+            ).values("bk_tenant_id", "table_id")
+        }
+        target_keys = batch_keys & result_table_keys
+
+        index_set_storages = []
+        for record in batch:
+            if record["index_set"]:
+                continue
+            storage = es_storage_model(id=record["id"], index_set=record["table_id"].replace(".", "_"))
+            index_set_storages.append(storage)
+
+        time_field_map = _get_origin_table_time_fields(
+            es_storage_model=es_storage_model,
+            result_table_model=result_table_model,
+            result_table_option_model=result_table_option_model,
+            origin_table_keys=target_keys,
+        )
+        to_be_created_options, to_be_updated_options = _build_result_table_options(
+            result_table_option_model=result_table_option_model,
+            target_keys=target_keys,
+            time_field_map=time_field_map,
+            stats=stats,
+        )
+
+        stats["index_set_updated"] += len(index_set_storages)
+        stats["option_created"] += len(to_be_created_options)
+        stats["option_updated"] += len(to_be_updated_options)
+        logger.info(
+            "[backfill_esstorage_origin_table_options] batch last_id=%s scanned=%s index_set=%s option_create=%s "
+            "option_update=%s",
+            last_id,
+            len(batch),
+            len(index_set_storages),
+            len(to_be_created_options),
+            len(to_be_updated_options),
+        )
+
+        if dry_run:
+            continue
+
+        with transaction.atomic(config.DATABASE_CONNECTION_NAME):
+            if index_set_storages:
+                es_storage_model.objects.bulk_update(index_set_storages, ["index_set"], batch_size=batch_size)
+            if to_be_created_options:
+                result_table_option_model.objects.bulk_create(to_be_created_options, batch_size=batch_size)
+            if to_be_updated_options:
+                result_table_option_model.objects.bulk_update(
+                    to_be_updated_options,
+                    ["value", "value_type"],
+                    batch_size=batch_size,
+                )
+
+    logger.info("[backfill_esstorage_origin_table_options] stats: %s", stats)
+    return stats
