@@ -42,6 +42,7 @@ from kernel_api.rpc.functions.admin.query_route import (
 )
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
 from kernel_api.rpc.functions.admin.render_image_task import _serialize_render_image_task
+from kernel_api.rpc.functions.admin import space as admin_space
 from kernel_api.rpc.functions.admin import kafka_sample as kafka_sample_module
 from kernel_api.rpc.functions.admin import storage as admin_storage
 from kernel_api.rpc.functions.admin.storage import (
@@ -88,6 +89,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     assert {
         "admin.datasource.list",
         "admin.datasource.detail",
+        "admin.space.list",
+        "admin.space.detail",
         "admin.result_table.list",
         "admin.result_table.detail",
         "admin.result_table.field_list",
@@ -135,6 +138,45 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
     assert detail is not None
     assert detail["params_schema"]["include"].find("fields") != -1
+
+    space_detail = KernelRPCRegistry.get_function_detail("admin.space.detail")
+    assert space_detail is not None
+    assert "SpaceVMInfo" in space_detail["description"]
+
+
+def test_space_vm_info_serializer_includes_vm_cluster_or_null():
+    space_vm_info = SimpleNamespace(
+        id=1,
+        space_type="bkcc",
+        space_id="2",
+        vm_cluster_id=10001,
+        vm_retention_time="30d",
+        status="normal",
+        creator="admin",
+        create_time=datetime(2026, 5, 27, 10, 0, 0),
+        updater="admin",
+        update_time=datetime(2026, 5, 27, 10, 5, 0),
+    )
+    cluster = SimpleNamespace(
+        cluster_id=10001,
+        cluster_name="vm-main",
+        display_name="主 VM 集群",
+        cluster_type="victoria_metrics",
+    )
+
+    item = admin_space._serialize_space_vm_info(space_vm_info, {10001: cluster})
+
+    assert item["space_vm_info"]["space_type"] == "bkcc"
+    assert item["space_vm_info"]["update_time"] == "2026-05-27 10:05:00"
+    assert item["vm_cluster"] == {
+        "cluster_id": 10001,
+        "cluster_name": "vm-main",
+        "display_name": "主 VM 集群",
+        "cluster_type": "victoria_metrics",
+    }
+
+    missing_cluster_item = admin_space._serialize_space_vm_info(space_vm_info, {})
+    assert missing_cluster_item["vm_cluster"] is None
 
 
 def test_render_image_task_serializer_extracts_options_and_duration():
