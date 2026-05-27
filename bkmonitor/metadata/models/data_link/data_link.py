@@ -222,10 +222,17 @@ class DataLink(models.Model):
 
     def delete_data_link(self):
         """删除数据链路"""
+        logger.info("delete_data_link: data_link_name->[%s]", self.data_link_name)
         component_classes = self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
         for component_class in reversed(component_classes):
             components = component_class.objects.filter(data_link_name=self.data_link_name)
             for component in components:
+                logger.info(
+                    "delete_data_link: delete data_link_name->[%s] kind->[%s] component->[%s]",
+                    self.data_link_name,
+                    component.kind,
+                    component.name,
+                )
                 component.delete_config()
         self.delete()
 
@@ -1814,6 +1821,7 @@ class DataLink(models.Model):
             "monitor_table_id": table_id,
             "storage_type": resolved_storage_type,
             "storage_cluster_id": resolved_storage_cluster_id,
+            "status": DataLinkResourceStatus.OK.value,
         }
         if rt:
             bkbase_rt_name = rt.name

@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -40,6 +41,7 @@ from kernel_api.rpc.functions.admin.query_route import (
     _resolve_space_identity,
 )
 from kernel_api.rpc.functions.admin.result_table import _serialize_result_table_detail
+from kernel_api.rpc.functions.admin.render_image_task import _serialize_render_image_task
 from kernel_api.rpc.functions.admin import kafka_sample as kafka_sample_module
 from kernel_api.rpc.functions.admin import storage as admin_storage
 from kernel_api.rpc.functions.admin.storage import (
@@ -126,11 +128,48 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.uptime_check.task_list",
         "admin.uptime_check.task_detail",
         "admin.uptime_check.subscription_detail",
+        "admin.render_image_task.list",
+        "admin.render_image_task.detail",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
     assert detail is not None
     assert detail["params_schema"]["include"].find("fields") != -1
+
+
+def test_render_image_task_serializer_extracts_options_and_duration():
+    start_time = datetime(2026, 5, 27, 10, 0, 0)
+    finish_time = datetime(2026, 5, 27, 10, 2, 5)
+    task = SimpleNamespace(
+        id=1,
+        task_id=uuid.UUID("b916e23d-5328-44a2-a6aa-af3d0c1b5c64"),
+        bk_tenant_id="system",
+        options={"bk_biz_id": 2, "dashboard_uid": "dashboard-demo", "image_format": "png"},
+        type="dashboard",
+        status="success",
+        username="admin",
+        image=None,
+        error="",
+        create_time=start_time,
+        start_time=start_time,
+        finish_time=finish_time,
+    )
+
+    item = _serialize_render_image_task(task, include_detail=True)
+
+    assert item["task_id"] == "b916e23d-5328-44a2-a6aa-af3d0c1b5c64"
+    assert item["bk_biz_id"] == 2
+    assert item["dashboard_uid"] == "dashboard-demo"
+    assert item["duration_seconds"] == 125
+    assert item["image"] == {"name": "", "url": "", "size": 0}
+    assert item["options"]["image_format"] == "png"
+    assert "type" not in item
+    assert "type_label" not in item
+
+    summary = _serialize_render_image_task(task)
+    assert "image" not in summary
+    assert "type" not in summary
+    assert "type_label" not in summary
 
 
 def test_uptime_check_subscription_summary_extracts_effective_data_id():
