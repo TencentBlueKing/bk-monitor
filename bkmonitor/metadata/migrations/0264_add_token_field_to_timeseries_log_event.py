@@ -3,6 +3,13 @@
 from django.db import migrations, models
 
 
+def fill_log_group_token(apps, schema_editor):
+    LogGroup = apps.get_model("metadata", "LogGroup")
+    LogGroup.objects.exclude(bk_data_token__isnull=True).exclude(bk_data_token="").update(
+        token=models.F("bk_data_token")
+    )
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("metadata", "0263_vmshortlinkrecord_data_labels"),
@@ -24,4 +31,5 @@ class Migration(migrations.Migration):
             name="token",
             field=models.CharField(default="", max_length=256, verbose_name="自定义上报 Token"),
         ),
+        migrations.RunPython(fill_log_group_token),
     ]
