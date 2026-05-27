@@ -58,7 +58,7 @@ class TransferEtlHandler(EtlHandler):
         target_fields=None,
         username="",
         total_shards_per_node=None,
-        storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        storage_cluster_type=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
