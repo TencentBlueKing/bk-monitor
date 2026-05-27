@@ -258,7 +258,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         if builtin_view == "apm_service-service-default-custom_metric_v2":
             view_config = {
                 **view_config,
-                "hidden": f"{bk_biz_id}-{app_name}" not in settings.APM_CUSTOM_METRIC_V2_ENABLED_LIST,
+                "hidden": str(bk_biz_id) not in settings.APM_CUSTOM_METRIC_V2_ENABLED_LIST
+                and f"{bk_biz_id}-{app_name}" not in settings.APM_CUSTOM_METRIC_V2_ENABLED_LIST,
             }
 
         if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:

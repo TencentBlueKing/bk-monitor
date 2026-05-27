@@ -157,11 +157,11 @@ class CustomReportSubscription(models.Model):
         # 1. 从数据库查询到bk_biz_id到自定义上报配置的数据
         result = (
             query_set.extra(
-                select={"token": f"{data_source_table_name}.token"},
+                select={"data_source_token": f"{data_source_table_name}.token"},
                 tables=[data_source_table_name],
                 where=[f"{group_table_name}.bk_data_id={data_source_table_name}.bk_data_id"],
             )
-            .values("bk_biz_id", "bk_data_id", "token", "max_rate", "max_future_time_offset")
+            .values("bk_biz_id", "bk_data_id", "token", "data_source_token", "max_rate", "max_future_time_offset")
             .distinct()
         )
         biz_id_to_data_id_config: dict[int, list[tuple[dict[str, Any], str]]] = {}
@@ -189,14 +189,15 @@ class CustomReportSubscription(models.Model):
             protocol = cls.get_protocol(r["bk_data_id"])
             # 根据格式决定使用那种配置
             if protocol == "json":
+                token = r.get("token") or r.get("data_source_token") or ""
                 # json格式: bk-collector-report-v2.conf
                 item = {
-                    "bk_data_token": r["token"],
+                    "bk_data_token": token,
                     "bk_data_id": r["bk_data_id"],
                     "token_config": {
                         "name": "token_checker/proxy",
                         "proxy_dataid": r["bk_data_id"],
-                        "proxy_token": r["token"],
+                        "proxy_token": token,
                     },
                     "qps_config": {
                         "name": "rate_limiter/token_bucket",

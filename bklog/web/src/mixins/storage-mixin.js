@@ -73,6 +73,9 @@ export default {
       if (this.curCollect?.data_link_id) {
         queryData.data_link_id = this.curCollect.data_link_id;
       }
+      if (this.clusterType) {
+        queryData.cluster_type = this.clusterType;
+      }
       try {
         const res = await this.$http.request('collect/getStorage', {
           query: queryData,

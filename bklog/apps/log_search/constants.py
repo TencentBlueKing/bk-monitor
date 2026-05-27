@@ -1894,7 +1894,7 @@ class DorisFieldTypeEnum(Enum):
             cls.VARIANT.value: "object",
         }
         # 特殊判断 dtEventTimeStamp 默认为 date，开启了分词默认为 text
-        if field.get("field_name") == "dtEventTimeStamp":
+        if field.get("field_name") in {"dtEventTimeStamp", "time", "dtEventTimeStampNanos"}:
             return "date"
         if field.get("is_analyzed", False):
             return "text"
@@ -1943,7 +1943,7 @@ class LogBuiltInFieldTypeEnum:
 
     @classmethod
     def get_choices_list_dict(cls):
-        return [{"id": key, "name": key} for key in LOG_BUILT_IN_FIELD_LIST if key]        
+        return [{"id": key, "name": key} for key in LOG_BUILT_IN_FIELD_LIST if key]
 
 
 class LogAccessTypeEnum(ChoicesEnum):

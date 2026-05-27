@@ -130,6 +130,15 @@ class CustomTSTable(OperateRecordModelBase):
 
     @property
     def token(self):
+        time_series_groups = api.metadata.get_time_series_group(
+            time_series_group_id=self.time_series_group_id,
+            bk_tenant_id=self.bk_tenant_id,
+            with_result_table_info=False,
+        )
+        for time_series_group in time_series_groups:
+            if time_series_group.get("token"):
+                return time_series_group["token"]
+
         if self.protocol == "prometheus":
             params = {
                 "metric_data_id": self.bk_data_id,

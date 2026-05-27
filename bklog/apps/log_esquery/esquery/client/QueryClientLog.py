@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # pylint: disable=invalid-name
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
@@ -20,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import re
-from typing import Any, Dict
+from typing import Any
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -29,6 +29,7 @@ from elasticsearch import Elasticsearch as Elasticsearch
 from elasticsearch5 import Elasticsearch as Elasticsearch5
 
 from apps.api import TransferApi
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
 from apps.log_esquery.constants import DEFAULT_SCHEMA
 from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTemplate
@@ -53,11 +54,11 @@ DATE_RE = re.compile("[0-9]{6,8}$")
 
 class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
     def __init__(self, storage_cluster_id: int = None):
-        super(QueryClientLog, self).__init__()
+        super().__init__()
         self._client: Elasticsearch
         self.storage_cluster_id = storage_cluster_id
 
-    def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
+    def query(self, index: str, body: dict[str, Any], scroll=None, track_total_hits=False):
         # query前没有必要检查ping
         self._build_connection(index=index, check_ping=False)
 
@@ -72,20 +73,20 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             self.catch_timeout_raise(e)
             raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=e))
 
-    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> dict:
         index_target = self._get_index_target(index=index, check_ping=False)
         try:
-            logger.info("mapping for index=>{}, index_target=>{}".format(index, index_target))
+            logger.info(f"mapping for index=>{index}, index_target=>{index_target}")
             mapping_dict: type_mapping_dict = self._client.indices.get_mapping(index=index_target)
             if add_settings_details:
-                settings_dict: Dict = self.get_settings(index=index)
+                settings_dict: dict = self.get_settings(index=index)
                 return self.add_analyzer_details(_mappings=mapping_dict, _settings=settings_dict)
             return mapping_dict
         except Exception as e:  # pylint: disable=broad-except
             self.catch_timeout_raise(e)
             raise BaseSearchFieldsException(BaseSearchFieldsException.MESSAGE.format(error=e))
 
-    def get_settings(self, index: str) -> Dict:
+    def get_settings(self, index: str) -> dict:
         index_target = self._get_index_target(index=index, check_ping=False)
         try:
             return self._client.indices.get_settings(index=index_target)
@@ -105,7 +106,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         # log的index转换逻辑
         return index.replace(".", "_")
 
-    def scroll(self, index, scroll_id: str, scroll: str) -> Dict:
+    def scroll(self, index, scroll_id: str, scroll: str) -> dict:
         self._build_connection(index, check_ping=False)
         try:
             return self._client.scroll(scroll_id=scroll_id, scroll=scroll)
@@ -162,10 +163,10 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             # 2_bklog_bkesb_container_*
             # 2_bklog_test_bklog_277*
             # 2_bklog.test_bklog_277*
-            if "_%s." % settings.TABLE_ID_PREFIX in _index:
+            if f"_{settings.TABLE_ID_PREFIX}." in _index:
                 tmp_index = _index
             else:
-                tmp_index: str = _index.replace("_%s_" % settings.TABLE_ID_PREFIX, "_%s." % settings.TABLE_ID_PREFIX, 1)
+                tmp_index: str = _index.replace(f"_{settings.TABLE_ID_PREFIX}_", f"_{settings.TABLE_ID_PREFIX}.", 1)
             tmp_index = tmp_index.rstrip("_*")
             # 如果suffix是个日期，需要去掉后缀
             new_index, no_use, suffix = tmp_index.rpartition("_")  # pylint: disable=unused-variable
@@ -206,8 +207,9 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
 
     @cache_five_minute("_connect_info_{index}", need_md5=True)
     def _connect_info(self, index: str = "") -> tuple:
+        storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(index)
         transfer_api_response: dict = TransferApi.get_result_table_storage(
-            {"result_table_list": index, "storage_type": "elasticsearch"}
+            {"result_table_list": index, "storage_type": storage_cluster_type}
         )
 
         if not transfer_api_response:
@@ -292,10 +294,13 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
     @staticmethod
     @cache_five_minute("bulk_cluster_info_{result_table_list}", need_md5=True)
     def bulk_cluster_infos(result_table_list: list = None):
+        storage_cluster_type_map = CollectorConfig.get_storage_cluster_type_map_by_table_ids(result_table_list)
         multi_execute_func = MultiExecuteFunc()
         for rt in result_table_list:
             multi_execute_func.append(
-                rt, TransferApi.get_result_table_storage, {"result_table_list": rt, "storage_type": "elasticsearch"}
+                rt,
+                TransferApi.get_result_table_storage,
+                {"result_table_list": rt, "storage_type": storage_cluster_type_map.get(rt, STORAGE_CLUSTER_TYPE)},
             )
         result = multi_execute_func.run()
         cluster_infos = {}
@@ -312,10 +317,11 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         multi_execute_func.append(
             "result_table_config", TransferApi.get_result_table, params={"table_id": result_table_id}
         )
+        storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(result_table_id)
         multi_execute_func.append(
             "result_table_storage",
             TransferApi.get_result_table_storage,
-            params={"result_table_list": result_table_id, "storage_type": "elasticsearch"},
+            params={"result_table_list": result_table_id, "storage_type": storage_cluster_type},
         )
 
         result = multi_execute_func.run()

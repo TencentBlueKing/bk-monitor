@@ -62,8 +62,13 @@ export default defineComponent({
       type: Object as () => LogItem | null,
       default: null,
     },
+    /** 当前选中的任务来源 */
+    activeSource: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['log-item-select', 'toggle', 'load-more'],
+  emits: ['log-item-select', 'toggle', 'load-more', 'source-change'],
   setup(props, { emit, expose }) {
     /** 是否收起 */
     const isCollapsed = ref(false);
@@ -124,7 +129,7 @@ export default defineComponent({
      * 点击日志条目
      */
     const handleLogItemSelect = (item: LogItem) => {
-      if (item.file_name === props.selectedLogItem?.file_name) return;
+      if (item === props.selectedLogItem) return;
       emit('log-item-select', item);
     };
 
@@ -154,23 +159,54 @@ export default defineComponent({
       return status ? statusMap[status] : '未采集';
     };
 
-    return () => (
-      <div
-        class={['card-base', 'task-list-panel', { 'is-collapsed': isCollapsed.value }]}
-        style={{ width: `${isCollapsed.value ? 0 : EXPANDED_WIDTH}px` }}
-      >
-        {/* 标题栏：收起箭头 + 标题 */}
-        <div class='panel-header' onClick={handleToggle}>
-          <i class='bklog-icon bklog-collapse'></i>
-          <span class='panel-title'>{t('任务列表')}</span>
-        </div>
+    const handleTabChange = (source: string) => {
+      if (props.activeSource === source) return;
+      emit('source-change', source);
+    };
 
-        {/* 日志条目列表 */}
-        <div class='task-list' ref={scrollContainerRef} onScroll={handleScroll}>
-          {props.taskList.map(item => (
+    return () => {
+      const tabIndex = props.activeSource === '' ? 0 : props.activeSource === 'report' ? 1 : 2;
+
+      return (
+        <div
+          class={['card-base', 'task-list-panel', { 'is-collapsed': isCollapsed.value }]}
+          style={{ width: `${isCollapsed.value ? 0 : EXPANDED_WIDTH}px` }}
+        >
+          {/* 标题栏：收起箭头 + 标题 */}
+          <div class='panel-header' onClick={handleToggle}>
+            <i class='bklog-icon bklog-collapse'></i>
+            <span class='panel-title'>{t('任务列表')}</span>
+          </div>
+
+          {/* 选项卡：全部 / 用户上报 / 主动采集 */}
+          <div class='task-source-tabs'>
+            <div class='tab-slider' style={{ transform: `translateX(${tabIndex * 100}%)` }}></div>
             <div
-              key={item.file_name}
-              class={['task-item', { active: props.selectedLogItem?.file_name === item.file_name }]}
+              class={['tab-item', { active: props.activeSource === '', 'hide-divider': tabIndex === 0 || tabIndex === 1 }]}
+              onClick={() => handleTabChange('')}
+            >
+              {t('全部')}
+            </div>
+            <div
+              class={['tab-item', { active: props.activeSource === 'report', 'hide-divider': tabIndex === 1 || tabIndex === 2 }]}
+              onClick={() => handleTabChange('report')}
+            >
+              {t('用户上报')}
+            </div>
+            <div
+              class={['tab-item', { active: props.activeSource === 'task' }]}
+              onClick={() => handleTabChange('task')}
+            >
+              {t('主动采集')}
+            </div>
+          </div>
+
+          {/* 日志条目列表 */}
+          <div class='task-list' ref={scrollContainerRef} onScroll={handleScroll}>
+          {props.taskList.map((item, index) => (
+            <div
+              key={`${item.file_name}_${index}`}
+              class={['task-item', { active: props.selectedLogItem === item }]}
               onClick={() => handleLogItemSelect(item)}
             >
               {/* 第一行：时间 + 状态标签 */}
@@ -192,11 +228,21 @@ export default defineComponent({
               </div>
             </div>
           ))}
+          {props.taskList.length === 0 && !props.isLoading && (
+            <bk-exception
+              style='margin-top: 80px'
+              scene='part'
+              type='empty'
+            >
+              <span>{t('暂无数据')}</span>
+            </bk-exception>
+          )}
           {props.isLoading && props.hasMore && (
             <div class='task-list-loading'>loading...</div>
           )}
         </div>
       </div>
-    );
+      );
+    };
   },
 });
