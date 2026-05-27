@@ -25,10 +25,9 @@
  */
 
 import type { IssuesBatchActionEnum } from '../constant';
-import type { IssueActiveNodeType, IssuePriorityType, IssuesBatchActionType } from './constants';
-import type { IssueItem, MergeMember } from './table';
-
-// ===================== 请求参数类型 =====================
+import type { IssuePriorityType, IssuesBatchActionType } from './constants';
+import type { IssueActivityItem } from './detail';
+import type { IssueItem } from './table';
 
 /** 指派负责人请求参数 */
 export interface AssignIssuesParams {
@@ -37,6 +36,8 @@ export interface AssignIssuesParams {
   /** 跨业务批量操作 Issue 标识列表 */
   issues: IssueIdentifier[];
 }
+
+// ===================== 请求参数类型 =====================
 
 /** 指派负责人 - 成功条目 */
 export interface AssignSucceededItem extends IssueOperationSucceededBase {
@@ -50,26 +51,6 @@ export interface FollowUpIssuesParams {
   content: string;
   /** 跨业务批量操作 Issue 标识列表 */
   issues: IssueIdentifier[];
-}
-
-/** Issue 活动记录条目 */
-export interface IssueActivityItem {
-  /** 活动记录 ID */
-  activity_id: string;
-  /** 活动类型 */
-  activity_type: IssueActiveNodeType;
-  /** 业务 ID */
-  bk_biz_id: number;
-  /** 评论内容（仅 comment 类型有值） */
-  content: null | string;
-  /** 变更前的值（仅 *_change 类型有值） */
-  from_value: null | string;
-  /** 操作人 */
-  operator: string;
-  /** 活动时间（Unix 秒级时间戳） */
-  time: number;
-  /** 变更后的值（仅 *_change 类型有值） */
-  to_value: null | string;
 }
 
 /** Issue 标识符（跨业务批量操作请求中的单条 issue 结构） */
@@ -104,8 +85,6 @@ export interface IssueOperationSucceededBase {
   update_time: IssueItem['update_time'];
 }
 
-// ===================== 响应结构类型 =====================
-
 /** Issues 批量操作响应 */
 export interface IssuesBatchOperationResponse<U extends IssuesBatchActionType = IssuesBatchActionType> {
   /** 失败的条目列表，含失败原因 */
@@ -113,6 +92,8 @@ export interface IssuesBatchOperationResponse<U extends IssuesBatchActionType = 
   /** 成功处理的条目列表 */
   succeeded: IssueSucceededItemByActionMap[U][];
 }
+
+// ===================== 响应结构类型 =====================
 
 /** ISSUES 各操作 dialog 组件所需的非公共私有参数(打开时需要回填显示的属性) */
 export type IssuesOperationDialogParams = IssuesPriorityDialogParams;
@@ -134,24 +115,6 @@ export interface IssueSucceededItemByActionMap {
   [IssuesBatchActionEnum.UNRESOLVE]: StatusChangeSucceededItem;
 }
 
-/** 合并来源列表请求参数 */
-export interface ListMergeSourcesParams {
-  /** 业务 ID */
-  bk_biz_id: number;
-  /** 主 Issue ID */
-  main_issue_id: string;
-}
-
-/** 合并来源列表响应 */
-export interface ListMergeSourcesResponse {
-  /** 当前活跃成员列表 */
-  active_members: MergeMember[];
-  /** 主 Issue ID */
-  main_issue_id: string;
-  /** 拆分历史 */
-  split_history: MergeSplitHistoryItem[];
-}
-
 /** 查询最近指派负责人请求参数 */
 export interface ListRecentAssigneesParams {
   /** 业务 ID 列表 */
@@ -162,30 +125,6 @@ export interface ListRecentAssigneesParams {
 
 /** 查询最近指派负责人响应结果 */
 export type ListRecentAssigneesResponse = string[];
-
-/** 合并 Issue 请求参数 */
-export interface MergeIssueParams {
-  /** 业务 ID */
-  bk_biz_id: number;
-  /** 主 Issue ID（合并目标） */
-  main_issue_id: string;
-  /** 被合并的成员 Issue ID 列表 */
-  members: string[];
-  /** 合并依据 */
-  reasons: string[];
-}
-
-/** 合并来源 - 拆分历史条目 */
-export interface MergeSplitHistoryItem extends MergeMember {
-  /** 拆分类型 */
-  split_kind: string;
-  /** 拆分操作人 */
-  split_operator: string;
-  /** 拆分依据 */
-  split_reasons: null | string[];
-  /** 拆分时间（Unix 秒级时间戳） */
-  split_time: number;
-}
 
 /** 重命名 Issue 请求参数 */
 export interface RenameIssueParams {
@@ -215,16 +154,6 @@ export interface ResolveIssuesParams {
 export interface ResolveSucceededItem extends IssueOperationSucceededBase {
   /** 解决时间 */
   resolved_time: IssueItem['resolved_time'];
-}
-
-/** 拆分 Issue 请求参数 */
-export interface SplitIssueParams {
-  /** 业务 ID */
-  bk_biz_id: number;
-  /** 被拆出的成员 Issue ID */
-  member_issue_id: string;
-  /** 拆分依据 */
-  reasons: string[];
 }
 
 /** 状态变更类操作 - 成功条目 */

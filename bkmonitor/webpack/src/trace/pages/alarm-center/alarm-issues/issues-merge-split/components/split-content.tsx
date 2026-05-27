@@ -35,8 +35,7 @@ import IssuesSplitDialog from './issues-split-dialog';
 import EmptyStatus, { type EmptyStatusOperationType } from '@/components/empty-status/empty-status';
 import MergedIssueIcon from '@/static/img/merged-Issue.svg';
 
-import type { IssueItem } from '../../typing';
-import type { ActiveMember, IssueMergeSource } from '../typing';
+import type { IssueItem, ListMergeSourcesResponse, MergeSourceActiveMember } from '../../typing';
 
 import './split-content.scss';
 
@@ -52,12 +51,12 @@ export default defineComponent({
   setup(props, { emit }) {
     const searchKey = shallowRef('');
 
-    const mergeSources = shallowRef<IssueMergeSource>(null);
+    const mergeSources = shallowRef<ListMergeSourcesResponse | null>(null);
 
     /** 弹窗显示状态 */
     const dialogVisible = shallowRef(false);
     /** 当前待拆分的 Issue */
-    const currentSplitIssue = shallowRef<ActiveMember>(null);
+    const currentSplitIssue = shallowRef<MergeSourceActiveMember | null>(null);
 
     /** 被合并 Issue 列表 */
     const targetIssues = computed(() => {
@@ -65,7 +64,7 @@ export default defineComponent({
     });
 
     /** 获取 metric 列表 */
-    const getMetricList = (issue: ActiveMember) => issue.merge_reasons.map(reason => reason);
+    const getMetricList = (issue: MergeSourceActiveMember) => issue.merge_reasons.map(reason => reason);
 
     const getIssueMergeSources = async () => {
       const issue = props.issues[0];
@@ -84,7 +83,7 @@ export default defineComponent({
     };
 
     /** 处理拆分按钮点击，打开弹窗 */
-    const handleSplit = (issue: ActiveMember) => {
+    const handleSplit = (issue: MergeSourceActiveMember) => {
       currentSplitIssue.value = issue;
       dialogVisible.value = true;
     };
@@ -96,8 +95,8 @@ export default defineComponent({
     };
 
     /** 处理拆分成功 */
-    const handleDialogSuccess = () => {
-      emit('success');
+    const handleDialogSuccess = (memberIssueId: string) => {
+      emit('success', memberIssueId);
       handleDialogClose();
     };
 

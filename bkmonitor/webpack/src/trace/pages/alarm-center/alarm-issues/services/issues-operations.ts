@@ -52,10 +52,12 @@ import type {
   ListRecentAssigneesParams,
   ListRecentAssigneesResponse,
   MergeIssueParams,
+  MergeIssueResponseData,
   RenameIssueParams,
   RenameIssueSucceededItem,
   ResolveIssuesParams,
   SplitIssueParams,
+  SplitIssueResponseData,
   UpdatePriorityParams,
 } from '../typing';
 
@@ -243,12 +245,12 @@ export const showOperationResult = (res: IssuesBatchOperationResponse, successMe
  * @description 合并 Issues，将选中的成员 Issue 并入主 Issue
  * @param {MergeIssueParams} params - 合并请求参数（bk_biz_id / main_issue_id / members / reasons）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<{ status: string; main_issue_id: string; members: string[] }>} 合并结果
+ * @returns {Promise<MergeIssueResponseData>} 合并结果
  */
 export const mergeIssues = async (
   params: MergeIssueParams,
   options?: RequestOptions
-): Promise<{ main_issue_id: string; members: string[]; status: string }> => {
+): Promise<MergeIssueResponseData> => {
   return mergeIssue(params, options);
 };
 
@@ -256,12 +258,12 @@ export const mergeIssues = async (
  * @description 拆分 Issue，将成员 Issue 从主 Issue 中拆出
  * @param {SplitIssueParams} params - 拆分请求参数（bk_biz_id / member_issue_id / reasons）
  * @param {RequestOptions} options - 请求配置选项
- * @returns {Promise<{ member_issue_id: string; status: string }>} 拆分结果
+ * @returns {Promise<SplitIssueResponseData>} 拆分结果
  */
 export const splitIssues = async (
   params: SplitIssueParams,
   options?: RequestOptions
-): Promise<{ member_issue_id: string; status: string }> => {
+): Promise<SplitIssueResponseData> => {
   return splitIssue(params, options);
 };
 

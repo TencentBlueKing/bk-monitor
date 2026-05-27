@@ -283,6 +283,10 @@
   }
 
   // ===================== 结束状态行样式（通过 rowClassName 添加 is-ended） =====================
+  .is-split-highlighted {
+    background-color: #ebfaf0;
+  }
+
   .is-ended {
     /** 结束状态 ISSUE 透明度 */
     $ended-opacity-icon: 0.2; // ICON / 趋势图 / 等级 → 20%

@@ -190,6 +190,8 @@ export default defineComponent({
       mergeSplitShow,
       mergeSplitType,
       mergeSplitIssues,
+      highlightedRowIds,
+      addSplitHighlight,
       handleIssuesMergeClick,
       handleIssuesSplitClick,
       handleMergeSplitShowChange,
@@ -1074,6 +1076,8 @@ export default defineComponent({
       mergeSplitType,
       mergeSplitIssues,
       handleMergeSplitShowChange,
+      addSplitHighlight,
+      highlightedRowIds,
     };
   },
   render() {
@@ -1219,6 +1223,7 @@ export default defineComponent({
                               columns={this.tableSourceColumns}
                               data={this.data as IssueItem[]}
                               headerAffixedTop={tableAffixed}
+                              highlightedRowIds={this.highlightedRowIds}
                               horizontalScrollAffixedBottom={tableAffixed}
                               loading={this.loading}
                               nameChange={this.handleIssuesNameChange}
@@ -1316,6 +1321,13 @@ export default defineComponent({
                 issues={this.mergeSplitIssues}
                 show={this.mergeSplitShow}
                 type={this.mergeSplitType}
+                onMergeSuccess={() => {
+                  this.alarmStore.refreshImmediate += 1;
+                }}
+                onSplitSuccess={(memberIssueId: string) => {
+                  this.alarmStore.refreshImmediate += 1;
+                  this.addSplitHighlight(memberIssueId);
+                }}
                 onUpdate:show={this.handleMergeSplitShowChange}
               />,
             ]

@@ -34,7 +34,7 @@ import { splitIssue } from '../../services/mock';
 import IssueInfoItem from './issue-info-item';
 import ReasonSection from './reason-section';
 
-import type { ActiveMember } from '../typing';
+import type { MergeSourceActiveMember } from '../../typing';
 
 import './issues-split-dialog.scss';
 
@@ -42,7 +42,7 @@ export default defineComponent({
   name: 'IssuesSplitDialog',
   props: {
     bizId: {
-      type: Number,
+      type: [Number, String],
       default: null,
     },
     /** 是否显示 */
@@ -52,7 +52,7 @@ export default defineComponent({
     },
     /** 当前 Issue */
     issue: {
-      type: Object as PropType<ActiveMember>,
+      type: Object as PropType<MergeSourceActiveMember>,
       default: () => null,
     },
   },
@@ -81,7 +81,7 @@ export default defineComponent({
     };
 
     /** 获取 metric 列表 */
-    const getMetricList = (issue: ActiveMember) => issue.merge_reasons.map(reason => reason);
+    const getMetricList = (issue: MergeSourceActiveMember) => issue.merge_reasons.map(reason => reason);
 
     const submitLoading = shallowRef(false);
 
@@ -99,7 +99,7 @@ export default defineComponent({
             theme: 'success',
             message: t('已拆分为独立 Issue'),
           });
-          emit('success');
+          emit('success', props.issue.member_issue_id);
           handleClose();
         })
         .finally(() => {
