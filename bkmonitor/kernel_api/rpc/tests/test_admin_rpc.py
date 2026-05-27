@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import base64
+import gzip
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -105,6 +107,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bcs_cluster.detail",
         "admin.bcs_cluster.data_id_list",
         "admin.bcs_cluster.data_id_detail",
+        "admin.bcs_cluster.bk_collector_config_list",
+        "admin.bcs_cluster.bk_collector_config_detail",
         "admin.datasource.kafka_sample",
         "admin.es_storage.list",
         "admin.es_storage.detail",
@@ -148,6 +152,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     space_detail = KernelRPCRegistry.get_function_detail("admin.space.detail")
     assert space_detail is not None
     assert "SpaceVMInfo" in space_detail["description"]
+
+    custom_report_list = KernelRPCRegistry.get_function_detail("admin.custom_report.list")
+    assert custom_report_list is not None
+    assert "bk_data_ids" in custom_report_list["params_schema"]
 
 
 def test_space_vm_info_serializer_includes_vm_cluster_or_null():
@@ -938,6 +946,283 @@ def test_bcs_cluster_data_id_detail_converts_k8s_404_to_custom_exception():
         admin_bcs_cluster.get_bcs_cluster_data_id_detail(
             {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "name": "missing"}
         )
+
+
+def _gzip_b64_config(config_text: str) -> str:
+    return base64.b64encode(gzip.compress(config_text.encode())).decode()
+
+
+def _bk_collector_secret(name: str, data: dict[str, str]):
+    return SimpleNamespace(
+        metadata=SimpleNamespace(
+            name=name,
+            namespace="bkmonitor-operator",
+            creation_timestamp=datetime(2026, 5, 28, 10, 0, 0),
+            resource_version="1001",
+        ),
+        data=data,
+    )
+
+
+def _collector_secret_list_side_effect(*, platform_config: str | None = None):
+    def side_effect(namespace, label_selector):
+        if "source=custom_report_v2_json" in label_selector:
+            return SimpleNamespace(
+                items=[
+                    _bk_collector_secret(
+                        "bk-collector-subconfig-json-001-100",
+                        {
+                            "report-v2-1001.conf": _gzip_b64_config(
+                                'validator_config = {"type": "event"}\nbk_data_token = "event-token"\n'
+                            ),
+                            "report-v2-1004.conf": _gzip_b64_config(
+                                'validator_config = {"type": "time_series"}\nbk_data_token = "metric-token"\n'
+                            ),
+                        },
+                    )
+                ]
+            )
+        if "source=custom_report_prometheus" in label_selector:
+            return SimpleNamespace(
+                items=[
+                    _bk_collector_secret(
+                        "bk-collector-subconfig-prometheus-001-100",
+                        {
+                            "application-1002.conf": _gzip_b64_config(
+                                'bk_app_name = "prometheus_report"\nbk_biz_id = 2\nmetric_data_id = 1002\n'
+                            )
+                        },
+                    )
+                ]
+            )
+        if "source=custom_log" in label_selector:
+            return SimpleNamespace(
+                items=[
+                    _bk_collector_secret(
+                        "bk-collector-subconfig-log-001-50",
+                        {
+                            "application-1003.conf": _gzip_b64_config(
+                                'bk_app_name = "demo_log"\nbk_biz_id = 2\nlog_data_id = 1003\n'
+                            )
+                        },
+                    )
+                ]
+            )
+        if "source=apm" in label_selector:
+            return SimpleNamespace(
+                items=[
+                    _bk_collector_secret(
+                        "bk-collector-subconfig-apm-01-20",
+                        {
+                            "application-2001.conf": _gzip_b64_config(
+                                'bk_app_name = "demo_apm"\nbk_biz_id = 2\ntrace_data_id = 20011\n'
+                            )
+                        },
+                    )
+                ]
+            )
+        if "type=platform" in label_selector:
+            return SimpleNamespace(
+                items=[
+                    _bk_collector_secret(
+                        "bk-collector-platform",
+                        {
+                            "platform.conf": _gzip_b64_config(
+                                platform_config
+                                or 'token_checker_config = {"decoded_key": "real-key", "decoded_iv": "real-iv"}\n'
+                            )
+                        },
+                    )
+                ]
+            )
+        return SimpleNamespace(items=[])
+
+    return side_effect
+
+
+def test_bcs_cluster_bk_collector_config_list_reads_runtime_secrets_and_marks_inspect():
+    api_client = object()
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=api_client, operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect()
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client) as core_api,
+    ):
+        result = admin_bcs_cluster.list_bcs_cluster_bk_collector_configs(
+            {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "page": 1, "page_size": 20}
+        )
+
+    core_api.assert_called_once_with(api_client)
+    assert core_client.list_namespaced_secret.call_count == 5
+    assert {call.kwargs["namespace"] for call in core_client.list_namespaced_secret.call_args_list} == {"operator-ns"}
+    assert result["data"]["total"] == 6
+    assert result["data"]["namespace"] == "operator-ns"
+    assert result["data"]["operator_namespace"] == "operator-ns"
+    assert result["data"]["using_configured_namespace"] is False
+    assert result["data"]["category_counts"]["custom_report_json"] == 2
+    assert result["data"]["category_counts"]["custom_event"] == 0
+    assert result["data"]["category_counts"]["custom_metric_json"] == 0
+    assert result["data"]["category_counts"]["custom_metric_prometheus"] == 1
+    assert result["data"]["category_counts"]["custom_log"] == 1
+    assert result["data"]["category_counts"]["apm_application"] == 1
+    assert result["data"]["category_counts"]["apm_platform"] == 1
+    report_item = next(item for item in result["data"]["items"] if item["config_id"] == 1001)
+    assert report_item["category"] == "custom_report_json"
+    assert report_item["secret_name"] == "bk-collector-subconfig-json-001-100"
+    assert "config" not in report_item
+    assert "name" not in report_item
+    assert "bk_biz_id" not in report_item
+    assert "bk_data_id" not in report_item
+    assert "data_ids" not in report_item
+    assert "table_id" not in report_item
+    assert "category_label" not in report_item
+    assert "is_enable" not in report_item
+    assert "last_modify_time" not in report_item
+    assert "config_size" not in report_item
+    assert "decode_error" not in report_item
+    assert "has_sensitive" not in report_item
+    assert "sensitive_masked" not in report_item
+    assert result["meta"]["safety_level"] == "inspect"
+    assert result["meta"]["requested_safety_level"] == "inspect"
+
+
+def test_bcs_cluster_bk_collector_config_list_filters_by_data_id_and_apm_application_id():
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect()
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+    ):
+        data_id_result = admin_bcs_cluster.list_bcs_cluster_bk_collector_configs(
+            {
+                "bk_tenant_id": "system",
+                "cluster_id": "BCS-K8S-00001",
+                "category": "custom_report_prometheus",
+                "keyword": "1002",
+            }
+        )
+        apm_result = admin_bcs_cluster.list_bcs_cluster_bk_collector_configs(
+            {
+                "bk_tenant_id": "system",
+                "cluster_id": "BCS-K8S-00001",
+                "category": "apm_application",
+                "keyword": "2001",
+            }
+        )
+
+    assert core_client.list_namespaced_secret.call_count == 2
+    assert data_id_result["data"]["total"] == 1
+    assert data_id_result["data"]["items"][0]["category"] == "custom_metric_prometheus"
+    assert data_id_result["data"]["items"][0]["config_id"] == 1002
+    assert data_id_result["data"]["category_counts"]["custom_metric_prometheus"] == 1
+    assert apm_result["data"]["total"] == 1
+    assert apm_result["data"]["items"][0]["category"] == "apm_application"
+    assert apm_result["data"]["items"][0]["config_id"] == 2001
+    assert apm_result["data"]["category_counts"]["apm_application"] == 1
+
+
+def test_bcs_cluster_bk_collector_config_list_can_switch_to_configured_namespace():
+    api_client = object()
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=api_client, operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect()
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+        patch.object(
+            admin_bcs_cluster.settings,
+            "K8S_OPERATOR_DEPLOY_NAMESPACE",
+            {"BCS-K8S-00001": "configured-ns"},
+        ),
+    ):
+        result = admin_bcs_cluster.list_bcs_cluster_bk_collector_configs(
+            {
+                "bk_tenant_id": "system",
+                "cluster_id": "BCS-K8S-00001",
+                "use_config_namespace": True,
+                "page": 1,
+                "page_size": 20,
+            }
+        )
+
+    assert {call.kwargs["namespace"] for call in core_client.list_namespaced_secret.call_args_list} == {"configured-ns"}
+    assert result["data"]["namespace"] == "configured-ns"
+    assert result["data"]["operator_namespace"] == "operator-ns"
+    assert result["data"]["configured_namespace"] == "configured-ns"
+    assert result["data"]["can_use_configured_namespace"] is True
+    assert result["data"]["using_configured_namespace"] is True
+
+
+def test_bcs_cluster_bk_collector_config_detail_masks_platform_secret_by_default():
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect()
+    config_ref = admin_bcs_cluster._encode_bk_collector_config_ref("platform", "bk-collector-platform", "platform.conf")
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+    ):
+        result = admin_bcs_cluster.get_bcs_cluster_bk_collector_config_detail(
+            {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "config_ref": config_ref}
+        )
+
+    assert result["data"]["category"] == "apm_platform"
+    assert result["data"]["namespace"] == "operator-ns"
+    assert "has_sensitive" not in result["data"]
+    assert "sensitive_masked" not in result["data"]
+    assert "include_sensitive" not in result["data"]
+    assert "real-key" not in result["data"]["config"]
+    assert "******" in result["data"]["config"]
+
+
+def test_bcs_cluster_bk_collector_config_detail_can_show_platform_secret_and_keeps_report_token():
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect(
+        platform_config='token_checker_config = {"decoded_key": "real-key"}\n'
+    )
+    platform_ref = admin_bcs_cluster._encode_bk_collector_config_ref(
+        "platform", "bk-collector-platform", "platform.conf"
+    )
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+    ):
+        platform_result = admin_bcs_cluster.get_bcs_cluster_bk_collector_config_detail(
+            {
+                "bk_tenant_id": "system",
+                "cluster_id": "BCS-K8S-00001",
+                "config_ref": platform_ref,
+                "include_sensitive": True,
+            }
+        )
+
+    assert "sensitive_masked" not in platform_result["data"]
+    assert "include_sensitive" not in platform_result["data"]
+    assert "real-key" in platform_result["data"]["config"]
+
+    core_client = Mock()
+    core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect()
+    report_ref = admin_bcs_cluster._encode_bk_collector_config_ref(
+        "json", "bk-collector-subconfig-json-001-100", "report-v2-1001.conf"
+    )
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+    ):
+        report_result = admin_bcs_cluster.get_bcs_cluster_bk_collector_config_detail(
+            {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "config_ref": report_ref}
+        )
+
+    assert report_result["data"]["category"] == "custom_event"
+    assert "event-token" in report_result["data"]["config"]
 
 
 def test_es_storage_table_kind_uses_origin_table_id():
