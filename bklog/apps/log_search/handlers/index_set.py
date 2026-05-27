@@ -1214,8 +1214,14 @@ class IndexSetHandler(APIModel):
 
         # 调用接口查询结果表集群信息
         table_str = ",".join(table_list)
+        table_str_map = CollectorConfig.get_table_str_map_by_storage_cluster_type(table_str)
+
+        if len(table_str_map) != 1:
+            return None
+
+        storage_cluster_type, group_table_str = next(iter(table_str_map.items()))
         storage_info = TransferApi.get_result_table_storage(
-            {"result_table_list": table_str, "storage_type": STORAGE_CLUSTER_TYPE}
+            {"result_table_list": group_table_str, "storage_type": storage_cluster_type}
         )
 
         # 校验所有结果表查询出的集群是否一致
