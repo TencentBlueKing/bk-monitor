@@ -101,6 +101,9 @@ export default defineComponent({
     /** 是否收起左侧任务列表面板 */
     const isTaskListCollapsed = ref(false);
 
+    /** 是否折叠用户信息卡片 */
+    const isUserInfoCollapsed = ref(false);
+
     /** 当前选中的日志条目 */
     const selectedLogItem = ref<LogItem | null>(null);
 
@@ -122,8 +125,8 @@ export default defineComponent({
     /** 轮询间隔（毫秒） */
     const POLLING_INTERVAL = 20000;
 
-    /** 搜索完成后是否为空数据状态 */
-    const isEmptyState = computed(() => taskList.value.length === 0);
+    /** 搜索完成后是否为空数据状态（仅"全部"tab下显示全屏遮罩） */
+    const isEmptyState = computed(() => taskSource.value === '' && taskList.value.length === 0);
 
     /** 面板是否正在加载（仅手动查询） */
     const isPanelLoading = ref(false);
@@ -152,14 +155,17 @@ export default defineComponent({
     /** 是否已经执行过搜索 */
     const hasSearched = ref(false);
 
+    /** 任务列表来源 */
+    const taskSource = ref<string>('');
+
     /**
      * 根据面板可用高度计算分页大小
-     * 可用高度 = 面板高度 - 上padding(12) 上margin(16) - 下padding(12) - header(24)
+     * 可用高度 = 面板高度 - 上padding(12) 上margin(16) - 下padding(12) - header(24) - tabs(44)
      * 每个 item 占 75px
      * 分档：<10 → 10, 10~19 → 20, 20~49 → 50, ≥50 → 100
      */
     const calcPagesize = (panelHeight: number): number => {
-      const availableHeight = panelHeight - 64;
+      const availableHeight = panelHeight - 108;
       const itemCount = Math.floor(availableHeight / 75);
       if (itemCount < 10) return 10;
       if (itemCount < 20) return 20;
@@ -192,8 +198,16 @@ export default defineComponent({
         pagesize: computedPagesize.value,
       };
 
-      // URL 回填时加上 file_name 过滤（有 keyword 时不设置，避免同时传递 file_name 和 openid/task_id）
+      if (taskSource.value) {
+        query.source = taskSource.value;
+      }
+
       const urlFileName = initialUrlState?.fileName;
+      if (urlFileName) {
+        delete initialUrlState.fileName;
+      }
+
+      // URL 回填时加上 file_name 过滤（有 keyword 时不设置，避免同时传递 file_name 和 openid/task_id）
       if (urlFileName && !params.keyword.trim()) {
         query.file_name = urlFileName;
       }
@@ -236,9 +250,6 @@ export default defineComponent({
               const matchedItem = urlFileName
                 ? list.find((item: LogItem) => item.file_name === urlFileName)
                 : null;
-              if (urlFileName) {
-                delete initialUrlState.fileName;
-              }
               selectedLogItem.value = matchedItem || list[0];
               fetchClientInfo(selectedLogItem.value);
               // 任务列表返回后同步 URL（选中的任务文件名）
@@ -293,6 +304,15 @@ export default defineComponent({
       isTaskListCollapsed.value = collapsed;
     };
 
+    /** 任务列表来源切换 */
+    const handleSourceChange = (source: string) => {
+      taskSource.value = source;
+      fetchTaskList(lastSearchParams.value, false);
+      if (taskListPanelRef.value?.resetScroll) {
+        taskListPanelRef.value.resetScroll();
+      }
+    };
+
     /** 展开任务列表（从 LogDetailPanel 触发） */
     const handleExpandTaskList = () => {
       isTaskListCollapsed.value = false;
@@ -301,6 +321,11 @@ export default defineComponent({
     /** LogDetailPanel URL 同步回调 */
     const handleUrlSync = (state: Partial<UrlState>) => {
       syncUrlParams(state);
+    };
+
+    /** LogDetailPanel 滚动状态变化回调（控制用户信息卡片折叠/展开） */
+    const handleScrollStateChange = (collapsed: boolean) => {
+      isUserInfoCollapsed.value = collapsed;
     };
 
     /** 点击日志条目 */
@@ -675,6 +700,8 @@ export default defineComponent({
         userInfo={selectedLogItem.value}
         userReportStats={userReportStats.value}
         taskList={taskList.value}
+        timezone={lastSearchParams.value.timezone}
+        collapsed={isUserInfoCollapsed.value}
       />,
       <div class='task-content-area'>
         {/* 左侧：任务列表 */}
@@ -685,9 +712,11 @@ export default defineComponent({
           hasMore={hasMore.value}
           isLoading={isTaskListLoading.value}
           selectedLogItem={selectedLogItem.value}
+          activeSource={taskSource.value}
           on-toggle={handleToggleTaskList}
           on-log-item-select={handleLogItemSelect}
           on-load-more={handleLoadMore}
+          on-source-change={handleSourceChange}
         />
         {/* 右侧：日志详情 */}
         <LogDetailPanel
@@ -698,9 +727,11 @@ export default defineComponent({
           isAllowedDownload={isAllowedDownload.value}
           initialUrlState={initialUrlState}
           searchTimeRange={lastSearchParams.value.timeRange}
+          hideCollectButton={taskSource.value !== '' && taskList.value.length === 0}
           on-expand={handleExpandTaskList}
           on-collect={handleCollectNow}
           on-url-sync={handleUrlSync}
+          on-scroll-state-change={handleScrollStateChange}
         />
       </div>,
     ];
