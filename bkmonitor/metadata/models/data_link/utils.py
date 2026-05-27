@@ -130,6 +130,9 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> 
     # 将减号替换为下划线
     refine_data_name = refine_data_name.replace("-", "_")
 
+    # 去除所有非字母、数字、下划线、减号字符
+    refine_data_name = re.sub(r"[^a-zA-Z0-9_-]", "", refine_data_name)
+
     # 替换连续的下划线为单个下划线
     data_id_name = f"bkm_{re.sub(r'_+', '_', refine_data_name)}"
 
