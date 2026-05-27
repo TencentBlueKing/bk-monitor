@@ -25,6 +25,11 @@ from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 
 logger = logging.getLogger("metadata")
 
+BKBASE_RESULT_TABLE_FIELD_TYPE_MAP = {
+    # flattened 是 ES mapping 类型，BKBase V4 ResultTable 字段类型使用 object 表达。
+    "flattened": "object",
+}
+
 
 def clean_redundant_underscores(table_id: str) -> str:
     """
@@ -258,7 +263,7 @@ def generate_result_table_field_list(table_id, bk_tenant_id):
         field_alias = field["description"]
         if field_alias == "":
             field_alias = field_name
-        field_type = field["field_type"]
+        field_type = BKBASE_RESULT_TABLE_FIELD_TYPE_MAP.get(field["field_type"], field["field_type"])
         tag = field["tag"]
 
         # 比较字段名，忽略大小写
