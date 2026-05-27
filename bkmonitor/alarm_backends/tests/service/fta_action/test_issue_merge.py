@@ -1097,3 +1097,45 @@ class TestRunBatchFreezePropagation:
         assert "code" not in failed
         assert "detail" not in failed
         assert failed["message"] == "其他业务错误"
+
+
+class TestSplitReasonsOptional:
+    """拆分依据 reasons 改为非必填：缺省 / 空列表均通过校验，validated_data 兜底为 []。
+
+    下游 bulk_reset_for_split（reasons or []）、模型 split_reasons（null=True）、读侧
+    split_info（split_reasons or []）本就容忍空，故只需放开两处 serializer。
+    """
+
+    # 合法 Issue ID：前 10 位为时间戳（IssueIDField → IssueDocument.parse_timestamp_by_id）
+    VALID_ID = "1716000000abcdef01"
+
+    def test_api_split_serializer_reasons_optional(self):
+        from kernel_api.views.v4.issue import SplitResource
+
+        # 缺省 reasons
+        s = SplitResource.RequestSerializer(
+            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "operator": "alice"}
+        )
+        assert s.is_valid(), s.errors
+        assert s.validated_data["reasons"] == []
+
+        # 空列表 reasons
+        s2 = SplitResource.RequestSerializer(
+            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "reasons": [], "operator": "alice"}
+        )
+        assert s2.is_valid(), s2.errors
+        assert s2.validated_data["reasons"] == []
+
+        # 传入 reasons 仍正常
+        s3 = SplitResource.RequestSerializer(
+            data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID, "reasons": ["误合并"], "operator": "alice"}
+        )
+        assert s3.is_valid(), s3.errors
+        assert s3.validated_data["reasons"] == ["误合并"]
+
+    def test_web_split_serializer_reasons_optional(self):
+        from fta_web.issue.resources import SplitIssueResource
+
+        s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID})
+        assert s.is_valid(), s.errors
+        assert s.validated_data["reasons"] == []

@@ -81,6 +81,7 @@ class TGPASearchHandler:
             "sdk_version": task_detail.get("sdk_version", ""),
             "model": task_detail.get("model", ""),
             "xid": task.get("xid", ""),
+            "extend_info": None,
             "report_time": task.get("created_at", ""),
             "process_status": task.get("process_status", ""),
             "processed_at": task.get("processed_at", ""),
@@ -100,6 +101,7 @@ class TGPASearchHandler:
             "sdk_version": report.get("os_sdk", ""),
             "model": report.get("model", ""),
             "xid": report.get("xid", ""),
+            "extend_info": report.get("extend_info", ""),
             "report_time": report.get("report_time", ""),
             "process_status": report.get("status", ""),
             "processed_at": report.get("processed_at", ""),
@@ -112,6 +114,7 @@ class TGPASearchHandler:
         因跨源归并分页，当两数据源时序交错较深时，靠后页的顺序可能不完全准确。
         """
         bk_biz_id = params["bk_biz_id"]
+        source = params.get("source") or None
         task_id = params.get("task_id")
         openid = params.get("openid")
         file_name = params.get("file_name")
@@ -133,9 +136,15 @@ class TGPASearchHandler:
         # 各查 page * pagesize 条，确保归并后能正确切出第 page 页
         fetch_size = page * pagesize
 
-        # 并行查询 task 和 report（没有 task_id 时才查 report）
+        # 根据 source 参数决定查询哪些数据源
+        # task 接口不支持 file_name 查询，有 file_name 但无 task_id 时跳过
+        query_task = source in (None, "task") and (not file_name or task_id)
+        # 指定了 task_id 时无需查询 report
+        query_report = source in (None, "report") and not task_id
+
+        # 并行查询 task 和 report
         multi_execute = MultiExecuteFunc()
-        if not file_name or task_id:
+        if query_task:
             multi_execute.append(
                 result_key="task_result",
                 func=TGPATaskHandler.get_task_page,
@@ -154,7 +163,7 @@ class TGPASearchHandler:
                 },
                 multi_func_params=True,
             )
-        if not task_id:
+        if query_report:
             multi_execute.append(
                 result_key="report_result",
                 func=TGPAReportHandler.get_report_list,
@@ -177,7 +186,7 @@ class TGPASearchHandler:
         report_items = [cls._format_report_item(report) for report in report_result.get("list", [])]
 
         merged_list = task_items + report_items
-        merged_list.sort(key=lambda x: x.get("report_time") or "", reverse=True)
+        merged_list.sort(key=lambda x: (x.get("report_time") or "", x.get("file_name") or ""), reverse=True)
         start_idx = (page - 1) * pagesize
         paged_list = merged_list[start_idx : start_idx + pagesize]
 

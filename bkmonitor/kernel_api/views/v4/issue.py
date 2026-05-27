@@ -12,7 +12,7 @@ import json
 import logging
 import time
 
-from django.db import transaction
+from django.db import router, transaction
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -359,7 +359,13 @@ class MergeResource(Resource):
         # select_for_update 利用 (member_issue_id, status) 索引间隙锁，阻断并发事务在该区间插入，
         # 把竞态窗口收窄到提交前。极端残留（隔离级别/边界）仍由 list_conflicts + repair
         # resolve_conflicts 周期对账兜底（彻底方案是 DB 层 active member 唯一约束，更重，未做）。
-        with transaction.atomic():
+        #
+        # atomic 必须显式指定 IssueMergeRelation 实际写入的库：api role 启用 BackendRouter 后，
+        # bkmonitor app 路由到 monitor_api 库，而 transaction.atomic() 缺省作用于 default 库。
+        # 二者不一致时，事务开在 default、select_for_update 跑在 monitor_api（autocommit），
+        # 触发 "select_for_update cannot be used outside of a transaction"。用 router.db_for_write
+        # 取真实写库（同时兼容 default==backend 的单库部署），保证锁与事务落在同一连接。
+        with transaction.atomic(using=router.db_for_write(IssueMergeRelation)):
             # 校验 3: 主 issue 自身是某行活跃 member（防链式 - main 端）
             target_as_member = (
                 IssueMergeRelation.objects.select_for_update()
@@ -461,7 +467,8 @@ class SplitResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         member_issue_id = IssueIDField(label="并入 Issue ID")
-        reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), min_length=1)
+        # 拆分依据非必填：缺省/空列表均合法（下游 bulk_reset_for_split 与 split_info 已按空兜底）
+        reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), required=False, default=list)
         operator = serializers.CharField(label="操作人")
 
     def perform_request(self, validated_request_data):

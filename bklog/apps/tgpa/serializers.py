@@ -179,6 +179,9 @@ class GetMergedTaskListSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    source = serializers.ChoiceField(
+        label=_("数据源"), choices=["task", "report"], required=False, allow_null=True, allow_blank=True
+    )
     task_id = serializers.IntegerField(label=_("后台任务ID"), required=False, allow_null=True)
     openid = serializers.CharField(label=_("openid"), required=False, allow_null=True, allow_blank=True)
     file_name = serializers.CharField(label=_("文件名（精确匹配）"), required=False, allow_null=True, allow_blank=True)

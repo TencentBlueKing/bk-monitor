@@ -22,8 +22,8 @@ from bkmonitor.documents.incident import IncidentDocument
 from bkmonitor.utils.send import IncidentSender
 from constants.action import NoticeWay
 from constants.alert import EventStatus
-from bkm_space.api import SpaceApi
 from constants.incident import IncidentStatus, IncidentLevel, IncidentOperationType
+from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 
 logger = logging.getLogger("incident.notice")
@@ -59,9 +59,16 @@ class IncidentNoticeHelper:
         from bkmonitor.aiops.incident.operation import IncidentOperationManager
 
         # 获取业务名称
+        # bk_biz_id 编码规则：bkcc 为正数（CMDB 业务 ID）；bkci/bksaas 等为负数（-metadata_space.id）
         try:
-            space = SpaceApi.get_space_detail(bk_biz_id=int(incident.bk_biz_id))
-            business_name = f"[{int(incident.bk_biz_id)}]{space.space_name}"
+            bk_biz_id = int(incident.bk_biz_id)
+            if bk_biz_id < 0:
+                # 非 CMDB 空间：直接用 metadata 主键查询，无需区分 bkci/bksaas
+                space_detail = api.metadata.get_space_detail(id=abs(bk_biz_id))
+            else:
+                # CMDB 业务：bk_biz_id 是 space_id，不是 metadata 主键，不能用 id=bk_biz_id
+                space_detail = api.metadata.get_space_detail(space_type_id="bkcc", space_id=str(bk_biz_id))
+            business_name = f"[{bk_biz_id}]{space_detail['space_name']}"
         except Exception as e:
             business_name = str(incident.bk_biz_id)
             logger.warning(f"获取业务名称失败: {e}")

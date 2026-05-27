@@ -1083,7 +1083,8 @@ class SplitIssueResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         member_issue_id = IssueIDField(label="并入 Issue ID")
-        reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), min_length=1)
+        # 拆分依据非必填：缺省/空列表均合法（下游 bulk_reset_for_split 与 split_info 已按空兜底）
+        reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), required=False, default=list)
 
     def perform_request(self, validated_request_data):
         return api.issue.split(

@@ -118,6 +118,7 @@ class TGPAViewSet(APIViewSet):
         @apiGroup TGPA
         @apiDescription 查询检索页合并任务列表，返回日志捞取任务与用户上报记录的统一结果
         @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {String} [source] 数据源过滤，可选值：task、report，为空时查询全部
         @apiParam {Int} [task_id] 后台任务ID（指定时仅查询 task 数据源，不查 report）
         @apiParam {String} [openid] openid
         @apiParam {Int} start_time 开始时间（毫秒时间戳）

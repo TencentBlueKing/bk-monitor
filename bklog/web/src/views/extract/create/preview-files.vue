@@ -63,7 +63,17 @@
         >{{ $t('搜索') }}
       </bk-button>
     </div>
-    <span class="table-head-text">{{ $t('从下载目标中选择预览目标') }}</span>
+    <div class="preview-table-head">
+      <span class="table-head-text">{{ $t('从下载目标中选择预览目标') }}</span>
+      <bk-input
+        v-model="filterInputValue"
+        class="preview-file-filter-input"
+        clearable
+        right-icon="bk-icon icon-search"
+        :placeholder="$t('搜索文件名/最后修改时间')"
+        @input="handleFilterChange"
+      />
+    </div>
     <div
       class="flex-box"
       v-bkloading="{ isLoading, opacity: 0.7, zIndex: 0 }"
@@ -72,7 +82,7 @@
         ref="previewTable"
         style="background-color: #fff"
         class="preview-scroll-table"
-        :data="explorerList"
+        :data="filteredExplorerList"
         :height="360"
         @selection-change="handleSelect"
       >
@@ -143,6 +153,7 @@
 </template>
 
 <script>
+  import { debounce } from 'lodash-es';
   import { formatDate } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import FileDatePicker from '@/views/extract/home/file-date-picker';
@@ -183,6 +194,8 @@
         timeValue: [formatDate(startTime), formatDate(endTime)],
         isSearchChild: false,
         explorerList: [],
+        filterInputValue: '',
+        filterKeyword: '',
         historyStack: [], // 预览地址历史
         emptyType: 'empty',
       };
@@ -190,6 +203,18 @@
     computed: {
       timeStringValue() {
         return [this.timeValue[0], this.timeValue[1]];
+      },
+      filteredExplorerList() {
+        const keyword = this.filterKeyword;
+        if (!keyword) {
+          return this.explorerList;
+        }
+
+        return this.explorerList.filter(item => {
+          const fileName = String(item?.path ?? '').toLowerCase();
+          const modifiedTime = String(item?.mtime ?? '').toLowerCase();
+          return fileName.includes(keyword) || modifiedTime.includes(keyword);
+        });
       },
     },
     watch: {
@@ -202,7 +227,20 @@
         this.historyStack.splice(0); // 选择服务器后清空历史堆栈
       },
     },
+    created() {
+      this.updateFilterKeyword = debounce((val = '') => {
+        this.filterKeyword = String(val).trim().toLowerCase();
+      }, 200);
+    },
+    beforeDestroy() {
+      this.updateFilterKeyword?.cancel();
+    },
     methods: {
+      updateFilterKeyword() {},
+      handleFilterChange(val) {
+        this.filterInputValue = val;
+        this.updateFilterKeyword(val);
+      },
       getExplorerList(row) {
         const { path = this.fileOrPath, size } = row;
         const cacheList = {
@@ -394,9 +432,20 @@
       }
     }
 
-    .table-head-text {
+    .preview-table-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin: 18px 0 8px;
-      font-size: 12px;
+
+      .table-head-text {
+        font-size: 12px;
+      }
+
+      .preview-file-filter-input {
+        width: 240px;
+        background: #fff;
+      }
     }
   }
 
