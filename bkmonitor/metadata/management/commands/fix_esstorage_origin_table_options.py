@@ -30,6 +30,7 @@ class Command(BaseCommand):
             bk_tenant_id=options["bk_tenant_id"],
             batch_size=options["batch_size"],
             dry_run=options["dry_run"],
+            detail_logger=lambda message: self.stdout.write(f"detail: {message}"),
         )
 
         self.stdout.write(

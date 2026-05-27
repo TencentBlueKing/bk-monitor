@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import uuid
+from collections.abc import Callable
 
 from django.db import transaction
 from django.db.models import Q, Model
@@ -292,6 +293,12 @@ def _get_value_from_option(option: dict) -> object:
         return {}
 
 
+def _emit_backfill_detail(message: str, detail_logger: Callable[[str], None] | None = None):
+    logger.info("[backfill_esstorage_origin_table_options] %s", message)
+    if detail_logger:
+        detail_logger(message)
+
+
 def _get_origin_table_time_fields(
     es_storage_model: type[Model],
     result_table_model: type[Model],
@@ -367,6 +374,7 @@ def _build_result_table_options(
     target_keys: set[tuple[str, str]],
     time_field_map: dict[tuple[str, str], object],
     stats: dict[str, int],
+    detail_logger: Callable[[str], None] | None = None,
 ):
     tenant_ids = {bk_tenant_id for bk_tenant_id, _ in target_keys}
     table_ids = {table_id for _, table_id in target_keys}
@@ -389,17 +397,26 @@ def _build_result_table_options(
             option_values["time_field"] = time_field
         else:
             stats["time_field_skipped"] += 1
-            logger.warning(
-                "[backfill_esstorage_origin_table_options] skip time_field option for bk_tenant_id=%s table_id=%s, "
-                "no virtual ESStorage time_field found",
-                bk_tenant_id,
-                table_id,
+            detail_message = (
+                f"skip time_field bk_tenant_id={bk_tenant_id} table_id={table_id}, "
+                "no virtual ESStorage time_field found"
             )
+            logger.warning(
+                "[backfill_esstorage_origin_table_options] %s",
+                detail_message,
+            )
+            if detail_logger:
+                detail_logger(detail_message)
 
         for option_name, option_value in option_values.items():
             value, value_type = parse_value(option_value)
             option_key = (bk_tenant_id, table_id, option_name)
             if option_key not in existing_options:
+                _emit_backfill_detail(
+                    f"create option bk_tenant_id={bk_tenant_id} table_id={table_id} name={option_name} "
+                    f"value_type={value_type} value={value}",
+                    detail_logger,
+                )
                 to_be_created.append(
                     result_table_option_model(
                         bk_tenant_id=bk_tenant_id,
@@ -415,6 +432,11 @@ def _build_result_table_options(
             for option in existing_options[option_key]:
                 if option.value == value and option.value_type == value_type:
                     continue
+                _emit_backfill_detail(
+                    f"update option bk_tenant_id={bk_tenant_id} table_id={table_id} name={option_name} "
+                    f"value_type={value_type} value={value}",
+                    detail_logger,
+                )
                 option.value = value
                 option.value_type = value_type
                 to_be_updated.append(option)
@@ -429,6 +451,7 @@ def backfill_esstorage_origin_table_options(
     bk_tenant_id: str | None = None,
     batch_size: int = 500,
     dry_run: bool = False,
+    detail_logger: Callable[[str], None] | None = None,
 ) -> dict[str, int]:
     """回填真实 ESStorage 的 index_set 与日志查询 ResultTableOption。"""
     batch_size = max(batch_size, 1)
@@ -471,7 +494,13 @@ def backfill_esstorage_origin_table_options(
         for record in batch:
             if record["index_set"]:
                 continue
-            storage = es_storage_model(id=record["id"], index_set=record["table_id"].replace(".", "_"))
+            index_set = record["table_id"].replace(".", "_")
+            _emit_backfill_detail(
+                f"update index_set bk_tenant_id={record['bk_tenant_id']} table_id={record['table_id']} "
+                f"index_set={index_set}",
+                detail_logger,
+            )
+            storage = es_storage_model(id=record["id"], index_set=index_set)
             index_set_storages.append(storage)
 
         time_field_map = _get_origin_table_time_fields(
@@ -485,6 +514,7 @@ def backfill_esstorage_origin_table_options(
             target_keys=target_keys,
             time_field_map=time_field_map,
             stats=stats,
+            detail_logger=detail_logger,
         )
 
         stats["index_set_updated"] += len(index_set_storages)
