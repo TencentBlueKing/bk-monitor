@@ -1734,3 +1734,31 @@ class FetchGlobalVariablesResource(Resource):
 class CreateListConfigResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.create_list_config(validated_request_data)
+
+
+class GetSearchIdResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.CharField(required=True, label="不完整故障ID")
+
+    def perform_request(self, validated_request_data):
+        incident_id = str(validated_request_data["incident_id"]).strip()
+        if not incident_id:
+            return {}
+
+        search = (
+            IncidentDocument.search(all_indices=True)
+            .filter("wildcard", incident_id=f"*{incident_id}")
+            .source(["id", "incident_id", "create_time"])
+            .sort("-create_time")
+            .params(size=1)
+        )
+
+        hits = search.execute().hits
+        if not hits:
+            return {}
+
+        incident = hits[0].to_dict()
+        return {
+            "id": incident.get("id"),
+            "incident_id": incident.get("incident_id"),
+        }
