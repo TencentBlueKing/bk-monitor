@@ -15,6 +15,7 @@ from opentelemetry.trace import get_current_span
 from alarm_backends.service.scheduler.app import app
 from common.log import logger
 from rum.models import RumAppConfig, RumApplication
+from rum.core.application_config import RumApplicationConfig
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -44,8 +45,7 @@ def create_application_async(application_id, es_storage_config, cur_retry_times=
             )
         return
 
-    # TODO: 创建成功后下发配置到 K8s
-    # RumApplicationConfig.refresh_k8s([application])
+    RumApplicationConfig.refresh_k8s([application])
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -72,8 +72,7 @@ def delete_application_async(bk_biz_id, app_name, operator=None):
     except Exception as e:
         logger.warning(f"[DeleteRumApplication] clear qps config failed: {e}")
 
-    # TODO: 刷新配置下发
-    # refresh_rum_application_config(bk_biz_id, app_name)
+    refresh_rum_application_config(bk_biz_id, app_name)
 
     try:
         application.stop_rum()
@@ -85,3 +84,25 @@ def delete_application_async(bk_biz_id, app_name, operator=None):
         get_current_span().record_exception(e)
 
     application.delete()
+
+
+def refresh_rum_config_to_k8s():
+    """
+    刷新所有 RUM 应用的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的应用
+    applications = list(RumApplication.objects.filter(is_enabled=True))
+    if not applications:
+        return
+
+    try:
+        RumApplicationConfig.refresh_k8s(applications)
+        logger.info(f"[refresh_rum_config_to_k8s]: batch publish k8s config for {len(applications)} applications")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshRumApplicationK8sConfigFailed] Err => {str(e)}; Applications => {applications}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def refresh_rum_application_config(bk_biz_id, app_name):
+    _app = RumApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+    RumApplicationConfig.refresh_k8s([_app])
