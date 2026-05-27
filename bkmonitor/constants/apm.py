@@ -929,6 +929,14 @@ class TrpcAttributes:
     TRPC_CALLEE_METHOD = "trpc.callee_method"
     TRPC_STATUS_TYPE = "trpc.status_type"
     TRPC_STATUS_CODE = "trpc.status_code"
+    TRPC_STATUS_MESSAGE = "trpc.status_message"
+
+
+class RpcAttributes:
+    """for rpc"""
+
+    RPC_ERROR_CODE = "rpc.error_code"
+    RPC_ERROR_MESSAGE = "rpc.error_message"
 
 
 class CommonMetricTag(CachedEnum):

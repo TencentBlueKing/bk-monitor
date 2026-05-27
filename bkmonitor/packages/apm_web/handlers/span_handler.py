@@ -12,11 +12,12 @@ import datetime
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.models import Application
-from constants.apm import OtlpKey
+from constants.apm import OtlpKey, RpcAttributes, TrpcAttributes
 from core.drf_resource import api
 
 
@@ -108,3 +109,33 @@ class SpanHandler:
     @classmethod
     def generate_uri(cls, url_parser):
         return urljoin(f"{url_parser.scheme}://{url_parser.netloc}", url_parser.path).rstrip("/")
+
+    @classmethod
+    def get_span_code_info(cls, span: dict[str, Any]) -> dict[str, Any]:
+        """获取 span 的 RPC / tRPC 返回码信息。
+
+        :param span: span 数据
+        :return: 命中时返回 code / message / exception_type / filter_key / filter_value 等信息，未命中时返回空字典
+        """
+        attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES, {}) or {}
+        code_fields: list[tuple[str, str]] = [
+            (RpcAttributes.RPC_ERROR_CODE, RpcAttributes.RPC_ERROR_MESSAGE),
+            (TrpcAttributes.TRPC_STATUS_CODE, TrpcAttributes.TRPC_STATUS_MESSAGE),
+        ]
+        for code_field, message_field in code_fields:
+            code = attributes.get(code_field)
+            if code in (None, ""):
+                continue
+
+            code_str = str(code)
+            message = attributes.get(message_field)
+            message_text = "" if message in (None, "") else str(message)
+            return {
+                "code": code_str,
+                "message": message_text,
+                "exception_type": _("返回码 - {code}").format(code=code_str),
+                "filter_key": OtlpKey.get_attributes_key(code_field),
+                "filter_value": code,
+            }
+
+        return {}

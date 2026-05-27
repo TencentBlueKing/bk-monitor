@@ -51,6 +51,7 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.metric_group import PreCalculateHelper
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric, ProcessorHookType
 from apm_web.metric.handler import call_analysis, statistics, top_n
@@ -80,7 +81,15 @@ from bkmonitor.utils import group_by
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from bkmonitor.utils.time_tools import get_datetime_range, parse_time_compare_abbreviation
-from constants.apm import TraceMetric, OtlpKey, SpanKindCachedEnum, TelemetryDataType, CallSide
+from constants.apm import (
+    TraceMetric,
+    OtlpKey,
+    SpanKindCachedEnum,
+    TelemetryDataType,
+    CallSide,
+    RpcAttributes,
+    TrpcAttributes,
+)
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.collecting.constant import CollectStatus
@@ -1564,6 +1573,8 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 "events.attributes.exception.type",
                 "events.name",
                 "time",
+                OtlpKey.get_attributes_key(RpcAttributes.RPC_ERROR_CODE),
+                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_STATUS_CODE),
             ],
         }
 
@@ -1634,7 +1645,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "endpoint": endpoint,
             "message": {
                 "title": f"{endpoint}: {exception_type}",
-                "subtitle": "",  # 保持原框架 subtitle值为空
+                "subtitle": "",
                 "is_stack": _lazy("有Stack") if has_exception else _lazy("没有Stack"),
             },
             "category": service_mappings.get(service, {}).get("extra_data", {}).get("category"),
@@ -1680,10 +1691,12 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     key = (service, endpoint, exception_type)
 
                     self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
-            else:
-                exception_type = self.UNKNOWN_EXCEPTION_TYPE
-                key = (service, endpoint, exception_type)
-                self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
+                continue
+
+            code_info = SpanHandler.get_span_code_info(span)
+            exception_type = code_info.get("exception_type", self.UNKNOWN_EXCEPTION_TYPE)
+            key = (service, endpoint, exception_type)
+            self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
 
         return [
             self.combine_errors(bk_biz_id, service_mappings, **service_error_map)

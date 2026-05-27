@@ -2607,6 +2607,7 @@ class QueryExceptionDetailEventResource(PageListResource):
             "filter_params": filter_params,
         }
         exception_spans = api.apm_api.query_span(query_dict)
+
         res = []
         for span in exception_spans:
             # 异常信息有两个来源: events.attributes.exception_stacktrace or status.message
@@ -2632,13 +2633,15 @@ class QueryExceptionDetailEventResource(PageListResource):
                         }
                     )
             else:
+                code_info = SpanHandler.get_span_code_info(span)
+                exception_type = code_info.get("exception_type", self.UNKNOWN)
                 res.append(
                     {
-                        "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
+                        "title": f"{span_time_strft(span['start_time'])}  {exception_type}",
                         "subtitle": subtitle,
                         "content": [],
                         "timestamp": int(span["start_time"]),
-                        "exception_type": self.UNKNOWN,
+                        "exception_type": exception_type,
                         "trace_id": span.get("trace_id", ""),
                     }
                 )
