@@ -1237,3 +1237,55 @@ class TestResolveIdempotent:
         persist.assert_called_once()
         write.assert_called_once()
         cascade.assert_called_once()
+
+
+class TestMergeReasonsOptional:
+    """合并依据 reasons 非必填：缺省 / 空列表均合法（与拆分依据对齐）。"""
+
+    MAIN_ID = "1716000000abcdef01"
+    MEMBER_ID = "1716000000abcdef02"
+
+    def test_api_merge_serializer_reasons_optional(self):
+        from kernel_api.views.v4.issue import MergeResource
+
+        # 缺省 reasons → 合法，默认空列表
+        s = MergeResource.RequestSerializer(
+            data={"bk_biz_id": 2, "main_issue_id": self.MAIN_ID, "members": [self.MEMBER_ID], "operator": "alice"}
+        )
+        assert s.is_valid(), s.errors
+        assert s.validated_data["reasons"] == []
+
+        # 空列表 → 合法
+        s2 = MergeResource.RequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "main_issue_id": self.MAIN_ID,
+                "members": [self.MEMBER_ID],
+                "reasons": [],
+                "operator": "alice",
+            }
+        )
+        assert s2.is_valid(), s2.errors
+        assert s2.validated_data["reasons"] == []
+
+        # 传入 reasons 仍正常
+        s3 = MergeResource.RequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "main_issue_id": self.MAIN_ID,
+                "members": [self.MEMBER_ID],
+                "reasons": ["影响范围一样"],
+                "operator": "alice",
+            }
+        )
+        assert s3.is_valid(), s3.errors
+        assert s3.validated_data["reasons"] == ["影响范围一样"]
+
+    def test_web_merge_serializer_reasons_optional(self):
+        from fta_web.issue.resources import MergeIssueResource
+
+        s = MergeIssueResource.RequestSerializer(
+            data={"bk_biz_id": 2, "main_issue_id": self.MAIN_ID, "members": [self.MEMBER_ID]}
+        )
+        assert s.is_valid(), s.errors
+        assert s.validated_data["reasons"] == []

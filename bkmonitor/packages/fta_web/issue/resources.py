@@ -1065,7 +1065,8 @@ class MergeIssueResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         main_issue_id = IssueIDField(label="主 Issue ID")
         members = serializers.ListField(label="并入 Issue ID 列表", child=IssueIDField(), min_length=1, max_length=100)
-        reasons = serializers.ListField(label="合并依据", child=serializers.CharField(), min_length=1)
+        # 合并依据非必填：缺省/空列表均合法（与拆分依据对齐；下游 merge_reasons 默认空列表已兜底）
+        reasons = serializers.ListField(label="合并依据", child=serializers.CharField(), required=False, default=list)
 
     def perform_request(self, validated_request_data):
         return api.issue.merge(
