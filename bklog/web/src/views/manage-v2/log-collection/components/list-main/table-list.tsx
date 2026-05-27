@@ -231,6 +231,10 @@ export default defineComponent({
     const editingIndexSetRowId = ref<number | string>('');
     const updatingIndexSetRowId = ref<number | string>('');
     const editingIndexSetDraftIds = ref<Record<string, Array<number | string>>>({});
+    const localParentIndexSetMap = ref<Record<string, {
+      ids: Array<number | string>;
+      sets: ITableRowData['parent_index_sets'];
+    }>>({});
     const indexSetSelectRef = ref<{ close?:() => void } | null>(null);
     const pendingIndexSetSubmitRowId = ref<number | string>('');
     const editingIndexSetRowMap = new Map<string, ITableRowData>();
@@ -443,7 +447,20 @@ export default defineComponent({
       row.collector_config_id || row.index_set_id || row.bk_data_id || row.name
     );
 
+    const getLocalParentIndexSet = (row: ITableRowData) => {
+      return localParentIndexSetMap.value[String(getRowUniqueId(row))];
+    };
+
+    const getRowParentIndexSets = (row: ITableRowData) => {
+      return getLocalParentIndexSet(row)?.sets || row.parent_index_sets || [];
+    };
+
     const getRowParentIndexSetIds = (row: ITableRowData) => {
+      const localParentIndexSet = getLocalParentIndexSet(row);
+      if (localParentIndexSet) {
+        return localParentIndexSet.ids;
+      }
+
       if (Array.isArray(row.parent_index_set_ids)) {
         return row.parent_index_set_ids;
       }
@@ -473,89 +490,90 @@ export default defineComponent({
     };
 
     const updateParentIndexSetLocal = (row: ITableRowData, ids: Array<number | string>) => {
+      const rowId = getRowUniqueId(row);
+      const parentIndexSets = buildParentIndexSets(ids);
       row.parent_index_set_ids = ids;
-      row.parent_index_sets = buildParentIndexSets(ids);
+      row.parent_index_sets = parentIndexSets;
+      localParentIndexSetMap.value = {
+        ...localParentIndexSetMap.value,
+        [String(rowId)]: {
+          ids,
+          sets: parentIndexSets,
+        },
+      };
+
+      tableList.value = tableList.value.map(item => {
+        if (getRowUniqueId(item) !== rowId) {
+          return item;
+        }
+
+        return {
+          ...item,
+          parent_index_set_ids: ids,
+          parent_index_sets: parentIndexSets,
+        };
+      });
+
+      if (getRowUniqueId(currentRow.value) === rowId) {
+        currentRow.value = {
+          ...currentRow.value,
+          parent_index_set_ids: ids,
+          parent_index_sets: parentIndexSets,
+        };
+      }
     };
 
-    const requestUpdateParentIndexSet = async (row: ITableRowData, ids: Array<number | string>) => {
-      const normalizedIds = ids.map(id => Number(id)).filter(id => !Number.isNaN(id));
-      const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
-      const isCustomReport = row.log_access_type === 'custom_report';
+    const normalizeIndexSetIds = (ids: Array<number | string>) => {
+      return ids.map(id => Number(id)).filter(id => Number.isInteger(id));
+    };
 
-      if (isBkDataOrEs) {
-        const { data } = await $http.request('indexSet/info', {
-          params: {
-            index_set_id: row.index_set_id,
-          },
-        });
-        return $http.request('/indexSet/update', {
-          params: {
-            index_set_id: row.index_set_id,
-          },
-          data: {
-            ...data,
-            parent_index_set_ids: normalizedIds,
-          },
-        });
+    const getDiffIndexSetIds = (sourceIds: number[], targetIds: number[]) => {
+      const sourceSet = new Set(sourceIds);
+      const targetSet = new Set(targetIds);
+      return {
+        addIds: targetIds.filter(id => !sourceSet.has(id)),
+        removeIds: sourceIds.filter(id => !targetSet.has(id)),
+      };
+    };
+
+    const requestUpdateParentIndexSet = async (
+      row: ITableRowData,
+      oldIds: Array<number | string>,
+      ids: Array<number | string>,
+    ) => {
+      const childIndexSetId = Number(row.index_set_id);
+      if (!Number.isInteger(childIndexSetId)) {
+        return { result: false };
       }
 
-      if (isCustomReport) {
-        const { data } = await $http.request('collect/details', {
+      const normalizedOldIds = normalizeIndexSetIds(oldIds);
+      const normalizedIds = normalizeIndexSetIds(ids);
+      const { addIds, removeIds } = getDiffIndexSetIds(normalizedOldIds, normalizedIds);
+      const requestList = [
+        ...addIds.map(indexSetId => $http.request('collect/addIndexSetsToGroup', {
           params: {
-            collector_config_id: row.collector_config_id,
-          },
-        });
-        return $http.request('custom/setCustom', {
-          params: {
-            collector_config_id: row.collector_config_id,
+            index_set_id: indexSetId,
           },
           data: {
-            collector_config_name: data.collector_config_name || row.name,
-            category_id: data.category_id,
-            description: data.description || '',
-            etl_config: data.etl_config,
-            storage_cluster_id: data.storage_cluster_id,
-            retention: data.retention,
-            allocation_min_days: data.allocation_min_days,
-            storage_replies: data.storage_replies,
-            es_shards: data.es_shards,
-            is_display: data.is_display,
-            sort_fields: data.sort_fields || [],
-            target_fields: data.target_fields || [],
-            parent_index_set_ids: normalizedIds,
+            child_index_set_ids: [childIndexSetId],
           },
-        });
+        })),
+        ...removeIds.map(indexSetId => $http.request('collect/removeIndexSetsFromGroup', {
+          params: {
+            index_set_id: indexSetId,
+          },
+          data: {
+            child_index_set_ids: [childIndexSetId],
+          },
+        })),
+      ];
+
+      if (!requestList.length) {
+        return { result: true };
       }
 
-      const { data } = await $http.request('collect/details', {
-        params: {
-          collector_config_id: row.collector_config_id,
-        },
-      });
-      return $http.request('collect/updateCollection', {
-        params: {
-          collector_config_id: row.collector_config_id,
-        },
-        data: {
-          collector_config_name: data.collector_config_name || row.name,
-          collector_config_name_en: data.collector_config_name_en,
-          collector_scenario_id: data.collector_scenario_id,
-          description: data.description || '',
-          data_link_id: data.data_link_id,
-          target_node_type: data.target_node_type,
-          target_nodes: data.target_nodes || [],
-          environment: data.environment,
-          target_object_type: data.target_object_type,
-          data_encoding: data.data_encoding,
-          params: data.params || {},
-          configs: data.configs || [],
-          add_pod_annotation: data.add_pod_annotation,
-          add_pod_label: data.add_pod_label,
-          bcs_cluster_id: data.bcs_cluster_id,
-          bk_biz_id: bkBizId.value,
-          parent_index_set_ids: normalizedIds,
-        },
-      });
+      const results = await Promise.all(requestList);
+      return { result: results.every(item => item?.result) };
     };
 
     const setEditingIndexSetDraftIds = (rowId: number | string, ids: Array<number | string>) => {
@@ -599,7 +617,7 @@ export default defineComponent({
 
       let shouldExitEdit = false;
       try {
-        const res = await requestUpdateParentIndexSet(row, ids);
+        const res = await requestUpdateParentIndexSet(row, oldIds, ids);
         if (res?.result) {
           showMessage(t('更新成功'));
           shouldExitEdit = true;
@@ -699,7 +717,8 @@ export default defineComponent({
       const rowId = getRowUniqueId(row);
       const selectedIds = getRowParentIndexSetIds(row);
       const draftSelectedIds = editingIndexSetDraftIds.value[String(rowId)] || selectedIds;
-      const indexSetName = (row.parent_index_sets || []).map(item => ({
+      const parentIndexSets = getRowParentIndexSets(row);
+      const indexSetName = parentIndexSets.map(item => ({
         ...item,
         name: item.index_set_name,
       }));
@@ -747,7 +766,7 @@ export default defineComponent({
       return (
         <div class='index-set-inline-display'>
           <span class='index-set-inline-tags'>
-            {row.parent_index_sets?.length > 0 ? (
+            {parentIndexSets.length > 0 ? (
               <TagMore
                 tags={indexSetName}
                 title={t('所属索引集')}
@@ -1261,7 +1280,18 @@ export default defineComponent({
           },
         );
         listLoading.value = false;
-        tableList.value = (res.data?.list || []) as ITableRowData[];
+        tableList.value = ((res.data?.list || []) as ITableRowData[]).map(item => {
+          const localParentIndexSet = getLocalParentIndexSet(item);
+          if (!localParentIndexSet) {
+            return item;
+          }
+
+          return {
+            ...item,
+            parent_index_set_ids: localParentIndexSet.ids,
+            parent_index_sets: localParentIndexSet.sets,
+          };
+        });
         pagination.value.total = res.data?.total || 0;
         // 收集索引集ID并保存原始数据顺序
         const indexSetIds: Array<number | string> = [];
