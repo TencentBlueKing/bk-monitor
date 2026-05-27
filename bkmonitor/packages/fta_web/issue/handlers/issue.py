@@ -1022,7 +1022,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
             # 确保 trend 长度不超过 default_time_series
             if len(issue["trend"]) > len(default_time_series):
-                issue["trend"] = issue["trend"][: len(default_time_series)]
+                issue["trend"] = issue["trend"][-len(default_time_series) :]
 
             issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
             issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
