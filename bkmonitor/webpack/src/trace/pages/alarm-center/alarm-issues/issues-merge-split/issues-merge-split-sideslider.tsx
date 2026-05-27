@@ -57,20 +57,27 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['update:show', 'success'],
+  emits: ['update:show', 'mergeSuccess', 'splitSuccess'],
   setup(_, { emit }) {
     /** 处理侧栏显示状态变更 */
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
     };
 
-    const handleSuccess = (memberIssueId: string) => {
-      emit('success', memberIssueId);
+    /** 处理合并成功 */
+    const handleMergeSuccess = () => {
+      emit('mergeSuccess');
+    };
+
+    /** 处理拆分成功 */
+    const handleSplitSuccess = (memberIssueId: string) => {
+      emit('splitSuccess', memberIssueId);
     };
 
     return {
       handleShowChange,
-      handleSuccess,
+      handleMergeSuccess,
+      handleSplitSuccess,
     };
   },
   render() {
@@ -80,6 +87,7 @@ export default defineComponent({
         class='issues-merge-split-sideslider'
         isShow={this.show}
         render-directive='if'
+        showMask={true}
         onUpdate:isShow={this.handleShowChange}
       >
         {{
@@ -100,14 +108,14 @@ export default defineComponent({
                 onClose={() => {
                   this.handleShowChange(false);
                 }}
-                onSuccess={this.handleSuccess}
+                onSuccess={this.handleMergeSuccess}
               />
             ) : (
               <SplitContent
                 issues={this.issues}
                 onSuccess={(memberIssueId: string) => {
                   this.handleShowChange(false);
-                  this.handleSuccess(memberIssueId);
+                  this.handleSplitSuccess(memberIssueId);
                 }}
               />
             ),

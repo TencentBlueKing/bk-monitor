@@ -94,8 +94,13 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
    * 监听 data 变更，自动清除拆分高亮。
    * - 拆分触发的首次刷新：跳过清除（isSplitTriggeredRefresh 为 true），重置标记
    * - 其他任何 data 变更（定时刷新/手动查询/翻页/排序等）：自动清除高亮
+   *
+   * 注意：useAlarmTable 请求前会先置空 data.value = []，这是中间态，必须跳过，
+   * 否则空数组变更会提前消耗 isSplitTriggeredRefresh 标记，导致请求返回后的
+   * 真正数据更新误触发 clearSplitHighlights。
    */
-  watch(data, () => {
+  watch(data, newData => {
+    if (!newData.length) return;
     if (isSplitTriggeredRefresh.value) {
       isSplitTriggeredRefresh.value = false;
       return;

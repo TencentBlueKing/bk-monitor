@@ -201,15 +201,6 @@ export default defineComponent({
     });
 
     /**
-     * @description 拆分成功回调：先触发列表刷新让新行出现，再标记高亮
-     * @param {string} memberIssueId - 被拆分出的独立 Issue ID
-     */
-    const handleSplitSuccess = (memberIssueId: string) => {
-      alarmStore.refreshImmediate += 1;
-      addSplitHighlight(memberIssueId);
-    };
-
-    /**
      * @description 直接调用优先级变更接口，无需打开弹窗，成功后原地更新对应 Issue 行数据
      * @param {string} id - Issue ID
      * @param {IssuePriorityType} priority - 目标优先级（P0 / P1 / P2）
@@ -1085,7 +1076,7 @@ export default defineComponent({
       mergeSplitType,
       mergeSplitIssues,
       handleMergeSplitShowChange,
-      handleSplitSuccess,
+      addSplitHighlight,
       highlightedRowIds,
     };
   },
@@ -1330,7 +1321,13 @@ export default defineComponent({
                 issues={this.mergeSplitIssues}
                 show={this.mergeSplitShow}
                 type={this.mergeSplitType}
-                onSuccess={this.handleSplitSuccess}
+                onMergeSuccess={() => {
+                  this.alarmStore.refreshImmediate += 1;
+                }}
+                onSplitSuccess={(memberIssueId: string) => {
+                  this.alarmStore.refreshImmediate += 1;
+                  this.addSplitHighlight(memberIssueId);
+                }}
                 onUpdate:show={this.handleMergeSplitShowChange}
               />,
             ]

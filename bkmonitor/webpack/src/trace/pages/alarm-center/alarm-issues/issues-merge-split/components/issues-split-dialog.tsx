@@ -42,7 +42,7 @@ export default defineComponent({
   name: 'IssuesSplitDialog',
   props: {
     bizId: {
-      type: Number,
+      type: [Number, String],
       default: null,
     },
     /** 是否显示 */
