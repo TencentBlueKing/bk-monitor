@@ -591,6 +591,7 @@ class IssueAlertDateHistogramResultResource(Resource):
 
     @staticmethod
     def sliced_date_histogram(
+        bk_biz_ids: [int],
         start_time: int,
         end_time: int,
         interval: int | str = "auto",
@@ -641,6 +642,7 @@ class IssueAlertDateHistogramResultResource(Resource):
         results = IssueAlertDateHistogramResultResource().bulk_request(
             [
                 {
+                    "bk_biz_ids": bk_biz_ids,
                     "start_time": sliced_start,
                     "end_time": sliced_end,
                     "interval": interval,

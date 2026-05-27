@@ -946,8 +946,13 @@ class IssueQueryHandler(BaseBizQueryHandler):
         try:
             from fta_web.issue.resources import IssueAlertDateHistogramResultResource
 
+            # 适当扩大查询时间，以确保查询目标在查询时间窗口内
+            trend_start = trend_start - 3 * 60 * 60
+            trend_end = trend_end + 3 * 60 * 60
+
             if (trend_end - trend_start) <= SLICED_THRESHOLD:
                 result = IssueAlertDateHistogramResultResource().request(
+                    bk_biz_ids=self.bk_biz_ids,
                     start_time=trend_start,
                     end_time=trend_end,
                     interval=interval,
@@ -956,6 +961,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 )
             else:
                 result = IssueAlertDateHistogramResultResource.sliced_date_histogram(
+                    bk_biz_ids=self.bk_biz_ids,
                     start_time=trend_start,
                     end_time=trend_end,
                     interval=interval,
@@ -1013,6 +1019,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 issue["trend"] = sorted([[ts, value] for ts, value in merged[issue_id].items()])
             else:
                 issue["trend"] = list(default_time_series)
+
+            # 确保 trend 长度不超过 default_time_series
+            if len(issue["trend"]) > len(default_time_series):
+                issue["trend"] = issue["trend"][: len(default_time_series)]
 
             issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
             issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
