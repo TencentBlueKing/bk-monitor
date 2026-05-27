@@ -446,25 +446,38 @@ class CustomReportSubscription(models.Model):
                 )
             else:
                 data_id_configs = biz_id_to_data_id_config.get(bk_biz_id, [])
-            try:
-                # 1. 下发配置（走节点管理下发至主机）
-                cls._refresh_collect_custom_config_by_biz(
-                    bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
-                    bk_biz_id=bk_biz_id,
-                    op_type=op_type,
-                    data_id_configs=data_id_configs,
-                )
-            except Exception as e:
-                logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
 
-            try:
-                # 2. 下发配置（走 K8S 下发至集群）
-                cls._refresh_k8s_custom_config_by_biz(
-                    bk_biz_id=bk_biz_id,
-                    data_id_configs=data_id_configs,
-                )
-            except Exception as e:
-                logger.exception(f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+            if (
+                settings.DISABLE_REFRESH_CUSTOM_REPORT_NODE_MAN_METRIC
+                and bk_biz_id not in settings.REFRESH_CUSTOM_REPORT_BIZ_ID_WHITE_LIST
+            ):
+                logger.info("refresh custom report config to proxy on bk_biz_id(%s) is disabled", bk_biz_id)
+            else:
+                try:
+                    # 1. 下发配置（走节点管理下发至主机）
+                    cls._refresh_collect_custom_config_by_biz(
+                        bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
+                        bk_biz_id=bk_biz_id,
+                        op_type=op_type,
+                        data_id_configs=data_id_configs,
+                    )
+                except Exception as e:
+                    logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+
+            if (
+                settings.DISABLE_REFRESH_CUSTOM_REPORT_K8S_METRIC
+                and bk_biz_id not in settings.REFRESH_CUSTOM_REPORT_BIZ_ID_WHITE_LIST
+            ):
+                logger.info("refresh custom report config to k8s on bk_biz_id(%s) is disabled", bk_biz_id)
+            else:
+                try:
+                    # 2. 下发配置（走 K8S 下发至集群）
+                    cls._refresh_k8s_custom_config_by_biz(
+                        bk_biz_id=bk_biz_id,
+                        data_id_configs=data_id_configs,
+                    )
+                except Exception as e:
+                    logger.exception(f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
 
     @classmethod
     def create_or_update_config(cls, bk_tenant_id: str, bk_biz_id: int, subscription_params, bk_data_id=0):
