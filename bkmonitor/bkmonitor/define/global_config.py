@@ -723,12 +723,17 @@ STANDARD_CONFIGS = OrderedDict(
         # metric_group_dimensions 分组配置白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
         (
             "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",
-            slz.ListField(label=_("允许 APM 配置指标分组维度的应用白名单"), default=[]),
+            slz.ListField(
+                label=_("允许 APM 配置指标分组维度的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"),
+                default=[],
+            ),
         ),
-        # APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        # APM 自定义指标 V2 开启的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
         (
             "APM_CUSTOM_METRIC_V2_ENABLED_LIST",
-            slz.ListField(label=_("APM 自定义指标 V2 开启的应用白名单"), default=[]),
+            slz.ListField(
+                label=_("APM 自定义指标 V2 开启的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"), default=[]
+            ),
         ),
     ]
 )
