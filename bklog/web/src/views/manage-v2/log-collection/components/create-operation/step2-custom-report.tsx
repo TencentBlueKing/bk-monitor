@@ -32,6 +32,8 @@ import useStore from '@/hooks/use-store';
 
 import { useOperation } from '../../hook/useOperation';
 import BaseInfo from '../business-comp/step2/base-info';
+import DragTag from '../common-comp/drag-tag';
+import InfoTips from '../common-comp/info-tips';
 import $http from '@/api';
 
 import './step2-custom-report.scss';
@@ -63,7 +65,12 @@ export default defineComponent({
       description: '',
       es_shards: 3,
       parent_index_set_ids: [],
+      target_fields: [],
+      sort_fields: [],
+      index_set_id: '',
     });
+    /** 目标字段选择列表 */
+    const targetFieldSelectList = ref<{ id: string; name: string }[]>([]);
     const globalsData = computed(() => store.getters['globals/globalsData']);
     /**
      * 当前采集id
@@ -97,13 +104,20 @@ export default defineComponent({
           },
         });
         loading.value = false;
-        const { collector_config_name } = res?.data;
+        const { collector_config_name, index_set_id, target_fields, sort_fields } = res?.data;
         configData.value = {
           ...configData.value,
           ...res?.data,
           index_set_name: collector_config_name,
+          target_fields: target_fields || [],
+          sort_fields: sort_fields || [],
+          index_set_id: index_set_id || '',
         };
         store.commit('collect/setCurCollect', res.data);
+        // 编辑模式下初始化字段选择列表
+        if (index_set_id) {
+          initTargetFieldSelectList(index_set_id);
+        }
       } else {
         const { retention } = configData.value;
         Object.assign(configData.value, {
@@ -111,6 +125,30 @@ export default defineComponent({
         });
       }
       isInitializing.value = false;
+    };
+
+    /**
+     * 初始化字段选择列表
+     * 通过 index_set_id 获取字段表头信息
+     */
+    const initTargetFieldSelectList = async (indexSetId: string | number) => {
+      try {
+        const res = await $http.request('retrieve/getLogTableHead', {
+          params: {
+            index_set_id: indexSetId,
+          },
+          query: {
+            is_realtime: 'True',
+          },
+        });
+        targetFieldSelectList.value = (res?.data?.fields || []).map(item => ({
+          id: item.field_name,
+          name: item.field_name,
+        }));
+      } catch (error) {
+        console.log('初始化字段选择列表失败:', error);
+        targetFieldSelectList.value = [];
+      }
     };
 
     /** 基本信息 */
@@ -126,19 +164,89 @@ export default defineComponent({
       />
     );
 
-    const cardConfig = [
-      {
-        title: t('基础信息'),
-        key: 'baseInfo',
-        renderFn: renderBaseInfo,
-      },
-    ];
+    /** 字段设置 */
+    const renderFieldSetting = () => (
+      <div class='field-setting-box'>
+        <bk-alert
+          class='field-setting-alert'
+          title={t('未匹配到对应字段，请手动指定字段后提交。')}
+          type='warning'
+        />
+        {/* 目标字段选择 */}
+        <div class='label-form-box'>
+          <span class='label-title no-require'>{t('目标字段')}</span>
+          <div class='form-box'>
+            <bk-select
+              class='select-sort'
+              clearable={false}
+              value={configData.value.target_fields}
+              collapse-tag
+              display-tag
+              multiple
+              searchable
+              on-selected={(value: string[]) => {
+                configData.value.target_fields = value;
+              }}
+            >
+              {targetFieldSelectList.value.map(option => (
+                <bk-option
+                  id={option.id}
+                  key={option.id}
+                  name={option.name}
+                />
+              ))}
+            </bk-select>
+            <InfoTips
+              class='block'
+              tips={t('用于标识日志文件来源及唯一性')}
+            />
+          </div>
+        </div>
+        {/* 排序字段设置 */}
+        <div class='label-form-box'>
+          <span class='label-title no-require'>{t('排序字段')}</span>
+          <div class='form-box'>
+            <DragTag
+              addType='select'
+              selectList={targetFieldSelectList.value}
+              value={configData.value.sort_fields}
+              on-change={(value: string[]) => {
+                configData.value.sort_fields = value;
+              }}
+            />
+            <InfoTips
+              class='block'
+              tips={t('用于控制日志排序的字段')}
+            />
+          </div>
+        </div>
+      </div>
+    );
+
+    const cardConfig = computed(() => {
+      const cards = [
+        {
+          title: t('基础信息'),
+          key: 'baseInfo',
+          renderFn: renderBaseInfo,
+        },
+      ];
+      // 编辑模式下显示字段设置
+      if (props.isEdit) {
+        cards.push({
+          title: t('字段设置'),
+          key: 'fieldSetting',
+          renderFn: renderFieldSetting,
+        });
+      }
+      return cards;
+    });
     return () => (
       <div
         class='operation-step2-custom-report'
         v-bkloading={{ isLoading: loading.value }}
       >
-        {cardRender(cardConfig)}
+        {cardRender(cardConfig.value)}
         <div class='classify-btns'>
           {!props.isEdit && (
             <bk-button

@@ -9,6 +9,7 @@ from alarm_backends.service.scheduler.app import app
 from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
 from metadata.models.result_table import LogV4DataLinkOption
@@ -25,6 +26,8 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         bk_tenant_id: 租户ID
         table_id: 结果表ID
     """
+
+    logger.info("apply_log_datalink: tenant(%s) %s start", bk_tenant_id, table_id)
 
     # 获取结果表和数据源信息
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
@@ -48,6 +51,11 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
 
     # 如果datasource是gse创建的，需要在bkbase上注册
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+        logger.info(
+            "apply_log_datalink: tenant(%s) %s datasource created_from change to bkdata, register to bkbase",
+            bk_tenant_id,
+            table_id,
+        )
         ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id, namespace="bklog")
 
     # 读取option中的日志链路配置
@@ -106,6 +114,11 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             data_link_name = f"bklog_{bk_biz_id_str}_{random_str}"
 
         # 创建链路
+        logger.info(
+            "apply_log_datalink: tenant(%s) bkbase_rt not found, create datalink name->[%s]",
+            bk_tenant_id,
+            data_link_name,
+        )
         datalink = DataLink.objects.create(
             bk_tenant_id=bk_tenant_id,
             data_link_name=data_link_name,
@@ -116,18 +129,23 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         )
     else:
         # 获取链路
-        datalink = DataLink.objects.get(
-            bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
+        logger.info(
+            "apply_log_datalink: tenant(%s) bkbase_rt found, update datalink name->[%s]",
+            bk_tenant_id,
+            bkbase_rt.data_link_name,
         )
-        update_fields: list[str] = []
-        if datalink.bk_data_id != ds.bk_data_id:
-            datalink.bk_data_id = ds.bk_data_id
-            update_fields.append("bk_data_id")
-        if datalink.table_ids != [table_id]:
-            datalink.table_ids = [table_id]
-            update_fields.append("table_ids")
-        if update_fields:
-            datalink.save(update_fields=update_fields)
+        datalink, _ = DataLink.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=bkbase_rt.data_link_name,
+            namespace="bklog",
+            data_link_strategy=DataLink.BK_LOG,
+            defaults={"bk_data_id": ds.bk_data_id, "table_ids": [table_id]},
+        )
+
+        # 更新BkBaseResultTable状态
+        bkbase_rt.status = DataLinkResourceStatus.CREATING.value
+        bkbase_rt.save()
+
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
     # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
@@ -193,6 +211,8 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         )
         ds.delete_consul_config()
 
+    logger.info("apply_log_datalink: tenant(%s) %s end", bk_tenant_id, table_id)
+
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
@@ -202,6 +222,8 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
         bk_tenant_id: 租户ID
         table_id: 结果表ID
     """
+
+    logger.info("apply_event_group_datalink: tenant(%s) %s start", bk_tenant_id, table_id)
 
     # 获取结果表和数据源信息
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
@@ -227,12 +249,22 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
 
     # 如果datasource是gse创建的，需要在bkbase上注册
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+        logger.info(
+            "apply_event_group_datalink: tenant(%s) %s datasource created_from change to bkdata, register to bkbase",
+            bk_tenant_id,
+            table_id,
+        )
         ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id, namespace="bklog")
 
     # 获取数据链路
     bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
     if not bkbase_rt:
         data_link_name = f"bkmonitor_custom_event_{ds.bk_data_id}"
+        logger.info(
+            "apply_event_group_datalink: tenant(%s) bkbase_rt not found, create datalink name->[%s]",
+            bk_tenant_id,
+            data_link_name,
+        )
         datalink = DataLink.objects.create(
             bk_tenant_id=bk_tenant_id,
             data_link_name=data_link_name,
@@ -242,19 +274,22 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             table_ids=[table_id],
         )
     else:
-        datalink = DataLink.objects.get(
-            bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
+        logger.info(
+            "apply_event_group_datalink: tenant(%s) bkbase_rt found, update datalink name->[%s]",
+            bk_tenant_id,
+            bkbase_rt.data_link_name,
         )
-        data_link_name = bkbase_rt.data_link_name
-        update_fields: list[str] = []
-        if datalink.bk_data_id != ds.bk_data_id:
-            datalink.bk_data_id = ds.bk_data_id
-            update_fields.append("bk_data_id")
-        if datalink.table_ids != [table_id]:
-            datalink.table_ids = [table_id]
-            update_fields.append("table_ids")
-        if update_fields:
-            datalink.save(update_fields=update_fields)
+        datalink, _ = DataLink.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=bkbase_rt.data_link_name,
+            namespace="bklog",
+            data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+            defaults={"bk_data_id": ds.bk_data_id, "table_ids": [table_id]},
+        )
+
+        # 更新BkBaseResultTable状态
+        bkbase_rt.status = DataLinkResourceStatus.CREATING.value
+        bkbase_rt.save()
 
     # 创建/更新链路配置
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
@@ -280,3 +315,5 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             ds.bk_data_id,
         )
         ds.delete_consul_config()
+
+    logger.info("apply_event_group_datalink: tenant(%s) %s end", bk_tenant_id, table_id)

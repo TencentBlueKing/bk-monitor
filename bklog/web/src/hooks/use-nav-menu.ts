@@ -94,6 +94,7 @@ export function useNavMenu(options: {
     for (const permission of curSpace?.external_permission || []) {
       if (permission === 'log_search') {
         list.push('retrieve');
+        list.push('client-log-search');
       } else if (permission === 'log_extract') {
         list.push('manage');
       }

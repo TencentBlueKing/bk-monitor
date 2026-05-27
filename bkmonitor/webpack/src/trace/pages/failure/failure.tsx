@@ -124,6 +124,7 @@ export default defineComponent({
     const operationTypes = deepRef([]);
     const refContent = deepRef<InstanceType<typeof FailureContent>>();
     const failureNavRef = deepRef<InstanceType<typeof FailureNav>>();
+    const failureHeaderRef = deepRef<InstanceType<typeof FailureHeader>>();
     const topoNodeId = deepRef<string>();
     const incidentResultList = deepRef({});
     const incidentResultStatus = deepRef('');
@@ -413,6 +414,12 @@ export default defineComponent({
     const handleCollapseChange = val => {
       isCollapsed.value = val;
     };
+    const handleOpenEdit = () => {
+      if (failureHeaderRef.value) {
+        failureHeaderRef.value.autoFocusReason = true;
+        failureHeaderRef.value.isShow = true;
+      }
+    };
     return {
       incidentDetailData,
       getIncidentDetail,
@@ -444,6 +451,8 @@ export default defineComponent({
       updateAlarmDetailShow,
       alarmDetailShow,
       alarmDetailData,
+      handleOpenEdit,
+      failureHeaderRef,
     };
   },
   render() {
@@ -452,10 +461,14 @@ export default defineComponent({
         class='failure-wrapper'
         tabindex='0'
       >
-        <FailureHeader onEditSuccess={this.getIncidentDetail} />
+        <FailureHeader
+          ref='failureHeaderRef'
+          onEditSuccess={this.getIncidentDetail}
+        />
         <FailureTags
           onChooseNode={this.nodeClick}
           onChooseTag={this.handleChooseTag}
+          onOpenEdit={this.handleOpenEdit}
           onToSpan={this.handleToSpan}
         />
         <ResizeLayout

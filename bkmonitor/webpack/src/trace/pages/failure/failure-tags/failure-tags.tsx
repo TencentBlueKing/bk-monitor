@@ -39,7 +39,7 @@ import './failure-tags.scss';
 
 export default defineComponent({
   name: 'FailureTags',
-  emits: ['chooseTag', 'chooseNode', 'toSpan'],
+  emits: ['chooseTag', 'chooseNode', 'toSpan', 'openEdit'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const styleOptions = {
@@ -78,6 +78,9 @@ export default defineComponent({
     // 点击跳转到span
     const handleToSpan = () => {
       emit('toSpan');
+    };
+    const handleOpenEdit = () => {
+      emit('openEdit');
     };
 
     const renderList = [
@@ -123,10 +126,24 @@ export default defineComponent({
         class: 'failure-root-tag',
         tag: true,
         renderFn: () => {
+          const feedbackBtn = (
+            <span
+              class='failure-tags-feedback'
+              onClick={handleOpenEdit}
+            >
+              <i class='icon-monitor failure-tags-feedback-icon icon-fankuixingenyin'></i>
+              {t('反馈')}
+            </span>
+          );
           // 判断是否有topo，没有topo的情况下显示incident_reason
           if (!incidentResults.value.incident_topology?.enabled) {
             const { incident_reason } = incidentDetailData.value;
-            return <span class={['item-info']}>{incident_reason || '--'}</span>;
+            return (
+              <span class={['item-info']}>
+                {incident_reason || '--'}
+                {feedbackBtn}
+              </span>
+            );
           }
 
           const snapshots: ICurrentISnapshot = incidentDetailData.value?.current_snapshot;
@@ -192,10 +209,16 @@ export default defineComponent({
                     {t('查看 Span')}
                   </span>
                 )}
+                {feedbackBtn}
               </span>
             );
           }
-          return <span class='empty-text'>--</span>;
+          return (
+            <span class='empty-text'>
+              --
+              {feedbackBtn}
+            </span>
+          );
         },
       },
       {
