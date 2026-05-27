@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.container.resources import ListServicePodsResource, PodDetailResource
+
+from apm_web.container.resources import ListServicePodsResource, PodDetailResource, ListServiceK8sTargetsResource
 from apm_web.decorators import user_visit_record
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
@@ -39,6 +39,12 @@ class K8sViewSet(ResourceViewSet):
             "POST",
             ListServicePodsResource,
             endpoint="list_service_pods",
+            decorators=[user_visit_record],
+        ),
+        ResourceRoute(
+            "POST",
+            ListServiceK8sTargetsResource,
+            endpoint="list_service_k8s_targets",
             decorators=[user_visit_record],
         ),
         ResourceRoute("POST", PodDetailResource, "pod_detail"),

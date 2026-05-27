@@ -48,7 +48,6 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
-import { isEn } from '../../../i18n/lang';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import UserConfigMixin from '../../../mixins/userStoreConfig';
 import AuthComponent from '../../../pages/exception-page/auth-component';
@@ -1800,7 +1799,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   handleViewRelatedAlerts() {
     const { href } = this.$router.resolve(
       getAlarmCenterRouteLocation({
-        queryString: isEn ? `strategy_id : ${this.popover.data.id}` : `策略ID : ${this.popover.data.id}`,
+        queryString: `strategy_id : ${this.popover.data.id}`,
         from: 'now-7d',
         to: 'now',
       })
@@ -1945,7 +1944,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   handleToEventCenter(item, type = 'NOT_SHIELDED_ABNORMAL') {
     const { href } = this.$router.resolve(
       getAlarmCenterRouteLocation({
-        queryString: isEn ? `strategy_id : ${item.id}` : `策略ID : ${item.id}`,
+        queryString: `strategy_id : ${item.id}`,
         activeFilterId: type,
         from: 'now-30d',
         to: 'now',

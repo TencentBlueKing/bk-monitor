@@ -373,7 +373,14 @@ class AlertAssignee:
         """
         group_notify_items = defaultdict(dict)
         user_groups = self.user_groups if user_type == UserGroupType.MAIN else self.follow_groups
-        for user_group in UserGroup.objects.filter(id__in=user_groups):
+        # 严格按 user_groups 配置顺序构建：UserGroup 默认排序为 -update_time，直接遍历 queryset
+        # 会让跨用户组的通知顺序受“最近更新时间”影响（典型如串行电话的拨打顺序），
+        # 这里按配置列表顺序重排，保证顺序确定且可由用户控制。
+        group_objects = {user_group.id: user_group for user_group in UserGroup.objects.filter(id__in=user_groups)}
+        for group_id in user_groups:
+            user_group = group_objects.get(group_id)
+            if not user_group:
+                continue
             group_notify_items[user_group.id] = {
                 "notice_way": self.get_notify_item(getattr(user_group, notice_type, []), self.alert.event.bk_biz_id),
                 "mention_users": self.get_group_mention_users(user_group),

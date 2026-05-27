@@ -13,6 +13,20 @@ from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam.drf import IAMPermission
+
+
+class GlobalSettingPermission(IAMPermission):
+    """
+    全局配置管理权限
+
+    用于资源注册等平台设置类接口。这类接口在前端仅出现在「平台设置」页面，
+    可能返回/写入集群密码等敏感信息，需与前端页面一致，仅管理员（具备全局配置编辑权限）可用。
+    直接使用 IAMPermission 而非 BusinessActionPermission，避免在缺少 bk_biz_id 时被短路放行。
+    """
+
+    def __init__(self):
+        super().__init__([ActionEnum.MANAGE_GLOBAL_SETTING])
 
 
 class SuperuserWritePermission(permissions.BasePermission):

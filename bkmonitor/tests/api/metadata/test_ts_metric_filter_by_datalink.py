@@ -98,7 +98,6 @@ def build_filter_model_stub(metric_queries: list[dict]) -> tuple[callable, datet
 
 
 def test_filter_ts_info_use_is_active_only_for_v4(settings, monkeypatch):
-    settings.ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE = True
     settings.TIME_SERIES_METRIC_EXPIRED_SECONDS = 3600
     metric_queries = []
     fake_filter_model_by_in_page, begin_time = build_filter_model_stub(metric_queries)
@@ -115,23 +114,4 @@ def test_filter_ts_info_use_is_active_only_for_v4(settings, monkeypatch):
         {"group_ids": {V4_GROUP_ID}, "other_filter": {"is_active": True}},
         {"group_ids": {V4_GROUP_ID}, "other_filter": {"last_modify_time__gte": begin_time}},
         {"group_ids": {V3_GROUP_ID}, "other_filter": {"last_modify_time__gte": begin_time}},
-    ]
-
-
-def test_filter_ts_info_keep_time_filter_when_switch_disabled(settings, monkeypatch):
-    settings.ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE = False
-    settings.TIME_SERIES_METRIC_EXPIRED_SECONDS = 3600
-    metric_queries = []
-    fake_filter_model_by_in_page, begin_time = build_filter_model_stub(metric_queries)
-    monkeypatch.setattr(redis_module, "tz_now", lambda: FIXED_NOW)
-    monkeypatch.setattr(redis_module, "filter_model_by_in_page", fake_filter_model_by_in_page)
-
-    result = SpaceTableIDRedis()._filter_ts_info({V3_TABLE_ID, V4_TABLE_ID}, bk_tenant_id=BK_TENANT_ID)
-
-    assert result["group_id_field_map"] == {
-        V3_GROUP_ID: {"v3_active_recent", "v3_inactive_recent"},
-        V4_GROUP_ID: {"v4_active_recent", "v4_inactive_recent"},
-    }
-    assert metric_queries == [
-        {"group_ids": {V3_GROUP_ID, V4_GROUP_ID}, "other_filter": {"last_modify_time__gte": begin_time}}
     ]

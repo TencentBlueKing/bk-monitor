@@ -30,7 +30,7 @@ from core.drf_resource import api
 from metadata import config
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromSystem
-from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR, DataLinkResourceStatus
 from metadata.utils.basic import getitems
 
 from .common import BaseModel, Label, OptionBase
@@ -576,10 +576,13 @@ class ResultTable(models.Model):
         # 删除数据链路及对应的关联记录
         for record in records:
             data_link_name = record.data_link_name
-            DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
-            record.delete()
+            datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
+            if datalink:
+                datalink.delete_data_link()
+            record.status = DataLinkResourceStatus.TERMINATING.value
+            record.save()
 
-    def apply_datalink(self, force_update: bool = False) -> None:
+    def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
@@ -626,20 +629,30 @@ class ResultTable(models.Model):
                 bk_data_id = datasource.bk_data_id
                 bk_tenant_id = self.bk_tenant_id
                 table_id = self.table_id
-                try:
-                    on_commit(
-                        func=lambda: access_bkdata_vm.delay(
-                            bk_tenant_id,
-                            target_bk_biz_id,
-                            table_id,
-                            bk_data_id,
-                            is_v4_datalink_etl_config,
-                            force_update=force_update,
-                        ),
-                        using=config.DATABASE_CONNECTION_NAME,
+                if delay:
+                    try:
+                        on_commit(
+                            func=lambda: access_bkdata_vm.delay(
+                                bk_tenant_id,
+                                target_bk_biz_id,
+                                table_id,
+                                bk_data_id,
+                                is_v4_datalink_etl_config,
+                                force_update=force_update,
+                            ),
+                            using=config.DATABASE_CONNECTION_NAME,
+                        )
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.error("create_result_table: access vm error: %s", e)
+                else:
+                    access_bkdata_vm(
+                        bk_tenant_id,
+                        target_bk_biz_id,
+                        table_id,
+                        bk_data_id,
+                        is_v4_datalink_etl_config,
+                        force_update=force_update,
                     )
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.error("create_result_table: access vm error: %s", e)
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 日志 V4 数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
