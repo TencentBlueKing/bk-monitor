@@ -596,6 +596,11 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="TGPATaskViewSet",
         view_action="get_index_set_id",
     )
+    TGPA_TASK_VIEWSET_DOWNLOAD_FILE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="TGPATaskViewSet",
+        view_action="download_file",
+    )
     # ======================================= 客户端日志检索-TGPAReportViewSet =======================================
     TGPA_REPORT_VIEWSET_FILE_STATUS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
@@ -696,6 +701,7 @@ class ViewSetActionEnum(ChoicesEnum):
         TGPA_TASK_VIEWSET_STATUS,
         TGPA_TASK_VIEWSET_SYNC,
         TGPA_TASK_VIEWSET_INDEX_SET_ID,
+        TGPA_TASK_VIEWSET_DOWNLOAD_FILE,
         # ======================================= 客户端日志检索-TGPAReportViewSet =======================================
         TGPA_REPORT_VIEWSET_FILE_STATUS,
         TGPA_REPORT_VIEWSET_SYNC,

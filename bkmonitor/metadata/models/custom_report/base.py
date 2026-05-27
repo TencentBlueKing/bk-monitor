@@ -56,6 +56,7 @@ class CustomGroupBase(models.Model):
     max_future_time_offset = models.IntegerField(verbose_name="上报最大时间偏移", default=-1)
     # 事件标签，默认是其他类型
     label = models.CharField(verbose_name="事件标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
+    token = models.CharField(verbose_name="自定义上报 Token", max_length=256, default="")
     is_enable = models.BooleanField(verbose_name="是否启用", default=True)
     is_delete = models.BooleanField(verbose_name="是否删除", default=False)
     creator = models.CharField(verbose_name="创建者", max_length=255)

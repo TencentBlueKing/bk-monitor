@@ -39,6 +39,7 @@ export const getExternalMenuListBySpace = (space) => {
   for (const permission of space?.external_permission || []) {
     if (permission === 'log_search') {
       list.push('retrieve');
+      list.push('client-log-search');
     } else if (permission === 'log_extract') {
       list.push('manage');
     }
