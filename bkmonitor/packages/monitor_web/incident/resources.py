@@ -1738,7 +1738,7 @@ class CreateListConfigResource(Resource):
 
 class GetSearchIdResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        incident_id = serializers.CharField(required=True, label="不完整故障ID")
+        incident_id = serializers.CharField(required=True, label="故障ID")
 
     def perform_request(self, validated_request_data):
         incident_id = str(validated_request_data["incident_id"]).strip()
@@ -1747,7 +1747,7 @@ class GetSearchIdResource(Resource):
 
         search = (
             IncidentDocument.search(all_indices=True)
-            .filter("wildcard", incident_id=f"*{incident_id}")
+            .filter("term", incident_id=incident_id)
             .source(["id", "incident_id", "create_time"])
             .sort("-create_time")
             .params(size=1)
