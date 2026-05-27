@@ -189,11 +189,16 @@ class IssueDocument(BaseDocument):
 
         幂等：已是 RESOLVED 时为 no-op（目标状态已达成）——不报错、不改状态、不写活动日志、
         不级联同步，直接返回空活动列表。批量操作下该条目计入 succeeded。
+
+        幂等短路刻意放在冻结守卫之前：主 Issue resolve 会级联把 active member 同步成 RESOLVED
+        但保留合并关系（member 仍 frozen）。此时对该 member 重复 resolve 不改变任何状态，应同样
+        no-op 成功；若先过 assert_not_frozen 会抛 IssueFrozenError 使其落入 failed，与"重复
+        resolve 不报错"矛盾。no-op 不产生任何写操作，跳过冻结守卫不破坏合并不变量。
         """
-        IssueMergeResolver.assert_not_frozen(self.id)
-        # 幂等短路：已是目标状态 RESOLVED → 什么都不做（重复 resolve 不应报错）
+        # 幂等短路（先于冻结守卫）：已是目标状态 RESOLVED → 什么都不做（重复 resolve 不报错）
         if self.status == IssueStatus.RESOLVED:
             return []
+        IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise self._status_transition_error("标记已解决", "仅活跃状态（待审核/未解决）")
         old_status = self.status

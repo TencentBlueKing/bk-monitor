@@ -1185,6 +1185,30 @@ class TestResolveIdempotent:
         write.assert_not_called()
         cascade.assert_not_called()
 
+    def test_already_resolved_frozen_member_still_noop(self, monkeypatch):
+        """主 resolve 级联后 member 已是 RESOLVED 但合并关系仍 active（frozen）；对其重复 resolve
+        应 no-op 成功，而非被冻结守卫拦成 IssueFrozenError 落入 failed。"""
+        from unittest import mock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
+        from constants.issue import IssueStatus
+
+        # 模拟 frozen member：冻结守卫一旦被调用就抛错
+        def _raise_frozen(*a, **k):
+            raise IssueFrozenError(issue_id="iss-1", conflicting_main_issue_id="main-1")
+
+        monkeypatch.setattr(IssueMergeResolver, "assert_not_frozen", staticmethod(_raise_frozen))
+        persist = mock.Mock()
+        monkeypatch.setattr(IssueDocument, "_persist_and_cache", persist)
+
+        issue = self._issue(IssueStatus.RESOLVED)
+        result = issue.resolve(operator="alice")  # 不应抛 IssueFrozenError
+
+        assert result == []
+        assert issue.status == IssueStatus.RESOLVED
+        persist.assert_not_called()
+
     def test_archived_still_raises_with_friendly_message(self, monkeypatch):
         from constants.issue import IssueStatus
 
