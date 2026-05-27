@@ -257,6 +257,11 @@ export default defineComponent({
      */
     const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
 
+    /** 是否为编辑模式 */
+    const isEditMode = computed(() =>
+      ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')),
+    );
+
     /**
      * 异步获取存储列表并按权限排序
      * 功能：请求存储数据，将有管理权限的存储项优先展示，处理加载状态和错误提示
@@ -326,7 +331,7 @@ export default defineComponent({
      */
 
     const getCleanStash = async () => {
-      const isStorageEdit = ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
+      const isStorageEdit = isEditMode.value && !!route.query.step;
       let id = curCollect.value.collector_config_id;
       if (isStorageEdit) {
         id = Number(route.params.collectorId);
@@ -352,7 +357,7 @@ export default defineComponent({
       if (props.configData?.storage_cluster_type) {
         clusterType = props.configData.storage_cluster_type;
       }
-      const isStorageEdit = ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
+      const isStorageEdit = isEditMode.value && !!route.query.step;
       if (isStorageEdit) {
         await $http
           .request('collect/details', {
@@ -423,7 +428,7 @@ export default defineComponent({
         <ClusterTypeTabs
           activeTab={activeTab.value}
           isDorisEnabled={isDorisEnabled.value}
-          disabled={isUpdate.value}
+          disabled={isEditMode.value && !!clusterSelect.value}
           on-tab-click={handleTabClick}
         />
 
