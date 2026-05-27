@@ -177,8 +177,15 @@ class IssueDocument(BaseDocument):
         )
 
     def resolve(self, operator: str) -> list:
-        """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED"""
+        """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED。
+
+        幂等：已是 RESOLVED 时为 no-op（目标状态已达成）——不报错、不改状态、不写活动日志、
+        不级联同步，直接返回空活动列表。批量操作下该条目计入 succeeded。
+        """
         IssueMergeResolver.assert_not_frozen(self.id)
+        # 幂等短路：已是目标状态 RESOLVED → 什么都不做（重复 resolve 不应报错）
+        if self.status == IssueStatus.RESOLVED:
+            return []
         if self.status not in IssueStatus.ACTIVE_STATUSES:
             raise ValueError(
                 f"Cannot resolve: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"

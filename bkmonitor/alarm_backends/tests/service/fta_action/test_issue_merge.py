@@ -1139,3 +1139,70 @@ class TestSplitReasonsOptional:
         s = SplitIssueResource.RequestSerializer(data={"bk_biz_id": 2, "member_issue_id": self.VALID_ID})
         assert s.is_valid(), s.errors
         assert s.validated_data["reasons"] == []
+
+
+class TestResolveIdempotent:
+    """resolve 幂等：已是 RESOLVED 时 no-op（不报错、不改状态、零副作用）；
+    其它非活跃态（如 ARCHIVED）仍报错；活跃态正常流转。"""
+
+    @staticmethod
+    def _patch(monkeypatch):
+        from unittest import mock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.issue_merge import IssueMergeResolver
+
+        monkeypatch.setattr(IssueMergeResolver, "assert_not_frozen", staticmethod(lambda *a, **k: None))
+        persist = mock.Mock()
+        write = mock.Mock(return_value=["act"])
+        cascade = mock.Mock()
+        monkeypatch.setattr(IssueDocument, "_persist_and_cache", persist)
+        monkeypatch.setattr(IssueDocument, "_write_activities", write)
+        monkeypatch.setattr(IssueDocument, "_cascade_follow_status", cascade)
+        return persist, write, cascade
+
+    @staticmethod
+    def _issue(status):
+        from bkmonitor.documents.issue import IssueDocument
+
+        issue = IssueDocument()
+        issue.id = "iss-1"
+        issue.status = status
+        return issue
+
+    def test_already_resolved_is_noop(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        persist, write, cascade = self._patch(monkeypatch)
+        issue = self._issue(IssueStatus.RESOLVED)
+
+        result = issue.resolve(operator="alice")
+
+        assert result == []  # 无活动日志
+        assert issue.status == IssueStatus.RESOLVED  # 状态不变
+        persist.assert_not_called()  # 零副作用
+        write.assert_not_called()
+        cascade.assert_not_called()
+
+    def test_archived_still_raises(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        self._patch(monkeypatch)
+        issue = self._issue(IssueStatus.ARCHIVED)
+
+        with pytest.raises(ValueError, match="Cannot resolve"):
+            issue.resolve(operator="alice")
+
+    def test_active_status_transitions_normally(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        persist, write, cascade = self._patch(monkeypatch)
+        issue = self._issue(IssueStatus.UNRESOLVED)
+
+        result = issue.resolve(operator="alice")
+
+        assert issue.status == IssueStatus.RESOLVED  # 正常流转
+        assert result == ["act"]
+        persist.assert_called_once()
+        write.assert_called_once()
+        cascade.assert_called_once()
