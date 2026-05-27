@@ -84,6 +84,8 @@
         class="preview-scroll-table"
         :data="filteredExplorerList"
         :height="360"
+        reserve-selection
+        row-key="path"
         @selection-change="handleSelect"
       >
         <bk-table-column
@@ -168,6 +170,10 @@
       event: 'checked',
     },
     props: {
+      downloadFiles: {
+        type: Array,
+        default: () => [],
+      },
       ipList: {
         type: Array,
         required: true,
@@ -196,6 +202,9 @@
         explorerList: [],
         filterInputValue: '',
         filterKeyword: '',
+        selectedFilePathList: [], // 跨过滤条件保留的已选文件路径
+        isSyncingTableSelection: false,
+        isSwitchingFilterData: false,
         historyStack: [], // 预览地址历史
         emptyType: 'empty',
       };
@@ -223,12 +232,25 @@
         if (val.length) {
           this.previewIp.push(this.getIpListID(val[0]));
         }
+        this.setSelectedFilePaths([]);
+        this.emitSelectedFiles();
         this.explorerList.splice(0); // 选择服务器后清空表格
         this.historyStack.splice(0); // 选择服务器后清空历史堆栈
+      },
+      downloadFiles: {
+        handler(val) {
+          this.setSelectedFilePaths(val || []);
+          this.syncTableSelection();
+        },
+        immediate: true,
+      },
+      filteredExplorerList() {
+        this.syncTableSelection();
       },
     },
     created() {
       this.updateFilterKeyword = debounce((val = '') => {
+        this.isSwitchingFilterData = true;
         this.filterKeyword = String(val).trim().toLowerCase();
       }, 200);
     },
@@ -247,7 +269,8 @@
           exploreList: this.explorerList.splice(0),
           fileOrPath: path,
         };
-        this.$emit('checked', []);
+        this.setSelectedFilePaths([]);
+        this.emitSelectedFiles();
         if (path === '../' && this.historyStack.length) {
           // 返回上一级
           const cache = this.historyStack.pop();
@@ -344,16 +367,8 @@
           .then(res => {
             this.historyStack = [];
             this.explorerList = res.data;
-            this.$nextTick(() => {
-              downloadFiles.forEach(path => {
-                for (const item of this.explorerList) {
-                  if (item.path === path) {
-                    this.$refs.previewTable.toggleRowSelection(item, true);
-                    break;
-                  }
-                }
-              });
-            });
+            this.setSelectedFilePaths(downloadFiles);
+            this.syncTableSelection();
           })
           .catch(e => {
             console.warn(e);
@@ -390,11 +405,71 @@
           return;
         }
       },
+      getFilePath(row) {
+        return String(row?.path ?? '');
+      },
+      isSelectableFile(row) {
+        return row?.size !== '0';
+      },
+      emitSelectedFiles() {
+        this.$emit('checked', [...this.selectedFilePathList]);
+      },
+      setSelectedFilePaths(paths = []) {
+        this.selectedFilePathList = [...new Set(paths.filter(Boolean).map(path => String(path)))];
+      },
+      waitTableSelectionStable() {
+        return new Promise(resolve => {
+          this.$nextTick(() => {
+            requestAnimationFrame(() => {
+              this.$nextTick(resolve);
+            });
+          });
+        });
+      },
+      async syncTableSelection() {
+        await this.$nextTick();
+        if (!this.$refs.previewTable) {
+          this.isSwitchingFilterData = false;
+          return;
+        }
+
+        this.isSyncingTableSelection = true;
+        this.$refs.previewTable.clearSelection?.();
+        const selectedPathSet = new Set(this.selectedFilePathList);
+        for (const item of this.filteredExplorerList) {
+          if (this.isSelectableFile(item) && selectedPathSet.has(this.getFilePath(item))) {
+            this.$refs.previewTable.toggleRowSelection?.(item, true);
+          }
+        }
+        await this.waitTableSelectionStable();
+        this.isSyncingTableSelection = false;
+        this.isSwitchingFilterData = false;
+      },
       handleSelect(selection) {
-        this.$emit(
-          'checked',
-          selection.map(item => item.path),
+        if (this.isSyncingTableSelection || this.isSwitchingFilterData) {
+          return;
+        }
+
+        const nextSelectedPathSet = new Set(this.selectedFilePathList);
+        const visibleSelectablePathSet = new Set(
+          this.filteredExplorerList
+            .filter(item => this.isSelectableFile(item))
+            .map(item => this.getFilePath(item)),
         );
+
+        for (const path of visibleSelectablePathSet) {
+          nextSelectedPathSet.delete(path);
+        }
+
+        for (const item of selection) {
+          const path = this.getFilePath(item);
+          if (path) {
+            nextSelectedPathSet.add(path);
+          }
+        }
+
+        this.selectedFilePathList = [...nextSelectedPathSet];
+        this.emitSelectedFiles();
       },
     },
   };
