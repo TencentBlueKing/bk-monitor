@@ -23,6 +23,8 @@ class Command(BaseCommand):
         parser.add_argument("--dry_run", action="store_true", help="只统计待修复数量，不写入数据库")
 
     def handle(self, *args, **options):
+        # detail_logger 只负责命令行可见输出；共享函数仍会写 metadata logger。
+        # dry_run 时不会写库，但会走完整 diff 计算，所以这里也能打印每条将要变更的明细。
         stats = backfill_esstorage_origin_table_options(
             es_storage_model=models.ESStorage,
             result_table_model=models.ResultTable,

@@ -283,7 +283,11 @@ def sync_index_set_to_es_storages(es_storage_model: type[Model], table_ids: list
 
 
 def _get_value_from_option(option: dict) -> object:
-    """按 ResultTableOption.value_type 解析 option value。"""
+    """按 ResultTableOption.value_type 解析 option value。
+
+    历史 ResultTableOption 的 value 统一存在文本字段里，只有 string 类型可以直接使用。
+    其它类型需要按 JSON 还原，才能继续写回到真实 RT 的 time_field option。
+    """
     if option["value_type"] == "string":
         return option["value"]
 
@@ -294,6 +298,11 @@ def _get_value_from_option(option: dict) -> object:
 
 
 def _emit_backfill_detail(message: str, detail_logger: Callable[[str], None] | None = None):
+    """输出本次回填的明细日志。
+
+    migration 执行时只依赖 metadata logger；management command 会额外传入 detail_logger，
+    把同一份明细打印到 stdout。这样 dry_run 和真实写入看到的变更预览完全一致。
+    """
     logger.info("[backfill_esstorage_origin_table_options] %s", message)
     if detail_logger:
         detail_logger(message)
@@ -305,12 +314,21 @@ def _get_origin_table_time_fields(
     result_table_option_model: type[Model],
     origin_table_keys: set[tuple[str, str]],
 ) -> dict[tuple[str, str], object]:
-    """获取真实 ES 表对应虚拟 RT 上配置的 time_field。"""
+    """获取真实 ES 表对应虚拟 RT 上配置的 time_field。
+
+    日志平台的虚拟 RT 通过 ESStorage.origin_table_id 指向真实 RT。真实 RT 缺失
+    time_field 时，只能从这些虚拟 RT 的查询 option 里继承，且必须同租户继承，
+    避免多租户环境下同名 table_id 串配置。
+
+    当一个真实 RT 关联多个虚拟 RT 时，优先取仍启用且未删除的虚拟 RT；如果没有
+    启用候选，再按 ESStorage.id 稳定取第一个有 time_field 的虚拟 RT。
+    """
     if not origin_table_keys:
         return {}
 
     tenant_ids = {bk_tenant_id for bk_tenant_id, _ in origin_table_keys}
     table_ids = {table_id for _, table_id in origin_table_keys}
+    # 一次性取当前 batch 涉及的所有虚拟 ESStorage，避免按真实 RT 逐条查询。
     virtual_storages = list(
         es_storage_model.objects.filter(
             bk_tenant_id__in=tenant_ids,
@@ -331,6 +349,7 @@ def _get_origin_table_time_fields(
 
     virtual_tenants = {bk_tenant_id for bk_tenant_id, _ in virtual_table_keys}
     virtual_table_ids = {table_id for _, table_id in virtual_table_keys}
+    # ResultTable 状态只参与候选优先级排序，不直接过滤；没有启用候选时仍可回退历史虚拟 RT。
     virtual_rt_status = {
         (record["bk_tenant_id"], record["table_id"]): (record["is_enable"], record["is_deleted"])
         for record in result_table_model.objects.filter(
@@ -349,6 +368,7 @@ def _get_origin_table_time_fields(
         .order_by("bk_tenant_id", "table_id", "id")
     ):
         option_key = (option["bk_tenant_id"], option["table_id"])
+        # 同一个虚拟 RT 历史上可能存在重复 option，按 id 排序后只取最早的一条，保持结果稳定。
         virtual_time_fields.setdefault(option_key, _get_value_from_option(option))
 
     origin_time_fields: dict[tuple[str, str], object] = {}
@@ -360,6 +380,7 @@ def _get_origin_table_time_fields(
             continue
 
         is_enable, is_deleted = virtual_rt_status.get(virtual_key, (False, True))
+        # priority=0 表示启用且未删除；priority=1 是最后兜底候选。
         priority = 0 if is_enable and not is_deleted else 1
         origin_candidates.setdefault(origin_key, []).append((priority, storage["id"], virtual_time_fields[virtual_key]))
 
@@ -376,6 +397,12 @@ def _build_result_table_options(
     stats: dict[str, int],
     detail_logger: Callable[[str], None] | None = None,
 ):
+    """构造需要创建或更新的 ResultTableOption 对象。
+
+    need_add_time 是真实 ES RT 必须补齐的固定查询配置；time_field 则必须能从虚拟
+    RT 继承到明确值才写入。找不到 time_field 时只打印明细并跳过，避免把错误的
+    空 dict 写入真实 RT。
+    """
     tenant_ids = {bk_tenant_id for bk_tenant_id, _ in target_keys}
     table_ids = {table_id for _, table_id in target_keys}
     existing_options: dict[tuple[str, str, str], list[Model]] = {}
@@ -389,6 +416,7 @@ def _build_result_table_options(
     to_be_created = []
     to_be_updated = []
     for bk_tenant_id, table_id in sorted(target_keys):
+        # 所有命中的真实 ES RT 都需要补 need_add_time；time_field 只有继承到值才追加。
         option_values = {
             "need_add_time": True,
         }
@@ -429,6 +457,7 @@ def _build_result_table_options(
                 )
                 continue
 
+            # 可能存在历史重复 option。为了避免运行后仍有脏值，所有重复记录都同步为目标值。
             for option in existing_options[option_key]:
                 if option.value == value and option.value_type == value_type:
                     continue
@@ -453,7 +482,15 @@ def backfill_esstorage_origin_table_options(
     dry_run: bool = False,
     detail_logger: Callable[[str], None] | None = None,
 ) -> dict[str, int]:
-    """回填真实 ESStorage 的 index_set 与日志查询 ResultTableOption。"""
+    """回填真实 ESStorage 的 index_set 与日志查询 ResultTableOption。
+
+    处理范围限定为 origin_table_id 为空的真实 ESStorage。数据量可能较大，所以使用
+    id 游标按 batch 分片处理；每个 batch 内再批量查询 ResultTable、虚拟 ESStorage
+    和 ResultTableOption，避免按表逐条查库。
+
+    dry_run=True 时仍完整执行查询、对象构造和明细输出，但跳过 bulk_update /
+    bulk_create，因此可用来预览每个 table_id 将补的 index_set 和 option 配置。
+    """
     batch_size = max(batch_size, 1)
     stats = {
         "scanned": 0,
@@ -472,6 +509,7 @@ def backfill_esstorage_origin_table_options(
         base_qs = base_qs.filter(bk_tenant_id=bk_tenant_id)
 
     while True:
+        # 用 id 游标分页，避免大 offset 在 ESStorage 数据量较大时越来越慢。
         batch = list(base_qs.filter(id__gt=last_id)[:batch_size])
         if not batch:
             break
@@ -494,6 +532,7 @@ def backfill_esstorage_origin_table_options(
         for record in batch:
             if record["index_set"]:
                 continue
+            # 真实 ESStorage 的默认 index_set 与既有迁移逻辑保持一致：把 table_id 中的点替换成下划线。
             index_set = record["table_id"].replace(".", "_")
             _emit_backfill_detail(
                 f"update index_set bk_tenant_id={record['bk_tenant_id']} table_id={record['table_id']} "
@@ -531,6 +570,7 @@ def backfill_esstorage_origin_table_options(
         )
 
         if dry_run:
+            # dry_run 已经输出了所有明细和统计，不能进入写库事务。
             continue
 
         with transaction.atomic(config.DATABASE_CONNECTION_NAME):
