@@ -51,7 +51,6 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.metric_group import PreCalculateHelper
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric, ProcessorHookType
 from apm_web.metric.handler import call_analysis, statistics, top_n
@@ -87,8 +86,6 @@ from constants.apm import (
     SpanKindCachedEnum,
     TelemetryDataType,
     CallSide,
-    RpcAttributes,
-    TrpcAttributes,
 )
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
@@ -1573,8 +1570,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 "events.attributes.exception.type",
                 "events.name",
                 "time",
-                OtlpKey.get_attributes_key(RpcAttributes.RPC_ERROR_CODE),
-                OtlpKey.get_attributes_key(TrpcAttributes.TRPC_STATUS_CODE),
             ],
         }
 
@@ -1691,12 +1686,10 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     key = (service, endpoint, exception_type)
 
                     self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
-                continue
-
-            code_info = SpanHandler.get_span_code_info(span)
-            exception_type = code_info.get("exception_type", self.UNKNOWN_EXCEPTION_TYPE)
-            key = (service, endpoint, exception_type)
-            self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
+            else:
+                exception_type = self.UNKNOWN_EXCEPTION_TYPE
+                key = (service, endpoint, exception_type)
+                self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
 
         return [
             self.combine_errors(bk_biz_id, service_mappings, **service_error_map)

@@ -2607,52 +2607,64 @@ class QueryExceptionDetailEventResource(PageListResource):
             "filter_params": filter_params,
         }
         exception_spans = api.apm_api.query_span(query_dict)
-
         res = []
         for span in exception_spans:
+            span = SpanHandler.process_rpc_span(span)
             # 异常信息有两个来源: events.attributes.exception_stacktrace or status.message
             subtitle = span.get("status", {}).get("message")
-            if span["events"]:
-                for event in span["events"]:
-                    exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN)
-                    stacktrace = (
-                        event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_STACKTRACE, "").split("\n")
-                    )
-                    if not subtitle:
-                        exception_message = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_MESSAGE, "")
-                        subtitle = f"{exception_type}: {exception_message}"
-                    # 无过滤条件 -> 显示全部
-                    res.append(
-                        {
-                            "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
-                            "subtitle": subtitle,
-                            "content": stacktrace,
-                            "timestamp": int(event["timestamp"]),
-                            "exception_type": exception_type,
-                            "trace_id": span.get("trace_id", ""),
-                        }
-                    )
-            else:
-                code_info = SpanHandler.get_span_code_info(span)
-                exception_type = code_info.get("exception_type", self.UNKNOWN)
+            exception_events = [event for event in span.get("events") or [] if event.get("name") == "exception"]
+            if not exception_events:
                 res.append(
                     {
-                        "title": f"{span_time_strft(span['start_time'])}  {exception_type}",
+                        "title": f"{span_time_strft(span['start_time'])}  {self.UNKNOWN}",
                         "subtitle": subtitle,
                         "content": [],
                         "timestamp": int(span["start_time"]),
+                        "exception_type": self.UNKNOWN,
+                        "trace_id": span.get("trace_id", ""),
+                        "_skip_exception_type_filter": False,
+                    }
+                )
+                continue
+
+            for event in exception_events:
+                event_attributes = event.get(OtlpKey.ATTRIBUTES, {}) or {}
+                exception_type = event_attributes.get(SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN)
+                exception_alias = event_attributes.get("exception.alias", exception_type)
+                exception_message = event_attributes.get(SpanAttributes.EXCEPTION_MESSAGE, "")
+                exception_refer = event_attributes.get("exception.refer")
+                stacktrace_text = event_attributes.get(SpanAttributes.EXCEPTION_STACKTRACE, "")
+                stacktrace = stacktrace_text.split("\n") if stacktrace_text else []
+                current_subtitle = subtitle
+                if exception_refer:
+                    current_subtitle = exception_message or current_subtitle
+                elif not current_subtitle:
+                    current_subtitle = f"{exception_type}: {exception_message}"
+                # 无过滤条件 -> 显示全部
+                res.append(
+                    {
+                        "title": f"{span_time_strft(event['timestamp'])}  {exception_alias}",
+                        "subtitle": current_subtitle,
+                        "content": stacktrace,
+                        "timestamp": int(event["timestamp"]),
                         "exception_type": exception_type,
                         "trace_id": span.get("trace_id", ""),
+                        "_skip_exception_type_filter": bool(exception_refer),
                     }
                 )
 
         # exception_type 过滤
         if validated_data["exception_type"]:
-            res = [i for i in res if i["exception_type"] == validated_data["exception_type"]]
+            res = [
+                i
+                for i in res
+                if i.get("_skip_exception_type_filter") or i["exception_type"] == validated_data["exception_type"]
+            ]
 
         # 对 res 基于 timestamp 字段排序 (倒序)
         res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
         for index, r in enumerate(res, 1):
+            r.pop("_skip_exception_type_filter", None)
             r["id"] = index
 
         return self.get_pagination_data(res, validated_data)

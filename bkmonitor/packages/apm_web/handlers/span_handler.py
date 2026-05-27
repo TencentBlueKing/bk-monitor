@@ -111,30 +111,48 @@ class SpanHandler:
         return urljoin(f"{url_parser.scheme}://{url_parser.netloc}", url_parser.path).rstrip("/")
 
     @classmethod
-    def get_span_code_info(cls, span: dict[str, Any]) -> dict[str, Any]:
-        """获取 span 的 RPC / tRPC 返回码信息。
+    def process_rpc_span(cls, span: dict[str, Any]) -> dict[str, Any]:
+        """标准化 span 的 RPC / tRPC 异常事件。
 
         :param span: span 数据
-        :return: 命中时返回 code / message / exception_type / filter_key / filter_value 等信息，未命中时返回空字典
+        :return: 补齐 exception event 后的 span 数据
         """
+        events: list[dict[str, Any]] = span.get("events") or []
+        if any(event.get("name") == "exception" for event in events):
+            return span
+
         attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES, {}) or {}
+        status_message = (span.get("status") or {}).get("message")
         code_fields: list[tuple[str, str]] = [
             (RpcAttributes.RPC_ERROR_CODE, RpcAttributes.RPC_ERROR_MESSAGE),
             (TrpcAttributes.TRPC_STATUS_CODE, TrpcAttributes.TRPC_STATUS_MSG),
         ]
         for code_field, message_field in code_fields:
             code = attributes.get(code_field)
-            if code is None:
+            if code in (None, ""):
                 continue
 
             code_str = str(code)
             message = attributes.get(message_field)
-            return {
-                "code": code_str,
-                "message": "" if message is None else str(message),
-                "exception_type": _("返回码 - {code}").format(code=code_str),
-                "filter_key": OtlpKey.get_attributes_key(code_field),
-                "filter_value": code,
-            }
+            message_text = "" if message in (None, "") else str(message)
+            if not message_text and status_message is not None:
+                message_text = str(status_message)
 
-        return {}
+            if not span.get("events"):
+                span["events"] = []
+
+            span["events"].append(
+                {
+                    "name": "exception",
+                    "timestamp": span["start_time"],
+                    OtlpKey.ATTRIBUTES: {
+                        "exception.refer": code_field,
+                        SpanAttributes.EXCEPTION_TYPE: code_str,
+                        "exception.alias": _("返回码 - {code}").format(code=code_str),
+                        SpanAttributes.EXCEPTION_MESSAGE: message_text,
+                    },
+                }
+            )
+            break
+
+        return span
