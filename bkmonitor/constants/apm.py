@@ -2047,8 +2047,6 @@ class SpanKindCachedEnum(CachedEnum):
 
 TRACE_RESULT_TABLE_OPTION = {
     "es_unique_field_list": [
-        "bk_biz_id",
-        "app_name",
         "trace_id",
         "span_id",
         "parent_span_id",
