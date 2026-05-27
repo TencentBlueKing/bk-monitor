@@ -124,7 +124,7 @@ class SpanHandler:
         ]
         for code_field, message_field in code_fields:
             code = attributes.get(code_field)
-            if code in (None, ""):
+            if code is None:
                 continue
 
             code_str = str(code)
