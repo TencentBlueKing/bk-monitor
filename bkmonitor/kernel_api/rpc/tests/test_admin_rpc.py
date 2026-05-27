@@ -14,12 +14,16 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
+import pytest
+
+from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc.functions.admin.api_auth_token import (
     _normalize_biz_ids,
     _normalize_namespaces,
     _serialize_api_auth_token,
 )
+from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
+from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin import datalink as admin_datalink
@@ -99,6 +103,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.cluster_info.detail",
         "admin.bcs_cluster.list",
         "admin.bcs_cluster.detail",
+        "admin.bcs_cluster.data_id_list",
+        "admin.bcs_cluster.data_id_detail",
         "admin.datasource.kafka_sample",
         "admin.es_storage.list",
         "admin.es_storage.detail",
@@ -765,6 +771,173 @@ def test_bcs_cluster_serializer_empty_sensitive_fields():
 
     assert item["has_api_key"] is False
     assert item["has_cert"] is False
+
+
+def test_bcs_cluster_data_id_list_reads_k8s_crd_and_marks_inspect():
+    api_client = object()
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=api_client)
+    custom_client = Mock()
+    custom_client.list_cluster_custom_object.return_value = {
+        "items": [
+            {
+                "metadata": {
+                    "name": "bk-monitor-agg-gateway-for-apm",
+                    "labels": {
+                        "bk_env": "bkop",
+                        "usage": "metric",
+                        "isCommon": "false",
+                        "isSystem": "false",
+                    },
+                    "creationTimestamp": "2025-10-09T12:58:30Z",
+                    "resourceVersion": "2813317942",
+                },
+                "spec": {
+                    "dataID": 1573231,
+                    "monitorResource": {
+                        "kind": "servicemonitor",
+                        "namespace": "blueking",
+                        "name": "bk-monitor-agg-gateway-for-apm",
+                    },
+                    "labels": {
+                        "bk_biz_id": "2",
+                        "bcs_cluster_id": "BCS-K8S-00000",
+                        "scope_name": "default",
+                        "service_name": "bk_monitorv3_web",
+                    },
+                },
+            },
+            {
+                "metadata": {
+                    "name": "bkop-relationdataid",
+                    "labels": {"usage": "metric"},
+                    "creationTimestamp": "2026-04-28T04:04:10Z",
+                    "resourceVersion": "3614358247",
+                },
+                "spec": {
+                    "dataID": 1573946,
+                    "monitorResource": {
+                        "kind": "ServiceMonitor",
+                        "namespace": "bkmonitor-operator",
+                        "name": "bkmonitor-operator-operator-relation",
+                    },
+                    "labels": {"bk_biz_id": "2", "bcs_cluster_id": "BCS-K8S-00000"},
+                },
+            },
+        ]
+    }
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster) as cluster_get,
+        patch.object(admin_bcs_cluster.k8s_client, "CustomObjectsApi", return_value=custom_client) as custom_api,
+    ):
+        result = admin_bcs_cluster.list_bcs_cluster_data_ids(
+            {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "page": 1, "page_size": 1}
+        )
+
+    cluster_get.assert_called_once_with(bk_tenant_id="system", cluster_id="BCS-K8S-00001")
+    custom_api.assert_called_once_with(api_client)
+    custom_client.list_cluster_custom_object.assert_called_once_with(
+        group=admin_bcs_cluster.config.BCS_RESOURCE_GROUP_NAME,
+        version=admin_bcs_cluster.config.BCS_RESOURCE_VERSION,
+        plural=admin_bcs_cluster.config.BCS_RESOURCE_DATA_ID_RESOURCE_PLURAL,
+    )
+    assert result["data"]["total"] == 2
+    assert result["data"]["items"][0]["name"] == "bk-monitor-agg-gateway-for-apm"
+    assert result["data"]["items"][0]["data_id"] == 1573231
+    assert result["data"]["items"][0]["is_common"] is False
+    assert result["data"]["items"][0]["monitor_resource"]["kind"] == "servicemonitor"
+    assert result["data"]["items"][0]["labels"]["service_name"] == "bk_monitorv3_web"
+    assert result["data"]["items"][0]["phase"] is None
+    assert result["meta"]["safety_level"] == "inspect"
+    assert result["meta"]["requested_safety_level"] == "inspect"
+
+
+def test_bcs_cluster_data_id_detail_reads_single_k8s_crd():
+    api_client = object()
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=api_client)
+    resource = {
+        "metadata": {
+            "annotations": {
+                "kubectl.kubernetes.io/last-applied-configuration": (
+                    '{"apiVersion":"monitoring.bk.tencent.com/v1beta1"}'
+                )
+            },
+            "creationTimestamp": "2025-10-09T12:58:30Z",
+            "generation": 3,
+            "labels": {
+                "bk_env": "bkop",
+                "usage": "metric",
+                "isCommon": "false",
+                "isSystem": "false",
+            },
+            "managedFields": [{"manager": "kubectl-client-side-apply"}],
+            "name": "bk-monitor-agg-gateway-for-apm",
+            "resourceVersion": "2813317942",
+            "uid": "33b9d47a-b543-4c35-8d27-b8a3638cf00b",
+        },
+        "spec": {
+            "dataID": "1573231",
+            "dimensionReplace": {},
+            "labels": {
+                "bk_biz_id": "2",
+                "bcs_cluster_id": "BCS-K8S-00000",
+                "scope_name": "default",
+                "service_name": "bk_monitorv3_web",
+            },
+            "metricReplace": {},
+            "monitorResource": {
+                "kind": "servicemonitor",
+                "namespace": "blueking",
+                "name": "bk-monitor-agg-gateway-for-apm",
+            },
+        },
+    }
+    custom_client = Mock()
+    custom_client.get_cluster_custom_object.return_value = resource
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CustomObjectsApi", return_value=custom_client),
+    ):
+        result = admin_bcs_cluster.get_bcs_cluster_data_id_detail(
+            {
+                "bk_tenant_id": "system",
+                "cluster_id": "BCS-K8S-00001",
+                "name": "bk-monitor-agg-gateway-for-apm",
+            }
+        )
+
+    custom_client.get_cluster_custom_object.assert_called_once_with(
+        group=admin_bcs_cluster.config.BCS_RESOURCE_GROUP_NAME,
+        version=admin_bcs_cluster.config.BCS_RESOURCE_VERSION,
+        plural=admin_bcs_cluster.config.BCS_RESOURCE_DATA_ID_RESOURCE_PLURAL,
+        name="bk-monitor-agg-gateway-for-apm",
+    )
+    assert result["data"]["name"] == "bk-monitor-agg-gateway-for-apm"
+    assert result["data"]["data_id"] == 1573231
+    assert result["data"]["is_common"] is False
+    assert result["data"]["phase"] is None
+    assert result["data"]["monitor_resource"]["kind"] == "servicemonitor"
+    assert result["data"]["resource"] == resource
+    assert result["meta"]["requested_safety_level"] == "inspect"
+
+
+def test_bcs_cluster_data_id_detail_converts_k8s_404_to_custom_exception():
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object())
+    custom_client = Mock()
+    custom_client.get_cluster_custom_object.side_effect = admin_bcs_cluster.k8s_client.exceptions.ApiException(
+        status=404,
+        reason="Not Found",
+    )
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CustomObjectsApi", return_value=custom_client),
+        pytest.raises(CustomException, match="未找到 BCS DataID 资源"),
+    ):
+        admin_bcs_cluster.get_bcs_cluster_data_id_detail(
+            {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "name": "missing"}
+        )
 
 
 def test_es_storage_table_kind_uses_origin_table_id():
