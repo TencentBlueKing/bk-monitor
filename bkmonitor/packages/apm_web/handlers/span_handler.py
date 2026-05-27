@@ -120,7 +120,7 @@ class SpanHandler:
         attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES, {}) or {}
         code_fields: list[tuple[str, str]] = [
             (RpcAttributes.RPC_ERROR_CODE, RpcAttributes.RPC_ERROR_MESSAGE),
-            (TrpcAttributes.TRPC_STATUS_CODE, TrpcAttributes.TRPC_STATUS_MESSAGE),
+            (TrpcAttributes.TRPC_STATUS_CODE, TrpcAttributes.TRPC_STATUS_MSG),
         ]
         for code_field, message_field in code_fields:
             code = attributes.get(code_field)
@@ -129,10 +129,9 @@ class SpanHandler:
 
             code_str = str(code)
             message = attributes.get(message_field)
-            message_text = "" if message in (None, "") else str(message)
             return {
                 "code": code_str,
-                "message": message_text,
+                "message": "" if message is None else str(message),
                 "exception_type": _("返回码 - {code}").format(code=code_str),
                 "filter_key": OtlpKey.get_attributes_key(code_field),
                 "filter_value": code,

@@ -929,7 +929,7 @@ class TrpcAttributes:
     TRPC_CALLEE_METHOD = "trpc.callee_method"
     TRPC_STATUS_TYPE = "trpc.status_type"
     TRPC_STATUS_CODE = "trpc.status_code"
-    TRPC_STATUS_MESSAGE = "trpc.status_message"
+    TRPC_STATUS_MSG = "trpc.status_msg"
 
 
 class RpcAttributes:
