@@ -82,5 +82,25 @@
     "pattern_gate",
     "implementation_gate",
     "merge_gate"
-  ]
+  ],
+  "projectKnowledge": {
+    "entry": ".ai-agent/project.md",
+    "skills": ".ai-agent/project-skills",
+    "rules": ".ai-agent/rules",
+    "legacySharedRemoved": true,
+    "selfUpdate": {
+      "enabled": true,
+      "skill": ".ai-agent/project-skills/aafe-self-update/SKILL.md",
+      "rule": ".ai-agent/rules/knowledge-self-update.mdc",
+      "updateOn": [
+        "module_added",
+        "module_updated",
+        "route_changed",
+        "api_contract_changed",
+        "hook_changed",
+        "component_pattern_changed",
+        "stable_constraint_learned"
+      ]
+    }
+  }
 }
