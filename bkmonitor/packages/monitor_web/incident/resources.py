@@ -389,7 +389,18 @@ class IncidentListResource(IncidentBaseResource):
         ):
             result = handler.search(show_overview=False, show_aggs=True)
 
-        result["greyed_spaces"] = settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+        bk_biz_ids = validated_request_data.get("bk_biz_ids", [])
+        result["enabled_spaces"] = []
+
+        if bk_biz_ids:
+            general_config_data = GetConfigResource().request(**{
+                "config_type":"general_config",
+                "bk_biz_id_list":bk_biz_ids,
+                "bk_biz_id":bk_biz_ids[0]
+            })
+            for item in general_config_data.get("objects",[]):
+                if item.get("content",{}).get("enabled",False):
+                    result["enabled_spaces"].append(item.get("scope_value"))
         result["wx_cs_link"] = ""
         for item in settings.BK_DATA_ROBOT_LINK_LIST:
             if item["icon_name"] == "icon-kefu":
@@ -483,6 +494,10 @@ class IncidentDetailResource(IncidentBaseResource):
             incident["alert_count"] = len(incident["snapshot"]["alerts"])
             incident["incident_root"] = self.get_incident_root_info(snapshot)
 
+        incident["wx_cs_link"] = ""
+        for item in settings.BK_DATA_ROBOT_LINK_LIST:
+            if item["icon_name"] == "icon-kefu":
+                incident["wx_cs_link"] = item["link"]
         return incident
 
     def get_incident_snapshots(self, incident: IncidentDocument) -> dict:
@@ -1719,3 +1734,31 @@ class FetchGlobalVariablesResource(Resource):
 class CreateListConfigResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.create_list_config(validated_request_data)
+
+
+class GetSearchIdResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.CharField(required=True, label="故障ID")
+
+    def perform_request(self, validated_request_data):
+        incident_id = str(validated_request_data["incident_id"]).strip()
+        if not incident_id:
+            return {}
+
+        search = (
+            IncidentDocument.search(all_indices=True)
+            .filter("term", incident_id=incident_id)
+            .source(["id", "incident_id", "create_time"])
+            .sort("-create_time")
+            .params(size=1)
+        )
+
+        hits = search.execute().hits
+        if not hits:
+            return {}
+
+        incident = hits[0].to_dict()
+        return {
+            "id": incident.get("id"),
+            "incident_id": incident.get("incident_id"),
+        }
