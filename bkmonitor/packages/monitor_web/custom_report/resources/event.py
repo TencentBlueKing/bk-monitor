@@ -253,7 +253,7 @@ class GetCustomEventGroup(Resource):
 
         label_display_dict = get_label_display_dict()
         data["scenario_display"] = label_display_dict.get(data["scenario"], [data["scenario"]])
-        data["access_token"] = self.get_token(data["bk_data_id"])
+        data["access_token"] = self.get_token(event_info_list, data["bk_data_id"])
 
         event_info_num: int = len(data["event_info_list"])
         if event_info_num:
@@ -265,7 +265,10 @@ class GetCustomEventGroup(Resource):
         return data
 
     @staticmethod
-    def get_token(bk_data_id):
+    def get_token(event_group_info: dict[str, Any], bk_data_id: int):
+        if event_group_info.get("token"):
+            return event_group_info["token"]
+
         data_id_info = api.metadata.get_data_id({"bk_data_id": bk_data_id, "with_rt_info": False})
         return data_id_info["token"]
 
