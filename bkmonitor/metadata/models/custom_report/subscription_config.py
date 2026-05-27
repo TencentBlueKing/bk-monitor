@@ -638,7 +638,7 @@ class LogSubscriptionConfig(models.Model):
         if max_rate == -1:
             max_rate = LOG_REPORT_MAX_QPS
         return {
-            "bk_data_token": log_group.get_bk_data_token(),
+            "bk_data_token": log_group.token or log_group.bk_data_token or log_group.get_bk_data_token(),
             "bk_biz_id": log_group.bk_biz_id,
             "bk_app_name": log_group.log_group_name,
             "log_data_id": log_group.bk_data_id,

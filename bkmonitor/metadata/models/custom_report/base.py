@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import uuid
+
 from typing import Any, ClassVar, Self
 
 from django.conf import settings
@@ -165,6 +167,7 @@ class CustomGroupBase(models.Model):
             bk_data_id=bk_data_id,
             bk_biz_id=bk_biz_id,
             label=label,
+            token=uuid.uuid4().hex,
             creator=operator,
             last_modify_user=operator,
             is_delete=False,
