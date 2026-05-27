@@ -1162,11 +1162,12 @@ class TestResolveIdempotent:
         return persist, write, cascade
 
     @staticmethod
-    def _issue(status):
+    def _issue(status, name="订单服务异常"):
         from bkmonitor.documents.issue import IssueDocument
 
         issue = IssueDocument()
         issue.id = "iss-1"
+        issue.name = name
         issue.status = status
         return issue
 
@@ -1184,14 +1185,20 @@ class TestResolveIdempotent:
         write.assert_not_called()
         cascade.assert_not_called()
 
-    def test_archived_still_raises(self, monkeypatch):
+    def test_archived_still_raises_with_friendly_message(self, monkeypatch):
         from constants.issue import IssueStatus
 
         self._patch(monkeypatch)
-        issue = self._issue(IssueStatus.ARCHIVED)
+        issue = self._issue(IssueStatus.ARCHIVED, name="订单服务异常")
 
-        with pytest.raises(ValueError, match="Cannot resolve"):
+        with pytest.raises(ValueError) as ei:
             issue.resolve(operator="alice")
+        msg = str(ei.value)
+        # 面向用户：带 issue 名称 + 中文可读状态 + 动作，不暴露裸 id / 枚举值
+        assert "订单服务异常" in msg
+        assert "归档" in msg
+        assert "标记已解决" in msg
+        assert "archived" not in msg and "resolved" not in msg
 
     def test_active_status_transitions_normally(self, monkeypatch):
         from constants.issue import IssueStatus

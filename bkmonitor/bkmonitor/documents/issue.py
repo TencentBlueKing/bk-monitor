@@ -146,11 +146,19 @@ class IssueDocument(BaseDocument):
 
     # ── 状态机方法 ──
 
+    def _status_transition_error(self, action: str, allowed: str) -> ValueError:
+        """构造面向用户的状态流转报错：带 issue 名称 + 中文状态，而非裸 issue_id / 枚举值。
+
+        例：Issue「订单服务异常」当前状态为「归档」，仅活跃状态（待审核/未解决）才能标记已解决
+        """
+        current = IssueStatus.LABELS.get(self.status, self.status)
+        return ValueError(f"Issue「{self.name or self.id}」当前状态为「{current}」，{allowed}才能{action}")
+
     def assign(self, assignees: list[str], operator: str) -> list:
         """首次指派负责人：PENDING_REVIEW → UNRESOLVED"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.PENDING_REVIEW:
-            raise ValueError(f"Cannot assign: current status={self.status}, expected={IssueStatus.PENDING_REVIEW}")
+            raise self._status_transition_error("指派负责人", "仅「待审核」状态")
         old_status = self.status
         self.assignee = assignees
         self.status = IssueStatus.UNRESOLVED
@@ -187,9 +195,7 @@ class IssueDocument(BaseDocument):
         if self.status == IssueStatus.RESOLVED:
             return []
         if self.status not in IssueStatus.ACTIVE_STATUSES:
-            raise ValueError(
-                f"Cannot resolve: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
-            )
+            raise self._status_transition_error("标记已解决", "仅活跃状态（待审核/未解决）")
         old_status = self.status
         self.status = IssueStatus.RESOLVED
         self.resolved_time = int(time.time())
@@ -208,9 +214,7 @@ class IssueDocument(BaseDocument):
         """归档（实例级）：PENDING_REVIEW → ARCHIVED or UNRESOLVED → ARCHIVED"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
-            raise ValueError(
-                f"Cannot archive: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
-            )
+            raise self._status_transition_error("归档", "仅活跃状态（待审核/未解决）")
         old_status = self.status
         self.status = IssueStatus.ARCHIVED
         self.update_time = int(time.time())
@@ -228,7 +232,7 @@ class IssueDocument(BaseDocument):
         """重新打开：RESOLVED → UNRESOLVED"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.RESOLVED:
-            raise ValueError(f"Cannot reopen: current status={self.status}, expected={IssueStatus.RESOLVED}")
+            raise self._status_transition_error("重新打开", "仅「已解决」状态")
         old_status = self.status
         self.status = IssueStatus.UNRESOLVED
         self.update_time = int(time.time())
@@ -246,7 +250,7 @@ class IssueDocument(BaseDocument):
         """恢复归档：ARCHIVED → 归档前状态（从活动日志推断），无记录时回退到 PENDING_REVIEW"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.ARCHIVED:
-            raise ValueError(f"Cannot restore: current status={self.status}, expected={IssueStatus.ARCHIVED}")
+            raise self._status_transition_error("恢复", "仅「归档」状态")
         target_status = self._get_pre_archive_status()
         old_status = self.status
         self.status = target_status
