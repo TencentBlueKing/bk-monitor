@@ -98,8 +98,5 @@
   },
   "engines": {
     "node": ">= 20.17.0"
-  },
-  "dependencies": {
-    "@blueking/open-telemetry": "link:../../../../companyCode/bk-rum/packages/open-telemetry"
   }
 }

@@ -25,7 +25,15 @@
  */
 import { BkOpenTelemetry } from '@blueking/open-telemetry';
 new BkOpenTelemetry({
-  token: 'your-token',
-  endpoint: 'https://bk-rum.tencent.com/v1/traces',
+  app: {
+    name: 'bk_monitor',
+  },
   debug: true,
+  transport: {
+    endpoint: 'https://bk-rum.tencent.com/',
+    token: 'your-token',
+  },
+  user: {
+    id: window.user_name,
+  },
 });

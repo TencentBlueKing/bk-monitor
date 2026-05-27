@@ -22,6 +22,7 @@
     "@blueking/ip-selector": "0.3.0-beta.51",
     "@blueking/login-modal": "^1.0.6",
     "@blueking/notice-component-vue2": "^2.0.7",
+    "@blueking/open-telemetry": "^0.0.8",
     "@blueking/platform-config": "^1.0.5",
     "@blueking/search-select-v3": "0.0.1-beta.10",
     "apm": "workspace:*",
@@ -50,9 +51,9 @@
     "vue-router": "^3.6.5",
     "vue-tsx-support": "^3.2.0",
     "vuedraggable": "^2.24.3",
-    "web-vitals": "5.2.0",
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0",
+    "web-vitals": "5.2.0",
     "xlsx": "^0.18.5"
   },
   "keywords": [
