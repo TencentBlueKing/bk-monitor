@@ -190,7 +190,7 @@ class TestAlgorithm:
         assert obj.unit_prefix == "%"
         assert obj.level == 3
 
-    def test_save_only_merge_ai_service_control_fields_with_db_config(self, clean_model):
+    def test_save_merge_args_with_db_config(self, clean_model):
         algorithm_model = AlgorithmModel.objects.create(
             strategy_id=1,
             item_id=1,
@@ -213,7 +213,7 @@ class TestAlgorithm:
             level=2,
             type="IntelligentDetect",
             config={
-                "args": {"sensitivity": 3},
+                "args": {"sensitivity": 3, "request_arg": "frontend"},
                 "plan_id": 101,
                 "visual_type": "none",
                 "service_name": "default",
@@ -226,9 +226,9 @@ class TestAlgorithm:
 
         algorithm_model.refresh_from_db()
         assert algorithm_model.config == {
-            "args": {"sensitivity": 3},
+            "args": {"sensitivity": 3, "hidden_arg": "backend", "request_arg": "frontend"},
             "plan_id": 101,
-            "visual_type": "none",
+            "visual_type": "score",
             "service_name": "bkfara",
             "grey_to_bkfara": True,
             "enable_week_compare": True,

@@ -877,6 +877,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "bk_biz_id": self.bk_biz_id,
             "table_id": self.table_id,
             "label": self.label,
+            "token": self.token,
             "is_enable": self.is_enable,
             "creator": self.creator,
             "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -916,6 +917,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     "bk_biz_id": self.bk_biz_id,
                     "table_id": metric["table_id"],
                     "label": self.label,
+                    "token": self.token,
                     "is_enable": self.is_enable,
                     "creator": self.creator,
                     "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1081,9 +1083,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
-            time_series_metric_query = time_series_metric_query.filter(
-                Q(last_modify_time__gt=last) | Q(is_active=True)
-            )
+            time_series_metric_query = time_series_metric_query.filter(Q(last_modify_time__gt=last) | Q(is_active=True))
         # 查找过期时间以前的数据
         for metric in time_series_metric_query.iterator():
             metric_info = metric.to_metric_info(field_map=orm_field_map, group=self, scope_map=scope_map)

@@ -66,13 +66,6 @@ export interface UseSegmentPropOptions {
 }
 
 class UseSegmentProp {
-  /**
-   * 全局实例递增计数器。
-   * 同一页面可能同时加载多个检索包（例如 apm + trace），它们会共享 document.body。
-   * 这里通过递增计数为每个 UseSegmentProp 实例生成稳定且唯一的 owner id，
-   * 用于隔离弹层 DOM 的查询与复用，避免“后加载包误复用先加载包节点”。
-   */
-  private static instanceCounter = 0;
   private className = 'bklog-segment-pop-content';
   private wrapperClassName = 'bklog-pop-wrapper';
   private wrapperIdName = 'bklog_pop_wrapper';
@@ -86,6 +79,21 @@ class UseSegmentProp {
   private aiBluekingEnabled: boolean;
   private highlightEnabled: boolean;
 
+  /**
+   * 生成实例 owner id（跨 bundle 全局唯一）。
+   *
+   * 注意：APM 和 Trace 在宿主页里可能是两个独立构建产物，
+   * 如果只使用“模块内 static 计数器”，每个 bundle 都会从 1 开始计数，
+   * 最终产生同名 owner（例如都叫 segment-pop-1），依然会误复用对方节点。
+   *
+   * 这里把计数器提升到 window 级别，确保两个独立包共享同一计数空间。
+   */
+  private static getNextInstanceId() {
+    const nextCounter = (window.__BKLOG_SEGMENT_POP_COUNTER__ ?? 0) + 1;
+    window.__BKLOG_SEGMENT_POP_COUNTER__ = nextCounter;
+    return `segment-pop-${nextCounter}`;
+  }
+
   constructor({
     delineate = false,
     onclick,
@@ -94,9 +102,8 @@ class UseSegmentProp {
     highlightEnabled = true,
   }: UseSegmentPropOptions = {}) {
     const { $t } = useLocale();
-    // 生成实例唯一 owner，后续会写到 DOM data 属性中做精确定位。
-    UseSegmentProp.instanceCounter += 1;
-    this.instanceId = `segment-pop-${UseSegmentProp.instanceCounter}`;
+    // 生成全局唯一 owner，后续会写到 DOM data 属性中做精确定位。
+    this.instanceId = UseSegmentProp.getNextInstanceId();
     this.$t = $t;
     this.refContent = ref();
     this.delineate = delineate;

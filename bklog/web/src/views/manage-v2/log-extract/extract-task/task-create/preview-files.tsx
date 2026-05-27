@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, nextTick } from 'vue';
+import { debounce } from 'lodash-es';
+import { defineComponent, ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
 import { formatDate } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
@@ -73,6 +74,8 @@ export default defineComponent({
     const explorerList = ref<any[]>([]); // 文件列表
     const historyStack = ref<any[]>([]); // 预览地址历史
     const emptyType = ref('empty'); // 空状态类型
+    const filterInputValue = ref(''); // 文件过滤输入值
+    const filterKeyword = ref(''); // 节流后的文件过滤关键字
 
     const previewTableRef = ref<any>(null);
 
@@ -90,6 +93,28 @@ export default defineComponent({
     // 时间字符串值
     const timeStringValue = computed(() => {
       return [timeValue.value[0], timeValue.value[1]];
+    });
+
+    const updateFilterKeyword = debounce((val: string) => {
+      filterKeyword.value = String(val ?? '').trim().toLowerCase();
+    }, 200);
+
+    const handleFilterChange = (val: string) => {
+      filterInputValue.value = val;
+      updateFilterKeyword(val);
+    };
+
+    const filteredExplorerList = computed(() => {
+      const keyword = filterKeyword.value;
+      if (!keyword) {
+        return explorerList.value;
+      }
+
+      return explorerList.value.filter((item: any) => {
+        const fileName = String(item?.path ?? '').toLowerCase();
+        const modifiedTime = String(item?.mtime ?? '').toLowerCase();
+        return fileName.includes(keyword) || modifiedTime.includes(keyword);
+      });
     });
 
     // 监听IP列表变化
@@ -278,6 +303,10 @@ export default defineComponent({
     };
 
     // 暴露方法
+    onBeforeUnmount(() => {
+      updateFilterKeyword.cancel();
+    });
+
     expose({ getExplorerList, handleClone, getFindIpList, timeRange, timeStringValue, isSearchChild });
 
     // 主渲染函数
@@ -340,7 +369,17 @@ export default defineComponent({
         </div>
 
         {/* 表格标题 */}
-        <span class='table-head-text'>{t('从下载目标中选择预览目标')}</span>
+        <div class='preview-table-head'>
+          <span class='table-head-text'>{t('从下载目标中选择预览目标')}</span>
+          <bk-input
+            class='preview-file-filter-input'
+            clearable
+            placeholder={t('搜索文件名/最后修改时间')}
+            right-icon='bk-icon icon-search'
+            value={filterInputValue.value}
+            on-input={handleFilterChange}
+          />
+        </div>
 
         {/* 文件列表表格 */}
         <div
@@ -366,7 +405,7 @@ export default defineComponent({
                 </div>
               ),
             }}
-            data={explorerList.value}
+            data={filteredExplorerList.value}
             on-selection-change={handleSelect}
           >
             {/* 选择列 */}

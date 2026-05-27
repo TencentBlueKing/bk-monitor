@@ -1214,8 +1214,14 @@ class IndexSetHandler(APIModel):
 
         # 调用接口查询结果表集群信息
         table_str = ",".join(table_list)
+        table_str_map = CollectorConfig.get_table_str_map_by_storage_cluster_type(table_str)
+
+        if len(table_str_map) != 1:
+            return None
+
+        storage_cluster_type, group_table_str = next(iter(table_str_map.items()))
         storage_info = TransferApi.get_result_table_storage(
-            {"result_table_list": table_str, "storage_type": STORAGE_CLUSTER_TYPE}
+            {"result_table_list": group_table_str, "storage_type": storage_cluster_type}
         )
 
         # 校验所有结果表查询出的集群是否一致
@@ -1929,6 +1935,7 @@ class BaseIndexSetHandler:
         # ES路由
         objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
         for obj in objs:
+            cluster_info = StorageHandler(cluster_id=obj.storage_cluster_id).get_cluster_info_by_id()
             time_field = obj.time_field or index_set.time_field
             time_field_type = obj.time_field_type or index_set.time_field_type
             table_info = {
@@ -1936,6 +1943,7 @@ class BaseIndexSetHandler:
                 "index_set": obj.result_table_id.replace(".", "_"),
                 "source_type": obj.scenario_id,
                 "cluster_id": obj.storage_cluster_id,
+                "storage_type": cluster_info["cluster_type"],
                 "options": [
                     {
                         "name": "time_field",

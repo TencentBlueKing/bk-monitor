@@ -29,6 +29,8 @@ from apps.api import BkDataStorekitApi, TransferApi, UnifyQueryApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -220,12 +222,20 @@ class UnifyQueryMappingHandler:
                 }
             )
         # doris需要映射字段类型，根据新的类型获取操作列表
-        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
+        is_doris = (
+            str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
+            or CollectorConfig.get_storage_cluster_type_by_table_id(self.indices) == DORIS_CLUSTER_TYPE
+        )
         if is_doris:
             for field in fields_list:
                 field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field)
                 field["field_operator"] = OPERATORS.get(field["field_type"], [])
-                field["es_doc_values"] = field["field_type"] not in ["text", "object"]
+                field["es_doc_values"] = field["field_type"] not in ["text", "object"] and field["field_name"] not in [
+                    "dtEventTime",
+                    "localTime",
+                    "thedate",
+                    "__shard_key__",
+                ]
 
         for field in fields_list:
             # @TODO tag：兼容前端代码，后面需要删除

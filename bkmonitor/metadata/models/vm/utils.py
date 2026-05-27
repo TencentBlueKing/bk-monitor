@@ -603,8 +603,20 @@ def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_i
     # 3. 获取数据源对应的集群 ID
     data_type_cluster = get_data_type_cluster(data_id=data_id)
     # 4. 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
-    if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
+    access_vm_record = AccessVMRecord.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        result_table_id=table_id,
+        bk_base_data_id=data_id,
+    ).first()
+    if access_vm_record:
         logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
+
+        # 如果已经接入过 VM，则后续重入/强制更新继续使用已接入的 VM 集群。
+        exists_vm_cluster = ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_id=access_vm_record.vm_cluster_id
+        ).first()
+        if exists_vm_cluster:
+            vm_cluster_name = exists_vm_cluster.cluster_name
 
         create_fed_bkbase_data_link(
             bk_biz_id=bk_biz_id,

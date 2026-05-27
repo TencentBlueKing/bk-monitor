@@ -102,6 +102,7 @@ from constants.action import (
     NoticeWay,
     NotifyStep,
     UserGroupType,
+    VoiceNoticeMode,
 )
 from constants.aiops import DIMENSION_DRILL
 from constants.alert import EventSeverity, EventStatus
@@ -1105,6 +1106,64 @@ class TestActionProcessor(TransactionTestCase):
         p_action.create_sub_actions()
 
         self.assertEqual(ActionInstance.objects.filter(is_parent_action=False).count(), 9)
+
+    def test_voice_serial_order_follows_user_groups(self):
+        """串行电话：跨用户组拨打顺序应严格按 user_groups 配置列表顺序，不受 UserGroup 默认排序(-update_time) 影响"""
+        # 两个不轮值用户组，成员通过 DutyArrange 保存；仅保留电话(voice)一种通知方式，聚焦顺序断言
+        base = copy.deepcopy(self.user_group_data)
+        base["need_duty"] = False
+        base["duty_rules"] = []
+        base["mention_list"] = []
+        base["alert_notice"] = [
+            {"time_range": "00:00:00--23:59:59", "notify_config": [{"level": 1, "type": ["voice"]}]}
+        ]
+
+        data_a = copy.deepcopy(base)
+        data_a["name"] = "voice-order-A"
+        data_b = copy.deepcopy(base)
+        data_b["name"] = "voice-order-B"
+        group_a = UserGroup.objects.create(**data_a)
+        group_b = UserGroup.objects.create(**data_b)
+
+        DutyArrange.objects.create(
+            user_group_id=group_a.id,
+            order=1,
+            users=[{"id": "a1", "type": "user"}, {"id": "a2", "type": "user"}],
+        )
+        DutyArrange.objects.create(
+            user_group_id=group_b.id,
+            order=1,
+            users=[{"id": "b1", "type": "user"}, {"id": "b2", "type": "user"}],
+        )
+
+        # 构造 update_time 与配置顺序相反：B 更新更晚，使默认排序 -update_time 会把 B 排到 A 前面
+        now = datetime.now(tz=pytz.timezone("Asia/Shanghai"))
+        UserGroup.objects.filter(id=group_a.id).update(update_time=now - timedelta(hours=1))
+        UserGroup.objects.filter(id=group_b.id).update(update_time=now)
+
+        event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
+        alert = AlertDocument(**{"event": event, "severity": 1})
+
+        # user_groups 配置顺序为 [A, B]，voice 为“列表的列表”，应按配置顺序：A 在前、B 在后
+        notice_info = AlertAssignee(alert, [group_a.id, group_b.id]).get_notice_receivers()
+        self.assertEqual(notice_info["voice"], [["a1", "a2"], ["b1", "b2"]])
+
+        # 串行模式拍平后，拨打顺序应为 a1,a2,b1,b2（而非受 update_time 影响的 b1,b2,a1,a2）
+        p_action = ActionInstance.objects.create(
+            inputs={"notify_info": notice_info, "voice_notice_mode": VoiceNoticeMode.SERIAL},
+            signal=ActionSignal.ABNORMAL,
+            strategy_id=0,
+            is_parent_action=True,
+        )
+        p_action.create_sub_actions()
+
+        voice_subs = [
+            a
+            for a in ActionInstance.objects.filter(is_parent_action=False)
+            if a.inputs["notice_way"] == NoticeWay.VOICE
+        ]
+        self.assertEqual(len(voice_subs), 1)
+        self.assertEqual(voice_subs[0].inputs["notice_receiver"], ["a1", "a2", "b1", "b2"])
 
     def test_notify_with_appointee(self):
         duty_plans = copy.deepcopy(self.duty_plans)
