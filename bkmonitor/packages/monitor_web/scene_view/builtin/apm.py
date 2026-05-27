@@ -372,7 +372,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         # k8s 场景
         if builtin_view == "apm_service-service-default-container":
-            return cls.get_container_view(params, bk_biz_id, app_name, service_name, view, view_config, builtin_view)
+            return cls.get_container_view_v2(params, bk_biz_id, app_name, service_name, view_config, builtin_view)
 
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
@@ -552,7 +552,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     ):
         # display_with_sidebar: 是否页面配置展示为侧边栏(在观测场景处显示为侧边栏，在主机场景处显示为顶部栏下拉框)
         # 获取观测场景或 span 检索处关联容器的图表配置
-        # 时间范围必传
         start_time = params.get("start_time")
         end_time = params.get("end_time")
         if not start_time or not end_time:
@@ -574,6 +573,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 return cls._add_config_from_container(app_name, service_name, view, view_config, display_with_sidebar)
 
         return cls._get_non_container_view_config(builtin_view, params)
+
+    @classmethod
+    def get_container_view_v2(
+        cls,
+        params: dict[str, Any],
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        view_config: dict[str, Any],
+        builtin_view: str,
+    ):
+        from apm_web.container.resources import ListServiceK8sTargetsResource
+
+        target_list: list[dict[str, Any]] = ListServiceK8sTargetsResource()(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+        ).get("target_list", [])
+        if not target_list:
+            return cls._get_non_container_view_config(builtin_view, params)
+        return view_config
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
@@ -833,6 +851,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def _get_non_container_view_config(cls, builtin_view, params):
+        service_config_link: str = "/service-config?app_name={app_name}&service_name={service_name}".format(
+            app_name=params.get("app_name", ""),
+            service_name=params.get("service_name", ""),
+        )
+        service_config_url: str = "{bk_monitor_url}/?bizId={bk_biz_id}#/apm{service_config_link}".format(
+            bk_monitor_url=settings.BK_MONITOR_HOST,
+            bk_biz_id=params.get("bk_biz_id"),
+            service_config_link=service_config_link,
+        )
+
         return {
             "id": "container",
             "type": "overview",
@@ -849,14 +877,20 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             "data": {
                                 "type": "empty",
                                 "title": _("暂未发现关联 Pod"),
+                                "link": {"target": "self", "value": _("关联容器负载"), "url": service_config_link},
                                 "subTitle": _(
-                                    "如何发现容器信息:\n"
-                                    "1. [推荐] 将上报地址切换为集群内上报，即可自动获取关联。\n"
-                                    "2. 手动补充以下全部集群信息字段，也可以进行关联："
-                                    "k8s.bcs.cluster.id(集群 Id), "
-                                    "k8s.pod.name(Pod 名称), "
-                                    "k8s.namespace.name(Pod 所在命名空间)。\n"
-                                    "如果还是没有数据，可能是由于所选时间段的 Pod 已经销毁。\n",
+                                    "如何关联容器信息:\n"
+                                    "1. APM 支持与 BCS 打通，你可以通过以下方式简单配置，：\n"
+                                    "- 方式 1（推荐 🌟）：将上报域名切换为集群内域名（bkm-collector.bkmonitor-operator），"
+                                    "端口、上报路径与之前一致，即可自动获取关联。\n"
+                                    "- 方式 2：在服务代码补充以下全部集群信息字段到 Span Resource，也可以进行关联：\n"
+                                    "   - k8s.bcs.cluster.id（集群 ID）\n"
+                                    "   - k8s.pod.name（Pod 名称）\n"
+                                    "   - k8s.namespace.name（Pod 所在命名空间）\n"
+                                    f"- 详见 <a href='{settings.APM_ACCESS_URL}' target='_blank'>应用性能监控（APM）数据接入指南</a>，"
+                                    "每个语言的接入文档中均有「如何自动发现容器信息」指引。\n\n"
+                                    f"2. 快捷配置：前往 <a href='{service_config_url}' target='_blank'>服务配置</a>，"
+                                    "在「事件关联 -> 容器事件」手动关联具体 Workload，即可实现在 APM 查看服务所关联容器负载的监控、事件数据。\n"
                                 ),
                             }
                         }
