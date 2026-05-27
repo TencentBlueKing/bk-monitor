@@ -154,7 +154,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['expand', 'collect', 'url-sync'],
+  emits: ['expand', 'collect', 'url-sync', 'scroll-state-change'],
   setup(props, { emit }) {
     const store = useStore();
 
@@ -551,14 +551,29 @@ export default defineComponent({
 
     /** 滚动触底加载更多日志 */
     let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastScrollTop = 0;
     const handleLogScroll = () => {
+      const el = logContentScrollRef.value;
+      if (!el) return;
+
+      // 更新回到顶部按钮显示状态
+      showScrollTop.value = el.scrollTop > 300;
+
+      // 判断滚动方向，通知父组件折叠/展开 UserInfoCard
+      const isScrollingDown = el.scrollTop > lastScrollTop && el.scrollTop > 50;
+      const isScrolledToTop = el.scrollTop < 10;
+      if (isScrollingDown) {
+        emit('scroll-state-change', true);
+      } else if (isScrolledToTop) {
+        emit('scroll-state-change', false);
+      }
+      lastScrollTop = el.scrollTop;
+
+      // 触底加载更多日志（防抖）
       if (scrollTimer) clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
         const el = logContentScrollRef.value;
         if (!el) return;
-
-        // 更新回到顶部按钮显示状态
-        showScrollTop.value = el.scrollTop > 300;
 
         if (isLoadMore.value || isLogLoading.value || !hasMore.value) return;
 

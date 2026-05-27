@@ -101,6 +101,9 @@ export default defineComponent({
     /** 是否收起左侧任务列表面板 */
     const isTaskListCollapsed = ref(false);
 
+    /** 是否折叠用户信息卡片 */
+    const isUserInfoCollapsed = ref(false);
+
     /** 当前选中的日志条目 */
     const selectedLogItem = ref<LogItem | null>(null);
 
@@ -318,6 +321,11 @@ export default defineComponent({
     /** LogDetailPanel URL 同步回调 */
     const handleUrlSync = (state: Partial<UrlState>) => {
       syncUrlParams(state);
+    };
+
+    /** LogDetailPanel 滚动状态变化回调（控制用户信息卡片折叠/展开） */
+    const handleScrollStateChange = (collapsed: boolean) => {
+      isUserInfoCollapsed.value = collapsed;
     };
 
     /** 点击日志条目 */
@@ -693,6 +701,7 @@ export default defineComponent({
         userReportStats={userReportStats.value}
         taskList={taskList.value}
         timezone={lastSearchParams.value.timezone}
+        collapsed={isUserInfoCollapsed.value}
       />,
       <div class='task-content-area'>
         {/* 左侧：任务列表 */}
@@ -722,6 +731,7 @@ export default defineComponent({
           on-expand={handleExpandTaskList}
           on-collect={handleCollectNow}
           on-url-sync={handleUrlSync}
+          on-scroll-state-change={handleScrollStateChange}
         />
       </div>,
     ];

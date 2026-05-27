@@ -73,6 +73,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 是否折叠 */
+    collapsed: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     /** 渲染单个详情项 */
@@ -97,7 +102,7 @@ export default defineComponent({
       const list = props.taskList;
 
       return (
-        <div class='user-info-card card-base'>
+        <div class={['user-info-card', 'card-base', { 'is-collapsed': props.collapsed }]}>
           {/* 左侧用户图标 */}
           <div class='user-avatar'>
             <i class='bklog-icon bklog-user-yonghu'></i>
