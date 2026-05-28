@@ -191,13 +191,6 @@ export const getRouteConfig = () => {
               // isBeta: window.platform?.te === false,
               canStore: true,
             },
-          ],
-        },
-        {
-          name: '前端监控',
-          shortName: 'RUM',
-          id: 'monitor-frontend-rum',
-          children: [
             {
               name: 'RUM',
               icon: 'icon-monitor icon-APM menu-icon',
