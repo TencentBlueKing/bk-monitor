@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from core.drf_resource.exceptions import CustomException
+from django.db.models import Q
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     PAGE_LIST_TENANT_SCHEMA,
@@ -27,6 +28,7 @@ from kernel_api.rpc.functions.admin.common import (
     normalize_ordering,
     normalize_pagination,
     paginate_queryset,
+    serialize_model,
     serialize_value,
 )
 from metadata import models
@@ -34,6 +36,7 @@ from metadata.utils import es_tools
 
 FUNC_CLUSTER_INFO_LIST = "admin.cluster_info.list"
 FUNC_CLUSTER_INFO_DETAIL = "admin.cluster_info.detail"
+FUNC_CLUSTER_INFO_SPACE_VM_INFO_LIST = "admin.cluster_info.space_vm_info_list"
 FUNC_CLUSTER_INFO_COMPONENT_CONFIG = "admin.cluster_info.component_config"
 FUNC_CLUSTER_INFO_ES_OVERVIEW = "admin.cluster_info.es_overview"
 INSPECT_SAFETY_LEVEL = "inspect"
@@ -88,11 +91,42 @@ ORDERING_FIELDS = {
     "create_time",
     "last_modify_time",
 }
+SPACE_VM_INFO_ORDERING_FIELDS = {"id", "space_type", "space_id", "status", "create_time", "update_time"}
 
 CLUSTER_LIST_INCLUDE_VALUES = {"associated_counts"}
 DEFAULT_LIST_INCLUDE = {"associated_counts"}
 INCLUDE_VALUES = {"component_config"}
 DEFAULT_DETAIL_INCLUDE = {"component_config"}
+
+SPACE_VM_INFO_FIELDS = [
+    "id",
+    "space_type",
+    "space_id",
+    "vm_cluster_id",
+    "vm_retention_time",
+    "status",
+    "creator",
+    "create_time",
+    "updater",
+    "update_time",
+]
+SPACE_SUMMARY_FIELDS = [
+    "id",
+    "bk_tenant_id",
+    "space_type_id",
+    "space_id",
+    "space_name",
+    "space_code",
+    "status",
+    "time_zone",
+    "language",
+    "is_bcs_valid",
+    "is_global",
+    "creator",
+    "create_time",
+    "last_modify_user",
+    "last_modify_time",
+]
 
 STORAGE_MODEL_MAP: dict[str, type[Any] | None] = {
     models.ClusterInfo.TYPE_KAFKA: models.KafkaStorage,
@@ -333,13 +367,32 @@ def _enrich_clusters_with_datasource_count(
 
 def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_tenant_id: str | None) -> dict[Any, int]:
     storage_model_map: dict[type[Any], list[int]] = {}
+    vm_cluster_ids: list[int] = []
     for cluster in clusters:
+        if cluster.cluster_type == models.ClusterInfo.TYPE_VM:
+            vm_cluster_ids.append(cluster.cluster_id)
+            continue
         model_cls = _get_storage_model_for_cluster_type(cluster.cluster_type)
         if model_cls is None:
             continue
         storage_model_map.setdefault(model_cls, []).append(cluster.cluster_id)
 
-    result: dict[int, int] = {}
+    result: dict[Any, int] = {}
+    if vm_cluster_ids:
+        if bk_tenant_id is None:
+            result.update(
+                count_by_tenant_and_field(models.AccessVMRecord, group_field="vm_cluster_id", values=vm_cluster_ids)
+            )
+        else:
+            result.update(
+                count_by_field(
+                    models.AccessVMRecord,
+                    group_field="vm_cluster_id",
+                    values=vm_cluster_ids,
+                    bk_tenant_id=bk_tenant_id,
+                )
+            )
+
     for model_cls, cluster_ids in storage_model_map.items():
         if bk_tenant_id is None:
             grouped = count_by_tenant_and_field(model_cls, group_field="storage_cluster_id", values=cluster_ids)
@@ -406,6 +459,92 @@ def list_cluster_infos(params: dict[str, Any]) -> dict[str, Any]:
 def _resolve_cluster_type(params: dict[str, Any], cluster: models.ClusterInfo) -> str:
     override = params.get("cluster_type")
     return str(override).strip() if override not in (None, "") else cluster.cluster_type
+
+
+def _split_space_uid_filter(value: Any) -> tuple[str, str]:
+    space_uid = str(value or "").strip()
+    parts = space_uid.split("__", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise CustomException(message="space_uid 格式不合法，应为 <space_type_id>__<space_id>")
+    return parts[0], parts[1]
+
+
+def _split_search_space_uid(value: str) -> tuple[str, str] | None:
+    if value.count("__") != 1:
+        return None
+    space_type, space_id = value.split("__", 1)
+    space_type = space_type.strip()
+    space_id = space_id.strip()
+    return (space_type, space_id) if space_type and space_id else None
+
+
+def _compose_space_uid(space_type_id: str, space_id: str) -> str:
+    return f"{space_type_id}__{space_id}"
+
+
+def _serialize_space_summary(space: models.Space | None) -> dict[str, Any] | None:
+    if space is None:
+        return None
+    item = serialize_model(space, SPACE_SUMMARY_FIELDS)
+    item["space_uid"] = _compose_space_uid(space.space_type_id, space.space_id)
+    return item
+
+
+def _serialize_cluster_space_vm_info(
+    space_vm_info: models.SpaceVMInfo,
+    spaces_by_key: dict[tuple[str, str], models.Space],
+) -> dict[str, Any]:
+    space_key = (space_vm_info.space_type, space_vm_info.space_id)
+    return {
+        "space_vm_info": serialize_model(space_vm_info, SPACE_VM_INFO_FIELDS),
+        "space": _serialize_space_summary(spaces_by_key.get(space_key)),
+    }
+
+
+def _space_pair_query(space_vm_infos: list[models.SpaceVMInfo]) -> Q:
+    query = Q()
+    for space_vm_info in space_vm_infos:
+        query |= Q(space_type_id=space_vm_info.space_type, space_id=space_vm_info.space_id)
+    return query
+
+
+def _load_spaces_for_space_vm_infos(
+    bk_tenant_id: str, space_vm_infos: list[models.SpaceVMInfo]
+) -> dict[tuple[str, str], models.Space]:
+    if not space_vm_infos:
+        return {}
+    query = _space_pair_query(space_vm_infos)
+    spaces = models.Space.objects.filter(bk_tenant_id=bk_tenant_id).filter(query)
+    return {(space.space_type_id, space.space_id): space for space in spaces}
+
+
+def _build_space_vm_info_queryset(params: dict[str, Any], bk_tenant_id: str, cluster_id: int):
+    queryset = models.SpaceVMInfo.objects.filter(vm_cluster_id=cluster_id)
+
+    if params.get("space_uid"):
+        space_type, space_id = _split_space_uid_filter(params["space_uid"])
+        queryset = queryset.filter(space_type=space_type, space_id=space_id)
+    if params.get("space_type") not in (None, ""):
+        queryset = queryset.filter(space_type=str(params["space_type"]).strip())
+    if params.get("space_id") not in (None, ""):
+        queryset = queryset.filter(space_id__icontains=str(params["space_id"]).strip())
+    if params.get("status") not in (None, ""):
+        queryset = queryset.filter(status=str(params["status"]).strip())
+
+    search = str(params.get("search") or "").strip()
+    if search:
+        search_query = Q(space_id__icontains=search)
+        space_uid_parts = _split_search_space_uid(search)
+        if space_uid_parts:
+            search_query |= Q(space_type=space_uid_parts[0], space_id__icontains=space_uid_parts[1])
+        matching_spaces = models.Space.objects.filter(bk_tenant_id=bk_tenant_id).filter(
+            Q(space_id__icontains=search) | Q(space_name__icontains=search)
+        )[:1000]
+        for space in matching_spaces:
+            search_query |= Q(space_type=space.space_type_id, space_id=space.space_id)
+        queryset = queryset.filter(search_query)
+
+    return queryset
 
 
 @KernelRPCRegistry.register(
@@ -499,9 +638,16 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
     cluster_item["associated_datasources"] = datasource_count
 
     storage_count = 0
-    storage_model = _get_storage_model_for_cluster_type(effective_cluster_type)
-    if storage_model is not None:
-        storage_count = storage_model.objects.filter(bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id).count()
+    if effective_cluster_type == models.ClusterInfo.TYPE_VM:
+        storage_count = models.AccessVMRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id, vm_cluster_id=cluster_id
+        ).count()
+    else:
+        storage_model = _get_storage_model_for_cluster_type(effective_cluster_type)
+        if storage_model is not None:
+            storage_count = storage_model.objects.filter(
+                bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id
+            ).count()
     data["related_result_tables"] = storage_count
     cluster_item["associated_storages"] = storage_count
 
@@ -511,6 +657,65 @@ def get_cluster_info_detail(params: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id=bk_tenant_id,
         data=data,
         warnings=warnings,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_CLUSTER_INFO_SPACE_VM_INFO_LIST,
+    summary="Admin 查询 VM ClusterInfo 关联 SpaceVMInfo",
+    description=(
+        "只读分页查询指定 VM 集群关联的 SpaceVMInfo。该接口只面向 "
+        "ClusterInfo.cluster_type=victoria_metrics 的集群，支持按 space_uid、space_type、"
+        "space_id、status 或统一 search 检索，并补充当前租户下匹配的 Space 摘要。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "cluster_id": "必填，VM ClusterInfo.cluster_id",
+        "search": "可选，统一搜索；匹配 space_uid / space_id / space_name",
+        "space_uid": "可选，格式为 <space_type_id>__<space_id>",
+        "space_type": "可选，SpaceVMInfo.space_type 精确匹配",
+        "space_id": "可选，SpaceVMInfo.space_id 包含匹配",
+        "status": "可选，SpaceVMInfo.status 精确匹配",
+        "page": "可选，默认 1",
+        "page_size": "可选，默认 20，最大 100",
+        "ordering": f"可选，白名单字段: {', '.join(sorted(SPACE_VM_INFO_ORDERING_FIELDS))}，默认 id",
+    },
+    example_params={"bk_tenant_id": "system", "cluster_id": 10001, "search": "bkcc__2", "page": 1},
+)
+def list_cluster_space_vm_infos(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    cluster_id = params.get("cluster_id")
+    if cluster_id in (None, ""):
+        raise CustomException(message="cluster_id 为必填项")
+    try:
+        cluster_id = int(cluster_id)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="cluster_id 必须是整数") from error
+
+    try:
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
+    except models.ClusterInfo.DoesNotExist as error:
+        raise CustomException(message=f"未找到 ClusterInfo: cluster_id={cluster_id}") from error
+
+    if cluster.cluster_type != models.ClusterInfo.TYPE_VM:
+        raise CustomException(message=f"cluster_id={cluster_id} 不是 victoria_metrics 集群")
+
+    page, page_size = normalize_pagination(params)
+    ordering = normalize_ordering(params.get("ordering"), SPACE_VM_INFO_ORDERING_FIELDS, default="id")
+    queryset = _build_space_vm_info_queryset(params, bk_tenant_id, cluster_id).order_by(ordering, "id")
+    rows, total = paginate_queryset(queryset, page=page, page_size=page_size)
+    spaces_by_key = _load_spaces_for_space_vm_infos(bk_tenant_id, rows)
+
+    return build_response(
+        operation="cluster_info.space_vm_info_list",
+        func_name=FUNC_CLUSTER_INFO_SPACE_VM_INFO_LIST,
+        bk_tenant_id=bk_tenant_id,
+        data={
+            "items": [_serialize_cluster_space_vm_info(row, spaces_by_key) for row in rows],
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+        },
     )
 
 

@@ -28,7 +28,11 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
-from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
+from kernel_api.rpc.functions.admin.cluster_info import (
+    _build_es_cluster_overview,
+    _serialize_cluster_info,
+    _serialize_cluster_space_vm_info,
+)
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin import datalink as admin_datalink
 from kernel_api.rpc.functions.admin.datalink import (
@@ -105,6 +109,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.result_table.field_options",
         "admin.cluster_info.list",
         "admin.cluster_info.detail",
+        "admin.cluster_info.space_vm_info_list",
         "admin.bcs_cluster.list",
         "admin.bcs_cluster.detail",
         "admin.bcs_cluster.data_id_list",
@@ -283,6 +288,47 @@ def test_space_vm_info_serializer_includes_vm_cluster_or_null():
 
     missing_cluster_item = admin_space._serialize_space_vm_info(space_vm_info, {})
     assert missing_cluster_item["vm_cluster"] is None
+
+
+def test_cluster_space_vm_info_serializer_includes_space_summary_or_null():
+    space_vm_info = SimpleNamespace(
+        id=1,
+        space_type="bkcc",
+        space_id="2",
+        vm_cluster_id=10001,
+        vm_retention_time="30d",
+        status="normal",
+        creator="admin",
+        create_time=datetime(2026, 5, 27, 10, 0, 0),
+        updater="admin",
+        update_time=datetime(2026, 5, 27, 10, 5, 0),
+    )
+    space = SimpleNamespace(
+        id=2,
+        bk_tenant_id="system",
+        space_type_id="bkcc",
+        space_id="2",
+        space_name="蓝鲸监控",
+        space_code=None,
+        status="normal",
+        time_zone="Asia/Shanghai",
+        language="zh-hans",
+        is_bcs_valid=True,
+        is_global=False,
+        creator="admin",
+        create_time=datetime(2026, 5, 27, 9, 0, 0),
+        last_modify_user="admin",
+        last_modify_time=datetime(2026, 5, 27, 9, 5, 0),
+    )
+
+    item = _serialize_cluster_space_vm_info(space_vm_info, {("bkcc", "2"): space})
+
+    assert item["space_vm_info"]["vm_cluster_id"] == 10001
+    assert item["space"]["space_uid"] == "bkcc__2"
+    assert item["space"]["space_name"] == "蓝鲸监控"
+
+    missing_space_item = _serialize_cluster_space_vm_info(space_vm_info, {})
+    assert missing_space_item["space"] is None
 
 
 def test_render_image_task_serializer_extracts_options_and_duration():
@@ -1587,6 +1633,13 @@ def test_cluster_info_detail_function_registered():
     assert "cluster_id" in detail["params_schema"]
 
 
+def test_cluster_info_space_vm_info_list_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.space_vm_info_list")
+    assert detail is not None
+    assert detail["func_name"] == "admin.cluster_info.space_vm_info_list"
+    assert "search" in detail["params_schema"]
+
+
 def test_cluster_info_list_supports_lightweight_include():
     detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
     assert detail is not None
@@ -1716,6 +1769,7 @@ def test_storage_functions_registered():
 
     assert "table_id" in KernelRPCRegistry.get_function_detail("admin.doris_storage.list")["params_schema"]
     assert "id" in KernelRPCRegistry.get_function_detail("admin.vm_storage.detail")["params_schema"]
+    assert "vm_cluster_id" in KernelRPCRegistry.get_function_detail("admin.vm_storage.list")["params_schema"]
     assert (
         "data_link_name" in KernelRPCRegistry.get_function_detail("admin.bkbase_result_table.detail")["params_schema"]
     )
