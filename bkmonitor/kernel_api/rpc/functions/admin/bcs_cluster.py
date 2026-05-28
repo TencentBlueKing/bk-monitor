@@ -156,12 +156,13 @@ BK_COLLECTOR_PLATFORM_SENSITIVE_PATTERN = re.compile(
     r"(?P<quote>[\"']?)(?P<value>[^\"'\n,}\]]+)(?P=quote)",
     re.IGNORECASE,
 )
-BKMONITOR_OPERATOR_RELEASE_NAME = "bkmonitor-operator"
+BKMONITOR_OPERATOR_NAMESPACE_KEYWORD = "bkmonitor-operator"
 BKMONITOR_OPERATOR_RELEASE_SECRET_TYPE = "helm.sh/release.v1"
 BKMONITOR_OPERATOR_RELEASE_SECRET_NAME_PATTERN = re.compile(
-    rf"^sh\.helm\.release\.v1\.{re.escape(BKMONITOR_OPERATOR_RELEASE_NAME)}\.v(?P<revision>\d+)$"
+    r"^sh\.helm\.release\.v1\.(?P<release_name>.+)\.v(?P<revision>\d+)$"
 )
-BKMONITOR_OPERATOR_HELM_LABEL_SELECTOR = f"owner=helm,name={BKMONITOR_OPERATOR_RELEASE_NAME}"
+BKMONITOR_OPERATOR_HELM_LABEL_SELECTOR = "owner=helm"
+BKMONITOR_OPERATOR_RELEASE_REF_SEPARATOR = ":"
 
 
 def _mark_inspect_response(response: dict[str, Any]) -> dict[str, Any]:
@@ -415,27 +416,9 @@ def _get_bk_collector_namespace_context(
     }
 
 
-def _get_bcs_operator_namespace_context(
-    cluster: models.BCSClusterInfo,
-    *,
-    use_config_namespace: bool = False,
-) -> dict[str, Any]:
-    operator_namespace = getattr(cluster, "operator_ns", None)
-    if not operator_namespace:
-        raise CustomException(message=f"BCSClusterInfo.operator_ns 为空: cluster_id={cluster.cluster_id}")
-
+def _get_bcs_operator_configured_namespace(cluster: models.BCSClusterInfo) -> str | None:
     cluster_namespace = settings.K8S_OPERATOR_DEPLOY_NAMESPACE or {}
-    configured_namespace = cluster_namespace.get(cluster.cluster_id)
-    can_use_configured_namespace = bool(configured_namespace)
-    using_configured_namespace = bool(use_config_namespace and can_use_configured_namespace)
-    namespace = configured_namespace if using_configured_namespace else operator_namespace
-    return {
-        "namespace": namespace,
-        "operator_namespace": operator_namespace,
-        "configured_namespace": configured_namespace,
-        "can_use_configured_namespace": can_use_configured_namespace,
-        "using_configured_namespace": using_configured_namespace,
-    }
+    return cluster_namespace.get(cluster.cluster_id)
 
 
 def _get_bk_collector_core_client(cluster: models.BCSClusterInfo) -> k8s_client.CoreV1Api:
@@ -816,6 +799,22 @@ def _read_helm_release_config(release: dict[str, Any]) -> Any:
     return config_value if isinstance(config_value, dict) else {}
 
 
+def _encode_bkmonitor_operator_release_ref(namespace: str, secret_name: str) -> str:
+    return f"{namespace}{BKMONITOR_OPERATOR_RELEASE_REF_SEPARATOR}{secret_name}"
+
+
+def _decode_bkmonitor_operator_release_ref(release_ref: str) -> tuple[str | None, str]:
+    if BKMONITOR_OPERATOR_RELEASE_REF_SEPARATOR not in release_ref:
+        return None, release_ref
+
+    namespace, secret_name = release_ref.split(BKMONITOR_OPERATOR_RELEASE_REF_SEPARATOR, 1)
+    namespace = namespace.strip()
+    secret_name = secret_name.strip()
+    if not namespace or not secret_name:
+        raise CustomException(message="release_ref 格式无效")
+    return namespace, secret_name
+
+
 def _serialize_bkmonitor_operator_release_secret(
     secret: Any,
     *,
@@ -836,7 +835,11 @@ def _serialize_bkmonitor_operator_release_secret(
         secret_data = {}
 
     item = {
-        "release_ref": secret_name,
+        "release_ref": _encode_bkmonitor_operator_release_ref(
+            getattr(metadata, "namespace", None) or namespace,
+            secret_name,
+        ),
+        "release_name": matched.group("release_name"),
         "secret_name": secret_name,
         "namespace": getattr(metadata, "namespace", None) or namespace,
         "revision": int(matched.group("revision")),
@@ -860,10 +863,48 @@ def _serialize_bkmonitor_operator_release_secret(
     return item
 
 
+def _list_bkmonitor_operator_candidate_namespaces(
+    core_client: k8s_client.CoreV1Api,
+    cluster: models.BCSClusterInfo,
+) -> tuple[list[str], str | None, list[dict[str, Any]]]:
+    configured_namespace = _get_bcs_operator_configured_namespace(cluster)
+    warnings: list[dict[str, Any]] = []
+    discovered_namespaces: list[str] = []
+
+    try:
+        namespace_list = core_client.list_namespace()
+    except k8s_client.exceptions.ApiException as error:
+        warnings.append(
+            {
+                "code": "BKMONITOR_OPERATOR_NAMESPACE_LIST_FAILED",
+                "message": f"查询集群 namespace 列表失败: {error}",
+            }
+        )
+    else:
+        for namespace in getattr(namespace_list, "items", []) or []:
+            namespace_name = getattr(getattr(namespace, "metadata", None), "name", "") or ""
+            if BKMONITOR_OPERATOR_NAMESPACE_KEYWORD in namespace_name:
+                discovered_namespaces.append(namespace_name)
+
+    namespace_candidates: list[str] = []
+    for namespace in [*sorted(set(discovered_namespaces)), configured_namespace]:
+        if namespace and namespace not in namespace_candidates:
+            namespace_candidates.append(namespace)
+
+    if not namespace_candidates:
+        warnings.append(
+            {
+                "code": "BKMONITOR_OPERATOR_NAMESPACE_EMPTY",
+                "message": ("未发现包含 bkmonitor-operator 的 namespace，且未配置 K8S_OPERATOR_DEPLOY_NAMESPACE"),
+            }
+        )
+
+    return namespace_candidates, configured_namespace, warnings
+
+
 def _list_bkmonitor_operator_release_secrets(
-    cluster: models.BCSClusterInfo, namespace: str
+    core_client: k8s_client.CoreV1Api, namespace: str
 ) -> tuple[list[Any], list[dict[str, Any]]]:
-    core_client = _get_bk_collector_core_client(cluster)
     try:
         secret_list = core_client.list_namespaced_secret(
             namespace=namespace,
@@ -873,33 +914,78 @@ def _list_bkmonitor_operator_release_secrets(
         return [], [
             {
                 "code": "BKMONITOR_OPERATOR_RELEASE_LIST_FAILED",
-                "message": f"查询 bkmonitor-operator Helm release Secret 失败: {error}",
+                "message": f"查询 namespace={namespace} 中的 Helm release Secret 失败: {error}",
             }
         ]
     return list(getattr(secret_list, "items", []) or []), []
 
 
 def _collect_bkmonitor_operator_releases(
-    cluster: models.BCSClusterInfo,
     *,
-    namespace: str,
+    core_client: k8s_client.CoreV1Api,
+    namespace_candidates: list[str],
     include_values: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    secrets, warnings = _list_bkmonitor_operator_release_secrets(cluster, namespace)
-    items = [
-        item
-        for item in (
-            _serialize_bkmonitor_operator_release_secret(
-                secret,
-                namespace=namespace,
-                include_values=include_values,
+    items: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    for namespace in namespace_candidates:
+        secrets, namespace_warnings = _list_bkmonitor_operator_release_secrets(core_client, namespace)
+        warnings.extend(namespace_warnings)
+        items.extend(
+            item
+            for item in (
+                _serialize_bkmonitor_operator_release_secret(
+                    secret,
+                    namespace=namespace,
+                    include_values=include_values,
+                )
+                for secret in secrets
             )
-            for secret in secrets
+            if item is not None
         )
-        if item is not None
-    ]
-    items.sort(key=lambda item: item["revision"], reverse=True)
+    items.sort(key=_get_bkmonitor_operator_release_sort_key, reverse=True)
     return items, warnings
+
+
+def _get_bkmonitor_operator_release_sort_key(item: dict[str, Any]) -> tuple[str, int, str, str]:
+    return (
+        item.get("updated_at") or item.get("created_at") or "",
+        item.get("revision") or 0,
+        item.get("namespace") or "",
+        item.get("secret_name") or "",
+    )
+
+
+def _group_bkmonitor_operator_releases(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped_items: dict[str, list[dict[str, Any]]] = {}
+    for item in items:
+        release_name = item.get("release_name") or item.get("secret_name") or "unknown"
+        grouped_items.setdefault(str(release_name), []).append(item)
+
+    groups: list[dict[str, Any]] = []
+    for release_name, release_items in grouped_items.items():
+        release_items.sort(key=_get_bkmonitor_operator_release_sort_key, reverse=True)
+        latest_item = release_items[0]
+        groups.append(
+            {
+                "release_name": release_name,
+                "latest_revision": latest_item.get("revision"),
+                "latest_status": latest_item.get("status"),
+                "latest_updated_at": latest_item.get("updated_at"),
+                "namespaces": sorted({item["namespace"] for item in release_items if item.get("namespace")}),
+                "items": release_items,
+            }
+        )
+
+    groups.sort(
+        key=lambda group: (
+            group.get("latest_updated_at") or "",
+            group.get("latest_revision") or 0,
+            group.get("release_name") or "",
+        ),
+        reverse=True,
+    )
+    return groups
 
 
 @KernelRPCRegistry.register(
@@ -1182,34 +1268,52 @@ def get_bcs_cluster_bk_collector_config_detail(params: dict[str, Any]) -> dict[s
     FUNC_BCS_CLUSTER_BKMONITOR_OPERATOR_RELEASE_LIST,
     summary="Admin 实时查询 BCS 集群 bkmonitor-operator Helm release 列表",
     description=(
-        "inspect 级别能力，通过 Kubernetes CoreV1Api 实时读取 BCSClusterInfo.operator_ns 中 "
-        "bkmonitor-operator Helm release Secret，展示 revision、chart version、部署时间和状态，只读不写。"
+        "inspect 级别能力，通过 Kubernetes CoreV1Api 扫描名称包含 bkmonitor-operator 的 namespace，"
+        "以及 K8S_OPERATOR_DEPLOY_NAMESPACE 配置 namespace 中的 Helm release Secret，按 release-name 分组展示，只读不写。"
     ),
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "cluster_id": "必填，BCSClusterInfo.cluster_id",
-        "use_config_namespace": "可选，默认 false；true 时使用 K8S_OPERATOR_DEPLOY_NAMESPACE 中配置的命名空间",
+        "use_config_namespace": "兼容旧参数，当前已忽略；接口会自动扫描候选 namespace",
         "page": "可选，默认 1",
-        "page_size": "可选，默认 20，最大 1000",
+        "page_size": "可选，默认 20，最大 1000；按 release-name 分组分页",
     },
     example_params={"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00000", "page": 1, "page_size": 20},
 )
 def list_bcs_cluster_bkmonitor_operator_releases(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     cluster_id = _require_cluster_id(params)
-    use_config_namespace = _normalize_include_sensitive(params.get("use_config_namespace"))
     page, page_size = normalize_pagination(params, max_page_size=1000)
     cluster = _get_bcs_cluster_or_raise(bk_tenant_id, cluster_id)
-    namespace_context = _get_bcs_operator_namespace_context(cluster, use_config_namespace=use_config_namespace)
+    core_client = _get_bk_collector_core_client(cluster)
 
-    items, warnings = _collect_bkmonitor_operator_releases(cluster, namespace=namespace_context["namespace"])
-    page_items, total = _paginate_list(items, page=page, page_size=page_size)
+    namespace_candidates, configured_namespace, warnings = _list_bkmonitor_operator_candidate_namespaces(
+        core_client,
+        cluster,
+    )
+    items, release_warnings = _collect_bkmonitor_operator_releases(
+        core_client=core_client,
+        namespace_candidates=namespace_candidates,
+    )
+    warnings.extend(release_warnings)
+    groups = _group_bkmonitor_operator_releases(items)
+    page_groups, total = _paginate_list(groups, page=page, page_size=page_size)
+    page_items = [item for group in page_groups for item in group["items"]]
 
     response = build_response(
         operation="bcs_cluster.bkmonitor_operator_release_list",
         func_name=FUNC_BCS_CLUSTER_BKMONITOR_OPERATOR_RELEASE_LIST,
         bk_tenant_id=bk_tenant_id,
-        data={"items": page_items, "page": page, "page_size": page_size, "total": total, **namespace_context},
+        data={
+            "items": page_items,
+            "groups": page_groups,
+            "namespace_candidates": namespace_candidates,
+            "configured_namespace": configured_namespace,
+            "release_total": len(items),
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+        },
         warnings=warnings,
     )
     return _mark_inspect_response(response)
@@ -1225,13 +1329,13 @@ def list_bcs_cluster_bkmonitor_operator_releases(params: dict[str, Any]) -> dict
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "cluster_id": "必填，BCSClusterInfo.cluster_id",
-        "release_ref": "必填，列表返回的 Helm release 引用，即 Secret 名称",
-        "use_config_namespace": "可选，默认 false；true 时使用 K8S_OPERATOR_DEPLOY_NAMESPACE 中配置的命名空间",
+        "release_ref": "必填，列表返回的 Helm release 引用，格式为 namespace:secret_name",
+        "use_config_namespace": "兼容旧参数，当前已忽略；详情读取 release_ref 中的 namespace",
     },
     example_params={
         "bk_tenant_id": "system",
         "cluster_id": "BCS-K8S-00000",
-        "release_ref": "sh.helm.release.v1.bkmonitor-operator.v71",
+        "release_ref": "bkmonitor-operator:sh.helm.release.v1.bkmonitor-operator.v71",
     },
 )
 def get_bcs_cluster_bkmonitor_operator_release_detail(params: dict[str, Any]) -> dict[str, Any]:
@@ -1241,15 +1345,35 @@ def get_bcs_cluster_bkmonitor_operator_release_detail(params: dict[str, Any]) ->
     if release_ref in (None, ""):
         raise CustomException(message="release_ref 为必填项")
     release_ref = str(release_ref).strip()
-    if not BKMONITOR_OPERATOR_RELEASE_SECRET_NAME_PATTERN.match(release_ref):
+    namespace, secret_name = _decode_bkmonitor_operator_release_ref(release_ref)
+    if not BKMONITOR_OPERATOR_RELEASE_SECRET_NAME_PATTERN.match(secret_name):
         raise CustomException(message="release_ref 格式无效")
 
-    use_config_namespace = _normalize_include_sensitive(params.get("use_config_namespace"))
     cluster = _get_bcs_cluster_or_raise(bk_tenant_id, cluster_id)
-    namespace_context = _get_bcs_operator_namespace_context(cluster, use_config_namespace=use_config_namespace)
     core_client = _get_bk_collector_core_client(cluster)
+
+    namespace_candidates: list[str] = []
+    configured_namespace = _get_bcs_operator_configured_namespace(cluster)
+    warnings: list[dict[str, Any]] = []
+    if namespace is None:
+        namespace_candidates, configured_namespace, warnings = _list_bkmonitor_operator_candidate_namespaces(
+            core_client,
+            cluster,
+        )
+        fallback_items, fallback_warnings = _collect_bkmonitor_operator_releases(
+            core_client=core_client,
+            namespace_candidates=namespace_candidates,
+        )
+        warnings.extend(fallback_warnings)
+        namespace = next(
+            (item["namespace"] for item in fallback_items if item["secret_name"] == secret_name),
+            None,
+        )
+        if namespace is None:
+            raise CustomException(message=f"未找到 bkmonitor-operator Helm release: release_ref={release_ref}")
+
     try:
-        secret = core_client.read_namespaced_secret(name=release_ref, namespace=namespace_context["namespace"])
+        secret = core_client.read_namespaced_secret(name=secret_name, namespace=namespace)
     except k8s_client.exceptions.ApiException as error:
         if getattr(error, "status", None) == 404:
             raise CustomException(
@@ -1259,7 +1383,7 @@ def get_bcs_cluster_bkmonitor_operator_release_detail(params: dict[str, Any]) ->
 
     detail = _serialize_bkmonitor_operator_release_secret(
         secret,
-        namespace=namespace_context["namespace"],
+        namespace=namespace,
         include_values=True,
     )
     if detail is None:
@@ -1269,6 +1393,11 @@ def get_bcs_cluster_bkmonitor_operator_release_detail(params: dict[str, Any]) ->
         operation="bcs_cluster.bkmonitor_operator_release_detail",
         func_name=FUNC_BCS_CLUSTER_BKMONITOR_OPERATOR_RELEASE_DETAIL,
         bk_tenant_id=bk_tenant_id,
-        data={**detail, **namespace_context},
+        data={
+            **detail,
+            "namespace_candidates": namespace_candidates,
+            "configured_namespace": configured_namespace,
+        },
+        warnings=warnings,
     )
     return _mark_inspect_response(response)
