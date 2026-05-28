@@ -1,0 +1,296 @@
+"""
+Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
+License for BK-LOG 蓝鲸日志平台:
+--------------------------------------------------------------------
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial
+portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+We undertake not to change the open source license (MIT license) applicable to the current version of
+the project delivered to anyone in the future.
+"""
+
+import json
+
+from django.test import TestCase, override_settings
+from django.utils.deprecation import MiddlewareMixin
+
+from apps.log_databus.constants import ContainerCollectorType
+from apps.log_databus.models import (
+    BKDataClean,
+    CollectorConfig,
+    CollectorPlugin,
+    ContainerCollectorConfig,
+    DataLinkConfig,
+)
+from apps.log_search.constants import IndexSetDataType
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+
+
+OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
+NON_SUPERUSER_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.NonSuperuserMiddleware"
+
+
+class NonSuperuserMiddleware(MiddlewareMixin):
+    def process_request(self, request):
+        class Base:
+            pass
+
+        request.user = Base()
+        request.user.username = "operator"
+        request.user.is_superuser = False
+        request.user.is_authenticated = True
+        request.user.is_active = True
+        request.META.update({"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"})
+
+
+class AdminResourceCallViewTest(TestCase):
+    def _call(self, func_name, params=None):
+        response = self.client.post(
+            "/api/v1/admin/resource/call/",
+            data=json.dumps({"func_name": func_name, "params": params or {}}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        return json.loads(response.content)
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_meta_list_returns_registered_functions(self):
+        content = self._call("__meta__", {"action": "list"})
+
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["func_name"], "__meta__")
+        self.assertEqual(content["data"]["protocol"], "bklog.admin_resource.v1")
+        self.assertIn("bklog.collector.list", content["data"]["result"]["functions"])
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_unknown_func_name_returns_stable_error(self):
+        content = self._call("bklog.unknown.list")
+
+        self.assertFalse(content["result"])
+        self.assertIn("unknown func_name", content["message"])
+
+    @override_settings(MIDDLEWARE=(NON_SUPERUSER_MIDDLEWARE,))
+    def test_call_allows_authenticated_non_superuser(self):
+        content = self._call("__meta__", {"action": "list"})
+
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["func_name"], "__meta__")
+
+
+class CollectorResourceCallTest(TestCase):
+    def setUp(self):
+        self.plugin = CollectorPlugin.objects.create(
+            collector_plugin_id=50001,
+            bk_biz_id=2,
+            collector_plugin_name="container file plugin",
+            collector_plugin_name_en="container_file_plugin",
+            collector_scenario_id="row",
+            description="container file plugin",
+            category_id="container",
+            storage_cluster_id=25,
+            retention=14,
+            storage_replies=1,
+            storage_shards_nums=6,
+            storage_shards_size=30,
+        )
+        self.collector = CollectorConfig.objects.create(
+            collector_config_id=10402,
+            collector_config_name="bcs-checkinsvr-container",
+            collector_plugin_id=self.plugin.collector_plugin_id,
+            bk_biz_id=2,
+            collector_scenario_id="row",
+            category_id="container",
+            target_object_type="CONTAINER",
+            target_nodes=[{"cluster_id": "BCS-K8S-40002", "namespace": "checkinsvr"}],
+            data_link_id=57,
+            bk_data_id=150089,
+            table_id="2_bklog.bcs_checkinsvr",
+            etl_config="bk_log_text",
+            subscription_id=9112,
+            params={
+                "paths": ["/data/logs/*.log"],
+                "password": "plain-password",
+                "nested": {"bearer_token": "token-value"},
+            },
+            task_id_list=[9881, 9882],
+            storage_shards_nums=6,
+            storage_shards_size=30,
+            storage_replies=1,
+            environment="container",
+            bcs_cluster_id="BCS-K8S-40002",
+            yaml_config_enabled=True,
+            rule_id=5801,
+            enable_v4=True,
+        )
+        ContainerCollectorConfig.objects.create(
+            collector_config_id=self.collector.collector_config_id,
+            collector_type=ContainerCollectorType.CONTAINER,
+            params=self.collector.params,
+        )
+        DataLinkConfig.objects.create(
+            data_link_id=57,
+            link_group_name="bcs-log-v4",
+            bk_biz_id=0,
+            kafka_cluster_id=8,
+            transfer_cluster_id="2",
+            es_cluster_ids=[25],
+            is_active=True,
+        )
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=755,
+            index_set_name="bcs-checkinsvr-container",
+            space_uid="bkcc__2",
+            category_id="container",
+            collector_config_id=self.collector.collector_config_id,
+            scenario_id=Scenario.LOG,
+            storage_cluster_id=25,
+            time_field="dtEventTimeStamp",
+            time_field_type="date",
+            time_field_unit="millisecond",
+            target_fields=["serverIp"],
+            sort_fields=["dtEventTimeStamp"],
+        )
+        LogIndexSetData.objects.create(
+            index_id=1755,
+            index_set_id=self.index_set.index_set_id,
+            bk_biz_id=2,
+            result_table_id=self.collector.table_id,
+            result_table_name="CheckinSvr 容器文件日志",
+            scenario_id=Scenario.LOG,
+            storage_cluster_id=25,
+            time_field="dtEventTimeStamp",
+            time_field_type="date",
+            time_field_unit="millisecond",
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        LogIndexSet.objects.create(
+            index_set_id=901,
+            index_set_name="checkinsvr-all-logs",
+            space_uid="bkcc__2",
+            category_id="container",
+            scenario_id=Scenario.LOG,
+            is_group=True,
+        )
+        LogIndexSetData.objects.create(
+            index_id=1901,
+            index_set_id=901,
+            bk_biz_id=2,
+            result_table_id=str(self.index_set.index_set_id),
+            result_table_name=self.index_set.index_set_name,
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        LogIndexSet.objects.create(
+            index_set_id=950,
+            index_set_name="bcs-checkinsvr-clean-bkbase",
+            space_uid="bkcc__2",
+            category_id="platform",
+            scenario_id=Scenario.BKDATA,
+        )
+        BKDataClean.objects.create(
+            status="success",
+            status_en="success",
+            result_table_id="591_bkbase.bcs_checkinsvr_clean",
+            result_table_name="CheckinSvr 高级清洗",
+            raw_data_id=590089,
+            data_name="bcs_checkinsvr",
+            data_type="log",
+            storage_type="bkbase",
+            storage_cluster="bkbase",
+            collector_config_id=self.collector.collector_config_id,
+            bk_biz_id=2,
+            log_index_set_id=950,
+            etl_config="bk_log_text",
+            is_authorized=True,
+        )
+
+    def _call(self, func_name, params=None):
+        response = self.client.post(
+            "/api/v1/admin/resource/call/",
+            data=json.dumps({"func_name": func_name, "params": params or {}}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        return json.loads(response.content)
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_collector_list_filters_by_storage_cluster_without_biz_filter(self):
+        content = self._call(
+            "bklog.collector.list",
+            {"storage_cluster_id": 25, "page": 1, "page_size": 20},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 1)
+        item = result["items"][0]
+        self.assertEqual(item["collector_config_id"], 10402)
+        self.assertEqual(item["storage_cluster_id"], 25)
+        self.assertEqual(item["log_access_type"], "container_file")
+        self.assertEqual(item["log_access_type_name"], "容器文件采集")
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_collector_detail_returns_chain_relations_and_masked_raw_params(self):
+        content = self._call("bklog.collector.detail", {"collector_config_id": 10402})
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["chain"]["primary_index_set_id"], 755)
+        self.assertEqual(result["storage"]["storage_cluster_id"], 25)
+        self.assertEqual(result["storage"]["retention"], 14)
+        self.assertEqual(result["storage"]["storage_shards_nums"], 6)
+        self.assertEqual(result["relations"]["data_link"]["data_link_id"], 57)
+        self.assertEqual(
+            [(item["relation_type"], item["index_set_id"]) for item in result["relations"]["index_sets"]],
+            [("primary", 755), ("parent_group", 901), ("bkdata_clean", 950)],
+        )
+        self.assertEqual(result["raw"]["params"]["password"], "******")
+        self.assertEqual(result["raw"]["params"]["nested"]["bearer_token"], "******")
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_index_set_list_returns_result_tables_and_collector_relation(self):
+        content = self._call(
+            "bklog.index_set.list",
+            {"result_table_id": "bcs_checkinsvr", "page": 1, "page_size": 20},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 2)
+        by_id = {item["index_set_id"]: item for item in result["items"]}
+        self.assertEqual(by_id[755]["collector_config_id"], 10402)
+        self.assertEqual(by_id[755]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
+        self.assertEqual(by_id[755]["index_count"], 1)
+        self.assertEqual(by_id[901]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
+        self.assertEqual(by_id[901]["index_count"], 1)
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_index_set_detail_resolves_collectors_from_index_set_to_collector_config(self):
+        content = self._call("bklog.index_set.detail", {"index_set_id": 755})
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["index_set"]["collector_config_id"], 10402)
+        self.assertEqual([item["result_table_id"] for item in result["indexes"]], ["2_bklog.bcs_checkinsvr"])
+        self.assertEqual([item["collector_config_id"] for item in result["collectors"]], [10402])
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_index_group_detail_resolves_collectors_from_member_index_sets(self):
+        content = self._call("bklog.index_set.detail", {"index_set_id": 901})
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertTrue(result["index_set"]["is_group"])
+        self.assertEqual([item["result_table_id"] for item in result["indexes"]], ["2_bklog.bcs_checkinsvr"])
+        self.assertEqual([item["collector_config_id"] for item in result["collectors"]], [10402])
