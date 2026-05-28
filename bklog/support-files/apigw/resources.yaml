@@ -5,6 +5,28 @@ info:
   title: API Gateway Resources
   description: ''
 paths:
+  /admin/resource/call/:
+    post:
+      operationId: admin_resource_call
+      description: Admin Resource 通用调用入口
+      tags:
+      - 管理
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/admin/resource/call/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: admin resource call
   /esquery_search/:
     post:
       operationId: esquery_search

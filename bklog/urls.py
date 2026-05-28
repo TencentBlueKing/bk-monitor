@@ -29,6 +29,7 @@ Class-based views
 Including another URLconf
     1. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
+
 import os
 
 from bk_notice_sdk import config as notice_config
@@ -54,6 +55,7 @@ urlpatterns = [
     re_path(r"^api/v1/", include("apps.log_esquery.urls")),
     re_path(r"^api/v1/", include("apps.esb.urls")),
     re_path(r"^api/v1/", include("apps.bk_log_admin.urls")),
+    re_path(r"^api/v1/", include("apps.log_admin_resource.urls")),
     re_path(r"^api/v1/", include("apps.log_bcs.urls")),
     re_path(r"^api/v1/", include("apps.log_clustering.urls")),
     re_path(r"^api/v1/", include("apps.log_desensitize.urls")),
@@ -74,9 +76,7 @@ urlpatterns = [
 ]
 
 if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
-    urlpatterns.extend(
-        [re_path(r"^api/v1/", include("apps.tgpa.urls"))]
-    )
+    urlpatterns.extend([re_path(r"^api/v1/", include("apps.tgpa.urls"))])
 
 if settings.IS_K8S_DEPLOY_MODE:
     urlpatterns.extend(
