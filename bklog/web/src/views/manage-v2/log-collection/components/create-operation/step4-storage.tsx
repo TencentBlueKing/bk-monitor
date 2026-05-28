@@ -594,6 +594,8 @@ export default defineComponent({
         collector_config_name_en,
         collector_config_name: collector_config_name || index_set_name,
         bk_biz_id: Number(bkBizId.value),
+        target_fields: props.configData.target_fields || [],
+        sort_fields: props.configData.sort_fields || [],
       };
 
       if (isDorisMode.value) {
