@@ -109,7 +109,7 @@ class AddResourceGroupService(BaseService):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         if clustering_config.es_storage:
             return True
-        es_storage_name = DataAccessHandler(bk_biz_id=clustering_config.bk_biz_id).add_cluster_group(
+        es_storage_name = DataAccessHandler().add_cluster_group(
             clustering_config.source_rt_name, clustering_config.bk_biz_id
         )
         clustering_config.es_storage = es_storage_name
