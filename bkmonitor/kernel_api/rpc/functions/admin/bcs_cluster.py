@@ -865,9 +865,7 @@ def _serialize_bkmonitor_operator_release_secret(
 
 def _list_bkmonitor_operator_candidate_namespaces(
     core_client: k8s_client.CoreV1Api,
-    cluster: models.BCSClusterInfo,
-) -> tuple[list[str], str | None, list[dict[str, Any]]]:
-    configured_namespace = _get_bcs_operator_configured_namespace(cluster)
+) -> tuple[list[str], list[dict[str, Any]]]:
     warnings: list[dict[str, Any]] = []
     discovered_namespaces: list[str] = []
 
@@ -886,20 +884,17 @@ def _list_bkmonitor_operator_candidate_namespaces(
             if BKMONITOR_OPERATOR_NAMESPACE_KEYWORD in namespace_name:
                 discovered_namespaces.append(namespace_name)
 
-    namespace_candidates: list[str] = []
-    for namespace in [*sorted(set(discovered_namespaces)), configured_namespace]:
-        if namespace and namespace not in namespace_candidates:
-            namespace_candidates.append(namespace)
+    namespace_candidates = sorted(set(discovered_namespaces))
 
     if not namespace_candidates:
         warnings.append(
             {
                 "code": "BKMONITOR_OPERATOR_NAMESPACE_EMPTY",
-                "message": ("未发现包含 bkmonitor-operator 的 namespace，且未配置 K8S_OPERATOR_DEPLOY_NAMESPACE"),
+                "message": "未发现包含 bkmonitor-operator 的 namespace",
             }
         )
 
-    return namespace_candidates, configured_namespace, warnings
+    return namespace_candidates, warnings
 
 
 def _list_bkmonitor_operator_release_secrets(
@@ -1269,7 +1264,7 @@ def get_bcs_cluster_bk_collector_config_detail(params: dict[str, Any]) -> dict[s
     summary="Admin 实时查询 BCS 集群 bkmonitor-operator Helm release 列表",
     description=(
         "inspect 级别能力，通过 Kubernetes CoreV1Api 扫描名称包含 bkmonitor-operator 的 namespace，"
-        "以及 K8S_OPERATOR_DEPLOY_NAMESPACE 配置 namespace 中的 Helm release Secret，按 release-name 分组展示，只读不写。"
+        "读取其中的 Helm release Secret，按 release-name 分组展示，只读不写。"
     ),
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
@@ -1287,10 +1282,7 @@ def list_bcs_cluster_bkmonitor_operator_releases(params: dict[str, Any]) -> dict
     cluster = _get_bcs_cluster_or_raise(bk_tenant_id, cluster_id)
     core_client = _get_bk_collector_core_client(cluster)
 
-    namespace_candidates, configured_namespace, warnings = _list_bkmonitor_operator_candidate_namespaces(
-        core_client,
-        cluster,
-    )
+    namespace_candidates, warnings = _list_bkmonitor_operator_candidate_namespaces(core_client)
     items, release_warnings = _collect_bkmonitor_operator_releases(
         core_client=core_client,
         namespace_candidates=namespace_candidates,
@@ -1308,7 +1300,6 @@ def list_bcs_cluster_bkmonitor_operator_releases(params: dict[str, Any]) -> dict
             "items": page_items,
             "groups": page_groups,
             "namespace_candidates": namespace_candidates,
-            "configured_namespace": configured_namespace,
             "release_total": len(items),
             "page": page,
             "page_size": page_size,
@@ -1353,13 +1344,9 @@ def get_bcs_cluster_bkmonitor_operator_release_detail(params: dict[str, Any]) ->
     core_client = _get_bk_collector_core_client(cluster)
 
     namespace_candidates: list[str] = []
-    configured_namespace = _get_bcs_operator_configured_namespace(cluster)
     warnings: list[dict[str, Any]] = []
     if namespace is None:
-        namespace_candidates, configured_namespace, warnings = _list_bkmonitor_operator_candidate_namespaces(
-            core_client,
-            cluster,
-        )
+        namespace_candidates, warnings = _list_bkmonitor_operator_candidate_namespaces(core_client)
         fallback_items, fallback_warnings = _collect_bkmonitor_operator_releases(
             core_client=core_client,
             namespace_candidates=namespace_candidates,
@@ -1396,7 +1383,6 @@ def get_bcs_cluster_bkmonitor_operator_release_detail(params: dict[str, Any]) ->
         data={
             **detail,
             "namespace_candidates": namespace_candidates,
-            "configured_namespace": configured_namespace,
         },
         warnings=warnings,
     )

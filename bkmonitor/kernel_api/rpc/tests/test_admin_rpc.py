@@ -1193,7 +1193,7 @@ def _helm_release_secret(
     )
 
 
-def test_bcs_cluster_bkmonitor_operator_release_list_scans_candidate_namespaces_and_groups_by_release_name():
+def test_bcs_cluster_bkmonitor_operator_release_list_scans_keyword_namespaces_and_groups_by_release_name():
     api_client = object()
     cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=api_client, operator_ns="fake-operator-ns")
     core_client = Mock()
@@ -1226,17 +1226,6 @@ def test_bcs_cluster_bkmonitor_operator_release_list_scans_candidate_namespaces_
                     )
                 ]
             )
-        if namespace == "configured-ns":
-            return SimpleNamespace(
-                items=[
-                    _helm_release_secret(
-                        9,
-                        "3.5.0",
-                        release_name="legacy-monitor",
-                        namespace=namespace,
-                    )
-                ]
-            )
         return SimpleNamespace(items=[])
 
     core_client.list_namespaced_secret.side_effect = list_secret_side_effect
@@ -1259,19 +1248,16 @@ def test_bcs_cluster_bkmonitor_operator_release_list_scans_candidate_namespaces_
     assert core_client.list_namespaced_secret.call_args_list == [
         call(namespace="bkmonitor-operator", label_selector="owner=helm"),
         call(namespace="bkmonitor-operator-canary", label_selector="owner=helm"),
-        call(namespace="configured-ns", label_selector="owner=helm"),
     ]
     assert result["data"]["namespace_candidates"] == [
         "bkmonitor-operator",
         "bkmonitor-operator-canary",
-        "configured-ns",
     ]
-    assert result["data"]["configured_namespace"] == "configured-ns"
-    assert result["data"]["total"] == 3
-    assert result["data"]["release_total"] == 4
+    assert "configured_namespace" not in result["data"]
+    assert result["data"]["total"] == 2
+    assert result["data"]["release_total"] == 3
     assert [group["release_name"] for group in result["data"]["groups"]] == [
         "bkmonitor-operator",
-        "legacy-monitor",
         "custom-operator",
     ]
     assert result["data"]["groups"][0]["latest_revision"] == 71
