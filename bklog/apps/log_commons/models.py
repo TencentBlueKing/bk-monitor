@@ -622,6 +622,16 @@ class ExternalPermission(OperateRecordModel):
         )
         for obj in objs:
             result["resources"].extend(obj.resources)
+        # 客户端日志检索也使用 search/terms 接口，当校验 log_search 权限时，额外合并 client_log 的资源
+        if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
+            client_log_objs = ExternalPermission.objects.filter(
+                action_id=ExternalPermissionActionEnum.CLIENT_LOG.value,
+                authorized_user=authorized_user,
+                space_uid=space_uid,
+                expire_time__gt=timezone.now(),
+            )
+            for obj in client_log_objs:
+                result["resources"].extend(obj.resources)
         return result
 
 
