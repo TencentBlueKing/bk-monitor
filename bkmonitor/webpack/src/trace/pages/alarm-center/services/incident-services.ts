@@ -393,13 +393,17 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
       },
       options
     )
-      .then(({ total, incidents }) => ({
+      .then(({ total, incidents, greyed_spaces, wx_cs_link }) => ({
         total,
         data: incidents,
+        greyed_spaces,
+        wx_cs_link,
       }))
       .catch(() => ({
         total: 0,
         data: [],
+        greyed_spaces: [],
+        wx_cs_link: '',
       }));
     return data;
   }

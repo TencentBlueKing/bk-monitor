@@ -47,6 +47,10 @@ export default defineComponent({
       type: Object,
       default: () => {},
     },
+    autoFocusReason: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['editSuccess', 'update:isShow'],
   setup(props, { emit }) {
@@ -56,6 +60,7 @@ export default defineComponent({
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const customLabelsList = deepRef([]);
     const editDialogRef = deepRef(null);
+    const reasonInputRef = deepRef<InstanceType<typeof Input>>(null);
     const incidentDetailData = deepRef<Partial<IIncident>>({});
 
     function valueChange(v) {
@@ -113,6 +118,9 @@ export default defineComponent({
           // 设置焦点，确保打开弹窗时其他元素可以正常失焦
           modalBody.setAttribute('tabindex', '0');
         }
+        if (props.autoFocusReason && reasonInputRef.value) {
+          (reasonInputRef.value as any)?.focus?.();
+        }
       });
     };
 
@@ -137,6 +145,7 @@ export default defineComponent({
       editIncidentHandle,
       customLabelsList,
       editDialogRef,
+      reasonInputRef,
       userApi,
       handleUserChange,
       handleShown,
@@ -218,6 +227,7 @@ export default defineComponent({
               </Form.FormItem>
               <Form.FormItem label={this.t('故障原因')}>
                 <Input
+                  ref='reasonInputRef'
                   v-model={this.incidentDetailData.incident_reason}
                   maxlength={300}
                   type='textarea'

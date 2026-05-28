@@ -47,6 +47,10 @@ export function useAlarmTable() {
   const ordering = shallowRef('');
   /** 是否加载中 */
   const loading = shallowRef(false);
+  /** 灰度空间列表（incident 场景专用） */
+  const greyedSpaces = shallowRef<number[]>([]);
+  /** BK助手链接 */
+  const wxCsLink = shallowRef('');
   /** 请求中止控制器 */
   let abortController: AbortController | null = null;
 
@@ -87,6 +91,8 @@ export function useAlarmTable() {
     if (signal.aborted) return;
     total.value = res.total;
     data.value = res.data;
+    greyedSpaces.value = res.greyed_spaces ?? [];
+    wxCsLink.value = res.wx_cs_link ?? '';
     loading.value = false;
   };
   // 由于在 setup(create) | BeforeMount 时机可能需要获取路由参数对变量进行初始化
@@ -107,6 +113,8 @@ export function useAlarmTable() {
     data.value = [];
     loading.value = false;
     ordering.value = '';
+    greyedSpaces.value = [];
+    wxCsLink.value = '';
   });
   return {
     pageSize,
@@ -115,5 +123,7 @@ export function useAlarmTable() {
     data,
     loading,
     ordering,
+    greyedSpaces,
+    wxCsLink,
   };
 }
