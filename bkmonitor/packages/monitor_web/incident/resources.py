@@ -54,7 +54,7 @@ from fta_web.models.alert import SearchHistory, SearchType
 from monitor_web.incident.events.resources import IncidentEventsDetailResource, IncidentEventsSearchResource  # noqa
 from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
 from monitor_web.incident.serializers import IncidentSearchSerializer
-
+from .utils import bk_data_robot_link_list_search
 
 class IncidentBaseResource(Resource):
     """
@@ -401,11 +401,7 @@ class IncidentListResource(IncidentBaseResource):
             for item in general_config_data.get("objects",[]):
                 if item.get("content",{}).get("enabled",False):
                     result["enabled_spaces"].append(item.get("scope_value"))
-        result["wx_cs_link"] = ""
-        for item in settings.BK_DATA_ROBOT_LINK_LIST:
-            if item["icon_name"] == "icon-kefu":
-                result["wx_cs_link"] = item["link"]
-
+        result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST,"icon-kefu")
         return result
 
 
@@ -1736,7 +1732,7 @@ class CreateListConfigResource(Resource):
         return api.bk_incident.create_list_config(validated_request_data)
 
 
-class GetSearchIdResource(Resource):
+class GetIncidentDocIdResource (Resource):
     class RequestSerializer(serializers.Serializer):
         incident_id = serializers.CharField(required=True, label="故障ID")
 
