@@ -48,3 +48,10 @@ Record durable decisions, alternatives, tradeoffs and consequences here.
 - 决策：`SORT_LIST_CHANGED` 单独处理，只在仍处于请求中、页面 loading 中、requesting 中或当前无结果行时才重置首屏骨架状态；查询已完成且已有结果时不再重新进入 pending。
 - 约束：搜索值、时间、趋势图搜索等真实查询起点仍可无条件 `resetPageState()`；分页加载更多仍不能触发首屏骨架屏。
 - 验证：状态机静态验证、`git diff --check`、`npx eslint ... --quiet`、`npm run build` 通过。
+
+## 2026-05-28 context-log 关闭后请求失效保护
+
+- 背景：日志检索结果点击“查看上下文”后，快速上下滚动再 ESC 关闭弹窗，滚动防抖与异步 `getContentLog` 仍可能在弹窗关闭后继续执行。
+- 问题：关闭流程会清空本地参数/列表，但旧滚动 timer 或旧请求回调仍可能继续使用已失效状态，导致请求参数出现 `None` 等非法值，后端报 `query_shard_exception`。
+- 决策：`context-log/index.tsx` 增加弹窗可见态和 request sequence 保护；关闭、切换行、卸载时清理 scroll listener、所有 timer，并 cancel 固定 requestId 的上下文请求；旧请求返回后不再落地 UI，不再触发滚动定位/高亮初始化。
+- 约束：上下文日志的滚动加载必须先判断弹窗仍可见、requestSeq 仍匹配、关键参数有效；ESC 关闭后禁止继续发起或落地 `retrieve/getContentLog`。
