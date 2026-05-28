@@ -1696,7 +1696,7 @@ export default class DataRetrieval extends tsc<object> {
       this.isHandleQuery = false;
       return;
     }
-    const queryStartTime = +new Date();
+    const queryStartTime = Date.now();
     // 如果是只展示视图，需要将 compare_config.split 设置为 true
     if (this.onlyShowView) {
       params = {
@@ -1710,7 +1710,7 @@ export default class DataRetrieval extends tsc<object> {
     this.cancelFn?.();
     getGraphQueryConfig(params, { cancelToken: new CancelToken(c => (this.cancelFn = c)) })
       .then(data => {
-        this.queryTimeRange = +new Date() - queryStartTime;
+        this.queryTimeRange = Date.now() - queryStartTime;
         this.queryResult = data.panels;
         this.emptyStatus = 'search-empty';
       })
@@ -1760,7 +1760,7 @@ export default class DataRetrieval extends tsc<object> {
             },
           };
           targets.push(temp);
-        } else if (!!item?.value || item?.functions?.length) {
+        } else if (item?.value || item?.functions?.length) {
           const temp = {
             alias: item.alias,
             data: {
@@ -1916,7 +1916,7 @@ export default class DataRetrieval extends tsc<object> {
     if (this.editMode === 'PromQL') {
       const promqlQuery = [];
       for (const promqlItem of this.promqlData) {
-        if (!!promqlItem.code && promqlItem.enable) {
+        if (promqlItem.code && promqlItem.enable) {
           promqlQuery.push({
             data_source_label: 'prometheus',
             data_type_label: 'time_series',
@@ -2183,7 +2183,7 @@ export default class DataRetrieval extends tsc<object> {
             const where = [];
             for (const key of filterKeys) {
               const filterVal = curQuery.filter_dict[key];
-              if (key === 'variables' && !!filterVal) {
+              if (key === 'variables' && filterVal) {
                 where.push(
                   ...Object.entries(filterVal).map(item => {
                     const [key, value] = item;
@@ -2195,7 +2195,7 @@ export default class DataRetrieval extends tsc<object> {
                     };
                   })
                 );
-              } else if (key === 'targets' && !!filterVal) {
+              } else if (key === 'targets' && filterVal) {
                 /** 目标主机、主机对比数据将添加到where */
                 const firstItem = filterVal?.[0];
                 if (firstItem) {
@@ -2373,8 +2373,8 @@ export default class DataRetrieval extends tsc<object> {
       M: 2592000,
       y: 31104000,
     };
-    if (typeof interval === 'number') {
-      return interval * intervalUnitMap[unit];
+    if (typeof interval === 'number' || /^\d+$/.test(interval.toString())) {
+      return +interval * intervalUnitMap[unit];
     }
     if (typeof interval === 'string') {
       const [, v, unit] = interval.toString().match(/(\d+)([s|h|w|m|d|M|y])$/);
