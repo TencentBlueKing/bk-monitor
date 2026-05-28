@@ -221,7 +221,7 @@ export default defineComponent({
           ...nullItem,
           bk_biz_id: hasDataBizId,
           id: hasDataBizId,
-          name: t('-我有告警的空间-'),
+          name: props.needIncidentOption ? t('-我有故障的空间-') : t('-我有告警的空间-'),
         } as any);
       }
       if (props.needAuthorityOption) {

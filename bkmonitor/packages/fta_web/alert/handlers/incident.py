@@ -102,6 +102,8 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     MINE_STATUS_NAME = "MY_INCIDENT"
     MY_ASSIGNEE_STATUS_NAME = "MY_ASSIGNEE_INCIDENT"
     MY_HANDLER_STATUS_NAME = "MY_HANDLER_INCIDENT"
+    DATE_HISTOGRAM_TIME_ZONE = "+08:00"
+    DATE_HISTOGRAM_TIME_ZONE_OFFSET = 8 * 60 * 60
 
     def __init__(self, bk_biz_ids: list[int] = None, username: str = "", status: list[str] = None, **kwargs):
         super().__init__(bk_biz_ids, username, **kwargs)
@@ -353,10 +355,17 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         :param interval: 时间间隔
         :return: 聚合对象
         """
+        date_histogram_params = {
+            "field": histogram_field,
+            "fixed_interval": f"{interval}s",
+        }
+        if interval == 24 * 60 * 60:
+            date_histogram_params["time_zone"] = self.DATE_HISTOGRAM_TIME_ZONE
+
         return search_object.aggs.bucket(
             agg_name, "filter", {"range": {time_field: {"lte":time_filter}}}
         ).bucket(agg_status_name, "filter", {"terms": {"status": status_list}}
-                 ).bucket("time", "date_histogram", field=histogram_field, fixed_interval=f"{interval}s"
+                 ).bucket("time", "date_histogram", **date_histogram_params
                           ).bucket("status", "terms", field="status")
 
     def date_histogram(self, interval: str = "auto")->dict:
@@ -366,7 +375,10 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         '''
         new_interval: int = self.calculate_agg_interval(self.start_time, self.end_time, interval)
         # 查询时间对齐
-        start_time,end_time,now_time=search_time_init(new_interval=new_interval, start_time=self.start_time, end_time=self.end_time)
+        # 是否对齐UTC 时间 # 所有的天级单位都应该从0点对齐
+        is_utc = new_interval % 86400 == 0
+        start_time,end_time,now_time=search_time_init(new_interval=new_interval, start_time=self.start_time, end_time=self.end_time, is_utc=is_utc,offset=self.DATE_HISTOGRAM_TIME_ZONE_OFFSET)
+
         search_object = self.get_search_object(start_time=start_time, end_time=end_time)
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)

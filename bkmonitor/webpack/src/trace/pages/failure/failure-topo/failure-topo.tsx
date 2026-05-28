@@ -55,8 +55,8 @@ import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/inci
 import { deepClone, random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
+import DataAccess, { type SpaceInfo } from '../../../components/data-access';
 import ExceptionComp from '../../../components/exception';
 import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import ResourceGraph from '../resource-graph/resource-graph';
@@ -80,7 +80,7 @@ import {
   typeToLinkHandle,
 } from './utils';
 
-import type { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
+import type { IEdge, IEntity, IncidentDetailData, IncidentResults, ITopoData, ITopoNode } from './types';
 
 import './failure-topo.scss';
 
@@ -103,8 +103,19 @@ export default defineComponent({
   },
   emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh', 'closeCollapse'],
   setup(props, { emit }) {
-    const router = useRouter();
     const bkzIds = inject<Ref<string[]>>('bkzIds');
+
+    /** 根据 bkzIds 构建空间列表 */
+    const dataAccessSpaceList = computed<SpaceInfo[]>(() => {
+      const bizId = bkzIds?.value?.[0];
+      if (!bizId) return [];
+      // bizList 中找不到时，从故障详情中获取 bk_biz_name 作为 fallback
+      const bizName = incidentDetailData.value?.current_snapshot?.bk_biz_ids?.find(
+        ({ bk_biz_id }) => String(bk_biz_id) === String(bizId)
+      )?.bk_biz_name;
+      return [{ space_name: bizName || String(bizId), space_id: Number(bizId) }];
+    });
+
     /** 缓存resize render后执行的回调函数，主要用于点击播放之前收起右侧资源图时的回调 */
     const resizeCacheCallback = ref(null);
     const detailInfo = ref({});
@@ -164,16 +175,38 @@ export default defineComponent({
     const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
-    const aggregateCluster = ref(true);
+    // 部署版本聚合
+    const aggregateVersion = ref(false);
+    // 调用关系聚合
+    const aggregateCall = ref(true);
     const aggregateConfig = ref({});
     // const shouldUpdateNode = ref(null);
     const showLegend = ref<boolean>(localStorage.getItem('showLegend') === 'true');
     // 左侧画布数据获取检测
     const errorData = ref({
       isError: false,
+      isNoData: false,
       msg: '',
     });
-    const isNoData = ref(false);
+    const incidentResults = inject<Ref<IncidentResults>>('incidentResults');
+    const topoStatus = computed(() => {
+      if (incidentResults.value.incident_topology) {
+        if (
+          incidentResults.value.incident_topology.enabled &&
+          incidentResults.value.incident_topology.status === 'finished'
+        ) {
+          return 'normal';
+        }
+        if (
+          incidentResults.value.incident_topology.enabled &&
+          incidentResults.value.incident_topology.status === 'canceled'
+        ) {
+          return 'nodata';
+        }
+        return 'empty';
+      }
+      return null;
+    });
     // 展示资源从属相关信息
     const showViewResource = ref<boolean>(true);
     const feedbackCauseShow = ref<boolean>(false);
@@ -1199,25 +1232,28 @@ export default defineComponent({
       loading.value = !isAutoRefresh;
       if (!wrapRef.value) return;
       clearTimeout(refreshTimeout);
-      const renderData = await incidentTopology(
-        {
-          id: incidentId.value,
-          auto_aggregate: autoAggregate.value,
-          aggregate_cluster: aggregateCluster.value ?? false,
-          aggregate_config: aggregateConfig.value,
-          only_diff: true,
-          start_time: isAutoRefresh
-            ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
-            : incidentId.value.substr(0, 10),
-        },
-        { needMessage: false }
-      )
+      const params: Record<string, any> = {
+        id: incidentId.value,
+        auto_aggregate: autoAggregate.value,
+        aggregate_cluster: aggregateCall.value,
+        aggregate_version: aggregateVersion.value,
+        only_diff: true,
+        start_time: isAutoRefresh
+          ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
+          : incidentId.value.substr(0, 10),
+      };
+      /** 手动聚合时，才传 aggregate_config */
+      if (!autoAggregate.value) {
+        params.aggregate_config = aggregateConfig.value;
+      }
+      let isCancelled = false;
+      const renderData = await incidentTopology(params, { needMessage: false, needCancel: true })
         .then(res => {
           const { latest, diff, complete } = res;
           complete.combos = latest.combos;
           formatResponseData(complete);
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
-          isNoData.value = combos.length === 0;
+          errorData.value.isNoData = combos.length === 0;
           errorData.value.isError = false;
           ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
@@ -1259,11 +1295,18 @@ export default defineComponent({
           return ElkjsUtils.getTopoRawData(resolvedCombos, edges, nodes);
         })
         .catch(err => {
+          // 被 needCancel 取消的请求，标记后跳过，保持 loading 状态等待后续请求完成
+          if (!err) {
+            isCancelled = true;
+            return;
+          }
           errorData.value.isError = true;
           errorData.value.msg = err.data?.error_details ? err.data.error_details.overview : err.message;
-          isNoData.value = false;
+          errorData.value.isNoData = false;
         })
         .finally(() => {
+          // 被取消的请求不执行 finally 逻辑，保持 loading 不变
+          if (isCancelled) return;
           if (!graph) {
             initGraph();
           }
@@ -1274,7 +1317,7 @@ export default defineComponent({
             }, refreshTime.value);
           }
         });
-      if (isAutoRefresh) return;
+      if (isAutoRefresh || !renderData) return;
       topoRawData = renderData as ITopoData;
       const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
       if (!resourceNodeId.value && rootNode) {
@@ -1411,9 +1454,6 @@ export default defineComponent({
         edge.toFront();
       });
     };
-    onMounted(() => {
-      getGraphData().then(initGraph);
-    });
 
     /** 初始化图表相关 */
     const initGraph = async () => {
@@ -1682,6 +1722,8 @@ export default defineComponent({
         const y = containerRect.top + canvasPoint.y;
 
         // 生成工具提示内容
+        const isAggNode = model.aggregated_nodes?.length > 0;
+        nodeInfoTooltip.className = `node-detail-tips${isAggNode ? ' node-detail-tips--aggregated' : ''}`;
         nodeInfoTooltip.innerHTML = handleNodeInfoTooltip(model);
         // 获取提示框渲染后尺寸
         const { offsetWidth, offsetHeight } = nodeInfoTooltip;
@@ -1851,6 +1893,20 @@ export default defineComponent({
         addListener(graphRef.value as HTMLElement, onResize);
       });
     };
+
+    onMounted(() => {
+      if (topoStatus.value === 'normal') {
+        getGraphData().then(initGraph);
+      }
+    });
+
+    watch(
+      () => topoStatus.value,
+      val => {
+        val === 'normal' && getGraphData().then(initGraph);
+      }
+    );
+
     onUnmounted(() => {
       edgeInterval.forEach(interval => {
         clearInterval(interval.timer);
@@ -1866,10 +1922,14 @@ export default defineComponent({
 
     /** 处理节点详情info tooltip内部结构 */
     const handleNodeInfoTooltip = (model: ITopoNode) => {
-      let nodeDetailTips = [];
       const isShowRootText = model.is_feedback_root || checkIsRoot(model?.entity);
+      const isAggregatedNode = model.aggregated_nodes.length > 0;
+      const nodeDetailTips = [];
+
       // 节点名称
+      if (!isAggregatedNode) {
       nodeDetailTips.push({ label: t('名称'), value: model.entity.entity_name });
+      }
       // 节点告警信息
       if (model.alert_display?.alert_name) {
         nodeDetailTips.push({
@@ -1891,24 +1951,42 @@ export default defineComponent({
         { label: t('节点类型'), value: model.entity.properties?.entity_category || model.entity.rank_name },
         { label: t('所属业务'), value: `[#${model.bk_biz_id}] ${model.bk_biz_name}` },
       ];
-      nodeDetailTips = nodeDetailTips.concat(res);
+      nodeDetailTips.push(...res);
       // 节点服务信息
       if (model.entity?.tags?.BcsService) {
         nodeDetailTips.push({ label: t('所属服务'), value: model.entity?.tags?.BcsService?.name });
       }
 
-      return nodeDetailTips
+      // 聚合节点标题
+      let aggregateTitleHtml = '';
+      if (isAggregatedNode) {
+        const { total_count, anomaly_count, entity } = model;
+        const entityShowType = entity.properties.entity_show_type;
+        const hasAnomaly = (anomaly_count as number) > 0;
+        const titleText = hasAnomaly
+          ? t('共 {0} 个 {1} 节点，其中 {2} 个异常', [
+              `<span class="info-aggregate-title__weight">${total_count}</span>`,
+              entityShowType,
+              `<span class="info-aggregate-title__error-color">${anomaly_count}</span>`,
+            ])
+          : t('共 {0} 个 {1} 节点', [
+              `<span class="info-aggregate-title__weight">${total_count}</span>`,
+              entityShowType,
+            ]);
+        aggregateTitleHtml = `<div class='info-aggregate-title'>${titleText}</div>`;
+      }
+
+      const itemsHtml = nodeDetailTips
         .map(
           item =>
-            `<div
-              key=${item.label}
-              class='node-detail-tips_item'
-            >
+            `<div class='node-detail-tips_item'>
               <span class='item-label'>${item.label}：</span>
               <span class='item-value'>${item.value}</span>
             </div>`
         )
         .join('');
+
+      return aggregateTitleHtml + itemsHtml;
     };
 
     /** 处理单个边的公共逻辑*/
@@ -2123,9 +2201,10 @@ export default defineComponent({
     };
     /** 聚合规则变化 */
     const handleUpdateAggregateConfig = async config => {
-      aggregateConfig.value = config.aggregate_config;
+      aggregateConfig.value = config.aggregate_config ?? {};
       autoAggregate.value = config.auto_aggregate;
-      aggregateCluster.value = config.aggregate_cluster;
+      aggregateCall.value = config.aggregate_call ?? true;
+      aggregateVersion.value = config.aggregate_version ?? false;
       await getGraphData();
       renderGraph();
     };
@@ -2381,8 +2460,8 @@ export default defineComponent({
       // 注意：isStart 参数在队列版本中不再使用，队列处理函数会根据 currentIndex 自动判断
 
       if ('timeline' in playOption) {
-        timelinePosition.value = 0;
-        // 重置时清空队列
+        // 重置时清空队列，不提前设置 timelinePosition，
+        // 让 processPlayQueue 从第0帧开始正常播放（避免跳帧逻辑跳过首帧）
         playQueue = [];
         isProcessingQueue = false;
       }
@@ -2392,6 +2471,8 @@ export default defineComponent({
       if (value) {
         // 开始播放
         const len = topoRawDataCache.value.diff.length;
+        // 判断是否需要从第0帧重新开始播放
+        const isStartFromBeginning = 'timeline' in playOption;
 
         // 如果队列为空，或者队列第一个帧不等于当前位置，需要重新构建队列
         // 这包括以下情况：
@@ -2399,9 +2480,9 @@ export default defineComponent({
         // 2. 暂停后恢复播放，但用户手动切换了帧（队列第一个帧 != 当前位置）
         // 3. 播放时用户点击了其他帧（已在 handleTimelineChange 中处理，但这里作为兜底）
         if (playQueue.length === 0 || (playQueue.length > 0 && playQueue[0] !== timelinePosition.value)) {
-          // 重新构建从当前位置到末尾的播放队列
           playQueue = [];
-          for (let i = timelinePosition.value; i < len; i++) {
+          const startIndex = isStartFromBeginning ? 0 : timelinePosition.value;
+          for (let i = startIndex; i < len; i++) {
             playQueue.push(i);
           }
         }
@@ -2442,9 +2523,15 @@ export default defineComponent({
         clearTimeout(playTime);
         isProcessingQueue = false;
         const len = topoRawDataCache.value.diff.length;
-        // 构建从新位置到末尾的播放队列
-        for (let i = value; i < len; i++) {
+        // 构建从新位置的下一帧到末尾的播放队列
+        // 当前帧会立即渲染，所以队列从下一帧开始
+        for (let i = value + 1; i < len; i++) {
           playQueue.push(i);
+        }
+        // 立即渲染当前帧
+        timelinePosition.value = value;
+        if (topoRawDataCache.value.diff[value]) {
+          handleRenderTimeline();
         }
         // 如果队列为空，停止播放
         if (playQueue.length === 0) {
@@ -2452,11 +2539,6 @@ export default defineComponent({
           emit('playing', false);
           handleChangeRefleshTime(refreshTime.value);
         } else {
-          // 立即渲染当前帧，然后继续播放队列
-          // 渲染当前帧
-          if (topoRawDataCache.value.diff[value]) {
-            handleRenderTimeline();
-          }
           // 继续处理队列
           processPlayQueue();
         }
@@ -2810,13 +2892,15 @@ export default defineComponent({
       tooltipsType,
       detailType,
       errorData,
-      isNoData,
       nodeEntityName,
       detailInfo,
       getTopoWidth,
       curLinkedEdges,
       refreshTime,
       showViewResource,
+      topoStatus,
+      bkzIds,
+      dataAccessSpaceList,
       handleToDetail,
       handleHideToolTips,
       handleRootToSpan,
@@ -2851,149 +2935,171 @@ export default defineComponent({
       <div
         id='failure-topo'
         ref='wrapRef'
-        class={['failure-topo', this.isPlay && 'failure-topo-play']}
+        class={[
+          'failure-topo',
+          this.isPlay && 'failure-topo-play',
+          this.topoStatus === 'empty' && 'failure-topo-empty',
+        ]}
       >
-        <TopoTools
-          ref='topoTools'
-          v-model:showResource={this.showResourceGraph}
-          v-model:showService={this.showServiceOverview}
-          timelinePlayPosition={this.timelinePosition}
-          topoRawDataList={this.topoRawDataCache.diff}
-          onChangeRefleshTime={this.handleChangeRefleshTime}
-          onPlay={this.handleResetPlay}
-          onShowService={this.handleViewServiceFromTop}
-          onTimelineChange={this.handleTimelineChange}
-          onUpdate:AggregationConfig={this.handleUpdateAggregateConfig}
-        />
-        <Loading
-          class='failure-topo-loading'
-          color='#292A2B'
-          loading={this.loading}
-        >
-          <div
-            ref='topoGraphRef'
-            class='topo-graph-wrapper'
-          >
-            <div
-              style={{ width: this.getTopoWidth }}
-              class='topo-graph-wrapper-padding'
+        {this.topoStatus === null ? null : this.topoStatus === 'empty' && this.dataAccessSpaceList?.length ? (
+          <DataAccess
+            spaceList={this.dataAccessSpaceList}
+            isDarkTheme
+          />
+        ) : (
+          <>
+            {this.topoStatus === 'normal' ? (
+              <TopoTools
+                ref='topoTools'
+                v-model:showResource={this.showResourceGraph}
+                v-model:showService={this.showServiceOverview}
+                timelinePlayPosition={this.timelinePosition}
+                topoRawDataList={this.topoRawDataCache.diff}
+                onChangeRefleshTime={this.handleChangeRefleshTime}
+                onPlay={this.handleResetPlay}
+                onShowService={this.handleViewServiceFromTop}
+                onTimelineChange={this.handleTimelineChange}
+                onUpdate:AggregationConfig={this.handleUpdateAggregateConfig}
+              />
+            ) : (
+              <div style={'height:40px;background:#000'} />
+            )}
+            <Loading
+              class='failure-topo-loading'
+              color='#292A2B'
+              loading={this.loading}
             >
-              {this.errorData.isError || this.isNoData ? (
-                <ExceptionComp
-                  errorMsg={this.errorData.msg}
-                  imgHeight={100}
-                  isDarkTheme={true}
-                  isError={this.errorData.isError}
-                  title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
-                />
-              ) : (
-                <>
-                  <div
-                    id='topo-graph'
-                    ref='graphRef'
-                    class='topo-graph'
-                  />
-                  <div class='failure-topo-graph-zoom'>
-                    <Popover
-                      extCls='failure-topo-graph-legend-popover'
-                      v-slots={{
-                        content: <LegendPopoverContent />,
-                        default: (
-                          <div
-                            class={['failure-topo-graph-legend', this.showLegend && 'failure-topo-graph-legend-active']}
-                            v-bk-tooltips={{
-                              content: this.t('显示图例'),
-                              disabled: this.showLegend,
-                              boundary: this.wrapRef,
-                            }}
-                            onClick={this.handleShowLegend}
-                          >
-                            <i class='icon-monitor icon-legend' />
-                          </div>
-                        ),
-                      }}
-                      always={true}
-                      arrow={false}
-                      boundary='body'
-                      disabled={!this.showLegend}
-                      isShow={this.showLegend}
-                      offset={{ crossAxis: 90, mainAxis: 10 }}
-                      placement='top'
-                      renderType='auto'
-                      theme='dark common-table'
-                      trigger='manual'
-                      zIndex={100}
-                    />
-                    <span class='failure-topo-graph-line' />
-                    <div class='failure-topo-graph-zoom-slider'>
-                      <div
-                        class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                        onClick={this.handleUpdateZoom.bind(this, -2)}
-                      >
-                        <i class='icon-monitor icon-minus-line' />
-                      </div>
-                      <Slider
-                        class='slider'
-                        v-model={this.zoomValue}
-                        disable={this.isPlay}
-                        maxValue={20}
-                        minValue={2}
-                        onChange={this.handleZoomChange}
-                        onUpdate:modelValue={this.handleZoomChange}
+              <div
+                ref='topoGraphRef'
+                class='topo-graph-wrapper'
+              >
+                <div
+                  style={{ width: this.getTopoWidth }}
+                  class='topo-graph-wrapper-padding'
+                >
+                  {this.topoStatus === 'normal' ? (
+                    this.errorData.isError || this.errorData.isNoData ? (
+                      <ExceptionComp
+                        errorMsg={this.errorData.msg}
+                        imgHeight={100}
+                        isDarkTheme={true}
+                        isError={this.errorData.isError}
+                        title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
                       />
-                      <div
-                        class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                        onClick={this.handleUpdateZoom.bind(this, 2)}
-                      >
-                        <i class='icon-monitor icon-plus-line' />
-                      </div>
-                    </div>
-                    <span class='failure-topo-graph-line' />
-                    <div
-                      class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
-                      v-bk-tooltips={{ content: this.t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
-                      onClick={this.handleResetZoom}
-                    >
-                      <i class='icon-monitor icon-mc-restoration-ratio' />
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            {this.showResourceGraph && !this.isPlay && (
-              <ResourceGraph
-                ref='resourceGraphRef'
-                entityId={this.nodeEntityId}
-                entityName={this.nodeEntityName}
-                modelData={this.topoRawDataCache.complete}
-                resourceNodeId={this.resourceNodeId}
-                onCollapseResource={this.handleCollapseChange}
-                onHideToolTips={this.handleHideToolTips}
-                onViewService={this.handleViewServiceFromResource}
-              />
-            )}
-            {this.showServiceOverview && !this.isPlay && (
-              <FailureTopoDetail
-                edge={this.edgeDetail}
-                isClickEdgeItem={this.isClickEdgeItem}
-                linkedEdges={this.curLinkedEdges}
-                model={this.nodeDetail}
-                refreshTime={this.refreshTime}
-                showServiceOverview={this.showServiceOverview}
-                showViewResource={this.showViewResource}
-                type={this.detailType}
-                onClearHighlightEdge={this.setHighlightEdge.bind(this)}
-                onCollapseService={this.handleCollapseChange}
-                onFeedBack={this.handleFeedBack}
-                onHighlightEdge={this.handleHighlightEdge}
-                onToDetail={this.handleToDetail}
-                onToDetailSlider={this.handleToDetailSlider}
-                onToDetailTab={this.handleToDetailTab}
-                onToTracePage={this.goToTracePage}
-              />
-            )}
-          </div>
-        </Loading>
+                    ) : (
+                      <>
+                        <div
+                          id='topo-graph'
+                          ref='graphRef'
+                          class='topo-graph'
+                        />
+                        <div class='failure-topo-graph-zoom'>
+                          <Popover
+                            extCls='failure-topo-graph-legend-popover'
+                            v-slots={{
+                              content: <LegendPopoverContent />,
+                              default: (
+                                <div
+                                  class={[
+                                    'failure-topo-graph-legend',
+                                    this.showLegend && 'failure-topo-graph-legend-active',
+                                  ]}
+                                  v-bk-tooltips={{
+                                    content: this.t('显示图例'),
+                                    disabled: this.showLegend,
+                                    boundary: this.wrapRef,
+                                  }}
+                                  onClick={this.handleShowLegend}
+                                >
+                                  <i class='icon-monitor icon-legend' />
+                                </div>
+                              ),
+                            }}
+                            always={true}
+                            arrow={false}
+                            boundary='body'
+                            disabled={!this.showLegend}
+                            isShow={this.showLegend}
+                            offset={{ crossAxis: 90, mainAxis: 10 }}
+                            placement='top'
+                            renderType='auto'
+                            theme='dark common-table'
+                            trigger='manual'
+                            zIndex={100}
+                          />
+                          <span class='failure-topo-graph-line' />
+                          <div class='failure-topo-graph-zoom-slider'>
+                            <div
+                              class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                              onClick={this.handleUpdateZoom.bind(this, -2)}
+                            >
+                              <i class='icon-monitor icon-minus-line' />
+                            </div>
+                            <Slider
+                              class='slider'
+                              v-model={this.zoomValue}
+                              disable={this.isPlay}
+                              maxValue={20}
+                              minValue={2}
+                              onChange={this.handleZoomChange}
+                              onUpdate:modelValue={this.handleZoomChange}
+                            />
+                            <div
+                              class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                              onClick={this.handleUpdateZoom.bind(this, 2)}
+                            >
+                              <i class='icon-monitor icon-plus-line' />
+                            </div>
+                          </div>
+                          <span class='failure-topo-graph-line' />
+                          <div
+                            class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
+                            v-bk-tooltips={{ content: this.t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
+                            onClick={this.handleResetZoom}
+                          >
+                            <i class='icon-monitor icon-mc-restoration-ratio' />
+                          </div>
+                        </div>
+                      </>
+                    )
+                  ) : null}
+                </div>
+                {this.showResourceGraph && !this.isPlay && (
+                  <ResourceGraph
+                    ref='resourceGraphRef'
+                    entityId={this.nodeEntityId}
+                    entityName={this.nodeEntityName}
+                    modelData={this.topoRawDataCache.complete}
+                    resourceNodeId={this.resourceNodeId}
+                    onCollapseResource={this.handleCollapseChange}
+                    onHideToolTips={this.handleHideToolTips}
+                    onViewService={this.handleViewServiceFromResource}
+                  />
+                )}
+                {this.showServiceOverview && !this.isPlay && (
+                  <FailureTopoDetail
+                    edge={this.edgeDetail}
+                    isClickEdgeItem={this.isClickEdgeItem}
+                    linkedEdges={this.curLinkedEdges}
+                    model={this.nodeDetail}
+                    refreshTime={this.refreshTime}
+                    showServiceOverview={this.showServiceOverview}
+                    showViewResource={this.showViewResource}
+                    type={this.detailType}
+                    onClearHighlightEdge={this.setHighlightEdge.bind(this)}
+                    onCollapseService={this.handleCollapseChange}
+                    onFeedBack={this.handleFeedBack}
+                    onHighlightEdge={this.handleHighlightEdge}
+                    onToDetail={this.handleToDetail}
+                    onToDetailSlider={this.handleToDetailSlider}
+                    onToDetailTab={this.handleToDetailTab}
+                    onToTracePage={this.goToTracePage}
+                  />
+                )}
+              </div>
+            </Loading>
+          </>
+        )}
         <FeedbackCauseDialog
           data={this.feedbackModel}
           visible={this.feedbackCauseShow}
