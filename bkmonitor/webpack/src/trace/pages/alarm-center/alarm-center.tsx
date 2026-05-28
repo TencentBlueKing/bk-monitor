@@ -1209,6 +1209,10 @@ export default defineComponent({
                                 }
                                 this.handleQueryStringChange('');
                               }}
+                              onColumnResizeChange={(ctx: ColumnResizeContext) => {
+                                if (ctx?.columnsWidth)
+                                  this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
+                              }}
                               onCurrentPageChange={this.handleCurrentPageChange}
                               onImpactScopeClick={this.handleImpactScopeClick}
                               onPageSizeChange={this.handlePageSizeChange}
