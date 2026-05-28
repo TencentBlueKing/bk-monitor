@@ -57,8 +57,8 @@ import type { TippyContent } from 'vue-tippy';
  * @extends BaseScenario
  */
 export class AlertScenario extends BaseScenario {
-  readonly name = ALERT_STORAGE_KEY;
-  readonly privateClassName = 'alert-table';
+  readonly name: string = ALERT_STORAGE_KEY;
+  readonly privateClassName: string = 'alert-table';
 
   constructor(
     private readonly context: {
@@ -240,7 +240,7 @@ export class AlertScenario extends BaseScenario {
    * @param {BaseTableColumn} column 触发列的列配置项
    * @returns {SlotReturnValue} 渲染dom
    */
-  private renderOperatePanel(row: AlertTableItem, column?: BaseTableColumn) {
+  protected renderOperatePanel(row: AlertTableItem, column?: BaseTableColumn) {
     const { status, is_ack: isAck, ack_operator: ackOperator, followerDisabled } = row;
     const colKey = column?.colKey;
     const moreMenuIsActive =
@@ -305,7 +305,7 @@ export class AlertScenario extends BaseScenario {
    * @param {MouseEvent} e 鼠标事件
    * @param {AlertTableItem} row 告警项
    */
-  private handleAlterNameHover(e: MouseEvent, row: AlertTableItem) {
+  protected handleAlterNameHover(e: MouseEvent, row: AlertTableItem) {
     const content = (
       <div class='alarm-name-popover-container'>
         <div class='alarm-name-popover-item'>
@@ -342,7 +342,7 @@ export class AlertScenario extends BaseScenario {
    * @param ellipsisList 溢出的指标列表
    * @returns {SlotReturnValue} 溢出指标展示渲染内容dom
    */
-  private handleMetricEllipsisTip(ellipsisList: string[]) {
+  protected handleMetricEllipsisTip(ellipsisList: string[]) {
     return (
       <div class='alert-metric-ellipsis-tip-container'>
         {ellipsisList.map((v, i) => (
@@ -533,7 +533,7 @@ export class AlertScenario extends BaseScenario {
    * @param {boolean} followerDisabled 是否关注人
    * @return {string} 告警确认提示文案
    */
-  private askTipMsg(isAak, status, ackOperator, followerDisabled) {
+  protected askTipMsg(isAak, status, ackOperator, followerDisabled) {
     const statusNames = {
       RECOVERED: window.i18n.t('告警已恢复'),
       CLOSED: window.i18n.t('告警已关闭'),
@@ -552,7 +552,7 @@ export class AlertScenario extends BaseScenario {
    * @param {AlertTableItem} row 告警项
    * @returns {Element} 更多操作下拉菜单 dom
    */
-  private getMoreMenuDom(row: AlertTableItem) {
+  protected getMoreMenuDom(row: AlertTableItem) {
     return (
       <div class='alert-table-more-operation-menu'>
         <div
@@ -599,7 +599,7 @@ export class AlertScenario extends BaseScenario {
    * @param {AlertTableItem} row 告警项
    * @param {string} colKey 列key
    */
-  private handleMoreOperationClick(e: MouseEvent, row: AlertTableItem, colKey: string) {
+  protected handleMoreOperationClick(e: MouseEvent, row: AlertTableItem, colKey: string) {
     const dom = this.getMoreMenuDom(row);
     this.context.clickPopoverTools.showPopover(e, dom, `${row.id}-${colKey}-more`, { arrow: false });
   }
