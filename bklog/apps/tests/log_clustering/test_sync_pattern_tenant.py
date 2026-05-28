@@ -39,7 +39,8 @@ class TestSyncModelFileTenant(SimpleTestCase):
 
         sync(model_id="model_1", bk_biz_id=2)
 
-        mock_handler_cls.assert_called_once_with(bk_biz_id=2)
+        mock_handler_cls.assert_called_once_with()
+        handler.get_latest_released_id.assert_called_once_with(model_id="model_1", bk_biz_id=2)
         handler.aiops_release_model_release_id_model_file.assert_called_once_with(
-            model_id="model_1", model_release_id="release_1"
+            model_id="model_1", model_release_id="release_1", bk_biz_id=2
         )

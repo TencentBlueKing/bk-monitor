@@ -53,20 +53,22 @@ class BaseAiopsHandler:
         request_dict["bk_username"] = self.conf.get("bk_username")
         return request_dict
 
-    def aiops_release(self, model_id: str):
+    def aiops_release(self, model_id: str, bk_biz_id: int = None):
         """
         备选模型列表
         @param model_id 模型id
         """
+        if bk_biz_id is not None:
+            self.bind_online_tenant(bk_biz_id)
         aiops_release_request = AiopsReleaseCls(model_id=model_id, project_id=self.conf.get("project_id"))
         request_dict = self._set_username(aiops_release_request)
         return BkDataAIOPSApi.aiops_release(request_dict, bk_tenant_id=self.bk_tenant_id)
 
-    def get_latest_released_id(self, model_id: str):
+    def get_latest_released_id(self, model_id: str, bk_biz_id: int = None):
         """
         获取最新release_id
         """
-        release_info = self.aiops_release(model_id=model_id).get("list", [])
+        release_info = self.aiops_release(model_id=model_id, bk_biz_id=bk_biz_id).get("list", [])
         release_ids = [
             info["model_release_id"] for info in release_info if info.get("publish_status") == LATEST_PUBLISH_STATUS
         ]

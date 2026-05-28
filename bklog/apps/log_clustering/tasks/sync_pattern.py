@@ -69,20 +69,22 @@ def sync_pattern():
 
 @high_priority_task(ignore_result=True)
 def sync(model_id=None, model_output_rt=None, bk_biz_id=None):
-    handler = AiopsModelHandler(bk_biz_id=bk_biz_id)
+    handler = AiopsModelHandler()
     if model_id:
         try:
-            release_id = handler.get_latest_released_id(model_id=model_id)
+            release_id = handler.get_latest_released_id(model_id=model_id, bk_biz_id=bk_biz_id)
         except ModelReleaseNotFoundException:
             return
 
-        content = handler.aiops_release_model_release_id_model_file(model_id=model_id, model_release_id=release_id)[
-            "file_content"
-        ]
+        content = handler.aiops_release_model_release_id_model_file(
+            model_id=model_id, model_release_id=release_id, bk_biz_id=bk_biz_id
+        )["file_content"]
 
     elif model_output_rt:
         model_id = model_output_rt
-        content = handler.model_output_rt_model_file(model_output_rt=model_output_rt)["file_content"]
+        content = handler.model_output_rt_model_file(model_output_rt=model_output_rt, bk_biz_id=bk_biz_id)[
+            "file_content"
+        ]
 
     else:
         return

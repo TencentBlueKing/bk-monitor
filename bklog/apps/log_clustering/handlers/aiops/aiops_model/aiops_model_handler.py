@@ -33,28 +33,27 @@ from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 
 
 class AiopsModelHandler(BaseAiopsHandler):
-    def __init__(self, bk_biz_id: int = None):
-        super().__init__()
-        if bk_biz_id is not None:
-            self.bind_online_tenant(bk_biz_id)
-
-    def aiops_release_model_release_id_model_file(self, model_id: str, model_release_id: str):
+    def aiops_release_model_release_id_model_file(self, model_id: str, model_release_id: str, bk_biz_id: int = None):
         """
         获取发布的模型对应的模型文件
         @param model_id 模型id
         @param model_release_id 发布模型配置ID
         """
+        if bk_biz_id is not None:
+            self.bind_online_tenant(bk_biz_id)
         aiops_release_model_release_id_model_file_request = AiopsReleaseModelReleaseIdModelFileCls(
             model_id=model_id, model_release_id=model_release_id
         )
         request_dict = self._set_username(aiops_release_model_release_id_model_file_request)
         return BkDataAIOPSApi.aiops_release_model_release_id_model_file(request_dict, bk_tenant_id=self.bk_tenant_id)
 
-    def model_output_rt_model_file(self, model_output_rt: str):
+    def model_output_rt_model_file(self, model_output_rt: str, bk_biz_id: int = None):
         """
         获取模型输出对应的模型文件
         @param model_output_rt 模型输出结果表名称
         """
+        if bk_biz_id is not None:
+            self.bind_online_tenant(bk_biz_id)
         request_dict = self._set_username({"data_processing_id": model_output_rt, "compat": "true"})
         return BkDataAIOPSApi.serving_data_processing_id_model_file(request_dict, bk_tenant_id=self.bk_tenant_id)
 
