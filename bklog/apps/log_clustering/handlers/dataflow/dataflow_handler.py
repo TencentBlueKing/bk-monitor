@@ -238,15 +238,15 @@ class DataFlowHandler(BaseAiopsHandler):
         not_clustering_rule_list = ["where", "NOT", "(", default_filter_rule, rules_str, ")"]
         return " ".join(filter_rule_list), " ".join(not_clustering_rule_list)
 
-    # SQL 字符串字面量转义: 至少处理反斜杠和单引号, 避免值里含 ' 时把 SQL 写坏
-    _SQL_STR_ESCAPE_MAP = str.maketrans({"\\": "\\\\", "'": "\\'"})
+    # SQL 字符串字面量转义: 单引号使用 SQL 标准的双单引号转义，避免 DataFlow/Flink SQL 解析失败
+    _SQL_STR_ESCAPE_MAP = str.maketrans({"\\": "\\\\", "'": "''"})
 
     @classmethod
     def _quote_sql_literal(cls, value) -> str:
         """把任意 filter rule 的 value 转成可直接拼进 Flink SQL 的字符串字面量.
 
         - 反斜杠 \\  -> \\\\
-        - 单引号 '   -> \\'
+        - 单引号 '   -> ''
         - 其余字符(含 %, _) 透传, LIKE 通配符由调用方在外层自行追加
         """
         return "'" + str(value).translate(cls._SQL_STR_ESCAPE_MAP) + "'"

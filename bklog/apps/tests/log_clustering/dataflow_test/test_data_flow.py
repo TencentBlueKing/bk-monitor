@@ -241,13 +241,32 @@ class TestPatternSearch(TestCase):
         self.assertEqual(DataFlowHandler._quote_sql_literal("simple"), "'simple'")
         # 空字符串
         self.assertEqual(DataFlowHandler._quote_sql_literal(""), "''")
-        # 单引号: 转义为 \\' 避免把 SQL 写坏
-        self.assertEqual(DataFlowHandler._quote_sql_literal("it's"), "'it\\'s'")
+        # 单引号: 使用 SQL 标准双单引号转义，兼容 DataFlow/Flink SQL 解析
+        self.assertEqual(DataFlowHandler._quote_sql_literal("it's"), "'it''s'")
+        self.assertEqual(
+            DataFlowHandler._quote_sql_literal("Can't find CfgTaskItem by TaskType"),
+            "'Can''t find CfgTaskItem by TaskType'",
+        )
         # 反斜杠: 转义为 \\\\
         self.assertEqual(DataFlowHandler._quote_sql_literal("a\\b"), "'a\\\\b'")
         # 百分号 / 下划线 (LIKE 通配符) 透传, 由调用方决定语义
         self.assertEqual(DataFlowHandler._quote_sql_literal("50%"), "'50%'")
         self.assertEqual(DataFlowHandler._quote_sql_literal("a_b"), "'a_b'")
+
+    def test_build_condition_list_quotes_single_quote_for_dataflow_sql(self):
+        result = DataFlowHandler.build_condition_list(
+            {"log": "log"},
+            "log",
+            {
+                "fields_name": "log",
+                "op": "not contains",
+                "value": "Can't find CfgTaskItem by TaskType",
+                "logic_operator": None,
+            },
+            [{"fields_name": "log"}],
+        )
+
+        self.assertEqual(result, ["`log`", "NOT LIKE", "'%Can''t find CfgTaskItem by TaskType%'"])
 
     def test_build_doris_fields(self):
         all_fields = [
