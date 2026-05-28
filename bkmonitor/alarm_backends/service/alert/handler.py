@@ -278,6 +278,7 @@ class AlertHandler(base.BaseHandler):
             update_bootstrap_servers = []
             create_bootstrap_servers = []
             delete_bootstrap_servers = []
+            recreate_bootstrap_servers = []
 
             for bootstrap_server, tps in bootstrap_servers_topics.items():
                 if bootstrap_server not in self.consumers:
@@ -285,6 +286,10 @@ class AlertHandler(base.BaseHandler):
                     continue
 
                 consumer = self.consumers[bootstrap_server]
+                if self.is_consumer_unhealthy(consumer):
+                    recreate_bootstrap_servers.append(bootstrap_server)
+                    continue
+
                 if consumer.assignment() != tps:
                     # 当前分配的内容与新的不一致的情况
                     update_bootstrap_servers.append(bootstrap_server)
@@ -299,43 +304,42 @@ class AlertHandler(base.BaseHandler):
                 logger.info(f"[run_consumer_manager]  create {'|'.join(create_bootstrap_servers)}")
             if delete_bootstrap_servers:
                 logger.info(f"[run_consumer_manager] delete {'|'.join(delete_bootstrap_servers)}")
+            if recreate_bootstrap_servers:
+                logger.warning(f"[run_consumer_manager] recreate {'|'.join(recreate_bootstrap_servers)}")
 
-            if any([update_bootstrap_servers, create_bootstrap_servers, delete_bootstrap_servers]):
+            if any(
+                [
+                    update_bootstrap_servers,
+                    create_bootstrap_servers,
+                    delete_bootstrap_servers,
+                    recreate_bootstrap_servers,
+                ]
+            ):
                 self.consumers_lock.acquire()
-                new_consumers = {}
+                try:
+                    new_consumers = {}
 
-                for bootstrap_server in create_bootstrap_servers:
-                    new_consumers[bootstrap_server] = KafkaConsumer(
-                        bootstrap_servers=bootstrap_server,
-                        group_id=f"{settings.APP_CODE}.alert.builder",
-                        # 每个分区单次获取大小最大值为5M
-                        max_partition_fetch_bytes=1024 * 1024 * 5,
-                        # 请求级超时，限制 broker 不可用时初始化 poll() 的最长阻塞时间
-                        request_timeout_ms=30000,
-                    )
-                    new_consumers[bootstrap_server].poll()
-                    new_consumers[bootstrap_server].assign(partitions=list(bootstrap_servers_topics[bootstrap_server]))
-                    for tp in bootstrap_servers_topics[bootstrap_server]:
-                        # 新的需要重新设置一下offset
-                        data_id = self.topic_data_id.get(f"{bootstrap_server}|{tp.topic}")
-                        if not data_id or tp.partition != 0:
-                            # 兼容历史的处理记录， 以前默认的partition都为0
+                    for bootstrap_server in set(create_bootstrap_servers + recreate_bootstrap_servers):
+                        new_consumers[bootstrap_server] = self.create_consumer(
+                            bootstrap_server=bootstrap_server,
+                            partitions=bootstrap_servers_topics[bootstrap_server],
+                        )
+
+                    for bootstrap_server, consumer in self.consumers.items():
+                        if (
+                            bootstrap_server in delete_bootstrap_servers
+                            or bootstrap_server in recreate_bootstrap_servers
+                        ):
+                            # 如果删除了，提交当前的记录
+                            self.close_consumer(consumer)
                             continue
-                        redis_offset = self.get_kafka_redis_offset(data_id=data_id, topic=tp.topic)
-                        if redis_offset:
-                            new_consumers[bootstrap_server].seek(tp, redis_offset)
 
-                for bootstrap_server, consumer in self.consumers.items():
-                    if bootstrap_server in delete_bootstrap_servers:
-                        # 如果删除了，提交当前的记录
-                        self.close_consumer(consumer)
-                        continue
-
-                    if bootstrap_server in update_bootstrap_servers:
-                        consumer.assign(partitions=list(bootstrap_servers_topics[bootstrap_server]))
-                    new_consumers[bootstrap_server] = consumer
-                self.consumers = new_consumers
-                self.consumers_lock.release()
+                        if bootstrap_server in update_bootstrap_servers:
+                            consumer.assign(partitions=list(bootstrap_servers_topics[bootstrap_server]))
+                        new_consumers[bootstrap_server] = consumer
+                    self.consumers = new_consumers
+                finally:
+                    self.consumers_lock.release()
             else:
                 logger.info("[run_consumer_manager] consumers have not changed, %s", len(list(self.consumers.values())))
             if self._stop_signal:
@@ -349,10 +353,70 @@ class AlertHandler(base.BaseHandler):
                 break
             time.sleep(15)
 
+    def create_consumer(self, bootstrap_server: str, partitions: set[TopicPartition]):
+        consumer = KafkaConsumer(
+            bootstrap_servers=bootstrap_server,
+            group_id=f"{settings.APP_CODE}.alert.builder",
+            # 每个分区单次获取大小最大值为5M
+            max_partition_fetch_bytes=1024 * 1024 * 5,
+            # 请求级超时，限制 broker 不可用时初始化 poll() 的最长阻塞时间
+            request_timeout_ms=30000,
+        )
+        consumer.poll()
+        consumer.assign(partitions=list(partitions))
+        for tp in partitions:
+            # 新的需要重新设置一下offset
+            data_id = self.topic_data_id.get(f"{bootstrap_server}|{tp.topic}")
+            if not data_id or tp.partition != 0:
+                # 兼容历史的处理记录， 以前默认的partition都为0
+                continue
+            redis_offset = self.get_kafka_redis_offset(data_id=data_id, topic=tp.topic)
+            if redis_offset:
+                consumer.seek(tp, redis_offset)
+        return consumer
+
     @staticmethod
     def close_consumer(consumer):
-        consumer.commit()
-        consumer.close()
+        try:
+            consumer.commit()
+        except Exception as error:
+            logger.warning("Kafka commit failure before close: %s", error)
+        try:
+            consumer.close()
+        except Exception as error:
+            logger.warning("Kafka close failure: %s", error)
+
+    @staticmethod
+    def is_consumer_unhealthy(consumer) -> bool:
+        if vars(consumer).get("_closed") is True:
+            return True
+
+        client = vars(consumer).get("_client")
+        if not client:
+            return False
+
+        if vars(client).get("_closed") is True:
+            return True
+
+        for attr in ("_wake_r", "_wake_w"):
+            sock = vars(client).get(attr)
+            if sock is None:
+                continue
+            try:
+                if sock.fileno() < 0:
+                    return True
+            except Exception:
+                return True
+
+        return False
+
+    def remove_unhealthy_consumer(self, bootstrap_server: str, consumer):
+        with self.consumers_lock:
+            if self.consumers.get(bootstrap_server) is not consumer:
+                return
+            self.consumers.pop(bootstrap_server, None)
+
+        self.close_consumer(consumer)
 
     @always_retry(10)
     def run_poller(self):
@@ -371,12 +435,29 @@ class AlertHandler(base.BaseHandler):
 
             has_record = False
             for bootstrap_server, consumer in current_consumers.items():
+                if self.is_consumer_unhealthy(consumer):
+                    logger.warning(
+                        "[run_poller] detect unhealthy kafka consumer for %s, remove and wait for recreate",
+                        bootstrap_server,
+                    )
+                    self.remove_unhealthy_consumer(bootstrap_server, consumer)
+                    continue
+
                 try:
                     # 设置timeout时间500ms
                     data = consumer.poll(500, max_records=self.MAX_RETRIEVE_NUMBER)
                 except Exception as e:
                     # consumer 可能已被 run_consumer_manager 关闭（发布/配置变更时）
                     logger.warning("[run_poller] poll error for %s, skip: %s", bootstrap_server, e)
+                    if self.is_consumer_unhealthy(consumer):
+                        self.remove_unhealthy_consumer(bootstrap_server, consumer)
+                    continue
+                if self.is_consumer_unhealthy(consumer):
+                    logger.warning(
+                        "[run_poller] kafka consumer for %s became unhealthy after poll, wait for recreate",
+                        bootstrap_server,
+                    )
+                    self.remove_unhealthy_consumer(bootstrap_server, consumer)
                     continue
                 if not data:
                     continue
