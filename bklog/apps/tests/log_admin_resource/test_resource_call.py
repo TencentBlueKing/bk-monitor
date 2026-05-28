@@ -27,6 +27,7 @@ from django.test import TestCase, override_settings
 from django.utils.deprecation import MiddlewareMixin
 
 from apps.api import TransferApi
+from apps.log_admin_resource.views import AdminResourceViewSet
 from apps.log_databus.constants import ContainerCollectorType
 from apps.log_databus.models import (
     BKDataClean,
@@ -118,6 +119,13 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(content["data"]["func_name"], "__meta__")
         self.assertEqual(content["data"]["protocol"], "bklog.admin_resource.v1")
         self.assertIn("bklog.collector.list", content["data"]["result"]["functions"])
+
+    def test_viewset_uses_drf_permission_for_entry_auth(self):
+        permission_class_names = {
+            permission_class.__name__ for permission_class in AdminResourceViewSet.permission_classes
+        }
+
+        self.assertIn("AdminResourceAppWhiteListPermission", permission_class_names)
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_unknown_func_name_returns_stable_error(self):
