@@ -25,6 +25,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 from django.utils.deprecation import MiddlewareMixin
 
+from apps.api import TransferApi
 from apps.log_databus.constants import ContainerCollectorType
 from apps.log_databus.models import (
     BKDataClean,
@@ -95,6 +96,17 @@ class AdminResourceCallViewTest(TestCase):
 
         self.assertTrue(content["result"])
         self.assertEqual(content["data"]["func_name"], "__meta__")
+
+
+class TransferApiTenantGetterTest(TestCase):
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-2")
+    def test_result_table_storage_getter_uses_result_table_list_biz_id(self, mock_get_tenant_id):
+        tenant_id = TransferApi.get_result_table_storage.bk_tenant_id(
+            {"result_table_list": "2_bklog.bcs_checkinsvr,2_bklog.other", "storage_type": "elasticsearch"}
+        )
+
+        self.assertEqual(tenant_id, "tenant-2")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id="2")
 
 
 class CollectorResourceCallTest(TestCase):
