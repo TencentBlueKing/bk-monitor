@@ -20,23 +20,19 @@ class TestOnlineTenantFlow(SimpleTestCase):
         toggle_patcher.start()
 
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ActionHandler.get_action_handler")
-    @patch("apps.log_clustering.handlers.aiops.base.get_online_clustering_config")
-    def test_operator_flow_passes_tenant_header(self, mock_resolve, mock_get_action):
-        mock_resolve.return_value = (
-            {"project_id": 1001, "bk_biz_id": 2001, "model_id": "tenant_model", "tspider_cluster": "tenant_ts"},
-            "tenant_a",
-        )
+    def test_operator_flow_passes_business_id_for_tenant_getter(self, mock_get_action):
         action = mock_get_action.return_value
 
         DataFlowHandler().operator_flow(flow_id=11, action=ActionEnum.START, bk_biz_id=2)
 
         action.assert_called_once()
-        self.assertEqual(action.call_args.kwargs["bk_tenant_id"], "tenant_a")
+        self.assertEqual(action.call_args.args[0]["bk_biz_id"], 2)
+        self.assertNotIn("bk_tenant_id", action.call_args.kwargs)
 
     @patch.object(DataFlowHandler, "_render_template", return_value="[]")
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ClusteringConfig.get_by_index_set_id")
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDataFlowApi.create_flow")
-    @patch("apps.log_clustering.handlers.aiops.base.get_online_clustering_config")
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.get_online_clustering_config")
     def test_aggregation_flow_uses_tenant_project_and_storage(
         self, mock_resolve, mock_create_flow, mock_get_config, mock_render
     ):

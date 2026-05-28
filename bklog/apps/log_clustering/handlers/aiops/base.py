@@ -36,17 +36,13 @@ class BaseAiopsHandler:
         if not FeatureToggleObject.switch(BKDATA_CLUSTERING_TOGGLE):
             raise ClusteringClosedException()
         self.conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
-        self.bk_tenant_id = ""
-
-    def bind_online_tenant(self, bk_biz_id: int):
-        self.conf, self.bk_tenant_id = get_online_clustering_config(bk_biz_id)
 
     def _set_username(self, request_data_cls, bk_username: str = ""):
         if isinstance(request_data_cls, dict):
             request_dict = request_data_cls
         else:
             request_dict = asdict(request_data_cls)
-        logger.info(f"request_dict=> {request_dict}")
+        logger.info("bkdata request params: %s", request_dict)
         if bk_username:
             request_dict["bk_username"] = bk_username
             return request_dict
@@ -59,10 +55,11 @@ class BaseAiopsHandler:
         @param model_id 模型id
         """
         if bk_biz_id is not None:
-            self.bind_online_tenant(bk_biz_id)
+            self.conf, _bk_tenant_id = get_online_clustering_config(bk_biz_id)
         aiops_release_request = AiopsReleaseCls(model_id=model_id, project_id=self.conf.get("project_id"))
         request_dict = self._set_username(aiops_release_request)
-        return BkDataAIOPSApi.aiops_release(request_dict, bk_tenant_id=self.bk_tenant_id)
+        request_dict["bk_biz_id"] = bk_biz_id if bk_biz_id is not None else self.conf.get("bk_biz_id")
+        return BkDataAIOPSApi.aiops_release(request_dict)
 
     def get_latest_released_id(self, model_id: str, bk_biz_id: int = None):
         """

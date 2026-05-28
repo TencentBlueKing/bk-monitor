@@ -41,6 +41,7 @@ class _BkDataAIOPSApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.aiops_release = DataAPI(
             method="GET",
@@ -51,6 +52,7 @@ class _BkDataAIOPSApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
         self.aiops_release_model_release_id_model_file = DataAPI(
@@ -62,6 +64,7 @@ class _BkDataAIOPSApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
         self.serving_data_processing_id_model_file = DataAPI(
@@ -73,6 +76,7 @@ class _BkDataAIOPSApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.serving_data_processing_id_config = DataAPI(
             method="GET",
@@ -83,7 +87,7 @@ class _BkDataAIOPSApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: p["data_processing_id"].split("_", 1)[0]),
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.aiops_get_model_storage_cluster = DataAPI(
             method="GET",
@@ -111,6 +115,7 @@ class _BkDataAIOPSApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
         self.update_online_task = DataAPI(
@@ -122,6 +127,7 @@ class _BkDataAIOPSApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
             default_timeout=300,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
 
