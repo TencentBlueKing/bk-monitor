@@ -55,7 +55,6 @@ class ApplicationViewSet(ResourceViewSet):
 
     def get_permissions(self):
         if self.action in [
-            "create_application",
             "delete_application",
             "start",
             "stop",
