@@ -89,7 +89,7 @@ export default defineComponent<MarkdownViewerProps>({
 
     onBeforeUnmount(() => {
       if (editor.value) {
-        editorEvents.forEach(event => editor.value!.off(event));
+        editorEvents.forEach(event => editor.value?.off(event));
         editor.value.destroy();
       }
     });

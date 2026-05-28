@@ -31,7 +31,9 @@ import { copyText } from 'monitor-common/utils';
 import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
+import { AEGIS_MD, OT_MD } from './sdk-md';
 import { PROTOCOLS } from './sdk-protocols';
+import Viewer from '@/components/markdown-editor/viewer';
 
 import type { IRumAppConfig } from '../../typings/rum-app-config';
 
@@ -246,18 +248,25 @@ export default defineComponent({
         2: {
           index: 2,
           title: this.t('接入指引'),
-          descRender: () => <span>descRender</span>,
-          contentRender: () => <div>contentRender</div>,
+          descRender: () => (
+            <Button
+              theme='primary'
+              text
+            >
+              {this.t('查看文档')}
+            </Button>
+          ),
+          contentRender: () => <Viewer value={this.protocol === 'OT' ? OT_MD : AEGIS_MD} />,
         },
       };
-      return [1, 2].map(item =>
+      return [1, 2].map(step =>
         stepRender(
           {
-            index: stepRenderMap[item].index,
-            title: stepRenderMap[item].title,
+            index: stepRenderMap[step].index,
+            title: stepRenderMap[step].title,
           },
-          stepRenderMap[item].descRender,
-          stepRenderMap[item].contentRender
+          stepRenderMap[step].descRender,
+          stepRenderMap[step].contentRender
         )
       );
     };
