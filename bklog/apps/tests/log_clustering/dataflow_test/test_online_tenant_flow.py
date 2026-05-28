@@ -36,16 +36,13 @@ class TestOnlineTenantFlow(SimpleTestCase):
     def test_aggregation_flow_uses_tenant_project_and_storage(
         self, mock_resolve, mock_create_flow, mock_get_config, mock_render
     ):
-        mock_resolve.return_value = (
-            {
-                "project_id": 1001,
-                "bk_biz_id": 2001,
-                "model_id": "tenant_model",
-                "tspider_cluster": "tenant_ts",
-                "pattern_storage_cluster": "tenant_pattern",
-            },
-            "tenant_a",
-        )
+        mock_resolve.return_value = {
+            "project_id": 1001,
+            "bk_biz_id": 2001,
+            "model_id": "tenant_model",
+            "tspider_cluster": "tenant_ts",
+            "pattern_storage_cluster": "tenant_pattern",
+        }
         mock_get_config.return_value = Mock(
             bk_biz_id=2,
             index_set_id=30,

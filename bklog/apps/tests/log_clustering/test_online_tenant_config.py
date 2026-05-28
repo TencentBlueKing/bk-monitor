@@ -3,7 +3,6 @@ from unittest.mock import Mock, patch
 from django.conf import settings
 from django.test import SimpleTestCase
 
-from apps.log_clustering.exceptions import ClusteringTenantResourceConfigNotExistException
 from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.handlers.pipline_service.aiops_service_online import operator_aiops_service_online
 
@@ -22,9 +21,8 @@ class TestOnlineTenantConfig(SimpleTestCase):
             }
         )
 
-        config, bk_tenant_id = get_online_clustering_config(2)
+        config = get_online_clustering_config(2)
 
-        self.assertEqual(bk_tenant_id, settings.BK_APP_TENANT_ID)
         self.assertEqual(config["project_id"], 1)
         self.assertEqual(config["model_id"], "system_model")
 
@@ -38,13 +36,13 @@ class TestOnlineTenantConfig(SimpleTestCase):
                 "bk_biz_id": 2,
                 "model_id": "system_model",
                 "tspider_cluster": "system_ts",
+                "pattern_storage_cluster": "system_pattern",
                 "collector_clustering_es_storage": {"es_storage": "system_es"},
                 "doris_storage": "system_doris",
                 "log_pattern_expires": 30,
                 "tenant_resource_configs": {
                     "tenant_a": {
                         "project_id": 1001,
-                        "bk_biz_id": 2001,
                         "model_id": "tenant_model",
                         "tspider_cluster": "tenant_ts",
                     }
@@ -52,34 +50,37 @@ class TestOnlineTenantConfig(SimpleTestCase):
             }
         )
 
-        config, bk_tenant_id = get_online_clustering_config(2)
+        config = get_online_clustering_config(2)
 
-        self.assertEqual(bk_tenant_id, "tenant_a")
         self.assertEqual(config["project_id"], 1001)
-        self.assertEqual(config["bk_biz_id"], 2001)
+        self.assertEqual(config["bk_biz_id"], 2)
         self.assertEqual(config["model_id"], "tenant_model")
-        self.assertEqual(config["pattern_storage_cluster"], "tenant_ts")
+        self.assertEqual(config["tspider_cluster"], "tenant_ts")
+        self.assertEqual(config["pattern_storage_cluster"], "system_pattern")
         self.assertEqual(config["log_pattern_expires"], 30)
-        self.assertNotIn("collector_clustering_es_storage", config)
-        self.assertNotIn("doris_storage", config)
+        self.assertEqual(config["collector_clustering_es_storage"], {"es_storage": "system_es"})
+        self.assertEqual(config["doris_storage"], "system_doris")
 
     @patch("apps.log_clustering.handlers.aiops.config.Space.get_tenant_id")
     @patch("apps.log_clustering.handlers.aiops.config.FeatureToggleObject.toggle")
-    def test_non_default_tenant_requires_override_config(self, mock_toggle, mock_get_tenant_id):
+    def test_non_default_tenant_falls_back_to_top_level_config_without_override(self, mock_toggle, mock_get_tenant_id):
         mock_get_tenant_id.return_value = "tenant_a"
         mock_toggle.return_value = Mock(
             feature_config={
                 "project_id": 1,
                 "bk_biz_id": 2,
                 "model_id": "system_model",
-                "tenant_resource_configs": {"tenant_a": {"project_id": 1001}},
+                "tspider_cluster": "system_ts",
+                "tenant_resource_configs": {},
             }
         )
 
-        with self.assertRaises(ClusteringTenantResourceConfigNotExistException) as context:
-            get_online_clustering_config(2)
+        config = get_online_clustering_config(2)
 
-        self.assertIn("bk_biz_id,model_id,tspider_cluster", str(context.exception))
+        self.assertEqual(config["project_id"], 1)
+        self.assertEqual(config["bk_biz_id"], 2)
+        self.assertEqual(config["model_id"], "system_model")
+        self.assertEqual(config["pattern_storage_cluster"], "system_ts")
 
 
 class TestOnlineTenantPipeline(SimpleTestCase):
@@ -102,7 +103,7 @@ class TestOnlineTenantPipeline(SimpleTestCase):
             task_records=[],
             save=Mock(),
         )
-        mock_resolve.return_value = ({"project_id": 1001, "bk_biz_id": 2001}, "tenant_a")
+        mock_resolve.return_value = {"project_id": 1001, "bk_biz_id": 2001}
         service = mock_service.return_value
         service.build_data_context.side_effect = lambda params: params
         service.build_pipeline.return_value.id = "pipeline-id"

@@ -189,7 +189,7 @@ def operator_aiops_service_online(index_set_id):
     :return:
     """
     clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-    conf, _bk_tenant_id = get_online_clustering_config(clustering_config.bk_biz_id)
+    conf = get_online_clustering_config(clustering_config.bk_biz_id)
     rt_name = (
         clustering_config.collector_config_name_en
         if clustering_config.collector_config_name_en

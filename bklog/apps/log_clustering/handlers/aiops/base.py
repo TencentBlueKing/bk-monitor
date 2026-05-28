@@ -55,7 +55,7 @@ class BaseAiopsHandler:
         @param model_id 模型id
         """
         if bk_biz_id is not None:
-            self.conf, _bk_tenant_id = get_online_clustering_config(bk_biz_id)
+            self.conf = get_online_clustering_config(bk_biz_id)
         aiops_release_request = AiopsReleaseCls(model_id=model_id, project_id=self.conf.get("project_id"))
         request_dict = self._set_username(aiops_release_request)
         request_dict["bk_biz_id"] = bk_biz_id if bk_biz_id is not None else self.conf.get("bk_biz_id")

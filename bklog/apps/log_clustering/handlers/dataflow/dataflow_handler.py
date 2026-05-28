@@ -822,7 +822,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def update_predict_node(self, index_set_id):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        self.conf, _bk_tenant_id = get_online_clustering_config(clustering_config.bk_biz_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
 
         st_list = OnlineTaskTrainingArgs.ST_LIST
         if clustering_config.max_dist_list == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
@@ -1773,7 +1773,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def create_predict_flow(self, index_set_id: int):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        self.conf, _bk_tenant_id = get_online_clustering_config(clustering_config.bk_biz_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
 
         # 检查清洗任务是否已经正常启动，若未启动，则启动之
         self.check_and_start_clean_task(clustering_config.bkdata_etl_result_table_id)
@@ -1835,7 +1835,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        self.conf, _bk_tenant_id = get_online_clustering_config(clustering_config.bk_biz_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
         if not clustering_config.predict_flow_id:
             logger.info(f"update predict flow not found: index_set_id -> {index_set_id}")
             return
@@ -1932,7 +1932,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        self.conf, _bk_tenant_id = get_online_clustering_config(clustering_config.bk_biz_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
         result_table_id = clustering_config.predict_flow["clustering_predict"]["result_table_id"]
         log_count_aggregation_flow_dict = asdict(
             self._init_log_count_aggregation_flow(
@@ -1970,7 +1970,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        self.conf, _bk_tenant_id = get_online_clustering_config(clustering_config.bk_biz_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
         if not clustering_config.log_count_aggregation_flow_id:
             logger.info(f"update agg flow not found: index_set_id -> {index_set_id}")
             return

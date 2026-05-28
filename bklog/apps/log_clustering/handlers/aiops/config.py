@@ -21,41 +21,38 @@ the project delivered to anyone in the future.
 
 from copy import deepcopy
 
-from django.conf import settings
-
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
-from apps.log_clustering.exceptions import ClusteringTenantResourceConfigNotExistException
 from apps.log_search.models import Space
 
 TENANT_RESOURCE_CONFIGS_KEY = "tenant_resource_configs"
-REQUIRED_TENANT_RESOURCE_FIELDS = ("project_id", "bk_biz_id", "model_id", "tspider_cluster")
-TENANT_RESOURCE_FIELDS = REQUIRED_TENANT_RESOURCE_FIELDS + (
-    "pattern_storage_cluster",
-    "collector_clustering_es_storage",
-    "doris_storage",
-)
 
 
 def get_online_clustering_config(bk_biz_id: int):
-    """Resolve temporary tenant-specific resources for the online clustering flow."""
+    """Resolve temporary tenant-specific resources for the online clustering flow.
+
+    Example:
+    {
+        "project_id": 100,
+        "bk_biz_id": 2,
+        "model_id": "default_model",
+        "tspider_cluster": "default_tspider",
+        "tenant_resource_configs": {
+            "tenant_a": {
+                "project_id": 1001,
+                "model_id": "tenant_a_model",
+                "tspider_cluster": "tenant_a_tspider"
+            }
+        }
+    }
+
+    Tenant values are optional overrides. If a field is absent under the tenant key,
+    the top-level value is used.
+    """
     config = deepcopy(FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config)
     bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
-
-    if bk_tenant_id == settings.BK_APP_TENANT_ID:
-        return config, bk_tenant_id
-
     tenant_config = (config.get(TENANT_RESOURCE_CONFIGS_KEY) or {}).get(bk_tenant_id) or {}
-    missing_fields = [field for field in REQUIRED_TENANT_RESOURCE_FIELDS if not tenant_config.get(field)]
-    if missing_fields:
-        raise ClusteringTenantResourceConfigNotExistException(
-            ClusteringTenantResourceConfigNotExistException.MESSAGE.format(
-                bk_tenant_id=bk_tenant_id, fields=",".join(missing_fields)
-            )
-        )
 
-    for field in TENANT_RESOURCE_FIELDS:
-        config.pop(field, None)
     config.update(tenant_config)
     config["pattern_storage_cluster"] = config.get("pattern_storage_cluster") or config.get("tspider_cluster")
-    return config, bk_tenant_id
+    return config

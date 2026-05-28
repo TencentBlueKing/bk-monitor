@@ -142,7 +142,7 @@ class ClusteringConfigHandler:
         # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
         related_space_pre_bk_biz_id = space_uid_to_bk_biz_id(log_index_set.space_uid)
         bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
-        conf, _bk_tenant_id = get_online_clustering_config(bk_biz_id)
+        conf = get_online_clustering_config(bk_biz_id)
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT) or {}
         storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
         doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
