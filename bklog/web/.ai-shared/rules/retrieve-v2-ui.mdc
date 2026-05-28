@@ -1,0 +1,80 @@
+---
+description: bklog retrieve-v2 UI 修改约束
+alwaysApply: false
+globs:
+  - "src/views/retrieve-v2/**/*"
+  - "src/store/index.js"
+  - "src/common/util.js"
+---
+
+# retrieve-v2 UI 修改约束
+
+## 修改前必读
+
+涉及日志检索结果面板时，优先查看：
+
+- `src/views/retrieve-v2/search-result-panel/index.vue`
+- `src/views/retrieve-v2/search-result-panel/index.scss`
+- `src/views/retrieve-v2/search-result-panel/field-filter.vue`
+- `src/views/retrieve-v2/search-result-panel/field-filter.scss`
+- `src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`
+- `src/common/util.js`
+- `src/store/index.js`
+
+## 字段设置栏约束
+
+1. 展开态字段设置栏 sticky 位置由 `.field-list-sticky.is-show` 控制，top 同步 `var(--offset-search-bar)`，用于对齐趋势图/搜索栏下方。
+2. 收起态入口必须由外层 `.field-list-sticky.is-close` 负责 sticky，top 同步日志表头 `.bklog-row-container.row-header` 的吸顶位置，即 `top: 0`。
+3. 收起态按钮 `.search-field-filter-new.is-close .field-filter-title` 只做相对外层 sticky 容器的绝对定位，不要在模板内写 inline `position/top/transform`，避免覆盖 SCSS。
+4. 不要把展开态的 `var(--offset-search-bar)` 直接复用于收起态；收起态需要和日志表头同步，便于用户在结果区滚动时快速展开。
+5. 修改 z-index 前需确认不会遮挡搜索条件、图表标题和日志结果 hover 操作。
+
+## 日志表格列宽约束
+
+1. 列宽口径必须在 store、工具函数、渲染组件三处保持一致。
+2. `operatorToolsWidth` 只表示右侧操作工具内容宽度，不包含表格单元格额外 padding/安全余量。
+3. 右侧操作列完整占位应使用 `getStaticWidthForTable(operatorToolsWidth)`，不要直接写 `operatorToolsWidth + 40`。
+4. 末列撑满逻辑必须避免真实内容宽度超出可视区域，否则最后一列的“更多”等操作会被横向滚动遮挡。
+5. 修改宽度计算后需要验证：
+   - 字段数量少时无横向滚动
+   - 最后一列有“更多”时可直接看到
+   - 字段数量多时横向滚动仍正常
+   - AI 助手、WebConsole、APM 关联等可选操作开启时不遮挡
+
+## 性能约束
+
+- 大字段列表优先使用 Map/for 循环等低开销路径。
+- 不在渲染行循环中引入重复 DOM 查询或复杂响应式计算。
+- 对高频滚动/resize/drag 逻辑使用 throttle/debounce 或缓存。
+
+## LogRows 行配置与 monitor 独立包刷新约束
+
+- `src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx` 的行级展开/行号状态由 `WeakMap<row, Ref<RowConfig>>` 承载。
+- 不允许在 render/click 路径中直接使用 `tableRowConfig.get(row).value`；必须通过 `ensureTableRowConfig(row, rowIndex)` 兜底，避免 monitor/apm 独立包在 `props.timeRange` 变更时由于刷新时序差异导致行配置未注册而 render 崩溃。
+- `ensureTableRowConfig` 必须保持 O(1)，只能基于当前 row 与当前渲染 rowIndex 懒创建/修正配置，不能扫描 `indexSetQueryResult.value.list`。
+- 展开内容二次渲染如果无法拿到 rowIndex，可以传 `-1` 只读取同轮 `renderRowCells` 已创建的配置；交互事件必须传真实 rowIndex。
+- 修改 monitor/apm 独立包相关逻辑后，必须执行 `npm run build:apm` 验证。
+
+## LogRows 大数据列表性能约束
+
+- API 返回列表和单条日志都可能非常大（线上出现过单次约 80M 响应，list 占主要内存），性能优先级高于通用重置逻辑。
+- 不要监听 `indexSetQueryResult.value?.list` 引用来重置 `renderList`；更不要使用 deep watch 或遍历 list。
+- 保留 `tableDataSize` 驱动的更新模型：接口每次通常追加约 50 条，`setRenderList(null)` 应按当前已加载长度构造 renderList，保留“更多时追加”的优化路径。
+- 不要把 `setRenderList` 的默认长度改成 `pageSize`；否则会破坏已加载数据展示和本地分页追加模型。
+- `resetRowListState` 不应重置 `pageIndex/hasMoreList`，避免把已加载/已展开的本地分页状态误退回首屏。
+- 禁止恢复 eager `updateTableRowConfig` 这类按 `tableDataSize/list.length` 全量初始化或清理 WeakMap 的逻辑；行状态必须在实际渲染/点击时懒创建。
+
+
+## LogRows 大数据查询更新与行状态约束
+
+- `LogRows` 面向大日志结果：单条日志可能很大，接口返回也可能很大。不得对 `indexSetQueryResult.list` 做 deep watch、遍历式 watch、序列化、structured clone 或基于内容的比较。
+- 查询变更条件很多（timeRange、keyword、addition、sort、indexSet 等），组件内不要枚举这些条件；以 store 行为为准：非分页查询开始前会清空 list，因此 `tableDataSize === 0` 是本地分页状态复位的轻量信号。
+- `setRenderList` 必须保留按当前已加载 `tableDataSize` 或指定 length 构建渲染窗口的语义；滚动加载更多只推进 `pageIndex/pageSize`，不能在查询刷新外重置已加载更多状态。
+- `tableRowConfig` 若继续使用 WeakMap，必须通过 `ensureTableRowConfig(row, rowIndex)` 懒创建；禁止 `tableRowConfig.get(row).value` 裸访问，禁止恢复按 `tableDataSize` 全量初始化 row config。
+- Row Expand / 操作列 / 行号列必须使用当前 render 回调提供的 `rowIndex` 参与兜底，避免独立包刷新时新 row 对象还未注册导致错误行号或空引用。
+
+### LogRows monitor 首屏骨架屏门控
+
+- monitor/apm 独立包首屏查询或查询条件变更后，真实表格渲染前允许使用 `RetrieveLoader` 骨架屏遮蔽列宽测量中间态。
+- 该骨架屏只用于新查询首屏，不用于滚动加载更多；分页追加更多必须保持原有 `pageIndex/pageSize/renderList` 性能模型。
+- 首屏切真实表格前只允许做 O(1) 容器测量与列布局版本递增，不允许监听/遍历大 list，不允许 deep watch，不允许复制日志行对象。

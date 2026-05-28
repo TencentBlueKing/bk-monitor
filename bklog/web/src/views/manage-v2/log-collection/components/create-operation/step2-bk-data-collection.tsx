@@ -235,6 +235,27 @@ export default defineComponent({
     const collectionTableData = ref<IFieldItem[]>([]);
     /** 目标字段选择列表 */
     const targetFieldSelectList = ref<IFieldSelectItem[]>([]);
+    const targetFieldSelectMap = computed(() => new Set(targetFieldSelectList.value.map(item => item.id)));
+    /**
+     * 接口详情中的 target_fields 可能已经不在当前字段列表中。
+     * 这里把已选但缺失的字段补充为临时 option，确保 select tag 可以展示并支持删除。
+     */
+    const targetFieldOptions = computed(() => {
+      const options = [...targetFieldSelectList.value];
+      const optionSet = new Set(options.map(item => item.id));
+
+      for (const field of configData.value.target_fields || []) {
+        if (field && !optionSet.has(field)) {
+          optionSet.add(field);
+          options.push({
+            id: field,
+            name: field,
+          });
+        }
+      }
+
+      return options;
+    });
     /** 时间索引配置 */
     const timeIndex = ref<ITimeIndex | null>(null);
     /** 配置数据 */
@@ -409,12 +430,14 @@ export default defineComponent({
               display-tag
               multiple
               searchable
+              allow-create
               on-selected={(value) => {
                 configData.value.target_fields = value;
               }}
             >
-              {targetFieldSelectList.value.map(option => (
+              {targetFieldOptions.value.map(option => (
                 <bk-option
+                  class={{ 'is-missing-target-field': !targetFieldSelectMap.value.has(option.id) }}
                   id={option.id}
                   key={option.id}
                   name={option.name}

@@ -63,7 +63,17 @@
         >{{ $t('搜索') }}
       </bk-button>
     </div>
-    <span class="table-head-text">{{ $t('从下载目标中选择预览目标') }}</span>
+    <div class="preview-table-head">
+      <span class="table-head-text">{{ $t('从下载目标中选择预览目标') }}</span>
+      <bk-input
+        v-model="filterInputValue"
+        class="preview-file-filter-input"
+        clearable
+        right-icon="bk-icon icon-search"
+        :placeholder="$t('搜索文件名/最后修改时间')"
+        @input="handleFilterChange"
+      />
+    </div>
     <div
       class="flex-box"
       v-bkloading="{ isLoading, opacity: 0.7, zIndex: 0 }"
@@ -72,8 +82,10 @@
         ref="previewTable"
         style="background-color: #fff"
         class="preview-scroll-table"
-        :data="explorerList"
+        :data="filteredExplorerList"
         :height="360"
+        reserve-selection
+        row-key="path"
         @selection-change="handleSelect"
       >
         <bk-table-column
@@ -143,6 +155,7 @@
 </template>
 
 <script>
+  import { debounce } from 'lodash-es';
   import { formatDate } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import FileDatePicker from '@/views/extract/home/file-date-picker';
@@ -157,6 +170,10 @@
       event: 'checked',
     },
     props: {
+      downloadFiles: {
+        type: Array,
+        default: () => [],
+      },
       ipList: {
         type: Array,
         required: true,
@@ -183,6 +200,11 @@
         timeValue: [formatDate(startTime), formatDate(endTime)],
         isSearchChild: false,
         explorerList: [],
+        filterInputValue: '',
+        filterKeyword: '',
+        selectedFilePathList: [], // 跨过滤条件保留的已选文件路径
+        isSyncingTableSelection: false,
+        isSwitchingFilterData: false,
         historyStack: [], // 预览地址历史
         emptyType: 'empty',
       };
@@ -191,6 +213,18 @@
       timeStringValue() {
         return [this.timeValue[0], this.timeValue[1]];
       },
+      filteredExplorerList() {
+        const keyword = this.filterKeyword;
+        if (!keyword) {
+          return this.explorerList;
+        }
+
+        return this.explorerList.filter(item => {
+          const fileName = String(item?.path ?? '').toLowerCase();
+          const modifiedTime = String(item?.mtime ?? '').toLowerCase();
+          return fileName.includes(keyword) || modifiedTime.includes(keyword);
+        });
+      },
     },
     watch: {
       ipList(val) {
@@ -198,18 +232,45 @@
         if (val.length) {
           this.previewIp.push(this.getIpListID(val[0]));
         }
+        this.setSelectedFilePaths([]);
+        this.emitSelectedFiles();
         this.explorerList.splice(0); // 选择服务器后清空表格
         this.historyStack.splice(0); // 选择服务器后清空历史堆栈
       },
+      downloadFiles: {
+        handler(val) {
+          this.setSelectedFilePaths(val || []);
+          this.syncTableSelection();
+        },
+        immediate: true,
+      },
+      filteredExplorerList() {
+        this.syncTableSelection();
+      },
+    },
+    created() {
+      this.updateFilterKeyword = debounce((val = '') => {
+        this.isSwitchingFilterData = true;
+        this.filterKeyword = String(val).trim().toLowerCase();
+      }, 200);
+    },
+    beforeDestroy() {
+      this.updateFilterKeyword?.cancel();
     },
     methods: {
+      updateFilterKeyword() {},
+      handleFilterChange(val) {
+        this.filterInputValue = val;
+        this.updateFilterKeyword(val);
+      },
       getExplorerList(row) {
         const { path = this.fileOrPath, size } = row;
         const cacheList = {
           exploreList: this.explorerList.splice(0),
           fileOrPath: path,
         };
-        this.$emit('checked', []);
+        this.setSelectedFilePaths([]);
+        this.emitSelectedFiles();
         if (path === '../' && this.historyStack.length) {
           // 返回上一级
           const cache = this.historyStack.pop();
@@ -306,16 +367,8 @@
           .then(res => {
             this.historyStack = [];
             this.explorerList = res.data;
-            this.$nextTick(() => {
-              downloadFiles.forEach(path => {
-                for (const item of this.explorerList) {
-                  if (item.path === path) {
-                    this.$refs.previewTable.toggleRowSelection(item, true);
-                    break;
-                  }
-                }
-              });
-            });
+            this.setSelectedFilePaths(downloadFiles);
+            this.syncTableSelection();
           })
           .catch(e => {
             console.warn(e);
@@ -352,11 +405,71 @@
           return;
         }
       },
+      getFilePath(row) {
+        return String(row?.path ?? '');
+      },
+      isSelectableFile(row) {
+        return row?.size !== '0';
+      },
+      emitSelectedFiles() {
+        this.$emit('checked', [...this.selectedFilePathList]);
+      },
+      setSelectedFilePaths(paths = []) {
+        this.selectedFilePathList = [...new Set(paths.filter(Boolean).map(path => String(path)))];
+      },
+      waitTableSelectionStable() {
+        return new Promise(resolve => {
+          this.$nextTick(() => {
+            requestAnimationFrame(() => {
+              this.$nextTick(resolve);
+            });
+          });
+        });
+      },
+      async syncTableSelection() {
+        await this.$nextTick();
+        if (!this.$refs.previewTable) {
+          this.isSwitchingFilterData = false;
+          return;
+        }
+
+        this.isSyncingTableSelection = true;
+        this.$refs.previewTable.clearSelection?.();
+        const selectedPathSet = new Set(this.selectedFilePathList);
+        for (const item of this.filteredExplorerList) {
+          if (this.isSelectableFile(item) && selectedPathSet.has(this.getFilePath(item))) {
+            this.$refs.previewTable.toggleRowSelection?.(item, true);
+          }
+        }
+        await this.waitTableSelectionStable();
+        this.isSyncingTableSelection = false;
+        this.isSwitchingFilterData = false;
+      },
       handleSelect(selection) {
-        this.$emit(
-          'checked',
-          selection.map(item => item.path),
+        if (this.isSyncingTableSelection || this.isSwitchingFilterData) {
+          return;
+        }
+
+        const nextSelectedPathSet = new Set(this.selectedFilePathList);
+        const visibleSelectablePathSet = new Set(
+          this.filteredExplorerList
+            .filter(item => this.isSelectableFile(item))
+            .map(item => this.getFilePath(item)),
         );
+
+        for (const path of visibleSelectablePathSet) {
+          nextSelectedPathSet.delete(path);
+        }
+
+        for (const item of selection) {
+          const path = this.getFilePath(item);
+          if (path) {
+            nextSelectedPathSet.add(path);
+          }
+        }
+
+        this.selectedFilePathList = [...nextSelectedPathSet];
+        this.emitSelectedFiles();
       },
     },
   };
@@ -394,9 +507,20 @@
       }
     }
 
-    .table-head-text {
+    .preview-table-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin: 18px 0 8px;
-      font-size: 12px;
+
+      .table-head-text {
+        font-size: 12px;
+      }
+
+      .preview-file-filter-input {
+        width: 240px;
+        background: #fff;
+      }
     }
   }
 

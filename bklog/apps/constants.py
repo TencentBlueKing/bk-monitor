@@ -570,6 +570,46 @@ class ViewSetActionEnum(ChoicesEnum):
     BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
         view_set="BizsViewSet", view_action="get_display_name", default_permission=True
     )
+    # ======================================= 客户端日志检索-TGPAViewSet =======================================
+    TGPA_VIEWSET_OPENID_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPAViewSet", view_action="get_openid_list"
+    )
+    TGPA_VIEWSET_TASK_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="TGPAViewSet",
+        view_action="get_merged_task_list",
+    )
+    TGPA_VIEWSET_CLIENT_INFO = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPAViewSet", view_action="get_client_info"
+    )
+    # ======================================= 客户端日志检索-TGPATaskViewSet =======================================
+    TGPA_TASK_VIEWSET_STATUS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="TGPATaskViewSet",
+        view_action="get_task_status",
+    )
+    TGPA_TASK_VIEWSET_SYNC = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPATaskViewSet", view_action="sync_task"
+    )
+    TGPA_TASK_VIEWSET_INDEX_SET_ID = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="TGPATaskViewSet",
+        view_action="get_index_set_id",
+    )
+    TGPA_TASK_VIEWSET_DOWNLOAD_FILE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="TGPATaskViewSet",
+        view_action="download_file",
+    )
+    # ======================================= 客户端日志检索-TGPAReportViewSet =======================================
+    TGPA_REPORT_VIEWSET_FILE_STATUS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="TGPAReportViewSet",
+        view_action="get_file_status",
+    )
+    TGPA_REPORT_VIEWSET_SYNC = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPAReportViewSet", view_action="sync_report"
+    )
     # ======================================= 日志提取-ExplorerViewSet =======================================
     EXPLORER_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="ExplorerViewSet"
@@ -653,6 +693,18 @@ class ViewSetActionEnum(ChoicesEnum):
         IP_CHOOSER_TEMPLATE_VIEWSET,
         IP_CHOOSER_DYNAMIC_GROUP_VIEWSET,
         IP_CHOOSER_CONFIG_VIEWSET,
+        # ======================================= 客户端日志检索-TGPAViewSet =======================================
+        TGPA_VIEWSET_OPENID_LIST,
+        TGPA_VIEWSET_TASK_LIST,
+        TGPA_VIEWSET_CLIENT_INFO,
+        # ======================================= 客户端日志检索-TGPATaskViewSet =======================================
+        TGPA_TASK_VIEWSET_STATUS,
+        TGPA_TASK_VIEWSET_SYNC,
+        TGPA_TASK_VIEWSET_INDEX_SET_ID,
+        TGPA_TASK_VIEWSET_DOWNLOAD_FILE,
+        # ======================================= 客户端日志检索-TGPAReportViewSet =======================================
+        TGPA_REPORT_VIEWSET_FILE_STATUS,
+        TGPA_REPORT_VIEWSET_SYNC,
         # ======================================= 日志提取-TasksViewSet =======================================
         TASKS_VIEWSET,
         # ======================================= 日志提取-ExplorerViewSet =======================================

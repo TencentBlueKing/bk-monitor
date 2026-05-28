@@ -100,4 +100,4 @@ export default () => {
     syncUrlParams,
     clearUrlParams,
   };
-}
+};

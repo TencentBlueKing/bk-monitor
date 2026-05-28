@@ -67,6 +67,27 @@ def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> in
         raise CustomException(message=f"{field_name} 必须是整数") from error
 
 
+def _normalize_int_list(value: Any, field_name: str) -> list[int]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, str):
+        raw_items = [item.strip() for item in value.split(",")]
+    elif isinstance(value, list | tuple | set):
+        raw_items = list(value)
+    else:
+        raw_items = [value]
+
+    results: list[int] = []
+    for item in raw_items:
+        if item in (None, ""):
+            continue
+        try:
+            results.append(int(item))
+        except (TypeError, ValueError) as error:
+            raise CustomException(message=f"{field_name} 必须是整数列表") from error
+    return sorted(set(results))
+
+
 def _serialize_datasource_summary(datasource: models.DataSource | None) -> dict[str, Any] | None:
     if datasource is None:
         return None
@@ -241,6 +262,9 @@ def _build_metric_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
     if bk_data_id is not None:
         queryset = queryset.filter(bk_data_id=bk_data_id)
+    bk_data_ids = _normalize_int_list(params.get("bk_data_ids"), "bk_data_ids")
+    if bk_data_ids:
+        queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     table_id = str(params.get("table_id") or "").strip()
     if table_id:
         queryset = queryset.filter(table_id__icontains=table_id)
@@ -258,6 +282,9 @@ def _build_event_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
     if bk_data_id is not None:
         queryset = queryset.filter(bk_data_id=bk_data_id)
+    bk_data_ids = _normalize_int_list(params.get("bk_data_ids"), "bk_data_ids")
+    if bk_data_ids:
+        queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     table_id = str(params.get("table_id") or "").strip()
     if table_id:
         queryset = queryset.filter(table_id__icontains=table_id)
@@ -278,6 +305,9 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
     if bk_data_id is not None:
         queryset = queryset.filter(bk_data_id=bk_data_id)
+    bk_data_ids = _normalize_int_list(params.get("bk_data_ids"), "bk_data_ids")
+    if bk_data_ids:
+        queryset = queryset.filter(bk_data_id__in=bk_data_ids)
     group_name = str(params.get("group_name") or "").strip()
     if group_name:
         queryset = queryset.filter(data_name__icontains=group_name)
@@ -302,6 +332,7 @@ def _build_log_queryset(params: dict[str, Any], bk_tenant_id: str | None):
         "report_type": "可选，custom_metric / custom_event / custom_log",
         "bk_biz_id": "可选，业务 ID",
         "bk_data_id": "可选，DataId",
+        "bk_data_ids": "可选，DataId 列表，支持数组或逗号分隔字符串",
         "table_id": "可选，结果表 ID 包含匹配",
         "group_name": "可选，名称包含匹配",
         "created_from": "可选，创建来源",

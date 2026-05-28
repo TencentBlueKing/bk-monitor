@@ -10,10 +10,23 @@
       "habit",
       "convention",
       "decision",
+      "experience",
       "learning"
     ],
     "dedupe": true,
-    "summary": true
+    "summary": true,
+    "experience": {
+      "enabled": true,
+      "triggerAfterAttempts": 3,
+      "writeOnlyAfterSuccess": true,
+      "record": [
+        "problem_signature",
+        "success_path",
+        "decision_path",
+        "reuse_boundary",
+        "avoid"
+      ]
+    }
   },
   "framework": "vue",
   "frameworks": [
@@ -21,9 +34,9 @@
   ],
   "scenarios": [
     "complex",
+    "dashboard",
     "patterns",
-    "ddd",
-    "graph"
+    "ddd"
   ],
   "editors": [
     "cursor",
@@ -35,19 +48,20 @@
     ],
     "scenarios": [
       "complex",
+      "dashboard",
       "patterns",
-      "ddd",
-      "graph"
+      "ddd"
     ]
   },
   "recommendedPackages": [
     "@aafe/core",
     "@aafe/vue",
     "@aafe/complex",
+    "@aafe/dashboard",
     "@aafe/patterns",
     "@aafe/ddd",
-    "@aafe/graph",
-    "@aafe/adapter-cursor"
+    "@aafe/adapter-cursor",
+    "@aafe/adapter-codebuddy"
   ],
   "rerun": {
     "enabled": true,
@@ -60,7 +74,6 @@
   "hooks": {
     "enabled": true,
     "sessionStart": ".cursor/hooks/aafe-session-start",
-    "sessionStartCodebuddy": ".codebuddy/hooks/aafe-session-start",
     "failClosed": false
   },
   "gates": [

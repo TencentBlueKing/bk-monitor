@@ -47,6 +47,31 @@ def create_or_delete_records(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_generate_result_table_field_list_maps_flattened_to_object():
+    table_id = "1001_bklog.flattened"
+    models.ResultTableField.objects.create(
+        table_id=table_id,
+        bk_tenant_id="system",
+        field_name="labels",
+        field_type="flattened",
+        tag=models.ResultTableField.FIELD_TAG_DIMENSION,
+        is_config_by_user=True,
+        creator="admin",
+        last_modify_user="admin",
+    )
+
+    assert utils.generate_result_table_field_list(table_id=table_id, bk_tenant_id="system") == [
+        {
+            "field_name": "labels",
+            "field_alias": "labels",
+            "field_type": models.ResultTableField.FIELD_TYPE_OBJECT,
+            "is_dimension": True,
+            "field_index": 0,
+        }
+    ]
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_data_id_config(create_or_delete_records):
     """
     测试DataIdConfig能否正确生成

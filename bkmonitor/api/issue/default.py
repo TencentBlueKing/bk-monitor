@@ -90,3 +90,17 @@ class EditFollowUpResource(IssueAPIResource):
 
     action = "/app/issue/edit_follow_up/"
     method = "POST"
+
+
+class MergeResource(IssueAPIResource):
+    """合并 Issue：把多个 Issue 收敛到一个主 Issue"""
+
+    action = "/app/issue/merge/"
+    method = "POST"
+
+
+class SplitResource(IssueAPIResource):
+    """拆分单个 member Issue 为独立 Issue"""
+
+    action = "/app/issue/split/"
+    method = "POST"

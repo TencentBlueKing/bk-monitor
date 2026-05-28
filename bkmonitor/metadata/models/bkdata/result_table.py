@@ -13,7 +13,6 @@ from django.db import models
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.storage import ClusterInfo
 
-
 # ------------------------------------------------------ #
 # ------------------ BkBase相关暂不修改 ------------------ #
 # ------------------------------------------------------ #
@@ -31,6 +30,8 @@ class BkBaseResultTable(models.Model):
         (DataLinkResourceStatus.INITIALIZING.value, "初始化中"),
         (DataLinkResourceStatus.CREATING.value, "创建中"),
         (DataLinkResourceStatus.PENDING.value, "等待中"),
+        (DataLinkResourceStatus.FAILED.value, "失败"),
+        (DataLinkResourceStatus.TERMINATING.value, "终止中"),
         (DataLinkResourceStatus.OK.value, "已就绪"),
     )
 

@@ -167,11 +167,11 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-alarm-center':
-        specifier: 0.0.11
-        version: 0.0.11(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
-      '@blueking/monitor-trace-explore':
         specifier: 0.0.12
-        version: 0.0.12(highlight.js@11.11.1)(typescript@5.9.3)
+        version: 0.0.12(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
+      '@blueking/monitor-trace-explore':
+        specifier: 0.0.18
+        version: 0.0.18(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -537,8 +537,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 2.3.19
-        version: 2.3.19
+        specifier: 2.3.26
+        version: 2.3.26
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -664,8 +664,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-trace-log':
-        specifier: 2.0.17
-        version: 2.0.17
+        specifier: 2.0.24
+        version: 2.0.24
       '@blueking/monitor-vue2-components':
         specifier: 0.0.0-beta.8
         version: 0.0.0-beta.8
@@ -1632,11 +1632,11 @@ packages:
   '@blueking/login-modal@1.0.6':
     resolution: {integrity: sha512-zjDHiCNY2Aydo9BcFiGiiw8uodPkCSK+SthXQZQQ/8Bq4nHnz+Hkuo8rnPrwuDIgB2E2C6X+T5+6jDXqTwrZyg==}
 
-  '@blueking/monitor-alarm-center@0.0.11':
-    resolution: {integrity: sha512-ct785NUG6v46dbyM5Z0s5MnXrUJvUoIakJ2q4cWU9rqIQz+2wWfp33WxssVJCTFIBmqowxnjZOYYlxHliRFwiw==}
+  '@blueking/monitor-alarm-center@0.0.12':
+    resolution: {integrity: sha512-K4C/VQSFMxCYgY3scu9gyG1OYWxJO2mOs4+CjS9tjweyS9DrNvl6kpUKMOfBSZWYvdlCsV1j7HiXAcPpwl0BMA==}
 
-  '@blueking/monitor-apm-log@2.3.19':
-    resolution: {integrity: sha512-hs4PdGDqvx4l952FAokVCD/ZyN/GuiacuwIl2bGLenuTPN022NL9N4Yjy2PaTR4ZehwZzcmTh5pRVeDqew8Lig==}
+  '@blueking/monitor-apm-log@2.3.26':
+    resolution: {integrity: sha512-7D5W50k3WlDFHcnjlCpM4hqIbZQTb78zGRrXwttor9/zfg80OCxbmLiKLSwDw/YoYFQ6TE4bYognVmCxChTGzw==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -1644,11 +1644,11 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-explore@0.0.12':
-    resolution: {integrity: sha512-0s1I5dh4K2M4l542ZOjNA7Rp3gat5i7y2ANsv9uKJlnf2ilFMU1DpD6l1bL15MntkBi+YCMNnqUm9flAhcEIXg==}
+  '@blueking/monitor-trace-explore@0.0.18':
+    resolution: {integrity: sha512-PVCAbV09+baOq/xhwJy1VI/rMZF6EgnSrvg58HbUnmtLS5G/bSPUzc1AnNvJRfYWQ93pmIrgyEt1pmeTDbsiNw==}
 
-  '@blueking/monitor-trace-log@2.0.17':
-    resolution: {integrity: sha512-owTuuUfYLLPmM7UoU4VWkZdibzR9rhZv+aDgKy61ru+Wz8oVAWecvbKwGEHeCfSt4Oh5BEyaKfv+TzbGTyNM9w==}
+  '@blueking/monitor-trace-log@2.0.24':
+    resolution: {integrity: sha512-v9esre0kJQink+4U66cIBlQEVnDGa6w7FZU0B/wX9/ykkd73yspzx2qHbZO4J5hROmCneu+395W67meARbBRNw==}
 
   '@blueking/monitor-vue2-components@0.0.0-beta.8':
     resolution: {integrity: sha512-sEbhCszh8f5SXREBygdw2Lu+q8KBUQJz7zmfaZJMjbWAiF0ZrQF6D9zz2ptPi1tuz0nCx0IYg4pm4sgIPt3wiQ==}
@@ -10614,7 +10614,7 @@ snapshots:
 
   '@blueking/login-modal@1.0.6': {}
 
-  '@blueking/monitor-alarm-center@0.0.11(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-alarm-center@0.0.12(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
       '@prometheus-io/lezer-promql': 0.305.0(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)
@@ -10629,14 +10629,14 @@ snapshots:
       - highlight.js
       - typescript
 
-  '@blueking/monitor-apm-log@2.3.19': {}
+  '@blueking/monitor-apm-log@2.3.26': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-explore@0.0.12(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-trace-explore@0.0.18(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
       bkui-vue: 2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))
@@ -10647,7 +10647,7 @@ snapshots:
       - highlight.js
       - typescript
 
-  '@blueking/monitor-trace-log@2.0.17': {}
+  '@blueking/monitor-trace-log@2.0.24': {}
 
   '@blueking/monitor-vue2-components@0.0.0-beta.8':
     dependencies:

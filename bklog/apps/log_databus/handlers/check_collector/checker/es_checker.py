@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import datetime
 from datetime import timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from django.utils.translation import gettext as _
 
@@ -33,6 +33,7 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_databus.handlers.storage import StorageHandler
+from apps.log_databus.models import CollectorConfig
 from apps.log_esquery.utils.es_client import get_es_client
 from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_measure.exceptions import EsConnectFailException
@@ -74,8 +75,9 @@ class EsChecker(Checker):
 
     def pre_run(self):
         try:
+            storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(self.table_id)
             result = TransferApi.get_result_table_storage(
-                {"result_table_list": self.table_id, "storage_type": "elasticsearch"}
+                {"result_table_list": self.table_id, "storage_type": storage_cluster_type}
             )
             self.result_table = result.get(self.table_id, {})
             self.cluster_config = self.result_table.get("cluster_config", {})
@@ -95,7 +97,7 @@ class EsChecker(Checker):
         获取物理索引的名称
         """
         # 查该采集项的物理索引而不是该采集项所在集群的所有物理索引
-        result: List[Dict[str, Any]] = EsRoute(scenario_id=Scenario.LOG, indices=self.table_id).cat_indices()
+        result: list[dict[str, Any]] = EsRoute(scenario_id=Scenario.LOG, indices=self.table_id).cat_indices()
         self.indices = StorageHandler.sort_indices(result)
 
         if not self.indices:
@@ -119,7 +121,9 @@ class EsChecker(Checker):
 
         if int(latest_indices["pri"]) < hot_node_count:
             self.append_warning_info(
-                _("最近物理索引分片数量小于热节点分片数量, 可能会造成性能问题, 当前索引分片数{}, 热节点分片数{}").format(latest_indices["pri"], hot_node_count)
+                _(
+                    "最近物理索引分片数量小于热节点分片数量, 可能会造成性能问题, 当前索引分片数{}, 热节点分片数{}"
+                ).format(latest_indices["pri"], hot_node_count)
             )
 
     def get_es_client(self):
@@ -159,15 +163,17 @@ class EsChecker(Checker):
 
         now_datetime = get_next_date(date_str=self.latest_date, interval=self.retention)
 
-        now_read_index_alias = "{}_{}{}".format(self.index_pattern, now_datetime, INDEX_READ_SUFFIX)
-        now_write_index_alias = "{}{}_{}".format(INDEX_WRITE_PREFIX, now_datetime, self.index_pattern)
+        now_read_index_alias = f"{self.index_pattern}_{now_datetime}{INDEX_READ_SUFFIX}"
+        now_write_index_alias = f"{INDEX_WRITE_PREFIX}{now_datetime}_{self.index_pattern}"
 
         for i in self.indices:
             # index 物理索引名
             physical_index = i["index"]
             aliases = index_alias_info_dict.get(physical_index, {}).get("aliases", {})
             if not aliases:
-                self.append_error_info(_("物理索引: {physical_index} 不存在alias别名").format(physical_index=physical_index))
+                self.append_error_info(
+                    _("物理索引: {physical_index} 不存在alias别名").format(physical_index=physical_index)
+                )
                 continue
 
             if physical_index.startswith(INDEX_WRITE_PREFIX):

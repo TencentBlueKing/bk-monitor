@@ -13,5 +13,6 @@ pipeline:
   - skill: adr-generator
   - gate: implementation_gate
   - skill: refactor-critic
+  - skill: experience-recorder
   - skill: memory-writer
   - gate: merge_gate

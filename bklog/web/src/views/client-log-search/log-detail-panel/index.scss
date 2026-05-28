@@ -8,6 +8,21 @@
   padding: 0;
   gap: 16px;
 
+  &.is-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    border-radius: 0;
+    border: none;
+
+    .expand-icon {
+      display: none;
+    }
+  }
+
   .expand-icon {
     position: absolute;
     top: 12px;
@@ -93,6 +108,36 @@
           font-size: 14px;
         }
       }
+    }
+  }
+
+  /* 扩展字段内容 */
+  .ext-content {
+    margin: 12px 24px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #A3C5FD;
+    background: #F0F5FF;
+    font-size: 12px;
+    color: #4E5E7A;
+    line-height: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+
+    .bklog-icon {
+      line-height: 20px;
+      font-size: 12px;
+    }
+
+    .ext-label {
+      font-weight: 600;
+      margin-right: 4px;
+      line-height: 20px;
+    }
+
+    .ext-value {
+      flex: 1;
     }
   }
 
@@ -267,6 +312,7 @@
       flex-direction: column;
       overflow: hidden;
       padding-top: 8px;
+      position: relative;
 
       .toolbar-wrapper {
         flex-shrink: 0;
@@ -300,6 +346,33 @@
           padding: 12px 0 16px;
           font-size: 12px;
           color: #979BA5;
+        }
+      }
+
+      /* 回到顶部按钮 */
+      .scroll-to-top-btn {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        opacity: 0.6;
+        background: #4E4E4E;
+        box-shadow: 0 2px 8px 0 #1919290a;
+        cursor: pointer;
+        z-index: 10;
+
+        .bklog-icon {
+          color: #fff;
+          font-size: 16px;
+        }
+
+        &:hover {
+          opacity: 1;
         }
       }
     }

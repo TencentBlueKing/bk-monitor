@@ -33,7 +33,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import PatternEnum
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_databus.constants import EtlConfig
+from apps.log_databus.constants import EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import (
     BaseCollectorConfigException,
     DataLinkConfigPartitionException,
@@ -93,7 +93,9 @@ class CollectorScenario:
         raise NotImplementedError()
 
     @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):
+    def get_built_in_config(
+        cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, storage_cluster_type=STORAGE_CLUSTER_TYPE
+    ):
         """
         获取采集器内置配置
         """

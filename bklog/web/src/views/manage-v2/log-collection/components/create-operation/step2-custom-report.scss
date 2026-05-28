@@ -21,4 +21,18 @@
   .classify-btns {
     padding-left: 16px;
   }
+  .field-setting-box {
+    width: 100%;
+    .field-setting-alert {
+      background: #fdf4e8;
+      border: 1px solid #f9d090;
+      border-radius: 2px;
+      margin-bottom: 16px;
+      color: #4d4f56;
+    }
+    .select-sort {
+      width: calc(45% - 100px);
+      margin-bottom: 5px;
+    }
+  }
 }

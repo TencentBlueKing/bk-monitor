@@ -31,7 +31,6 @@ import {
   inject,
   nextTick,
   onBeforeUnmount,
-  onMounted,
   ref,
   watch,
   shallowRef,
@@ -41,6 +40,7 @@ import {
   i18n,
   initGlobalComponents,
   initMonitorState,
+  initWindowState,
   MonitorTraceLog as Log,
   logStore,
   Vue2,
@@ -97,6 +97,7 @@ export default defineComponent({
     async function init() {
       empty.value = true;
       loading.value = true;
+      initWindowState();
       const data = await getServiceLogInfo();
       loading.value = false;
       if (data && empty.value) {
@@ -226,9 +227,7 @@ export default defineComponent({
       }
     );
 
-    onMounted(() => {
-      init();
-    });
+    init();
 
     onBeforeUnmount(() => {
       if (!empty.value) {

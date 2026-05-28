@@ -224,28 +224,50 @@
       }
     },
     methods: {
-      getTraceIdFromRowData() {
-        const traceId = this.rowData.trace_id;
-        if (traceId) {
-          return traceId;
+      normalizeTraceSearchText(value) {
+        return String(value).replace(/<[^>]*>/g, '');
+      },
+      getTraceIdFromText(value) {
+        const text = this.normalizeTraceSearchText(value);
+        const traceIdPattern = /\btrace_?id\b\s*[=:]\s*([a-f0-9]{32})(?![a-z0-9])/i;
+        const traceIdMatch = text.match(traceIdPattern);
+        if (traceIdMatch) {
+          return traceIdMatch[1];
         }
 
-        for (let v of Object.values(this.rowData)) {
-          if (typeof v === 'string') {
-            const traceIdPattern = /[a-f0-9]{32}/;
-            const match = v.match(traceIdPattern);
-            if (match) {
-              return match[0];
-            }
+        const strictTraceIdPattern = /(^|[^a-z0-9])([a-f0-9]{32})(?![a-z0-9])/i;
+        const strictTraceIdMatch = text.match(strictTraceIdPattern);
+        return strictTraceIdMatch?.[2] ?? null;
+      },
+      getTraceIdFromRowData() {
+        const traceId = this.rowData.trace_id ?? this.rowData.traceid;
+        if (traceId) {
+          const matchedTraceId = this.getTraceIdFromText(traceId);
+          if (matchedTraceId) {
+            return matchedTraceId;
+          }
+        }
+
+        const rowValues = Object.values(this.rowData);
+        for (const value of rowValues) {
+          if (typeof value !== 'string') {
+            continue;
           }
 
-          if (typeof v === 'object') {
-            const jsonValue = JSON.stringify(v);
-            const traceIdPattern = /[a-f0-9]{32}/;
-            const match = jsonValue.match(traceIdPattern);
-            if (match) {
-              return match[0];
-            }
+          const traceIdFromText = this.getTraceIdFromText(value);
+          if (traceIdFromText) {
+            return traceIdFromText;
+          }
+        }
+
+        for (const value of rowValues) {
+          if (!value || typeof value !== 'object') {
+            continue;
+          }
+
+          const traceIdFromText = this.getTraceIdFromText(JSON.stringify(value));
+          if (traceIdFromText) {
+            return traceIdFromText;
           }
         }
 
@@ -256,12 +278,12 @@
 
         if (clickType === 'trace_id') {
           const apmRelation = this.$store.state.indexSetFieldConfig?.apm_relation;
-          const traceId = this.getTraceIdFromRowData() ;
+          const traceId = this.getTraceIdFromRowData();
           if (apmRelation?.is_active && traceId) {
             const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
             const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
             if (path) {
-              const url = `${window.MONITOR_URL}${path}`;
+              const url = `${window.MONITOR_URL ?? ''}${path}`;
               window.open(url, '_blank');
             }
           } else {
