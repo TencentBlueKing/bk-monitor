@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import json
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.utils.deprecation import MiddlewareMixin
@@ -38,6 +39,15 @@ from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 NON_SUPERUSER_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.NonSuperuserMiddleware"
+METADATA_STORAGE = {
+    "2_bklog.bcs_checkinsvr": {
+        "cluster_config": {"cluster_id": 88, "cluster_name": "metadata-es"},
+        "storage_config": {
+            "retention": 30,
+            "index_settings": {"number_of_shards": 9, "number_of_replicas": 2},
+        },
+    }
+}
 
 
 class NonSuperuserMiddleware(MiddlewareMixin):
@@ -241,15 +251,20 @@ class CollectorResourceCallTest(TestCase):
         self.assertEqual(item["log_access_type_name"], "容器文件采集")
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def test_collector_detail_returns_chain_relations_and_masked_raw_params(self):
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    def test_collector_detail_returns_chain_relations_and_masked_raw_params(self, mock_get_result_table_storage):
         content = self._call("bklog.collector.detail", {"collector_config_id": 10402})
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
         self.assertEqual(result["chain"]["primary_index_set_id"], 755)
-        self.assertEqual(result["storage"]["storage_cluster_id"], 25)
-        self.assertEqual(result["storage"]["retention"], 14)
-        self.assertEqual(result["storage"]["storage_shards_nums"], 6)
+        self.assertEqual(result["storage"]["storage_cluster_id"], 88)
+        self.assertEqual(result["storage"]["retention"], 30)
+        self.assertEqual(result["storage"]["storage_shards_nums"], 9)
+        self.assertEqual(result["storage"]["storage_replies"], 2)
+        mock_get_result_table_storage.assert_called_once_with(
+            {"result_table_list": "2_bklog.bcs_checkinsvr", "storage_type": "elasticsearch"}
+        )
         self.assertEqual(result["relations"]["data_link"]["data_link_id"], 57)
         self.assertEqual(
             [(item["relation_type"], item["index_set_id"]) for item in result["relations"]["index_sets"]],

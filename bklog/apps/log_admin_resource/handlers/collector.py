@@ -1,8 +1,8 @@
+from apps.api import TransferApi
 from apps.exceptions import ValidationError
 from apps.log_databus.models import (
     BKDataClean,
     CollectorConfig,
-    CollectorPlugin,
     ContainerCollectorConfig,
     DataLinkConfig,
 )
@@ -69,12 +69,17 @@ def get_collector_detail(params):
     summary = serialize_collector(collector)
     primary_index_set, primary_index_data = _get_primary_index_set(collector.collector_config_id)
     data_link = _get_data_link(collector.data_link_id)
-    plugin = _get_plugin(collector.collector_plugin_id)
     bkdata_clean = _get_bkdata_clean(collector.collector_config_id)
     index_set_relations = _get_index_set_relations(primary_index_set, primary_index_data, bkdata_clean)
     raw_params = _get_raw_params(collector)
+    result_table_storage, storage_warning = _get_result_table_storage(
+        table_id=collector.table_id or (primary_index_data.result_table_id if primary_index_data else None),
+        storage_cluster_type=collector.storage_cluster_type,
+    )
 
     warnings = []
+    if storage_warning:
+        warnings.append(storage_warning)
     if collector.data_link_id and data_link is None:
         warnings.append({"code": "data_link_not_found", "message": "data_link_id not found"})
     if not collector.data_link_id:
@@ -102,15 +107,7 @@ def get_collector_detail(params):
             "subscription_id": collector.subscription_id,
             "etl_config": collector.etl_config,
         },
-        "storage": {
-            "storage_cluster_id": summary["storage_cluster_id"],
-            "retention": plugin.retention if plugin else None,
-            "storage_shards_nums": collector.storage_shards_nums or (plugin.storage_shards_nums if plugin else None),
-            "storage_shards_size": collector.storage_shards_size or (plugin.storage_shards_size if plugin else None),
-            "storage_replies": collector.storage_replies
-            if collector.storage_replies is not None
-            else (plugin.storage_replies if plugin else None),
-        },
+        "storage": _serialize_result_table_storage(result_table_storage),
         "relations": {
             "data_link": _serialize_data_link(data_link),
             "index_sets": index_set_relations,
@@ -261,14 +258,23 @@ def _get_data_link(data_link_id):
     return DataLinkConfig.objects.filter(data_link_id=data_link_id).first()
 
 
-def _get_plugin(collector_plugin_id):
-    if not collector_plugin_id:
-        return None
-    return CollectorPlugin.objects.filter(collector_plugin_id=collector_plugin_id).first()
-
-
 def _get_container_config(collector_config_id):
     return ContainerCollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
+
+
+def _get_result_table_storage(table_id, storage_cluster_type):
+    if not table_id:
+        return None, {"code": "missing_table_id", "message": "collector has no result table id"}
+    try:
+        storage_info = TransferApi.get_result_table_storage(
+            {"result_table_list": table_id, "storage_type": storage_cluster_type}
+        )
+    except Exception as err:  # noqa: BLE001
+        return None, {"code": "result_table_storage_query_failed", "message": str(err)}
+    result_table_storage = storage_info.get(table_id)
+    if not result_table_storage:
+        return None, {"code": "result_table_storage_not_found", "message": f"{table_id} storage not found"}
+    return result_table_storage, None
 
 
 def _get_raw_params(collector):
@@ -295,6 +301,31 @@ def _serialize_data_link(data_link):
         "is_active": data_link.is_active,
         "is_edge_transport": data_link.is_edge_transport,
         "bk_tenant_id": data_link.bk_tenant_id,
+    }
+
+
+def _serialize_result_table_storage(result_table_storage):
+    if result_table_storage is None:
+        return {
+            "storage_cluster_id": None,
+            "retention": None,
+            "storage_shards_nums": None,
+            "storage_shards_size": None,
+            "storage_replies": None,
+        }
+
+    cluster_config = result_table_storage.get("cluster_config") or {}
+    storage_config = result_table_storage.get("storage_config") or {}
+    index_settings = storage_config.get("index_settings") or {}
+    return {
+        "storage_cluster_id": cluster_config.get("cluster_id"),
+        "retention": storage_config.get("retention"),
+        "storage_shards_nums": index_settings.get("number_of_shards"),
+        "storage_shards_size": _first_not_none(
+            storage_config.get("storage_shards_size"),
+            storage_config.get("shard_size"),
+        ),
+        "storage_replies": index_settings.get("number_of_replicas"),
     }
 
 
@@ -344,6 +375,13 @@ def _to_int_or_original(value):
         return int(value)
     except (TypeError, ValueError):
         return value
+
+
+def _first_not_none(*values):
+    for value in values:
+        if value is not None:
+            return value
+    return None
 
 
 def _is_sensitive_key(key):
