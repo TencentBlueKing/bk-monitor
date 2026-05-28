@@ -139,6 +139,11 @@ export interface IncidentResults {
   incident_topology: { enabled: boolean; status: string };
 }
 
+export interface IncidentResults {
+  [key: string]: any;
+  incident_topology: { enabled: boolean; status: string };
+}
+
 export interface IPosition {
   left: number;
   top: number;

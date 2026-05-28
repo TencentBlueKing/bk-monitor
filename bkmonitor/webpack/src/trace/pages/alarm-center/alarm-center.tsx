@@ -1399,10 +1399,6 @@ export default defineComponent({
                                 if (ctx?.columnsWidth)
                                   this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
                               }}
-                              onColumnResizeChange={(ctx: ColumnResizeContext) => {
-                                if (ctx?.columnsWidth)
-                                  this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
-                              }}
                               onCurrentPageChange={this.handleCurrentPageChange}
                               onDisplayColFieldsChange={displayColFields => {
                                 this.storageColumns = displayColFields;

@@ -124,16 +124,22 @@ def slice_time_interval(start_time: int, end_time: int) -> list:
         return [(start_time, end_time)]
 
 
-def search_time_init(new_interval: int, start_time: int, end_time: int):
+def search_time_init(new_interval: int, start_time: int, end_time: int,is_utc:bool=False,offset: int = 0):
     """
     :param new_interval:聚合步长时间间隔(秒)
     :param start_time: 查询的开始时间戳
     :param end_time: 查询的结束时间戳
+    :param is_utc: 是否为UTC时间
+    :param offset: 时区偏移量(秒)
     :return: 调整后的开始时间戳、结束时间戳、当前时间戳
     """
     start_time = start_time // new_interval * new_interval
     end_time = end_time // new_interval * new_interval + new_interval
     now_time = int(time.time()) // new_interval * new_interval + new_interval
+    if is_utc:
+        start_time = start_time - offset
+        end_time = end_time - offset
+        now_time = now_time - offset
     return start_time, end_time, now_time
 
 
