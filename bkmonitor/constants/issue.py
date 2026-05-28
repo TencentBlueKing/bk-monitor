@@ -26,6 +26,9 @@ class IssueStatus:
         (ARCHIVED, _("归档")),
     )
 
+    # status → 中文标签，用于面向用户的报错文案（避免直接暴露 pending_review 等枚举值）
+    LABELS = dict(CHOICES)
+
 
 class IssuePriority:
     P0 = "P0"

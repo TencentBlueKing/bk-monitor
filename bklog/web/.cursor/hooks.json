@@ -4,7 +4,7 @@
     "sessionStart": [
       {
         "command": ".cursor/hooks/run-hook.cmd aafe-session-start",
-        "timeout": 30,
+        "timeout": 5,
         "failClosed": false
       }
     ]

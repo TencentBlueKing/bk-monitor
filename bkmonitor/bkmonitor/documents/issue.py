@@ -146,11 +146,19 @@ class IssueDocument(BaseDocument):
 
     # ── 状态机方法 ──
 
+    def _status_transition_error(self, action: str, allowed: str) -> ValueError:
+        """构造面向用户的状态流转报错：带 issue 名称 + 中文状态，而非裸 issue_id / 枚举值。
+
+        例：Issue「订单服务异常」当前状态为「归档」，仅活跃状态（待审核/未解决）才能标记已解决
+        """
+        current = IssueStatus.LABELS.get(self.status, self.status)
+        return ValueError(f"Issue「{self.name or self.id}」当前状态为「{current}」，{allowed}才能{action}")
+
     def assign(self, assignees: list[str], operator: str) -> list:
         """首次指派负责人：PENDING_REVIEW → UNRESOLVED"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.PENDING_REVIEW:
-            raise ValueError(f"Cannot assign: current status={self.status}, expected={IssueStatus.PENDING_REVIEW}")
+            raise self._status_transition_error("指派负责人", "仅「待审核」状态")
         old_status = self.status
         self.assignee = assignees
         self.status = IssueStatus.UNRESOLVED
@@ -177,12 +185,22 @@ class IssueDocument(BaseDocument):
         )
 
     def resolve(self, operator: str) -> list:
-        """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED"""
+        """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED。
+
+        幂等：已是 RESOLVED 时为 no-op（目标状态已达成）——不报错、不改状态、不写活动日志、
+        不级联同步，直接返回空活动列表。批量操作下该条目计入 succeeded。
+
+        幂等短路刻意放在冻结守卫之前：主 Issue resolve 会级联把 active member 同步成 RESOLVED
+        但保留合并关系（member 仍 frozen）。此时对该 member 重复 resolve 不改变任何状态，应同样
+        no-op 成功；若先过 assert_not_frozen 会抛 IssueFrozenError 使其落入 failed，与"重复
+        resolve 不报错"矛盾。no-op 不产生任何写操作，跳过冻结守卫不破坏合并不变量。
+        """
+        # 幂等短路（先于冻结守卫）：已是目标状态 RESOLVED → 什么都不做（重复 resolve 不报错）
+        if self.status == IssueStatus.RESOLVED:
+            return []
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
-            raise ValueError(
-                f"Cannot resolve: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
-            )
+            raise self._status_transition_error("标记已解决", "仅活跃状态（待审核/未解决）")
         old_status = self.status
         self.status = IssueStatus.RESOLVED
         self.resolved_time = int(time.time())
@@ -201,9 +219,7 @@ class IssueDocument(BaseDocument):
         """归档（实例级）：PENDING_REVIEW → ARCHIVED or UNRESOLVED → ARCHIVED"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status not in IssueStatus.ACTIVE_STATUSES:
-            raise ValueError(
-                f"Cannot archive: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
-            )
+            raise self._status_transition_error("归档", "仅活跃状态（待审核/未解决）")
         old_status = self.status
         self.status = IssueStatus.ARCHIVED
         self.update_time = int(time.time())
@@ -221,7 +237,7 @@ class IssueDocument(BaseDocument):
         """重新打开：RESOLVED → UNRESOLVED"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.RESOLVED:
-            raise ValueError(f"Cannot reopen: current status={self.status}, expected={IssueStatus.RESOLVED}")
+            raise self._status_transition_error("重新打开", "仅「已解决」状态")
         old_status = self.status
         self.status = IssueStatus.UNRESOLVED
         self.update_time = int(time.time())
@@ -239,7 +255,7 @@ class IssueDocument(BaseDocument):
         """恢复归档：ARCHIVED → 归档前状态（从活动日志推断），无记录时回退到 PENDING_REVIEW"""
         IssueMergeResolver.assert_not_frozen(self.id)
         if self.status != IssueStatus.ARCHIVED:
-            raise ValueError(f"Cannot restore: current status={self.status}, expected={IssueStatus.ARCHIVED}")
+            raise self._status_transition_error("恢复", "仅「归档」状态")
         target_status = self._get_pre_archive_status()
         old_status = self.status
         self.status = target_status

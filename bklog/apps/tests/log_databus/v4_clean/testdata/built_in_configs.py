@@ -1,41 +1,82 @@
-# -*- coding: utf-8 -*-
 """
 V4 清洗规则测试 — built_in_config 构造器
 """
+
 import copy
 
 STANDARD_BUILT_IN_CONFIG = {
     "option": {
         "es_unique_field_list": [
-            "cloudId", "serverIp", "path", "gseIndex",
-            "iterationIndex", "bk_host_id", "dtEventTimeStamp"
+            "cloudId",
+            "serverIp",
+            "path",
+            "gseIndex",
+            "iterationIndex",
+            "bk_host_id",
+            "dtEventTimeStamp",
         ],
         "separator_node_source": "",
         "separator_node_action": "",
         "separator_node_name": "",
     },
     "fields": [
-        {"field_name": "bk_host_id", "field_type": "float", "tag": "dimension",
-         "alias_name": "bk_host_id", "description": "主机ID",
-         "option": {"es_type": "integer"}},
-        {"field_name": "__ext", "field_type": "object", "tag": "dimension",
-         "alias_name": "ext", "description": "额外信息字段",
-         "option": {"es_type": "object"}},
-        {"field_name": "cloudId", "field_type": "float", "tag": "dimension",
-         "alias_name": "cloudid", "description": "云区域ID",
-         "option": {"es_type": "integer"}},
-        {"field_name": "serverIp", "field_type": "string", "tag": "dimension",
-         "alias_name": "ip", "description": "ip",
-         "option": {"es_type": "keyword"}},
-        {"field_name": "path", "field_type": "string", "tag": "dimension",
-         "alias_name": "filename", "description": "日志路径",
-         "option": {"es_type": "keyword"}},
-        {"field_name": "gseIndex", "field_type": "float", "tag": "dimension",
-         "alias_name": "gseindex", "description": "gse索引",
-         "option": {"es_type": "long"}},
-        {"field_name": "iterationIndex", "field_type": "float", "tag": "dimension",
-         "alias_name": "iterationindex", "description": "迭代ID",
-         "option": {"es_type": "integer"}, "flat_field": True},
+        {
+            "field_name": "bk_host_id",
+            "field_type": "float",
+            "tag": "dimension",
+            "alias_name": "bk_host_id",
+            "description": "主机ID",
+            "option": {"es_type": "integer"},
+        },
+        {
+            "field_name": "__ext",
+            "field_type": "object",
+            "tag": "dimension",
+            "alias_name": "ext",
+            "description": "额外信息字段",
+            "option": {"es_type": "object"},
+        },
+        {
+            "field_name": "cloudId",
+            "field_type": "float",
+            "tag": "dimension",
+            "alias_name": "cloudid",
+            "description": "云区域ID",
+            "option": {"es_type": "integer"},
+        },
+        {
+            "field_name": "serverIp",
+            "field_type": "string",
+            "tag": "dimension",
+            "alias_name": "ip",
+            "description": "ip",
+            "option": {"es_type": "keyword"},
+        },
+        {
+            "field_name": "path",
+            "field_type": "string",
+            "tag": "dimension",
+            "alias_name": "filename",
+            "description": "日志路径",
+            "option": {"es_type": "keyword"},
+        },
+        {
+            "field_name": "gseIndex",
+            "field_type": "float",
+            "tag": "dimension",
+            "alias_name": "gseindex",
+            "description": "gse索引",
+            "option": {"es_type": "long"},
+        },
+        {
+            "field_name": "iterationIndex",
+            "field_type": "float",
+            "tag": "dimension",
+            "alias_name": "iterationindex",
+            "description": "迭代ID",
+            "option": {"es_type": "integer"},
+            "flat_field": True,
+        },
     ],
     "time_field": {
         "field_name": "dtEventTimeStamp",
@@ -92,44 +133,46 @@ def make_no_flat_fields_config():
 def make_multi_flat_fields_config():
     """构造包含多个 flat_field=True 字段的 built_in_config"""
     config = get_fresh_config()
-    config["fields"].extend([
-        {
-            "field_name": "syslogSource",
-            "field_type": "object",
-            "tag": "dimension",
-            "alias_name": "log",
-            "description": "syslog source",
-            "option": {"es_type": "object"},
-            "flat_field": True,
-        },
-        {
-            "field_name": "syslogLabel",
-            "field_type": "object",
-            "tag": "dimension",
-            "alias_name": "syslog",
-            "description": "syslog label",
-            "option": {"es_type": "object"},
-            "flat_field": True,
-        },
-        {
-            "field_name": "winEventProviderName",
-            "field_type": "string",
-            "tag": "dimension",
-            "alias_name": "provider_name",
-            "description": "来源名称",
-            "option": {"es_type": "keyword"},
-            "flat_field": True,
-        },
-        {
-            "field_name": "winEventRecordId",
-            "field_type": "string",
-            "tag": "dimension",
-            "alias_name": "record_id",
-            "description": "记录ID",
-            "option": {"es_type": "keyword"},
-            "flat_field": True,
-        },
-    ])
+    config["fields"].extend(
+        [
+            {
+                "field_name": "syslogSource",
+                "field_type": "object",
+                "tag": "dimension",
+                "alias_name": "log",
+                "description": "syslog source",
+                "option": {"es_type": "object"},
+                "flat_field": True,
+            },
+            {
+                "field_name": "syslogLabel",
+                "field_type": "object",
+                "tag": "dimension",
+                "alias_name": "syslog",
+                "description": "syslog label",
+                "option": {"es_type": "object"},
+                "flat_field": True,
+            },
+            {
+                "field_name": "winEventProviderName",
+                "field_type": "string",
+                "tag": "dimension",
+                "alias_name": "provider_name",
+                "description": "来源名称",
+                "option": {"es_type": "keyword"},
+                "flat_field": True,
+            },
+            {
+                "field_name": "winEventRecordId",
+                "field_type": "string",
+                "tag": "dimension",
+                "alias_name": "record_id",
+                "description": "记录ID",
+                "option": {"es_type": "keyword"},
+                "flat_field": True,
+            },
+        ]
+    )
     return config
 
 
@@ -145,3 +188,25 @@ def make_empty_fields_config():
     config = get_fresh_config()
     config["fields"] = []
     return config
+
+
+def build_test_field_list(fields, built_in_config):
+    """
+    构造测试用 field_list，模拟 get_result_table_config 中的拼接逻辑：
+        built_in_fields + (fields or []) + [time_field] + [original_text_field]
+    用于给 build_log_v4_data_link 传入 field_list 参数
+    """
+    built_in_fields = built_in_config.get("fields", [])
+    original_text_field = {
+        "field_name": "log",
+        "field_type": "string",
+        "tag": "metric",
+        "alias_name": "data",
+        "description": "original_text",
+        "option": {"es_type": "text", "es_include_in_all": True},
+    }
+    field_list = list(built_in_fields) + list(fields or [])
+    if "time_field" in built_in_config:
+        field_list.append(built_in_config["time_field"])
+    field_list.append(original_text_field)
+    return field_list

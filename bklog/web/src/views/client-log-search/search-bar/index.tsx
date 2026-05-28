@@ -31,7 +31,7 @@ import { t } from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import $http from '@/api';
 import TimeRange from '@/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 import type { SearchParams, SearchValueType, UrlState } from '../types';
 
@@ -60,10 +60,13 @@ export default defineComponent({
     const keyword = ref(urlState.keyword || urlState.fileName || '');
 
     /** 时间范围 — 优先使用 URL 回填值 */
+    /** 客户端日志搜索默认时间范围：近6小时 */
+    const CLIENT_LOG_DEFAULT_TIME_RANGE: [string, string] = ['now-6h', 'now'];
+
     const timeRange = ref<[string, string]>(
       urlState.startTime && urlState.endTime
         ? [urlState.startTime, urlState.endTime]
-        : DEFAULT_TIME_RANGE as [string, string],
+        : CLIENT_LOG_DEFAULT_TIME_RANGE,
     );
 
     /** 时区 — 优先使用 URL 回填值 */

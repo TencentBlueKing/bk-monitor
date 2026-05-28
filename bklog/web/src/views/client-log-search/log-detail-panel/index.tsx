@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, computed } from 'vue';
+import { defineComponent, ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { bkMessage } from 'bk-magic-vue';
 
 import { t } from '@/hooks/use-locale';
@@ -100,6 +100,16 @@ const convertFileListToTree = (fileList: string[]): FileTreeNode[] => {
   return [root];
 };
 
+/** 解析 extend_info：JSON 取 desc 字段，否则原样返回 */
+const formatExtendInfo = (val: string) => {
+  try {
+    const parsed = JSON.parse(val);
+    return parsed?.desc ?? val;
+  } catch {
+    return val;
+  }
+};
+
 export default defineComponent({
   name: 'LogDetailPanel',
   props: {
@@ -138,8 +148,13 @@ export default defineComponent({
       type: Array as unknown as () => [string, string] | [number, number],
       default: () => [0, 0],
     },
+    /** 是否隐藏采集按钮（非"全部"tab且列表为空时隐藏） */
+    hideCollectButton: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['expand', 'collect', 'url-sync'],
+  emits: ['expand', 'collect', 'url-sync', 'scroll-state-change'],
   setup(props, { emit }) {
     const store = useStore();
 
@@ -218,7 +233,7 @@ export default defineComponent({
     const currentBegin = ref(0);
 
     /** 每页条数 */
-    const pageSize = 50;
+    const pageSize = 1000;
 
     /** 是否还有更多日志 */
     const hasMore = ref(false);
@@ -228,6 +243,9 @@ export default defineComponent({
 
     /** 日志内容滚动容器引用 */
     const logContentScrollRef = ref<HTMLElement | null>(null);
+
+    /** 是否显示回到顶部按钮 */
+    const showScrollTop = ref(false);
 
     /** 展示用的日志列表 */
     const filteredLogList = computed(() => {
@@ -533,11 +551,31 @@ export default defineComponent({
 
     /** 滚动触底加载更多日志 */
     let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastScrollTop = 0;
     const handleLogScroll = () => {
+      const el = logContentScrollRef.value;
+      if (!el) return;
+
+      // 更新回到顶部按钮显示状态
+      showScrollTop.value = el.scrollTop > 300;
+
+      // 判断滚动方向，通知父组件折叠/展开 UserInfoCard
+      const isScrollingDown = el.scrollTop > lastScrollTop && el.scrollTop > 50;
+      const isScrolledToTop = el.scrollTop < 10;
+      if (isScrollingDown) {
+        emit('scroll-state-change', true);
+      } else if (isScrolledToTop) {
+        emit('scroll-state-change', false);
+      }
+      lastScrollTop = el.scrollTop;
+
+      // 触底加载更多日志（防抖）
       if (scrollTimer) clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
         const el = logContentScrollRef.value;
-        if (!el || isLoadMore.value || isLogLoading.value || !hasMore.value) return;
+        if (!el) return;
+
+        if (isLoadMore.value || isLogLoading.value || !hasMore.value) return;
 
         const { scrollTop, scrollHeight, offsetHeight } = el;
         if (scrollHeight - scrollTop - offsetHeight < 50) {
@@ -547,6 +585,14 @@ export default defineComponent({
           }
         }
       }, 300);
+    };
+
+    /** 回到顶部 */
+    const handleScrollToTop = () => {
+      const el = logContentScrollRef.value;
+      if (el) {
+        el.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     };
 
     /** 工具栏过滤事件处理 */
@@ -576,6 +622,29 @@ export default defineComponent({
         icon: 'bklog-icon bklog-log',
       },
     ]);
+
+    /** 是否全屏展示 */
+    const isFullscreen = ref(false);
+
+    /** 切换全屏 */
+    const handleFullscreen = () => {
+      isFullscreen.value = !isFullscreen.value;
+    };
+
+    /** Esc 键退出全屏 */
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen.value) {
+        isFullscreen.value = false;
+      }
+    };
+
+    onMounted(() => {
+      document.addEventListener('keydown', handleKeydown);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleKeydown);
+    });
 
     /** 点击展开图标 */
     const handleExpand = () => {
@@ -700,9 +769,11 @@ export default defineComponent({
       <div class='uncollected-content'>
         <bk-exception type="empty">
           <div class='tip'>{t('暂未采集，无法获取日志')}</div>
-          <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
-            {t('立即采集')}
-          </bk-button>
+          {!props.hideCollectButton && (
+            <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
+              {t('立即采集')}
+            </bk-button>
+          )}
         </bk-exception>
       </div>
     );
@@ -722,9 +793,11 @@ export default defineComponent({
       <div class='uncollected-content'>
         <bk-exception type="empty">
           <div class='tip'>{t('日志采集失败，请重新采集')}</div>
-          <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
-            {t('立即采集')}
-          </bk-button>
+          {!props.hideCollectButton && (
+            <bk-button theme='primary' onClick={() => emit('collect', props.selectedLogItem)}>
+              {t('立即采集')}
+            </bk-button>
+          )}
         </bk-exception>
       </div>
     );
@@ -792,6 +865,16 @@ export default defineComponent({
               <div class='log-load-more'>loading...</div>
             )}
           </div>
+          {/* 回到顶部按钮 */}
+          {showScrollTop.value && (
+            <span
+              class='scroll-to-top-btn'
+              v-bk-tooltips={t('返回顶部')}
+              onClick={handleScrollToTop}
+            >
+              <i class='bklog-icon bklog-backtotop' />
+            </span>
+          )}
         </div>
       </div>
     );
@@ -841,7 +924,7 @@ export default defineComponent({
     };
 
     return () => (
-      <div class='card-base log-detail-panel'>
+      <div class={['card-base', 'log-detail-panel', { 'is-fullscreen': isFullscreen.value }]}>
         {/* 左上角展开图标 - 仅在左侧列表收起时显示 */}
         {props.isTaskListCollapsed && (
           <span class='expand-icon' onClick={handleExpand}>
@@ -879,9 +962,23 @@ export default defineComponent({
                   <i class='bklog-icon bklog-share-fenxiang'></i>
                   {t('分享')}
                 </bk-button>
+                <bk-button
+                  onClick={handleFullscreen}
+                >
+                  <i class={`bk-icon ${isFullscreen.value ? 'icon-unfull-screen' : 'icon-full-screen'}`}></i>
+                  {isFullscreen.value ? t('退出') : t('全屏')}
+                </bk-button>
               </div>
             )}
           </header>
+
+          {currentStatus.value === 'success' && props.selectedLogItem?.extend_info && (
+            <div class='ext-content'>
+              <i class='bklog-icon bklog-miaoshu'></i>
+              <span class='ext-label'>{t('扩展信息')}:</span>
+              <span class='ext-value'>{formatExtendInfo(props.selectedLogItem.extend_info)}</span>
+            </div>
+          )}
 
           {renderStatusContent()}
         </div>

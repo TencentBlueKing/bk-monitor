@@ -35,10 +35,11 @@ import {
   watch,
 } from 'vue';
 
-import { ResizeLayout } from 'bkui-vue';
+import { Loading, ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
 import {
+  getIncidentDocId,
   incidentDetail,
   incidentOperations,
   incidentOperationTypes,
@@ -103,9 +104,33 @@ export default defineComponent({
     },
   },
   setup(props) {
-    useIncidentProvider(computed(() => props.id));
     const route = useRoute();
     const router = useRouter();
+
+    // 解析真实的 incident ID（当 id 长度 < 16 时，说明是短 id，需通过接口换取真实 id）
+    const resolvedId = deepRef(props.id);
+    const idResolving = deepRef(false);
+    let idResolvePromise: null | Promise<void> = null;
+    if (props.id && String(props.id).length < 16) {
+      idResolving.value = true;
+      idResolvePromise = getIncidentDocId({ incident_id: props.id })
+        .then(res => {
+          resolvedId.value = res.id;
+          router.replace({
+            name: route.name as string,
+            params: { ...route.params, id: res.id },
+            query: { ...route.query },
+          });
+        })
+        .catch(err => {
+          console.error('Failed to resolve incident_id:', err);
+        })
+        .finally(() => {
+          idResolving.value = false;
+        });
+    }
+
+    useIncidentProvider(computed(() => resolvedId.value));
     const operations = deepRef([]);
     const operationsFailDetail = deepRef('');
     const bkzIds = deepRef([]);
@@ -311,7 +336,7 @@ export default defineComponent({
     /** 获取故障详情 */
     const getIncidentDetail = () => {
       incidentDetail({
-        id: props.id,
+        id: resolvedId.value,
       })
         .then(res => {
           incidentDetailData.value = res;
@@ -344,7 +369,7 @@ export default defineComponent({
 
     /** 故障分析状态获取接口 */
     const getIncidentResults = (isInit = false) => {
-      incidentResults({ id: props.id }).then(res => {
+      incidentResults({ id: resolvedId.value }).then(res => {
         incidentResultStatus.value = res.status || 'finished';
         incidentResultList.value = res.panels || {};
         /** 第一次请求这个接口的时候去判断是否要切换到故障诊断的Tab */
@@ -368,7 +393,10 @@ export default defineComponent({
       }
     );
 
-    onMounted(() => {
+    onMounted(async () => {
+      if (idResolvePromise) {
+        await idResolvePromise;
+      }
       getIncidentResults(true);
       getIncidentDetail();
     });
@@ -451,11 +479,19 @@ export default defineComponent({
       updateAlarmDetailShow,
       alarmDetailShow,
       alarmDetailData,
+      idResolving,
       handleOpenEdit,
       failureHeaderRef,
     };
   },
   render() {
+    if (this.idResolving) {
+      return (
+        <div class='failure-wrapper failure-id-resolving'>
+          <Loading />
+        </div>
+      );
+    }
     return (
       <div
         class='failure-wrapper'
