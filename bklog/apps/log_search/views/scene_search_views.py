@@ -362,6 +362,52 @@ def _merge_scene_filters_to_addition(data: dict) -> dict:
     return data
 
 
+def _extract_scene_keys(conds) -> frozenset:
+    """Extract `scene` dimension values from table_id_conditions.
+
+    `scene` is the routing classification (a `bkcc__N`-level "which scene")
+    while other fields (cluster_id / namespace / ...) are filter dimensions.
+    Used by history dedup / filter to classify records by scene only.
+    """
+    if not conds:
+        return frozenset()
+    keys = set()
+    for and_group in conds:
+        for c in and_group or []:
+            if c.get("field_name") == "scene":
+                for v in c.get("value") or []:
+                    keys.add(v)
+    return frozenset(keys)
+
+
+def _extract_routing_dims(conds) -> list:
+    """Extract non-scene dimensions from table_id_conditions, normalized for hashing.
+
+    These dimensions (cluster_id / namespace / ...) participate in search-history
+    dedup key, so the same keyword under c1 / c2 / c3 stays as distinct records.
+    """
+    if not conds:
+        return []
+    dims = []
+    for and_group in conds:
+        group = []
+        for c in and_group or []:
+            field = c.get("field_name") or ""
+            if not field or field == "scene":
+                continue
+            group.append({
+                "field_name": field,
+                "value": list(c.get("value") or []),
+                "op": c.get("op", "eq"),
+            })
+        if group:
+            # sort within the AND-group to make order-insensitive
+            group.sort(key=lambda x: (x["field_name"], x["op"]))
+            dims.append(group)
+    dims.sort(key=lambda g: g[0]["field_name"] if g else "")
+    return dims
+
+
 # Scene query_string 拼装逻辑已抽到 apps.utils.scene_lucene，本文件保留 thin wrapper
 # 以兼容历史引用。
 from apps.utils.scene_lucene import (  # noqa: E402, F401
@@ -971,7 +1017,17 @@ class SceneSearchViewSet(APIViewSet):
         @api {post} /search/scene/history/ 场景化检索-检索历史
         @apiName scene_search_history
         @apiGroup 14_SceneSearch
-        @apiDescription 按 space_uid + table_id_conditions 查询场景化检索历史，去重后返回最近 30 条。
+        @apiDescription 查询场景化检索历史，返回最近 30 条。
+
+        过滤策略：
+        - 按 `space_uid` 严格匹配
+        - 按 `table_id_conditions` 中 `scene` 字段（场景分类）做交集匹配（宽松）；
+          老历史记录如不含 `scene` 字段则视为匹配任意场景，保持向后兼容
+        - 其余维度（cluster_id / namespace 等）不参与过滤，只参与下方去重
+
+        去重策略（保留每组最新一条）：
+        - keyword / addition / scene_filter_values / ip_chooser 完全一致
+        - 且 `table_id_conditions` 中**除 scene 外**的维度筛选完全一致
         """
         data = self.params_valid(SceneSearchHistorySerializer)
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
@@ -987,19 +1043,37 @@ class SceneSearchViewSet(APIViewSet):
         )
 
         target_space_uid = data.get("space_uid")
-        target_conditions = data.get("table_id_conditions")
+        target_scenes = _extract_scene_keys(data.get("table_id_conditions"))
 
-        seen, result = [], []
+        seen, result = set(), []
         for h in history_qs.iterator():
             params = h["params"] or {}
             if target_space_uid and params.get("space_uid") != target_space_uid:
                 continue
-            if target_conditions and params.get("table_id_conditions") != target_conditions:
-                continue
-            key = (params.get("keyword", ""), json.dumps(params.get("addition", []), sort_keys=True))
+            # Filter by `scene` category only — `table_id_conditions`'s other fields
+            # (cluster_id / namespace / ...) are dimension filters, not classification.
+            # Loose match: any overlap passes; legacy records with no `scene` field
+            # are kept (target is over-permissive rather than dropping data silently).
+            if target_scenes:
+                history_scenes = _extract_scene_keys(params.get("table_id_conditions"))
+                if history_scenes and not (target_scenes & history_scenes):
+                    continue
+            # Dedup key covers the full semantic surface of a scene query so that
+            # only truly equivalent searches collapse; `table_id_conditions` itself
+            # is excluded (scene is just a routing category) but its non-scene
+            # dimension filters are included so c1/c2/c3 stay distinct.
+            key = (
+                params.get("keyword", ""),
+                json.dumps(params.get("addition", []), sort_keys=True),
+                json.dumps(params.get("scene_filter_values", []), sort_keys=True),
+                json.dumps(params.get("ip_chooser", {}), sort_keys=True),
+                json.dumps(
+                    _extract_routing_dims(params.get("table_id_conditions")), sort_keys=True
+                ),
+            )
             if key in seen:
                 continue
-            seen.append(key)
+            seen.add(key)
             h["query_string"] = _build_scene_query_string(params)
             result.append(h)
             if len(result) >= 30:

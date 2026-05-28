@@ -1635,3 +1635,201 @@ class TestSceneSearchModePersisted(TestCase):
         vs = _get_viewset("search", request)
         resp = vs.search.__wrapped__(vs, request)
         self.assertEqual(resp.data["history_obj"]["search_mode"], "ui")
+
+
+# =========================================================================
+# scene_search_history dedup & filter
+# =========================================================================
+
+class TestSceneSearchHistoryDedupAndFilter(TestCase):
+    """
+    /search/scene/history/ 的过滤与去重策略：
+    - filter：只看 table_id_conditions 中 scene 字段（场景分类，宽松交集）
+    - dedup：keyword + addition + scene_filter_values + ip_chooser +
+              table_id_conditions 中非 scene 维度（cluster_id 等）
+    - 老历史无 scene 字段时不被过滤掉（兼容）
+    """
+
+    USER = "admin"
+
+    @staticmethod
+    def _write_history(
+        *,
+        keyword="*",
+        addition=None,
+        scene_filter_values=None,
+        ip_chooser=None,
+        table_id_conditions=None,
+        space_uid=SPACE_UID,
+        search_mode="ui",
+        created_by=None,
+    ):
+        from apps.log_search.models import UserIndexSetSearchHistory
+        from django.utils import timezone
+
+        if table_id_conditions is None:
+            table_id_conditions = [[{"field_name": "scene", "value": ["host"], "op": "eq"}]]
+        obj = UserIndexSetSearchHistory.objects.create(
+            index_set_id=0,
+            search_type="default",
+            search_mode=search_mode,
+            params={
+                "keyword": keyword,
+                "addition": addition or [],
+                "scene_filter_values": scene_filter_values or [],
+                "ip_chooser": ip_chooser or {},
+                "table_id_conditions": table_id_conditions,
+                "space_uid": space_uid,
+            },
+        )
+        # OperateRecordModel.save() 强制覆盖 created_by；用 update 校正
+        UserIndexSetSearchHistory.objects.filter(id=obj.id).update(
+            created_by=created_by or TestSceneSearchHistoryDedupAndFilter.USER,
+            created_at=timezone.now(),
+        )
+        return UserIndexSetSearchHistory.objects.get(id=obj.id)
+
+    def _call_history(self, body):
+        factory = APIRequestFactory()
+        request = factory.post("/api/v1/search/scene/history/", data=body, format="json")
+        with patch(
+            "apps.log_search.views.scene_search_views.get_request_username",
+            return_value=self.USER,
+        ), patch(
+            "apps.log_search.views.scene_search_views.get_request_external_username",
+            return_value="",
+        ):
+            vs = _get_viewset("scene_search_history", request)
+            return vs.scene_search_history(request)
+
+    # ---- filter ---------------------------------------------------------
+
+    def test_filter_by_scene_classification_loose_match(self):
+        """target scene=host 只命中 history scene 包含 host 的记录。"""
+        h_host = self._write_history(
+            keyword="A",
+            table_id_conditions=[[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        )
+        # 同 scene 但带额外维度，仍应命中
+        h_host_with_cluster = self._write_history(
+            keyword="B",
+            table_id_conditions=[[
+                {"field_name": "scene", "value": ["host"], "op": "eq"},
+                {"field_name": "cluster_id", "value": ["c1"], "op": "eq"},
+            ]],
+        )
+        # 不同 scene，应被过滤
+        self._write_history(
+            keyword="C",
+            table_id_conditions=[[{"field_name": "scene", "value": ["k8s"], "op": "eq"}]],
+        )
+
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        ids = {r["id"] for r in resp.data}
+        self.assertEqual(ids, {h_host.id, h_host_with_cluster.id})
+
+    def test_filter_compat_history_without_scene_field(self):
+        """老历史 table_id_conditions 不含 scene 字段时，视为匹配任意 target scene。"""
+        h_legacy = self._write_history(
+            keyword="legacy",
+            table_id_conditions=[[{"field_name": "cluster_id", "value": ["c1"], "op": "eq"}]],
+        )
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        self.assertIn(h_legacy.id, {r["id"] for r in resp.data})
+
+    def test_filter_by_space_uid(self):
+        h_match = self._write_history(keyword="A", space_uid=SPACE_UID)
+        self._write_history(keyword="B", space_uid="bkcc__999")
+
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        ids = {r["id"] for r in resp.data}
+        self.assertIn(h_match.id, ids)
+        self.assertEqual(len(ids), 1)
+
+    # ---- dedup ----------------------------------------------------------
+
+    def test_dedup_different_scene_filter_values_not_merged(self):
+        """不同 scene_filter_values 视为不同检索，不去重。"""
+        h1 = self._write_history(
+            keyword="A",
+            scene_filter_values=[{"field": "namespace", "operator": "is", "value": "default"}],
+        )
+        h2 = self._write_history(
+            keyword="A",
+            scene_filter_values=[{"field": "namespace", "operator": "is", "value": "prod"}],
+        )
+        h3 = self._write_history(keyword="A", scene_filter_values=[])
+
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        self.assertEqual({r["id"] for r in resp.data}, {h1.id, h2.id, h3.id})
+
+    def test_dedup_different_ip_chooser_not_merged(self):
+        h1 = self._write_history(keyword="A", ip_chooser={"host_list": [{"bk_host_id": 1}]})
+        h2 = self._write_history(keyword="A", ip_chooser={"host_list": [{"bk_host_id": 2}]})
+
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        self.assertEqual({r["id"] for r in resp.data}, {h1.id, h2.id})
+
+    def test_dedup_different_non_scene_dims_not_merged(self):
+        """table_id_conditions 中除 scene 外的维度（cluster_id 等）参与去重，区分 c1/c2/c3。"""
+        h_c1 = self._write_history(
+            keyword="A",
+            table_id_conditions=[[
+                {"field_name": "scene", "value": ["host"], "op": "eq"},
+                {"field_name": "cluster_id", "value": ["c1"], "op": "eq"},
+            ]],
+        )
+        h_c2 = self._write_history(
+            keyword="A",
+            table_id_conditions=[[
+                {"field_name": "scene", "value": ["host"], "op": "eq"},
+                {"field_name": "cluster_id", "value": ["c2"], "op": "eq"},
+            ]],
+        )
+
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        self.assertEqual({r["id"] for r in resp.data}, {h_c1.id, h_c2.id})
+
+    def test_dedup_truly_equivalent_collapses_keep_newest(self):
+        """keyword+addition+scene_filter_values+ip_chooser+非scene维度 完全一致 → 仅保留最新一条。"""
+        self._write_history(keyword="A")
+        self._write_history(keyword="A")
+        newest = self._write_history(keyword="A")
+
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["id"], newest.id)
+
+    # ---- ordering -------------------------------------------------------
+
+    def test_results_are_time_desc(self):
+        h1 = self._write_history(keyword="A")
+        h2 = self._write_history(keyword="B")
+        h3 = self._write_history(keyword="C")
+
+        resp = self._call_history({
+            "space_uid": SPACE_UID,
+            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+        })
+        self.assertEqual([r["id"] for r in resp.data], [h3.id, h2.id, h1.id])
