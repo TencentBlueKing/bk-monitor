@@ -40,45 +40,49 @@ from apps.utils.task import high_priority_task
 @periodic_task(run_every=crontab(minute="*/10"))
 def sync_pattern():
     clustering_configs = ClusteringConfig.objects.filter(signature_enable=True, signature_pattern_rt="").values(
-        "model_id", "model_output_rt", "index_set_id"
+        "model_id", "model_output_rt", "index_set_id", "bk_biz_id"
     )
-    index_set_ids = set()
-    for clustering_config in clustering_configs:
-        index_set_ids.add(clustering_config["index_set_id"])
+    index_set_ids = {clustering_config["index_set_id"] for clustering_config in clustering_configs}
 
-    index_set_id_list = LogIndexSet.objects.filter(is_active=True, index_set_id__in=index_set_ids).values_list(
-        "index_set_id", flat=True
+    active_index_set_ids = set(
+        LogIndexSet.objects.filter(is_active=True, index_set_id__in=index_set_ids).values_list(
+            "index_set_id", flat=True
+        )
     )
-    model_ids = set()
-    model_output_rts = set()
+    model_keys = set()
+    model_output_keys = set()
     for clustering_config in clustering_configs:
-        if clustering_config["index_set_id"] not in index_set_id_list:
+        if clustering_config["index_set_id"] not in active_index_set_ids:
             continue
+        bk_biz_id = clustering_config["bk_biz_id"]
         model_id = clustering_config["model_id"]
         model_output_rt = clustering_config["model_output_rt"]
-        if model_output_rt and model_output_rt not in model_output_rts:
-            model_output_rts.add(model_output_rt)
-            sync.delay(model_output_rt=model_output_rt)
-        elif not model_output_rt and model_id and model_id not in model_ids:
-            model_ids.add(model_id)
-            sync.delay(model_id=model_id)
+        model_output_key = (model_output_rt, bk_biz_id)
+        model_key = (model_id, bk_biz_id)
+        if model_output_rt and model_output_key not in model_output_keys:
+            model_output_keys.add(model_output_key)
+            sync.delay(model_output_rt=model_output_rt, bk_biz_id=bk_biz_id)
+        elif not model_output_rt and model_id and model_key not in model_keys:
+            model_keys.add(model_key)
+            sync.delay(model_id=model_id, bk_biz_id=bk_biz_id)
 
 
 @high_priority_task(ignore_result=True)
-def sync(model_id=None, model_output_rt=None):
+def sync(model_id=None, model_output_rt=None, bk_biz_id=None):
+    handler = AiopsModelHandler(bk_biz_id=bk_biz_id)
     if model_id:
         try:
-            release_id = AiopsModelHandler().get_latest_released_id(model_id=model_id)
+            release_id = handler.get_latest_released_id(model_id=model_id)
         except ModelReleaseNotFoundException:
             return
 
-        content = AiopsModelHandler().aiops_release_model_release_id_model_file(
-            model_id=model_id, model_release_id=release_id
-        )["file_content"]
+        content = handler.aiops_release_model_release_id_model_file(model_id=model_id, model_release_id=release_id)[
+            "file_content"
+        ]
 
     elif model_output_rt:
         model_id = model_output_rt
-        content = AiopsModelHandler().model_output_rt_model_file(model_output_rt=model_output_rt)["file_content"]
+        content = handler.model_output_rt_model_file(model_output_rt=model_output_rt)["file_content"]
 
     else:
         return

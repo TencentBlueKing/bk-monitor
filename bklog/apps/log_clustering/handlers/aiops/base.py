@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from dataclasses import asdict
 
 from apps.log_clustering.constants import LATEST_PUBLISH_STATUS
 from apps.log_clustering.handlers.aiops.aiops_model.data_cls import AiopsReleaseCls
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.utils.log import logger
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
@@ -30,18 +31,22 @@ from apps.log_clustering.exceptions import ClusteringClosedException, ModelRelea
 from apps.api import BkDataAIOPSApi
 
 
-class BaseAiopsHandler(object):
+class BaseAiopsHandler:
     def __init__(self):
         if not FeatureToggleObject.switch(BKDATA_CLUSTERING_TOGGLE):
             raise ClusteringClosedException()
         self.conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
+        self.bk_tenant_id = ""
+
+    def bind_online_tenant(self, bk_biz_id: int):
+        self.conf, self.bk_tenant_id = get_online_clustering_config(bk_biz_id)
 
     def _set_username(self, request_data_cls, bk_username: str = ""):
         if isinstance(request_data_cls, dict):
             request_dict = request_data_cls
         else:
             request_dict = asdict(request_data_cls)
-        logger.info("request_dict=> {}".format(request_dict))
+        logger.info(f"request_dict=> {request_dict}")
         if bk_username:
             request_dict["bk_username"] = bk_username
             return request_dict
@@ -55,7 +60,7 @@ class BaseAiopsHandler(object):
         """
         aiops_release_request = AiopsReleaseCls(model_id=model_id, project_id=self.conf.get("project_id"))
         request_dict = self._set_username(aiops_release_request)
-        return BkDataAIOPSApi.aiops_release(request_dict)
+        return BkDataAIOPSApi.aiops_release(request_dict, bk_tenant_id=self.bk_tenant_id)
 
     def get_latest_released_id(self, model_id: str):
         """

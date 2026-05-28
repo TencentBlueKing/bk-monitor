@@ -45,8 +45,10 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class DataAccessHandler(BaseAiopsHandler):
-    def __init__(self, raw_data_id: int = None):
+    def __init__(self, raw_data_id: int = None, bk_biz_id: int = None):
         super().__init__()
+        if bk_biz_id is not None:
+            self.bind_online_tenant(bk_biz_id)
         self.raw_data_id = raw_data_id
 
     def get_deploy_plan(self):

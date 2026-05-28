@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import arrow
 from django.core.cache import cache
 
@@ -26,6 +26,7 @@ from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandl
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.handlers.dataflow.constants import ActionEnum
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
+from apps.log_clustering.models import ClusteringConfig
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
@@ -44,7 +45,11 @@ def update_clustering_clean(collector_config_id, fields, etl_config, etl_params)
     pre_treat_flow_id = clustering_handler.data.pre_treat_flow_id
     after_treat_flow_id = clustering_handler.data.after_treat_flow_id
     if predict_flow_id:
-        DataFlowHandler().operator_flow(flow_id=predict_flow_id, action=ActionEnum.RESTART)
+        DataFlowHandler().operator_flow(
+            flow_id=predict_flow_id,
+            action=ActionEnum.RESTART,
+            bk_biz_id=clustering_handler.data.bk_biz_id,
+        )
     elif pre_treat_flow_id:
         DataFlowHandler().operator_flow(flow_id=pre_treat_flow_id, action=ActionEnum.RESTART)
         DataFlowHandler().operator_flow(flow_id=after_treat_flow_id, action=ActionEnum.RESTART)
@@ -55,8 +60,12 @@ def update_clustering_clean(collector_config_id, fields, etl_config, etl_params)
 def restart_flow(index_set_id, flow_ids):
     updated_timestamp = cache.get(f"start_pipeline_time_{index_set_id}")
     if not updated_timestamp or arrow.now().timestamp() >= updated_timestamp:
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         for flow_id in flow_ids:
             if not flow_id:
                 continue
-            DataFlowHandler().operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
+            kwargs = {}
+            if flow_id == clustering_config.predict_flow_id:
+                kwargs["bk_biz_id"] = clustering_config.bk_biz_id
+            DataFlowHandler().operator_flow(flow_id=flow_id, action=ActionEnum.RESTART, **kwargs)
         logger.info(f"restart flow success: index_set_id -> {index_set_id}")
