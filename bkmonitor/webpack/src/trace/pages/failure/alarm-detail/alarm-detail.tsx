@@ -28,6 +28,7 @@ import {
   computed,
   defineComponent,
   inject,
+  nextTick,
   onBeforeMount,
   onMounted,
   onUnmounted,
@@ -37,6 +38,7 @@ import {
   watch,
 } from 'vue';
 
+import { useResizeObserver } from '@vueuse/core';
 import { Loading, Message } from 'bkui-vue';
 import {
   feedbackIncidentRoot,
@@ -105,6 +107,7 @@ export default defineComponent({
     // ==================== 通用状态 ====================
     const exceptionData = shallowRef({
       isError: false,
+      title: '',
       errorMsg: '',
     });
     const bkzIds = inject<Ref<string[]>>('bkzIds');
@@ -250,20 +253,47 @@ export default defineComponent({
       });
     };
 
-    // 表格最大高度
-    const tableMaxHeight = computed(() => {
-      if (!alarmDetailRef.value) return undefined;
+    // 表格容器 ref（用于单个折叠项时精确测量可用高度）
+    const tableWrapperRef = shallowRef<HTMLElement | null>(null);
+    // 表格最大高度（响应式）
+    const tableMaxHeight = shallowRef<number | string | undefined>(undefined);
 
-      if (alertData.value.length > 1) {
-        const total = alertData.value.filter(f => f.alerts.length > 0).length;
-        // 273px: 固定的静态高度，162px: 每个折叠项的最小高度
+    /** 重新计算表格最大高度 */
+    const recalcTableMaxHeight = () => {
+      if (!alarmDetailRef.value) {
+        tableMaxHeight.value = undefined;
+        return;
+      }
+      const nonEmptyCount = alertData.value.filter(f => f.alerts.length > 0).length;
+      if (nonEmptyCount > 1) {
+        // 多个折叠项时使用 calc
         const staticHeight = 273;
         const itemHeight = 162;
-        return `calc(100vh - ${staticHeight}px - ${(total - 1) * itemHeight}px)`;
+        tableMaxHeight.value = `calc(100vh - ${staticHeight}px - ${(nonEmptyCount - 1) * itemHeight}px)`;
       } else {
-        // 外层父容器高度 - 100
-        return alarmDetailRef.value.offsetHeight - 100;
+        // 单个折叠项时：通过容器底边界精确计算表格可用高度
+        const tableEl = tableWrapperRef.value;
+        if (tableEl) {
+          const containerRect = alarmDetailRef.value.getBoundingClientRect();
+          const tableRect = tableEl.getBoundingClientRect();
+          // 容器底边界(含 padding-bottom 20px 已在 contentRect 内) 减去表格顶部位置
+          // containerRect.bottom 就是 .alarm-detail 的 border-box 底边
+          // 但实际可用底边需要减去 padding-bottom(20px)
+          const availableHeight = containerRect.bottom - 20 - tableRect.top;
+          tableMaxHeight.value = Math.max(Math.floor(availableHeight), 200);
+        } else {
+          tableMaxHeight.value = undefined;
+        }
       }
+    };
+
+    useResizeObserver(alarmDetailRef, () => {
+      recalcTableMaxHeight();
+    });
+
+    // 是否只有一个折叠项（非空告警的分组数量）
+    const isSingleCollapse = computed(() => {
+      return alertData.value.filter(f => f.alerts.length > 0).length <= 1;
     });
 
     const { updateAlarmDetailData } = incidentAlarmDetailInject();
@@ -570,6 +600,7 @@ export default defineComponent({
         .then(res => {
           tableLoading.value = false;
           alertData.value = res;
+          nextTick(() => recalcTableMaxHeight());
         })
         .catch(err => {
           tableLoading.value = false;
@@ -752,7 +783,9 @@ export default defineComponent({
       currentBizIds,
       refresh,
       alarmDetailRef,
+      tableWrapperRef,
       tableMaxHeight,
+      isSingleCollapse,
       handleColumnResizeChange,
       handleDebugStatus,
       onDisplayColFieldsChange,
@@ -781,7 +814,7 @@ export default defineComponent({
       >
         <div
           ref='alarmDetailRef'
-          class='alarm-detail bk-scroll-y'
+          class={['alarm-detail', { 'bk-scroll-y': !this.isSingleCollapse }]}
         >
           <FeedbackCauseDialog
             data={this.currentData}
@@ -856,7 +889,10 @@ export default defineComponent({
                 title={item.name}
                 onChangeCollapse={this.handleChangeCollapse}
               >
-                <div class={`alarm-detail-table alarm-table alarm-table-container ${this.tableScenarioClassName}`}>
+                <div
+                  ref={this.isSingleCollapse ? 'tableWrapperRef' : undefined}
+                  class={`alarm-detail-table alarm-table alarm-table-container ${this.tableScenarioClassName}`}
+                >
                   <CommonTable
                     firstFullRow={
                       groupSelectedKeys?.length
