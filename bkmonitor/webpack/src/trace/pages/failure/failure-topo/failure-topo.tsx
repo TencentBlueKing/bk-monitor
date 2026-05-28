@@ -2860,6 +2860,7 @@ export default defineComponent({
       topoStatus,
       bkzIds,
       dataAccessSpaceList,
+      incidentDetailData,
       handleToDetail,
       handleHideToolTips,
       handleRootToSpan,
@@ -2903,6 +2904,7 @@ export default defineComponent({
         {this.topoStatus === null ? null : this.topoStatus === 'empty' && this.dataAccessSpaceList?.length ? (
           <DataAccess
             spaceList={this.dataAccessSpaceList}
+            wxCsLink={this.incidentDetailData.wx_cs_link}
             isDarkTheme
           />
         ) : (

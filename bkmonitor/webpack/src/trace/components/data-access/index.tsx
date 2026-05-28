@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted, reactive, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, reactive, shallowRef, watch } from 'vue';
 
 import { Exception, Loading, Popover, Select } from 'bkui-vue';
 import { fetchConfigList, fetchGlobalVariables } from 'monitor-api/modules/incident';
@@ -84,10 +84,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 是否展示"全部开启"按钮 */
+    /** 是否展示"一键开启"按钮（静态控制，优先级低于 greyedBizIds 动态判断） */
     showEnableButton: {
       type: Boolean,
       default: false,
+    },
+    /** 已开启故障分析功能的空间 bizId 列表，传入后"一键开启"按钮根据下拉框选中空间动态判断 */
+    greyedBizIds: {
+      type: Array as PropType<number[]>,
+      default: () => [],
     },
     /** bk助手链接 */
     wxCsLink: {
@@ -112,6 +117,16 @@ export default defineComponent({
 
     /** 当前选中的空间 ID（v-model 绑定） */
     const selectedSpace = shallowRef<number>(props.spaceList[0].space_id);
+
+    /** 当前选中空间是否未开启故障分析功能，动态控制"一键开启"按钮展示 */
+    const shouldShowEnableButton = computed(() => {
+      if (!props.showEnableButton && !props.greyedBizIds.length) return false;
+      // 有 greyedBizIds 时根据当前选中空间动态判断
+      if (props.greyedBizIds.length) {
+        return !props.greyedBizIds.includes(selectedSpace.value);
+      }
+      return props.showEnableButton;
+    });
     /** 数据类型列表 */
     const dataTypes = shallowRef<{ id: string; name: string }[]>([]);
     /** 模块列表 */
@@ -308,7 +323,8 @@ export default defineComponent({
           class='incident-empty-status'
           isDarkTheme={props.isDarkTheme}
           mode={props.mode}
-          showEnableButton={props.showEnableButton}
+          selectedSpaceId={selectedSpace.value}
+          showEnableButton={shouldShowEnableButton.value}
           spaceList={props.spaceList}
           totalCount={props.totalCount}
           wxCsLink={props.wxCsLink}
