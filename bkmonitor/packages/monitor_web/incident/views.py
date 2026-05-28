@@ -82,5 +82,6 @@ class IncidentViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.incident.create_list_config, endpoint="create_list_config"),
         # 数据接入环境信息接口
         ResourceRoute("GET", resource.incident.fetch_global_variables, endpoint="fetch_global_variables"),
-        ResourceRoute("GET", resource.incident.get_search_id, endpoint="get_search_id"),
+        # 监控故障id转换接口
+        ResourceRoute("GET", resource.incident.get_incident_doc_id, endpoint="get_incident_doc_id"),
     ]
