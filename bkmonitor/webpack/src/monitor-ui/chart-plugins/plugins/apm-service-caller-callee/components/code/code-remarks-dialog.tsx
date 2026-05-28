@@ -37,11 +37,16 @@ export default class CodeRemarksDialog extends tsc<CodeRemarksDialogProps, CodeR
     }
   }
 
-  handleConfirm() {
+  /**
+   * 确认修改备注
+   * @param isGlobal 保存并应用为全局
+   */
+  handleConfirm(isGlobal = false) {
     this.loading = true;
     setCodeRemark({
       remark: this.remark,
       code: this.code,
+      is_global: isGlobal || undefined,
       ...this.params,
     })
       .then(() => {
@@ -69,7 +74,6 @@ export default class CodeRemarksDialog extends tsc<CodeRemarksDialogProps, CodeR
         width={480}
         ext-cls='code-remarks-dialog'
         header-position='left'
-        confirm-fn={this.handleConfirm}
         title={this.$tc('返回码备注说明')}
         onCancel={this.handleCancel}
         loading={this.loading}
@@ -79,6 +83,33 @@ export default class CodeRemarksDialog extends tsc<CodeRemarksDialogProps, CodeR
           class='remark-input'
           v-model={this.remark}
         />
+        <div
+          class='code-remarks-dialog-footer'
+          slot='footer'
+        >
+          <bk-button
+            class='save-global-btn'
+            loading={this.loading}
+            outline={true}
+            theme='primary'
+            onClick={() => this.handleConfirm(true)}
+          >
+            {this.$tc('保存并应用为全局')}
+          </bk-button>
+          <bk-button
+            loading={this.loading}
+            theme='primary'
+            onClick={() => this.handleConfirm()}
+          >
+            {this.$tc('确定')}
+          </bk-button>
+          <bk-button
+            theme='default'
+            onClick={() => this.handleCancel(false)}
+          >
+            {this.$tc('取消')}
+          </bk-button>
+        </div>
       </bk-dialog>
     );
   }

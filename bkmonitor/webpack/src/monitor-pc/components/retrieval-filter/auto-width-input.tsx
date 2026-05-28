@@ -35,6 +35,7 @@ interface IProps {
   isFocus?: boolean;
   placeholder?: string;
   value?: string;
+  disabled?: boolean;
   onBackspace?: () => void;
   onBackspaceNull?: () => void;
   onBlur?: () => void;
@@ -50,6 +51,7 @@ export default class AutoWidthInput extends tsc<IProps> {
   @Prop({ type: Number, default: 22 }) height: number;
   @Prop({ type: Number, default: 12 }) initWidth: number;
   @Prop({ type: String, default: '' }) placeholder: string;
+  @Prop({ type: Boolean, default: false }) disabled: boolean;
 
   cacheValue = '';
 
@@ -106,6 +108,7 @@ export default class AutoWidthInput extends tsc<IProps> {
           spellcheck={false}
           type='text'
           value={this.value}
+          disabled={this.disabled}
           onBlur={this.handleBlur}
           onFocus={this.handleFocus}
           onInput={this.handleInput}
