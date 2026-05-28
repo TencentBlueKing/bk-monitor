@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import gzip
+import json
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -110,6 +111,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bcs_cluster.data_id_detail",
         "admin.bcs_cluster.bk_collector_config_list",
         "admin.bcs_cluster.bk_collector_config_detail",
+        "admin.bcs_cluster.bkmonitor_operator_release_list",
+        "admin.bcs_cluster.bkmonitor_operator_release_detail",
         "admin.datasource.kafka_sample",
         "admin.es_storage.list",
         "admin.es_storage.detail",
@@ -1127,6 +1130,154 @@ def _collector_secret_list_side_effect(*, platform_config: str | None = None):
         return SimpleNamespace(items=[])
 
     return side_effect
+
+
+def _helm_release_payload(revision: int, chart_version: str, status: str = "superseded") -> str:
+    release = {
+        "name": "bkmonitor-operator",
+        "version": revision,
+        "info": {
+            "status": status,
+            "last_deployed": f"2026-04-28T11:{revision % 60:02d}:31+08:00",
+            "description": "Upgrade complete",
+        },
+        "chart": {
+            "metadata": {
+                "name": "bkmonitor-operator-stack",
+                "version": chart_version,
+                "appVersion": "3.6.0",
+            }
+        },
+        "config": {
+            "bkmonitor-operator-charts": {
+                "bkmonitor-operator": {
+                    "dryRun": False,
+                    "statefulsetReplicas": 1,
+                },
+                "bk-collector": {
+                    "enabled": True,
+                    "replicas": 1,
+                },
+            }
+        },
+    }
+    compressed = gzip.compress(json.dumps(release).encode())
+    return base64.b64encode(base64.b64encode(compressed)).decode()
+
+
+def _helm_release_secret(revision: int, chart_version: str, status: str = "superseded"):
+    return SimpleNamespace(
+        metadata=SimpleNamespace(
+            name=f"sh.helm.release.v1.bkmonitor-operator.v{revision}",
+            namespace="bkmonitor-operator",
+            creation_timestamp=datetime(2026, 4, 28, 11, revision % 60, 31),
+            resource_version=str(7100 + revision),
+        ),
+        type="helm.sh/release.v1",
+        data={"release": _helm_release_payload(revision, chart_version, status)},
+    )
+
+
+def test_bcs_cluster_bkmonitor_operator_release_list_reads_operator_ns_and_marks_inspect():
+    api_client = object()
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=api_client, operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.return_value = SimpleNamespace(
+        items=[
+            _helm_release_secret(62, "3.6.161"),
+            _helm_release_secret(71, "3.6.174", status="deployed"),
+        ]
+    )
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client) as core_api,
+    ):
+        result = admin_bcs_cluster.list_bcs_cluster_bkmonitor_operator_releases(
+            {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "page": 1, "page_size": 20}
+        )
+
+    core_api.assert_called_once_with(api_client)
+    core_client.list_namespaced_secret.assert_called_once_with(
+        namespace="operator-ns",
+        label_selector="owner=helm,name=bkmonitor-operator",
+    )
+    assert result["data"]["namespace"] == "operator-ns"
+    assert result["data"]["operator_namespace"] == "operator-ns"
+    assert result["data"]["using_configured_namespace"] is False
+    assert result["data"]["total"] == 2
+    assert [item["revision"] for item in result["data"]["items"]] == [71, 62]
+    latest = result["data"]["items"][0]
+    assert latest["release_ref"] == "sh.helm.release.v1.bkmonitor-operator.v71"
+    assert latest["chart_name"] == "bkmonitor-operator-stack"
+    assert latest["chart_version"] == "3.6.174"
+    assert latest["app_version"] == "3.6.0"
+    assert latest["status"] == "deployed"
+    assert latest["description"] == "Upgrade complete"
+    assert "values" not in latest
+    assert result["meta"]["safety_level"] == "inspect"
+    assert result["meta"]["requested_safety_level"] == "inspect"
+
+
+def test_bcs_cluster_bkmonitor_operator_release_list_can_switch_to_configured_namespace():
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.return_value = SimpleNamespace(items=[_helm_release_secret(71, "3.6.174")])
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+        patch.object(
+            admin_bcs_cluster.settings,
+            "K8S_OPERATOR_DEPLOY_NAMESPACE",
+            {"BCS-K8S-00001": "configured-ns"},
+        ),
+    ):
+        result = admin_bcs_cluster.list_bcs_cluster_bkmonitor_operator_releases(
+            {
+                "bk_tenant_id": "system",
+                "cluster_id": "BCS-K8S-00001",
+                "use_config_namespace": True,
+            }
+        )
+
+    core_client.list_namespaced_secret.assert_called_once_with(
+        namespace="configured-ns",
+        label_selector="owner=helm,name=bkmonitor-operator",
+    )
+    assert result["data"]["namespace"] == "configured-ns"
+    assert result["data"]["operator_namespace"] == "operator-ns"
+    assert result["data"]["configured_namespace"] == "configured-ns"
+    assert result["data"]["can_use_configured_namespace"] is True
+    assert result["data"]["using_configured_namespace"] is True
+
+
+def test_bcs_cluster_bkmonitor_operator_release_detail_decodes_values():
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.read_namespaced_secret.return_value = _helm_release_secret(71, "3.6.174", status="deployed")
+
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+    ):
+        result = admin_bcs_cluster.get_bcs_cluster_bkmonitor_operator_release_detail(
+            {
+                "bk_tenant_id": "system",
+                "cluster_id": "BCS-K8S-00001",
+                "release_ref": "sh.helm.release.v1.bkmonitor-operator.v71",
+            }
+        )
+
+    core_client.read_namespaced_secret.assert_called_once_with(
+        name="sh.helm.release.v1.bkmonitor-operator.v71",
+        namespace="operator-ns",
+    )
+    assert result["data"]["revision"] == 71
+    assert result["data"]["status"] == "deployed"
+    assert result["data"]["values"]["bkmonitor-operator-charts"]["bkmonitor-operator"]["dryRun"] is False
+    assert result["data"]["values"]["bkmonitor-operator-charts"]["bk-collector"]["enabled"] is True
+    assert result["meta"]["requested_safety_level"] == "inspect"
 
 
 def test_bcs_cluster_bk_collector_config_list_reads_runtime_secrets_and_marks_inspect():
