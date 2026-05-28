@@ -144,6 +144,11 @@ export default defineComponent({
     maxHeight: {
       type: [String, Number] as PropType<number | string>,
     },
+    /** 刷新 key，值变化时强制重新渲染 PrimaryTable */
+    refreshKey: {
+      type: [Number, String] as PropType<number | string>,
+      default: '',
+    },
   },
   emits: {
     /** 当前页变化回调 */
@@ -366,6 +371,7 @@ export default defineComponent({
     return (
       <div class={`common-table-wrapper ${this.autoFillSpace ? 'fill-remaining-space' : ''}`}>
         <PrimaryTable
+          key={this.refreshKey}
           ref='tableRef'
           class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
           v-slots={{

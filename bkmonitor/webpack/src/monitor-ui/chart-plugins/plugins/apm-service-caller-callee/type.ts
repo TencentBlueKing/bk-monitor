@@ -129,14 +129,21 @@ export interface ITabItem {
   handle?: () => void;
 }
 
-
 export interface CodeRedefineItem {
+  id: string;
+  isNew?: boolean;
+  isImport?: boolean;
+  isSaving?: boolean;
+  isAbleSave?: boolean;
+  kind: string;
+  is_global: boolean;
   callee_server: string;
   callee_service: string;
   callee_method: string;
+  service_names?: string[];
   code_type_rules: {
     success: string;
-    exception: string
-    timeout: string
-  }
+    exception: string;
+    timeout: string;
+  };
 }

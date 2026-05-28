@@ -1,0 +1,45 @@
+.app-config-log-relation-list-edit {
+  .list-edit-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    .list-edit-item-content {
+      display: flex;
+      align-items: center;
+    }
+
+    .bk-form-item {
+      margin: 0 !important;
+    }
+
+    .tooltips-icon {
+      right: 32px !important;
+    }
+  }
+
+  .icon-mc-plus-fill,
+  .icon-mc-minus-plus {
+    font-size: 16px;
+    color: #979BA5;
+    cursor: pointer;
+  }
+
+  .icon-mc-minus-plus {
+    margin-left: 6px;
+  }
+
+  .mt-8 {
+    margin-top: 8px;
+  }
+
+  .bk-form-content {
+    margin-left: 0!important;
+  }
+
+  .bk-select {
+    width: 190px;
+    min-width: 190px;
+    margin-right: 8px;
+  }
+}

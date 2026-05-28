@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import arrow
 from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
 from pipeline.parser import PipelineParser
 
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.components.collections.data_access_component import (
     AddProjectData,
     AddResourceGroupSet,
@@ -82,11 +81,7 @@ class AiopsLogOnlineService(BasePipeLineService):
         ).extend(
             # 创建日志数量聚合 dataflow
             CreateLogCountAggregationFlow(index_set_id=index_set_id).create_log_count_aggregation_flow
-        ).extend(
-            CreateStrategy(index_set_id=index_set_id).create_strategy
-        ).extend(
-            end
-        )
+        ).extend(CreateStrategy(index_set_id=index_set_id).create_strategy).extend(end)
         tree = build_tree(start, data=data_context)
         parser = PipelineParser(pipeline_tree=tree)
         pipeline = parser.parse()
@@ -121,11 +116,7 @@ class AiopsBkdataOnlineService(BasePipeLineService):
             AddProjectData(index_set_id=index_set_id).add_project_data
         ).extend(CreatePredictFlow(index_set_id=index_set_id).create_predict_flow).extend(
             CreateLogCountAggregationFlow(index_set_id=index_set_id).create_log_count_aggregation_flow
-        ).extend(
-            CreateStrategy(index_set_id=index_set_id).create_strategy
-        ).extend(
-            end
-        )
+        ).extend(CreateStrategy(index_set_id=index_set_id).create_strategy).extend(end)
         tree = build_tree(start, data=data_context)
         parser = PipelineParser(pipeline_tree=tree)
         pipeline = parser.parse()
@@ -197,8 +188,8 @@ def operator_aiops_service_online(index_set_id):
     :param index_set_id: 索引集id
     :return:
     """
-    conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
     clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+    conf = get_online_clustering_config(clustering_config.bk_biz_id)
     rt_name = (
         clustering_config.collector_config_name_en
         if clustering_config.collector_config_name_en
@@ -234,7 +225,7 @@ def operator_aiops_service_online(index_set_id):
     return pipeline.id
 
 
-class ClusteringOnlineService(object):
+class ClusteringOnlineService:
     @classmethod
     def get_instance(cls, clustering_config):
         if clustering_config.collector_config_id:

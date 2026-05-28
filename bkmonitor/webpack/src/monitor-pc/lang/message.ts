@@ -298,7 +298,7 @@ export default {
   空间未开启故障分析功能: 'Fault analysis function is not enabled in this space',
   '当前所选 {count} 个空间未开启故障分析功能':
     'The fault analysis function is not enabled in the selected {count} spaces',
-  全部开启: 'All enabled',
+  一键开启: 'One-click enable',
   接入指引: 'Access Guide',
   '请参考下表接入数据，如有疑问请联系 {link}':
     'Please refer to the following table to access data, if you have any questions, please contact {link}',

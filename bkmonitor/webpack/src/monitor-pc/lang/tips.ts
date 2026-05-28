@@ -393,6 +393,7 @@ export default {
   '当前选择，包含 {0} 个空间未开启故障分析功能，':
     'The currently selected {0} spaces have not enabled the fault analysis function,',
   查看相关接入指引: 'View related access guidelines',
+  打开故障功能: 'open fault function',
 
   // 查询模板
   无法删除: 'Cannot delete',

@@ -47,7 +47,7 @@ export function useAlarmTable() {
   const ordering = shallowRef('');
   /** 是否加载中 */
   const loading = shallowRef(false);
-  /** 灰度空间列表（incident 场景专用） */
+  /** 已开启故障分析功能的空间 bizId 列表（incident 场景专用，接口返回的 greyed_spaces） */
   const greyedSpaces = shallowRef<number[]>([]);
   /** BK助手链接 */
   const wxCsLink = shallowRef('');

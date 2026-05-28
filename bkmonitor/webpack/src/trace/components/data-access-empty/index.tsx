@@ -29,15 +29,15 @@ import { Button, Exception, Message } from 'bkui-vue';
 import { createListConfig } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 
-import type { SpaceInfo } from '../data-access';
-
 import EmptyDataImg from '../../static/img/empty-data.png';
 import NoDataImg from '../../static/img/no-data.svg';
+
+import type { SpaceInfo } from '../data-access';
 
 import './index.scss';
 
 /** 格式化空间名展示文本 */
-const formatSpaceName = (space: SpaceInfo) => `${space.space_name} (#${space.space_id})`;
+const formatSpaceName = (space?: SpaceInfo) => (space ? `${space.space_name} (#${space.space_id})` : '');
 
 export default defineComponent({
   name: 'DataAccessEmpty',
@@ -62,7 +62,7 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
-    /** 是否展示"全部开启"按钮 */
+    /** 是否展示"一键开启"按钮 */
     showEnableButton: {
       type: Boolean,
       default: false,
@@ -72,6 +72,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 当前选中的空间 ID（用于"一键开启"按钮调用接口） */
+    selectedSpaceId: {
+      type: Number,
+      default: 0,
+    },
   },
   emits: ['enabled'],
   setup(props, { emit }) {
@@ -80,11 +85,18 @@ export default defineComponent({
     const isBtnLoading = shallowRef(false);
 
     const handleConfirm = async () => {
-      const bkBizId = props.spaceList[0]?.space_id;
+      const bkBizId = props.selectedSpaceId || props.spaceList[0]?.space_id;
       if (!bkBizId) return;
       isBtnLoading.value = true;
       try {
-        const res = await createListConfig({ bk_biz_id: bkBizId });
+        const res = await createListConfig({
+          bk_biz_id: bkBizId,
+          config_type: 'general_config',
+          content_list: [],
+          bk_biz_id_config: {
+            scope_id_list_open: [bkBizId],
+          },
+        });
         if (res.result === true && res.message === 'OK') {
           emit('enabled');
         } else {
@@ -162,12 +174,19 @@ export default defineComponent({
             </div>
             {props.showEnableButton && (
               <Button
+                class='empty-btn'
+                v-bk-tooltips={{
+                  content: `(${formatSpaceName(
+                    props.selectedSpaceId
+                      ? props.spaceList.find(s => s.space_id === props.selectedSpaceId)
+                      : props.spaceList[0]
+                  )}) ${t('打开故障功能')}`,
+                }}
                 loading={isBtnLoading.value}
                 theme='primary'
-                class='empty-btn'
                 onClick={() => handleConfirm()}
               >
-                {t('全部开启')}
+                {t('一键开启')}
               </Button>
             )}
           </div>

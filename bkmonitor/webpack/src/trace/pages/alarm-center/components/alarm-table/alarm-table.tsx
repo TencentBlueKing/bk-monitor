@@ -254,6 +254,7 @@ export default defineComponent({
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           loading={this.loading}
           pagination={this.pagination}
+          refreshKey={this.currentScenario?.name}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
           tableSettings={this.settings}

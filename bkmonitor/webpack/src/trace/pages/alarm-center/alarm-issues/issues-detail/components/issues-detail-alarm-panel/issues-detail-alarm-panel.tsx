@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, provide, shallowReactive, watch } from 'vue';
+import { type PropType, defineComponent, onMounted, provide, shallowReactive, watch } from 'vue';
 
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
@@ -35,6 +35,7 @@ import { getAuthorityMap, useAuthorityStore } from '../../../../../../store/modu
 import DetailCommon from '../../../../common-detail/common-detail';
 
 import type { IAuthority } from '@/typings/authority';
+import type { TdPrimaryTableProps } from '@blueking/tdesign-ui/.';
 
 import './issues-detail-alarm-panel.scss';
 
@@ -48,6 +49,10 @@ export default defineComponent({
     },
     bizId: {
       type: [Number, String],
+    },
+    headerAffixedTop: {
+      type: Object as PropType<TdPrimaryTableProps['headerAffixedTop']>,
+      default: () => null,
     },
   },
   setup(props) {
@@ -96,7 +101,7 @@ export default defineComponent({
           showFullScreenBtn={false}
           showStepBtn={false}
         />
-        <DetailCommon />
+        <DetailCommon headerAffixedTop={this.headerAffixedTop} />
       </div>
     );
   },

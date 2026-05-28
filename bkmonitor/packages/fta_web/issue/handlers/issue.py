@@ -948,6 +948,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
             if (trend_end - trend_start) <= SLICED_THRESHOLD:
                 result = IssueAlertDateHistogramResultResource().request(
+                    bk_biz_ids=self.bk_biz_ids,
                     start_time=trend_start,
                     end_time=trend_end,
                     interval=interval,
@@ -956,6 +957,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 )
             else:
                 result = IssueAlertDateHistogramResultResource.sliced_date_histogram(
+                    bk_biz_ids=self.bk_biz_ids,
                     start_time=trend_start,
                     end_time=trend_end,
                     interval=interval,
