@@ -41,6 +41,9 @@ from apps.utils.local import _local
 
 
 APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.AdminApiGatewayMiddleware"
+NON_WHITE_LIST_APIGW_MIDDLEWARE = (
+    "apps.tests.log_admin_resource.test_resource_call.NonWhiteListAdminApiGatewayMiddleware"
+)
 NON_SUPERUSER_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.NonSuperuserMiddleware"
 METADATA_STORAGE = {
     "2_bklog.bcs_checkinsvr": {
@@ -54,6 +57,8 @@ METADATA_STORAGE = {
 
 
 class AdminApiGatewayMiddleware(MiddlewareMixin):
+    bk_app_code = "bkmonitorv3"
+
     def process_request(self, request):
         class Base:
             pass
@@ -66,9 +71,13 @@ class AdminApiGatewayMiddleware(MiddlewareMixin):
         request.permission_exempt = True
         request.jwt = SimpleNamespace(gateway_name="bk-log-search", payload={})
         request.app = SimpleNamespace(
-            bk_app_code="bk-monitor-admin", verified=True, tenant_mode="global", tenant_id="system"
+            bk_app_code=self.bk_app_code, verified=True, tenant_mode="global", tenant_id="system"
         )
         request.META.update({"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"})
+
+
+class NonWhiteListAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
+    bk_app_code = "not-white-list-app"
 
 
 class NonSuperuserMiddleware(MiddlewareMixin):
@@ -124,6 +133,14 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertFalse(content["result"])
         self.assertEqual(content["code"], "3600403")
         self.assertIn("APIGW", content["message"])
+
+    @override_settings(MIDDLEWARE=(NON_WHITE_LIST_APIGW_MIDDLEWARE,), ESQUERY_WHITE_LIST=["bkmonitorv3"])
+    def test_call_rejects_non_white_list_apigw_app(self):
+        content = self._call("__meta__", {"action": "list"})
+
+        self.assertFalse(content["result"])
+        self.assertEqual(content["code"], "3600403")
+        self.assertIn("white-list", content["message"])
 
 
 class TransferApiTenantGetterTest(TestCase):
