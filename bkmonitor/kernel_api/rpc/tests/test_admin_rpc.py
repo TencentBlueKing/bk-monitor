@@ -24,6 +24,7 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
     _normalize_namespaces,
     _serialize_api_auth_token,
 )
+from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
@@ -156,6 +157,94 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     custom_report_list = KernelRPCRegistry.get_function_detail("admin.custom_report.list")
     assert custom_report_list is not None
     assert "bk_data_ids" in custom_report_list["params_schema"]
+
+    apm_application_list = KernelRPCRegistry.get_function_detail("admin.apm.application_list")
+    assert apm_application_list is not None
+    assert "application_ids" in apm_application_list["params_schema"]
+
+
+def test_apm_application_list_filters_by_application_ids(monkeypatch):
+    class FakeApmApplicationQuerySet:
+        def __init__(self, items):
+            self.items = list(items)
+            self.filters = []
+            self.ordering = []
+
+        def filter(self, **kwargs):
+            self.filters.append(kwargs)
+            if "bk_tenant_id" in kwargs:
+                self.items = [item for item in self.items if item.bk_tenant_id == kwargs["bk_tenant_id"]]
+            if "id__in" in kwargs:
+                application_ids = set(kwargs["id__in"])
+                self.items = [item for item in self.items if item.id in application_ids]
+            if "bk_biz_id" in kwargs:
+                self.items = [item for item in self.items if item.bk_biz_id == kwargs["bk_biz_id"]]
+            if "app_name__icontains" in kwargs:
+                keyword = kwargs["app_name__icontains"]
+                self.items = [item for item in self.items if keyword in item.app_name]
+            return self
+
+        def order_by(self, *fields):
+            self.ordering.append(fields)
+            return self
+
+        def none(self):
+            self.items = []
+            return self
+
+        def count(self):
+            return len(self.items)
+
+        def __getitem__(self, key):
+            return self.items[key]
+
+    applications = [
+        SimpleNamespace(
+            id=1,
+            app_name="checkout",
+            app_alias="结算服务",
+            bk_tenant_id="system",
+            bk_biz_id=2,
+            update_time=datetime(2026, 5, 28, 10, 0, 0),
+        ),
+        SimpleNamespace(
+            id=2,
+            app_name="payment",
+            app_alias="支付服务",
+            bk_tenant_id="system",
+            bk_biz_id=2,
+            update_time=datetime(2026, 5, 28, 11, 0, 0),
+        ),
+        SimpleNamespace(
+            id=3,
+            app_name="trace-demo",
+            app_alias="链路示例",
+            bk_tenant_id="system",
+            bk_biz_id=3,
+            update_time=datetime(2026, 5, 28, 12, 0, 0),
+        ),
+    ]
+    queryset = FakeApmApplicationQuerySet(applications)
+    monkeypatch.setattr(
+        admin_apm.apm_models,
+        "ApmApplication",
+        SimpleNamespace(objects=SimpleNamespace(all=lambda: queryset)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_apm,
+        "_load_apm_datasource_maps",
+        lambda apps: {datasource_type: {} for datasource_type in admin_apm.DATASOURCE_TYPES},
+    )
+    monkeypatch.setattr(admin_apm, "_load_service_count_map", lambda apps: {})
+
+    result = admin_apm.list_apm_applications(
+        {"bk_tenant_id": "system", "application_ids": "2,3,2", "page": 1, "page_size": 20}
+    )
+
+    assert result["data"]["total"] == 2
+    assert [item["application_id"] for item in result["data"]["items"]] == [2, 3]
+    assert {"id__in": [2, 3]} in queryset.filters
 
 
 def test_space_vm_info_serializer_includes_vm_cluster_or_null():

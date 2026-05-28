@@ -66,6 +66,28 @@ def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> in
         raise CustomException(message=f"{field_name} 必须是整数") from error
 
 
+def _normalize_int_list(value: Any, field_name: str) -> list[int]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, str):
+        raw_values = [item.strip() for item in value.split(",")]
+    elif isinstance(value, list | tuple | set):
+        raw_values = list(value)
+    else:
+        raw_values = [value]
+
+    result: list[int] = []
+    for raw_value in raw_values:
+        if raw_value in (None, ""):
+            continue
+        try:
+            normalized_value = int(raw_value)
+        except (TypeError, ValueError) as error:
+            raise CustomException(message=f"{field_name} 必须是整数列表") from error
+        result.append(normalized_value)
+    return sorted(set(result))
+
+
 def _app_key(application: Any) -> tuple[int, str]:
     return application.bk_biz_id, application.app_name
 
@@ -330,12 +352,13 @@ def _load_instance_count_map(application: Any, topo_keys: list[str]) -> dict[str
         "bk_biz_id": "可选，业务 ID",
         "app_name": "可选，应用名或别名包含匹配",
         "status": "可选，状态原始值包含匹配",
+        "application_ids": "可选，APM 应用 ID 列表，支持数组或逗号分隔字符串",
         "bk_data_id": "可选，关联 DataId",
         "table_id": "可选，关联 ResultTable ID 包含匹配",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "page": 1, "page_size": 20},
+    example_params={"bk_tenant_id": "system", "application_ids": [1, 2], "page": 1, "page_size": 20},
 )
 def list_apm_applications(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -347,6 +370,9 @@ def list_apm_applications(params: dict[str, Any]) -> dict[str, Any]:
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     if bk_biz_id is not None:
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
+    application_ids = _normalize_int_list(params.get("application_ids"), "application_ids")
+    if application_ids:
+        queryset = queryset.filter(id__in=application_ids)
     app_name = str(params.get("app_name") or "").strip()
     if app_name:
         queryset = queryset.filter(app_name__icontains=app_name)
