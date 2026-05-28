@@ -40,3 +40,11 @@ Record durable decisions, alternatives, tradeoffs and consequences here.
 - 根因：`loadMoreTableData` 对 `store.dispatch('requestIndexSetQuery', { isPagination: true })` 的返回值使用 `resp?.length !== pageSize` 判断是否还有更多；实际 store 返回对象 `{ length, size, ... }`，部分入口/构建下 `resp.length` 可能不可用或判断不兼容，导致错误将 `hasMoreList` 置为 `false`。
 - 决策：新增 `getPaginationResponseSize(resp)`，兼容 `resp.length`、`resp.size`、数组返回与 `resp.data.list.length`；只有明确 `responseSize < pageSize` 时才关闭 `hasMoreList`，未知响应长度时保持可继续加载，避免大总量日志被误判为加载完成。
 - 性能约束：该判断只读取响应元信息，不遍历当前大 list，不复制日志对象。
+
+## 2026-05-28 retrieve-v2 日志排序后骨架屏不退出修复
+
+- 背景：`src/views/retrieve-v2/components/result-storage/index.tsx` 的日志排序会执行 `requestIndexSetFieldInfo` 和 `requestIndexSetQuery`，查询完成后再触发 `RetrieveEvent.SORT_LIST_CHANGED`。
+- 问题：`LogRows` 原先把 `SORT_LIST_CHANGED` 和搜索/时间变更事件一起无条件 `resetPageState()`。排序查询完成后 `tableDataSize` 已经更新，首屏 reveal 也已经调度/完成；此时再把 `isFirstPageLayoutPending` 置为 `true`，后续没有新的 `tableDataSize` 变化触发 `scheduleFirstPageTableReveal()`，导致骨架屏 loading 常驻。
+- 决策：`SORT_LIST_CHANGED` 单独处理，只在仍处于请求中、页面 loading 中、requesting 中或当前无结果行时才重置首屏骨架状态；查询已完成且已有结果时不再重新进入 pending。
+- 约束：搜索值、时间、趋势图搜索等真实查询起点仍可无条件 `resetPageState()`；分页加载更多仍不能触发首屏骨架屏。
+- 验证：状态机静态验证、`git diff --check`、`npx eslint ... --quiet`、`npm run build` 通过。
