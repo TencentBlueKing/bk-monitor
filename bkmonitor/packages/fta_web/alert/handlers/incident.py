@@ -96,6 +96,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = IncidentQueryTransformer
+    TEXT_CONDITION_FIELDS = {"incident_name", "incident_reason"}
 
     # “我的故障” 状态名称
     MINE_STATUS_NAME = "MY_INCIDENT"
@@ -129,18 +130,21 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         if self.status:
             queries = []
+            user_queries = []
             for status in self.status:
                 if status == self.MINE_STATUS_NAME:
-                    queries.append(
+                    user_queries.append(
                         Q("term", assignees=self.request_username) | Q("term", appointee=self.request_username)
                     )
                 if status == self.MY_ASSIGNEE_STATUS_NAME:
-                    queries.append(Q("term", assignees=self.request_username))
+                    user_queries.append(Q("term", assignees=self.request_username))
                 if status == self.MY_HANDLER_STATUS_NAME:
-                    queries.append(Q("term", handlers=self.request_username))
+                    user_queries.append(Q("term", handlers=self.request_username))
                 else:
                     queries.append(Q("term", status=status))
-
+            # 先查询用户所有数据，然后在查询状态数据；避免直接查询导致用户和状态使用or导致数据透出
+            if user_queries:
+                search_object = search_object.filter(reduce(operator.or_, user_queries))
             if queries:
                 search_object = search_object.filter(reduce(operator.or_, queries))
 
@@ -178,11 +182,97 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         return result
 
+    @classmethod
+    def _quote_translated_query_string(cls, query_dsl):
+        """将枚举翻译生成的原始中文词改为短语查询，避免中文分词误命中。"""
+        if not isinstance(query_dsl, str):
+            return query_dsl
+
+        for field, choices in cls.query_transformer.VALUE_TRANSLATE_FIELDS.items():
+            for value, display in choices:
+                display = str(display)
+                query_dsl = query_dsl.replace(f"({display} OR {field}:{value})", f'("{display}" OR {field}:{value})')
+        return query_dsl
+
+    @classmethod
+    def _build_fuzzy_query(cls, query_string: str, fields: list[str] | None = None):
+        """构造故障前缀模糊查询，不传 fields 时默认查询全字段。"""
+        query_string = query_string.strip().strip('"').strip("'")
+        if not query_string:
+            return None
+
+        if fields is None:
+            fields = [
+                field.es_field
+                for field in cls.query_transformer.query_fields
+                if field.searchable and field.es_field
+            ]
+        if not fields:
+            return None
+
+        return Q("multi_match", query=query_string, fields=fields, type="phrase_prefix", lenient=True)
+
+    @classmethod
+    def _build_text_condition_query(cls, condition: dict):
+        """为 Text 字段构造基于分词和前缀短语的包含/排除查询。"""
+        value = condition.get("value")
+        values = value if isinstance(value, list) else [value]
+        queries = []
+        for item in values:
+            if item is None:
+                continue
+            item = str(item).strip()
+            if not item:
+                continue
+            match_query = Q("match", **{condition["key"]: {"query": item, "operator": "and"}})
+            fuzzy_query = cls._build_fuzzy_query(item, fields=[condition["key"]])
+            queries.append(match_query | fuzzy_query if fuzzy_query is not None else match_query)
+
+        if not queries:
+            return None
+
+        query = queries[0] if len(queries) == 1 else Q("bool", should=queries, minimum_should_match=1)
+
+
+        if condition["method"] == "exclude":
+            return ~query
+        return query
+
+    def parse_condition_item(self, condition: dict) -> Q:
+        if condition["key"] == "query_string":
+            con_q = None
+            for query_string in condition["value"]:
+                if query_string.strip():
+                    original_query_string = query_string
+                    query_string = query_string.replace(":", r"\:")
+                    query_dsl = self.query_transformer.transform_query_string(query_string)
+                    query_dsl = self._quote_translated_query_string(query_dsl)
+                    if isinstance(query_dsl, str):
+                        temp_q = Q("query_string", query=query_dsl)
+                    else:
+                        temp_q = Q(query_dsl)
+
+                    fuzzy_q = self._build_fuzzy_query(original_query_string)
+                    if fuzzy_q is not None:
+                        temp_q = temp_q | fuzzy_q
+
+                    if con_q is None:
+                        con_q = temp_q
+                    else:
+                        con_q = con_q | temp_q
+            return con_q
+        if condition["key"] in self.TEXT_CONDITION_FIELDS and condition["method"] in ["include", "exclude"]:
+            return self._build_text_condition_query(condition)
+
+        return super().parse_condition_item(condition)
+
     def add_biz_condition(self, search_object: Search) -> Search:
         queries = []
         if self.authorized_bizs is not None and self.bk_biz_ids:
             # 进行我有权限的告警过滤
-            queries.append(Q("terms", **{"bk_biz_id": self.authorized_bizs}))
+            authorized_query = self.build_es_terms_query("bk_biz_id", self.authorized_bizs)
+            if authorized_query is not None:
+                queries.append(authorized_query)
 
         user_condition = Q(
             Q("term", assignee=self.request_username)
@@ -194,10 +284,14 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             queries.append(user_condition)
 
         if self.unauthorized_bizs and self.request_username:
-            queries.append(Q(Q("terms", **{"bk_biz_id": self.unauthorized_bizs}) & user_condition))
+            unauthorized_query = self.build_es_terms_query("bk_biz_id", self.unauthorized_bizs)
+            if unauthorized_query is not None:
+                queries.append(unauthorized_query & user_condition)
 
         if queries:
             return search_object.filter(reduce(operator.or_, queries))
+
+
         return search_object
 
     @classmethod
@@ -243,9 +337,9 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             dimension_tuple: tuple = tuple(dimensions.items())
             result[dimension_tuple] = aggregation
 
-    def _create_date_histogram_aggregation(
-        self, search_object, agg_name, time_field, time_filter, agg_status_name, status_list, histogram_field, interval
-    ):
+    def _create_date_histogram_aggregation(self, search_object, agg_name, time_field,time_filter,
+                                           agg_status_name,status_list,
+                                           histogram_field,interval):
         """
         创建日期直方图聚合的公共方法
 
@@ -259,27 +353,41 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         :param interval: 时间间隔
         :return: 聚合对象
         """
-        return (
-            search_object.aggs.bucket(agg_name, "filter", {"range": {time_field: {"lte": time_filter}}})
-            .bucket(agg_status_name, "filter", {"terms": {"status": status_list}})
-            .bucket("time", "date_histogram", field=histogram_field, fixed_interval=f"{interval}s")
-            .bucket("status", "terms", field="status")
-        )
+        return search_object.aggs.bucket(
+            agg_name, "filter", {"range": {time_field: {"lte":time_filter}}}
+        ).bucket(agg_status_name, "filter", {"terms": {"status": status_list}}
+                 ).bucket("time", "date_histogram", field=histogram_field, fixed_interval=f"{interval}s"
+                          ).bucket("status", "terms", field="status")
 
-    def date_histogram(self, interval: str = "auto") -> dict:
-        """
+    def date_histogram(self, interval: str = "auto")->dict:
+        '''
         :param interval: 时间间隔
         :return: 状态日期直方图
-        """
+        '''
         new_interval: int = self.calculate_agg_interval(self.start_time, self.end_time, interval)
         # 查询时间对齐
-        start_time, end_time, now_time = search_time_init(
-            new_interval=new_interval, start_time=self.start_time, end_time=self.end_time
-        )
+        start_time,end_time,now_time=search_time_init(new_interval=new_interval, start_time=self.start_time, end_time=self.end_time)
         search_object = self.get_search_object(start_time=start_time, end_time=end_time)
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
+        end_time_status_list = [IncidentStatus.RECOVERED.value, IncidentStatus.CLOSED.value,
+                                    IncidentStatus.MERGED.value]
+        # 按照开始日期进行统计的状态
+        begin_time_status_list = [IncidentStatus.RECOVERING.value, IncidentStatus.ABNORMAL.value]
+        # 已经恢复、关闭、合并的故障、已观察结束，按end_time聚合
+        # 结束时间聚合
+        ended_object = self._create_date_histogram_aggregation(
+            search_object, agg_name="end_time", time_field="end_time",
+            agg_status_name='end_incident',time_filter=end_time, status_list=end_time_status_list,
+            histogram_field="end_time", interval=new_interval
+        )
 
+        # 开始时间聚合 观察中，未恢复按照begin_time聚合
+        begin_object = self._create_date_histogram_aggregation(
+            search_object, agg_name="begin_time", time_field="begin_time",
+            agg_status_name='begin_incident',time_filter=end_time, status_list=begin_time_status_list,
+            histogram_field="begin_time", interval=new_interval
+        )
         # 查询
         search_result = search_object[:0].execute()
         # 各状态的初始值 {status: {timestamp: 0,....}}

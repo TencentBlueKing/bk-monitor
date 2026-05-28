@@ -26,6 +26,7 @@ export const alertIncidentDetail = request('GET', 'rest/v2/incident/alert_incide
 export const incidentResults = request('GET', 'rest/v2/incident/incident_results/');
 export const incidentDiagnosis = request('POST', 'rest/v2/incident/incident_diagnosis/');
 export const incidentHistogram = request('POST', 'rest/v2/incident/date_histogram/');
+export const getIncidentDocId = request('GET', 'rest/v2/incident/get_incident_doc_id/');
 
 export default {
   incidentMetricsSearch,
@@ -54,4 +55,5 @@ export default {
   incidentResults,
   incidentDiagnosis,
   incidentHistogram,
+  getIncidentDocId,
 };

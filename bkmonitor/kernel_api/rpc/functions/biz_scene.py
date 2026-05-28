@@ -13,17 +13,13 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
-from apm.models import ApmApplication, LogDataSource, MetricDataSource, ProfileDataSource, TraceDataSource
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from metadata import models
+from metadata.models.space.constants import SpaceTypes
 from metadata.models.space.utils import reformat_table_id
-from monitor.models import UptimeCheckTask
-from monitor_web.constants import EVENT_TYPE
-from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, CustomEventGroup, CustomTSTable
-from monitor_web.plugin.constant import PluginType
 
 SCENE_LABELS = {
     "bcs": "容器监控",
@@ -54,6 +50,19 @@ SCENE_ALIASES = {
 
 INVALID_DATA_ID_VALUES = {None, 0, -1}
 INVALID_TABLE_ID_VALUES = {None, ""}
+SPACE_VALUE_FIELDS = [
+    "id",
+    "space_type_id",
+    "space_id",
+    "space_name",
+    "space_code",
+    "status",
+    "time_zone",
+    "language",
+    "is_bcs_valid",
+    "is_global",
+    "bk_tenant_id",
+]
 
 
 def _serialize_value(value: Any) -> Any:
@@ -74,6 +83,108 @@ def _normalize_bk_biz_id(value: Any) -> int:
     if isinstance(value, str) and value.lstrip("-").isdigit():
         return int(value)
     raise CustomException(message="bk_biz_id 必须是整数或整数字符串")
+
+
+def _normalize_space_uid(value: Any) -> str:
+    if value is None:
+        return ""
+    normalized_value = str(value).strip()
+    if not normalized_value:
+        return ""
+
+    parts = normalized_value.split("__", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise CustomException(message="space_uid 格式不合法，应为 <space_type_id>__<space_id>")
+    return normalized_value
+
+
+def _build_space_payload(space_info: dict[str, Any]) -> dict[str, Any]:
+    payload = {key: _serialize_value(value) for key, value in space_info.items()}
+    payload["space_uid"] = f"{space_info['space_type_id']}__{space_info['space_id']}"
+    payload["bk_biz_id"] = (
+        int(space_info["space_id"]) if space_info["space_type_id"] == SpaceTypes.BKCC.value else -int(space_info["id"])
+    )
+    return payload
+
+
+def _get_space_info_by_space_uid(bk_tenant_id: str, space_uid: str) -> dict[str, Any] | None:
+    space_type_id, space_id = space_uid.split("__", 1)
+    return (
+        models.Space.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            space_type_id=space_type_id,
+            space_id=space_id,
+        )
+        .values(*SPACE_VALUE_FIELDS)
+        .first()
+    )
+
+
+def _get_space_info_by_bk_biz_id(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any] | None:
+    queryset = models.Space.objects.filter(bk_tenant_id=bk_tenant_id)
+    if bk_biz_id >= 0:
+        queryset = queryset.filter(space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id))
+    else:
+        queryset = queryset.filter(id=abs(bk_biz_id))
+    return queryset.values(*SPACE_VALUE_FIELDS).first()
+
+
+def _get_space_resources(bk_tenant_id: str, space_info: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not space_info:
+        return []
+
+    queryset = models.SpaceResource.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        space_type_id=space_info["space_type_id"],
+        space_id=space_info["space_id"],
+    ).values(
+        "space_type_id",
+        "space_id",
+        "bk_tenant_id",
+        "resource_type",
+        "resource_id",
+        "dimension_values",
+    )
+    return [{key: _serialize_value(value) for key, value in item.items()} for item in queryset]
+
+
+def _resolve_space_scope(
+    bk_tenant_id: str,
+    raw_bk_biz_id: Any,
+    raw_space_uid: Any,
+) -> tuple[int, str, dict[str, Any] | None, list[dict[str, Any]]]:
+    bk_biz_id = _normalize_bk_biz_id(raw_bk_biz_id) if raw_bk_biz_id is not None else None
+    space_uid = _normalize_space_uid(raw_space_uid)
+
+    if bk_biz_id is None and not space_uid:
+        raise CustomException(message="bk_biz_id 或 space_uid 至少需要提供一个")
+
+    space_info = None
+    if space_uid:
+        space_info = _get_space_info_by_space_uid(bk_tenant_id, space_uid)
+        if not space_info:
+            raise CustomException(message=f"space_uid 对应的空间不存在: {space_uid}")
+
+        resolved_space = _build_space_payload(space_info)
+        if bk_biz_id is not None and bk_biz_id != resolved_space["bk_biz_id"]:
+            raise CustomException(
+                message=(
+                    f"bk_biz_id={bk_biz_id} 与 space_uid={space_uid} 指向的空间不一致，"
+                    f"space_uid 实际对应 bk_biz_id={resolved_space['bk_biz_id']}"
+                )
+            )
+        bk_biz_id = resolved_space["bk_biz_id"]
+    else:
+        bk_biz_id = bk_biz_id or 0
+        space_info = _get_space_info_by_bk_biz_id(bk_tenant_id, bk_biz_id)
+        if space_info:
+            space_uid = f"{space_info['space_type_id']}__{space_info['space_id']}"
+        elif bk_biz_id >= 0:
+            space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
+
+    space = _build_space_payload(space_info) if space_info else None
+    space_resources = _get_space_resources(bk_tenant_id, space_info)
+    return bk_biz_id or 0, space_uid, space, space_resources
 
 
 def _normalize_string_list(value: Any, field_name: str) -> list[str]:
@@ -257,8 +368,27 @@ def _build_related_basic_infos(bk_tenant_id: str, link_records: list[dict[str, A
 
 
 def _collect_bcs_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
+    cluster_queryset = models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+    if bk_biz_id < 0:
+        space_info = (
+            models.Space.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                id=abs(bk_biz_id),
+                space_type_id=SpaceTypes.BKCI.value,
+            )
+            .values("space_code")
+            .first()
+        )
+        if not space_info or not space_info["space_code"]:
+            cluster_queryset = models.BCSClusterInfo.objects.none()
+        else:
+            cluster_queryset = models.BCSClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                project_id=space_info["space_code"],
+            )
+
     cluster_items = list(
-        models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).values(
+        cluster_queryset.values(
             "cluster_id",
             "bcs_api_cluster_id",
             "bk_biz_id",
@@ -296,6 +426,8 @@ def _collect_bcs_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
 
 
 def _collect_apm_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
+    from apm.models import ApmApplication, LogDataSource, MetricDataSource, ProfileDataSource, TraceDataSource
+
     applications = list(
         ApmApplication.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).values(
             "app_name",
@@ -347,6 +479,10 @@ def _collect_apm_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
 
 
 def _collect_plugin_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
+    from monitor_web.constants import EVENT_TYPE
+    from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, CustomEventGroup
+    from monitor_web.plugin.constant import PluginType
+
     plugins = list(
         CollectorPluginMeta.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).values(
             "plugin_id", "plugin_type", "tag", "label", "is_internal", "bk_biz_id", "bk_tenant_id"
@@ -517,6 +653,8 @@ def _collect_plugin_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
 
 
 def _collect_custom_metric_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
+    from monitor_web.models import CustomTSTable
+
     queryset = CustomTSTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).values(
         "time_series_group_id",
         "bk_data_id",
@@ -544,6 +682,8 @@ def _collect_custom_metric_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str,
 
 
 def _collect_custom_event_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
+    from monitor_web.models import CustomEventGroup
+
     queryset = CustomEventGroup.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).values(
         "bk_event_group_id",
         "bk_data_id",
@@ -570,6 +710,8 @@ def _collect_custom_event_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, 
 
 
 def _collect_uptimecheck_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, Any]:
+    from monitor.models import UptimeCheckTask
+
     task_queryset = UptimeCheckTask.objects.filter(bk_biz_id=bk_biz_id).values(
         "id",
         "name",
@@ -622,13 +764,15 @@ def _collect_uptimecheck_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, A
     "biz_scene_related_info",
     summary="按业务查询场景关联的数据链路信息",
     description=(
-        "基于 bk_biz_id 查询单个场景关联的基础数据链路信息。"
+        "基于 bk_biz_id 或 space_uid 查询单个场景关联的基础数据链路信息，"
+        "并补充当前空间及对应 SpaceResource 信息。"
         "推荐使用 scene 参数，当前可选值为 bcs、apm、plugin、custom_metric、custom_event、uptimecheck。"
         "同时兼容常见别名，例如 k8s -> bcs、plugins -> plugin、custom_metrics -> custom_metric、"
         "event -> custom_event、uptime_check -> uptimecheck。"
     ),
     params_schema={
-        "bk_biz_id": "必填，业务 ID",
+        "bk_biz_id": "可选，业务 ID；与 space_uid 至少提供一个",
+        "space_uid": "可选，空间 UID；与 bk_biz_id 至少提供一个，若同时提供需指向同一空间",
         "bk_tenant_id": "可选，租户 ID；未传时优先从请求上下文获取，否则回退默认租户",
         "scene": (
             "必填，单个场景名。推荐值：bcs、apm、plugin、custom_metric、custom_event、uptimecheck。"
@@ -636,14 +780,15 @@ def _collect_uptimecheck_scene(bk_tenant_id: str, bk_biz_id: int) -> dict[str, A
             "custom_events、uptime_check、uptime-check。"
         ),
     },
-    example_params={"bk_biz_id": 2, "scene": "bcs"},
+    example_params={"space_uid": "bkcc__2", "scene": "bcs"},
 )
 def get_biz_scene_related_info(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = _get_bk_tenant_id(params)
-    raw_bk_biz_id = params.get("bk_biz_id")
-    if raw_bk_biz_id is None:
-        raise CustomException(message="bk_biz_id 为必填项")
-    bk_biz_id = _normalize_bk_biz_id(raw_bk_biz_id)
+    bk_biz_id, space_uid, space, space_resources = _resolve_space_scope(
+        bk_tenant_id=bk_tenant_id,
+        raw_bk_biz_id=params.get("bk_biz_id"),
+        raw_space_uid=params.get("space_uid"),
+    )
     scene = _normalize_scene_name(params.get("scene"))
 
     scene_collectors = {
@@ -660,8 +805,11 @@ def get_biz_scene_related_info(params: dict[str, Any]) -> dict[str, Any]:
     return {
         "query": {
             "bk_biz_id": bk_biz_id,
+            "space_uid": space_uid,
             "bk_tenant_id": bk_tenant_id,
             "scene": scene,
         },
+        "space": space,
+        "space_resources": space_resources,
         "scene": scene_payload,
     }

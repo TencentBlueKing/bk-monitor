@@ -25,6 +25,7 @@ import arrow
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -38,6 +39,7 @@ from apps.tgpa.constants import (
     TGPA_REPORT_OFFSET_MINUTES,
     TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
     TGPA_UNFINISHED_TASK_CHECK_DAYS,
+    TGPA_UNFINISHED_TASK_CHECK_BATCH_SIZE,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -122,41 +124,55 @@ def _flush_new_tasks_batch(batch: list, is_first_sync: bool):
 def _check_unfinished_tasks(bk_biz_id: int):
     """
     检查存量未完成任务的状态变化：
-    批量查询处于活跃状态的任务，若远程文件状态变为上传成功则触发处理，同时更新本地状态
+    分批查询处于活跃状态的任务，若远程文件状态变为上传成功则触发处理，同时更新本地状态
     """
-    unfinished_tasks = TGPATask.objects.filter(
-        bk_biz_id=bk_biz_id,
-        task_status__in=TGPATaskStatusEnum.get_active_statuses(),
-        created_at__gte=arrow.now().shift(days=-TGPA_UNFINISHED_TASK_CHECK_DAYS).datetime,
+    unfinished_tasks = list(
+        TGPATask.objects.filter(
+            bk_biz_id=bk_biz_id,
+            created_at__gte=arrow.now().shift(days=-TGPA_UNFINISHED_TASK_CHECK_DAYS).datetime,
+        )
+        .filter(
+            # 任务状态仍在活跃中，或者任务已成功但文件尚未上传成功（防止任务状态先于文件状态变化导致遗漏）
+            Q(task_status__in=TGPATaskStatusEnum.get_active_statuses())
+            | Q(task_status=str(TGPATaskStatusEnum.SUCCESS.value), file_status__isnull=True)
+            | (Q(task_status=str(TGPATaskStatusEnum.SUCCESS.value)) & ~Q(file_status=TGPA_TASK_EXE_CODE_SUCCESS))
+        )
+        .order_by("-id")
     )
     if not unfinished_tasks:
         return
 
-    # 批量查询最新状态
-    task_ids_str = ",".join([str(task_obj.id) for task_obj in unfinished_tasks])
-    remote_task_map = {}
-    for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
-        item["go_svr_task_id"] = int(item["go_svr_task_id"])
-        item["status"] = str(item["status"])
-        remote_task_map[item["go_svr_task_id"]] = item
+    for start in range(0, len(unfinished_tasks), TGPA_UNFINISHED_TASK_CHECK_BATCH_SIZE):
+        batch_tasks = unfinished_tasks[start : start + TGPA_UNFINISHED_TASK_CHECK_BATCH_SIZE]
 
-    for task_obj in unfinished_tasks:
-        remote_info = remote_task_map.get(task_obj.task_id)
-        if not remote_info:
-            logger.warning("Remote task info not found for task_id: %s", task_obj.task_id)
-            continue
+        # 分批查询最新状态，避免单次请求任务过多导致接口报错
+        task_ids_str = ",".join([str(task_obj.id) for task_obj in batch_tasks])
+        remote_task_map = {}
+        for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
+            item["go_svr_task_id"] = int(item["go_svr_task_id"])
+            item["status"] = str(item["status"])
+            remote_task_map[item["go_svr_task_id"]] = item
 
-        # 如果文件状态变为上传成功，推送异步任务
-        if remote_info["exe_code"] != task_obj.file_status and remote_info["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-            task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-            task_obj.save(update_fields=["process_status"])
-            process_single_task.delay(remote_info)
+        for task_obj in batch_tasks:
+            remote_info = remote_task_map.get(task_obj.task_id)
+            if not remote_info:
+                logger.warning("Remote task info not found for task_id: %s", task_obj.task_id)
+                continue
 
-        # 如果任务状态或文件状态发生变化，更新信息
-        if task_obj.task_status != remote_info["status"] or task_obj.file_status != remote_info["exe_code"]:
-            task_obj.task_status = remote_info["status"]
-            task_obj.file_status = remote_info["exe_code"]
-            task_obj.save(update_fields=["task_status", "file_status"])
+            # 如果文件状态变为上传成功，推送异步任务
+            if (
+                remote_info["exe_code"] != task_obj.file_status
+                and remote_info["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS
+            ):
+                task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+                task_obj.save(update_fields=["process_status"])
+                process_single_task.delay(remote_info)
+
+            # 如果任务状态或文件状态发生变化，更新信息
+            if task_obj.task_status != remote_info["status"] or task_obj.file_status != remote_info["exe_code"]:
+                task_obj.task_status = remote_info["status"]
+                task_obj.file_status = remote_info["exe_code"]
+                task_obj.save(update_fields=["task_status", "file_status"])
 
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
@@ -188,6 +204,72 @@ def fetch_and_process_tgpa_tasks():
         except Exception:
             logger.exception("Failed to sync client log tasks, business id: %s", bk_biz_id)
             continue
+
+
+@app.task(ignore_result=True, queue="tgpa_task")
+def sync_and_process_tgpa_tasks(bk_biz_id: int, task_id_list: list):
+    """
+    手动触发同步并处理指定的客户端日志捞取任务
+    """
+    logger.info("Begin to manually sync tasks, bk_biz_id: %s, task_id_list: %s", bk_biz_id, task_id_list)
+
+    # 确保已经创建采集配置
+    TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
+
+    # 批量查询任务信息
+    task_ids_str = ",".join([str(tid) for tid in task_id_list])
+    remote_task_map = {}
+    for item in TGPATaskHandler.iter_task_list(bk_biz_id, search=f"task_id={task_ids_str}"):
+        item["go_svr_task_id"] = int(item["go_svr_task_id"])
+        item["status"] = str(item["status"])
+        remote_task_map[item["go_svr_task_id"]] = item
+
+    for task_id in task_id_list:
+        remote_info = remote_task_map.get(task_id)
+        if not remote_info:
+            logger.warning("Remote task info not found for task_id: %s", task_id)
+            continue
+
+        # 文件未上传成功的任务直接跳过
+        if remote_info["exe_code"] != TGPA_TASK_EXE_CODE_SUCCESS:
+            logger.info("Task file not uploaded yet, skip. task_id: %s, exe_code: %s", task_id, remote_info["exe_code"])
+            continue
+
+        # 同步到本地数据库
+        task_obj, created = TGPATask.objects.get_or_create(
+            task_id=task_id,
+            defaults={
+                "id": remote_info["id"],
+                "task_type": remote_info["task_type"],
+                "bk_biz_id": remote_info["cc_id"],
+                "log_path": remote_info["log_path"],
+                "task_status": remote_info["status"],
+                "file_status": remote_info["exe_code"],
+                "process_status": TGPATaskProcessStatusEnum.INIT.value,
+            },
+        )
+
+        if created:
+            task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+            task_obj.save(update_fields=["process_status"])
+            process_single_task.delay(remote_info)
+        else:
+            # 使用原子 CAS 更新，避免并发 worker 重复触发处理
+            updated = TGPATask.objects.filter(
+                task_id=task_id,
+                process_status__in=(
+                    TGPATaskProcessStatusEnum.INIT.value,
+                    TGPATaskProcessStatusEnum.FAILED.value,
+                ),
+            ).update(
+                task_status=remote_info["status"],
+                file_status=remote_info["exe_code"],
+                process_status=TGPATaskProcessStatusEnum.PENDING.value,
+            )
+            if updated:
+                process_single_task.delay(remote_info)
+
+    logger.info("Finished manually sync tasks, bk_biz_id: %s, task_id_list: %s", bk_biz_id, task_id_list)
 
 
 @app.task(ignore_result=True, queue="tgpa_task")

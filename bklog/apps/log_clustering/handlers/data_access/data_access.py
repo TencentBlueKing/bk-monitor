@@ -31,12 +31,14 @@ from apps.api import (
     BkDataMetaApi,
     BkDataResourceCenterApi,
 )
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP, PARSE_FAILURE_FIELD
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
+from apps.log_databus.utils.bkdata_rt_name import make_bkdata_rt_name
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
@@ -136,8 +138,10 @@ class DataAccessHandler(BaseAiopsHandler):
         # 固定有time字段
         fields_config.append({"alias_name": "time", "field_name": "time", "option": {"es_type": "long"}})
 
-        # 结果表统一添加 bklog 前缀，避免同名冲突
-        result_table_name = f"bklog_{collector_config.collector_config_name_en}"
+        # 结果表统一添加 bklog 前缀, 避免同名冲突. 名字必须满足 BKData databus_cleans
+        # 的命名约束 (字母开头 / 仅 [A-Za-z0-9_] / 禁止连续下划线 / 长度 <= 50),
+        # 不满足会返回 1500001. 拼接 / 截断 / 折叠都收敛在 make_bkdata_rt_name 里.
+        result_table_name = make_bkdata_rt_name(collector_config.collector_config_name_en)
 
         # 当用户使用了自定义字段作为时间字段，则会产生同名字段，需要去重
         fields_names = set()
@@ -159,7 +163,7 @@ class DataAccessHandler(BaseAiopsHandler):
 
         params = {
             "raw_data_id": bk_data_id,
-            "result_table_name": result_table_name[-50:],
+            "result_table_name": result_table_name,
             "result_table_name_alias": collector_config.collector_config_name_en,
             "clean_config_name": collector_config.collector_config_name,
             "description": collector_config.description or collector_config.collector_config_name,
@@ -210,6 +214,7 @@ class DataAccessHandler(BaseAiopsHandler):
         return BkDataDatabusApi.post_tasks(params=params)
 
     def add_cluster_group(self, result_table_id, bk_biz_id):
+        self.conf = get_online_clustering_config(bk_biz_id)
         storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})
         cluster_resource_groups = BkDataResourceCenterApi.cluster_query_digest(
             params={

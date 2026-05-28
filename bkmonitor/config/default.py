@@ -506,6 +506,11 @@ CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
 CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}  # 自定义上报 K8S 集群中 Secrets 分配逻辑默认配置
 
+# 外部监控页面资源转发接口鉴权 Token，由网关注入 BKMONITOR-EXTERNAL-TOKEN 请求头
+BKMONITOR_EXTERNAL_PROXY_TOKEN = os.getenv(
+    "BKAPP_BKMONITOR_EXTERNAL_PROXY_TOKEN", os.getenv("BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
+)
+
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 集群内上报固定域名
@@ -556,6 +561,12 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
 # 是否下发平台级别字段标准化配置
 APM_FIELD_NORMALIZER_ENABLED = True
 
+# 监控管理业务，用于全局资源的注册或初始化等场景
+BKAPP_ADMIN_BIZ_ID = int(os.environ.get("BKAPP_ADMIN_BIZ_ID", 2))
+
+# APM 共享数据源匹配规则配置
+APM_SHARED_DATASOURCE_RULES = {}
+
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
@@ -578,6 +589,10 @@ APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 15
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 1
 APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
+# APM profile v4接入配置
+APM_PROFILE_V4_BIZ_WHITE_LIST = []
+APM_PROFILE_V4_DORIS_BINDING_CLUSTER = ""
+APM_PROFILE_V4_DATABUS_PREFER_CLUSTER = ""
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
@@ -1287,7 +1302,7 @@ BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PA
 ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
-    "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}",
+    "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
@@ -1499,6 +1514,9 @@ ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
+# APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
+# 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
+APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
@@ -1532,9 +1550,6 @@ FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
-
-# 是否使用 is_active 字段来过滤时序指标（开启时使用 is_active=True，关闭时使用过期时间过滤）
-ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE = False
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
@@ -1588,6 +1603,8 @@ ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == 
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否让拨测默认接入独立 BKData 链路，默认开启
 ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower() == "true"
+# APM Tracing 是否启用 BKBase 数据链路（创建新 APM 应用时走 BKBase 而非 Transfer）
+ENABLE_TRACING_BKDATA = os.getenv("ENABLE_TRACING_BKDATA", "false").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
@@ -1595,6 +1612,12 @@ ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "fa
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
+
+# DataLink 组件复用机制灰度开关
+# 仅声明在此集合中的 data_link_strategy，在 apply_data_link 时才会构造
+# ExistingComponentContext 并做 claim / leftover 检查；未声明的 strategy 维持旧行为。
+# 取值范围与 metadata.models.data_link.data_link.DataLink.*_STRATEGY 常量一致。
+DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = {"bk_standard_v2_time_series"}
 
 # Kafka采样接口重试次数
 KAFKA_TAIL_API_RETRY_TIMES = 3
@@ -1761,10 +1784,10 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
 
-# 允许 APM 配置指标分组维度的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+# 允许 APM 配置指标分组维度的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
 APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []
 
-# APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+# APM 自定义指标 V2 开启的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
 APM_CUSTOM_METRIC_V2_ENABLED_LIST = []
 
 # 文档中心对应文档版本

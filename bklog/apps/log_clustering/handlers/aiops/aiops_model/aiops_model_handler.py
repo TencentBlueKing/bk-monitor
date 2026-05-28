@@ -21,38 +21,51 @@ the project delivered to anyone in the future.
 
 import base64
 
-from cloudpickle import cloudpickle
-
 from apps.api import BkDataAIOPSApi
 from apps.log_clustering.handlers.aiops.aiops_model.data_cls import (
     AiopsReleaseModelReleaseIdModelFileCls,
 )
+from apps.log_clustering.handlers.aiops.aiops_model.safe_unpickle import (
+    safe_loads,
+    validate_model_content,
+)
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 
 
 class AiopsModelHandler(BaseAiopsHandler):
-    def aiops_release_model_release_id_model_file(self, model_id: str, model_release_id: str):
+    def aiops_release_model_release_id_model_file(self, model_id: str, model_release_id: str, bk_biz_id: int = None):
         """
         获取发布的模型对应的模型文件
         @param model_id 模型id
         @param model_release_id 发布模型配置ID
         """
+        if bk_biz_id is not None:
+            self.conf = get_online_clustering_config(bk_biz_id)
         aiops_release_model_release_id_model_file_request = AiopsReleaseModelReleaseIdModelFileCls(
             model_id=model_id, model_release_id=model_release_id
         )
         request_dict = self._set_username(aiops_release_model_release_id_model_file_request)
+        request_dict["bk_biz_id"] = bk_biz_id if bk_biz_id is not None else self.conf.get("bk_biz_id")
         return BkDataAIOPSApi.aiops_release_model_release_id_model_file(request_dict)
 
-    def model_output_rt_model_file(self, model_output_rt: str):
+    def model_output_rt_model_file(self, model_output_rt: str, bk_biz_id: int = None):
         """
         获取模型输出对应的模型文件
         @param model_output_rt 模型输出结果表名称
         """
+        if bk_biz_id is not None:
+            self.conf = get_online_clustering_config(bk_biz_id)
         request_dict = self._set_username({"data_processing_id": model_output_rt, "compat": "true"})
+        request_dict["bk_biz_id"] = bk_biz_id if bk_biz_id is not None else self.conf.get("bk_biz_id")
         return BkDataAIOPSApi.serving_data_processing_id_model_file(request_dict)
 
     @classmethod
     def pickle_decode(cls, content: str):
-        model_original_content = base64.b64decode(content)
-        model = cloudpickle.loads(model_original_content)
+        # 上游协议为 base64(cloudpickle.dumps(model))，本仓库无法变更上游格式。
+        # 因此通过 safe_loads（受限 Unpickler + 白名单 find_class）+ validate_model_content
+        # （结构 schema 校验）两层防御，把"任意代码执行"收敛为"只能构造合法 pattern 数据"。
+        raw = base64.b64decode(content)
+        model = safe_loads(raw)
+        validate_model_content(model)
         return model

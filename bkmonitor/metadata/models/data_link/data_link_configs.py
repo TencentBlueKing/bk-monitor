@@ -42,6 +42,7 @@ class DataLinkResourceConfigBase(models.Model):
         (DataLinkKind.DATABUS.value, "清洗任务"),
         (DataLinkKind.SINK.value, "清洗配置"),
         (DataLinkKind.CONDITIONALSINK.value, "过滤条件"),
+        (DataLinkKind.BASEREPORTSINK.value, "基础采集清洗配置"),
     )
 
     kind = models.CharField(verbose_name="配置类型", max_length=64, choices=CONFIG_KIND_CHOICES)
@@ -277,11 +278,18 @@ class ResultTableConfig(DataLinkResourceConfigBase):
                 }
             }
             """
+
+        # 优先使用ResultTableConfig记录的bkbase_table_id，因为重建链路的所属业务并不稳定
+        if self.bkbase_table_id:
+            bk_biz_id = int(self.bkbase_table_id.split("_")[0])
+        else:
+            bk_biz_id = self.datalink_biz_ids.label_biz_id
+
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "bk_biz_id": bk_biz_id,  # 数据实际归属的业务ID
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
@@ -317,14 +325,20 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
 
     def compose_config(
         self,
-        storage_cluster_name,
-        write_alias_format,
-        unique_field_list,
+        storage_cluster_name: str,
+        write_alias_format: str,
+        unique_field_list: list[str],
         json_field_list: list[str] | None = None,
-    ):
+        rt_name: str | None = None,
+    ) -> dict[str, Any]:
         """
         结果表- ES存储关联关系
         在日志链路中,整套链路各个资源的name相同
+
+        Args:
+            rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name``，以兼容历史上
+                binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
+                调用方显式传入实际 RT name。
         """
         tpl = """
             {
@@ -340,7 +354,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                 "spec": {
                     "data": {
                         "kind": "ResultTable",
-                        "name": "{{name}}",
+                        "name": "{{rt_name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
                         {% endif %}
@@ -371,6 +385,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "storage_cluster_name": storage_cluster_name,
@@ -409,10 +424,20 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(
-        self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None, bk_data_id: int | str | None = None
+        self,
+        whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None,
+        rt_name: str | None = None,
+        metric_group_dimensions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
+
+        :param rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name`` 以保持
+            "binding 与 RT 同名"的历史约定；当上层开启了组件复用、binding 与 RT
+            的 name 已被各自独立 claim/复用时，必须由调用方显式传入
+            ``vm_table_id_ins.name``，否则 payload 里 ``spec.data.name`` 会指向
+            一个并不存在的 ResultTable，造成 BKBase 侧引用失效。
+        :param metric_group_dimensions: 指标组维度。如果为空，[{"key": "service_name", "default_value": "unknown_service"}]
         """
         tpl = """
             {
@@ -470,33 +495,33 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 }
             )
 
+        # 指标组维度配置
+        metric_group_dimensions_list: list[str] = []
+        dd_version: str | None = None
+        for dim in metric_group_dimensions or []:
+            key = dim.get("key")
+            if not key:
+                continue
+            if "default_value" in dim and dim["default_value"] is not None:
+                metric_group_dimensions_list.append(f"{key}|{dim['default_value']}")
+            else:
+                metric_group_dimensions_list.append(key)
+        if metric_group_dimensions_list:
+            dd_version = "v2"
+
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
-            "rt_name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
             "whitelist_config": whitelist_config,
+            "metric_group_dimensions": json.dumps(metric_group_dimensions_list)
+            if metric_group_dimensions_list
+            else None,
+            "dd_version": dd_version,
         }
-
-        if bk_data_id:
-            # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
-            from metadata.models.custom_report.time_series import TimeSeriesGroup
-
-            ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
-            if ts_group and ts_group.metric_group_dimensions:
-                metric_group_dimensions = []
-                for dim in ts_group.metric_group_dimensions:
-                    key = dim.get("key")
-                    if not key:
-                        continue
-                    if "default_value" in dim and dim["default_value"] is not None:
-                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
-                    else:
-                        metric_group_dimensions.append(key)
-                render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
-                render_params["dd_version"] = "v2"
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -531,6 +556,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         transform_kind: str | None = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
         transform_name: str | None = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: str | None = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
+        transform_options: dict[str, Any] | None = None,
     ) -> dict:
         """
         组装清洗任务配置，需要声明 where -> how -> where
@@ -540,6 +566,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         @param transform_kind: 转换类型
         @param transform_name: 转换名称
         @param transform_format: 转换格式
+        @param transform_options: 转换额外配置
         """
         tpl = """
         {
@@ -566,16 +593,19 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     }
                 ],
                 "transforms": [
-                    {
-                        "kind": "{{transform_kind}}",
-                        "name": "{{transform_name}}",
-                        "format": "{{transform_format}}"
-                    }
+                    {{transform}}
                 ]
             }
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        transform = {
+            "kind": transform_kind,
+            "name": transform_name,
+            "format": transform_format,
+        }
+        if transform_options:
+            transform.update(transform_options)
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -583,9 +613,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
             "data_id_name": self.data_id_name,
-            "transform_kind": transform_kind,
-            "transform_name": transform_name,
-            "transform_format": transform_format,
+            "transform": json.dumps(transform),
             "maintainers": json.dumps(maintainer),
         }
 
@@ -775,6 +803,64 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         )
 
 
+class BasereportSinkConfig(DataLinkResourceConfigBase):
+    """
+    基础采集处理配置
+    """
+
+    kind = DataLinkKind.BASEREPORTSINK.value
+    name = models.CharField(verbose_name="基础采集处理配置名称", max_length=64, db_index=True)
+    vm_storage_binding_names = models.JSONField(verbose_name="VM 存储绑定名称列表", default=list)
+    result_table_ids = models.JSONField(verbose_name="结果表 ID 列表", default=list)
+
+    class Meta:
+        verbose_name = "基础采集处理配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_config(self, vmrt_prefix: str, include_cmdb: bool = False) -> dict[str, Any]:
+        """组装基础采集处理配置。"""
+        mappings: list[dict[str, Any]] = []
+        for usage in constants.BASEREPORT_USAGES:
+            vmrt_name = f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage
+            sink_config = {
+                "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                "name": vmrt_name,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            }
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                sink_config["tenant"] = self.bk_tenant_id
+            mappings.append(
+                {
+                    "metric_type": usage,
+                    "sinks": [sink_config],
+                }
+            )
+            if include_cmdb:
+                cmdb_sink_config = {
+                    "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                    "name": f"{vmrt_name}_cmdb",
+                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                }
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    cmdb_sink_config["tenant"] = self.bk_tenant_id
+                mappings.append({"metric_type": f"{usage}_cmdb", "sinks": [cmdb_sink_config]})
+
+        metadata = {
+            "name": self.name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            "labels": {"bk_biz_id": str(self.datalink_biz_ids.label_biz_id)},
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+
+        return {
+            "kind": self.kind,
+            "metadata": metadata,
+            "spec": {"mappings": mappings},
+        }
+
+
 class DorisStorageBindingConfig(DataLinkResourceConfigBase):
     """
     Doris存储绑定配置
@@ -816,9 +902,15 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         original_json_fields: list[str],
         expires: str,
         flush_timeout: int | None,
+        rt_name: str | None = None,
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
+
+        Args:
+            rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name``，以兼容历史上
+                binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
+                调用方显式传入实际 RT name。
         """
         tpl = """
         {
@@ -833,7 +925,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "data": {
-                    "name": "{{name}}",
+                    "name": "{{rt_name}}",
                     {% if tenant %}
                     "tenant": "{{ tenant }}",
                     {% endif %}
@@ -867,6 +959,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
 
         render_params = {
             "name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.data_biz_id,
             "monitor_biz_id": self.datalink_biz_ids.label_biz_id,
@@ -1196,4 +1289,5 @@ COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
     DataLinkKind.DATABUS.value: DataBusConfig,
     DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
+    DataLinkKind.BASEREPORTSINK.value: BasereportSinkConfig,
 }

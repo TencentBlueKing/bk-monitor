@@ -1,0 +1,653 @@
+paths:
+  /mcp/list_alerts/:
+    post:
+      operationId: list_alerts
+      description: List alerts in BlueKing Monitor with flexible filtering, time range, and query conditions. This is the first step in alert workflow, used before get_alert_info to discover alerts. Supports pagination, sorting, and statistical aggregations. Returns alert list with alert_id for further detail queries. 列举蓝鲸监控中的告警,支持灵活的过滤、时间范围和查询条件。这是告警工作流的第一步,在get_alert_info前使用以发现告警。支持分页、排序和统计聚合。返回包含alert_id的告警列表供进一步查询。
+      tags:
+      - alert_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - end_time
+              - bk_biz_id
+              - bk_biz_ids
+              - start_time
+              properties:
+                page:
+                  type: string
+                  default: '1'
+                  description: 'Page number, starts from 1. Default: 1. 页码,从1开始。默认: 1。'
+                status:
+                  type: array
+                  default: '["ABNORMAL"]'
+                  description: 'Alert status filter. Common values: "ABNORMAL" (active), "RECOVERED" (resolved), "CLOSED" (closed). Empty array means all statuses. 告警状态过滤。常用值: "ABNORMAL"(未恢复), "RECOVERED"(已恢复), "CLOSED"(已关闭)。空数组表示所有状态。'
+                end_time:
+                  type: string
+                  default: For dynamic calculations, please execute the code snippet according to the tool description.，动态计算，请根据工具描述执行代码片段获取
+                  description: 'End timestamp in seconds (Unix timestamp). CRITICAL: Calculate current time dynamically! Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s. NEVER use historical timestamps. 结束时间戳(秒)。关键:动态计算当前时间！ Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s。绝不使用历史时间戳。'
+                ordering:
+                  type: array
+                  default: '["-create_time"]'
+                  description: 'Sort fields. Prefix with - for descending order. Example: ["-create_time"] for newest first. 排序字段。前缀-表示降序。示例: ["-create_time"]按创建时间倒序。'
+                username:
+                  type: string
+                  description: Filter by alert owner/assignee username. 按告警负责人/处理人用户名过滤。
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism - all MCP tools must use bk_biz_id for permission control. This parameter will be converted to bk_biz_ids array format when calling the backend API. 业务ID。MCP 鉴权机制要求 - 所有 MCP 工具都必须使用 bk_biz_id 进行权限控制。
+                page_size:
+                  type: string
+                  default: '10'
+                  description: 'Items per page. Range: 1-5000. Default: 10. 每页条数。范围: 1-5000。默认: 10。'
+                show_aggs:
+                  type: boolean
+                  default: 'true'
+                  description: 'Include aggregation statistics (trends, distributions). Default: true. 是否包含聚合统计(趋势、分布)。默认: true。'
+                bk_biz_ids:
+                  type: array
+                  description: (Backend Parameter) Array format required by alert search/aggregation backend serializers. Automatically converted from bk_biz_id by MCP layer. Value must be [bk_biz_id]. (后台参数) 告警搜索/聚合类后台序列化器要求的数组格式。由 MCP 层从 bk_biz_id 自动转换。值必须为 [bk_biz_id]。
+                conditions:
+                  type: array
+                  description: Advanced filter conditions for complex queries. Each condition object defines a field-based filter with matching method and logical operators. Use for precise alert filtering beyond simple status/text search. 高级过滤条件，用于复杂查询。每个条件对象定义基于字段的过滤器，包含匹配方法和逻辑运算符。用于超出简单状态/文本搜索的精确告警过滤。
+                start_time:
+                  type: string
+                  default: For dynamic calculations, please execute the code snippet according to the tool description.动态计算，请根据工具描述执行代码片段获取
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically! If not specified, use end_time - 3600 (last 1 hour) or end_time - 86400 (last 24 hours). Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600. DO NOT use fixed values. 开始时间戳(秒)。必须动态计算！ 如未指定,使用 end_time - 3600(最近1小时)。Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600。不要用固定值。'
+                query_string:
+                  type: string
+                  default: "\t\"CPU\""
+                  description: Full-text search string. Searches across alert name, description, and other text fields. 全文搜索字符串。在告警名称、描述等文本字段中搜索。
+                show_overview:
+                  type: boolean
+                  default: 'true'
+                  description: 'Include overview statistics (total counts by status). Default: true. 是否包含概览统计(各状态总数)。默认: true。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/list_alert/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_top_n/:
+    post:
+      operationId: get_alert_top_n
+      description: Analyze alert events by fields and return Top N aggregation results. Use after list_alerts when you need to understand which severity, status, strategy, category, data type, business, or tag values are most frequent in the matched alert events. fields is required and tag fields should use tags.<tag_name>. Query time span must NOT exceed 1 day (86400s). 对告警事件进行字段分析并返回 Top N 聚合结果。在 list_alerts 后使用,用于分析命中的告警事件主要集中在哪些级别、状态、策略、分类、数据类型、业务或标签值上。fields 必填,标签字段使用 tags.<tag_name>。查询跨度不得超过1天(86400秒)。
+      tags:
+      - alert_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - bk_biz_ids
+              - start_time
+              - end_time
+              - fields
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. This parameter will be converted to bk_biz_ids array format when calling the backend API. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。调用后台 API 时会转换为 bk_biz_ids 数组格式。
+                bk_biz_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: (Backend Parameter) Array format required by backend serializer. Automatically converted from bk_biz_id by MCP layer. Value must be [bk_biz_id]. (后台参数) 后台序列化器要求的数组格式,由 MCP 层从 bk_biz_id 自动转换,值必须为 [bk_biz_id]。
+                fields:
+                  type: array
+                  items:
+                    type: string
+                  default: '["severity"]'
+                  description: 'Alert event fields to analyze. Common values: "severity", "status", "strategy_id", "strategy_name", "bk_biz_id", "data_type", "category", "tags.<tag_name>". 标签类字段一次最多 20 个。需要分析的告警事件字段列表。常用值:"severity"(级别),"status"(状态),"strategy_id"(策略ID),"strategy_name"(策略名),"bk_biz_id"(业务ID),"data_type"(数据类型),"category"(分类),"tags.<标签名>"。'
+                size:
+                  type: string
+                  default: '10'
+                  description: 'Maximum bucket count per field. Default: 10. 每个字段返回的桶数量。默认:10。'
+                status:
+                  type: array
+                  default: '["ABNORMAL"]'
+                  description: 'Alert status filter. Common values: "ABNORMAL" (active), "RECOVERED" (resolved), "CLOSED" (closed). Empty array means all statuses. 告警状态过滤。常用值:"ABNORMAL"(未恢复),"RECOVERED"(已恢复),"CLOSED"(已关闭)。空数组表示所有状态。'
+                conditions:
+                  type: array
+                  description: Advanced filter conditions for complex alert queries. Same format as list_alerts conditions. 高级过滤条件,格式与 list_alerts 的 conditions 一致。
+                query_string:
+                  type: string
+                  description: Full-text search string. Same semantics as list_alerts. 全文搜索字符串,语义与 list_alerts 一致。
+                start_time:
+                  type: string
+                  default: For dynamic calculations, please execute the code snippet according to the tool description.动态计算，请根据工具描述执行代码片段获取
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically. Query time span must not exceed 1 day. Python: int(time.time()) - 3600, JavaScript: Math.floor(Date.now()/1000) - 3600. 开始时间戳(秒)。必须动态计算,查询跨度不得超过1天。'
+                end_time:
+                  type: string
+                  default: For dynamic calculations, please execute the code snippet according to the tool description.，动态计算，请根据工具描述执行代码片段获取
+                  description: 'End timestamp in seconds (Unix timestamp). CRITICAL: calculate current time dynamically. Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000), Bash: date +%s. 结束时间戳(秒)。必须动态计算当前时间。'
+                username:
+                  type: string
+                  description: Filter by alert owner/assignee username. 按告警负责人/处理人用户名过滤。
+                need_time_partition:
+                  type: boolean
+                  default: 'true'
+                  description: 'Whether backend should split long time ranges into time partitions for Top N aggregation. Default: true. 是否需要后端按时间分片聚合 Top N。默认:true。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/alert_top_n/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_strategy_snapshot/:
+    post:
+      operationId: get_strategy_snapshot
+      description: Get the corresponding strategy configuration snapshot by alert event ID. The alert event ID can be obtained from list_alerts or get_alert_info, and should be passed as id. Use this tool when you need the strategy configuration snapshot associated with a specific alert event. 根据告警事件ID获取对应的策略配置快照。告警事件ID可通过 list_alerts 或 get_alert_info 获取,并作为 id 传入。用于查看某个告警事件对应的策略配置快照。
+      tags:
+      - alert_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+                id:
+                  type: string
+                  description: Alert event ID. Must be obtained from list_alerts or get_alert_info. 告警事件ID。必须从 list_alerts 或 get_alert_info 获取。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/search_alert/get_strategy_snapshot/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_strategy_detail/:
+    get:
+      operationId: get_strategy_detail
+      description: Get the strategy configuration snapshot by strategy ID in a business. Use strategy_id from list_alerts, get_alert_info, or get_strategy_snapshot as id. 根据业务下的策略ID获取策略配置快照。可使用 list_alerts、get_alert_info 或 get_strategy_snapshot 返回的 strategy_id 作为 id 传入。
+      tags:
+      - alert_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+      - in: query
+        name: id
+        schema:
+          type: string
+        required: true
+        description: Strategy ID. Must be obtained from list_alerts alert.strategy_id, get_alert_info strategy_id, or get_strategy_snapshot data. 策略ID。必须从 list_alerts 的 alert.strategy_id、get_alert_info 的 strategy_id 或 get_strategy_snapshot 返回数据中获取。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/search_alert/get_strategy_detail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_info/:
+    get:
+      operationId: get_alert_info
+      description: Get comprehensive details for a specific alert including full event information, related metrics, handling records, and convergence history. The id parameter must be obtained from list_alerts tool. Use after listing alerts to drill down into specific alert details. 获取指定告警的详细信息,包括完整事件信息、相关指标、处理记录和收敛历史。id参数必须从list_alerts工具获取。在列举告警后使用以深入查看详情。
+      tags:
+      - alert_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务ID。
+      - in: query
+        name: id
+        schema:
+          type: string
+        required: true
+        description: Alert ID. Must be obtained from list_alerts tool response. 告警ID。必须从 list_alerts 工具响应中获取。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert/alert/detail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_events/:
+    post:
+      operationId: get_alert_events
+      description: Get alert related events list. Use after get_alert_info to drill down into events associated with a specific alert. Supports filtering by event source and pagination. alert_id must be obtained from list_alerts. 获取告警关联的事件列表。在get_alert_info后使用,深入查看告警关联的事件。支持按事件来源过滤和分页。alert_id必须从list_alerts获取。
+      tags:
+      - alert_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - alert_id
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                alert_id:
+                  type: string
+                  description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。必须从list_alerts或get_alert_info获取。
+                sources:
+                  type: array
+                  default: '[]'
+                  description: 'Event source filter. Valid values: "BCS" (container), "HOST" (host), "BKCI" (BK-CI DevOps platform), "DEFAULT" (custom report). Empty array means all sources. 事件来源过滤。可选值:"BCS"(容器)、"HOST"(主机)、"BKCI"(蓝盾研发运营平台)、"DEFAULT"(业务上报)。空数组=全部。'
+                limit:
+                  type: string
+                  default: '10'
+                  description: 'Maximum number of events to return. Default: 10. 返回事件的最大数量。默认:10。'
+                offset:
+                  type: string
+                  default: '0'
+                  description: 'Pagination offset. Default: 0. 分页偏移量。默认:0。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/events/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_event_ts/:
+    post:
+      operationId: get_alert_event_ts
+      description: Get alert related event time series data for trend visualization. Use after get_alert_info. Returns time-bucketed event counts. Supports custom time range and interval. alert_id must be obtained from list_alerts. ⚠️ Custom time span must NOT exceed 1 day (86400s). If >1 day, split into batch queries (each ≤24h), then merge results. 获取告警关联事件的时序数据,用于趋势可视化。在get_alert_info后使用。返回按时间桶统计的事件数量。支持自定义时间范围和间隔。alert_id必须从list_alerts获取。⚠️自定义时间跨度不得超过1天(86400秒),超过需分批查询后合并。
+      tags:
+      - alert_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - alert_id
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                alert_id:
+                  type: string
+                  description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。必须从list_alerts或get_alert_info获取。
+                sources:
+                  type: array
+                  default: '[]'
+                  description: 'Event source filter. Valid values: "BCS" (container), "HOST" (host), "BKCI" (BK-CI DevOps platform), "DEFAULT" (custom report). Empty array means all. 事件来源过滤。可选值:"BCS"(容器)、"HOST"(主机)、"BKCI"(蓝盾研发运营平台)、"DEFAULT"(业务上报)。空数组=全部。'
+                interval:
+                  type: string
+                  default: '300'
+                  description: 'Time bucket interval in seconds. Default: 300 (5 minutes). 时序数据的时间间隔(秒)。默认:300(5分钟)。'
+                start_time:
+                  type: string
+                  description: 'Custom start timestamp (seconds). If not provided, uses alert time range. MUST calculate dynamically when provided! Python: int(time.time())-3600, JavaScript: Math.floor(Date.now()/1000)-3600. 自定义开始时间戳(秒)。不传则使用告警时间范围。提供时必须动态计算！'
+                end_time:
+                  type: string
+                  description: 'Custom end timestamp (seconds). If not provided, uses alert time range. MUST calculate dynamically when provided! Python: int(time.time()), JavaScript: Math.floor(Date.now()/1000). NEVER use fixed values. 自定义结束时间戳(秒)。不传则使用告警时间范围。提供时必须动态计算！'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/event_ts/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_event_tag_detail/:
+    post:
+      operationId: get_alert_event_tag_detail
+      description: Get alert event bubble detail at a specific time point. Use after get_alert_event_ts to inspect event samples at a particular timestamp on the time series chart. alert_id must be from list_alerts. 获取告警事件气泡详情(指定时间点的事件样本)。在get_alert_event_ts后使用,查看时序图上某个时间点的事件。alert_id必须从list_alerts获取。
+      tags:
+      - alert_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - alert_id
+              - start_time
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                alert_id:
+                  type: string
+                  description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
+                sources:
+                  type: array
+                  default: '[]'
+                  description: 'Event source filter. Valid values: "BCS" (container), "HOST" (host), "BKCI" (BK-CI DevOps platform), "DEFAULT" (custom report). Empty array means all. 事件来源过滤。可选值:"BCS"(容器)、"HOST"(主机)、"BKCI"(蓝盾研发运营平台)、"DEFAULT"(业务上报)。空数组=全部。'
+                interval:
+                  type: string
+                  default: '60'
+                  description: 'Aggregation interval in seconds. Default: 60. 汇聚周期(秒)。默认:60。'
+                start_time:
+                  type: string
+                  description: Start timestamp (seconds). Usually obtained from a data point on the event time series chart. 开始时间戳(秒)。通常从事件时序图的数据点获取。
+                limit:
+                  type: string
+                  default: '5'
+                  description: 'Maximum number of event samples to return. Default: 5. 返回事件样本的最大数量。默认:5。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/event_tag_detail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_k8s_scenarios/:
+    get:
+      operationId: get_alert_k8s_scenarios
+      description: Get K8S container observation scenarios for an alert. Different target types support different scenarios. Pod/Workload supports performance/network; Node supports capacity; Service supports network. Use after get_alert_info. alert_id must be obtained from list_alerts. 获取告警关联的K8S容器观测场景列表。不同目标类型支持不同场景:Pod/Workload→performance/network;Node→capacity;Service→network。在get_alert_info后使用。alert_id必须从list_alerts获取。
+      tags:
+      - alert_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务ID。
+      - in: query
+        name: alert_id
+        schema:
+          type: string
+        required: true
+        description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/k8s_scenario_list/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_k8s_metrics/:
+    get:
+      operationId: get_alert_k8s_metrics
+      description: Get K8S container metrics by observation scenario. scenario must be obtained from get_alert_k8s_scenarios. Valid scenarios are performance (CPU/memory), network (traffic/connections), capacity (node resources). 根据观测场景获取K8S容器指标列表。scenario必须从get_alert_k8s_scenarios获取。有效场景:performance(CPU/内存)、network(流量/连接)、capacity(节点资源)。
+      tags:
+      - alert_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务ID。
+      - in: query
+        name: scenario
+        schema:
+          type: string
+        required: true
+        description: 'Observation scenario. Must be obtained from get_alert_k8s_scenarios. Valid values: "performance" (CPU/memory metrics), "network" (traffic/connection metrics), "capacity" (node resource metrics). 观测场景。必须从get_alert_k8s_scenarios获取。可选值:"performance"(性能)、"network"(网络)、"capacity"(容量)。'
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/k8s_metric_list/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_k8s_target/:
+    get:
+      operationId: get_alert_k8s_target
+      description: Get K8S container target objects for an alert, including resource type, target list, and cluster info. Use after get_alert_info to discover K8S resources associated with the alert. alert_id must be obtained from list_alerts. 获取告警关联的K8S容器目标对象,包括资源类型、目标列表和集群信息。在get_alert_info后使用。alert_id必须从list_alerts获取。
+      tags:
+      - alert_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务ID。
+      - in: query
+        name: alert_id
+        schema:
+          type: string
+        required: true
+        description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/k8s_target/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_host_target/:
+    get:
+      operationId: get_alert_host_target
+      description: Get host target objects for an alert, including host IP, cloud area ID, host name, and topology path. Use after get_alert_info to discover hosts associated with the alert. alert_id must be obtained from list_alerts. 获取告警关联的主机目标对象,包括主机IP、云区域ID、主机名和拓扑路径。在get_alert_info后使用。alert_id必须从list_alerts获取。
+      tags:
+      - alert_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务ID。
+      - in: query
+        name: alert_id
+        schema:
+          type: string
+        required: true
+        description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/host_target/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_traces/:
+    post:
+      operationId: get_alert_traces
+      description: Get traces (call chains) related to an alert. Automatically discovers suspicious traces (errors + high latency) during the alert duration. Returns trace list with trace_id, root service, error info. Supports pagination. alert_id must be obtained from list_alerts. 获取告警关联的调用链。自动发现告警期间可疑的调用链(报错+高耗时)。返回含trace_id、根服务、错误信息的列表。支持分页。alert_id必须从list_alerts获取。
+      tags:
+      - alert_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - alert_id
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                alert_id:
+                  type: string
+                  description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
+                limit:
+                  type: string
+                  default: '10'
+                  description: 'Maximum number of traces to return. Default: 10. 返回调用链的最大数量。默认:10。'
+                offset:
+                  type: string
+                  default: '0'
+                  description: 'Pagination offset. Default: 0. 分页偏移量。默认:0。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alert_v2/alert/traces/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_alert_log_relations/:
+    get:
+      operationId: get_alert_log_relations
+      description: Get log targets related to an alert, including queryable log index set information. Use after get_alert_info to discover logs associated with the alert for further investigation. alert_id must be obtained from list_alerts. 获取告警关联的日志目标列表,包括可查询的日志索引集信息。在get_alert_info后使用,发现关联日志以便进一步排查。alert_id必须从list_alerts获取。
+      tags:
+      - alert_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务ID。
+      - in: query
+        name: alert_id
+        schema:
+          type: string
+        required: true
+        description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/alert_v2/alert/log_relation_list/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true

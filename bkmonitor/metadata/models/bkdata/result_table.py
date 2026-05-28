@@ -8,15 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import logging
-
 from django.db import models
 
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.storage import ClusterInfo
-
-logger = logging.getLogger("metadata")
-
 
 # ------------------------------------------------------ #
 # ------------------ BkBase相关暂不修改 ------------------ #
@@ -35,6 +30,8 @@ class BkBaseResultTable(models.Model):
         (DataLinkResourceStatus.INITIALIZING.value, "初始化中"),
         (DataLinkResourceStatus.CREATING.value, "创建中"),
         (DataLinkResourceStatus.PENDING.value, "等待中"),
+        (DataLinkResourceStatus.FAILED.value, "失败"),
+        (DataLinkResourceStatus.TERMINATING.value, "终止中"),
         (DataLinkResourceStatus.OK.value, "已就绪"),
     )
 
@@ -69,17 +66,3 @@ class BkBaseResultTable(models.Model):
     class Meta:
         verbose_name = "接入计算平台记录表"
         verbose_name_plural = "接入计算平台记录表"
-
-    @property
-    def component_id(self):
-        """
-        计算平台指标查询用ID
-        """
-        from metadata.models.data_link.data_link_configs import DataBusConfig
-
-        try:
-            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name, bk_tenant_id=self.bk_tenant_id)
-            return databus_config_ins.namespace + "-" + databus_config_ins.name
-        except DataBusConfig.DoesNotExist:
-            logger.error("data_link->[%s],do not have databus->[%s]", self.data_link_name, self.bkbase_rt_name)
-            return None

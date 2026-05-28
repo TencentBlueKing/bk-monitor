@@ -150,7 +150,12 @@ class AlertDocument(BaseDocument):
             ts = cls.parse_timestamp_by_id(id)
         except Exception:
             raise ValueError(f"invalid alert_id: {id}")
-        hits = cls.search(start_time=ts, end_time=ts).filter("term", id=id).execute().hits
+        # ts 反解自 alert_id 前 10 位 = begin_time。但 doc 实际索引日期由状态决定：
+        # ABNORMAL 告警每天被 reindex 搬运到当天索引（旧索引中被 delete_by_query 删除）；
+        # RESOLVED 告警永久停在状态切换那天的索引。因此查询窗口必须延伸到 now，
+        # 否则只搜 begin_time 当天会漏掉所有跨期 doc。build_index_name_by_time
+        # 已有"跨度 > 15 天退化月通配"规则保证 ES 负载可控。
+        hits = cls.search(start_time=ts, end_time=int(time.time())).filter("term", id=id).execute().hits
         if not hits:
             raise AlertNotFoundError({"alert_id": id})
         return cls(**hits[0].to_dict())
@@ -162,22 +167,17 @@ class AlertDocument(BaseDocument):
         """
         if not ids:
             return []
-        # 根据ID的时间区间确定需要查询的索引范围
+        # 下界取 ids 反解 begin_time 的最小值；上界固定 now，同 get() 的理由：
+        # 覆盖 ABNORMAL（doc 被 reindex 到今天）和 RESOLVED 跨期（doc 停在结束那天）两种存储场景。
         start_time = None
-        end_time = None
         for id in ids:
             try:
                 ts = cls.parse_timestamp_by_id(id)
             except Exception:  # NOCC:broad-except(设计如此:)
                 continue
-            if not start_time:
+            if start_time is None or ts < start_time:
                 start_time = ts
-            else:
-                start_time = min(start_time, ts)
-            if not end_time:
-                end_time = ts
-            else:
-                end_time = max(end_time, ts)
+        end_time = int(time.time())
 
         search = cls.search(start_time=start_time, end_time=end_time).filter("terms", id=ids)
 

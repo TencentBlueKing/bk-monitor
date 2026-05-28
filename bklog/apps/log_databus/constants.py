@@ -42,8 +42,11 @@ CLUSTER_NAME_EN_REGEX = r"^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$"
 
 BULK_CLUSTER_INFOS_LIMIT = 20
 
-# ES集群类型配置特性开关key
+# ES 集群类型配置特性开关key
 FEATURE_TOGGLE_ES_CLUSTER_TYPE = "es_cluster_type_setup"
+
+# doris 存储集群灰度测试
+DORIS_STORAGE_CLUSTER = "doris_storage_cluster"
 
 DEFAULT_RETENTION = 14
 
@@ -103,6 +106,18 @@ class VisibleEnum(ChoicesEnum):
         (CURRENT_TENANT, _("当前租户")),
         (ALL_BIZ, _("全业务")),
         (BIZ_ATTR, _("业务属性")),
+    )
+
+
+class ClusterTypeEnum(ChoicesEnum):
+    ALL = "all"
+    ES = "elasticsearch"
+    DORIS = "doris"
+
+    _choices_labels = (
+        (ALL, _("全部类型集群")),
+        (ES, _("es类型集群")),
+        (DORIS, _("doris类型集群")),
     )
 
 
@@ -202,6 +217,7 @@ class CollectItsmStatus(ChoicesEnum):
 
 
 STORAGE_CLUSTER_TYPE = "elasticsearch"
+DORIS_CLUSTER_TYPE = "doris"
 KAFKA_CLUSTER_TYPE = "kafka"
 TRANSFER_CLUSTER_TYPE = "transfer"
 REGISTERED_SYSTEM_DEFAULT = "_default"
@@ -261,28 +277,15 @@ DEFAULT_COLLECTOR_LENGTH = 2
 # 解析失败字段名
 PARSE_FAILURE_FIELD = "__parse_failure"
 
-# V4清洗管道保留字段：管道内部节点名 + BKBase V4内置字段
+# V4清洗管道保留字段：管道内部节点名（不可作为用户自定义字段名）
 V4_RESERVED_FIELD_NAMES = {
-    # 管道内部节点名（output_id / input_id）
     "json_data",
     "items",
     "iter_item",
     "iter_string",
     "bk_separator_object",
     "bk_separator_object_path",
-    # BKBase V4 内置保留字段
-    "__time",
-    "dteventtimestamp",
-    "dteventtime",
-    "localtime",
-    "thedate",
-    "now",
-    "dt_year",
-    "dt_month",
-    "dt_day",
-    "dt_hour",
 }
-V4_RESERVED_MINUTE_PATTERN = "minute"
 
 
 class AsyncStatus:

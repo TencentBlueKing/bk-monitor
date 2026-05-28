@@ -1,0 +1,95 @@
+.user-info-card {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  margin: 16px 0;
+  transition: height 0.3s ease, margin 0.3s ease, padding 0.3s ease;
+
+  &.is-collapsed {
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+
+  .overflow-hidden-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
+  /* 左侧用户图标 */
+  .user-avatar {
+    display: flex;
+    width: 48px;
+    height: 48px;
+    padding: 8px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+    border: 1px solid #3974FF;
+    background: linear-gradient(135deg, #3967FF 0%, #5151FC 100%);
+    box-shadow: 0 10px 15px -3px #154bfc33;
+
+    i {
+      font-size: 28px;
+      color: #ffffff;
+    }
+  }
+
+  /* 用户基本信息 */
+  .user-basic-info {
+    flex-shrink: 0;
+    min-width: 216px;
+    max-width: 542px;
+    margin: 0 12px;
+
+    .user-name {
+      font-size: 14px;
+      font-weight:500;
+      margin-bottom: 4px;
+      line-height: 22px;
+    }
+
+    .device-id {
+      color: #4e5e7a;
+      font-size: 12px;
+      line-height: 20px;
+    }
+  }
+
+  /* 详细信息 */
+  .detail-info {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    row-gap: 10px;
+
+    .detail-item {
+      display: flex;
+      align-items: center;
+      min-width: 288px;
+      margin-right: 12px;
+      color: #8f9fbd;
+      font-size: 12px;
+      line-height: 20px;
+
+      i {
+        font-size: 14px;
+      }
+
+      .label {
+        margin: 0 4px 0 6px;
+      }
+
+      .value {
+         color: #4e5e7a;
+
+         .count {
+           color: #4E5E7A;
+           font-weight: 700;
+         }
+      }
+    }
+  }
+}

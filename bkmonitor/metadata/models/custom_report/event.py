@@ -279,6 +279,7 @@ class EventGroup(CustomGroupBase):
             "table_id": self.table_id,
             "event_group_name": self.event_group_name,
             "label": self.label,
+            "token": self.token,
             "is_enable": self.is_enable,
             "creator": self.creator,
             "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),

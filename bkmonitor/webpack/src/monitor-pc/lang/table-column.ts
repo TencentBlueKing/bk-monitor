@@ -181,7 +181,7 @@ export default {
   消费场景: 'Consumption Scenario',
 
   被调服务: 'Called server',
-  被调service: 'Called service',
+  '被调 Service': 'Called Service',
   被调接口: 'Called interface',
   返回码: 'Return code',
 
@@ -200,4 +200,10 @@ export default {
   // RUM
   展示名称: 'Display Name',
   应用状态: 'Application Status',
+  // ISSUES 最后出现时间UES 列表
+  最后出现时间: 'Last Occurrence Time',
+  最早发生时间: 'Earliest Occurrence Time',
+  趋势: 'Trend',
+  '24h 趋势': '24h Trend',
+  影响范围: 'Affected Range',
 };

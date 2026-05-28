@@ -50,6 +50,7 @@ export const useChartLegend = (
       index += 1;
       const legendItem: ILegendItem = {
         name: seriesItem.name,
+        alias: seriesItem.alias,
         max: 0,
         min: '',
         avg: 0,

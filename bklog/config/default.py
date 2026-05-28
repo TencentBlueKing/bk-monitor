@@ -615,6 +615,7 @@ SAAS_BKDATA = "bk_dataweb"
 # 前端菜单配置
 MENUS = [
     {"id": "retrieve", "name": _("检索"), "feature": "on", "icon": ""},
+    {"id": "client_log_search", "name": _("客户端日志"), "feature": "on", "icon": ""},
     {
         "id": "trace",
         "name": _("调用链"),
@@ -729,6 +730,12 @@ MENUS = [
                         "name": _("日志脱敏"),
                         "feature": FEATURE_TOGGLE["log_desensitize"],
                         "icon": "rizhituomin",
+                    },
+                    {
+                        "id": "grok_manage",
+                        "name": "Grok管理",
+                        "feature": "on",
+                        "icon": "grok",
                     },
                 ],
             },

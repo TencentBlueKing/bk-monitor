@@ -344,6 +344,7 @@ export default {
         'performance-detail',
         'event-center-detail',
         'event-center-action-detail',
+        'alarm-center-detail',
         'strategy-config-detail',
         'collect-config-view',
       ].includes(this.$route.name);

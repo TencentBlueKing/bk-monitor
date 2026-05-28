@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import functools
+import json
 import logging
 from itertools import chain
 from typing import Any
@@ -21,6 +22,7 @@ from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_w
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.constants import DEFAULT_APM_LOG_SEARCH_FIELD_NAME
 from apm_web.models import LogServiceRelation
+from apm_web.strategy.dispatch import EntitySet
 from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import Vendor, FIVE_MIN_SECONDS
 from core.drf_resource import Resource, api
@@ -102,10 +104,24 @@ def process_relation(
             matched = [i for i in relation_full_indexes if str(i["index_set_id"]) in relation_index_ids]
         else:
             matched = _find_index_infos_from_cache(bk_biz_id, relation.value_list, indexes_mapping)
+
+        context: dict[str, str | None] = {"${service_name}": service_name}
+        relation_addition_json: str = json.dumps(relation.addition)
+        for k, v in context.items():
+            if v is None:
+                continue
+            relation_addition_json = relation_addition_json.replace(k, v)
+        relation_addition: list[dict[str, Any]] = json.loads(relation_addition_json)
+
         for index_info in matched:
             index_info = {**index_info}
+            # 命中 span_id / trace_id 等精确过滤场景，保持原重写 addition 逻辑，不再追加额外过滤。
             if overwrite_method:
                 index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
+            # 命中关联日志需追加额外过滤信息场景。
+            elif service_name and relation_addition:
+                index_info["addition"] = relation_addition
+
             result.append(index_info)
     return result
 
@@ -190,6 +206,10 @@ def process_metric_relations(
 ):
     """根据应用关联指标反查关联日志索引集。"""
     if not service_name:
+        return []
+
+    # 服务没有关联容器时提前返回，减少非必要查询和缓存访问。
+    if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
         return []
 
     result = []

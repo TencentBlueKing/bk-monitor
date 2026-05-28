@@ -133,6 +133,11 @@ export default ({
     getScrollElement,
     hasScrollX,
     computeRect: debounceComputeRect,
+    /**
+     * 同步执行版 computeRect，供外部在需要立即刷新尺寸的场景调用（如字段设置展开/收起）。
+     * 注意：不要用于频繁 resize 场景，会失去防抖保护。
+     */
+    computeRectSync: computeRect,
     scrollDirection,
     offsetWidth,
     scrollWidth,

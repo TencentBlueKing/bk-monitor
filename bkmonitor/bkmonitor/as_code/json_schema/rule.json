@@ -537,6 +537,14 @@
           "default":120,
           "description": "通知间隔"
         },
+        "voice_notice": {
+          "enum": [
+            "parallel",
+            "serial"
+          ],
+          "default": "parallel",
+          "description": "语音通知模式：parallel 多通知组并行各拨一通；serial 合并接收组后串行拨一通"
+        },
         "template": {
           "description": "通知模板",
           "type": "object",

@@ -495,7 +495,7 @@ class Alarm(BaseContextObject):
     @cached_property
     def quick_ack_url(self):
         detail_url = self.detail_url
-        return f"{detail_url}&batchAction=ack" if self.operate_allowed and detail_url else None
+        return f"{detail_url}&autoShowAlertAction=confirm" if self.operate_allowed and detail_url else None
 
     @cached_property
     def quick_shield_url(self):
@@ -506,7 +506,7 @@ class Alarm(BaseContextObject):
             # 当有汇总的告警多余1个的时候，直接返回空
             return None
         detail_url = self.detail_url
-        return f"{detail_url}&batchAction=shield" if detail_url else None
+        return f"{detail_url}&autoShowAlertAction=shield" if detail_url else None
 
     @cached_property
     def notice_from(self):

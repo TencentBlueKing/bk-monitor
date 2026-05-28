@@ -113,6 +113,11 @@ export default {
   设为默认: 'Set as default',
   取消默认: 'Remove default',
   取消选择: 'Cancel Selection',
+  修改全局配置: 'Modify Global Configuration',
+  全局生效规则: 'Global Effective Rules',
+  备注: 'Remark',
+  返回码备注: 'Return Code Remark',
+  全局生效: 'Global Effective',
 
   // 规范：平台特性 术语
   新建节点: 'New Probe',
@@ -526,4 +531,16 @@ export default {
   下一个: 'Next',
   分析详情: 'Analysis Details',
   'SDK 接入指引': 'SDK Access Guide',
+
+  // ISSUES
+  标为已解决: 'Mark as Resolved',
+  标记为已解决: 'Mark as Resolved',
+  重新打开: 'Reopen',
+  添加跟进信息: 'Add Follow-up Information',
+  批量添加跟进信息: 'Batch Add Follow-up Information',
+  未指派: 'Unassigned',
+  'button-高': 'High',
+  'button-中': 'Medium',
+  'button-低': 'Low',
+  'button-富文本编辑': 'Rich Text Editor',
 };

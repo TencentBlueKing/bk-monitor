@@ -1,5 +1,6 @@
 from .data_link import DataLink  # noqa
 from .data_link_configs import (  # noqa
+    BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
     DataIdConfig,
@@ -17,6 +18,7 @@ __all__ = [
     "DataLink",
     "DataIdConfig",
     "DataBusConfig",
+    "BasereportSinkConfig",
     "ResultTableConfig",
     "VMStorageBindingConfig",
     "ConditionalSinkConfig",

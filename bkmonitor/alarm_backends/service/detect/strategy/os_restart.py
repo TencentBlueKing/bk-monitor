@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,18 +7,41 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 系统重启算法：基于时序数据 system.env.uptime 进行判断。
 uptime表示主机运行时长。
 该检测算法依赖bkmonitorbeat采集器被gse agent托管(机器重启后bkmonitorbeat自动拉起)否则无数据上报会导致该检测算法失效。
 """
 
+import functools
+import json
+import logging
 
 from django.utils.translation import gettext_lazy as _
 
-from alarm_backends.service.detect.strategy import ExprDetectAlgorithms
+from alarm_backends.core.cache import key
+from alarm_backends.service.access.data.records import DataRecord
+from alarm_backends.service.detect.strategy import (
+    ExprDetectAlgorithms,
+    adapter_data_access_2_detect,
+)
 from alarm_backends.service.detect.strategy.simple_ring_ratio import SimpleRingRatio
 from alarm_backends.service.detect.strategy.threshold import Threshold
+
+logger = logging.getLogger("detect")
+
+# 单次 unify-query 预取最多按 IP 收敛的目标数量上限。
+# K 在此范围内时，给 data_source.filter_dict 追加 `bk_target_ip__eq=[...]`，把"策略 target 范围全量"
+# 收窄到"本批次 K 台"，显著减少 vmselect 端扫描压力与响应数据量（典型业务下降 1-2 个数量级）。
+# 超过该上限时回退到不加 filter 的全量查询，避免 promql/请求体过长触发后端限流。
+#
+# 100 的选择动机：data_source `bk_target_ip__eq=[list]` 在 unify-query 后端被翻译为 OR 链
+# （见 data_source/models/lookups.py:Equal.list_connector=" OR "），K=100 时 promql 长度约
+# 4-5 KB，远低于网关与 vmselect 的常规请求体上限，且按经验 OsRestart 单周期触发批次（同步重启）
+# 极少超过该量级；超过则集群层面应当优先关注重启事件本身而非历史回填精度，回退到 target 全量
+# 查询更稳妥。如线上观察到批次量级长期接近上限，建议在 settings 中放开做灰度调参。
+MAX_PREFETCH_IP_FILTER = 100
 
 
 class OsRestart(SimpleRingRatio):
@@ -59,13 +81,115 @@ class OsRestart(SimpleRingRatio):
         return env
 
     def get_history_offsets(self, item):
-        # 获取上一个周期，和10分钟前的数据，这类offset加入0，利用query_history_points的特性，
-        # 将当前由access模块拉取的数据直接缓存到history_point队列中。这样由于时间窗口的推移，
-        # 前一个周期的数据可以不用再获取了（在缓存生效（HISTORY_DATA_KEY.ttl）范围内）
         agg_interval = item.query_configs[0]["agg_interval"]
+        # 保留 offset=0 占位以维持 history_point_fetcher(greed=True) 返回列表的索引语义
+        # ([1]=previous, [2]=is_ok_10min, [3]=is_ok_25min)。
+        # offset=0 在新的 query_history_points 中不再用于 publish 通用缓存。
         return [0, agg_interval, 60 * 10, 60 * 25]
 
+    def query_history_points(self, data_points):
+        """
+        OsRestart 自治的历史数据预取，覆写 HistoryPointFetcher.query_history_points 的通用 cache 路径。
+
+        背景：access 侧对 OsRestart 策略改写 expression="a <= 3600"（core/cache/strategy.py），
+        long-running 机器（uptime > 3600）的数据点从未进入 detect、也从未被 publish 到
+        HISTORY_DATA_KEY 的 hash 内。当这类机器重启进入 uptime ≤ 3600 时，通用 cache 路径会
+        因同 timestamp 已被其他"持续 ≤ 3600 的机器"写入而走入 cache hit + entry miss 路径，
+        is_ok_10minute_ago / is_ok_25minute_ago 静默 False，最终导致漏报。
+
+        本方法一次性发起单次 unify-query，覆盖 [min_ts - 25min, max_ts + 1m] 的完整窗口，
+        并把 expression 改写为 "a"（去掉 a <= 3600 过滤），把真实历史填充到本地
+        _local_history_storage。多机器并发场景天然合并为一次 promql 多 series，RPC 数 O(1)。
+
+        关键不变量：窗口内每个 history_timestamp 必须在 _local_history_storage 中存在对应的
+        entry（即使是空 dict）。否则基类 fetch_history_point 会因 `history_key not in
+        _local_history_storage` 而 fallback 到 client.hgetall(history_key)，再次取到被"持续
+        ≤ 3600 的机器"刷新进 Redis 的旧 hash，原 bug 会复现。
+        """
+        if not data_points:
+            return
+        item = data_points[0].item
+        original_expression = item.query.expression
+        # 改写 expression 拿真实 uptime（access 侧 a <= 3600 过滤的逆操作）；try/finally 保证还原，
+        # 避免改动 access 与 detect 共享的 item.query 实例后泄漏到后续调用。
+        item.query.expression = "a"
+
+        # 收集本批次涉及的目标 IP，把"策略 target 范围全量"收窄到"本批次 K 台"。
+        # 仅在 0 < K <= MAX_PREFETCH_IP_FILTER 时启用；K 过大时回退到不加 filter 的全量查询，
+        # 避免 promql 正则/请求体过长触发后端限流。
+        target_ips = sorted(
+            {dp.dimensions.get("bk_target_ip") for dp in data_points if dp.dimensions.get("bk_target_ip")}
+        )
+        ip_filter_applied = False
+        original_filters: list = []
+        if 0 < len(target_ips) <= MAX_PREFETCH_IP_FILTER:
+            for data_source in item.data_sources:
+                original_filters.append((data_source, dict(data_source.filter_dict)))
+                # __eq 在 list 上的语义是 OR（见 data_source/models/lookups.py:Equal.list_connector）
+                data_source.filter_dict["bk_target_ip__eq"] = target_ips
+            ip_filter_applied = True
+        elif len(target_ips) > MAX_PREFETCH_IP_FILTER:
+            logger.info(
+                "strategy(%s) item(%s) os_restart prefetch ip count %s > %s, fallback to target-scope query",
+                item.strategy.id,
+                item.id,
+                len(target_ips),
+                MAX_PREFETCH_IP_FILTER,
+            )
+
+        try:
+            sorted_data_points = sorted(data_points, key=lambda x: x.timestamp)
+            agg_interval = item.query_configs[0]["agg_interval"]
+            offsets = self.get_history_offsets(item)
+            max_offset = max((o[1] if isinstance(o, tuple) else o) for o in offsets)
+            from_timestamp = sorted_data_points[0].timestamp - max_offset
+            until_timestamp = sorted_data_points[-1].timestamp + agg_interval
+
+            history_key_maker = functools.partial(
+                key.HISTORY_DATA_KEY.get_key,
+                strategy_id=item.strategy.id,
+                item_id=item.id,
+            )
+
+            # 预占位：保证窗口内每个 history_timestamp 都在 _local_history_storage 中存在 entry，
+            # 阻断基类 fetch_history_point 回退到 Redis hgetall 的路径。
+            self._local_history_storage = {
+                history_key_maker(timestamp=ts): {} for ts in range(from_timestamp, until_timestamp, agg_interval)
+            }
+
+            item_records = item.query_record(from_timestamp, until_timestamp)
+            if item.query.is_partial:
+                # VM vmstorage 节点临时不可用。保持已占位的空 entry，让本周期 is_ok_*_ago=False，
+                # 漏报 1 个周期但避免误用旧 cache 数据；下个周期 unify-query 恢复后自动回正。
+                logger.warning(
+                    "strategy(%s) item(%s) os_restart history query is partial, "
+                    "fallback to no-history mode, time_range(%s, %s)",
+                    item.strategy.id,
+                    item.id,
+                    from_timestamp,
+                    until_timestamp,
+                )
+                return
+
+            # 直接按 (history_key, dimensions_md5) 结构填本地索引，bypass 通用 Redis cache 短路逻辑。
+            for record in item_records:
+                point = DataRecord(item, record)
+                if not point.value:
+                    continue
+                detect_point = adapter_data_access_2_detect(point, item)
+                history_key = history_key_maker(timestamp=detect_point.timestamp)
+                # 已被预占位的 key 直接取到 dict；超出预占位范围的（理论上不会发生，防御性处理）则补建。
+                bucket = self._local_history_storage.setdefault(history_key, {})
+                bucket[detect_point.record_id.split(".")[0]] = json.dumps(detect_point.as_dict())
+        finally:
+            item.query.expression = original_expression
+            # 还原 filter_dict，避免对 access 与 detect 共享的 data_source 实例泄漏 IP 过滤条件。
+            if ip_filter_applied:
+                for data_source, original in original_filters:
+                    data_source.filter_dict.clear()
+                    data_source.filter_dict.update(original)
+
     def gen_anomaly_point(self, data_point, detect_result, level, auto_format=True):
-        ap = super(OsRestart, self).gen_anomaly_point(data_point, detect_result, level)
+        ap = super().gen_anomaly_point(data_point, detect_result, level)
         ap.anomaly_message = self._format_message(data_point)
         return ap

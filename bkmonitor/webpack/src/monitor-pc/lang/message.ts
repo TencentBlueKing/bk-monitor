@@ -361,6 +361,7 @@ export default {
   '当前检索范围，暂无告警': 'No alarms in the current search scope',
   '当前检索范围，暂无故障': 'No failures in the current search scope',
   '当前检索范围，暂无处理记录': 'No processing records in the current search scope',
+  '暂无历史 Issue': 'No history issue',
 
   /*
  #### 提示反馈类
@@ -550,4 +551,5 @@ export default {
   '确认停用该应用？': 'Confirm to disable the application?',
   '确认删除该应用？': 'Confirm to delete the application?',
   '确认启用该应用？': 'Confirm to enable the application?',
+  评论发送失败: 'Comment sending failed',
 };

@@ -30,6 +30,7 @@ const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/view
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/views/share/index.tsx');
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/views/data-id-url/index.tsx');
 const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-manage/index.tsx');
+const ClientLogSearch = () => import(/* webpackChunkName: 'clientLogSearch' */ '@/views/client-log-search/index.tsx');
 
 // 检索模块路由配置生成函数
 const getRetrieveRoutes = () => [
@@ -41,6 +42,16 @@ const getRetrieveRoutes = () => [
     meta: {
       title: '检索',
       navId: 'retrieve',
+    },
+  },
+  // 客户端日志检索
+  {
+    path: '/client-log-search',
+    name: 'client-log-search',
+    component: ClientLogSearch,
+    meta: {
+      title: '客户端日志',
+      navId: 'client-log-search',
     },
   },
   // 模版管理

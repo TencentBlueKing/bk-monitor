@@ -55,6 +55,7 @@ from apps.log_clustering.exceptions import (
     QueryFieldsException,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.handlers.dataflow.constants import (
     CLUSTERING_DEFAULT_MODEL_INPUT_FIELDS,
@@ -133,7 +134,12 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @retry(stop_max_attempt_number=3, wait_random_min=3 * 60 * 1000, wait_random_max=10 * 60 * 1000)
     def operator_flow(
-        self, flow_id: int, consuming_mode: str = "continue", cluster_group: str = "default", action=ActionEnum.START
+        self,
+        flow_id: int,
+        consuming_mode: str = "continue",
+        cluster_group: str = "default",
+        action=ActionEnum.START,
+        bk_biz_id: int = None,
     ):
         """
         启动flow
@@ -145,6 +151,9 @@ class DataFlowHandler(BaseAiopsHandler):
         cluster_group = self.conf.get("aiops_default_cluster_group", cluster_group)
         start_request = OperatorFlowCls(flow_id=flow_id, consuming_mode=consuming_mode, cluster_group=cluster_group)
         request_dict = self._set_username(start_request)
+        bk_biz_id = bk_biz_id if bk_biz_id is not None else self.conf.get("bk_biz_id")
+        if bk_biz_id is not None:
+            request_dict["bk_biz_id"] = bk_biz_id
         return ActionHandler.get_action_handler(action_num=action)(request_dict)
 
     @classmethod
@@ -238,6 +247,19 @@ class DataFlowHandler(BaseAiopsHandler):
         not_clustering_rule_list = ["where", "NOT", "(", default_filter_rule, rules_str, ")"]
         return " ".join(filter_rule_list), " ".join(not_clustering_rule_list)
 
+    # SQL 字符串字面量转义: 单引号使用 SQL 标准的双单引号转义，避免 DataFlow/Flink SQL 解析失败
+    _SQL_STR_ESCAPE_MAP = str.maketrans({"\\": "\\\\", "'": "''"})
+
+    @classmethod
+    def _quote_sql_literal(cls, value) -> str:
+        """把任意 filter rule 的 value 转成可直接拼进 Flink SQL 的字符串字面量.
+
+        - 反斜杠 \\  -> \\\\
+        - 单引号 '   -> ''
+        - 其余字符(含 %, _) 透传, LIKE 通配符由调用方在外层自行追加
+        """
+        return "'" + str(value).translate(cls._SQL_STR_ESCAPE_MAP) + "'"
+
     @classmethod
     def build_condition_list(cls, all_fields_dict, field_name, filter_rule, filter_rules, nested_field_name=None):
         if not isinstance(filter_rule.get("value"), list):
@@ -266,7 +288,14 @@ class DataFlowHandler(BaseAiopsHandler):
                     result.append("and")
                 else:
                     result.append("or")
-            result.extend([query_field_name, op, f"'{val}'"])
+            literal = cls._quote_sql_literal(val)
+            # 嵌套 JSON 字段 + 负向条件 (<> / NOT LIKE) 必须 null-safe:
+            # JSON_VALUE 在 key 缺失时返回 NULL, NULL <> 'xxx' 在 Flink SQL 下不为 TRUE,
+            # 会把本该参与聚类的日志(没填该 key 的)误过滤掉.
+            if nested_field_name and op in ("<>", "NOT LIKE"):
+                result.append(f"( {query_field_name} IS NULL OR {query_field_name} {op} {literal} )")
+            else:
+                result.extend([query_field_name, op, literal])
         if len(filter_rule.get("value")) > 1 and len(filter_rules) > 1:
             result.append(")")
             result.insert(0, "(")
@@ -663,14 +692,18 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
         )
 
-    def get_serving_data_processing_id_config(self, result_table_id):
+    def get_serving_data_processing_id_config(self, result_table_id, bk_biz_id):
         """
         get_serving_data_processing_id_config
         @param result_table_id:
         @return:
         """
         return BkDataAIOPSApi.serving_data_processing_id_config(
-            params={"data_processing_id": result_table_id, "bk_username": self.conf.get("bk_username")}
+            params={
+                "data_processing_id": result_table_id,
+                "bk_username": self.conf.get("bk_username"),
+                "bk_biz_id": bk_biz_id,
+            },
         )
 
     def get_model_available_storage_cluster(self):
@@ -690,7 +723,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 break
         return available_storage_cluster
 
-    def update_model_instance(self, model_instance_id):
+    def update_model_instance(self, model_instance_id, bk_biz_id):
         """
         update_model_instance
         @param model_instance_id:
@@ -723,6 +756,7 @@ class DataFlowHandler(BaseAiopsHandler):
             execute_config=execute_config,
         )
         request_dict = self._set_username(update_model_instance_request)
+        request_dict["bk_biz_id"] = bk_biz_id
         return BkDataAIOPSApi.update_execute_config(request_dict)
 
     def update_filter_rules(self, index_set_id):
@@ -788,6 +822,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def update_predict_node(self, index_set_id):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
 
         st_list = OnlineTaskTrainingArgs.ST_LIST
         if clustering_config.max_dist_list == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
@@ -1324,7 +1359,8 @@ class DataFlowHandler(BaseAiopsHandler):
         }
         # 模型应用 id
         data_processing_id_config = self.get_serving_data_processing_id_config(
-            clustering_config.predict_flow["clustering_predict"]["result_table_id"]
+            clustering_config.predict_flow["clustering_predict"]["result_table_id"],
+            clustering_config.bk_biz_id,
         )
         if operator == OperatorOnlineTaskEnum.UPDATE:
             update_online_task_request = UpdateOnlineTaskCls(
@@ -1346,6 +1382,7 @@ class DataFlowHandler(BaseAiopsHandler):
             request_dict = self._set_username(create_online_task_request)
         else:
             raise Exception(f"invalid online task operator: {operator}, only support create or update")
+        request_dict["bk_biz_id"] = clustering_config.bk_biz_id
         return request_dict
 
     def create_online_task(self, index_set_id: int):
@@ -1523,7 +1560,7 @@ class DataFlowHandler(BaseAiopsHandler):
             storage = TransferApi.get_result_table_storage(
                 params={
                     "result_table_list": collector_config.table_id,
-                    "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                    "storage_type": collector_config.storage_cluster_type,
                 }
             )[collector_config.table_id]
             es_storage["expires"] = str(storage["storage_config"].get("retention"))
@@ -1736,6 +1773,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def create_predict_flow(self, index_set_id: int):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
 
         # 检查清洗任务是否已经正常启动，若未启动，则启动之
         self.check_and_start_clean_task(clustering_config.bkdata_etl_result_table_id)
@@ -1745,7 +1783,9 @@ class DataFlowHandler(BaseAiopsHandler):
             self._init_predict_flow(
                 result_table_id=clustering_config.bkdata_etl_result_table_id,
                 model_id=clustering_config.model_id,
-                model_release_id=self.get_latest_released_id(clustering_config.model_id),
+                model_release_id=self.get_latest_released_id(
+                    clustering_config.model_id, bk_biz_id=clustering_config.bk_biz_id
+                ),
                 bk_biz_id=clustering_config.bk_biz_id,
                 index_set_id=index_set_id,
                 clustering_config=clustering_config,
@@ -1776,9 +1816,12 @@ class DataFlowHandler(BaseAiopsHandler):
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
-            clustering_config.predict_flow["clustering_predict"]["result_table_id"]
+            clustering_config.predict_flow["clustering_predict"]["result_table_id"],
+            clustering_config.bk_biz_id,
         )
-        self.update_model_instance(model_instance_id=data_processing_id_config["id"])
+        self.update_model_instance(
+            model_instance_id=data_processing_id_config["id"], bk_biz_id=clustering_config.bk_biz_id
+        )
 
         online_task = self.create_online_task(index_set_id=index_set_id)
         clustering_config.online_task_id = online_task["ci_id"]
@@ -1792,6 +1835,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
         if not clustering_config.predict_flow_id:
             logger.info(f"update predict flow not found: index_set_id -> {index_set_id}")
             return
@@ -1806,7 +1850,9 @@ class DataFlowHandler(BaseAiopsHandler):
             self._init_predict_flow(
                 result_table_id=clustering_config.bkdata_etl_result_table_id,
                 model_id=clustering_config.model_id,
-                model_release_id=self.get_latest_released_id(clustering_config.model_id),
+                model_release_id=self.get_latest_released_id(
+                    clustering_config.model_id, bk_biz_id=clustering_config.bk_biz_id
+                ),
                 bk_biz_id=clustering_config.bk_biz_id,
                 index_set_id=clustering_config.index_set_id,
                 clustering_config=clustering_config,
@@ -1886,6 +1932,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
         result_table_id = clustering_config.predict_flow["clustering_predict"]["result_table_id"]
         log_count_aggregation_flow_dict = asdict(
             self._init_log_count_aggregation_flow(
@@ -1923,6 +1970,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
         if not clustering_config.log_count_aggregation_flow_id:
             logger.info(f"update agg flow not found: index_set_id -> {index_set_id}")
             return
@@ -1950,7 +1998,7 @@ class DataFlowHandler(BaseAiopsHandler):
         self.deal_predict_flow(nodes=nodes, flow=flow, bk_biz_id=clustering_config.bk_biz_id)
 
         # 重启 flow
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
+        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART, bk_biz_id=clustering_config.bk_biz_id)
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
         clustering_config.save(update_fields=["log_count_aggregation_flow"])
         logger.info(f"update agg flow success: flow_id -> {clustering_config.log_count_aggregation_flow_id}")

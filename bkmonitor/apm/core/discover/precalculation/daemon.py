@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,15 +14,19 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import logging
 import random
 from collections import defaultdict
+from typing import Any
 
 from django.conf import settings
 
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
-from apm.models import ApmApplication, MetricDataSource, TraceDataSource
-from bkmonitor.utils import group_by
+from apm.core.discover.precalculation.task_spec import (
+    PreCalculateTaskSpec,
+    PreCalculateTaskSpecProvider,
+)
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -37,28 +40,31 @@ class DaemonTaskHandler:
     DAEMON_TASK_NAME = "daemon:apm:pre_calculate"
 
     @classmethod
-    def execute(cls, app_id, queue=None, body=None):
+    def _create_daemon_task(cls, data_id, queue=None, body=None):
+        payload = dict(body or {})
+        payload.update({"data_id": str(data_id)})
+
+        params: dict[str, Any] = {"kind": cls.DAEMON_TASK_NAME, "payload": payload, "options": {}}
+        if queue:
+            params["options"]["queue"] = queue
+
+        logger.info(f"request create_task api, params: \n-----\n{params}\n-----\n")
+        api.bmw.create_task(params)
+        logger.info("trigger worker create successfully")
+
+    @classmethod
+    def execute(cls, task_spec: PreCalculateTaskSpec, queue=None, body=None):
         try:
             # 1. 刷新配置到consul
-            data_id = ConsulHandler.check_update_by_app_id(app_id)
+            data_id = ConsulHandler.check_update_by_task_spec(task_spec)
             if not data_id:
-                logger.warning(f"failed to obtain consul config of app_id: {app_id}")
+                logger.warning(f"failed to obtain consul config of task: {task_spec.display_name}")
                 return
-            logger.info(f"push app_id: {app_id} data_id: {data_id} to consul success")
+            logger.info(f"push task: {task_spec.display_name} to consul success")
             # 2. 触发任务
-
-            payload = body or {}
-            payload.update({"data_id": str(data_id)})
-
-            params = {"kind": cls.DAEMON_TASK_NAME, "payload": payload, "options": {}}
-            if queue:
-                params["options"]["queue"] = queue
-
-            logger.info(f"request create_task api, params: \n-----\n{params}\n-----\n")
-            api.bmw.create_task(params)
-            logger.info("trigger worker create successfully")
+            cls._create_daemon_task(data_id, queue, body)
         except Exception as e:  # noqa
-            logger.exception(f"execute app_id: {app_id} to queue: {queue} failed, error: {e}")
+            logger.exception(f"execute task: {task_spec.display_name} to queue: {queue} failed, error: {e}")
 
     @classmethod
     def reload(cls, task_uni_id, payload=None):
@@ -89,70 +95,72 @@ class DaemonTaskHandler:
         """
         获取预计算任务数据
         包含:
-        1. SaaS 侧执行的应用
-        2. BMW 侧执行的应用
-        3. BMW 侧异常应用（异常应用指：bk_apm_count 有数据但是队列接收消息指标无数据）
-        4. BMW 侧未启动应用
+        1. SaaS 侧执行的任务
+        2. BMW 侧执行的任务
+        3. BMW 侧异常任务（异常任务指：独占任务指标有数据但是队列接收消息指标无数据）
+        4. BMW 侧未启动任务
         """
         deployed_biz_id = settings.APM_BMW_DEPLOY_BIZ_ID
         if deployed_biz_id == 0:
             raise ValueError("bmw deploy biz is empty, please check whether bmw is deployed or configured")
 
-        apps_for_beat = []
-        apps_for_daemon = []
-        apps_for_reload = []
-        apps_for_create = []
+        task_specs_for_beat = []
+        task_specs_for_daemon = []
+        task_specs_for_reload = []
+        task_specs_for_create = []
 
-        apps = ApmApplication.objects.filter(is_enabled=True)
-        metric_datasource_mapping = group_by(MetricDataSource.objects.all(), lambda i: (i.bk_biz_id, i.app_name))
-        trace_datasource_mapping = group_by(TraceDataSource.objects.all(), lambda i: (i.bk_biz_id, i.app_name))
+        task_specs = PreCalculateTaskSpecProvider.list_task_specs(
+            enabled_only=True,
+            require_trace_enabled=False,
+            require_metric_enabled=False,
+        )
+        start_time, end_time = get_datetime_range("minute", 10)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
 
-        for index, app in enumerate(apps):
-            metric_datasource = metric_datasource_mapping.get((app.bk_biz_id, app.app_name))
-            trace_datasource = trace_datasource_mapping.get((app.bk_biz_id, app.app_name))
-            if not metric_datasource or not trace_datasource:
-                logger.warning(
-                    f"[get_task_info] ({app.bk_biz_id}){app.app_name} traceDatasource/metricDatasource not found, skip",
-                )
-                continue
-
-            start_time, end_time = get_datetime_range("minute", 10)
-            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
-
+        for index, task_spec in enumerate(task_specs):
             # 常驻任务方式进行预计算
-            is_running = cls.is_daemon_task_running(
-                deployed_biz_id, trace_datasource[0].bk_data_id, start_time, end_time
-            )
+            is_running = cls.is_daemon_task_running(deployed_biz_id, task_spec.data_id, start_time, end_time)
             if is_running:
                 is_receive_data = cls.is_daemon_task_receive_data(
-                    deployed_biz_id, trace_datasource[0].bk_data_id, start_time, end_time
+                    deployed_biz_id, task_spec.data_id, start_time, end_time
                 )
                 if not is_receive_data:
-                    if cls.is_normal(metric_datasource[0], start_time, end_time):
-                        apps_for_reload.append(app)
+                    if cls.is_normal(task_spec, start_time, end_time):
+                        task_specs_for_reload.append(task_spec)
                         logger.info(
-                            f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} "
-                            f"running: ok | data_status: ok | daemon_receive_data: bad -> reload"
+                            f"[{index}/{len(task_specs)}] {task_spec.display_name} "
+                            f"running: ok | data_status: ok | daemon_receive_data: bad -> reload",
                         )
                     else:
                         logger.info(
-                            f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} "
-                            f"task: ok(daemon, empty data) -> skip"
+                            f"[{index}/{len(task_specs)}] {task_spec.display_name} task: ok(daemon, empty data) -> skip"
                         )
                 else:
-                    apps_for_daemon.append(app)
-                    logger.info(f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} task ok(daemon) -> skip")
+                    task_specs_for_daemon.append(task_spec)
+                    logger.info(f"[{index}/{len(task_specs)}] {task_spec.display_name} task ok(daemon) -> skip")
 
             else:
                 # 定时任务方式进行预计算
-                apps_for_beat.append(app)
-                logger.info(f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} task: ok(beat) -> skip")
+                task_specs_for_beat.append(task_spec)
+                logger.info(f"[{index}/{len(task_specs)}] {task_spec.display_name} task: ok(beat) -> skip")
 
-        return apps_for_beat, apps_for_daemon, apps_for_reload, apps_for_create
+        return task_specs_for_beat, task_specs_for_daemon, task_specs_for_reload, task_specs_for_create
 
     @classmethod
-    def get_application_request_count(cls, metric_datasource, start_time, end_time):
-        """获取应用的总数据量"""
+    def is_normal(cls, task_spec: PreCalculateTaskSpec, start_time, end_time):
+        """获取此任务是否有数据。"""
+        return cls.get_task_spec_load_count(task_spec, start_time, end_time) > 0
+
+    @classmethod
+    def get_task_spec_load_count(cls, task_spec: PreCalculateTaskSpec, start_time: int, end_time: int) -> int:
+        """按应用指标估算预计算任务的负载，共享任务不参与负载估算。"""
+        if task_spec.is_shared:
+            # 共享 data_id 不按 App 拆分负载；直接返回 0，避免巡检阶段扫描 trace 原表。
+            return 0
+
+        metric_datasource = task_spec.primary_app.metric_datasource
+        if not metric_datasource:
+            return 0
 
         query = {
             "id": "bk_apm_count",
@@ -197,11 +205,6 @@ class DaemonTaskHandler:
                 f"failed to get request_count of app: {metric_datasource.bk_biz_id}-{metric_datasource.app_name}",
             )
             return 0
-
-    @classmethod
-    def is_normal(cls, metric_datasource, start_time, end_time):
-        """获取此应用是否有数据"""
-        return cls.get_application_request_count(metric_datasource, start_time, end_time) > 0
 
     @classmethod
     def is_daemon_task_receive_data(cls, deployed_biz_id, bk_data_id, start_time, end_time):
@@ -291,17 +294,17 @@ class DaemonTaskHandler:
         return len(result["series"][0]["datapoints"]) > 0
 
     @classmethod
-    def create_tasks(cls, applications, queue):
-        for app in applications:
-            cls.execute(app.id, queue)
+    def create_tasks(cls, task_specs, queue):
+        for task_spec in task_specs:
+            cls.execute(task_spec, queue)
 
     @classmethod
-    def reload_tasks(cls, applications):
+    def reload_tasks(cls, task_specs):
         # 避免 py 和 go 计算 TaskUniId 不一致 这里取任务列表中的 taskUniId
         daemon_tasks = api.bmw.list_task(task_type="daemon")
 
-        for app in applications:
-            data_id = app.trace_datasource.bk_data_id
+        for task_spec in task_specs:
+            data_id = task_spec.data_id
             task_uni_id = next(
                 (i.get("uni_id") for i in daemon_tasks if str(i.get("payload", {}).get("data_id", "")) == str(data_id)),
                 None,
@@ -309,55 +312,55 @@ class DaemonTaskHandler:
             if not task_uni_id:
                 logger.warning(
                     f"[RELOAD TASKS] "
-                    f"dataId: {data_id}(app: [{app.bk_biz_id}]{app.app_name}) task was not found, "
+                    f"dataId: {data_id}({task_spec.display_name}) task was not found, "
                     f"please check if it is running"
                 )
                 continue
 
             cls.reload(task_uni_id)
-            logger.info(f"[RELOAD] dataId: {data_id} app: ({app.bk_biz_id}){app.app_name} reload success")
+            logger.info(f"[RELOAD] dataId: {data_id} task: {task_spec.display_name} reload success")
 
     @classmethod
     def list_rebalance_info(cls, queues):
-        have_data_apps = []
-        exclude_apps = []
+        have_data_task_specs = []
         start_time, end_time = get_datetime_range("minute", 10)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
 
-        applications = list(ApmApplication.objects.filter(is_enabled=True))
-        random.shuffle(applications)
-        for i in applications:
-            if i.metric_datasource:
-                try:
-                    if cls.is_normal(i.metric_datasource, start_time, end_time):
-                        logger.info(f"[Rebalance] 有数据应用: {i.bk_biz_id} - {i.app_name}")
-                        have_data_apps.append(i)
-                except Exception as e:  # noqa
-                    logger.warning(f"[Rebalance] 查询 {i.bk_biz_id} - {i.app_name} 数据状态时出现异常 - {e}")
-            else:
-                exclude_apps.append(i)
+        task_specs = PreCalculateTaskSpecProvider.list_task_specs(
+            enabled_only=True,
+            require_trace_enabled=True,
+            require_metric_enabled=True,
+        )
+        random.shuffle(task_specs)
+        for task_spec in task_specs:
+            try:
+                if cls.is_normal(task_spec, start_time, end_time):
+                    logger.info(f"[Rebalance] 有数据任务: {task_spec.display_name}")
+                    have_data_task_specs.append(task_spec)
+            except Exception as e:  # noqa
+                logger.warning(f"[Rebalance] 查询 {task_spec.display_name} 数据状态时出现异常 - {e}")
 
-        res = defaultdict(list)
+        res = defaultdict(list, {queue: [] for queue in queues})
 
         # 先分配有数据应用到各个队列 尽量保持每个队列数量相同
         queues_count = len(queues)
-        for index, app in enumerate(have_data_apps):
+        for index, task_spec in enumerate(have_data_task_specs):
             queue_index = index % queues_count
-            res[queues[queue_index]].append(app)
+            res[queues[queue_index]].append(task_spec)
 
         # 再分配无数据应用
-        for i in applications:
-            if i in have_data_apps or i in exclude_apps:
+        for task_spec in task_specs:
+            if task_spec in have_data_task_specs:
                 continue
 
             # 找当前数量最小的队列
             min_queue = min(res, key=lambda k: len(res[k]))
-            res[min_queue].append(i)
+            res[min_queue].append(task_spec)
 
-        return res, have_data_apps
+        return res, have_data_task_specs
 
     @classmethod
-    def rebalance(cls, queue_application_mapping):
-        for queue, apps in queue_application_mapping.items():
-            for app in apps:
-                cls.execute(app.id, queue=queue, body={})
+    def rebalance(cls, queue_task_spec_mapping):
+        for queue, task_specs in queue_task_spec_mapping.items():
+            for task_spec in task_specs:
+                cls.execute(task_spec, queue=queue, body={})

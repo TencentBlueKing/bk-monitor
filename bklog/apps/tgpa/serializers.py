@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from apps.tgpa.constants import TGPA_REPORT_ORDER_FIELDS
+from apps.tgpa.constants import TGPA_MERGED_LIST_MAX_RESULT_WINDOW, TGPA_REPORT_ORDER_FIELDS
 
 
 class GetCountInfoSerializer(serializers.Serializer):
@@ -145,9 +145,76 @@ class GetFileStatusSerializer(serializers.Serializer):
     file_name_list = serializers.ListField(label=_("文件名列表"), child=serializers.CharField())
 
 
+class GetTaskStatusSerializer(serializers.Serializer):
+    """
+    获取任务处理状态
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    task_id_list = serializers.ListField(label=_("任务ID列表"), child=serializers.IntegerField())
+
+
 class RetrieveSyncRecordSerializer(serializers.Serializer):
     """
     获取同步记录详情
     """
 
     record_id = serializers.IntegerField(label=_("同步记录ID"))
+
+
+class GetOpenidListSerializer(serializers.Serializer):
+    """
+    关键字查询 openid 列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
+    start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
+
+
+class GetMergedTaskListSerializer(serializers.Serializer):
+    """
+    检索页面合并任务列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    source = serializers.ChoiceField(
+        label=_("数据源"), choices=["task", "report"], required=False, allow_null=True, allow_blank=True
+    )
+    task_id = serializers.IntegerField(label=_("后台任务ID"), required=False, allow_null=True)
+    openid = serializers.CharField(label=_("openid"), required=False, allow_null=True, allow_blank=True)
+    file_name = serializers.CharField(label=_("文件名（精确匹配）"), required=False, allow_null=True, allow_blank=True)
+    start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
+    page = serializers.IntegerField(label=_("页码"), default=1, min_value=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), default=10, min_value=1)
+
+    def validate(self, attrs):
+        page = attrs.get("page", 1)
+        pagesize = attrs.get("pagesize", 10)
+        if page * pagesize > TGPA_MERGED_LIST_MAX_RESULT_WINDOW:
+            raise serializers.ValidationError(
+                _("page * pagesize 不能超过 {}").format(TGPA_MERGED_LIST_MAX_RESULT_WINDOW)
+            )
+        return attrs
+
+
+class GetClientInfoSerializer(serializers.Serializer):
+    """
+    获取客户端信息
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    openid = serializers.CharField(label=_("openid"))
+    start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
+
+
+class SyncTaskSerializer(serializers.Serializer):
+    """
+    手动触发同步客户端日志捞取任务
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    task_id_list = serializers.ListField(label=_("后台任务ID列表"), child=serializers.IntegerField(), max_length=200)

@@ -135,7 +135,7 @@ const rightContentStyle = computed(() => {
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
-      <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
+      <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics, 'is-close': !isShowFieldStatistics }]">
         <FieldFilter
           v-show="isOriginShow"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"

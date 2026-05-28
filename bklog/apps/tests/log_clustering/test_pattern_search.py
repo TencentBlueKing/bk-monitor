@@ -3,9 +3,14 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from apps.log_clustering.constants import AGGS_FIELD_PREFIX, StorageTypeEnum
+from apps.feature_toggle.handlers.toggle import Toggle
+from apps.log_clustering.constants import (
+    AGGS_FIELD_PREFIX,
+    CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST,
+    StorageTypeEnum,
+)
 from apps.log_clustering.handlers.pattern import PatternHandler
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfig, ClusteringRemark
 
 INDEX_SET_ID = 123
 PARAMS = {
@@ -140,3 +145,143 @@ class TestPatternSearch(TestCase):
         called_query = mock_unify_query_handler.call_args.args[0]
         self.assertEqual(called_query["index_set_ids"], [INDEX_SET_ID])
         self.assertEqual(called_query["agg_field"], f"{AGGS_FIELD_PREFIX}_05")
+
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_returns_placeholders(self, mock_multi_query):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1")
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="prefix #PATH# middle #NUMBER# suffix",
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": ""}],
+            "year_on_year_result": {},
+            "new_class": set(),
+        }
+
+        result = PatternHandler(INDEX_SET_ID, copy.deepcopy(PARAMS)).pattern_search()
+
+        self.assertEqual(
+            result[0]["placeholders"],
+            [
+                {"name": "PATH", "index": 0},
+                {"name": "NUMBER", "index": 1},
+            ],
+        )
+
+    @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_fallbacks_to_remark_without_group_by_default(self, mock_multi_query, mock_toggle):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1", group_fields=["module"])
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+        )
+        ClusteringRemark.objects.create(
+            bk_biz_id=2,
+            signature="e4b60ecf",
+            groups={},
+            group_hash=ClusteringRemark.convert_groups_to_groups_hash({}),
+            remark=["default fallback remark"],
+            owners=["admin"],
+            strategy_id=1,
+            strategy_enabled=True,
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": "module-a"}],
+            "year_on_year_result": {},
+            "new_class": set(),
+        }
+        mock_toggle.return_value = Toggle(feature_config={})
+
+        query = copy.deepcopy(PARAMS)
+        query["group_by"] = ["module"]
+        query["owner_config"] = "all"
+        result = PatternHandler(INDEX_SET_ID, query).pattern_search()
+
+        self.assertEqual(result[0]["remark"], ["default fallback remark"])
+        self.assertEqual(result[0]["owners"], ["admin"])
+        self.assertEqual(result[0]["strategy_id"], 1)
+        self.assertTrue(result[0]["strategy_enabled"])
+
+    @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_fallbacks_when_exact_group_remark_is_empty(self, mock_multi_query, mock_toggle):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1", group_fields=["module"])
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+        )
+        ClusteringRemark.objects.create(
+            bk_biz_id=2,
+            signature="e4b60ecf",
+            groups={},
+            group_hash=ClusteringRemark.convert_groups_to_groups_hash({}),
+            remark=["default fallback remark"],
+            owners=["admin"],
+            strategy_id=1,
+            strategy_enabled=True,
+        )
+        ClusteringRemark.objects.create(
+            bk_biz_id=2,
+            signature="e4b60ecf",
+            groups={"module": "module-a"},
+            group_hash=ClusteringRemark.convert_groups_to_groups_hash({"module": "module-a"}),
+            remark=[],
+            owners=["owner-only"],
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": "module-a"}],
+            "year_on_year_result": {},
+            "new_class": set(),
+        }
+        mock_toggle.return_value = Toggle(feature_config={})
+
+        query = copy.deepcopy(PARAMS)
+        query["group_by"] = ["module"]
+        query["owner_config"] = "all"
+        result = PatternHandler(INDEX_SET_ID, query).pattern_search()
+
+        self.assertEqual(result[0]["remark"], ["default fallback remark"])
+        self.assertEqual(result[0]["owners"], ["admin"])
+        self.assertEqual(result[0]["strategy_id"], 1)
+        self.assertTrue(result[0]["strategy_enabled"])
+
+    @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_does_not_fallback_for_black_list_biz(self, mock_multi_query, mock_toggle):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1", group_fields=["module"])
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+        )
+        ClusteringRemark.objects.create(
+            bk_biz_id=2,
+            signature="e4b60ecf",
+            groups={},
+            group_hash=ClusteringRemark.convert_groups_to_groups_hash({}),
+            remark=["default fallback remark"],
+            owners=["admin"],
+            strategy_id=1,
+            strategy_enabled=True,
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": "module-a"}],
+            "year_on_year_result": {},
+            "new_class": set(),
+        }
+        mock_toggle.return_value = Toggle(feature_config={CLUSTERING_REMARK_GROUP_FALLBACK_BIZ_ID_BLACK_LIST: [2]})
+
+        query = copy.deepcopy(PARAMS)
+        query["group_by"] = ["module"]
+        query["owner_config"] = "all"
+        result = PatternHandler(INDEX_SET_ID, query).pattern_search()
+
+        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["owners"], [])
+        self.assertEqual(result[0]["strategy_id"], 0)
+        self.assertFalse(result[0]["strategy_enabled"])

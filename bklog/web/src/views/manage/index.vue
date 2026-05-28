@@ -205,32 +205,9 @@ import { isFeatureToggleOn } from '@/store/helper';
       },
       // 检查 tgpa_task 功能开关
       checkTgpaTaskFeatureToggle() {
-        const featureToggle = window.FEATURE_TOGGLE?.tgpa_task;
-
-        // 如果功能开关为 'on' 或不存在，显示菜单
-        if (featureToggle === 'on' || !featureToggle) {
-          return true;
-        }
-
-        // 如果功能开关为 'off'，隐藏菜单
-        if (featureToggle === 'off') {
-          return false;
-        }
-
-        // 如果功能开关为 'debug'，检查白名单
-        if (featureToggle === 'debug') {
-          const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
-          const bizId = this.$store.state.bkBizId;
-          const spaceUid = this.$store.state.spaceUid;
-
-          // 类型安全的白名单检查
-          const normalizedWhiteList = whiteList.map(id => String(id));
-          return normalizedWhiteList.includes(String(bizId)) ||
-            normalizedWhiteList.includes(String(spaceUid));
-        }
-
-        // 默认不显示
-        return false;
+        const bizId = this.$store.state.bkBizId;
+        const spaceUid = this.$store.state.spaceUid;
+        return isFeatureToggleOn('tgpa_task', [String(bizId), String(spaceUid)], { defaultEnabled: true });
       },
       // 检查当前路由是否为 tgpa-task 相关路由
       checkIfTgpaTaskRoute() {

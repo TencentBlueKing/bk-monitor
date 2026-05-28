@@ -154,12 +154,12 @@ ADVANCED_OPTIONS = OrderedDict(
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label="是否开启全局告警屏蔽", default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
-        (
-            "ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE",
-            slz.BooleanField(label="是否根据is_active过滤自定义指标", default=False),
-        ),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
         ("MCP_MAX_TIME_SPAN_SECONDS", slz.IntegerField(label="MCP查询跨度限制", default=86400)),
+        (
+            "APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS",
+            slz.IntegerField(label="APM Profiling MCP 查询跨度限制(秒)", default=30 * 60),
+        ),
         ("AI_BIZ_LIST", slz.ListField(label="AI小鲸灰度业务名单", default=[])),
         ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
         ("AIDEV_SCENE_AGENT_CODE_MAPPING", slz.DictField(label="场景-Agent映射配置", default={})),
@@ -234,6 +234,19 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
+        # APM 共享数据源匹配规则配置
+        # 按数据源类型（trace/log/…）分组，每个类型下 list 内的 group 为 OR 关系，单 group 内 rules 可通过 connector（AND/OR）组合
+        (
+            "APM_SHARED_DATASOURCE_RULES",
+            slz.DictField(
+                label="APM 共享数据源规则配置",
+                default={
+                    "trace": {
+                        "list": [],
+                    },
+                },
+            ),
+        ),
         # 表映射关系，用于在 UnifyQuery 数据检索时，路由到灰度表验证功能（比如 Doris 切换）。
         ("UNIFY_QUERY_TABLE_MAPPING_CONFIG", slz.DictField(label="UnifyQuery查询表映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
@@ -578,6 +591,15 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
+        ("APM_PROFILE_V4_BIZ_WHITE_LIST", slz.ListField(label=_("APM Profile V4 链路业务白名单"), default=[])),
+        (
+            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
+        ),
+        (
+            "APM_PROFILE_V4_DATABUS_PREFER_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 Databus 计算集群名称"), default="", allow_blank=True),
+        ),
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
@@ -708,12 +730,17 @@ STANDARD_CONFIGS = OrderedDict(
         # metric_group_dimensions 分组配置白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
         (
             "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",
-            slz.ListField(label=_("允许 APM 配置指标分组维度的应用白名单"), default=[]),
+            slz.ListField(
+                label=_("允许 APM 配置指标分组维度的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"),
+                default=[],
+            ),
         ),
-        # APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        # APM 自定义指标 V2 开启的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
         (
             "APM_CUSTOM_METRIC_V2_ENABLED_LIST",
-            slz.ListField(label=_("APM 自定义指标 V2 开启的应用白名单"), default=[]),
+            slz.ListField(
+                label=_("APM 自定义指标 V2 开启的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"), default=[]
+            ),
         ),
     ]
 )

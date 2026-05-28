@@ -8,16 +8,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import base64
+import json
 from unittest.mock import call, patch
 
 import pytest
 
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-from metadata.resources import CreateOrUpdateLogRouter
+from metadata.resources import CreateOrUpdateLogRouter, GetResultTableStorageResult
 
 non_exist_doris_table_id = "2_bklog.test_doris_non_exists"
 exist_doris_table_id = "2_bklog.test_doris_exists"
+origin_doris_table_id = "2_bklog.test_doris_origin"
+origin_doris_table_id_new = "2_bklog.test_doris_origin_new"
 
 non_exist_es_table_id = "2_bklog.test_es_non_exists"
 exist_es_table_id = "2_bklog.test_es_exists"
@@ -93,7 +97,9 @@ def create_or_delete_records(mocker):
     models.ResultTableField.objects.filter(
         table_id__in=[non_exist_doris_table_id, exist_doris_table_id, non_exist_es_table_id, exist_es_table_id]
     ).delete()
-    models.DorisStorage.objects.filter(table_id__in=[non_exist_doris_table_id, exist_doris_table_id]).delete()
+    models.DorisStorage.objects.filter(
+        table_id__in=[non_exist_doris_table_id, exist_doris_table_id, origin_doris_table_id, origin_doris_table_id_new]
+    ).delete()
     models.ESStorage.objects.filter(table_id__in=[non_exist_es_table_id, exist_es_table_id]).delete()
     models.ClusterInfo.objects.all().delete()
     models.Space.objects.all().delete()
@@ -111,15 +117,21 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
         source_type="bkdata",
         bkbase_table_id="2_bklog_pure_doris,2_bklog_doris_log",
         storage_type="doris",
+        origin_table_id=origin_doris_table_id,
     )
 
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            models.DorisStorage.objects.create(
+                table_id=origin_doris_table_id,
+                bkbase_table_id="2_bklog_origin_doris",
+                storage_cluster_id=10034,
+            )
             CreateOrUpdateLogRouter().request(**create_params)
             expected_space_router = {"bkcc__2": '{"2_bklog.test_doris_non_exists":{"filters":[]}}'}
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
+                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
             # 创建流程,先推送RT详情路由,再推送空间路由
@@ -139,6 +151,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
 
             doris_storage_ins = models.DorisStorage.objects.get(table_id=non_exist_doris_table_id)
             assert doris_storage_ins.bkbase_table_id == "2_bklog_pure_doris,2_bklog_doris_log"
+            assert doris_storage_ins.origin_table_id == origin_doris_table_id
             assert doris_storage_ins.storage_cluster_id == 10034
             assert doris_storage_ins.index_set == "2_bklog_pure_doris,2_bklog_doris_log"
             assert doris_storage_ins.source_type == "bkdata"
@@ -147,6 +160,29 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             assert result_table_ins.data_label == "bkdata_index_set_7839"
             assert result_table_ins.default_storage == "doris"
             assert result_table_ins.bk_biz_id == 2
+
+    actual_storage = GetResultTableStorageResult().request(
+        bk_tenant_id="system",
+        result_table_list=f"{non_exist_doris_table_id},{exist_doris_table_id}",
+        storage_type="doris",
+    )
+    assert set(actual_storage.keys()) == {non_exist_doris_table_id}
+    assert actual_storage[non_exist_doris_table_id]["storage_config"] == {
+        "bkbase_table_id": "2_bklog_pure_doris,2_bklog_doris_log",
+        "source_type": "bkdata",
+        "index_set": "2_bklog_pure_doris,2_bklog_doris_log",
+        "table_type": models.DorisStorage.PRIMARY_TABLE_TYPE,
+        "field_config_mapping": {},
+        "expire_days": 30,
+        "bk_tenant_id": "system",
+    }
+    assert actual_storage[non_exist_doris_table_id]["cluster_type"] == models.ClusterInfo.TYPE_DORIS
+    assert actual_storage[non_exist_doris_table_id]["cluster_config"]["cluster_id"] == 10034
+    assert "last_modify_time" not in actual_storage[non_exist_doris_table_id]["cluster_config"]
+    assert json.loads(base64.b64decode(actual_storage[non_exist_doris_table_id]["auth_info"]).decode("utf-8")) == {
+        "username": "",
+        "password": "",
+    }
 
     # 空间路由推送 后台任务方式
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -176,7 +212,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             )
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
+                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
             mock_hmset_to_redis.assert_has_calls(
@@ -201,14 +237,20 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
         bkbase_table_id="2_bklog_pure_doris",
         storage_type="doris",
         cluster_id=10035,
+        origin_table_id=origin_doris_table_id_new,
     )
 
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            models.DorisStorage.objects.create(
+                table_id=origin_doris_table_id_new,
+                bkbase_table_id="2_bklog_origin_doris_new",
+                storage_cluster_id=10035,
+            )
             CreateOrUpdateLogRouter().request(**modify_params)
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
+                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
             # 创建流程,先推送RT详情路由,再推送空间路由
@@ -226,6 +268,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
 
             doris_storage_ins = models.DorisStorage.objects.get(table_id=non_exist_doris_table_id)
             assert doris_storage_ins.bkbase_table_id == "2_bklog_pure_doris"
+            assert doris_storage_ins.origin_table_id == origin_doris_table_id_new
             assert doris_storage_ins.storage_cluster_id == 10035
             assert doris_storage_ins.index_set == "2_bklog_pure_doris"
             assert doris_storage_ins.source_type == "bkdata"

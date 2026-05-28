@@ -47,3 +47,61 @@ export const xssFilter = (str: string) => {
     );
   }
 };
+
+const SAFE_DATA_IMAGE_REGEXP = /^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=]+$/i;
+const COMMON_ATTRS = ['style', 'class', 'id'];
+const TABLE_ATTRS = ['width', 'height', 'border', 'cellspacing', 'cellpadding', 'bgcolor', 'align', 'valign'];
+const CELL_EXTRAS = ['rowspan', 'colspan'];
+
+let mailFilterInstance: any = null;
+
+const getMailFilter = () => {
+  if (mailFilterInstance) return mailFilterInstance;
+  // xss 浏览器 build (xss/dist/xss) 把 FilterXSS 类、getDefaultWhiteList 等 API 都挂在
+  // window.filterXSS 这个函数对象上。
+  const xssLib: any = window.filterXSS;
+  const FilterXSSCtor: any = xssLib?.FilterXSS;
+  const getDefaultWhiteList: any = xssLib?.getDefaultWhiteList;
+  if (!FilterXSSCtor || !getDefaultWhiteList) return null;
+
+  const whiteList = getDefaultWhiteList();
+  const extend = (tag: string, attrs: string[]) => {
+    whiteList[tag] = Array.from(new Set([...(whiteList[tag] || []), ...attrs]));
+  };
+  ['div', 'span', 'p', 'br', 'hr', 'a', 'img', 'small', 'strong', 'em', 'b', 'i', 'u'].forEach(tag =>
+    extend(tag, COMMON_ATTRS),
+  );
+  extend('table', [...COMMON_ATTRS, ...TABLE_ATTRS]);
+  ['tbody', 'thead', 'tfoot', 'tr', 'td', 'th', 'col', 'colgroup'].forEach(tag =>
+    extend(tag, [...COMMON_ATTRS, ...TABLE_ATTRS, ...CELL_EXTRAS]),
+  );
+  extend('a', ['target', 'rel', 'href', 'title']);
+  extend('img', ['src', 'alt', 'title', 'width', 'height']);
+
+  return (mailFilterInstance = new FilterXSSCtor({
+    whiteList,
+    stripIgnoreTag: false,
+    stripIgnoreTagBody: ['script', 'style'],
+    onTagAttr(tag: string, name: string, value: string) {
+      if (tag === 'img' && name === 'src' && SAFE_DATA_IMAGE_REGEXP.test(value)) {
+        return `${name}="${value}"`;
+      }
+      if (name === 'href' && /^\s*(javascript|vbscript|data):/i.test(value)) {
+        return `${name}=""`;
+      }
+      return undefined;
+    },
+  }));
+};
+
+export const sanitizeMailHtml = (html: string): string => {
+  if (!html) return html;
+  const filter = getMailFilter();
+  try {
+    if (filter) return filter.process(html);
+    return window.filterXSS(html);
+  } catch (err) {
+    console.error(err);
+    return xssFilter(html);
+  }
+};

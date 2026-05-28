@@ -953,7 +953,7 @@ class GetResultTableStorageResult(Resource):
             result[result_table] = storage_info.consul_config
 
             # 判断是否需要明文返回链接信息
-            if not validated_request_data["is_plain_text"]:
+            if not validated_request_data.get("is_plain_text", False):
                 result[result_table]["auth_info"] = base64.b64encode(
                     json.dumps(result[result_table]["auth_info"]).encode("utf-8")
                 )
@@ -1306,6 +1306,7 @@ class ModifyTimeSeriesGroupResource(Resource):
         enable_field_black_list = serializers.BooleanField(required=False, label="黑名单的启用状态", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
         options = serializers.DictField(required=False, label="结果表选项内容", default=None)
+        metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
@@ -1531,7 +1532,7 @@ class TimeSeriesMetricConditionQueryMixin:
         elif search_type == "fuzzy_case_sensitive":
             return Q(field_name__contains=value)
         elif search_type == "fuzzy":
-            return Q(field_name__iregex=re.escape(value))
+            return Q(field_name__icontains=value)
         elif search_type == "exact_case_sensitive":
             return Q(field_name=value)
         elif search_type == "startswith":
@@ -1545,7 +1546,7 @@ class TimeSeriesMetricConditionQueryMixin:
         elif search_type == "regex":
             return Q(field_config__alias__iregex=value)
         elif search_type == "fuzzy_case_sensitive":
-            return Q(field_config__alias__regex=re.escape(value))
+            return Q(field_config__alias__contains=value)
         elif search_type == "fuzzy":
             return Q(field_config__alias__icontains=value)
         elif search_type == "exact_case_sensitive":

@@ -40,6 +40,7 @@ import {
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
 import { commonPageSizeGet, commonPageSizeSet, copyText, tryURLDecodeParse } from 'monitor-common/utils';
+import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 
@@ -47,7 +48,6 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
-import { isEn } from '../../../i18n/lang';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import UserConfigMixin from '../../../mixins/userStoreConfig';
 import AuthComponent from '../../../pages/exception-page/auth-component';
@@ -1797,16 +1797,13 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   /* 查看相关告警 */
   handleViewRelatedAlerts() {
-    const { href } = this.$router.resolve({
-      name: 'event-center',
-      query: {
-        queryString: isEn
-          ? `告警名称 : "${this.popover.data.strategyName}"`
-          : `alert_name : "${this.popover.data.strategyName}"`,
+    const { href } = this.$router.resolve(
+      getAlarmCenterRouteLocation({
+        queryString: `strategy_id : ${this.popover.data.id}`,
         from: 'now-7d',
         to: 'now',
-      },
-    });
+      })
+    );
     window.open(href, '_blank');
   }
   handleSelectedDataSource(v) {
@@ -1945,15 +1942,14 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   /* 跳转到事件中心 */
   handleToEventCenter(item, type = 'NOT_SHIELDED_ABNORMAL') {
-    const { href } = this.$router.resolve({
-      name: 'event-center',
-      query: {
-        queryString: isEn ? `strategy_id : ${item.id}` : `策略ID : ${item.id}`,
+    const { href } = this.$router.resolve(
+      getAlarmCenterRouteLocation({
+        queryString: `strategy_id : ${item.id}`,
         activeFilterId: type,
         from: 'now-30d',
         to: 'now',
-      },
-    });
+      })
+    );
     window.open(href, '_blank');
   }
   /**

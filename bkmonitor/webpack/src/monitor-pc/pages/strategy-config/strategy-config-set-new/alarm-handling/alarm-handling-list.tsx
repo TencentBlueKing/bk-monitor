@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -52,7 +52,6 @@ export const signalNames = {
   recovered: window.i18n.tc('告警恢复时'),
   closed: window.i18n.tc('告警关闭时'),
   no_data: window.i18n.tc('无数据时'),
-  incident: window.i18n.tc('故障生成时'),
 };
 
 const signalOptions: { id: string; name: string }[] = [
@@ -60,7 +59,6 @@ const signalOptions: { id: string; name: string }[] = [
   { id: 'recovered', name: signalNames.recovered },
   { id: 'closed', name: signalNames.closed },
   { id: 'no_data', name: signalNames.no_data },
-  { id: 'incident', name: signalNames.incident },
 ];
 
 @Component
@@ -106,7 +104,6 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
             timedelta: 1,
             count: 1,
           },
-          skip_delay: 0,
         },
       });
       this.addValue = [];
@@ -160,15 +157,11 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
     return new Promise((resolve, reject) => {
       const validate = this.data.some(item => !item.signal?.length);
       const configValidate = this.data.every(item => !!item.config_id);
-      const skipDelayValidate = this.data.some(item => item.options.skip_delay === -1);
       if (validate) {
         this.errMsg = window.i18n.tc('输入告警场景');
         reject();
       } else if (!configValidate) {
         this.errMsg = window.i18n.tc('选择处理套餐');
-      } else if (skipDelayValidate) {
-        // 后端只存储延迟时间，不记录开关状态。 -1：switch状态开但时间设置不正确
-        reject();
       } else {
         resolve(true);
       }
@@ -209,7 +202,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
               >
                 <span class='signal-select-wrap'>
                   {item.signal?.length ? (
-                    <span class='signal-name'>{item.signal.map(key => signalNames[key] || key).join(',')}</span>
+                    <span class='signal-name'>{item.signal.map(key => signalNames[key]).join(',')}</span>
                   ) : (
                     <span class='add-placeholder'>{this.$t('选择添加告警场景')}</span>
                   )}
@@ -221,7 +214,6 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                 allAction={this.allAction}
                 allDefense={this.allDefense}
                 isSimple={this.isSimple}
-                list={signalOptions}
                 readonly={this.readonly}
                 strategyId={this.strategyId}
                 value={item}

@@ -79,4 +79,5 @@ export default {
   配置简单: 'Simple Configuration',
   '蓝鲸监控原生上报协议，接入成本低，数据结构针对 RUM 场景深度优化，适合新项目快速接入':
     'BlueKing monitoring native reporting protocol, low integration cost, data structure deeply optimized for RUM scenarios, suitable for new projects to quickly integrate.',
+  总计: 'Total',
 };

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import VueType from 'vue';
+import type VueType from 'vue';
 
 declare global {
   interface Window {
@@ -37,6 +37,7 @@ declare global {
     VERSION: string;
     AJAX_URL_PREFIX: string;
     FEATURE_TOGGLE_WHITE_LIST: Record<string, (number | string)[]>;
+    FEATURE_TOGGLE_BLACK_LIST: Record<string, (number | string)[]>;
     FEATURE_TOGGLE: Record<string, 'debug' | 'off' | 'on'>;
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
@@ -50,6 +51,7 @@ declare global {
     RUN_VER: string;
     REAL_TIME_LOG_MAX_LENGTH: number | string; // 实时日志最大长度
     REAL_TIME_LOG_SHIFT_LENGTH: number | string; // 实时日志超过此长度删除部分日志
+    __BKLOG_SEGMENT_POP_COUNTER__?: number;
   }
 
   interface Scheduler {

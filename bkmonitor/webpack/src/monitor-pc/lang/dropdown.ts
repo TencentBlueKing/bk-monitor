@@ -127,6 +127,7 @@ export default {
   成本: 'Cost',
   '生成 “{0}” 选项': 'Generate "{0}" Options',
   '直接输入 "{0}"': 'Enter "{0}"',
+  '回车直接输入 "{0}"': 'Enter "{0}"',
   新开标签页: 'Open in New Tab',
   另存为新收藏: 'Save as New Favorite',
   覆盖当前收藏: 'Override Current Favorite',
@@ -146,4 +147,9 @@ export default {
   自定义时间: 'Custom time',
   用户操作: 'User Operation',
   语音: 'Voice',
+  'Issue 名称': 'Issue Name',
+  '策略 ID': 'Strategy ID',
+  是否回归: 'Whether to return',
+  最近告警时间: 'Recent alarm time',
+  解决时间: 'resolution time',
 };

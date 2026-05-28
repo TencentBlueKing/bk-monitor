@@ -13,8 +13,12 @@ from datetime import datetime
 
 import arrow
 import pytz
+from zoneinfo import ZoneInfo
+from dateutil import parser as dateutil_parser
+from django.conf import settings
 from django.db.models import Q
 from django.utils.functional import cached_property
+from django.utils.timezone import get_current_timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -74,7 +78,7 @@ class TimezoneAwareDateTimeField(serializers.CharField):
     2. 带时区: "2026-01-12 11:00:08+0800" 或 "2026-01-12 11:00:08+08:00"
     """
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: str):
         # 先进行字符串验证
         data = super().to_internal_value(data)
 
@@ -85,9 +89,21 @@ class TimezoneAwareDateTimeField(serializers.CharField):
         if data:
             # 尝试解析带时区或不带时区的时间格式
             try:
-                # 尝试使用 arrow 解析（支持多种格式，包括带时区的）
                 parsed_time = arrow.get(data)
-                # 转换为标准格式（不带时区）
+                django_tz = None
+                if getattr(settings, "USE_TZ", False):
+                    django_tz = get_current_timezone()
+
+                if django_tz is not None:
+                    # 使用 dateutil 判断原始字符串是否携带时区信息，避免依赖解析后的偏移量
+                    input_has_tz = dateutil_parser.parse(data).tzinfo is not None
+                    if not input_has_tz:
+                        # 无时区信息 → 视为 Django 当前时区的本地时间
+                        parsed_time = parsed_time.replace(tzinfo=ZoneInfo(str(django_tz)))
+                    else:
+                        # 有时区信息 → 直接转换为 Django 当前时区
+                        parsed_time = arrow.get(parsed_time.astimezone(django_tz))
+
                 return parsed_time.format("YYYY-MM-DD HH:mm:ss")
             except (arrow.parser.ParserError, ValueError):
                 # 如果 arrow 解析失败，尝试传统格式

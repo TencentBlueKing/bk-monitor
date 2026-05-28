@@ -1,0 +1,183 @@
+paths:
+  /mcp/search_openclaw_spans/:
+    post:
+      operationId: search_openclaw_spans
+      description: Search OpenClaw spans in the configured OpenClaw APM app. The caller must NOT pass bk_biz_id, app_name, or username; business ID and app name are injected from dynamic settings, and username is resolved from the request identity. Normal users automatically get an owner filter appended by the server. Timestamps must be calculated dynamically. Query time span must NOT exceed 1 day (86400s). 查询OpenClaw Span列表。调用方不要传bk_biz_id、app_name或username；业务ID和应用名由动态配置注入，username由请求身份解析。普通用户会被服务端自动追加owner过滤。时间戳必须动态计算，查询跨度不得超过1天。
+      tags:
+      - openclaw_recovering_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - start_time
+              - end_time
+              properties:
+                start_time:
+                  type: string
+                  description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically, for example: int(time.time()) - 3600. Do not use fixed historical values. 开始时间戳(秒)。必须动态计算，例如最近1小时为当前时间减3600。不要使用固定历史值。'
+                end_time:
+                  type: string
+                  description: 'End timestamp in seconds (Unix timestamp). MUST use current timestamp or the user-specified end time. Example: int(time.time()). 结束时间戳(秒)。必须使用当前时间或用户指定的结束时间。'
+                offset:
+                  type: string
+                  default: '0'
+                  description: Offset for pagination. Default is 0. 分页偏移量，默认0。
+                limit:
+                  type: string
+                  default: '10'
+                  description: Maximum number of spans to return. Default is 10. 返回Span数量，默认10。
+                sort:
+                  type: array
+                  items:
+                    type: string
+                  default: '["-start_time"]'
+                  description: Sort conditions array. Use ["-start_time"] to get latest spans first. 排序条件数组，使用["-start_time"]可按开始时间倒序。
+                query:
+                  type: string
+                  default: '""'
+                  description: APM span query string. Optional. APM Span查询语句，可选。
+                filters:
+                  type: array
+                  default: '[]'
+                  description: APM span filters. Each filter has key, operator, value, and optional options. Caller filters are preserved, and the server appends the OpenClaw owner filter for normal users. APM Span过滤条件。每个filter包含key、operator、value和可选options。调用方过滤条件会保留，普通用户会被服务端追加OpenClaw owner过滤。
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        description: Filter field name. 过滤字段名。
+                      operator:
+                        type: string
+                        description: Filter operator, such as equal, not_equal, like. 过滤操作符，例如equal、not_equal、like。
+                      value:
+                        type: array
+                        items:
+                          type: string
+                        description: Filter values. 过滤值数组。
+                      options:
+                        type: object
+                        description: Optional filter options. 可选过滤配置。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/open_claw_recovering_mcp/search_openclaw_spans/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_openclaw_trace_detail/:
+    post:
+      operationId: get_openclaw_trace_detail
+      description: Get OpenClaw trace detail by trace_id. For normal users, the server first searches one span using trace_id and owner filter to prove ownership; only after the ownership check passes will the full trace detail be queried. The caller must NOT pass bk_biz_id, app_name, or username. 根据trace_id查询OpenClaw Trace详情。普通用户会先通过trace_id和owner过滤查询一条Span证明归属，校验通过后才查询完整Trace详情。调用方不要传bk_biz_id、app_name或username。
+      tags:
+      - openclaw_recovering_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - trace_id
+              - start_time
+              - end_time
+              properties:
+                trace_id:
+                  type: string
+                  description: Trace ID obtained from search_openclaw_spans. 从search_openclaw_spans返回结果中获取的Trace ID。
+                start_time:
+                  type: string
+                  description: Start timestamp in seconds for ownership pre-check. Must cover the target trace and must be calculated dynamically. 用于归属预检的开始时间戳(秒)，必须覆盖目标Trace并动态计算。
+                end_time:
+                  type: string
+                  description: End timestamp in seconds for ownership pre-check. Query span must not exceed 1 day. 用于归属预检的结束时间戳(秒)，查询跨度不得超过1天。
+                displays:
+                  type: array
+                  items:
+                    type: string
+                  default: '[]'
+                  description: Trace waterfall display options. Optional. Trace瀑布图展示选项，可选。
+                query_trace_relation_app:
+                  type: boolean
+                  default: 'false'
+                  description: Whether to query related applications. Default is false. 是否查询关联应用，默认false。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/open_claw_recovering_mcp/get_openclaw_trace_detail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_openclaw_logs/:
+    post:
+      operationId: search_openclaw_logs
+      description: Search OpenClaw logs in configured OpenClaw log index sets. The caller must NOT pass bk_biz_id or username. Business ID is injected from dynamic settings. index_set_id must be one of OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP values. For normal users, the server wraps the query_string with the OpenClaw owner condition. 查询OpenClaw日志。调用方不要传bk_biz_id或username；业务ID由动态配置注入。index_set_id必须属于OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP配置值。普通用户会被服务端在query_string外层追加OpenClaw owner条件。
+      tags:
+      - openclaw_recovering_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - index_set_id
+              - start_time
+              - end_time
+              properties:
+                index_set_id:
+                  type: string
+                  description: OpenClaw log index set ID. Must be one of the values configured in OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP. OpenClaw日志索引集ID，必须属于OPENCLAW_RECOVERING_LOG_INDEX_SET_MAP配置值。
+                start_time:
+                  type: string
+                  description: Start timestamp in seconds (Unix timestamp). MUST calculate dynamically. Query time span must not exceed 1 day. 开始时间戳(秒)。必须动态计算，查询跨度不得超过1天。
+                end_time:
+                  type: string
+                  description: End timestamp in seconds (Unix timestamp). MUST calculate dynamically. 结束时间戳(秒)。必须动态计算。
+                query_string:
+                  type: string
+                  default: '"*"'
+                  description: Log query string. Optional. For normal users, the server adds owner filtering automatically. 日志查询语句，可选。普通用户会被服务端自动追加owner过滤。
+                limit:
+                  type: string
+                  default: '10'
+                  description: Maximum number of log records to return. Default is 10. 返回日志条数，默认10。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/open_claw_recovering_mcp/search_openclaw_logs/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true

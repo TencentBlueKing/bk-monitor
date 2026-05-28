@@ -96,10 +96,21 @@ export default defineComponent({
     renderListItem: {
       type: Function as PropType<(h: typeof createVNode, userInfo: IUserInfo) => VNode>,
     },
+    /** 是否禁用 */
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+    /** 最近选择用户 ID 列表，传入后在下拉右侧展示最近选择 */
+    recentUserIds: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
   },
   emits: {
     'update:modelValue': (value: string[]) => Array.isArray(value),
     change: (userInfos: IUserInfo[]) => Array.isArray(userInfos),
+    blur: () => true,
     dragStart: (dragStartEvent: UserSelectorDragEvent) => dragStartEvent instanceof Object,
     dragEnd: (dragEndEvent: UserSelectorDragEvent) => dragEndEvent instanceof Object,
   },
@@ -139,6 +150,13 @@ export default defineComponent({
      */
     const handleDragEnd = (dragEndEvent: UserSelectorDragEvent) => {
       emit('dragEnd', dragEndEvent);
+    };
+
+    /**
+     * @description 输入框失焦
+     */
+    const handleBlur = () => {
+      emit('blur');
     };
 
     /**
@@ -207,6 +225,7 @@ export default defineComponent({
       tagItemRender,
       handleDragStart,
       handleDragEnd,
+      handleBlur,
     };
   },
   render() {
@@ -217,16 +236,19 @@ export default defineComponent({
       <BkUserSelector
         class='monitor-user-selector-v3'
         apiBaseUrl={this.componentConfig.apiBaseUrl}
+        disabled={this.disabled}
         draggable={this.draggable}
         emptyText={this.emptyText}
         enableMultiTenantMode={this.enableMultiTenantMode}
         modelValue={this.modelValue}
         multiple={this.multiple}
         placeholder={this.placeholder}
+        recentUserIds={this.recentUserIds}
         renderListItem={this.listItemRender}
         renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
+        onBlur={this.handleBlur}
         onChange={this.handleUserInfoChange}
         onDragEnd={this.handleDragEnd}
         onDragStart={this.handleDragStart}

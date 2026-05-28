@@ -91,7 +91,7 @@ export default defineComponent({
     const prevBegin = ref(0);
     const nextBegin = ref(0);
     const filterType = ref('include');
-    const activeFilterKey = ref('');
+    const activeFilterKey = ref<string[]>([]);
     const ignoreCase = ref(false);
     const showType = ref('log');
     const highlightList = ref([]);
@@ -108,18 +108,50 @@ export default defineComponent({
     let firstLogEl: HTMLElement | null = null;
     let throttleTimer: ReturnType<typeof setTimeout>;
     let timer: ReturnType<typeof setTimeout>;
+    let scrollBindTimer: ReturnType<typeof setTimeout>;
+    let highlightTimer: ReturnType<typeof setTimeout>;
+    let initLogResultTimer: ReturnType<typeof setTimeout>;
+    let filterCheckTimer: ReturnType<typeof setTimeout>;
+    let handleScroll = () => {};
     let displayFieldNames: string[] = [];
+    let contextLogRequestSeq = 0;
 
+    const contentLogRequestId = 'retrieve_getContentLog_contextLog';
+    const isContextLogVisible = () => isShow.value && props.isShow;
+    const isCurrentContextLogRequest = (requestSeq: number) => isContextLogVisible() && requestSeq === contextLogRequestSeq;
+
+    const clearContextLogTimers = () => {
+      clearTimeout(timer);
+      clearTimeout(throttleTimer);
+      clearTimeout(scrollBindTimer);
+      clearTimeout(highlightTimer);
+      clearTimeout(initLogResultTimer);
+      clearTimeout(filterCheckTimer);
+    };
+
+    const cleanupContextLogEffects = () => {
+      contextLogRequestSeq += 1;
+      clearContextLogTimers();
+      contextLog.value?.removeEventListener('scroll', handleScroll);
+      logLoading.value = false;
+      $http.cancel(contentLogRequestId);
+    };
 
     watch(
       () => props.isShow,
       () => {
         isShow.value = props.isShow;
         if (isShow.value) {
-          setTimeout(() => {
-            logResultRef.value.init();
+          contextLogRequestSeq += 1;
+          initLogResultTimer = setTimeout(() => {
+            if (isContextLogVisible()) {
+              logResultRef.value?.init();
+            }
           });
+          return;
         }
+
+        cleanupContextLogEffects();
       },
       {
         immediate: true,
@@ -129,7 +161,7 @@ export default defineComponent({
     watch(
       () => [props.indexSetId, props.logParams],
       async () => {
-        if (props.indexSetId && props.logParams) {
+        if (isContextLogVisible() && props.indexSetId && props.logParams && Object.keys(props.logParams).length) {
           localParams.value = {};
           deepClone(props.logParams);
           await requestContentLog();
@@ -141,7 +173,12 @@ export default defineComponent({
     );
 
     watch(activeFilterKey, () => {
-      setTimeout(() => {
+      clearTimeout(filterCheckTimer);
+      filterCheckTimer = setTimeout(() => {
+        if (!isContextLogVisible()) {
+          return;
+        }
+
         const lineDomList = Array.from(logViewRef.value?.$el.querySelectorAll('.line') || []);
         if (lineDomList.length && lineDomList.every((item: any) => item.style.display === 'none')) {
           isFilterEmpty.value = true;
@@ -164,6 +201,7 @@ export default defineComponent({
     };
 
     const handleAfterLeave = () => {
+      cleanupContextLogEffects();
       dataFilterRef.value?.reset();
       logResultRef.value?.reset();
       highlightList.value = [];
@@ -172,7 +210,7 @@ export default defineComponent({
         next: 0,
       };
       ignoreCase.value = false;
-      activeFilterKey.value = '';
+      activeFilterKey.value = [];
       showType.value = 'log';
       filterType.value = 'include';
       initLogValues();
@@ -191,8 +229,8 @@ export default defineComponent({
     };
 
     const handleKeyup = (event: any) => {
-      if (event.keyCode === 27) {
-        contextLog.value?.removeEventListener('scroll', handleScroll);
+      if (event.keyCode === 27 && isContextLogVisible()) {
+        cleanupContextLogEffects();
         handleAfterLeave();
       }
     };
@@ -253,13 +291,24 @@ export default defineComponent({
     };
 
     const requestContentLog = async (direction?: string) => {
+      if (!isContextLogVisible()) {
+        return;
+      }
+
+      const requestSeq = contextLogRequestSeq;
+      const paramsSnapshot = { ...localParams.value };
+      const dtEventTimeStamp = paramsSnapshot.dtEventTimeStamp ?? props.logParams?.dtEventTimeStamp;
+      if (!props.indexSetId || dtEventTimeStamp === undefined || dtEventTimeStamp === null || dtEventTimeStamp === 'None') {
+        return;
+      }
+
       const data: any = Object.assign(
         {
           size: 50,
           zero: zero.value,
-          dtEventTimeStamp: props.logParams.dtEventTimeStamp,
+          dtEventTimeStamp,
         },
-        localParams.value,
+        paramsSnapshot,
       );
       if (direction === 'down') {
         data.begin = nextBegin.value;
@@ -276,7 +325,14 @@ export default defineComponent({
             index_set_id: props.indexSetId,
           },
           data,
+        }, {
+          catchIsShowMessage: false,
+          requestId: contentLogRequestId,
         });
+
+        if (!isCurrentContextLogRequest(requestSeq)) {
+          return;
+        }
 
         const { list } = res.data;
         if (list?.length > 0) {
@@ -309,18 +365,26 @@ export default defineComponent({
           }
         }
       } catch (e) {
-        console.error(e);
-      } finally {
-        logLoading.value = false;
-        if (highlightList.value.length) {
-          setTimeout(() => {
-            dataFilterRef.value.getHighlightControl()?.initLightItemList(direction);
-          });
+        if (isCurrentContextLogRequest(requestSeq)) {
+          console.warn(e);
         }
-        if (zero.value) {
-          nextTick(() => {
-            initLogScrollPosition();
-          });
+      } finally {
+        if (isCurrentContextLogRequest(requestSeq)) {
+          logLoading.value = false;
+          if (highlightList.value.length) {
+            highlightTimer = setTimeout(() => {
+              if (isCurrentContextLogRequest(requestSeq)) {
+                dataFilterRef.value?.getHighlightControl()?.initLightItemList(direction);
+              }
+            });
+          }
+          if (zero.value) {
+            nextTick(() => {
+              if (isCurrentContextLogRequest(requestSeq)) {
+                initLogScrollPosition();
+              }
+            });
+          }
         }
       }
     };
@@ -352,8 +416,12 @@ export default defineComponent({
     };
 
     const initLogScrollPosition = () => {
+      if (!isContextLogVisible() || !contextLog.value) {
+        return;
+      }
+
       // 确定第0条的位置
-      firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+      firstLogEl = contextLog.value.querySelector('.log-init');
       // 没有数据
       if (!firstLogEl) return;
       contextLog.value.removeEventListener('scroll', handleScroll);
@@ -370,17 +438,25 @@ export default defineComponent({
       zero.value = false;
 
       // 避免重复请求
-      setTimeout(() => {
-        contextLog.value.addEventListener('scroll', handleScroll, {
-          passive: true,
-        });
+      clearTimeout(scrollBindTimer);
+      scrollBindTimer = setTimeout(() => {
+        if (isContextLogVisible() && contextLog.value) {
+          contextLog.value.addEventListener('scroll', handleScroll, {
+            passive: true,
+          });
+        }
       });
     };
 
-    const handleScroll = () => {
+    handleScroll = () => {
+      if (!isContextLogVisible()) {
+        return;
+      }
+
       clearTimeout(timer);
+      const requestSeq = contextLogRequestSeq;
       timer = setTimeout(() => {
-        if (logLoading.value) {
+        if (!isCurrentContextLogRequest(requestSeq) || logLoading.value || !contextLog.value) {
           return;
         }
 
@@ -389,6 +465,10 @@ export default defineComponent({
           // 滚动到顶部
           requestContentLog('top').then(() => {
             nextTick(() => {
+              if (!isCurrentContextLogRequest(requestSeq) || !contextLog.value) {
+                return;
+              }
+
               // 记录刷新前滚动位置
               const newScrollHeight = contextLog.value.scrollHeight;
               contextLog.value.scrollTo({
@@ -429,7 +509,7 @@ export default defineComponent({
       activeFilterKey.value = value;
       clearTimeout(throttleTimer);
       throttleTimer = setTimeout(() => {
-        if (!value) {
+        if (!value.length) {
           nextTick(() => {
             initLogScrollPosition();
           });
@@ -438,6 +518,8 @@ export default defineComponent({
     };
 
     const handleChooseRow = (data: Record<string, string>) => {
+      cleanupContextLogEffects();
+      contextLogRequestSeq += 1;
       initLogValues();
       deepClone(data);
       requestContentLog();
@@ -456,6 +538,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      cleanupContextLogEffects();
       document.removeEventListener('keyup', handleKeyup);
     });
 

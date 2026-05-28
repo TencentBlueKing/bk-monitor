@@ -240,7 +240,9 @@ class ListDbStatisticsResource(PageListResource):
                 continue
             metric_list.add(metric)
 
-        q: QueryConfigBuilder = DbQuery.get_q(table_id).filter(DbQuery.build_filter_params(filter_params))
+        q: QueryConfigBuilder = DbQuery.get_q(bk_biz_id, app_name, table_id).filter(
+            DbQuery.build_filter_params(filter_params)
+        )
         qs: UnifyQuerySet = (
             DbQuery.get_qs(bk_biz_id, validated_data["start_time"], validated_data["end_time"])
             .limit(self._get_limit())

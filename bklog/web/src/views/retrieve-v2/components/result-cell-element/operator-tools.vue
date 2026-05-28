@@ -118,6 +118,19 @@
         <img :src="aiImageUrl" />
       </span>
     </template>
+    <template v-if="showTraceInput">
+      <span
+        class="handle-card"
+      >
+        <span
+          class="icon bklog-icon bklog-tracing"
+          v-bk-tooltips="{ allowHtml: false, content: $t('关联Trace检索') }"
+          @click.stop="handleCheckClick('trace_id', true)"
+          @mouseup.stop
+        >
+        </span>
+      </span>
+    </template>
   </div>
 </template>
 
@@ -206,10 +219,82 @@
       isShowSourceField() {
         return this.operatorConfig?.isShowSourceField;
       },
+      showTraceInput() {
+        return this.$store.state.indexSetFieldConfig?.apm_relation?.is_active ?? false;
+      }
     },
     methods: {
+      normalizeTraceSearchText(value) {
+        return String(value).replace(/<[^>]*>/g, '');
+      },
+      getTraceIdFromText(value) {
+        const text = this.normalizeTraceSearchText(value);
+        const traceIdPattern = /\btrace_?id\b\s*[=:]\s*([a-f0-9]{32})(?![a-z0-9])/i;
+        const traceIdMatch = text.match(traceIdPattern);
+        if (traceIdMatch) {
+          return traceIdMatch[1];
+        }
+
+        const strictTraceIdPattern = /(^|[^a-z0-9])([a-f0-9]{32})(?![a-z0-9])/i;
+        const strictTraceIdMatch = text.match(strictTraceIdPattern);
+        return strictTraceIdMatch?.[2] ?? null;
+      },
+      getTraceIdFromRowData() {
+        const traceId = this.rowData.trace_id ?? this.rowData.traceid;
+        if (traceId) {
+          const matchedTraceId = this.getTraceIdFromText(traceId);
+          if (matchedTraceId) {
+            return matchedTraceId;
+          }
+        }
+
+        const rowValues = Object.values(this.rowData);
+        for (const value of rowValues) {
+          if (typeof value !== 'string') {
+            continue;
+          }
+
+          const traceIdFromText = this.getTraceIdFromText(value);
+          if (traceIdFromText) {
+            return traceIdFromText;
+          }
+        }
+
+        for (const value of rowValues) {
+          if (!value || typeof value !== 'object') {
+            continue;
+          }
+
+          const traceIdFromText = this.getTraceIdFromText(JSON.stringify(value));
+          if (traceIdFromText) {
+            return traceIdFromText;
+          }
+        }
+
+        return null;
+      },
       handleCheckClick(clickType, isActive = false, event) {
         if (!isActive) return;
+
+        if (clickType === 'trace_id') {
+          const apmRelation = this.$store.state.indexSetFieldConfig?.apm_relation;
+          const traceId = this.getTraceIdFromRowData();
+          if (apmRelation?.is_active && traceId) {
+            const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
+            const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+            if (path) {
+              const url = `${window.MONITOR_URL ?? ''}${path}`;
+              window.open(url, '_blank');
+            }
+          } else {
+            this.$bkMessage({
+              theme: 'warning',
+              message: this.$t('当前选中日志暂无trace字段，请检查日志内容'),
+            });
+          }
+
+          return;
+        }
         return this.handleClick(clickType, event);
       },
     },

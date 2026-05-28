@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, nextTick } from 'vue';
+import { debounce } from 'lodash-es';
+import { defineComponent, ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
 import { formatDate } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
@@ -73,6 +74,11 @@ export default defineComponent({
     const explorerList = ref<any[]>([]); // 文件列表
     const historyStack = ref<any[]>([]); // 预览地址历史
     const emptyType = ref('empty'); // 空状态类型
+    const filterInputValue = ref(''); // 文件过滤输入值
+    const filterKeyword = ref(''); // 节流后的文件过滤关键字
+    const selectedFilePathSet = ref(new Set<string>()); // 跨过滤条件保留的已选文件路径
+    let isSyncingTableSelection = false;
+    let isSwitchingFilterData = false;
 
     const previewTableRef = ref<any>(null);
 
@@ -92,6 +98,66 @@ export default defineComponent({
       return [timeValue.value[0], timeValue.value[1]];
     });
 
+    const updateFilterKeyword = debounce((val: string) => {
+      isSwitchingFilterData = true;
+      filterKeyword.value = String(val ?? '').trim().toLowerCase();
+    }, 200);
+
+    const handleFilterChange = (val: string) => {
+      filterInputValue.value = val;
+      updateFilterKeyword(val);
+    };
+
+    const filteredExplorerList = computed(() => {
+      const keyword = filterKeyword.value;
+      if (!keyword) {
+        return explorerList.value;
+      }
+
+      return explorerList.value.filter((item: any) => {
+        const fileName = String(item?.path ?? '').toLowerCase();
+        const modifiedTime = String(item?.mtime ?? '').toLowerCase();
+        return fileName.includes(keyword) || modifiedTime.includes(keyword);
+      });
+    });
+
+    const getFilePath = (row: any) => String(row?.path ?? '');
+
+    const isSelectableFile = (row: any) => row?.size !== '0';
+
+    const emitSelectedFiles = () => {
+      emit('update:downloadFiles', Array.from(selectedFilePathSet.value));
+    };
+
+    const setSelectedFilePaths = (paths: string[]) => {
+      selectedFilePathSet.value = new Set(paths.filter(Boolean));
+    };
+
+    const waitTableSelectionStable = async () => {
+      await nextTick();
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      await nextTick();
+    };
+
+    const syncTableSelection = async () => {
+      await nextTick();
+      if (!previewTableRef.value) {
+        isSwitchingFilterData = false;
+        return;
+      }
+
+      isSyncingTableSelection = true;
+      previewTableRef.value?.clearSelection?.();
+      for (const item of filteredExplorerList.value) {
+        if (isSelectableFile(item) && selectedFilePathSet.value.has(getFilePath(item))) {
+          previewTableRef.value?.toggleRowSelection(item, true);
+        }
+      }
+      await waitTableSelectionStable();
+      isSyncingTableSelection = false;
+      isSwitchingFilterData = false;
+    };
+
     // 监听IP列表变化
     watch(
       () => props.ipList,
@@ -100,6 +166,8 @@ export default defineComponent({
         if (val.length) {
           previewIp.value.push(getIpListID(val[0]));
         }
+        setSelectedFilePaths([]);
+        emitSelectedFiles();
         explorerList.value.splice(0); // 选择服务器后清空表格
         historyStack.value.splice(0); // 选择服务器后清空历史堆栈
       },
@@ -112,7 +180,8 @@ export default defineComponent({
         exploreList: explorerList.value.splice(0),
         fileOrPath: path,
       };
-      emit('update:downloadFiles', []);
+      setSelectedFilePaths([]);
+      emitSelectedFiles();
       if (path === '../' && historyStack.value.length) {
         // 返回上一级
         const cache = historyStack.value.pop();
@@ -217,16 +286,8 @@ export default defineComponent({
         .then(res => {
           historyStack.value = [];
           explorerList.value = res.data;
-          nextTick(() => {
-            for (const newPath of downloadFiles) {
-              for (const item of explorerList.value) {
-                if (item.path === newPath) {
-                  previewTableRef.value?.toggleRowSelection(item, true);
-                  break;
-                }
-              }
-            }
-          });
+          setSelectedFilePaths(downloadFiles);
+          syncTableSelection();
         })
         .catch(e => {
           console.warn(e);
@@ -271,13 +332,50 @@ export default defineComponent({
 
     // 处理选择变化
     const handleSelect = (selection: any[]) => {
-      emit(
-        'update:downloadFiles',
-        selection.map(item => item.path),
+      if (isSyncingTableSelection || isSwitchingFilterData) {
+        return;
+      }
+
+      const nextSelectedPathSet = new Set(selectedFilePathSet.value);
+      const visibleSelectablePathSet = new Set(
+        filteredExplorerList.value
+          .filter(item => isSelectableFile(item))
+          .map(item => getFilePath(item)),
       );
+
+      for (const path of visibleSelectablePathSet) {
+        nextSelectedPathSet.delete(path);
+      }
+
+      for (const item of selection) {
+        const path = getFilePath(item);
+        if (path) {
+          nextSelectedPathSet.add(path);
+        }
+      }
+
+      selectedFilePathSet.value = nextSelectedPathSet;
+      emitSelectedFiles();
     };
 
+    watch(
+      () => props.downloadFiles,
+      val => {
+        setSelectedFilePaths((val as string[]) || []);
+        syncTableSelection();
+      },
+      { immediate: true },
+    );
+
+    watch(filteredExplorerList, () => {
+      syncTableSelection();
+    });
+
     // 暴露方法
+    onBeforeUnmount(() => {
+      updateFilterKeyword.cancel();
+    });
+
     expose({ getExplorerList, handleClone, getFindIpList, timeRange, timeStringValue, isSearchChild });
 
     // 主渲染函数
@@ -340,7 +438,17 @@ export default defineComponent({
         </div>
 
         {/* 表格标题 */}
-        <span class='table-head-text'>{t('从下载目标中选择预览目标')}</span>
+        <div class='preview-table-head'>
+          <span class='table-head-text'>{t('从下载目标中选择预览目标')}</span>
+          <bk-input
+            class='preview-file-filter-input'
+            clearable
+            placeholder={t('搜索文件名/最后修改时间')}
+            right-icon='bk-icon icon-search'
+            value={filterInputValue.value}
+            on-input={handleFilterChange}
+          />
+        </div>
 
         {/* 文件列表表格 */}
         <div
@@ -366,13 +474,15 @@ export default defineComponent({
                 </div>
               ),
             }}
-            data={explorerList.value}
+            data={filteredExplorerList.value}
+            reserve-selection
+            row-key='path'
             on-selection-change={handleSelect}
           >
             {/* 选择列 */}
             <bk-table-column
               width={60}
-              selectable={(row: any) => row.size !== '0'}
+              selectable={(row: any) => isSelectableFile(row)}
               type='selection'
             />
 

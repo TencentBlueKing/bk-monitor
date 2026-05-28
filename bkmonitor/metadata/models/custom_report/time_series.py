@@ -20,6 +20,7 @@ from typing import Any
 from django.conf import settings
 from django.db import models
 from django.db import utils as django_db_utils
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -529,6 +530,8 @@ class TimeSeriesGroup(CustomGroupBase):
         返回一个结果表的数据源
         :return: DataSource object
         """
+        if self.bk_data_id == 0:
+            return None
         return DataSource.objects.get(bk_data_id=self.bk_data_id)
 
     @property
@@ -621,7 +624,12 @@ class TimeSeriesGroup(CustomGroupBase):
         # 从 bkdata 获取指标数据
         data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
         # 默认开启单指标单表后，需要根据数据源的来源决定从哪里获取指标数据（redis/bkdata）
-        if self.table_id in data or self.data_source.created_from == DataIdCreatedFromSystem.BKDATA.value:
+        data_source = self.data_source
+        if (
+            self.table_id in data
+            or data_source is None
+            or data_source.created_from == DataIdCreatedFromSystem.BKDATA.value
+        ):
             return self.get_metric_from_bkdata()
 
         # 获取redis中数据
@@ -687,12 +695,15 @@ class TimeSeriesGroup(CustomGroupBase):
                 )
         return metrics_info
 
-    def update_time_series_metrics(self) -> bool:
+    def update_time_series_metrics(self, expired_time: int | None = None) -> bool:
         """从远端存储中同步TS的指标和维度对应关系
 
+        :param expired_time: 从 redis 拉取指标的有效窗口，单位秒
         :return: 返回是否有更新指标
         """
-        metrics_info = self.get_metrics_from_redis(expired_time=settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS)
+        metrics_info = self.get_metrics_from_redis(
+            expired_time=expired_time or settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS
+        )
         # 如果为空，直接返回
         if not metrics_info:
             return False
@@ -729,6 +740,7 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
+        metric_group_dimensions: list[dict] | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -745,8 +757,14 @@ class TimeSeriesGroup(CustomGroupBase):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
+        :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :return: group object
         """
+        # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
+        if metric_group_dimensions is not None:
+            if additional_options is None:
+                additional_options = {}
+            additional_options["metric_group_dimensions"] = metric_group_dimensions
 
         custom_group = super().create_custom_group(
             bk_data_id=bk_data_id,
@@ -763,6 +781,11 @@ class TimeSeriesGroup(CustomGroupBase):
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
         )
+
+        # 写入 metric_group_dimensions 模型字段
+        if metric_group_dimensions is not None:
+            custom_group.metric_group_dimensions = metric_group_dimensions
+            custom_group.save(update_fields=["metric_group_dimensions"])
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
@@ -795,6 +818,7 @@ class TimeSeriesGroup(CustomGroupBase):
         metric_info_list=None,
         data_label: str | None = None,
         options: dict[str, Any] | None = None,
+        metric_group_dimensions: list[dict] | None = None,
     ):
         """
         修改一个自定义时序组
@@ -807,9 +831,16 @@ class TimeSeriesGroup(CustomGroupBase):
         :param metric_info_list: metric信息
         :param data_label: 数据标签
         :param options: 结果表选项内容
+        :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :return: True or raise
         """
-        return self.modify_custom_group(
+        # 将 metric_group_dimensions 合并到 options，流向 ResultTableOption
+        if metric_group_dimensions is not None:
+            if options is None:
+                options = {}
+            options["metric_group_dimensions"] = metric_group_dimensions
+
+        result = self.modify_custom_group(
             operator=operator,
             custom_group_name=time_series_group_name,
             label=label,
@@ -820,6 +851,13 @@ class TimeSeriesGroup(CustomGroupBase):
             data_label=data_label,
             options=options,
         )
+
+        # 写入 metric_group_dimensions 模型字段
+        if metric_group_dimensions is not None and self.metric_group_dimensions != metric_group_dimensions:
+            self.metric_group_dimensions = metric_group_dimensions
+            self.save(update_fields=["metric_group_dimensions", "last_modify_user"])
+
+        return result
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def delete_time_series_group(self, operator):
@@ -839,6 +877,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "bk_biz_id": self.bk_biz_id,
             "table_id": self.table_id,
             "label": self.label,
+            "token": self.token,
             "is_enable": self.is_enable,
             "creator": self.creator,
             "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -846,6 +885,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
             "metric_info_list": self.get_metric_info_list(),
             "data_label": self.data_label,
+            "metric_group_dimensions": self.metric_group_dimensions,
         }
 
     def to_json_v2(self):
@@ -877,6 +917,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     "bk_biz_id": self.bk_biz_id,
                     "table_id": metric["table_id"],
                     "label": self.label,
+                    "token": self.token,
                     "is_enable": self.is_enable,
                     "creator": self.creator,
                     "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1042,7 +1083,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
-            time_series_metric_query = time_series_metric_query.filter(last_modify_time__gt=last)
+            time_series_metric_query = time_series_metric_query.filter(Q(last_modify_time__gt=last) | Q(is_active=True))
         # 查找过期时间以前的数据
         for metric in time_series_metric_query.iterator():
             metric_info = metric.to_metric_info(field_map=orm_field_map, group=self, scope_map=scope_map)

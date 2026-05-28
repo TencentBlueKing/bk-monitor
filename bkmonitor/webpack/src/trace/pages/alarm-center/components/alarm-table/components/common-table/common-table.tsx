@@ -25,7 +25,13 @@
  */
 import { type PropType, computed, defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { type BkUiSettings, type FilterValue, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
+import {
+  type BkUiSettings,
+  type FilterValue,
+  type TableSort,
+  type TdBaseTableProps,
+  PrimaryTable,
+} from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
 
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
@@ -130,6 +136,29 @@ export default defineComponent({
     filterValue: {
       type: Object as PropType<FilterValue>,
     },
+    /** 行类名，参数为 { row, rowIndex, type } */
+    rowClassName: {
+      type: [String, Function] as PropType<TdBaseTableProps['rowClassName']>,
+    },
+    /** 表格滚动配置，可用于开启虚拟滚动 */
+    scroll: {
+      type: Object as PropType<{
+        bufferSize?: number;
+        isFixedRowHeight?: boolean;
+        rowHeight?: number;
+        threshold?: number;
+        type: 'lazy' | 'virtual';
+      }>,
+    },
+    /** 表格最大高度，超出后出现滚动条 */
+    maxHeight: {
+      type: [String, Number] as PropType<number | string>,
+    },
+    /** 刷新 key，值变化时强制重新渲染 PrimaryTable */
+    refreshKey: {
+      type: [Number, String] as PropType<number | string>,
+      default: '',
+    },
   },
   emits: {
     /** 当前页变化回调 */
@@ -165,16 +194,16 @@ export default defineComponent({
     /** 处理后的表格列配置 */
     const tableColumns = computed(() =>
       props.columns.map(column => ({
-        // @ts-expect-error
+        // @ts-expect-error cellEllipsis 不在 BaseTableColumn 类型中，但 TDesign 运行时支持
         cellEllipsis: column?.ellipsis != null ? column?.ellipsis : true,
         ellipsis: false,
-        // @ts-expect-error
+        // @ts-expect-error ellipsisTitle 不在 BaseTableColumn 类型中，但 TDesign 运行时支持
         ellipsisTitle: column?.ellipsisTitle != null ? column?.ellipsisTitle : true,
         ...column,
-        cell: (_, { row }) =>
+        cell: (_, cellParams) =>
           column?.cellRenderer
-            ? column?.cellRenderer(row, column, renderContext)
-            : tableCellRender(row, column, renderContext),
+            ? column?.cellRenderer(cellParams.row, column, { ...renderContext, runtime: cellParams })
+            : tableCellRender(cellParams.row, column, { ...renderContext, runtime: cellParams }),
       }))
     );
     /** 表格骨架屏展示相关配置 */
@@ -281,6 +310,13 @@ export default defineComponent({
       emit('filterChange', value);
     };
     /**
+     * @description 表格高亮行发生变化时的回调
+     * @param {Array<string | number>} activeRowKeys 高亮行
+     */
+    const handleActiveChange = (rowKeys: Array<number | string>) => {
+      activeRowKeys.value = rowKeys;
+    };
+    /**
      * @description 表格列宽拖拽变化时的回调
      * @param {ColumnResizeContext} context 包含列宽映射的上下文对象
      * @returns {void}
@@ -347,18 +383,20 @@ export default defineComponent({
       tableLastFullRowRender,
       tableEmptyRender,
       handleFilterChange,
+      handleActiveChange,
     };
   },
   render() {
     return (
       <div class={`common-table-wrapper ${this.autoFillSpace ? 'fill-remaining-space' : ''}`}>
         <PrimaryTable
+          key={this.refreshKey}
           ref='tableRef'
           class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
-          v-model:activeRowKeys={this.activeRowKeys}
           v-slots={{
             empty: this.tableEmptyRender,
           }}
+          activeRowKeys={this.activeRowKeys}
           activeRowType='single'
           bkUiSettings={this.tableSettings}
           columns={this.tableColumns}
@@ -370,15 +408,19 @@ export default defineComponent({
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           hover={true}
           lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
+          maxHeight={this.maxHeight}
           needCustomScroll={false}
           reserveSelectedRowOnPaginate={false}
           resizable={true}
+          rowClassName={this.rowClassName}
           rowKey={this.rowKey}
+          scroll={this.scroll}
           selectedRowKeys={this.selectedRowKeys}
           showSortColumnBgColor={true}
           size={this.tableSize}
           sort={this.tableSort}
           tableLayout='fixed'
+          onActiveChange={this.handleActiveChange}
           onColumnResizeChange={this.handleColumnResizeChange}
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
           onFilterChange={this.handleFilterChange}

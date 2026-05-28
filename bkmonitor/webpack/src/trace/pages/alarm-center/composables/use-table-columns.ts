@@ -26,15 +26,19 @@
 
 import { computed, shallowRef, watch } from 'vue';
 
-import { useStorage } from '@vueuse/core';
-
 import { type TableColumnItem, AlarmType, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings';
+import { useReactiveStorage } from '@/hooks/use-reactive-storage';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 
 /** 业务名称/空间名称 字段 */
 const BK_BIZ_NAME_FIELD = 'bk_biz_name';
+
+/** 与表格渲染一致：单空间（非「与我相关」聚合）不展示空间名列，默认勾选也不应包含 */
+function shouldOmitBkBizNameColumn(bizIds: number[]) {
+  return bizIds.length < 2 && ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(bizIds[0]);
+}
 
 /** 表格列配置存储版本号 */
 const TABLE_STORAGE_VERSION = '1.0.0';
@@ -51,7 +55,10 @@ export interface AlarmTableStorageConfig {
 
 export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
+  /** 存储键（响应式），随 alarmService 切换动态更新 */
   const storageKey = shallowRef<string>('');
+  /** 当前有效的列 colKey 集合，随 alarmService 变化更新 */
+  let validColumnKeys = new Set<string>();
 
   /** 默认列配置（响应式），随 alarmService 变化动态更新 */
   const defaultTableStorageConfig = shallowRef<AlarmTableStorageConfig>({
@@ -60,25 +67,26 @@ export function useAlarmTableColumns() {
     version: TABLE_STORAGE_VERSION,
   });
 
-  /** 当前有效的列 colKey 集合，随 alarmService 变化更新 */
-  let validColumnKeys = new Set<string>();
-
   watch(
     () => alarmStore.alarmService.storageKey,
-    val => {
-      storageKey.value = val;
+    () => {
       validColumnKeys = new Set(alarmStore.alarmService.allTableColumns.map(col => col.colKey));
+      const displayFields = alarmStore.alarmService.allTableColumns
+        .filter(item => item.is_default)
+        .map(item => item.colKey);
       defaultTableStorageConfig.value = {
-        displayFields: alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey),
+        displayFields,
         fieldsWidth: {},
         version: TABLE_STORAGE_VERSION,
       };
+      const key = alarmStore.alarmService.storageKey;
+      storageKey.value = key;
     },
     { immediate: true }
   );
 
   /** 缓存配置对象（原始值，可能为旧版 string[] 或新版 AlarmTableStorageConfig） */
-  const rawStorageConfig = useStorage<Partial<AlarmTableStorageConfig>>(storageKey, defaultTableStorageConfig);
+  const rawStorageConfig = useReactiveStorage<Partial<AlarmTableStorageConfig>>(storageKey, defaultTableStorageConfig);
 
   /** 规范化后的缓存配置（始终为 AlarmTableStorageConfig，兼容旧版 string[] 格式） */
   const tableStorageConfig = computed<AlarmTableStorageConfig>({
@@ -107,12 +115,16 @@ export function useAlarmTableColumns() {
     get: () => {
       const stored = tableStorageConfig.value?.displayFields;
       const defaults = defaultTableStorageConfig.value.displayFields;
-      return stored?.length ? stored : defaults;
+      const result = stored?.length ? stored : defaults;
+      if (shouldOmitBkBizNameColumn(alarmStore.bizIds)) {
+        return result.filter(f => f !== BK_BIZ_NAME_FIELD);
+      }
+      return result;
     },
     set: (val: string[]) => {
       tableStorageConfig.value = {
         ...tableStorageConfig.value,
-        displayFields: val,
+        displayFields: shouldOmitBkBizNameColumn(alarmStore.bizIds) ? val.filter(f => f !== BK_BIZ_NAME_FIELD) : val,
       };
     },
   });
@@ -143,11 +155,10 @@ export function useAlarmTableColumns() {
     const widths = fieldsWidthConfig.value;
     return allTableFields.value
       .map(({ field }) => {
-        if (
-          field === BK_BIZ_NAME_FIELD &&
-          alarmStore.bizIds.length < 2 &&
-          ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(alarmStore.bizIds[0])
-        ) {
+        if (field === 'row-select') {
+          return { colKey: 'row-select', type: 'multiple' as const, width: 50, minWidth: 50, fixed: 'left' as const };
+        }
+        if (field === BK_BIZ_NAME_FIELD && shouldOmitBkBizNameColumn(alarmStore.bizIds)) {
           return undefined;
         }
         const column = alarmStore.alarmService.allTableColumns.find(col => col.colKey === field);
@@ -161,13 +172,16 @@ export function useAlarmTableColumns() {
       .filter(Boolean);
   });
   const allTableFields = computed<BkUiSettings['fields']>(() => {
-    if (alarmStore.alarmType === AlarmType.ALERT) {
-      return [{ title: '', colKey: 'row-select' }, ...alarmStore.alarmService.allTableColumns].map(item => ({
+    const columns = shouldOmitBkBizNameColumn(alarmStore.bizIds)
+      ? alarmStore.alarmService.allTableColumns.filter(c => c.colKey !== BK_BIZ_NAME_FIELD)
+      : alarmStore.alarmService.allTableColumns;
+    if ([AlarmType.ALERT, AlarmType.ISSUES].includes(alarmStore.alarmType)) {
+      return [{ title: '', colKey: 'row-select' }, ...columns].map(item => ({
         label: item.title.toString(),
         field: item.colKey,
       }));
     }
-    return alarmStore.alarmService.allTableColumns.map(item => ({
+    return columns.map(item => ({
       label: item.title.toString(),
       field: item.colKey,
     }));

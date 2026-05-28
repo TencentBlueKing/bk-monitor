@@ -27,11 +27,11 @@ import Vue from 'vue';
 
 import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import {
   i18n,
   initGlobalComponents,
   initMonitorState,
+  initWindowState,
   MonitorApmLog as Log,
   logStore,
 } from '@blueking/monitor-apm-log/main';
@@ -61,6 +61,7 @@ export default class MonitorRetrieve extends tsc<void> {
   empty = true;
   loading = true;
   async created() {
+    initWindowState();
     this.init();
   }
   beforeDestroy() {

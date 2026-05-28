@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 
 import pytest
@@ -190,6 +190,84 @@ class TestAlgorithm:
         assert obj.unit_prefix == "%"
         assert obj.level == 3
 
+    def test_save_merge_args_with_db_config(self, clean_model):
+        algorithm_model = AlgorithmModel.objects.create(
+            strategy_id=1,
+            item_id=1,
+            level=2,
+            type="IntelligentDetect",
+            unit_prefix="",
+            config={
+                "args": {"sensitivity": 5, "hidden_arg": "backend"},
+                "plan_id": 100,
+                "visual_type": "score",
+                "service_name": "bkfara",
+                "grey_to_bkfara": True,
+                "enable_week_compare": True,
+            },
+        )
+        algorithm = Algorithm(
+            id=algorithm_model.id,
+            strategy_id=1,
+            item_id=1,
+            level=2,
+            type="IntelligentDetect",
+            config={
+                "args": {"sensitivity": 3, "request_arg": "frontend"},
+                "plan_id": 101,
+                "visual_type": "none",
+                "service_name": "default",
+                "grey_to_bkfara": False,
+                "enable_week_compare": False,
+            },
+        )
+
+        algorithm.save()
+
+        algorithm_model.refresh_from_db()
+        assert algorithm_model.config == {
+            "args": {"sensitivity": 3, "hidden_arg": "backend", "request_arg": "frontend"},
+            "plan_id": 101,
+            "visual_type": "score",
+            "service_name": "bkfara",
+            "grey_to_bkfara": True,
+            "enable_week_compare": True,
+        }
+
+    def test_save_replace_config_when_algorithm_type_changed(self, clean_model):
+        algorithm_model = AlgorithmModel.objects.create(
+            strategy_id=1,
+            item_id=1,
+            level=2,
+            type="IntelligentDetect",
+            unit_prefix="",
+            config={"args": {"hidden_arg": "backend"}, "plan_id": 100},
+        )
+        algorithm = Algorithm(
+            id=algorithm_model.id,
+            strategy_id=1,
+            item_id=1,
+            level=2,
+            type="TimeSeriesForecasting",
+            config={
+                "args": {"predict": 1},
+                "plan_id": 101,
+                "thresholds": [[{"method": "gt", "threshold": 1}]],
+                "duration": 60,
+            },
+        )
+
+        algorithm.save()
+
+        algorithm_model.refresh_from_db()
+        assert algorithm_model.type == "TimeSeriesForecasting"
+        assert algorithm_model.config == {
+            "args": {"predict": 1},
+            "plan_id": 101,
+            "thresholds": [[{"method": "gt", "threshold": 1}]],
+            "duration": 60,
+        }
+
 
 class TestDetect:
     def test_to_dict(self):
@@ -331,7 +409,7 @@ class TestItem:
                     "agg_condition": [],
                     "agg_dimension": [],
                     "agg_interval": 60,
-                }
+                },
             )
         ]
         item.algorithms[0].level = 2
@@ -359,7 +437,6 @@ class TestStrategy:
         "type": "monitor",
         "source": "bk_monitor",
         "scenario": "os",
-        "type": "monitor",
         "is_enabled": True,
         "create_time": "2021-05-07T09:22:27.113718+00:00",
         "create_user": "system",

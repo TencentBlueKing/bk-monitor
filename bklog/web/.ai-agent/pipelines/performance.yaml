@@ -1,0 +1,10 @@
+pipeline:
+  - skill: memory-recaller
+  - skill: architect
+  - skill: pattern-selector
+  - skill: evolution-predictor
+  - gate: architecture_gate
+  - skill: refactor-critic
+  - skill: experience-recorder
+  - skill: memory-writer
+  - gate: merge_gate

@@ -58,6 +58,7 @@ export interface IAppInfo {
   application_db_system: string[];
   application_id: number;
   application_instance_name_config: IApplicationInstanceNameConfig;
+  application_log_relation_configs: IApplicationLogRelationConfig[];
   application_sampler_config: IApplicationSamplerConfig;
   create_time: string;
   create_user: string;
@@ -70,9 +71,9 @@ export interface IAppInfo {
   is_enabled_log: boolean;
   is_enabled_metric: boolean;
   is_enabled_profiling: boolean;
+  is_enabled_tail_sampling: boolean;
   is_enabled_trace: boolean;
   log_data_status: TDataStatus;
-  is_enabled_tail_sampling: boolean;
   // 类型状态
   metric_data_status: TDataStatus;
   no_data_period: number;
@@ -103,6 +104,24 @@ export interface IAppInfo {
 
 export interface IApplicationInstanceNameConfig {
   instance_name_composition: IInstanceOption[];
+}
+
+export interface IApplicationLogRelationConfig {
+  is_global: boolean;
+  log_type: string;
+  log_type_alias: string;
+  related_bk_biz_id: number;
+  related_bk_biz_name: string;
+  updated_at: string;
+  updated_by: string;
+  value: string;
+  value_alias: null | string;
+  value_list: [
+    {
+      value: number;
+      value_alias: string;
+    }
+  ],
 }
 
 export interface IApplicationSamplerConfig {

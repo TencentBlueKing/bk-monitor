@@ -1,0 +1,143 @@
+paths:
+  /mcp/get_dashboard_tree_list/:
+    get:
+      operationId: get_dashboard_tree_list
+      description: Get dashboard directory tree in a business. Returns hierarchical view with folders and dashboards including UID, name, tags. Use as entry point to discover dashboards before get_dashboard_detail. Similar to Grafana's folder/dashboard listing. 获取业务下仪表盘目录树。返回包含文件夹和仪表盘的层级视图，包括UID、名称、标签。作为入口工具在get_dashboard_detail前发现仪表盘。类似Grafana的目录列表。
+      tags:
+      - dashboard_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: number
+        required: true
+        description: Business ID 业务ID
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/grafana/get_directory_tree/
+          matchSubpath: false
+          timeout: 63
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_dashboard_detail_by_uid/:
+    get:
+      operationId: get_dashboard_detail_by_uid
+      description: Get dashboard detail by UID. Returns complete Grafana 10 JSON config including panels, queries, variables, layout. dashboard_uid can be from get_dashboard_tree_list or dashboard URL. Use to export config for backup, analysis, or as template for create/update. 根据UID获取仪表盘详情。返回完整Grafana 10 JSON配置，包括面板、查询、变量、布局。dashboard_uid可从get_dashboard_tree_list或仪表盘URL获取。用于导出配置进行备份、分析或作为创建/更新模板。
+      tags:
+      - dashboard_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: number
+        required: true
+        description: Business ID 业务ID
+      - in: query
+        name: dashboard_uid
+        schema:
+          type: string
+        required: true
+        description: Unique identifier of the dashboard 仪表盘的唯一标识符
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/grafana/get_dashboard_detail/
+          matchSubpath: false
+          timeout: 63
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/create_dashboard/:
+    post:
+      operationId: create_dashboard
+      description: Create new dashboard using Dashboard as Code approach. configs is a dict where key is path like "grafana/folder/name.json" and value is JSON string of Grafana 10 dashboard config (use json.dumps). Config should include __inputs, __requires, panels, title, uid. Get valid config structure from get_dashboard_detail. 使用Dashboard as Code方式创建新仪表盘。configs是字典，key为路径如"grafana/目录/名称.json"，value为Grafana 10仪表盘配置的JSON字符串(用json.dumps转换)。配置需包含__inputs、__requires、panels、title、uid。可从get_dashboard_detail获取有效配置结构。
+      tags:
+      - dashboard_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - configs
+              properties:
+                configs:
+                  type: string
+                  description: 'Dashboard config dict. Key: path like "grafana/folder/dashboard.json" (folder is optional). Value: JSON string of Grafana 10 dashboard config (converted via json.dumps()). Must include __inputs, __requires, panels, title. Get template from get_dashboard_detail. 仪表盘配置字典。Key: 路径如 "grafana/目录/仪表盘.json"（目录可选）。Value: Grafana 10 仪表盘配置的 JSON 字符串（通过 json.dumps() 转换）。必须包含 __inputs、__requires、panels、title。可从 get_dashboard_detail 获取模板。'
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/grafana/create_dashboard/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/update_dashboard/:
+    post:
+      operationId: update_dashboard
+      description: 'Update existing dashboard. First get current config via get_dashboard_detail, modify it, then submit. configs format same as create_dashboard: key is path, value is JSON string. If uid or title matches existing dashboard, it will be overwritten. 更新现有仪表盘。先通过get_dashboard_detail获取当前配置，修改后提交。configs格式与create_dashboard相同：key为路径，value为JSON字符串。如果uid或title与现有仪表盘匹配，将被覆盖。'
+      tags:
+      - dashboard_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - configs
+              properties:
+                configs:
+                  type: string
+                  description: 'Dashboard config dict. Same format as create_dashboard. Key: path like "grafana/folder/dashboard.json". Value: JSON string of complete Grafana 10 config. Dashboard with matching uid or title will be overwritten. 仪表盘配置字典。格式与create_dashboard相同。Key: 路径。Value: 完整Grafana 10配置的JSON字符串。匹配uid或title的仪表盘将被覆盖。'
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/grafana/update_dashboard/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true

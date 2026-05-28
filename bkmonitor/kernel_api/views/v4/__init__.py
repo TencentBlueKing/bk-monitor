@@ -15,6 +15,7 @@ from .apm import *  # noqa
 from .ascode import *  # noqa
 from .assign import *  # noqa
 from .bcs import *  # noqa
+from .bkm_cli import *  # noqa
 from .calendars import *  # noqa
 from .collect import *  # noqa
 from .custom_report import *  # noqa
@@ -42,3 +43,4 @@ from .subscribe import *  # noqa
 from .utils import *  # noqa
 from .ai_repo import *  # noqa
 from .alert_v2 import *  # noqa
+from .issue import *  # noqa

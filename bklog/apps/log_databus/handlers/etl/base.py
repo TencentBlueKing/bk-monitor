@@ -35,6 +35,7 @@ from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import (
     ETL_PARAMS,
     REGISTERED_SYSTEM_DEFAULT,
+    STORAGE_CLUSTER_TYPE,
     EtlConfig,
     ETLProcessorChoices,
 )
@@ -75,9 +76,11 @@ class EtlHandler:
         self.collector_config_id = collector_config_id
         self.data = None
         self.etl_processor = etl_processor
+        self.storage_cluster_type = STORAGE_CLUSTER_TYPE
         if collector_config_id:
             self.data = self._get_collect_config(collector_config_id)
             self.etl_processor = self.data.etl_processor
+            self.storage_cluster_type = self.data.storage_cluster_type
 
     @staticmethod
     def _get_collect_config(collector_config_id):
@@ -159,6 +162,9 @@ class EtlHandler:
         etl_params=None,
         fields=None,
         username="",
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
@@ -222,7 +228,15 @@ class EtlHandler:
             view_roles = []
 
         # 2. 创建索引集
-        index_set = self._update_or_create_index_set(etl_config, storage_cluster_id, view_roles, username=username)
+        index_set = self._update_or_create_index_set(
+            etl_config,
+            storage_cluster_id,
+            view_roles,
+            username=username,
+            is_platform_index=is_platform_index,
+            platform_index_visibility=platform_index_visibility,
+            platform_index_filter=platform_index_filter,
+        )
 
         # add user_operation_record
         operation_record = {
@@ -261,6 +275,7 @@ class EtlHandler:
     @staticmethod
     def etl_preview(etl_config, etl_params, data, bk_biz_id=None):
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
+        etl_params["bk_biz_id"] = bk_biz_id
         if FeatureToggleObject.switch("log_v4_data_link", bk_biz_id):
             fields = etl_storage.etl_preview_v4(data, etl_params)
         else:
@@ -311,6 +326,9 @@ class EtlHandler:
         username="",
         sort_fields=None,
         target_fields=None,
+        is_platform_index=None,
+        platform_index_visibility=None,
+        platform_index_filter=None,
     ):
         """
         创建索引集
@@ -341,6 +359,9 @@ class EtlHandler:
                 sort_fields=sort_fields,
                 target_fields=target_fields,
                 bcs_cluster_id=self.data.bcs_cluster_id,
+                is_platform_index=is_platform_index,
+                platform_index_visibility=platform_index_visibility,
+                platform_index_filter=platform_index_filter,
             )
         else:
             if not view_roles:
@@ -358,6 +379,9 @@ class EtlHandler:
                 sort_fields=sort_fields,
                 target_fields=target_fields,
                 bcs_cluster_id=self.data.bcs_cluster_id,
+                is_platform_index=is_platform_index,
+                platform_index_visibility=platform_index_visibility,
+                platform_index_filter=platform_index_filter,
             )
             self.data.index_set_id = index_set.index_set_id
         self.data.etl_config = etl_config
@@ -367,12 +391,12 @@ class EtlHandler:
 
     def close_clean(self):
         storage = TransferApi.get_result_table_storage(
-            params={"result_table_list": self.data.table_id, "storage_type": "elasticsearch"}
+            params={"result_table_list": self.data.table_id, "storage_type": self.storage_cluster_type}
         )[self.data.table_id]
         storage_cluster_id = storage["cluster_config"]["cluster_id"]
         retention = storage["storage_config"].get("retention")
         allocation_min_days = storage["storage_config"].get("warm_phase_days")
-        storage_replies = storage["storage_config"]["index_settings"]["number_of_replicas"]
+        storage_replies = storage["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
         _, table_id = self.data.table_id.split(".")
         self.update_or_create(
             etl_config=EtlConfig.BK_LOG_TEXT,

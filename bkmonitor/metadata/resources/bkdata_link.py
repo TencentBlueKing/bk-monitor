@@ -10,16 +10,19 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Any
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.serializers import TenantIdField
-from core.drf_resource import Resource
+from core.drf_resource import Resource, api
 from metadata import models
 from metadata.config import METADATA_RESULT_TABLE_WHITE_LIST
 from metadata.models import AccessVMRecord, DataSource
@@ -499,6 +502,26 @@ class QueryDataIdsByBizIdResource(Resource):
         return result
 
 
+class BizHasDataIdResource(Resource):
+    """
+    判断业务下是否存在结果表（有 RT 则必有 data_id 关联，不返回具体 DataId）
+    @param bk_biz_id 业务ID
+    @return {"has_data_id": bool}
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.CharField(label="业务ID", required=True)
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, bool]:
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+
+        has_data_id = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).exists()
+
+        return {"has_data_id": has_data_id}
+
+
 class IntelligentDiagnosisMetadataResource(Resource):
     """
     元数据智能诊断接口
@@ -557,14 +580,61 @@ class GseSlotResource(Resource):
 
 class QueryDataLinkMetadataResource(Resource):
     """
-    查询数据链路元数据 - 简化的结构化API，用于程序化提取
-    返回英文字段的结构化数据，不包含复杂的路由信息
+    [v2 改造] 查询数据链路元数据 - 扁平行数组
 
-    支持三种入参方式（至少提供一个）：
-    1. bk_data_id - 直接使用数据源ID查询
-    2. result_table_id - 通过结果表ID查找对应的数据源ID
-    3. vm_result_table_id - 通过VM结果表ID查找对应的数据源ID
+    沿用 v1 url ``/metadata/query_datalink_metadata/``, 改造 response shape:
+    - v1: ``{ query, data_source, frontend_kafka, result_tables[] }`` 嵌套
+    - v2: 返回 list, 由蓝鲸框架包装成 ``{ result, code, message, data: [...] }``
+
+    一行 = ``(bk_tenant_id, bk_data_id, table_id)`` 组合, 共 ~98 字段平铺.
+
+    入参 (4 选 1, ``bk_tenant_id`` 必填):
+        - ``bk_data_id``         监控侧数据源 ID
+        - ``result_table_id``    监控侧结果表 ID
+        - ``vm_result_table_id`` VM 侧 RT ID
+        - ``component_name``     V4 BKBase 资源名 ``{namespace}-{name}`` (P3 实现)
     """
+
+    # 多 BCS 命名格式: ``bcs_k8s_40510`` / ``BCS-K8S-40510``
+    BCS_CLUSTER_PATTERN = re.compile(r"bcs[_-]k8s[_-](\d+)", re.IGNORECASE)
+    # BCSClusterInfo 中以 *DataID 命名的 6 个 dataid 字段
+    _BCS_CLUSTER_DATAID_FIELDS = (
+        "K8sMetricDataID",
+        "CustomMetricDataID",
+        "K8sEventDataID",
+        "CustomEventDataID",
+        "SystemLogDataID",
+        "CustomLogDataID",
+    )
+    # *Config kind 映射 (用于 bkbase_components.kind)
+    _V4_COMPONENT_CONFIGS: tuple[tuple[Any, str], ...] = ()  # 实例方法内初始化, 避免 import 时 model 未加载
+    # P2 runtime: 单调用超时 + 线程池规模
+    _RUNTIME_TIMEOUT_SEC = 3.0
+    _MAX_RUNTIME_WORKERS = 16
+    # P3 联邦集群策略 (用于 bcs_federal_info 填充)
+    _BCS_FEDERAL_STRATEGIES = ("bcs_federal_subset_time_series", "bcs_federal_proxy_time_series")
+    # BKBase ``GET /v4/meta/datalink/metadata/`` → ``branches[]`` 字段含义见 ``_BKBASE_BRANCH_FIELD_LABELS``
+    # 多数 branch 字段 runtime 加 ``v4_`` 前缀; ``kafka_shipper_*`` 三字段仅 V3 链路返回, 保持原名
+    _V3_RUNTIME_BRANCH_FIELDS: frozenset[str] = frozenset(
+        {
+            "kafka_shipper_cluster_name",
+            "kafka_shipper_host",
+            "kafka_shipper_topic_name",
+        }
+    )
+    _BKBASE_BRANCH_FIELD_LABELS: dict[str, str] = {
+        "result_table_id": "结果表 ID",
+        "kafka_host": "入口 Kafka/Pulsar 地址",
+        "dispatch_cluster": "分发集群名称",
+        "dispatch_cluster_count": "分发集群数量",
+        "dispatch_cluster_task_name": "分发任务名称",
+        "dispatch_task_count": "分发任务数量",
+        "kafka_shipper_cluster_name": "inner Kafka 集群名称",
+        "kafka_shipper_host": "inner Kafka 地址",
+        "kafka_shipper_topic_name": "inner Kafka Topic 名称",
+        "doris_cluster_domain": "Doris 集群地址",
+        "doris_table_name": "Doris 物理表名",
+    }
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
@@ -573,551 +643,1171 @@ class QueryDataLinkMetadataResource(Resource):
         vm_result_table_id = serializers.CharField(
             label="VM结果表ID", required=False, allow_null=True, allow_blank=True
         )
+        component_name = serializers.CharField(
+            label="V4 BKBase 资源名 {namespace}-{name}", required=False, allow_null=True, allow_blank=True
+        )
 
         def validate(self, attrs):
-            bk_data_id = attrs.get("bk_data_id")
-            result_table_id = attrs.get("result_table_id")
-            vm_result_table_id = attrs.get("vm_result_table_id")
-
-            # 至少需要提供一个查询参数
-            if not any([bk_data_id, result_table_id, vm_result_table_id]):
+            if not any(attrs.get(k) for k in ("bk_data_id", "result_table_id", "vm_result_table_id", "component_name")):
                 raise serializers.ValidationError(
-                    "At least one of 'bk_data_id', 'result_table_id', or 'vm_result_table_id' must be provided. "
-                    "至少需要提供 'bk_data_id'、'result_table_id' 或 'vm_result_table_id' 中的一个。"
+                    "At least one of 'bk_data_id', 'result_table_id', 'vm_result_table_id', "
+                    "'component_name' must be provided. "
+                    "至少需要提供四个查询参数之一。"
                 )
-
             return attrs
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data) -> list[dict[str, Any]]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
-        bk_data_id = validated_request_data.get("bk_data_id")
-        result_table_id = validated_request_data.get("result_table_id")
-        vm_result_table_id = validated_request_data.get("vm_result_table_id")
 
-        # 解析bk_data_id
-        resolved_info = self._resolve_bk_data_id(bk_tenant_id, bk_data_id, result_table_id, vm_result_table_id)
-        bk_data_id = resolved_info["bk_data_id"]
+        # Step 1: 入参解析为 (bk_data_id, table_id) 目标列表
+        targets = self._resolve_targets(
+            bk_tenant_id=bk_tenant_id,
+            bk_data_id=validated_request_data.get("bk_data_id"),
+            result_table_id=validated_request_data.get("result_table_id"),
+            vm_result_table_id=validated_request_data.get("vm_result_table_id"),
+            component_name=validated_request_data.get("component_name"),
+        )
+        if not targets:
+            return []
 
+        # Step 2: 批量预取上下文
+        ctx = self._prefetch_context(bk_tenant_id, targets)
+
+        # Step 3: 遍历组装扁平行
+        rows: list[dict[str, Any]] = []
+        for data_id, table_id in targets:
+            try:
+                rows.append(self._build_row(bk_tenant_id, data_id, table_id, ctx))
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "QueryDataLinkMetadataResource: failed to build row (data_id=%s, table_id=%s): %s",
+                    data_id,
+                    table_id,
+                    e,
+                )
+                rows.append(
+                    {
+                        "data_id": data_id,
+                        "result_table_id": table_id,
+                        "error": f"Failed to build row: {e}",
+                    }
+                )
+
+        # Step 4: 并发拉取 runtime 字段 (BKBase V4 API + ES live + 组件 status)
         try:
-            # 获取数据源
-            ds = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+            self._enrich_with_runtime(rows, ctx)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("QueryDataLinkMetadataResource: runtime enrich failed (non-fatal): %s", e)
 
-            # 判断是否为V4链路
-            is_v4_link = ds.created_from == DataIdCreatedFromSystem.BKDATA.value
+        # Step 5: 清理行内的临时引用 (_instance 等), 避免序列化问题
+        for row in rows:
+            comps = row.get("bkbase_components")
+            if isinstance(comps, list):
+                for comp in comps:
+                    if isinstance(comp, dict):
+                        comp.pop("_instance", None)
+        return rows
 
-            # 构建结构化响应
-            result = {
-                "data_source": self._build_data_source_info(ds),
-                "kafka_config": self._build_kafka_config(ds),
-                "result_tables": self._build_result_tables_info(bk_tenant_id, bk_data_id, is_v4_link),
-            }
+    # ============================================================
+    # Step 1: 入参解析
+    # ============================================================
 
-            # 如果是通过其他参数解析得到的bk_data_id，添加解析信息
-            if resolved_info.get("resolved_from"):
-                result["query_info"] = resolved_info
-
-            return result
-
-        except models.DataSource.DoesNotExist:
-            raise ValidationError(
-                f"Data source with bk_data_id={bk_data_id} does not exist. 数据源 bk_data_id={bk_data_id} 不存在。"
-            )
-        except Exception as e:
-            logger.error(
-                "QueryDataLinkMetadataResource: Failed to query metadata, bk_data_id: %s, error: %s",
-                bk_data_id,
-                str(e),
-            )
-            raise ValidationError(f"Failed to query metadata: {str(e)}")
-
-    def _resolve_bk_data_id(
+    def _resolve_targets(
         self,
         bk_tenant_id: str,
         bk_data_id: str | None,
         result_table_id: str | None,
         vm_result_table_id: str | None,
-    ) -> dict[str, Any]:
-        """
-        解析bk_data_id
-
-        优先级：bk_data_id > result_table_id > vm_result_table_id
-        """
-        # 如果直接提供了bk_data_id，直接使用
+        component_name: str | None,
+    ) -> list[tuple[int, str]]:
+        """优先级 bk_data_id > result_table_id > vm_result_table_id > component_name."""
         if bk_data_id:
-            return {"bk_data_id": bk_data_id}
-
-        # 通过result_table_id查找bk_data_id
+            return self._resolve_by_data_id(bk_tenant_id, bk_data_id)
         if result_table_id:
-            try:
-                dsrt = models.DataSourceResultTable.objects.filter(table_id=result_table_id).first()
-                if not dsrt:
-                    raise ValidationError(
-                        f"Result table '{result_table_id}' not found in DataSourceResultTable. "
-                        f"结果表 '{result_table_id}' 在 DataSourceResultTable 中未找到。"
-                    )
-                return {
-                    "bk_data_id": dsrt.bk_data_id,
-                    "resolved_from": "result_table_id",
-                    "result_table_id": result_table_id,
-                }
-            except ValidationError:
-                raise
-            except Exception as e:
-                raise ValidationError(
-                    f"Failed to resolve bk_data_id from result_table_id '{result_table_id}': {str(e)}. "
-                    f"通过 result_table_id '{result_table_id}' 解析 bk_data_id 失败: {str(e)}。"
-                )
-
-        # 通过vm_result_table_id查找bk_data_id
+            return self._resolve_by_table_id(bk_tenant_id, result_table_id)
         if vm_result_table_id:
-            try:
-                # 先通过AccessVMRecord找到result_table_id
-                vm_record = models.AccessVMRecord.objects.filter(
-                    bk_tenant_id=bk_tenant_id, vm_result_table_id=vm_result_table_id
-                ).first()
-                if not vm_record:
-                    raise ValidationError(
-                        f"VM result table '{vm_result_table_id}' not found in AccessVMRecord. "
-                        f"VM结果表 '{vm_result_table_id}' 在 AccessVMRecord 中未找到。"
-                    )
+            return self._resolve_by_vm_rt_id(bk_tenant_id, vm_result_table_id)
+        if component_name:
+            return self._resolve_by_component_name(bk_tenant_id, component_name)
+        return []
 
-                # 再通过result_table_id找到bk_data_id
-                dsrt = models.DataSourceResultTable.objects.filter(table_id=vm_record.result_table_id).first()
-                if not dsrt:
-                    raise ValidationError(
-                        f"Result table '{vm_record.result_table_id}' (from VM record) not found in DataSourceResultTable. "
-                        f"结果表 '{vm_record.result_table_id}'（来自VM记录）在 DataSourceResultTable 中未找到。"
-                    )
+    def _resolve_by_data_id(self, bk_tenant_id: str, bk_data_id: str) -> list[tuple[int, str]]:
+        try:
+            data_id_int = int(bk_data_id)
+        except (TypeError, ValueError):
+            return []
+        if not models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=data_id_int).exists():
+            return []
+        table_ids = list(
+            models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=data_id_int).values_list(
+                "table_id", flat=True
+            )
+        )
+        return [(data_id_int, t) for t in table_ids]
 
-                return {
-                    "bk_data_id": dsrt.bk_data_id,
-                    "resolved_from": "vm_result_table_id",
-                    "vm_result_table_id": vm_result_table_id,
-                    "result_table_id": vm_record.result_table_id,
-                }
-            except ValidationError:
-                raise
-            except Exception as e:
-                raise ValidationError(
-                    f"Failed to resolve bk_data_id from vm_result_table_id '{vm_result_table_id}': {str(e)}. "
-                    f"通过 vm_result_table_id '{vm_result_table_id}' 解析 bk_data_id 失败: {str(e)}。"
-                )
+    def _resolve_by_table_id(self, bk_tenant_id: str, table_id: str) -> list[tuple[int, str]]:
+        dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        if not dsrt:
+            return []
+        return [(int(dsrt.bk_data_id), table_id)]
 
-        # 不应该到达这里，因为validate已经检查过
-        raise ValidationError(
-            "Unable to resolve bk_data_id. Please provide at least one of: bk_data_id, result_table_id, vm_result_table_id. "
-            "无法解析 bk_data_id。请至少提供以下参数之一：bk_data_id、result_table_id、vm_result_table_id。"
+    def _resolve_by_vm_rt_id(self, bk_tenant_id: str, vm_rt_id: str) -> list[tuple[int, str]]:
+        vm_rec = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, vm_result_table_id=vm_rt_id).first()
+        if not vm_rec:
+            return []
+        return self._resolve_by_table_id(bk_tenant_id, vm_rec.result_table_id)
+
+    def _resolve_by_component_name(self, bk_tenant_id: str, component_name: str) -> list[tuple[int, str]]:
+        """V4 BKBase 资源名反查 (DataLink-first + 7 ``*Config`` fallback).
+
+        格式 ``{namespace}-{name}``:
+            - ``bklog-bklog_301_xxx``   → ns=bklog, name=bklog_301_xxx
+            - ``bkmonitor-bkm_xxx``     → ns=bkmonitor, name=bkm_xxx
+            - 无 ns 前缀                  → 跨 {bkmonitor, bklog} 都试
+
+        流程:
+            Step 1: ``DataLink.objects.filter(namespace=ns, data_link_name=name)`` 直查命中
+            Step 2: fallback 扫 7 个 ``*Config`` (按 ``name=name``), 命中拿 ``data_link_name`` 回 Step 1
+            Step 3: 展开 ``link.table_ids[]`` 为 ``(bk_data_id, table_id)`` 列表
+        """
+        if "-" in component_name:
+            prefix, _, suffix = component_name.partition("-")
+            if prefix in ("bkmonitor", "bklog"):
+                namespaces, name = [prefix], suffix
+            else:
+                namespaces, name = ["bkmonitor", "bklog"], component_name
+        else:
+            namespaces, name = ["bkmonitor", "bklog"], component_name
+
+        if not name:
+            return []
+
+        config_models = (
+            models.DataIdConfig,
+            models.ResultTableConfig,
+            models.VMStorageBindingConfig,
+            models.ESStorageBindingConfig,
+            models.DorisStorageBindingConfig,
+            models.DataBusConfig,
+            models.ConditionalSinkConfig,
         )
 
-    def _build_data_source_info(self, ds: models.DataSource) -> dict[str, Any]:
-        """构建数据源基础信息"""
-        return {
-            "bk_data_id": ds.bk_data_id,
-            "data_name": ds.data_name,
-            "source_system": ds.source_system,
-            "etl_config": ds.etl_config,
-            "is_enabled": ds.is_enable,
-            "is_platform_data_id": ds.is_platform_data_id,
-            "created_from": ds.created_from,
-            "transfer_cluster_id": ds.transfer_cluster_id,
-            "data_link_version": "v4" if ds.created_from == DataIdCreatedFromSystem.BKDATA.value else "v3",
+        for ns in namespaces:
+            link = models.DataLink.objects.filter(bk_tenant_id=bk_tenant_id, namespace=ns, data_link_name=name).first()
+
+            if not link:
+                for cfg_cls in config_models:
+                    try:
+                        cfg = cfg_cls.objects.filter(bk_tenant_id=bk_tenant_id, namespace=ns, name=name).first()
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.warning("scan %s for component_name failed: %s", cfg_cls.__name__, e)
+                        continue
+                    if cfg and getattr(cfg, "data_link_name", None):
+                        link = models.DataLink.objects.filter(
+                            bk_tenant_id=bk_tenant_id, namespace=ns, data_link_name=cfg.data_link_name
+                        ).first()
+                        if link:
+                            break
+
+            if link:
+                try:
+                    data_id = int(link.bk_data_id)
+                except (TypeError, ValueError):
+                    data_id = link.bk_data_id
+                return [(data_id, tid) for tid in (link.table_ids or [])]
+
+        return []
+
+    # ============================================================
+    # Step 2: 批量预取
+    # ============================================================
+
+    def _prefetch_context(self, bk_tenant_id: str, targets: list[tuple[int, str]]) -> dict[str, Any]:
+        """批量预取所有依赖对象到 dict, 避免逐行 N+1 查询."""
+        data_ids = list({d for d, _ in targets})
+        table_ids = list({t for _, t in targets})
+
+        # ---- DataSource ----
+        data_sources = {
+            ds.bk_data_id: ds
+            for ds in models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids)
         }
 
-    def _build_kafka_config(self, ds: models.DataSource) -> dict[str, Any]:
-        """构建Kafka配置信息"""
-        try:
-            cluster = models.ClusterInfo.objects.get(bk_tenant_id=ds.bk_tenant_id, cluster_id=ds.mq_cluster_id)
-            mq_config = models.KafkaTopicInfo.objects.get(id=ds.mq_config_id)
+        # ---- ResultTable ----
+        result_tables = {
+            rt.table_id: rt
+            for rt in models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids)
+        }
 
-            return {
-                "cluster_id": cluster.cluster_id,
-                "cluster_name": cluster.cluster_name,
-                "domain_name": cluster.domain_name,
-                "topic": mq_config.topic,
-                "partition": mq_config.partition,
+        # ---- KafkaTopicInfo (DataSource.mq_config_id → KafkaTopicInfo.id) ----
+        mq_config_ids = [ds.mq_config_id for ds in data_sources.values() if ds.mq_config_id]
+        kafka_topics = (
+            {kt.id: kt for kt in models.KafkaTopicInfo.objects.filter(id__in=mq_config_ids)} if mq_config_ids else {}
+        )
+
+        # ---- 各 Storage 模型 (按 table_id 索引) ----
+        es_storages = {
+            s.table_id: s for s in models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids)
+        }
+        doris_storages = {
+            s.table_id: s for s in models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids)
+        }
+        kafka_storages = {
+            s.table_id: s for s in models.KafkaStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids)
+        }
+
+        # ---- AccessVMRecord (一 RT 多条, 按 table_id group) ----
+        vm_records: dict[str, list[Any]] = {}
+        for vm in models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id__in=table_ids):
+            vm_records.setdefault(vm.result_table_id, []).append(vm)
+
+        # ---- V4 链路 ----
+        bkbase_rts = {
+            br.monitor_table_id: br
+            for br in models.BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id__in=table_ids)
+        }
+        data_link_names = list({br.data_link_name for br in bkbase_rts.values() if br.data_link_name})
+        data_links = (
+            {
+                dl.data_link_name: dl
+                for dl in models.DataLink.objects.filter(bk_tenant_id=bk_tenant_id, data_link_name__in=data_link_names)
             }
-        except Exception as e:
-            logger.warning("Failed to get Kafka config for data_id %s: %s", ds.bk_data_id, str(e))
-            return {"error": f"Failed to retrieve Kafka configuration: {str(e)}"}
-
-    def _build_result_tables_info(
-        self, bk_tenant_id: str, bk_data_id: str, is_v4_link: bool = False
-    ) -> list[dict[str, Any]]:
-        """构建结果表信息列表"""
-        result_tables = []
-
-        # 获取该数据源的所有结果表
-        dsrt = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id)
-        table_ids = list(dsrt.values_list("table_id", flat=True))
-
-        for table_id in table_ids:
-            try:
-                rt = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
-
-                # 获取bk_biz_id，如果为0则尝试解析真正的bk_biz_id
-                bk_biz_id = rt.bk_biz_id
-                resolved_bk_biz_id = None
-                if bk_biz_id == 0:
-                    resolved_bk_biz_id = self._resolve_real_bk_biz_id(bk_tenant_id, bk_data_id)
-                    if resolved_bk_biz_id:
-                        bk_biz_id = resolved_bk_biz_id
-
-                # 获取空间信息
-                space_info = self._get_space_info(bk_tenant_id, bk_biz_id)
-
-                # 构建基础结果表信息
-                rt_info = {
-                    "table_id": table_id,
-                    "storage_type": rt.default_storage,
-                    "bk_biz_id": rt.bk_biz_id,  # 保留原始值
-                    "space_uid": space_info["space_uid"],
-                    "space_name": space_info["space_name"],
-                    "is_enabled": rt.is_enable,
-                    "data_label": rt.data_label,
-                }
-
-                # 如果bk_biz_id被解析过，添加resolved_bk_biz_id字段
-                if resolved_bk_biz_id:
-                    rt_info["resolved_bk_biz_id"] = resolved_bk_biz_id
-
-                # 添加存储特定信息
-                if rt.default_storage == models.ClusterInfo.TYPE_ES:
-                    rt_info["storage_details"] = self._get_es_storage_info(bk_tenant_id, table_id)
-                elif (
-                    rt.default_storage == models.ClusterInfo.TYPE_VM
-                    or rt.default_storage == models.ClusterInfo.TYPE_INFLUXDB
-                ):
-                    rt_info["storage_details"] = self._get_vm_storage_info(bk_tenant_id, table_id)
-
-                # 如果存在后端Kafka配置，添加到返回信息
-                backend_kafka = self._get_backend_kafka_info(bk_tenant_id, table_id)
-                if backend_kafka:
-                    rt_info["backend_kafka"] = backend_kafka
-
-                # 如果是V4链路，尝试获取BkBase V4链路信息
-                if is_v4_link:
-                    bkbase_v4_info = self._get_bkbase_v4_link_info(bk_tenant_id, table_id)
-                    if bkbase_v4_info:
-                        rt_info["bkbase_v4_link"] = bkbase_v4_info
-
-                result_tables.append(rt_info)
-
-            except Exception as e:
-                logger.warning("Failed to get info for table_id %s: %s", table_id, str(e))
-                result_tables.append(
-                    {
-                        "table_id": table_id,
-                        "error": f"Failed to retrieve table information: {str(e)}",
-                    }
+            if data_link_names
+            else {}
+        )
+        databus_configs = (
+            {
+                dc.data_link_name: dc
+                for dc in models.DataBusConfig.objects.filter(
+                    bk_tenant_id=bk_tenant_id, data_link_name__in=data_link_names
                 )
+            }
+            if data_link_names
+            else {}
+        )
 
-        return result_tables
+        # 组件清单: 扫 7 个 *Config, 按 data_link_name group
+        components_by_link: dict[str, list[dict[str, Any]]] = {}
+        if data_link_names:
+            v4_config_models = (
+                (models.DataIdConfig, "DataId"),
+                (models.ResultTableConfig, "ResultTable"),
+                (models.VMStorageBindingConfig, "VmStorageBinding"),
+                (models.ESStorageBindingConfig, "ElasticSearchBinding"),
+                (models.DorisStorageBindingConfig, "DorisBinding"),
+                (models.DataBusConfig, "Databus"),
+                (models.ConditionalSinkConfig, "ConditionalSink"),
+            )
+            for cfg_cls, kind in v4_config_models:
+                try:
+                    qs = cfg_cls.objects.filter(bk_tenant_id=bk_tenant_id, data_link_name__in=data_link_names)
+                    for cfg in qs:
+                        components_by_link.setdefault(cfg.data_link_name, []).append(
+                            {
+                                "kind": kind,
+                                "name": getattr(cfg, "name", None),
+                                "namespace": getattr(cfg, "namespace", None),
+                                "data_link_name": cfg.data_link_name,
+                                "status": None,  # P2 runtime fetch
+                                "message": None,  # P2 runtime fetch
+                                "status_error": None,  # P2 runtime fetch
+                                # P2 内部使用: 保存 *Config 实例, 用于 component_status 拉取;
+                                # 行返回前会 pop 掉, 不出现在响应中
+                                "_instance": cfg,
+                            }
+                        )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("prefetch components for %s failed: %s", cfg_cls.__name__, e)
 
-    def _resolve_real_bk_biz_id(self, bk_tenant_id: str, bk_data_id: str) -> int | None:
-        """
-        解析真正的bk_biz_id
+        # ---- ClusterInfo 全量预取 (按 cluster_id 索引) ----
+        cluster_ids: set[int] = set()
+        for ds in data_sources.values():
+            if ds.mq_cluster_id:
+                cluster_ids.add(ds.mq_cluster_id)
+        for s in list(es_storages.values()) + list(doris_storages.values()) + list(kafka_storages.values()):
+            if s.storage_cluster_id:
+                cluster_ids.add(s.storage_cluster_id)
+        for vms in vm_records.values():
+            for vm in vms:
+                if vm.vm_cluster_id:
+                    cluster_ids.add(vm.vm_cluster_id)
+                if vm.storage_cluster_id:
+                    cluster_ids.add(vm.storage_cluster_id)
+        clusters = (
+            {
+                c.cluster_id: c
+                for c in models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_id__in=list(cluster_ids))
+            }
+            if cluster_ids
+            else {}
+        )
 
-        当ResultTable的bk_biz_id为0时，尝试通过以下方式获取真正的bk_biz_id：
-        1. 首先通过bk_data_id查找TimeSeriesGroup，获取bk_biz_id
-        2. 如果仍为0，则通过SpaceDataSource查找space_id（from_authorization=False）
-        """
-        try:
-            # 尝试从TimeSeriesGroup获取bk_biz_id
+        # ---- Space (按 bk_biz_id, 业务正负值处理) ----
+        # 兜底后的 bk_biz_id 才能准确查 Space, 这里不预取, 在 build_row 时按需查
+        # 但常用业务可一次性扫到, lazy 即可
+
+        # ---- BCSClusterInfo: 反查 (path 3) ----
+        bcs_cluster_by_data_id: dict[int, str] = {}
+        if data_ids:
+            q = Q()
+            for field in self._BCS_CLUSTER_DATAID_FIELDS:
+                q |= Q(**{f"{field}__in": data_ids})
             try:
-                ts_group = models.TimeSeriesGroup.objects.filter(
-                    bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id
-                ).first()
-                if ts_group and ts_group.bk_biz_id != 0:
-                    return ts_group.bk_biz_id
-            except Exception:
-                pass
+                for bci in models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id).filter(q):
+                    for field in self._BCS_CLUSTER_DATAID_FIELDS:
+                        did = getattr(bci, field, None)
+                        if did and did in data_ids:
+                            bcs_cluster_by_data_id[did] = bci.cluster_id
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("prefetch BCSClusterInfo failed: %s", e)
 
-            # 从SpaceDataSource获取space_id
+        # ---- BcsFederalClusterInfo: 联邦集群信息 (P3) ----
+        # 关心两类匹配:
+        #   - fed_builtin_metric_table_id / fed_builtin_event_table_id ∈ table_ids
+        #   - sub_cluster_id ∈ 当前行可能的 bcs_cluster_id (通过 data_name 解析得到)
+        candidate_sub_clusters: set[str] = set()
+        for ds in data_sources.values():
+            m = self.BCS_CLUSTER_PATTERN.search(ds.data_name or "")
+            if m:
+                candidate_sub_clusters.add(f"BCS-K8S-{m.group(1)}")
+        # AccessVMRecord.bcs_cluster_id 也加进去
+        for vms in vm_records.values():
+            for vm in vms:
+                bid = getattr(vm, "bcs_cluster_id", None)
+                if bid:
+                    candidate_sub_clusters.add(bid)
+
+        fed_by_table_id: dict[str, Any] = {}
+        fed_by_sub_cluster_id: dict[str, Any] = {}
+        if table_ids or candidate_sub_clusters:
             try:
-                space_ds = models.SpaceDataSource.objects.filter(
-                    bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id, from_authorization=False
-                ).first()
-                if space_ds and space_ds.space_type_id == SpaceTypes.BKCC.value:
-                    # space_id是字符串，需要转换为int
-                    return int(space_ds.space_id)
-            except Exception:
-                pass
+                fed_q = Q(is_deleted=False)
+                fed_or = Q()
+                if table_ids:
+                    fed_or |= Q(fed_builtin_metric_table_id__in=table_ids)
+                    fed_or |= Q(fed_builtin_event_table_id__in=table_ids)
+                if candidate_sub_clusters:
+                    fed_or |= Q(sub_cluster_id__in=list(candidate_sub_clusters))
+                qs = models.BcsFederalClusterInfo.objects.filter(fed_q & fed_or)
+                for fed in qs:
+                    if fed.fed_builtin_metric_table_id:
+                        fed_by_table_id[fed.fed_builtin_metric_table_id] = fed
+                    if fed.fed_builtin_event_table_id:
+                        fed_by_table_id[fed.fed_builtin_event_table_id] = fed
+                    if fed.sub_cluster_id:
+                        fed_by_sub_cluster_id[fed.sub_cluster_id] = fed
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("prefetch BcsFederalClusterInfo failed: %s", e)
 
-            return None
+        return {
+            "data_sources": data_sources,
+            "result_tables": result_tables,
+            "kafka_topics": kafka_topics,
+            "es_storages": es_storages,
+            "doris_storages": doris_storages,
+            "kafka_storages": kafka_storages,
+            "vm_records": vm_records,
+            "bkbase_rts": bkbase_rts,
+            "data_links": data_links,
+            "databus_configs": databus_configs,
+            "components_by_link": components_by_link,
+            "clusters": clusters,
+            "bcs_cluster_by_data_id": bcs_cluster_by_data_id,
+            "fed_by_table_id": fed_by_table_id,
+            "fed_by_sub_cluster_id": fed_by_sub_cluster_id,
+        }
 
-        except Exception as e:
-            logger.warning("Failed to resolve real bk_biz_id for bk_data_id %s: %s", bk_data_id, str(e))
-            return None
+    # ============================================================
+    # Step 3: 组装单行
+    # ============================================================
 
-    def _get_space_info(self, bk_tenant_id: str, bk_biz_id: int) -> dict[str, str]:
-        """获取空间信息"""
+    def _build_row(
+        self,
+        bk_tenant_id: str,
+        data_id: int,
+        table_id: str,
+        ctx: dict[str, Any],
+    ) -> dict[str, Any]:
+        ds = ctx["data_sources"].get(data_id)
+        rt = ctx["result_tables"].get(table_id)
+        if not ds or not rt:
+            return {
+                "data_id": data_id,
+                "result_table_id": table_id,
+                "error": "DataSource or ResultTable missing",
+            }
+
+        row: dict[str, Any] = {}
+        row.update(self._build_identity_block(ds, rt, ctx))
+        row.update(self._build_biz_space_block(bk_tenant_id, data_id, rt, ctx))
+        row.update(self._build_kafka_frontend_block(ds, ctx))
+        row.update(self._build_transfer_block(ds))
+        row.update(self._build_kafka_backend_block(table_id, ctx))
+        row.update(self._build_v4_databus_block(table_id, ds, ctx))
+        row.update(self._build_vm_block(table_id, ctx))
+        row.update(self._build_es_block(table_id, ctx))
+        row.update(self._build_doris_block(table_id, ctx))
+        row.update(self._build_bcs_block(data_id, ds, rt, ctx))
+        row.update(self._build_placeholder_block())  # collect_config_id / 拓扑字段
+        row.update(self._build_runtime_error_fields())  # bkbase_remote_error / es_runtime_error
+
+        # 派生字段: bk_base_data_id + effective_storage
+        row["bk_base_data_id"] = self._resolve_bk_base_data_id(table_id, data_id, ds, ctx)
+        row["effective_storage"] = self._derive_effective_storage(row["default_storage"], table_id, ctx)
+        return row
+
+    # ============================================================
+    # Block builders
+    # ============================================================
+
+    def _build_identity_block(self, ds: Any, rt: Any, ctx: dict[str, Any]) -> dict[str, Any]:
+        is_v4 = ds.created_from == DataIdCreatedFromSystem.BKDATA.value
+        data_link_strategy = None
+        bkbase_namespace = None
+        has_conditional_sink = False
+        if is_v4:
+            br = ctx["bkbase_rts"].get(rt.table_id)
+            if br and br.data_link_name:
+                dl = ctx["data_links"].get(br.data_link_name)
+                if dl:
+                    data_link_strategy = getattr(dl, "data_link_strategy", None) or None
+                    bkbase_namespace = getattr(dl, "namespace", None) or None
+                comps = ctx["components_by_link"].get(br.data_link_name, [])
+                has_conditional_sink = any(c.get("kind") == "ConditionalSink" for c in comps)
+
+        return {
+            "id": rt.id,
+            "bk_tenant_id": ds.bk_tenant_id,
+            "data_id": ds.bk_data_id,
+            "data_name": ds.data_name,
+            "result_table_id": rt.table_id,
+            "result_table_name": rt.table_id.rsplit(".", 1)[-1] if "." in rt.table_id else rt.table_id,
+            "result_table_name_zh": getattr(rt, "table_name_zh", None) or None,
+            "datalink_version": "v4" if is_v4 else "v3",
+            "etl_config": ds.etl_config,
+            "source_system": ds.source_system,
+            "data_link_strategy": data_link_strategy,
+            "bkbase_namespace": bkbase_namespace,
+            "has_conditional_sink": has_conditional_sink,
+            "default_storage": rt.default_storage,
+            "is_data_id_enabled": ds.is_enable,
+            "is_result_table_enabled": rt.is_enable,
+            "is_platform_data_id": ds.is_platform_data_id,
+            "data_label": rt.data_label,
+            "created_at": self._format_dt(rt.create_time),
+            "updated_at": self._format_dt(rt.last_modify_time),
+            "data_source_created_at": self._format_dt(ds.create_time),
+            "creator": ds.creator or None,
+        }
+
+    def _build_biz_space_block(
+        self,
+        bk_tenant_id: str,
+        data_id: int,
+        rt: Any,
+        ctx: dict[str, Any],
+    ) -> dict[str, Any]:
+        # 真实有效 bk_biz_id (四路兜底): rt.bk_biz_id==0 时回填
+        bk_biz_id = rt.bk_biz_id
+        if bk_biz_id == 0:
+            resolved = self._resolve_real_bk_biz_id(bk_tenant_id, data_id)
+            if resolved is not None:
+                bk_biz_id = resolved
+
+        # Space 信息 (lazy 查, 不预取)
+        bk_biz_name = None
+        space_uid = "global"
         try:
             if bk_biz_id > 0:
                 space = models.Space.objects.get(
-                    bk_tenant_id=bk_tenant_id, space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id
+                    bk_tenant_id=bk_tenant_id,
+                    space_type_id=SpaceTypes.BKCC.value,
+                    space_id=bk_biz_id,
                 )
+                bk_biz_name = space.space_name
+                space_uid = f"{space.space_type_id}__{space.space_id}"
             elif bk_biz_id < 0:
                 space = models.Space.objects.get(bk_tenant_id=bk_tenant_id, id=abs(bk_biz_id))
-            else:
-                return {"space_uid": "global", "space_name": "Global"}
+                bk_biz_name = space.space_name
+                space_uid = f"{space.space_type_id}__{space.space_id}"
+        except models.Space.DoesNotExist:
+            pass
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("get Space failed for bk_biz_id=%s: %s", bk_biz_id, e)
 
-            return {
-                "space_uid": f"{space.space_type_id}__{space.space_id}",
-                "space_name": space.space_name,
+        return {
+            "bk_biz_id": bk_biz_id,
+            "bk_biz_name": bk_biz_name,
+            "space_uid": space_uid,
+        }
+
+    def _build_kafka_frontend_block(self, ds: Any, ctx: dict[str, Any]) -> dict[str, Any]:
+        out = {
+            "kafka_instance_id": None,
+            "kafka_inner_cluster_name": None,
+            "kafka_host": None,
+            "topic_name": None,
+            "current_partition_num": None,
+        }
+        cluster = ctx["clusters"].get(ds.mq_cluster_id) if ds.mq_cluster_id else None
+        if cluster:
+            out["kafka_instance_id"] = cluster.cluster_id
+            out["kafka_inner_cluster_name"] = cluster.cluster_name
+            out["kafka_host"] = cluster.domain_name
+        kt = ctx["kafka_topics"].get(ds.mq_config_id) if ds.mq_config_id else None
+        if kt:
+            out["topic_name"] = kt.topic
+            out["current_partition_num"] = kt.partition
+        return out
+
+    def _build_transfer_block(self, ds: Any) -> dict[str, Any]:
+        return {
+            "transfer_cluster": ds.transfer_cluster_id or None,
+        }
+
+    def _build_kafka_backend_block(self, table_id: str, ctx: dict[str, Any]) -> dict[str, Any]:
+        out = {
+            "backend_kafka_cluster_id": None,
+            "backend_kafka_host": None,
+            "backend_kafka_topic": None,
+            "backend_kafka_partition": None,
+        }
+        ks = ctx["kafka_storages"].get(table_id)
+        if not ks:
+            return out
+        cluster = ctx["clusters"].get(ks.storage_cluster_id) if ks.storage_cluster_id else None
+        out.update(
+            {
+                "backend_kafka_cluster_id": ks.storage_cluster_id,
+                "backend_kafka_host": cluster.domain_name if cluster else None,
+                "backend_kafka_topic": ks.topic,
+                "backend_kafka_partition": ks.partition,
             }
-        except Exception:
-            return {"space_uid": "unknown", "space_name": "Unknown"}
+        )
+        return out
 
-    def _get_backend_kafka_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any] | None:
-        """获取后端Kafka配置信息"""
-        try:
-            kafka_storage = models.KafkaStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
-            if not kafka_storage:
-                return None
+    def _build_v4_databus_block(self, table_id: str, ds: Any, ctx: dict[str, Any]) -> dict[str, Any]:
+        """V4 Databus 本地块.
 
-            cluster = models.ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id, cluster_id=kafka_storage.storage_cluster_id
-            )
+        BKBase runtime 字段在 ``_apply_bkbase_metadata`` 中写入:
+        V4 branch 加 ``v4_*`` 前缀; V3 独有 ``kafka_shipper_*`` 保持原名.
+        含义见 ``_BKBASE_BRANCH_FIELD_LABELS``.
+        """
+        out = {
+            "databus_name": None,
+            "bkbase_status": None,
+            "bkbase_table_id": None,
+            "bkbase_rt_name": None,
+            "bkbase_components": None,
+        }
+        if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
+            return out
+        br = ctx["bkbase_rts"].get(table_id)
+        if not br:
+            return out
 
-            return {
-                "cluster_id": kafka_storage.storage_cluster_id,
-                "cluster_name": cluster.cluster_name,
-                "domain_name": cluster.domain_name,
-                "topic": kafka_storage.topic,
-                "partition": kafka_storage.partition,
+        out["bkbase_status"] = br.status or None
+        out["bkbase_table_id"] = br.bkbase_table_id or None
+        out["bkbase_rt_name"] = br.bkbase_rt_name or None
+
+        dc = ctx["databus_configs"].get(br.data_link_name) if br.data_link_name else None
+        if dc:
+            out["databus_name"] = dc.name or None
+
+        comps = ctx["components_by_link"].get(br.data_link_name, [])
+        out["bkbase_components"] = comps or None
+        return out
+
+    def _build_vm_block(self, table_id: str, ctx: dict[str, Any]) -> dict[str, Any]:
+        out = {
+            "vm_rt_name": None,
+            "vm_cluster_id": None,
+            "vm_cluster_domain": None,
+            "vm_cluster_name": None,
+            "vm_storage_cluster_id": None,
+            "vm_records_count": 0,
+        }
+        vms = ctx["vm_records"].get(table_id, [])
+        if not vms:
+            return out
+
+        out["vm_records_count"] = len(vms)
+
+        # 主接入: 取 latest by create_time (兜底取第一条)
+        def _ct(v):
+            return getattr(v, "create_time", None) or datetime.min.replace(tzinfo=timezone.utc)
+
+        primary = sorted(vms, key=_ct, reverse=True)[0]
+        cluster = ctx["clusters"].get(primary.vm_cluster_id) if primary.vm_cluster_id else None
+        out.update(
+            {
+                "vm_rt_name": primary.vm_result_table_id or None,
+                "vm_cluster_id": primary.vm_cluster_id,
+                "vm_cluster_domain": cluster.domain_name if cluster else None,
+                "vm_cluster_name": cluster.cluster_name if cluster else None,
+                "vm_storage_cluster_id": primary.storage_cluster_id,
             }
-        except Exception:
+        )
+        return out
+
+    def _build_es_block(self, table_id: str, ctx: dict[str, Any]) -> dict[str, Any]:
+        out = {
+            "es_cluster_id": None,
+            "es_cluster_domain": None,
+            "es_cluster_name": None,
+            "es_index_name": None,
+            "es_index_shard_num": None,
+            "es_retention_days": None,
+            "es_slice_size_gb": None,
+            "es_slice_gap_minutes": None,
+            "es_time_zone": None,
+            "es_index_settings": None,
+            "es_mapping_settings": None,
+            "es_current_index_name": None,  # P2
+            "es_current_index_info": None,  # P2
+            "es_should_rotate_index": None,  # P2
+        }
+        es = ctx["es_storages"].get(table_id)
+        if not es:
+            return out
+        cluster = ctx["clusters"].get(es.storage_cluster_id) if es.storage_cluster_id else None
+        out.update(
+            {
+                "es_cluster_id": es.storage_cluster_id,
+                "es_cluster_domain": cluster.domain_name if cluster else None,
+                "es_cluster_name": cluster.cluster_name if cluster else None,
+                "es_index_name": es.index_set or None,
+                "es_index_shard_num": self._parse_index_shard_num(es.index_settings),
+                "es_retention_days": es.retention,
+                "es_slice_size_gb": es.slice_size,
+                "es_slice_gap_minutes": es.slice_gap,
+                "es_time_zone": es.time_zone,
+            }
+        )
+        out["es_index_settings"] = self._safe_json_loads(es.index_settings)
+        out["es_mapping_settings"] = self._safe_json_loads(es.mapping_settings)
+        return out
+
+    def _build_doris_block(self, table_id: str, ctx: dict[str, Any]) -> dict[str, Any]:
+        out = {
+            "doris_cluster_id": None,
+            "doris_cluster_domain": None,
+            "doris_cluster_name": None,
+            "doris_table_name": None,
+            "doris_table_type": None,
+            "doris_expire_days": None,
+        }
+        doris = ctx["doris_storages"].get(table_id)
+        if not doris:
+            return out
+        cluster = ctx["clusters"].get(doris.storage_cluster_id) if doris.storage_cluster_id else None
+        out.update(
+            {
+                "doris_cluster_id": doris.storage_cluster_id,
+                "doris_cluster_domain": cluster.domain_name if cluster else None,
+                "doris_cluster_name": cluster.cluster_name if cluster else None,
+                "doris_table_name": getattr(doris, "bkbase_table_id", None) or None,
+                "doris_table_type": getattr(doris, "table_type", None) or None,
+                "doris_expire_days": getattr(doris, "expire_days", None),
+            }
+        )
+        return out
+
+    def _build_bcs_block(self, data_id: int, ds: Any, rt: Any, ctx: dict[str, Any]) -> dict[str, Any]:
+        cluster_id, source = self._resolve_bcs_cluster_id(data_id, ds, rt, ctx)
+
+        # 拿当前行的 data_link_strategy (仅 V4 链路才有), 用于联邦判定
+        data_link_strategy = None
+        br = ctx["bkbase_rts"].get(rt.table_id) if ds.created_from == DataIdCreatedFromSystem.BKDATA.value else None
+        if br and br.data_link_name:
+            dl = ctx["data_links"].get(br.data_link_name)
+            if dl:
+                data_link_strategy = getattr(dl, "data_link_strategy", None) or None
+
+        federal_info = self._build_bcs_federal_info(rt, data_link_strategy, cluster_id, ctx)
+        return {
+            "bcs_cluster_id": cluster_id,
+            "bcs_cluster_id_source": source,
+            "bcs_federal_info": federal_info,
+        }
+
+    def _build_bcs_federal_info(
+        self,
+        rt: Any,
+        data_link_strategy: str | None,
+        bcs_cluster_id: str | None,
+        ctx: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """填充 ``bcs_federal_info`` (仅联邦相关 RT 才填).
+
+        命中条件 (任一):
+            (a) ``data_link_strategy ∈ BCS_FEDERAL_STRATEGIES``
+            (b) ``table_id`` 命中 ``BcsFederalClusterInfo.fed_builtin_metric_table_id`` 或 ``fed_builtin_event_table_id``
+
+        匹配优先级:
+            1. 按 ``table_id`` 查 (fed_builtin 路径, 命中即返)
+            2. 否则按 ``bcs_cluster_id`` 查 (sub_cluster_id 路径), 仅当策略匹配联邦
+        """
+        fed_by_table = ctx.get("fed_by_table_id", {})
+        fed_by_sub = ctx.get("fed_by_sub_cluster_id", {})
+
+        matched = fed_by_table.get(rt.table_id)
+        if not matched and data_link_strategy in self._BCS_FEDERAL_STRATEGIES and bcs_cluster_id:
+            matched = fed_by_sub.get(bcs_cluster_id)
+
+        if not matched:
             return None
+        return {
+            "fed_cluster_id": getattr(matched, "fed_cluster_id", None),
+            "host_cluster_id": getattr(matched, "host_cluster_id", None),
+            "sub_cluster_id": getattr(matched, "sub_cluster_id", None),
+            "fed_namespaces": list(getattr(matched, "fed_namespaces", None) or []),
+            "fed_builtin_metric_table_id": getattr(matched, "fed_builtin_metric_table_id", None) or None,
+            "fed_builtin_event_table_id": getattr(matched, "fed_builtin_event_table_id", None) or None,
+        }
 
-    def _get_es_storage_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any]:
-        """获取ES存储信息"""
-        try:
-            es_storage = models.ESStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
-            es_cluster = models.ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id, cluster_id=es_storage.storage_cluster_id
-            )
+    def _build_placeholder_block(self) -> dict[str, Any]:
+        return {
+            "collect_config_id": None,  # 待确认用途
+            # V3 BKBase runtime: inner Kafka shipper (P2 拉取, 仅 V3 链路有值)
+            "kafka_shipper_cluster_name": None,
+            "kafka_shipper_host": None,
+            "kafka_shipper_topic_name": None,
+        }
 
-            return {
-                "type": "elasticsearch",
-                "cluster_id": es_storage.storage_cluster_id,
-                "cluster_name": es_cluster.cluster_name,
-                "domain_name": es_cluster.domain_name,
-                "index_set": es_storage.index_set,
-                "slice_size_gb": es_storage.slice_size,
-                "slice_gap_minutes": es_storage.slice_gap,
-            }
-        except Exception as e:
-            return {"type": "elasticsearch", "error": str(e)}
+    def _build_runtime_error_fields(self) -> dict[str, Any]:
+        """P2 运行时错误字段, P1 全 null."""
+        return {
+            "bkbase_remote_error": None,
+            "es_runtime_error": None,
+        }
 
-    def _get_vm_storage_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any]:
-        """获取VM（VictoriaMetrics/计算平台）存储信息"""
-        try:
-            vm_records = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id)
+    # ============================================================
+    # 派生字段
+    # ============================================================
 
-            if not vm_records.exists():
-                return {"type": "vm", "error": "No VM access record found"}
+    def _resolve_bk_base_data_id(self, table_id: str, data_id: int, ds: Any, ctx: dict[str, Any]) -> int | None:
+        """AccessVMRecord.bk_base_data_id 优先; V4 原生 fallback bk_data_id."""
+        vms = ctx["vm_records"].get(table_id, [])
+        for vm in vms:
+            if vm.bk_base_data_id:
+                return vm.bk_base_data_id
+        if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
+            return data_id
+        return None
 
-            vm_info_list = []
-            for vm in vm_records:
-                try:
-                    vm_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=vm.vm_cluster_id)
-                    vm_info_list.append(
-                        {
-                            "vm_result_table_id": vm.vm_result_table_id,
-                            "vm_cluster_id": vm.vm_cluster_id,
-                            "storage_cluster_id": vm.storage_cluster_id,
-                            "bk_base_data_id": vm.bk_base_data_id,
-                            "domain_name": vm_cluster.domain_name,
-                        }
-                    )
-                except Exception as e:
-                    logger.warning("Failed to get VM cluster info: %s", str(e))
-                    continue
+    def _derive_effective_storage(self, default_storage: str | None, table_id: str, ctx: dict[str, Any]) -> str | None:
+        """``InfluxDB`` 历史遗留: 如有 ``AccessVMRecord``, 视为 VM."""
+        if default_storage == models.ClusterInfo.TYPE_INFLUXDB:
+            if ctx["vm_records"].get(table_id):
+                return models.ClusterInfo.TYPE_VM
+        return default_storage
 
-            return {"type": "vm", "records": vm_info_list}
-        except Exception as e:
-            return {"type": "vm", "error": str(e)}
-
-    def _get_bkbase_v4_link_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any] | None:
-        """
-        获取BkBase V4链路信息
-
-        仅纯V4链路才有BkBaseResultTable记录，V3迁移到V4的链路没有此记录
-        流程：
-        1. 通过result_table_id查找BkBaseResultTable（使用monitor_table_id字段）
-        2. 从中提取data_link_name
-        3. 通过data_link_name查找DataBusConfig
-        4. 返回component_config中的annotations、namespace、name等信息
-
-        对于V3迁移到V4的链路，提供猜测的databus_name和帮助信息
-        """
-        try:
-            # 通过monitor_table_id查找BkBaseResultTable
-            bkbase_rt = models.BkBaseResultTable.objects.filter(
-                bk_tenant_id=bk_tenant_id, monitor_table_id=table_id
-            ).first()
-
-            if not bkbase_rt:
-                # 没有BkBaseResultTable记录，可能是V3迁移到V4的链路
-                # 尝试提供猜测信息
-                return self._build_v3_to_v4_migration_hints(bk_tenant_id, table_id)
-
-            # 获取data_link_name
-            data_link_name = bkbase_rt.data_link_name
-
-            # 构建BkBaseResultTable基础信息
-            bkbase_info = {
-                "is_native_v4": True,
-                "data_link_name": data_link_name,
-                "bkbase_data_name": bkbase_rt.bkbase_data_name,
-                "bkbase_table_id": bkbase_rt.bkbase_table_id,
-                "bkbase_rt_name": bkbase_rt.bkbase_rt_name,
-                "storage_type": bkbase_rt.storage_type,
-                "status": bkbase_rt.status,
-            }
-
-            # 通过data_link_name查找DataBusConfig
+    def _resolve_real_bk_biz_id(self, bk_tenant_id: str, data_id: int) -> int | None:
+        """``ResultTable.bk_biz_id==0`` 时按 TimeSeriesGroup → EventGroup → LogGroup → SpaceDataSource(bkcc) 顺序回填."""
+        for group_model in (models.TimeSeriesGroup, models.EventGroup, models.LogGroup):
             try:
-                databus_config = models.DataBusConfig.objects.filter(
-                    bk_tenant_id=bk_tenant_id, data_link_name=data_link_name
-                ).first()
-
-                if databus_config:
-                    # 获取component_config
-                    component_config = databus_config.component_config
-
-                    if component_config:
-                        # 提取metadata信息
-                        metadata = component_config.get("metadata", {})
-                        bkbase_info["databus"] = {
-                            "kind": component_config.get("kind"),
-                            "namespace": metadata.get("namespace"),
-                            "name": metadata.get("name"),
-                            "annotations": metadata.get("annotations", {}),
-                            "labels": metadata.get("labels", {}),
-                        }
-
-                        # 提取spec中的关键信息
-                        spec = component_config.get("spec", {})
-                        if spec:
-                            bkbase_info["databus"]["sources"] = spec.get("sources", [])
-                            bkbase_info["databus"]["sinks"] = spec.get("sinks", [])
-                            bkbase_info["databus"]["transforms"] = spec.get("transforms", [])
-                            if spec.get("preferCluster"):
-                                bkbase_info["databus"]["prefer_cluster"] = spec.get("preferCluster")
-
-                        # 提取status信息
-                        status = component_config.get("status", {})
-                        if status:
-                            bkbase_info["databus"]["phase"] = status.get("phase")
-                            bkbase_info["databus"]["message"] = status.get("message")
-
-            except Exception as e:
+                group = group_model.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=data_id).first()
+                if group and group.bk_biz_id != 0:
+                    return group.bk_biz_id
+            except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
-                    "Failed to get DataBusConfig for data_link_name %s: %s",
-                    data_link_name,
-                    str(e),
+                    "resolve bk_biz_id from %s failed for data_id %s: %s",
+                    group_model.__name__,
+                    data_id,
+                    e,
                 )
-                bkbase_info["databus_error"] = f"Failed to retrieve DataBusConfig: {str(e)}"
 
-            return bkbase_info
-
-        except Exception as e:
-            logger.warning("Failed to get BkBase V4 link info for table_id %s: %s", table_id, str(e))
-            return None
-
-    def _build_v3_to_v4_migration_hints(self, bk_tenant_id: str, table_id: str) -> dict[str, Any] | None:
-        """
-        为V3迁移到V4的链路构建猜测信息和帮助提示
-
-        由于V3迁移到V4的链路没有BkBaseResultTable记录，
-        我们尝试根据数据源类型和AccessVMRecord中的vm_result_table_id来猜测可能的databus_name
-
-        规则：
-        1. 如果etl_config是bk_flat_batch，databus_name大概率是 l_{bk_data_id}，namespace是bklog
-        2. 其他情况根据vm_result_table_id猜测，namespace是bkmonitor
-        """
         try:
-            # 获取数据源信息
-            dsrt = models.DataSourceResultTable.objects.filter(table_id=table_id).first()
-            ds = None
-            etl_config = None
-            bk_data_id = None
-
-            if dsrt:
-                try:
-                    ds = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=dsrt.bk_data_id)
-                    etl_config = ds.etl_config
-                    bk_data_id = ds.bk_data_id
-                except models.DataSource.DoesNotExist:
-                    pass
-
-            # 如果是bk_flat_batch类型（日志类数据）
-            if etl_config == "bk_flat_batch" and bk_data_id:
-                return {
-                    "is_native_v4": False,
-                    "migration_type": "v3_to_v4",
-                    "etl_config": etl_config,
-                    "bk_data_id": bk_data_id,
-                    "possible_databus_names": [f"l_{bk_data_id}"],
-                    "helper_message": (
-                        "This is a V3-to-V4 migrated log data link (bk_flat_batch). "
-                        "The databus_name is likely 'l_{bk_data_id}'."
-                    ),
-                    "helper_message_cn": (
-                        "这是一个从V3迁移到V4的日志数据链路（bk_flat_batch类型）。"
-                        f"databus_name大概率是 'l_{bk_data_id}'。"
-                    ),
-                    "query_hints": {
-                        "namespace": "bklog",
-                        "kind": "Databus",
-                        "name": f"l_{bk_data_id}",
-                    },
-                }
-
-            # 非bk_flat_batch类型，尝试从AccessVMRecord获取信息
-            vm_record = models.AccessVMRecord.objects.filter(
-                bk_tenant_id=bk_tenant_id, result_table_id=table_id
+            space_ds = models.SpaceDataSource.objects.filter(
+                bk_tenant_id=bk_tenant_id, bk_data_id=data_id, from_authorization=False
             ).first()
+            if space_ds and space_ds.space_type_id == SpaceTypes.BKCC.value:
+                return int(space_ds.space_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("resolve bk_biz_id from SpaceDataSource failed: %s", e)
+        return None
 
-            if not vm_record:
-                return None
+    def _resolve_bcs_cluster_id(
+        self, data_id: int, ds: Any, rt: Any, ctx: dict[str, Any]
+    ) -> tuple[str | None, str | None]:
+        """三路兜底: name_parse → AccessVMRecord → BCSClusterInfo. 返回 (cluster_id, source)."""
+        # Path 1: name_parse on data_name (兼容 V3 / V4 命名)
+        m = self.BCS_CLUSTER_PATTERN.search(ds.data_name or "")
+        if m:
+            return f"BCS-K8S-{m.group(1)}", "name_parse"
 
-            vm_result_table_id = vm_record.vm_result_table_id
-            if not vm_result_table_id:
-                return None
+        # Path 2: AccessVMRecord.bcs_cluster_id
+        vms = ctx["vm_records"].get(rt.table_id, [])
+        for vm in vms:
+            bid = getattr(vm, "bcs_cluster_id", None)
+            if bid:
+                return bid, "access_vm_record"
 
-            # 对于非bk_flat_batch类型，databus_name统一为 vm_{vm_result_table_id}
-            databus_name = f"vm_{vm_result_table_id}"
+        # Path 3: BCSClusterInfo 反查
+        cid = ctx["bcs_cluster_by_data_id"].get(data_id)
+        if cid:
+            return cid, "bcs_cluster_info"
+        return None, None
 
-            result = {
-                "is_native_v4": False,
-                "migration_type": "v3_to_v4",
-                "vm_result_table_id": vm_result_table_id,
-                "possible_databus_names": [databus_name],
-                "helper_message": (
-                    "This is a V3-to-V4 migrated data link without BkBaseResultTable record. "
-                    "The databus_name is likely 'vm_{vm_result_table_id}'."
-                ),
-                "helper_message_cn": (
-                    "这是一个从V3迁移到V4的数据链路，没有BkBaseResultTable记录。"
-                    f"databus_name大概率是 '{databus_name}'。"
-                ),
-                "query_hints": {
-                    "namespace": "bkmonitor",
-                    "kind": "Databus",
-                    "name": databus_name,
-                },
-            }
+    # ============================================================
+    # 辅助
+    # ============================================================
 
-            # 如果有etl_config信息，添加到返回结果中
-            if etl_config:
-                result["etl_config"] = etl_config
-            if bk_data_id:
-                result["bk_data_id"] = bk_data_id
-
-            return result
-
-        except Exception as e:
-            logger.warning("Failed to build V3-to-V4 migration hints for table_id %s: %s", table_id, str(e))
+    @staticmethod
+    def _format_dt(dt: datetime | None) -> str | None:
+        if not dt:
             return None
+        try:
+            return dt.isoformat()
+        except Exception:  # pylint: disable=broad-except
+            return None
+
+    @staticmethod
+    def _safe_json_loads(text: Any) -> Any:
+        if not text:
+            return None
+        if not isinstance(text, str):
+            return text
+        try:
+            return json.loads(text)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _parse_index_shard_num(cls, index_settings: Any) -> int | None:
+        """从 ESStorage.index_settings (JSON 字符串) 提取 ``number_of_shards``."""
+        parsed = cls._safe_json_loads(index_settings)
+        if not isinstance(parsed, dict):
+            return None
+        n = parsed.get("number_of_shards")
+        if n is None:
+            return None
+        try:
+            return int(n)
+        except (ValueError, TypeError):
+            return None
+
+    # ============================================================
+    # P2 Runtime: 并发拉取 BKBase / ES / 组件 status
+    # ============================================================
+
+    def _enrich_with_runtime(self, rows: list[dict[str, Any]], ctx: dict[str, Any]) -> None:
+        """对所有行并发执行 runtime 字段拉取.
+
+        三类外部调用:
+            - BKBase 元数据 API (``GET /v4/meta/datalink/metadata/`` → ``v4_*`` + V3 ``kafka_shipper_*``)
+            - ES live 索引信息 (``ESStorage.current_index_info / get_index_info / _should_create_index``)
+            - 各 ``*Config.component_status`` (远端 @property)
+
+        策略: 收集所有任务一次性提交线程池; 单调用超时 ``_RUNTIME_TIMEOUT_SEC``; 失败降级 ``null`` + 写 ``*_error``.
+        """
+        if not rows:
+            return
+
+        tasks: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
+        for row in rows:
+            if row.get("error"):
+                continue
+
+            # BKBase 元数据: 所有非 error 行均尝试
+            # 查询 ID 优先级: bk_base_data_id > vm_rt_name > 监控侧 data_id (纯 V3 本地链路)
+            tasks.append(
+                (
+                    row,
+                    "bkbase_metadata",
+                    {
+                        "bk_base_data_id": row.get("bk_base_data_id"),
+                        "vm_rt_name": row.get("vm_rt_name"),
+                        "monitor_data_id": row.get("data_id"),
+                    },
+                )
+            )
+
+            # ES live (任何有 ES 存储的行)
+            if row.get("es_cluster_id"):
+                tasks.append((row, "es_runtime", {"table_id": row.get("result_table_id")}))
+
+            # 各组件 status (仅 V4 链路有 bkbase_components)
+            comps = row.get("bkbase_components") or []
+            for idx, comp in enumerate(comps):
+                if isinstance(comp, dict) and comp.get("_instance") is not None:
+                    tasks.append((row, "component_status", {"comp_idx": idx}))
+
+        if not tasks:
+            return
+
+        with ThreadPoolExecutor(max_workers=self._MAX_RUNTIME_WORKERS) as ex:
+            future_meta = {
+                ex.submit(self._dispatch_runtime, kind, args, ctx, row): (row, kind, args) for row, kind, args in tasks
+            }
+            for fut in as_completed(future_meta):
+                row, kind, args = future_meta[fut]
+                try:
+                    result = fut.result(timeout=self._RUNTIME_TIMEOUT_SEC + 1.0)
+                except Exception as e:  # pylint: disable=broad-except
+                    self._record_runtime_error(row, kind, args, f"task crashed: {e}")
+                    continue
+                try:
+                    self._apply_runtime_result(row, kind, args, result, ctx)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("apply runtime result failed (kind=%s): %s", kind, e)
+                    self._record_runtime_error(row, kind, args, f"apply failed: {e}")
+
+    def _dispatch_runtime(
+        self,
+        kind: str,
+        args: dict[str, Any],
+        ctx: dict[str, Any],
+        row: dict[str, Any],
+    ) -> Any:
+        """线程池任务入口. 按 kind 分发到具体 fetcher; 单 fetch 失败返回 ``{"_error": ...}``."""
+        try:
+            if kind == "bkbase_metadata":
+                return self._fetch_bkbase_metadata(
+                    args.get("bk_base_data_id"),
+                    args.get("vm_rt_name"),
+                    args.get("monitor_data_id"),
+                )
+            if kind == "es_runtime":
+                es_storage = ctx.get("es_storages", {}).get(args["table_id"])
+                return self._fetch_es_runtime(es_storage)
+            if kind == "component_status":
+                comp = (row.get("bkbase_components") or [])[args["comp_idx"]]
+                return self._fetch_component_status(comp.get("_instance"))
+            return None
+        except Exception as e:  # pylint: disable=broad-except
+            return {"_error": str(e)}
+        finally:
+            try:
+                from django.db import close_old_connections
+
+                close_old_connections()
+            except Exception:  # pylint: disable=broad-except
+                pass
+
+    def _fetch_bkbase_metadata(
+        self,
+        bk_base_data_id: int | None,
+        vm_rt_name: str | None,
+        monitor_data_id: int | None = None,
+    ) -> dict[str, Any] | None:
+        """调 BKBase ``GET /v4/meta/datalink/metadata/``.
+
+        入参 (二选一, 不可同传):
+            - ``bk_data_id``: BKBase ``raw_data_id / bk_base_data_id``; 纯 V3 本地链路 fallback 监控侧 ``data_id``
+            - ``vm_result_table_id``: BKBase 侧 ``result_table_id``
+
+        成功时返回 ``{"branches": [...]}`` (或外层 ``data.branches`` 已解包); 失败返回 ``{"_error": ...}``.
+        每个 ``branches[]`` 元素字段: ``result_table_id`` 结果表 ID; ``kafka_host`` 入口 Kafka/Pulsar 地址;
+        ``dispatch_cluster`` 分发集群名称; ``dispatch_cluster_count`` 分发集群数量;
+        ``dispatch_cluster_task_name`` 分发任务名称; ``dispatch_task_count`` 分发任务数量;
+        ``kafka_shipper_cluster_name`` inner Kafka 集群名称; ``kafka_shipper_host`` inner Kafka 地址;
+        ``kafka_shipper_topic_name`` inner Kafka Topic 名称; ``doris_cluster_domain`` Doris 集群地址;
+        ``doris_table_name`` Doris 物理表名.
+        """
+        params: dict[str, Any] = {}
+        if bk_base_data_id:
+            try:
+                params["bk_data_id"] = int(bk_base_data_id)
+            except (TypeError, ValueError):
+                return {"_error": f"invalid bk_base_data_id: {bk_base_data_id}"}
+        elif vm_rt_name:
+            params["vm_result_table_id"] = vm_rt_name
+        elif monitor_data_id is not None:
+            try:
+                params["bk_data_id"] = int(monitor_data_id)
+            except (TypeError, ValueError):
+                return {"_error": f"invalid monitor_data_id: {monitor_data_id}"}
+        else:
+            return None
+        try:
+            return api.bkdata.get_data_link_metadata(**params)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("fetch bkbase metadata failed, params=%s: %s", params, e)
+            return {"_error": str(e)}
+
+    def _fetch_es_runtime(self, es_storage: Any) -> dict[str, Any] | None:
+        """ES live: ``current_index_info`` + ``get_index_info`` + ``_should_create_index``."""
+        if not es_storage:
+            return None
+        out: dict[str, Any] = {}
+        try:
+            current = es_storage.current_index_info() or {}
+            out["current_index_info_raw"] = current
+            if current:
+                try:
+                    out["current_index_name"] = es_storage.make_index_name(
+                        current.get("datetime_object"),
+                        current.get("index"),
+                        current.get("index_version"),
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("make_index_name failed: %s", e)
+                if out.get("current_index_name"):
+                    try:
+                        out["current_index_detail"] = es_storage.get_index_info(out["current_index_name"])
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.warning("get_index_info failed: %s", e)
+        except Exception as e:  # pylint: disable=broad-except
+            return {"_error": f"current_index_info failed: {e}"}
+
+        try:
+            out["should_rotate"] = bool(es_storage._should_create_index())  # noqa: SLF001
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("_should_create_index failed: %s", e)
+            out["should_rotate"] = None
+        return out
+
+    def _fetch_component_status(self, cfg_instance: Any) -> Any:
+        """读 ``*Config.component_status`` (远端 BKBase API)."""
+        if cfg_instance is None:
+            return None
+        try:
+            status_data = cfg_instance.component_status
+        except Exception as e:  # pylint: disable=broad-except
+            return {"_error": str(e)}
+        if isinstance(status_data, dict):
+            return (
+                status_data.get("phase") or status_data.get("status"),
+                status_data.get("message"),
+            )
+        if isinstance(status_data, str):
+            return status_data, None
+        return None, None
+
+    def _apply_runtime_result(
+        self,
+        row: dict[str, Any],
+        kind: str,
+        args: dict[str, Any],
+        result: Any,
+        ctx: dict[str, Any],
+    ) -> None:
+        """把 fetch 结果 merge 到 row."""
+        if isinstance(result, dict) and "_error" in result:
+            self._record_runtime_error(row, kind, args, result["_error"])
+            return
+
+        if kind == "bkbase_metadata":
+            self._apply_bkbase_metadata(row, result)
+        elif kind == "es_runtime":
+            self._apply_es_runtime(row, result)
+        elif kind == "component_status":
+            comp = (row.get("bkbase_components") or [])[args["comp_idx"]]
+            status, message = result if isinstance(result, tuple) and len(result) == 2 else (None, None)
+            comp["status"] = status
+            comp["message"] = message
+
+    @staticmethod
+    def _normalize_bkbase_metadata_payload(result: Any) -> dict[str, Any] | None:
+        """兼容 ``{branches}`` 与 ``{data: {branches}}`` 两种响应包装."""
+        if not isinstance(result, dict):
+            return None
+        if isinstance(result.get("branches"), list):
+            return result
+        data = result.get("data")
+        if isinstance(data, dict) and isinstance(data.get("branches"), list):
+            return data
+        return None
+
+    @staticmethod
+    def _pick_bkbase_branch(branches: list[Any], row: dict[str, Any]) -> dict[str, Any] | None:
+        """按 ``branches[].result_table_id`` 匹配当前行; 单分支时直接取唯一元素."""
+        valid = [b for b in branches if isinstance(b, dict)]
+        if not valid:
+            return None
+        if len(valid) == 1:
+            return valid[0]
+        for key in (row.get("vm_rt_name"), row.get("bkbase_table_id")):
+            if not key:
+                continue
+            for branch in valid:
+                if branch.get("result_table_id") == key:
+                    return branch
+        return valid[0]
+
+    def _apply_bkbase_metadata(self, row: dict[str, Any], result: Any) -> None:
+        """BKBase ``branches[]`` 匹配当前行后写入 row; 多数字段加 ``v4_`` 前缀, V3 独有字段保持原名.
+
+        写入字段:
+            v4_result_table_id            结果表 ID
+            v4_kafka_host                 入口 Kafka/Pulsar 地址
+            v4_dispatch_cluster           分发集群名称
+            v4_dispatch_cluster_count     分发集群数量
+            v4_dispatch_cluster_task_name 分发任务名称
+            v4_dispatch_task_count        分发任务数量
+            kafka_shipper_cluster_name    inner Kafka 集群名称 (仅 V3, 无前缀)
+            kafka_shipper_host            inner Kafka 地址 (仅 V3)
+            kafka_shipper_topic_name      inner Kafka Topic 名称 (仅 V3)
+            v4_doris_cluster_domain       Doris 集群地址
+            v4_doris_table_name           Doris 物理表名
+        """
+        payload = self._normalize_bkbase_metadata_payload(result)
+        if not payload:
+            return
+        branch = self._pick_bkbase_branch(payload.get("branches") or [], row)
+        if not branch:
+            return
+        for key, val in branch.items():
+            if key in self._V3_RUNTIME_BRANCH_FIELDS:
+                row[key] = val
+            else:
+                row[f"v4_{key}"] = val
+
+    def _apply_es_runtime(self, row: dict[str, Any], result: Any) -> None:
+        if not isinstance(result, dict):
+            return
+        if result.get("current_index_name") is not None:
+            row["es_current_index_name"] = result.get("current_index_name")
+        if result.get("current_index_detail") is not None:
+            row["es_current_index_info"] = result.get("current_index_detail")
+        elif result.get("current_index_info_raw") is not None:
+            row["es_current_index_info"] = result.get("current_index_info_raw")
+        if result.get("should_rotate") is not None:
+            row["es_should_rotate_index"] = result.get("should_rotate")
+
+    def _record_runtime_error(
+        self,
+        row: dict[str, Any],
+        kind: str,
+        args: dict[str, Any],
+        msg: str,
+    ) -> None:
+        """记录 runtime 错误信息. 不阻断行返回."""
+        msg_short = f"[{kind}] {msg}"
+        if kind == "bkbase_metadata":
+            prev = row.get("bkbase_remote_error") or ""
+            row["bkbase_remote_error"] = (prev + msg_short + "; ").strip()
+        elif kind == "es_runtime":
+            row["es_runtime_error"] = msg
+        elif kind == "component_status":
+            comp_idx = args.get("comp_idx")
+            comps = row.get("bkbase_components") or []
+            if isinstance(comp_idx, int) and 0 <= comp_idx < len(comps):
+                comps[comp_idx]["status_error"] = msg
+            else:
+                prev = row.get("bkbase_remote_error") or ""
+                row["bkbase_remote_error"] = (prev + msg_short + "; ").strip()
+
+
+class GetDataLinkMetadataResource(Resource):
+    """
+    查询数据链路元数据 - 通过计算平台 v4 meta API
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(label="计算平台数据ID", required=False)
+        vm_result_table_id = serializers.CharField(label="VM结果表ID", required=False)
+
+        def validate(self, attrs):
+            if not (bool(attrs.get("bk_data_id")) ^ bool(attrs.get("vm_result_table_id"))):
+                raise serializers.ValidationError(
+                    "bk_data_id and vm_result_table_id are mutually exclusive, one must be specified"
+                )
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        logger.info("GetDataLinkMetadataResource: querying metadata with params: %s", validated_request_data)
+        result = api.bkdata.get_data_link_metadata(**validated_request_data)
+        return result

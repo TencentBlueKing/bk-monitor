@@ -16,6 +16,7 @@ from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 
 from alarm_backends.constants import (
+    CONST_MINUTES,
     LATEST_NO_DATA_CHECK_POINT,
     NO_DATA_LEVEL,
     NO_DATA_TAG_DIMENSION,
@@ -28,6 +29,14 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
 logger = logging.getLogger("core.control")
+
+# 单次 nodata 检测回填的 ANOMALY tag 数量上限。
+# nodata handler（alarm_backends/service/nodata/handler.py:27）固定每 60s 调度一次，
+# 而策略 agg_interval 可能小于 60s（如 30/15/10s），若仅写入 1 个 tag，会导致 trigger
+# 窗口（continuous × agg_interval - 1）内 tag 数量永远凑不齐 continuous 阈值。
+# 按 ceil(60 / agg_interval) 比例补齐 tag，使密度对齐 trigger 窗口预期；
+# 同时设置上限避免极端小周期（如 ≤5s）一次性写入过多 tag。
+NODATA_TAG_FILL_LIMIT = 6
 
 
 class CheckMixin:
@@ -304,14 +313,30 @@ class CheckMixin:
             )
             if redis_pipeline is None:
                 redis_pipeline = check_result.CHECK_RESULT
-            if dimensions_md5 not in data_dimensions_md5:
-                name = f"{check_timestamp}|{ANOMALY_LABEL}"
+
+            is_anomaly = dimensions_md5 not in data_dimensions_md5
+            if is_anomaly:
+                # 按 60s/agg_interval 比例向上取整回填 ANOMALY tag，使 tag 密度匹配 trigger 窗口预期。
+                # - agg_interval >= 60s：steps=1，回退为单点写入（与现状一致，processor.py:205 去重前置防重复）
+                # - agg_interval 非整除 60s（如 45/35s）：用 ceil 保证 60s 内至少补满，避免 floor 截到 1 仍卡死
+                try:
+                    agg_interval = int(self.query_configs[0]["agg_interval"])
+                except (KeyError, IndexError, ValueError, TypeError):
+                    agg_interval = CONST_MINUTES
+                if agg_interval <= 0:
+                    agg_interval = CONST_MINUTES
+                steps_raw = (CONST_MINUTES + agg_interval - 1) // agg_interval
+                steps = max(1, min(steps_raw, NODATA_TAG_FILL_LIMIT))
+                kwargs = {
+                    f"{check_timestamp - i * agg_interval}|{ANOMALY_LABEL}": check_timestamp - i * agg_interval
+                    for i in range(steps)
+                }
             else:
-                name = f"{check_timestamp}|{str(NO_DATA_VALUE)}"
+                # 有数据时只标记当前 check_timestamp，不回填历史点
+                kwargs = {f"{check_timestamp}|{str(NO_DATA_VALUE)}": check_timestamp}
 
             try:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet
-                kwargs = {name: check_timestamp}
                 check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
 
                 if self.no_data_config.get("is_enabled"):

@@ -644,7 +644,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         >
           {data[item.value] || '--'}
         </span>
-        {remark && <span class='remark-text'>{remark}</span>}
+        {remark && <span class='remark-text' v-bk-overflow-tips>{remark}</span>}
         {!data?.isTotal && data[item.value] && (
           <i
             class='icon-monitor icon-mc-copy tab-row-icon'
@@ -864,7 +864,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             // filter-method={this.fieldFilterMethod}
             // filters={this.tableFilterData[item.value]}
             label={item.text}
-            min-width={120}
+            min-width={item.value === 'code' ? 250 : 120}
             prop={item.value}
           />
         );
