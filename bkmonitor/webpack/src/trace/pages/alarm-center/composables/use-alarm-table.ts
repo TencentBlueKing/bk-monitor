@@ -47,7 +47,9 @@ export function useAlarmTable() {
   const ordering = shallowRef('');
   /** 是否加载中 */
   const loading = shallowRef(false);
-  /** 灰度空间列表（incident 场景专用） */
+  /** 已开启故障分析功能的空间 bizId 列表（incident 场景专用） */
+  const enabledSpaces = shallowRef<number[]>([]);
+  /** 置灰的空间 bizId 列表 */
   const greyedSpaces = shallowRef<number[]>([]);
   /** BK助手链接 */
   const wxCsLink = shallowRef('');
@@ -91,6 +93,7 @@ export function useAlarmTable() {
     if (signal.aborted) return;
     total.value = res.total;
     data.value = res.data;
+    enabledSpaces.value = res.enabled_spaces ?? [];
     greyedSpaces.value = res.greyed_spaces ?? [];
     wxCsLink.value = res.wx_cs_link ?? '';
     loading.value = false;
@@ -123,6 +126,7 @@ export function useAlarmTable() {
     data,
     loading,
     ordering,
+    enabledSpaces,
     greyedSpaces,
     wxCsLink,
   };

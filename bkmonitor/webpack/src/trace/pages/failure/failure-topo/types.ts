@@ -131,6 +131,7 @@ export interface IncidentDetailData {
   end_time: number;
   id: string;
   incident_id: string;
+  wx_cs_link?: string;
 }
 
 export interface IncidentResults {
