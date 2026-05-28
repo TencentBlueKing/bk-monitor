@@ -157,7 +157,7 @@ class ExternalPermissionHandler:
                         status = TokenStatusEnum.INVALID.value
                         break
             elif obj.action_id == ExternalPermissionActionEnum.CLIENT_LOG.value:
-                # 客户端日志权限维度是业务，校验授权人是否有创建客户端日志任务的权限
+                # 客户端日志权限维度是业务，校验授权人是否有客户端日志相关权限
                 if not self.does_the_authorizer_have_client_log_permission(authorizer, obj.space_uid):
                     status = TokenStatusEnum.INVALID.value
         else:
