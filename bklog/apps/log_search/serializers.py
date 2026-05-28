@@ -832,6 +832,12 @@ class CreateFavoriteGroupSerializer(serializers.Serializer):
 
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     name = serializers.CharField(label=_("收藏组名"), max_length=256)
+    source_type = serializers.ChoiceField(
+        label=_("收藏来源类型"),
+        required=False,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+    )
 
 
 class UpdateFavoriteGroupSerializer(serializers.Serializer):
@@ -849,6 +855,12 @@ class UpdateFavoriteGroupOrderSerializer(serializers.Serializer):
 
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     group_order = serializers.ListField(label=_("收藏组顺序"), child=serializers.IntegerField())
+    source_type = serializers.ChoiceField(
+        label=_("收藏来源类型"),
+        required=False,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+    )
 
 
 class FavoriteUnionSearchListSerializer(serializers.Serializer):
@@ -921,6 +933,12 @@ class FavoriteGroupListSerializer(serializers.Serializer):
     """
 
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    source_type = serializers.ChoiceField(
+        label=_("收藏来源类型"),
+        required=False,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+    )
 
 
 class BcsWebConsoleSerializer(serializers.Serializer):

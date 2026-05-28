@@ -1018,60 +1018,83 @@ class FavoriteGroup(OperateRecordModel):
     source_app_code = models.CharField(
         verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
     )
+    source_type = models.CharField(
+        _("收藏来源类型"),
+        max_length=16,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+        db_index=True,
+    )
 
     class Meta:
         verbose_name = _("检索收藏组")
         verbose_name_plural = _("34_搜索-检索收藏组")
         ordering = ("-updated_at",)
-        unique_together = [("name", "space_uid", "created_by", "source_app_code")]
+        unique_together = [("name", "space_uid", "created_by", "source_app_code", "source_type")]
 
     @classmethod
-    def get_or_create_private_group(cls, space_uid: str, username: str) -> "FavoriteGroup":
+    def get_or_create_private_group(
+        cls, space_uid: str, username: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
             group_type=FavoriteGroupType.PRIVATE.value,
             space_uid=space_uid,
             created_by=username,
             source_app_code=source_app_code,
-            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value))},
+            source_type=source_type,
+            defaults={"name": _("个人收藏")},
         )
         return obj
 
     @classmethod
-    def get_or_create_ungrouped_group(cls, space_uid: str) -> "FavoriteGroup":
+    def get_or_create_ungrouped_group(
+        cls, space_uid: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
             group_type=FavoriteGroupType.UNGROUPED.value,
             space_uid=space_uid,
             source_app_code=source_app_code,
-            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value))},
+            source_type=source_type,
+            defaults={"name": _("未分组")},
         )
         return obj
 
     @classmethod
-    def get_public_group(cls, space_uid: str) -> list["FavoriteGroup"]:
+    def get_public_group(
+        cls, space_uid: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> list["FavoriteGroup"]:
         source_app_code = get_request_app_code()
         return list(
             cls.objects.filter(
-                group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
+                group_type=FavoriteGroupType.PUBLIC.value,
+                space_uid=space_uid,
+                source_app_code=source_app_code,
+                source_type=source_type,
             )
             .order_by("created_at")
             .all()
         )
 
     @classmethod
-    def get_user_groups(cls, space_uid: str, username: str) -> list[dict[str, Any]]:
+    def get_user_groups(
+        cls, space_uid: str, username: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> list[dict[str, Any]]:
         """获取用户所有能看到的组"""
         groups = list()
         source_app_code = get_request_app_code()
-        # 个人组，使用get_or_create是为了减少同步
-        private_group = cls.get_or_create_private_group(space_uid=space_uid, username=username)
-        # 未归类组，使用get_or_create是为了减少同步
-        ungrouped_group = cls.get_or_create_ungrouped_group(space_uid=space_uid)
-        # 公共组
+        # Lazy create private/ungrouped per source_type, so scene 与 index_set 各有一套
+        private_group = cls.get_or_create_private_group(
+            space_uid=space_uid, username=username, source_type=source_type
+        )
+        ungrouped_group = cls.get_or_create_ungrouped_group(space_uid=space_uid, source_type=source_type)
         public_groups = (
             cls.objects.filter(
-                group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
+                group_type=FavoriteGroupType.PUBLIC.value,
+                space_uid=space_uid,
+                source_app_code=source_app_code,
+                source_type=source_type,
             )
             .order_by("created_at")
             .all()

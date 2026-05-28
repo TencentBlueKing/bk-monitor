@@ -362,79 +362,13 @@ def _merge_scene_filters_to_addition(data: dict) -> dict:
     return data
 
 
-def _format_table_id_conditions(tic) -> str:
-    """二维数组（外层 OR、内层 AND）→ Lucene-like 字符串。
-
-    历史预览中跳过 field_name='scene' 这一路由维度（对用户无信息量），
-    其他维度（如 cluster_id 等）正常拼接。
-    """
-    if not tic:
-        return ""
-    or_groups = []
-    for and_group in tic:
-        parts = []
-        for c in and_group:
-            field = c.get("field_name", "")
-            if not field or field == "scene":
-                continue
-            value_str = ",".join(map(str, c.get("value") or []))
-            parts.append(f"{field} {c.get('op', 'eq')} {value_str}")
-        if parts:
-            or_groups.append(" AND ".join(parts))
-    return ("(" + " OR ".join(f"({g})" for g in or_groups) + ")") if or_groups else ""
-
-
-def _format_scene_filter_values(filters) -> str:
-    if not filters:
-        return ""
-    parts = [
-        f"{f['field']} {f['operator']} {f.get('value', '')}"
-        for f in filters if f.get("field") and f.get("operator")
-    ]
-    return ("(" + " AND ".join(parts) + ")") if parts else ""
-
-
-def _collect_scene_dimension_keys() -> set:
-    """汇总所有场景定义中出现过的维度 key，用于识别 addition 中的场景维度过滤项。"""
-    from apps.log_databus.constants import SCENE_SEARCH_DIMENSIONS
-
-    keys = set()
-    for dims in SCENE_SEARCH_DIMENSIONS.values():
-        for d in dims or []:
-            k = d.get("key")
-            if k:
-                keys.add(k)
-    return keys
-
-
-def _build_scene_query_string(params: dict) -> str:
-    """场景化检索的可读预览。
-
-    设计取舍：
-    - table_id_conditions 仅过滤掉 scene 这个路由维度，其他维度（如 cluster_id）保留拼接
-    - 过滤掉 addition 中由"场景维度 key"派生的项，避免与 scene_filter_values 重复展示，
-      同时兼容修复前持久化的脏 history（addition 中混入了 scene_filter_values 转换项）
-    """
-    from apps.utils.lucene import generate_query_string
-
-    scene_keys = _collect_scene_dimension_keys()
-    cleaned_params = dict(params)
-    cleaned_params["addition"] = [
-        a for a in (params.get("addition") or [])
-        if (a.get("field") or "") not in scene_keys
-    ]
-
-    pieces = []
-    tic = _format_table_id_conditions(params.get("table_id_conditions"))
-    if tic:
-        pieces.append(tic)
-    sfv = _format_scene_filter_values(params.get("scene_filter_values"))
-    if sfv:
-        pieces.append(sfv)
-    base = generate_query_string(cleaned_params)
-    if base and base.strip():
-        pieces.append(base)
-    return " AND ".join(pieces) if pieces else "*"
+# Scene query_string 拼装逻辑已抽到 apps.utils.scene_lucene，本文件保留 thin wrapper
+# 以兼容历史引用。
+from apps.utils.scene_lucene import (  # noqa: E402, F401
+    build_scene_query_string as _build_scene_query_string,
+    format_scene_filter_values as _format_scene_filter_values,
+    format_table_id_conditions as _format_table_id_conditions,
+)
 
 
 # ---------------------------------------------------------------------------
