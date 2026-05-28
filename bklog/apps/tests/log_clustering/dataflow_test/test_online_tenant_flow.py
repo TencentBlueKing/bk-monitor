@@ -1,9 +1,10 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from django.test import SimpleTestCase
 
 from apps.log_clustering.handlers.dataflow.constants import ActionEnum
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
+from apps.log_clustering.tasks.flow import restart_flow
 
 
 class TestOnlineTenantFlow(SimpleTestCase):
@@ -60,3 +61,24 @@ class TestOnlineTenantFlow(SimpleTestCase):
         self.assertEqual(render_obj["pattern"]["storage"], "tenant_pattern")
         self.assertEqual(render_obj["tspider_storage"]["cluster"], "tenant_ts")
         self.assertEqual(result["flow_id"], 91)
+
+    @patch("apps.log_clustering.tasks.flow.cache.get", return_value=None)
+    @patch("apps.log_clustering.tasks.flow.DataFlowHandler.operator_flow")
+    @patch("apps.log_clustering.tasks.flow.ClusteringConfig.get_by_index_set_id")
+    def test_restart_flow_passes_business_id_for_online_flows(
+        self, mock_get_config, mock_operator_flow, mock_cache_get
+    ):
+        mock_get_config.return_value = Mock(
+            bk_biz_id=2,
+            predict_flow_id=11,
+            log_count_aggregation_flow_id=22,
+        )
+
+        restart_flow(index_set_id=30, flow_ids=[11, 22])
+
+        mock_operator_flow.assert_has_calls(
+            [
+                call(flow_id=11, action=ActionEnum.RESTART, bk_biz_id=2),
+                call(flow_id=22, action=ActionEnum.RESTART, bk_biz_id=2),
+            ]
+        )

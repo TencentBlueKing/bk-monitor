@@ -61,11 +61,15 @@ def restart_flow(index_set_id, flow_ids):
     updated_timestamp = cache.get(f"start_pipeline_time_{index_set_id}")
     if not updated_timestamp or arrow.now().timestamp() >= updated_timestamp:
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        online_flow_ids = {
+            clustering_config.predict_flow_id,
+            clustering_config.log_count_aggregation_flow_id,
+        }
         for flow_id in flow_ids:
             if not flow_id:
                 continue
             kwargs = {}
-            if flow_id == clustering_config.predict_flow_id:
+            if flow_id in online_flow_ids:
                 kwargs["bk_biz_id"] = clustering_config.bk_biz_id
             DataFlowHandler().operator_flow(flow_id=flow_id, action=ActionEnum.RESTART, **kwargs)
         logger.info(f"restart flow success: index_set_id -> {index_set_id}")
