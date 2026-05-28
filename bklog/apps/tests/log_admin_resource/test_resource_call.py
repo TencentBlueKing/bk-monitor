@@ -36,6 +36,7 @@ from apps.log_databus.models import (
 )
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from apps.utils.local import _local
 
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
@@ -64,7 +65,14 @@ class NonSuperuserMiddleware(MiddlewareMixin):
         request.META.update({"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"})
 
 
-class AdminResourceCallViewTest(TestCase):
+class ClearRequestLocalMixin:
+    def tearDown(self):
+        if hasattr(_local, "request"):
+            delattr(_local, "request")
+        super().tearDown()
+
+
+class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
     def _call(self, func_name, params=None):
         response = self.client.post(
             "/api/v1/admin/resource/call/",
@@ -109,7 +117,7 @@ class TransferApiTenantGetterTest(TestCase):
         mock_get_tenant_id.assert_called_once_with(bk_biz_id="2")
 
 
-class CollectorResourceCallTest(TestCase):
+class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
     def setUp(self):
         self.plugin = CollectorPlugin.objects.create(
             collector_plugin_id=50001,
