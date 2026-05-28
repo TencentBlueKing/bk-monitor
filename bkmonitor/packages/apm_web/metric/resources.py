@@ -80,7 +80,13 @@ from bkmonitor.utils import group_by
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from bkmonitor.utils.time_tools import get_datetime_range, parse_time_compare_abbreviation
-from constants.apm import TraceMetric, OtlpKey, SpanKindCachedEnum, TelemetryDataType, CallSide
+from constants.apm import (
+    TraceMetric,
+    OtlpKey,
+    SpanKindCachedEnum,
+    TelemetryDataType,
+    CallSide,
+)
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.collecting.constant import CollectStatus
@@ -1634,7 +1640,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "endpoint": endpoint,
             "message": {
                 "title": f"{endpoint}: {exception_type}",
-                "subtitle": "",  # 保持原框架 subtitle值为空
+                "subtitle": "",
                 "is_stack": _lazy("有Stack") if has_exception else _lazy("没有Stack"),
             },
             "category": service_mappings.get(service, {}).get("extra_data", {}).get("category"),

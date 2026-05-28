@@ -197,9 +197,24 @@ export default defineComponent({
       RetrieveEvent.SEARCH_VALUE_CHANGE,
       RetrieveEvent.SEARCH_TIME_CHANGE,
       RetrieveEvent.TREND_GRAPH_SEARCH,
-      RetrieveEvent.SORT_LIST_CHANGED,
     ], () => {
       resetPageState();
+    });
+
+    addEvent(RetrieveEvent.SORT_LIST_CHANGED, () => {
+      /**
+       * SORT_LIST_CHANGED may be fired after the sort query has finished.
+       * In that case tableDataSize has already changed and first-page reveal has already been scheduled/finished.
+       * Resetting first-page layout again here would leave the skeleton pending forever because no new data-size
+       * change will arrive to call scheduleFirstPageTableReveal().
+       *
+       * New sort queries already clear list and set loading in requestIndexSetQuery(), which drives the skeleton
+       * through tableDataSize/isLoading watchers. Therefore this event only needs to force reset while the request
+       * is still in-flight or before any result rows are available.
+       */
+      if (isLoading.value || isPageLoading.value || isRequesting.value || tableDataSize.value === 0) {
+        resetPageState();
+      }
     });
 
     addEvent(RetrieveEvent.AUTO_REFRESH, () => {

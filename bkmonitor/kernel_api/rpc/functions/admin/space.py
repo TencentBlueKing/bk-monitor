@@ -60,6 +60,19 @@ SPACE_RESOURCE_FIELDS = [
     "last_modify_user",
     "last_modify_time",
 ]
+SPACE_VM_INFO_FIELDS = [
+    "id",
+    "space_type",
+    "space_id",
+    "vm_cluster_id",
+    "vm_retention_time",
+    "status",
+    "creator",
+    "create_time",
+    "updater",
+    "update_time",
+]
+VM_CLUSTER_SUMMARY_FIELDS = ["cluster_id", "cluster_name", "display_name", "cluster_type"]
 ORDERING_FIELDS = {
     "id",
     "space_uid",
@@ -131,6 +144,20 @@ def _serialize_reverse_space_resource(
     related_space = spaces_by_key.get((resource.space_type_id, resource.space_id))
     item["space"] = _serialize_space(related_space) if related_space else None
     return item
+
+
+def _serialize_vm_cluster(cluster: models.ClusterInfo | None) -> dict[str, Any] | None:
+    return serialize_model(cluster, VM_CLUSTER_SUMMARY_FIELDS) if cluster else None
+
+
+def _serialize_space_vm_info(
+    space_vm_info: models.SpaceVMInfo,
+    vm_clusters_by_id: dict[int, models.ClusterInfo],
+) -> dict[str, Any]:
+    return {
+        "space_vm_info": serialize_model(space_vm_info, SPACE_VM_INFO_FIELDS),
+        "vm_cluster": _serialize_vm_cluster(vm_clusters_by_id.get(space_vm_info.vm_cluster_id)),
+    }
 
 
 def _normalize_space_ordering(raw_ordering: Any) -> list[str]:
@@ -231,7 +258,8 @@ def list_spaces(params: dict[str, Any]) -> dict[str, Any]:
     summary="Admin 查询 Space 详情",
     description=(
         "只读查询 Space 基础信息、该空间下的 SpaceResource，以及基于 resource_type/resource_id "
-        "反查到当前 Space 的 SpaceResource；不展开 SpaceDataSource 或场景聚合。"
+        "反查到当前 Space 的 SpaceResource；额外按当前 Space 精确查询 SpaceVMInfo 默认 VM 集群映射；"
+        "不展开 SpaceDataSource 或场景聚合。"
     ),
     params_schema={
         "bk_tenant_id": "必填，租户 ID",
@@ -277,6 +305,14 @@ def get_space_detail(params: dict[str, Any]) -> dict[str, Any]:
         else []
     )
     reverse_spaces_by_key = {(space.space_type_id, space.space_id): space for space in reverse_spaces}
+    space_vm_infos = list(
+        models.SpaceVMInfo.objects.filter(space_type=space.space_type_id, space_id=space.space_id).order_by("id")
+    )
+    vm_cluster_ids = [info.vm_cluster_id for info in space_vm_infos]
+    vm_clusters_by_id = {
+        cluster.cluster_id: cluster
+        for cluster in models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_id__in=vm_cluster_ids)
+    }
 
     return build_response(
         operation="space.detail",
@@ -287,6 +323,9 @@ def get_space_detail(params: dict[str, Any]) -> dict[str, Any]:
             "space_resources": resources,
             "reverse_space_resources": [
                 _serialize_reverse_space_resource(resource, reverse_spaces_by_key) for resource in reverse_resources
+            ],
+            "space_vm_infos": [
+                _serialize_space_vm_info(space_vm_info, vm_clusters_by_id) for space_vm_info in space_vm_infos
             ],
         },
     )

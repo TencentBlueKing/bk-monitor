@@ -236,6 +236,7 @@ class CustomReportSubscription(models.Model):
                     "bk_data_token": group_info["access_token"],
                     "bk_biz_id": r["bk_biz_id"],
                     "bk_data_id": r["bk_data_id"],
+                    "metric_data_id": r["bk_data_id"],
                     "bk_app_name": "prometheus_report",
                     "qps_config": {
                         "name": "rate_limiter/token_bucket",
