@@ -57,6 +57,7 @@ class _BkDataDataFlowApi:
             description="启动flow",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.stop_flow = DataAPI(
             method="POST",
@@ -66,6 +67,7 @@ class _BkDataDataFlowApi:
             description="停止flow",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.restart_flow = DataAPI(
             method="POST",
@@ -75,6 +77,7 @@ class _BkDataDataFlowApi:
             description="重启flow",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
         self.get_flow_graph = DataAPI(
             method="GET",
