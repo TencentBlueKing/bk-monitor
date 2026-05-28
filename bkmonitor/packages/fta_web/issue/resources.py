@@ -944,7 +944,17 @@ class ListIssueHistoryResource(Resource):
         if not current_issue.fingerprint:
             return []
 
-        # 按 fingerprint 查"同一具体问题"已解决历史，排除当前 Issue 自身，按解决时间降序，最多 200 条
+        # 排除"当前是 active 关系冻结 member"的 Issue：合并后 member 归属主 Issue 展示，
+        # 不应再作为独立历史出现在"同问题历史"列表（与 Search/TopN/Export 的 active member
+        # 隐藏口径一致；本接口自建查询、未走 get_search_object，需单独排除）。放开"非活跃
+        # Issue 可并入活跃主"后，RESOLVED 冻结 member 更易命中同 fingerprint 历史查询，故必须排除。
+        # get_active_member_ids 内部 fail-open（SQL 失败返回 []，退化为不排除）。
+        from bkmonitor.issue_merge import IssueMergeResolver
+
+        active_member_ids = IssueMergeResolver.get_active_member_ids(bk_biz_id)
+
+        # 按 fingerprint 查"同一具体问题"已解决历史，排除当前 Issue 自身 + active 冻结 member，
+        # 按解决时间降序，最多 200 条
         search = (
             IssueDocument.search(all_indices=True)
             .filter("term", bk_biz_id=str(bk_biz_id))
@@ -954,6 +964,8 @@ class ListIssueHistoryResource(Resource):
             .sort("-resolved_time")
             .params(size=200)
         )
+        if active_member_ids:
+            search = search.exclude("terms", _id=active_member_ids)
         hits = search.execute().hits
 
         return [

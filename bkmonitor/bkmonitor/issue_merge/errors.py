@@ -145,10 +145,12 @@ class MergeMainStatusForbiddenError(IssuesMergeError):
 
 
 class MergeMemberStatusForbiddenError(IssuesMergeError):
-    """部分 member Issue 当前 ES 状态不允许被合并（必须 ∈ ACTIVE_STATUSES）。
+    """⚠ 已废弃，不再 raise（保留仅为错误码 3337107 占位 + 历史兼容）。
 
-    防止把已 RESOLVED / ARCHIVED 的 member 合并进活跃主——member 被冻结写入后，
-    其 ES 状态停在终态，主与 member 永久不一致。
+    曾用于禁止把已 RESOLVED / ARCHIVED 的 member 合并进活跃主。现已放开该限制：
+    member 合并后被冻结，自身 ES 状态不再权威，由主状态级联与拆分重置接管，故
+    `MergeResource` 不再对 member 校验状态（仅 main 仍须活跃）。保留本类避免错误码
+    回收造成的客户端兼容问题；如需彻底移除，同步删 `__init__`/`__all__` 导出与单测。
     """
 
     status_code = 400
