@@ -164,9 +164,10 @@ class AlertEventBaseResource(Resource, abc.ABC):
         conditions: list[dict[str, Any]] = []
         bcs_cluster_id: str = ""
         for workload in related_targets:
-            bcs_cluster_id = workload.get("bcs_cluster_id", "")
-            if not bcs_cluster_id:
+            cluster_id: str = workload.get("bcs_cluster_id", "")
+            if not cluster_id:
                 continue
+            bcs_cluster_id = cluster_id
 
             cond: dict[str, Any] = {key: value for key, value in workload.items() if key != "workload" and value}
             workload_value: str = workload.get("workload") or ""
