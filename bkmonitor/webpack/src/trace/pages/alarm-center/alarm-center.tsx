@@ -248,7 +248,10 @@ export default defineComponent({
 
     /** 侧滑数据接入的展示模式：全部未开启功能用 empty（文案与外部一致），否则用 guide */
     const sidesliderMode = computed(() => {
-      if (isVirtualBiz.value) return 'guide';
+      if (isVirtualBiz.value) {
+        // 虚拟业务：无已开启功能的空间时用 empty 模式
+        return enabledSpaces.value.length === 0 ? 'empty' : 'guide';
+      }
       // 所有选中空间都未开启故障分析功能 → empty 模式
       if (connectedBizIds.value.length === 0 && unconnectedBizIds.value.length > 0) return 'empty';
       return 'guide';
@@ -1281,7 +1284,6 @@ export default defineComponent({
           {this.showDataAccessDirect ? (
             <div class='alarm-center-data-access'>
               <DataAccess
-                showEnableButton={this.showDataAccessDirect}
                 spaceList={this.unconnectedSpaceList}
                 wxCsLink={this.wxCsLink}
                 onEnabled={() => this.handleBizIdsChange(this.alarmStore.bizIds)}
@@ -1498,7 +1500,6 @@ export default defineComponent({
             key={this.dataAccessKey}
             enabledBizIds={this.enabledSpaces}
             mode={this.sidesliderMode}
-            showEnableButton={this.sidesliderMode === 'empty'}
             spaceList={this.sidesliderSpaceList}
             totalCount={this.sidesliderTotal}
             wxCsLink={this.wxCsLink}

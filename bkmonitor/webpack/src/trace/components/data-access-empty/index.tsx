@@ -97,10 +97,8 @@ export default defineComponent({
             scope_id_list_open: [bkBizId],
           },
         });
-        if (res.result === true && res.message === 'OK') {
+        if (!res.errors.length) {
           emit('enabled');
-        } else {
-          Message({ theme: 'error', message: res.message || t('操作失败') });
         }
       } catch (e: any) {
         Message({ theme: 'error', message: e?.message || t('操作失败') });
