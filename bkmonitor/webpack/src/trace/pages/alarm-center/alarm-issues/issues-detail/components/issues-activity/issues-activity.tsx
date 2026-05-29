@@ -536,7 +536,7 @@ export default defineComponent({
               }}
             >
               {dispatchNode.alias}：
-              {item.to_value.split(',').map((user: string, index: number) => (
+              {(item.to_value || '').split(',').map((user: string, index: number) => (
                 <span key={user.trim()}>
                   {index > 0 && ', '}
                   <bk-user-display-name user-id={user.trim()} />

@@ -333,6 +333,6 @@ export const ISSUES_ACTIVE_NODE_ICON_MAP = {
   },
   [IssueActiveNodeTypeEnum.SPLIT_FROM]: {
     icon: splitIcon,
-    alias: window.i18n.t('Issues 拆分'),
+    alias: window.i18n.t('Issue 拆分'),
   },
 };

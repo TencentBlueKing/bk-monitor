@@ -30,7 +30,7 @@ import { Button, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { ISSUES_REGRESSION_MAP } from '../../constant';
-import { mergeIssue } from '../../services/mock';
+import { mergeIssues } from '../../services/issues-operations';
 import IssueInfoItem from './issue-info-item';
 import MergeStrategyTips from './merge-strategy-tips';
 import ReasonSection from './reason-section';
@@ -111,7 +111,7 @@ export default defineComponent({
     const handleConfirm = () => {
       submitLoading.value = true;
       const reasons = inputReason.value ? [...selectReason.value, inputReason.value] : selectReason.value;
-      mergeIssue({
+      mergeIssues({
         bk_biz_id: mainIssue.value.bk_biz_id,
         main_issue_id: mainIssue.value.id,
         members: targetIssues.value.map(issue => issue.id),

@@ -30,7 +30,7 @@ import { Button, Dialog, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
-import { splitIssue } from '../../services/mock';
+import { splitIssues } from '../../services/issues-operations';
 import IssueInfoItem from './issue-info-item';
 import ReasonSection from './reason-section';
 
@@ -89,8 +89,8 @@ export default defineComponent({
     const handleConfirm = () => {
       submitLoading.value = true;
       const reasons = inputReason.value ? [...selectReason.value, inputReason.value] : selectReason.value;
-      splitIssue({
-        bk_biz_id: props.bizId,
+      splitIssues({
+        bk_biz_id: +props.bizId,
         member_issue_id: props.issue.member_issue_id,
         reasons,
       })
@@ -99,17 +99,16 @@ export default defineComponent({
             theme: 'success',
             message: t('已拆分为独立 Issue'),
           });
+          handleShowChange(false);
           emit('success', props.issue.member_issue_id);
-          handleClose();
         })
         .finally(() => {
           submitLoading.value = false;
         });
     };
 
-    /** 处理关闭 */
-    const handleClose = () => {
-      emit('update:isShow', false);
+    const handleShowChange = (show: boolean) => {
+      emit('update:isShow', show);
     };
 
     return {
@@ -121,7 +120,7 @@ export default defineComponent({
       handleSelectReasonChange,
       handleInputReasonChange,
       handleConfirm,
-      handleClose,
+      handleShowChange,
     };
   },
   render() {
@@ -129,9 +128,9 @@ export default defineComponent({
       <Dialog
         width={640}
         class='issues-split-dialog'
-        v-model:isShow={this.isShow}
+        isShow={this.isShow}
         title={this.$t('拆分为新 Issue')}
-        onClosed={this.handleClose}
+        onUpdate:isShow={this.handleShowChange}
       >
         {{
           default: () => (
@@ -175,7 +174,13 @@ export default defineComponent({
               >
                 {this.$t('确认拆分')}
               </Button>
-              <Button onClick={this.handleClose}>{this.$t('取消')}</Button>
+              <Button
+                onClick={() => {
+                  this.handleShowChange(false);
+                }}
+              >
+                {this.$t('取消')}
+              </Button>
             </div>
           ),
         }}

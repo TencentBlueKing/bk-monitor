@@ -29,7 +29,7 @@ import { type PropType, computed, defineComponent, onMounted, shallowRef } from 
 import { Button, Input } from 'bkui-vue';
 import dayjs from 'dayjs';
 
-import { listMergeSources } from '../../services/mock';
+import { fetchMergeSources } from '../../services/issues-operations';
 import IssueInfoItem from './issue-info-item';
 import IssuesSplitDialog from './issues-split-dialog';
 import EmptyStatus, { type EmptyStatusOperationType } from '@/components/empty-status/empty-status';
@@ -47,7 +47,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['close', 'success'],
+  emits: ['success'],
   setup(props, { emit }) {
     const searchKey = shallowRef('');
 
@@ -69,7 +69,7 @@ export default defineComponent({
     const getIssueMergeSources = async () => {
       const issue = props.issues[0];
       if (!issue) return;
-      const data = await listMergeSources({
+      const data = await fetchMergeSources({
         bk_biz_id: issue.bk_biz_id,
         main_issue_id: issue.id,
       });
@@ -89,15 +89,16 @@ export default defineComponent({
     };
 
     /** 处理弹窗关闭 */
-    const handleDialogClose = () => {
-      dialogVisible.value = false;
-      currentSplitIssue.value = null;
+    const handleDialogShowChange = (show: boolean) => {
+      dialogVisible.value = show;
+      if (!show) {
+        currentSplitIssue.value = null;
+      }
     };
 
     /** 处理拆分成功 */
     const handleDialogSuccess = (memberIssueId: string) => {
       emit('success', memberIssueId);
-      handleDialogClose();
     };
 
     onMounted(() => {
@@ -112,7 +113,7 @@ export default defineComponent({
       handleSplit,
       dialogVisible,
       currentSplitIssue,
-      handleDialogClose,
+      handleDialogShowChange,
       handleDialogSuccess,
     };
   },
@@ -174,7 +175,7 @@ export default defineComponent({
           isShow={this.dialogVisible}
           issue={this.currentSplitIssue}
           onSuccess={this.handleDialogSuccess}
-          onUpdate:isShow={this.handleDialogClose}
+          onUpdate:isShow={this.handleDialogShowChange}
         />
       </div>
     );
