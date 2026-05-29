@@ -625,14 +625,21 @@ export default defineComponent({
     };
 
     onMounted(async () => {
-      // 页面挂载时检查功能开关，无权限则跳转回检索页
+      // 页面挂载时检查功能开关/权限，无权限则跳转
+      const isExternal = store.state.isExternal;
       const hasPermission = isFeatureToggleOn(
         'tgpa_task',
         [String(store.state.bkBizId), String(store.state.spaceUid)],
       );
-      if (!hasPermission) {
+      const externalMenu = store.state.externalMenu as string[];
+      const hasExternalPermission = isExternal && (externalMenu || []).includes('client-log-search');
+      // 灰度开关关闭 或 外部版无权限 则跳转
+      if (!hasPermission || (isExternal && !hasExternalPermission)) {
+        const targetRoute = isExternal
+          ? getExternalDefaultRoute((externalMenu || []).filter((m: string) => m !== 'client-log-search'))
+          : 'retrieve';
         router.replace({
-          name: 'retrieve',
+          name: targetRoute,
           query: {
             spaceUid: String(store.state.spaceUid),
             bizId: String(store.state.bkBizId),
