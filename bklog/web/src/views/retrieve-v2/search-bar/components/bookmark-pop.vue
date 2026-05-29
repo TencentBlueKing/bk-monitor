@@ -34,6 +34,10 @@
       default: false,
       type: Boolean,
     },
+    commonFilterAddition: {
+      default: () => [],
+      type: Array,
+    },
   });
   const emit = defineEmits(['refresh', 'save-current-active-favorite','instanceShow']);
   const { $t } = useLocale();
@@ -209,19 +213,43 @@
       }),
   );
 
+  const formatValueStr = (value) => {
+    if (Array.isArray(value)) {
+      return `[${value.map(v => `'${v}'`).join(',')}]`;
+    }
+    return `[${value !== null && value !== undefined ? `'${value}'` : ''}]`;
+  };
+
+  const formatConditionStr = ({ field, operator, value }) => {
+    if (field === '_ip-select_') {
+      const target = value?.[0] ?? {};
+      return Object.keys(target)
+        .reduce((output, key) => {
+          return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
+        }, [])
+        .join(' AND ');
+    }
+    return `${field} ${operator} ${formatValueStr(value)}`;
+  };
+
+  const allConditions = computed(() => {
+    const conditions = formatAddition.value.map(formatConditionStr);
+    if (props.commonFilterAddition?.length) {
+      props.commonFilterAddition.forEach(item => {
+        conditions.push(formatConditionStr(item));
+      });
+    }
+    return conditions;
+  });
+
   const additionString = computed(() => {
-    return `* AND (${formatAddition.value
-      .map(({ field, operator, value }) => {
-        if (field === '_ip-select_') {
-          const target = value?.[0] ?? {};
-          return Object.keys(target)
-            .reduce((output, key) => {
-              return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
-            }, [])
-            .join(' AND ');
-        }
-        return `${field} ${operator} [${value?.toString() ?? ''}]`;
-      })
+    return `* AND (${allConditions.value.join(' AND ')})`;
+  });
+
+  const commonFilterAdditionString = computed(() => {
+    if (!props.commonFilterAddition?.length) return '';
+    return `AND (${props.commonFilterAddition
+      .map(({ field, operator, value }) => `${field} ${operator} ${formatValueStr(value)}`)
       .join(' AND ')})`;
   });
 
@@ -231,7 +259,9 @@
     }
 
     if (['sql'].includes(props.searchMode)) {
-      return props.sql;
+      return commonFilterAdditionString.value
+        ? `${props.sql} ${commonFilterAdditionString.value}`
+        : props.sql;
     }
 
     return additionString.value;
@@ -242,8 +272,18 @@
     const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
     const searchParams = ['sql', 'sqlChart'].includes(props.searchMode)
-      ? { keyword: props.sql, addition: [], ...(props.extendParams ?? {}) }
-      : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
+      ? {
+          keyword: sqlString.value,
+          addition: [],
+          ...(props.extendParams ?? {}),
+        }
+      : {
+          addition: [
+            ...formatAddition.value.filter(v => v.field !== '_ip-select_'),
+            ...props.commonFilterAddition,
+          ],
+          keyword: '*',
+        };
 
     const data = {
       name,
