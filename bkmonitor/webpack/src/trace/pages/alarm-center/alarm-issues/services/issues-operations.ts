@@ -30,16 +30,17 @@ import {
   archiveIssue,
   assignIssue,
   exportIssue,
+  listMergeSources,
   listRecentAssignees,
+  mergeIssue,
   renameIssue,
   reopenIssue,
   resolveIssue,
   restoreIssue,
+  splitIssue,
   updateIssuePriority,
 } from 'monitor-api/modules/issue';
 import { downFile } from 'trace/utils/utils';
-
-import { listMergeSources, mergeIssue, splitIssue } from './mock';
 
 import type { RequestOptions } from '../../services/base';
 import type {
