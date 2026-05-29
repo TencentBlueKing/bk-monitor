@@ -287,10 +287,12 @@ class ExternalPermissionActionEnum(ChoicesEnum):
     LOG_SEARCH = "log_search"
     LOG_EXTRACT = "log_extract"
     LOG_COMMON = "log_common"
+    CLIENT_LOG = "client_log"
 
     _choices_labels = (
         (LOG_SEARCH, _("日志检索")),
         (LOG_EXTRACT, _("日志提取")),
+        (CLIENT_LOG, _("客户端日志")),
     )
 
 
@@ -572,43 +574,43 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     # ======================================= 客户端日志检索-TGPAViewSet =======================================
     TGPA_VIEWSET_OPENID_LIST = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPAViewSet", view_action="get_openid_list"
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value, view_set="TGPAViewSet", view_action="get_openid_list"
     )
     TGPA_VIEWSET_TASK_LIST = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value,
         view_set="TGPAViewSet",
         view_action="get_merged_task_list",
     )
     TGPA_VIEWSET_CLIENT_INFO = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPAViewSet", view_action="get_client_info"
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value, view_set="TGPAViewSet", view_action="get_client_info"
     )
     # ======================================= 客户端日志检索-TGPATaskViewSet =======================================
     TGPA_TASK_VIEWSET_STATUS = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value,
         view_set="TGPATaskViewSet",
         view_action="get_task_status",
     )
     TGPA_TASK_VIEWSET_SYNC = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPATaskViewSet", view_action="sync_task"
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value, view_set="TGPATaskViewSet", view_action="sync_task"
     )
     TGPA_TASK_VIEWSET_INDEX_SET_ID = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value,
         view_set="TGPATaskViewSet",
         view_action="get_index_set_id",
     )
     TGPA_TASK_VIEWSET_DOWNLOAD_FILE = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value,
         view_set="TGPATaskViewSet",
         view_action="download_file",
     )
     # ======================================= 客户端日志检索-TGPAReportViewSet =======================================
     TGPA_REPORT_VIEWSET_FILE_STATUS = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value,
         view_set="TGPAReportViewSet",
         view_action="get_file_status",
     )
     TGPA_REPORT_VIEWSET_SYNC = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="TGPAReportViewSet", view_action="sync_report"
+        action_id=ExternalPermissionActionEnum.CLIENT_LOG.value, view_set="TGPAReportViewSet", view_action="sync_report"
     )
     # ======================================= 日志提取-ExplorerViewSet =======================================
     EXPLORER_VIEWSET = ViewSetAction(
