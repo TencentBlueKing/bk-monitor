@@ -38,6 +38,10 @@ from metadata.models.data_link.constants import (
     BASEREPORT_USAGES,
     DataLinkKind,
     DataLinkResourceStatus,
+    SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
+    SYSTEM_PROC_PERF_DATABUS_FORMAT,
+    SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
+    SYSTEM_PROC_PORT_DATABUS_FORMAT,
 )
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -3836,6 +3840,8 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert result_table.table_name_zh == perf_data_name
     assert result_table.is_custom_table is False
     assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    perf_cmdb_table_id = f"{perf_table_id}_cmdb"
+    assert not models.ResultTable.objects.filter(table_id=perf_cmdb_table_id).exists()
 
     # 验证数据源
     data_source = models.DataSource.objects.get(data_name=perf_data_name, bk_tenant_id=bk_tenant_id)
@@ -3845,6 +3851,9 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     # 验证数据源结果表关联
     dsrt = models.DataSourceResultTable.objects.get(bk_data_id=data_source.bk_data_id, table_id=perf_table_id)
     assert dsrt.bk_tenant_id == bk_tenant_id
+    assert not models.DataSourceResultTable.objects.filter(
+        bk_data_id=data_source.bk_data_id, table_id=perf_cmdb_table_id
+    ).exists()
 
     # 验证 AccessVMRecord
     vm_record = models.AccessVMRecord.objects.get(result_table_id=perf_table_id)
@@ -3852,6 +3861,7 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert vm_record.bk_base_data_id == data_source.bk_data_id
     assert vm_record.bk_base_data_name == perf_data_name
     assert vm_record.vm_result_table_id == "1_base_1_system_proc_perf"
+    assert not models.AccessVMRecord.objects.filter(result_table_id=perf_cmdb_table_id).exists()
 
     # 验证结果表字段
     perf_fields = SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["fields"]
@@ -3868,6 +3878,62 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert data_link_ins.bk_tenant_id == bk_tenant_id
     assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PERF
     assert data_link_ins.namespace == "bkmonitor"
+    assert data_link_ins.table_ids == [perf_table_id]
+    perf_configs = data_link_ins.compose_configs(
+        data_source=data_source,
+        table_id=perf_table_id,
+        storage_cluster_name="vm-default",
+        bk_biz_id=1,
+    )
+    assert any(c["kind"] == "ResultTable" and c["metadata"]["name"] == f"{perf_data_name}_cmdb" for c in perf_configs)
+    assert any(
+        c["kind"] == "VmStorageBinding" and c["metadata"]["name"] == f"{perf_data_name}_cmdb" for c in perf_configs
+    )
+    perf_basereport_sink_config = models.BasereportSinkConfig.objects.get(name=perf_data_name)
+    assert perf_basereport_sink_config.vm_storage_binding_names == [perf_data_name, f"{perf_data_name}_cmdb"]
+    assert perf_basereport_sink_config.result_table_ids == [perf_table_id, perf_cmdb_table_id]
+    perf_basereport_sink = next(
+        c for c in perf_configs if c["kind"] == "BasereportSink" and c["metadata"]["name"] == perf_data_name
+    )
+    assert perf_basereport_sink["metadata"] == {
+        "labels": {"bk_biz_id": "1"},
+        "name": perf_data_name,
+        "namespace": "bkmonitor",
+        "tenant": bk_tenant_id,
+    }
+    assert perf_basereport_sink["spec"]["mappings"] == [
+        {
+            "metric_type": SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": perf_data_name,
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+        {
+            "metric_type": f"{SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE}_cmdb",
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": f"{perf_data_name}_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+    ]
+    perf_databus_config = models.DataBusConfig.objects.get(name=perf_data_name)
+    assert perf_databus_config.sink_names == [f"BasereportSink:{perf_data_name}"]
+    perf_databus = next(c for c in perf_configs if c["kind"] == "Databus" and c["metadata"]["name"] == perf_data_name)
+    assert perf_databus["spec"]["sinks"] == [
+        {"kind": "BasereportSink", "name": perf_data_name, "namespace": "bkmonitor", "tenant": bk_tenant_id}
+    ]
+    assert perf_databus["spec"]["transforms"] == [
+        {"format": SYSTEM_PROC_PERF_DATABUS_FORMAT, "kind": "PreDefinedLogic", "name": "log_to_metric"}
+    ]
 
     # 测试 port 链路
     port_table_id = f"{bk_tenant_id}_1_system_proc.port"
@@ -3881,6 +3947,8 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert result_table.table_name_zh == port_data_name
     assert result_table.is_custom_table is False
     assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    port_cmdb_table_id = f"{port_table_id}_cmdb"
+    assert not models.ResultTable.objects.filter(table_id=port_cmdb_table_id).exists()
 
     # 验证数据源
     data_source = models.DataSource.objects.get(data_name=port_data_name, bk_tenant_id=bk_tenant_id)
@@ -3890,6 +3958,9 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     # 验证数据源结果表关联
     dsrt = models.DataSourceResultTable.objects.get(bk_data_id=data_source.bk_data_id, table_id=port_table_id)
     assert dsrt.bk_tenant_id == bk_tenant_id
+    assert not models.DataSourceResultTable.objects.filter(
+        bk_data_id=data_source.bk_data_id, table_id=port_cmdb_table_id
+    ).exists()
 
     # 验证 AccessVMRecord
     vm_record = models.AccessVMRecord.objects.get(result_table_id=port_table_id)
@@ -3897,6 +3968,7 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert vm_record.bk_base_data_id == data_source.bk_data_id
     assert vm_record.bk_base_data_name == port_data_name
     assert vm_record.vm_result_table_id == "1_base_1_system_proc_port"
+    assert not models.AccessVMRecord.objects.filter(result_table_id=port_cmdb_table_id).exists()
 
     # 验证结果表字段
     port_fields = SYSTEM_PROC_DATA_LINK_CONFIGS["port"]["fields"]
@@ -3913,6 +3985,62 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert data_link_ins.bk_tenant_id == bk_tenant_id
     assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PORT
     assert data_link_ins.namespace == "bkmonitor"
+    assert data_link_ins.table_ids == [port_table_id]
+    port_configs = data_link_ins.compose_configs(
+        data_source=data_source,
+        table_id=port_table_id,
+        storage_cluster_name="vm-default",
+        bk_biz_id=1,
+    )
+    assert any(c["kind"] == "ResultTable" and c["metadata"]["name"] == f"{port_data_name}_cmdb" for c in port_configs)
+    assert any(
+        c["kind"] == "VmStorageBinding" and c["metadata"]["name"] == f"{port_data_name}_cmdb" for c in port_configs
+    )
+    port_basereport_sink_config = models.BasereportSinkConfig.objects.get(name=port_data_name)
+    assert port_basereport_sink_config.vm_storage_binding_names == [port_data_name, f"{port_data_name}_cmdb"]
+    assert port_basereport_sink_config.result_table_ids == [port_table_id, port_cmdb_table_id]
+    port_basereport_sink = next(
+        c for c in port_configs if c["kind"] == "BasereportSink" and c["metadata"]["name"] == port_data_name
+    )
+    assert port_basereport_sink["metadata"] == {
+        "labels": {"bk_biz_id": "1"},
+        "name": port_data_name,
+        "namespace": "bkmonitor",
+        "tenant": bk_tenant_id,
+    }
+    assert port_basereport_sink["spec"]["mappings"] == [
+        {
+            "metric_type": SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": port_data_name,
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+        {
+            "metric_type": f"{SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE}_cmdb",
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": f"{port_data_name}_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+    ]
+    port_databus_config = models.DataBusConfig.objects.get(name=port_data_name)
+    assert port_databus_config.sink_names == [f"BasereportSink:{port_data_name}"]
+    port_databus = next(c for c in port_configs if c["kind"] == "Databus" and c["metadata"]["name"] == port_data_name)
+    assert port_databus["spec"]["sinks"] == [
+        {"kind": "BasereportSink", "name": port_data_name, "namespace": "bkmonitor", "tenant": bk_tenant_id}
+    ]
+    assert port_databus["spec"]["transforms"] == [
+        {"format": SYSTEM_PROC_PORT_DATABUS_FORMAT, "kind": "PreDefinedLogic", "name": "log_to_metric"}
+    ]
 
 
 # ============================================================
