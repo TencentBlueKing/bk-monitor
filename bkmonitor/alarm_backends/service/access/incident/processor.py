@@ -86,6 +86,30 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         elif sync_info["sync_type"] == IncidentSyncType.UPDATE.value:
             self.update_incident(sync_info)
 
+    def merge_info_to_incident(self, merge_info:dict):
+        """处理merge_info中的内容，生成merge_info中的origin_incident_doc_id和target_incident_doc_id"""
+        if not merge_info or not isinstance(merge_info, dict):
+            return merge_info
+
+        try:
+            origin_incident_id = merge_info.get("origin_incident_id")
+            target_incident_id = merge_info.get("target_incident_id")
+            origin_created_at = merge_info.get("origin_created_at")
+            target_created_at = merge_info.get("target_created_at")
+            origin_incident_id = int(origin_incident_id)
+            target_incident_id = int(target_incident_id)
+            # 构建故障文档ID，用于链接跳转
+            # IncidentDocument的id格式为: {create_time}{incident_id}
+            origin_incident_doc_id = f"{origin_created_at}{origin_incident_id}" if origin_created_at else None
+            target_incident_doc_id = f"{target_created_at}{target_incident_id}" if target_created_at else None
+            merge_info["origin_incident_doc_id"]=origin_incident_doc_id
+            merge_info["target_incident_doc_id"]=target_incident_doc_id
+
+        except Exception as e:
+            logger.error(f"[MERGE]Access incident error: {e}", exc_info=True)
+
+        return merge_info
+
     def create_incident(self, sync_info: dict) -> None:
         """根据同步信息，从AIOPS接口获取故障详情，并创建到监控的ES中.
 
@@ -110,6 +134,15 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             should_send_notice = incident_info.pop("send_notice", None)
             notice_config = incident_info.pop("notice_config", None)
             incident_info["incident_id"] = sync_info["incident_id"]
+            merge_info = incident_info.pop("merge_info", None)
+
+            if incident_info.get("status") == IncidentStatus.MERGED.value  and isinstance(merge_info, dict) and merge_info:
+                # 处理merge_info中的内容，生成merge_info中的origin_incident_doc_id和target_incident_doc_id
+                if not incident_info.get("extra_info"):
+                    incident_info["extra_info"] = {}
+
+                incident_info["extra_info"]["merge_info"] = self.merge_info_to_incident(merge_info)
+
             incident_document = IncidentDocument(**incident_info)
 
             if sync_info["fpp_snapshot_id"] == "fpp:None":
@@ -248,7 +281,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             should_send_notice = incident_info.pop("send_notice", None)
             notice_config = incident_info.pop("notice_config", None)
             incident_info["incident_id"] = sync_info["incident_id"]
-            merge_info = incident_info.pop("merge_info", None) or {}
+            merge_info = incident_info.get("merge_info", None) or {}
             incident_document = IncidentDocument.get(
                 f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
             )

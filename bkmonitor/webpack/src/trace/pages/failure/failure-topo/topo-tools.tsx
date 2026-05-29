@@ -109,9 +109,18 @@ export default defineComponent({
   setup(props, { emit }) {
     const treeData = shallowRef([]);
     const checkedIds = ref([]);
-    const autoAggregate = ref(true);
-    const aggregateCluster = ref(true);
-    let autoAggregateIdText = '';
+    const isAutoAggregate = ref(true);
+    // 从属关系聚合（控制 UI 树形选择器展示，不直接传接口）
+    const aggregateCluster = ref(false);
+    // 部署版本聚合（对应接口字段 aggregate_version）
+    const aggregateVersion = ref(false);
+    // 调用关系聚合（对应接口字段 aggregate_cluster）
+    const aggregateCall = ref(true);
+    /** 菜单接口返回的动态聚合开关列表 */
+    const aggregateSwitches = shallowRef<{ [k: string]: any; default: boolean; key: string; name: string }[]>([]);
+    /** 动态开关的当前状态 map，key 为 switch.key */
+    const switchStates = ref<Record<string, boolean>>({});
+    let aggregateIdText = '';
     const isFullscreen = ref(false);
     const { t } = useI18n();
     const aggregateConfig = ref({});
@@ -126,26 +135,32 @@ export default defineComponent({
     const handleChangeTimeLine = value => {
       timeLine.value.changeTimeLine(value);
     };
-    /** 缓存默认聚合id */
-    const setAutoAggregated = data => {
+    /** 缓存默认选中 ID */
+    const setCheckedId = data => {
+      checkedIds.value = [];
       Object.keys(data.default_aggregated_config).forEach(key => {
         const treeNode = treeData.value.find(item => item.key === key);
         if (treeNode) {
           const select = data.default_aggregated_config[key];
           if (select.includes(treeNode.key)) {
-            checkedIds.value.push(treeNode.children.map(({ id }) => id).concat(treeNode.id));
+            // 选中所有子节点和父节点
+            checkedIds.value.push(...treeNode.children.map(({ id }) => id), treeNode.id);
           } else {
-            const data = treeNode.children.some(s => select.includes(s.key));
-            if (data) {
+            const hasSelectedChild = treeNode.children.some(s => select.includes(s.key));
+            if (hasSelectedChild) {
               checkedIds.value.push(treeNode.id);
             }
-            treeNode.children.map(({ key, id }) => {
-              select.includes(key) && checkedIds.value.push(id);
+            // 选中匹配的子节点
+            treeNode.children.forEach(({ key, id }) => {
+              if (select.includes(key)) {
+                checkedIds.value.push(id);
+              }
             });
           }
         }
       });
-      autoAggregateIdText = checkedIds.value.join('|');
+      // 缓存默认选中的 ID 字符串，用于判断是否为自动聚合状态
+      aggregateIdText = checkedIds.value.join('|');
     };
     /** 获取聚合数据 */
     incidentTopologyMenu(
@@ -154,7 +169,6 @@ export default defineComponent({
       },
       { needMessage: false }
     ).then(data => {
-      // checkedIds.value = data
       treeData.value = data.menu.map(item => {
         const parentId = random(10);
         return {
@@ -176,9 +190,23 @@ export default defineComponent({
           }),
         };
       });
-      setAutoAggregated(data);
+      // 解析动态聚合开关列表 (如 aggregate_version)
+      if (data.aggregate_switches?.length) {
+        aggregateSwitches.value = data.aggregate_switches;
+        const states: Record<string, boolean> = {};
+        for (const sw of data.aggregate_switches) {
+          states[sw.key] = sw.default ?? false;
+          // 将后端返回的 default 值同步到对应的 ref 变量
+          if (sw.key === 'aggregate_version') {
+            aggregateVersion.value = sw.default ?? false;
+          }
+        }
+        switchStates.value = states;
+      }
+      // 缓存默认聚合选中的 ID，用于手动聚合模式
+      setCheckedId(data);
     });
-    /** 设置默认聚合规则选中 */
+    /** 设置 Tree 数据的选中状态（仅在手动聚合模式下使用） */
     const setTreeDataChecked = () => {
       const config = {};
       treeData.value = treeData.value.map(item => {
@@ -211,25 +239,48 @@ export default defineComponent({
     };
     /** 更新聚合规则 */
     const handleUpdateAutoAggregate = (v: boolean) => {
-      if (v) {
-        checkedIds.value = autoAggregateIdText.split('|');
-      } else {
-        checkedIds.value = [];
+      isAutoAggregate.value = v;
+
+      if (!v) {
+        // 切换到手动聚合：初始化选中状态和 Tree 数据
+        if (checkedIds.value.length === 0 && aggregateIdText) {
+          checkedIds.value = aggregateIdText.split('|');
+        }
+        // 更新 treeData 的 checked 属性，供 Tree 组件使用
+        setTreeDataChecked();
       }
-      autoAggregate.value = v;
+
+      updateAggregationConfig();
+    };
+    /** 更新选中（手动聚合模式下的 Tree 勾选变化） */
+    const handleUpdateCheckedIds = (v: string[]) => {
+      checkedIds.value = v;
+      // 更新 treeData 的 checked 属性和聚合配置
       setTreeDataChecked();
       updateAggregationConfig();
     };
-    /** 更新选中 */
-    const handleUpdateCheckedIds = (v: string[]) => {
-      checkedIds.value = v;
-      autoAggregate.value = v.join('|') === autoAggregateIdText;
-      setTreeDataChecked();
+    /** 重置到默认选中状态 */
+    const handleResetCheckedIds = () => {
+      if (aggregateIdText) {
+        checkedIds.value = aggregateIdText.split('|');
+        setTreeDataChecked();
+        updateAggregationConfig();
+      }
+    };
+    /** 更新从属关系聚合 */
+    const handleUpdateAggregateCluster = (v: boolean) => {
+      aggregateCluster.value = v;
+      updateAggregationConfig();
+    };
+    /** 更新部署版本聚合 */
+    const handleUpdateAggregateVersion = (v: boolean) => {
+      aggregateVersion.value = v;
+      switchStates.value = { ...switchStates.value, aggregate_version: v };
       updateAggregationConfig();
     };
     /** 更新调用关系聚合 */
-    const handleUpdateAggregateCluster = (v: boolean) => {
-      aggregateCluster.value = v;
+    const handleUpdateAggregateCall = (v: boolean) => {
+      aggregateCall.value = v;
       updateAggregationConfig();
     };
     /** 播放 */
@@ -237,17 +288,16 @@ export default defineComponent({
       emit('play', value);
     };
     const getAggregationConfigValue = () => {
-      if (autoAggregate.value || !checkedIds.value.length) {
-        return {
-          aggregate_cluster: aggregateCluster.value,
-          auto_aggregate: autoAggregate.value,
-        };
-      }
-      return {
-        aggregate_cluster: aggregateCluster.value,
-        auto_aggregate: false,
-        aggregate_config: aggregateConfig.value,
+      const config: Record<string, any> = {
+        aggregate_call: aggregateCall.value,
+        aggregate_version: aggregateVersion.value,
+        auto_aggregate: isAutoAggregate.value,
       };
+      /** 手动聚合 + 从属关系聚合开启 + 有勾选节点时，才带 aggregate_config */
+      if (!isAutoAggregate.value && aggregateCluster.value && checkedIds.value.length) {
+        config.aggregate_config = aggregateConfig.value;
+      }
+      return config;
     };
     const updateAggregationConfig = () => {
       emit('update:AggregationConfig', getAggregationConfigValue());
@@ -306,11 +356,12 @@ export default defineComponent({
 
     return {
       isFullscreen,
-      autoAggregateIdText,
+      aggregateIdText,
       treeData,
       timeLine,
       checkedIds,
-      autoAggregate,
+      isAutoAggregate,
+      aggregateSwitches,
       isResourceHover,
       isResourceSelected,
       isServiceHover,
@@ -319,7 +370,10 @@ export default defineComponent({
       handleChangeTimeLine,
       handleUpdateAutoAggregate,
       handleUpdateCheckedIds,
+      handleResetCheckedIds,
       handleUpdateAggregateCluster,
+      handleUpdateAggregateVersion,
+      handleUpdateAggregateCall,
       handleChangeRefleshTime,
       handleTimelineChange,
       handlePlay,
@@ -332,12 +386,16 @@ export default defineComponent({
       <div class='topo-tools'>
         <AggregationSelect
           class='topo-tools-agg'
-          autoAggregate={this.autoAggregate}
+          aggregateSwitches={this.aggregateSwitches}
           checkedIds={this.checkedIds}
+          isAutoAggregate={this.isAutoAggregate}
           treeData={this.treeData}
+          onReset:checkedIds={this.handleResetCheckedIds}
+          onUpdate:aggregateCall={this.handleUpdateAggregateCall}
           onUpdate:aggregateCluster={this.handleUpdateAggregateCluster}
-          onUpdate:autoAggregate={this.handleUpdateAutoAggregate}
+          onUpdate:aggregateVersion={this.handleUpdateAggregateVersion}
           onUpdate:checkedIds={this.handleUpdateCheckedIds}
+          onUpdate:isAutoAggregate={this.handleUpdateAutoAggregate}
         />
         <Timeline
           ref='timeLine'

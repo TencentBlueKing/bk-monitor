@@ -122,6 +122,20 @@
         color: #3a84ff;
         cursor: pointer;
       }
+
+      .failure-tags-feedback {
+        flex-shrink: 0;
+        margin-left: 10px;
+        font-size: 12px;
+        line-height: 24px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        &-icon {
+          font-size: 14px;
+          padding-right: 2px;
+        }
+      }
     }
 
     .failure-tags-icon {
