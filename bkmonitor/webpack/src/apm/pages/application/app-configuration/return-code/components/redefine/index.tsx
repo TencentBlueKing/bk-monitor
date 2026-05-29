@@ -98,8 +98,6 @@ export default class RedefineTabContent extends tsc<Props> {
     { label: this.$tc('成功'), value: 'success' },
   ];
 
-  codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
-
   callTypeOptions = [
     { text: this.$tc('主调'), value: 'caller' },
     { text: this.$tc('被调'), value: 'callee' },
@@ -147,7 +145,10 @@ export default class RedefineTabContent extends tsc<Props> {
       },
       {
         validator: (val: string) =>
-          !(val ?? '').toString().trim() || this.codeRegex.test((val ?? '').toString().trim()),
+          !(val ?? '').toString().trim() ||
+          /^(?:[a-zA-Z0-9]+_)?-?\d+(?:~-?\d+)?(?:,(?:[a-zA-Z0-9]+_)?-?\d+(?:~-?\d+)?)*$/.test(
+            (val ?? '').toString().trim()
+          ),
         message: window.i18n.tc('返回码格式错误'),
         trigger: 'blur',
       },
@@ -619,9 +620,15 @@ export default class RedefineTabContent extends tsc<Props> {
     this.showData = cloneDeep(this.data);
   }
 
+  handleBatchEdit() {
+    this.currentEditRowId = '';
+  }
+
   async handleBatchSave() {
     const validResult = await this.validRules();
     if (!validResult) {
+      // 无论成功失败都关闭 loading
+      this.$emit('batchSaveFailed');
       return;
     }
     const params = {
@@ -940,7 +947,7 @@ export default class RedefineTabContent extends tsc<Props> {
           ) : (
             <bk-table
               ref='tableRef'
-              height='100%'
+              max-height='100%'
               data={this.showData}
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
               row-class-name='return-code-redefine-row'

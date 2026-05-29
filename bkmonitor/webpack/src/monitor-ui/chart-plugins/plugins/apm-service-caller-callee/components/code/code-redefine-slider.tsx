@@ -93,7 +93,6 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     { label: this.$tc('超时'), value: 'timeout' },
     { label: this.$tc('成功'), value: 'success' },
   ];
-  codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
   currentEditRowIndex = -1;
   isBatchEdit = false;
   isBatchEditSaving = false;
@@ -176,7 +175,10 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       },
       {
         validator: (val: string) =>
-          !(val ?? '').toString().trim() || this.codeRegex.test((val ?? '').toString().trim()),
+          !(val ?? '').toString().trim() ||
+          /^(?:[a-zA-Z0-9]+_)?-?\d+(?:~-?\d+)?(?:,(?:[a-zA-Z0-9]+_)?-?\d+(?:~-?\d+)?)*$/.test(
+            (val ?? '').toString().trim()
+          ),
         message: window.i18n.tc('返回码格式错误'),
         trigger: 'blur',
       },
@@ -355,9 +357,9 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   /** 校验填写的规则 */
-  async validRules(rowIndex: number) {
+  async validRules(rowIndex?: number) {
     const values = this.showData.map((item, index) => {
-      const targetItem = rowIndex === index ? item : this.data[index];
+      const targetItem = rowIndex === undefined ? item : rowIndex === index ? item : this.data[index];
       return this.type === 'caller'
         ? `${targetItem.callee_server}_${targetItem.callee_service}_${targetItem.callee_method}_${targetItem.is_global}`
         : `${targetItem.callee_service}_${targetItem.callee_method}_${targetItem.is_global}`;
@@ -525,13 +527,23 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   getValueCallback(list: { value: string; text: string }[]): TGetValueFn {
-    return (_params: IGetValueFnParams): Promise<IOptionsInfo> => {
+    return (params: IGetValueFnParams): Promise<IOptionsInfo> => {
+      const search = params.search?.toLocaleLowerCase() ?? '';
       return Promise.resolve({
         count: 0 as const,
-        list: list.map(item => ({
-          id: item.value,
-          name: item.text,
-        })),
+        list: list.reduce((results, item) => {
+          if (
+            !search ||
+            String(item.value).toLocaleLowerCase().includes(search) ||
+            String(item.text).toLocaleLowerCase().includes(search)
+          ) {
+            results.push({
+              id: item.value,
+              name: item.text,
+            });
+          }
+          return results;
+        }, []),
       });
     };
   }
@@ -542,6 +554,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
   handleBatchEdit() {
     this.isBatchEdit = true;
+    this.currentEditRowIndex = -1;
   }
 
   handleCancelBatchEdit() {
@@ -551,6 +564,12 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
   async handleBatchEditSave() {
     this.isBatchEditSaving = true;
+    const isValid = await this.validRules();
+    if (!isValid) {
+      this.isBatchEditSaving = false;
+      return;
+    }
+
     const params = {
       app_name: this.appName,
       service_name: this.service,
