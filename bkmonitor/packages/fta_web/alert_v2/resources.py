@@ -168,8 +168,8 @@ class AlertEventBaseResource(Resource, abc.ABC):
             if not all([related_target.get("bcs_cluster_id"), related_target.get("namespace")]):
                 continue
 
+            workload: str = related_target.pop("workload", "")
             if is_workload:
-                workload: str = related_target.pop("workload", "")
                 if not workload:
                     continue
                 kind, name = workload.split(":", 1)
