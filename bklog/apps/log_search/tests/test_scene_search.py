@@ -1251,6 +1251,74 @@ class TestBuildSceneLabelsExtended(TestCase):
         self.assertEqual(result, "")
 
 
+class TestBuildSceneLabelsBranchSelection(TestCase):
+    """_build_scene_labels 应通过 is_container_collector 综合判定，
+    既覆盖 BCS 容器采集（is_container_environment），也覆盖
+    自定义上报的容器日志（is_custom_container = custom + custom_type=log）。
+    """
+
+    def _new_handler(self, **data_attrs):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        handler = CollectorHandler.__new__(CollectorHandler)
+        handler.data = MagicMock()
+        # 默认所有 container 判定 property 都是 False，再按测试覆盖单个
+        handler.data.is_container_environment = False
+        handler.data.is_custom_container = False
+        handler.data.is_container_collector = False
+        handler.data.bcs_cluster_id = ""
+        handler.data.collector_scenario_id = "row"
+        handler.data.collector_config_id = 1
+        for k, v in data_attrs.items():
+            setattr(handler.data, k, v)
+        return handler
+
+    @patch("apps.log_databus.handlers.collector.base.CollectorHandler._detect_container_stream")
+    def test_bcs_container_environment_goes_k8s(self, mock_stream):
+        mock_stream.return_value = "stdout"
+        handler = self._new_handler(
+            is_container_environment=True,
+            is_container_collector=True,
+            bcs_cluster_id="BCS-K8S-12345",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "k8s")
+        self.assertEqual(labels["cluster_id"], "BCS-K8S-12345")
+        self.assertEqual(labels["stream"], "stdout")
+
+    @patch("apps.log_databus.handlers.collector.base.CollectorHandler._detect_container_stream")
+    def test_custom_container_goes_k8s_without_cluster_id(self, mock_stream):
+        """custom + custom_type=log 没设 environment 也没 bcs_cluster_id，但应判 k8s。"""
+        mock_stream.return_value = ""
+        handler = self._new_handler(
+            is_container_environment=False,
+            is_custom_container=True,
+            is_container_collector=True,
+            bcs_cluster_id="",
+            collector_scenario_id="custom",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "k8s")
+        # cluster_id / stream 为空时不写入 labels
+        self.assertNotIn("cluster_id", labels)
+        self.assertNotIn("stream", labels)
+
+    def test_non_container_falls_back_to_scenario_mapping(self):
+        handler = self._new_handler(collector_scenario_id="syslog")
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "host")
+
+    def test_unknown_scenario_defaults_to_host(self):
+        handler = self._new_handler(collector_scenario_id="some_future_type")
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "host")
+
+    def test_client_scenario_maps_to_client(self):
+        handler = self._new_handler(collector_scenario_id="client")
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "client")
+
+
 # =========================================================================
 # 9. _sync_scene_tags_to_index_set tests
 # =========================================================================
