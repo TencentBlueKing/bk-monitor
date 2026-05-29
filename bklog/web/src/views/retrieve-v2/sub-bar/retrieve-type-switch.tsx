@@ -136,10 +136,8 @@ export default defineComponent({
         });
       }
 
-      // 切换检索模式时，如果收藏面板展开，先清空选中态和搜索值，再重新获取收藏列表
-      if (RetrieveHelper.isFavoriteShown) {
-        RetrieveHelper.fire(RetrieveEvent.FAVORITE_LIST_REFRESH);
-      }
+      // 切换检索模式时，需要重新获取收藏列表
+      RetrieveHelper.fire(RetrieveEvent.FAVORITE_LIST_REFRESH);
     };
 
     return () => (
