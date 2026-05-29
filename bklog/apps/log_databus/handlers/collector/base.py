@@ -1608,8 +1608,14 @@ class CollectorHandler:
         ]
 
     def _build_scene_labels(self) -> dict:
-        """Build ResultTable.labels based on collector scenario and environment."""
-        if self.data.is_container_environment:
+        """Build ResultTable.labels based on collector scenario and environment.
+
+        Container判定使用 CollectorConfig.is_container_collector
+        (is_container_environment OR is_custom_container)，以同时覆盖：
+        - BCS 容器采集器下发（environment=container）
+        - 自定义上报的容器日志（custom + custom_type=log，无 environment）
+        """
+        if self.data.is_container_collector:
             stream = self._detect_container_stream()
             return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "", stream=stream)
         scene = COLLECTOR_SCENARIO_TO_SCENE.get(self.data.collector_scenario_id, "host")
