@@ -1565,11 +1565,18 @@ class CollectorHandler:
     def _build_scene_labels(self) -> dict:
         """Build ResultTable.labels based on collector scenario and environment.
 
-        Container判定使用 CollectorConfig.is_container_collector
-        (is_container_environment OR is_custom_container)，以同时覆盖：
-        - BCS 容器采集器下发（environment=container）
-        - 自定义上报的容器日志（custom + custom_type=log，无 environment）
+        判定优先级：
+        1. OTLP 日志上报（custom + otlp_log）→ trpc（tRPC 服务通过 OTLP 上报，
+           按场景化检索设计方案归 trpc 场景；独立于容器判定，即使部署在 k8s）
+        2. 容器日志（is_container_collector = is_container_environment OR
+           is_custom_container）→ k8s（同时覆盖 BCS 容器采集和 custom + custom_type=log）
+        3. 兜底按 COLLECTOR_SCENARIO_TO_SCENE 映射（默认 host）
         """
+        if (
+            self.data.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value
+            and self.data.custom_type == CustomTypeEnum.OTLP_LOG.value
+        ):
+            return build_scene_labels("trpc")
         if self.data.is_container_collector:
             stream = self._detect_container_stream()
             return build_scene_labels("k8s", cluster_id=self.data.bcs_cluster_id or "", stream=stream)
