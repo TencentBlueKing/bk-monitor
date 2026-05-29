@@ -96,6 +96,8 @@ export function useNavMenu(options: {
         list.push('retrieve');
       } else if (permission === 'log_extract') {
         list.push('manage');
+      } else if (permission === 'client_log') {
+        list.push('client-log-search');
       }
     }
     store.commit('updateState', { externalMenu: list });
