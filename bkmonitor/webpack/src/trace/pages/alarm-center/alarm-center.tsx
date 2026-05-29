@@ -144,7 +144,7 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering, greyedSpaces, wxCsLink } = useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -165,11 +165,11 @@ export default defineComponent({
     /** 是否为"我有权限/我有故障"虚拟业务 */
     const isVirtualBiz = computed(() => alarmStore.bizIds?.some(id => [MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(id)));
 
-    /** 已选空间中已开启故障分析功能的 bizId 列表（与 greyedSpaces 取交集） */
-    const connectedBizIds = computed(() => intersection(alarmStore.bizIds, greyedSpaces.value));
+    /** 已选空间中已开启故障分析功能的 bizId 列表（与 enabledSpaces 取交集） */
+    const connectedBizIds = computed(() => intersection(alarmStore.bizIds, enabledSpaces.value));
 
-    /** 已选空间中未开启故障分析功能的 bizId 列表（与 greyedSpaces 取差集） */
-    const unconnectedBizIds = computed(() => difference(alarmStore.bizIds, greyedSpaces.value));
+    /** 已选空间中未开启故障分析功能的 bizId 列表（与 enabledSpaces 取差集） */
+    const unconnectedBizIds = computed(() => difference(alarmStore.bizIds, enabledSpaces.value));
 
     /** 排除无权限空间后的业务列表 */
     const authorizedBizList = computed(() => {
@@ -201,7 +201,7 @@ export default defineComponent({
         ((isVirtualBiz.value &&
           intersection(
             authorizedBizList.value.map(({ bk_biz_id }) => bk_biz_id),
-            greyedSpaces.value
+            enabledSpaces.value
           ).length < authorizedBizList.value.length) ||
           (connectedBizIds.value.length > 0 && unconnectedBizIds.value.length > 0 && !!unconnectedSpaceList.value))
     );
@@ -219,7 +219,7 @@ export default defineComponent({
     /** 接入指引提示中的未接入空间数量 */
     const accessGuideTipCount = computed(() => {
       if (isVirtualBiz.value) {
-        return authorizedBizList.value.length - greyedSpaces.value.length;
+        return authorizedBizList.value.length - enabledSpaces.value.length;
       }
       return unconnectedSpaceList.value?.length ?? 0;
     });
@@ -1077,7 +1077,7 @@ export default defineComponent({
       sidesliderTotal,
       sidesliderMode,
       unconnectedSpaceList,
-      greyedSpaces,
+      enabledSpaces,
       wxCsLink,
       tableSourceColumns,
       selectedRowKeys,
@@ -1496,7 +1496,7 @@ export default defineComponent({
         >
           <DataAccess
             key={this.dataAccessKey}
-            greyedBizIds={this.greyedSpaces}
+            enabledBizIds={this.enabledSpaces}
             mode={this.sidesliderMode}
             showEnableButton={this.sidesliderMode === 'empty'}
             spaceList={this.sidesliderSpaceList}
