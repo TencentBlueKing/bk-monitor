@@ -181,6 +181,55 @@ class GetIncidentDiagnosisResource(IncidentBaseResource):
         incident_id = serializers.IntegerField(label="故障ID", required=True)
 
 
+class GetIncidentDetailResource(IncidentBaseResource):
+    """获取 incident_manager 故障详情。"""
+
+    action = "/incident/incident/get_incident_detail/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.IntegerField(label="故障ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
+class UpdateIncidentDetailResource(IncidentBaseResource):
+    """更新 incident_manager 故障详情。"""
+
+    action = "/incident/incident/update_incident_detail/"
+    method = "PUT"
+
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.IntegerField(label="故障ID", required=True)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+        incident_name = serializers.CharField(label="故障名称", required=False)
+        incident_reason = serializers.CharField(label="故障原因", required=False, allow_null=True, allow_blank=True)
+        level = serializers.CharField(label="故障级别", required=False)
+        status = serializers.CharField(label="故障状态", required=False)
+        assignees = serializers.ListField(label="故障负责人", required=False)
+        handlers = serializers.ListField(label="故障处理人", required=False)
+        labels = serializers.ListField(label="故障标签", required=False)
+        feedback = serializers.DictField(label="故障反馈内容", required=False)
+        end_time = serializers.IntegerField(label="故障结束时间", required=False, allow_null=True)
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
+class GetIncidentSnapshotResource(IncidentBaseResource):
+    """获取 incident_manager 故障快照。"""
+
+    action = "/incident/incident/get_incident_snapshot/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        snapshot_id = serializers.CharField(label="快照ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
 class GetConfigResource(IncidentBaseResource):
     action = "/incident/incident_config/list_configs/"
     method = "POST"

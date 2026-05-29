@@ -25,6 +25,7 @@ from core.errors.incident import IncidentNotFoundError
 logger = logging.getLogger("action")
 MAX_INCIDENT_CONTENTS_SIZE = 10000
 MAX_INCIDENT_ALERT_SIZE = 10000
+BKFARA_NOTICE_SOURCE = "bkfara"
 
 
 class IncidentBaseDocument(BaseDocument):
@@ -165,6 +166,16 @@ class IncidentDocument(IncidentBaseDocument):
         if self.id is None:
             self.id = f"{self.create_time}{self.incident_id}"
 
+    @staticmethod
+    def is_anonymous_incident_name(incident_name: str) -> bool:
+        return bool(incident_name and str(incident_name).startswith("new_incident_"))
+
+    @classmethod
+    def get_incident_api(cls, incident_document_info: dict):
+        extra_info = incident_document_info.get("extra_info")
+        extra_info = extra_info if isinstance(extra_info, dict) else {}
+        return api.bk_incident if extra_info.get("notice_source") == BKFARA_NOTICE_SOURCE else api.bkdata
+
     def generate_assignees(self, snapshot) -> None:
         """生成故障负责人
 
@@ -207,14 +218,24 @@ class IncidentDocument(IncidentBaseDocument):
         if fetch_remote:
             try:
                 incident_id = cls.parse_incident_id_by_id(id)
-                incident_info = api.bkdata.get_incident_detail(incident_id=incident_id)
-                if isinstance(incident_info["dimensions"], str):
+                incident_info = cls.get_incident_api(incident_document_info).get_incident_detail(
+                    incident_id=incident_id
+                )
+                if isinstance(incident_info.get("dimensions"), str):
                     incident_info["dimensions"] = json.loads(incident_info["dimensions"])
-                if isinstance(incident_info["feedback"], str):
+                if isinstance(incident_info.get("feedback"), str):
                     incident_info["feedback"] = json.loads(incident_info["feedback"])
+                local_name = incident_document_info.get("incident_name")
+                remote_name = incident_info.get("incident_name")
+                if (
+                    cls.is_anonymous_incident_name(remote_name)
+                    and local_name
+                    and not cls.is_anonymous_incident_name(local_name)
+                ):
+                    incident_info.pop("incident_name", None)
                 incident_document_info.update(incident_info)
             except Exception as e:
-                logger.error(f"Can not get incident info from bkbase api: {str(e)}")
+                logger.error(f"Can not get incident info from remote api: {str(e)}")
 
         return cls(**incident_document_info)
 

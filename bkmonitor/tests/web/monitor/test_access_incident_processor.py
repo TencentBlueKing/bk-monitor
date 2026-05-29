@@ -110,6 +110,46 @@ class TestAccessIncidentProcessor(SimpleTestCase):
     @patch("alarm_backends.service.access.incident.processor.api")
     @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
     @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentDocument", _FakeIncidentDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_create_incident")
+    def test_create_incident_routes_bkfara_notice_to_bk_incident(
+        self, mock_record_create, mock_snapshot_model, mock_api
+    ):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        mock_api.bkdata.update_incident_detail = Mock()
+        mock_api.bk_incident.update_incident_detail = Mock()
+        sync_info = self._base_sync_info()
+        sync_info["notice_source"] = "bkfara"
+
+        self.processor.create_incident(sync_info)
+
+        mock_api.bk_incident.update_incident_detail.assert_called_once()
+        self.assertEqual(mock_api.bk_incident.update_incident_detail.call_args.kwargs["incident_name"], "故障A")
+        self.assertEqual(mock_api.bk_incident.update_incident_detail.call_args.kwargs["incident_reason"], "root cause")
+        mock_api.bkdata.update_incident_detail.assert_not_called()
+        self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
+
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentDocument", _FakeIncidentDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_create_incident")
+    def test_create_incident_without_notice_source_keeps_bkdata_route(
+        self, mock_record_create, mock_snapshot_model, mock_api
+    ):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        mock_api.bkdata.update_incident_detail = Mock()
+        mock_api.bk_incident.update_incident_detail = Mock()
+
+        self.processor.create_incident(self._base_sync_info())
+
+        mock_api.bkdata.update_incident_detail.assert_called_once()
+        mock_api.bk_incident.update_incident_detail.assert_not_called()
+        self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
+
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
     @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_update_incident")
     def test_update_incident_passes_send_notice_flag(self, mock_record_update, mock_snapshot_model, mock_api):
         mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
