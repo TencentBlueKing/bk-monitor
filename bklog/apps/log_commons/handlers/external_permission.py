@@ -16,6 +16,7 @@ class ExternalPermissionHandler:
         self.bk_biz_id_dict = {}
         self.authorizer_dict = {}
         self.log_extract_is_allowed_dict = {}
+        self.client_log_is_allowed_dict = {}
         self.log_search_manage_permission_info = {}
 
     def list(self, space_uid: str = "", view_type: str = ViewTypeEnum.USER.value):
