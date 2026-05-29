@@ -44,7 +44,8 @@ import './index.scss';
 
 /** 空间信息 */
 export interface SpaceInfo {
-  space_id: number;
+  bk_biz_id: number;
+  space_id: number | string;
   space_name: string;
 }
 type ConnectStatus = 'connect' | 'empty' | 'unconnect';
@@ -111,7 +112,7 @@ export default defineComponent({
     ];
 
     /** 当前选中的空间 ID（v-model 绑定） */
-    const selectedSpace = shallowRef<number>(props.spaceList[0].space_id);
+    const selectedSpace = shallowRef<number>(Number(props.spaceList[0].bk_biz_id));
 
     /** 当前选中空间是否未开启故障分析功能，动态控制"一键开启"按钮展示 */
     const shouldShowEnableButton = computed(() => {
@@ -347,7 +348,7 @@ export default defineComponent({
                   >
                     {props.spaceList.map(space => (
                       <Select.Option
-                        id={space.space_id}
+                        id={space.bk_biz_id}
                         key={space.space_id}
                         name={`${space.space_name} (#${space.space_id})`}
                       />
@@ -369,7 +370,7 @@ export default defineComponent({
                     key={item.label}
                     class='legend-item'
                   >
-                    <span class={['color-block', item.cls]}></span>
+                    <span class={['color-block', item.cls]} />
                     <span>{item.label}</span>
                   </div>
                 ))}

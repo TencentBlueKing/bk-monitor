@@ -178,10 +178,11 @@ export default defineComponent({
     });
 
     /** 将 bizList 转换为 SpaceInfo[]，可按 bizId 过滤（已排除无权限空间） */
-    const toSpaceInfoList = (filterFn?: (bk_biz_id: number) => boolean): SpaceInfo[] =>
-      authorizedBizList.value
+    const toSpaceInfoList = (filterFn?: (bk_biz_id: number) => boolean): SpaceInfo[] => {
+      return authorizedBizList.value
         .filter(({ bk_biz_id }) => !filterFn || filterFn(bk_biz_id))
-        .map(({ space_name, space_id }) => ({ space_name, space_id: Number(space_id) }));
+        .map(({ space_name, space_id, bk_biz_id }) => ({ space_name, space_id: space_id, bk_biz_id }));
+    };
 
     /** 未开启故障分析功能的空间列表 */
     const unconnectedSpaceList = computed(() => {
@@ -242,7 +243,6 @@ export default defineComponent({
       // 非虚拟业务：展示用户所选的空间（与业务下拉框一致）
       return toSpaceInfoList(id => alarmStore.bizIds.includes(id));
     });
-
     /** 侧滑数据接入的所选空间总数 */
     const sidesliderTotal = computed(() => sidesliderSpaceList.value?.length ?? 0);
 
