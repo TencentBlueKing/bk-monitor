@@ -818,11 +818,19 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self, vmrt_prefix: str, include_cmdb: bool = False) -> dict[str, Any]:
+    def compose_config(
+        self,
+        vmrt_prefix: str,
+        include_cmdb: bool = False,
+        metric_type_to_vm_storage_binding_name: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """组装基础采集处理配置。"""
         mappings: list[dict[str, Any]] = []
-        for usage in constants.BASEREPORT_USAGES:
-            vmrt_name = f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage
+        if metric_type_to_vm_storage_binding_name is None:
+            metric_type_to_vm_storage_binding_name = {
+                usage: f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage for usage in constants.BASEREPORT_USAGES
+            }
+        for metric_type, vmrt_name in metric_type_to_vm_storage_binding_name.items():
             sink_config = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
                 "name": vmrt_name,
@@ -832,7 +840,7 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
                 sink_config["tenant"] = self.bk_tenant_id
             mappings.append(
                 {
-                    "metric_type": usage,
+                    "metric_type": metric_type,
                     "sinks": [sink_config],
                 }
             )
@@ -844,7 +852,7 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
                 }
                 if settings.ENABLE_MULTI_TENANT_MODE:
                     cmdb_sink_config["tenant"] = self.bk_tenant_id
-                mappings.append({"metric_type": f"{usage}_cmdb", "sinks": [cmdb_sink_config]})
+                mappings.append({"metric_type": f"{metric_type}_cmdb", "sinks": [cmdb_sink_config]})
 
         metadata = {
             "name": self.name,
