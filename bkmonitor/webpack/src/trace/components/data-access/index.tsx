@@ -84,13 +84,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 是否展示"一键开启"按钮（静态控制，优先级低于 greyedBizIds 动态判断） */
+    /** 是否展示"一键开启"按钮（静态控制，优先级低于 enabledBizIds 动态判断） */
     showEnableButton: {
       type: Boolean,
       default: false,
     },
     /** 已开启故障分析功能的空间 bizId 列表，传入后"一键开启"按钮根据下拉框选中空间动态判断 */
-    greyedBizIds: {
+    enabledBizIds: {
       type: Array as PropType<number[]>,
       default: () => [],
     },
@@ -120,10 +120,10 @@ export default defineComponent({
 
     /** 当前选中空间是否未开启故障分析功能，动态控制"一键开启"按钮展示 */
     const shouldShowEnableButton = computed(() => {
-      if (!props.showEnableButton && !props.greyedBizIds.length) return false;
-      // 有 greyedBizIds 时根据当前选中空间动态判断
-      if (props.greyedBizIds.length) {
-        return !props.greyedBizIds.includes(selectedSpace.value);
+      if (!props.showEnableButton && !props.enabledBizIds.length) return false;
+      // 有 enabledBizIds 时根据当前选中空间动态判断
+      if (props.enabledBizIds.length) {
+        return !props.enabledBizIds.includes(selectedSpace.value);
       }
       return props.showEnableButton;
     });
