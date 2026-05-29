@@ -604,9 +604,15 @@ export default class RemarkTabContent extends tsc<Props> {
     this.showData = cloneDeep(this.data);
   }
 
+  handleBatchEdit() {
+    this.currentEditRowId = '';
+  }
+
   async handleBatchSave() {
     const validResult = await this.validRules();
     if (!validResult) {
+      // 无论成功失败都关闭 loading
+      this.$emit('batchSaveFailed');
       return;
     }
     const params = {
@@ -856,7 +862,7 @@ export default class RemarkTabContent extends tsc<Props> {
           ) : (
             <bk-table
               ref='tableRef'
-              height='100%'
+              max-height='100%'
               data={this.showData}
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
               row-class-name='return-code-remark-row'
