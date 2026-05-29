@@ -68,6 +68,7 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
 
   handleBatchEdit() {
     this.isBatchEdit = true;
+    this.tabContentRef?.handleBatchEdit();
   }
 
   handleCancelBatchEdit() {
@@ -122,6 +123,10 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
 
   handleBatchSaveSuccess() {
     this.isBatchEdit = false;
+    this.isBatchEditLoading = false;
+  }
+
+  handleBatchSaveFailed() {
     this.isBatchEditLoading = false;
   }
 
@@ -218,6 +223,7 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
           appName={this.appName}
           onCurrentEditRowIdChange={this.handleCurrentEditRowIdChange}
           onBatchSaveSuccess={this.handleBatchSaveSuccess}
+          onBatchSaveFailed={this.handleBatchSaveFailed}
         />
       </div>
     );
