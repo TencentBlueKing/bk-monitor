@@ -1268,10 +1268,37 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
         handler.data.is_container_collector = False
         handler.data.bcs_cluster_id = ""
         handler.data.collector_scenario_id = "row"
+        handler.data.custom_type = "log"
         handler.data.collector_config_id = 1
         for k, v in data_attrs.items():
             setattr(handler.data, k, v)
         return handler
+
+    def test_otlp_log_goes_trpc(self):
+        """custom + custom_type=otlp_log → trpc scene（独立于容器判定）。"""
+        # 即使 is_container_collector=True，OTLP 日志仍优先归 trpc
+        handler = self._new_handler(
+            collector_scenario_id="custom",
+            custom_type="otlp_log",
+            is_container_collector=True,
+            is_container_environment=True,
+            bcs_cluster_id="BCS-OTLP-001",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels, {"scene": "trpc"})
+
+    def test_otlp_trace_falls_back_to_host(self):
+        """custom + otlp_trace 不在 trpc / k8s 分支，走 fallback。
+
+        trace 实际不应该走到 _build_scene_labels（不创建 ResultTable.labels），
+        这里只断言不会被误归到 trpc。
+        """
+        handler = self._new_handler(
+            collector_scenario_id="custom",
+            custom_type="otlp_trace",
+        )
+        labels = handler._build_scene_labels()
+        self.assertEqual(labels["scene"], "host")
 
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._detect_container_stream")
     def test_bcs_container_environment_goes_k8s(self, mock_stream):
