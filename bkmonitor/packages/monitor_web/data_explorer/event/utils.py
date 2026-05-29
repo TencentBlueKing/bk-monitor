@@ -9,9 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-import operator
 import time
-from functools import reduce
 from typing import Any
 from collections.abc import Callable, Iterable
 
@@ -23,10 +21,8 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.utils.cache import lru_cache_with_ttl, using_cache, CacheType
 from core.drf_resource import api
 from monitor_web.data_explorer.event.constants import (
-    DEFAULT_EVENT_ORIGIN,
     DIMENSION_PREFIX,
     EVENT_FIELD_ALIAS,
-    EVENT_ORIGIN_MAPPING,
     INNER_FIELD_TYPE_MAPPINGS,
     CicdEventName,
     EventCategory,
@@ -176,34 +172,6 @@ DOMAIN_CONF_HANDLER_MAP: dict[str, Callable[[dict[str, Any]], Q]] = {
     EventDomain.CICD.value: cicd_cond_handler,
     EventDomain.K8S.value: k8s_cond_handler,
 }
-
-
-def filter_by_relation(
-    q: QueryConfigBuilder, relation: dict[str, Any], data_labels_map: dict[str, str], table: str | None = None
-) -> QueryConfigBuilder:
-    q = q.table(table or relation["table"])
-    domain, __ = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(relation["table"]), DEFAULT_EVENT_ORIGIN)
-    cond_handler: Callable[[dict[str, Any]], Q] = DOMAIN_CONF_HANDLER_MAP.get(domain, default_cond_handler)
-    if relation["relations"]:
-        q = q.filter(Q() | reduce(operator.or_, [cond_handler(cond) for cond in relation["relations"]]))
-    return q
-
-
-def workloads_to_filter_q(workloads: list[dict[str, Any]]) -> Q:
-    if not workloads:
-        return Q()
-
-    conditions: list[dict[str, Any]] = []
-    for workload in workloads:
-        cond: dict[str, Any] = {k: v for k, v in workload.items() if k != "workload"}
-        workload_value: str = workload.get("workload") or ""
-        if workload_value:
-            kind, name = workload_value.split(":", 1)
-            cond["kind"] = kind
-            cond["name"] = name
-        conditions.append(cond)
-
-    return reduce(operator.or_, [k8s_cond_handler(cond) for cond in conditions])
 
 
 def create_k8s_info(origin_data, fields: list[str]):

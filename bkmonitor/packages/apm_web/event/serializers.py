@@ -8,8 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import operator
+from functools import reduce
 from typing import Any
+from collections.abc import Callable
 
+from django.db.models import Q
 from rest_framework import serializers
 
 from apm_web.event.handler import EventHandler
@@ -17,13 +21,29 @@ from apm_web.models import Application
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_explorer.event import serializers as event_serializers
-from monitor_web.data_explorer.event.constants import EventCategory
+from monitor_web.data_explorer.event.constants import (
+    DEFAULT_EVENT_ORIGIN,
+    EVENT_ORIGIN_MAPPING,
+    EventCategory,
+)
 from monitor_web.data_explorer.event.utils import (
-    filter_by_relation,
+    DOMAIN_CONF_HANDLER_MAP,
+    default_cond_handler,
     get_cluster_table_map,
     get_data_labels_map,
     get_q_from_query_config,
 )
+
+
+def filter_by_relation(
+    q: QueryConfigBuilder, relation: dict[str, Any], data_labels_map: dict[str, str], table: str | None = None
+) -> QueryConfigBuilder:
+    q = q.table(table or relation["table"])
+    domain, __ = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(relation["table"]), DEFAULT_EVENT_ORIGIN)
+    cond_handler: Callable[[dict[str, Any]], Q] = DOMAIN_CONF_HANDLER_MAP.get(domain, default_cond_handler)
+    if relation["relations"]:
+        q = q.filter(Q() | reduce(operator.or_, [cond_handler(cond) for cond in relation["relations"]]))
+    return q
 
 
 def process_query_config(

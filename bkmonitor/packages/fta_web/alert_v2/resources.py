@@ -47,7 +47,7 @@ from apm_web.event.resources import (
     EventTimeSeriesResource as APMEventTimeSeriesResource,
 )
 
-from monitor_web.data_explorer.event.utils import get_cluster_table_map, workloads_to_filter_q
+from monitor_web.data_explorer.event.utils import get_cluster_table_map, k8s_cond_handler
 
 
 class AlertDetailResource(BaseAlertDetailResource):
@@ -150,7 +150,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
     ) -> QueryConfigBuilder | None:
         """构建 K8S 事件查询。
 
-        基于目标关联的 workload 列表，确定 K8S 事件结果表并构建 OR 连接的过滤条件。
+        基于目标关联的 workload 列表，确定 K8S 事件结果表并构建 OR 语义的 where 条件。
 
         :param alert: 告警文档对象
         :param target: 目标对象
@@ -161,17 +161,35 @@ class AlertEventBaseResource(Resource, abc.ABC):
         if not related_targets:
             return None
 
-        bcs_cluster_id: str = related_targets[0].get("bcs_cluster_id", "")
-        if not bcs_cluster_id:
-            # 没有集群 ID，无法查询事件
+        conditions: list[dict[str, Any]] = []
+        bcs_cluster_id: str = ""
+        for workload in related_targets:
+            bcs_cluster_id = workload.get("bcs_cluster_id", "")
+            if not bcs_cluster_id:
+                continue
+
+            cond: dict[str, Any] = {key: value for key, value in workload.items() if key != "workload" and value}
+            workload_value: str = workload.get("workload") or ""
+            if workload_value:
+                kind, name = workload_value.split(":", 1)
+                cond["kind"] = kind
+                cond["name"] = name
+
+            workload_conditions: list[dict[str, Any]] = q_to_conditions(k8s_cond_handler(cond))
+            if not workload_conditions:
+                continue
+            if conditions:
+                workload_conditions[0]["condition"] = "or"
+            conditions.extend(workload_conditions)
+
+        if not conditions or not bcs_cluster_id:
             return None
 
         table: str = get_cluster_table_map((bcs_cluster_id,)).get(bcs_cluster_id, "")
         if not table:
             return None
 
-        # 多个 workload 用 OR 连接
-        return q.table(table).filter(workloads_to_filter_q(related_targets))
+        return q.table(table).conditions(conditions)
 
     @classmethod
     def build_apm_query(
