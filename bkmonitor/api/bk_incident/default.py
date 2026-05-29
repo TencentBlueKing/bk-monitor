@@ -26,6 +26,9 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
             return settings.BK_INCIDENT_APIGW_URL
         return f"{settings.BK_COMPONENT_API_URL}/api/incident-manager/prod/"
 
+    def convert_bk_biz_id_list_to_scope_id_list(self,params,bk_biz_id_list):
+        return [params.get('scope_type','bkcc')+"_"+str(bk_biz_id) for bk_biz_id in bk_biz_id_list]
+
     def convert_bk_biz_id_to_scope_value(self, params):
         """
         将 bk_biz_id 转换为 scope_value
@@ -51,12 +54,33 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
 
         return params
 
+    def convert_scope_id_list(self,params):
+        bk_biz_id_list = params.pop("bk_biz_id_list", [])
+
+        if bk_biz_id_list:
+            params["scope_id_list"]= self.convert_bk_biz_id_list_to_scope_id_list(params,bk_biz_id_list)
+
+        bk_biz_id_config = params.pop("bk_biz_id_config", {})
+
+        if bk_biz_id_config:
+            if bk_biz_id_config.get("scope_id_list_open",[]):
+                bk_biz_id_config["scope_id_list_open"] = self.convert_bk_biz_id_list_to_scope_id_list(params,bk_biz_id_config.get("scope_id_list_open",[]))
+
+            if bk_biz_id_config.get("scope_id_list_close",[]):
+                bk_biz_id_config["scope_id_list_close"] = self.convert_bk_biz_id_list_to_scope_id_list(params,bk_biz_id_config.get("scope_id_list_close",[]))
+
+        params["scope_id_config"]=bk_biz_id_config
+
+        return params
+
     def perform_request(self, validated_request_data):
         """
         重写请求执行方法，在发送请求前转换参数
         """
         # 转换 bk_biz_id 为 scope_value
         validated_request_data = self.convert_bk_biz_id_to_scope_value(validated_request_data)
+        # 转换 bk_biz_id_list 为 scope_id_list
+        validated_request_data = self.convert_scope_id_list(validated_request_data)
         return super().perform_request(validated_request_data)
 
 
@@ -144,6 +168,7 @@ class GetConfigResource(IncidentBaseResource):
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+        bk_biz_id_list = serializers.ListField(label="业务ID列表", required=False)
 
 class CreateListConfigResource(IncidentBaseResource):
     action = "/incident/incident_config/create_list_config/"
@@ -154,7 +179,8 @@ class CreateListConfigResource(IncidentBaseResource):
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
-        content_list = serializers.ListField(label="配置内容", required=True)
+        content_list = serializers.ListField(label="配置内容", required=False)
+        bk_biz_id_config = serializers.JSONField(label="scope_id配置", required=False)
 
 
 

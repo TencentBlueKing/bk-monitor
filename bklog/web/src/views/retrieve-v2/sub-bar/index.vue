@@ -177,6 +177,13 @@ const handleIndexSetSelected = async (payload) => {
           search_mode: 'ui',
           keyword: '',
         };
+      } else if (!payload.items[0]?.addition && isMonitorComponent) {
+        // 监控下当切换采集项没有addtion时，要置空addition
+        indexSetDefaultCondition = {
+          addition: [],
+          search_mode: 'ui',
+          keyword: '',
+        };
       }
       if (indexSetDefaultCondition.search_mode) {
         store.commit('updateStorage', {

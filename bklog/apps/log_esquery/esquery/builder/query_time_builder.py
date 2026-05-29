@@ -26,6 +26,7 @@ import arrow
 from django.conf import settings
 
 from apps.api import TransferApi
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import SearchUnKnowTimeFieldType
 from apps.log_search.models import Scenario
@@ -126,8 +127,9 @@ class QueryTimeBuilder:
                 if "," in indices:
                     return None
 
+                storage_cluster_type = CollectorConfig.get_storage_cluster_type_by_table_id(indices)
                 storage = TransferApi.get_result_table_storage(
-                    params={"result_table_list": indices, "storage_type": "elasticsearch"}
+                    params={"result_table_list": indices, "storage_type": storage_cluster_type}
                 )[indices]
                 retention = int(storage["storage_config"]["retention"])
                 return retention

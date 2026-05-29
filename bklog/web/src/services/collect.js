@@ -267,6 +267,22 @@ const delIndexGroup = {
 };
 
 /**
+ * 索引组 - 添加索引集
+ */
+const addIndexSetsToGroup = {
+  url: '/index_group/:index_set_id/add_index_sets/',
+  method: 'post',
+};
+
+/**
+ * 索引组 - 删除索引集
+ */
+const removeIndexSetsFromGroup = {
+  url: '/index_group/:index_set_id/remove_index_sets/',
+  method: 'post',
+};
+
+/**
  * 获取采集列表过滤相关枚举值
  */
 const collectorFieldEnums = {
@@ -381,6 +397,8 @@ export {
   addIndexGroup,
   updateIndexGroup,
   delIndexGroup,
+  addIndexSetsToGroup,
+  removeIndexSetsFromGroup,
   collectorFieldEnums,
   getCollectorStatus,
   getTaskLogList,

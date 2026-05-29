@@ -45,3 +45,10 @@ def pascal_to_snake(name):
 
     # 转换为小写
     return name.lower()
+
+def bk_data_robot_link_list_search(data,search_key):
+    for item in data:
+        if item["icon_name"] == search_key:
+            return item["link"]
+
+    return ""

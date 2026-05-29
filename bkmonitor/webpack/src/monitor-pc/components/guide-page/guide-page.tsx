@@ -58,7 +58,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   isShowServiceAdd = false;
 
   // 用于查询接入服务抽屉上报token
-  appId = '';
+  appId: number | string = '';
   // 用于接入服务抽屉Quick Start跳转携带参数
   appName = '';
 
@@ -136,7 +136,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   }
 
   // 新建应用成功
-  handleAddAppSuccess(appName: string, appId: string) {
+  handleAddAppSuccess(appName: string, appId: number | string) {
     this.appId = appId;
     this.appName = appName;
     // 打开接入服务抽屉

@@ -111,7 +111,7 @@ def modify_result_table_before(params):
     @return:
     """
     params = add_esb_info_before_request(params)
-    params.update({"external_storage": {"elasticsearch": params["default_storage_config"]}})
+    params.update({"external_storage": {params["default_storage"]: params["default_storage_config"]}})
     del params["default_storage_config"]
     return params
 
@@ -209,6 +209,7 @@ class _TransferApi:
             description=_("查询一个结果表的存储信息"),
             before_request=add_esb_info_before_request,
             after_request=get_result_table_storage_after,
+            bk_tenant_id=biz_to_tenant_getter(lambda p: str(p["result_table_list"]).split(",", 1)[0].split("_", 1)[0]),
         )
         self.get_cluster_info = DataAPI(
             method="GET",

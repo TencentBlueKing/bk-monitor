@@ -438,6 +438,7 @@ class ModifyTimeSeriesGroupResource(MetaDataAPIGWResource):
         metric_info_list = serializers.ListField(required=False, label="metric信息")
         data_label = serializers.CharField(required=False, label="数据标签")
         options = serializers.DictField(required=False, label="结果表选项内容")
+        metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
 
 class DeleteTimeSeriesGroupResource(MetaDataAPIGWResource):

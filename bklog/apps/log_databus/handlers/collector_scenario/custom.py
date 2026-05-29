@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,15 +18,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext as _
 
-from apps.log_databus.constants import EtlConfig
+from apps.log_databus.constants import EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
 
 
 class CustomCollectorScenario(CollectorScenario):
     @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, **kwargs):
+    def get_built_in_config(
+        cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, storage_cluster_type=STORAGE_CLUSTER_TYPE, **kwargs
+    ):
         """
         获取采集器标准字段
         """
@@ -63,7 +65,7 @@ class CustomCollectorScenario(CollectorScenario):
                 },
                 {
                     "field_name": "cloudId",
-                    "field_type": "float",
+                    "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "cloudid",
                     "description": _("云区域ID"),
@@ -93,7 +95,7 @@ class CustomCollectorScenario(CollectorScenario):
                 },
                 {
                     "field_name": "gseIndex",
-                    "field_type": "float",
+                    "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "gseindex",
                     "description": _("gse索引"),
@@ -103,7 +105,7 @@ class CustomCollectorScenario(CollectorScenario):
                 },
                 {
                     "field_name": "iterationIndex",
-                    "field_type": "float",
+                    "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "iterationindex",
                     "description": _("迭代ID"),

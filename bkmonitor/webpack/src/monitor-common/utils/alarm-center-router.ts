@@ -350,7 +350,7 @@ function applyActiveFilterIdCompat(raw: ILegacyAlarmCenterQuery, result: Record<
     return;
   }
 
-  result.quickFilterValue = [{ key, value: [activeFilterId] }];
+  result.quickFilterValue = encodeURIComponent(JSON.stringify([{ key, value: [activeFilterId] }]));
 }
 
 /** 同时存在 specEvent + (alertId | collectId) 时，新版改用 detailId + detailBizId + showDetail 表达 */

@@ -35,7 +35,7 @@ import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
-import type { TableColumnItem, TablePagination } from '../../typings';
+import type { ColumnResizeContext, TableColumnItem, TablePagination } from '../../typings';
 import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType } from '../typing';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
@@ -125,6 +125,8 @@ export default defineComponent({
     splitClick: (row: IssueItem) => !!row,
     /** 清除检索过滤 */
     clearFilter: () => true,
+    /** 列宽拖拽变化回调 */
+    columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
@@ -220,6 +222,7 @@ export default defineComponent({
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
+          onColumnResizeChange={context => this.$emit('columnResizeChange', context)}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}
           onSelectChange={(keys, options) => this.$emit('selectionChange', (keys ?? []) as string[], options)}

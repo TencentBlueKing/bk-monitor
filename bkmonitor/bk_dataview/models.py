@@ -140,20 +140,52 @@ class Dashboard(models.Model):
     created_by = models.IntegerField(blank=True, null=True)
     gnet_id = models.BigIntegerField(blank=True, null=True)
     plugin_id = models.CharField(max_length=189, blank=True, null=True)
-    folder_id = models.BigIntegerField()
+    folder_id = models.BigIntegerField(default=0)
     is_folder = models.IntegerField()
     has_acl = models.BooleanField(default=False)
     uid = models.CharField(max_length=40, blank=True, null=True)
     is_public = models.BooleanField(default=False)
+    folder_uid = models.CharField(max_length=40, blank=True, null=True)
 
     class Meta:
         managed = False
         app_label = APP_LABEL
         db_table = "dashboard"
         unique_together = (
-            ("org_id", "folder_id", "title"),
+            ("org_id", "folder_uid", "title", "is_folder"),
             ("org_id", "uid"),
         )
+        indexes = [
+            models.Index(fields=["org_id"]),
+            models.Index(fields=["gnet_id"]),
+            models.Index(fields=["org_id", "plugin_id"]),
+            models.Index(fields=["title"]),
+            models.Index(fields=["is_folder"]),
+            models.Index(fields=["org_id", "folder_id", "title"]),
+        ]
+
+
+class Folder(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    uid = models.CharField(max_length=40)
+    org_id = models.BigIntegerField()
+    title = models.CharField(max_length=189)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    parent_uid = models.CharField(max_length=40, blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        managed = False
+        app_label = APP_LABEL
+        db_table = "folder"
+        unique_together = (
+            ("org_id", "uid"),
+            ("org_id", "parent_uid", "title"),
+        )
+        indexes = [
+            models.Index(fields=["parent_uid", "org_id"]),
+        ]
 
 
 class Team(models.Model):

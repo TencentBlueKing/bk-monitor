@@ -96,7 +96,7 @@ BKBASE_RESULT_TABLE_FIELDS = [
 ]
 DORIS_ORDERING_FIELDS = {"table_id", "storage_cluster_id"}
 KAFKA_ORDERING_FIELDS = {"table_id", "storage_cluster_id"}
-VM_ORDERING_FIELDS = {"result_table_id", "storage_cluster_id"}
+VM_ORDERING_FIELDS = {"result_table_id", "storage_cluster_id", "vm_cluster_id"}
 BKBASE_ORDERING_FIELDS = {"monitor_table_id", "storage_cluster_id", "status", "create_time", "last_modify_time"}
 
 
@@ -474,6 +474,7 @@ def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
         "storage_cluster_id": "可选，VM 接入存储集群 ID",
+        "vm_cluster_id": "可选，AccessVMRecord.vm_cluster_id，对应 VM ClusterInfo.cluster_id",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
@@ -501,6 +502,9 @@ def list_vm_storages(params: dict[str, Any]) -> dict[str, Any]:
     storage_cluster_id = _parse_int_param(params, "storage_cluster_id")
     if storage_cluster_id is not None:
         queryset = queryset.filter(storage_cluster_id=storage_cluster_id)
+    vm_cluster_id = _parse_int_param(params, "vm_cluster_id")
+    if vm_cluster_id is not None:
+        queryset = queryset.filter(vm_cluster_id=vm_cluster_id)
     return _paginate_list_response(
         params=params,
         queryset=queryset,

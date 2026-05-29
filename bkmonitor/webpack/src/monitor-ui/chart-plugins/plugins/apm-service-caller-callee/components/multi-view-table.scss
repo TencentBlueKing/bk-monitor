@@ -60,11 +60,11 @@
   }
 
   .tab-row-icon {
-    flex-shrink: 0;
     display: none;
+    flex-shrink: 0;
+    margin-left: 6px;
     font-size: 13px;
     color: #63656e;
-    margin-left: 6px;
 
     &:hover {
       color: #3a84ff;
@@ -185,8 +185,13 @@
       }
 
       .remark-text {
+        display: inline-block;
+        flex: 1;
         margin-left: 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
         color: #979ba5;
+        white-space: nowrap;
       }
     }
 

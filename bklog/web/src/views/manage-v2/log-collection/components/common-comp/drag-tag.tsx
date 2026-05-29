@@ -273,7 +273,7 @@ export default defineComponent({
           <bk-option
             id={item.id}
             key={item.id}
-            disabled={isDisabled(item)}
+            disabled={isDisabled(item.id)}
             name={item.name}
           />
         ))}
