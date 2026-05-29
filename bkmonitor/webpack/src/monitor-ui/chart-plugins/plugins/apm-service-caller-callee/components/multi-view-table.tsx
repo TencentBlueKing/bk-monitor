@@ -37,8 +37,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import { CHART_TYPE, TAB_TABLE_TYPE } from '../utils';
-import { formatDateRange } from '../utils';
+import { buildTraceWhereConditions, CHART_TYPE, formatDateRange, TAB_TABLE_TYPE } from '../utils';
 import CodeRedefineSlider from './code/code-redefine-slider';
 import CodeRemarksDialog from './code/code-remarks-dialog';
 import TabBtnGroup from './tab-btn-group';
@@ -524,25 +523,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }
     /** Trace */
     if (type === 'trace') {
-      const groupBy = this.dimensionParam.group_by.filter(item => opt.tags.includes(item));
-      const tagTraceMapping = opt.tag_trace_mapping;
-      const filter = {
-        kind: tagTraceMapping[kind].value,
-        'resource.service.name': [service_name],
-      };
-      for (const item of groupBy) {
-        if (row[item]) {
-          filter[tagTraceMapping[item].field] = [row[item]];
-        }
-      }
-
-      const conditionList = Object.keys(filter).map(key => {
-        return {
-          key,
-          operator: 'equal',
-          value: filter[key],
-        };
-      });
+      const conditionList = buildTraceWhereConditions(
+        opt.tag_trace_mapping,
+        kind,
+        row,
+        service_name,
+        this.sidePanelCommonOptions.call_filter
+      );
       const start = dayjs(from ?? '');
       const end = dayjs(to ?? '');
       window.open(
@@ -644,7 +631,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         >
           {data[item.value] || '--'}
         </span>
-        {remark && <span class='remark-text' v-bk-overflow-tips>{remark}</span>}
+        {remark && (
+          <span
+            class='remark-text'
+            v-bk-overflow-tips
+          >
+            {remark}
+          </span>
+        )}
         {!data?.isTotal && data[item.value] && (
           <i
             class='icon-monitor icon-mc-copy tab-row-icon'
