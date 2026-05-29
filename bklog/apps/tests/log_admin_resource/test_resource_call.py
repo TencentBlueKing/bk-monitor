@@ -20,12 +20,14 @@ the project delivered to anyone in the future.
 """
 
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.utils.deprecation import MiddlewareMixin
 
 from apps.api import TransferApi
+from apps.log_admin_resource.views import AdminResourceViewSet
 from apps.log_databus.constants import ContainerCollectorType
 from apps.log_databus.models import (
     BKDataClean,
@@ -39,7 +41,10 @@ from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils.local import _local
 
 
-OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
+APIGW_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.AdminApiGatewayMiddleware"
+NON_WHITE_LIST_APIGW_MIDDLEWARE = (
+    "apps.tests.log_admin_resource.test_resource_call.NonWhiteListAdminApiGatewayMiddleware"
+)
 NON_SUPERUSER_MIDDLEWARE = "apps.tests.log_admin_resource.test_resource_call.NonSuperuserMiddleware"
 METADATA_STORAGE = {
     "2_bklog.bcs_checkinsvr": {
@@ -50,6 +55,30 @@ METADATA_STORAGE = {
         },
     }
 }
+
+
+class AdminApiGatewayMiddleware(MiddlewareMixin):
+    bk_app_code = "bkmonitorv3"
+
+    def process_request(self, request):
+        class Base:
+            pass
+
+        request.user = Base()
+        request.user.username = "admin"
+        request.user.is_superuser = True
+        request.user.is_authenticated = True
+        request.user.is_active = True
+        request.permission_exempt = True
+        request.jwt = SimpleNamespace(gateway_name="bk-log-search", payload={})
+        request.app = SimpleNamespace(
+            bk_app_code=self.bk_app_code, verified=True, tenant_mode="global", tenant_id="system"
+        )
+        request.META.update({"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"})
+
+
+class NonWhiteListAdminApiGatewayMiddleware(AdminApiGatewayMiddleware):
+    bk_app_code = "not-white-list-app"
 
 
 class NonSuperuserMiddleware(MiddlewareMixin):
@@ -82,7 +111,7 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         return json.loads(response.content)
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_meta_list_returns_registered_functions(self):
         content = self._call("__meta__", {"action": "list"})
 
@@ -91,7 +120,14 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(content["data"]["protocol"], "bklog.admin_resource.v1")
         self.assertIn("bklog.collector.list", content["data"]["result"]["functions"])
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_viewset_uses_drf_permission_for_entry_auth(self):
+        permission_class_names = {
+            permission_class.__name__ for permission_class in AdminResourceViewSet.permission_classes
+        }
+
+        self.assertIn("AdminResourceAppWhiteListPermission", permission_class_names)
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_unknown_func_name_returns_stable_error(self):
         content = self._call("bklog.unknown.list")
 
@@ -99,11 +135,20 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertIn("unknown func_name", content["message"])
 
     @override_settings(MIDDLEWARE=(NON_SUPERUSER_MIDDLEWARE,))
-    def test_call_allows_authenticated_non_superuser(self):
+    def test_call_rejects_non_apigw_request(self):
         content = self._call("__meta__", {"action": "list"})
 
-        self.assertTrue(content["result"])
-        self.assertEqual(content["data"]["func_name"], "__meta__")
+        self.assertFalse(content["result"])
+        self.assertEqual(content["code"], "3600403")
+        self.assertIn("APIGW", content["message"])
+
+    @override_settings(MIDDLEWARE=(NON_WHITE_LIST_APIGW_MIDDLEWARE,), ESQUERY_WHITE_LIST=["bkmonitorv3"])
+    def test_call_rejects_non_white_list_apigw_app(self):
+        content = self._call("__meta__", {"action": "list"})
+
+        self.assertFalse(content["result"])
+        self.assertEqual(content["code"], "3600403")
+        self.assertIn("white-list", content["message"])
 
 
 class TransferApiTenantGetterTest(TestCase):
@@ -254,7 +299,7 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         return json.loads(response.content)
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_collector_list_filters_by_storage_cluster_without_biz_filter(self):
         content = self._call(
             "bklog.collector.list",
@@ -270,7 +315,7 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(item["log_access_type"], "container_file")
         self.assertEqual(item["log_access_type_name"], "容器文件采集")
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
     def test_collector_detail_returns_chain_relations_and_masked_raw_params(self, mock_get_result_table_storage):
         content = self._call("bklog.collector.detail", {"collector_config_id": 10402})
@@ -293,7 +338,7 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(result["raw"]["params"]["password"], "******")
         self.assertEqual(result["raw"]["params"]["nested"]["bearer_token"], "******")
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_index_set_list_returns_result_tables_and_collector_relation(self):
         content = self._call(
             "bklog.index_set.list",
@@ -310,7 +355,7 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(by_id[901]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
         self.assertEqual(by_id[901]["index_count"], 1)
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_index_set_detail_resolves_collectors_from_index_set_to_collector_config(self):
         content = self._call("bklog.index_set.detail", {"index_set_id": 755})
 
@@ -320,7 +365,7 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual([item["result_table_id"] for item in result["indexes"]], ["2_bklog.bcs_checkinsvr"])
         self.assertEqual([item["collector_config_id"] for item in result["collectors"]], [10402])
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_index_group_detail_resolves_collectors_from_member_index_sets(self):
         content = self._call("bklog.index_set.detail", {"index_set_id": 901})
 
