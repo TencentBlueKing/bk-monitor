@@ -164,9 +164,18 @@ class FavoriteHandler:
             public_group_ids=public_group_ids,
             source_type=effective_source_type,
         )
+        # 渲染兜底：历史孤儿 fav（group_id 不在当前 source_type 桶内）统一归到 ungrouped，避免被静默吞掉
+        visible_group_ids = {g["id"] for g in groups}
+        ungrouped_id = next(
+            (g["id"] for g in groups if g["group_type"] == FavoriteGroupType.UNGROUPED.value),
+            None,
+        )
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
-            favorites_by_group[favorite["group_id"]].append(favorite)
+            gid = favorite["group_id"]
+            if gid not in visible_group_ids and ungrouped_id is not None:
+                gid = ungrouped_id
+            favorites_by_group[gid].append(favorite)
         return [
             {
                 "group_id": group["id"],
@@ -200,14 +209,23 @@ class FavoriteHandler:
             source_type=effective_source_type,
         )
 
+        # 渲染兜底：孤儿 fav 的 group_id 不在当前 source_type 桶里时，重定向到 ungrouped，避免 KeyError 500
+        ungrouped_id = next(
+            (g["id"] for g in groups if g["group_type"] == FavoriteGroupType.UNGROUPED.value),
+            None,
+        )
+
         ret = list()
         for fi in favorites:
             fi_source = fi.get("source_type") or FavoriteSourceType.INDEX_SET.value
+            display_group_id = fi["group_id"]
+            if display_group_id not in group_info and ungrouped_id is not None:
+                display_group_id = ungrouped_id
             data = {
                 "id": fi["id"],
                 "name": fi["name"],
-                "group_id": fi["group_id"],
-                "group_name": group_info[fi["group_id"]]["name"],
+                "group_id": display_group_id,
+                "group_name": group_info.get(display_group_id, {}).get("name", _("未分组")),
                 "index_set_type": fi["index_set_type"],
                 "visible_type": fi["visible_type"],
                 "search_mode": fi["search_mode"],
@@ -279,8 +297,17 @@ class FavoriteHandler:
         is_scene = source_type == FavoriteSourceType.SCENE.value
 
         if group_id:
-            favorite_group = FavoriteGroup.objects.get(id=group_id)
+            # 三重属主校验：避免前端跨 space / 跨 source_type / 跨 owner 传入 group_id 写出孤儿数据
+            try:
+                favorite_group = FavoriteGroup.objects.get(id=group_id, space_uid=space_uid)
+            except FavoriteGroup.DoesNotExist:
+                raise FavoriteGroupNotExistException()
+            fg_source_type = favorite_group.source_type or FavoriteSourceType.INDEX_SET.value
+            if fg_source_type != source_type:
+                raise FavoriteGroupNotExistException()
             if favorite_group.group_type == FavoriteGroupType.PRIVATE.value:
+                if favorite_group.created_by != self.username:
+                    raise FavoriteGroupNotExistException()
                 visible_type = FavoriteVisibleType.PRIVATE.value
             else:
                 visible_type = FavoriteVisibleType.PUBLIC.value
