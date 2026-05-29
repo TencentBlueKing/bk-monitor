@@ -376,6 +376,10 @@
   };
   const showPopover = () => {
     popoverShow.value = true;
+    // 打开弹窗时，若未选择分组，则默认选中个人分组
+    if (!favoriteData.value.group_id && privateGroupID.value) {
+      favoriteData.value.group_id = privateGroupID.value;
+    }
     popoverContentRef.value.showHandler();
   };
   const hidePopover = () => {
