@@ -1935,7 +1935,6 @@ class BaseIndexSetHandler:
         # ES路由
         objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
         for obj in objs:
-            cluster_info = StorageHandler(cluster_id=obj.storage_cluster_id).get_cluster_info_by_id()
             time_field = obj.time_field or index_set.time_field
             time_field_type = obj.time_field_type or index_set.time_field_type
             table_info = {
@@ -1943,7 +1942,6 @@ class BaseIndexSetHandler:
                 "index_set": obj.result_table_id.replace(".", "_"),
                 "source_type": obj.scenario_id,
                 "cluster_id": obj.storage_cluster_id,
-                "storage_type": cluster_info["cluster_type"],
                 "options": [
                     {
                         "name": "time_field",
@@ -1965,6 +1963,10 @@ class BaseIndexSetHandler:
                     },
                 ],
             }
+
+            if obj.storage_cluster_id:
+                cluster_info = StorageHandler(cluster_id=obj.storage_cluster_id).get_cluster_info_by_id()
+                table_info["storage_type"] = cluster_info["cluster_type"]
 
             if rt_alias_mappings is None:
                 if effective_alias_settings:
