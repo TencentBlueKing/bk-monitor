@@ -77,6 +77,53 @@ Vue.use(Vuex);
 export const SET_APP_STATE = 'SET_APP_STATE';
 
 let dateFieldSortList = [];
+const MAX_RENDER_STRING_LENGTH = 32 * 1024;
+
+const truncateLogRenderString = (value) => {
+  if (typeof value !== 'string' || value.length <= MAX_RENDER_STRING_LENGTH) {
+    return value;
+  }
+
+  return value.slice(0, MAX_RENDER_STRING_LENGTH);
+};
+
+const isPlainLogRenderObject = value => (
+  Object.prototype.toString.call(value) === '[object Object]'
+  && value !== null
+  && !value._isBigNumber
+);
+
+const truncateLogRenderValue = (value) => {
+  if (typeof value === 'string') {
+    return truncateLogRenderString(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => truncateLogRenderValue(item));
+  }
+
+  if (isPlainLogRenderObject(value)) {
+    return Object.keys(value).reduce((output, key) => {
+      output[key] = truncateLogRenderValue(value[key]);
+      return output;
+    }, {});
+  }
+
+  return value;
+};
+
+const truncateLogRenderRow = (row) => {
+  if (!isPlainLogRenderObject(row)) {
+    return truncateLogRenderValue(row);
+  }
+
+  return Object.keys(row).reduce((output, key) => {
+    output[key] = truncateLogRenderValue(row[key]);
+    return output;
+  }, {});
+};
+
+const truncateLogRenderList = list => (Array.isArray(list) ? list.map(row => truncateLogRenderRow(row)) : []);
 
 const stateTpl = {
   userMeta: {
@@ -1371,8 +1418,8 @@ const store = new Vuex.Store({
               const rsolvedData = data;
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
-                const logList = parseBigNumberList(rsolvedData.list);
-                const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+                const logList = truncateLogRenderList(parseBigNumberList(rsolvedData.list));
+                const originLogList = truncateLogRenderList(parseBigNumberList(rsolvedData.origin_log_list));
                 rsolvedData.total = rsolvedData.total.toNumber();
                 const size = logList.length;
 
