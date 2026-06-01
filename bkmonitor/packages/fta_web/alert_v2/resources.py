@@ -159,7 +159,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
         :param q: 查询构建器
         :return: 构建好的查询配置，如果无合法的关联 K8S 资源则返回 None
         """
-        related_k8s_targets = target.list_related_k8s_targets()
+        related_k8s_targets: dict[str, str | list] = target.list_related_k8s_targets()
         is_workload: bool = related_k8s_targets["resource_type"] == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
 
         # 合法查询对象构造
@@ -186,13 +186,8 @@ class AlertEventBaseResource(Resource, abc.ABC):
         if not table:
             return None
 
-        # 工作负载类型：通过 k8s_cond_handler 展开关联的查询条件
-        if is_workload:
-            filter_q: Q = reduce(operator.or_, [k8s_cond_handler(k8s_target) for k8s_target in valid_k8s_targets])
-        # 其他类型（Pod、Node、Service 等）：按资源类型字段直接查询
-        else:
-            filter_q: Q = reduce(operator.or_, [Q(**k8s_target) for k8s_target in valid_k8s_targets])
-
+        # 通过 k8s_cond_handler 展开关联的查询条件
+        filter_q: Q = reduce(operator.or_, [k8s_cond_handler(k8s_target) for k8s_target in valid_k8s_targets])
         return q.table(table).conditions(q_to_conditions(filter_q))
 
     @classmethod
