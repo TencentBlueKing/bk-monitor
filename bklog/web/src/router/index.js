@@ -33,6 +33,7 @@ import Vue from 'vue';
 import VueRouter from 'vue-router';
 
 import reportLogStore from '@/store/modules/report-log';
+import { getExternalDefaultRoute } from '@/router/helper';
 import exception from '@/views/404';
 import unAuthorized from '@/views/un-authorized';
 
@@ -73,7 +74,7 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
   const getDefRouteName = () => {
     const isExternal = String(window.IS_EXTERNAL) === 'true';
     if (isExternal) {
-      return externalMenu?.includes('retrieve') ? 'retrieve' : 'manage';
+      return getExternalDefaultRoute(externalMenu || []);
     }
     return 'retrieve';
   };
@@ -183,9 +184,7 @@ export default (spaceId, bkBizId, externalMenu) => {
       )
     ) {
       // 非外部版路由重定向，保留 query 和 params 参数
-      const routeName = store.state.externalMenu.includes('retrieve')
-        ? 'retrieve'
-        : 'manage';
+      const routeName = getExternalDefaultRoute(store.state.externalMenu || []);
       next({
         name: routeName,
         query: to.query,
