@@ -80,3 +80,11 @@ Constraint:
 - Nested Object/Array values should preserve JSON structure and recursively truncate only string leaves.
 - BigNumber-like values with `_isBigNumber` must not be expanded/rewritten by truncation logic.
 - Do not stringify a whole row or nested JSON object before truncating, otherwise JSON rendering compatibility will be broken.
+
+## 2026-06-01 Retrieve result frontend render performance
+
+- For `requestIndexSetQuery`, avoid double traversal of large `data.list` payloads. Do not run `parseBigNumberList(list)` followed by a separate truncate pass.
+- Use a single `normalizeLogRenderList` pass to convert BigNumber-like values and truncate string leaf values to max `32 * 1024` chars.
+- Preserve unchanged row/object references when no value changes to reduce allocation pressure before Vuex commit.
+- Do not persist heavy `origin_log_list` into `indexSetQueryResult` for the result list path; expand view should use the normalized `list` row data instead.
+- In `expand-view.vue`, avoid `JSON.parse(JSON.stringify(result))` for JSON cache creation; it duplicates large row data and increases main-thread cost. Prefer `Object.freeze(result)` after values are already normalized.

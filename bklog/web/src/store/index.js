@@ -93,37 +93,72 @@ const isPlainLogRenderObject = value => (
   && !value._isBigNumber
 );
 
-const truncateLogRenderValue = (value) => {
+const normalizeLogRenderPrimitive = (value) => {
+  if (value?._isBigNumber) {
+    const stringValue = value.toString();
+    return stringValue.length < 16 ? Number(value) : stringValue;
+  }
+
   if (typeof value === 'string') {
     return truncateLogRenderString(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(item => truncateLogRenderValue(item));
-  }
-
-  if (isPlainLogRenderObject(value)) {
-    return Object.keys(value).reduce((output, key) => {
-      output[key] = truncateLogRenderValue(value[key]);
-      return output;
-    }, {});
   }
 
   return value;
 };
 
-const truncateLogRenderRow = (row) => {
-  if (!isPlainLogRenderObject(row)) {
-    return truncateLogRenderValue(row);
+const normalizeLogRenderValue = (value) => {
+  if (value === null || value === undefined) {
+    return '';
   }
 
-  return Object.keys(row).reduce((output, key) => {
-    output[key] = truncateLogRenderValue(row[key]);
-    return output;
-  }, {});
+  const primitiveValue = normalizeLogRenderPrimitive(value);
+  if (primitiveValue !== value || typeof primitiveValue !== 'object') {
+    return primitiveValue;
+  }
+
+  if (Array.isArray(value)) {
+    let changed = false;
+    const list = value.map((item) => {
+      const nextItem = normalizeLogRenderValue(item);
+      changed = changed || nextItem !== item;
+      return nextItem;
+    });
+
+    return changed ? list : value;
+  }
+
+  if (isPlainLogRenderObject(value)) {
+    let changed = false;
+    const output = {};
+    Object.keys(value).forEach((key) => {
+      const nextValue = normalizeLogRenderValue(value[key]);
+      changed = changed || nextValue !== value[key];
+      output[key] = nextValue;
+    });
+
+    return changed ? output : value;
+  }
+
+  return value;
 };
 
-const truncateLogRenderList = list => (Array.isArray(list) ? list.map(row => truncateLogRenderRow(row)) : []);
+const normalizeLogRenderRow = (row) => {
+  if (!isPlainLogRenderObject(row)) {
+    return normalizeLogRenderValue(row);
+  }
+
+  let changed = false;
+  const output = {};
+  Object.keys(row).forEach((key) => {
+    const nextValue = normalizeLogRenderValue(row[key]);
+    changed = changed || nextValue !== row[key];
+    output[key] = nextValue;
+  });
+
+  return changed ? output : row;
+};
+
+const normalizeLogRenderList = list => (Array.isArray(list) ? list.map(row => normalizeLogRenderRow(row)) : []);
 
 const stateTpl = {
   userMeta: {
@@ -1418,17 +1453,14 @@ const store = new Vuex.Store({
               const rsolvedData = data;
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
-                const logList = truncateLogRenderList(parseBigNumberList(rsolvedData.list));
-                const originLogList = truncateLogRenderList(parseBigNumberList(rsolvedData.origin_log_list));
+                const logList = normalizeLogRenderList(rsolvedData.list);
                 rsolvedData.total = rsolvedData.total.toNumber();
                 const size = logList.length;
 
                 rsolvedData.list = Object.freeze(
                   payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList,
                 );
-                rsolvedData.origin_log_list = Object.freeze(
-                  payload.isPagination ? indexSetQueryResult.origin_log_list.concat(originLogList) : originLogList,
-                );
+                rsolvedData.origin_log_list = [];
 
                 const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
                 state.tookTime = payload.isPagination
