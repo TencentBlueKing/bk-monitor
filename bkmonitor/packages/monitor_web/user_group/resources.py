@@ -95,7 +95,10 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         duty_rules = DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=duty_rule_ids), many=True).data
         request_data["duty_rules"] = duty_rules
         request_data["duty_rule_ids"] = duty_rule_ids
-        request_data["user_group"] = user_group
+        # source_type=API 时按规则直接现算，不依赖快照和已有计划
+        request_data["user_group"] = (
+            user_group if request_data["source_type"] == PreviewSerializer.SourceType.DB else None
+        )
         return request_data
 
     def perform_request(self, validated_request_data):
