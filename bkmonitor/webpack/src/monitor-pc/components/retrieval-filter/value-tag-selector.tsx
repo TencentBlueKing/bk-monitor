@@ -148,6 +148,7 @@ export default class ValueTagSelector extends tsc<IProps> {
 
     if (!this.multiple) {
       this.inputValue = item.id;
+      this.isShowDropDown = false;
     } else {
       this.activeIndex = -1;
       if (this.localValue.some(v => v.id === item.id)) return;
