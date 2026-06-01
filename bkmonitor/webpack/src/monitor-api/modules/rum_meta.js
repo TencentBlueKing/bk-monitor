@@ -1,6 +1,7 @@
 import { request } from '../base';
 
 export const getMetaConfigInfo = request('POST', 'rum/meta/meta_info/meta_config_info/');
+export const listEsClusterGroups = request('GET', 'rum/meta/meta_info/list_cluster_groups/');
 export const createApplication = request('POST', 'rum/meta/application/create_application/');
 export const checkDuplicateAppName = request('POST', 'rum/meta/application/check_duplicate_app_name/');
 export const deleteApplication = request('POST', 'rum/meta/application/delete_application/');
@@ -19,10 +20,10 @@ export const listApplication = request('POST', 'rum/meta/application/list_applic
 export const listApplicationAsync = request('POST', 'rum/meta/application/list_application_async/');
 export const queryRumTokenInfo = request('POST', 'rum/meta/application/query_rum_token/');
 export const storageFieldInfo = request('POST', 'rum/meta/application/storage_field_info/');
-export const listEsClusterGroups = request('GET', 'rum/meta/application/list_cluster_groups/');
 
 export default {
   getMetaConfigInfo,
+  listEsClusterGroups,
   createApplication,
   checkDuplicateAppName,
   deleteApplication,
@@ -41,5 +42,4 @@ export default {
   listApplicationAsync,
   queryRumTokenInfo,
   storageFieldInfo,
-  listEsClusterGroups,
 };

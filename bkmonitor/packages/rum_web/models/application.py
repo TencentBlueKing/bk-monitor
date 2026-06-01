@@ -8,12 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from django.db import models
 from django.db.transaction import atomic
 
+from bkm_space.api import SpaceApi
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
+from bkmonitor.utils.request import get_request
 from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -97,6 +100,26 @@ class Application(AbstractRecordModel):
         if not instance:
             raise ValueError(f"rum application(id: {application_id}) not found.")
         return instance
+
+    @classmethod
+    def get_application_id_by_app_name(cls, app_name: str):
+        request = get_request()
+        biz_id: int | None = request.biz_id
+
+        if biz_id is None:
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except (TypeError, json.JSONDecodeError):
+                raise ValueError(f"application({app_name}) not found")
+
+            # space_uid to biz_id
+            if "space_uid" in data:
+                biz_id = SpaceApi.get_space_detail(space_uid=data["space_uid"]).bk_biz_id
+
+        try:
+            return cls.objects.filter(bk_biz_id=biz_id, app_name=app_name).values_list("application_id", flat=True)[0]
+        except IndexError:
+            raise ValueError(f"application({app_name}) not found")
 
     def sync_datasource(self):
         """同步数据源到 SaaS 中"""
