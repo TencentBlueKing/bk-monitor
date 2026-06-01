@@ -385,14 +385,9 @@ export default defineComponent({
               {/* Grok 定义 */}
               <bk-form-item
                 property='pattern'
+                label={t('Grok 定义（可引用其他模式）')}
                 required
               >
-                <div
-                  class='grok-pattern-label'
-                  slot='label'
-                >
-                  <span>{t('Grok 定义（可引用其他模式）')}</span>
-                </div>
                 <GrokInput
                   grokMode={grokModeEnabled.value}
                   popoverPosition='editor'
