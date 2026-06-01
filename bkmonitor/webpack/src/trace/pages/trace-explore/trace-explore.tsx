@@ -55,13 +55,7 @@ import {
   EMode,
 } from '../../components/retrieval-filter/typing';
 import {
-  DURATION_KEYS,
-  INPUT_TAG_KEYS,
   mergeWhereList,
-  SPAN_DEFAULT_RESIDENT_SETTING_KEY,
-  SPAN_NOT_SUPPORT_ENUM_KEYS,
-  TRACE_DEFAULT_RESIDENT_SETTING_KEY,
-  TRACE_NOT_SUPPORT_ENUM_KEYS,
   traceWhereChangeFormatter,
   traceWhereFormatter,
 } from '../../components/retrieval-filter/utils';
@@ -77,8 +71,8 @@ import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { useCandidateValue } from './hooks/use-candidate-value';
+import { type TraceExploreApmHooks, BRIDGE_PROPS_KEY, TRACE_EXPLORE_APM_HOOKS_KEY } from './trace-explore-apm';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
-import { TRACE_EXPLORE_APM_HOOKS_KEY, BRIDGE_PROPS_KEY, type TraceExploreApmHooks } from './trace-explore-apm';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
 const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
@@ -86,6 +80,22 @@ const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
 const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
 /** 应用置顶列表 */
 const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thumbtack';
+
+const TRACE_DEFAULT_RESIDENT_SETTING_KEY = [
+  'trace_id',
+  'trace_duration',
+  'resource.service.name',
+  'collections.resource.service.name',
+  'span_name',
+  'collections.span_name',
+];
+const SPAN_DEFAULT_RESIDENT_SETTING_KEY = ['trace_id', 'elapsed_time', 'resource.service.name', 'span_name'];
+const DURATION_KEYS = ['trace_duration', 'elapsed_time'];
+const INPUT_TAG_KEYS = ['span_id', 'trace_id'];
+/* Span 不支持弹出枚举值的字段 */
+const SPAN_NOT_SUPPORT_ENUM_KEYS = ['time', 'start_time', 'end_time', 'parent_span_id', 'span_id', 'trace_id'];
+/* Trace 不支持弹出枚举值的字段 */
+const TRACE_NOT_SUPPORT_ENUM_KEYS = ['min_start_time', 'max_end_time', 'trace_id', 'root_span_id'];
 
 updateTimezone(window.timezone);
 
@@ -118,8 +128,8 @@ export default defineComponent({
     const router = useRouter();
     const store = useTraceExploreStore();
     const appStore = useAppStore();
-    const apmHooks = inject<TraceExploreApmHooks | null>(TRACE_EXPLORE_APM_HOOKS_KEY, null);
-    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
+    const apmHooks = inject<null | TraceExploreApmHooks>(TRACE_EXPLORE_APM_HOOKS_KEY, null);
+    const bridgeProps = inject(BRIDGE_PROPS_KEY, {});
     const bizId = computed(() => appStore.bizId);
     const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
     const isCollapsed = shallowRef(false);

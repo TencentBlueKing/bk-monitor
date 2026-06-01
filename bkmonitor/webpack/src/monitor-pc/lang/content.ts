@@ -267,6 +267,7 @@ export default {
   报警关闭时执行: 'When alarm is closed',
   报警确认时执行: 'When alarm is acknowledged',
   故障ID: 'Incident ID',
+  合并前故障ID: 'Incident ID before merging',
   故障UUID: 'Incident UUID',
   故障内部ID: 'Internal Incident ID',
   故障名称: 'Incident Name',

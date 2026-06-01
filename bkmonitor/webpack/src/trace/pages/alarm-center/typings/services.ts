@@ -317,6 +317,12 @@ export type IncidentTableItem = {
   create_time: number;
   duration: string;
   end_time: number;
+  extra_info: {
+    merge_info?: {
+      origin_incident_doc_id: string;
+      target_incident_doc_id: string;
+    };
+  };
   handlers: string[];
   id: string;
   incident_id: number;
