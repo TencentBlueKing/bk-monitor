@@ -58,6 +58,32 @@ export const isAlarmCenterRouteHash = (hash?: null | string) => {
     /^alarm-center\/.+/.test(hashPath)
   );
 };
+
+export const parseBizId = (bizId: null | number | string | undefined): number => {
+  if (bizId === null || bizId === undefined) return Number.NaN;
+  const normalized = `${bizId}`.replace(/\//gim, '').trim();
+  if (!normalized) return Number.NaN;
+  const unquoted =
+    (normalized.startsWith("'") && normalized.endsWith("'")) || (normalized.startsWith('"') && normalized.endsWith('"'))
+      ? normalized.slice(1, -1).trim()
+      : normalized;
+  if (!unquoted) return Number.NaN;
+  const parsedBizId = Number(unquoted);
+  return Number.isFinite(parsedBizId) ? parsedBizId : Number.NaN;
+};
+
+export const isValidBizId = (bizId: null | number | string | undefined): boolean => Number.isFinite(parseBizId(bizId));
+
+export const getBizRouteHref = (hashPath: string, bizId: null | number | string | undefined): string => {
+  const baseHref = `${location.origin}${location.pathname}`;
+  const normalizedHashPath = hashPath.startsWith('#') ? hashPath.slice(1) : hashPath;
+  const parsedBizId = parseBizId(bizId);
+  if (!Number.isFinite(parsedBizId)) {
+    // 无效业务ID时保留目标路由，避免因强制重定向导致路由循环。
+    return `${baseHref}#${normalizedHashPath || '/'}`;
+  }
+  return `${baseHref}?bizId=${parsedBizId}#${normalizedHashPath}`;
+};
 // 设置全局业务ID
 export const setGlobalBizId = () => {
   let bizId: number | string = +getUrlParam('bizId')?.replace(/\//gim, '');
