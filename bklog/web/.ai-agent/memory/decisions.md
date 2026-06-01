@@ -55,3 +55,28 @@ Record durable decisions, alternatives, tradeoffs and consequences here.
 - 问题：关闭流程会清空本地参数/列表，但旧滚动 timer 或旧请求回调仍可能继续使用已失效状态，导致请求参数出现 `None` 等非法值，后端报 `query_shard_exception`。
 - 决策：`context-log/index.tsx` 增加弹窗可见态和 request sequence 保护；关闭、切换行、卸载时清理 scroll listener、所有 timer，并 cancel 固定 requestId 的上下文请求；旧请求返回后不再落地 UI，不再触发滚动定位/高亮初始化。
 - 约束：上下文日志的滚动加载必须先判断弹窗仍可见、requestSeq 仍匹配、关键参数有效；ESC 关闭后禁止继续发起或落地 `retrieve/getContentLog`。
+
+## 2026-05-29 Retrieve result render value truncation
+
+Context: `src/store/index.js` `requestIndexSetQuery` receives `data.list` / `origin_log_list` from log search API. Individual field values can be extremely large and cause Vue render / JSON expand performance issues.
+
+Decision:
+- Before committing query results to `indexSetQueryResult`, normalize parsed rows with a render-safe truncation pass.
+- Only truncate values whose runtime type is `string` and whose length exceeds `32 * 1024` chars.
+- Preserve all non-string values unchanged.
+- Preserve JSON rendering compatibility by recursively processing object / array values instead of stringifying entire objects.
+- Apply to both `list` and `origin_log_list`, so table cells and expand JSON view share the same render-safe data.
+
+Constraint:
+- Do not deep-watch result lists.
+- Do not clone or stringify whole rows for truncation.
+- Keep row object structure stable for `parseTableRowData`, expand view and JSON rendering.
+
+## 2026-06-01 Log Query Render Value Truncation Clarification
+
+- `src/store/index.js` log query result truncation must treat `data.list` / `origin_log_list` as arrays of row objects.
+- For each row object, every key's value must be processed independently.
+- String values are truncated to `32 * 1024` characters; shorter strings and non-string values remain unchanged.
+- Nested Object/Array values should preserve JSON structure and recursively truncate only string leaves.
+- BigNumber-like values with `_isBigNumber` must not be expanded/rewritten by truncation logic.
+- Do not stringify a whole row or nested JSON object before truncating, otherwise JSON rendering compatibility will be broken.
