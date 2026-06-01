@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+# ruff: noqa: F405
+
 import os
 import sys
 
@@ -32,6 +34,11 @@ from config.log import get_logging_config_dict
 
 # 使用k8s部署模式
 IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
+IS_DJANGO_SHELL = len(sys.argv) > 1 and sys.argv[1] in {"shell", "shell_plus"}
+SILENCE_DJANGO_SHELL_LOG = os.getenv("BKAPP_SILENCE_DJANGO_SHELL_LOG", "on") == "on"
+SILENCE_DJANGO_SHELL_OUTPUT = IS_K8S_DEPLOY_MODE and IS_DJANGO_SHELL and SILENCE_DJANGO_SHELL_LOG
+if SILENCE_DJANGO_SHELL_OUTPUT:
+    AUTO_UPDATE_COMPONENT_MODELS = False
 
 # 这里是默认的 INSTALLED_APPS，大部分情况下，不需要改动
 # 如果你已经了解每个默认 APP 的作用，确实需要去掉某些 APP，请去掉下面的注释，然后修改
@@ -360,6 +367,14 @@ if IS_K8S_DEPLOY_MODE:
         }
         for v in LOGGING["loggers"].values():
             v["handlers"].append("otlp")
+
+    if SILENCE_DJANGO_SHELL_OUTPUT:
+        LOGGING["handlers"]["shell_null"] = {"class": "logging.NullHandler"}
+        LOGGING["root"] = {"handlers": ["shell_null"], "level": "CRITICAL"}
+        for logger_config in LOGGING["loggers"].values():
+            logger_config["handlers"] = ["shell_null"]
+            logger_config["level"] = "CRITICAL"
+            logger_config["propagate"] = False
 
 OTLP_TRACE = os.getenv("BKAPP_OTLP_TRACE", "off") == "on"
 OTLP_GRPC_HOST = os.getenv("BKAPP_OTLP_GRPC_HOST", "http://localhost:4317")
