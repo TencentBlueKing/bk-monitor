@@ -117,6 +117,7 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         user_group = validated_request_data["user_group"]
         duty_plans = defaultdict(list)
         origin_duty_plans = user_group.duty_plans if user_group else []
+        new_duty_rule_ids = []
         for duty_rule in validated_request_data["duty_rules"]:
             # 获取那些未排班时间与预览时间有重叠的快照
             snaps = DutyRuleSnap.objects.filter(
@@ -154,9 +155,13 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 # 基于刷新后的生效时间，获取轮值计划预览
                 duty_manager = DutyRuleManager(duty_rule=duty_rule, begin_time=begin_time, end_time=preview_end_time)
                 duty_plans[duty_rule["id"]] += duty_manager.get_duty_plan()
+                # 记录重新生成的规则id,避免与origin_duty_plans 中的重复
+                new_duty_rule_ids.append(duty_rule["id"])
                 continue
 
         for duty_plan in origin_duty_plans:
+            if duty_plan.duty_rule_id in new_duty_rule_ids:
+                continue
             duty_plans[duty_plan.duty_rule_id].append(
                 {
                     "users": duty_plan.users,
