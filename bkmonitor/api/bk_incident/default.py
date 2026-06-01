@@ -185,7 +185,7 @@ class UpdateIncidentDetailResource(IncidentBaseResource):
     """更新 incident_manager 故障详情。"""
 
     action = "/incident/incident/update_incident_detail/"
-    method = "PUT"
+    method = "POST"
 
     class RequestSerializer(serializers.Serializer):
         incident_id = serializers.IntegerField(label="故障ID", required=True)
