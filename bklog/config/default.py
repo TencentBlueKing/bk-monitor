@@ -34,6 +34,8 @@ from config.log import get_logging_config_dict
 
 # 使用k8s部署模式
 IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
+
+# 交互式 shell 不需要在启动期同步 pipeline 组件模型；该同步会直接 print 到屏幕，影响维护命令操作。
 IS_DJANGO_SHELL = len(sys.argv) > 1 and sys.argv[1] in {"shell", "shell_plus"}
 SILENCE_DJANGO_SHELL_LOG = os.getenv("BKAPP_SILENCE_DJANGO_SHELL_LOG", "on") == "on"
 SILENCE_DJANGO_SHELL_OUTPUT = IS_K8S_DEPLOY_MODE and IS_DJANGO_SHELL and SILENCE_DJANGO_SHELL_LOG
@@ -369,6 +371,7 @@ if IS_K8S_DEPLOY_MODE:
             v["handlers"].append("otlp")
 
     if SILENCE_DJANGO_SHELL_OUTPUT:
+        # 仅静默当前 shell 进程，web/celery/gunicorn 仍保持 stdout 日志采集。
         LOGGING["handlers"]["shell_null"] = {"class": "logging.NullHandler"}
         LOGGING["root"] = {"handlers": ["shell_null"], "level": "CRITICAL"}
         for logger_config in LOGGING["loggers"].values():
