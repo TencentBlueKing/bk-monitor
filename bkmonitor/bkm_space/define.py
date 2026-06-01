@@ -31,6 +31,7 @@ class SpaceFunction(Enum):
     K8S = "K8S"  # Kubernetes
     CI_BUILDER = "CI_BUILDER"  # CI构建机
     PAAS_APP = "PAAS_APP"  # 蓝鲸应用
+    RUM = "RUM"  # 真实用户监控
 
 
 @dataclass

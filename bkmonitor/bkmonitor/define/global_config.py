@@ -742,6 +742,9 @@ STANDARD_CONFIGS = OrderedDict(
                 label=_("APM 自定义指标 V2 开启的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"), default=[]
             ),
         ),
+        # RUM
+        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接入链接"), default="", allow_blank=True)),
+        ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
     ]
 )
 
