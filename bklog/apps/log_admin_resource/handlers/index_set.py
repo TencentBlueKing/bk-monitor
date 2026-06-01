@@ -3,6 +3,7 @@ from apps.log_admin_resource.handlers.collector import serialize_collector
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 def list_index_sets(params):
@@ -85,7 +86,7 @@ def _serialize_index_set(index_set):
         "index_set_id": index_set.index_set_id,
         "index_set_name": index_set.index_set_name,
         "space_uid": index_set.space_uid,
-        "bk_biz_id": _get_bk_biz_id(index_set, indexes),
+        "bk_biz_id": _get_bk_biz_id(index_set),
         "category_id": index_set.category_id,
         "collector_config_id": index_set.collector_config_id,
         "scenario_id": index_set.scenario_id,
@@ -164,16 +165,8 @@ def _get_member_index_sets(index_set):
     return [child_map[child_id] for child_id in child_ids if child_id in child_map]
 
 
-def _get_bk_biz_id(index_set, indexes):
-    for item in indexes:
-        if item.bk_biz_id is not None:
-            return item.bk_biz_id
-    if index_set.space_uid.startswith("bkcc__"):
-        try:
-            return int(index_set.space_uid.split("__", 1)[1])
-        except (IndexError, ValueError):
-            return 0
-    return 0
+def _get_bk_biz_id(index_set):
+    return space_uid_to_bk_biz_id(index_set.space_uid)
 
 
 def _apply_ordering(qs, ordering):

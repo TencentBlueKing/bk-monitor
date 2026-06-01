@@ -399,3 +399,29 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertTrue(result["index_set"]["is_group"])
         self.assertEqual([item["result_table_id"] for item in result["indexes"]], ["2_bklog.bcs_checkinsvr"])
         self.assertEqual([item["collector_config_id"] for item in result["collectors"]], [10402])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("bkm_space.api.SpaceApi.get_space_detail")
+    def test_index_set_bk_biz_id_uses_space_uid_not_index_data_biz_id(self, mock_get_space_detail):
+        mock_get_space_detail.return_value = SimpleNamespace(id=66)
+        index_set = LogIndexSet.objects.create(
+            index_set_id=971,
+            index_set_name="pipeline-external-log",
+            space_uid="bkci__pipeline-demo",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+        LogIndexSetData.objects.create(
+            index_id=1971,
+            index_set_id=index_set.index_set_id,
+            bk_biz_id=2,
+            result_table_id="2_bklog.pipeline_external_log",
+            result_table_name="Pipeline 外部日志",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        content = self._call("bklog.index_set.detail", {"index_set_id": 971})
+
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["result"]["index_set"]["bk_biz_id"], -66)
