@@ -32,7 +32,7 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
-from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose_profile_data_id_name
+from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose_profile_data_id_name, _V4_NAMESPACE
 from apm.models.shared_datasource import BaseSharedDataSource, SHARED_DS_REGISTRY
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -1501,6 +1501,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def is_bkbase_v4_link(self) -> bool:
         return (self.bkdata_datalink_config.get("version") or 3) == 4
 
+    def to_json(self):
+        return {
+            **super().to_json(),
+            "bkdata_datalink_config": self.bkdata_datalink_config,
+            "created": self.created,
+        }
+
     @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
@@ -1527,7 +1534,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
 
         # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
-        use_v4 = profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST
+        # GlobalConfig 前端输入的值可能为字符串，统一转 int 比较
+        v4_white_list = [int(x) for x in settings.APM_PROFILE_V4_BIZ_WHITE_LIST]
+        use_v4 = profile_bk_biz_id in v4_white_list
 
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
@@ -1541,6 +1550,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
             obj.bkdata_datalink_config = {
                 "version": 4,
+                "namespace": _V4_NAMESPACE,
                 "v4_resource_names": {
                     "data_id_name": data_id_name,
                     "result_table_name": None,
@@ -1555,6 +1565,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
             bkdata_datalink_config = {
                 "version": 4,
+                "namespace": _V4_NAMESPACE,
                 "v4_resource_names": {
                     "data_id_name": resource_names["data_id_name"],
                     "result_table_name": resource_names["result_table_name"],

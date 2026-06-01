@@ -992,9 +992,20 @@ export default class BasicInfo extends tsc<object> {
             )}
           </div>
         </div>
-        <div class='config-form-item'>
+        <div class='config-form-item config-form-item-log'>
           <span class='label'>{this.$t('关联日志')}</span>
-          <div class='content'>
+          <div class='content log-content'>
+            <bk-button 
+              ext-cls='log-config-btn'
+              theme={this.authority.VIEW_AUTH ? 'primary' : 'default'} 
+              outline 
+              v-authority={{ active: !this.authority.VIEW_AUTH }}
+              onClick={
+                () => this.authority.VIEW_AUTH ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
+              }>
+              <i class='icon-monitor icon-fenxiang' />
+              {this.$t('应用配置')}
+            </bk-button>
             {this.isEditing ? (
               <div class='edit-form-item'>
                 {/* <bk-select
@@ -1056,7 +1067,7 @@ export default class BasicInfo extends tsc<object> {
                         {item?.is_global ? this.renderGlobalLogChange() : undefined}
                       </div>
                     ))
-                  : '--'}
+                  : ''}
               </section>
             )}
           </div>

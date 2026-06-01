@@ -152,6 +152,13 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
 
 
 class TransferApiTenantGetterTest(TestCase):
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-19078")
+    def test_result_table_getter_uses_table_id_biz_id(self, mock_get_tenant_id):
+        tenant_id = TransferApi.get_result_table.bk_tenant_id({"table_id": "19078_bklog.test_migrate_app"})
+
+        self.assertEqual(tenant_id, "tenant-19078")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=19078)
+
     @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-2")
     def test_result_table_storage_getter_uses_result_table_list_biz_id(self, mock_get_tenant_id):
         tenant_id = TransferApi.get_result_table_storage.bk_tenant_id(
@@ -159,7 +166,25 @@ class TransferApiTenantGetterTest(TestCase):
         )
 
         self.assertEqual(tenant_id, "tenant-2")
-        mock_get_tenant_id.assert_called_once_with(bk_biz_id="2")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=2)
+
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-space-1")
+    def test_result_table_storage_getter_supports_space_result_table_id(self, mock_get_tenant_id):
+        tenant_id = TransferApi.get_result_table_storage.bk_tenant_id(
+            {"result_table_list": "space_1_bklog.stag_20", "storage_type": "elasticsearch"}
+        )
+
+        self.assertEqual(tenant_id, "tenant-space-1")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=-1)
+
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-space-1")
+    def test_snapshot_state_getter_uses_first_table_id(self, mock_get_tenant_id):
+        tenant_id = TransferApi.get_result_table_snapshot_state.bk_tenant_id(
+            {"table_ids": ["space_1_bklog.stag_20", "space_2_bklog.other"]}
+        )
+
+        self.assertEqual(tenant_id, "tenant-space-1")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=-1)
 
 
 class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
@@ -374,3 +399,29 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertTrue(result["index_set"]["is_group"])
         self.assertEqual([item["result_table_id"] for item in result["indexes"]], ["2_bklog.bcs_checkinsvr"])
         self.assertEqual([item["collector_config_id"] for item in result["collectors"]], [10402])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("bkm_space.api.SpaceApi.get_space_detail")
+    def test_index_set_bk_biz_id_uses_space_uid_not_index_data_biz_id(self, mock_get_space_detail):
+        mock_get_space_detail.return_value = SimpleNamespace(id=66)
+        index_set = LogIndexSet.objects.create(
+            index_set_id=971,
+            index_set_name="pipeline-external-log",
+            space_uid="bkci__pipeline-demo",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+        LogIndexSetData.objects.create(
+            index_id=1971,
+            index_set_id=index_set.index_set_id,
+            bk_biz_id=2,
+            result_table_id="2_bklog.pipeline_external_log",
+            result_table_name="Pipeline 外部日志",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        content = self._call("bklog.index_set.detail", {"index_set_id": 971})
+
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["result"]["index_set"]["bk_biz_id"], -66)
