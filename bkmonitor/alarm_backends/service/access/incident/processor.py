@@ -53,6 +53,8 @@ class BaseAccessIncidentProcess(BaseAccessProcess):
 
 
 class AccessIncidentProcess(BaseAccessIncidentProcess):
+    BKFARA_NOTICE_SOURCE = "bkfara"
+
     def __init__(self, broker_url: str, queue_name: str) -> None:
         super().__init__()
 
@@ -75,6 +77,32 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             self.actions = sync_info["incident_actions"]
             return True
         return False
+
+    @classmethod
+    def is_bkfara_notice(cls, sync_info: dict) -> bool:
+        return sync_info.get("notice_source") == cls.BKFARA_NOTICE_SOURCE
+
+    @classmethod
+    def get_incident_api(cls, sync_info: dict):
+        return api.bk_incident if cls.is_bkfara_notice(sync_info) else api.bkdata
+
+    def update_remote_incident_detail(
+        self,
+        sync_info: dict,
+        incident_document: IncidentDocument,
+        mark_received: bool = False,
+        **overrides,
+    ) -> None:
+        params = {
+            "incident_id": sync_info["incident_id"],
+            "assignees": incident_document.assignees,
+            "handlers": incident_document.handlers,
+            "labels": incident_document.labels,
+        }
+        if self.is_bkfara_notice(sync_info) and mark_received:
+            params["bkmonitor_received_time"] = int(time.time())
+        params.update(overrides)
+        self.get_incident_api(sync_info).update_incident_detail(**params)
 
     def handle_sync_info(self, sync_info: dict) -> None:
         """处理rabbitmq中的内容.
@@ -152,7 +180,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     "rca_summary": {"bk_biz_ids": [incident_info["bk_biz_id"]]},
                 }
             else:
-                snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
+                snapshot_info = self.get_incident_api(sync_info).get_incident_snapshot(
+                    snapshot_id=sync_info["fpp_snapshot_id"]
+                )
 
             snapshot = IncidentSnapshotDocument(
                 incident_id=sync_info["incident_id"],
@@ -192,12 +222,13 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             if not incident_document.extra_info:
                 incident_document.extra_info = {}
             incident_document.extra_info["version_id"] = version_id
+            if self.is_bkfara_notice(sync_info):
+                incident_document.extra_info["notice_source"] = self.BKFARA_NOTICE_SOURCE
 
-            api.bkdata.update_incident_detail(
-                incident_id=sync_info["incident_id"],
-                assignees=incident_document.assignees,
-                handlers=incident_document.handlers,
-                labels=incident_document.labels,
+            self.update_remote_incident_detail(
+                sync_info,
+                incident_document,
+                mark_received=True,
             )
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.CREATE)
             logger.info(
@@ -286,7 +317,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
             )
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"] != "fpp:None":
-                snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
+                snapshot_info = self.get_incident_api(sync_info).get_incident_snapshot(
+                    snapshot_id=sync_info["fpp_snapshot_id"]
+                )
             else:
                 snapshot_info = {
                     "bk_biz_id": incident_info["bk_biz_id"],
@@ -370,14 +403,10 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 if not incident_document.extra_info:
                     incident_document.extra_info = {}
                 incident_document.extra_info["version_id"] = version_id
+                if self.is_bkfara_notice(sync_info):
+                    incident_document.extra_info["notice_source"] = self.BKFARA_NOTICE_SOURCE
 
-                api.bkdata.update_incident_detail(
-                    incident_id=sync_info["incident_id"],
-                    assignees=incident_document.assignees,
-                    handlers=incident_document.handlers,
-                    labels=incident_document.labels,
-                )
-                api.bkdata.update_incident_detail(incident_id=sync_info["incident_id"], labels=incident_document.labels)
+                self.update_remote_incident_detail(sync_info, incident_document)
 
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
             logger.info(
@@ -389,19 +418,21 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
         # 记录故障流转
         try:
+            remote_status_update = None
             for incident_key, update_info in sync_info["update_attributes"].items():
                 if update_info["from"]:
                     # 对状态流转做处理， 补充end_time属性
                     if incident_key == "status":
-                        if update_info["to"] in (IncidentStatus.RECOVERING.value, IncidentStatus.MERGED.value):
+                        if update_info["to"] in (
+                            IncidentStatus.RECOVERING.value,
+                            IncidentStatus.RECOVERED.value,
+                            IncidentStatus.MERGED.value,
+                        ):
                             # 结束状态下，end_time就是这次事件的update_time
                             incident_document.end_time = incident_info["update_time"]
                         elif update_info["to"] == IncidentStatus.ABNORMAL.value:
                             incident_document.end_time = None
-                        api.bkdata.update_incident_detail(
-                            incident_id=sync_info["incident_id"],
-                            end_time=incident_document.end_time,
-                        )
+                        remote_status_update = {"end_time": incident_document.end_time}
                     IncidentOperationManager.record_update_incident(
                         incident_id=sync_info["incident_id"],
                         operate_time=incident_info["update_time"],
@@ -417,6 +448,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             incident_document.status_order = IncidentStatus(incident_document.status).order
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
+            if remote_status_update:
+                self.update_remote_incident_detail(sync_info, incident_document, **remote_status_update)
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
             return

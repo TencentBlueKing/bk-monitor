@@ -22,6 +22,14 @@
 
     @include flex-align;
 
+    &.config-form-item-log {
+      align-items: flex-start;
+
+      & > .label {
+        margin-top: 6px;
+      }
+    }
+
     .label {
       width: 92px;
       margin-right: 24px;
@@ -34,6 +42,23 @@
       white-space: nowrap;
 
       @include flex-align;
+    }
+
+    .log-content {
+      display: block;
+
+      .log-config-btn {
+        margin-bottom: 4px;
+
+        .icon-monitor {
+          margin-right: 8px;
+          font-size: 12px;
+        }
+
+        & + .edit-form-item {
+          margin-top: 24px;
+        }
+      }
     }
 
     .category-icon {
@@ -51,6 +76,10 @@
     }
 
     .relation-info-tag {
+      height: 32px;
+      margin: 4px 0 4px 6px;
+      line-height: 32px;
+
       .tag-label {
         margin-right: 4px;
       }
