@@ -56,6 +56,7 @@ from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource
 from monitor_web.incident.serializers import IncidentSearchSerializer
 from .utils import bk_data_robot_link_list_search
 
+
 class IncidentBaseResource(Resource):
     """
     故障相关资源基类
@@ -393,15 +394,13 @@ class IncidentListResource(IncidentBaseResource):
         result["enabled_spaces"] = []
 
         if bk_biz_ids:
-            general_config_data = GetConfigResource().request(**{
-                "config_type":"general_config",
-                "bk_biz_id_list":bk_biz_ids,
-                "bk_biz_id":bk_biz_ids[0]
-            })
-            for item in general_config_data.get("objects",[]):
-                if item.get("content",{}).get("enabled",False):
+            general_config_data = GetConfigResource().request(
+                **{"config_type": "general_config", "bk_biz_id_list": bk_biz_ids, "bk_biz_id": bk_biz_ids[0]}
+            )
+            for item in general_config_data.get("objects", []):
+                if item.get("content", {}).get("enabled", False):
                     result["enabled_spaces"].append(item.get("scope_value"))
-        result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST,"icon-kefu")
+        result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST, "icon-kefu")
         return result
 
 
@@ -1534,7 +1533,9 @@ class IncidentResultsResource(IncidentBaseResource):
 
         # 去除前面的时间戳
         incident_id = str(validated_request_data["id"])[10:]
-        raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        raw_results = api.bk_incident.get_incident_diagnosis(
+            incident_id=int(incident_id), bk_biz_id=validated_request_data["bk_biz_id"]
+        )
 
         if "incident_diagnosis" in raw_results and isinstance(raw_results["incident_diagnosis"], dict):
             diagnosis_result = {"status": None, "enabled": None, "sub_panels": {}}
@@ -1596,7 +1597,7 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         sub_panel = validated_request_data.get("sub_panel")
         incident_id = str(validated_request_data["id"])[10:]
         bk_biz_ids = validated_request_data["bk_biz_ids"]
-        raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        raw_results = api.bk_incident.get_incident_diagnosis(incident_id=int(incident_id), bk_biz_id=bk_biz_ids[0])
         raw_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("content")
         # 设置默认返回
         display_panel = sub_panel
@@ -1718,6 +1719,7 @@ class IncidentDateHistogramResultResource(Resource):
             return data
         return datas[0]
 
+
 class GetConfigResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.get_config(validated_request_data)
@@ -1727,12 +1729,13 @@ class FetchGlobalVariablesResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.fetch_global_variables(validated_request_data)
 
+
 class CreateListConfigResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.create_list_config(validated_request_data)
 
 
-class GetIncidentDocIdResource (Resource):
+class GetIncidentDocIdResource(Resource):
     class RequestSerializer(serializers.Serializer):
         incident_id = serializers.CharField(required=True, label="故障ID")
 
