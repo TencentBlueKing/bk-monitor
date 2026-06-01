@@ -138,7 +138,7 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 )
                 duty_plans[duty_rule["id"]].extend(duty_manager.get_duty_plan())
 
-            # step1 找到当前规则的最后一次plan_time
+            # 找到当前规则的最后一次plan_time
             if not user_group or (not snaps and source_type == PreviewSerializer.SourceType.API):
                 # 如果不是通过内部保存内容预览，直接生成
                 # 通过该方法，刷新 duty_rule.duty_arranges 的生效时间（begin_time）
