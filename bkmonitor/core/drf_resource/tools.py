@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import json
 import logging
@@ -23,7 +21,7 @@ from bkmonitor.utils.text import camel_to_underscore
 logger = logging.getLogger(__name__)
 
 
-class FieldType(object):
+class FieldType:
     BOOLEAN = "Boolean"
     NUMBER = "Number"
     STRING = "String"
@@ -69,7 +67,7 @@ def field_to_schema(field):
         "type": FieldType.STRING,
     }
 
-    if isinstance(field, (serializers.ListSerializer, serializers.ListField)):
+    if isinstance(field, serializers.ListSerializer | serializers.ListField):
         child_schema = field_to_schema(field.child)
         type_params = {"type": FieldType.ARRAY, "items": child_schema}
     elif isinstance(field, serializers.Serializer):
@@ -86,7 +84,7 @@ def field_to_schema(field):
         type_params = {
             "type": FieldType.STRING,
         }
-    elif isinstance(field, (serializers.MultipleChoiceField, serializers.ChoiceField)):
+    elif isinstance(field, serializers.MultipleChoiceField | serializers.ChoiceField):
         type_params = {
             "type": FieldType.ENUM,
             "choices": list(field.choices.keys()),
@@ -95,7 +93,7 @@ def field_to_schema(field):
         type_params = {
             "type": FieldType.BOOLEAN,
         }
-    elif isinstance(field, (serializers.DecimalField, serializers.FloatField)):
+    elif isinstance(field, serializers.DecimalField | serializers.FloatField):
         type_params = {
             "type": FieldType.NUMBER,
         }
@@ -128,17 +126,17 @@ def render_schema(fields, parent="", using_source=False):
     for field in fields:
         real_type = field["type"]
         field_name = field["source_name"] if using_source else field["name"]
-        origin_name = "{}.{}".format(parent, field_name) if parent else field_name
+        origin_name = f"{parent}.{field_name}" if parent else field_name
         real_name = origin_name
         if field["type"] == FieldType.ARRAY:
-            real_type = "%s[]" % field["items"]["type"]
+            real_type = "{}[]".format(field["items"]["type"])
         elif field["type"] == FieldType.ENUM:
-            choices = ",".join(['"%s"' % c for c in field["choices"]])
-            real_type = "{}={}".format(FieldType.STRING, choices)
+            choices = ",".join([f'"{c}"' for c in field["choices"]])
+            real_type = f"{FieldType.STRING}={choices}"
         if field["default"] is not empty:
             real_name = "{}={}".format(real_name, field["default"])
         if not field["required"]:
-            real_name = "[%s]" % real_name
+            real_name = f"[{real_name}]"
         print_list.append("{{{}}} {} {}".format(real_type, real_name, field["description"]))
 
         if field["type"] == FieldType.ARRAY and field["items"]["type"] == FieldType.OBJECT:
@@ -162,7 +160,7 @@ def _format_serializer_errors_core(errors, fields, params):
         label, sub_message = key, ""
 
         if key not in fields:
-            sub_message = json.dumps(field_errors)
+            sub_message = json.dumps(field_errors, ensure_ascii=False)
         else:
             field = fields[key]
             label = field.field_name
@@ -177,7 +175,7 @@ def _format_serializer_errors_core(errors, fields, params):
                     # 若错误信息中有%s可将错误值加入其中
                     sub_message = error.format(**{key: params.get(key, "")})
 
-        message = "({}) {}".format(label, sub_message)
+        message = f"({label}) {sub_message}"
         return message
     return ""
 
@@ -186,7 +184,7 @@ def format_serializer_errors(serializer):
     try:
         message = _format_serializer_errors_core(serializer.errors, serializer.fields, serializer.get_initial())
     except Exception as e:
-        logger.warning("序列化器错误信息格式化失败，原因: {}".format(e))
+        logger.warning(f"序列化器错误信息格式化失败，原因: {e}")
         return serializer.errors
     else:
         return message
