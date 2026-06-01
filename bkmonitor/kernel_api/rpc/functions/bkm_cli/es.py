@@ -83,10 +83,10 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
         "required_params": ["index_pattern", "field"],
         "optional_params": [],
         "evidence": (
-            "size:0 terms 聚合并回传 _shards/timed_out，判断是否塌缩为单一 missing 桶"
-            "（区分分片失败 vs doc_values/global-ordinals 退化）"
+            "size:0 terms 聚合 + 字段 exists 计数，并回传 _shards/timed_out；三方对照区分"
+            "分片失败 / doc_values·global-ordinals 退化 / 字段在文档里真缺失"
         ),
-        "cannot_prove": "证明不了源文档里该字段是否真为空（只看聚合期可分组性）",
+        "cannot_prove": "证明不了退化的根因时序（段合并 / ordinals 重建），需结合 cat_segments / unify-query trace",
     },
 ]
 
@@ -104,31 +104,58 @@ def _raise(message: str, *, error_code: str | None = None, next_actions: list[st
     raise CustomException(message=message, data=data)
 
 
-def _tenant_and_cluster(params: dict[str, Any]) -> tuple[str, int]:
-    bk_tenant_id = params.get("bk_tenant_id")
-    if not bk_tenant_id:
-        _raise("缺少 bk_tenant_id（应由 bkm-cli 服务桥注入）。")
+def _parse_cluster_id(params: dict[str, Any]) -> int:
     raw_cluster_id = params.get("cluster_id")
     if raw_cluster_id in (None, ""):
         _raise("缺少 cluster_id（取自 trace 的 query-storage-id）。")
     try:
-        cluster_id = int(raw_cluster_id)
+        return int(raw_cluster_id)
     except (TypeError, ValueError):
         _raise(f"cluster_id 必须是整数: {raw_cluster_id!r}")
-    return bk_tenant_id, cluster_id
+
+
+def _load_es_cluster(cluster_id: int):
+    """按 cluster_id（全局唯一 PK）反查 ClusterInfo，一次解决两件事：
+    - 反查 bk_tenant_id：agent 只持有 trace 里的 cluster_id、不知道租户，租户必须由服务端从集群反查；
+      inject_bk_tenant_id 只能从 bk_biz_id/space_uid/... 推租户，推不出 cluster_id，所以不能依赖它注入。
+    - 强制 cluster_type == elasticsearch：拒绝把非 ES 存储（kafka/influxdb/...）当 ES 直查，避免对任意
+      已注册存储 host 发带凭据的只读外呼。es_diagnose 与 list_es_capabilities 共用同一校验，避免不一致。
+    """
+    from metadata.models import ClusterInfo
+
+    try:
+        cluster = ClusterInfo.objects.get(cluster_id=cluster_id)
+    except ClusterInfo.DoesNotExist:
+        _raise(
+            f"未找到集群: cluster_id={cluster_id}",
+            error_code="CLUSTER_NOT_FOUND",
+            next_actions=["确认 cluster_id 正确（取自 trace query-storage-id）。"],
+        )
+    except Exception as error:
+        _raise(f"查询集群信息失败: {error}")
+    if getattr(cluster, "cluster_type", None) != ClusterInfo.TYPE_ES:
+        _raise(
+            f"集群 {cluster_id} 不是 ES 集群（cluster_type={getattr(cluster, 'cluster_type', None)}），"
+            "ES 只读诊断仅支持 elasticsearch 集群。",
+            error_code="OPERATION_NOT_ALLOWED",
+            next_actions=["确认 cluster_id 指向 ES 集群（取自 trace 的 ES query-storage-id）。"],
+        )
+    return cluster
 
 
 def _resolve_client(params: dict[str, Any]):
-    bk_tenant_id, cluster_id = _tenant_and_cluster(params)
+    cluster_id = _parse_cluster_id(params)
+    cluster = _load_es_cluster(cluster_id)
     try:
         # get_client 内部按 ClusterInfo 解密凭据 + 选版本客户端；凭据/host 全在服务端。
-        client = es_tools.get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
-    except Exception as error:  # ClusterInfo.DoesNotExist / 连接构造失败；多版本 ES 客户端异常类型各异
+        # 租户取自反查到的集群行（见 _load_es_cluster），不要求调用方传 bk_tenant_id。
+        client = es_tools.get_client(bk_tenant_id=cluster.bk_tenant_id, cluster_id=cluster_id)
+    except Exception as error:  # 连接构造失败；多版本 ES 客户端异常类型各异
         logger.warning("es-diagnose resolve client failed: cluster_id=%s, error=%s", cluster_id, error)
         _raise(
-            f"无法解析 ES 集群 {cluster_id}: {error}",
-            error_code="CLUSTER_NOT_FOUND",
-            next_actions=["确认 cluster_id 正确（取自 trace query-storage-id）。"],
+            f"无法构造 ES 集群 {cluster_id} 的连接: {error}",
+            error_code="ES_UPSTREAM_ERROR",
+            next_actions=["确认集群在线、凭据有效。"],
         )
     return client, cluster_id
 
@@ -330,7 +357,12 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
     body = {
         "size": 0,  # 护栏：恒 size:0，绝不返回原始文档（消除跨租户读原文）
         "timeout": ES_SEARCH_TIMEOUT,
-        "aggs": {"probe": {"terms": {"field": field, "size": PROBE_TERMS_SIZE, "missing": MISSING_PLACEHOLDER}}},
+        "aggs": {
+            "probe": {"terms": {"field": field, "size": PROBE_TERMS_SIZE, "missing": MISSING_PLACEHOLDER}},
+            # exists 计数：同一 size:0 查询内多算一个 filter 子聚合（无额外请求），用于区分
+            # “字段在文档里真缺失/为空”（exists=0）与“字段有值却聚不出 = doc_values/ordinals 退化”（exists>0）。
+            "field_exists": {"filter": {"exists": {"field": field}}},
+        },
     }
     try:
         res = client.search(index=index_pattern, body=body, params={"request_timeout": ES_REQUEST_TIMEOUT})
@@ -341,7 +373,9 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
     total_hits = _extract_total(hits)
     raw_total = hits.get("total")
     total_hits_relation = raw_total.get("relation") if isinstance(raw_total, dict) else "eq"  # ES7+ 可能是 gte 上限
-    buckets = (((res.get("aggregations") or {}).get("probe") or {}).get("buckets")) or []
+    aggs = res.get("aggregations") or {}
+    buckets = ((aggs.get("probe") or {}).get("buckets")) or []
+    exists_count = (aggs.get("field_exists") or {}).get("doc_count")  # 匹配文档中该字段 exists 的篇数
     missing_doc_count = None
     non_missing = 0
     for bucket in buckets:
@@ -360,6 +394,7 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
         "timed_out": timed_out,
         "total_hits": total_hits,
         "total_hits_relation": total_hits_relation,
+        "field_exists_doc_count": exists_count,
         "buckets_returned": len(buckets),
         "non_missing_buckets": non_missing,
         "missing_bucket_doc_count": missing_doc_count,
@@ -368,11 +403,23 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
     }
     if shards_failed:
         verdict = f"shards_failed={shards_failed} → 静默退化源于分片失败；看 shard_failures / 跑 cat_shards。"
-    elif only_missing_bucket and (total_hits or 0) > 0:
-        verdict = (
-            f"分片全成功且 total_hits>0，但 terms({field}) 只回单一 missing 桶 → "
-            "doc_values/global-ordinals 退化（非分片失败，典型聚合塌缩签名）。"
-        )
+    elif only_missing_bucket:
+        # 关键：只回单一 missing 桶时，必须用 exists 计数把“真退化”与“真缺失”分开，不能一律定性为退化。
+        if (exists_count or 0) > 0:
+            verdict = (
+                f"分片全成功，且有 {exists_count} 篇文档该字段 exists，但 terms({field}) 只回单一 missing 桶 → "
+                "doc_values/global-ordinals 退化（非分片失败，典型聚合塌缩签名）。"
+            )
+        elif exists_count == 0:
+            verdict = (
+                f"terms({field}) 只回 missing 桶且 exists 计数=0 → 该字段在匹配文档里确实缺失/为空，"
+                "属正常（非聚合退化）；核对 field 名 / index_pattern / 时间窗，或用 field_mapping 确认字段存在。"
+            )
+        else:  # exists_count 缺失（非预期），不臆断退化
+            verdict = (
+                f"terms({field}) 只回单一 missing 桶，但 exists 计数缺失，无法区分退化 vs 真缺失；"
+                "结合 field_mapping / cat_segments 复核。"
+            )
     elif timed_out:
         verdict = "timed_out=true → 聚合在限定时间内未完成，结果可能不完整（非确定性塌缩）。"
     elif (total_hits or 0) > 0 and len(buckets) == 0:
@@ -417,24 +464,9 @@ def es_diagnose(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_es_capabilities(params: dict[str, Any]) -> dict[str, Any]:
-    bk_tenant_id, cluster_id = _tenant_and_cluster(params)
-    from metadata.models import ClusterInfo
-
-    try:
-        cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
-    except ClusterInfo.DoesNotExist:
-        _raise(
-            f"未找到 ES 集群: cluster_id={cluster_id}",
-            error_code="CLUSTER_NOT_FOUND",
-            next_actions=["确认 cluster_id（取自 trace query-storage-id）。"],
-        )
-    except Exception as error:
-        _raise(f"查询集群信息失败: {error}")
-    if getattr(cluster, "cluster_type", None) != ClusterInfo.TYPE_ES:
-        _raise(
-            f"集群 {cluster_id} 不是 ES 集群（cluster_type={getattr(cluster, 'cluster_type', None)}）。",
-            error_code="OPERATION_NOT_ALLOWED",
-        )
+    # 与 es_diagnose 共用 cluster_id → 租户反查 + ES 类型校验（_load_es_cluster），保证两条路径行为一致。
+    cluster_id = _parse_cluster_id(params)
+    cluster = _load_es_cluster(cluster_id)
     es_version = getattr(cluster, "version", None)
     return {
         "cluster_id": cluster_id,
