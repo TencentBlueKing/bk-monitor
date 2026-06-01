@@ -1,4 +1,36 @@
 .code-remarks-dialog {
+  .bk-dialog-header {
+    position: relative;
+    z-index: 1;
+  }
+
+  .code-remarks-dialog-header {
+    display: flex;
+    align-items: center;
+
+    .code-remarks-dialog-header-title {
+      font-size: 20px;
+      color: #313238;
+      letter-spacing: 0;
+    }
+
+    .code-remarks-dialog-header-text {
+      font-size: 14px;
+    }
+
+    .log-config-btn {
+      margin-left: 18px;
+      display: flex;
+      align-items: center;
+      line-height: 24px;
+    }
+
+    .icon-monitor {
+      margin-right: 6px;
+      font-size: 12px;
+    }
+  }
+
   .bk-dialog-body {
     .code {
       margin-bottom: 6px;
